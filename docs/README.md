@@ -6,7 +6,7 @@ Feast (**Fea**ture **St**ore) is a customizable operational data system that re-
 
 Feast allows ML platform teams to:
 
-* **Make features consistently available for training and serving** by managing an _offline store_ (to process historical data for scale-out batch scoring or model training), a low-latency _online store_ (to power real-time prediction)_,_ and a battle-tested _feature server_ (to serve pre-computed features online).
+* **Make features consistently available for training and low-latency serving** by managing an _offline store_ (to process historical data for scale-out batch scoring or model training), a low-latency _online store_ (to power real-time prediction)_,_ and a battle-tested _feature server_ (to serve pre-computed features online).
 * **Avoid data leakage** by generating point-in-time correct feature sets so data scientists can focus on feature engineering rather than debugging error-prone dataset joining logic. This ensure that future feature values do not leak to models during training.
 * **Decouple ML from data infrastructure** by providing a single data access layer that abstracts feature storage from feature retrieval, ensuring models remain portable as you move from training models to serving models, from batch models to realtime models, and from one data infra system to another.
 
@@ -15,6 +15,16 @@ Feast allows ML platform teams to:
 {% endhint %}
 
 ![](assets/feast_marchitecture.png)
+
+{% hint style="info" %}
+**Note:** Feast uses a push model for online serving. This means that the feature store pushes feature values to the 
+online store, which reduces the latency of feature retrieval. This is more efficient than a pull model, where the model 
+serving system must make a request to the feature store to retrieve feature values. See 
+[this document](getting-started/architecture-and-components/push-vs-pull-model.md) for a more detailed discussion.
+{% endhint %}
+
+{% hint style="info" %}
+{% endhint %}
 
 ## Who is Feast for?
 
