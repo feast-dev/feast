@@ -9,7 +9,7 @@ The configured permissions are stored in the Feast registry and accessible throu
 The permission authorization enforcement is performed when requests are executed through one of the Feast (Python) servers
 - The online feature server (REST)
 - The offline feature server (Arrow Flight)
-- The registry server (grpc)
+- The registry server (gRPC)
 
 On the contrary, there is no permission enforcement when accessing the Feast API with a local provider.
 
