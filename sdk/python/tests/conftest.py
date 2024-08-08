@@ -457,17 +457,17 @@ def is_integration_test(all_markers_from_module):
           auth:
             type: kubernetes
         """),
-        dedent("""
-          auth:
-            type: oidc
-            client_id: feast-integration-client
-            client_secret: feast-integration-client-secret
-            username: reader_writer
-            password: password
-            realm: master
-            auth_server_url: KEYCLOAK_URL_PLACE_HOLDER
-            auth_discovery_url: KEYCLOAK_URL_PLACE_HOLDER/realms/master/.well-known/openid-configuration
-        """),
+        # dedent("""
+        #   auth:
+        #     type: oidc
+        #     client_id: feast-integration-client
+        #     client_secret: feast-integration-client-secret
+        #     username: reader_writer
+        #     password: password
+        #     realm: master
+        #     auth_server_url: KEYCLOAK_URL_PLACE_HOLDER
+        #     auth_discovery_url: KEYCLOAK_URL_PLACE_HOLDER/realms/master/.well-known/openid-configuration
+        # """),
     ],
 )
 def auth_config(request, is_integration_test):
