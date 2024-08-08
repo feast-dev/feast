@@ -11,7 +11,7 @@ The permission authorization enforcement is performed when requests are executed
 - The offline feature server (Arrow Flight)
 - The registry server (gRPC)
 
-On the contrary, there is no permission enforcement when accessing the Feast API with a local provider.
+Note that there is no permission enforcement when accessing the Feast API with a local provider.
 
 ## Concepts
 
