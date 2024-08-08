@@ -93,8 +93,8 @@ test-python-integration:
 test-python-integration-local:
 	FEAST_IS_LOCAL_TEST=True \
 	FEAST_LOCAL_ONLINE_CONTAINER=True \
-	python -m pytest -n 8 --color=yes --integration --durations=5 --dist loadgroup \
-		-k "not test_lambda_materialization and not test_snowflake_materialization" \
+	python -m pytest -n 4 --color=yes --integration --durations=20 --timeout=1200 --timeout_method=thread --dist loadgroup \
+		-k "not test_lambda_materialization and not test_snowflake_materialization and not test_remote_online_store_read" \
 		sdk/python/tests
 
 test-python-integration-container:

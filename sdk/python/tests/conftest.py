@@ -56,9 +56,7 @@ from tests.integration.feature_repos.universal.entities import (  # noqa: E402
     driver,
     location,
 )
-from tests.utils.auth_permissions_util import (
-    default_store,
-)
+from tests.utils.auth_permissions_util import default_store
 from tests.utils.http_server import check_port_open, free_port  # noqa: E402
 
 logger = logging.getLogger(__name__)
@@ -457,17 +455,17 @@ def is_integration_test(all_markers_from_module):
           auth:
             type: kubernetes
         """),
-        # dedent("""
-        #   auth:
-        #     type: oidc
-        #     client_id: feast-integration-client
-        #     client_secret: feast-integration-client-secret
-        #     username: reader_writer
-        #     password: password
-        #     realm: master
-        #     auth_server_url: KEYCLOAK_URL_PLACE_HOLDER
-        #     auth_discovery_url: KEYCLOAK_URL_PLACE_HOLDER/realms/master/.well-known/openid-configuration
-        # """),
+        dedent("""
+          auth:
+            type: oidc
+            client_id: feast-integration-client
+            client_secret: feast-integration-client-secret
+            username: reader_writer
+            password: password
+            realm: master
+            auth_server_url: KEYCLOAK_URL_PLACE_HOLDER
+            auth_discovery_url: KEYCLOAK_URL_PLACE_HOLDER/realms/master/.well-known/openid-configuration
+        """),
     ],
 )
 def auth_config(request, is_integration_test):
