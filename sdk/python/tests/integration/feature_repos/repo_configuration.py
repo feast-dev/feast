@@ -12,7 +12,6 @@ import pandas as pd
 import pytest
 
 from feast import (
-    Entity,
     FeatureStore,
     FeatureView,
     OnDemandFeatureView,
@@ -486,19 +485,6 @@ class OfflineServerPermissionsEnvironment(Environment):
 
         self.feature_store = FeatureStore(config=self.config)
         permissions_list = [
-            Permission(
-                name="offline_permissions_perm",
-                types=Permission,
-                policy=RoleBasedPolicy(roles=["writer"]),
-                actions=[AuthzedAction.QUERY_OFFLINE, AuthzedAction.WRITE_OFFLINE],
-            ),
-            Permission(
-                name="offline_entities_perm",
-                types=Entity,
-                with_subclasses=False,
-                policy=RoleBasedPolicy(roles=["writer"]),
-                actions=[AuthzedAction.QUERY_OFFLINE, AuthzedAction.WRITE_OFFLINE],
-            ),
             Permission(
                 name="offline_fv_perm",
                 types=FeatureView,

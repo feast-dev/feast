@@ -4,7 +4,7 @@ from textwrap import dedent
 
 import pytest
 
-from feast import Entity, FeatureView, OnDemandFeatureView, StreamFeatureView
+from feast import FeatureView, OnDemandFeatureView, StreamFeatureView
 from feast.feature_store import FeatureStore
 from feast.permissions.action import AuthzedAction
 from feast.permissions.permission import Permission
@@ -23,38 +23,25 @@ def test_remote_online_store_read(auth_config):
     with tempfile.TemporaryDirectory() as remote_server_tmp_dir, tempfile.TemporaryDirectory() as remote_client_tmp_dir:
         permissions_list = [
             Permission(
-                name="online_list_entities_perm",
-                types=Entity,
-                with_subclasses=False,
-                policy=RoleBasedPolicy(roles=["reader"]),
-                actions=[AuthzedAction.READ],
-            ),
-            Permission(
-                name="online_list_permissions_perm",
-                types=Permission,
-                policy=RoleBasedPolicy(roles=["reader"]),
-                actions=[AuthzedAction.READ],
-            ),
-            Permission(
                 name="online_list_fv_perm",
                 types=FeatureView,
                 with_subclasses=False,
                 policy=RoleBasedPolicy(roles=["reader"]),
-                actions=[AuthzedAction.READ],
+                actions=[AuthzedAction.QUERY_ONLINE],
             ),
             Permission(
                 name="online_list_odfv_perm",
                 types=OnDemandFeatureView,
                 with_subclasses=False,
                 policy=RoleBasedPolicy(roles=["reader"]),
-                actions=[AuthzedAction.READ],
+                actions=[AuthzedAction.QUERY_ONLINE],
             ),
             Permission(
                 name="online_list_sfv_perm",
                 types=StreamFeatureView,
                 with_subclasses=False,
                 policy=RoleBasedPolicy(roles=["reader"]),
-                actions=[AuthzedAction.READ],
+                actions=[AuthzedAction.QUERY_ONLINE],
             ),
         ]
         server_store, server_url, registry_path = (
