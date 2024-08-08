@@ -4,7 +4,7 @@ from concurrent import futures
 
 import grpc
 import pyarrow as pa
-from grpc_health.v1 import health, health_pb2_grpc
+from grpc_health.v1 import health, health_pb2, health_pb2_grpc
 from grpc_reflection.v1alpha import reflection
 
 from feast.errors import OnDemandFeatureViewNotFoundException
@@ -73,10 +73,13 @@ def start_server(store: FeatureStore, port: int):
     add_TransformationServiceServicer_to_server(TransformationServer(store), server)
 
     # Add health check service to server
-    health_pb2_grpc.add_HealthServicer_to_server(health.HealthServicer(), server)
+    health_servicer = health.HealthServicer()
+    health_pb2_grpc.add_HealthServicer_to_server(health_servicer, server)
+    health_servicer.set("", health_pb2.HealthCheckResponse.SERVING)
 
     service_names_available_for_reflection = (
         DESCRIPTOR.services_by_name["TransformationService"].full_name,
+        health_pb2.DESCRIPTOR.services_by_name["Health"].full_name,
         reflection.SERVICE_NAME,
     )
     reflection.enable_server_reflection(service_names_available_for_reflection, server)

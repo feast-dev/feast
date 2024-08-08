@@ -11,23 +11,19 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import copy
 import glob
-import json
 import os
 import pathlib
 import re
 import shutil
 import subprocess
 import sys
-from distutils.dir_util import copy_tree
 from pathlib import Path
 from subprocess import CalledProcessError
 
-from setuptools import Command, Extension, find_packages, setup
+from setuptools import Command, find_packages, setup
 from setuptools.command.build_py import build_py
 from setuptools.command.develop import develop
-from setuptools.command.install import install
 
 NAME = "eg-feast"
 DESCRIPTION = "EG-specific Python SDK for Feast"

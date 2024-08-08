@@ -5,5 +5,5 @@ To build and run the Go Feature Server locally, create a feature_store.yaml file
 
 ```bash
     go build -o feast ./go/main.go
-    ./feast --type=http --port 
+    ./feast --type=http --port=8080
 ```
