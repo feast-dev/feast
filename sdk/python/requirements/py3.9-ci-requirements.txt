@@ -2,7 +2,7 @@
 #    uv pip compile --system --no-strip-extras setup.py --extra ci --output-file sdk/python/requirements/py3.9-ci-requirements.txt
 aiobotocore==2.13.1
     # via feast (setup.py)
-aiohttp==3.9.5
+aiohttp==3.10.2
     # via aiobotocore
 aioitertools==0.11.0
     # via aiobotocore
