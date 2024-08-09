@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.40.1](https://github.com/feast-dev/feast/compare/v0.40.0...v0.40.1) (2024-08-09)
+
+
+### Bug Fixes
+
+* Add feast-operator files to semantic-release script (v0.40-branch) ([#4383](https://github.com/feast-dev/feast/issues/4383)) ([44f0e84](https://github.com/feast-dev/feast/commit/44f0e84a3e3b2a709fe9b951e57bb37792d06789))
+* Escape special characters in the Postgres password ([#4394](https://github.com/feast-dev/feast/issues/4394)) ([#4396](https://github.com/feast-dev/feast/issues/4396)) ([b456984](https://github.com/feast-dev/feast/commit/b456984fbc1299bb534c5b906b22ed2f55369591))
+
 # [0.40.0](https://github.com/feast-dev/feast/compare/v0.39.0...v0.40.0) (2024-07-31)
 
 
