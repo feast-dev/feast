@@ -15,7 +15,6 @@ import yaml
 from minio import Minio
 from testcontainers.core.generic import DockerContainer
 from testcontainers.core.waiting_utils import wait_for_logs
-from testcontainers.keycloak import KeycloakContainer
 from testcontainers.minio import MinioContainer
 
 from feast import FileSource, RepoConfig
@@ -34,10 +33,7 @@ from feast.wait import wait_retry_backoff  # noqa: E402
 from tests.integration.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
 )
-from tests.utils.auth_permissions_util import (
-    include_auth_config,
-    setup_permissions_on_keycloak,
-)
+from tests.utils.auth_permissions_util import include_auth_config
 from tests.utils.http_server import check_port_open, free_port  # noqa: E402
 
 logger = logging.getLogger(__name__)
@@ -438,7 +434,13 @@ class RemoteOfflineStoreDataSourceCreator(FileDataSourceCreator):
 class RemoteOfflineOidcAuthStoreDataSourceCreator(FileDataSourceCreator):
     def __init__(self, project_name: str, *args, **kwargs):
         super().__init__(project_name)
-        keycloak_url = self._setup_keycloak()
+        if "fixture_request" in kwargs:
+            request = kwargs["fixture_request"]
+            self.keycloak_url = request.getfixturevalue("start_keycloak_server")
+        else:
+            raise RuntimeError(
+                "fixture_request object is not passed to inject keycloak fixture dynamically."
+            )
         auth_config_template = """
 auth:
   type: oidc
@@ -450,15 +452,9 @@ auth:
   auth_server_url: {keycloak_url}
   auth_discovery_url: {keycloak_url}/realms/master/.well-known/openid-configuration
 """
-        self.auth_config = auth_config_template.format(keycloak_url=keycloak_url)
+        self.auth_config = auth_config_template.format(keycloak_url=self.keycloak_url)
         self.server_port: int = 0
         self.proc = None
-
-    def _setup_keycloak(self):
-        self.keycloak_container = KeycloakContainer("quay.io/keycloak/keycloak:24.0.1")
-        self.keycloak_container.start()
-        setup_permissions_on_keycloak(self.keycloak_container.get_client())
-        return self.keycloak_container.get_url()
 
     def setup(self, registry: RegistryConfig):
         parent_offline_config = super().create_offline_store_config()
@@ -510,11 +506,10 @@ auth:
         return self.remote_offline_store_config
 
     def get_keycloak_url(self):
-        return self.keycloak_container.get_url()
+        return self.keycloak_url
 
     def teardown(self):
         super().teardown()
-        self.keycloak_container.stop()
         if self.proc is not None:
             self.proc.kill()
 
