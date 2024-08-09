@@ -1,0 +1,58 @@
+syntax = "proto3";
+package feast.core;
+
+option go_package = "github.com/feast-dev/feast/go/protos/feast/core";
+option java_outer_classname = "PermissionProto";
+option java_package = "feast.proto.core";
+
+import "feast/core/Policy.proto";
+
+message Permission {
+
+  enum AuthzedAction {
+    CREATE = 0;
+    READ = 1;
+    UPDATE = 2;
+    DELETE = 3;
+    QUERY_ONLINE = 4;
+    QUERY_OFFLINE = 5;
+    WRITE_ONLINE = 6;
+    WRITE_OFFLINE = 7;
+  }
+
+  // Name of the permission. Must be unique. Not updated.
+  string name = 1;
+
+  // Name of Feast project.
+  string project = 2;
+
+  enum Type {
+      FEATURE_VIEW = 0;
+      ON_DEMAND_FEATURE_VIEW = 1;
+      BATCH_FEATURE_VIEW = 2;
+      STREAM_FEATURE_VIEW= 3;
+      ENTITY = 4;
+      FEATURE_SERVICE = 5;
+      DATA_SOURCE = 6;
+      VALIDATION_REFERENCE = 7;
+      SAVED_DATASET = 8;
+      PERMISSION = 9;
+  }
+
+  repeated Type types = 3;
+
+  bool with_subclasses = 4;
+
+  string name_pattern = 5;
+
+  map<string, string> required_tags = 6;
+
+  // List of actions.
+  repeated AuthzedAction actions = 7;
+
+  // the policy.
+  Policy policy = 8;
+
+  // User defined metadata
+  map<string,string> tags = 9;
+}

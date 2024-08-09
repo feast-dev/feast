@@ -1,0 +1,16 @@
+project: server
+provider: local
+registry:
+    registry_type: remote
+    path: feast-registry-server-feast-feature-server.feast-dev.svc.cluster.local:80
+offline_store:
+    type: postgres
+    host: postgresql.feast-dev.svc.cluster.local
+    port: 5432
+    database: feast
+    db_schema: public
+    user: feast
+    password: feast
+auth:
+    type: kubernetes
+entity_key_serialization_version: 2

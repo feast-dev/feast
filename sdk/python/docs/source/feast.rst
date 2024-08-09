@@ -12,6 +12,7 @@ Subpackages
    feast.embedded_go
    feast.infra
    feast.loaders
+   feast.permissions
    feast.protos
    feast.transformation
    feast.ui

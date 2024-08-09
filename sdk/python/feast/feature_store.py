@@ -76,6 +76,7 @@ from feast.infra.registry.registry import Registry
 from feast.infra.registry.sql import SqlRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.online_response import OnlineResponse
+from feast.permissions.permission import Permission
 from feast.protos.feast.core.InfraObject_pb2 import Infra as InfraProto
 from feast.protos.feast.serving.ServingService_pb2 import (
     FieldStatus,
@@ -157,9 +158,16 @@ class FeatureStore:
         elif registry_config and registry_config.registry_type == "remote":
             from feast.infra.registry.remote import RemoteRegistry
 
-            self._registry = RemoteRegistry(registry_config, self.config.project, None)
+            self._registry = RemoteRegistry(
+                registry_config, self.config.project, None, self.config.auth_config
+            )
         else:
-            r = Registry(self.config.project, registry_config, repo_path=self.repo_path)
+            r = Registry(
+                self.config.project,
+                registry_config,
+                repo_path=self.repo_path,
+                auth_config=self.config.auth_config,
+            )
             r._initialize_registry(self.config.project)
             self._registry = r
 
@@ -199,7 +207,10 @@ class FeatureStore:
         """
         registry_config = self.config.registry
         registry = Registry(
-            self.config.project, registry_config, repo_path=self.repo_path
+            self.config.project,
+            registry_config,
+            repo_path=self.repo_path,
+            auth_config=self.config.auth_config,
         )
         registry.refresh(self.config.project)
 
@@ -734,7 +745,8 @@ class FeatureStore:
             ...     on_demand_feature_views=list(),
             ...     stream_feature_views=list(),
             ...     entities=[driver],
-            ...     feature_services=list())) # register entity and feature view
+            ...     feature_services=list(),
+            ...     permissions=list())) # register entity and feature view
         """
         # Validate and run inference on all the objects to be registered.
         self._validate_all_feature_views(
@@ -798,6 +810,7 @@ class FeatureStore:
             StreamFeatureView,
             FeatureService,
             ValidationReference,
+            Permission,
             List[FeastObject],
         ],
         objects_to_delete: Optional[List[FeastObject]] = None,
@@ -869,6 +882,7 @@ class FeatureStore:
         validation_references_to_update = [
             ob for ob in objects if isinstance(ob, ValidationReference)
         ]
+        permissions_to_update = [ob for ob in objects if isinstance(ob, Permission)]
 
         batch_sources_to_add: List[DataSource] = []
         for data_source in data_sources_set_to_update:
@@ -924,10 +938,15 @@ class FeatureStore:
             self._registry.apply_validation_reference(
                 validation_references, project=self.project, commit=False
             )
+        for permission in permissions_to_update:
+            self._registry.apply_permission(
+                permission, project=self.project, commit=False
+            )
 
         entities_to_delete = []
         views_to_delete = []
         sfvs_to_delete = []
+        permissions_to_delete = []
         if not partial:
             # Delete all registry objects that should not exist.
             entities_to_delete = [
@@ -955,6 +974,9 @@ class FeatureStore:
             ]
             validation_references_to_delete = [
                 ob for ob in objects_to_delete if isinstance(ob, ValidationReference)
+            ]
+            permissions_to_delete = [
+                ob for ob in objects_to_delete if isinstance(ob, Permission)
             ]
 
             for data_source in data_sources_to_delete:
@@ -984,6 +1006,10 @@ class FeatureStore:
             for validation_references in validation_references_to_delete:
                 self._registry.delete_validation_reference(
                     validation_references.name, project=self.project, commit=False
+                )
+            for permission in permissions_to_delete:
+                self._registry.delete_permission(
+                    permission.name, project=self.project, commit=False
                 )
 
         tables_to_delete: List[FeatureView] = (
@@ -1914,6 +1940,72 @@ class FeatureStore:
         )
         ref._dataset = self.get_saved_dataset(ref.dataset_name)
         return ref
+
+    def list_validation_references(
+        self, allow_cache: bool = False, tags: Optional[dict[str, str]] = None
+    ) -> List[ValidationReference]:
+        """
+        Retrieves the list of validation references from the registry.
+
+        Args:
+            allow_cache: Whether to allow returning validation references from a cached registry.
+            tags: Filter by tags.
+
+        Returns:
+            A list of validation references.
+        """
+        return self._registry.list_validation_references(
+            self.project, allow_cache=allow_cache, tags=tags
+        )
+
+    def list_permissions(
+        self, allow_cache: bool = False, tags: Optional[dict[str, str]] = None
+    ) -> List[Permission]:
+        """
+        Retrieves the list of permissions from the registry.
+
+        Args:
+            allow_cache: Whether to allow returning permissions from a cached registry.
+            tags: Filter by tags.
+
+        Returns:
+            A list of permissions.
+        """
+        return self._registry.list_permissions(
+            self.project, allow_cache=allow_cache, tags=tags
+        )
+
+    def get_permission(self, name: str) -> Permission:
+        """
+        Retrieves a permission from the registry.
+
+        Args:
+            name: Name of the permission.
+
+        Returns:
+            The specified permission.
+
+        Raises:
+            PermissionObjectNotFoundException: The permission could not be found.
+        """
+        return self._registry.get_permission(name, self.project)
+
+    def list_saved_datasets(
+        self, allow_cache: bool = False, tags: Optional[dict[str, str]] = None
+    ) -> List[SavedDataset]:
+        """
+        Retrieves the list of saved datasets from the registry.
+
+        Args:
+            allow_cache: Whether to allow returning saved datasets from a cached registry.
+            tags: Filter by tags.
+
+        Returns:
+            A list of saved datasets.
+        """
+        return self._registry.list_saved_datasets(
+            self.project, allow_cache=allow_cache, tags=tags
+        )
 
 
 def _print_materialization_log(

@@ -14,7 +14,7 @@ from feast.infra.offline_stores.remote import (
     RemoteOfflineStore,
     RemoteOfflineStoreConfig,
 )
-from feast.offline_server import OfflineServer
+from feast.offline_server import OfflineServer, _init_auth_manager
 from feast.repo_config import RepoConfig
 from tests.utils.cli_repo_creator import CliRunner
 
@@ -26,6 +26,7 @@ def empty_offline_server(environment):
     store = environment.feature_store
 
     location = "grpc+tcp://localhost:0"
+    _init_auth_manager(store=store)
     return OfflineServer(store=store, location=location)
 
 
@@ -102,6 +103,8 @@ def test_remote_offline_store_apis():
     with tempfile.TemporaryDirectory() as temp_dir:
         store = default_store(str(temp_dir))
         location = "grpc+tcp://localhost:0"
+
+        _init_auth_manager(store=store)
         server = OfflineServer(store=store, location=location)
 
         assertpy.assert_that(server).is_not_none

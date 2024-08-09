@@ -41,6 +41,9 @@ from feast.infra.registry.registry import Registry
 from feast.infra.registry.remote import RemoteRegistry, RemoteRegistryConfig
 from feast.infra.registry.sql import SqlRegistry
 from feast.on_demand_feature_view import on_demand_feature_view
+from feast.permissions.action import AuthzedAction
+from feast.permissions.permission import Permission
+from feast.permissions.policy import RoleBasedPolicy
 from feast.protos.feast.registry import RegistryServer_pb2, RegistryServer_pb2_grpc
 from feast.registry_server import RegistryServer
 from feast.repo_config import RegistryConfig
@@ -271,7 +274,9 @@ def mock_remote_registry():
     proxied_registry = Registry("project", registry_config, None)
 
     registry = RemoteRegistry(
-        registry_config=RemoteRegistryConfig(path=""), project=None, repo_path=None
+        registry_config=RemoteRegistryConfig(path=""),
+        project=None,
+        repo_path=None,
     )
     mock_channel = GrpcMockChannel(
         RegistryServer_pb2.DESCRIPTOR.services_by_name["RegistryServer"],
@@ -1155,7 +1160,9 @@ def test_apply_stream_feature_view_success(test_registry):
     assert stream_feature_views[0] == sfv
 
     test_registry.delete_feature_view("test kafka stream feature view", project)
-    stream_feature_views = test_registry.list_stream_feature_views(project)
+    stream_feature_views = test_registry.list_stream_feature_views(
+        project, tags=sfv.tags
+    )
     assert len(stream_feature_views) == 0
 
     test_registry.teardown()
@@ -1344,3 +1351,140 @@ def validate_project_uuid(project_uuid, test_registry):
     assert len(test_registry.cached_registry_proto.project_metadata) == 1
     project_metadata = test_registry.cached_registry_proto.project_metadata[0]
     assert project_metadata.project_uuid == project_uuid
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("test_registry", all_fixtures)
+def test_apply_permission_success(test_registry):
+    permission = Permission(
+        name="read_permission",
+        actions=AuthzedAction.READ,
+        policy=RoleBasedPolicy(roles=["reader"]),
+        types=FeatureView,
+    )
+
+    project = "project"
+
+    # Register Permission
+    test_registry.apply_permission(permission, project)
+    project_metadata = test_registry.list_project_metadata(project=project)
+    assert len(project_metadata) == 1
+    project_uuid = project_metadata[0].project_uuid
+    assert len(project_metadata[0].project_uuid) == 36
+    assert_project_uuid(project, project_uuid, test_registry)
+
+    permissions = test_registry.list_permissions(project)
+    assert_project_uuid(project, project_uuid, test_registry)
+
+    permission = permissions[0]
+    assert (
+        len(permissions) == 1
+        and permission.name == "read_permission"
+        and len(permission.types) == 1
+        and permission.types[0] == FeatureView
+        and len(permission.actions) == 1
+        and permission.actions[0] == AuthzedAction.READ
+        and isinstance(permission.policy, RoleBasedPolicy)
+        and len(permission.policy.roles) == 1
+        and permission.policy.roles[0] == "reader"
+        and permission.with_subclasses
+        and permission.name_pattern is None
+        and permission.tags is None
+    )
+
+    permission = test_registry.get_permission("read_permission", project)
+    assert (
+        permission.name == "read_permission"
+        and len(permission.types) == 1
+        and permission.types[0] == FeatureView
+        and len(permission.actions) == 1
+        and permission.actions[0] == AuthzedAction.READ
+        and isinstance(permission.policy, RoleBasedPolicy)
+        and len(permission.policy.roles) == 1
+        and permission.policy.roles[0] == "reader"
+        and permission.with_subclasses
+        and permission.name_pattern is None
+        and permission.tags is None
+    )
+
+    # After the first apply, the created_timestamp should be the same as the last_update_timestamp.
+    # TODO: no such fields
+    # assert permission.created_timestamp == permission.last_updated_timestamp
+
+    # Update permission
+    updated_permission = Permission(
+        name="read_permission",
+        actions=[AuthzedAction.READ, AuthzedAction.WRITE_ONLINE],
+        policy=RoleBasedPolicy(roles=["reader", "writer"]),
+        types=FeatureView,
+    )
+    test_registry.apply_permission(updated_permission, project)
+
+    permissions = test_registry.list_permissions(project)
+    assert_project_uuid(project, project_uuid, test_registry)
+    assert len(permissions) == 1
+
+    updated_permission = test_registry.get_permission("read_permission", project)
+    assert (
+        updated_permission.name == "read_permission"
+        and len(updated_permission.types) == 1
+        and updated_permission.types[0] == FeatureView
+        and len(updated_permission.actions) == 2
+        and AuthzedAction.READ in updated_permission.actions
+        and AuthzedAction.WRITE_ONLINE in updated_permission.actions
+        and isinstance(updated_permission.policy, RoleBasedPolicy)
+        and len(updated_permission.policy.roles) == 2
+        and "reader" in updated_permission.policy.roles
+        and "writer" in updated_permission.policy.roles
+        and updated_permission.with_subclasses
+        and updated_permission.name_pattern is None
+        and updated_permission.tags is None
+    )
+
+    # # The created_timestamp for the entity should be set to the created_timestamp value stored from the previous apply
+    # TODO: no such fields
+    # assert (
+    #     updated_entity.created_timestamp is not None
+    #     and updated_entity.created_timestamp == entity.created_timestamp
+    # )
+
+    updated_permission = Permission(
+        name="read_permission",
+        actions=[AuthzedAction.READ, AuthzedAction.WRITE_ONLINE],
+        policy=RoleBasedPolicy(roles=["reader", "writer"]),
+        types=FeatureView,
+        with_subclasses=False,
+        name_pattern="aaa",
+        tags={"team": "matchmaking"},
+    )
+    test_registry.apply_permission(updated_permission, project)
+
+    permissions = test_registry.list_permissions(project)
+    assert_project_uuid(project, project_uuid, test_registry)
+    assert len(permissions) == 1
+
+    updated_permission = test_registry.get_permission("read_permission", project)
+    assert (
+        updated_permission.name == "read_permission"
+        and len(updated_permission.types) == 1
+        and updated_permission.types[0] == FeatureView
+        and len(updated_permission.actions) == 2
+        and AuthzedAction.READ in updated_permission.actions
+        and AuthzedAction.WRITE_ONLINE in updated_permission.actions
+        and isinstance(updated_permission.policy, RoleBasedPolicy)
+        and len(updated_permission.policy.roles) == 2
+        and "reader" in updated_permission.policy.roles
+        and "writer" in updated_permission.policy.roles
+        and not updated_permission.with_subclasses
+        and updated_permission.name_pattern == "aaa"
+        and "team" in updated_permission.tags
+        and updated_permission.tags["team"] == "matchmaking"
+    )
+
+    test_registry.delete_permission("read_permission", project)
+    assert_project_uuid(project, project_uuid, test_registry)
+    permissions = test_registry.list_permissions(project)
+    assert_project_uuid(project, project_uuid, test_registry)
+    assert len(permissions) == 0
+
+    test_registry.teardown()

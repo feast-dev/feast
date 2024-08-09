@@ -24,6 +24,7 @@ Commands:
   init                     Create a new Feast repository
   materialize              Run a (non-incremental) materialization job to...
   materialize-incremental  Run an incremental materialization job to ingest...
+  permissions              Access permissions
   registry-dump            Print contents of the metadata registry
   teardown                 Tear down deployed feature store infrastructure
   version                  Display Feast SDK version
@@ -154,6 +155,132 @@ Load data from feature views into the online store, beginning from either the pr
 ```text
 feast materialize-incremental 2022-01-01T00:00:00
 ```
+
+## Permissions
+
+### List permissions
+List all registered permission
+
+```text
+feast permissions list
+
+Options:
+  --tags TEXT    Filter by tags (e.g. --tags 'key:value' --tags 'key:value,
+                 key:value, ...'). Items return when ALL tags match.
+  -v, --verbose  Print the resources matching each configured permission
+```
+
+```text
+NAME                   TYPES            WITH_SUBCLASS    NAME_PATTERN           ACTIONS                         ROLES
+reader_permission1234  FeatureView      True             transformed_conv_rate  READ                            reader
+                       FeaduteService
+writer_permission1234  FeatureView      True             transformed_conv_rate  CREATE                          writer
+```
+
+`verbose` option describes the resources matching each configured permission: 
+
+```text
+feast permissions list -v
+```
+
+```text
+Permissions:
+
+permissions
+├── reader_permission1234 ['reader']
+│   └── FeatureView: none
+└── writer_permission1234 ['writer']
+    ├── FeatureView: none
+    │── OnDemandFeatureView: ['transformed_conv_rate_fresh', 'transformed_conv_rate']
+    └── BatchFeatureView: ['driver_hourly_stats', 'driver_hourly_stats_fresh']
+```
+
+### Describe a permission
+Describes the provided permission
+
+```text
+feast permissions describe permission-name
+name: permission-name
+types:
+- FEATURE_VIEW
+withSubclasses: true
+namePattern: transformed_conv_rate
+actions:
+- READ
+policy:
+  roleBasedPolicy:
+    roles:
+    - reader
+
+```
+
+### List of the configured roles
+List all the configured roles
+
+```text
+feast permissions list-roles
+
+Options:
+  --verbose Print the resources and actions permitted to each configured
+            role
+```
+
+```text
+ROLE NAME
+admin
+reader
+writer
+```
+
+`verbose` option describes the resources and actions permitted to each managed role: 
+
+```text
+feast permissions list-roles -v
+```
+
+```text            
+ROLE NAME          RESOURCE NAME               RESOURCE TYPE    PERMITTED ACTIONS
+admin              driver_hourly_stats_source  FileSource       CREATE
+                                                                DELETE
+                                                                QUERY_OFFLINE
+                                                                QUERY_ONLINE
+                                                                READ
+                                                                UPDATE
+admin              vals_to_add                 RequestSource    CREATE
+                                                                DELETE
+                                                                QUERY_OFFLINE
+                                                                QUERY_ONLINE
+                                                                READ
+                                                                UPDATE
+admin              driver_stats_push_source    PushSource       CREATE
+                                                                DELETE
+                                                                QUERY_OFFLINE
+                                                                QUERY_ONLINE
+                                                                READ
+                                                                UPDATE
+admin              driver_hourly_stats_source  FileSource       CREATE
+                                                                DELETE
+                                                                QUERY_OFFLINE
+                                                                QUERY_ONLINE
+                                                                READ
+                                                                UPDATE
+admin              vals_to_add                 RequestSource    CREATE
+                                                                DELETE
+                                                                QUERY_OFFLINE
+                                                                QUERY_ONLINE
+                                                                READ
+                                                                UPDATE
+admin              driver_stats_push_source    PushSource       CREATE
+                                                                DELETE
+                                                                QUERY_OFFLINE
+                                                                QUERY_ONLINE
+                                                                READ
+                                                                UPDATE
+reader             driver_hourly_stats         FeatureView      READ
+reader             driver_hourly_stats_fresh   FeatureView      READ
+...
+```
+
 
 ## Teardown
 

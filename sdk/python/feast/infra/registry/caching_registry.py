@@ -14,6 +14,7 @@ from feast.infra.infra_object import Infra
 from feast.infra.registry import proto_registry_utils
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
+from feast.permissions.permission import Permission
 from feast.project_metadata import ProjectMetadata
 from feast.saved_dataset import SavedDataset, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
@@ -249,18 +250,23 @@ class CachingRegistry(BaseRegistry):
         return self._get_saved_dataset(name, project)
 
     @abstractmethod
-    def _list_saved_datasets(self, project: str) -> List[SavedDataset]:
+    def _list_saved_datasets(
+        self, project: str, tags: Optional[dict[str, str]] = None
+    ) -> List[SavedDataset]:
         pass
 
     def list_saved_datasets(
-        self, project: str, allow_cache: bool = False
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[SavedDataset]:
         if allow_cache:
             self._refresh_cached_registry_if_necessary()
             return proto_registry_utils.list_saved_datasets(
-                self.cached_registry_proto, project
+                self.cached_registry_proto, project, tags
             )
-        return self._list_saved_datasets(project)
+        return self._list_saved_datasets(project, tags)
 
     @abstractmethod
     def _get_validation_reference(self, name: str, project: str) -> ValidationReference:
@@ -277,18 +283,23 @@ class CachingRegistry(BaseRegistry):
         return self._get_validation_reference(name, project)
 
     @abstractmethod
-    def _list_validation_references(self, project: str) -> List[ValidationReference]:
+    def _list_validation_references(
+        self, project: str, tags: Optional[dict[str, str]] = None
+    ) -> List[ValidationReference]:
         pass
 
     def list_validation_references(
-        self, project: str, allow_cache: bool = False
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[ValidationReference]:
         if allow_cache:
             self._refresh_cached_registry_if_necessary()
             return proto_registry_utils.list_validation_references(
-                self.cached_registry_proto, project
+                self.cached_registry_proto, project, tags
             )
-        return self._list_validation_references(project)
+        return self._list_validation_references(project, tags)
 
     @abstractmethod
     def _list_project_metadata(self, project: str) -> List[ProjectMetadata]:
@@ -310,6 +321,39 @@ class CachingRegistry(BaseRegistry):
 
     def get_infra(self, project: str, allow_cache: bool = False) -> Infra:
         return self._get_infra(project)
+
+    @abstractmethod
+    def _get_permission(self, name: str, project: str) -> Permission:
+        pass
+
+    def get_permission(
+        self, name: str, project: str, allow_cache: bool = False
+    ) -> Permission:
+        if allow_cache:
+            self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.get_permission(
+                self.cached_registry_proto, name, project
+            )
+        return self._get_permission(name, project)
+
+    @abstractmethod
+    def _list_permissions(
+        self, project: str, tags: Optional[dict[str, str]]
+    ) -> List[Permission]:
+        pass
+
+    def list_permissions(
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
+    ) -> List[Permission]:
+        if allow_cache:
+            self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.list_permissions(
+                self.cached_registry_proto, project, tags
+            )
+        return self._list_permissions(project, tags)
 
     def refresh(self, project: Optional[str] = None):
         if project:

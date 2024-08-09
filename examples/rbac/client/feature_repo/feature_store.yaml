@@ -1,0 +1,14 @@
+project: server
+registry:
+  registry_type: remote
+  path: feast-registry-server-feast-feature-server.feast-dev.svc.cluster.local:80
+offline_store:
+  type: remote
+  host: feast-offline-server-feast-feature-server.feast-dev.svc.cluster.local
+  port: 80
+online_store:
+  type: remote
+  path: http://feast-feature-server.feast-dev.svc.cluster.local:80
+auth:
+  type: kubernetes
+entity_key_serialization_version: 2

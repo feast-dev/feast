@@ -18,6 +18,7 @@ from feast.entity import Entity
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.on_demand_feature_view import OnDemandFeatureView
+from feast.permissions.permission import Permission
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.stream_feature_view import StreamFeatureView
 
@@ -33,6 +34,7 @@ class RepoContents(NamedTuple):
     stream_feature_views: List[StreamFeatureView]
     entities: List[Entity]
     feature_services: List[FeatureService]
+    permissions: List[Permission]
 
     def to_registry_proto(self) -> RegistryProto:
         registry_proto = RegistryProto()
@@ -50,4 +52,6 @@ class RepoContents(NamedTuple):
         registry_proto.stream_feature_views.extend(
             [fv.to_proto() for fv in self.stream_feature_views]
         )
+        registry_proto.permissions.extend([p.to_proto() for p in self.permissions])
+
         return registry_proto
