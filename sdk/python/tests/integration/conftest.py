@@ -8,7 +8,6 @@ from tests.utils.auth_permissions_util import setup_permissions_on_keycloak
 logger = logging.getLogger(__name__)
 
 
-@pytest.mark.xdist_group(name="keycloak")
 @pytest.fixture(scope="session")
 def start_keycloak_server():
     logger.info("Starting keycloak instance")
