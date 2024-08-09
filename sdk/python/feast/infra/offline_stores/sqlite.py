@@ -1,11 +1,13 @@
 import sqlite3
-from typing import Literal, Optional, List, Dict, Any, Union
 from contextlib import contextmanager
+from typing import Any, Dict, List, Literal, Optional
+
 from pydantic import StrictStr
+
 from feast.infra.offline_stores.offline_store import OfflineStore
-from feast.repo_config import FeastConfigBaseModel
 from feast.protos.feast.types.EntitySource_pb2 import EntitySource as EntitySourceProto
-from feast.protos.feast.types.Value_pb2 import Value as ValueProto
+from feast.repo_config import FeastConfigBaseModel
+
 
 class SQLiteOfflineStoreConfig(FeastConfigBaseModel):
     """Offline store config for SQLite"""
