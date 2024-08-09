@@ -1,0 +1,21 @@
+auth:
+  auth_discovery_url: http://0.0.0.0:9999/realms/rbac_example/.well-known/openid-configuration
+  auth_server_url: http://0.0.0.0:9999
+  client_id: app
+  client_secret: eFGTp6ZJ0tARKYPbdMKUZ1J8PJNWfXR8
+  password: password
+  realm: rbac_example
+  type: oidc
+  username: admin
+entity_key_serialization_version: 2
+offline_store:
+  host: localhost
+  port: 8815
+  type: remote
+online_store:
+  path: http://localhost:6566
+  type: remote
+project: rbac
+registry:
+  path: localhost:6570
+  registry_type: remote
