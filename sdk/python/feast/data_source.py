@@ -775,7 +775,7 @@ class PushSource(DataSource):
     def get_table_column_names_and_types(
         self, config: RepoConfig
     ) -> Iterable[Tuple[str, str]]:
-        raise NotImplementedError
+        return self.batch_source.get_table_column_names_and_types(config)
 
     @staticmethod
     def from_proto(data_source: DataSourceProto):

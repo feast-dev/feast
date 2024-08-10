@@ -75,7 +75,7 @@ class RegistryDiff:
                     log_string += f"\t{_p.property_name}: {Style.BRIGHT + color}{_p.val_existing}{Style.RESET_ALL} -> {Style.BRIGHT + Fore.LIGHTGREEN_EX}{_p.val_declared}{Style.RESET_ALL}\n"
 
         log_string = (
-            f"{Style.BRIGHT + Fore.LIGHTBLUE_EX}No changes to registry"
+            f"{Style.BRIGHT + Fore.LIGHTBLUE_EX}No changes to registry{Style.RESET_ALL}"
             if not log_string
             else log_string
         )

@@ -13,7 +13,7 @@ from neo4j import GraphDatabase
 
 from feast import utils
 from feast.base_feature_view import BaseFeatureView
-from feast.data_source import DataSource
+from feast.data_source import DataSource, RequestSource, PushSource
 from feast.entity import Entity
 from feast.errors import (
     DataSourceObjectNotFoundException,
@@ -22,13 +22,16 @@ from feast.errors import (
     FeatureViewNotFoundException,
     SavedDatasetNotFound,
     ValidationReferenceNotFound,
+    FieldNotFoundException
 )
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
+from feast.feature_view_projection import FeatureViewProjection
 from feast.infra.infra_object import Infra
 from feast.infra.registry.caching_registry import CachingRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.project_metadata import ProjectMetadata
+from feast.field import Field
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.protos.feast.core.Entity_pb2 import Entity as EntityProto
 from feast.protos.feast.core.FeatureService_pb2 import (
@@ -47,6 +50,7 @@ from feast.protos.feast.core.StreamFeatureView_pb2 import (
 from feast.protos.feast.core.ValidationProfile_pb2 import (
     ValidationReference as ValidationReferenceProto,
 )
+from feast.protos.feast.core.Feature_pb2 import FeatureSpecV2 as FieldProto
 from feast.repo_config import RegistryConfig
 from feast.saved_dataset import SavedDataset, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
@@ -66,7 +70,7 @@ class FeastMetadataKeys(Enum):
     PROJECT_UUID = "project_uuid"
 
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("neo4j").setLevel(logging.ERROR)
 
 
 class GraphRegistryConfig(RegistryConfig):
@@ -82,17 +86,11 @@ class GraphRegistryConfig(RegistryConfig):
     password: StrictStr
     """ str: Password for the Neo4j database """
 
-    cache_ttl_seconds: StrictInt = 600
-    """ int: The cache TTL is the amount of time registry state will be cached in memory. If this TTL is exceeded then
-     the registry will be refreshed when any feature store method asks for access to registry state. The TTL can be
-     set to infinity by setting TTL to 0 seconds, which means the cache will only be loaded once and will never
-     expire. Users can manually refresh the cache by calling feature_store.refresh_registry() """
-
 
 class GraphRegistry(CachingRegistry):
     def __init__(
         self,
-        registry_config: GraphRegistryConfig,
+        registry_config: Optional[Union[RegistryConfig,GraphRegistryConfig]],
         project: str,
         repo_path: Optional[Path]
     ):  
@@ -114,15 +112,20 @@ class GraphRegistry(CachingRegistry):
 
 
     def teardown(self):
-        for label in {
-            entities,
-            data_sources,
-            feature_views,
-            feature_services,
-            on_demand_feature_views,
-            saved_datasets,
-            validation_references
-        }:
+        for label in [
+            "Field",
+            "Entity",
+            "DataSource",
+            "FeatureView",
+            "StreamFeatureView",
+            "OnDemandFeatureView",
+            "FeatureService",
+            "SavedDataset",
+            "ValidationReference",
+            "Infra",
+            "ProjectMetadata",
+            "Project"
+        ]:
             with self.driver.session() as session:
                 session.run(
                     f"""
@@ -165,18 +168,18 @@ class GraphRegistry(CachingRegistry):
             # This is suuuper jank. Because of https://github.com/feast-dev/feast/issues/2783,
             # the registry proto only has a single infra field, which we're currently setting as the "last" project.
             r.infra.CopyFrom(self.get_infra(project).to_proto())
-            last_updated_timestamps.append(self._get_last_updated_metadata(project))
-        '''
+            if self._get_last_updated_metadata(project) is not None:
+                last_updated_timestamps.append(self._get_last_updated_metadata(project))
+        
+        print(f"Last updated timestamps: {last_updated_timestamps}")
         if last_updated_timestamps:
             r.last_updated.FromDatetime(max(last_updated_timestamps))
-        else:
-            r.last_updated.FromDatetime(datetime.utcnow())
-        '''
+        
         return r
 
     def _maybe_init_project_metadata(self, project):
         # Initialize project metadata if needed    
-        update_datetime = datetime.utcnow()
+        update_datetime = datetime.now()
         update_time = int(update_datetime.timestamp())
 
         with self.driver.session() as session:
@@ -189,8 +192,6 @@ class GraphRegistry(CachingRegistry):
                 project=project
             )
             node = result.single()
-            print(f"Searching for project: {project}, metadata {FeastMetadataKeys.PROJECT_UUID.value}")
-            print(f"Result {node}")
 
             if not node:
                 new_project_uuid = f"{uuid.uuid4()}"
@@ -207,7 +208,13 @@ class GraphRegistry(CachingRegistry):
                         metadata_value: $project_metadata_value, 
                         last_updated_timestamp: $update_time
                     }})
+                    CREATE (m:ProjectMetadata {{ 
+                        metadata_key: $key, 
+                        metadata_value: $metadata_value, 
+                        last_updated_timestamp: $update_time
+                    }})
                     CREATE (p)-[:CONTAINS]->(n)
+                    CREATE (p)-[:CONTAINS]->(m)
                     """, 
                     project_key=FeastMetadataKeys.PROJECT_UUID.value, 
                     key=FeastMetadataKeys.LAST_UPDATED_TIMESTAMP.value, 
@@ -266,31 +273,52 @@ class GraphRegistry(CachingRegistry):
         id_field_name: str,
         obj: Any,
         proto_field_name: str,
-        name: Optional[str] = None
+        name: Optional[str] = None,
+        parents: Optional[list[str]] = None # Only used for Field, refers to list of DataSource names
     ):
         self._maybe_init_project_metadata(project)
 
         name = name or (obj.name if hasattr(obj, "name") else None)
         assert name, f"name needs to be provided for {obj}"
 
-        update_datetime = datetime.utcnow()
-        update_time = int(update_datetime.timestamp())
+        update_datetime = datetime.now()
+        update_time = int(datetime.timestamp(update_datetime))
 
         with self.driver.session() as session:
             if hasattr(obj, "last_updated_timestamp"):
                 obj.last_updated_timestamp = update_datetime
 
-            result = session.run(
-                f"""
-                MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(n:{label} {{ {id_field_name}: $name }})
-                RETURN n
-                """, 
-                name=name, 
-                project=project
-            )
-            node = result.single()
+            if parents:
+                result = session.run(
+                    f"""
+                    MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(n:{label} {{ {id_field_name}: $name }})
+                    MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(s:DataSource)
+                    WHERE ALL(parent_name IN $parents WHERE
+                        EXISTS(
+                            (p)-[:CONTAINS]->(s {{ data_source_name: parent_name }})-[:USES]->(n)
+                        )
+                    )
+                    RETURN n
+                    """, 
+                    name=name, 
+                    parents=parents,
+                    project=project
+                )
+                node = result.single()
+            else:
+                result = session.run(
+                    f"""
+                    MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(n:{label} {{ {id_field_name}: $name }})
+                    RETURN n
+                    """, 
+                    name=name, 
+                    project=project
+                )
+                node = result.single()
             
             if node:
+                obj_proto = obj.to_proto()
+                '''
                 if proto_field_name in [
                     "entity_proto",
                     "saved_dataset_proto",
@@ -309,7 +337,7 @@ class GraphRegistry(CachingRegistry):
                             .from_proto(deserialized_proto)
                             .materialization_intervals
                         )
-
+                '''
                 session.run(
                     f"""
                     MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(n:{label} {{ {id_field_name}: $name }})
@@ -318,7 +346,7 @@ class GraphRegistry(CachingRegistry):
                     """, 
                     name=name, 
                     project=project, 
-                    proto_data=obj.to_proto().SerializeToString(), 
+                    proto_data=obj_proto.SerializeToString(), 
                     update_time=update_time
                 )
             else:
@@ -345,6 +373,236 @@ class GraphRegistry(CachingRegistry):
                     update_time=update_time
                 )
 
+            # Add relationship from DataSource to Field, Field properties
+            if isinstance(obj, (Field)):                
+                session.run(
+                    f"""
+                    MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(n:{label} {{ {id_field_name}: $name }})
+                    WITH n, p
+                    UNWIND $parents AS parent_name
+                    MATCH (p)-[:CONTAINS]->(s:DataSource {{ data_source_name: parent_name }})
+                    MERGE (s)-[r:USES]->(n)
+                    ON CREATE SET r.created_at = $created_time
+                    SET n.dtype = $dtype,
+                        n.description = $description
+                    """, 
+                    name=name, 
+                    parents=parents,
+                    project=project, 
+                    dtype=f"{obj.dtype}",
+                    description=obj.description,
+                    created_time=datetime.now() 
+                )
+
+            # Add relationship from RequestSource to Fields
+            if isinstance(obj, (RequestSource)):
+                print(f"Features to connect: {obj.schema}")
+                for field in obj.schema: 
+                    print(f"Here for field: {field}")
+                    # Check if the relationship already exists before creating it
+                    session.run(
+                        f"""
+                        MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(v:{label} {{ {id_field_name}: $name }})
+                        MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(f:Field {{ field_name: $field_name }})
+                        MERGE (v)-[r:USES]->(f)
+                        ON CREATE SET r.created_at = $created_time
+                        """, 
+                        name=name, 
+                        field_name=field.name,
+                        project=project,
+                        created_time=datetime.now() 
+                    )
+                
+            # Add relationship from PushSource to batch source
+            if isinstance(obj, (PushSource)):
+                print(f"Batch source to connect: {obj.batch_source.name}")
+                # Check if the relationship already exists before creating it  
+                session.run(
+                    f"""
+                    MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(ps:{label} {{ {id_field_name}: $name }})
+                    MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(bs:DataSource {{ data_source_name: $batch_name }})
+                    MERGE (ps)-[r:USES]->(bs)
+                    ON CREATE SET r.created_at = $created_time
+                    """, 
+                    name=name, 
+                    batch_name=obj.batch_source.name,
+                    project=project,
+                    created_time=datetime.now() 
+                )
+                
+            # Add relationship from FeatureView to Entities, Fields, Data Sources
+            if isinstance(obj, (FeatureView)):
+                print(f"Entities to connect: {obj.entities}")
+                for entity in obj.entities: 
+                    # Check if the relationship already exists before creating it  
+                    session.run(
+                        f"""
+                        MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(v:{label} {{ {id_field_name}: $name }})
+                        MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(e:Entity {{ entity_name: $entity_name }})
+                        MERGE (v)-[r:USES]->(e)
+                        ON CREATE SET r.created_at = $created_time
+                        """, 
+                        name=name, 
+                        entity_name=entity,
+                        project=project,
+                        created_time=datetime.now() 
+                    )
+
+                # If a stream source exists, connect to it and its children-fields
+                # Else connect to the batch source and its children-fields
+                source = obj.batch_source
+                if obj.stream_source:
+                    source = obj.stream_source
+
+                # Check if the relationship already exists before creating it   
+                session.run(
+                    f"""
+                    MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(v:{label} {{ {id_field_name}: $name }})
+                    MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(s:DataSource {{ data_source_name: $source_name }})
+                    MERGE (v)-[r:USES]->(s)
+                    ON CREATE SET r.created_at = $created_time
+                    """, 
+                    name=name, 
+                    source_name=source.name,
+                    project=project,
+                    created_time=datetime.now() 
+                )
+
+                print(f"Features to connect: {obj.features}")
+                for field in obj.features:
+                    # Check if the relationship already exists before creating it   
+                    session.run(
+                        f"""
+                        MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(v:{label} {{ {id_field_name}: $name }})
+                        MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(f:Field {{ field_name: $field_name }})
+                        MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(s:DataSource {{ data_source_name: $source_name}})
+                        MATCH (s)-[:USES]->(f)
+                        MERGE (v)-[r:USES]->(f)
+                        ON CREATE SET r.created_at = $created_time
+                        """, 
+                        name=name, 
+                        field_name=field.name,
+                        source_name=source.name,
+                        project=project,
+                        created_time=datetime.now() 
+                    )
+
+                '''
+                sources = []
+                if obj.batch_source:
+                    sources.append(obj.batch_source.name)
+                if obj.stream_source:
+                    sources.append(obj.stream_source.name)
+                print(f"Data Sources to connect: {sources}")
+                for source in sources: 
+                    # Check if the relationship already exists before creating it   
+                    session.run(
+                        f"""
+                        MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(v:{label} {{ {id_field_name}: $name }})
+                        MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(s:DataSource {{ data_source_name: $source_name }})
+                        MERGE (v)-[r:USES]->(s)
+                        ON CREATE SET r.created_at = $created_time
+                        """, 
+                        name=name, 
+                        source_name=source,
+                        project=project,
+                        created_time=datetime.now() 
+                    )
+
+                print(f"Features to connect: {obj.features}")
+                for field in obj.features:
+                    if sources:
+                        source_condition = " OR ".join([f"(s.data_source_name = '{s}')" for s in sources])
+                        # Check if the relationship already exists before creating it   
+                        session.run(
+                            f"""
+                            MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(v:{label} {{ {id_field_name}: $name }})
+                            MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(f:Field {{ field_name: $field_name }})
+                            MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(s:DataSource)
+                            MATCH (s)-[:USES]->(f)
+                            WHERE ({source_condition})
+                            MERGE (v)-[r:USES]->(f)
+                            ON CREATE SET r.created_at = $created_time
+                            """, 
+                            name=name, 
+                            field_name=field.name,
+                            project=project,
+                            created_time=datetime.now() 
+                        )
+                    else:
+                        # Check if the relationship already exists before creating it   
+                        session.run(
+                            f"""
+                            MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(v:{label} {{ {id_field_name}: $name }})
+                            MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(f:Field {{ field_name: $field_name }})
+                            MERGE (v)-[r:USES]->(f)
+                            ON CREATE SET r.created_at = $created_time
+                            """, 
+                            name=name, 
+                            field_name=field.name,
+                            project=project,
+                            created_time=datetime.now() 
+                        )
+                '''
+            
+            # Add relationship from OnDemandFeatureView to Fields, Data Sources, Feature Views
+            if isinstance(obj, (OnDemandFeatureView)):
+                print(f"Features to connect: {obj.features}")
+                for field in obj.features: 
+                    # Check if the relationship already exists before creating it
+                    session.run(
+                        f"""
+                        MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(v:{label} {{ {id_field_name}: $name }})
+                        MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(f:Field {{ field_name: $field_name }})
+                        MERGE (v)-[r:USES]->(f)
+                        ON CREATE SET r.created_at = $created_time
+                        """, 
+                        name=name, 
+                        field_name=field.name,
+                        project=project,
+                        created_time=datetime.now() 
+                    )
+                
+                sources = []
+                for source in obj.source_request_sources.keys():
+                    sources.append(source)
+                for source in obj.source_feature_view_projections.keys():
+                    sources.append(source)
+                print(f"Sources to connect: {sources}")
+                for source in sources: 
+                    # Check if the relationship already exists before creating it  
+                    session.run(
+                        f"""
+                        MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(v:{label} {{ {id_field_name}: $name }})
+                        MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(s)
+                        WHERE (s:DataSource AND s.data_source_name = $source_name) OR (s:FeatureView AND s.feature_view_name = $source_name)
+                        MERGE (v)-[r:USES]->(s)
+                        ON CREATE SET r.created_at = $created_time
+                        """, 
+                        name=name, 
+                        source_name=source,
+                        project=project,
+                        created_time=datetime.now() 
+                    )
+                
+            # Add FeatureService ???
+            if isinstance(obj, (FeatureService)):
+                print(f"Feature Views to connect: {obj.feature_view_projections}")
+                for view in obj.feature_view_projections: 
+                    # Check if the relationship already exists before creating it  
+                    session.run(
+                        f"""
+                        MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(s:{label} {{ {id_field_name}: $name }})
+                        MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(v:FeatureView {{ feature_view_name: $view_name }})
+                        MERGE (s)-[r:USES]->(v)
+                        ON CREATE SET r.created_at = $created_time
+                        """, 
+                        name=name, 
+                        view_name=view.name,
+                        project=project,
+                        created_time=datetime.now() 
+                    )
+
             self._set_last_updated_metadata(update_datetime, project)
 
     def update_infra(self, infra: Infra, project: str, commit: bool = True):
@@ -367,6 +625,11 @@ class GraphRegistry(CachingRegistry):
         )
 
     def apply_data_source(self, data_source: DataSource, project: str, commit: bool = True):
+        #print(f"Applying data source with fields: {data_source.field_mapping}")
+        if isinstance(data_source, (RequestSource)):
+            print(f"Features to apply: {data_source.schema}")
+            for field in data_source.schema:
+                self.apply_field(field=field, project=project, data_sources=[data_source.name])
         return self._apply_object(
             label=data_sources, 
             project=project, 
@@ -377,6 +640,87 @@ class GraphRegistry(CachingRegistry):
 
     def apply_feature_view(self, feature_view: BaseFeatureView, project: str, commit: bool = True):
         fv_label = self._infer_fv_label(feature_view)
+        '''
+        print(f"Features to apply: {feature_view.features}")
+        for field in feature_view.features:
+            self.apply_field(field=field, project=project)
+        '''
+            
+        if fv_label == feature_views:
+            print(f"Batch source: {feature_view.batch_source}")
+            
+            # Apply batch source
+            self.apply_data_source(
+                data_source=feature_view.batch_source, 
+                project=project, 
+                commit=commit
+            )   
+            if feature_view.stream_source:
+                print(f"Stream source: {feature_view.stream_source}")
+                # Apply stream source
+                self.apply_data_source(
+                    data_source=feature_view.stream_source, 
+                    project=project, 
+                    commit=commit
+                )  
+
+                # Apply features with batch_source as parent
+                print(f"Features to apply: {feature_view.features}")
+                for field in feature_view.features:
+                    self.apply_field(
+                        field=field, 
+                        project=project, 
+                        data_sources=[feature_view.stream_source.name], 
+                        commit=commit
+                    )
+            else:
+                # Apply features with batch_source as parent
+                print(f"Features to apply: {feature_view.features}")
+                for field in feature_view.features:
+                    self.apply_field(
+                        field=field, 
+                        project=project, 
+                        data_sources=[feature_view.batch_source.name], 
+                        commit=commit
+                    )
+        elif fv_label == on_demand_feature_views:
+            #print(f"{feature_view.feature_transformation.udf_string}")
+            #print(f"Feature dependencies: {feature_view.feature_dependencies}")
+            # TODO: Get feature views from feature_view_projections
+            fvs = feature_view.source_feature_view_projections.keys()
+            print(f"Feature view projections: {fvs}")
+            for fv in fvs:
+                fv_object = self._get_feature_view(fv, project=project)
+
+            # TODO: Apply feature views and request sources
+            for rs in feature_view.source_request_sources.values():
+                # Apply request source
+                self.apply_data_source(
+                    data_source=rs, 
+                    project=project, 
+                    commit=commit
+                )  
+            # TODO: Apply features with multiple parents
+            print(f"Features to apply: {feature_view.features}")
+            for field in feature_view.features:
+                self.apply_field(
+                    field=field, 
+                    project=project,
+                    data_sources=None,
+                    commit=commit
+                )    
+            
+            sources = {
+                "fvs": list(feature_view.source_feature_view_projections.keys()),
+                "rs": list(feature_view.source_request_sources.keys())
+            }
+            
+            print(f"Sources: {sources}")
+            # Map dependencies with Field nodes
+            for feature, dep in feature_view.feature_dependencies.items():
+                for dep_name in dep:
+                    self._create_field_relationship(feature, dep_name, sources, project)
+       
 
         return self._apply_object(
             label=fv_label, 
@@ -387,6 +731,7 @@ class GraphRegistry(CachingRegistry):
         )
 
     def apply_feature_service(self, feature_service: FeatureService, project: str, commit: bool = True):
+        print(f"Feature View Projections: {feature_service.feature_view_projections}")
         return self._apply_object(
             label=feature_services,
             project=project,
@@ -413,6 +758,16 @@ class GraphRegistry(CachingRegistry):
             proto_field_name="validation_reference_proto"
         )
 
+    def apply_field(self, field: Field, project: str, data_sources: Optional[list[str]]=None, commit: bool = True): 
+        return self._apply_object(
+            label="Field", 
+            project=project, 
+            id_field_name="field_name", 
+            obj=field, 
+            proto_field_name="field_proto",
+            parents=data_sources
+        )   
+    
     def apply_materialization(
         self,
         feature_view: FeatureView,
@@ -467,7 +822,7 @@ class GraphRegistry(CachingRegistry):
             )
             node = result.single()
 
-            update_datetime = datetime.utcnow()
+            update_datetime = datetime.now()
             update_time = int(update_datetime.timestamp())
             if node:
                 session.run(
@@ -671,7 +1026,19 @@ class GraphRegistry(CachingRegistry):
             proto_field_name="validation_reference_proto",
             not_found_exception=ValidationReferenceNotFound
         )
-
+    
+    def _get_field(self, name: str, project: str) -> Field:
+        return self._get_object(
+            label="Field",
+            name=name,
+            project=project,
+            proto_class=FieldProto,
+            python_class=Field,
+            id_field_name="field_name",
+            proto_field_name="field_proto",
+            not_found_exception=FieldNotFoundException
+        )
+            
     def _get_last_updated_metadata(self, project: str):
         with self.driver.session() as session:
             result = session.run(
@@ -683,10 +1050,13 @@ class GraphRegistry(CachingRegistry):
                 project=project
             )
             node = result.single()
+            print(f"Node: {node}")
 
             if not node:
+                print("No metadata node found")
                 return None
             update_time = int(node["last_updated_timestamp"])
+            print(f"Found metadata node with timestamp: {update_time}")
 
             return datetime.fromtimestamp(update_time)
 
@@ -749,8 +1119,7 @@ class GraphRegistry(CachingRegistry):
                     obj = python_class.from_proto(
                         proto_class.FromString(node["proto_data"])
                     )
-                    if utils.has_all_tags(obj.tags, tags):
-                        objects.append(obj)
+                    objects.append(obj)
                 return objects
 
         return []
@@ -878,7 +1247,7 @@ class GraphRegistry(CachingRegistry):
 
             if nodes["deleted_count"] < 1 and not_found_exception:
                 raise not_found_exception(name, project)
-            self._set_last_updated_metadata(datetime.utcnow(), project)
+            self._set_last_updated_metadata(datetime.now(), project)
 
             return nodes["deleted_count"]
 
@@ -934,3 +1303,36 @@ class GraphRegistry(CachingRegistry):
             not_found_exception=ValidationReferenceNotFound
         )
 
+    def _create_field_relationship(self, feature_name: str, dep_name: str, sources: Dict[str, List[str]], project: str) -> None:
+        self._maybe_init_project_metadata(project)
+
+        fvs_condition = " OR ".join([f"(n.feature_view_name = '{fv}')" for fv in sources["fvs"]])
+        rs_condition = " OR ".join([f"(n.data_source_name = '{r}')" for r in sources["rs"]])
+        combined_condition = f"(n:FeatureView AND {fvs_condition}) OR (n:DataSource AND {rs_condition})"
+        query = f"""
+                MATCH (p:Project {{ project_id: {project} }})-[:CONTAINS]->(df:Field {{ field_name: {dep_name} }})
+                MATCH (p:Project {{ project_id: {project} }})-[:CONTAINS]->(f:Field {{ field_name: {feature_name} }})
+                MATCH (n)-[:USES]->(df)
+                WHERE {combined_condition}
+                MERGE (df)-[r:USED_FOR]->(f)
+                ON CREATE SET r.created_at = $created_time
+                """
+        print(f"Query: {query}")
+
+        with self.driver.session() as session:
+            session.run(
+                f"""
+                MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(df:Field {{ field_name: $dep_name }})
+                MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(f:Field {{ field_name: $feature_name }})
+                MATCH (n)-[:USES]->(df)
+                WHERE {combined_condition}
+                MERGE (df)-[r:USED_FOR]->(f)
+                ON CREATE SET r.created_at = $created_time
+                """, 
+                feature_name=feature_name,
+                dep_name=dep_name, 
+                project=project,
+                created_time=datetime.now(),
+                fvs_condition=fvs_condition,
+                rs_condition=rs_condition
+            )

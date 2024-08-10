@@ -69,6 +69,10 @@ class FileRetrievalJob(RetrievalJob):
         self._on_demand_feature_views = on_demand_feature_views or []
         self._metadata = metadata
 
+        print(f"In FileRetrievalJob!")
+        print(f"Job On demand feature views: {self._on_demand_feature_views }")
+        print(f"Parameter On Demand Feature Views: {on_demand_feature_views}")
+
     @property
     def full_feature_names(self) -> bool:
         return self._full_feature_names
@@ -137,6 +141,7 @@ class FileOfflineStore(OfflineStore):
         project: str,
         full_feature_names: bool = False,
     ) -> RetrievalJob:
+        print(f"In File Offline Store get_historical_features!")
         assert isinstance(config.offline_store, FileOfflineStoreConfig)
         for fv in feature_views:
             assert isinstance(fv.batch_source, FileSource)
@@ -173,6 +178,7 @@ class FileOfflineStore(OfflineStore):
         entity_df_event_timestamp_range = _get_entity_df_event_timestamp_range(
             entity_df, entity_df_event_timestamp_col
         )
+        print(f"Event Timestamp Range: {entity_df_event_timestamp_range}")
 
         # Create lazy function that is only called from the RetrievalJob object
         def evaluate_historical_retrieval():
@@ -218,6 +224,7 @@ class FileOfflineStore(OfflineStore):
             entity_df_with_features = entity_df_with_features.sort_values(
                 entity_df_event_timestamp_col
             )
+            print(f"Entity df with features: {entity_df_with_features}")
 
             all_join_keys = []
 
@@ -244,8 +251,10 @@ class FileOfflineStore(OfflineStore):
                 right_entity_key_columns = [c for c in right_entity_key_columns if c]
 
                 all_join_keys = list(set(all_join_keys + join_keys))
+                print(f"All join keys: {all_join_keys}")
 
                 df_to_join = _read_datasource(feature_view.batch_source)
+                print(f"DF to join: {df_to_join.tail()}")
 
                 df_to_join, timestamp_field = _field_mapping(
                     df_to_join,
@@ -256,12 +265,15 @@ class FileOfflineStore(OfflineStore):
                     timestamp_field,
                     full_feature_names,
                 )
+                print(f"DF to join field mapping: {df_to_join.tail()}")
 
                 df_to_join = _merge(entity_df_with_features, df_to_join, join_keys)
+                print(f"DF to join merge: {df_to_join.tail()}")
 
                 df_to_join = _normalize_timestamp(
                     df_to_join, timestamp_field, created_timestamp_column
                 )
+                print(f"DF to join normalize timestamp: {df_to_join.tail()}")
 
                 df_to_join = _filter_ttl(
                     df_to_join,
@@ -269,6 +281,7 @@ class FileOfflineStore(OfflineStore):
                     entity_df_event_timestamp_col,
                     timestamp_field,
                 )
+                print(f"DF to join filter ttl: {df_to_join.tail()}")
 
                 df_to_join = _drop_duplicates(
                     df_to_join,
@@ -277,10 +290,12 @@ class FileOfflineStore(OfflineStore):
                     created_timestamp_column,
                     entity_df_event_timestamp_col,
                 )
+                print(f"DF to join drop duplicates: {df_to_join.tail()}")
 
                 entity_df_with_features = _drop_columns(
                     df_to_join, features, timestamp_field, created_timestamp_column
                 )
+                print(f"Entity DF with features: {entity_df_with_features.tail()}")
 
                 # Ensure that we delete dataframes to free up memory
                 del df_to_join

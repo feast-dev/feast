@@ -53,6 +53,7 @@ from feast.diff.infra_diff import InfraDiff, diff_infra_protos
 from feast.diff.registry_diff import RegistryDiff, apply_diff_to_registry, diff_between
 from feast.dqm.errors import ValidationFailed
 from feast.entity import Entity
+from feast.field import Field
 from feast.errors import (
     DataFrameSerializationError,
     DataSourceRepeatNamesException,
@@ -96,6 +97,7 @@ from feast.repo_contents import RepoContents
 from feast.saved_dataset import SavedDataset, SavedDatasetStorage, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
 from feast.type_map import python_values_to_proto_values
+from feast.types import PrimitiveFeastType
 from feast.usage import log_exceptions, log_exceptions_and_usage, set_usage_attribute
 from feast.value_type import ValueType
 from feast.version import get_version
@@ -1048,6 +1050,7 @@ class FeatureStore:
             >>> feature_data = retrieval_job.to_df()
         """
         _feature_refs = self._get_features(features)
+        #print(f"Feature Refs: {_feature_refs}")
         (
             all_feature_views,
             all_on_demand_feature_views,
@@ -1689,6 +1692,7 @@ class FeatureStore:
             online_features_response=online_features_response,
             data=dict(**join_key_values, **request_data_features),
         )
+        #print(f"Online features response: {online_features_response}")
 
         # Add the Entityless case after populating result rows to avoid having to remove
         # it later.
@@ -1725,6 +1729,7 @@ class FeatureStore:
             )
 
         if requested_on_demand_feature_views:
+            print(f"Requested ODFVs")
             self._augment_response_with_on_demand_transforms(
                 online_features_response,
                 _feature_refs,
@@ -2163,6 +2168,7 @@ class FeatureStore:
         odfv_result_names = set()
         for odfv_name, _feature_refs in odfv_feature_refs.items():
             odfv = requested_odfv_map[odfv_name]
+            print(f"ODFV mode: {odfv.mode}")
             if odfv.mode == "python":
                 if initial_response_dict is None:
                     initial_response_dict = initial_response.to_dict()
@@ -2194,7 +2200,9 @@ class FeatureStore:
 
             proto_values = []
             for selected_feature in selected_subset:
+                print(f"Selected feature: {selected_feature}")
                 feature_vector = transformed_features[selected_feature]
+                print(f"Feature vector: {feature_vector}")
                 proto_values.append(
                     python_values_to_proto_values(feature_vector, ValueType.UNKNOWN)
                     if odfv.mode == "python"
@@ -2538,11 +2546,13 @@ def _group_feature_refs(
 
     # view name to view proto
     view_index = {view.projection.name_to_use(): view for view in all_feature_views}
+    print(f"Views in view_index: {view_index.keys()}")
 
     # on demand view to on demand view proto
     on_demand_view_index = {
         view.projection.name_to_use(): view for view in all_on_demand_feature_views
     }
+    print(f"Views in on_demand_view_index: {on_demand_view_index.keys()}")
 
     # view name to feature names
     views_features = defaultdict(set)
@@ -2552,6 +2562,7 @@ def _group_feature_refs(
 
     for ref in features:
         view_name, feat_name = ref.split(":")
+        print(f"Searching for feature: {feat_name} in feature view: {view_name}")
         if view_name in view_index:
             view_index[view_name].projection.get_feature(feat_name)  # For validation
             views_features[view_name].add(feat_name)

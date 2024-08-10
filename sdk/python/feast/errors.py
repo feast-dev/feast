@@ -4,6 +4,11 @@ from colorama import Fore, Style
 
 from feast.field import Field
 
+class FieldNotFoundException(Exception):
+    def __init__(self, path):
+        super().__init__(
+            f"Unable to find Field at '{path}'. Please check that Field exists."
+        )
 
 class DataSourceNotFoundException(Exception):
     def __init__(self, path):

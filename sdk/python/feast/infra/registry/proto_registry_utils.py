@@ -187,7 +187,10 @@ def list_on_demand_feature_views(
     registry_proto: RegistryProto, project: str
 ) -> List[OnDemandFeatureView]:
     on_demand_feature_views = []
+    fvs = registry_proto.on_demand_feature_views
+    #print(f"Registry proto ODFV: {fvs}")
     for on_demand_feature_view in registry_proto.on_demand_feature_views:
+        #print(f"ODFV: {on_demand_feature_view}")
         if on_demand_feature_view.spec.project == project:
             on_demand_feature_views.append(
                 OnDemandFeatureView.from_proto(on_demand_feature_view)
