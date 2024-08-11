@@ -20,8 +20,30 @@ online store in a single API call. This is a common pattern when writing data to
 but this would not qualify as a batch job.
 
 ## Feature Value Write Patterns
-There are two ways to write feature values to the online store:
+There are two ways to write *feature values* to the online store:
 
 1. Precomputing the transformations
 2. Computing the transformations "On Demand"
+
+## Tradeoffs
+
+When deciding between synchronous and asynchronous data writes, several tradeoffs related to data consistency and operational impacts should be considered:
+
+- **Data Consistency**: Asynchronous writes allow data producers to send data without waiting for the write operation to complete, which can lead to situations where the data in the online store is stale. This might be acceptable in scenarios where absolute freshness is not critical. However, for critical operations, such as calculating loan amounts in financial applications, stale data can lead to incorrect decisions, making synchronous writes essential.
+- **Service Coupling**: Synchronous writes result in tighter coupling between services. If a write operation fails, it can cause the dependent service operation to fail as well, which might be a significant drawback in systems requiring high reliability and independence between services.
+- **Application Latency**: Asynchronous writes typically reduce the perceived latency from the client's perspective because the client does not wait for the write operation to complete. This can enhance the user experience and efficiency in environments where operations are not critically dependent on immediate data freshness.
+- **Correctness**: The risk of data being out-of-date must be weighed against the operational requirements. For instance, in a lending application, having up-to-date feature data can be crucial for correctness (depending upon the features and raw data), thus favoring synchronous writes. In less sensitive contexts, the eventual consistency offered by asynchronous writes might be sufficient.
+
+## Decision Matrix
+
+Given these considerations, the following matrix can help decide the most appropriate data write and feature computation strategies based on specific application needs and data sensitivity:
+
+| Scenario | Data Write Type | Feature Computation | Recommended Approach |
+|----------|-----------------|---------------------|----------------------|
+| Real-time, high-stakes decision making | Synchronous | On Demand | Use synchronous writes with on-demand feature computation to ensure data freshness and correctness. |
+| High volume, non-critical data processing | Asynchronous | Precomputed | Use asynchronous batch jobs with precomputed transformations for efficiency and scalability. |
+| User-facing applications requiring quick feedback | Synchronous | Precomputed | Use synchronous writes with precomputed features to reduce latency and improve user experience. |
+| Data-intensive applications tolerant to staleness | Asynchronous | On Demand | Opt for asynchronous writes with on-demand computation to balance load and manage resource usage efficiently. |
+
+Each scenario balances the tradeoffs differently, depending on the application's tolerance for staleness versus its need for immediacy and accuracy.
 
