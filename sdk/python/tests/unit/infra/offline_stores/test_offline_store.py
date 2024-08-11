@@ -3,7 +3,6 @@ from unittest.mock import MagicMock, patch
 
 import pandas as pd
 import pyarrow
-import pyarrow.flight as fl
 import pytest
 
 from feast.infra.offline_stores.contrib.athena_offline_store.athena import (
@@ -216,7 +215,6 @@ def retrieval_job(request, environment):
 
         return RemoteRetrievalJob(
             client=MagicMock(),
-            options=fl.FlightCallOptions(),
             api_parameters={
                 "str": "str",
             },
