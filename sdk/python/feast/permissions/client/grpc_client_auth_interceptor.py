@@ -2,9 +2,8 @@ import logging
 
 import grpc
 
-from feast.permissions.auth.auth_type import AuthType
 from feast.permissions.auth_model import AuthConfig
-from feast.permissions.client.auth_client_manager import get_auth_client_manager
+from feast.permissions.client.auth_client_manager_factory import get_auth_token
 
 logger = logging.getLogger(__name__)
 
@@ -43,16 +42,11 @@ class GrpcClientAuthHeaderInterceptor(
         return continuation(client_call_details, request_iterator)
 
     def _append_auth_header_metadata(self, client_call_details):
-        if self._auth_type.type is not AuthType.NONE.value:
-            logger.info(
-                f"Intercepted the grpc api method {client_call_details.method} call to inject Authorization header "
-                f"token. "
-            )
-            metadata = client_call_details.metadata or []
-            auth_client_manager = get_auth_client_manager(self._auth_type)
-            access_token = auth_client_manager.get_token()
-            metadata.append(
-                (b"authorization", b"Bearer " + access_token.encode("utf-8"))
-            )
-            client_call_details = client_call_details._replace(metadata=metadata)
+        logger.debug(
+            "Intercepted the grpc api method call to inject Authorization header "
+        )
+        metadata = client_call_details.metadata or []
+        access_token = get_auth_token(self._auth_type)
+        metadata.append((b"authorization", b"Bearer " + access_token.encode("utf-8")))
+        client_call_details = client_call_details._replace(metadata=metadata)
         return client_call_details

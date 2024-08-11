@@ -15,6 +15,7 @@ from feast.feature_view import FeatureView
 from feast.infra.infra_object import Infra
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
+from feast.permissions.auth.auth_type import AuthType
 from feast.permissions.auth_model import (
     AuthConfig,
     NoAuthConfig,
@@ -48,13 +49,12 @@ class RemoteRegistry(BaseRegistry):
         repo_path: Optional[Path],
         auth_config: AuthConfig = NoAuthConfig(),
     ):
-        auth_header_interceptor = GrpcClientAuthHeaderInterceptor(auth_config)
         self.auth_config = auth_config
         channel = grpc.insecure_channel(registry_config.path)
-        self.intercepted_channel = grpc.intercept_channel(
-            channel, auth_header_interceptor
-        )
-        self.stub = RegistryServer_pb2_grpc.RegistryServerStub(self.intercepted_channel)
+        if self.auth_config.type != AuthType.NONE.value:
+            auth_header_interceptor = GrpcClientAuthHeaderInterceptor(auth_config)
+            channel = grpc.intercept_channel(channel, auth_header_interceptor)
+        self.stub = RegistryServer_pb2_grpc.RegistryServerStub(channel)
 
     def apply_entity(self, entity: Entity, project: str, commit: bool = True):
         request = RegistryServer_pb2.ApplyEntityRequest(

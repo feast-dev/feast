@@ -27,7 +27,9 @@ from feast.infra.offline_stores.offline_store import (
     RetrievalMetadata,
 )
 from feast.infra.registry.base_registry import BaseRegistry
-from feast.permissions.client.utils import create_flight_call_options
+from feast.permissions.client.arrow_flight_auth_interceptor import (
+    build_arrow_flight_client,
+)
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 
@@ -47,7 +49,6 @@ class RemoteRetrievalJob(RetrievalJob):
     def __init__(
         self,
         client: fl.FlightClient,
-        options: pa.flight.FlightCallOptions,
         api: str,
         api_parameters: Dict[str, Any],
         entity_df: Union[pd.DataFrame, str] = None,
@@ -56,7 +57,6 @@ class RemoteRetrievalJob(RetrievalJob):
     ):
         # Initialize the client connection
         self.client = client
-        self.options = options
         self.api = api
         self.api_parameters = api_parameters
         self.entity_df = entity_df
@@ -77,7 +77,6 @@ class RemoteRetrievalJob(RetrievalJob):
             self.entity_df,
             self.table,
             self.client,
-            self.options,
         )
 
     @property
@@ -118,7 +117,6 @@ class RemoteRetrievalJob(RetrievalJob):
             api=RemoteRetrievalJob.persist.__name__,
             api_parameters=api_parameters,
             client=self.client,
-            options=self.options,
             table=self.table,
             entity_df=self.entity_df,
         )
@@ -137,9 +135,9 @@ class RemoteOfflineStore(OfflineStore):
     ) -> RemoteRetrievalJob:
         assert isinstance(config.offline_store, RemoteOfflineStoreConfig)
 
-        # Initialize the client connection
-        client = RemoteOfflineStore.init_client(config)
-        options = create_flight_call_options(config.auth_config)
+        client = build_arrow_flight_client(
+            config.offline_store.host, config.offline_store.port, config.auth_config
+        )
 
         feature_view_names = [fv.name for fv in feature_views]
         name_aliases = [fv.projection.name_alias for fv in feature_views]
@@ -154,7 +152,6 @@ class RemoteOfflineStore(OfflineStore):
 
         return RemoteRetrievalJob(
             client=client,
-            options=options,
             api=OfflineStore.get_historical_features.__name__,
             api_parameters=api_parameters,
             entity_df=entity_df,
@@ -174,8 +171,9 @@ class RemoteOfflineStore(OfflineStore):
         assert isinstance(config.offline_store, RemoteOfflineStoreConfig)
 
         # Initialize the client connection
-        client = RemoteOfflineStore.init_client(config)
-        options = create_flight_call_options(config.auth_config)
+        client = build_arrow_flight_client(
+            config.offline_store.host, config.offline_store.port, config.auth_config
+        )
 
         api_parameters = {
             "data_source_name": data_source.name,
@@ -188,7 +186,6 @@ class RemoteOfflineStore(OfflineStore):
 
         return RemoteRetrievalJob(
             client=client,
-            options=options,
             api=OfflineStore.pull_all_from_table_or_query.__name__,
             api_parameters=api_parameters,
         )
@@ -207,8 +204,9 @@ class RemoteOfflineStore(OfflineStore):
         assert isinstance(config.offline_store, RemoteOfflineStoreConfig)
 
         # Initialize the client connection
-        client = RemoteOfflineStore.init_client(config)
-        options = create_flight_call_options(config.auth_config)
+        client = build_arrow_flight_client(
+            config.offline_store.host, config.offline_store.port, config.auth_config
+        )
 
         api_parameters = {
             "data_source_name": data_source.name,
@@ -222,7 +220,6 @@ class RemoteOfflineStore(OfflineStore):
 
         return RemoteRetrievalJob(
             client=client,
-            options=options,
             api=OfflineStore.pull_latest_from_table_or_query.__name__,
             api_parameters=api_parameters,
         )
@@ -242,8 +239,9 @@ class RemoteOfflineStore(OfflineStore):
             data = pyarrow.parquet.read_table(data, use_threads=False, pre_buffer=False)
 
         # Initialize the client connection
-        client = RemoteOfflineStore.init_client(config)
-        options = create_flight_call_options(config.auth_config)
+        client = build_arrow_flight_client(
+            config.offline_store.host, config.offline_store.port, config.auth_config
+        )
 
         api_parameters = {
             "feature_service_name": source._feature_service.name,
@@ -253,7 +251,6 @@ class RemoteOfflineStore(OfflineStore):
             api=OfflineStore.write_logged_features.__name__,
             api_parameters=api_parameters,
             client=client,
-            options=options,
             table=data,
             entity_df=None,
         )
@@ -268,8 +265,9 @@ class RemoteOfflineStore(OfflineStore):
         assert isinstance(config.offline_store, RemoteOfflineStoreConfig)
 
         # Initialize the client connection
-        client = RemoteOfflineStore.init_client(config)
-        options = create_flight_call_options(config.auth_config)
+        client = build_arrow_flight_client(
+            config.offline_store.host, config.offline_store.port, config.auth_config
+        )
 
         feature_view_names = [feature_view.name]
         name_aliases = [feature_view.projection.name_alias]
@@ -284,17 +282,9 @@ class RemoteOfflineStore(OfflineStore):
             api=OfflineStore.offline_write_batch.__name__,
             api_parameters=api_parameters,
             client=client,
-            options=options,
             table=table,
             entity_df=None,
         )
-
-    @staticmethod
-    def init_client(config):
-        location = f"grpc://{config.offline_store.host}:{config.offline_store.port}"
-        client = fl.connect(location=location)
-        logger.info(f"Connecting FlightClient at {location}")
-        return client
 
 
 def _create_retrieval_metadata(feature_refs: List[str], entity_df: pd.DataFrame):
@@ -349,27 +339,24 @@ def _send_retrieve_remote(
     entity_df: Union[pd.DataFrame, str],
     table: pa.Table,
     client: fl.FlightClient,
-    options: pa.flight.FlightCallOptions,
 ):
     command_descriptor = _call_put(
         api,
         api_parameters,
         client,
-        options,
         entity_df,
         table,
     )
-    return _call_get(client, options, command_descriptor)
+    return _call_get(client, command_descriptor)
 
 
 def _call_get(
     client: fl.FlightClient,
-    options: pa.flight.FlightCallOptions,
     command_descriptor: fl.FlightDescriptor,
 ):
-    flight = client.get_flight_info(command_descriptor, options)
+    flight = client.get_flight_info(command_descriptor)
     ticket = flight.endpoints[0].ticket
-    reader = client.do_get(ticket, options)
+    reader = client.do_get(ticket)
     return reader.read_all()
 
 
@@ -377,7 +364,6 @@ def _call_put(
     api: str,
     api_parameters: Dict[str, Any],
     client: fl.FlightClient,
-    options: pa.flight.FlightCallOptions,
     entity_df: Union[pd.DataFrame, str],
     table: pa.Table,
 ):
@@ -397,7 +383,7 @@ def _call_put(
         )
     )
 
-    _put_parameters(command_descriptor, entity_df, table, client, options)
+    _put_parameters(command_descriptor, entity_df, table, client)
     return command_descriptor
 
 
@@ -406,7 +392,6 @@ def _put_parameters(
     entity_df: Union[pd.DataFrame, str],
     table: pa.Table,
     client: fl.FlightClient,
-    options: pa.flight.FlightCallOptions,
 ):
     updatedTable: pa.Table
 
@@ -417,7 +402,7 @@ def _put_parameters(
     else:
         updatedTable = _create_empty_table()
 
-    writer, _ = client.do_put(command_descriptor, updatedTable.schema, options)
+    writer, _ = client.do_put(command_descriptor, updatedTable.schema)
 
     writer.write_table(updatedTable)
     writer.close()
