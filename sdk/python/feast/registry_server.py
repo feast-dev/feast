@@ -36,14 +36,18 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         self.proxied_registry = registry
 
     def ApplyEntity(self, request: RegistryServer_pb2.ApplyEntityRequest, context):
-        assert_permissions(
-            resource=self.proxied_registry.apply_entity(
-                entity=Entity.from_proto(request.entity),
-                project=request.project,
-                commit=request.commit,
+        self.proxied_registry.apply_entity(
+            entity=cast(
+                Entity,
+                assert_permissions(
+                    resource=Entity.from_proto(request.entity),
+                    actions=CRUD,
+                ),
             ),
-            actions=CRUD,
+            project=request.project,
+            commit=request.commit,
         )
+
         return Empty()
 
     def GetEntity(self, request: RegistryServer_pb2.GetEntityRequest, context):
@@ -90,14 +94,20 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
     def ApplyDataSource(
         self, request: RegistryServer_pb2.ApplyDataSourceRequest, context
     ):
-        assert_permissions(
-            resource=self.proxied_registry.apply_data_source(
-                data_source=DataSource.from_proto(request.data_source),
+        (
+            self.proxied_registry.apply_data_source(
+                data_source=cast(
+                    DataSource,
+                    assert_permissions(
+                        resource=DataSource.from_proto(request.data_source),
+                        actions=CRUD,
+                    ),
+                ),
                 project=request.project,
                 commit=request.commit,
             ),
-            actions=CRUD,
         )
+
         return Empty()
 
     def GetDataSource(self, request: RegistryServer_pb2.GetDataSourceRequest, context):
@@ -171,14 +181,17 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         elif feature_view_type == "stream_feature_view":
             feature_view = StreamFeatureView.from_proto(request.stream_feature_view)
 
-        assert_permissions(
-            resource=self.proxied_registry.apply_feature_view(
-                feature_view=feature_view,
+        (
+            self.proxied_registry.apply_feature_view(
+                feature_view=cast(
+                    FeatureView,
+                    assert_permissions(resource=feature_view, actions=CRUD),
+                ),
                 project=request.project,
                 commit=request.commit,
             ),
-            actions=CRUD,
         )
+
         return Empty()
 
     def ListFeatureViews(
@@ -291,13 +304,16 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
     def ApplyFeatureService(
         self, request: RegistryServer_pb2.ApplyFeatureServiceRequest, context
     ):
-        assert_permissions(
-            resource=self.proxied_registry.apply_feature_service(
-                feature_service=FeatureService.from_proto(request.feature_service),
-                project=request.project,
-                commit=request.commit,
+        self.proxied_registry.apply_feature_service(
+            feature_service=cast(
+                FeatureService,
+                assert_permissions(
+                    resource=FeatureService.from_proto(request.feature_service),
+                    actions=CRUD,
+                ),
             ),
-            actions=CRUD,
+            project=request.project,
+            commit=request.commit,
         )
 
         return Empty()
@@ -354,13 +370,18 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
     def ApplySavedDataset(
         self, request: RegistryServer_pb2.ApplySavedDatasetRequest, context
     ):
-        assert_permissions(
-            resource=self.proxied_registry.apply_saved_dataset(
-                saved_dataset=SavedDataset.from_proto(request.saved_dataset),
+        (
+            self.proxied_registry.apply_saved_dataset(
+                saved_dataset=cast(
+                    SavedDataset,
+                    assert_permissions(
+                        resource=SavedDataset.from_proto(request.saved_dataset),
+                        actions=CRUD,
+                    ),
+                ),
                 project=request.project,
                 commit=request.commit,
             ),
-            actions=CRUD,
         )
 
         return Empty()
@@ -415,15 +436,16 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
     def ApplyValidationReference(
         self, request: RegistryServer_pb2.ApplyValidationReferenceRequest, context
     ):
-        assert_permissions(
-            resource=self.proxied_registry.apply_validation_reference(
-                validation_reference=ValidationReference.from_proto(
-                    request.validation_reference
+        self.proxied_registry.apply_validation_reference(
+            validation_reference=cast(
+                ValidationReference,
+                assert_permissions(
+                    ValidationReference.from_proto(request.validation_reference),
+                    actions=CRUD,
                 ),
-                project=request.project,
-                commit=request.commit,
             ),
-            actions=CRUD,
+            project=request.project,
+            commit=request.commit,
         )
 
         return Empty()
@@ -524,13 +546,15 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
     def ApplyPermission(
         self, request: RegistryServer_pb2.ApplyPermissionRequest, context
     ):
-        assert_permissions(
-            self.proxied_registry.apply_permission(
-                permission=Permission.from_proto(request.permission),
-                project=request.project,
-                commit=request.commit,
+        self.proxied_registry.apply_permission(
+            permission=cast(
+                Permission,
+                assert_permissions(
+                    Permission.from_proto(request.permission), actions=CRUD
+                ),
             ),
-            actions=CRUD,
+            project=request.project,
+            commit=request.commit,
         )
         return Empty()
 
