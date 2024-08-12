@@ -2,7 +2,7 @@ import itertools
 import os
 from binascii import hexlify
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
 
 import pandas as pd
 from pydantic import ConfigDict, Field, StrictStr
