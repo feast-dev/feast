@@ -23,16 +23,30 @@ single API call. This is a common pattern when writing data to the online store 
 not qualify this as a batch job.
 
 ## Feature Value Write Patterns
+
+Writing feature values to the online store can be done in two ways: Precomputing the transformations or Computing the transformations On Demand. 
+
+### Combining Approaches
+
+In some advanced scenarios, a combination of precomputed and On Demand transformations might be optimal. For example, base feature calculations that do not change often could be precomputed and stored, while more dynamic calculations based on real-time data can be computed on demand. This hybrid approach can help balance the load on compute resources while ensuring feature freshness where it matters most.
+
+When selecting a feature value write pattern, consider the specific requirements of your application, such as the need for real-time data, the acceptable level of latency, and the computational resources available. Making an informed choice can significantly enhance the performance and reliability of your feature store operations.
+
+
 There are two ways to write *feature values* to the online store:
 
 1. Precomputing the transformations
 2. Computing the transformations On Demand
+3. Hybrid (Precomputed + On Demand)
 
 ### 1. Precomputing the transformations
 Precomputed transformations can happen outside of Feast (e.g., via some batch job or streaming application) or inside of the Feast feature server when writing to the online store via the `write-to-online-store` api. 
 
-### 2. Computing the transformations "On Demand"
+### 2. Computing the transformations On Demand
 On Demand transformations can only happen inside of Feast at either (1) the time of the client's request or (2) when the data producer writes to the online store. In some cases, a blend of both may be optimal.
+
+### 3. Hybrid (Precomputed + On Demand)
+The hybrid approach allows for precomputed transformations to happen inside or outside of Feast and have the On Demand transformations happen at client request time. This is particularly convenient for "Time Since Last" types of features (e.g., time since last payment).
 
 ## Tradeoffs
 
@@ -51,4 +65,4 @@ Given these considerations, the table below can help guide the most appropriate 
 | Asynchronous | Precomputed | High volume, non-critical data processing | Use asynchronous batch jobs with precomputed transformations for efficiency and scalability. |
 | Synchronous | On Demand | High-stakes decision making | Use synchronous writes with on-demand feature computation to ensure data freshness and correctness. |
 | Synchronous | Precomputed | User-facing applications requiring quick feedback | Use synchronous writes with precomputed features to reduce latency and improve user experience. |
-| Synchronous | Precomputed + On Demand | High-stakes decision making that want to optimize for latency under constraints| Use synchronous writes with precomputed features where possible and a select set of on demand computations to reduce latency and improve user experience. |
+| Synchronous | Hybrid (Precomputed + On Demand) | High-stakes decision making that want to optimize for latency under constraints| Use synchronous writes with precomputed features where possible and a select set of on demand computations to reduce latency and improve user experience. |
