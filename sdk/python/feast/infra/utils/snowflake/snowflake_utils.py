@@ -84,9 +84,9 @@ class GetSnowflakeConnection:
 
             # https://docs.snowflake.com/en/user-guide/python-connector-example.html#using-key-pair-authentication-key-pair-rotation
             # https://docs.snowflake.com/en/user-guide/key-pair-auth.html#configuring-key-pair-authentication
-            if "private_key" in kwargs:
+            if "private_key" in kwargs or "private_key_content" in kwargs:
                 kwargs["private_key"] = parse_private_key_path(
-                    kwargs["private_key"], kwargs["private_key_passphrase"]
+                    kwargs.get("private_key_passphrase"), kwargs.get("private_key"), kwargs.get("private_key_content")
                 )
 
             try:
@@ -511,24 +511,24 @@ def chunk_helper(lst: pd.DataFrame, n: int) -> Iterator[Tuple[int, pd.DataFrame]
 
 
 def parse_private_key_path(
-    private_key: Union[str, bytes], private_key_passphrase: str
+    private_key_passphrase: str, key_path: str = None, private_key_content: bytes = None
 ) -> bytes:
-    """Returns snowflake pkb by parsing and reading either from private key path or as byte string."""
-    if isinstance(private_key, str):
-        with open(private_key, "rb") as key:
+    """Returns snowflake pkb by parsing and reading either from key path or private_key_content as byte string."""
+    if private_key_content:
+        p_key = serialization.load_pem_private_key(
+            private_key_content,
+            password=private_key_passphrase.encode(),
+            backend=default_backend(),
+        )
+    elif key_path:
+        with open(key_path, "rb") as key:
             p_key = serialization.load_pem_private_key(
                 key.read(),
                 password=private_key_passphrase.encode(),
                 backend=default_backend(),
             )
-    elif isinstance(private_key, bytes):
-        p_key = serialization.load_pem_private_key(
-            private_key,
-            password=private_key_passphrase.encode(),
-            backend=default_backend(),
-        )
     else:
-        raise ValueError("private_key must be either type of str or bytes.")
+        raise ValueError("Please provide key_path or private_key_content.")
 
     pkb = p_key.private_bytes(
         encoding=serialization.Encoding.DER,
