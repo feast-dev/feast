@@ -511,7 +511,7 @@ def chunk_helper(lst: pd.DataFrame, n: int) -> Iterator[Tuple[int, pd.DataFrame]
 
 
 def parse_private_key_path(
-    private_key_passphrase: str, key_path: str = None, private_key_content: bytes = None
+    private_key_passphrase: str, key_path: Optional[str] = None, private_key_content: Optional[bytes] = None
 ) -> bytes:
     """Returns snowflake pkb by parsing and reading either from key path or private_key_content as byte string."""
     if private_key_content:
