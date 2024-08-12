@@ -59,7 +59,6 @@ def security_manager() -> SecurityManager:
         Permission(
             name="reader",
             types=FeatureView,
-            with_subclasses=True,
             policy=RoleBasedPolicy(roles=["reader"]),
             actions=[AuthzedAction.READ],
         )
@@ -68,7 +67,6 @@ def security_manager() -> SecurityManager:
         Permission(
             name="writer",
             types=FeatureView,
-            with_subclasses=True,
             policy=RoleBasedPolicy(roles=["writer"]),
             actions=[AuthzedAction.UPDATE],
         )
@@ -77,7 +75,6 @@ def security_manager() -> SecurityManager:
         Permission(
             name="special",
             types=FeatureView,
-            with_subclasses=True,
             name_pattern="special.*",
             policy=RoleBasedPolicy(roles=["admin", "special-reader"]),
             actions=[AuthzedAction.READ, AuthzedAction.UPDATE],

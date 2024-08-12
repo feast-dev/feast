@@ -35,12 +35,22 @@ The permission model is based on the following components:
 
 The `Permission` class identifies a single permission configured on the feature store and is identified by these attributes:
 - `name`: The permission name.
-- `types`: The list of protected resource  types. Defaults to all managed types, e.g. the `ALL_RESOURCE_TYPES` alias
-- `with_subclasses`: Specify if sub-classes are included in the resource match or not. Defaults to `True`.
+- `types`: The list of protected resource  types. Defaults to all managed types, e.g. the `ALL_RESOURCE_TYPES` alias. All sub-classes are included in the resource match.
 - `name_pattern`: A regex to match the resource name. Defaults to `None`, meaning that no name filtering is applied
 - `required_tags`: Dictionary of key-value pairs that must match the resource tags. Defaults to `None`, meaning that no tags filtering is applied.
 - `actions`: The actions authorized by this permission. Defaults to `ALL_VALUES`, an alias defined in the `action` module.
 - `policy`: The policy to be applied to validate a client request.
+
+To simplify configuration, several constants are defined to streamline the permissions setup:
+- In module `feast.feast_object`:
+  - `ALL_RESOURCE_TYPES` is the list of all the `FeastObject` types.
+  - `ALL_FEATURE_VIEW_TYPES` is the list of all the feature view types, including those not inheriting from `FeatureView` type like 
+  `OnDemandFeatureView`.
+- In module `feast.permissions.action`:
+  - `ALL_ACTIONS` is the list of all managed actions.
+  - `QUERY` includes all the query actions for online and offline store.
+  - `WRITE` includes all the write actions for online and offline store.
+  - `CRUD` includes all the state management actions to create, read, update or delete a Feast resource.
 
 Given the above definitions, the feature store can be configured with granular control over each resource, enabling partitioned access by 
 teams to meet organizational requirements for service and data sharing, and protection of sensitive information.
@@ -62,7 +72,7 @@ Permission(
     actions=[AuthzedAction.READ, QUERY],
 )
 ```
-Please note that all sub-classes of `FeatureView` are also included since the default for the `with_subclasses` parameter is `True`.
+Please note that all sub-classes of `FeatureView` are also included.
 
 This example grants permission to write on all the data sources with `risk_level` tag set to `high` only to users with role `admin` or `data_team`:
 ```py
@@ -85,7 +95,6 @@ The following permission grants authorization to query the offline store of all 
 Permission(
     name="reader",
     types=[FeatureView],
-    with_subclasses=False, # exclude sub-classes
     name_pattern=".*risky.*",
     policy=RoleBasedPolicy(roles=["trusted"]),
     actions=[AuthzedAction.QUERY_OFFLINE],

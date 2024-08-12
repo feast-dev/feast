@@ -196,7 +196,6 @@ def handle_not_verbose_permissions_command(
         [
             p.name,
             _to_multi_line([t.__name__ for t in p.types]),  # type: ignore[union-attr, attr-defined]
-            p.with_subclasses,
             p.name_pattern,
             _to_multi_line([a.value.upper() for a in p.actions]),
             _to_multi_line(sorted(roles)),

@@ -28,10 +28,8 @@ class Permission(ABC):
 
     Attributes:
         name: The permission name (can be duplicated, used for logging troubleshooting).
-        types: The list of protected resource  types as defined by the `FeastObject` type.
+        types: The list of protected resource types as defined by the `FeastObject` type. The match includes all the sub-classes of the given types.
         Defaults to all managed types (e.g. the `ALL_RESOURCE_TYPES` constant)
-        with_subclasses: If `True`, it includes sub-classes of the given types in the match, otherwise only exact type match is applied.
-        Defaults to `True`.
         name_pattern: A regex to match the resource name. Defaults to None, meaning that no name filtering is applied
         be present in a resource tags with the given value. Defaults to None, meaning that no tags filtering is applied.
         actions: The actions authorized by this permission. Defaults to `ALL_ACTIONS`.
@@ -41,7 +39,6 @@ class Permission(ABC):
 
     _name: str
     _types: list["FeastObject"]
-    _with_subclasses: bool
     _name_pattern: Optional[str]
     _actions: list[AuthzedAction]
     _policy: Policy
@@ -51,7 +48,6 @@ class Permission(ABC):
         self,
         name: str,
         types: Optional[Union[list["FeastObject"], "FeastObject"]] = None,
-        with_subclasses: bool = True,
         name_pattern: Optional[str] = None,
         actions: Union[list[AuthzedAction], AuthzedAction] = ALL_ACTIONS,
         policy: Policy = AllowAll,
@@ -70,7 +66,6 @@ class Permission(ABC):
             raise ValueError("The list 'policy' must be non-empty.")
         self._name = name
         self._types = types if isinstance(types, list) else [types]
-        self._with_subclasses = with_subclasses
         self._name_pattern = _normalize_name_pattern(name_pattern)
         self._actions = actions if isinstance(actions, list) else [actions]
         self._policy = policy
@@ -82,7 +77,6 @@ class Permission(ABC):
 
         if (
             self.name != other.name
-            or self.with_subclasses != other.with_subclasses
             or self.name_pattern != other.name_pattern
             or self.tags != other.tags
             or self.policy != other.policy
@@ -110,10 +104,6 @@ class Permission(ABC):
         return self._types
 
     @property
-    def with_subclasses(self) -> bool:
-        return self._with_subclasses
-
-    @property
     def name_pattern(self) -> Optional[str]:
         return self._name_pattern
 
@@ -137,7 +127,6 @@ class Permission(ABC):
         return resource_match_config(
             resource=resource,
             expected_types=self.types,
-            with_subclasses=self.with_subclasses,
             name_pattern=self.name_pattern,
             required_tags=self.tags,
         )
@@ -178,7 +167,6 @@ class Permission(ABC):
         permission = Permission(
             permission_proto.name,
             types,
-            permission_proto.with_subclasses,
             permission_proto.name_pattern or None,
             actions,
             Policy.from_proto(permission_proto.policy),
@@ -205,7 +193,6 @@ class Permission(ABC):
         permission_proto = PermissionProto(
             name=self.name,
             types=types,
-            with_subclasses=self.with_subclasses,
             name_pattern=self.name_pattern if self.name_pattern is not None else "",
             actions=actions,
             policy=self.policy.to_proto(),

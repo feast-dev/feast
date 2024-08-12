@@ -41,14 +41,9 @@ def _get_type(resource: "FeastObject") -> Any:
         return getattr(resource, "_spec_class", None)
 
 
-def _is_abstract_type(type: Any) -> bool:
-    return bool(getattr(type, "__abstractmethods__", False))
-
-
 def resource_match_config(
     resource: "FeastObject",
     expected_types: list["FeastObject"],
-    with_subclasses: bool = True,
     name_pattern: Optional[str] = None,
     required_tags: Optional[dict[str, str]] = None,
 ) -> bool:
@@ -57,8 +52,7 @@ def resource_match_config(
 
     Args:
         resource: A FeastObject instance to match agains the permission.
-        expected_types: The list of object types configured in the permission.
-        with_subclasses: `True` if the type match includes sub-classes, `False` if the type match is exact.
+        expected_types: The list of object types configured in the permission. Type match also includes all the sub-classes.
         name_pattern: The optional name pattern filter configured in the permission.
         required_tags: The optional dicstionary of required tags configured in the permission.
 
@@ -74,37 +68,12 @@ def resource_match_config(
         logger.warning(f"Given resource is not of a managed type but {_type}")
         return False
 
-    is_abstract = _is_abstract_type(_type)
-    if is_abstract and not with_subclasses:
-        logger.debug(
-            f"Overriding default configuration for abstract type {_type}: with_subclasses=True"
+    # mypy check ignored because of https://github.com/python/mypy/issues/11673, or it raises "Argument 2 to "isinstance" has incompatible type "tuple[Featu ..."
+    if not isinstance(resource, tuple(expected_types)):  # type: ignore
+        logger.info(
+            f"Resource does not match any of the expected type {expected_types}"
         )
-        with_subclasses = True
-
-    if with_subclasses:
-        # mypy check ignored because of https://github.com/python/mypy/issues/11673, or it raises "Argument 2 to "isinstance" has incompatible type "tuple[Featu ..."
-        if not isinstance(resource, tuple(expected_types)):  # type: ignore
-            logger.info(
-                f"Resource does not match any of the expected type {expected_types} (with_subclasses={with_subclasses})"
-            )
-            return False
-    else:
-        is_mock = isinstance(resource, Mock)
-        exact_type_match = False
-        for t in expected_types:
-            if not is_mock:
-                if type(resource) is t:
-                    exact_type_match = True
-                    break
-            else:
-                if getattr(resource, "_spec_class", None) is t:
-                    exact_type_match = True
-                    break
-        if not exact_type_match:
-            logger.info(
-                f"Resource does not match any of the expected type {expected_types} (with_subclasses={with_subclasses})"
-            )
-            return False
+        return False
 
     if name_pattern is not None:
         if hasattr(resource, "name"):

@@ -25,21 +25,18 @@ def test_remote_online_store_read(auth_config):
             Permission(
                 name="online_list_fv_perm",
                 types=FeatureView,
-                with_subclasses=False,
                 policy=RoleBasedPolicy(roles=["reader"]),
                 actions=[AuthzedAction.QUERY_ONLINE],
             ),
             Permission(
                 name="online_list_odfv_perm",
                 types=OnDemandFeatureView,
-                with_subclasses=False,
                 policy=RoleBasedPolicy(roles=["reader"]),
                 actions=[AuthzedAction.QUERY_ONLINE],
             ),
             Permission(
                 name="online_list_sfv_perm",
                 types=StreamFeatureView,
-                with_subclasses=False,
                 policy=RoleBasedPolicy(roles=["reader"]),
                 actions=[AuthzedAction.QUERY_ONLINE],
             ),

@@ -171,10 +171,10 @@ Options:
 ```
 
 ```text
-NAME                   TYPES            WITH_SUBCLASS    NAME_PATTERN           ACTIONS                         ROLES
-reader_permission1234  FeatureView      True             transformed_conv_rate  READ                            reader
+NAME                   TYPES            NAME_PATTERN           ACTIONS                         ROLES
+reader_permission1234  FeatureView      transformed_conv_rate  READ                            reader
                        FeaduteService
-writer_permission1234  FeatureView      True             transformed_conv_rate  CREATE                          writer
+writer_permission1234  FeatureView      transformed_conv_rate  CREATE                          writer
 ```
 
 `verbose` option describes the resources matching each configured permission: 

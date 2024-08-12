@@ -48,3 +48,9 @@ FeastObjectSpecProto = Union[
 ]
 
 ALL_RESOURCE_TYPES = list(get_args(FeastObject))
+ALL_FEATURE_VIEW_TYPES = [
+    FeatureView,
+    OnDemandFeatureView,
+    BatchFeatureView,
+    StreamFeatureView,
+]

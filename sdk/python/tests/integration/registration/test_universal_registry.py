@@ -1386,7 +1386,6 @@ def test_apply_permission_success(test_registry):
         and isinstance(permission.policy, RoleBasedPolicy)
         and len(permission.policy.roles) == 1
         and permission.policy.roles[0] == "reader"
-        and permission.with_subclasses
         and permission.name_pattern is None
         and permission.tags is None
     )
@@ -1401,7 +1400,6 @@ def test_apply_permission_success(test_registry):
         and isinstance(permission.policy, RoleBasedPolicy)
         and len(permission.policy.roles) == 1
         and permission.policy.roles[0] == "reader"
-        and permission.with_subclasses
         and permission.name_pattern is None
         and permission.tags is None
     )
@@ -1435,7 +1433,6 @@ def test_apply_permission_success(test_registry):
         and len(updated_permission.policy.roles) == 2
         and "reader" in updated_permission.policy.roles
         and "writer" in updated_permission.policy.roles
-        and updated_permission.with_subclasses
         and updated_permission.name_pattern is None
         and updated_permission.tags is None
     )
@@ -1452,7 +1449,6 @@ def test_apply_permission_success(test_registry):
         actions=[AuthzedAction.READ, AuthzedAction.WRITE_ONLINE],
         policy=RoleBasedPolicy(roles=["reader", "writer"]),
         types=FeatureView,
-        with_subclasses=False,
         name_pattern="aaa",
         tags={"team": "matchmaking"},
     )
@@ -1474,7 +1470,6 @@ def test_apply_permission_success(test_registry):
         and len(updated_permission.policy.roles) == 2
         and "reader" in updated_permission.policy.roles
         and "writer" in updated_permission.policy.roles
-        and not updated_permission.with_subclasses
         and updated_permission.name_pattern == "aaa"
         and "team" in updated_permission.tags
         and updated_permission.tags["team"] == "matchmaking"

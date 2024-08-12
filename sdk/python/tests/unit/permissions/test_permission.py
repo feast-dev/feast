@@ -23,7 +23,6 @@ def test_defaults():
     p = Permission(name="test")
     assertpy.assert_that(type(p.types)).is_equal_to(list)
     assertpy.assert_that(p.types).is_equal_to(ALL_RESOURCE_TYPES)
-    assertpy.assert_that(p.with_subclasses).is_true()
     assertpy.assert_that(p.name_pattern).is_none()
     assertpy.assert_that(p.tags).is_none()
     assertpy.assert_that(type(p.actions)).is_equal_to(list)
@@ -139,68 +138,7 @@ def test_normalized_args():
     + [(Mock(spec=t), [t], True) for t in ALL_RESOURCE_TYPES],
 )
 def test_match_resource_with_subclasses(resource, types, result):
-    p = Permission(name="test", types=types, with_subclasses=True)
-    assertpy.assert_that(p.match_resource(resource)).is_equal_to(result)
-
-
-@pytest.mark.parametrize(
-    "resource, types, result",
-    [
-        (None, ALL_RESOURCE_TYPES, False),
-        ("invalid string", ALL_RESOURCE_TYPES, False),
-        ("ALL", ALL_RESOURCE_TYPES, False),
-        ("ALL", ALL_RESOURCE_TYPES, False),
-        (
-            Mock(spec=FeatureView),
-            [t for t in ALL_RESOURCE_TYPES if t not in [FeatureView]],
-            False,
-        ),
-        (
-            Mock(spec=OnDemandFeatureView),
-            [t for t in ALL_RESOURCE_TYPES if t not in [OnDemandFeatureView]],
-            False,
-        ),
-        (
-            Mock(spec=BatchFeatureView),
-            [t for t in ALL_RESOURCE_TYPES if t not in [BatchFeatureView]],
-            False,
-        ),
-        (
-            Mock(spec=StreamFeatureView),
-            [t for t in ALL_RESOURCE_TYPES if t not in [StreamFeatureView]],
-            False,
-        ),
-        (
-            Mock(spec=Entity),
-            [t for t in ALL_RESOURCE_TYPES if t not in [Entity]],
-            False,
-        ),
-        (
-            Mock(spec=FeatureService),
-            [t for t in ALL_RESOURCE_TYPES if t not in [FeatureService]],
-            False,
-        ),
-        (
-            Mock(spec=DataSource),
-            [t for t in ALL_RESOURCE_TYPES if t not in [DataSource]],
-            False,
-        ),
-        (
-            Mock(spec=ValidationReference),
-            [t for t in ALL_RESOURCE_TYPES if t not in [ValidationReference]],
-            False,
-        ),
-        (
-            Mock(spec=Permission),
-            [t for t in ALL_RESOURCE_TYPES if t not in [Permission]],
-            False,
-        ),
-    ]
-    + [(Mock(spec=t), ALL_RESOURCE_TYPES, True) for t in ALL_RESOURCE_TYPES]
-    + [(Mock(spec=t), [t], True) for t in ALL_RESOURCE_TYPES],
-)
-def test_match_resource_no_subclasses(resource, types, result):
-    p = Permission(name="test", types=types, with_subclasses=False)
+    p = Permission(name="test", types=types)
     assertpy.assert_that(p.match_resource(resource)).is_equal_to(result)
 
 

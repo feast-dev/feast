@@ -180,14 +180,12 @@ def test_diff_registry_objects_permissions():
     pre_changed = Permission(
         name="reader",
         types=ALL_RESOURCE_TYPES,
-        with_subclasses=True,
         policy=RoleBasedPolicy(roles=["reader"]),
         actions=[AuthzedAction.READ],
     )
     post_changed = Permission(
         name="reader",
         types=ALL_RESOURCE_TYPES,
-        with_subclasses=True,
         policy=RoleBasedPolicy(roles=["reader"]),
         actions=[AuthzedAction.CREATE],
     )

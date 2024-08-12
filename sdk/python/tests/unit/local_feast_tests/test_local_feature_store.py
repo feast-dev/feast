@@ -352,7 +352,6 @@ def test_apply_permissions(test_feature_store):
     permission = Permission(
         name="reader",
         types=ALL_RESOURCE_TYPES,
-        with_subclasses=True,
         policy=RoleBasedPolicy(roles=["reader"]),
         actions=[AuthzedAction.READ],
     )

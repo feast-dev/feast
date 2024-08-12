@@ -41,8 +41,6 @@ message Permission {
 
   repeated Type types = 3;
 
-  bool with_subclasses = 4;
-
   string name_pattern = 5;
 
   map<string, string> required_tags = 6;
