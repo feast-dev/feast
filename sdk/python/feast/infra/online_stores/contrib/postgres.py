@@ -95,6 +95,18 @@ class PostgreSQLOnlineStore(OnlineStore):
                 self._conn_async = await _get_conn_async(config.online_store)
             yield self._conn_async
 
+    async def close(self):
+        """Close all connections and connection pools."""
+        if self._conn is not None:
+            self._conn.close()
+        if self._conn_pool is not None:
+            self._conn_pool.close()
+
+        if self._conn_async is not None:
+            await self._conn_async.close()
+        if self._conn_pool_async is not None:
+            await self._conn_pool_async.close()
+
     def online_write_batch(
         self,
         config: RepoConfig,
