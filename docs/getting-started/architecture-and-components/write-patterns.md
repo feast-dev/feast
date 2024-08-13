@@ -2,21 +2,21 @@
 
 Feast uses a [Push Model](getting-started/architecture-and-components/push-vs-pull-model.md) to push features to the online store.
 
-This has two important consequences: (1) communication patterns between the data producer and Feast and (2) feature computation and 
+This has two important consequences: (1) communication patterns between the Data Producer (i.e., the client) and Feast (i.e,. the server) and (2) feature computation and 
 _feature value_ write patterns to Feast's online store.
 
 Data Producers (i.e., services that generate data) send data to Feast so Feast can write it to the online store. That data can
-be either raw data where Feast computes and store stores the feature values or precomputed feature values.
+be either raw data where Feast computes and stores the feature values or precomputed feature values.
 
 ## Communication Patterns
 
-There are two ways to *_send_* data to the online store: 
+There are two ways a client (or Data Producer) can *_send_* data to the online store: 
 
 1. Synchronously
    - Using an API call for a small number of entities or a single entity
 2. Asynchronously 
-   - Using an API call for a small number of entities or a single entity
-   - Using a "batch job" for a large number of entities
+   - Using an API call for a small number of entities or a single entity (e.g., using the [`push` or `write_to_online_store` methods](https://docs.feast.dev/reference/data-sources/push#pushing-data)) or the Feature Server's [`push` endpoint](https://docs.feast.dev/reference/feature-servers/python-feature-server#pushing-features-to-the-online-and-offline-stores))
+   - Using a "batch job" for a large number of entities (e.g., using a [batch materialization engine]([url](https://docs.feast.dev/getting-started/architecture-and-components/batch-materialization-engine)))
 
 Note, in some contexts, developers may "batch" a group of entities together and write them to the online store in a 
 single API call. This is a common pattern when writing data to the online store to reduce write loads but we would 
@@ -24,40 +24,39 @@ not qualify this as a batch job.
 
 ## Feature Value Write Patterns
 
-Writing feature values to the online store can be done in two ways: Precomputing the transformations or Computing the transformations On Demand. 
+Writing feature values to the online store (i.e., the server) can be done in two ways: Precomputing the transformations client-side or Computing the transformations On Demand server-side. 
 
 ### Combining Approaches
 
-In some advanced scenarios, a combination of precomputed and On Demand transformations might be optimal. For example, base feature calculations that do not change often could be precomputed and stored, while more dynamic calculations based on real-time data can be computed on demand. This hybrid approach can help balance the load on compute resources while ensuring feature freshness where it matters most.
+In some advanced scenarios, a combination of precomputed and On Demand transformations might be optimal.
 
-When selecting a feature value write pattern, consider the specific requirements of your application, such as the need for real-time data, the acceptable level of latency, and the computational resources available. Making an informed choice can significantly enhance the performance and reliability of your feature store operations.
+When selecting feature value write patterns, one must consider the specific requirements of your application, the acceptable correctness of the data, the tolerance for latency, and the computational resources available. Making an informed choice can significantly help the performance and reliability of your feature store service.
 
-
-There are two ways to write *feature values* to the online store:
+There are two ways the client can write *feature values* to the online store:
 
 1. Precomputing the transformations
 2. Computing the transformations On Demand
 3. Hybrid (Precomputed + On Demand)
 
 ### 1. Precomputing the transformations
-Precomputed transformations can happen outside of Feast (e.g., via some batch job or streaming application) or inside of the Feast feature server when writing to the online store via the `write-to-online-store` api. 
+Precomputed transformations can happen outside of Feast (e.g., via some batch job or streaming application) or inside of the Feast feature server when writing to the online store via the `push` or `write-to-online-store` api. 
 
 ### 2. Computing the transformations On Demand
-On Demand transformations can only happen inside of Feast at either (1) the time of the client's request or (2) when the data producer writes to the online store. In some cases, a blend of both may be optimal.
+On Demand transformations can only happen inside of Feast at either (1) the time of the client's request or (2) when the data producer writes to the online store.
 
 ### 3. Hybrid (Precomputed + On Demand)
-The hybrid approach allows for precomputed transformations to happen inside or outside of Feast and have the On Demand transformations happen at client request time. This is particularly convenient for "Time Since Last" types of features (e.g., time since last payment).
+The hybrid approach allows for precomputed transformations to happen inside or outside of Feast and have the On Demand transformations happen at client request time. This is particularly convenient for "Time Since Last" types of features (e.g., time since purchase).
 
 ## Tradeoffs
 
-When deciding between synchronous and asynchronous data writes, several tradeoffs related to data consistency and operational impacts should be considered:
+When deciding between synchronous and asynchronous data writes, several tradeoffs should be considered:
 
-- **Data Consistency**: Asynchronous writes allow data producers to send data without waiting for the write operation to complete, which can lead to situations where the data in the online store is stale. This might be acceptable in scenarios where absolute freshness is not critical. However, for critical operations, such as calculating loan amounts in financial applications, stale data can lead to incorrect decisions, making synchronous writes essential.
+- **Data Consistency**: Asynchronous writes allow Data Producers to send data without waiting for the write operation to complete, which can lead to situations where the data in the online store is stale. This might be acceptable in scenarios where absolute freshness is not critical. However, for critical operations, such as calculating loan amounts in financial applications, stale data can lead to incorrect decisions, making synchronous writes essential.
 - **Correctness**: The risk of data being out-of-date must be weighed against the operational requirements. For instance, in a lending application, having up-to-date feature data can be crucial for correctness (depending upon the features and raw data), thus favoring synchronous writes. In less sensitive contexts, the eventual consistency offered by asynchronous writes might be sufficient.
 - **Service Coupling**: Synchronous writes result in tighter coupling between services. If a write operation fails, it can cause the dependent service operation to fail as well, which might be a significant drawback in systems requiring high reliability and independence between services.
 - **Application Latency**: Asynchronous writes typically reduce the perceived latency from the client's perspective because the client does not wait for the write operation to complete. This can enhance the user experience and efficiency in environments where operations are not critically dependent on immediate data freshness.
 
-Given these considerations, the table below can help guide the most appropriate data write and feature computation strategies based on specific application needs and data sensitivity.
+The table below can help guide the most appropriate data write and feature computation strategies based on specific application needs and data sensitivity.
 
 | Data Write Type | Feature Computation | Scenario | Recommended Approach |
 |----------|-----------------|---------------------|----------------------|
