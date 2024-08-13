@@ -86,7 +86,9 @@ class GetSnowflakeConnection:
             # https://docs.snowflake.com/en/user-guide/key-pair-auth.html#configuring-key-pair-authentication
             if "private_key" in kwargs or "private_key_content" in kwargs:
                 kwargs["private_key"] = parse_private_key_path(
-                    kwargs.get("private_key_passphrase"), kwargs.get("private_key"), kwargs.get("private_key_content")
+                    kwargs.get("private_key_passphrase"),
+                    kwargs.get("private_key"),
+                    kwargs.get("private_key_content"),
                 )
 
             try:
@@ -511,7 +513,9 @@ def chunk_helper(lst: pd.DataFrame, n: int) -> Iterator[Tuple[int, pd.DataFrame]
 
 
 def parse_private_key_path(
-    private_key_passphrase: str, key_path: Optional[str] = None, private_key_content: Optional[bytes] = None
+    private_key_passphrase: str,
+    key_path: Optional[str] = None,
+    private_key_content: Optional[bytes] = None,
 ) -> bytes:
     """Returns snowflake pkb by parsing and reading either from key path or private_key_content as byte string."""
     if private_key_content:
