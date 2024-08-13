@@ -5,7 +5,7 @@ Feast uses a [Push Model](getting-started/architecture-and-components/push-vs-pu
 This has two important consequences: (1) communication patterns between the Data Producer (i.e., the client) and Feast (i.e,. the server) and (2) feature computation and 
 _feature value_ write patterns to Feast's online store.
 
-Data Producers (i.e., services that generate data) send data to Feast so Feast can write it to the online store. That data can
+Data Producers (i.e., services that generate data) send data to Feast so that Feast can write feature values to the online store. That data can
 be either raw data where Feast computes and stores the feature values or precomputed feature values.
 
 ## Communication Patterns
@@ -13,10 +13,10 @@ be either raw data where Feast computes and stores the feature values or precomp
 There are two ways a client (or Data Producer) can *_send_* data to the online store: 
 
 1. Synchronously
-   - Using an API call for a small number of entities or a single entity
+   - Using a synchronous API call for a small number of entities or a single entity (e.g., using the [`push` or `write_to_online_store` methods](https://docs.feast.dev/reference/data-sources/push#pushing-data)) or the Feature Server's [`push` endpoint](https://docs.feast.dev/reference/feature-servers/python-feature-server#pushing-features-to-the-online-and-offline-stores))
 2. Asynchronously 
-   - Using an API call for a small number of entities or a single entity (e.g., using the [`push` or `write_to_online_store` methods](https://docs.feast.dev/reference/data-sources/push#pushing-data)) or the Feature Server's [`push` endpoint](https://docs.feast.dev/reference/feature-servers/python-feature-server#pushing-features-to-the-online-and-offline-stores))
-   - Using a "batch job" for a large number of entities (e.g., using a [batch materialization engine]([url](https://docs.feast.dev/getting-started/architecture-and-components/batch-materialization-engine)))
+   - Using an asynchronous API call for a small number of entities or a single entity (e.g., using the [`push` or `write_to_online_store` methods](https://docs.feast.dev/reference/data-sources/push#pushing-data)) or the Feature Server's [`push` endpoint](https://docs.feast.dev/reference/feature-servers/python-feature-server#pushing-features-to-the-online-and-offline-stores))
+   - Using a "batch job" for a large number of entities (e.g., using a [batch materialization engine](https://docs.feast.dev/getting-started/architecture-and-components/batch-materialization-engine))
 
 Note, in some contexts, developers may "batch" a group of entities together and write them to the online store in a 
 single API call. This is a common pattern when writing data to the online store to reduce write loads but we would 
@@ -28,20 +28,20 @@ Writing feature values to the online store (i.e., the server) can be done in two
 
 ### Combining Approaches
 
-In some advanced scenarios, a combination of precomputed and On Demand transformations might be optimal.
+In some scenarios, a combination of Precomputed and On Demand transformations may be optimal.
 
-When selecting feature value write patterns, one must consider the specific requirements of your application, the acceptable correctness of the data, the tolerance for latency, and the computational resources available. Making an informed choice can significantly help the performance and reliability of your feature store service.
+When selecting feature value write patterns, one must consider the specific requirements of your application, the acceptable correctness of the data, the latency tolerance, and the computational resources available. Making deliberate choices can help the performance and reliability of your service.
 
 There are two ways the client can write *feature values* to the online store:
 
-1. Precomputing the transformations
-2. Computing the transformations On Demand
+1. Precomputing transformations
+2. Computing transformations On Demand
 3. Hybrid (Precomputed + On Demand)
 
-### 1. Precomputing the transformations
+### 1. Precomputing Transformations
 Precomputed transformations can happen outside of Feast (e.g., via some batch job or streaming application) or inside of the Feast feature server when writing to the online store via the `push` or `write-to-online-store` api. 
 
-### 2. Computing the transformations On Demand
+### 2. Computing Transformations On Demand
 On Demand transformations can only happen inside of Feast at either (1) the time of the client's request or (2) when the data producer writes to the online store.
 
 ### 3. Hybrid (Precomputed + On Demand)
