@@ -171,10 +171,16 @@ Options:
 ```
 
 ```text
-NAME                   TYPES            NAME_PATTERN           ACTIONS                         ROLES
-reader_permission1234  FeatureView      transformed_conv_rate  READ                            reader
-                       FeaduteService
-writer_permission1234  FeatureView      transformed_conv_rate  CREATE                          writer
++-----------------------+-------------+-----------------------+-----------+----------------+-------------------------+
+| NAME                  | TYPES       | NAME_PATTERN          | ACTIONS   | ROLES          | REQUIRED_TAGS           |
++=======================+=============+=======================+===========+================+================+========+
+| reader_permission1234 | FeatureView | transformed_conv_rate | READ      | reader         | -                       |
++-----------------------+-------------+-----------------------+-----------+----------------+-------------------------+
+| writer_permission1234 | FeatureView | transformed_conv_rate | CREATE    | writer         | -                       |
++-----------------------+-------------+-----------------------+-----------+----------------+-------------------------+
+| special               | FeatureView | special.*             | READ      | admin          | test-key2 : test-value2 |
+|                       |             |                       | UPDATE    | special-reader | test-key : test-value   |
++-----------------------+-------------+-----------------------+-----------+----------------+-------------------------+
 ```
 
 `verbose` option describes the resources matching each configured permission: 
@@ -205,12 +211,18 @@ types:
 - FEATURE_VIEW
 withSubclasses: true
 namePattern: transformed_conv_rate
+requiredTags:
+  required1: required-value1
+  required2: required-value2
 actions:
 - READ
 policy:
   roleBasedPolicy:
     roles:
     - reader
+tags:
+  key1: value1
+  key2: value2
 
 ```
 

@@ -54,7 +54,7 @@ def resource_match_config(
         resource: A FeastObject instance to match agains the permission.
         expected_types: The list of object types configured in the permission. Type match also includes all the sub-classes.
         name_pattern: The optional name pattern filter configured in the permission.
-        required_tags: The optional dicstionary of required tags configured in the permission.
+        required_tags: The optional dictionary of required tags configured in the permission.
 
     Returns:
         bool: `True` if the resource matches the configured permission filters.
@@ -92,22 +92,22 @@ def resource_match_config(
             logger.warning(f"Resource {resource} has no `name` attribute")
 
     if required_tags:
-        if hasattr(resource, "tags"):
-            if isinstance(resource.tags, dict):
+        if hasattr(resource, "required_tags"):
+            if isinstance(resource.required_tags, dict):
                 for tag in required_tags.keys():
                     required_value = required_tags.get(tag)
-                    actual_value = resource.tags.get(tag)
+                    actual_value = resource.required_tags.get(tag)
                     if required_value != actual_value:
                         logger.info(
-                            f"Unmatched value {actual_value} for tag {tag}: expected {required_value}"
+                            f"Unmatched value {actual_value} for required tag {tag}: expected {required_value}"
                         )
                         return False
             else:
                 logger.warning(
-                    f"Resource {resource} has no `tags` attribute of unexpected type {type(resource.tags)}"
+                    f"Resource {resource} has no `required_tags` attribute of unexpected type {type(resource.required_tags)}"
                 )
         else:
-            logger.warning(f"Resource {resource} has no `tags` attribute")
+            logger.warning(f"Resource {resource} has no `required_tags` attribute")
 
     return True
 

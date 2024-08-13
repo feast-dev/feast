@@ -199,7 +199,8 @@ def handle_not_verbose_permissions_command(
             p.name_pattern,
             _to_multi_line([a.value.upper() for a in p.actions]),
             _to_multi_line(sorted(roles)),
-        ]
+            _dict_to_multi_line(p.required_tags),
+        ],
     )
 
 
@@ -320,3 +321,9 @@ def _to_multi_line(values: list[str]) -> str:
     if not values:
         return "-"
     return "\n".join(values)
+
+
+def _dict_to_multi_line(values: dict[str, str]) -> str:
+    if not values:
+        return "-"
+    return "\n".join([f"{key} : {value}" for key, value in values.items()])

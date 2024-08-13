@@ -992,6 +992,7 @@ def feast_permissions_list_command(ctx: click.Context, verbose: bool, tags: list
                     "NAME_PATTERN",
                     "ACTIONS",
                     "ROLES",
+                    "REQUIRED_TAGS",
                 ],
                 tablefmt="plain",
             )
@@ -1107,7 +1108,7 @@ def feast_permissions_list_roles_command(ctx: click.Context, verbose: bool):
                 headers=[
                     "ROLE NAME",
                 ],
-                tablefmt="plain",
+                tablefmt="grid",
             )
         )
     else:

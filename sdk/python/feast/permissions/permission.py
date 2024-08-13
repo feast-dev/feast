@@ -34,7 +34,8 @@ class Permission(ABC):
         be present in a resource tags with the given value. Defaults to None, meaning that no tags filtering is applied.
         actions: The actions authorized by this permission. Defaults to `ALL_ACTIONS`.
         policy: The policy to be applied to validate a client request.
-        tags: Dictionary of key-value pairs that must match the resource tags. All these tags must
+        tags: A dictionary of key-value pairs to store arbitrary metadata.
+        required_tags: Dictionary of key-value pairs that must match the resource tags. All these tags must
     """
 
     _name: str
@@ -43,6 +44,7 @@ class Permission(ABC):
     _actions: list[AuthzedAction]
     _policy: Policy
     _tags: Dict[str, str]
+    _required_tags: dict[str, str]
 
     def __init__(
         self,
@@ -52,6 +54,7 @@ class Permission(ABC):
         actions: Union[list[AuthzedAction], AuthzedAction] = ALL_ACTIONS,
         policy: Policy = AllowAll,
         tags: Optional[dict[str, str]] = None,
+        required_tags: Optional[dict[str, str]] = None,
     ):
         from feast.feast_object import ALL_RESOURCE_TYPES
 
@@ -70,6 +73,7 @@ class Permission(ABC):
         self._actions = actions if isinstance(actions, list) else [actions]
         self._policy = policy
         self._tags = _normalize_tags(tags)
+        self._required_tags = _normalize_tags(required_tags)
 
     def __eq__(self, other):
         if not isinstance(other, Permission):
@@ -81,6 +85,7 @@ class Permission(ABC):
             or self.tags != other.tags
             or self.policy != other.policy
             or self.actions != other.actions
+            or self.required_tags != other.required_tags
         ):
             return False
 
@@ -119,6 +124,10 @@ class Permission(ABC):
     def tags(self) -> Dict[str, str]:
         return self._tags
 
+    @property
+    def required_tags(self) -> Dict[str, str]:
+        return self._required_tags
+
     def match_resource(self, resource: "FeastObject") -> bool:
         """
         Returns:
@@ -128,7 +137,7 @@ class Permission(ABC):
             resource=resource,
             expected_types=self.types,
             name_pattern=self.name_pattern,
-            required_tags=self.tags,
+            required_tags=self.required_tags,
         )
 
     def match_actions(self, requested_actions: list[AuthzedAction]) -> bool:
@@ -171,6 +180,7 @@ class Permission(ABC):
             actions,
             Policy.from_proto(permission_proto.policy),
             dict(permission_proto.tags) or None,
+            dict(permission_proto.required_tags) or None,
         )
 
         return permission
@@ -196,7 +206,8 @@ class Permission(ABC):
             name_pattern=self.name_pattern if self.name_pattern is not None else "",
             actions=actions,
             policy=self.policy.to_proto(),
-            tags=self._tags if self._tags is not None else None,
+            tags=self.tags,
+            required_tags=self.required_tags,
         )
 
         return permission_proto

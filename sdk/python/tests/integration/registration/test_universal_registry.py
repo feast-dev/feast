@@ -1388,6 +1388,7 @@ def test_apply_permission_success(test_registry):
         and permission.policy.roles[0] == "reader"
         and permission.name_pattern is None
         and permission.tags is None
+        and permission.required_tags is None
     )
 
     permission = test_registry.get_permission("read_permission", project)
@@ -1402,6 +1403,7 @@ def test_apply_permission_success(test_registry):
         and permission.policy.roles[0] == "reader"
         and permission.name_pattern is None
         and permission.tags is None
+        and permission.required_tags is None
     )
 
     # After the first apply, the created_timestamp should be the same as the last_update_timestamp.
@@ -1435,6 +1437,7 @@ def test_apply_permission_success(test_registry):
         and "writer" in updated_permission.policy.roles
         and updated_permission.name_pattern is None
         and updated_permission.tags is None
+        and updated_permission.required_tags is None
     )
 
     # # The created_timestamp for the entity should be set to the created_timestamp value stored from the previous apply
@@ -1451,6 +1454,7 @@ def test_apply_permission_success(test_registry):
         types=FeatureView,
         name_pattern="aaa",
         tags={"team": "matchmaking"},
+        required_tags={"tag1": "tag1-value"},
     )
     test_registry.apply_permission(updated_permission, project)
 
@@ -1473,6 +1477,7 @@ def test_apply_permission_success(test_registry):
         and updated_permission.name_pattern == "aaa"
         and "team" in updated_permission.tags
         and updated_permission.tags["team"] == "matchmaking"
+        and updated_permission.required_tags["tag1"] == "tag1-value"
     )
 
     test_registry.delete_permission("read_permission", project)

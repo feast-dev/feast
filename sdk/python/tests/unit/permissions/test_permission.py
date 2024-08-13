@@ -171,11 +171,11 @@ def test_resource_match_with_name_filter(pattern, name, match):
 )
 def test_resource_match_with_tags(required_tags, tags, result):
     # Missing tags
-    p = Permission(name="test", tags=required_tags)
+    p = Permission(name="test", required_tags=required_tags)
     for t in ALL_RESOURCE_TYPES:
         resource = Mock(spec=t)
         resource.name = "test"
-        resource.tags = tags
+        resource.required_tags = tags
         assertpy.assert_that(p.match_resource(resource)).is_equal_to(result)
 
 
