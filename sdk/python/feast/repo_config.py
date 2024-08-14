@@ -140,6 +140,9 @@ class RegistryConfig(FeastBaseModel):
     password: StrictStr = ""
     """ str: Password for the Neo4j database """
 
+    database: StrictStr = ""
+    """ str: Name for the Neo4j database """
+
 
 class RepoConfig(FeastBaseModel):
     """Repo config. Typically loaded from `feature_store.yaml`"""
