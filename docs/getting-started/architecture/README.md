@@ -16,6 +16,6 @@
 [write-patterns.md](write-patterns.md)
 {% endcontent-ref %}
 
-{% content-ref url="feature-transformation-model.md" %}
+{% content-ref url="feature-transformation.md" %}
 [feature-transformation.md](feature-transformation.md)
 {% endcontent-ref %}
