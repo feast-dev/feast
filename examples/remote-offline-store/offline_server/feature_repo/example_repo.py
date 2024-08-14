@@ -3,6 +3,7 @@
 from datetime import timedelta
 
 import pandas as pd
+import os
 
 from feast import (
     Entity,
@@ -13,8 +14,6 @@ from feast import (
     PushSource,
     RequestSource,
 )
-from feast.feature_logging import LoggingConfig
-from feast.infra.offline_stores.file_source import FileLoggingDestination
 from feast.on_demand_feature_view import on_demand_feature_view
 from feast.types import Float32, Float64, Int64
 
@@ -90,9 +89,6 @@ driver_activity_v1 = FeatureService(
         driver_stats_fv[["conv_rate"]],  # Sub-selects a feature from a feature view
         transformed_conv_rate,  # Selects all features from the feature view
     ],
-    logging_config=LoggingConfig(
-        destination=FileLoggingDestination(path=f"{os.path.dirname(os.path.abspath(__file__))}/data")
-    ),
 )
 driver_activity_v2 = FeatureService(
     name="driver_activity_v2", features=[driver_stats_fv, transformed_conv_rate]

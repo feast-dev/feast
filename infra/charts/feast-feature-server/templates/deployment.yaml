@@ -21,7 +21,6 @@ spec:
       labels:
         {{- include "feast-feature-server.selectorLabels" . | nindent 8 }}
     spec:
-      serviceAccountName: {{ .Values.serviceAccount.name | default "default" }}
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
