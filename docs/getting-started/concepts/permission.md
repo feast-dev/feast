@@ -72,7 +72,6 @@ Permission(
     actions=[AuthzedAction.READ, QUERY],
 )
 ```
-Please note that all sub-classes of `FeatureView` are also included.
 
 This example grants permission to write on all the data sources with `risk_level` tag set to `high` only to users with role `admin` or `data_team`:
 ```py
