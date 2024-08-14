@@ -21,6 +21,7 @@
   * [Overview](getting-started/architecture-and-components/overview.md)
   * [Language](getting-started/architecture-and-components/language.md)
   * [Push vs Pull Model](getting-started/architecture-and-components/push-vs-pull-model.md)
+  * [Feature Transformation](getting-started/architecture-and-components/feature-transformation.md)
   * [Registry](getting-started/architecture-and-components/registry.md)
   * [Offline store](getting-started/architecture-and-components/offline-store.md)
   * [Online store](getting-started/architecture-and-components/online-store.md)
