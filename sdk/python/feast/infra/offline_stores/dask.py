@@ -10,6 +10,7 @@ import pandas as pd
 import pyarrow
 import pyarrow.dataset
 import pyarrow.parquet
+import pytz
 
 from feast.data_source import DataSource
 from feast.errors import (
@@ -177,9 +178,11 @@ class DaskOfflineStore(OfflineStore):
             entity_df_event_timestamp_col_type = entity_df_with_features.dtypes[
                 entity_df_event_timestamp_col
             ]
+
+            # TODO: need to figure out why the value of entity_df_event_timestamp_col_type.tz is pytz.UTC
             if (
                 not hasattr(entity_df_event_timestamp_col_type, "tz")
-                or entity_df_event_timestamp_col_type.tz != timezone.utc
+                or entity_df_event_timestamp_col_type.tz != pytz.UTC
             ):
                 # Make sure all event timestamp fields are tz-aware. We default tz-naive fields to UTC
                 entity_df_with_features[entity_df_event_timestamp_col] = (
@@ -615,10 +618,8 @@ def _normalize_timestamp(
     if created_timestamp_column:
         created_timestamp_column_type = df_to_join_types[created_timestamp_column]
 
-    if (
-        not hasattr(timestamp_field_type, "tz")
-        or timestamp_field_type.tz != timezone.utc
-    ):
+    # TODO: need to figure out why the value of timestamp_field_type.tz is pytz.UTC
+    if not hasattr(timestamp_field_type, "tz") or timestamp_field_type.tz != pytz.UTC:
         # if you are querying for the event timestamp field, we have to deduplicate
         if len(df_to_join[timestamp_field].shape) > 1:
             df_to_join, dups = _df_column_uniquify(df_to_join)
@@ -630,9 +631,10 @@ def _normalize_timestamp(
             meta=(timestamp_field, "datetime64[ns, UTC]"),
         )
 
+    # TODO: need to figure out why the value of created_timestamp_column_type.tz is pytz.UTC
     if created_timestamp_column and (
         not hasattr(created_timestamp_column_type, "tz")
-        or created_timestamp_column_type.tz != timezone.utc
+        or created_timestamp_column_type.tz != pytz.UTC
     ):
         if len(df_to_join[created_timestamp_column].shape) > 1:
             # if you are querying for the created timestamp field, we have to deduplicate
