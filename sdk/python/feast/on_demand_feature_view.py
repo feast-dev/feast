@@ -165,8 +165,8 @@ class OnDemandFeatureView(BaseFeatureView):
 
         self.feature_transformation = feature_transformation
 
-        if mode == "pandas":
-            self.feature_dependencies = self.infer_feature_dependencies()
+        # if mode == "pandas":
+        #     self.feature_dependencies = self.infer_feature_dependencies()
 
     @property
     def proto_class(self) -> Type[OnDemandFeatureViewProto]:
@@ -587,25 +587,29 @@ class OnDemandFeatureView(BaseFeatureView):
 
     @staticmethod
     def get_requested_odfvs(
-        feature_refs, project, registry
+        feature_refs, project, registry, odfvs=[]
     ) -> List["OnDemandFeatureView"]:
-        print("In get_requested_odfvs")
-        all_on_demand_feature_views = registry.list_on_demand_feature_views(
+        # print("In get_requested_odfvs")
+        all_on_demand_feature_views_alt = registry.list_on_demand_feature_views(
             project, allow_cache=True
         )
-        print(f"All On Demand Feature Views: {all_on_demand_feature_views}")
+        all_on_demand_feature_views = odfvs or all_on_demand_feature_views_alt
+        # print(f"All On Demand Feature Views: {all_on_demand_feature_views}")
         requested_on_demand_feature_views: List[OnDemandFeatureView] = []
         for odfv in all_on_demand_feature_views:
             for feature in odfv.features:
                 if f"{odfv.name}:{feature.name}" in feature_refs:
                     requested_on_demand_feature_views.append(odfv)
                     break
-        print(f"Requested On Demand Feature Views: {requested_on_demand_feature_views}")
+        # print(f"Requested On Demand Feature Views: {requested_on_demand_feature_views}")
         return requested_on_demand_feature_views
 
     def infer_feature_dependencies(self) -> Dict[str, Set[str]]:
         #print("In infer feature dependencies!")
-        inferred_feature_dependencies = self.feature_transformation.infer_feature_dependencies()
+        inferred_feature_dependencies = None
+        # if self.mode == "pandas":
+        #     inferred_feature_dependencies = self.feature_transformation.infer_feature_dependencies()
+ 
         # TODO: Map dependencies to Fields from features so that we have a dict {output field name: List[Field]}
         # Search in the registry for Field with the given name used by one of the sources
         return inferred_feature_dependencies

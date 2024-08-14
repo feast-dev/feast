@@ -277,6 +277,7 @@ class FeatureStore:
         hide_dummy_entity: bool = True,
     ) -> List[FeatureView]:
         feature_views = []
+        # print(f"In _list_feature_views. Feature views: {self._registry.list_feature_views(self.project, allow_cache=allow_cache)}")
         for fv in self._registry.list_feature_views(
             self.project, allow_cache=allow_cache
         ):
@@ -884,6 +885,7 @@ class FeatureStore:
         for ds in data_sources_to_update:
             self._registry.apply_data_source(ds, project=self.project, commit=False)
         for view in itertools.chain(views_to_update, odfvs_to_update, sfvs_to_update):
+            # print(f"In feature_store.py: Apply fv: {view}")
             self._registry.apply_feature_view(view, project=self.project, commit=False)
         for ent in entities_to_update:
             self._registry.apply_entity(ent, project=self.project, commit=False)
@@ -1085,6 +1087,7 @@ class FeatureStore:
         _validate_feature_refs(_feature_refs, full_feature_names)
         provider = self._get_provider()
 
+        # print(f"In feature_store.py, get_historical_features: Registry: {self._registry}")
         job = provider.get_historical_features(
             self.config,
             feature_views,
@@ -1541,6 +1544,7 @@ class FeatureStore:
             ... )
             >>> online_response_dict = online_response.to_dict()
         """
+        self.refresh_registry()
         columnar: Dict[str, List[Any]] = {k: [] for k in entity_rows[0].keys()}
         for entity_row in entity_rows:
             for key, value in entity_row.items():
@@ -1560,6 +1564,7 @@ class FeatureStore:
         self, features: Union[List[str], FeatureService], full_feature_names: bool
     ):
         _feature_refs = self._get_features(features, allow_cache=True)
+        # print(f"In _get_online_request_context. Feature refs: {_feature_refs}, features: {features}")
 
         (
             requested_feature_views,
@@ -1567,6 +1572,8 @@ class FeatureStore:
         ) = self._get_feature_views_to_use(
             features=features, allow_cache=True, hide_dummy_entity=False
         )
+        # print(f"requested_feature_views: {requested_feature_views}")
+        # print(f"requested_on_demand_feature_views: {requested_on_demand_feature_views}")
 
         (
             entity_name_to_join_key_map,
@@ -1624,6 +1631,7 @@ class FeatureStore:
         full_feature_names: bool = False,
         native_entity_values: bool = True,
     ):
+        #print(f"In _get_online_features. Features: {features}, feature_names: {full_feature_names}")
         (
             _feature_refs,
             requested_on_demand_feature_views,
@@ -1729,7 +1737,7 @@ class FeatureStore:
             )
 
         if requested_on_demand_feature_views:
-            print(f"Requested ODFVs")
+            # print(f"Requested ODFVs")
             self._augment_response_with_on_demand_transforms(
                 online_features_response,
                 _feature_refs,
@@ -2168,7 +2176,7 @@ class FeatureStore:
         odfv_result_names = set()
         for odfv_name, _feature_refs in odfv_feature_refs.items():
             odfv = requested_odfv_map[odfv_name]
-            print(f"ODFV mode: {odfv.mode}")
+            # print(f"ODFV mode: {odfv.mode}")
             if odfv.mode == "python":
                 if initial_response_dict is None:
                     initial_response_dict = initial_response.to_dict()
@@ -2200,9 +2208,9 @@ class FeatureStore:
 
             proto_values = []
             for selected_feature in selected_subset:
-                print(f"Selected feature: {selected_feature}")
+                # print(f"Selected feature: {selected_feature}")
                 feature_vector = transformed_features[selected_feature]
-                print(f"Feature vector: {feature_vector}")
+                # print(f"Feature vector: {feature_vector}")
                 proto_values.append(
                     python_values_to_proto_values(feature_vector, ValueType.UNKNOWN)
                     if odfv.mode == "python"
@@ -2256,6 +2264,7 @@ class FeatureStore:
         allow_cache=False,
         hide_dummy_entity: bool = True,
     ) -> Tuple[List[FeatureView], List[OnDemandFeatureView]]:
+
         fvs = {
             fv.name: fv
             for fv in [
@@ -2265,6 +2274,7 @@ class FeatureStore:
                 ),
             ]
         }
+        # print(f"Get feature views: {fvs}")
 
         od_fvs = {
             fv.name: fv
@@ -2272,8 +2282,10 @@ class FeatureStore:
                 project=self.project, allow_cache=allow_cache
             )
         }
+        # print(f"Get on demand feature views: {od_fvs}")
 
         if isinstance(features, FeatureService):
+            # print("Features is instance of FeatureService")
             fvs_to_use, od_fvs_to_use = [], []
             for fv_name, projection in [
                 (projection.name, projection)
@@ -2544,15 +2556,16 @@ def _group_feature_refs(
 ]:
     """Get list of feature views and corresponding feature names based on feature references"""
 
+    # print("In _group_feature_refs.")
     # view name to view proto
     view_index = {view.projection.name_to_use(): view for view in all_feature_views}
-    print(f"Views in view_index: {view_index.keys()}")
+    # print(f"Views in view_index: {view_index.keys()}")
 
     # on demand view to on demand view proto
     on_demand_view_index = {
         view.projection.name_to_use(): view for view in all_on_demand_feature_views
     }
-    print(f"Views in on_demand_view_index: {on_demand_view_index.keys()}")
+    # print(f"Views in on_demand_view_index: {on_demand_view_index.keys()}")
 
     # view name to feature names
     views_features = defaultdict(set)
@@ -2562,7 +2575,7 @@ def _group_feature_refs(
 
     for ref in features:
         view_name, feat_name = ref.split(":")
-        print(f"Searching for feature: {feat_name} in feature view: {view_name}")
+        # print(f"Searching for feature: {feat_name} in feature view: {view_name}")
         if view_name in view_index:
             view_index[view_name].projection.get_feature(feat_name)  # For validation
             views_features[view_name].add(feat_name)

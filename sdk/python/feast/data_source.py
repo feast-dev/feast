@@ -538,7 +538,7 @@ class RequestSource(DataSource):
     def get_table_column_names_and_types(
         self, config: RepoConfig
     ) -> Iterable[Tuple[str, str]]:
-        raise NotImplementedError
+        zip(self.schema.names, map(str, self.schema.types))
 
     def __eq__(self, other):
         if not isinstance(other, RequestSource):

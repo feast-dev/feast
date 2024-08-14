@@ -151,6 +151,8 @@ class PandasTransformation:
             of input column names that the output column depends on.
         """
         # Parse the UDF code
+        if not self.udf_string.startswith("@on_demand_feature_view"):
+            return None
         tree = ast.parse(self.udf_string)
         #print(f"ast tree: {ast.dump(tree, indent=2)}")
         
