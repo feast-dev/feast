@@ -13,10 +13,10 @@ be either raw data where Feast computes and stores the feature values or precomp
 There are two ways a client (or Data Producer) can *_send_* data to the online store: 
 
 1. Synchronously
-   - Using a synchronous API call for a small number of entities or a single entity (e.g., using the [`push` or `write_to_online_store` methods](../../reference/data-sources/push.md#pushing-data)) or the Feature Server's [`push` endpoint](reference/feature-servers/python-feature-server.md#pushing-features-to-the-online-and-offline-stores))
+   - Using a synchronous API call for a small number of entities or a single entity (e.g., using the [`push` or `write_to_online_store` methods](../../reference/data-sources/push.md#pushing-data)) or the Feature Server's [`push` endpoint](../../reference/feature-servers/python-feature-server.md#pushing-features-to-the-online-and-offline-stores))
 2. Asynchronously 
-   - Using an asynchronous API call for a small number of entities or a single entity (e.g., using the [`push` or `write_to_online_store` methods](reference/data-sources/push.md#pushing-data)) or the Feature Server's [`push` endpoint](reference/feature-servers/python-feature-server.md#pushing-features-to-the-online-and-offline-stores))
-   - Using a "batch job" for a large number of entities (e.g., using a [batch materialization engine](getting-started/components/batch-materialization-engine))
+   - Using an asynchronous API call for a small number of entities or a single entity (e.g., using the [`push` or `write_to_online_store` methods](../../reference/data-sources/push.md#pushing-data)) or the Feature Server's [`push` endpoint](../../reference/feature-servers/python-feature-server.md#pushing-features-to-the-online-and-offline-stores))
+   - Using a "batch job" for a large number of entities (e.g., using a [batch materialization engine](../components/batch-materialization-engine.md))
 
 Note, in some contexts, developers may "batch" a group of entities together and write them to the online store in a 
 single API call. This is a common pattern when writing data to the online store to reduce write loads but we would 
