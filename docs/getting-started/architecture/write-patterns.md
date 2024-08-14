@@ -1,6 +1,6 @@
 # Writing Data to Feast
 
-Feast uses a [Push Model](getting-started/architecture-and-components/push-vs-pull-model.md) to push features to the online store.
+Feast uses a [Push Model](getting-started/architecture/push-vs-pull-model.md) to push features to the online store.
 
 This has two important consequences: (1) communication patterns between the Data Producer (i.e., the client) and Feast (i.e,. the server) and (2) feature computation and 
 _feature value_ write patterns to Feast's online store.
@@ -13,10 +13,10 @@ be either raw data where Feast computes and stores the feature values or precomp
 There are two ways a client (or Data Producer) can *_send_* data to the online store: 
 
 1. Synchronously
-   - Using a synchronous API call for a small number of entities or a single entity (e.g., using the [`push` or `write_to_online_store` methods](https://docs.feast.dev/reference/data-sources/push#pushing-data)) or the Feature Server's [`push` endpoint](https://docs.feast.dev/reference/feature-servers/python-feature-server#pushing-features-to-the-online-and-offline-stores))
+   - Using a synchronous API call for a small number of entities or a single entity (e.g., using the [`push` or `write_to_online_store` methods](../../reference/data-sources/push.md#pushing-data)) or the Feature Server's [`push` endpoint](reference/feature-servers/python-feature-server.md#pushing-features-to-the-online-and-offline-stores))
 2. Asynchronously 
-   - Using an asynchronous API call for a small number of entities or a single entity (e.g., using the [`push` or `write_to_online_store` methods](https://docs.feast.dev/reference/data-sources/push#pushing-data)) or the Feature Server's [`push` endpoint](https://docs.feast.dev/reference/feature-servers/python-feature-server#pushing-features-to-the-online-and-offline-stores))
-   - Using a "batch job" for a large number of entities (e.g., using a [batch materialization engine](https://docs.feast.dev/getting-started/architecture-and-components/batch-materialization-engine))
+   - Using an asynchronous API call for a small number of entities or a single entity (e.g., using the [`push` or `write_to_online_store` methods](reference/data-sources/push.md#pushing-data)) or the Feature Server's [`push` endpoint](reference/feature-servers/python-feature-server.md#pushing-features-to-the-online-and-offline-stores))
+   - Using a "batch job" for a large number of entities (e.g., using a [batch materialization engine](getting-started/components/batch-materialization-engine))
 
 Note, in some contexts, developers may "batch" a group of entities together and write them to the online store in a 
 single API call. This is a common pattern when writing data to the online store to reduce write loads but we would 
