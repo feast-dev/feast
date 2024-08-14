@@ -1,6 +1,6 @@
 # Providers
 
-Please see [Provider](../../getting-started/architecture-and-components/provider.md) for an explanation of providers.
+Please see [Provider](../../getting-started/components/provider.md) for an explanation of providers.
 
 {% page-ref page="local.md" %}
 

@@ -1,16 +1,4 @@
-# Architecture
-
-{% content-ref url="language.md" %}
-[language.md](language.md)
-{% endcontent-ref %}
-
-{% content-ref url="overview.md" %}
-[overview.md](overview.md)
-{% endcontent-ref %}
-
-{% content-ref url="push-vs-pull-model.md" %}
-[push-vs-pull-model.md](push-vs-pull-model.md)
-{% endcontent-ref %}
+# Components 
 
 {% content-ref url="registry.md" %}
 [registry.md](registry.md)

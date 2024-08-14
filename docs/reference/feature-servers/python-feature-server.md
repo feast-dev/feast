@@ -153,7 +153,7 @@ curl -X POST \
 
 ### Pushing features to the online and offline stores
 
-The Python feature server also exposes an endpoint for [push sources](../../data-sources/push.md). This endpoint allows you to push data to the online and/or offline store.
+The Python feature server also exposes an endpoint for [push sources](../data-sources/push.md). This endpoint allows you to push data to the online and/or offline store.
 
 The request definition for `PushMode` is a string parameter `to` where the options are: \[`"online"`, `"offline"`, `"online_and_offline"`].
 
