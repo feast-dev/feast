@@ -13,7 +13,7 @@ your slowest call. So, in order to serve features as fast as possible, we push d
 Feast and store the feature values in the online store.
 
 The trade-off with the Push Model is that strong consistency is not guaranteed out 
-of the box. Instead, stong consistency has to be explicitly designed for in orchestrating 
+of the box. Instead, strong consistency has to be explicitly designed for in orchestrating 
 the updates to Feast and the client usage.
 
 The significant advantage with this approach is that Feast is read-optimized for low-latency 
