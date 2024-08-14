@@ -8,7 +8,7 @@ AI/ML.
 
 Feast's feature store is composed of two foundational components: (1) an [offline store](getting-started/architecture-and-components/offline-store.md) 
 for historical feature extraction used in model training and an (2) [online store](getting-started/architecture-and-components/online-store.md) 
-for feature retrieval for serving features in production systems and applications.
+for serving features at low-latency in production systems and applications.
 
 Feast is a configurable operational data system that re-uses existing infrastructure to manage and serve machine learning 
 features to realtime models. For more details please review our [architecture](getting-started/architecture-and-components/overview.md).
