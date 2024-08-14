@@ -1544,7 +1544,7 @@ class FeatureStore:
             ... )
             >>> online_response_dict = online_response.to_dict()
         """
-        self.refresh_registry()
+        # self.refresh_registry()
         columnar: Dict[str, List[Any]] = {k: [] for k in entity_rows[0].keys()}
         for entity_row in entity_rows:
             for key, value in entity_row.items():

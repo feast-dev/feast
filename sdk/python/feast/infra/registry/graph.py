@@ -1185,7 +1185,7 @@ class GraphRegistry(CachingRegistry):
         )
 
     def _list_on_demand_feature_views(self, project: str, tags: Optional[dict[str, str]] = None) -> List[OnDemandFeatureView]:
-        return self._list_objects(
+        l = self._list_objects(
             label=on_demand_feature_views,
             project=project,
             proto_class=OnDemandFeatureViewProto,
@@ -1193,6 +1193,9 @@ class GraphRegistry(CachingRegistry):
             proto_field_name="feature_view_proto",
             tags=tags
         )
+        # Debugging unit test
+        print(f"List odfvs: {l}")
+        return l
 
     def _list_feature_services(self, project: str, tags: Optional[dict[str, str]] = None) -> List[FeatureService]:
         return self._list_objects(
@@ -1265,13 +1268,13 @@ class GraphRegistry(CachingRegistry):
                     name=name, 
                     project=project
                 )
-                nodes = result.data()
+                node = result.single()
 
-                if nodes["deleted_count"] < 1 and not_found_exception:
+                if node["deleted_count"] < 1 and not_found_exception:
                     raise not_found_exception(name, project)
                 self._set_last_updated_metadata(datetime.now(), project)
 
-                return nodes["deleted_count"]
+                return node["deleted_count"]
 
     def delete_entity(self, name: str, project: str, commit: bool = True):
         return self._delete_object(
@@ -1299,7 +1302,7 @@ class GraphRegistry(CachingRegistry):
             stream_feature_views
         }:
             deleted_count += self._delete_object(
-                label=data_sources,
+                label=label,
                 name=name,
                 project=project,
                 id_field_name="feature_view_name"
