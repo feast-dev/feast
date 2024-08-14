@@ -2,7 +2,16 @@
 
 ## What is Feast?
 
-Feast (**Fea**ture **St**ore) is a customizable operational data system that re-uses existing infrastructure to manage and serve machine learning features to realtime models.
+Feast (**Fea**ture **St**ore) is an [open-source](https://github.com/feast-dev/feast) feature store that helps teams 
+operate production ML systems at scale by allowing them to define, manage, validate, and serve features for production 
+AI/ML. 
+
+Feast's feature store is composed of two foundational components: (1) an offline store for historical feature 
+extraction used in model training and an (2) online store for feature retrieval for low latency feature serving in 
+production systems and applications.
+
+Feast is a configurable operational data system that re-uses existing infrastructure to manage and serve machine learning 
+features to realtime models. For more details please review our [architecture](getting-started/architecture-and-components/overview.md).
 
 Feast allows ML platform teams to:
 
@@ -41,7 +50,7 @@ Feast is likely **not** the right tool if you
 
 ### Feast is not
 
-* **an** [**ETL**](https://en.wikipedia.org/wiki/Extract,\_transform,\_load) / [**ELT**](https://en.wikipedia.org/wiki/Extract,\_load,\_transform) **system:** Feast is not (and does not plan to become) a general purpose data transformation or pipelining system. Users often leverage tools like [dbt](https://www.getdbt.com) to manage upstream data transformations.
+* **an** [**ETL**](https://en.wikipedia.org/wiki/Extract,\_transform,\_load) / [**ELT**](https://en.wikipedia.org/wiki/Extract,\_load,\_transform) **system.** Feast is not a general purpose data pipelining system. Users often leverage tools like [dbt](https://www.getdbt.com) to manage upstream data transformations. Feast does support some [transformations](getting-started/architecture-and-components/feature-transformetion.md).
 * **a data orchestration tool:** Feast does not manage or orchestrate complex workflow DAGs. It relies on upstream data pipelines to produce feature values and integrations with tools like [Airflow](https://airflow.apache.org) to make features consistently available.
 * **a data warehouse:** Feast is not a replacement for your data warehouse or the source of truth for all transformed data in your organization. Rather, Feast is a light-weight downstream layer that can serve data from an existing data warehouse (or other data sources) to models in production.
 * **a database:** Feast is not a database, but helps manage data stored in other systems (e.g. BigQuery, Snowflake, DynamoDB, Redis) to make features consistently available at training / serving time
