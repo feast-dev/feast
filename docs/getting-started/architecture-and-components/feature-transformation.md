@@ -1,24 +1,20 @@
 # Feature Transformation
 
-A feature transformation is a function that takes some set of input data and
-returns some set of output data.
+A *feature transformation* is a function that takes some set of input data and
+returns some set of output data. Feature transformations can happen on either raw data or derived data.
 
-Feature transformations can happen on either raw data or derived data.
-
-Festure transformations can be executed by three types of "transformation 
-engines":
+Feature transformations can be executed by three types of "transformation engines":
 
 1. The Feast Feature Server
-2. An Offline Store (e.g., Snowflake or Spark)
-3. A Stream processor
+2. An Offline Store (e.g., Snowflake, BigQuery, DuckDB, Spark, etc.)
+3. A Stream processor (e.g., Flink or Spark Streaming)
 
-The three transformation engines are coupled with the communication pattern used 
-for writes.
+The three transformation engines are coupled with the [communication pattern used for writes](getting-started/architecture-and-components/write-patterns.md).
 
 Importantly, this implies that different feature transformation code may be 
 used under different transformation engines, so understanding the tradeoffs of 
-when to use which transformation engine/network call is extremely critical to 
+when to use which transformation engine/communication pattern is extremely critical to 
 the success of your implementation.
 
-In general, we recommend transformation engines and network calls to be chosen by 
-aligning it with what's most appropriate for the data producer and feature usage.
+In general, we recommend transformation engines and network calls to be chosen by aligning it with what is most 
+appropriate for the data producer, feature/model usage, and overall product.
