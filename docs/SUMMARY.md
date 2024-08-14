@@ -22,7 +22,6 @@
   * [Feature view](getting-started/concepts/feature-view.md)
   * [Feature retrieval](getting-started/concepts/feature-retrieval.md)
   * [Point-in-time joins](getting-started/concepts/point-in-time-joins.md)
-  * [Registry](getting-started/concepts/registry.md)
   * [\[Alpha\] Saved dataset](getting-started/concepts/dataset.md)
 * [Components](getting-started/components/README.md)
   * [Overview](getting-started/components/overview.md)
@@ -42,7 +41,6 @@
   * [Real-time credit scoring on AWS](tutorials/tutorials-overview/real-time-credit-scoring-on-aws.md)
   * [Driver stats on Snowflake](tutorials/tutorials-overview/driver-stats-on-snowflake.md)
 * [Validating historical features with Great Expectations](tutorials/validating-historical-features.md)
-* [Using Scalable Registry](tutorials/using-scalable-registry.md)
 * [Building streaming features](tutorials/building-streaming-features.md)
 
 ## How-to Guides
@@ -111,6 +109,12 @@
   * [Hazelcast (contrib)](reference/online-stores/hazelcast.md)
   * [ScyllaDB (contrib)](reference/online-stores/scylladb.md)
   * [SingleStore (contrib)](reference/online-stores/singlestore.md)
+* [Registries](reference/registries/README.md)
+  * [Local](reference/registries/local.md)
+  * [S3](reference/registries/s3.md)
+  * [GCS](reference/registries/gcs.md)
+  * [SQL](reference/registries/sql.md)
+  * [Snowflake](reference/registries/snowflake.md)
 * [Providers](reference/providers/README.md)
   * [Local](reference/providers/local.md)
   * [Google Cloud Platform](reference/providers/google-cloud-platform.md)
