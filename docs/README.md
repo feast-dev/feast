@@ -52,7 +52,7 @@ Feast is likely **not** the right tool if you
 
 ### Feast does not _fully_ solve
 * **reproducible model training / model backtesting / experiment management**: Feast captures feature and model metadata, but does not version-control datasets / labels or manage train / test splits. Other tools like [DVC](https://dvc.org/), [MLflow](https://www.mlflow.org/), and [Kubeflow](https://www.kubeflow.org/) are better suited for this.
-* **batch feature engineering**: Feast primarily processes already transformed feature values but is investing in supporting batch and streaming transformations. 
+* **batch feature engineering**: Feast supports on demand and streaming transformations. Feast is also investing in supporting batch transformations. 
 * **native streaming feature integration:** Feast enables users to push streaming features, but does not pull from streaming sources or manage streaming pipelines.
 * **lineage:** Feast helps tie feature values to model versions, but is not a complete solution for capturing end-to-end lineage from raw data sources to model versions. Feast also has community contributed plugins with [DataHub](https://datahubproject.io/docs/generated/ingestion/sources/feast/) and [Amundsen](https://github.com/amundsen-io/amundsen/blob/4a9d60176767c4d68d1cad5b093320ea22e26a49/databuilder/databuilder/extractor/feast\_extractor.py). 
 * **data quality / drift detection**: Feast has experimental integrations with [Great Expectations](https://greatexpectations.io/), but is not purpose built to solve data drift / data quality issues. This requires more sophisticated monitoring across data pipelines, served feature values, labels, and model versions.
