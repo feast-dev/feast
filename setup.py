@@ -187,7 +187,6 @@ CI_REQUIRED = (
         "Sphinx>4.0.0,<7",
         "testcontainers==4.4.0",
         "python-keycloak==4.2.2",
-        "firebase-admin>=5.2.0,<6",
         "pre-commit<3.3.2",
         "assertpy==1.1",
         "pip-tools",
