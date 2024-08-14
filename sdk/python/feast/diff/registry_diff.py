@@ -132,10 +132,8 @@ def diff_registry_objects(
     current_spec: FeastObjectSpecProto
     new_spec: FeastObjectSpecProto
     if isinstance(
-        current_proto, (DataSourceProto, ValidationReferenceProto, PermissionProto)
-    ) or isinstance(
-        new_proto, (DataSourceProto, ValidationReferenceProto, PermissionProto)
-    ):
+        current_proto, (DataSourceProto, ValidationReferenceProto)
+    ) or isinstance(new_proto, (DataSourceProto, ValidationReferenceProto)):
         assert type(current_proto) == type(new_proto)
         current_spec = cast(DataSourceProto, current_proto)
         new_spec = cast(DataSourceProto, new_proto)
