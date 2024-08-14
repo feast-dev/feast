@@ -12,7 +12,7 @@ from .protos.feast.core.Entity_pb2 import EntitySpecV2
 from .protos.feast.core.FeatureService_pb2 import FeatureServiceSpec
 from .protos.feast.core.FeatureView_pb2 import FeatureViewSpec
 from .protos.feast.core.OnDemandFeatureView_pb2 import OnDemandFeatureViewSpec
-from .protos.feast.core.Permission_pb2 import Permission as PermissionProto
+from .protos.feast.core.Permission_pb2 import PermissionSpec as PermissionSpec
 from .protos.feast.core.SavedDataset_pb2 import SavedDatasetSpec
 from .protos.feast.core.StreamFeatureView_pb2 import StreamFeatureViewSpec
 from .protos.feast.core.ValidationProfile_pb2 import (
@@ -44,7 +44,7 @@ FeastObjectSpecProto = Union[
     DataSourceProto,
     ValidationReferenceProto,
     SavedDatasetSpec,
-    PermissionProto,
+    PermissionSpec,
 ]
 
 ALL_RESOURCE_TYPES = list(get_args(FeastObject))

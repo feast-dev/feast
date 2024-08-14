@@ -1,6 +1,7 @@
 import logging
 import re
 from abc import ABC
+from datetime import datetime
 from typing import TYPE_CHECKING, Any, Dict, Optional, Union
 
 from google.protobuf.json_format import MessageToJson
@@ -10,6 +11,8 @@ from feast.permissions.action import ALL_ACTIONS, AuthzedAction
 from feast.permissions.matcher import actions_match_config, resource_match_config
 from feast.permissions.policy import AllowAll, Policy
 from feast.protos.feast.core.Permission_pb2 import Permission as PermissionProto
+from feast.protos.feast.core.Permission_pb2 import PermissionMeta as PermissionMetaProto
+from feast.protos.feast.core.Permission_pb2 import PermissionSpec as PermissionSpecProto
 
 if TYPE_CHECKING:
     from feast.feast_object import FeastObject
@@ -45,6 +48,8 @@ class Permission(ABC):
     _policy: Policy
     _tags: Dict[str, str]
     _required_tags: dict[str, str]
+    created_timestamp: Optional[datetime]
+    last_updated_timestamp: Optional[datetime]
 
     def __init__(
         self,
@@ -74,6 +79,8 @@ class Permission(ABC):
         self._policy = policy
         self._tags = _normalize_tags(tags)
         self._required_tags = _normalize_tags(required_tags)
+        self.created_timestamp = None
+        self.last_updated_timestamp = None
 
     def __eq__(self, other):
         if not isinstance(other, Permission):
@@ -164,24 +171,33 @@ class Permission(ABC):
 
         types = [
             get_type_class_from_permission_type(
-                _PERMISSION_TYPES[PermissionProto.Type.Name(t)]
+                _PERMISSION_TYPES[PermissionSpecProto.Type.Name(t)]
             )
-            for t in permission_proto.types
+            for t in permission_proto.spec.types
         ]
         actions = [
-            AuthzedAction[PermissionProto.AuthzedAction.Name(action)]
-            for action in permission_proto.actions
+            AuthzedAction[PermissionSpecProto.AuthzedAction.Name(action)]
+            for action in permission_proto.spec.actions
         ]
 
         permission = Permission(
-            permission_proto.name,
+            permission_proto.spec.name,
             types,
-            permission_proto.name_pattern or None,
+            permission_proto.spec.name_pattern or None,
             actions,
-            Policy.from_proto(permission_proto.policy),
-            dict(permission_proto.tags) or None,
-            dict(permission_proto.required_tags) or None,
+            Policy.from_proto(permission_proto.spec.policy),
+            dict(permission_proto.spec.tags) or None,
+            dict(permission_proto.spec.required_tags) or None,
         )
+
+        if permission_proto.meta.HasField("created_timestamp"):
+            permission.created_timestamp = (
+                permission_proto.meta.created_timestamp.ToDatetime()
+            )
+        if permission_proto.meta.HasField("last_updated_timestamp"):
+            permission.last_updated_timestamp = (
+                permission_proto.meta.last_updated_timestamp.ToDatetime()
+            )
 
         return permission
 
@@ -190,17 +206,18 @@ class Permission(ABC):
         Converts a PermissionProto object to its protobuf representation.
         """
         types = [
-            PermissionProto.Type.Value(
+            PermissionSpecProto.Type.Value(
                 re.sub(r"([a-z])([A-Z])", r"\1_\2", t.__name__).upper()  # type: ignore[union-attr]
             )
             for t in self.types
         ]
 
         actions = [
-            PermissionProto.AuthzedAction.Value(action.name) for action in self.actions
+            PermissionSpecProto.AuthzedAction.Value(action.name)
+            for action in self.actions
         ]
 
-        permission_proto = PermissionProto(
+        permission_spec = PermissionSpecProto(
             name=self.name,
             types=types,
             name_pattern=self.name_pattern if self.name_pattern is not None else "",
@@ -210,7 +227,13 @@ class Permission(ABC):
             required_tags=self.required_tags,
         )
 
-        return permission_proto
+        meta = PermissionMetaProto()
+        if self.created_timestamp:
+            meta.created_timestamp.FromDatetime(self.created_timestamp)
+        if self.last_updated_timestamp:
+            meta.last_updated_timestamp.FromDatetime(self.last_updated_timestamp)
+
+        return PermissionProto(spec=permission_spec, meta=meta)
 
 
 def _normalize_name_pattern(name_pattern: Optional[str]):

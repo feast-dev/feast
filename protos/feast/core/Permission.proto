@@ -6,9 +6,17 @@ option java_outer_classname = "PermissionProto";
 option java_package = "feast.proto.core";
 
 import "feast/core/Policy.proto";
+import "google/protobuf/timestamp.proto";
 
 message Permission {
+  // User-specified specifications of this permission.
+  PermissionSpec spec = 1;
 
+  // System-populated metadata for this permission.
+  PermissionMeta meta = 2;
+}
+
+message PermissionSpec {
   enum AuthzedAction {
     CREATE = 0;
     READ = 1;
@@ -27,30 +35,35 @@ message Permission {
   string project = 2;
 
   enum Type {
-      FEATURE_VIEW = 0;
-      ON_DEMAND_FEATURE_VIEW = 1;
-      BATCH_FEATURE_VIEW = 2;
-      STREAM_FEATURE_VIEW= 3;
-      ENTITY = 4;
-      FEATURE_SERVICE = 5;
-      DATA_SOURCE = 6;
-      VALIDATION_REFERENCE = 7;
-      SAVED_DATASET = 8;
-      PERMISSION = 9;
+    FEATURE_VIEW = 0;
+    ON_DEMAND_FEATURE_VIEW = 1;
+    BATCH_FEATURE_VIEW = 2;
+    STREAM_FEATURE_VIEW= 3;
+    ENTITY = 4;
+    FEATURE_SERVICE = 5;
+    DATA_SOURCE = 6;
+    VALIDATION_REFERENCE = 7;
+    SAVED_DATASET = 8;
+    PERMISSION = 9;
   }
 
   repeated Type types = 3;
 
-  string name_pattern = 5;
+  string name_pattern = 4;
 
-  map<string, string> required_tags = 6;
+  map<string, string> required_tags = 5;
 
   // List of actions.
-  repeated AuthzedAction actions = 7;
+  repeated AuthzedAction actions = 6;
 
   // the policy.
-  Policy policy = 8;
+  Policy policy = 7;
 
   // User defined metadata
-  map<string,string> tags = 9;
+  map<string,string> tags = 8;
+}
+
+message PermissionMeta {
+  google.protobuf.Timestamp created_timestamp = 1;
+  google.protobuf.Timestamp last_updated_timestamp = 2;
 }

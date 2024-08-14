@@ -566,7 +566,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
             resource=permission,
             actions=[AuthzedAction.READ],
         )
-        permission.to_proto().project = request.project
+        permission.to_proto().spec.project = request.project
 
         return permission.to_proto()
 

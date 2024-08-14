@@ -741,6 +741,7 @@ class SqlRegistry(CachingRegistry):
                     "saved_dataset_proto",
                     "feature_view_proto",
                     "feature_service_proto",
+                    "permission_proto",
                 ]:
                     deserialized_proto = self.deserialize_registry_values(
                         row._mapping[proto_field_name], type(obj)

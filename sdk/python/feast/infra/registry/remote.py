@@ -413,7 +413,7 @@ class RemoteRegistry(BaseRegistry):
         self, permission: Permission, project: str, commit: bool = True
     ):
         permission_proto = permission.to_proto()
-        permission_proto.project = project
+        permission_proto.spec.project = project
 
         request = RegistryServer_pb2.ApplyPermissionRequest(
             permission=permission_proto, project=project, commit=commit

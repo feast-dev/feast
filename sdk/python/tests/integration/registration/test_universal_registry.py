@@ -1391,6 +1391,9 @@ def test_apply_permission_success(test_registry):
         and permission.required_tags is None
     )
 
+    # After the first apply, the created_timestamp should be the same as the last_update_timestamp.
+    assert permission.created_timestamp == permission.last_updated_timestamp
+
     permission = test_registry.get_permission("read_permission", project)
     assert (
         permission.name == "read_permission"
@@ -1405,10 +1408,6 @@ def test_apply_permission_success(test_registry):
         and permission.tags is None
         and permission.required_tags is None
     )
-
-    # After the first apply, the created_timestamp should be the same as the last_update_timestamp.
-    # TODO: no such fields
-    # assert permission.created_timestamp == permission.last_updated_timestamp
 
     # Update permission
     updated_permission = Permission(
@@ -1440,12 +1439,11 @@ def test_apply_permission_success(test_registry):
         and updated_permission.required_tags is None
     )
 
-    # # The created_timestamp for the entity should be set to the created_timestamp value stored from the previous apply
-    # TODO: no such fields
-    # assert (
-    #     updated_entity.created_timestamp is not None
-    #     and updated_entity.created_timestamp == entity.created_timestamp
-    # )
+    # The created_timestamp for the entity should be set to the created_timestamp value stored from the previous apply
+    assert (
+        updated_permission.created_timestamp is not None
+        and updated_permission.created_timestamp == permission.created_timestamp
+    )
 
     updated_permission = Permission(
         name="read_permission",

@@ -942,15 +942,24 @@ class Registry(BaseRegistry):
     def apply_permission(
         self, permission: Permission, project: str, commit: bool = True
     ):
+        now = _utc_now()
+        if not permission.created_timestamp:
+            permission.created_timestamp = now
+        permission.last_updated_timestamp = now
+
         registry = self._prepare_registry_for_changes(project)
         for idx, existing_permission_proto in enumerate(registry.permissions):
             if (
-                existing_permission_proto.name == permission.name
-                and existing_permission_proto.project == project
+                existing_permission_proto.spec.name == permission.name
+                and existing_permission_proto.spec.project == project
             ):
+                permission.created_timestamp = (
+                    existing_permission_proto.meta.created_timestamp.ToDatetime()
+                )
                 del registry.permissions[idx]
+
         permission_proto = permission.to_proto()
-        permission_proto.project = project
+        permission_proto.spec.project = project
         registry.permissions.append(permission_proto)
         if commit:
             self.commit()
@@ -960,7 +969,10 @@ class Registry(BaseRegistry):
         assert self.cached_registry_proto
 
         for idx, permission_proto in enumerate(self.cached_registry_proto.permissions):
-            if permission_proto.name == name and permission_proto.project == project:
+            if (
+                permission_proto.spec.name == name
+                and permission_proto.spec.project == project
+            ):
                 del self.cached_registry_proto.permissions[idx]
                 if commit:
                     self.commit()

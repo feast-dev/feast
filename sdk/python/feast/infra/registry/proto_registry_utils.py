@@ -299,8 +299,8 @@ def list_permissions(
 ) -> List[Permission]:
     permissions = []
     for permission_proto in registry_proto.permissions:
-        if permission_proto.project == project and utils.has_all_tags(
-            permission_proto.tags, tags
+        if permission_proto.spec.project == project and utils.has_all_tags(
+            permission_proto.spec.tags, tags
         ):
             permissions.append(Permission.from_proto(permission_proto))
     return permissions
@@ -309,7 +309,10 @@ def list_permissions(
 def get_permission(
     registry_proto: RegistryProto, name: str, project: str
 ) -> Permission:
-    for permission in registry_proto.permissions:
-        if permission.project == project and permission.name == name:
-            return Permission.from_proto(permission)
+    for permission_proto in registry_proto.permissions:
+        if (
+            permission_proto.spec.project == project
+            and permission_proto.spec.name == name
+        ):
+            return Permission.from_proto(permission_proto)
     raise PermissionObjectNotFoundException(name=name, project=project)
