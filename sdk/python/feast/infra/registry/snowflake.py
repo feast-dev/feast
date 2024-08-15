@@ -2,7 +2,7 @@ import logging
 import os
 import uuid
 from binascii import hexlify
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from threading import Lock
 from typing import Any, Callable, List, Literal, Optional, Set, Union
@@ -10,7 +10,6 @@ from typing import Any, Callable, List, Literal, Optional, Set, Union
 from pydantic import ConfigDict, Field, StrictStr
 
 import feast
-from feast import utils
 from feast.base_feature_view import BaseFeatureView
 from feast.data_source import DataSource
 from feast.entity import Entity
@@ -54,6 +53,7 @@ from feast.protos.feast.core.ValidationProfile_pb2 import (
 from feast.repo_config import RegistryConfig
 from feast.saved_dataset import SavedDataset, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
+from feast.utils import _utc_now, has_all_tags
 
 logger = logging.getLogger(__name__)
 
@@ -96,6 +96,9 @@ class SnowflakeRegistryConfig(RegistryConfig):
     private_key: Optional[str] = None
     """ Snowflake private key file path"""
 
+    private_key_content: Optional[bytes] = None
+    """ Snowflake private key stored as bytes"""
+
     private_key_passphrase: Optional[str] = None
     """ Snowflake private key file passphrase"""
 
@@ -126,16 +129,15 @@ class SnowflakeRegistry(BaseRegistry):
         with GetSnowflakeConnection(self.registry_config) as conn:
             sql_function_file = f"{os.path.dirname(feast.__file__)}/infra/utils/snowflake/registry/snowflake_table_creation.sql"
             with open(sql_function_file, "r") as file:
-                sqlFile = file.read()
-
-                sqlCommands = sqlFile.split(";")
-                for command in sqlCommands:
+                sql_file = file.read()
+                sql_cmds = sql_file.split(";")
+                for command in sql_cmds:
                     query = command.replace("REGISTRY_PATH", f"{self.registry_path}")
                     execute_snowflake_statement(conn, query)
 
         self.cached_registry_proto = self.proto()
         proto_registry_utils.init_project_metadata(self.cached_registry_proto, project)
-        self.cached_registry_proto_created = datetime.utcnow()
+        self.cached_registry_proto_created = _utc_now()
         self._refresh_lock = Lock()
         self.cached_registry_proto_ttl = timedelta(
             seconds=registry_config.cache_ttl_seconds
@@ -154,7 +156,7 @@ class SnowflakeRegistry(BaseRegistry):
                     self.cached_registry_proto, project
                 )
         self.cached_registry_proto = self.proto()
-        self.cached_registry_proto_created = datetime.utcnow()
+        self.cached_registry_proto_created = _utc_now()
 
     def _refresh_cached_registry_if_necessary(self):
         with self._refresh_lock:
@@ -165,7 +167,7 @@ class SnowflakeRegistry(BaseRegistry):
                 self.cached_registry_proto_ttl.total_seconds()
                 > 0  # 0 ttl means infinity
                 and (
-                    datetime.utcnow()
+                    _utc_now()
                     > (
                         self.cached_registry_proto_created
                         + self.cached_registry_proto_ttl
@@ -182,7 +184,6 @@ class SnowflakeRegistry(BaseRegistry):
             sql_function_file = f"{os.path.dirname(feast.__file__)}/infra/utils/snowflake/registry/snowflake_table_deletion.sql"
             with open(sql_function_file, "r") as file:
                 sqlFile = file.read()
-
                 sqlCommands = sqlFile.split(";")
                 for command in sqlCommands:
                     query = command.replace("REGISTRY_PATH", f"{self.registry_path}")
@@ -281,7 +282,7 @@ class SnowflakeRegistry(BaseRegistry):
         name = name or (obj.name if hasattr(obj, "name") else None)
         assert name, f"name needs to be provided for {obj}"
 
-        update_datetime = datetime.utcnow()
+        update_datetime = _utc_now()
         if hasattr(obj, "last_updated_timestamp"):
             obj.last_updated_timestamp = update_datetime
 
@@ -416,7 +417,7 @@ class SnowflakeRegistry(BaseRegistry):
 
             if cursor.rowcount < 1 and not_found_exception:  # type: ignore
                 raise not_found_exception(name, project)
-            self._set_last_updated_metadata(datetime.utcnow(), project)
+            self._set_last_updated_metadata(_utc_now(), project)
 
             return cursor.rowcount
 
@@ -787,7 +788,7 @@ class SnowflakeRegistry(BaseRegistry):
                     obj = python_class.from_proto(
                         proto_class.FromString(row[1][proto_field_name])
                     )
-                    if utils.has_all_tags(obj.tags, tags):
+                    if has_all_tags(obj.tags, tags):
                         objects.append(obj)
                 return objects
         return []
@@ -994,7 +995,7 @@ class SnowflakeRegistry(BaseRegistry):
         if df.empty:
             return None
 
-        return datetime.utcfromtimestamp(int(df.squeeze()))
+        return datetime.fromtimestamp(int(df.squeeze()), tz=timezone.utc)
 
     def _infer_fv_classes(self, feature_view):
         if isinstance(feature_view, StreamFeatureView):

@@ -1,8 +1,9 @@
 import tempfile
-from datetime import datetime, timedelta
+from datetime import timedelta
 from pathlib import Path
 from textwrap import dedent
 
+from feast.utils import _utc_now
 from tests.utils.cli_repo_creator import CliRunner
 
 
@@ -20,7 +21,7 @@ def test_repo_init() -> None:
         result = runner.run(["apply"], cwd=repo_path)
         assert result.returncode == 0
 
-        end_date = datetime.utcnow()
+        end_date = _utc_now()
         start_date = end_date - timedelta(days=100)
         result = runner.run(
             ["materialize", start_date.isoformat(), end_date.isoformat()], cwd=repo_path

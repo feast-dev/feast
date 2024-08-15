@@ -29,7 +29,19 @@ from feast.feature_view import FeatureView
 from feast.infra.infra_object import Infra
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.project_metadata import ProjectMetadata
+from feast.protos.feast.core.Entity_pb2 import Entity as EntityProto
+from feast.protos.feast.core.FeatureService_pb2 import (
+    FeatureService as FeatureServiceProto,
+)
+from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
+from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
+    OnDemandFeatureView as OnDemandFeatureViewProto,
+)
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
+from feast.protos.feast.core.SavedDataset_pb2 import SavedDataset as SavedDatasetProto
+from feast.protos.feast.core.StreamFeatureView_pb2 import (
+    StreamFeatureView as StreamFeatureViewProto,
+)
 from feast.saved_dataset import SavedDataset, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
 from feast.transformation.pandas_transformation import PandasTransformation
@@ -705,3 +717,19 @@ class BaseRegistry(ABC):
                 self._message_to_sorted_dict(infra_object.to_proto())
             )
         return registry_dict
+
+    @staticmethod
+    def deserialize_registry_values(serialized_proto, feast_obj_type) -> Any:
+        if feast_obj_type == Entity:
+            return EntityProto.FromString(serialized_proto)
+        if feast_obj_type == SavedDataset:
+            return SavedDatasetProto.FromString(serialized_proto)
+        if feast_obj_type == FeatureView:
+            return FeatureViewProto.FromString(serialized_proto)
+        if feast_obj_type == StreamFeatureView:
+            return StreamFeatureViewProto.FromString(serialized_proto)
+        if feast_obj_type == OnDemandFeatureView:
+            return OnDemandFeatureViewProto.FromString(serialized_proto)
+        if feast_obj_type == FeatureService:
+            return FeatureServiceProto.FromString(serialized_proto)
+        return None

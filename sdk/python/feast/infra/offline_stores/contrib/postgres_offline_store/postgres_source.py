@@ -4,7 +4,7 @@ from typing import Callable, Dict, Iterable, Optional, Tuple
 from typeguard import typechecked
 
 from feast.data_source import DataSource
-from feast.errors import DataSourceNoNameException
+from feast.errors import DataSourceNoNameException, ZeroColumnQueryResult
 from feast.infra.utils.postgres.connection_utils import _get_conn
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.protos.feast.core.SavedDataset_pb2 import (
@@ -111,7 +111,11 @@ class PostgreSQLSource(DataSource):
         self, config: RepoConfig
     ) -> Iterable[Tuple[str, str]]:
         with _get_conn(config.offline_store) as conn, conn.cursor() as cur:
-            cur.execute(f"SELECT * FROM {self.get_table_query_string()} AS sub LIMIT 0")
+            query = f"SELECT * FROM {self.get_table_query_string()} AS sub LIMIT 0"
+            cur.execute(query)
+            if not cur.description:
+                raise ZeroColumnQueryResult(query)
+
             return (
                 (c.name, pg_type_code_to_pg_type(c.type_code)) for c in cur.description
             )

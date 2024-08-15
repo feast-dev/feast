@@ -1,6 +1,6 @@
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Union
 
 import pandas
 import pyarrow
@@ -11,7 +11,9 @@ from feast.data_source import DataSource
 from feast.infra.offline_stores.offline_store import RetrievalJob
 from feast.infra.provider import Provider
 from feast.infra.registry.base_registry import BaseRegistry
+from feast.online_response import OnlineResponse
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
+from feast.protos.feast.types.Value_pb2 import RepeatedValue
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.saved_dataset import SavedDataset
 
@@ -137,4 +139,32 @@ class FooProvider(Provider):
         config: RepoConfig,
         data_source: DataSource,
     ):
+        pass
+
+    def get_online_features(
+        self,
+        config: RepoConfig,
+        features: Union[List[str], FeatureService],
+        entity_rows: Union[
+            List[Dict[str, Any]],
+            Mapping[str, Union[Sequence[Any], Sequence[ValueProto], RepeatedValue]],
+        ],
+        registry: BaseRegistry,
+        project: str,
+        full_feature_names: bool = False,
+    ) -> OnlineResponse:
+        pass
+
+    async def get_online_features_async(
+        self,
+        config: RepoConfig,
+        features: Union[List[str], FeatureService],
+        entity_rows: Union[
+            List[Dict[str, Any]],
+            Mapping[str, Union[Sequence[Any], Sequence[ValueProto], RepeatedValue]],
+        ],
+        registry: BaseRegistry,
+        project: str,
+        full_feature_names: bool = False,
+    ) -> OnlineResponse:
         pass

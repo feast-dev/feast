@@ -10,6 +10,7 @@ import yaml
 from pytz import utc
 
 from feast import FeatureStore, FeatureView, RepoConfig
+from feast.utils import _utc_now
 from tests.integration.feature_repos.integration_test_repo_config import (
     IntegrationTestRepoConfig,
 )
@@ -31,7 +32,7 @@ from tests.integration.feature_repos.universal.data_sources.redshift import (
 def validate_offline_online_store_consistency(
     fs: FeatureStore, fv: FeatureView, split_dt: datetime
 ) -> None:
-    now = datetime.utcnow()
+    now = _utc_now()
 
     full_feature_names = True
     check_offline_store: bool = True
@@ -78,6 +79,16 @@ def validate_offline_online_store_consistency(
 
     # run materialize_incremental()
     fs.materialize_incremental(feature_views=[fv.name], end_date=now)
+    updated_fv = fs.registry.get_feature_view(fv.name, fs.project)
+
+    # Check if materialization_intervals was updated by the registry
+    assert (
+        len(updated_fv.materialization_intervals) == 2
+        and updated_fv.materialization_intervals[0][0] == start_date
+        and updated_fv.materialization_intervals[0][1] == end_date
+        and updated_fv.materialization_intervals[1][0] == end_date
+        and updated_fv.materialization_intervals[1][1] == now.replace(tzinfo=utc)
+    )
 
     # check result of materialize_incremental()
     _check_offline_and_online_features(

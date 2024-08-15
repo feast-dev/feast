@@ -28,18 +28,18 @@ feast.infra.offline\_stores.bigquery\_source module
    :undoc-members:
    :show-inheritance:
 
-feast.infra.offline\_stores.duckdb module
------------------------------------------
+feast.infra.offline\_stores.dask module
+---------------------------------------
 
-.. automodule:: feast.infra.offline_stores.duckdb
+.. automodule:: feast.infra.offline_stores.dask
    :members:
    :undoc-members:
    :show-inheritance:
 
-feast.infra.offline\_stores.file module
----------------------------------------
+feast.infra.offline\_stores.duckdb module
+-----------------------------------------
 
-.. automodule:: feast.infra.offline_stores.file
+.. automodule:: feast.infra.offline_stores.duckdb
    :members:
    :undoc-members:
    :show-inheritance:

@@ -1,12 +1,12 @@
 import os
 import subprocess
 import tempfile
-from datetime import datetime
 from textwrap import dedent
 
 import pytest
 
 from feast.feature_store import FeatureStore
+from feast.utils import _utc_now
 from feast.wait import wait_retry_backoff
 from tests.utils.cli_repo_creator import CliRunner
 from tests.utils.http_server import check_port_open, free_port
@@ -150,7 +150,7 @@ def _default_store(temp_dir, project_name) -> FeatureStore:
 
     fs = FeatureStore(repo_path=repo_path)
     fs.materialize_incremental(
-        end_date=datetime.utcnow(), feature_views=["driver_hourly_stats"]
+        end_date=_utc_now(), feature_views=["driver_hourly_stats"]
     )
     return fs
 
@@ -195,7 +195,7 @@ def _overwrite_remote_client_feature_store_yaml(
         )
 
 
-def _start_feature_server(repo_path: str, server_port: int):
+def _start_feature_server(repo_path: str, server_port: int, metrics: bool = False):
     host = "0.0.0.0"
     cmd = [
         "feast",
@@ -216,6 +216,21 @@ def _start_feature_server(repo_path: str, server_port: int):
         timeout_secs=_time_out_sec,
         timeout_msg=f"Unable to start the feast server in {_time_out_sec} seconds for remote online store type, port={server_port}",
     )
+
+    if metrics:
+        cmd.append("--metrics")
+
+    # Check if metrics are enabled and Prometheus server is running
+    if metrics:
+        wait_retry_backoff(
+            lambda: (None, check_port_open("localhost", 8000)),
+            timeout_secs=_time_out_sec,
+            timeout_msg="Unable to start the Prometheus server in 60 seconds.",
+        )
+    else:
+        assert not check_port_open(
+            "localhost", 8000
+        ), "Prometheus server is running when it should be disabled."
 
     yield f"http://localhost:{server_port}"
 

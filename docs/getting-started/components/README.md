@@ -1,12 +1,4 @@
-# Architecture
-
-{% content-ref url="language.md" %}
-[langauge.md](language.md)
-{% endcontent-ref %}
-
-{% content-ref url="overview.md" %}
-[overview.md](overview.md)
-{% endcontent-ref %}
+# Components 
 
 {% content-ref url="registry.md" %}
 [registry.md](registry.md)

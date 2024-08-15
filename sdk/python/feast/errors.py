@@ -119,21 +119,9 @@ class FeastProviderNotImplementedError(Exception):
         super().__init__(f"Provider '{provider_name}' is not implemented")
 
 
-class FeastProviderNotSetError(Exception):
-    def __init__(self):
-        super().__init__("Provider is not set, but is required")
-
-
 class FeastRegistryNotSetError(Exception):
     def __init__(self):
         super().__init__("Registry is not set, but is required")
-
-
-class FeastFeatureServerTypeSetError(Exception):
-    def __init__(self, feature_server_type: str):
-        super().__init__(
-            f"Feature server type was set to {feature_server_type}, but the type should be determined by the provider"
-        )
 
 
 class FeastFeatureServerTypeInvalidError(Exception):
@@ -350,32 +338,6 @@ class ConflictingFeatureViewNames(Exception):
         )
 
 
-class RepoConfigPathDoesNotExist(Exception):
-    def __init__(self):
-        super().__init__("The repo_path attribute does not exist for the repo_config.")
-
-
-class AwsLambdaDoesNotExist(Exception):
-    def __init__(self, resource_name: str):
-        super().__init__(
-            f"The AWS Lambda function {resource_name} should have been created properly, but does not exist."
-        )
-
-
-class AwsAPIGatewayDoesNotExist(Exception):
-    def __init__(self, resource_name: str):
-        super().__init__(
-            f"The AWS API Gateway {resource_name} should have been created properly, but does not exist."
-        )
-
-
-class IncompatibleRegistryStoreClass(Exception):
-    def __init__(self, actual_class: str, expected_class: str):
-        super().__init__(
-            f"The registry store class was expected to be {expected_class}, but was instead {actual_class}."
-        )
-
-
 class FeastInvalidInfraObjectType(Exception):
     def __init__(self):
         super().__init__("Could not identify the type of the InfraObject.")
@@ -427,3 +389,13 @@ class DataFrameSerializationError(Exception):
         super().__init__(
             f"Failed to serialize the provided dictionary into a pandas DataFrame: {input_dict.keys()}"
         )
+
+
+class ZeroRowsQueryResult(Exception):
+    def __init__(self, query: str):
+        super().__init__(f"This query returned zero rows:\n{query}")
+
+
+class ZeroColumnQueryResult(Exception):
+    def __init__(self, query: str):
+        super().__init__(f"This query returned zero columns:\n{query}")

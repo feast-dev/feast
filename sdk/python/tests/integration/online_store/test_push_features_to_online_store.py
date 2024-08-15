@@ -1,8 +1,7 @@
-import datetime
-
 import pandas as pd
 import pytest
 
+from feast.utils import _utc_now
 from tests.integration.feature_repos.repo_configuration import (
     construct_universal_feature_views,
 )
@@ -21,8 +20,8 @@ def test_push_features_and_read(environment, universal_data_sources):
     data = {
         "location_id": [1],
         "temperature": [4],
-        "event_timestamp": [pd.Timestamp(datetime.datetime.utcnow()).round("ms")],
-        "created": [pd.Timestamp(datetime.datetime.utcnow()).round("ms")],
+        "event_timestamp": [pd.Timestamp(_utc_now()).round("ms")],
+        "created": [pd.Timestamp(_utc_now()).round("ms")],
     }
     df_ingest = pd.DataFrame(data)
 

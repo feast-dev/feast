@@ -14,6 +14,9 @@ spec:
     {{- with .Values.podAnnotations }}
       annotations:
         {{- toYaml . | nindent 8 }}
+        {{- if .Values.metrics.enabled }}
+        instrumentation.opentelemetry.io/inject-python: "true"
+        {{- end }}
     {{- end }}
       labels:
         {{- include "feast-feature-server.selectorLabels" . | nindent 8 }}
@@ -48,10 +51,18 @@ spec:
             - "feast"
             - "serve_registry"
             {{- else }}
+            {{- if .Values.metrics.enlabled }}
+            - "feast"
+            - "serve"
+            - "--metrics"
+            - "-h"
+            - "0.0.0.0"
+            {{- else }}
             - "feast"
             - "serve"
             - "-h"
             - "0.0.0.0"
+            {{- end }}
             {{- end }}
           ports:
             - name: {{ .Values.feast_mode }}

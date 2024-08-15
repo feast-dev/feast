@@ -684,6 +684,13 @@ def init_command(project_directory, minimal: bool, template: str):
     default=5,
     show_default=True,
 )
+@click.option(
+    "--metrics",
+    "-m",
+    is_flag=True,
+    show_default=True,
+    help="Enable the Metrics Server",
+)
 @click.pass_context
 def serve_command(
     ctx: click.Context,
@@ -692,6 +699,7 @@ def serve_command(
     type_: str,
     no_access_log: bool,
     workers: int,
+    metrics: bool,
     keep_alive_timeout: int,
     registry_ttl_sec: int = 5,
 ):
@@ -704,6 +712,7 @@ def serve_command(
         type_=type_,
         no_access_log=no_access_log,
         workers=workers,
+        metrics=metrics,
         keep_alive_timeout=keep_alive_timeout,
         registry_ttl_sec=registry_ttl_sec,
     )

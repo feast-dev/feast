@@ -134,7 +134,7 @@ def test_apply_feature_view(test_feature_store):
     tags_filter = utils.tags_str_to_dict("('team:matchmaking',)")
     assert tags_filter == tags_dict
     tags_filter = utils.tags_list_to_dict(("team:matchmaking", "test"))
-    assert tags_dict == tags_dict
+    assert tags_filter == tags_dict
 
     # List Feature Views
     feature_views = test_feature_store.list_batch_feature_views(tags=tags_filter)
@@ -389,6 +389,20 @@ def test_reapply_feature_view(test_feature_store, dataframe_source):
 
         # Check Feature View
         fv_stored = test_feature_store.get_feature_view(fv1.name)
+        assert len(fv_stored.materialization_intervals) == 1
+
+        # Change and apply Feature View, this time, only the name
+        fv2 = FeatureView(
+            name="my_feature_view_2",
+            schema=[Field(name="int64_col", dtype=Int64)],
+            entities=[e],
+            source=file_source,
+            ttl=timedelta(minutes=5),
+        )
+        test_feature_store.apply([fv2])
+
+        # Check Feature View
+        fv_stored = test_feature_store.get_feature_view(fv2.name)
         assert len(fv_stored.materialization_intervals) == 0
 
         test_feature_store.teardown()

@@ -1,7 +1,7 @@
 [project]
 name = "pixi-feast"
 channels = ["conda-forge"]
-platforms = ["linux-64", "osx-arm64"]
+platforms = ["linux-64", "osx-arm64", "osx-64"]
 
 [tasks]
 

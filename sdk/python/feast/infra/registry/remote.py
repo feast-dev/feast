@@ -296,6 +296,7 @@ class RemoteRegistry(BaseRegistry):
         start_date_timestamp.FromDatetime(start_date)
         end_date_timestamp.FromDatetime(end_date)
 
+        # TODO: for this to work for stream feature views, ApplyMaterializationRequest needs to be updated
         request = RegistryServer_pb2.ApplyMaterializationRequest(
             feature_view=feature_view.to_proto(),
             project=project,
