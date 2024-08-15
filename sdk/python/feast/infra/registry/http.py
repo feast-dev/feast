@@ -212,7 +212,7 @@ class HttpRegistry(BaseRegistry):
         if allow_cache:
             self._check_if_registry_refreshed()
             return proto_registry_utils.list_entities(
-                self.cached_registry_proto, project
+                self.cached_registry_proto, project, tags
             )
         try:
             url = f"{self.base_url}/projects/{project}/entities"
@@ -317,7 +317,7 @@ class HttpRegistry(BaseRegistry):
         if allow_cache:
             self._check_if_registry_refreshed()
             return proto_registry_utils.list_data_sources(
-                self.cached_registry_proto, project
+                self.cached_registry_proto, project, tags
             )
         try:
             url = f"{self.base_url}/projects/{project}/data_sources"
@@ -421,7 +421,7 @@ class HttpRegistry(BaseRegistry):
         if allow_cache:
             self._check_if_registry_refreshed()
             return proto_registry_utils.list_feature_services(
-                self.cached_registry_proto, project
+                self.cached_registry_proto, project, tags
             )
         try:
             url = f"{self.base_url}/projects/{project}/feature_services"
@@ -509,7 +509,7 @@ class HttpRegistry(BaseRegistry):
         if allow_cache:
             self._check_if_registry_refreshed()
             return proto_registry_utils.list_feature_views(
-                self.cached_registry_proto, project
+                self.cached_registry_proto, project, tags
             )
         try:
             url = f"{self.base_url}/projects/{project}/feature_views"
@@ -553,7 +553,7 @@ class HttpRegistry(BaseRegistry):
         if allow_cache:
             self._check_if_registry_refreshed()
             return proto_registry_utils.list_on_demand_feature_views(
-                self.cached_registry_proto, project
+                self.cached_registry_proto, project, tags
             )
         try:
             url = f"{self.base_url}/projects/{project}/on_demand_feature_views"
