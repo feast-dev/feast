@@ -6,10 +6,10 @@ alphabetical order.
 
 | Organization | Contact | GitHub Username |
 | ------------ | ------- | ------- | 
-| Gojek  | Pradithya Aria Pura | pradithya |
-| Shopify  | Matt Delacour | MattDelac |
 | Affirm  | Francisco Javier Arceo | franciscojavierarceo |
-| Twitter  | David Liu | mavysavydav|
-| Snowflake | Miles Adkins | sfc-gh-madkins | 
-| Get Ground | Zhiling Chen | zhilingc | 
 | Bank of Georgia | Tornike Gurgenidze | tokoko | 
+| Get Ground | Zhiling Chen | zhilingc | 
+| Gojek  | Pradithya Aria Pura | pradithya |
+| Twitter  | David Liu | mavysavydav|
+| Shopify  | Matt Delacour | MattDelac |
+| Snowflake | Miles Adkins | sfc-gh-madkins | 
