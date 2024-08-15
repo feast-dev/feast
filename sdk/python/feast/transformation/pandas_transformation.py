@@ -1,5 +1,4 @@
-from types import FunctionType
-from typing import Any
+from typing import Any, Callable
 
 import dill
 import pandas as pd
@@ -15,7 +14,7 @@ from feast.type_map import (
 
 
 class PandasTransformation:
-    def __init__(self, udf: FunctionType, udf_string: str = ""):
+    def __init__(self, udf: Callable[[Any], Any], udf_string: str = ""):
         """
         Creates an PandasTransformation object.
 
@@ -30,11 +29,11 @@ class PandasTransformation:
     def transform_arrow(
         self, pa_table: pyarrow.Table, features: list[Field]
     ) -> pyarrow.Table:
-        output_df_pandas = self.udf.__call__(pa_table.to_pandas())
+        output_df_pandas = self.udf(pa_table.to_pandas())
         return pyarrow.Table.from_pandas(output_df_pandas)
 
     def transform(self, input_df: pd.DataFrame) -> pd.DataFrame:
-        return self.udf.__call__(input_df)
+        return self.udf(input_df)
 
     def infer_features(self, random_input: dict[str, list[Any]]) -> list[Field]:
         df = pd.DataFrame.from_dict(random_input)
