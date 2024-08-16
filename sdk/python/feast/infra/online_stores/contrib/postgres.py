@@ -16,7 +16,6 @@ from typing import (
     Union,
 )
 
-import pytz
 from psycopg import AsyncConnection, sql
 from psycopg.connection import Connection
 from psycopg_pool import AsyncConnectionPool, ConnectionPool
@@ -24,6 +23,9 @@ from psycopg_pool import AsyncConnectionPool, ConnectionPool
 from feast import Entity
 from feast.feature_view import FeatureView
 from feast.infra.key_encoding_utils import get_list_val_str, serialize_entity_key
+from feast.infra.online_stores.contrib.singlestore_online_store.singlestore import (
+    _to_naive_utc,
+)
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.utils.postgres.connection_utils import (
     _get_conn,
@@ -472,10 +474,3 @@ def _drop_table_and_index(table_name):
         sql.Identifier(table_name),
         sql.Identifier(f"{table_name}_ek"),
     )
-
-
-def _to_naive_utc(ts: datetime):
-    if ts.tzinfo is None:
-        return ts
-    else:
-        return ts.astimezone(pytz.utc).replace(tzinfo=None)

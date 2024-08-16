@@ -1,6 +1,6 @@
 import contextlib
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import (
     Any,
@@ -21,7 +21,6 @@ import pyarrow
 import pyarrow as pa
 from dateutil import parser
 from pydantic import StrictStr, model_validator
-from pytz import utc
 
 from feast import OnDemandFeatureView, RedshiftSource
 from feast.data_source import DataSource
@@ -127,8 +126,8 @@ class RedshiftOfflineStore(OfflineStore):
         )
         s3_resource = aws_utils.get_s3_resource(config.offline_store.region)
 
-        start_date = start_date.astimezone(tz=utc)
-        end_date = end_date.astimezone(tz=utc)
+        start_date = start_date.astimezone(tz=timezone.utc)
+        end_date = end_date.astimezone(tz=timezone.utc)
 
         query = f"""
             SELECT
@@ -174,8 +173,8 @@ class RedshiftOfflineStore(OfflineStore):
         )
         s3_resource = aws_utils.get_s3_resource(config.offline_store.region)
 
-        start_date = start_date.astimezone(tz=utc)
-        end_date = end_date.astimezone(tz=utc)
+        start_date = start_date.astimezone(tz=timezone.utc)
+        end_date = end_date.astimezone(tz=timezone.utc)
 
         query = f"""
             SELECT {field_string}

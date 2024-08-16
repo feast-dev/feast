@@ -1,9 +1,8 @@
 import random
 import subprocess
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pandas as pd
-from pytz import utc
 
 from feast import FeatureStore
 from feast.data_source import PushMode
@@ -71,9 +70,11 @@ def run_demo():
 
 def fetch_historical_features_entity_sql(store: FeatureStore, for_batch_scoring):
     end_date = (
-        datetime.now().replace(microsecond=0, second=0, minute=0).astimezone(tz=utc)
+        datetime.now()
+        .replace(microsecond=0, second=0, minute=0)
+        .astimezone(tz=timezone.utc)
     )
-    start_date = (end_date - timedelta(days=60)).astimezone(tz=utc)
+    start_date = (end_date - timedelta(days=60)).astimezone(tz=timezone.utc)
     # For batch scoring, we want the latest timestamps
     if for_batch_scoring:
         print(
