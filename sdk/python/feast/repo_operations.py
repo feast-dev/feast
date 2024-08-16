@@ -359,7 +359,7 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
 
 def teardown(repo_config: RepoConfig, repo_path: Optional[str]):
     # Cannot pass in both repo_path and repo_config to FeatureStore.
-    feature_store = FeatureStore(repo_path=repo_path, config=None)
+    feature_store = FeatureStore(repo_path=repo_path, config=repo_config)
     feature_store.teardown()
 
 
