@@ -23,6 +23,7 @@
   * [Push vs Pull Model](getting-started/architecture/push-vs-pull-model.md)
   * [Write Patterns](getting-started/architecture/write-patterns.md)
   * [Feature Transformation](getting-started/architecture/feature-transformation.md)
+  * [Feature Serving and Model Inference](getting-started/architecture/model-inference.md)
 * [Components](getting-started/components/README.md)
   * [Overview](getting-started/components/overview.md)
   * [Registry](getting-started/components/registry.md)
