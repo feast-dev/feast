@@ -3,6 +3,7 @@
 A *feature transformation* is a function that takes some set of input data and
 returns some set of output data. Feature transformations can happen on either raw data or derived data.
 
+## Feature Transformation Engines
 Feature transformations can be executed by three types of "transformation engines":
 
 1. The Feast Feature Server

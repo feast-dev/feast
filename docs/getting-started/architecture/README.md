@@ -19,3 +19,7 @@
 {% content-ref url="feature-transformation.md" %}
 [feature-transformation.md](feature-transformation.md)
 {% endcontent-ref %}
+
+{% content-ref url="model-inference.md" %}
+[model-inference.md](model-inference.md)
+{% endcontent-ref %}
