@@ -88,19 +88,16 @@ class OidcTokenParser(TokenParser):
             current_user = data["preferred_username"]
 
             if "resource_access" not in data:
-                raise AuthenticationError(
-                    "Missing resource_access field in access token."
-                )
+                logger.warning("Missing resource_access field in access token.")
             client_id = self._auth_config.client_id
             if client_id not in data["resource_access"]:
-                raise AuthenticationError(
-                    f"Missing resource_access.{client_id} field in access token."
+                logger.warning(
+                    f"Missing resource_access.{client_id} field in access token. Defaulting to empty roles."
                 )
-            if "roles" not in data["resource_access"][client_id]:
-                raise AuthenticationError(
-                    f"Missing resource_access.{client_id}.roles field in access token."
-                )
-            roles = data["resource_access"][client_id]["roles"]
+                roles = []
+            else:
+                roles = data["resource_access"][client_id]["roles"]
+
             logger.info(f"Extracted user {current_user} and roles {roles}")
             return User(username=current_user, roles=roles)
         except jwt.exceptions.InvalidTokenError:
