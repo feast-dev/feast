@@ -185,14 +185,14 @@ def test_python_native_transformation_mode():
     )
 
     assert (
-        on_demand_feature_view_python_native.feature_transformation
-        == PythonTransformation(python_native_udf, "python native udf source code")
+            on_demand_feature_view_python_native.feature_transformation
+            == PythonTransformation(python_native_udf, "python native udf source code")
     )
 
     with pytest.raises(TypeError):
         assert (
-            on_demand_feature_view_python_native_err.feature_transformation
-            == PythonTransformation(python_native_udf, "python native udf source code")
+                on_demand_feature_view_python_native_err.feature_transformation
+                == PythonTransformation(python_native_udf, "python native udf source code")
         )
 
     assert on_demand_feature_view_python_native.transform_dict(
@@ -232,8 +232,8 @@ def test_from_proto_backwards_compatible_udf():
     # and to populate it in feature_transformation
     proto = on_demand_feature_view.to_proto()
     assert (
-        on_demand_feature_view.feature_transformation.udf_string
-        == proto.spec.feature_transformation.user_defined_function.body_text
+            on_demand_feature_view.feature_transformation.udf_string
+            == proto.spec.feature_transformation.user_defined_function.body_text
     )
     # Because of the current set of code this is just confirming it is empty
     assert proto.spec.user_defined_function.body_text == ""
@@ -258,6 +258,44 @@ def test_from_proto_backwards_compatible_udf():
     # And now we expect the to get the same object back under feature_transformation
     reserialized_proto = OnDemandFeatureView.from_proto(proto)
     assert (
-        reserialized_proto.feature_transformation.udf_string
-        == on_demand_feature_view.feature_transformation.udf_string
+            reserialized_proto.feature_transformation.udf_string
+            == on_demand_feature_view.feature_transformation.udf_string
     )
+
+
+def test_on_demand_feature_view_writes_protos():
+    file_source = FileSource(name="my-file-source", path="test.parquet")
+    feature_view = FeatureView(
+        name="my-feature-view",
+        entities=[],
+        schema=[
+            Field(name="feature1", dtype=Float32),
+            Field(name="feature2", dtype=Float32),
+        ],
+        source=file_source,
+    )
+    sources = [feature_view]
+    on_demand_feature_view = OnDemandFeatureView(
+        name="my-on-demand-feature-view",
+        sources=sources,
+        schema=[
+            Field(name="output1", dtype=Float32),
+            Field(name="output2", dtype=Float32),
+        ],
+        feature_transformation=PandasTransformation(
+            udf=udf1, udf_string="udf1 source code"
+        ),
+        write_to_online_store=True,
+    )
+
+    proto = on_demand_feature_view.to_proto()
+    reserialized_proto = OnDemandFeatureView.from_proto(proto)
+
+
+    assert on_demand_feature_view.write_to_online_store
+    assert proto.spec.write_to_online_store
+    assert reserialized_proto.write_to_online_store
+
+    proto.spec.write_to_online_store = False
+    reserialized_proto = OnDemandFeatureView.from_proto(proto)
+    assert not reserialized_proto.write_to_online_store
