@@ -128,7 +128,6 @@ class OnDemandFeatureView(BaseFeatureView):
             description=description,
             tags=tags,
             owner=owner,
-            write_to_online_store=write_to_online_store,
         )
 
         schema = schema or []
