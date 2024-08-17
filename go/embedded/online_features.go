@@ -3,7 +3,6 @@ package embedded
 import (
 	"context"
 	"fmt"
-	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 	"log"
 	"net"
 	"os"
@@ -12,10 +11,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/apache/arrow/go/v8/arrow"
-	"github.com/apache/arrow/go/v8/arrow/array"
-	"github.com/apache/arrow/go/v8/arrow/cdata"
-	"github.com/apache/arrow/go/v8/arrow/memory"
+	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
+
+	"github.com/apache/arrow/go/v17/arrow"
+	"github.com/apache/arrow/go/v17/arrow/array"
+	"github.com/apache/arrow/go/v17/arrow/cdata"
+	"github.com/apache/arrow/go/v17/arrow/memory"
 	"google.golang.org/grpc"
 
 	"github.com/feast-dev/feast/go/internal/feast"

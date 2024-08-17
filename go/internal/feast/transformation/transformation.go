@@ -6,8 +6,8 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/apache/arrow/go/v8/arrow"
-	"github.com/apache/arrow/go/v8/arrow/memory"
+	"github.com/apache/arrow/go/v17/arrow"
+	"github.com/apache/arrow/go/v17/arrow/memory"
 	"github.com/rs/zerolog/log"
 	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 
