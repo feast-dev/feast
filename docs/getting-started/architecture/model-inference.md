@@ -3,7 +3,7 @@
 Production machine learning systems can choose from four approaches to serving machine learning predictions (the output 
 of model inference):
 1. Online model inference with online features
-2. Precomputed (batch) model predictions without online features
+2. Offline mode inference without online features
 3. Online model inference with online features and cached predictions
 4. Online model inference without features 
 
@@ -27,10 +27,13 @@ features = store.get_online_features(
 model_predictions = model_server.predict(features)
 ```
 
-## 2. Precomputed (Batch) Model Predictions without Online Features
+## 2. Offline Model Inference without Online Features
 Typically, Machine Learning teams find serving precomputed model predictions to be the most straightforward to implement.
 This approach simply treats the model predictions as a feature and serves them from the feature store using the standard
-Feast sdk.
+Feast sdk. These model predictions are typically generated through some batch process where the model scores are precomputed.
+As a concrete example, the batch process can be as simple as a script that runs model inference locally for a set of users that 
+can output a CSV. This output file could be used for materialization so that the model could be served online as shown in the 
+code below. 
 ```python
 model_predictions = store.get_online_features(
     feature_refs=[
@@ -86,3 +89,9 @@ approach is common in Large Language Models (LLMs) and other models that do not 
 Note that generative models using Retrieval Augmented Generation (RAG) do require features where the 
 [document embeddings](../../reference/alpha-vector-database.md) are treated as features, which Feast supports 
 (this would fall under "Online Model Inference with Online Features").
+
+### Client Orchestration
+Implicit in the code examples above is a design choice about how clients orchestrate calls to get features and run model inference.
+The examples had a Feast-centric pattern because they are inputs to the model, so the sequencing is fairly obvious.
+An alternative approach can be Inference-centric where a client would call an inference endpoint and the inference 
+service would be responsible for orchestration.
