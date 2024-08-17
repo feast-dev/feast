@@ -3,6 +3,8 @@ from datetime import datetime, timezone
 
 import grpc
 from google.protobuf.empty_pb2 import Empty
+from grpc_health.v1 import health, health_pb2, health_pb2_grpc
+from grpc_reflection.v1alpha import reflection
 
 from feast import FeatureStore
 from feast.data_source import DataSource
@@ -353,6 +355,18 @@ def start_server(store: FeatureStore, port: int):
     RegistryServer_pb2_grpc.add_RegistryServerServicer_to_server(
         RegistryServer(store.registry), server
     )
+    # Add health check service to server
+    health_servicer = health.HealthServicer()
+    health_pb2_grpc.add_HealthServicer_to_server(health_servicer, server)
+    health_servicer.set("", health_pb2.HealthCheckResponse.SERVING)
+
+    service_names_available_for_reflection = (
+        RegistryServer_pb2.DESCRIPTOR.services_by_name["RegistryServer"].full_name,
+        health_pb2.DESCRIPTOR.services_by_name["Health"].full_name,
+        reflection.SERVICE_NAME,
+    )
+    reflection.enable_server_reflection(service_names_available_for_reflection, server)
+
     server.add_insecure_port(f"[::]:{port}")
     server.start()
     server.wait_for_termination()
