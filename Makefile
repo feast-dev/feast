@@ -21,6 +21,7 @@ ifeq ($(shell uname -s), Darwin)
 	OS = osx
 endif
 TRINO_VERSION ?= 376
+PYTHON_VERSION = ${shell python --version | grep -Eo '[0-9]\.[0-9]+'}
 
 # General
 
@@ -37,22 +38,22 @@ build: protos build-java build-docker
 # Python SDK
 
 install-python-ci-dependencies:
-	python -m piptools sync sdk/python/requirements/py$(PYTHON)-ci-requirements.txt
+	python -m piptools sync sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt
 	pip install --no-deps -e .
 	python setup.py build_python_protos --inplace
 
 install-python-ci-dependencies-uv:
-	uv pip sync --system sdk/python/requirements/py$(PYTHON)-ci-requirements.txt
+	uv pip sync --system sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt
 	uv pip install --system --no-deps -e .
 	python setup.py build_python_protos --inplace
 
 install-python-ci-dependencies-uv-venv:
-	uv pip sync sdk/python/requirements/py$(PYTHON)-ci-requirements.txt
+	uv pip sync sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt
 	uv pip install --no-deps -e .
 	python setup.py build_python_protos --inplace
 
 lock-python-ci-dependencies:
-	uv pip compile --system --no-strip-extras setup.py --extra ci --output-file sdk/python/requirements/py$(PYTHON)-ci-requirements.txt
+	uv pip compile --system --no-strip-extras setup.py --extra ci --output-file sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt
 
 package-protos:
 	cp -r ${ROOT_DIR}/protos ${ROOT_DIR}/sdk/python/feast/protos
@@ -61,11 +62,11 @@ compile-protos-python:
 	python setup.py build_python_protos --inplace
 
 install-python:
-	python -m piptools sync sdk/python/requirements/py$(PYTHON)-requirements.txt
+	python -m piptools sync sdk/python/requirements/py$(PYTHON_VERSION)-requirements.txt
 	python setup.py develop
 
 lock-python-dependencies:
-	uv pip compile --system --no-strip-extras setup.py --output-file sdk/python/requirements/py$(PYTHON)-requirements.txt
+	uv pip compile --system --no-strip-extras setup.py --output-file sdk/python/requirements/py$(PYTHON_VERSION)-requirements.txt
 
 lock-python-dependencies-all:
 	pixi run --environment py39 --manifest-path infra/scripts/pixi/pixi.toml "uv pip compile --system --no-strip-extras setup.py --output-file sdk/python/requirements/py3.9-requirements.txt"
