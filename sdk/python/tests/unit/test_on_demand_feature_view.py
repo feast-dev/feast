@@ -185,14 +185,14 @@ def test_python_native_transformation_mode():
     )
 
     assert (
-            on_demand_feature_view_python_native.feature_transformation
-            == PythonTransformation(python_native_udf, "python native udf source code")
+        on_demand_feature_view_python_native.feature_transformation
+        == PythonTransformation(python_native_udf, "python native udf source code")
     )
 
     with pytest.raises(TypeError):
         assert (
-                on_demand_feature_view_python_native_err.feature_transformation
-                == PythonTransformation(python_native_udf, "python native udf source code")
+            on_demand_feature_view_python_native_err.feature_transformation
+            == PythonTransformation(python_native_udf, "python native udf source code")
         )
 
     assert on_demand_feature_view_python_native.transform_dict(
@@ -232,8 +232,8 @@ def test_from_proto_backwards_compatible_udf():
     # and to populate it in feature_transformation
     proto = on_demand_feature_view.to_proto()
     assert (
-            on_demand_feature_view.feature_transformation.udf_string
-            == proto.spec.feature_transformation.user_defined_function.body_text
+        on_demand_feature_view.feature_transformation.udf_string
+        == proto.spec.feature_transformation.user_defined_function.body_text
     )
     # Because of the current set of code this is just confirming it is empty
     assert proto.spec.user_defined_function.body_text == ""
@@ -258,8 +258,8 @@ def test_from_proto_backwards_compatible_udf():
     # And now we expect the to get the same object back under feature_transformation
     reserialized_proto = OnDemandFeatureView.from_proto(proto)
     assert (
-            reserialized_proto.feature_transformation.udf_string
-            == on_demand_feature_view.feature_transformation.udf_string
+        reserialized_proto.feature_transformation.udf_string
+        == on_demand_feature_view.feature_transformation.udf_string
     )
 
 
@@ -290,7 +290,6 @@ def test_on_demand_feature_view_writes_protos():
 
     proto = on_demand_feature_view.to_proto()
     reserialized_proto = OnDemandFeatureView.from_proto(proto)
-
 
     assert on_demand_feature_view.write_to_online_store
     assert proto.spec.write_to_online_store
