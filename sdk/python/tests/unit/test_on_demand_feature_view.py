@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+import datetime
 from typing import Any, Dict, List
 
 import pandas as pd
@@ -46,6 +46,15 @@ def python_native_udf(features_dict: Dict[str, Any]) -> Dict[str, Any]:
     output_dict: Dict[str, List[Any]] = {
         "output1": features_dict["feature1"] + 100,
         "output2": features_dict["feature2"] + 101,
+    }
+    return output_dict
+
+
+def python_writes_test_udf(features_dict: Dict[str, Any]) -> Dict[str, Any]:
+    output_dict: Dict[str, List[Any]] = {
+        "output1": features_dict["feature1"] + 100,
+        "output2": features_dict["feature2"] + 101,
+        "output3": datetime.datetime.now(),
     }
     return output_dict
 
@@ -298,3 +307,61 @@ def test_on_demand_feature_view_writes_protos():
     proto.spec.write_to_online_store = False
     reserialized_proto = OnDemandFeatureView.from_proto(proto)
     assert not reserialized_proto.write_to_online_store
+
+
+def test_on_demand_feature_view_stored_writes():
+    file_source = FileSource(name="my-file-source", path="test.parquet")
+    feature_view = FeatureView(
+        name="my-feature-view",
+        entities=[],
+        schema=[
+            Field(name="feature1", dtype=Float32),
+            Field(name="feature2", dtype=Float32),
+        ],
+        source=file_source,
+    )
+    sources = [feature_view]
+
+    on_demand_feature_view = OnDemandFeatureView(
+        name="my-on-demand-feature-view",
+        sources=sources,
+        schema=[
+            Field(name="output1", dtype=Float32),
+            Field(name="output2", dtype=Float32),
+        ],
+        feature_transformation=PythonTransformation(
+            udf=python_writes_test_udf, udf_string="python native udf source code"
+        ),
+        description="testing on demand feature view stored writes",
+        mode="python",
+        write_to_online_store=True,
+    )
+    transformed_output = on_demand_feature_view.transform_dict(
+        {
+            "feature1": 0,
+            "feature2": 1,
+        }
+    )
+    expected_output = {"feature1": 0, "feature2": 1, "output1": 100, "output2": 102}
+    keys_to_validate = [
+        "feature1",
+        "feature2",
+        "output1",
+        "output2",
+    ]
+    for k in keys_to_validate:
+        assert transformed_output[k] == expected_output[k]
+
+    assert transformed_output["output3"] is not None and isinstance(
+        transformed_output["output3"], datetime.datetime
+    )
+
+    # Now this is where we need to test the stored writes, this should return the same output as the previous
+    twice_transformed_output = on_demand_feature_view.transform_dict(
+        {
+            "feature1": 0,
+            "feature2": 1,
+        }
+    )
+    for k in twice_transformed_output:
+        assert twice_transformed_output[k] == transformed_output[k]
