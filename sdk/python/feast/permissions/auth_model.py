@@ -8,7 +8,6 @@ class AuthConfig(FeastConfigBaseModel):
 
 
 class OidcAuthConfig(AuthConfig):
-    auth_server_url: Optional[str] = None
     auth_discovery_url: str
     client_id: str
     client_secret: Optional[str] = None

@@ -464,7 +464,6 @@ class OfflineServerPermissionsEnvironment(Environment):
             password="password",
             realm="master",
             type="oidc",
-            auth_server_url=keycloak_url,
             auth_discovery_url=f"{keycloak_url}/realms/master/.well-known"
             f"/openid-configuration",
         )
