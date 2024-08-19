@@ -1,7 +1,6 @@
 import os
 import platform
 import sqlite3
-import sys
 import time
 from datetime import datetime
 
