@@ -1,7 +1,6 @@
 from concurrent import futures
-from datetime import datetime
-from typing import Union, cast
 from datetime import datetime, timezone
+from typing import Union, cast
 
 import grpc
 from google.protobuf.empty_pb2 import Empty

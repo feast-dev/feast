@@ -209,7 +209,6 @@ feast permissions describe permission-name
 name: permission-name
 types:
 - FEATURE_VIEW
-withSubclasses: true
 namePattern: transformed_conv_rate
 requiredTags:
   required1: required-value1
