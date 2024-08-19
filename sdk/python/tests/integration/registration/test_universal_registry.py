@@ -1357,7 +1357,7 @@ def validate_project_uuid(project_uuid, test_registry):
 def test_apply_permission_success(test_registry):
     permission = Permission(
         name="read_permission",
-        actions=AuthzedAction.READ,
+        actions=AuthzedAction.DESCRIBE,
         policy=RoleBasedPolicy(roles=["reader"]),
         types=FeatureView,
     )
@@ -1382,7 +1382,7 @@ def test_apply_permission_success(test_registry):
         and len(permission.types) == 1
         and permission.types[0] == FeatureView
         and len(permission.actions) == 1
-        and permission.actions[0] == AuthzedAction.READ
+        and permission.actions[0] == AuthzedAction.DESCRIBE
         and isinstance(permission.policy, RoleBasedPolicy)
         and len(permission.policy.roles) == 1
         and permission.policy.roles[0] == "reader"
@@ -1400,7 +1400,7 @@ def test_apply_permission_success(test_registry):
         and len(permission.types) == 1
         and permission.types[0] == FeatureView
         and len(permission.actions) == 1
-        and permission.actions[0] == AuthzedAction.READ
+        and permission.actions[0] == AuthzedAction.DESCRIBE
         and isinstance(permission.policy, RoleBasedPolicy)
         and len(permission.policy.roles) == 1
         and permission.policy.roles[0] == "reader"
@@ -1412,7 +1412,7 @@ def test_apply_permission_success(test_registry):
     # Update permission
     updated_permission = Permission(
         name="read_permission",
-        actions=[AuthzedAction.READ, AuthzedAction.WRITE_ONLINE],
+        actions=[AuthzedAction.DESCRIBE, AuthzedAction.WRITE_ONLINE],
         policy=RoleBasedPolicy(roles=["reader", "writer"]),
         types=FeatureView,
     )
@@ -1428,7 +1428,7 @@ def test_apply_permission_success(test_registry):
         and len(updated_permission.types) == 1
         and updated_permission.types[0] == FeatureView
         and len(updated_permission.actions) == 2
-        and AuthzedAction.READ in updated_permission.actions
+        and AuthzedAction.DESCRIBE in updated_permission.actions
         and AuthzedAction.WRITE_ONLINE in updated_permission.actions
         and isinstance(updated_permission.policy, RoleBasedPolicy)
         and len(updated_permission.policy.roles) == 2
@@ -1447,7 +1447,7 @@ def test_apply_permission_success(test_registry):
 
     updated_permission = Permission(
         name="read_permission",
-        actions=[AuthzedAction.READ, AuthzedAction.WRITE_ONLINE],
+        actions=[AuthzedAction.DESCRIBE, AuthzedAction.WRITE_ONLINE],
         policy=RoleBasedPolicy(roles=["reader", "writer"]),
         types=FeatureView,
         name_pattern="aaa",
@@ -1466,7 +1466,7 @@ def test_apply_permission_success(test_registry):
         and len(updated_permission.types) == 1
         and updated_permission.types[0] == FeatureView
         and len(updated_permission.actions) == 2
-        and AuthzedAction.READ in updated_permission.actions
+        and AuthzedAction.DESCRIBE in updated_permission.actions
         and AuthzedAction.WRITE_ONLINE in updated_permission.actions
         and isinstance(updated_permission.policy, RoleBasedPolicy)
         and len(updated_permission.policy.roles) == 2

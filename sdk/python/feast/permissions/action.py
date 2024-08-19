@@ -7,7 +7,7 @@ class AuthzedAction(enum.Enum):
     """
 
     CREATE = "create"  # Create an instance
-    READ = "read"  # Access the instance state
+    DESCRIBE = "describe"  # Access the instance state
     UPDATE = "update"  # Update the instance state
     DELETE = "delete"  # Deelete an instance
     QUERY_ONLINE = "query_online"  # Query the online store only
@@ -34,7 +34,7 @@ WRITE = [
 #  Alias for CRUD actions
 CRUD = [
     AuthzedAction.CREATE,
-    AuthzedAction.READ,
+    AuthzedAction.DESCRIBE,
     AuthzedAction.UPDATE,
     AuthzedAction.DELETE,
 ]

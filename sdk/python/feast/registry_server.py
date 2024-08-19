@@ -57,7 +57,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
                 project=request.project,
                 allow_cache=request.allow_cache,
             ),
-            actions=[AuthzedAction.READ],
+            actions=[AuthzedAction.DESCRIBE],
         ).to_proto()
 
     def ListEntities(self, request: RegistryServer_pb2.ListEntitiesRequest, context):
@@ -73,7 +73,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
                             tags=dict(request.tags),
                         ),
                     ),
-                    actions=AuthzedAction.READ,
+                    actions=AuthzedAction.DESCRIBE,
                 )
             ]
         )
@@ -117,7 +117,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
                 project=request.project,
                 allow_cache=request.allow_cache,
             ),
-            actions=AuthzedAction.READ,
+            actions=AuthzedAction.DESCRIBE,
         ).to_proto()
 
     def ListDataSources(
@@ -135,7 +135,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
                             tags=dict(request.tags),
                         ),
                     ),
-                    actions=AuthzedAction.READ,
+                    actions=AuthzedAction.DESCRIBE,
                 )
             ]
         )
@@ -165,7 +165,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
                 project=request.project,
                 allow_cache=request.allow_cache,
             ),
-            actions=[AuthzedAction.READ],
+            actions=[AuthzedAction.DESCRIBE],
         ).to_proto()
 
     def ApplyFeatureView(
@@ -209,7 +209,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
                             tags=dict(request.tags),
                         ),
                     ),
-                    actions=AuthzedAction.READ,
+                    actions=AuthzedAction.DESCRIBE,
                 )
             ]
         )
@@ -246,7 +246,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
                 project=request.project,
                 allow_cache=request.allow_cache,
             ),
-            actions=[AuthzedAction.READ],
+            actions=[AuthzedAction.DESCRIBE],
         ).to_proto()
 
     def ListStreamFeatureViews(
@@ -264,7 +264,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
                             tags=dict(request.tags),
                         ),
                     ),
-                    actions=AuthzedAction.READ,
+                    actions=AuthzedAction.DESCRIBE,
                 )
             ]
         )
@@ -278,7 +278,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
                 project=request.project,
                 allow_cache=request.allow_cache,
             ),
-            actions=[AuthzedAction.READ],
+            actions=[AuthzedAction.DESCRIBE],
         ).to_proto()
 
     def ListOnDemandFeatureViews(
@@ -296,7 +296,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
                             tags=dict(request.tags),
                         ),
                     ),
-                    actions=AuthzedAction.READ,
+                    actions=AuthzedAction.DESCRIBE,
                 )
             ]
         )
@@ -327,7 +327,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
                 project=request.project,
                 allow_cache=request.allow_cache,
             ),
-            actions=[AuthzedAction.READ],
+            actions=[AuthzedAction.DESCRIBE],
         ).to_proto()
 
     def ListFeatureServices(
@@ -345,7 +345,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
                             tags=dict(request.tags),
                         ),
                     ),
-                    actions=AuthzedAction.READ,
+                    actions=AuthzedAction.DESCRIBE,
                 )
             ]
         )
@@ -395,7 +395,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
                 project=request.project,
                 allow_cache=request.allow_cache,
             ),
-            actions=[AuthzedAction.READ],
+            actions=[AuthzedAction.DESCRIBE],
         ).to_proto()
 
     def ListSavedDatasets(
@@ -413,7 +413,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
                             tags=dict(request.tags),
                         ),
                     ),
-                    actions=AuthzedAction.READ,
+                    actions=AuthzedAction.DESCRIBE,
                 )
             ]
         )
@@ -459,7 +459,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
                 project=request.project,
                 allow_cache=request.allow_cache,
             ),
-            actions=[AuthzedAction.READ],
+            actions=[AuthzedAction.DESCRIBE],
         ).to_proto()
 
     def ListValidationReferences(
@@ -477,7 +477,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
                             tags=dict(request.tags),
                         ),
                     ),
-                    actions=AuthzedAction.READ,
+                    actions=AuthzedAction.DESCRIBE,
                 )
             ]
         )
@@ -564,7 +564,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         )
         assert_permissions(
             resource=permission,
-            actions=[AuthzedAction.READ],
+            actions=[AuthzedAction.DESCRIBE],
         )
         permission.to_proto().spec.project = request.project
 
@@ -583,7 +583,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
                             project=request.project, allow_cache=request.allow_cache
                         ),
                     ),
-                    actions=AuthzedAction.READ,
+                    actions=AuthzedAction.DESCRIBE,
                 )
             ]
         )

@@ -9,15 +9,15 @@ from feast.permissions.security_manager import assert_permissions, permitted_res
     "username, requested_actions, allowed, allowed_single, raise_error_in_assert, raise_error_in_permit",
     [
         (None, [], False, [False, False], [True, True], False),
-        ("r", [AuthzedAction.READ], True, [True, True], [False, False], False),
+        ("r", [AuthzedAction.DESCRIBE], True, [True, True], [False, False], False),
         ("r", [AuthzedAction.UPDATE], False, [False, False], [True, True], False),
-        ("w", [AuthzedAction.READ], False, [False, False], [True, True], False),
+        ("w", [AuthzedAction.DESCRIBE], False, [False, False], [True, True], False),
         ("w", [AuthzedAction.UPDATE], False, [True, True], [False, False], False),
-        ("rw", [AuthzedAction.READ], False, [True, True], [False, False], False),
+        ("rw", [AuthzedAction.DESCRIBE], False, [True, True], [False, False], False),
         ("rw", [AuthzedAction.UPDATE], False, [True, True], [False, False], False),
         (
             "rw",
-            [AuthzedAction.READ, AuthzedAction.UPDATE],
+            [AuthzedAction.DESCRIBE, AuthzedAction.UPDATE],
             False,
             [False, False],
             [True, True],
@@ -25,7 +25,7 @@ from feast.permissions.security_manager import assert_permissions, permitted_res
         ),
         (
             "admin",
-            [AuthzedAction.READ, AuthzedAction.UPDATE],
+            [AuthzedAction.DESCRIBE, AuthzedAction.UPDATE],
             False,
             [False, True],
             [True, False],

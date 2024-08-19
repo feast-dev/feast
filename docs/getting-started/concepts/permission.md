@@ -69,7 +69,7 @@ Permission(
     name="feature-reader",
     types=[FeatureView, FeatureService],
     policy=RoleBasedPolicy(roles=["super-reader"]),
-    actions=[AuthzedAction.READ, QUERY],
+    actions=[AuthzedAction.DESCRIBE, QUERY],
 )
 ```
 

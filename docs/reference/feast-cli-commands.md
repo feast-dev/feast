@@ -174,11 +174,11 @@ Options:
 +-----------------------+-------------+-----------------------+-----------+----------------+-------------------------+
 | NAME                  | TYPES       | NAME_PATTERN          | ACTIONS   | ROLES          | REQUIRED_TAGS           |
 +=======================+=============+=======================+===========+================+================+========+
-| reader_permission1234 | FeatureView | transformed_conv_rate | READ      | reader         | -                       |
+| reader_permission1234 | FeatureView | transformed_conv_rate | DESCRIBE  | reader         | -                       |
 +-----------------------+-------------+-----------------------+-----------+----------------+-------------------------+
 | writer_permission1234 | FeatureView | transformed_conv_rate | CREATE    | writer         | -                       |
 +-----------------------+-------------+-----------------------+-----------+----------------+-------------------------+
-| special               | FeatureView | special.*             | READ      | admin          | test-key2 : test-value2 |
+| special               | FeatureView | special.*             | DESCRIBE  | admin          | test-key2 : test-value2 |
 |                       |             |                       | UPDATE    | special-reader | test-key : test-value   |
 +-----------------------+-------------+-----------------------+-----------+----------------+-------------------------+
 ```
@@ -215,7 +215,7 @@ requiredTags:
   required1: required-value1
   required2: required-value2
 actions:
-- READ
+- DESCRIBE
 policy:
   roleBasedPolicy:
     roles:
@@ -256,40 +256,40 @@ admin              driver_hourly_stats_source  FileSource       CREATE
                                                                 DELETE
                                                                 QUERY_OFFLINE
                                                                 QUERY_ONLINE
-                                                                READ
+                                                                DESCRIBE
                                                                 UPDATE
 admin              vals_to_add                 RequestSource    CREATE
                                                                 DELETE
                                                                 QUERY_OFFLINE
                                                                 QUERY_ONLINE
-                                                                READ
+                                                                DESCRIBE
                                                                 UPDATE
 admin              driver_stats_push_source    PushSource       CREATE
                                                                 DELETE
                                                                 QUERY_OFFLINE
                                                                 QUERY_ONLINE
-                                                                READ
+                                                                DESCRIBE
                                                                 UPDATE
 admin              driver_hourly_stats_source  FileSource       CREATE
                                                                 DELETE
                                                                 QUERY_OFFLINE
                                                                 QUERY_ONLINE
-                                                                READ
+                                                                DESCRIBE
                                                                 UPDATE
 admin              vals_to_add                 RequestSource    CREATE
                                                                 DELETE
                                                                 QUERY_OFFLINE
                                                                 QUERY_ONLINE
-                                                                READ
+                                                                DESCRIBE
                                                                 UPDATE
 admin              driver_stats_push_source    PushSource       CREATE
                                                                 DELETE
                                                                 QUERY_OFFLINE
                                                                 QUERY_ONLINE
-                                                                READ
+                                                                DESCRIBE
                                                                 UPDATE
-reader             driver_hourly_stats         FeatureView      READ
-reader             driver_hourly_stats_fresh   FeatureView      READ
+reader             driver_hourly_stats         FeatureView      DESCRIBE
+reader             driver_hourly_stats_fresh   FeatureView      DESCRIBE
 ...
 ```
 

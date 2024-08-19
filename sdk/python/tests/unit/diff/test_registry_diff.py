@@ -181,7 +181,7 @@ def test_diff_registry_objects_permissions():
         name="reader",
         types=ALL_RESOURCE_TYPES,
         policy=RoleBasedPolicy(roles=["reader"]),
-        actions=[AuthzedAction.READ],
+        actions=[AuthzedAction.DESCRIBE],
     )
     post_changed = Permission(
         name="reader",

@@ -11,42 +11,42 @@ read_permissions_perm = Permission(
     name="read_permissions_perm",
     types=Permission,
     policy=RoleBasedPolicy(roles=["reader"]),
-    actions=[AuthzedAction.READ],
+    actions=[AuthzedAction.DESCRIBE],
 )
 
 read_entities_perm = Permission(
     name="read_entities_perm",
     types=Entity,
     policy=RoleBasedPolicy(roles=["reader"]),
-    actions=[AuthzedAction.READ],
+    actions=[AuthzedAction.DESCRIBE],
 )
 
 read_fv_perm = Permission(
     name="read_fv_perm",
     types=FeatureView,
     policy=RoleBasedPolicy(roles=["reader"]),
-    actions=[AuthzedAction.READ],
+    actions=[AuthzedAction.DESCRIBE],
 )
 
 read_odfv_perm = Permission(
     name="read_odfv_perm",
     types=OnDemandFeatureView,
     policy=RoleBasedPolicy(roles=["reader"]),
-    actions=[AuthzedAction.READ],
+    actions=[AuthzedAction.DESCRIBE],
 )
 
 read_sfv_perm = Permission(
     name="read_sfv_perm",
     types=StreamFeatureView,
     policy=RoleBasedPolicy(roles=["reader"]),
-    actions=[AuthzedAction.READ],
+    actions=[AuthzedAction.DESCRIBE],
 )
 
 invalid_list_entities_perm = Permission(
     name="invalid_list_entity_perm",
     types=Entity,
     policy=RoleBasedPolicy(roles=["dancer"]),
-    actions=[AuthzedAction.READ],
+    actions=[AuthzedAction.DESCRIBE],
 )
 
 

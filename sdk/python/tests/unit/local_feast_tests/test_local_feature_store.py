@@ -353,7 +353,7 @@ def test_apply_permissions(test_feature_store):
         name="reader",
         types=ALL_RESOURCE_TYPES,
         policy=RoleBasedPolicy(roles=["reader"]),
-        actions=[AuthzedAction.READ],
+        actions=[AuthzedAction.DESCRIBE],
     )
 
     # Register Permission
