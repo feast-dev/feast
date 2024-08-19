@@ -20,7 +20,7 @@ The permission model is based on the following components:
   - We assume that the resource has a `name` attribute and optional dictionary of associated key-value `tags`.
 - An `action` is a logical operation executed on the secured resource, like:
   - `create`: Create an instance.
-  - `read`: Access the instance state.
+  - `describe`: Access the instance state.
   - `update`: Update the instance state.
   - `delete`: Delete an instance.
   - `query`:  Query both online and offline stores.
@@ -61,9 +61,9 @@ The `feast` CLI includes a new `permissions` command to list the registered perm
 **Note**: Feast resources that do not match any of the configured permissions are not secured by any authorization policy, meaning any user can execute any action on such resources.
 {% endhint %}
 
-## Configuration examples
-This permission configuration allows access to the resource state and the ability to query all the stores for any feature view or feature service
-to all users with role `super-reader`:
+## Definition examples
+This permission definition grants access to the resource state and the ability to query all the stores for any feature view or
+feature service to all users with role `super-reader`:
 ```py
 Permission(
     name="feature-reader",
@@ -100,52 +100,12 @@ Permission(
 )
 ```
 
-## Authorizing Feast clients
-If you would like to leverage the permissions' functionality then `auth` config block should be added to feature_store.yaml. Currently, feast supports oidc and kubernetes rbac authentication/authorization. 
+## Authorization configuration
+In order to leverage the permission functionality, the `auth` section is needed in the `feature_store.yaml` configuration.
+Currently, Feast supports OIDC and Kubernetes RBAC authorization protocols.
 
-The default configuration if you don't mention the auth configuration is no_auth configuration.
+The default configuration, if you don't specify the `auth` configuration section, is `no_auth`, indicating that no permission
+enforcement is applied.
 
-* No auth configuration example:
-```yaml
-project: foo
-registry: "registry.db"
-provider: local
-online_store:
-    path: foo
-entity_key_serialization_version: 2
-auth:
-  type: no_auth
-```
-
-* Kubernetes rbac authentication/authorization example:
-{% hint style="info" %}
-**NOTE**: This configuration will only work if you deploy feast on Openshift or a Kubernetes platform.
-{% endhint %}
-```yaml
-project: foo
-registry: "registry.db"
-provider: local
-online_store:
-  path: foo
-entity_key_serialization_version: 2
-auth:
-  type: kubernetes
-```
-* OIDC authorization: Below configuration is an example for OIDC authorization example. 
-```yaml
-project: foo
-auth:
-  type: oidc
-  client_id: test_client_id
-  client_secret: test_client_secret
-  username: test_user_name
-  password: test_password
-  realm: master
-  auth_discovery_url: http://localhost:8080/realms/master/.well-known/openid-configuration
-registry: "registry.db"
-provider: local
-online_store:
-  path: foo
-entity_key_serialization_version: 2
-```
-Few of the key models, classes to understand the authorization implementation from the clients can be found [here](./../../../sdk/python/feast/permissions/client).
+The `auth` section includes a `type` field specifying the actual authorization protocol, and protocol-specific fields that
+are specified in [Authorization Manager](../components/authz_manager.md).
