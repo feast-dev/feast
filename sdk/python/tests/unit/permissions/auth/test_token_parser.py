@@ -21,12 +21,19 @@ _CLIENT_ID = "test"
 )
 @patch("feast.permissions.auth.oidc_token_parser.PyJWKClient.get_signing_key_from_jwt")
 @patch("feast.permissions.auth.oidc_token_parser.jwt.decode")
+@patch("feast.permissions.oidc_service.OIDCDiscoveryService._fetch_discovery_data")
 def test_oidc_token_validation_success(
-    mock_jwt, mock_signing_key, mock_oauth2, oidc_config
+        mock_discovery_data, mock_jwt, mock_signing_key, mock_oauth2, oidc_config
 ):
     signing_key = MagicMock()
     signing_key.key = "a-key"
     mock_signing_key.return_value = signing_key
+
+    mock_discovery_data.return_value = {
+        "authorization_endpoint":"https://localhost:8080/realms/master/protocol/openid-connect/auth",
+        "token_endpoint":"https://localhost:8080/realms/master/protocol/openid-connect/token",
+        "jwks_uri":"https://localhost:8080/realms/master/protocol/openid-connect/certs",
+    }
 
     user_data = {
         "preferred_username": "my-name",
