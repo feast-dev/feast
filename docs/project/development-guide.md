@@ -14,9 +14,9 @@
     - [Pre-commit Hooks](#pre-commit-hooks)
     - [Signing off commits](#signing-off-commits)
     - [Incorporating upstream changes from master](#incorporating-upstream-changes-from-master)
-  - [Feast Python SDK / CLI](#feast-python-sdk--cli)
+  - [Feast Python SDK and CLI](#feast-python-sdk-and-cli)
     - [Environment Setup](#environment-setup)
-    - [Code Style \& Linting](#code-style--linting)
+    - [Code Style and Linting](#code-style-and-linting)
     - [Unit Tests](#unit-tests)
     - [Integration Tests](#integration-tests)
       - [Local integration tests](#local-integration-tests)
@@ -39,7 +39,7 @@
 ## Overview
 This guide is targeted at developers looking to contribute to Feast components in
 the main Feast repository:
-- [Feast Python SDK / CLI](#feast-python-sdk--cli)
+- [Feast Python SDK and CLI](#feast-python-sdk-and-cli)
 - [Feast Java Serving](#feast-java-serving)
 
 Please see [this page](../reference/codebase-structure.md) for more details on the structure of the entire codebase.
@@ -118,9 +118,9 @@ Our preference is the use of `git rebase [master]` instead of `git merge` : `git
 Note that this means if you are midway through working through a PR and rebase, you'll have to force push:
 `git push --force-with-lease origin [branch name]`
 
-## Feast Python SDK / CLI
+## Feast Python SDK and CLI
 ### Environment Setup
-Setting up your development environment for Feast Python SDK / CLI:
+Setting up your development environment for Feast Python SDK and CLI:
 1. Ensure that you have Docker installed in your environment. Docker is used to provision service dependencies during testing, and build images for feature servers and other components.
    - Please note that we use [Docker with BuiltKit](https://docs.docker.com/develop/develop-images/build_enhancements/).
    - _Alternatively_ - To use [podman](https://podman.io/) on a Fedora or RHEL machine, follow this [guide](https://github.com/feast-dev/feast/issues/4190)
@@ -152,7 +152,7 @@ curl -fsSL https://pixi.sh/install.sh | bash
 ```sh
 make lock-python-dependencies-all
 ``` 
-9. Install development dependencies for Feast Python SDK / CLI. This will install package versions from the lock file, install editable version of feast and compile protobufs.
+9. Install development dependencies for Feast Python SDK and CLI. This will install package versions from the lock file, install editable version of feast and compile protobufs.
 
 If running inside a virtual environment:
 ```sh
@@ -169,8 +169,8 @@ make install-python-ci-dependencies-uv
 docker build -t docker-whale -f ./sdk/python/feast/infra/feature_servers/multicloud/Dockerfile .
 ```
 
-### Code Style & Linting
-Feast Python SDK / CLI codebase:
+### Code Style and Linting
+Feast Python SDK and CLI codebase:
 - Conforms to [Black code style](https://black.readthedocs.io/en/stable/the_black_code_style/current_style.html)
 - Has type annotations as enforced by `mypy`
 - Has imports sorted by `ruff` (see [isort (I) rules](https://docs.astral.sh/ruff/rules/#isort-i))
@@ -190,7 +190,7 @@ make lint-python
 > Setup [pre-commit hooks](#pre-commit-hooks) to automatically format and lint on commit.
 
 ### Unit Tests
-Unit tests (`pytest`) for the Feast Python SDK / CLI can run as follows:
+Unit tests (`pytest`) for the Feast Python SDK and CLI can run as follows:
 ```sh
 make test-python-unit
 ```
@@ -198,7 +198,7 @@ make test-python-unit
 > :warning: Local configuration can interfere with Unit tests and cause them to fail:
 > - Ensure [no AWS configuration is present](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html)
     > and [no AWS credentials can be accessed](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html#configuring-credentials) by `boto3`
-> - Ensure Feast Python SDK / CLI is not configured with configuration overrides (ie `~/.feast/config` should be empty).
+> - Ensure Feast Python SDK and CLI is not configured with configuration overrides (ie `~/.feast/config` should be empty).
 
 ### Integration Tests
 There are two sets of tests you can run:
