@@ -7,7 +7,7 @@ class OIDCDiscoveryService:
         self._discovery_data = None  # Initialize it lazily.
 
     @property
-    def discovery_data(self) -> dict:
+    def discovery_data(self):
         """Lazily fetches and caches the OIDC discovery data."""
         if self._discovery_data is None:
             self._discovery_data = self._fetch_discovery_data()
