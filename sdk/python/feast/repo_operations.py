@@ -83,6 +83,14 @@ def get_repo_files(repo_root: Path) -> List[Path]:
     # Read ignore paths from .feastignore and create a set of all files that match any of these paths
     ignore_paths = read_feastignore(repo_root)
     ignore_files = get_ignore_files(repo_root, ignore_paths)
+    ignore_paths += [
+        ".git",
+        ".feastignore",
+        ".venv",
+        ".pytest_cache",
+        "__pycache__",
+        ".ipynb_checkpoints",
+    ]
 
     # List all Python files in the root directory (recursively)
     repo_files = {
@@ -351,7 +359,7 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
 
 def teardown(repo_config: RepoConfig, repo_path: Optional[str]):
     # Cannot pass in both repo_path and repo_config to FeatureStore.
-    feature_store = FeatureStore(repo_path=repo_path, config=None)
+    feature_store = FeatureStore(repo_path=repo_path, config=repo_config)
     feature_store.teardown()
 
 
@@ -376,8 +384,8 @@ def cli_check_repo(repo_path: Path, fs_yaml_file: Path):
 
 def init_repo(repo_name: str, template: str):
     import os
-    from distutils.dir_util import copy_tree
     from pathlib import Path
+    from shutil import copytree
 
     from colorama import Fore, Style
 
@@ -404,7 +412,7 @@ def init_repo(repo_name: str, template: str):
     template_path = str(Path(Path(__file__).parent / "templates" / template).absolute())
     if not os.path.exists(template_path):
         raise IOError(f"Could not find template {template}")
-    copy_tree(template_path, str(repo_path))
+    copytree(template_path, str(repo_path), dirs_exist_ok=True)
 
     # Seed the repository
     bootstrap_path = repo_path / "bootstrap.py"

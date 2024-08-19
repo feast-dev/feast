@@ -15,9 +15,13 @@ from feast.infra.offline_stores.offline_utils import (
     DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL,
 )
 from feast.types import Float32, Int32
+from feast.utils import _utc_now
 from tests.integration.feature_repos.repo_configuration import (
     construct_universal_feature_views,
     table_name_from_data_source,
+)
+from tests.integration.feature_repos.universal.data_sources.file import (
+    RemoteOfflineStoreDataSourceCreator,
 )
 from tests.integration.feature_repos.universal.data_sources.snowflake import (
     SnowflakeDataSourceCreator,
@@ -141,11 +145,11 @@ def test_historical_features_main(
         files = job_from_df.to_remote_storage()
         assert len(files)  # 0  # This test should be way more detailed
 
-    start_time = datetime.utcnow()
+    start_time = _utc_now()
     actual_df_from_df_entities = job_from_df.to_df()
 
     print(f"actual_df_from_df_entities shape: {actual_df_from_df_entities.shape}")
-    end_time = datetime.utcnow()
+    end_time = _utc_now()
     print(str(f"Time to execute job_from_df.to_df() = '{(end_time - start_time)}'\n"))
 
     assert sorted(expected_df.columns) == sorted(actual_df_from_df_entities.columns)
@@ -157,22 +161,25 @@ def test_historical_features_main(
         timestamp_precision=timedelta(milliseconds=1),
     )
 
-    assert_feature_service_correctness(
-        store,
-        feature_service,
-        full_feature_names,
-        entity_df_with_request_data,
-        expected_df,
-        event_timestamp,
-    )
-    assert_feature_service_entity_mapping_correctness(
-        store,
-        feature_service_entity_mapping,
-        full_feature_names,
-        entity_df_with_request_data,
-        full_expected_df,
-        event_timestamp,
-    )
+    if not isinstance(
+        environment.data_source_creator, RemoteOfflineStoreDataSourceCreator
+    ):
+        assert_feature_service_correctness(
+            store,
+            feature_service,
+            full_feature_names,
+            entity_df_with_request_data,
+            expected_df,
+            event_timestamp,
+        )
+        assert_feature_service_entity_mapping_correctness(
+            store,
+            feature_service_entity_mapping,
+            full_feature_names,
+            entity_df_with_request_data,
+            full_expected_df,
+            event_timestamp,
+        )
     table_from_df_entities: pd.DataFrame = job_from_df.to_arrow().to_pandas()
 
     validate_dataframes(
@@ -297,9 +304,9 @@ def test_historical_features_with_entities_from_query(
         full_feature_names=full_feature_names,
     )
 
-    start_time = datetime.utcnow()
+    start_time = _utc_now()
     actual_df_from_sql_entities = job_from_sql.to_df()
-    end_time = datetime.utcnow()
+    end_time = _utc_now()
     print(str(f"\nTime to execute job_from_sql.to_df() = '{(end_time - start_time)}'"))
 
     event_timestamp = (
@@ -375,7 +382,12 @@ def test_historical_features_persisting(
     (entities, datasets, data_sources) = universal_data_sources
     feature_views = construct_universal_feature_views(data_sources)
 
+    storage = environment.data_source_creator.create_saved_dataset_destination()
+
     store.apply([driver(), customer(), location(), *feature_views.values()])
+
+    # Added to handle the case that the offline store is remote
+    store.registry.apply_data_source(storage.to_data_source(), store.config.project)
 
     entity_df = datasets.entity_df.drop(
         columns=["order_id", "origin_id", "destination_id"]
@@ -398,7 +410,7 @@ def test_historical_features_persisting(
     saved_dataset = store.create_saved_dataset(
         from_=job,
         name="saved_dataset",
-        storage=environment.data_source_creator.create_saved_dataset_destination(),
+        storage=storage,
         tags={"env": "test"},
         allow_overwrite=True,
     )
@@ -607,11 +619,11 @@ def test_historical_features_containing_backfills(environment):
         full_feature_names=False,
     )
 
-    start_time = datetime.utcnow()
+    start_time = _utc_now()
     actual_df = offline_job.to_df()
 
     print(f"actual_df shape: {actual_df.shape}")
-    end_time = datetime.utcnow()
+    end_time = _utc_now()
     print(str(f"Time to execute job_from_df.to_df() = '{(end_time - start_time)}'\n"))
 
     assert sorted(expected_df.columns) == sorted(actual_df.columns)

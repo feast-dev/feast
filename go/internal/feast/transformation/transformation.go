@@ -46,6 +46,7 @@ func AugmentResponseWithOnDemandTransforms(
 		for name, values := range requestData {
 			requestContextArrow[name], err = types.ProtoValuesToArrowArray(values.Val, arrowMemory, numRows)
 			if err != nil {
+				ReleaseArrowContext(requestContextArrow)
 				return nil, err
 			}
 		}
@@ -53,6 +54,7 @@ func AugmentResponseWithOnDemandTransforms(
 		for name, values := range entityRows {
 			requestContextArrow[name], err = types.ProtoValuesToArrowArray(values.Val, arrowMemory, numRows)
 			if err != nil {
+				ReleaseArrowContext(requestContextArrow)
 				return nil, err
 			}
 		}
@@ -71,12 +73,22 @@ func AugmentResponseWithOnDemandTransforms(
 			fullFeatureNames,
 		)
 		if err != nil {
+			ReleaseArrowContext(requestContextArrow)
 			return nil, err
 		}
 		result = append(result, onDemandFeatures...)
+
+		ReleaseArrowContext(requestContextArrow)
 	}
 
 	return result, nil
+}
+
+func ReleaseArrowContext(requestContextArrow map[string]arrow.Array) {
+	// Release memory used by requestContextArrow
+	for _, arrowArray := range requestContextArrow {
+		arrowArray.Release()
+	}
 }
 
 func CallTransformations(

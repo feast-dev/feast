@@ -2,9 +2,8 @@ import copy
 import functools
 import inspect
 import warnings
-from datetime import datetime
 from types import FunctionType
-from typing import Any, Optional, Union
+from typing import Any, Optional, Union, get_type_hints
 
 import dill
 import pandas as pd
@@ -34,6 +33,7 @@ from feast.protos.feast.core.Transformation_pb2 import (
 from feast.transformation.pandas_transformation import PandasTransformation
 from feast.transformation.python_transformation import PythonTransformation
 from feast.transformation.substrait_transformation import SubstraitTransformation
+from feast.utils import _utc_now
 from feast.value_type import ValueType
 
 warnings.simplefilter("once", DeprecationWarning)
@@ -346,7 +346,7 @@ class OnDemandFeatureView(BaseFeatureView):
             ],
             sources=sources,
             feature_transformation=transformation,
-            mode=on_demand_feature_view_proto.spec.mode,
+            mode=on_demand_feature_view_proto.spec.mode or "pandas",
             description=on_demand_feature_view_proto.spec.description,
             tags=dict(on_demand_feature_view_proto.spec.tags),
             owner=on_demand_feature_view_proto.spec.owner,
@@ -549,7 +549,7 @@ class OnDemandFeatureView(BaseFeatureView):
             ValueType.DOUBLE: [1.0],
             ValueType.FLOAT: [1.0],
             ValueType.BOOL: [True],
-            ValueType.UNIX_TIMESTAMP: [datetime.utcnow()],
+            ValueType.UNIX_TIMESTAMP: [_utc_now()],
             ValueType.BYTES_LIST: [[str.encode("hello world")]],
             ValueType.STRING_LIST: [["hello world"]],
             ValueType.INT32_LIST: [[1]],
@@ -557,7 +557,7 @@ class OnDemandFeatureView(BaseFeatureView):
             ValueType.DOUBLE_LIST: [[1.0]],
             ValueType.FLOAT_LIST: [[1.0]],
             ValueType.BOOL_LIST: [[True]],
-            ValueType.UNIX_TIMESTAMP_LIST: [[datetime.utcnow()]],
+            ValueType.UNIX_TIMESTAMP_LIST: [[_utc_now()]],
         }
 
         feature_dict = {}
@@ -631,7 +631,7 @@ def on_demand_feature_view(
             obj.__module__ = "__main__"
 
     def decorator(user_function):
-        return_annotation = inspect.signature(user_function).return_annotation
+        return_annotation = get_type_hints(user_function).get("return", inspect._empty)
         udf_string = dill.source.getsource(user_function)
         mainify(user_function)
         if mode == "pandas":

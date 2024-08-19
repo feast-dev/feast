@@ -1,13 +1,13 @@
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
-from pytz import utc
 
 from feast import Field
 from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.types import Array, Bool, Bytes, Float64, Int32, Int64, String, UnixTimestamp
+from feast.utils import _utc_now
 from tests.data.data_creator import create_basic_driver_dataset
 from tests.integration.feature_repos.integration_test_repo_config import (
     IntegrationTestRepoConfig,
@@ -146,10 +146,10 @@ def test_snowflake_materialization_consistency_internal_with_lists(
         split_dt = df["ts_1"][4].to_pydatetime() - timedelta(seconds=1)
 
         print(f"Split datetime: {split_dt}")
-        now = datetime.utcnow()
+        now = _utc_now()
 
         full_feature_names = True
-        start_date = (now - timedelta(hours=5)).replace(tzinfo=utc)
+        start_date = (now - timedelta(hours=5)).replace(tzinfo=timezone.utc)
         end_date = split_dt
         fs.materialize(
             feature_views=[driver_stats_fv.name],
@@ -164,7 +164,7 @@ def test_snowflake_materialization_consistency_internal_with_lists(
             "string": ["3"] * 2,
             "bytes": [b"3"] * 2,
             "bool": [False] * 2,
-            "datetime": [datetime(1981, 1, 1, tzinfo=utc)] * 2,
+            "datetime": [datetime(1981, 1, 1, tzinfo=timezone.utc)] * 2,
         }
         expected_value = [] if feature_is_empty_list else expected_values[feature_dtype]
 
@@ -231,9 +231,9 @@ def test_snowflake_materialization_entityless_fv():
 
         print(f"Split datetime: {split_dt}")
 
-        now = datetime.utcnow()
+        now = _utc_now()
 
-        start_date = (now - timedelta(hours=5)).replace(tzinfo=utc)
+        start_date = (now - timedelta(hours=5)).replace(tzinfo=timezone.utc)
         end_date = split_dt
         fs.materialize(
             feature_views=[overall_stats_fv.name],

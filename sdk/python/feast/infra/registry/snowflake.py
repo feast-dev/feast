@@ -2,7 +2,7 @@ import logging
 import os
 import uuid
 from binascii import hexlify
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from threading import Lock
 from typing import Any, Callable, List, Literal, Optional, Set, Union
@@ -53,6 +53,7 @@ from feast.protos.feast.core.ValidationProfile_pb2 import (
 from feast.repo_config import RegistryConfig
 from feast.saved_dataset import SavedDataset, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
+from feast.utils import _utc_now, has_all_tags
 
 logger = logging.getLogger(__name__)
 
@@ -95,6 +96,9 @@ class SnowflakeRegistryConfig(RegistryConfig):
     private_key: Optional[str] = None
     """ Snowflake private key file path"""
 
+    private_key_content: Optional[bytes] = None
+    """ Snowflake private key stored as bytes"""
+
     private_key_passphrase: Optional[str] = None
     """ Snowflake private key file passphrase"""
 
@@ -125,16 +129,15 @@ class SnowflakeRegistry(BaseRegistry):
         with GetSnowflakeConnection(self.registry_config) as conn:
             sql_function_file = f"{os.path.dirname(feast.__file__)}/infra/utils/snowflake/registry/snowflake_table_creation.sql"
             with open(sql_function_file, "r") as file:
-                sqlFile = file.read()
-
-                sqlCommands = sqlFile.split(";")
-                for command in sqlCommands:
+                sql_file = file.read()
+                sql_cmds = sql_file.split(";")
+                for command in sql_cmds:
                     query = command.replace("REGISTRY_PATH", f"{self.registry_path}")
                     execute_snowflake_statement(conn, query)
 
         self.cached_registry_proto = self.proto()
         proto_registry_utils.init_project_metadata(self.cached_registry_proto, project)
-        self.cached_registry_proto_created = datetime.utcnow()
+        self.cached_registry_proto_created = _utc_now()
         self._refresh_lock = Lock()
         self.cached_registry_proto_ttl = timedelta(
             seconds=registry_config.cache_ttl_seconds
@@ -153,7 +156,7 @@ class SnowflakeRegistry(BaseRegistry):
                     self.cached_registry_proto, project
                 )
         self.cached_registry_proto = self.proto()
-        self.cached_registry_proto_created = datetime.utcnow()
+        self.cached_registry_proto_created = _utc_now()
 
     def _refresh_cached_registry_if_necessary(self):
         with self._refresh_lock:
@@ -164,7 +167,7 @@ class SnowflakeRegistry(BaseRegistry):
                 self.cached_registry_proto_ttl.total_seconds()
                 > 0  # 0 ttl means infinity
                 and (
-                    datetime.utcnow()
+                    _utc_now()
                     > (
                         self.cached_registry_proto_created
                         + self.cached_registry_proto_ttl
@@ -181,7 +184,6 @@ class SnowflakeRegistry(BaseRegistry):
             sql_function_file = f"{os.path.dirname(feast.__file__)}/infra/utils/snowflake/registry/snowflake_table_deletion.sql"
             with open(sql_function_file, "r") as file:
                 sqlFile = file.read()
-
                 sqlCommands = sqlFile.split(";")
                 for command in sqlCommands:
                     query = command.replace("REGISTRY_PATH", f"{self.registry_path}")
@@ -280,7 +282,7 @@ class SnowflakeRegistry(BaseRegistry):
         name = name or (obj.name if hasattr(obj, "name") else None)
         assert name, f"name needs to be provided for {obj}"
 
-        update_datetime = datetime.utcnow()
+        update_datetime = _utc_now()
         if hasattr(obj, "last_updated_timestamp"):
             obj.last_updated_timestamp = update_datetime
 
@@ -415,7 +417,7 @@ class SnowflakeRegistry(BaseRegistry):
 
             if cursor.rowcount < 1 and not_found_exception:  # type: ignore
                 raise not_found_exception(name, project)
-            self._set_last_updated_metadata(datetime.utcnow(), project)
+            self._set_last_updated_metadata(_utc_now(), project)
 
             return cursor.rowcount
 
@@ -619,34 +621,50 @@ class SnowflakeRegistry(BaseRegistry):
 
     # list operations
     def list_data_sources(
-        self, project: str, allow_cache: bool = False
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[DataSource]:
         if allow_cache:
             self._refresh_cached_registry_if_necessary()
             return proto_registry_utils.list_data_sources(
-                self.cached_registry_proto, project
+                self.cached_registry_proto, project, tags
             )
         return self._list_objects(
-            "DATA_SOURCES", project, DataSourceProto, DataSource, "DATA_SOURCE_PROTO"
+            "DATA_SOURCES",
+            project,
+            DataSourceProto,
+            DataSource,
+            "DATA_SOURCE_PROTO",
+            tags=tags,
         )
 
-    def list_entities(self, project: str, allow_cache: bool = False) -> List[Entity]:
+    def list_entities(
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
+    ) -> List[Entity]:
         if allow_cache:
             self._refresh_cached_registry_if_necessary()
             return proto_registry_utils.list_entities(
-                self.cached_registry_proto, project
+                self.cached_registry_proto, project, tags
             )
         return self._list_objects(
-            "ENTITIES", project, EntityProto, Entity, "ENTITY_PROTO"
+            "ENTITIES", project, EntityProto, Entity, "ENTITY_PROTO", tags=tags
         )
 
     def list_feature_services(
-        self, project: str, allow_cache: bool = False
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[FeatureService]:
         if allow_cache:
             self._refresh_cached_registry_if_necessary()
             return proto_registry_utils.list_feature_services(
-                self.cached_registry_proto, project
+                self.cached_registry_proto, project, tags
             )
         return self._list_objects(
             "FEATURE_SERVICES",
@@ -654,15 +672,19 @@ class SnowflakeRegistry(BaseRegistry):
             FeatureServiceProto,
             FeatureService,
             "FEATURE_SERVICE_PROTO",
+            tags=tags,
         )
 
     def list_feature_views(
-        self, project: str, allow_cache: bool = False
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[FeatureView]:
         if allow_cache:
             self._refresh_cached_registry_if_necessary()
             return proto_registry_utils.list_feature_views(
-                self.cached_registry_proto, project
+                self.cached_registry_proto, project, tags
             )
         return self._list_objects(
             "FEATURE_VIEWS",
@@ -670,15 +692,19 @@ class SnowflakeRegistry(BaseRegistry):
             FeatureViewProto,
             FeatureView,
             "FEATURE_VIEW_PROTO",
+            tags=tags,
         )
 
     def list_on_demand_feature_views(
-        self, project: str, allow_cache: bool = False
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[OnDemandFeatureView]:
         if allow_cache:
             self._refresh_cached_registry_if_necessary()
             return proto_registry_utils.list_on_demand_feature_views(
-                self.cached_registry_proto, project
+                self.cached_registry_proto, project, tags
             )
         return self._list_objects(
             "ON_DEMAND_FEATURE_VIEWS",
@@ -686,6 +712,7 @@ class SnowflakeRegistry(BaseRegistry):
             OnDemandFeatureViewProto,
             OnDemandFeatureView,
             "ON_DEMAND_FEATURE_VIEW_PROTO",
+            tags=tags,
         )
 
     def list_saved_datasets(
@@ -705,12 +732,15 @@ class SnowflakeRegistry(BaseRegistry):
         )
 
     def list_stream_feature_views(
-        self, project: str, allow_cache: bool = False
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[StreamFeatureView]:
         if allow_cache:
             self._refresh_cached_registry_if_necessary()
             return proto_registry_utils.list_stream_feature_views(
-                self.cached_registry_proto, project
+                self.cached_registry_proto, project, tags
             )
         return self._list_objects(
             "STREAM_FEATURE_VIEWS",
@@ -718,6 +748,7 @@ class SnowflakeRegistry(BaseRegistry):
             StreamFeatureViewProto,
             StreamFeatureView,
             "STREAM_FEATURE_VIEW_PROTO",
+            tags=tags,
         )
 
     def list_validation_references(
@@ -738,6 +769,7 @@ class SnowflakeRegistry(BaseRegistry):
         proto_class: Any,
         python_class: Any,
         proto_field_name: str,
+        tags: Optional[dict[str, str]] = None,
     ):
         self._maybe_init_project_metadata(project)
         with GetSnowflakeConnection(self.registry_config) as conn:
@@ -750,14 +782,15 @@ class SnowflakeRegistry(BaseRegistry):
                     project_id = '{project}'
             """
             df = execute_snowflake_statement(conn, query).fetch_pandas_all()
-
             if not df.empty:
-                return [
-                    python_class.from_proto(
+                objects = []
+                for row in df.iterrows():
+                    obj = python_class.from_proto(
                         proto_class.FromString(row[1][proto_field_name])
                     )
-                    for row in df.iterrows()
-                ]
+                    if has_all_tags(obj.tags, tags):
+                        objects.append(obj)
+                return objects
         return []
 
     def apply_materialization(
@@ -962,7 +995,7 @@ class SnowflakeRegistry(BaseRegistry):
         if df.empty:
             return None
 
-        return datetime.utcfromtimestamp(int(df.squeeze()))
+        return datetime.fromtimestamp(int(df.squeeze()), tz=timezone.utc)
 
     def _infer_fv_classes(self, feature_view):
         if isinstance(feature_view, StreamFeatureView):

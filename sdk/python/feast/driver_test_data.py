@@ -1,10 +1,11 @@
 # This module generates dummy data to be used for tests and examples.
 import itertools
+from datetime import timedelta, timezone
 from enum import Enum
 
 import numpy as np
 import pandas as pd
-from pytz import FixedOffset, timezone, utc
+from zoneinfo import ZoneInfo
 
 from feast.infra.offline_stores.offline_utils import (
     DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL,
@@ -22,11 +23,15 @@ def _convert_event_timestamp(event_timestamp: pd.Timestamp, t: EventTimestampTyp
     if t == EventTimestampType.TZ_NAIVE:
         return event_timestamp
     elif t == EventTimestampType.TZ_AWARE_UTC:
-        return event_timestamp.replace(tzinfo=utc)
+        return event_timestamp.replace(tzinfo=timezone.utc)
     elif t == EventTimestampType.TZ_AWARE_FIXED_OFFSET:
-        return event_timestamp.replace(tzinfo=utc).astimezone(FixedOffset(60))
+        return event_timestamp.replace(tzinfo=timezone.utc).astimezone(
+            tz=timezone(timedelta(minutes=60))
+        )
     elif t == EventTimestampType.TZ_AWARE_US_PACIFIC:
-        return event_timestamp.replace(tzinfo=utc).astimezone(timezone("US/Pacific"))
+        return event_timestamp.replace(tzinfo=timezone.utc).astimezone(
+            tz=ZoneInfo("US/Pacific")
+        )
 
 
 def create_orders_df(
@@ -61,11 +66,11 @@ def create_orders_df(
     df["order_is_success"] = np.random.randint(0, 2, size=order_count).astype(np.int32)
     df[DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL] = [
         _convert_event_timestamp(
-            pd.Timestamp(dt, unit="ms", tz="UTC").round("ms"),
+            pd.Timestamp(dt, unit="ms").round("ms"),
             EventTimestampType(idx % 4),
         )
         for idx, dt in enumerate(
-            pd.date_range(start=start_date, end=end_date, periods=order_count)
+            pd.date_range(start=start_date, end=end_date, periods=order_count, tz="UTC")
         )
     ]
     df.sort_values(
@@ -101,9 +106,13 @@ def create_driver_hourly_stats_df(drivers, start_date, end_date) -> pd.DataFrame
     df_hourly = pd.DataFrame(
         {
             "event_timestamp": [
-                pd.Timestamp(dt, unit="ms", tz="UTC").round("ms")
+                pd.Timestamp(dt, unit="ms").round("ms")
                 for dt in pd.date_range(
-                    start=start_date, end=end_date, freq="1h", inclusive="left"
+                    start=start_date,
+                    end=end_date,
+                    freq="1h",
+                    inclusive="left",
+                    tz="UTC",
                 )
             ]
             # include a fixed timestamp for get_historical_features in the quickstart
@@ -162,9 +171,13 @@ def create_customer_daily_profile_df(customers, start_date, end_date) -> pd.Data
     df_daily = pd.DataFrame(
         {
             "event_timestamp": [
-                pd.Timestamp(dt, unit="ms", tz="UTC").round("ms")
+                pd.Timestamp(dt, unit="ms").round("ms")
                 for dt in pd.date_range(
-                    start=start_date, end=end_date, freq="1D", inclusive="left"
+                    start=start_date,
+                    end=end_date,
+                    freq="1D",
+                    inclusive="left",
+                    tz="UTC",
                 )
             ]
         }
@@ -207,9 +220,13 @@ def create_location_stats_df(locations, start_date, end_date) -> pd.DataFrame:
     df_hourly = pd.DataFrame(
         {
             "event_timestamp": [
-                pd.Timestamp(dt, unit="ms", tz="UTC").round("ms")
+                pd.Timestamp(dt, unit="ms").round("ms")
                 for dt in pd.date_range(
-                    start=start_date, end=end_date, freq="1h", inclusive="left"
+                    start=start_date,
+                    end=end_date,
+                    freq="1h",
+                    inclusive="left",
+                    tz="UTC",
                 )
             ]
         }
@@ -254,9 +271,16 @@ def create_global_daily_stats_df(start_date, end_date) -> pd.DataFrame:
     df_daily = pd.DataFrame(
         {
             "event_timestamp": [
-                pd.Timestamp(dt, unit="ms", tz="UTC").round("ms")
+                pd.Timestamp(
+                    dt,
+                    unit="ms",
+                ).round("ms")
                 for dt in pd.date_range(
-                    start=start_date, end=end_date, freq="1D", inclusive="left"
+                    start=start_date,
+                    end=end_date,
+                    freq="1D",
+                    inclusive="left",
+                    tz="UTC",
                 )
             ]
         }
@@ -286,11 +310,11 @@ def create_field_mapping_df(start_date, end_date) -> pd.DataFrame:
     df["column_name"] = np.random.randint(1, 100, size=size).astype(np.int32)
     df[DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL] = [
         _convert_event_timestamp(
-            pd.Timestamp(dt, unit="ms", tz="UTC").round("ms"),
+            pd.Timestamp(dt, unit="ms").round("ms"),
             EventTimestampType(idx % 4),
         )
         for idx, dt in enumerate(
-            pd.date_range(start=start_date, end=end_date, periods=size)
+            pd.date_range(start=start_date, end=end_date, periods=size, tz="UTC")
         )
     ]
     df["created"] = pd.to_datetime(pd.Timestamp.now(tz=None).round("ms"))

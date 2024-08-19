@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Union
 
 import pandas as pd
 import pyarrow
@@ -15,17 +15,19 @@ from feast.importer import import_class
 from feast.infra.infra_object import Infra
 from feast.infra.offline_stores.offline_store import RetrievalJob
 from feast.infra.registry.base_registry import BaseRegistry
+from feast.online_response import OnlineResponse
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
+from feast.protos.feast.types.Value_pb2 import RepeatedValue
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RepoConfig
 from feast.saved_dataset import SavedDataset
 
 PROVIDERS_CLASS_FOR_TYPE = {
-    "gcp": "feast.infra.gcp.GcpProvider",
-    "aws": "feast.infra.aws.AwsProvider",
-    "local": "feast.infra.local.LocalProvider",
-    "azure": "feast.infra.contrib.azure_provider.AzureProvider",
+    "gcp": "feast.infra.passthrough_provider.PassthroughProvider",
+    "aws": "feast.infra.passthrough_provider.PassthroughProvider",
+    "local": "feast.infra.passthrough_provider.PassthroughProvider",
+    "azure": "feast.infra.passthrough_provider.PassthroughProvider",
 }
 
 
@@ -228,6 +230,36 @@ class Provider(ABC):
             item is the event timestamp for the row, and the second item is a dict mapping feature names
             to values, which are returned in proto format.
         """
+        pass
+
+    @abstractmethod
+    def get_online_features(
+        self,
+        config: RepoConfig,
+        features: Union[List[str], FeatureService],
+        entity_rows: Union[
+            List[Dict[str, Any]],
+            Mapping[str, Union[Sequence[Any], Sequence[ValueProto], RepeatedValue]],
+        ],
+        registry: BaseRegistry,
+        project: str,
+        full_feature_names: bool = False,
+    ) -> OnlineResponse:
+        pass
+
+    @abstractmethod
+    async def get_online_features_async(
+        self,
+        config: RepoConfig,
+        features: Union[List[str], FeatureService],
+        entity_rows: Union[
+            List[Dict[str, Any]],
+            Mapping[str, Union[Sequence[Any], Sequence[ValueProto], RepeatedValue]],
+        ],
+        registry: BaseRegistry,
+        project: str,
+        full_feature_names: bool = False,
+    ) -> OnlineResponse:
         pass
 
     @abstractmethod

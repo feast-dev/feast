@@ -9,9 +9,6 @@ from feast.infra.offline_stores.contrib.athena_offline_store.athena import (
     AthenaOfflineStoreConfig,
     AthenaRetrievalJob,
 )
-from feast.infra.offline_stores.contrib.mssql_offline_store.mssql import (
-    MsSqlServerRetrievalJob,
-)
 from feast.infra.offline_stores.contrib.postgres_offline_store.postgres import (
     PostgreSQLOfflineStoreConfig,
     PostgreSQLRetrievalJob,
@@ -23,11 +20,15 @@ from feast.infra.offline_stores.contrib.spark_offline_store.spark import (
 from feast.infra.offline_stores.contrib.trino_offline_store.trino import (
     TrinoRetrievalJob,
 )
-from feast.infra.offline_stores.file import FileRetrievalJob
+from feast.infra.offline_stores.dask import DaskRetrievalJob
 from feast.infra.offline_stores.offline_store import RetrievalJob, RetrievalMetadata
 from feast.infra.offline_stores.redshift import (
     RedshiftOfflineStoreConfig,
     RedshiftRetrievalJob,
+)
+from feast.infra.offline_stores.remote import (
+    RemoteOfflineStoreConfig,
+    RemoteRetrievalJob,
 )
 from feast.infra.offline_stores.snowflake import (
     SnowflakeOfflineStoreConfig,
@@ -96,19 +97,19 @@ class MockRetrievalJob(RetrievalJob):
 @pytest.fixture(
     params=[
         MockRetrievalJob,
-        FileRetrievalJob,
+        DaskRetrievalJob,
         RedshiftRetrievalJob,
         SnowflakeRetrievalJob,
         AthenaRetrievalJob,
-        MsSqlServerRetrievalJob,
         PostgreSQLRetrievalJob,
         SparkRetrievalJob,
         TrinoRetrievalJob,
+        RemoteRetrievalJob,
     ]
 )
 def retrieval_job(request, environment):
-    if request.param is FileRetrievalJob:
-        return FileRetrievalJob(lambda: 1, full_feature_names=False)
+    if request.param is DaskRetrievalJob:
+        return DaskRetrievalJob(lambda: 1, full_feature_names=False)
     elif request.param is RedshiftRetrievalJob:
         offline_store_config = RedshiftOfflineStoreConfig(
             cluster_id="feast-int-bucket",
@@ -119,7 +120,7 @@ def retrieval_job(request, environment):
             iam_role="arn:aws:iam::585132637328:role/service-role/AmazonRedshift-CommandsAccessRole-20240403T092631",
             workgroup="",
         )
-        config = environment.config.copy(
+        config = environment.config.model_copy(
             update={"offline_config": offline_store_config}
         )
         return RedshiftRetrievalJob(
@@ -142,7 +143,7 @@ def retrieval_job(request, environment):
             storage_integration_name="FEAST_S3",
             blob_export_location="s3://feast-snowflake-offload/export",
         )
-        config = environment.config.copy(
+        config = environment.config.model_copy(
             update={"offline_config": offline_store_config}
         )
         environment.project = "project"
@@ -165,13 +166,6 @@ def retrieval_job(request, environment):
             query="query",
             athena_client="client",
             s3_resource="",
-            config=environment.config,
-            full_feature_names=False,
-        )
-    elif request.param is MsSqlServerRetrievalJob:
-        return MsSqlServerRetrievalJob(
-            query="query",
-            engine=MagicMock(),
             config=environment.config,
             full_feature_names=False,
         )
@@ -202,6 +196,35 @@ def retrieval_job(request, environment):
             client=MagicMock(),
             config=environment.config,
             full_feature_names=False,
+        )
+    elif request.param is RemoteRetrievalJob:
+        offline_store_config = RemoteOfflineStoreConfig(
+            type="remote",
+            host="localhost",
+            port=0,
+        )
+        environment.config._offline_store = offline_store_config
+
+        entity_df = pd.DataFrame.from_dict(
+            {
+                "id": [1],
+                "event_timestamp": ["datetime"],
+                "val_to_add": [1],
+            }
+        )
+
+        return RemoteRetrievalJob(
+            client=MagicMock(),
+            api_parameters={
+                "str": "str",
+            },
+            api="api",
+            table=pyarrow.Table.from_pandas(entity_df),
+            entity_df=entity_df,
+            metadata=RetrievalMetadata(
+                features=["1", "2", "3", "4"],
+                keys=["1", "2", "3", "4"],
+            ),
         )
     else:
         return request.param()

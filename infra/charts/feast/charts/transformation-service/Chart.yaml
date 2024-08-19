@@ -1,8 +1,8 @@
 apiVersion: v1
 description: "Transformation service: to compute on-demand features"
 name: transformation-service
-version: 0.38.0
-appVersion: v0.38.0
+version: 0.40.0
+appVersion: v0.40.0
 keywords:
 - machine learning
 - big data

@@ -23,7 +23,6 @@ import threading
 from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
 
-import pytz
 from hazelcast.client import HazelcastClient
 from hazelcast.core import HazelcastJsonValue
 from hazelcast.discovery import HazelcastCloudDiscovery
@@ -167,10 +166,10 @@ class HazelcastOnlineStore(OnlineStore):
                     entity_key_serialization_version=2,
                 )
             ).decode("utf-8")
-            event_ts_utc = pytz.utc.localize(event_ts, is_dst=None).timestamp()
+            event_ts_utc = event_ts.astimezone(tz=timezone.utc).timestamp()
             created_ts_utc = 0.0
             if created_ts is not None:
-                created_ts_utc = pytz.utc.localize(created_ts, is_dst=None).timestamp()
+                created_ts_utc = created_ts.astimezone(tz=timezone.utc).timestamp()
             for feature_name, value in values.items():
                 feature_value = base64.b64encode(value.SerializeToString()).decode(
                     "utf-8"

@@ -47,6 +47,7 @@ from feast.repo_config import RegistryConfig
 from feast.repo_contents import RepoContents
 from feast.saved_dataset import SavedDataset, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
+from feast.utils import _utc_now
 
 REGISTRY_SCHEMA_VERSION = "1"
 
@@ -217,7 +218,7 @@ class Registry(BaseRegistry):
             if self.cached_registry_proto
             else RegistryProto()
         )
-        new_registry.cached_registry_proto_created = datetime.utcnow()
+        new_registry.cached_registry_proto_created = _utc_now()
         new_registry._registry_store = NoopRegistryStore()
         return new_registry
 
@@ -248,7 +249,7 @@ class Registry(BaseRegistry):
     def apply_entity(self, entity: Entity, project: str, commit: bool = True):
         entity.is_valid()
 
-        now = datetime.utcnow()
+        now = _utc_now()
         if not entity.created_timestamp:
             entity.created_timestamp = now
         entity.last_updated_timestamp = now
@@ -265,26 +266,38 @@ class Registry(BaseRegistry):
                 existing_entity_proto.spec.name == entity_proto.spec.name
                 and existing_entity_proto.spec.project == project
             ):
+                entity.created_timestamp = (
+                    existing_entity_proto.meta.created_timestamp.ToDatetime()
+                )
+                entity_proto = entity.to_proto()
+                entity_proto.spec.project = project
                 del self.cached_registry_proto.entities[idx]
                 break
-
         self.cached_registry_proto.entities.append(entity_proto)
         if commit:
             self.commit()
 
-    def list_entities(self, project: str, allow_cache: bool = False) -> List[Entity]:
+    def list_entities(
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
+    ) -> List[Entity]:
         registry_proto = self._get_registry_proto(
             project=project, allow_cache=allow_cache
         )
-        return proto_registry_utils.list_entities(registry_proto, project)
+        return proto_registry_utils.list_entities(registry_proto, project, tags)
 
     def list_data_sources(
-        self, project: str, allow_cache: bool = False
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[DataSource]:
         registry_proto = self._get_registry_proto(
             project=project, allow_cache=allow_cache
         )
-        return proto_registry_utils.list_data_sources(registry_proto, project)
+        return proto_registry_utils.list_data_sources(registry_proto, project, tags)
 
     def apply_data_source(
         self, data_source: DataSource, project: str, commit: bool = True
@@ -322,7 +335,7 @@ class Registry(BaseRegistry):
     def apply_feature_service(
         self, feature_service: FeatureService, project: str, commit: bool = True
     ):
-        now = datetime.utcnow()
+        now = _utc_now()
         if not feature_service.created_timestamp:
             feature_service.created_timestamp = now
         feature_service.last_updated_timestamp = now
@@ -338,18 +351,26 @@ class Registry(BaseRegistry):
                 == feature_service_proto.spec.name
                 and existing_feature_service_proto.spec.project == project
             ):
+                feature_service.created_timestamp = (
+                    existing_feature_service_proto.meta.created_timestamp.ToDatetime()
+                )
+                feature_service_proto = feature_service.to_proto()
+                feature_service_proto.spec.project = project
                 del registry.feature_services[idx]
         registry.feature_services.append(feature_service_proto)
         if commit:
             self.commit()
 
     def list_feature_services(
-        self, project: str, allow_cache: bool = False
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[FeatureService]:
         registry_proto = self._get_registry_proto(
             project=project, allow_cache=allow_cache
         )
-        return proto_registry_utils.list_feature_services(registry_proto, project)
+        return proto_registry_utils.list_feature_services(registry_proto, project, tags)
 
     def get_feature_service(
         self, name: str, project: str, allow_cache: bool = False
@@ -370,7 +391,7 @@ class Registry(BaseRegistry):
     ):
         feature_view.ensure_valid()
 
-        now = datetime.utcnow()
+        now = _utc_now()
         if not feature_view.created_timestamp:
             feature_view.created_timestamp = now
         feature_view.last_updated_timestamp = now
@@ -410,6 +431,18 @@ class Registry(BaseRegistry):
                 ):
                     return
                 else:
+                    existing_feature_view = type(feature_view).from_proto(
+                        existing_feature_view_proto
+                    )
+                    feature_view.created_timestamp = (
+                        existing_feature_view.created_timestamp
+                    )
+                    if isinstance(feature_view, (FeatureView, StreamFeatureView)):
+                        feature_view.update_materialization_intervals(
+                            existing_feature_view.materialization_intervals
+                        )
+                    feature_view_proto = feature_view.to_proto()
+                    feature_view_proto.spec.project = project
                     del existing_feature_views_of_same_type[idx]
                     break
 
@@ -418,21 +451,29 @@ class Registry(BaseRegistry):
             self.commit()
 
     def list_stream_feature_views(
-        self, project: str, allow_cache: bool = False
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[StreamFeatureView]:
         registry_proto = self._get_registry_proto(
             project=project, allow_cache=allow_cache
         )
-        return proto_registry_utils.list_stream_feature_views(registry_proto, project)
+        return proto_registry_utils.list_stream_feature_views(
+            registry_proto, project, tags
+        )
 
     def list_on_demand_feature_views(
-        self, project: str, allow_cache: bool = False
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[OnDemandFeatureView]:
         registry_proto = self._get_registry_proto(
             project=project, allow_cache=allow_cache
         )
         return proto_registry_utils.list_on_demand_feature_views(
-            registry_proto, project
+            registry_proto, project, tags
         )
 
     def get_on_demand_feature_view(
@@ -477,7 +518,7 @@ class Registry(BaseRegistry):
                 existing_feature_view.materialization_intervals.append(
                     (start_date, end_date)
                 )
-                existing_feature_view.last_updated_timestamp = datetime.utcnow()
+                existing_feature_view.last_updated_timestamp = _utc_now()
                 feature_view_proto = existing_feature_view.to_proto()
                 feature_view_proto.spec.project = project
                 del self.cached_registry_proto.feature_views[idx]
@@ -499,7 +540,7 @@ class Registry(BaseRegistry):
                 existing_stream_feature_view.materialization_intervals.append(
                     (start_date, end_date)
                 )
-                existing_stream_feature_view.last_updated_timestamp = datetime.utcnow()
+                existing_stream_feature_view.last_updated_timestamp = _utc_now()
                 stream_feature_view_proto = existing_stream_feature_view.to_proto()
                 stream_feature_view_proto.spec.project = project
                 del self.cached_registry_proto.stream_feature_views[idx]
@@ -513,12 +554,15 @@ class Registry(BaseRegistry):
         raise FeatureViewNotFoundException(feature_view.name, project)
 
     def list_feature_views(
-        self, project: str, allow_cache: bool = False
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[FeatureView]:
         registry_proto = self._get_registry_proto(
             project=project, allow_cache=allow_cache
         )
-        return proto_registry_utils.list_feature_views(registry_proto, project)
+        return proto_registry_utils.list_feature_views(registry_proto, project, tags)
 
     def get_feature_view(
         self, name: str, project: str, allow_cache: bool = False
@@ -621,7 +665,7 @@ class Registry(BaseRegistry):
         project: str,
         commit: bool = True,
     ):
-        now = datetime.utcnow()
+        now = _utc_now()
         if not saved_dataset.created_timestamp:
             saved_dataset.created_timestamp = now
         saved_dataset.last_updated_timestamp = now
@@ -638,6 +682,17 @@ class Registry(BaseRegistry):
                 existing_saved_dataset_proto.spec.name == saved_dataset_proto.spec.name
                 and existing_saved_dataset_proto.spec.project == project
             ):
+                saved_dataset.created_timestamp = (
+                    existing_saved_dataset_proto.meta.created_timestamp.ToDatetime()
+                )
+                saved_dataset.min_event_timestamp = (
+                    existing_saved_dataset_proto.meta.min_event_timestamp.ToDatetime()
+                )
+                saved_dataset.max_event_timestamp = (
+                    existing_saved_dataset_proto.meta.max_event_timestamp.ToDatetime()
+                )
+                saved_dataset_proto = saved_dataset.to_proto()
+                saved_dataset_proto.spec.project = project
                 del self.cached_registry_proto.saved_datasets[idx]
                 break
 
@@ -758,7 +813,7 @@ class Registry(BaseRegistry):
             registry_proto = RegistryProto()
             registry_proto.registry_schema_version = REGISTRY_SCHEMA_VERSION
             self.cached_registry_proto = registry_proto
-            self.cached_registry_proto_created = datetime.utcnow()
+            self.cached_registry_proto_created = _utc_now()
 
         # Initialize project metadata if needed
         assert self.cached_registry_proto
@@ -794,7 +849,7 @@ class Registry(BaseRegistry):
                 self.cached_registry_proto_ttl.total_seconds()
                 > 0  # 0 ttl means infinity
                 and (
-                    datetime.utcnow()
+                    _utc_now()
                     > (
                         self.cached_registry_proto_created
                         + self.cached_registry_proto_ttl
@@ -817,7 +872,7 @@ class Registry(BaseRegistry):
             logger.info("Registry cache expired, so refreshing")
             registry_proto = self._registry_store.get_registry_proto()
             self.cached_registry_proto = registry_proto
-            self.cached_registry_proto_created = datetime.utcnow()
+            self.cached_registry_proto_created = _utc_now()
 
             if not project:
                 return registry_proto

@@ -16,7 +16,7 @@ from feast.feature_logging import (
     LoggingConfig,
 )
 from feast.protos.feast.serving.ServingService_pb2 import FieldStatus
-from feast.utils import make_tzaware
+from feast.utils import _utc_now, make_tzaware
 from feast.wait import wait_retry_backoff
 from tests.integration.feature_repos.repo_configuration import (
     construct_universal_feature_views,
@@ -45,7 +45,12 @@ def test_historical_retrieval_with_validation(environment, universal_data_source
     store = environment.feature_store
     (entities, datasets, data_sources) = universal_data_sources
     feature_views = construct_universal_feature_views(data_sources)
+    storage = environment.data_source_creator.create_saved_dataset_destination()
+
     store.apply([driver(), customer(), location(), *feature_views.values()])
+
+    # Added to handle the case that the offline store is remote
+    store.registry.apply_data_source(storage.to_data_source(), store.config.project)
 
     # Create two identical retrieval jobs
     entity_df = datasets.entity_df.drop(
@@ -64,7 +69,7 @@ def test_historical_retrieval_with_validation(environment, universal_data_source
     store.create_saved_dataset(
         from_=reference_job,
         name="my_training_dataset",
-        storage=environment.data_source_creator.create_saved_dataset_destination(),
+        storage=storage,
         allow_overwrite=True,
     )
     saved_dataset = store.get_saved_dataset("my_training_dataset")
@@ -80,8 +85,12 @@ def test_historical_retrieval_fails_on_validation(environment, universal_data_so
 
     (entities, datasets, data_sources) = universal_data_sources
     feature_views = construct_universal_feature_views(data_sources)
+    storage = environment.data_source_creator.create_saved_dataset_destination()
 
     store.apply([driver(), customer(), location(), *feature_views.values()])
+
+    # Added to handle the case that the offline store is remote
+    store.registry.apply_data_source(storage.to_data_source(), store.config.project)
 
     entity_df = datasets.entity_df.drop(
         columns=["order_id", "origin_id", "destination_id"]
@@ -95,7 +104,7 @@ def test_historical_retrieval_fails_on_validation(environment, universal_data_so
     store.create_saved_dataset(
         from_=reference_job,
         name="my_other_dataset",
-        storage=environment.data_source_creator.create_saved_dataset_destination(),
+        storage=storage,
         allow_overwrite=True,
     )
 
@@ -149,9 +158,18 @@ def test_logged_features_validation(environment, universal_data_sources):
         ),
     )
 
+    storage = environment.data_source_creator.create_saved_dataset_destination()
+
     store.apply(
         [driver(), customer(), location(), feature_service, *feature_views.values()]
     )
+
+    # Added to handle the case that the offline store is remote
+    store.registry.apply_data_source(
+        feature_service.logging_config.destination.to_data_source(),
+        store.config.project,
+    )
+    store.registry.apply_data_source(storage.to_data_source(), store.config.project)
 
     entity_df = datasets.entity_df.drop(
         columns=["order_id", "origin_id", "destination_id"]
@@ -180,7 +198,7 @@ def test_logged_features_validation(environment, universal_data_sources):
             entity_df=entity_df, features=store_fs, full_feature_names=True
         ),
         name="reference_for_validating_logged_features",
-        storage=environment.data_source_creator.create_saved_dataset_destination(),
+        storage=storage,
         allow_overwrite=True,
     )
 
@@ -298,8 +316,7 @@ def test_e2e_validation_via_cli(environment, universal_data_sources):
                 "avg_passenger_count": [0],
                 "lifetime_trip_count": [0],
                 "event_timestamp": [
-                    make_tzaware(datetime.datetime.utcnow())
-                    - datetime.timedelta(hours=1)
+                    make_tzaware(_utc_now()) - datetime.timedelta(hours=1)
                 ],
             }
         )

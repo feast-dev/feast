@@ -2,7 +2,6 @@ import os
 import platform
 import sqlite3
 import time
-from datetime import datetime
 
 import numpy as np
 import pandas as pd
@@ -16,6 +15,8 @@ from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import FloatList as FloatListProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RegistryConfig
+from feast.utils import _utc_now
+from tests.integration.feature_repos.universal.feature_views import TAGS
 from tests.utils.cli_repo_creator import CliRunner, get_example_repo
 
 
@@ -49,8 +50,8 @@ def test_get_online_features() -> None:
                         "lat": ValueProto(double_val=0.1),
                         "lon": ValueProto(string_val="1.0"),
                     },
-                    datetime.utcnow(),
-                    datetime.utcnow(),
+                    _utc_now(),
+                    _utc_now(),
                 )
             ],
             progress=None,
@@ -70,8 +71,8 @@ def test_get_online_features() -> None:
                         "name": ValueProto(string_val="John"),
                         "age": ValueProto(int64_val=3),
                     },
-                    datetime.utcnow(),
-                    datetime.utcnow(),
+                    _utc_now(),
+                    _utc_now(),
                 )
             ],
             progress=None,
@@ -88,12 +89,15 @@ def test_get_online_features() -> None:
                 (
                     customer_key,
                     {"trips": ValueProto(int64_val=7)},
-                    datetime.utcnow(),
-                    datetime.utcnow(),
+                    _utc_now(),
+                    _utc_now(),
                 )
             ],
             progress=None,
         )
+
+        assert len(store.list_entities()) == 3
+        assert len(store.list_entities(tags=TAGS)) == 2
 
         # Retrieve two features using two keys, one valid one non-existing
         result = store.get_online_features(
@@ -313,8 +317,8 @@ def test_online_to_df():
                             "lat": ValueProto(double_val=d * lat_multiply),
                             "lon": ValueProto(string_val=str(d * lon_multiply)),
                         },
-                        datetime.utcnow(),
-                        datetime.utcnow(),
+                        _utc_now(),
+                        _utc_now(),
                     )
                 ],
                 progress=None,
@@ -343,8 +347,8 @@ def test_online_to_df():
                             "name": ValueProto(string_val=name + str(c)),
                             "age": ValueProto(int64_val=c * age_multiply),
                         },
-                        datetime.utcnow(),
-                        datetime.utcnow(),
+                        _utc_now(),
+                        _utc_now(),
                     )
                 ],
                 progress=None,
@@ -367,8 +371,8 @@ def test_online_to_df():
                     (
                         combo_keys,
                         {"trips": ValueProto(int64_val=c * d)},
-                        datetime.utcnow(),
-                        datetime.utcnow(),
+                        _utc_now(),
+                        _utc_now(),
                     )
                 ],
                 progress=None,
@@ -463,8 +467,8 @@ def test_sqlite_get_online_documents() -> None:
                             )
                         )
                     },
-                    datetime.utcnow(),
-                    datetime.utcnow(),
+                    _utc_now(),
+                    _utc_now(),
                 )
             )
 
@@ -483,7 +487,7 @@ def test_sqlite_get_online_documents() -> None:
                     )
                     for i in range(n)
                 ],
-                "event_timestamp": [datetime.utcnow() for _ in range(n)],
+                "event_timestamp": [_utc_now() for _ in range(n)],
             }
         )
 
@@ -543,7 +547,7 @@ def test_sqlite_vec_import() -> None:
     sqlite_version, vec_version = db.execute(
         "select sqlite_version(), vec_version()"
     ).fetchone()
-    assert vec_version == "v0.0.1-alpha.10"
+    assert vec_version == "v0.1.1"
     print(f"sqlite_version={sqlite_version}, vec_version={vec_version}")
 
     result = db.execute("""

@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import itertools
+import logging
 import os
 import sqlite3
 import struct
@@ -19,7 +20,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union
 
-import sqlite_vec
 from google.protobuf.internal.containers import RepeatedScalarFieldContainer
 from pydantic import StrictStr
 
@@ -83,8 +83,11 @@ class SqliteOnlineStore(OnlineStore):
         if not self._conn:
             db_path = self._get_db_path(config)
             self._conn = _initialize_conn(db_path)
-            self._conn.enable_load_extension(True)  # type: ignore
-            sqlite_vec.load(self._conn)
+            if config.online_store.vec_enabled:
+                import sqlite_vec  # noqa: F401
+
+                self._conn.enable_load_extension(True)  # type: ignore
+                sqlite_vec.load(self._conn)
 
         return self._conn
 
@@ -408,6 +411,10 @@ class SqliteOnlineStore(OnlineStore):
 
 
 def _initialize_conn(db_path: str):
+    try:
+        import sqlite_vec  # noqa: F401
+    except ModuleNotFoundError:
+        logging.warning("Cannot use sqlite_vec for vector search")
     Path(db_path).parent.mkdir(exist_ok=True)
     return sqlite3.connect(
         db_path,
@@ -479,8 +486,14 @@ class SqliteTable(InfraObject):
         )
 
     def update(self):
-        self.conn.enable_load_extension(True)
-        sqlite_vec.load(self.conn)
+        if sys.version_info[0:2] == (3, 10):
+            try:
+                import sqlite_vec  # noqa: F401
+
+                self.conn.enable_load_extension(True)
+                sqlite_vec.load(self.conn)
+            except ModuleNotFoundError:
+                logging.warning("Cannot use sqlite_vec for vector search")
         self.conn.execute(
             f"CREATE TABLE IF NOT EXISTS {self.name} (entity_key BLOB, feature_name TEXT, value BLOB, vector_value BLOB, event_ts timestamp, created_ts timestamp,  PRIMARY KEY(entity_key, feature_name))"
         )

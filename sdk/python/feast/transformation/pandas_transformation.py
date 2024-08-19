@@ -1,5 +1,4 @@
-from types import FunctionType
-from typing import Any
+from typing import Any, Callable
 
 import dill
 import pandas as pd
@@ -15,7 +14,7 @@ from feast.type_map import (
 
 
 class PandasTransformation:
-    def __init__(self, udf: FunctionType, udf_string: str = ""):
+    def __init__(self, udf: Callable[[Any], Any], udf_string: str = ""):
         """
         Creates an PandasTransformation object.
 
@@ -30,25 +29,37 @@ class PandasTransformation:
     def transform_arrow(
         self, pa_table: pyarrow.Table, features: list[Field]
     ) -> pyarrow.Table:
-        output_df_pandas = self.udf.__call__(pa_table.to_pandas())
+        output_df_pandas = self.udf(pa_table.to_pandas())
         return pyarrow.Table.from_pandas(output_df_pandas)
 
     def transform(self, input_df: pd.DataFrame) -> pd.DataFrame:
-        return self.udf.__call__(input_df)
+        return self.udf(input_df)
 
     def infer_features(self, random_input: dict[str, list[Any]]) -> list[Field]:
         df = pd.DataFrame.from_dict(random_input)
         output_df: pd.DataFrame = self.transform(df)
 
-        return [
-            Field(
-                name=f,
-                dtype=from_value_type(
-                    python_type_to_feast_value_type(f, type_name=str(dt))
-                ),
+        fields = []
+        for feature_name, feature_type in zip(output_df.columns, output_df.dtypes):
+            feature_value = output_df[feature_name].tolist()
+            if len(feature_value) <= 0:
+                raise TypeError(
+                    f"Failed to infer type for feature '{feature_name}' with value "
+                    + f"'{feature_value}' since no items were returned by the UDF."
+                )
+            fields.append(
+                Field(
+                    name=feature_name,
+                    dtype=from_value_type(
+                        python_type_to_feast_value_type(
+                            feature_name,
+                            value=feature_value[0],
+                            type_name=str(feature_type),
+                        )
+                    ),
+                )
             )
-            for f, dt in zip(output_df.columns, output_df.dtypes)
-        ]
+        return fields
 
     def __eq__(self, other):
         if not isinstance(other, PandasTransformation):

@@ -1,17 +1,19 @@
 import json
 import sys
 import threading
+import time
 import traceback
-import warnings
 from contextlib import asynccontextmanager
 from typing import List, Optional
 
 import pandas as pd
+import psutil
 from dateutil import parser
 from fastapi import FastAPI, HTTPException, Request, Response, status
 from fastapi.logger import logger
 from fastapi.params import Depends
 from google.protobuf.json_format import MessageToDict
+from prometheus_client import Gauge, start_http_server
 from pydantic import BaseModel
 
 import feast
@@ -19,6 +21,14 @@ from feast import proto_json, utils
 from feast.constants import DEFAULT_FEATURE_SERVER_REGISTRY_TTL
 from feast.data_source import PushMode
 from feast.errors import PushSourceNotFoundException
+
+# Define prometheus metrics
+cpu_usage_gauge = Gauge(
+    "feast_feature_server_cpu_usage", "CPU usage of the Feast feature server"
+)
+memory_usage_gauge = Gauge(
+    "feast_feature_server_memory_usage", "Memory usage of the Feast feature server"
+)
 
 
 # TODO: deprecate this in favor of push features
@@ -97,9 +107,9 @@ def get_app(
 
             full_feature_names = body.get("full_feature_names", False)
 
-            response_proto = store._get_online_features(
+            response_proto = store.get_online_features(
                 features=features,
-                entity_values=body["entities"],
+                entity_rows=body["entities"],
                 full_feature_names=full_feature_names,
             ).proto
 
@@ -147,10 +157,6 @@ def get_app(
 
     @app.post("/write-to-online-store")
     def write_to_online_store(body=Depends(get_body)):
-        warnings.warn(
-            "write_to_online_store is deprecated. Please consider using /push instead",
-            RuntimeWarning,
-        )
         try:
             request = WriteToFeatureStoreRequest(**json.loads(body))
             df = pd.DataFrame(request.df)
@@ -223,6 +229,22 @@ if sys.platform != "win32":
             return self._app
 
 
+def monitor_resources(self, interval: int = 5):
+    """Function to monitor and update CPU and memory usage metrics."""
+    print(f"Start monitor_resources({interval})")
+    p = psutil.Process()
+    print(f"PID is {p.pid}")
+    while True:
+        with p.oneshot():
+            cpu_usage = p.cpu_percent()
+            memory_usage = p.memory_percent()
+            print(f"cpu_usage is {cpu_usage}")
+            print(f"memory_usage is {memory_usage}")
+            cpu_usage_gauge.set(cpu_usage)
+            memory_usage_gauge.set(memory_usage)
+        time.sleep(interval)
+
+
 def start_server(
     store: "feast.FeatureStore",
     host: str,
@@ -231,7 +253,18 @@ def start_server(
     workers: int,
     keep_alive_timeout: int,
     registry_ttl_sec: int,
+    metrics: bool,
 ):
+    if metrics:
+        print("Start Prometheus Server")
+        start_http_server(8000)
+
+        print("Start a background thread to monitor CPU and memory usage")
+        monitoring_thread = threading.Thread(
+            target=monitor_resources, args=(5,), daemon=True
+        )
+        monitoring_thread.start()
+
     if sys.platform != "win32":
         FeastServeApplication(
             store=store,

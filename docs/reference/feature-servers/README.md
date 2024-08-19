@@ -10,6 +10,6 @@ Feast users can choose to retrieve features from a feature server, as opposed to
 [go-feature-server.md](go-feature-server.md)
 {% endcontent-ref %}
 
-{% content-ref url="alpha-aws-lambda-feature-server.md" %}
-[alpha-aws-lambda-feature-server.md](alpha-aws-lambda-feature-server.md)
+{% content-ref url="offline-feature-server.md" %}
+[offline-feature-server.md](offline-feature-server.md)
 {% endcontent-ref %}

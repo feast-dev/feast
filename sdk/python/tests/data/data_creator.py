@@ -1,10 +1,11 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
 
 import pandas as pd
-from pytz import timezone, utc
+from zoneinfo import ZoneInfo
 
 from feast.types import FeastType, Float32, Int32, Int64, String
+from feast.utils import _utc_now
 
 
 def create_basic_driver_dataset(
@@ -13,7 +14,7 @@ def create_basic_driver_dataset(
     feature_is_list: bool = False,
     list_has_empty_list: bool = False,
 ) -> pd.DataFrame:
-    now = datetime.utcnow().replace(microsecond=0, second=0, minute=0)
+    now = _utc_now().replace(microsecond=0, second=0, minute=0)
     ts = pd.Timestamp(now).round("ms")
     data = {
         "driver_id": get_entities_for_feast_type(entity_type),
@@ -26,11 +27,11 @@ def create_basic_driver_dataset(
             ts - timedelta(hours=3),
             # Use different time zones to test tz-naive -> tz-aware conversion
             (ts - timedelta(hours=4))
-            .replace(tzinfo=utc)
-            .astimezone(tz=timezone("Europe/Berlin")),
+            .replace(tzinfo=timezone.utc)
+            .astimezone(tz=ZoneInfo("Europe/Berlin")),
             (ts - timedelta(hours=1))
-            .replace(tzinfo=utc)
-            .astimezone(tz=timezone("US/Pacific")),
+            .replace(tzinfo=timezone.utc)
+            .astimezone(tz=ZoneInfo("US/Pacific")),
         ],
         "created_ts": [ts, ts, ts, ts, ts],
     }
@@ -86,14 +87,14 @@ def create_document_dataset() -> pd.DataFrame:
         "embedding_float": [[4.0, 5.0], [1.0, 2.0], [3.0, 4.0]],
         "embedding_double": [[4.0, 5.0], [1.0, 2.0], [3.0, 4.0]],
         "ts": [
-            pd.Timestamp(datetime.utcnow()).round("ms"),
-            pd.Timestamp(datetime.utcnow()).round("ms"),
-            pd.Timestamp(datetime.utcnow()).round("ms"),
+            pd.Timestamp(_utc_now()).round("ms"),
+            pd.Timestamp(_utc_now()).round("ms"),
+            pd.Timestamp(_utc_now()).round("ms"),
         ],
         "created_ts": [
-            pd.Timestamp(datetime.utcnow()).round("ms"),
-            pd.Timestamp(datetime.utcnow()).round("ms"),
-            pd.Timestamp(datetime.utcnow()).round("ms"),
+            pd.Timestamp(_utc_now()).round("ms"),
+            pd.Timestamp(_utc_now()).round("ms"),
+            pd.Timestamp(_utc_now()).round("ms"),
         ],
     }
     return pd.DataFrame(data)

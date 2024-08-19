@@ -132,8 +132,7 @@ Setting up your development environment for Feast Python SDK / CLI:
   source venv/bin/activate
   ```
 4. (M1 Mac only): Follow the [dev guide](https://github.com/feast-dev/feast/issues/2105)
-5. Install uv
-It is recommended to use uv for managing python dependencies.
+5. Install uv. It is recommended to use uv for managing python dependencies.
 ```sh
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
@@ -145,21 +144,26 @@ pip install uv
 ```
 make build-ui
 ```
-7. (Optional) install pixi
-pixi is necessary to run step 8 for all python versions at once.
+7. (Optional) install pixi. pixi is necessary to run step 8 for all python versions at once.
 ```sh
 curl -fsSL https://pixi.sh/install.sh | bash
 ```
-8. (Optional): Recompile python lock files
-If you make changes to requirements or simply want to update python lock files to reflect latest versioons.
+8. (Optional): Recompile python lock files. Only when you make changes to requirements or simply want to update python lock files to reflect latest versioons.
 ```sh
 make lock-python-dependencies-all
 ``` 
-9. Install development dependencies for Feast Python SDK / CLI
-This will install package versions from the lock file, install editable version of feast and compile protobufs.
+9. Install development dependencies for Feast Python SDK / CLI. This will install package versions from the lock file, install editable version of feast and compile protobufs.
+
+If running inside a virtual environment:
+```sh
+make install-python-ci-dependencies-uv-venv
+```
+
+Otherwise:
 ```sh
 make install-python-ci-dependencies-uv
 ```
+
 10. Spin up Docker Image
 ```sh
 docker build -t docker-whale -f ./sdk/python/feast/infra/feature_servers/multicloud/Dockerfile .

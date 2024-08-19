@@ -7,6 +7,9 @@ Subpackages
 .. toctree::
    :maxdepth: 4
 
+   feast.infra.contrib
+   feast.infra.feature_servers
+   feast.infra.materialization
    feast.infra.offline_stores
    feast.infra.online_stores
    feast.infra.registry
@@ -15,22 +18,6 @@ Subpackages
 
 Submodules
 ----------
-
-feast.infra.aws module
-----------------------
-
-.. automodule:: feast.infra.aws
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-feast.infra.gcp module
-----------------------
-
-.. automodule:: feast.infra.gcp
-   :members:
-   :undoc-members:
-   :show-inheritance:
 
 feast.infra.infra\_object module
 --------------------------------
@@ -44,14 +31,6 @@ feast.infra.key\_encoding\_utils module
 ---------------------------------------
 
 .. automodule:: feast.infra.key_encoding_utils
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-feast.infra.local module
-------------------------
-
-.. automodule:: feast.infra.local
    :members:
    :undoc-members:
    :show-inheritance:

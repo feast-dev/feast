@@ -21,6 +21,7 @@ ifeq ($(shell uname -s), Darwin)
 	OS = osx
 endif
 TRINO_VERSION ?= 376
+PYTHON_VERSION = ${shell python --version | grep -Eo '[0-9]\.[0-9]+'}
 
 # General
 
@@ -37,17 +38,22 @@ build: protos build-java build-docker
 # Python SDK
 
 install-python-ci-dependencies:
-	python -m piptools sync sdk/python/requirements/py$(PYTHON)-ci-requirements.txt
+	python -m piptools sync sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt
 	pip install --no-deps -e .
 	python setup.py build_python_protos --inplace
 
 install-python-ci-dependencies-uv:
-	uv pip sync --system sdk/python/requirements/py$(PYTHON)-ci-requirements.txt
+	uv pip sync --system sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt
 	uv pip install --system --no-deps -e .
 	python setup.py build_python_protos --inplace
 
+install-python-ci-dependencies-uv-venv:
+	uv pip sync sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt
+	uv pip install --no-deps -e .
+	python setup.py build_python_protos --inplace
+
 lock-python-ci-dependencies:
-	uv pip compile --system --no-strip-extras setup.py --extra ci --output-file sdk/python/requirements/py$(PYTHON)-ci-requirements.txt
+	uv pip compile --system --no-strip-extras setup.py --extra ci --output-file sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt
 
 package-protos:
 	cp -r ${ROOT_DIR}/protos ${ROOT_DIR}/sdk/python/feast/protos
@@ -56,11 +62,11 @@ compile-protos-python:
 	python setup.py build_python_protos --inplace
 
 install-python:
-	python -m piptools sync sdk/python/requirements/py$(PYTHON)-requirements.txt
+	python -m piptools sync sdk/python/requirements/py$(PYTHON_VERSION)-requirements.txt
 	python setup.py develop
 
 lock-python-dependencies:
-	uv pip compile --system --no-strip-extras setup.py --output-file sdk/python/requirements/py$(PYTHON)-requirements.txt 
+	uv pip compile --system --no-strip-extras setup.py --output-file sdk/python/requirements/py$(PYTHON_VERSION)-requirements.txt
 
 lock-python-dependencies-all:
 	pixi run --environment py39 --manifest-path infra/scripts/pixi/pixi.toml "uv pip compile --system --no-strip-extras setup.py --output-file sdk/python/requirements/py3.9-requirements.txt"
@@ -155,11 +161,14 @@ test-python-universal-mssql:
  	 	-k "not gcs_registry and \
 			not s3_registry and \
 			not test_lambda_materialization and \
-			not test_snowflake" \
+			not test_snowflake and \
+			not test_historical_features_persisting and \
+			not validation and \
+			not test_feature_service_logging" \
  	 sdk/python/tests
 
 
-# To use Athena as an offline store, you need to create an Athena database and an S3 bucket on AWS. 
+# To use Athena as an offline store, you need to create an Athena database and an S3 bucket on AWS.
 # https://docs.aws.amazon.com/athena/latest/ug/getting-started.html
 # Modify environment variables ATHENA_REGION, ATHENA_DATA_SOURCE, ATHENA_DATABASE, ATHENA_WORKGROUP or
 # ATHENA_S3_BUCKET_NAME according to your needs. If tests fail with the pytest -n 8 option, change the number to 1.
@@ -186,7 +195,7 @@ test-python-universal-athena:
 			not s3_registry and \
 			not test_snowflake" \
 	sdk/python/tests
-			
+
 test-python-universal-postgres-offline:
 	PYTHONPATH='.' \
 		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.postgres_repo_configuration \
@@ -204,6 +213,7 @@ test-python-universal-postgres-offline:
 				not test_push_features_to_offline_store and \
 				not gcs_registry and \
 				not s3_registry and \
+				not test_snowflake and \
  				not test_universal_types" \
  			sdk/python/tests
 
@@ -326,6 +336,17 @@ test-python-universal-cassandra-no-cloud-providers:
 				not test_snowflake" \
  			sdk/python/tests
 
+test-python-universal-singlestore-online:
+	PYTHONPATH='.' \
+		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.contrib.singlestore_repo_configuration \
+		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.singlestore \
+		python -m pytest -n 8 --integration \
+			-k "not test_universal_cli and \
+				not gcs_registry and \
+				not s3_registry and \
+				not test_snowflake" \
+			sdk/python/tests
+
 test-python-universal:
 	python -m pytest -n 8 --integration sdk/python/tests
 
@@ -391,14 +412,6 @@ build-feature-server-docker:
 	docker buildx build --build-arg VERSION=$$VERSION \
 		-t $(REGISTRY)/feature-server:$$VERSION \
 		-f sdk/python/feast/infra/feature_servers/multicloud/Dockerfile --load .
-
-push-feature-server-python-aws-docker:
-	docker push $(REGISTRY)/feature-server-python-aws:$$VERSION
-
-build-feature-server-python-aws-docker:
-	docker buildx build --build-arg VERSION=$$VERSION \
-		-t $(REGISTRY)/feature-server-python-aws:$$VERSION \
-		-f sdk/python/feast/infra/feature_servers/aws_lambda/Dockerfile --load .
 
 push-feature-transformation-server-docker:
 	docker push $(REGISTRY)/feature-transformation-server:$(VERSION)

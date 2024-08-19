@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import json
+import logging
 from collections import defaultdict
 from datetime import datetime, timezone
 from typing import (
@@ -53,6 +54,8 @@ if TYPE_CHECKING:
 # null timestamps get converted to -9223372036854775808
 NULL_TIMESTAMP_INT_VALUE: int = np.datetime64("NaT").astype(int)
 
+logger = logging.getLogger(__name__)
+
 
 def feast_value_type_to_python_type(field_value_proto: ProtoValue) -> Any:
     """
@@ -77,9 +80,11 @@ def feast_value_type_to_python_type(field_value_proto: ProtoValue) -> Any:
     # Convert UNIX_TIMESTAMP values to `datetime`
     if val_attr == "unix_timestamp_list_val":
         val = [
-            datetime.fromtimestamp(v, tz=timezone.utc)
-            if v != NULL_TIMESTAMP_INT_VALUE
-            else None
+            (
+                datetime.fromtimestamp(v, tz=timezone.utc)
+                if v != NULL_TIMESTAMP_INT_VALUE
+                else None
+            )
             for v in val
         ]
     elif val_attr == "unix_timestamp_val":
@@ -150,13 +155,15 @@ def python_type_to_feast_value_type(
         "uint16": ValueType.INT32,
         "uint8": ValueType.INT32,
         "int8": ValueType.INT32,
+        "bool_": ValueType.BOOL,  # np.bool_
         "bool": ValueType.BOOL,
         "boolean": ValueType.BOOL,
         "timedelta": ValueType.UNIX_TIMESTAMP,
         "timestamp": ValueType.UNIX_TIMESTAMP,
         "datetime": ValueType.UNIX_TIMESTAMP,
         "datetime64[ns]": ValueType.UNIX_TIMESTAMP,
-        "datetime64[ns, tz]": ValueType.UNIX_TIMESTAMP,
+        "datetime64[ns, tz]": ValueType.UNIX_TIMESTAMP,  # special dtype of pandas
+        "datetime64[ns, utc]": ValueType.UNIX_TIMESTAMP,
         "category": ValueType.STRING,
     }
 
@@ -295,9 +302,11 @@ PYTHON_SCALAR_VALUE_TYPE_TO_PROTO_VALUE: Dict[
     ValueType.INT32: ("int32_val", lambda x: int(x), None),
     ValueType.INT64: (
         "int64_val",
-        lambda x: int(x.timestamp())
-        if isinstance(x, pd._libs.tslibs.timestamps.Timestamp)
-        else int(x),
+        lambda x: (
+            int(x.timestamp())
+            if isinstance(x, pd._libs.tslibs.timestamps.Timestamp)
+            else int(x)
+        ),
         None,
     ),
     ValueType.FLOAT: ("float_val", lambda x: float(x), None),
@@ -373,32 +382,51 @@ def _python_value_to_proto_value(
             if sample is not None and not all(
                 type(item) in valid_types for item in sample
             ):
-                first_invalid = next(
-                    item for item in sample if type(item) not in valid_types
-                )
-                raise _type_err(first_invalid, valid_types[0])
+                # to_numpy() in utils._convert_arrow_to_proto() upcasts values of type Array of INT32 or INT64 with NULL values to Float64 automatically.
+                for item in sample:
+                    if type(item) not in valid_types:
+                        if feast_value_type in [
+                            ValueType.INT32_LIST,
+                            ValueType.INT64_LIST,
+                        ]:
+                            if not any(np.isnan(item) for item in sample):
+                                logger.error(
+                                    "Array of Int32 or Int64 type has NULL values. to_numpy() upcasts to Float64 automatically."
+                                )
+                        raise _type_err(item, valid_types[0])
 
             if feast_value_type == ValueType.UNIX_TIMESTAMP_LIST:
-                int_timestamps_lists = (
-                    _python_datetime_to_int_timestamp(value) for value in values
-                )
                 return [
-                    # ProtoValue does actually accept `np.int_` but the typing complains.
-                    ProtoValue(unix_timestamp_list_val=Int64List(val=ts))  # type: ignore
-                    for ts in int_timestamps_lists
+                    (
+                        # ProtoValue does actually accept `np.int_` but the typing complains.
+                        ProtoValue(
+                            unix_timestamp_list_val=Int64List(
+                                val=_python_datetime_to_int_timestamp(value)  # type: ignore
+                            )
+                        )
+                        if value is not None
+                        else ProtoValue()
+                    )
+                    for value in values
                 ]
             if feast_value_type == ValueType.BOOL_LIST:
                 # ProtoValue does not support conversion of np.bool_ so we need to convert it to support np.bool_.
                 return [
-                    ProtoValue(**{field_name: proto_type(val=[bool(e) for e in value])})  # type: ignore
-                    if value is not None
-                    else ProtoValue()
+                    (
+                        ProtoValue(
+                            **{field_name: proto_type(val=[bool(e) for e in value])}  # type: ignore
+                        )
+                        if value is not None
+                        else ProtoValue()
+                    )
                     for value in values
                 ]
             return [
-                ProtoValue(**{field_name: proto_type(val=value)})  # type: ignore
-                if value is not None
-                else ProtoValue()
+                (
+                    ProtoValue(**{field_name: proto_type(val=value)})  # type: ignore
+                    if value is not None
+                    else ProtoValue()
+                )
                 for value in values
             ]
 
@@ -433,15 +461,17 @@ def _python_value_to_proto_value(
         if feast_value_type == ValueType.BOOL:
             # ProtoValue does not support conversion of np.bool_ so we need to convert it to support np.bool_.
             return [
-                ProtoValue(
-                    **{
-                        field_name: func(
-                            bool(value) if type(value) is np.bool_ else value  # type: ignore
-                        )
-                    }
+                (
+                    ProtoValue(
+                        **{
+                            field_name: func(
+                                bool(value) if type(value) is np.bool_ else value  # type: ignore
+                            )
+                        }
+                    )
+                    if not pd.isnull(value)
+                    else ProtoValue()
                 )
-                if not pd.isnull(value)
-                else ProtoValue()
                 for value in values
             ]
         if feast_value_type in PYTHON_SCALAR_VALUE_TYPE_TO_PROTO_VALUE:
@@ -575,7 +605,9 @@ def mssql_to_feast_value_type(mssql_type_as_str: str) -> ValueType:
         "char": ValueType.STRING,
         "date": ValueType.UNIX_TIMESTAMP,
         "datetime": ValueType.UNIX_TIMESTAMP,
+        "datetimeoffset": ValueType.UNIX_TIMESTAMP,
         "float": ValueType.FLOAT,
+        "int": ValueType.INT32,
         "nchar": ValueType.STRING,
         "nvarchar": ValueType.STRING,
         "nvarchar(max)": ValueType.STRING,

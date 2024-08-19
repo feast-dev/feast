@@ -623,6 +623,6 @@ show up in the upcoming concepts + architecture + tutorial pages as well.
 ## Next steps
 
 * Read the [Concepts](concepts/) page to understand the Feast data model.
-* Read the [Architecture](architecture-and-components/) page.
+* Read the [Architecture](architecture/) page.
 * Check out our [Tutorials](../tutorials/tutorials-overview/) section for more examples on how to use Feast.
 * Follow our [Running Feast with Snowflake/GCP/AWS](../how-to-guides/feast-snowflake-gcp-aws/) guide for a more in-depth tutorial on using Feast.

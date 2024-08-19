@@ -1,5 +1,7 @@
+import random
+import string
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
@@ -10,7 +12,6 @@ import pandas as pd
 import pyarrow
 from ibis.expr import datatypes as dt
 from ibis.expr.types import Table
-from pytz import utc
 
 from feast.data_source import DataSource
 from feast.feature_logging import LoggingConfig, LoggingSource
@@ -53,8 +54,8 @@ def pull_latest_from_table_or_query_ibis(
     fields = join_key_columns + feature_name_columns + [timestamp_field]
     if created_timestamp_column:
         fields.append(created_timestamp_column)
-    start_date = start_date.astimezone(tz=utc)
-    end_date = end_date.astimezone(tz=utc)
+    start_date = start_date.astimezone(tz=timezone.utc)
+    end_date = end_date.astimezone(tz=timezone.utc)
 
     table = data_source_reader(data_source)
 
@@ -95,7 +96,9 @@ def _get_entity_df_event_timestamp_range(
     entity_df_event_timestamp = entity_df.loc[
         :, entity_df_event_timestamp_col
     ].infer_objects()
-    if pd.api.types.is_string_dtype(entity_df_event_timestamp):
+    if pd.api.types.is_string_dtype(
+        entity_df_event_timestamp
+    ) or pd.api.types.is_object_dtype(entity_df_event_timestamp):
         entity_df_event_timestamp = pd.to_datetime(entity_df_event_timestamp, utc=True)
     entity_df_event_timestamp_range = (
         entity_df_event_timestamp.min().to_pydatetime(),
@@ -107,7 +110,10 @@ def _get_entity_df_event_timestamp_range(
 
 def _to_utc(entity_df: pd.DataFrame, event_timestamp_col):
     entity_df_event_timestamp = entity_df.loc[:, event_timestamp_col].infer_objects()
-    if pd.api.types.is_string_dtype(entity_df_event_timestamp):
+
+    if pd.api.types.is_string_dtype(
+        entity_df_event_timestamp
+    ) or pd.api.types.is_object_dtype(entity_df_event_timestamp):
         entity_df_event_timestamp = pd.to_datetime(entity_df_event_timestamp, utc=True)
 
     entity_df[event_timestamp_col] = entity_df_event_timestamp
@@ -146,6 +152,7 @@ def get_historical_features_ibis(
     full_feature_names: bool = False,
     staging_location: Optional[str] = None,
     staging_location_endpoint_override: Optional[str] = None,
+    event_expire_timestamp_fn=None,
 ) -> RetrievalJob:
     entity_schema = _get_entity_schema(
         entity_df=entity_df,
@@ -218,6 +225,7 @@ def get_historical_features_ibis(
             for feature_view in feature_views
         ],
         event_timestamp_col=event_timestamp_col,
+        event_expire_timestamp_fn=event_expire_timestamp_fn,
     )
 
     odfvs = OnDemandFeatureView.get_requested_odfvs(feature_refs, project, registry)
@@ -256,8 +264,8 @@ def pull_all_from_table_or_query_ibis(
     staging_location_endpoint_override: Optional[str] = None,
 ) -> RetrievalJob:
     fields = join_key_columns + feature_name_columns + [timestamp_field]
-    start_date = start_date.astimezone(tz=utc)
-    end_date = end_date.astimezone(tz=utc)
+    start_date = start_date.astimezone(tz=timezone.utc)
+    end_date = end_date.astimezone(tz=timezone.utc)
 
     table = data_source_reader(data_source)
 
@@ -335,11 +343,8 @@ def deduplicate(
     if created_timestamp_col:
         order_by_fields.append(ibis.desc(table[created_timestamp_col]))
 
-    table = (
-        table.group_by(by=group_by_cols)
-        .order_by(order_by_fields)
-        .mutate(rn=ibis.row_number())
-    )
+    window = ibis.window(group_by=group_by_cols, order_by=order_by_fields, following=0)
+    table = table.mutate(rn=ibis.row_number().over(window))
 
     return table.filter(table["rn"] == ibis.literal(0)).drop("rn")
 
@@ -348,6 +353,7 @@ def point_in_time_join(
     entity_table: Table,
     feature_tables: List[Tuple[Table, str, str, Dict[str, str], List[str], timedelta]],
     event_timestamp_col="event_timestamp",
+    event_expire_timestamp_fn=None,
 ):
     # TODO handle ttl
     all_entities = [event_timestamp_col]
@@ -378,6 +384,19 @@ def point_in_time_join(
         feature_refs,
         ttl,
     ) in feature_tables:
+        if ttl:
+            if not event_expire_timestamp_fn:
+                feature_table = feature_table.mutate(
+                    event_expire_timestamp=feature_table[timestamp_field]
+                    + ibis.literal(ttl)
+                )
+            else:
+                alias = "".join(random.choices(string.ascii_uppercase, k=10))
+
+                feature_table = feature_table.alias(alias=alias).sql(
+                    f"SELECT *, {event_expire_timestamp_fn(timestamp_field, ttl)} AS event_expire_timestamp FROM {alias}"
+                )
+
         predicates = [
             feature_table[k] == entity_table[v] for k, v in join_key_map.items()
         ]
@@ -388,8 +407,8 @@ def point_in_time_join(
 
         if ttl:
             predicates.append(
-                feature_table[timestamp_field]
-                >= entity_table[event_timestamp_col] - ibis.literal(ttl)
+                feature_table["event_expire_timestamp"]
+                >= entity_table[event_timestamp_col]
             )
 
         feature_table = feature_table.inner_join(

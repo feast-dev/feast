@@ -5,7 +5,7 @@ import boto3
 import pytest
 from moto import mock_dynamodb
 
-from feast.infra.offline_stores.file import FileOfflineStoreConfig
+from feast.infra.offline_stores.dask import DaskOfflineStoreConfig
 from feast.infra.online_stores.dynamodb import (
     DynamoDBOnlineStore,
     DynamoDBOnlineStoreConfig,
@@ -40,7 +40,7 @@ def repo_config():
         provider=PROVIDER,
         online_store=DynamoDBOnlineStoreConfig(region=REGION),
         # online_store={"type": "dynamodb", "region": REGION},
-        offline_store=FileOfflineStoreConfig(),
+        offline_store=DaskOfflineStoreConfig(),
         entity_key_serialization_version=2,
     )
 

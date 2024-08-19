@@ -1,14 +1,13 @@
 import os
 import shutil
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Callable, List, Literal, Optional, Sequence, Union
 
 import click
 import pandas as pd
 from colorama import Fore, Style
 from pydantic import ConfigDict, Field, StrictStr
-from pytz import utc
 from tqdm import tqdm
 
 import feast
@@ -69,6 +68,9 @@ class SnowflakeMaterializationEngineConfig(FeastConfigBaseModel):
 
     private_key: Optional[str] = None
     """ Snowflake private key file path"""
+
+    private_key_content: Optional[bytes] = None
+    """ Snowflake private key stored as bytes"""
 
     private_key_passphrase: Optional[str] = None
     """ Snowflake private key file passphrase"""
@@ -273,7 +275,10 @@ class SnowflakeMaterializationEngine(BatchMaterializationEngine):
                     execute_snowflake_statement(conn, query).fetchall()[0][0]
                     / 1_000_000_000
                 )
-            if last_commit_change_time < start_date.astimezone(tz=utc).timestamp():
+            if (
+                last_commit_change_time
+                < start_date.astimezone(tz=timezone.utc).timestamp()
+            ):
                 return SnowflakeMaterializationJob(
                     job_id=job_id, status=MaterializationJobStatus.SUCCEEDED
                 )

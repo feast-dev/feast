@@ -3,21 +3,31 @@
 import json
 import warnings
 from typing import Callable, Dict, Iterable, Optional, Tuple
-
-import pandas
-from sqlalchemy import create_engine
+from urllib import parse
 
 from feast import type_map
 from feast.data_source import DataSource
-from feast.infra.offline_stores.contrib.mssql_offline_store.mssql import (
-    MsSqlServerOfflineStoreConfig,
-)
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.repo_config import RepoConfig
 from feast.value_type import ValueType
 
 # Make sure azure warning doesn't raise more than once.
 warnings.simplefilter("once", RuntimeWarning)
+
+
+def get_ibis_connection(config: RepoConfig):
+    import ibis
+
+    connection_params = parse.urlparse(config.offline_store.connection_string)
+    additional_kwargs = dict(parse.parse_qsl(connection_params.query))
+    return ibis.mssql.connect(
+        user=connection_params.username,
+        password=connection_params.password,
+        host=connection_params.hostname,
+        port=connection_params.port,
+        database=connection_params.path.strip("/"),
+        **additional_kwargs,
+    )
 
 
 class MsSqlServerOptions:
@@ -114,11 +124,11 @@ class MsSqlServerSource(DataSource):
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = None,
     ):
-        warnings.warn(
-            "The Azure Synapse + Azure SQL data source is an experimental feature in alpha development. "
-            "Some functionality may still be unstable so functionality can change in the future.",
-            RuntimeWarning,
-        )
+        # warnings.warn(
+        #     "The Azure Synapse + Azure SQL data source is an experimental feature in alpha development. "
+        #     "Some functionality may still be unstable so functionality can change in the future.",
+        #     RuntimeWarning,
+        # )
         self._mssqlserver_options = MsSqlServerOptions(
             connection_str=connection_str, table_ref=table_ref
         )
@@ -222,11 +232,8 @@ class MsSqlServerSource(DataSource):
     def get_table_column_names_and_types(
         self, config: RepoConfig
     ) -> Iterable[Tuple[str, str]]:
-        assert isinstance(config.offline_store, MsSqlServerOfflineStoreConfig)
-        conn = create_engine(config.offline_store.connection_string)
-        self._mssqlserver_options.connection_str = (
-            config.offline_store.connection_string
-        )
+        con = get_ibis_connection(config)
+
         name_type_pairs = []
         if len(self.table_ref.split(".")) == 2:
             database, table_name = self.table_ref.split(".")
@@ -240,7 +247,8 @@ class MsSqlServerSource(DataSource):
                 WHERE TABLE_NAME = '{self.table_ref}'
             """
 
-        table_schema = pandas.read_sql(columns_query, conn)
+        table_schema = con.sql(columns_query).execute()
+
         name_type_pairs.extend(
             list(
                 zip(

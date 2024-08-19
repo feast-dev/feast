@@ -1,19 +1,19 @@
 import contextlib
-import datetime
 import tempfile
 import uuid
+from datetime import timedelta
 from pathlib import Path
 from typing import Iterator, List, Union
 
 import numpy as np
 import pandas as pd
 import pyarrow
-import pytz
 
 from feast import FeatureService, FeatureStore, FeatureView
 from feast.errors import FeatureViewNotFoundException
 from feast.feature_logging import LOG_DATE_FIELD, LOG_TIMESTAMP_FIELD, REQUEST_ID_FIELD
 from feast.protos.feast.serving.ServingService_pb2 import FieldStatus
+from feast.utils import _utc_now
 
 
 def get_latest_rows(
@@ -64,9 +64,7 @@ def generate_expected_logs(
         logs[f"{col}__status"] = FieldStatus.PRESENT
         if feature_view.ttl:
             logs[f"{col}__status"] = logs[f"{col}__status"].mask(
-                df[timestamp_column]
-                < datetime.datetime.utcnow().replace(tzinfo=pytz.UTC)
-                - feature_view.ttl,
+                df[timestamp_column] < _utc_now() - feature_view.ttl,
                 FieldStatus.OUTSIDE_MAX_AGE,
             )
 
@@ -82,7 +80,7 @@ def prepare_logs(
     logs_df[REQUEST_ID_FIELD] = [str(uuid.uuid4()) for _ in range(num_rows)]
     logs_df[LOG_TIMESTAMP_FIELD] = pd.Series(
         np.random.randint(0, 7 * 24 * 3600, num_rows)
-    ).map(lambda secs: pd.Timestamp.utcnow() - datetime.timedelta(seconds=secs))
+    ).map(lambda secs: pd.Timestamp.utcnow() - timedelta(seconds=secs))
     logs_df[LOG_DATE_FIELD] = logs_df[LOG_TIMESTAMP_FIELD].dt.date
 
     for projection in feature_service.feature_view_projections:
@@ -119,7 +117,7 @@ def prepare_logs(
                     f"{destination_field}__status"
                 ].mask(
                     logs_df[f"{destination_field}__timestamp"]
-                    < (datetime.datetime.utcnow() - view.ttl),
+                    < (_utc_now() - view.ttl).replace(tzinfo=None),
                     FieldStatus.OUTSIDE_MAX_AGE,
                 )
 

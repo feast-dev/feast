@@ -1,15 +1,15 @@
 from typing import Dict, List, Optional
 
+import ibis
 import pandas as pd
 import pytest
-from sqlalchemy import create_engine
 from testcontainers.core.waiting_utils import wait_for_logs
 from testcontainers.mssql import SqlServerContainer
 
 from feast.data_source import DataSource
+from feast.feature_logging import LoggingDestination
 from feast.infra.offline_stores.contrib.mssql_offline_store.mssql import (
     MsSqlServerOfflineStoreConfig,
-    _df_to_create_table_sql,
 )
 from feast.infra.offline_stores.contrib.mssql_offline_store.mssqlserver_source import (
     MsSqlServerSource,
@@ -26,7 +26,7 @@ MSSQL_PASSWORD = "yourStrong(!)Password"
 @pytest.fixture(scope="session")
 def mssql_container():
     container = SqlServerContainer(
-        user=MSSQL_USER,
+        username=MSSQL_USER,
         password=MSSQL_PASSWORD,
         image="mcr.microsoft.com/azure-sql-edge:1.0.6",
     )
@@ -56,18 +56,19 @@ class MsSqlDataSourceCreator(DataSourceCreator):
             )
 
     def create_offline_store_config(self) -> MsSqlServerOfflineStoreConfig:
+        connection_string = self.container.get_connection_url()
+        connection_string += "?driver=FreeTDS"
         return MsSqlServerOfflineStoreConfig(
-            connection_string=self.container.get_connection_url(),
+            connection_string=connection_string,
         )
 
     def create_data_source(
         self,
         df: pd.DataFrame,
         destination_name: str,
-        event_timestamp_column="ts",
         created_timestamp_column="created_ts",
         field_mapping: Optional[Dict[str, str]] = None,
-        timestamp_field: Optional[str] = "ts",
+        timestamp_field: Optional[str] = None,
     ) -> DataSource:
         # Make sure the field mapping is correct and convert the datetime datasources.
         if timestamp_field in df:
@@ -80,13 +81,23 @@ class MsSqlDataSourceCreator(DataSourceCreator):
             ).fillna(pd.Timestamp.now())
 
         connection_string = self.create_offline_store_config().connection_string
-        engine = create_engine(connection_string)
-        destination_name = self.get_prefixed_table_name(destination_name)
-        # Create table
-        engine.execute(_df_to_create_table_sql(df, destination_name))  # type: ignore
 
-        # Upload dataframe to azure table
-        df.to_sql(destination_name, engine, index=False, if_exists="append")
+        con = ibis.mssql.connect(
+            user=self.container.username,
+            password=self.container.password,
+            host=self.container.get_container_host_ip(),
+            port=self.container.get_exposed_port(self.container.port),
+            database=self.container.dbname,
+            driver="FreeTDS",
+        )
+
+        destination_name = self.get_prefixed_table_name(destination_name)
+
+        con.create_table(
+            name=destination_name,
+            schema=ibis.Schema.from_pandas(df.dtypes.to_dict().items()),
+        )
+        con.insert(table_name=destination_name, obj=df)
 
         self.tables.append(destination_name)
         return MsSqlServerSource(
@@ -101,8 +112,12 @@ class MsSqlDataSourceCreator(DataSourceCreator):
     def create_saved_dataset_destination(self) -> SavedDatasetStorage:
         raise NotImplementedError
 
+    def create_logged_features_destination(self) -> LoggingDestination:
+        raise NotImplementedError
+
     def get_prefixed_table_name(self, destination_name: str) -> str:
         return f"{self.project_name}_{destination_name}"
 
     def teardown(self):
-        raise NotImplementedError
+        pass
+        # raise NotImplementedError

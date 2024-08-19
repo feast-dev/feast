@@ -8,6 +8,9 @@ We encourage you to ask questions on [GitHub](https://github.com/feast-dev/feast
 
 ## Getting started
 
+### Which programming language should I use to run Feast in a microservice architecture?
+[We recommend Python](language.md).
+
 ### Do you have any examples of how Feast should be used?
 
 The [quickstart](quickstart.md) is the easiest way to learn about Feast. For more detailed tutorials, please check out the [tutorials](../tutorials/tutorials-overview/) page.
@@ -26,7 +29,7 @@ Feature views once they are used by a feature service are intended to be immutab
 
 ### What is the difference between data sources and the offline store?
 
-The data source itself defines the underlying data warehouse table in which the features are stored. The offline store interface defines the APIs required to make an arbitrary compute layer work for Feast (e.g. pulling features given a set of feature views from their sources, exporting the data set results to different formats). Please see [data sources](concepts/data-ingestion.md) and [offline store](architecture-and-components/offline-store.md) for more details.
+The data source itself defines the underlying data warehouse table in which the features are stored. The offline store interface defines the APIs required to make an arbitrary compute layer work for Feast (e.g. pulling features given a set of feature views from their sources, exporting the data set results to different formats). Please see [data sources](concepts/data-ingestion.md) and [offline store](components/offline-store.md) for more details.
 
 ### Is it possible to have offline and online stores from different providers?
 
@@ -67,10 +70,6 @@ Yes. See [documentation](../reference/alpha-web-ui.md).
 
 A feature view can be defined with multiple entities. Since each entity has a unique join\_key, using multiple entities will achieve the effect of a composite key.
 
-### How does Feast compare with Tecton?
-
-Please see a detailed comparison of Feast vs. Tecton [here](https://www.tecton.ai/feast/). For another comparison, please see [here](https://mlops.community/learn/feature-store/).
-
 ### What are the performance/latency characteristics of Feast?
 
 Feast is designed to work at scale and support low latency online serving. See our [benchmark blog post](https://feast.dev/blog/feast-benchmarks/) for details.
@@ -92,7 +91,7 @@ The list of supported offline and online stores can be found [here](../reference
 
 ### Does Feast support using different clouds for offline vs online stores?
 
-Yes. Using a GCP or AWS provider in `feature_store.yaml` primarily sets default offline / online stores and configures where the remote registry file can live (Using the AWS provider also allows for deployment to AWS Lambda). You can override the offline and online stores to be in different clouds if you wish.
+Yes. Using a GCP or AWS provider in `feature_store.yaml` primarily sets default offline / online stores and configures where the remote registry file can live. You can override the offline and online stores to be in different clouds if you wish.
 
 ### What is the difference between a data source and an offline store?
 

@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import pytest
 
 from feast.type_map import (
@@ -59,7 +60,14 @@ def test_python_values_to_proto_values_bool(values):
         (np.array([b'["a","b","c"]']), ValueType.STRING_LIST, ["a", "b", "c"]),
         (np.array([b"[true,false]"]), ValueType.BOOL_LIST, [True, False]),
         (np.array([b"[1,0]"]), ValueType.BOOL_LIST, [True, False]),
+        (np.array([None]), ValueType.INT32_LIST, None),
+        (np.array([None]), ValueType.INT64_LIST, None),
+        (np.array([None]), ValueType.FLOAT_LIST, None),
+        (np.array([None]), ValueType.DOUBLE_LIST, None),
+        (np.array([None]), ValueType.BOOL_LIST, None),
+        (np.array([None]), ValueType.BYTES_LIST, None),
         (np.array([None]), ValueType.STRING_LIST, None),
+        (np.array([None]), ValueType.UNIX_TIMESTAMP_LIST, None),
         ([b"[1,2,3]"], ValueType.INT64_LIST, [1, 2, 3]),
         ([b"[1,2,3]"], ValueType.INT32_LIST, [1, 2, 3]),
         ([b"[1.5,2.5,3.5]"], ValueType.FLOAT_LIST, [1.5, 2.5, 3.5]),
@@ -79,3 +87,10 @@ def test_python_values_to_proto_values_bytes_to_list(values, value_type, expecte
 def test_python_values_to_proto_values_bytes_to_list_not_supported():
     with pytest.raises(TypeError):
         _ = python_values_to_proto_values([b"[]"], ValueType.BYTES_LIST)
+
+
+def test_python_values_to_proto_values_int_list_with_null_not_supported():
+    df = pd.DataFrame({"column": [1, 2, None]})
+    arr = df["column"].to_numpy()
+    with pytest.raises(TypeError):
+        _ = python_values_to_proto_values(arr, ValueType.INT32_LIST)

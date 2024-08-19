@@ -1,5 +1,5 @@
 import os
-from typing import Dict
+from typing import Any, Dict
 
 from testcontainers.core.container import DockerContainer
 from testcontainers.core.waiting_utils import wait_for_logs
@@ -16,7 +16,7 @@ class PostgresOnlineStoreCreator(OnlineStoreCreator):
         self.container = PostgresContainer(
             "postgres:16",
             username="root",
-            password="test",
+            password="test!@#$%",
             dbname="test",
         ).with_exposed_ports(5432)
 
@@ -26,7 +26,7 @@ class PostgresOnlineStoreCreator(OnlineStoreCreator):
             "host": "localhost",
             "type": "postgres",
             "user": "root",
-            "password": "test",
+            "password": "test!@#$%",
             "database": "test",
             "port": self.container.get_exposed_port(5432),
         }
@@ -42,7 +42,7 @@ class PGVectorOnlineStoreCreator(OnlineStoreCreator):
         self.container = (
             DockerContainer("pgvector/pgvector:pg16")
             .with_env("POSTGRES_USER", "root")
-            .with_env("POSTGRES_PASSWORD", "test")
+            .with_env("POSTGRES_PASSWORD", "test!@#$%")
             .with_env("POSTGRES_DB", "test")
             .with_exposed_ports(5432)
             .with_volume_mapping(
@@ -51,7 +51,7 @@ class PGVectorOnlineStoreCreator(OnlineStoreCreator):
             )
         )
 
-    def create_online_store(self) -> Dict[str, str]:
+    def create_online_store(self) -> Dict[str, Any]:
         self.container.start()
         log_string_to_wait_for = "database system is ready to accept connections"
         wait_for_logs(
@@ -65,7 +65,7 @@ class PGVectorOnlineStoreCreator(OnlineStoreCreator):
             "host": "localhost",
             "type": "postgres",
             "user": "root",
-            "password": "test",
+            "password": "test!@#$%",
             "database": "test",
             "pgvector_enabled": True,
             "vector_len": 2,
