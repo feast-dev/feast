@@ -206,7 +206,7 @@ requests.post(
 
 | Endpoint                     | Resource Type                   | Permission                                            | Description                                                              |
 | ---------------------------- |---------------------------------|-------------------------------------------------------| ------------------------------------------------------------------------ |
-| /get-online-features         | FeatureView,OnDemandFeatureView | Query Online                                          | Get online features from the feature store                     |
+| /get-online-features         | FeatureView,OnDemandFeatureView | Read Online                                           | Get online features from the feature store                     |
 | /push                        | FeatureView                     | Write Online, Write Offline, Write Online and Offline | Push features to the feature store (online, offline, or both)  |
 | /write-to-online-store       | FeatureView                     | Write Online                                          | Write features to the online store                             |
 | /materialize                 | FeatureView                     | Write Online                                          | Materialize features within a specified time range             |

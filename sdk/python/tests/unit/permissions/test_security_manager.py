@@ -1,7 +1,7 @@
 import assertpy
 import pytest
 
-from feast.permissions.action import QUERY, AuthzedAction
+from feast.permissions.action import READ, AuthzedAction
 from feast.permissions.security_manager import assert_permissions, permitted_resources
 
 
@@ -33,7 +33,7 @@ from feast.permissions.security_manager import assert_permissions, permitted_res
         ),
         (
             "admin",
-            QUERY + [AuthzedAction.UPDATE],
+            READ + [AuthzedAction.UPDATE],
             False,
             [False, False],
             [True, True],

@@ -26,19 +26,19 @@ def test_remote_online_store_read(auth_config):
                 name="online_list_fv_perm",
                 types=FeatureView,
                 policy=RoleBasedPolicy(roles=["reader"]),
-                actions=[AuthzedAction.QUERY_ONLINE],
+                actions=[AuthzedAction.READ_ONLINE],
             ),
             Permission(
                 name="online_list_odfv_perm",
                 types=OnDemandFeatureView,
                 policy=RoleBasedPolicy(roles=["reader"]),
-                actions=[AuthzedAction.QUERY_ONLINE],
+                actions=[AuthzedAction.READ_ONLINE],
             ),
             Permission(
                 name="online_list_sfv_perm",
                 types=StreamFeatureView,
                 policy=RoleBasedPolicy(roles=["reader"]),
-                actions=[AuthzedAction.QUERY_ONLINE],
+                actions=[AuthzedAction.READ_ONLINE],
             ),
         ]
         server_store, server_url, registry_path = (
