@@ -463,7 +463,6 @@ def is_integration_test(all_markers_from_module):
             username: reader_writer
             password: password
             realm: master
-            auth_server_url: KEYCLOAK_URL_PLACE_HOLDER
             auth_discovery_url: KEYCLOAK_URL_PLACE_HOLDER/realms/master/.well-known/openid-configuration
         """),
     ],
