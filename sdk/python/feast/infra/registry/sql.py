@@ -1,14 +1,16 @@
 import logging
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Set, Union
+from typing import Any, Callable, Dict, List, Optional, Union
 
 from pydantic import StrictStr
 from sqlalchemy import (  # type: ignore
     BigInteger,
     Column,
+    Index,
     LargeBinary,
     MetaData,
     String,
@@ -73,6 +75,8 @@ entities = Table(
     Column("entity_proto", LargeBinary, nullable=False),
 )
 
+Index("idx_entities_project_id", entities.c.project_id)
+
 data_sources = Table(
     "data_sources",
     metadata,
@@ -81,6 +85,8 @@ data_sources = Table(
     Column("last_updated_timestamp", BigInteger, nullable=False),
     Column("data_source_proto", LargeBinary, nullable=False),
 )
+
+Index("idx_data_sources_project_id", data_sources.c.project_id)
 
 feature_views = Table(
     "feature_views",
@@ -93,6 +99,8 @@ feature_views = Table(
     Column("user_metadata", LargeBinary, nullable=True),
 )
 
+Index("idx_feature_views_project_id", feature_views.c.project_id)
+
 stream_feature_views = Table(
     "stream_feature_views",
     metadata,
@@ -102,6 +110,8 @@ stream_feature_views = Table(
     Column("feature_view_proto", LargeBinary, nullable=False),
     Column("user_metadata", LargeBinary, nullable=True),
 )
+
+Index("idx_stream_feature_views_project_id", stream_feature_views.c.project_id)
 
 on_demand_feature_views = Table(
     "on_demand_feature_views",
@@ -113,6 +123,8 @@ on_demand_feature_views = Table(
     Column("user_metadata", LargeBinary, nullable=True),
 )
 
+Index("idx_on_demand_feature_views_project_id", on_demand_feature_views.c.project_id)
+
 feature_services = Table(
     "feature_services",
     metadata,
@@ -121,6 +133,8 @@ feature_services = Table(
     Column("last_updated_timestamp", BigInteger, nullable=False),
     Column("feature_service_proto", LargeBinary, nullable=False),
 )
+
+Index("idx_feature_services_project_id", feature_services.c.project_id)
 
 saved_datasets = Table(
     "saved_datasets",
@@ -131,6 +145,8 @@ saved_datasets = Table(
     Column("saved_dataset_proto", LargeBinary, nullable=False),
 )
 
+Index("idx_saved_datasets_project_id", saved_datasets.c.project_id)
+
 validation_references = Table(
     "validation_references",
     metadata,
@@ -140,6 +156,8 @@ validation_references = Table(
     Column("validation_reference_proto", LargeBinary, nullable=False),
 )
 
+Index("idx_validation_references_project_id", validation_references.c.project_id)
+
 managed_infra = Table(
     "managed_infra",
     metadata,
@@ -148,6 +166,8 @@ managed_infra = Table(
     Column("last_updated_timestamp", BigInteger, nullable=False),
     Column("infra_proto", LargeBinary, nullable=False),
 )
+
+Index("idx_managed_infra_project_id", managed_infra.c.project_id)
 
 
 class FeastMetadataKeys(Enum):
@@ -162,6 +182,12 @@ feast_metadata = Table(
     Column("metadata_key", String(50), primary_key=True),
     Column("metadata_value", String(50), nullable=False),
     Column("last_updated_timestamp", BigInteger, nullable=False),
+)
+
+Index(
+    "idx_feast_metadata_project_id_metadata_key",
+    feast_metadata.c.project_id,
+    feast_metadata.c.metadata_key,
 )
 
 logger = logging.getLogger(__name__)
@@ -179,6 +205,10 @@ class SqlRegistryConfig(RegistryConfig):
     """ Dict[str, Any]: Extra arguments to pass to SQLAlchemy.create_engine. """
 
 
+# Number of workers in ThreadPoolExecutor
+MAX_WORKERS = 5
+
+
 class SqlRegistry(CachingRegistry):
     def __init__(
         self,
@@ -192,6 +222,9 @@ class SqlRegistry(CachingRegistry):
             registry_config.path, **registry_config.sqlalchemy_config_kwargs
         )
         metadata.create_all(self.engine)
+
+        self._maybe_init_project_metadata(project)
+
         super().__init__(
             project=project,
             cache_ttl_seconds=registry_config.cache_ttl_seconds,
@@ -482,7 +515,17 @@ class SqlRegistry(CachingRegistry):
                         == FeastMetadataKeys.PROJECT_UUID.value
                     ):
                         project_metadata.project_uuid = row._mapping["metadata_value"]
-                        break
+
+                    if (
+                        row._mapping["metadata_key"]
+                        == FeastMetadataKeys.LAST_UPDATED_TIMESTAMP.value
+                    ):
+                        project_metadata.last_updated_timestamp = (
+                            datetime.fromtimestamp(
+                                int(row._mapping["metadata_value"]), tz=timezone.utc
+                            )
+                        )
+
                     # TODO(adchia): Add other project metadata in a structured way
                 return [project_metadata]
         return []
@@ -654,8 +697,23 @@ class SqlRegistry(CachingRegistry):
     def proto(self) -> RegistryProto:
         r = RegistryProto()
         last_updated_timestamps = []
-        projects = self._get_all_projects()
-        for project in projects:
+
+        def process_project(project_metadata: ProjectMetadata):
+            nonlocal r, last_updated_timestamps
+            project = project_metadata.project_name
+            last_updated_timestamp = project_metadata.last_updated_timestamp
+
+            cached_project_metadata = self.get_project_metadata(project, True)
+            allow_cache = False
+
+            if cached_project_metadata is not None:
+                allow_cache = (
+                    last_updated_timestamp
+                    <= cached_project_metadata.last_updated_timestamp
+                )
+
+            r.project_metadata.extend([project_metadata.to_proto()])
+            last_updated_timestamps.append(last_updated_timestamp)
             for lister, registry_proto_field in [
                 (self.list_entities, r.entities),
                 (self.list_feature_views, r.feature_views),
@@ -665,9 +723,8 @@ class SqlRegistry(CachingRegistry):
                 (self.list_feature_services, r.feature_services),
                 (self.list_saved_datasets, r.saved_datasets),
                 (self.list_validation_references, r.validation_references),
-                (self.list_project_metadata, r.project_metadata),
             ]:
-                objs: List[Any] = lister(project)  # type: ignore
+                objs: List[Any] = lister(project, allow_cache)  # type: ignore
                 if objs:
                     obj_protos = [obj.to_proto() for obj in objs]
                     for obj_proto in obj_protos:
@@ -680,7 +737,13 @@ class SqlRegistry(CachingRegistry):
             # This is suuuper jank. Because of https://github.com/feast-dev/feast/issues/2783,
             # the registry proto only has a single infra field, which we're currently setting as the "last" project.
             r.infra.CopyFrom(self.get_infra(project).to_proto())
-            last_updated_timestamps.append(self._get_last_updated_metadata(project))
+
+        project_metadata_list = self.get_all_projects()
+
+        with ThreadPoolExecutor(
+            max_workers=MAX_WORKERS
+        ) as executor:  # Adjust max_workers as needed. Defaults to 5
+            executor.map(process_project, project_metadata_list)
 
         if last_updated_timestamps:
             r.last_updated.FromDatetime(max(last_updated_timestamps))
@@ -700,8 +763,6 @@ class SqlRegistry(CachingRegistry):
         proto_field_name: str,
         name: Optional[str] = None,
     ):
-        self._maybe_init_project_metadata(project)
-
         name = name or (obj.name if hasattr(obj, "name") else None)
         assert name, f"name needs to be provided for {obj}"
 
@@ -821,8 +882,6 @@ class SqlRegistry(CachingRegistry):
         proto_field_name: str,
         not_found_exception: Optional[Callable],
     ):
-        self._maybe_init_project_metadata(project)
-
         with self.engine.begin() as conn:
             stmt = select(table).where(
                 getattr(table.c, id_field_name) == name, table.c.project_id == project
@@ -845,7 +904,6 @@ class SqlRegistry(CachingRegistry):
         proto_field_name: str,
         tags: Optional[dict[str, str]] = None,
     ):
-        self._maybe_init_project_metadata(project)
         with self.engine.begin() as conn:
             stmt = select(table).where(table.c.project_id == project)
             rows = conn.execute(stmt).all()
@@ -894,33 +952,64 @@ class SqlRegistry(CachingRegistry):
                 )
                 conn.execute(insert_stmt)
 
-    def _get_last_updated_metadata(self, project: str):
+    def get_all_projects(self) -> List[ProjectMetadata]:
+        """
+        Returns all projects with metadata
+        """
+        project_metadata_dict: Dict[str, ProjectMetadata] = {}
+        with self.engine.begin() as conn:
+            stmt = select(feast_metadata)
+            rows = conn.execute(stmt).all()
+            if rows:
+                for row in rows:
+                    project_id = row._mapping["project_id"]
+                    metadata_key = row._mapping["metadata_key"]
+                    metadata_value = row._mapping["metadata_value"]
+
+                    if project_id not in project_metadata_dict:
+                        project_metadata_dict[project_id] = ProjectMetadata(
+                            project_name=project_id
+                        )
+
+                    project_metadata_model: ProjectMetadata = project_metadata_dict[
+                        project_id
+                    ]
+                    if metadata_key == FeastMetadataKeys.PROJECT_UUID.value:
+                        project_metadata_model.project_uuid = metadata_value
+
+                    if metadata_key == FeastMetadataKeys.LAST_UPDATED_TIMESTAMP.value:
+                        project_metadata_model.last_updated_timestamp = (
+                            datetime.fromtimestamp(int(metadata_value), tz=timezone.utc)
+                        )
+        return list(project_metadata_dict.values())
+
+    def _get_project_metadata(
+        self,
+        project: str,
+    ) -> Optional[ProjectMetadata]:
+        """
+        Returns given project metadata.
+        """
         with self.engine.begin() as conn:
             stmt = select(feast_metadata).where(
-                feast_metadata.c.metadata_key
-                == FeastMetadataKeys.LAST_UPDATED_TIMESTAMP.value,
                 feast_metadata.c.project_id == project,
             )
-            row = conn.execute(stmt).first()
-            if not row:
-                return None
-            update_time = int(row._mapping["last_updated_timestamp"])
-
-            return datetime.fromtimestamp(update_time, tz=timezone.utc)
-
-    def _get_all_projects(self) -> Set[str]:
-        projects = set()
-        with self.engine.begin() as conn:
-            for table in {
-                entities,
-                data_sources,
-                feature_views,
-                on_demand_feature_views,
-                stream_feature_views,
-            }:
-                stmt = select(table)
-                rows = conn.execute(stmt).all()
+            rows = conn.execute(stmt).all()
+            if rows:
+                project_metadata: ProjectMetadata = ProjectMetadata(
+                    project_name=project
+                )
                 for row in rows:
-                    projects.add(row._mapping["project_id"])
+                    metadata_key = row._mapping["metadata_key"]
+                    metadata_value = row._mapping["metadata_value"]
 
-        return projects
+                    if metadata_key == FeastMetadataKeys.PROJECT_UUID.value:
+                        project_metadata.project_uuid = metadata_value
+
+                    if metadata_key == FeastMetadataKeys.LAST_UPDATED_TIMESTAMP.value:
+                        project_metadata.last_updated_timestamp = (
+                            datetime.fromtimestamp(int(metadata_value), tz=timezone.utc)
+                        )
+                return project_metadata
+            else:
+                return None

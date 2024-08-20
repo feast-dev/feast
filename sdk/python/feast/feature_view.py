@@ -423,7 +423,7 @@ class FeatureView(BaseFeatureView):
 
         if len(feature_view.entities) != len(feature_view.entity_columns):
             warnings.warn(
-                f"There are some mismatches in your feature view's registered entities. Please check if you have applied your entities correctly."
+                f"There are some mismatches in your feature view: {feature_view.name} registered entities. Please check if you have applied your entities correctly."
                 f"Entities: {feature_view.entities} vs Entity Columns: {feature_view.entity_columns}"
             )
 

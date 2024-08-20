@@ -56,4 +56,5 @@ message Registry {
 message ProjectMetadata {
     string project = 1;
     string project_uuid = 2;
+    google.protobuf.Timestamp last_updated_timestamp = 3;
 }
