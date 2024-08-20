@@ -205,10 +205,6 @@ class SqlRegistryConfig(RegistryConfig):
     """ Dict[str, Any]: Extra arguments to pass to SQLAlchemy.create_engine. """
 
 
-# Number of workers in ThreadPoolExecutor
-MAX_WORKERS = 5
-
-
 class SqlRegistry(CachingRegistry):
     def __init__(
         self,
@@ -220,6 +216,9 @@ class SqlRegistry(CachingRegistry):
 
         self.engine: Engine = create_engine(
             registry_config.path, **registry_config.sqlalchemy_config_kwargs
+        )
+        self.thread_pool_executor_worker_count = (
+            registry_config.thread_pool_executor_worker_count
         )
         metadata.create_all(self.engine)
 
@@ -367,6 +366,23 @@ class SqlRegistry(CachingRegistry):
         return self._list_objects(
             entities, project, EntityProto, Entity, "entity_proto", tags=tags
         )
+
+    # TODO: Add to BaseRegistry
+    def delete_project(self, project: str):
+        with self.engine.begin() as conn:
+            for t in {
+                entities,
+                data_sources,
+                feature_views,
+                feature_services,
+                on_demand_feature_views,
+                saved_datasets,
+                validation_references,
+                managed_infra,
+                feast_metadata,
+            }:
+                stmt = delete(t).where(t.c.project_id == project)
+                conn.execute(stmt)
 
     def delete_entity(self, name: str, project: str, commit: bool = True):
         return self._delete_object(
@@ -740,10 +756,14 @@ class SqlRegistry(CachingRegistry):
 
         project_metadata_list = self.get_all_projects()
 
-        with ThreadPoolExecutor(
-            max_workers=MAX_WORKERS
-        ) as executor:  # Adjust max_workers as needed. Defaults to 5
-            executor.map(process_project, project_metadata_list)
+        if self.thread_pool_executor_worker_count == 0:
+            for project_metadata in project_metadata_list:
+                process_project(project_metadata)
+        else:
+            with ThreadPoolExecutor(
+                max_workers=self.thread_pool_executor_worker_count
+            ) as executor:
+                executor.map(process_project, project_metadata_list)
 
         if last_updated_timestamps:
             r.last_updated.FromDatetime(max(last_updated_timestamps))

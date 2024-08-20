@@ -14,7 +14,7 @@
 import logging
 import os
 import time
-from datetime import timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from tempfile import mkstemp
 from unittest import mock
 
@@ -155,7 +155,7 @@ def pg_registry_async():
 
     container.start()
 
-    registry_config = _given_registry_config_for_pg_sql(container, 2, "thread")
+    registry_config = _given_registry_config_for_pg_sql(container, 2, "thread", 3)
 
     yield SqlRegistry(registry_config, "project", None)
 
@@ -163,7 +163,10 @@ def pg_registry_async():
 
 
 def _given_registry_config_for_pg_sql(
-    container, cache_ttl_seconds=2, cache_mode="sync"
+    container,
+    cache_ttl_seconds=2,
+    cache_mode="sync",
+    thread_pool_executor_worker_count=0,
 ):
     log_string_to_wait_for = "database system is ready to accept connections"
     waited = wait_for_logs(
@@ -180,6 +183,7 @@ def _given_registry_config_for_pg_sql(
         registry_type="sql",
         cache_ttl_seconds=cache_ttl_seconds,
         cache_mode=cache_mode,
+        thread_pool_executor_worker_count=thread_pool_executor_worker_count,
         # The `path` must include `+psycopg` in order for `sqlalchemy.create_engine()`
         # to understand that we are using psycopg3.
         path=f"postgresql+psycopg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{container_host}:{container_port}/{POSTGRES_DB}",
@@ -204,14 +208,19 @@ def mysql_registry_async():
     container = MySqlContainer("mysql:latest")
     container.start()
 
-    registry_config = _given_registry_config_for_mysql(container, 2, "thread")
+    registry_config = _given_registry_config_for_mysql(container, 2, "thread", 3)
 
     yield SqlRegistry(registry_config, "project", None)
 
     container.stop()
 
 
-def _given_registry_config_for_mysql(container, cache_ttl_seconds=2, cache_mode="sync"):
+def _given_registry_config_for_mysql(
+    container,
+    cache_ttl_seconds=2,
+    cache_mode="sync",
+    thread_pool_executor_worker_count=0,
+):
     import sqlalchemy
 
     engine = sqlalchemy.create_engine(
@@ -224,11 +233,12 @@ def _given_registry_config_for_mysql(container, cache_ttl_seconds=2, cache_mode=
         path=container.get_connection_url(),
         cache_ttl_seconds=cache_ttl_seconds,
         cache_mode=cache_mode,
+        thread_pool_executor_worker_count=thread_pool_executor_worker_count,
         sqlalchemy_config_kwargs={"echo": False, "pool_pre_ping": True},
     )
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def sqlite_registry():
     registry_config = RegistryConfig(
         registry_type="sql",
@@ -342,6 +352,7 @@ def test_apply_entity_success(test_registry):
     project_uuid = project_metadata[0].project_uuid
     assert len(project_metadata[0].project_uuid) == 36
     assert_project_uuid(project, project_uuid, test_registry)
+    assert project_metadata[0].last_updated_timestamp is not None
 
     entities = test_registry.list_entities(project, tags=entity.tags)
     assert_project_uuid(project, project_uuid, test_registry)
@@ -1343,3 +1354,104 @@ def validate_project_uuid(project_uuid, test_registry):
     assert len(test_registry.cached_registry_proto.project_metadata) == 1
     project_metadata = test_registry.cached_registry_proto.project_metadata[0]
     assert project_metadata.project_uuid == project_uuid
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "test_registry",
+    sql_fixtures,
+)
+def test_project_metadata_success(test_registry):
+    project = "project"
+    project_metadata = test_registry.get_project_metadata(project)
+    assert project_metadata.project_name == project
+    assert project_metadata.last_updated_timestamp == datetime.fromtimestamp(
+        1, tz=timezone.utc
+    )
+
+    last_refresh_timestamp = project_metadata.last_updated_timestamp
+
+    entity = Entity(
+        name="test_project_metadata_success",
+        description="test_project_metadata_success",
+        tags={"team": "matchmaking"},
+    )
+
+    # Register Entity
+    test_registry.apply_entity(entity, project)
+
+    project_metadata = test_registry.get_project_metadata(project)
+    assert project_metadata.project_name == project
+    assert project_metadata.last_updated_timestamp > last_refresh_timestamp
+
+    project_metadata_list = test_registry.get_all_projects()
+    assert len(project_metadata_list) == 1
+
+    test_registry.delete_project(project)
+
+    project_metadata = test_registry.get_project_metadata(project)
+    assert project_metadata is None
+
+    project_metadata_list = test_registry.get_all_projects()
+    assert len(project_metadata_list) == 0
+
+    test_registry.teardown()
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "test_registry",
+    sql_fixtures,
+)
+def test_project_metadata_from_cache_on_init_success(test_registry):
+    # In Setup phase, proto() method is not executing fully due to lazy fixtures, so forcing the call
+    test_registry.cached_registry_proto = test_registry.proto()
+    project = "project"
+    project_metadata = test_registry.get_project_metadata(project, allow_cache=True)
+    assert project_metadata.project_name == project
+    assert project_metadata.last_updated_timestamp == datetime.fromtimestamp(
+        1, tz=timezone.utc
+    )
+    last_refresh_timestamp = project_metadata.last_updated_timestamp
+
+    entity = Entity(
+        name="test_project_metadata_from_cache_on_init_success",
+        description="test_project_metadata_from_cache_on_init_success",
+        tags={"team": "matchmaking"},
+    )
+    # Register Entity
+    test_registry.apply_entity(entity, project)
+
+    project_metadata = test_registry.get_project_metadata(project)
+    assert project_metadata.project_name == project
+    assert project_metadata.last_updated_timestamp > last_refresh_timestamp
+
+    test_registry.refresh()
+    project_metadata = test_registry.get_project_metadata(project, allow_cache=True)
+    assert project_metadata.project_name == project
+    assert project_metadata.last_updated_timestamp > last_refresh_timestamp
+
+    project_metadata_list = test_registry.get_all_projects()
+    assert len(project_metadata_list) == 1
+
+    test_registry.teardown()
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "test_registry",
+    async_sql_fixtures,
+)
+def test_registry_cache_project_metadata_thread_async(test_registry):
+    project = "project"
+    # Wait for cache to be refreshed
+    time.sleep(4)
+    # Now objects exist
+    project_metadata = test_registry.get_project_metadata(project, allow_cache=True)
+    assert project_metadata is not None
+    assert project_metadata.project_name == project
+
+    project_metadata_list = test_registry.get_all_projects()
+    assert len(project_metadata_list) == 1
+
+    test_registry.teardown()

@@ -128,6 +128,9 @@ class RegistryConfig(FeastBaseModel):
     cache_mode: StrictStr = "sync"
     """ str: Cache mode type, Possible options are sync and thread(asynchronous caching using threading library)"""
 
+    thread_pool_executor_worker_count: StrictInt = 0
+    """ int: Number of worker threads to use for asynchronous caching in SQL Registry. If set to 0, it doesn't use ThreadPoolExecutor. """
+
     @field_validator("path")
     def validate_path(cls, path: str, values: ValidationInfo) -> str:
         if values.data.get("registry_type") == "sql":

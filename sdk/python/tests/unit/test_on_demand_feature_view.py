@@ -251,11 +251,9 @@ def test_from_proto_backwards_compatible_udf():
         proto.spec.feature_transformation.user_defined_function.body_text
     )
 
-    # And now we're going to null the feature_transformation proto object before reserializing the entire proto
-    # proto.spec.user_defined_function.body_text = on_demand_feature_view.transformation.udf_string
-    proto.spec.feature_transformation.user_defined_function.name = ""
-    proto.spec.feature_transformation.user_defined_function.body = b""
-    proto.spec.feature_transformation.user_defined_function.body_text = ""
+    # For objects that are already registered, feature_transformation and mode is not set
+    proto.spec.feature_transformation.Clear()
+    proto.spec.ClearField("mode")
 
     # And now we expect the to get the same object back under feature_transformation
     reserialized_proto = OnDemandFeatureView.from_proto(proto)
@@ -263,3 +261,4 @@ def test_from_proto_backwards_compatible_udf():
         reserialized_proto.feature_transformation.udf_string
         == on_demand_feature_view.feature_transformation.udf_string
     )
+    assert reserialized_proto.mode == "pandas"

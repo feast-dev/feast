@@ -98,8 +98,8 @@ class ProjectMetadata:
         project_metadata = cls(
             project_name=project_metadata_proto.project,
             project_uuid=project_metadata_proto.project_uuid,
-            last_updated_timestamp=project_metadata_proto.last_updated_timestamp.ToDatetime().astimezone(
-                tz=timezone.utc
+            last_updated_timestamp=project_metadata_proto.last_updated_timestamp.ToDatetime().replace(
+                tzinfo=timezone.utc
             ),
         )
 
