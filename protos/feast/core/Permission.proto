@@ -22,8 +22,8 @@ message PermissionSpec {
     DESCRIBE = 1;
     UPDATE = 2;
     DELETE = 3;
-    QUERY_ONLINE = 4;
-    QUERY_OFFLINE = 5;
+    READ_ONLINE = 4;
+    READ_OFFLINE = 5;
     WRITE_ONLINE = 6;
     WRITE_OFFLINE = 7;
   }

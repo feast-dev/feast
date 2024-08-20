@@ -37,14 +37,14 @@ The set of functionalities supported by remote offline stores is the same as tho
 
 ## API Endpoints and Permissions
 
-| Endpoint                              | Resource Type    |Permission    | Description                                         |
-| ------------------------------------- |------------------|---------------|-----------------------------------------------------|
-| offline_write_batch                   | FeatureView      | Write Offline | Write a batch of data to the offline store          |
-| write_logged_features                 | FeatureService   | Write Offline | Write logged features to the offline store          |
-| persist                               | DataSource       | Write Offline | Persist the result of a query in the offline store  |
-| get_historical_features               | FeatureView      | Query Offline | Retrieve historical features                        |
-| pull_all_from_table_or_query          | DataSource       | Query Offline | Pull all data from a table or query it              |
-| pull_latest_from_table_or_query       | DataSource       | Query Offline | Pull the latest data from a table or query it       |
+| Endpoint                              | Resource Type    | Permission    | Description                                        |
+| ------------------------------------- |------------------|---------------|----------------------------------------------------|
+| offline_write_batch                   | FeatureView      | Write Offline | Write a batch of data to the offline store         |
+| write_logged_features                 | FeatureService   | Write Offline | Write logged features to the offline store         |
+| persist                               | DataSource       | Write Offline | Persist the result of a query in the offline store |
+| get_historical_features               | FeatureView      | Read Offline  | Retrieve historical features                       |
+| pull_all_from_table_or_query          | DataSource       | Read Offline  | Pull all data from a table or read it              |
+| pull_latest_from_table_or_query       | DataSource       | Read Offline  | Pull the latest data from a table or read it       |
 
 
 ## How to configure Authentication and Authorization ?

@@ -296,7 +296,7 @@ class OfflineServer(fl.FlightServerBase):
     def pull_all_from_table_or_query(self, command: dict):
         self._validate_pull_all_from_table_or_query_parameters(command)
         data_source = self.store.get_data_source(command["data_source_name"])
-        assert_permissions(data_source, actions=[AuthzedAction.QUERY_OFFLINE])
+        assert_permissions(data_source, actions=[AuthzedAction.READ_OFFLINE])
 
         return self.offline_store.pull_all_from_table_or_query(
             self.store.config,
@@ -325,7 +325,7 @@ class OfflineServer(fl.FlightServerBase):
     def pull_latest_from_table_or_query(self, command: dict):
         self._validate_pull_latest_from_table_or_query_parameters(command)
         data_source = self.store.get_data_source(command["data_source_name"])
-        assert_permissions(resource=data_source, actions=[AuthzedAction.QUERY_OFFLINE])
+        assert_permissions(resource=data_source, actions=[AuthzedAction.READ_OFFLINE])
         return self.offline_store.pull_latest_from_table_or_query(
             self.store.config,
             data_source,
@@ -383,7 +383,7 @@ class OfflineServer(fl.FlightServerBase):
 
         for feature_view in feature_views:
             assert_permissions(
-                resource=feature_view, actions=[AuthzedAction.QUERY_OFFLINE]
+                resource=feature_view, actions=[AuthzedAction.READ_OFFLINE]
             )
 
         retJob = self.offline_store.get_historical_features(

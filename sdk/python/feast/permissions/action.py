@@ -10,8 +10,8 @@ class AuthzedAction(enum.Enum):
     DESCRIBE = "describe"  # Access the instance state
     UPDATE = "update"  # Update the instance state
     DELETE = "delete"  # Delete an instance
-    QUERY_ONLINE = "query_online"  # Query the online store only
-    QUERY_OFFLINE = "query_offline"  # Query the offline store only
+    READ_ONLINE = "read_online"  # Read the online store only
+    READ_OFFLINE = "read_offline"  # Read the offline store only
     WRITE_ONLINE = "write_online"  # Write to the online store only
     WRITE_OFFLINE = "write_offline"  # Write to the offline store only
 
@@ -19,10 +19,10 @@ class AuthzedAction(enum.Enum):
 #  Alias for all available actions
 ALL_ACTIONS = [a for a in AuthzedAction.__members__.values()]
 
-#  Alias for all query actions
-QUERY = [
-    AuthzedAction.QUERY_OFFLINE,
-    AuthzedAction.QUERY_ONLINE,
+#  Alias for all read actions
+READ = [
+    AuthzedAction.READ_OFFLINE,
+    AuthzedAction.READ_ONLINE,
 ]
 #  Alias for all write actions
 WRITE = [

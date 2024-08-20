@@ -34,7 +34,7 @@ Feast operates as a collection of connected services, each enforcing authorizati
 The RBAC system in Feast uses a permission model that defines the following concepts:
 
 - **Resource**: An object within Feast that needs to be secured against unauthorized access.
-- **Action**: A logical operation performed on a resource, such as Create, Describe, Update, Delete, query, or write operations.
+- **Action**: A logical operation performed on a resource, such as Create, Describe, Update, Delete, Read, or write operations.
 - **Policy**: A set of rules that enforce authorization decisions on resources. The default implementation uses role-based policies.
 
 

@@ -489,31 +489,31 @@ class OfflineServerPermissionsEnvironment(Environment):
                 name="offline_fv_perm",
                 types=FeatureView,
                 policy=RoleBasedPolicy(roles=["writer"]),
-                actions=[AuthzedAction.QUERY_OFFLINE, AuthzedAction.WRITE_OFFLINE],
+                actions=[AuthzedAction.READ_OFFLINE, AuthzedAction.WRITE_OFFLINE],
             ),
             Permission(
                 name="offline_odfv_perm",
                 types=OnDemandFeatureView,
                 policy=RoleBasedPolicy(roles=["writer"]),
-                actions=[AuthzedAction.QUERY_OFFLINE, AuthzedAction.WRITE_OFFLINE],
+                actions=[AuthzedAction.READ_OFFLINE, AuthzedAction.WRITE_OFFLINE],
             ),
             Permission(
                 name="offline_sfv_perm",
                 types=StreamFeatureView,
                 policy=RoleBasedPolicy(roles=["writer"]),
-                actions=[AuthzedAction.QUERY_OFFLINE, AuthzedAction.WRITE_OFFLINE],
+                actions=[AuthzedAction.READ_OFFLINE, AuthzedAction.WRITE_OFFLINE],
             ),
             Permission(
                 name="offline_fs_perm",
                 types=FeatureService,
                 policy=RoleBasedPolicy(roles=["writer"]),
-                actions=[AuthzedAction.QUERY_OFFLINE, AuthzedAction.WRITE_OFFLINE],
+                actions=[AuthzedAction.READ_OFFLINE, AuthzedAction.WRITE_OFFLINE],
             ),
             Permission(
                 name="offline_datasource_perm",
                 types=DataSource,
                 policy=RoleBasedPolicy(roles=["writer"]),
-                actions=[AuthzedAction.QUERY_OFFLINE, AuthzedAction.WRITE_OFFLINE],
+                actions=[AuthzedAction.READ_OFFLINE, AuthzedAction.WRITE_OFFLINE],
             ),
         ]
         self.feature_store.apply(permissions_list)

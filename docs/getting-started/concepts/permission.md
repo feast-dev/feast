@@ -23,9 +23,9 @@ The permission model is based on the following components:
   - `describe`: Access the instance state.
   - `update`: Update the instance state.
   - `delete`: Delete an instance.
-  - `query`:  Query both online and offline stores.
-  - `query_online`:  Query the online store.
-  - `query_offline`:  Query the offline store.
+  - `read`:  Read both online and offline stores.
+  - `read_online`:  Read the online store.
+  - `read_offline`:  Read the offline store.
   - `write`:  Write on any store.
   - `write_online`:  Write to the online store.
   - `write_offline`:  Write to the offline store.
@@ -48,7 +48,7 @@ To simplify configuration, several constants are defined to streamline the permi
   `OnDemandFeatureView`.
 - In module `feast.permissions.action`:
   - `ALL_ACTIONS` is the list of all managed actions.
-  - `QUERY` includes all the query actions for online and offline store.
+  - `READ` includes all the read actions for online and offline store.
   - `WRITE` includes all the write actions for online and offline store.
   - `CRUD` includes all the state management actions to create, describe, update or delete a Feast resource.
 
@@ -69,7 +69,7 @@ Permission(
     name="feature-reader",
     types=[FeatureView, FeatureService],
     policy=RoleBasedPolicy(roles=["super-reader"]),
-    actions=[AuthzedAction.DESCRIBE, QUERY],
+    actions=[AuthzedAction.DESCRIBE, READ],
 )
 ```
 
@@ -89,14 +89,15 @@ Permission(
 {% endhint %}
 
 
-The following permission grants authorization to query the offline store of all the feature views including `risky` in the name, to users with role `trusted`:
+The following permission grants authorization to read the offline store of all the feature views including `risky` in the name, to users with role `trusted`:
+
 ```py
 Permission(
     name="reader",
     types=[FeatureView],
     name_pattern=".*risky.*",
     policy=RoleBasedPolicy(roles=["trusted"]),
-    actions=[AuthzedAction.QUERY_OFFLINE],
+    actions=[AuthzedAction.READ_OFFLINE],
 )
 ```
 

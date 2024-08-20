@@ -117,7 +117,7 @@ def get_app(
                     body["feature_service"], allow_cache=True
                 )
                 assert_permissions(
-                    resource=feature_service, actions=[AuthzedAction.QUERY_ONLINE]
+                    resource=feature_service, actions=[AuthzedAction.READ_ONLINE]
                 )
                 features = feature_service
             else:
@@ -133,11 +133,11 @@ def get_app(
                 )
                 for feature_view in all_feature_views:
                     assert_permissions(
-                        resource=feature_view, actions=[AuthzedAction.QUERY_ONLINE]
+                        resource=feature_view, actions=[AuthzedAction.READ_ONLINE]
                     )
                 for od_feature_view in all_on_demand_feature_views:
                     assert_permissions(
-                        resource=od_feature_view, actions=[AuthzedAction.QUERY_ONLINE]
+                        resource=od_feature_view, actions=[AuthzedAction.READ_ONLINE]
                     )
 
             response_proto = store.get_online_features(
