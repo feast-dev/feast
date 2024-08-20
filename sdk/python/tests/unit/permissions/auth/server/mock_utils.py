@@ -42,6 +42,15 @@ def mock_oidc(request, monkeypatch, client_id):
         lambda url, data, headers: token_response,
     )
 
+    monkeypatch.setattr(
+        "feast.permissions.oidc_service.OIDCDiscoveryService._fetch_discovery_data",
+        lambda self, *args, **kwargs: {
+            "authorization_endpoint": "https://localhost:8080/realms/master/protocol/openid-connect/auth",
+            "token_endpoint": "https://localhost:8080/realms/master/protocol/openid-connect/token",
+            "jwks_uri": "https://localhost:8080/realms/master/protocol/openid-connect/certs",
+        },
+    )
+
 
 def mock_kubernetes(request, monkeypatch):
     sa_name = request.getfixturevalue("sa_name")
