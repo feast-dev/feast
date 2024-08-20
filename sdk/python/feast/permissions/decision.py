@@ -89,7 +89,7 @@ class DecisionEvaluator:
     def add_grant(self, grant: bool, explanation: str):
         """
         Add a single vote to the decision computation, with a possible denial reason.
-        If the evalluation process already ended, additional votes are discarded.
+        If the evaluation process already ended, additional votes are discarded.
 
         Args:
             grant: `True` is the decision is accepted, `False` otherwise.

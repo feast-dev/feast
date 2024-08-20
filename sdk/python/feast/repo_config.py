@@ -341,17 +341,17 @@ class RepoConfig(FeastBaseModel):
             if isinstance(values["auth"], Dict):
                 if values["auth"].get("type") is None:
                     raise ValueError(
-                        f"auth configuration is not having authentication type. Possible values={allowed_auth_types}"
+                        f"auth configuration is missing authentication type. Possible values={allowed_auth_types}"
                     )
                 elif values["auth"]["type"] not in allowed_auth_types:
                     raise ValueError(
-                        f'auth configuration is having invalid authentication type={values["auth"]["type"]}. Possible '
+                        f'auth configuration has invalid authentication type={values["auth"]["type"]}. Possible '
                         f'values={allowed_auth_types}'
                     )
             elif isinstance(values["auth"], AuthConfig):
                 if values["auth"].type not in allowed_auth_types:
                     raise ValueError(
-                        f'auth configuration is having invalid authentication type={values["auth"].type}. Possible '
+                        f'auth configuration has invalid authentication type={values["auth"].type}. Possible '
                         f'values={allowed_auth_types}'
                     )
         return values

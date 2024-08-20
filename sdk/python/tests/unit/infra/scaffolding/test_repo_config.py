@@ -223,7 +223,7 @@ def test_auth_config():
         entity_key_serialization_version: 2
         """
         ),
-        expect_error="not having authentication type",
+        expect_error="missing authentication type",
     )
 
     _test_config(

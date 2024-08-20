@@ -9,7 +9,7 @@ class AuthzedAction(enum.Enum):
     CREATE = "create"  # Create an instance
     DESCRIBE = "describe"  # Access the instance state
     UPDATE = "update"  # Update the instance state
-    DELETE = "delete"  # Deelete an instance
+    DELETE = "delete"  # Delete an instance
     QUERY_ONLINE = "query_online"  # Query the online store only
     QUERY_OFFLINE = "query_offline"  # Query the offline store only
     WRITE_ONLINE = "write_online"  # Write to the online store only
