@@ -26,7 +26,7 @@ The permission model is based on the following components:
   - `query`:  Query both online and offline stores.
   - `query_online`:  Query the online store.
   - `query_offline`:  Query the offline store.
-  - `write`:  Query on any store.
+  - `write`:  Write on any store.
   - `write_online`:  Write to the online store.
   - `write_offline`:  Write to the offline store.
 - A `policy` identifies the rule for enforcing authorization decisions on secured resources, based on the current user.
@@ -50,7 +50,7 @@ To simplify configuration, several constants are defined to streamline the permi
   - `ALL_ACTIONS` is the list of all managed actions.
   - `QUERY` includes all the query actions for online and offline store.
   - `WRITE` includes all the write actions for online and offline store.
-  - `CRUD` includes all the state management actions to create, read, update or delete a Feast resource.
+  - `CRUD` includes all the state management actions to create, describe, update or delete a Feast resource.
 
 Given the above definitions, the feature store can be configured with granular control over each resource, enabling partitioned access by 
 teams to meet organizational requirements for service and data sharing, and protection of sensitive information.

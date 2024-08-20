@@ -311,15 +311,15 @@ if sys.platform != "win32":
 
 def monitor_resources(self, interval: int = 5):
     """Function to monitor and update CPU and memory usage metrics."""
-    print(f"Start monitor_resources({interval})")
+    logger.debug(f"Starting resource monitoring with interval {interval} seconds")
     p = psutil.Process()
-    print(f"PID is {p.pid}")
+    logger.debug(f"PID is {p.pid}")
     while True:
         with p.oneshot():
             cpu_usage = p.cpu_percent()
             memory_usage = p.memory_percent()
-            print(f"cpu_usage is {cpu_usage}")
-            print(f"memory_usage is {memory_usage}")
+            logger.debug(f"CPU usage: {cpu_usage}%, Memory usage: {memory_usage}%")
+            logger.debug(f"CPU usage: {cpu_usage}%, Memory usage: {memory_usage}%")
             cpu_usage_gauge.set(cpu_usage)
             memory_usage_gauge.set(memory_usage)
         time.sleep(interval)
@@ -336,26 +336,26 @@ def start_server(
     metrics: bool,
 ):
     if metrics:
-        print("Start Prometheus Server")
+        logger.info("Starting Prometheus Server")
         start_http_server(8000)
 
-        print("Start a background thread to monitor CPU and memory usage")
+        logger.debug("Starting background thread to monitor CPU and memory usage")
         monitoring_thread = threading.Thread(
             target=monitor_resources, args=(5,), daemon=True
         )
         monitoring_thread.start()
 
-    print("start_server called ")
+    logger.debug("start_server called")
     auth_type = str_to_auth_manager_type(store.config.auth_config.type)
-    print(f"auth_type is {auth_type}")
+    logger.info(f"Auth type: {auth_type}")
     init_security_manager(auth_type=auth_type, fs=store)
-    print("init_security_manager OK ")
+    logger.debug("Security manager initialized successfully")
     init_auth_manager(
         auth_type=auth_type,
         server_type=ServerType.REST,
         auth_config=store.config.auth_config,
     )
-    print("init_auth_manager OK ")
+    logger.debug("Auth manager initialized successfully")
 
     if sys.platform != "win32":
         FeastServeApplication(
