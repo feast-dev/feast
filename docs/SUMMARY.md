@@ -24,6 +24,7 @@
   * [Feature retrieval](getting-started/concepts/feature-retrieval.md)
   * [Point-in-time joins](getting-started/concepts/point-in-time-joins.md)
   * [Registry](getting-started/concepts/registry.md)
+  * [Permission](getting-started/concepts/permission.md)
   * [\[Alpha\] Saved dataset](getting-started/concepts/dataset.md)
 * [Components](getting-started/components/README.md)
   * [Overview](getting-started/components/overview.md)
@@ -32,6 +33,7 @@
   * [Online store](getting-started/components/online-store.md)
   * [Batch Materialization Engine](getting-started/components/batch-materialization-engine.md)
   * [Provider](getting-started/components/provider.md)
+  * [Authorization Manager](getting-started/components/authz_manager.md)
 * [Third party integrations](getting-started/third-party-integrations.md)
 * [FAQ](getting-started/faq.md)
 
