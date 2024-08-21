@@ -62,8 +62,8 @@ The `feast` CLI includes a new `permissions` command to list the registered perm
 {% endhint %}
 
 ## Definition examples
-This permission definition grants access to the resource state and the ability to query all the stores for any feature view or
-feature service to all users with role `super-reader`:
+This permission definition grants access to the resource state and the ability to read all of the stores for any feature view or
+feature service to all users with the role `super-reader`:
 ```py
 Permission(
     name="feature-reader",
