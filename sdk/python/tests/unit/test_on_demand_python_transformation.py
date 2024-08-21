@@ -20,7 +20,7 @@ from feast.driver_test_data import create_driver_hourly_stats_df
 from feast.field import Field
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
 from feast.on_demand_feature_view import on_demand_feature_view
-from feast.types import Array, Bool, Float32, Float64, Int64, String
+from feast.types import Array, Bool, Float32, Float64, Int64, String, UnixTimestamp
 
 
 class TestOnDemandPythonTransformation(unittest.TestCase):
@@ -140,6 +140,29 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
                 )
                 return output
 
+            @on_demand_feature_view(
+                sources=[driver_stats_fv[["conv_rate", "acc_rate"]]],
+                schema=[
+                    Field(name="conv_rate_plus_acc", dtype=Float64),
+                    Field(name="current_datetime", dtype=UnixTimestamp),
+                ],
+                mode="python",
+                write_to_online_store=True,
+            )
+            def python_stored_writes_feature_view(
+                inputs: dict[str, Any],
+            ) -> dict[str, Any]:
+                output: dict[str, Any] = {
+                    "conv_rate_plus_acc": [
+                        conv_rate + acc_rate
+                        for conv_rate, acc_rate in zip(
+                            inputs["conv_rate"], inputs["acc_rate"]
+                        )
+                    ],
+                    "current_datetime": [datetime.now() for _ in inputs["conv_rate"]],
+                }
+                return output
+
             with pytest.raises(TypeError):
                 # Note the singleton view will fail as the type is
                 # expected to be a list which can be confirmed in _infer_features_dict
@@ -162,14 +185,15 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
                     pandas_view,
                     python_view,
                     python_demo_view,
+                    python_stored_writes_feature_view,
                 ]
             )
             self.store.write_to_online_store(
                 feature_view_name="driver_hourly_stats", df=driver_df
             )
-            assert len(self.store.list_all_feature_views()) == 4
+            assert len(self.store.list_all_feature_views()) == 5
             assert len(self.store.list_feature_views()) == 1
-            assert len(self.store.list_on_demand_feature_views()) == 3
+            assert len(self.store.list_on_demand_feature_views()) == 4
             assert len(self.store.list_stream_feature_views()) == 0
 
     def test_python_pandas_parity(self):
@@ -256,6 +280,31 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
             + online_python_response["acc_rate"][0]
             == online_python_response["conv_rate_plus_val2_python"][0]
         )
+
+    def test_stored_writes(self):
+        entity_rows = [
+            {
+                "driver_id": 1001,
+            }
+        ]
+
+        online_python_response = self.store.get_online_features(
+            entity_rows=entity_rows,
+            features=[
+                "python_stored_writes_feature_view:conv_rate_plus_acc",
+                "python_stored_writes_feature_view:current_datetime",
+            ],
+        ).to_dict()
+
+        assert sorted(list(online_python_response.keys())) == sorted(
+            [
+                "driver_id",
+                "conv_rate_plus_acc",
+                "current_datetime",
+            ]
+        )
+        print(online_python_response)
+        # Now this is where we need to test the stored writes, this should return the same output as the previous
 
 
 class TestOnDemandPythonTransformationAllDataTypes(unittest.TestCase):

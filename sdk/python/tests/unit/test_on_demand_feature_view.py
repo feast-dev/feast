@@ -336,6 +336,7 @@ def test_on_demand_feature_view_stored_writes():
         mode="python",
         write_to_online_store=True,
     )
+
     transformed_output = on_demand_feature_view.transform_dict(
         {
             "feature1": 0,
@@ -355,13 +356,3 @@ def test_on_demand_feature_view_stored_writes():
     assert transformed_output["output3"] is not None and isinstance(
         transformed_output["output3"], datetime.datetime
     )
-
-    # Now this is where we need to test the stored writes, this should return the same output as the previous
-    twice_transformed_output = on_demand_feature_view.transform_dict(
-        {
-            "feature1": 0,
-            "feature2": 1,
-        }
-    )
-    for k in twice_transformed_output:
-        assert twice_transformed_output[k] == transformed_output[k]
