@@ -4,6 +4,12 @@ from textwrap import dedent
 from typing import Optional
 
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
+from feast.permissions.auth.auth_type import AuthType
+from feast.permissions.auth_model import (
+    KubernetesAuthConfig,
+    NoAuthConfig,
+    OidcAuthConfig,
+)
 from feast.repo_config import FeastConfigError, load_repo_config
 
 
@@ -195,3 +201,119 @@ def test_no_provider():
         ),
         expect_error=None,
     )
+
+
+def test_auth_config():
+    _test_config(
+        dedent(
+            """
+        project: foo
+        auth:
+            client_id: test_client_id
+            client_secret: test_client_secret
+            username: test_user_name
+            password: test_password
+            realm: master
+            auth_server_url: http://localhost:8712
+            auth_discovery_url: http://localhost:8080/realms/master/.well-known/openid-configuration
+        registry: "registry.db"
+        provider: local
+        online_store:
+            path: foo
+        entity_key_serialization_version: 2
+        """
+        ),
+        expect_error="missing authentication type",
+    )
+
+    _test_config(
+        dedent(
+            """
+        project: foo
+        auth:
+            type: not_valid_auth_type
+            client_id: test_client_id
+            client_secret: test_client_secret
+            username: test_user_name
+            password: test_password
+            realm: master
+            auth_server_url: http://localhost:8712
+            auth_discovery_url: http://localhost:8080/realms/master/.well-known/openid-configuration
+        registry: "registry.db"
+        provider: local
+        online_store:
+            path: foo
+        entity_key_serialization_version: 2
+        """
+        ),
+        expect_error="invalid authentication type=not_valid_auth_type",
+    )
+
+    oidc_repo_config = _test_config(
+        dedent(
+            """
+        project: foo
+        auth:
+            type: oidc
+            client_id: test_client_id
+            client_secret: test_client_secret
+            username: test_user_name
+            password: test_password
+            realm: master
+            auth_server_url: http://localhost:8080
+            auth_discovery_url: http://localhost:8080/realms/master/.well-known/openid-configuration
+        registry: "registry.db"
+        provider: local
+        online_store:
+            path: foo
+        entity_key_serialization_version: 2
+        """
+        ),
+        expect_error=None,
+    )
+    assert oidc_repo_config.auth["type"] == AuthType.OIDC.value
+    assert isinstance(oidc_repo_config.auth_config, OidcAuthConfig)
+    assert oidc_repo_config.auth_config.client_id == "test_client_id"
+    assert oidc_repo_config.auth_config.client_secret == "test_client_secret"
+    assert oidc_repo_config.auth_config.username == "test_user_name"
+    assert oidc_repo_config.auth_config.password == "test_password"
+    assert oidc_repo_config.auth_config.realm == "master"
+    assert oidc_repo_config.auth_config.auth_server_url == "http://localhost:8080"
+    assert (
+        oidc_repo_config.auth_config.auth_discovery_url
+        == "http://localhost:8080/realms/master/.well-known/openid-configuration"
+    )
+
+    no_auth_repo_config = _test_config(
+        dedent(
+            """
+        project: foo
+        registry: "registry.db"
+        provider: local
+        online_store:
+            path: foo
+        entity_key_serialization_version: 2
+        """
+        ),
+        expect_error=None,
+    )
+    assert no_auth_repo_config.auth.get("type") == AuthType.NONE.value
+    assert isinstance(no_auth_repo_config.auth_config, NoAuthConfig)
+
+    k8_repo_config = _test_config(
+        dedent(
+            """
+        auth:
+            type: kubernetes
+        project: foo
+        registry: "registry.db"
+        provider: local
+        online_store:
+            path: foo
+        entity_key_serialization_version: 2
+        """
+        ),
+        expect_error=None,
+    )
+    assert k8_repo_config.auth.get("type") == AuthType.KUBERNETES.value
+    assert isinstance(k8_repo_config.auth_config, KubernetesAuthConfig)

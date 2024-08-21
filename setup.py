@@ -61,6 +61,9 @@ REQUIRED = [
     "dask[dataframe]>=2024.2.1",
     "prometheus_client",
     "psutil",
+    "bigtree>=0.19.2",
+    "pyjwt",
+    "kubernetes<=20.13.0",
 ]
 
 GCP_REQUIRED = [
@@ -183,6 +186,7 @@ CI_REQUIRED = (
         "pytest-env",
         "Sphinx>4.0.0,<7",
         "testcontainers==4.4.0",
+        "python-keycloak==4.2.2",
         "pre-commit<3.3.2",
         "assertpy==1.1",
         "pip-tools",
