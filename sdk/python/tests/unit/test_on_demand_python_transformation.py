@@ -1,6 +1,7 @@
 import os
 import re
 import tempfile
+import time
 import unittest
 from datetime import datetime, timedelta
 from typing import Any
@@ -285,9 +286,16 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
         entity_rows = [
             {
                 "driver_id": 1001,
+                "conv_rate": 0.25,
+                "acc_rate": 0.25,
             }
         ]
 
+        self.store.write_to_online_store(
+            feature_view_name="python_stored_writes_feature_view",
+            df=entity_rows,
+        )
+        time.sleep(1)
         online_python_response = self.store.get_online_features(
             entity_rows=entity_rows,
             features=[

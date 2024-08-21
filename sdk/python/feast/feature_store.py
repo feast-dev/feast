@@ -1444,19 +1444,18 @@ class FeatureStore:
             inputs: Optional the dictionary object to be written
             allow_registry_cache (optional): Whether to allow retrieving feature views from a cached registry.
         """
-        # TODO: restrict this to work with online StreamFeatureViews and validate the FeatureView type
+        feature_view_dict = {
+            fv_proto.name: fv_proto
+            for fv_proto in self.list_all_feature_views(allow_registry_cache)
+        }
         try:
-            feature_view: FeatureView = self.get_stream_feature_view(
-                feature_view_name, allow_registry_cache=allow_registry_cache
-            )
+            feature_view = feature_view_dict[feature_view_name]
         except FeatureViewNotFoundException:
-            feature_view = self.get_feature_view(
-                feature_view_name, allow_registry_cache=allow_registry_cache
-            )
+            raise FeatureViewNotFoundException(feature_view_name, self.project)
         if df is not None and inputs is not None:
             raise ValueError("Both df and inputs cannot be provided at the same time.")
         if df is None and inputs is not None:
-            if isinstance(inputs, dict):
+            if isinstance(inputs, dict) or isinstance(inputs, List):
                 try:
                     df = pd.DataFrame(inputs)
                 except Exception as _:
@@ -1465,6 +1464,13 @@ class FeatureStore:
                 pass
             else:
                 raise ValueError("inputs must be a dictionary or a pandas DataFrame.")
+        if df is not None and inputs is None:
+            if isinstance(df, dict) or isinstance(df, List):
+                try:
+                    df = pd.DataFrame(df)
+                except Exception as _:
+                    raise DataFrameSerializationError
+
         provider = self._get_provider()
         provider.ingest_df(feature_view, df)
 

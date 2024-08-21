@@ -279,6 +279,10 @@ class PassthroughProvider(Provider):
     ):
         table = pa.Table.from_pandas(df)
 
+        # TODO: Update this to support On Demand Feature Views.
+        # Note: A dictionary mapping of column names in this data
+        #   source to feature names in a feature table or view. Only used for feature
+        #   columns, not entity or timestamp columns.
         if feature_view.batch_source.field_mapping is not None:
             table = _run_pyarrow_field_mapping(
                 table, feature_view.batch_source.field_mapping
