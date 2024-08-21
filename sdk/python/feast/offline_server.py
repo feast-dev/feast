@@ -3,7 +3,7 @@ import json
 import logging
 import traceback
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict, List, cast
 
 import pyarrow as pa
 import pyarrow.flight as fl
@@ -12,14 +12,33 @@ from feast import FeatureStore, FeatureView, utils
 from feast.feature_logging import FeatureServiceLoggingSource
 from feast.feature_view import DUMMY_ENTITY_NAME
 from feast.infra.offline_stores.offline_utils import get_offline_store_from_config
+from feast.permissions.action import AuthzedAction
+from feast.permissions.security_manager import assert_permissions
+from feast.permissions.server.arrow import (
+    arrowflight_middleware,
+    inject_user_details_decorator,
+)
+from feast.permissions.server.utils import (
+    ServerType,
+    init_auth_manager,
+    init_security_manager,
+    str_to_auth_manager_type,
+)
 from feast.saved_dataset import SavedDatasetStorage
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 class OfflineServer(fl.FlightServerBase):
     def __init__(self, store: FeatureStore, location: str, **kwargs):
-        super(OfflineServer, self).__init__(location, **kwargs)
+        super(OfflineServer, self).__init__(
+            location,
+            middleware=arrowflight_middleware(
+                str_to_auth_manager_type(store.config.auth_config.type)
+            ),
+            **kwargs,
+        )
         self._location = location
         # A dictionary of configured flights, e.g. API calls received and not yet served
         self.flights: Dict[str, Any] = {}
@@ -41,6 +60,7 @@ class OfflineServer(fl.FlightServerBase):
 
         return fl.FlightInfo(schema, descriptor, endpoints, -1, -1)
 
+    @inject_user_details_decorator
     def get_flight_info(
         self, context: fl.ServerCallContext, descriptor: fl.FlightDescriptor
     ):
@@ -49,6 +69,7 @@ class OfflineServer(fl.FlightServerBase):
             return self._make_flight_info(key, descriptor)
         raise KeyError("Flight not found.")
 
+    @inject_user_details_decorator
     def list_flights(self, context: fl.ServerCallContext, criteria: bytes):
         for key, table in self.flights.items():
             if key[1] is not None:
@@ -60,6 +81,7 @@ class OfflineServer(fl.FlightServerBase):
 
     # Expects to receive request parameters and stores them in the flights dictionary
     # Indexed by the unique command
+    @inject_user_details_decorator
     def do_put(
         self,
         context: fl.ServerCallContext,
@@ -156,6 +178,7 @@ class OfflineServer(fl.FlightServerBase):
 
     # Extracts the API parameters from the flights dictionary, delegates the execution to the FeatureStore instance
     # and returns the stream of data
+    @inject_user_details_decorator
     def do_get(self, context: fl.ServerCallContext, ticket: fl.Ticket):
         key = ast.literal_eval(ticket.ticket.decode())
         if key not in self.flights:
@@ -217,7 +240,15 @@ class OfflineServer(fl.FlightServerBase):
         assert len(feature_views) == 1, "incorrect feature view"
         table = self.flights[key]
         self.offline_store.offline_write_batch(
-            self.store.config, feature_views[0], table, command["progress"]
+            self.store.config,
+            cast(
+                FeatureView,
+                assert_permissions(
+                    feature_views[0], actions=[AuthzedAction.WRITE_OFFLINE]
+                ),
+            ),
+            table,
+            command["progress"],
         )
 
     def _validate_write_logged_features_parameters(self, command: dict):
@@ -234,6 +265,10 @@ class OfflineServer(fl.FlightServerBase):
             feature_service.logging_config is not None
         ), "feature service must have logging_config set"
 
+        assert_permissions(
+            resource=feature_service,
+            actions=[AuthzedAction.WRITE_OFFLINE],
+        )
         self.offline_store.write_logged_features(
             config=self.store.config,
             data=table,
@@ -260,10 +295,12 @@ class OfflineServer(fl.FlightServerBase):
 
     def pull_all_from_table_or_query(self, command: dict):
         self._validate_pull_all_from_table_or_query_parameters(command)
+        data_source = self.store.get_data_source(command["data_source_name"])
+        assert_permissions(data_source, actions=[AuthzedAction.READ_OFFLINE])
 
         return self.offline_store.pull_all_from_table_or_query(
             self.store.config,
-            self.store.get_data_source(command["data_source_name"]),
+            data_source,
             command["join_key_columns"],
             command["feature_name_columns"],
             command["timestamp_field"],
@@ -287,10 +324,11 @@ class OfflineServer(fl.FlightServerBase):
 
     def pull_latest_from_table_or_query(self, command: dict):
         self._validate_pull_latest_from_table_or_query_parameters(command)
-
+        data_source = self.store.get_data_source(command["data_source_name"])
+        assert_permissions(resource=data_source, actions=[AuthzedAction.READ_OFFLINE])
         return self.offline_store.pull_latest_from_table_or_query(
             self.store.config,
-            self.store.get_data_source(command["data_source_name"]),
+            data_source,
             command["join_key_columns"],
             command["feature_name_columns"],
             command["timestamp_field"],
@@ -343,6 +381,11 @@ class OfflineServer(fl.FlightServerBase):
             project=project,
         )
 
+        for feature_view in feature_views:
+            assert_permissions(
+                resource=feature_view, actions=[AuthzedAction.READ_OFFLINE]
+            )
+
         retJob = self.offline_store.get_historical_features(
             config=self.store.config,
             feature_views=feature_views,
@@ -377,6 +420,10 @@ class OfflineServer(fl.FlightServerBase):
                 raise NotImplementedError
 
             data_source = self.store.get_data_source(command["data_source_name"])
+            assert_permissions(
+                resource=data_source,
+                actions=[AuthzedAction.WRITE_OFFLINE],
+            )
             storage = SavedDatasetStorage.from_data_source(data_source)
             ret_job.persist(storage, command["allow_overwrite"], command["timeout"])
         except Exception as e:
@@ -401,11 +448,23 @@ def remove_dummies(fv: FeatureView) -> FeatureView:
     return fv
 
 
+def _init_auth_manager(store: FeatureStore):
+    auth_type = str_to_auth_manager_type(store.config.auth_config.type)
+    init_security_manager(auth_type=auth_type, fs=store)
+    init_auth_manager(
+        auth_type=auth_type,
+        server_type=ServerType.ARROW,
+        auth_config=store.config.auth_config,
+    )
+
+
 def start_server(
     store: FeatureStore,
     host: str,
     port: int,
 ):
+    _init_auth_manager(store)
+
     location = "grpc+tcp://{}:{}".format(host, port)
     server = OfflineServer(store, location)
     logger.info(f"Offline store server serving on {location}")

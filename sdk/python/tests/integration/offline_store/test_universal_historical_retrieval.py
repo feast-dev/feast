@@ -21,6 +21,7 @@ from tests.integration.feature_repos.repo_configuration import (
     table_name_from_data_source,
 )
 from tests.integration.feature_repos.universal.data_sources.file import (
+    RemoteOfflineOidcAuthStoreDataSourceCreator,
     RemoteOfflineStoreDataSourceCreator,
 )
 from tests.integration.feature_repos.universal.data_sources.snowflake import (
@@ -162,7 +163,11 @@ def test_historical_features_main(
     )
 
     if not isinstance(
-        environment.data_source_creator, RemoteOfflineStoreDataSourceCreator
+        environment.data_source_creator,
+        (
+            RemoteOfflineStoreDataSourceCreator,
+            RemoteOfflineOidcAuthStoreDataSourceCreator,
+        ),
     ):
         assert_feature_service_correctness(
             store,

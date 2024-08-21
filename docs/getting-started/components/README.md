@@ -19,3 +19,7 @@
 {% content-ref url="provider.md" %}
 [provider.md](provider.md)
 {% endcontent-ref %}
+
+{% content-ref url="authz_manager.md" %}
+[authz_manager.md](authz_manager.md)
+{% endcontent-ref %}

@@ -23,6 +23,7 @@
   * [Feature retrieval](getting-started/concepts/feature-retrieval.md)
   * [Point-in-time joins](getting-started/concepts/point-in-time-joins.md)
   * [Registry](getting-started/concepts/registry.md)
+  * [Role-Based Access Control (RBAC)](getting-started/architecture/rbac.md)
   * [\[Alpha\] Saved dataset](getting-started/concepts/dataset.md)
 * [Components](getting-started/components/README.md)
   * [Overview](getting-started/components/overview.md)
