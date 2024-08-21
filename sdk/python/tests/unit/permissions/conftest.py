@@ -49,6 +49,7 @@ def users() -> list[User]:
     users.append(User("w", ["writer"]))
     users.append(User("rw", ["reader", "writer"]))
     users.append(User("admin", ["reader", "writer", "admin"]))
+    users.append(User("test1234", []))
     return dict([(u.username, u) for u in users])
 
 

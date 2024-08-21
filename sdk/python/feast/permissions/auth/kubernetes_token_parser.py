@@ -1,4 +1,5 @@
 import logging
+import os
 
 import jwt
 from kubernetes import client, config
@@ -41,10 +42,14 @@ class KubernetesTokenParser(TokenParser):
         current_user = f"{sa_namespace}:{sa_name}"
         logging.info(f"Received request from {sa_name} in {sa_namespace}")
 
-        roles = self.get_roles(sa_namespace, sa_name)
-        logging.info(f"SA roles are: {roles}")
+        intra_communication_base64 = os.getenv("INTRA_COMMUNICATION_BASE64")
+        if sa_name is not None and sa_name == intra_communication_base64:
+            return User(username=sa_name, roles=[])
+        else:
+            roles = self.get_roles(sa_namespace, sa_name)
+            logging.info(f"SA roles are: {roles}")
 
-        return User(username=current_user, roles=roles)
+            return User(username=current_user, roles=roles)
 
     def get_roles(self, namespace: str, service_account_name: str) -> list[str]:
         """

@@ -1,4 +1,5 @@
 import logging
+import os
 from contextvars import ContextVar
 from typing import List, Optional, Union
 
@@ -102,8 +103,12 @@ def assert_permissions(
     Raises:
         PermissionError: If the current user is not authorized to execute the requested actions on the given resources.
     """
+    intra_communication_base64 = os.getenv("INTRA_COMMUNICATION_BASE64")
     sm = get_security_manager()
-    if sm is None:
+    if sm is None or (
+        sm.current_user is not None
+        and sm.current_user.username == intra_communication_base64
+    ):
         return resource
     return sm.assert_permissions(
         resources=[resource], actions=actions, filter_only=False
@@ -125,8 +130,13 @@ def permitted_resources(
     Returns:
         list[FeastObject]]: A filtered list of the permitted resources, possibly empty.
     """
+
+    intra_communication_base64 = os.getenv("INTRA_COMMUNICATION_BASE64")
     sm = get_security_manager()
-    if sm is None:
+    if sm is None or (
+        sm.current_user is not None
+        and sm.current_user.username == intra_communication_base64
+    ):
         return resources
     return sm.assert_permissions(resources=resources, actions=actions, filter_only=True)
 

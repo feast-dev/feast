@@ -1,5 +1,7 @@
 import logging
+import os
 
+import jwt
 import requests
 
 from feast.permissions.auth_model import OidcAuthConfig
@@ -29,6 +31,15 @@ class OidcAuthClientManager(AuthenticationClientManager):
             )
 
     def get_token(self):
+        intra_communication_base64 = os.getenv("INTRA_COMMUNICATION_BASE64")
+        # If intra server communication call
+        if intra_communication_base64:
+            payload = {
+                "preferred_username": f"{intra_communication_base64}",  # Subject claim
+            }
+
+            return jwt.encode(payload, "")
+
         # Fetch the token endpoint from the discovery URL
         token_endpoint = self._get_token_endpoint()
 
