@@ -86,7 +86,7 @@ test-python-unit:
 	python -m pytest -n 8 --color=yes sdk/python/tests
 
 test-python-integration:
-	python -m pytest -n 4 --integration --color=yes --durations=10 --timeout=1200 --timeout_method=thread \
+	python -m pytest -n 8 --integration --color=yes --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
 		-k "(not snowflake or not test_historical_features_main)" \
 		sdk/python/tests
 
