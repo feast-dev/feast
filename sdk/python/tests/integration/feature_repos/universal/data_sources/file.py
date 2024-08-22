@@ -456,6 +456,9 @@ auth:
         self.server_port: int = 0
         self.proc = None
 
+    def xdist_groups() -> list[str]:
+        return ["keycloak"]
+
     def setup(self, registry: RegistryConfig):
         parent_offline_config = super().create_offline_store_config()
         config = RepoConfig(
