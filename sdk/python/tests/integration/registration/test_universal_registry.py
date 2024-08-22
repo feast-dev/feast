@@ -36,6 +36,7 @@ from feast.feature_view import FeatureView
 from feast.field import Field
 from feast.infra.infra_object import Infra
 from feast.infra.online_stores.sqlite import SqliteTable
+from feast.infra.registry.base_registry import BaseRegistry
 from feast.infra.registry.registry import Registry
 from feast.infra.registry.remote import RemoteRegistry, RemoteRegistryConfig
 from feast.infra.registry.sql import SqlRegistry
@@ -92,7 +93,7 @@ def s3_registry() -> Registry:
 
 
 @pytest.fixture(scope="session")
-def minio_registry() -> Registry:
+def minio_registry():
     bucket_name = "test-bucket"
 
     container = MinioContainer()
@@ -127,7 +128,7 @@ POSTGRES_DB = "test"
 logger = logging.getLogger(__name__)
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="session")
 def pg_registry():
     container = (
         DockerContainer("postgres:latest")
@@ -146,7 +147,7 @@ def pg_registry():
     container.stop()
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="session")
 def pg_registry_async():
     container = (
         DockerContainer("postgres:latest")
@@ -190,7 +191,7 @@ def _given_registry_config_for_pg_sql(
     )
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="session")
 def mysql_registry():
     container = MySqlContainer("mysql:latest")
     container.start()
@@ -202,7 +203,7 @@ def mysql_registry():
     container.stop()
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="session")
 def mysql_registry_async():
     container = MySqlContainer("mysql:latest")
     container.start()
@@ -407,7 +408,7 @@ def assert_project_uuid(project, project_uuid, test_registry):
     "test_registry",
     all_fixtures,
 )
-def test_apply_feature_view_success(test_registry):
+def test_apply_feature_view_success(test_registry: BaseRegistry):
     # Create Feature Views
     batch_source = FileSource(
         file_format=ParquetFormat(),
@@ -456,6 +457,8 @@ def test_apply_feature_view_success(test_registry):
     )
 
     feature_view = test_registry.get_feature_view("my_feature_view_1", project)
+    any_feature_view = test_registry.get_any_feature_view("my_feature_view_1", project)
+
     assert (
         feature_view.name == "my_feature_view_1"
         and feature_view.features[0].name == "fs1_my_feature_1"
@@ -467,6 +470,7 @@ def test_apply_feature_view_success(test_registry):
         and feature_view.features[3].name == "fs1_my_feature_4"
         and feature_view.features[3].dtype == Array(Bytes)
         and feature_view.entities[0] == "fs1_my_entity_1"
+        and feature_view == any_feature_view
     )
     assert feature_view.ttl == timedelta(minutes=5)
 
@@ -494,7 +498,7 @@ def test_apply_feature_view_success(test_registry):
     "test_registry",
     sql_fixtures,
 )
-def test_apply_on_demand_feature_view_success(test_registry):
+def test_apply_on_demand_feature_view_success(test_registry: BaseRegistry):
     # Create Feature Views
     driver_stats = FileSource(
         name="driver_stats_source",
@@ -537,6 +541,7 @@ def test_apply_on_demand_feature_view_success(test_registry):
         test_registry.get_user_metadata(project, location_features_from_push)
 
     # Register Feature View
+    test_registry.apply_feature_view(driver_daily_features_view, project)
     test_registry.apply_feature_view(location_features_from_push, project)
 
     assert not test_registry.get_user_metadata(project, location_features_from_push)
@@ -555,13 +560,21 @@ def test_apply_on_demand_feature_view_success(test_registry):
         and feature_views[0].features[0].dtype == String
     )
 
+    all_feature_views = test_registry.list_all_feature_views(project)
+
+    assert len(all_feature_views) == 2
+
     feature_view = test_registry.get_on_demand_feature_view(
+        "location_features_from_push", project
+    )
+    any_feature_view = test_registry.get_any_feature_view(
         "location_features_from_push", project
     )
     assert (
         feature_view.name == "location_features_from_push"
         and feature_view.features[0].name == "first_char"
         and feature_view.features[0].dtype == String
+        and feature_view == any_feature_view
     )
 
     test_registry.delete_feature_view("location_features_from_push", project)
@@ -1101,7 +1114,7 @@ def test_registry_cache_thread_async(test_registry):
     "test_registry",
     all_fixtures,
 )
-def test_apply_stream_feature_view_success(test_registry):
+def test_apply_stream_feature_view_success(test_registry: BaseRegistry):
     # Create Feature Views
     def simple_udf(x: int):
         return x + 3
@@ -1145,7 +1158,7 @@ def test_apply_stream_feature_view_success(test_registry):
         tags={"team": "matchmaking"},
     )
 
-    project = "project"
+    project = "test_apply_stream_feature_view_success"
 
     # Register Stream Feature View
     test_registry.apply_feature_view(sfv, project)
@@ -1154,8 +1167,14 @@ def test_apply_stream_feature_view_success(test_registry):
         project, tags=sfv.tags
     )
 
+    all_feature_views = test_registry.list_all_feature_views(project, tags=sfv.tags)
+
+    print(stream_feature_views)
+    print(all_feature_views)
+
     # List Feature Views
     assert len(stream_feature_views) == 1
+    assert len(all_feature_views) == 1
     assert stream_feature_views[0] == sfv
 
     test_registry.delete_feature_view("test kafka stream feature view", project)

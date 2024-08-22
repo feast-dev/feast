@@ -32,6 +32,24 @@ from feast.saved_dataset import SavedDataset, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
 
 
+def extract_base_feature_view(
+    any_feature_view: RegistryServer_pb2.AnyFeatureView,
+) -> BaseFeatureView:
+    feature_view_type = any_feature_view.WhichOneof("any_feature_view")
+    if feature_view_type == "feature_view":
+        feature_view = FeatureView.from_proto(any_feature_view.feature_view)
+    elif feature_view_type == "on_demand_feature_view":
+        feature_view = OnDemandFeatureView.from_proto(
+            any_feature_view.on_demand_feature_view
+        )
+    elif feature_view_type == "stream_feature_view":
+        feature_view = StreamFeatureView.from_proto(
+            any_feature_view.stream_feature_view
+        )
+
+    return feature_view
+
+
 class RemoteRegistryConfig(RegistryConfig):
     registry_type: StrictStr = "remote"
     """ str: Provider name or a class name that implements Registry."""
@@ -240,6 +258,37 @@ class RemoteRegistry(BaseRegistry):
         return [
             OnDemandFeatureView.from_proto(on_demand_feature_view)
             for on_demand_feature_view in response.on_demand_feature_views
+        ]
+
+    def get_any_feature_view(
+        self, name: str, project: str, allow_cache: bool = False
+    ) -> BaseFeatureView:
+        request = RegistryServer_pb2.GetAnyFeatureViewRequest(
+            name=name, project=project, allow_cache=allow_cache
+        )
+
+        response: RegistryServer_pb2.GetAnyFeatureViewResponse = (
+            self.stub.GetAnyFeatureView(request)
+        )
+        any_feature_view = response.any_feature_view
+        return extract_base_feature_view(any_feature_view)
+
+    def list_all_feature_views(
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
+    ) -> List[BaseFeatureView]:
+        request = RegistryServer_pb2.ListAllFeatureViewsRequest(
+            project=project, allow_cache=allow_cache, tags=tags
+        )
+
+        response: RegistryServer_pb2.ListAllFeatureViewsResponse = (
+            self.stub.ListAllFeatureViews(request)
+        )
+        return [
+            extract_base_feature_view(any_feature_view)
+            for any_feature_view in response.feature_views
         ]
 
     def get_feature_view(

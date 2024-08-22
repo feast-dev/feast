@@ -31,9 +31,13 @@ service RegistryServer{
 
   // FeatureView RPCs
   rpc ApplyFeatureView (ApplyFeatureViewRequest) returns (google.protobuf.Empty) {}
+  rpc DeleteFeatureView (DeleteFeatureViewRequest) returns (google.protobuf.Empty) {}
+  rpc GetAnyFeatureView (GetAnyFeatureViewRequest) returns (GetAnyFeatureViewResponse) {}
+  rpc ListAllFeatureViews (ListAllFeatureViewsRequest) returns (ListAllFeatureViewsResponse) {}
+
+  // plain FeatureView RPCs
   rpc GetFeatureView (GetFeatureViewRequest) returns (feast.core.FeatureView) {}
   rpc ListFeatureViews (ListFeatureViewsRequest) returns (ListFeatureViewsResponse) {}
-  rpc DeleteFeatureView (DeleteFeatureViewRequest) returns (google.protobuf.Empty) {}
 
   // StreamFeatureView RPCs
   rpc GetStreamFeatureView (GetStreamFeatureViewRequest) returns (feast.core.StreamFeatureView) {}
@@ -200,6 +204,35 @@ message DeleteFeatureViewRequest {
     string project = 2;
     bool commit = 3;
 }
+
+message AnyFeatureView {
+    oneof any_feature_view {
+        feast.core.FeatureView feature_view = 1;
+        feast.core.OnDemandFeatureView on_demand_feature_view = 2;
+        feast.core.StreamFeatureView stream_feature_view = 3;
+    }    
+}
+
+message GetAnyFeatureViewRequest {
+    string name = 1;
+    string project = 2;
+    bool allow_cache = 3;
+}
+
+message GetAnyFeatureViewResponse {
+    AnyFeatureView any_feature_view = 1;
+}
+
+message ListAllFeatureViewsRequest {
+    string project = 1;
+    bool allow_cache = 2;
+    map<string,string> tags = 3;
+}
+
+message ListAllFeatureViewsResponse {
+    repeated AnyFeatureView feature_views = 1;
+}
+
 
 // StreamFeatureView
 

@@ -6,6 +6,7 @@ from datetime import timedelta
 from threading import Lock
 from typing import List, Optional
 
+from feast.base_feature_view import BaseFeatureView
 from feast.data_source import DataSource
 from feast.entity import Entity
 from feast.feature_service import FeatureService
@@ -100,6 +101,39 @@ class CachingRegistry(BaseRegistry):
                 self.cached_registry_proto, project, tags
             )
         return self._list_entities(project, tags)
+
+    @abstractmethod
+    def _get_any_feature_view(self, name: str, project: str) -> BaseFeatureView:
+        pass
+
+    def get_any_feature_view(
+        self, name: str, project: str, allow_cache: bool = False
+    ) -> BaseFeatureView:
+        if allow_cache:
+            self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.get_any_feature_view(
+                self.cached_registry_proto, name, project
+            )
+        return self._get_any_feature_view(name, project)
+
+    @abstractmethod
+    def _list_all_feature_views(
+        self, project: str, tags: Optional[dict[str, str]]
+    ) -> List[BaseFeatureView]:
+        pass
+
+    def list_all_feature_views(
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
+    ) -> List[BaseFeatureView]:
+        if allow_cache:
+            self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.list_all_feature_views(
+                self.cached_registry_proto, project, tags
+            )
+        return self._list_all_feature_views(project, tags)
 
     @abstractmethod
     def _get_feature_view(self, name: str, project: str) -> FeatureView:

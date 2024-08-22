@@ -3,6 +3,7 @@ from functools import wraps
 from typing import List, Optional
 
 from feast import utils
+from feast.base_feature_view import BaseFeatureView
 from feast.data_source import DataSource
 from feast.entity import Entity
 from feast.errors import (
@@ -99,6 +100,33 @@ def get_feature_service(
     raise FeatureServiceNotFoundException(name, project=project)
 
 
+def get_any_feature_view(
+    registry_proto: RegistryProto, name: str, project: str
+) -> BaseFeatureView:
+    for feature_view_proto in registry_proto.feature_views:
+        if (
+            feature_view_proto.spec.name == name
+            and feature_view_proto.spec.project == project
+        ):
+            return FeatureView.from_proto(feature_view_proto)
+
+    for feature_view_proto in registry_proto.stream_feature_views:
+        if (
+            feature_view_proto.spec.name == name
+            and feature_view_proto.spec.project == project
+        ):
+            return StreamFeatureView.from_proto(feature_view_proto)
+
+    for on_demand_feature_view in registry_proto.on_demand_feature_views:
+        if (
+            on_demand_feature_view.spec.project == project
+            and on_demand_feature_view.spec.name == name
+        ):
+            return OnDemandFeatureView.from_proto(on_demand_feature_view)
+
+    raise FeatureViewNotFoundException(name, project)
+
+
 def get_feature_view(
     registry_proto: RegistryProto, name: str, project: str
 ) -> FeatureView:
@@ -183,6 +211,17 @@ def list_feature_services(
         ):
             feature_services.append(FeatureService.from_proto(feature_service_proto))
     return feature_services
+
+
+@registry_proto_cache_with_tags
+def list_all_feature_views(
+    registry_proto: RegistryProto, project: str, tags: Optional[dict[str, str]]
+) -> List[BaseFeatureView]:
+    return (
+        list_feature_views(registry_proto, project, tags)
+        + list_stream_feature_views(registry_proto, project, tags)
+        + list_on_demand_feature_views(registry_proto, project, tags)
+    )
 
 
 @registry_proto_cache_with_tags
