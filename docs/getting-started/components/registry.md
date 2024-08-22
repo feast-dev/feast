@@ -1,6 +1,6 @@
 # Registry
 
-Feast uses a registry to store all applied Feast objects (e.g. Feature views, entities, etc). It allows data scientists to search, discover, and collaborate on new features. The registry exposes methods to apply, list, retrieve and delete these objects, and is an abstraction with multiple implementations.
+The Feast feature registry is a central catalog of all feature definitions and their related metadata. Feast uses the registry to store all applied Feast objects (e.g. Feature views, entities, etc). It allows data scientists to search, discover, and collaborate on new features. The registry exposes methods to apply, list, retrieve and delete these objects, and is an abstraction with multiple implementations.
 
 Feast comes with built-in file-based and sql-based registry implementations. By default, Feast uses a file-based registry, which stores the protobuf representation of the registry as a serialized file in the local file system. For more details on which registries are supported, please see [Registries](../../reference/registries/).
 
@@ -45,3 +45,7 @@ Instantiating a `FeatureStore` object can then point to this:
 ```python
 store = FeatureStore(repo_path=".")
 ```
+
+{% hint style="info" %}
+The file-based feature registry is a [Protobuf representation](https://github.com/feast-dev/feast/blob/master/protos/feast/core/Registry.proto) of Feast metadata. This Protobuf file can be read programmatically from other programming languages, but no compatibility guarantees are made on the internal structure of the registry.
+{% endhint %}
