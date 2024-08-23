@@ -375,7 +375,7 @@ class RemoteRegistry(BaseRegistry):
         ]
 
     def list_project_metadata(
-        self, project: str, allow_cache: bool = False
+        self, project: Optional[str], allow_cache: bool = False
     ) -> List[ProjectMetadata]:
         request = RegistryServer_pb2.ListProjectMetadataRequest(
             project=project, allow_cache=allow_cache

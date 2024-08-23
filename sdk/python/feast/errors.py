@@ -30,6 +30,11 @@ class FeastObjectNotFoundException(Exception):
     pass
 
 
+class ProjectMetadataNotFoundException(FeastObjectNotFoundException):
+    def __init__(self, project: str):
+        super().__init__(f"Project Metadata does not exist in project {project}")
+
+
 class EntityNotFoundException(FeastObjectNotFoundException):
     def __init__(self, name, project=None):
         if project:

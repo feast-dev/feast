@@ -284,13 +284,19 @@ def list_validation_references(
 
 @registry_proto_cache
 def list_project_metadata(
-    registry_proto: RegistryProto, project: str
+    registry_proto: RegistryProto, project: Optional[str]
 ) -> List[ProjectMetadata]:
-    return [
-        ProjectMetadata.from_proto(project_metadata)
-        for project_metadata in registry_proto.project_metadata
-        if project_metadata.project == project
-    ]
+    if project is None:
+        return [
+            ProjectMetadata.from_proto(project_metadata)
+            for project_metadata in registry_proto.project_metadata
+        ]
+    else:
+        return [
+            ProjectMetadata.from_proto(project_metadata)
+            for project_metadata in registry_proto.project_metadata
+            if project_metadata.project == project
+        ]
 
 
 @registry_proto_cache_with_tags

@@ -302,11 +302,11 @@ class CachingRegistry(BaseRegistry):
         return self._list_validation_references(project, tags)
 
     @abstractmethod
-    def _list_project_metadata(self, project: str) -> List[ProjectMetadata]:
+    def _list_project_metadata(self, project: Optional[str]) -> List[ProjectMetadata]:
         pass
 
     def list_project_metadata(
-        self, project: str, allow_cache: bool = False
+        self, project: Optional[str], allow_cache: bool = False
     ) -> List[ProjectMetadata]:
         if allow_cache:
             self._refresh_cached_registry_if_necessary()

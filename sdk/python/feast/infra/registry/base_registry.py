@@ -546,18 +546,68 @@ class BaseRegistry(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def apply_project_metadata(
+        self,
+        project: str,
+        commit: bool = True,
+    ):
+        """
+        Persist a project metadata with a new uuid
+
+        Args:
+            project: Feast project name
+            commit: Whether the change should be persisted immediately
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def delete_project_metadata(
+        self,
+        project: str,
+        commit: bool = True,
+    ):
+        """
+        Deletes a project metadata or raises ProjectMetadataNotFoundException exception if not found.
+
+        Args:
+            project: Feast project name
+            commit: Whether the change should be persisted immediately
+        """
+        raise NotImplementedError
+
+    @abstractmethod
     def list_project_metadata(
-        self, project: str, allow_cache: bool = False
+        self,
+        project: Optional[str],
+        allow_cache: bool = False,
     ) -> List[ProjectMetadata]:
         """
-        Retrieves project metadata
+        Retrieves project metadata if given project name otherwise all project metadata
+
+        Args:
+            project: Filter metadata based on project name or None to retrieve all project metadata
+            allow_cache: Allow returning feature views from the cached registry
+
+        Returns:
+            List of project metadata
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_project_metadata(
+        self,
+        project: str,
+        allow_cache: bool = False,
+    ) -> Optional[ProjectMetadata]:
+        """
+        Retrieves project metadata if present otherwise None
 
         Args:
             project: Filter metadata based on project name
             allow_cache: Allow returning feature views from the cached registry
 
         Returns:
-            List of project metadata
+            Get project metadata if project exists otherwise None
         """
         raise NotImplementedError
 

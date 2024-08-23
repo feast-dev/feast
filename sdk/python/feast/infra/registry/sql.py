@@ -487,23 +487,38 @@ class SqlRegistry(CachingRegistry):
             tags=tags,
         )
 
-    def _list_project_metadata(self, project: str) -> List[ProjectMetadata]:
+    def _list_project_metadata(self, project: Optional[str]) -> List[ProjectMetadata]:
         with self.engine.begin() as conn:
-            stmt = select(feast_metadata).where(
-                feast_metadata.c.project_id == project,
-            )
+            if project is None:
+                stmt = select(feast_metadata)
+            else:
+                stmt = select(feast_metadata).where(
+                    feast_metadata.c.project_id == project,
+                )
             rows = conn.execute(stmt).all()
             if rows:
-                project_metadata = ProjectMetadata(project_name=project)
+                project_metadata_dict: Dict[str, ProjectMetadata] = {}
                 for row in rows:
-                    if (
-                        row._mapping["metadata_key"]
-                        == FeastMetadataKeys.PROJECT_UUID.value
-                    ):
-                        project_metadata.project_uuid = row._mapping["metadata_value"]
-                        break
-                    # TODO(adchia): Add other project metadata in a structured way
-                return [project_metadata]
+                    project_id = row._mapping["project_id"]
+                    metadata_key = row._mapping["metadata_key"]
+                    metadata_value = row._mapping["metadata_value"]
+
+                    if project_id not in project_metadata_dict:
+                        project_metadata_dict[project_id] = ProjectMetadata(
+                            project_name=project_id
+                        )
+
+                    project_metadata_model: ProjectMetadata = project_metadata_dict[
+                        project_id
+                    ]
+                    if metadata_key == FeastMetadataKeys.PROJECT_UUID.value:
+                        project_metadata_model.project_uuid = metadata_value
+
+                    if metadata_key == FeastMetadataKeys.LAST_UPDATED_TIMESTAMP.value:
+                        project_metadata_model.last_updated_timestamp = (
+                            datetime.fromtimestamp(int(metadata_value), tz=timezone.utc)
+                        )
+                return list(project_metadata_dict.values())
         return []
 
     def apply_saved_dataset(
@@ -720,7 +735,7 @@ class SqlRegistry(CachingRegistry):
         proto_field_name: str,
         name: Optional[str] = None,
     ):
-        self._maybe_init_project_metadata(project)
+        self.apply_project_metadata(project)
 
         name = name or (obj.name if hasattr(obj, "name") else None)
         assert name, f"name needs to be provided for {obj}"
@@ -791,7 +806,7 @@ class SqlRegistry(CachingRegistry):
 
             self._set_last_updated_metadata(update_datetime, project)
 
-    def _maybe_init_project_metadata(self, project):
+    def apply_project_metadata(self, project):
         # Initialize project metadata if needed
         with self.engine.begin() as conn:
             update_datetime = _utc_now()
@@ -842,7 +857,7 @@ class SqlRegistry(CachingRegistry):
         proto_field_name: str,
         not_found_exception: Optional[Callable],
     ):
-        self._maybe_init_project_metadata(project)
+        self.apply_project_metadata(project)
 
         with self.engine.begin() as conn:
             stmt = select(table).where(
@@ -866,7 +881,7 @@ class SqlRegistry(CachingRegistry):
         proto_field_name: str,
         tags: Optional[dict[str, str]] = None,
     ):
-        self._maybe_init_project_metadata(project)
+        self.apply_project_metadata(project)
         with self.engine.begin() as conn:
             stmt = select(table).where(table.c.project_id == project)
             rows = conn.execute(stmt).all()

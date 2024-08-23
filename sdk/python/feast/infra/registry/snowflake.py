@@ -280,7 +280,7 @@ class SnowflakeRegistry(BaseRegistry):
         proto_field_name: str,
         name: Optional[str] = None,
     ):
-        self._maybe_init_project_metadata(project)
+        self.apply_project_metadata(project)
 
         name = name or (obj.name if hasattr(obj, "name") else None)
         assert name, f"name needs to be provided for {obj}"
@@ -620,7 +620,7 @@ class SnowflakeRegistry(BaseRegistry):
         proto_field_name: str,
         not_found_exception: Optional[Callable],
     ):
-        self._maybe_init_project_metadata(project)
+        self.apply_project_metadata(project)
         with GetSnowflakeConnection(self.registry_config) as conn:
             query = f"""
                 SELECT
@@ -821,7 +821,7 @@ class SnowflakeRegistry(BaseRegistry):
         proto_field_name: str,
         tags: Optional[dict[str, str]] = None,
     ):
-        self._maybe_init_project_metadata(project)
+        self.apply_project_metadata(project)
         with GetSnowflakeConnection(self.registry_config) as conn:
             query = f"""
                 SELECT
@@ -899,7 +899,7 @@ class SnowflakeRegistry(BaseRegistry):
         )
 
     def list_project_metadata(
-        self, project: str, allow_cache: bool = False
+        self, project: Optional[str], allow_cache: bool = False
     ) -> List[ProjectMetadata]:
         if allow_cache:
             self._refresh_cached_registry_if_necessary()
@@ -1091,7 +1091,7 @@ class SnowflakeRegistry(BaseRegistry):
             raise ValueError(f"Unexpected feature view type: {type(feature_view)}")
         return table
 
-    def _maybe_init_project_metadata(self, project):
+    def apply_project_metadata(self, project):
         with GetSnowflakeConnection(self.registry_config) as conn:
             query = f"""
                 SELECT

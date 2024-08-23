@@ -788,7 +788,7 @@ class Registry(BaseRegistry):
         raise ValidationReferenceNotFound(name, project=project)
 
     def list_project_metadata(
-        self, project: str, allow_cache: bool = False
+        self, project: Optional[str], allow_cache: bool = False
     ) -> List[ProjectMetadata]:
         registry_proto = self._get_registry_proto(
             project=project, allow_cache=allow_cache
