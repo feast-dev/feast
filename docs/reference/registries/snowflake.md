@@ -1,4 +1,4 @@
-# Snowflake registry
+# Snowflake Registry
 
 ## Description
 
