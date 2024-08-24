@@ -1,3 +1,4 @@
+import os.path
 import subprocess
 from datetime import datetime
 
@@ -8,7 +9,7 @@ from feast.data_source import PushMode
 
 
 def run_demo():
-    store = FeatureStore(repo_path=".")
+    store = FeatureStore(repo_path=os.path.dirname(__file__))
     print("\n--- Run feast apply to setup feature store on Postgres ---")
     subprocess.run(["feast", "apply"])
 
