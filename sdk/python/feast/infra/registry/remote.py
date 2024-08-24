@@ -377,7 +377,8 @@ class RemoteRegistry(BaseRegistry):
         self, project: Optional[str], allow_cache: bool = False
     ) -> List[ProjectMetadata]:
         request = RegistryServer_pb2.ListProjectMetadataRequest(
-            project=project, allow_cache=allow_cache
+            project="" if project is None else project,
+            allow_cache=allow_cache,
         )
         response = self.stub.ListProjectMetadata(request)
         return [ProjectMetadata.from_proto(pm) for pm in response.project_metadata]
