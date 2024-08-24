@@ -490,7 +490,7 @@ class SqlRegistry(CachingRegistry):
 
     def _list_project_metadata(self, project: Optional[str]) -> List[ProjectMetadata]:
         with self.engine.begin() as conn:
-            if project is None:
+            if not project:
                 stmt = select(feast_metadata)
             else:
                 stmt = select(feast_metadata).where(

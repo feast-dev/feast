@@ -810,7 +810,13 @@ class Registry(BaseRegistry):
         registry_proto = self._get_registry_proto(
             project=project, allow_cache=allow_cache
         )
-        return proto_registry_utils.list_project_metadata(registry_proto, project)
+        project_metadata_proto = proto_registry_utils.get_project_metadata(
+            registry_proto, project
+        )
+        if project_metadata_proto is None:
+            return None
+        else:
+            return ProjectMetadata.from_proto(project_metadata_proto)
 
     def delete_project_metadata(self, project: str, commit: bool = True):
         self._prepare_registry_for_changes(project)

@@ -342,12 +342,12 @@ def test_apply_entity_success(test_registry):
 
     # Register Entity
     test_registry.apply_entity(entity, project)
-    project_metadata = test_registry.list_project_metadata(project=project)
-    assert len(project_metadata) == 1
-    project_metadata = test_registry.list_project_metadata(project=None)
-    assert len(project_metadata) == 1
-    project_uuid = project_metadata[0].project_uuid
-    assert len(project_metadata[0].project_uuid) == 36
+    project_metadata_list = test_registry.list_project_metadata(project=project)
+    assert len(project_metadata_list) == 1
+    project_metadata_list = test_registry.list_project_metadata(project=None)
+    assert len(project_metadata_list) == 1
+    project_uuid = project_metadata_list[0].project_uuid
+    assert len(project_metadata_list[0].project_uuid) == 36
     assert_project_uuid(project, project_uuid, test_registry)
 
     entities = test_registry.list_entities(project, tags=entity.tags)

@@ -286,7 +286,7 @@ def list_validation_references(
 def list_project_metadata(
     registry_proto: RegistryProto, project: Optional[str]
 ) -> List[ProjectMetadata]:
-    if project is None:
+    if not project:
         return [
             ProjectMetadata.from_proto(project_metadata)
             for project_metadata in registry_proto.project_metadata
