@@ -143,9 +143,11 @@ class SnowflakeRegistry(BaseRegistry):
         self.cached_registry_proto_created = _utc_now()
         self._refresh_lock = Lock()
         self.cached_registry_proto_ttl = timedelta(
-            seconds=registry_config.cache_ttl_seconds
-            if registry_config.cache_ttl_seconds is not None
-            else 0
+            seconds=(
+                registry_config.cache_ttl_seconds
+                if registry_config.cache_ttl_seconds is not None
+                else 0
+            )
         )
         self.project = project
 
@@ -901,6 +903,7 @@ class SnowflakeRegistry(BaseRegistry):
     def list_project_metadata(
         self, project: Optional[str], allow_cache: bool = False
     ) -> List[ProjectMetadata]:
+        # TODO: List all projects when project is None
         if allow_cache:
             self._refresh_cached_registry_if_necessary()
             return proto_registry_utils.list_project_metadata(
@@ -927,6 +930,44 @@ class SnowflakeRegistry(BaseRegistry):
                     # TODO(adchia): Add other project metadata in a structured way
                 return [project_metadata]
         return []
+
+    def get_project_metadata(
+        self, project: str, allow_cache: bool = False
+    ) -> Optional[ProjectMetadata]:
+        if allow_cache:
+            self._refresh_cached_registry_if_necessary()
+            project_metadata_proto = proto_registry_utils.get_project_metadata(
+                self.cached_registry_proto, project
+            )
+            if project_metadata_proto is None:
+                return None
+            else:
+                return ProjectMetadata.from_proto(project_metadata_proto)
+
+        with GetSnowflakeConnection(self.registry_config) as conn:
+            query = f"""
+                SELECT
+                    metadata_key,
+                    metadata_value
+                FROM
+                    {self.registry_path}."FEAST_METADATA"
+                WHERE
+                    project_id = '{project}'
+            """
+            df = execute_snowflake_statement(conn, query).fetch_pandas_all()
+
+            if not df.empty:
+                project_metadata = ProjectMetadata(project_name=project)
+                for row in df.iterrows():
+                    if row[1]["METADATA_KEY"] == FeastMetadataKeys.PROJECT_UUID.value:
+                        project_metadata.project_uuid = row[1]["METADATA_VALUE"]
+                        break
+                    # TODO(adchia): Add other project metadata in a structured way
+                return project_metadata
+        return None
+
+    def delete_project_metadata(self, project: StrictStr, commit: bool = True):
+        pass
 
     def apply_user_metadata(
         self,

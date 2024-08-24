@@ -16,10 +16,7 @@ from feast.infra.infra_object import Infra
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.permissions.auth.auth_type import AuthType
-from feast.permissions.auth_model import (
-    AuthConfig,
-    NoAuthConfig,
-)
+from feast.permissions.auth_model import AuthConfig, NoAuthConfig
 from feast.permissions.client.grpc_client_auth_interceptor import (
     GrpcClientAuthHeaderInterceptor,
 )
@@ -173,15 +170,17 @@ class RemoteRegistry(BaseRegistry):
             arg_name = "on_demand_feature_view"
 
         request = RegistryServer_pb2.ApplyFeatureViewRequest(
-            feature_view=feature_view.to_proto()
-            if arg_name == "feature_view"
-            else None,
-            stream_feature_view=feature_view.to_proto()
-            if arg_name == "stream_feature_view"
-            else None,
-            on_demand_feature_view=feature_view.to_proto()
-            if arg_name == "on_demand_feature_view"
-            else None,
+            feature_view=(
+                feature_view.to_proto() if arg_name == "feature_view" else None
+            ),
+            stream_feature_view=(
+                feature_view.to_proto() if arg_name == "stream_feature_view" else None
+            ),
+            on_demand_feature_view=(
+                feature_view.to_proto()
+                if arg_name == "on_demand_feature_view"
+                else None
+            ),
             project=project,
             commit=commit,
         )
@@ -382,6 +381,20 @@ class RemoteRegistry(BaseRegistry):
         )
         response = self.stub.ListProjectMetadata(request)
         return [ProjectMetadata.from_proto(pm) for pm in response.project_metadata]
+
+    def apply_project_metadata(self, project: StrictStr, commit: bool = True):
+        # TODO: Add logic for applying project metadata
+        pass
+
+    def get_project_metadata(
+        self, project: StrictStr, allow_cache: bool = False
+    ) -> ProjectMetadata | None:
+        # TODO: Add logic for getting project metadata
+        pass
+
+    def delete_project_metadata(self, project: StrictStr, commit: bool = True):
+        # TODO: Add logic for deleting project metadata
+        pass
 
     def update_infra(self, infra: Infra, project: str, commit: bool = True):
         request = RegistryServer_pb2.UpdateInfraRequest(

@@ -316,6 +316,24 @@ class CachingRegistry(BaseRegistry):
         return self._list_project_metadata(project)
 
     @abstractmethod
+    def _get_project_metadata(self, project: str) -> Optional[ProjectMetadata]:
+        pass
+
+    def get_project_metadata(
+        self, project: str, allow_cache: bool = False
+    ) -> Optional[ProjectMetadata]:
+        if allow_cache:
+            self._refresh_cached_registry_if_necessary()
+            project_metadata_proto = proto_registry_utils.get_project_metadata(
+                self.cached_registry_proto, project
+            )
+            if project_metadata_proto is None:
+                return None
+            else:
+                return ProjectMetadata.from_proto(project_metadata_proto)
+        return self._get_project_metadata(project)
+
+    @abstractmethod
     def _get_infra(self, project: str) -> Infra:
         pass
 

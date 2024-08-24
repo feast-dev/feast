@@ -31,6 +31,7 @@ from feast.errors import (
     FeatureServiceNotFoundException,
     FeatureViewNotFoundException,
     PermissionNotFoundException,
+    ProjectMetadataNotFoundException,
     SavedDatasetNotFound,
     ValidationReferenceNotFound,
 )
@@ -513,13 +514,34 @@ class SqlRegistry(CachingRegistry):
                     ]
                     if metadata_key == FeastMetadataKeys.PROJECT_UUID.value:
                         project_metadata_model.project_uuid = metadata_value
-
-                    if metadata_key == FeastMetadataKeys.LAST_UPDATED_TIMESTAMP.value:
-                        project_metadata_model.last_updated_timestamp = (
-                            datetime.fromtimestamp(int(metadata_value), tz=timezone.utc)
-                        )
                 return list(project_metadata_dict.values())
         return []
+
+    def _get_project_metadata(
+        self,
+        project: str,
+    ) -> Optional[ProjectMetadata]:
+        """
+        Returns given project metadata.
+        """
+        with self.engine.begin() as conn:
+            stmt = select(feast_metadata).where(
+                feast_metadata.c.project_id == project,
+            )
+            rows = conn.execute(stmt).all()
+            if rows:
+                project_metadata: ProjectMetadata = ProjectMetadata(
+                    project_name=project
+                )
+                for row in rows:
+                    metadata_key = row._mapping["metadata_key"]
+                    metadata_value = row._mapping["metadata_value"]
+
+                    if metadata_key == FeastMetadataKeys.PROJECT_UUID.value:
+                        project_metadata.project_uuid = metadata_value
+                return project_metadata
+            else:
+                return None
 
     def apply_saved_dataset(
         self,
@@ -826,6 +848,25 @@ class SqlRegistry(CachingRegistry):
                 }
                 insert_stmt = insert(feast_metadata).values(values)
                 conn.execute(insert_stmt)
+
+    def delete_project_metadata(self, project: str, commit: bool = True):
+        project_metadata = self.get_project_metadata(project, allow_cache=False)
+        if project_metadata is None:
+            raise ProjectMetadataNotFoundException(project)
+        with self.engine.begin() as conn:
+            for t in {
+                entities,
+                data_sources,
+                feature_views,
+                feature_services,
+                on_demand_feature_views,
+                saved_datasets,
+                validation_references,
+                managed_infra,
+                feast_metadata,
+            }:
+                stmt = delete(t).where(t.c.project_id == project)
+                conn.execute(stmt)
 
     def _delete_object(
         self,

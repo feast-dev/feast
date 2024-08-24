@@ -32,6 +32,7 @@ from feast.errors import (
     FeatureServiceNotFoundException,
     FeatureViewNotFoundException,
     PermissionNotFoundException,
+    ProjectMetadataNotFoundException,
     ValidationReferenceNotFound,
 )
 from feast.feature_service import FeatureService
@@ -214,9 +215,11 @@ class Registry(BaseRegistry):
 
             self._registry_store = cls(registry_config, repo_path)
             self.cached_registry_proto_ttl = timedelta(
-                seconds=registry_config.cache_ttl_seconds
-                if registry_config.cache_ttl_seconds is not None
-                else 0
+                seconds=(
+                    registry_config.cache_ttl_seconds
+                    if registry_config.cache_ttl_seconds is not None
+                    else 0
+                )
             )
 
     def clone(self) -> "Registry":
@@ -787,6 +790,12 @@ class Registry(BaseRegistry):
                 return
         raise ValidationReferenceNotFound(name, project=project)
 
+    def apply_project_metadata(self, project: str, commit: bool = True):
+        self._prepare_registry_for_changes(project)
+        assert self.cached_registry_proto
+        if commit:
+            self.commit()
+
     def list_project_metadata(
         self, project: Optional[str], allow_cache: bool = False
     ) -> List[ProjectMetadata]:
@@ -794,6 +803,72 @@ class Registry(BaseRegistry):
             project=project, allow_cache=allow_cache
         )
         return proto_registry_utils.list_project_metadata(registry_proto, project)
+
+    def get_project_metadata(
+        self, project: str, allow_cache: bool = False
+    ) -> Optional[ProjectMetadata]:
+        registry_proto = self._get_registry_proto(
+            project=project, allow_cache=allow_cache
+        )
+        project_metadata_proto = proto_registry_utils.get_project_metadata(
+            self.cached_registry_proto, project
+        )
+        if project_metadata_proto is None:
+            return None
+        else:
+            return ProjectMetadata.from_proto(project_metadata_proto)
+
+    def delete_project_metadata(self, project: str, commit: bool = True):
+        self._prepare_registry_for_changes(project)
+        assert self.cached_registry_proto
+
+        for idx, project_metadata_proto in enumerate(
+            self.cached_registry_proto.project_metadata
+        ):
+            if project_metadata_proto.project == project:
+                list_entities = self.list_entities(project)
+                list_feature_views = self.list_feature_views(project)
+                list_on_demand_feature_views = self.list_on_demand_feature_views(
+                    project
+                )
+                list_stream_feature_views = self.list_stream_feature_views(project)
+                list_feature_services = self.list_feature_services(project)
+                list_data_sources = self.list_data_sources(project)
+                list_saved_datasets = self.list_saved_datasets(project)
+                list_validation_references = self.list_validation_references(project)
+                list_permissions = self.list_permissions(project)
+                for entity in list_entities:
+                    self.delete_entity(entity.name, project, commit=False)
+                for feature_view in list_feature_views:
+                    self.delete_feature_view(feature_view.name, project, commit=False)
+                for on_demand_feature_view in list_on_demand_feature_views:
+                    self.delete_feature_view(
+                        on_demand_feature_view.name, project, commit=False
+                    )
+                for stream_feature_view in list_stream_feature_views:
+                    self.delete_feature_view(
+                        stream_feature_view.name, project, commit=False
+                    )
+                for feature_service in list_feature_services:
+                    self.delete_feature_service(
+                        feature_service.name, project, commit=False
+                    )
+                for data_source in list_data_sources:
+                    self.delete_data_source(data_source.name, project, commit=False)
+                for saved_dataset in list_saved_datasets:
+                    self.delete_saved_dataset(saved_dataset.name, project, commit=False)
+                for validation_reference in list_validation_references:
+                    self.delete_validation_reference(
+                        validation_reference.name, project, commit=False
+                    )
+                for permission in list_permissions:
+                    self.delete_permission(permission.name, project, commit=False)
+                del self.cached_registry_proto.project_metadata[idx]
+                if commit:
+                    self.commit()
+                return
+
+        raise ProjectMetadataNotFoundException(project)
 
     def commit(self):
         """Commits the state of the registry cache to the remote registry store."""

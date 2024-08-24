@@ -93,7 +93,7 @@ message GetInfraRequest {
 }
 
 message ListProjectMetadataRequest {
-  string project = 1;
+  optional string project = 1;
   bool allow_cache = 2;    
 }
 
