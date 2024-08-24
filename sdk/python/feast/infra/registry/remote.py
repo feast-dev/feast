@@ -388,7 +388,7 @@ class RemoteRegistry(BaseRegistry):
 
     def get_project_metadata(
         self, project: StrictStr, allow_cache: bool = False
-    ) -> ProjectMetadata | None:
+    ) -> Optional[ProjectMetadata]:
         # TODO: Add logic for getting project metadata
         pass
 
