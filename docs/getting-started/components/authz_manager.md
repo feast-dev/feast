@@ -68,8 +68,7 @@ auth:
   type: oidc
   client_id: _CLIENT_ID__
   client_secret: _CLIENT_SECRET__
-  realm: _REALM__
-  auth_server_url: _OIDC_SERVER_URL_
+  realm: _REALM__  
   auth_discovery_url: _OIDC_SERVER_URL_/realms/master/.well-known/openid-configuration
 ...
 ```
