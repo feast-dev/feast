@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: client-admin-user
+  namespace: feast-dev
+  labels:
+    app: client-admin
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: client-admin
+  template:
+    metadata:
+      labels:
+        app: client-admin
+    spec:
+      containers:
+        - name: client-admin-container
+          image: feastdev/feature-server:latest
+          imagePullPolicy: Always
+          command: ["sleep", "infinity"]
+          env:
+            - name: KEYCLOAK_CLIENT_SECRET
+              value: <KEYCLOAK_CLIENT_SECRET>
+            - name: FEAST_USERNAME
+              value: admin-user
+            - name: FEAST_PASSWORD
+              value: feast
+          volumeMounts:
+            - name: client-feature-repo-config
+              mountPath: /feature_repo
+      volumes:
+        - name: client-feature-repo-config
+          configMap:
+            name: client-feature-repo-config
