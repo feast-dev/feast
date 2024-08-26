@@ -125,10 +125,6 @@ AZURE_REQUIRED = [
     "pymssql",
 ]
 
-ROCKSET_REQUIRED = [
-    "rockset>=1.0.3",
-]
-
 IKV_REQUIRED = [
     "ikvpy>=0.0.36",
 ]
@@ -214,7 +210,6 @@ CI_REQUIRED = (
     + HBASE_REQUIRED
     + CASSANDRA_REQUIRED
     + AZURE_REQUIRED
-    + ROCKSET_REQUIRED
     + HAZELCAST_REQUIRED
     + IBIS_REQUIRED
     + GRPCIO_REQUIRED
@@ -386,7 +381,6 @@ setup(
         "cassandra": CASSANDRA_REQUIRED,
         "hazelcast": HAZELCAST_REQUIRED,
         "grpcio": GRPCIO_REQUIRED,
-        "rockset": ROCKSET_REQUIRED,
         "ibis": IBIS_REQUIRED,
         "duckdb": DUCKDB_REQUIRED,
         "ikv": IKV_REQUIRED,
