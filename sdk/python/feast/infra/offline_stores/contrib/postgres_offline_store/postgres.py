@@ -1,4 +1,6 @@
 import contextlib
+import sys
+import urllib.parse
 from dataclasses import asdict
 from datetime import datetime, timezone
 from typing import (
@@ -18,6 +20,12 @@ from typing import (
 import numpy as np
 import pandas as pd
 import pyarrow as pa
+
+try:
+    from adbc_driver_manager import OperationalError
+    from adbc_driver_postgresql.dbapi import connect
+except ImportError:
+    pass
 from jinja2 import BaseLoader, Environment
 from psycopg import sql
 
@@ -228,6 +236,63 @@ class PostgreSQLOfflineStore(OfflineStore):
             full_feature_names=False,
             on_demand_feature_views=None,
         )
+
+    if "adbc_driver_postgresql" in sys.modules:
+
+        @staticmethod
+        def offline_write_batch(
+            config: RepoConfig,
+            feature_view: FeatureView,
+            table: pa.Table,
+            progress: Optional[Callable[[int], Any]],
+        ):
+            assert isinstance(config.offline_store, PostgreSQLOfflineStoreConfig)
+            assert isinstance(feature_view.batch_source, PostgreSQLSource)
+
+            (
+                pa_schema,
+                column_names,
+            ) = offline_utils.get_pyarrow_schema_from_batch_source(
+                config, feature_view.batch_source
+            )
+            if column_names != table.column_names:
+                raise ValueError(
+                    f"The input pyarrow table has schema {table.schema} with the incorrect columns {table.column_names}. "
+                    f"The schema is expected to be {pa_schema} with the columns (in this exact order) to be {column_names}."
+                )
+
+            if table.schema != pa_schema:
+                table = table.cast(pa_schema)
+
+            escaped_user = urllib.parse.quote_plus(config.offline_store.user)
+            escaped_password = urllib.parse.quote_plus(config.offline_store.password)
+            escaped_host = urllib.parse.quote_plus(config.offline_store.host)
+            port = config.offline_store.port
+            escaped_database = urllib.parse.quote_plus(config.offline_store.database)
+
+            uri = f"postgresql://{escaped_user}:{escaped_password}@{escaped_host}:{port}/{escaped_database}"
+            with connect(uri) as conn:
+                try:
+                    try:
+                        with conn.cursor() as cur:
+                            cur.adbc_ingest(
+                                feature_view.batch_source.name, table, mode="append"
+                            )
+                    except Exception:
+                        conn.rollback()
+                    else:
+                        conn.commit()
+                except OperationalError:
+                    # If the table does not exist, create it
+                    try:
+                        with conn.cursor() as cur:
+                            cur.adbc_ingest(
+                                feature_view.batch_source.name, table, mode="create"
+                            )
+                    except Exception:
+                        conn.rollback()
+                    else:
+                        conn.commit()
 
 
 class PostgreSQLRetrievalJob(RetrievalJob):

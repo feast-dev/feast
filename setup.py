@@ -101,6 +101,8 @@ TRINO_REQUIRED = ["trino>=0.305.0,<0.400.0", "regex"]
 
 POSTGRES_REQUIRED = [
     "psycopg[binary,pool]>=3.0.0,<4",
+    "adbc-driver-manager==0.6.0",
+    "adbc-driver-postgresql==0.6.0",
 ]
 
 OPENTELEMETRY = ["prometheus_client","psutil"]
