@@ -130,14 +130,14 @@ class SnowflakeMaterializationEngine(BatchMaterializationEngine):
         with GetSnowflakeConnection(self.repo_config.batch_engine) as conn:
             query = f"SHOW USER FUNCTIONS LIKE 'FEAST_{project.upper()}%' IN SCHEMA {stage_context}"
             cursor = execute_snowflake_statement(conn, query)
-            stage_list = pd.DataFrame(
+            function_list = pd.DataFrame(
                 cursor.fetchall(),
                 columns=[column.name for column in cursor.description],
             )
 
             # if the SHOW FUNCTIONS query returns results,
             # assumes that the materialization functions have been deployed
-            if len(stage_list.index) > 0:
+            if len(function_list.index) > 0:
                 click.echo(
                     f"Materialization functions for {Style.BRIGHT + Fore.GREEN}{project}{Style.RESET_ALL} already detected."
                 )
