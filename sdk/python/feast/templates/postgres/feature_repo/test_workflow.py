@@ -11,7 +11,7 @@ from feast.data_source import PushMode
 def run_demo():
     store = FeatureStore(repo_path=os.path.dirname(__file__))
     print("\n--- Run feast apply to setup feature store on Postgres ---")
-    subprocess.run(["feast", "apply"])
+    subprocess.run(["feast", "--chdir", os.path.dirname(__file__), "apply"])
 
     print("\n--- Historical features for training ---")
     fetch_historical_features_entity_df(store, for_batch_scoring=False)
@@ -55,7 +55,7 @@ def run_demo():
     fetch_online_features(store, source="push")
 
     print("\n--- Run feast teardown ---")
-    subprocess.run(["feast", "teardown"])
+    subprocess.run(["feast", "--chdir", os.path.dirname(__file__), "teardown"])
 
 
 def fetch_historical_features_entity_df(store: FeatureStore, for_batch_scoring: bool):
