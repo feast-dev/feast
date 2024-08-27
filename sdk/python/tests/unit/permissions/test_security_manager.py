@@ -1,8 +1,14 @@
 import assertpy
 import pytest
 
+from feast.entity import Entity
+from feast.errors import FeastObjectNotFoundException
 from feast.permissions.action import READ, AuthzedAction
-from feast.permissions.security_manager import assert_permissions, permitted_resources
+from feast.permissions.security_manager import (
+    assert_permissions,
+    assert_permissions_to_update,
+    permitted_resources,
+)
 
 
 @pytest.mark.parametrize(
@@ -24,7 +30,7 @@ from feast.permissions.security_manager import assert_permissions, permitted_res
             True,
         ),
         (
-            "admin",
+            "special",
             [AuthzedAction.DESCRIBE, AuthzedAction.UPDATE],
             False,
             [False, True],
@@ -32,7 +38,7 @@ from feast.permissions.security_manager import assert_permissions, permitted_res
             True,
         ),
         (
-            "admin",
+            "special",
             READ + [AuthzedAction.UPDATE],
             False,
             [False, False],
@@ -81,3 +87,83 @@ def test_access_SecuredFeatureView(
         else:
             result = assert_permissions(resource=r, actions=requested_actions)
             assertpy.assert_that(result).is_none()
+
+
+@pytest.mark.parametrize(
+    "username, allowed",
+    [
+        (None, False),
+        ("r", False),
+        ("w", False),
+        ("rw", False),
+        ("special", False),
+        ("updater", False),
+        ("creator", True),
+        ("admin", True),
+    ],
+)
+def test_create_entity(
+    security_manager,
+    users,
+    username,
+    allowed,
+):
+    sm = security_manager
+    entity = Entity(
+        name="",
+    )
+
+    user = users.get(username)
+    sm.set_current_user(user)
+
+    def getter(name: str, project: str, allow_cache: bool):
+        raise FeastObjectNotFoundException()
+
+    if allowed:
+        result = assert_permissions_to_update(
+            resource=entity, getter=getter, project=""
+        )
+        assertpy.assert_that(result).is_equal_to(entity)
+    else:
+        with pytest.raises(PermissionError):
+            assert_permissions_to_update(resource=entity, getter=getter, project="")
+
+
+@pytest.mark.parametrize(
+    "username, allowed",
+    [
+        (None, False),
+        ("r", False),
+        ("w", False),
+        ("rw", False),
+        ("special", False),
+        ("updater", True),
+        ("creator", False),
+        ("admin", True),
+    ],
+)
+def test_update_entity(
+    security_manager,
+    users,
+    username,
+    allowed,
+):
+    sm = security_manager
+    entity = Entity(
+        name="",
+    )
+
+    user = users.get(username)
+    sm.set_current_user(user)
+
+    def getter(name: str, project: str, allow_cache: bool):
+        return entity
+
+    if allowed:
+        result = assert_permissions_to_update(
+            resource=entity, getter=getter, project=""
+        )
+        assertpy.assert_that(result).is_equal_to(entity)
+    else:
+        with pytest.raises(PermissionError):
+            assert_permissions_to_update(resource=entity, getter=getter, project="")

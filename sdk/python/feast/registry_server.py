@@ -16,7 +16,7 @@ from feast.feature_view import FeatureView
 from feast.infra.infra_object import Infra
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
-from feast.permissions.action import CRUD, AuthzedAction
+from feast.permissions.action import AuthzedAction
 from feast.permissions.permission import Permission
 from feast.permissions.security_manager import (
     assert_permissions,
@@ -45,7 +45,6 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
             Entity,
             assert_permissions_to_update(
                 resource=Entity.from_proto(request.entity),
-                actions=CRUD,
                 getter=self.proxied_registry.get_entity,
                 project=request.project,
             ),
@@ -106,7 +105,6 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
             DataSource,
             assert_permissions_to_update(
                 resource=DataSource.from_proto(request.data_source),
-                actions=CRUD,
                 getter=self.proxied_registry.get_data_source,
                 project=request.project,
             ),
@@ -192,7 +190,6 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
 
         assert_permissions_to_update(
             resource=feature_view,
-            actions=CRUD,
             # Will replace with the new get_any_feature_view method later
             getter=self.proxied_registry.get_feature_view,
             project=request.project,
@@ -318,20 +315,16 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
     def ApplyFeatureService(
         self, request: RegistryServer_pb2.ApplyFeatureServiceRequest, context
     ):
-        feature_service = assert_permissions_to_update(
-            resource=FeatureService.from_proto(request.feature_service),
-            actions=CRUD,
-            getter=self.proxied_registry.get_feature_service,
-            project=request.project,
+        feature_service = cast(
+            FeatureService,
+            assert_permissions_to_update(
+                resource=FeatureService.from_proto(request.feature_service),
+                getter=self.proxied_registry.get_feature_service,
+                project=request.project,
+            ),
         )
         self.proxied_registry.apply_feature_service(
-            feature_service=cast(
-                FeatureService,
-                assert_permissions(
-                    resource=feature_service,
-                    actions=CRUD,
-                ),
-            ),
+            feature_service=feature_service,
             project=request.project,
             commit=request.commit,
         )
@@ -394,7 +387,6 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
             SavedDataset,
             assert_permissions_to_update(
                 resource=SavedDataset.from_proto(request.saved_dataset),
-                actions=CRUD,
                 getter=self.proxied_registry.get_saved_dataset,
                 project=request.project,
             ),
@@ -461,7 +453,6 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
             ValidationReference,
             assert_permissions_to_update(
                 resource=ValidationReference.from_proto(request.validation_reference),
-                actions=CRUD,
                 getter=self.proxied_registry.get_validation_reference,
                 project=request.project,
             ),
@@ -574,7 +565,6 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
             Permission,
             assert_permissions_to_update(
                 resource=Permission.from_proto(request.permission),
-                actions=CRUD,
                 getter=self.proxied_registry.get_permission,
                 project=request.project,
             ),

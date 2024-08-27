@@ -87,20 +87,19 @@ class SecurityManager:
 
 def assert_permissions_to_update(
     resource: FeastObject,
-    actions: Union[AuthzedAction, List[AuthzedAction]],
     getter: Callable[[str, str, bool], FeastObject],
     project: str,
     allow_cache: bool = True,
 ) -> FeastObject:
     """
-    Verify if the current user is authorized to execute the requested actions on the given resource and also checks the authorization on
-    the existing resource, if any.
+    Verify if the current user is authorized to create or update the given resource.
+    If the resource already exists, the user must be granted permission to execute DESCRIBE and UPDATE actions.
+    If the resource does not exist, the user must be granted permission to execute the CREATE action.
 
     If no permissions are defined, the result is to deny the execution.
 
     Args:
         resource: The resources for which we need to enforce authorized permission.
-        actions: The requested actions to be authorized.
         getter: The getter function used to retrieve the existing resource instance by name.
         The signature must be `get_permission(self, name: str, project: str, allow_cache: bool)`
         project: The project nane used in the getter function.
@@ -111,16 +110,17 @@ def assert_permissions_to_update(
     Raises:
         PermissionError: If the current user is not authorized to execute all the requested actions on the given resource or on the existing one.
     """
-    resource_to_update = assert_permissions(resource=resource, actions=actions)
+    actions = [AuthzedAction.DESCRIBE, AuthzedAction.UPDATE]
     try:
         existing_resource = getter(
-            name=resource_to_update.name,
+            name=resource.name,
             project=project,
             allow_cache=allow_cache,
         )  # type: ignore[call-arg]
         assert_permissions(resource=existing_resource, actions=actions)
     except FeastObjectNotFoundException:
-        pass
+        actions = [AuthzedAction.CREATE]
+    resource_to_update = assert_permissions(resource=resource, actions=actions)
     return resource_to_update
 
 
