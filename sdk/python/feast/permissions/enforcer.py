@@ -22,7 +22,7 @@ def enforce_policy(
     Define the logic to apply the configured permissions when a given action is requested on
     a protected resource.
 
-    If no permissions are defined, the result is to allow the execution.
+    If no permissions are defined, the result is to deny the execution.
 
     Args:
         permissions: The configured set of `Permission`.

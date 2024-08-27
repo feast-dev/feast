@@ -1,7 +1,8 @@
 import logging
 from contextvars import ContextVar
-from typing import List, Optional, Union
+from typing import Callable, List, Optional, Union
 
+from feast.errors import FeastObjectNotFoundException
 from feast.feast_object import FeastObject
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.permissions.action import AuthzedAction
@@ -59,9 +60,9 @@ class SecurityManager:
         filter_only: bool = False,
     ) -> list[FeastObject]:
         """
-        Verify if the current user is authorized ro execute the requested actions on the given resources.
+        Verify if the current user is authorized to execute the requested actions on the given resources.
 
-        If no permissions are defined, the result is to allow the execution.
+        If no permissions are defined, the result is to deny the execution.
 
         Args:
             resources: The resources for which we need to enforce authorized permission.
@@ -73,7 +74,7 @@ class SecurityManager:
             list[FeastObject]: A filtered list of the permitted resources, possibly empty.
 
         Raises:
-            PermissionError: If the current user is not authorized to eecute all the requested actions on the given resources.
+            PermissionError: If the current user is not authorized to execute all the requested actions on the given resources.
         """
         return enforce_policy(
             permissions=self.permissions,
@@ -82,6 +83,45 @@ class SecurityManager:
             actions=actions if isinstance(actions, list) else [actions],
             filter_only=filter_only,
         )
+
+
+def assert_permissions_to_update(
+    resource: FeastObject,
+    getter: Callable[[str, str, bool], FeastObject],
+    project: str,
+    allow_cache: bool = True,
+) -> FeastObject:
+    """
+    Verify if the current user is authorized to create or update the given resource.
+    If the resource already exists, the user must be granted permission to execute DESCRIBE and UPDATE actions.
+    If the resource does not exist, the user must be granted permission to execute the CREATE action.
+
+    If no permissions are defined, the result is to deny the execution.
+
+    Args:
+        resource: The resources for which we need to enforce authorized permission.
+        getter: The getter function used to retrieve the existing resource instance by name.
+        The signature must be `get_permission(self, name: str, project: str, allow_cache: bool)`
+        project: The project nane used in the getter function.
+        allow_cache: Whether to use cached data. Defaults to `True`.
+    Returns:
+        FeastObject: The original `resource`, if permitted.
+
+    Raises:
+        PermissionError: If the current user is not authorized to execute all the requested actions on the given resource or on the existing one.
+    """
+    actions = [AuthzedAction.DESCRIBE, AuthzedAction.UPDATE]
+    try:
+        existing_resource = getter(
+            name=resource.name,
+            project=project,
+            allow_cache=allow_cache,
+        )  # type: ignore[call-arg]
+        assert_permissions(resource=existing_resource, actions=actions)
+    except FeastObjectNotFoundException:
+        actions = [AuthzedAction.CREATE]
+    resource_to_update = assert_permissions(resource=resource, actions=actions)
+    return resource_to_update
 
 
 def assert_permissions(
