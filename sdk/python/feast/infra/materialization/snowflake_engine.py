@@ -128,16 +128,16 @@ class SnowflakeMaterializationEngine(BatchMaterializationEngine):
         stage_context = f'"{self.repo_config.batch_engine.database}"."{self.repo_config.batch_engine.schema_}"'
         stage_path = f'{stage_context}."feast_{project}"'
         with GetSnowflakeConnection(self.repo_config.batch_engine) as conn:
-            query = f"SHOW STAGES IN {stage_context}"
+            query = f"SHOW USER FUNCTIONS LIKE 'FEAST_{project.upper()}%' IN SCHEMA {stage_context}"
             cursor = execute_snowflake_statement(conn, query)
             stage_list = pd.DataFrame(
                 cursor.fetchall(),
                 columns=[column.name for column in cursor.description],
             )
 
-            # if the stage already exists,
+            # if the SHOW FUNCTIONS query returns results,
             # assumes that the materialization functions have been deployed
-            if f"feast_{project}" in stage_list["name"].tolist():
+            if len(stage_list.index) > 0:
                 click.echo(
                     f"Materialization functions for {Style.BRIGHT + Fore.GREEN}{project}{Style.RESET_ALL} already detected."
                 )
@@ -149,7 +149,7 @@ class SnowflakeMaterializationEngine(BatchMaterializationEngine):
             )
             click.echo()
 
-            query = f"CREATE STAGE {stage_path}"
+            query = f"CREATE STAGE IF NOT EXISTS {stage_path}"
             execute_snowflake_statement(conn, query)
 
             copy_path, zip_path = package_snowpark_zip(project)
