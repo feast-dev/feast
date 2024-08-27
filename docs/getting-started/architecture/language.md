@@ -1,10 +1,10 @@
 # Python: The Language of Production Machine Learning
 
-Use Python to serve your features online.
+Use Python to serve your features.
 
 
 ## Why should you use Python to Serve features for Machine Learning? 
-Python has emerged as the primary language for machine learning, and this extends to feature serving and there are five main reasons Feast recommends using a microservice in Feast.
+Python has emerged as the primary language for machine learning, and this extends to feature serving and there are five main reasons Feast recommends using a microservice written in Python.
 
 ## 1. Python is the language of Machine Learning
 

@@ -223,6 +223,13 @@ class FeastOnlineStoreInvalidName(Exception):
         )
 
 
+class FeastInvalidAuthConfigClass(Exception):
+    def __init__(self, auth_config_class_name: str):
+        super().__init__(
+            f"Auth Config Class '{auth_config_class_name}' should end with the string `AuthConfig`.'"
+        )
+
+
 class FeastInvalidBaseClass(Exception):
     def __init__(self, class_name: str, class_type: str):
         super().__init__(
@@ -389,6 +396,19 @@ class DataFrameSerializationError(Exception):
         super().__init__(
             f"Failed to serialize the provided dictionary into a pandas DataFrame: {input_dict.keys()}"
         )
+
+
+class PermissionNotFoundException(Exception):
+    def __init__(self, name, project):
+        super().__init__(f"Permission {name} does not exist in project {project}")
+
+
+class PermissionObjectNotFoundException(FeastObjectNotFoundException):
+    def __init__(self, name, project=None):
+        if project:
+            super().__init__(f"Permission {name} does not exist in project {project}")
+        else:
+            super().__init__(f"Permission {name} does not exist")
 
 
 class ZeroRowsQueryResult(Exception):

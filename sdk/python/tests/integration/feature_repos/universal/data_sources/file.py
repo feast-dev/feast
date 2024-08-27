@@ -5,6 +5,7 @@ import subprocess
 import tempfile
 import uuid
 from pathlib import Path
+from subprocess import Popen
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
@@ -32,6 +33,7 @@ from feast.wait import wait_retry_backoff  # noqa: E402
 from tests.integration.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
 )
+from tests.utils.auth_permissions_util import include_auth_config
 from tests.utils.http_server import check_port_open, free_port  # noqa: E402
 
 logger = logging.getLogger(__name__)
@@ -367,7 +369,94 @@ class RemoteOfflineStoreDataSourceCreator(FileDataSourceCreator):
     def __init__(self, project_name: str, *args, **kwargs):
         super().__init__(project_name)
         self.server_port: int = 0
+        self.proc: Optional[Popen[bytes]] = None
+
+    def setup(self, registry: RegistryConfig):
+        parent_offline_config = super().create_offline_store_config()
+        config = RepoConfig(
+            project=self.project_name,
+            provider="local",
+            offline_store=parent_offline_config,
+            registry=registry.path,
+            entity_key_serialization_version=2,
+        )
+
+        repo_path = Path(tempfile.mkdtemp())
+        with open(repo_path / "feature_store.yaml", "w") as outfile:
+            yaml.dump(config.model_dump(by_alias=True), outfile)
+        repo_path = repo_path.resolve()
+
+        self.server_port = free_port()
+        host = "0.0.0.0"
+        cmd = [
+            "feast",
+            "-c" + str(repo_path),
+            "serve_offline",
+            "--host",
+            host,
+            "--port",
+            str(self.server_port),
+        ]
+        self.proc = subprocess.Popen(
+            cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL
+        )
+
+        _time_out_sec: int = 60
+        # Wait for server to start
+        wait_retry_backoff(
+            lambda: (None, check_port_open(host, self.server_port)),
+            timeout_secs=_time_out_sec,
+            timeout_msg=f"Unable to start the feast remote offline server in {_time_out_sec} seconds at port={self.server_port}",
+        )
+        return "grpc+tcp://{}:{}".format(host, self.server_port)
+
+    def create_offline_store_config(self) -> FeastConfigBaseModel:
+        self.remote_offline_store_config = RemoteOfflineStoreConfig(
+            type="remote", host="0.0.0.0", port=self.server_port
+        )
+        return self.remote_offline_store_config
+
+    def teardown(self):
+        super().teardown()
+        if self.proc is not None:
+            self.proc.kill()
+
+            # wait server to free the port
+            wait_retry_backoff(
+                lambda: (
+                    None,
+                    not check_port_open("localhost", self.server_port),
+                ),
+                timeout_secs=30,
+            )
+
+
+class RemoteOfflineOidcAuthStoreDataSourceCreator(FileDataSourceCreator):
+    def __init__(self, project_name: str, *args, **kwargs):
+        super().__init__(project_name)
+        if "fixture_request" in kwargs:
+            request = kwargs["fixture_request"]
+            self.keycloak_url = request.getfixturevalue("start_keycloak_server")
+        else:
+            raise RuntimeError(
+                "fixture_request object is not passed to inject keycloak fixture dynamically."
+            )
+        auth_config_template = """
+auth:
+  type: oidc
+  client_id: feast-integration-client
+  client_secret: feast-integration-client-secret
+  username: reader_writer
+  password: password
+  realm: master
+  auth_discovery_url: {keycloak_url}/realms/master/.well-known/openid-configuration
+"""
+        self.auth_config = auth_config_template.format(keycloak_url=self.keycloak_url)
+        self.server_port: int = 0
         self.proc = None
+
+    def xdist_groups() -> list[str]:
+        return ["keycloak"]
 
     def setup(self, registry: RegistryConfig):
         parent_offline_config = super().create_offline_store_config()
@@ -383,6 +472,10 @@ class RemoteOfflineStoreDataSourceCreator(FileDataSourceCreator):
         with open(repo_path / "feature_store.yaml", "w") as outfile:
             yaml.dump(config.model_dump(by_alias=True), outfile)
         repo_path = str(repo_path.resolve())
+
+        include_auth_config(
+            file_path=f"{repo_path}/feature_store.yaml", auth_config=self.auth_config
+        )
 
         self.server_port = free_port()
         host = "0.0.0.0"
@@ -413,6 +506,9 @@ class RemoteOfflineStoreDataSourceCreator(FileDataSourceCreator):
             type="remote", host="0.0.0.0", port=self.server_port
         )
         return self.remote_offline_store_config
+
+    def get_keycloak_url(self):
+        return self.keycloak_url
 
     def teardown(self):
         super().teardown()

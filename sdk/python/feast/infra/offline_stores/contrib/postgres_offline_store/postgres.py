@@ -1,6 +1,6 @@
 import contextlib
 from dataclasses import asdict
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import (
     Any,
     Callable,
@@ -20,7 +20,6 @@ import pandas as pd
 import pyarrow as pa
 from jinja2 import BaseLoader, Environment
 from psycopg import sql
-from pytz import utc
 
 from feast.data_source import DataSource
 from feast.errors import InvalidEntityType, ZeroColumnQueryResult, ZeroRowsQueryResult
@@ -214,8 +213,8 @@ class PostgreSQLOfflineStore(OfflineStore):
             join_key_columns + feature_name_columns + [timestamp_field]
         )
 
-        start_date = start_date.astimezone(tz=utc)
-        end_date = end_date.astimezone(tz=utc)
+        start_date = start_date.astimezone(tz=timezone.utc)
+        end_date = end_date.astimezone(tz=timezone.utc)
 
         query = f"""
             SELECT {field_string}

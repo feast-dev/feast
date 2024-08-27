@@ -346,7 +346,7 @@ class OnDemandFeatureView(BaseFeatureView):
             ],
             sources=sources,
             feature_transformation=transformation,
-            mode=on_demand_feature_view_proto.spec.mode,
+            mode=on_demand_feature_view_proto.spec.mode or "pandas",
             description=on_demand_feature_view_proto.spec.description,
             tags=dict(on_demand_feature_view_proto.spec.tags),
             owner=on_demand_feature_view_proto.spec.owner,

@@ -19,12 +19,14 @@ from pydantic import (
 
 from feast.errors import (
     FeastFeatureServerTypeInvalidError,
+    FeastInvalidAuthConfigClass,
     FeastOfflineStoreInvalidName,
     FeastOnlineStoreInvalidName,
     FeastRegistryNotSetError,
     FeastRegistryTypeInvalidError,
 )
 from feast.importer import import_class
+from feast.permissions.auth.auth_type import AuthType
 
 warnings.simplefilter("once", RuntimeWarning)
 
@@ -59,7 +61,6 @@ ONLINE_STORE_CLASS_FOR_TYPE = {
     "hbase": "feast.infra.online_stores.contrib.hbase_online_store.hbase.HbaseOnlineStore",
     "cassandra": "feast.infra.online_stores.contrib.cassandra_online_store.cassandra_online_store.CassandraOnlineStore",
     "mysql": "feast.infra.online_stores.contrib.mysql_online_store.mysql.MySQLOnlineStore",
-    "rockset": "feast.infra.online_stores.contrib.rockset_online_store.rockset.RocksetOnlineStore",
     "hazelcast": "feast.infra.online_stores.contrib.hazelcast_online_store.hazelcast_online_store.HazelcastOnlineStore",
     "ikv": "feast.infra.online_stores.contrib.ikv_online_store.ikv.IKVOnlineStore",
     "elasticsearch": "feast.infra.online_stores.contrib.elasticsearch.ElasticSearchOnlineStore",
@@ -84,6 +85,12 @@ OFFLINE_STORE_CLASS_FOR_TYPE = {
 
 FEATURE_SERVER_CONFIG_CLASS_FOR_TYPE = {
     "local": "feast.infra.feature_servers.local_process.config.LocalFeatureServerConfig",
+}
+
+AUTH_CONFIGS_CLASS_FOR_TYPE = {
+    "no_auth": "feast.permissions.auth_model.NoAuthConfig",
+    "kubernetes": "feast.permissions.auth_model.KubernetesAuthConfig",
+    "oidc": "feast.permissions.auth_model.OidcAuthConfig",
 }
 
 
@@ -167,6 +174,9 @@ class RepoConfig(FeastBaseModel):
     online_config: Any = Field(None, alias="online_store")
     """ OnlineStoreConfig: Online store configuration (optional depending on provider) """
 
+    auth: Any = Field(None, alias="auth")
+    """ auth: Optional if the services needs the authentication against IDPs (optional depending on provider) """
+
     offline_config: Any = Field(None, alias="offline_store")
     """ OfflineStoreConfig: Offline store configuration (optional depending on provider) """
 
@@ -210,6 +220,13 @@ class RepoConfig(FeastBaseModel):
 
         self._online_store = None
         self.online_config = data.get("online_store", "sqlite")
+
+        self._auth = None
+        if "auth" not in data:
+            self.auth = dict()
+            self.auth["type"] = AuthType.NONE.value
+        else:
+            self.auth = data.get("auth")
 
         self._batch_engine = None
         if "batch_engine" in data:
@@ -271,6 +288,20 @@ class RepoConfig(FeastBaseModel):
         return self._offline_store
 
     @property
+    def auth_config(self):
+        if not self._auth:
+            if isinstance(self.auth, Dict):
+                self._auth = get_auth_config_from_type(self.auth.get("type"))(
+                    **self.auth
+                )
+            elif isinstance(self.auth, str):
+                self._auth = get_auth_config_from_type(self.auth.get("type"))()
+            elif self.auth:
+                self._auth = self.auth
+
+        return self._auth
+
+    @property
     def online_store(self):
         if not self._online_store:
             if isinstance(self.online_config, Dict):
@@ -299,6 +330,30 @@ class RepoConfig(FeastBaseModel):
                 self._batch_engine = self._batch_engine
 
         return self._batch_engine
+
+    @model_validator(mode="before")
+    def _validate_auth_config(cls, values: Any) -> Any:
+        from feast.permissions.auth_model import AuthConfig
+
+        if "auth" in values:
+            allowed_auth_types = AUTH_CONFIGS_CLASS_FOR_TYPE.keys()
+            if isinstance(values["auth"], Dict):
+                if values["auth"].get("type") is None:
+                    raise ValueError(
+                        f"auth configuration is missing authentication type. Possible values={allowed_auth_types}"
+                    )
+                elif values["auth"]["type"] not in allowed_auth_types:
+                    raise ValueError(
+                        f'auth configuration has invalid authentication type={values["auth"]["type"]}. Possible '
+                        f'values={allowed_auth_types}'
+                    )
+            elif isinstance(values["auth"], AuthConfig):
+                if values["auth"].type not in allowed_auth_types:
+                    raise ValueError(
+                        f'auth configuration has invalid authentication type={values["auth"].type}. Possible '
+                        f'values={allowed_auth_types}'
+                    )
+        return values
 
     @model_validator(mode="before")
     def _validate_online_store_config(cls, values: Any) -> Any:
@@ -476,6 +531,17 @@ def get_online_config_from_type(online_store_type: str):
         raise FeastOnlineStoreInvalidName(online_store_type)
     module_name, online_store_class_type = online_store_type.rsplit(".", 1)
     config_class_name = f"{online_store_class_type}Config"
+
+    return import_class(module_name, config_class_name, config_class_name)
+
+
+def get_auth_config_from_type(auth_config_type: str):
+    if auth_config_type in AUTH_CONFIGS_CLASS_FOR_TYPE:
+        auth_config_type = AUTH_CONFIGS_CLASS_FOR_TYPE[auth_config_type]
+    elif not auth_config_type.endswith("AuthConfig"):
+        raise FeastInvalidAuthConfigClass(auth_config_type)
+    module_name, online_store_class_type = auth_config_type.rsplit(".", 1)
+    config_class_name = f"{online_store_class_type}"
 
     return import_class(module_name, config_class_name, config_class_name)
 

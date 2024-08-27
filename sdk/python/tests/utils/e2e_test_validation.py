@@ -1,13 +1,12 @@
 import math
 import os
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Union
 
 import pandas as pd
 import yaml
-from pytz import utc
 
 from feast import FeatureStore, FeatureView, RepoConfig
 from feast.utils import _utc_now
@@ -39,7 +38,7 @@ def validate_offline_online_store_consistency(
 
     # Run materialize()
     # use both tz-naive & tz-aware timestamps to test that they're both correctly handled
-    start_date = (now - timedelta(hours=5)).replace(tzinfo=utc)
+    start_date = (now - timedelta(hours=5)).replace(tzinfo=timezone.utc)
     end_date = split_dt
     fs.materialize(feature_views=[fv.name], start_date=start_date, end_date=end_date)
 
@@ -87,7 +86,8 @@ def validate_offline_online_store_consistency(
         and updated_fv.materialization_intervals[0][0] == start_date
         and updated_fv.materialization_intervals[0][1] == end_date
         and updated_fv.materialization_intervals[1][0] == end_date
-        and updated_fv.materialization_intervals[1][1] == now.replace(tzinfo=utc)
+        and updated_fv.materialization_intervals[1][1]
+        == now.replace(tzinfo=timezone.utc)
     )
 
     # check result of materialize_incremental()

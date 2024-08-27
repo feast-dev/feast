@@ -1,8 +1,8 @@
 import abc
+from datetime import timezone
 from typing import TYPE_CHECKING, Dict, Optional, Type, cast
 
 import pyarrow as pa
-from pytz import UTC
 
 from feast.data_source import DataSource
 from feast.embedded_go.type_map import FEAST_TYPE_TO_ARROW_TYPE, PA_TIMESTAMP_TYPE
@@ -97,7 +97,7 @@ class FeatureServiceLoggingSource(LoggingSource):
                 )
 
         # system columns
-        fields[LOG_TIMESTAMP_FIELD] = pa.timestamp("us", tz=UTC)
+        fields[LOG_TIMESTAMP_FIELD] = pa.timestamp("us", tz=timezone.utc)
         fields[LOG_DATE_FIELD] = pa.date32()
         fields[REQUEST_ID_FIELD] = pa.string()
 
