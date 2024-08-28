@@ -47,6 +47,9 @@
  ```
  4. Advice: Create aforementioned newest version branch and apply Ki changes f.e. ``0.39-update`` then checkout new branch from that one f.e. ``0.39-update-merge-test``, then merge master into the merge test branch. If everything resolved properly ``0.39-update`` and ``0.39-update-merge-test`` should have no diff but ``0.39-update-merge-test`` will now have a history allowing it to be merged without conflict into ``origin/master`` 
  5. Merge such prepared version into master. It can be tested on dev deployment of feature-store before merging in this repo
+ 6. Some considerations for testing and what needs to be done:
+ - feature store deployment to dev won't show any issues with communication with models as they are inherently pointing to UAT deployment so to properly check everything works, deploy feature store with new version of feast to UAT then check ki-automation @algoRelease set of tests
+ - most probably if there are any breaking or bigger changes, there will be models for which all or some tests fail. General approach is to use new version of ki-features lib in these model deployments as hashes of feast version in feature store deployment and ki feature lib used in models need to be the same. There is overall push for model deployments to use newr version of libraries that no longer require ki-features and in turn are not vulnerable to updates of this feast repo.
 
  ## Current state
  Feast version from upstream: 0.39 (created from release tag as there was no branch)
@@ -61,6 +64,10 @@
  - small change in how async refresh is started; considering how registry refresh is written, it's creating new sql engine (and in turn connection pool) with every refresh; previously it was not a problem because old threads with said engines and connection pools were cleaned right away; with new approach using @asynccontextmanager said previous threads with engines (and connection pools) were not reclaimed automatically leading to connections bleed up to the registry limit
  3. https://github.com/Ki-Insurance/feast/pull/20
  - our own implementation of async feature retrieval used in python sdk form by feature connector service
+ 4. https://github.com/Ki-Insurance/feast/pull/34
+ - comments for reasoning in change
+ 5. https://github.com/Ki-Insurance/feast/pull/36/files
+ - fix for when ODF input values typing can't be inferred for internal format transformations
 
  <br/><br/><br/> 
 
