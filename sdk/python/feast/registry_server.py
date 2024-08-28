@@ -1,6 +1,6 @@
 from concurrent import futures
 from datetime import datetime, timezone
-from typing import Union, cast
+from typing import Optional, Union, cast
 
 import grpc
 from google.protobuf.empty_pb2 import Empty
@@ -13,6 +13,7 @@ from feast.entity import Entity
 from feast.errors import FeatureViewNotFoundException
 from feast.feast_object import FeastObject
 from feast.feature_view import FeatureView
+from feast.grpc_error_interceptor import ErrorInterceptor
 from feast.infra.infra_object import Infra
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
@@ -23,8 +24,9 @@ from feast.permissions.security_manager import (
     assert_permissions_to_update,
     permitted_resources,
 )
-from feast.permissions.server.grpc import grpc_interceptors
+from feast.permissions.server.grpc import AuthInterceptor
 from feast.permissions.server.utils import (
+    AuthManagerType,
     ServerType,
     init_auth_manager,
     init_security_manager,
@@ -668,3 +670,21 @@ def start_server(store: FeatureStore, port: int, wait_for_termination: bool = Tr
         server.wait_for_termination()
     else:
         return server
+
+
+def grpc_interceptors(
+    auth_type: AuthManagerType,
+) -> Optional[list[grpc.ServerInterceptor]]:
+    """
+    A list of the authorization interceptors.
+
+    Args:
+        auth_type: The type of authorization manager, from the feature store configuration.
+
+    Returns:
+        list[grpc.ServerInterceptor]: Optional list of interceptors. If the authorization type is set to `NONE`, it returns `None`.
+    """
+    if auth_type == AuthManagerType.NONE:
+        return [ErrorInterceptor()]
+
+    return [AuthInterceptor(), ErrorInterceptor()]

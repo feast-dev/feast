@@ -2,7 +2,7 @@ import logging
 
 import grpc
 
-from feast.errors import from_error_detail
+from feast.errors import FeastError
 from feast.permissions.auth_model import AuthConfig
 from feast.permissions.client.auth_client_manager_factory import get_auth_token
 
@@ -42,7 +42,7 @@ class GrpcClientAuthHeaderInterceptor(
         client_call_details = self._append_auth_header_metadata(client_call_details)
         result = continuation(client_call_details, request_iterator)
         if result.exception() is not None:
-            mapped_error = from_error_detail(result.exception().details())
+            mapped_error = FeastError.from_error_detail(result.exception().details())
             if mapped_error is not None:
                 raise mapped_error
         return result

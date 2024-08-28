@@ -1,3 +1,4 @@
+import logging
 from typing import Any, List, Optional, Set
 
 from colorama import Fore, Style
@@ -6,15 +7,64 @@ from grpc import StatusCode as GrpcStatusCode
 
 from feast.field import Field
 
+logger = logging.getLogger(__name__)
+
 
 class FeastError(Exception):
     pass
 
-    def rpc_status_code(self) -> GrpcStatusCode:
+    def grpc_status_code(self) -> GrpcStatusCode:
         return GrpcStatusCode.INTERNAL
 
     def http_status_code(self) -> int:
         return HttpStatusCode.HTTP_500_INTERNAL_SERVER_ERROR
+
+    def __str__(self) -> str:
+        if hasattr(self, "__overridden_message__"):
+            return str(getattr(self, "__overridden_message__"))
+        return super().__str__()
+
+    def __repr__(self) -> str:
+        if hasattr(self, "__overridden_message__"):
+            return f"{type(self).__name__}('{getattr(self,'__overridden_message__')}')"
+        return super().__repr__()
+
+    def to_error_detail(self) -> str:
+        """
+        Returns a JSON representation of the error for serialization purposes.
+
+        Returns:
+          str: a string representation of a JSON document including `module`, `class` and `message` fields.
+        """
+        import json
+
+        m = {
+            "module": f"{type(self).__module__}",
+            "class": f"{type(self).__name__}",
+            "message": f"{str(self)}",
+        }
+        return json.dumps(m)
+
+    @staticmethod
+    def from_error_detail(detail: str) -> Optional["FeastError"]:
+        import importlib
+        import json
+
+        try:
+            m = json.loads(detail)
+            if all(f in m for f in ["module", "class", "message"]):
+                module_name = m["module"]
+                class_name = m["class"]
+                message = m["message"]
+                module = importlib.import_module(module_name)
+                class_reference = getattr(module, class_name)
+
+                instance = class_reference(message)
+                setattr(instance, "__overridden_message__", message)
+                return instance
+        except Exception as e:
+            logger.warning(f"Invalid error detail: {detail}: {e}")
+        return None
 
 
 class DataSourceNotFoundException(FeastError):
@@ -41,7 +91,7 @@ class DataSourceRepeatNamesException(FeastError):
 class FeastObjectNotFoundException(FeastError):
     pass
 
-    def rpc_status_code(self) -> GrpcStatusCode:
+    def grpc_status_code(self) -> GrpcStatusCode:
         return GrpcStatusCode.NOT_FOUND
 
     def http_status_code(self) -> int:
@@ -443,7 +493,7 @@ class FeastPermissionError(FeastError, PermissionError):
     def __init__(self, details: str):
         super().__init__(f"Permission error:\n{details}")
 
-    def rpc_status_code(self) -> GrpcStatusCode:
+    def grpc_status_code(self) -> GrpcStatusCode:
         return GrpcStatusCode.PERMISSION_DENIED
 
     def http_status_code(self) -> int:
