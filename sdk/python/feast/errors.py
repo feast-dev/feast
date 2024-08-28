@@ -1,4 +1,4 @@
-from typing import Any, List, Set
+from typing import Any, List, Optional, Set
 
 from colorama import Fore, Style
 
@@ -419,3 +419,30 @@ class ZeroRowsQueryResult(Exception):
 class ZeroColumnQueryResult(Exception):
     def __init__(self, query: str):
         super().__init__(f"This query returned zero columns:\n{query}")
+
+
+def to_error_detail(error: Exception) -> str:
+    import json
+
+    m = {
+        "module": f"{type(error).__module__}",
+        "class": f"{type(error).__name__}",
+        "message": f"{str(error)}",
+    }
+    return json.dumps(m)
+
+
+def from_error_detail(detail: str) -> Optional[Exception]:
+    import importlib
+    import json
+
+    m = json.loads(detail)
+    if all(f in m for f in ["module", "class", "message"]):
+        module_name = m["module"]
+        class_name = m["class"]
+        message = m["message"]
+        module = importlib.import_module(module_name)
+        ClassReference = getattr(module, class_name)
+        instance = ClassReference(message)
+        return instance
+    return None

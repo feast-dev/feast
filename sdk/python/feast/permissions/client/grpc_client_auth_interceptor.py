@@ -2,6 +2,7 @@ import logging
 
 import grpc
 
+from feast.errors import from_error_detail
 from feast.permissions.auth_model import AuthConfig
 from feast.permissions.client.auth_client_manager_factory import get_auth_token
 
@@ -20,26 +21,31 @@ class GrpcClientAuthHeaderInterceptor(
     def intercept_unary_unary(
         self, continuation, client_call_details, request_iterator
     ):
-        client_call_details = self._append_auth_header_metadata(client_call_details)
-        return continuation(client_call_details, request_iterator)
+        return self._handle_call(continuation, client_call_details, request_iterator)
 
     def intercept_unary_stream(
         self, continuation, client_call_details, request_iterator
     ):
-        client_call_details = self._append_auth_header_metadata(client_call_details)
-        return continuation(client_call_details, request_iterator)
+        return self._handle_call(continuation, client_call_details, request_iterator)
 
     def intercept_stream_unary(
         self, continuation, client_call_details, request_iterator
     ):
-        client_call_details = self._append_auth_header_metadata(client_call_details)
-        return continuation(client_call_details, request_iterator)
+        return self._handle_call(continuation, client_call_details, request_iterator)
 
     def intercept_stream_stream(
         self, continuation, client_call_details, request_iterator
     ):
+        return self._handle_call(continuation, client_call_details, request_iterator)
+
+    def _handle_call(self, continuation, client_call_details, request_iterator):
         client_call_details = self._append_auth_header_metadata(client_call_details)
-        return continuation(client_call_details, request_iterator)
+        result = continuation(client_call_details, request_iterator)
+        if result.exception() is not None:
+            mapped_error = from_error_detail(result.exception().details())
+            if mapped_error is not None:
+                raise mapped_error
+        return result
 
     def _append_auth_header_metadata(self, client_call_details):
         logger.debug(
