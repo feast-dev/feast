@@ -115,7 +115,6 @@ class GraphRegistry(CachingRegistry):
             cache_ttl_seconds=registry_config.cache_ttl_seconds
         )
 
-
     def teardown(self):
         for label in [
             "Field",
@@ -282,7 +281,8 @@ class GraphRegistry(CachingRegistry):
         obj: Any,
         proto_field_name: str,
         name: Optional[str] = None,
-        parents: Optional[list[str]] = None # Only used for Field, refers to list of DataSource names
+        parents: Optional[dict] = None, # Only used for Field, refers to DataSource and OnDemandFeatureView names
+        just_create: Optional[bool] = False # Used when creating node as prerequisite
     ):
         self._maybe_init_project_metadata(project)
 
@@ -297,20 +297,39 @@ class GraphRegistry(CachingRegistry):
                 if hasattr(obj, "last_updated_timestamp"):
                     obj.last_updated_timestamp = update_datetime
 
-                if parents:
+                if parents and "ds" in parents:
+                    print(f"Applying field {name} with parent data source {parents['ds']}")
                     result = tx.run(
                         f"""
                         MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(n:{label} {{ {id_field_name}: $name }})
-                        MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(s:DataSource)
+                        MATCH (p)-[:CONTAINS]->(s:DataSource)
                         WHERE ALL(parent_name IN $parents WHERE
                             EXISTS(
-                                (p)-[:CONTAINS]->(s {{ data_source_name: parent_name }})-[:USES]->(n)
+                                (p)-[:CONTAINS]->(s {{ data_source_name: parent_name }})-[:HAS]->(n)
                             )
                         )
                         RETURN n
                         """, 
                         name=name, 
-                        parents=parents,
+                        parents=[parents["ds"]],
+                        project=project
+                    )
+                    node = result.single()
+                elif parents and "odfv" in parents:
+                    print(f"Applying field {name} with parent feature view {parents['odfv']}")
+                    result = tx.run(
+                        f"""
+                        MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(n:{label} {{ {id_field_name}: $name }})
+                        MATCH (p)-[:CONTAINS]->(v:OnDemandFeatureView)
+                        WHERE ALL(parent_name IN $parents WHERE
+                            EXISTS(
+                                (p)-[:CONTAINS]->(v {{ feature_view_name: parent_name }})-[:PRODUCES]->(n)
+                            )
+                        )
+                        RETURN n
+                        """, 
+                        name=name, 
+                        parents=[parents["odfv"]],
                         project=project
                     )
                     node = result.single()
@@ -326,6 +345,7 @@ class GraphRegistry(CachingRegistry):
                     node = result.single()
                 
                 if node:
+                    print(f"Node: {node}")
                     obj_proto = obj.to_proto()
                     '''
                     if proto_field_name in [
@@ -347,17 +367,56 @@ class GraphRegistry(CachingRegistry):
                                 .materialization_intervals
                             )
                     '''
-                    tx.run(
-                        f"""
-                        MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(n:{label} {{ {id_field_name}: $name }})
-                        SET n.{proto_field_name} = $proto_data,
-                            n.last_updated_timestamp = $update_time
-                        """, 
-                        name=name, 
-                        project=project, 
-                        proto_data=obj_proto.SerializeToString(), 
-                        update_time=update_time
-                    )
+                    if parents and "ds" in parents:
+                        tx.run(
+                            f"""
+                            MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(n:{label} {{ {id_field_name}: $name }})
+                            MATCH (p)-[:CONTAINS]->(s:DataSource)
+                            WHERE ALL(parent_name IN $parents WHERE
+                                EXISTS(
+                                    (p)-[:CONTAINS]->(s {{ data_source_name: parent_name }})-[:HAS]->(n)
+                                )
+                            )
+                            SET n.{proto_field_name} = $proto_data,
+                                n.last_updated_timestamp = $update_time
+                            """, 
+                            name=name, 
+                            parents=[parents["ds"]],
+                            project=project,
+                            proto_data=obj_proto.SerializeToString(), 
+                            update_time=update_time
+                        )
+                    elif parents and "odfv" in parents:
+                        tx.run(
+                            f"""
+                            MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(n:{label} {{ {id_field_name}: $name }})
+                            MATCH (p)-[:CONTAINS]->(v:OnDemandFeatureView)
+                            WHERE ALL(parent_name IN $parents WHERE
+                                EXISTS(
+                                    (p)-[:CONTAINS]->(v {{ feature_view_name: parent_name }})-[:PRODUCES]->(n)
+                                )
+                            )
+                            SET n.{proto_field_name} = $proto_data,
+                                n.last_updated_timestamp = $update_time
+                            """, 
+                            name=name, 
+                            parents=[parents["odfv"]],
+                            project=project,
+                            proto_data=obj_proto.SerializeToString(), 
+                            update_time=update_time
+                        )
+                    else:
+                        tx.run(
+                            f"""
+                            MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(n:{label} {{ {id_field_name}: $name }})
+                            SET n.{proto_field_name} = $proto_data,
+                                n.last_updated_timestamp = $update_time
+                            """, 
+                            name=name, 
+                            project=project, 
+                            proto_data=obj_proto.SerializeToString(), 
+                            update_time=update_time
+                        )
                 else:
                     obj_proto = obj.to_proto()
 
@@ -366,42 +425,90 @@ class GraphRegistry(CachingRegistry):
                     ):
                         obj_proto.meta.created_timestamp.FromDatetime(update_datetime)
 
-                    tx.run(
-                        f"""
-                        MATCH (p:Project {{ project_id: $project }})
-                        CREATE (n:{label} {{ 
-                            {id_field_name}: $name, 
-                            {proto_field_name}: $proto_data, 
-                            last_updated_timestamp: $update_time
-                        }})
-                        CREATE (p)-[:CONTAINS]->(n)
-                        """, 
-                        name=name, 
-                        project=project,
-                        proto_data=obj_proto.SerializeToString(), 
-                        update_time=update_time
-                    )
+                    if parents and "ds" in parents:
+                        tx.run(
+                            f"""
+                            MATCH (p:Project {{ project_id: $project }})
+                            CREATE (n:{label} {{ 
+                                {id_field_name}: $name, 
+                                {proto_field_name}: $proto_data, 
+                                last_updated_timestamp: $created_time
+                            }})
+                            CREATE (p)-[:CONTAINS]->(n)
+                            WITH n,p
+                            UNWIND $parents AS parent_name
+                            MATCH (p)-[:CONTAINS]->(s:DataSource {{ data_source_name: parent_name }})
+                            CREATE (s)-[r:HAS]->(n)
+                            SET r.created_at = $created_time
+                            """, 
+                            name=name, 
+                            parents=[parents["ds"]],
+                            project=project,
+                            proto_data=obj_proto.SerializeToString(), 
+                            created_time=datetime.now()
+                        )
+                    elif parents and "odfv" in parents:
+                        tx.run(
+                            f"""
+                            MATCH (p:Project {{ project_id: $project }})
+                            CREATE (n:{label} {{ 
+                                {id_field_name}: $name, 
+                                {proto_field_name}: $proto_data, 
+                                last_updated_timestamp: $created_time
+                            }})
+                            CREATE (p)-[:CONTAINS]->(n)
+                            WITH n,p
+                            UNWIND $parents AS parent_name
+                            MATCH (p)-[:CONTAINS]->(v:OnDemandFeatureView {{ feature_view_name: parent_name }})
+                            CREATE (v)-[r:PRODUCES]->(n)
+                            SET r.created_at = $created_time
+                            """, 
+                            name=name, 
+                            parents=[parents["odfv"]],
+                            project=project,
+                            proto_data=obj_proto.SerializeToString(), 
+                            created_time=datetime.now()
+                        )
+                    else:
+                        tx.run(
+                            f"""
+                            MATCH (p:Project {{ project_id: $project }})
+                            CREATE (n:{label} {{ 
+                                {id_field_name}: $name, 
+                                {proto_field_name}: $proto_data, 
+                                last_updated_timestamp: $update_time
+                            }})
+                            CREATE (p)-[:CONTAINS]->(n)
+                            """, 
+                            name=name, 
+                            project=project,
+                            proto_data=obj_proto.SerializeToString(), 
+                            update_time=update_time
+                        )
 
-                # Add relationship from DataSource to Field, Field properties
-                if isinstance(obj, (Field)):                
-                    tx.run(
-                        f"""
-                        MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(n:{label} {{ {id_field_name}: $name }})
-                        WITH n, p
-                        UNWIND $parents AS parent_name
-                        MATCH (p)-[:CONTAINS]->(s:DataSource {{ data_source_name: parent_name }})
-                        MERGE (s)-[r:USES]->(n)
-                        ON CREATE SET r.created_at = $created_time
-                        SET n.dtype = $dtype,
-                            n.description = $description
-                        """, 
-                        name=name, 
-                        parents=parents,
-                        project=project, 
-                        dtype=f"{obj.dtype}",
-                        description=obj.description,
-                        created_time=datetime.now() 
-                    )
+                if just_create:
+                    return
+                
+                # # Add relationship from DataSource to Field, Field properties
+                # if isinstance(obj, (Field)):                
+                #     tx.run(
+                #         f"""
+                #         MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(n:{label} {{ {id_field_name}: $name }})
+                #         WITH n, p
+                #         UNWIND $parents AS parent_name
+                #         MATCH (p)-[:CONTAINS]->(s:DataSource {{ data_source_name: parent_name }})
+                #         MERGE (s)-[r:HAS]->(n)
+                #         ON CREATE SET r.created_at = $created_time
+                #         SET n.dtype = $dtype,
+                #             n.description = $description
+                #         """, 
+                #         name=name, 
+                #         parents=parents,
+                #         project=project, 
+                #         dtype=f"{obj.dtype}",
+                #         description=obj.description,
+                #         created_time=datetime.now() 
+                #     )
 
                 # Add relationship from RequestSource to Fields
                 if isinstance(obj, (RequestSource)):
@@ -413,7 +520,7 @@ class GraphRegistry(CachingRegistry):
                             f"""
                             MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(v:{label} {{ {id_field_name}: $name }})
                             MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(f:Field {{ field_name: $field_name }})
-                            MERGE (v)-[r:USES]->(f)
+                            MERGE (v)-[r:HAS]->(f)
                             ON CREATE SET r.created_at = $created_time
                             """, 
                             name=name, 
@@ -430,7 +537,7 @@ class GraphRegistry(CachingRegistry):
                         f"""
                         MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(ps:{label} {{ {id_field_name}: $name }})
                         MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(bs:DataSource {{ data_source_name: $batch_name }})
-                        MERGE (ps)-[r:USES]->(bs)
+                        MERGE (ps)-[r:RETRIEVES_FROM]->(bs)
                         ON CREATE SET r.created_at = $created_time
                         """, 
                         name=name, 
@@ -468,7 +575,7 @@ class GraphRegistry(CachingRegistry):
                         f"""
                         MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(v:{label} {{ {id_field_name}: $name }})
                         MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(s:DataSource {{ data_source_name: $source_name }})
-                        MERGE (v)-[r:USES]->(s)
+                        MERGE (v)-[r:POPULATED_FROM]->(s)
                         ON CREATE SET r.created_at = $created_time
                         """, 
                         name=name, 
@@ -485,8 +592,8 @@ class GraphRegistry(CachingRegistry):
                             MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(v:{label} {{ {id_field_name}: $name }})
                             MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(f:Field {{ field_name: $field_name }})
                             MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(s:DataSource {{ data_source_name: $source_name}})
-                            MATCH (s)-[:USES]->(f)
-                            MERGE (v)-[r:USES]->(f)
+                            MATCH (s)-[:HAS]->(f)
+                            MERGE (v)-[r:HAS]->(f)
                             ON CREATE SET r.created_at = $created_time
                             """, 
                             name=name, 
@@ -556,14 +663,16 @@ class GraphRegistry(CachingRegistry):
                 
                 # Add relationship from OnDemandFeatureView to Fields, Data Sources, Feature Views
                 if isinstance(obj, (OnDemandFeatureView)):
+                    '''
                     print(f"Features to connect: {obj.features}")
                     for field in obj.features: 
+                        print(f"In odfv, connecting to feature: {field}")
                         # Check if the relationship already exists before creating it
                         tx.run(
                             f"""
                             MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(v:{label} {{ {id_field_name}: $name }})
-                            MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(f:Field {{ field_name: $field_name }})
-                            MERGE (v)-[r:USES]->(f)
+                            MATCH (p)-[:CONTAINS]->(f:Field {{ field_name: $field_name }})
+                            MERGE (v)-[r:PRODUCES]->(f)
                             ON CREATE SET r.created_at = $created_time
                             """, 
                             name=name, 
@@ -571,7 +680,35 @@ class GraphRegistry(CachingRegistry):
                             project=project,
                             created_time=datetime.now() 
                         )
-                    
+                        
+                        tx.run(
+                            f"""
+                            MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(v:{label} {{ {id_field_name}: $name }})
+                            OPTIONAL MATCH (p)-[:CONTAINS]->(f:Field {{ field_name: $field_name }})
+                            OPTIONAL MATCH (otherNode)-[r:PRODUCES]->(f)
+                            WHERE otherNode <> v
+                            
+                            WITH p, v, f, COLLECT(otherNode) AS otherNodes
+                            
+                            FOREACH (_ IN CASE WHEN f IS NULL OR SIZE(otherNodes) > 0 THEN [1] ELSE [] END |
+                                CREATE (newField:Field {{ field_name: $field_name, created_at: $created_time }})
+                                MERGE (p)-[:CONTAINS]->(newField)
+                                MERGE (v)-[r:PRODUCES]->(newField)
+                                ON CREATE SET r.created_at = $created_time
+                            )
+                            
+                            FOREACH (_ IN CASE WHEN f IS NOT NULL AND SIZE(otherNodes) = 0 THEN [1] ELSE [] END |
+                                MERGE (v)-[r:PRODUCES]->(f)
+                                ON CREATE SET r.created_at = $created_time
+                            )
+                            """, 
+                            project=project,
+                            id_field_name=id_field_name,
+                            name=name,
+                            field_name=field.name,
+                            created_time=datetime.now()
+                        )
+                    '''
                     sources = []
                     for source in obj.source_request_sources.keys():
                         sources.append(source)
@@ -585,7 +722,7 @@ class GraphRegistry(CachingRegistry):
                             MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(v:{label} {{ {id_field_name}: $name }})
                             MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(s)
                             WHERE (s:DataSource AND s.data_source_name = $source_name) OR (s:FeatureView AND s.feature_view_name = $source_name)
-                            MERGE (v)-[r:USES]->(s)
+                            MERGE (v)-[r:BASED_ON]->(s)
                             ON CREATE SET r.created_at = $created_time
                             """, 
                             name=name, 
@@ -596,14 +733,13 @@ class GraphRegistry(CachingRegistry):
                     
                 # Add FeatureService ???
                 if isinstance(obj, (FeatureService)):
-                    print(f"Feature Views to connect: {obj.feature_view_projections}")
-                    for view in obj.feature_view_projections: 
+                    for view in obj._features: 
                         # Check if the relationship already exists before creating it  
                         tx.run(
                             f"""
                             MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(s:{label} {{ {id_field_name}: $name }})
-                            MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(v:FeatureView {{ feature_view_name: $view_name }})
-                            MERGE (s)-[r:USES]->(v)
+                            MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(v {{ feature_view_name: $view_name }})
+                            MERGE (s)-[r:CONSUMES]->(v)
                             ON CREATE SET r.created_at = $created_time
                             """, 
                             name=name, 
@@ -633,7 +769,7 @@ class GraphRegistry(CachingRegistry):
             proto_field_name="entity_proto"
         )
 
-    def apply_data_source(self, data_source: DataSource, project: str, commit: bool = True):
+    def apply_data_source(self, data_source: DataSource, project: str, commit: bool = True, just_create: bool = False):
         #print(f"Applying data source with fields: {data_source.field_mapping}")
         if isinstance(data_source, (RequestSource)):
             print(f"Features to apply: {data_source.schema}")
@@ -641,7 +777,9 @@ class GraphRegistry(CachingRegistry):
                 self.apply_field(
                     field=field, 
                     project=project, 
-                    data_sources=[data_source.name], 
+                    parents={
+                        "ds": data_source.name
+                    }, 
                     commit=commit
                 )
         return self._apply_object(
@@ -652,7 +790,7 @@ class GraphRegistry(CachingRegistry):
             proto_field_name="data_source_proto"
         )
 
-    def apply_feature_view(self, feature_view: BaseFeatureView, project: str, commit: bool = True):
+    def apply_feature_view(self, feature_view: BaseFeatureView, project: str, commit: bool = True, just_create: bool = False):
         fv_label = self._infer_fv_label(feature_view)
         '''
         print(f"Features to apply: {feature_view.features}")
@@ -667,7 +805,8 @@ class GraphRegistry(CachingRegistry):
             self.apply_data_source(
                 data_source=feature_view.batch_source, 
                 project=project, 
-                commit=commit
+                commit=commit,
+                just_create=True
             )   
             if feature_view.stream_source:
                 print(f"Stream source: {feature_view.stream_source}")
@@ -675,7 +814,8 @@ class GraphRegistry(CachingRegistry):
                 self.apply_data_source(
                     data_source=feature_view.stream_source, 
                     project=project, 
-                    commit=commit
+                    commit=commit,
+                    just_create=True
                 )  
 
                 # Apply features with batch_source as parent
@@ -684,7 +824,9 @@ class GraphRegistry(CachingRegistry):
                     self.apply_field(
                         field=field, 
                         project=project, 
-                        data_sources=[feature_view.stream_source.name], 
+                        parents={
+                            "ds": feature_view.stream_source.name
+                        }, 
                         commit=commit
                     )
             else:
@@ -694,10 +836,22 @@ class GraphRegistry(CachingRegistry):
                     self.apply_field(
                         field=field, 
                         project=project, 
-                        data_sources=[feature_view.batch_source.name], 
+                        parents={
+                            "ds": feature_view.batch_source.name
+                        }, 
                         commit=commit
                     )
         elif fv_label == on_demand_feature_views:
+            # Initial apply to create node
+            self._apply_object(
+                label=fv_label, 
+                project=project, 
+                id_field_name="feature_view_name", 
+                obj=feature_view, 
+                proto_field_name="feature_view_proto",
+                just_create=True
+            )
+            
             # print(f"{feature_view.feature_transformation.udf_string}")
             # print(f"Feature dependencies: {feature_view.feature_dependencies}")
             # TODO: Get feature views from feature_view_projections
@@ -712,15 +866,18 @@ class GraphRegistry(CachingRegistry):
                 self.apply_data_source(
                     data_source=rs, 
                     project=project, 
-                    commit=commit
+                    commit=commit,
+                    just_create=True
                 )  
-            # TODO: Apply features with multiple parents
-            print(f"Features to apply: {feature_view.features}")
+            # TODO: Apply features with unknown parents
+            # print(f"Features to apply: {feature_view.features}")
             for field in feature_view.features:
                 self.apply_field(
                     field=field, 
                     project=project,
-                    data_sources=None,
+                    parents={
+                        "odfv": feature_view.name
+                    },
                     commit=commit
                 )    
             
@@ -745,7 +902,19 @@ class GraphRegistry(CachingRegistry):
         )
 
     def apply_feature_service(self, feature_service: FeatureService, project: str, commit: bool = True):
-        print(f"Feature View Projections: {feature_service.feature_view_projections}")
+        # TODO: Apply feature views
+        #print(f"Feature View Projections: {feature_service.feature_view_projections}")
+
+        # TODO: Apply (on demand) feature views
+        print(f"Feature service _features: {feature_service._features}")
+        for fv in feature_service._features:
+            self.apply_feature_view(
+                feature_view=fv,
+                project=project,
+                commit=commit,
+                just_create=True
+            )
+
         return self._apply_object(
             label=feature_services,
             project=project,
@@ -772,14 +941,14 @@ class GraphRegistry(CachingRegistry):
             proto_field_name="validation_reference_proto"
         )
 
-    def apply_field(self, field: Field, project: str, data_sources: Optional[list[str]]=None, commit: bool = True): 
+    def apply_field(self, field: Field, project: str, parents: Optional[dict]=None, commit: bool = True, just_create: bool = False): 
         return self._apply_object(
             label="Field", 
             project=project, 
             id_field_name="field_name", 
             obj=field, 
             proto_field_name="field_proto",
-            parents=data_sources
+            parents=parents
         )   
     
     def apply_materialization(
@@ -1194,7 +1363,7 @@ class GraphRegistry(CachingRegistry):
             tags=tags
         )
         # Debugging unit test
-        print(f"List odfvs: {l}")
+        # print(f"List odfvs: {l}")
         return l
 
     def _list_feature_services(self, project: str, tags: Optional[dict[str, str]] = None) -> List[FeatureService]:
@@ -1337,7 +1506,7 @@ class GraphRegistry(CachingRegistry):
         query = f"""
                 MATCH (p:Project {{ project_id: {project} }})-[:CONTAINS]->(df:Field {{ field_name: {dep_name} }})
                 MATCH (p:Project {{ project_id: {project} }})-[:CONTAINS]->(f:Field {{ field_name: {feature_name} }})
-                MATCH (n)-[:USES]->(df)
+                MATCH (n)-[:HAS]->(df)
                 WHERE {combined_condition}
                 MERGE (df)-[r:USED_FOR]->(f)
                 ON CREATE SET r.created_at = $created_time
@@ -1350,7 +1519,7 @@ class GraphRegistry(CachingRegistry):
                     f"""
                     MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(df:Field {{ field_name: $dep_name }})
                     MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(f:Field {{ field_name: $feature_name }})
-                    MATCH (n)-[:USES]->(df)
+                    MATCH (n)-[HAS]->(df)
                     WHERE {combined_condition}
                     MERGE (df)-[r:USED_FOR]->(f)
                     ON CREATE SET r.created_at = $created_time
