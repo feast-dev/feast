@@ -100,7 +100,8 @@ SQLITE_VEC_REQUIRED = [
 TRINO_REQUIRED = ["trino>=0.305.0,<0.400.0", "regex"]
 
 POSTGRES_REQUIRED = [
-    "psycopg[binary,pool]>=3.0.0,<4",
+    # Temporaryly held back for https://github.com/feast-dev/feast/issues/4463
+    "psycopg[binary,pool]>=3.0.0,<3.2",
 ]
 
 OPENTELEMETRY = ["prometheus_client","psutil"]
@@ -167,7 +168,8 @@ CI_REQUIRED = (
         "minio==7.1.0",
         "mock==2.0.0",
         "moto<5",
-        "mypy>=1.4.1",
+        # Temporarily held back for https://github.com/feast-dev/feast/issues/4462
+        "mypy>=1.4.1,<1.11",
         "urllib3>=1.25.4,<3",
         "psutil==5.9.0",
         "py>=1.11.0",  # https://github.com/pytest-dev/pytest/issues/10420

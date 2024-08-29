@@ -396,7 +396,7 @@ multidict==6.0.5
     # via
     #   aiohttp
     #   yarl
-mypy==1.11.2
+mypy==1.10.1
     # via sqlalchemy
 mypy-extensions==1.0.0
     # via mypy
@@ -521,8 +521,8 @@ protobuf==4.25.4
     #   substrait
 psutil==5.9.0
     # via ipykernel
-psycopg[binary, pool]==3.2.1
-psycopg-binary==3.2.1
+psycopg[binary, pool]==3.1.20
+psycopg-binary==3.1.20
     # via psycopg
 psycopg-pool==3.2.2
     # via psycopg
