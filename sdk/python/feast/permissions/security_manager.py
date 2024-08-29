@@ -1,4 +1,5 @@
 import logging
+import os
 from contextvars import ContextVar
 from typing import Callable, List, Optional, Union
 
@@ -110,6 +111,10 @@ def assert_permissions_to_update(
     Raises:
         FeastPermissionError: If the current user is not authorized to execute all the requested actions on the given resource or on the existing one.
     """
+    sm = get_security_manager()
+    if not is_auth_necessary(sm):
+        return resource
+
     actions = [AuthzedAction.DESCRIBE, AuthzedAction.UPDATE]
     try:
         existing_resource = getter(
@@ -142,10 +147,11 @@ def assert_permissions(
     Raises:
         FeastPermissionError: If the current user is not authorized to execute the requested actions on the given resources.
     """
+
     sm = get_security_manager()
-    if sm is None:
+    if not is_auth_necessary(sm):
         return resource
-    return sm.assert_permissions(
+    return sm.assert_permissions(  # type: ignore[union-attr]
         resources=[resource], actions=actions, filter_only=False
     )[0]
 
@@ -165,10 +171,11 @@ def permitted_resources(
     Returns:
         list[FeastObject]]: A filtered list of the permitted resources, possibly empty.
     """
+
     sm = get_security_manager()
-    if sm is None:
+    if not is_auth_necessary(sm):
         return resources
-    return sm.assert_permissions(resources=resources, actions=actions, filter_only=True)
+    return sm.assert_permissions(resources=resources, actions=actions, filter_only=True)  # type: ignore[union-attr]
 
 
 """
@@ -201,3 +208,13 @@ def no_security_manager():
 
     global _sm
     _sm = None
+
+
+def is_auth_necessary(sm: Optional[SecurityManager]) -> bool:
+    intra_communication_base64 = os.getenv("INTRA_COMMUNICATION_BASE64")
+
+    return (
+        sm is not None
+        and sm.current_user is not None
+        and sm.current_user.username != intra_communication_base64
+    )

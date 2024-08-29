@@ -7,7 +7,7 @@ from feast.errors import FeastPermissionError
 @pytest.mark.parametrize(
     "username, can_read, can_write",
     [
-        (None, False, False),
+        (None, True, True),
         ("r", True, False),
         ("w", False, True),
         ("rw", True, True),
