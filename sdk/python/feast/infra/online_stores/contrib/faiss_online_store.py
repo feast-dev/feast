@@ -11,6 +11,7 @@ from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey
 from feast.protos.feast.types.Value_pb2 import Value
 from feast.repo_config import FeastConfigBaseModel
+from feast.infra.key_encoding_utils import serialize_entity_key, deserialize_entity_key
 
 
 class FaissOnlineStoreConfig(FeastConfigBaseModel):
@@ -99,10 +100,10 @@ class FaissOnlineStore(OnlineStore):
         if self._index is None:
             return [(None, None)] * len(entity_keys)
 
-        results: List[Tuple[Optional[datetime], Optional[Dict[str, Value]]]] = []
+        results = []
         for entity_key in entity_keys:
-            entity_key_tuple = tuple(entity_key.name, entity_key.join_keys)
-            idx = self._in_memory_store.entity_keys.get(entity_key_tuple, -1)
+            serialized_key = serialize_entity_key(entity_key, entity_key_serialization_version=2)
+            idx = self._in_memory_store.entity_keys.get(serialized_key, -1)
             if idx == -1:
                 results.append((None, None))
             else:
@@ -128,10 +129,10 @@ class FaissOnlineStore(OnlineStore):
             return
 
         feature_vectors = []
-        entity_key_tuples = []
+        serialized_keys = []
 
         for entity_key, feature_dict, _, _ in data:
-            entity_key_tuple = (entity_key.name, entity_key.join_keys)
+            serialized_key = serialize_entity_key(entity_key, entity_key_serialization_version=2)
             feature_vector = np.array(
                 [
                     feature_dict[name].double_val
@@ -141,12 +142,12 @@ class FaissOnlineStore(OnlineStore):
             )
 
             feature_vectors.append(feature_vector)
-            entity_key_tuples.append(entity_key_tuple)
+            serialized_keys.append(serialized_key)
 
         feature_vectors_array = np.array(feature_vectors)
 
         existing_indices = [
-            self._in_memory_store.entity_keys.get(ekt, -1) for ekt in entity_key_tuples
+            self._in_memory_store.entity_keys.get(sk, -1) for sk in serialized_keys
         ]
         mask = np.array(existing_indices) != -1
         if np.any(mask):
@@ -159,8 +160,8 @@ class FaissOnlineStore(OnlineStore):
         )
         self._index.add(feature_vectors_array)
 
-        for ekt, idx in zip(entity_key_tuples, new_indices):
-            self._in_memory_store.entity_keys[ekt] = idx
+        for sk, idx in zip(serialized_keys, new_indices):
+            self._in_memory_store.entity_keys[sk] = idx
 
         if progress:
             progress(len(data))
