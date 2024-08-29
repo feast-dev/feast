@@ -1,14 +1,16 @@
-from feast.infra.online_stores.online_store import OnlineStore
+import logging
+from datetime import datetime
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+
+import faiss
+import numpy as np
+from google.protobuf.timestamp_pb2 import Timestamp
+
 from feast import Entity, FeatureView, RepoConfig
+from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey
 from feast.protos.feast.types.Value_pb2 import Value
 from feast.repo_config import FeastConfigBaseModel
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
-from datetime import datetime
-import faiss
-import numpy as np
-import logging
-from google.protobuf.timestamp_pb2 import Timestamp
 
 
 class FaissOnlineStoreConfig(FeastConfigBaseModel):
@@ -19,12 +21,9 @@ class FaissOnlineStoreConfig(FeastConfigBaseModel):
 
 
 class InMemoryStore:
-    feature_names: List[str]
-    entity_keys: Dict[Tuple[str, ...], int]
-
     def __init__(self):
-        self.feature_names = []
-        self.entity_keys = {}
+        self.feature_names: List[str] = []
+        self.entity_keys: Dict[Tuple[str, ...], int] = {}
 
     def update(self,
                feature_names: List[str],
@@ -33,13 +32,14 @@ class InMemoryStore:
         self.entity_keys = entity_keys
 
     def delete(self,
-               entity_keys: List[EntityKey]):
+               entity_keys: List[Tuple[str, ...]]):
         for entity_key in entity_keys:
-            del self.entity_keys[entity_key]
+            if entity_key in self.entity_keys:
+                del self.entity_keys[entity_key]
 
     def read(self,
-             entity_keys: List[EntityKey]):
-        return [self.entity_keys.get(entity_key, None) for entity_key in entity_keys]
+             entity_keys: List[Tuple[str, ...]]) -> List[Optional[int]]:
+        return [self.entity_keys.get(entity_key) for entity_key in entity_keys]
 
     def teardown(self):
         self.feature_names = []
@@ -54,11 +54,8 @@ class FaissOnlineStore(OnlineStore):
 
     def _get_index(self,
                    config: RepoConfig) -> faiss.IndexIVFFlat:
-        if self._index is None:
-            dimension = config.online_store.dimension
-            quantizer = faiss.IndexFlatL2(dimension)
-            self._index = faiss.IndexIVFFlat(quantizer, dimension, self._config.nlist)
-            self._index.train(np.random.rand(self._config.nlist * 100, dimension).astype(np.float32))
+        if self._index is None or self._config is None:
+            raise ValueError("Index is not initialized")
         return self._index
 
     def update(
@@ -75,9 +72,16 @@ class FaissOnlineStore(OnlineStore):
             return
 
         feature_names = [f.name for f in feature_views[0].features]
-        self._in_memory_store.update(feature_names, {})
+        dimension = len(feature_names)
+
         self._config = FaissOnlineStoreConfig(**config.online_store.dict())
-        self._get_index(config)
+        if self._index is None or not partial:
+            quantizer = faiss.IndexFlatL2(dimension)
+            self._index = faiss.IndexIVFFlat(quantizer, dimension, self._config.nlist)
+            self._index.train(np.random.rand(self._config.nlist * 100, dimension).astype(np.float32))
+            self._in_memory_store = InMemoryStore()
+
+        self._in_memory_store.update(feature_names, {})
 
     def teardown(
             self,
@@ -95,18 +99,25 @@ class FaissOnlineStore(OnlineStore):
             entity_keys: List[EntityKey],
             requested_features: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, Value]]]]:
-        index = self._get_index(config)
-        results = []
+        if self._index is None:
+            return [(None, None)] * len(entity_keys)
+
+        results: List[Tuple[Optional[datetime], Optional[Dict[str, Value]]]] = []
         for entity_key in entity_keys:
-            entity_key_tuple = tuple(f"{field.name}:{field.value.string_val}" for field in entity_key.join_keys)
+            entity_key_tuple = tuple(
+                f"{field.name}:{field.value.string_val}"
+                for field in entity_key.join_keys
+            )
             idx = self._in_memory_store.entity_keys.get(entity_key_tuple, -1)
             if idx == -1:
                 results.append((None, None))
             else:
-                feature_vector = index.reconstruct(int(idx))
+                feature_vector = self._index.reconstruct(int(idx))
                 feature_dict = {
                     name: Value(double_val=value)
-                    for name, value in zip(self._in_memory_store.feature_names, feature_vector)
+                    for name, value in zip(
+                        self._in_memory_store.feature_names, feature_vector
+                    )
                 }
                 results.append((None, feature_dict))
         return results
@@ -118,28 +129,44 @@ class FaissOnlineStore(OnlineStore):
             data: List[Tuple[EntityKey, Dict[str, Value], datetime, Optional[datetime]]],
             progress: Optional[Callable[[int], Any]],
     ) -> None:
-        index = self._get_index(config)
+        if self._index is None:
+            self._logger.warning("Index is not initialized. Skipping write operation.")
+            return
+
         feature_vectors = []
         entity_key_tuples = []
 
         for entity_key, feature_dict, _, _ in data:
-            entity_key_tuple = tuple(f"{field.name}:{field.value.string_val}" for field in entity_key.join_keys)
-            feature_vector = np.array([
-                feature_dict[name].double_val for name in self._in_memory_store.feature_names
-            ], dtype=np.float32)
+            entity_key_tuple = tuple(
+                f"{field.name}:{field.value.string_val}"
+                for field in entity_key.join_keys
+            )
+            feature_vector = np.array(
+                [
+                    feature_dict[name].double_val
+                    for name in self._in_memory_store.feature_names
+                ],
+                dtype=np.float32,
+            )
 
             feature_vectors.append(feature_vector)
             entity_key_tuples.append(entity_key_tuple)
 
-        feature_vectors = np.array(feature_vectors)
+        feature_vectors_array = np.array(feature_vectors)
 
-        existing_indices = [self._in_memory_store.entity_keys.get(ekt, -1) for ekt in entity_key_tuples]
+        existing_indices = [
+            self._in_memory_store.entity_keys.get(ekt, -1) for ekt in entity_key_tuples
+        ]
         mask = np.array(existing_indices) != -1
         if np.any(mask):
-            index.remove_ids(np.array([idx for idx in existing_indices if idx != -1]))
+            self._index.remove_ids(
+                np.array([idx for idx in existing_indices if idx != -1])
+            )
 
-        new_indices = np.arange(index.ntotal, index.ntotal + len(feature_vectors))
-        index.add(feature_vectors)
+        new_indices = np.arange(
+            self._index.ntotal, self._index.ntotal + len(feature_vectors_array)
+        )
+        self._index.add(feature_vectors_array)
 
         for ekt, idx in zip(entity_key_tuples, new_indices):
             self._in_memory_store.entity_keys[ekt] = idx
@@ -155,17 +182,34 @@ class FaissOnlineStore(OnlineStore):
             embedding: List[float],
             top_k: int,
             distance_metric: Optional[str] = None,
-    ) -> List[Tuple[Optional[datetime], Optional[Value], Optional[Value], Optional[Value]]]:
-        index = self._get_index(config)
-        query_vector = np.array(embedding, dtype=np.float32).reshape(1, -1)
-        distances, indices = index.search(query_vector, top_k)
+    ) -> List[
+        Tuple[
+            Optional[datetime],
+            Optional[Value],
+            Optional[Value],
+            Optional[Value],
+        ]
+    ]:
+        if self._index is None:
+            self._logger.warning("Index is not initialized. Returning empty result.")
+            return []
 
-        results = []
+        query_vector = np.array(embedding, dtype=np.float32).reshape(1, -1)
+        distances, indices = self._index.search(query_vector, top_k)
+
+        results: List[
+            Tuple[
+                Optional[datetime],
+                Optional[Value],
+                Optional[Value],
+                Optional[Value],
+            ]
+        ] = []
         for i, idx in enumerate(indices[0]):
             if idx == -1:
                 continue
 
-            feature_vector = index.reconstruct(int(idx))
+            feature_vector = self._index.reconstruct(int(idx))
 
             timestamp = Timestamp()
             timestamp.GetCurrentTime()
@@ -174,7 +218,14 @@ class FaissOnlineStore(OnlineStore):
             vector_value = Value(string_val=",".join(map(str, feature_vector)))
             distance_value = Value(float_val=distances[0][i])
 
-            results.append((timestamp.ToDatetime(), feature_value, vector_value, distance_value))
+            results.append(
+                (
+                    timestamp.ToDatetime(),
+                    feature_value,
+                    vector_value,
+                    distance_value,
+                )
+            )
 
         return results
 
@@ -186,4 +237,4 @@ class FaissOnlineStore(OnlineStore):
             requested_features: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, Value]]]]:
         # Implement async read if needed
-        pass
+        raise NotImplementedError("Async read is not implemented for FaissOnlineStore")
