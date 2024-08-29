@@ -100,7 +100,7 @@ class FaissOnlineStore(OnlineStore):
         if self._index is None:
             return [(None, None)] * len(entity_keys)
 
-        results = []
+        results: List[Tuple[Optional[datetime], Optional[Dict[str, Any]]]] = []
         for entity_key in entity_keys:
             serialized_key = serialize_entity_key(entity_key, config.entity_key_serialization_version).hex()
             idx = self._in_memory_store.entity_keys.get(serialized_key, -1)
