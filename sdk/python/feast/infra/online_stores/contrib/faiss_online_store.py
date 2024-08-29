@@ -7,7 +7,7 @@ import numpy as np
 from google.protobuf.timestamp_pb2 import Timestamp
 
 from feast import Entity, FeatureView, RepoConfig
-from feast.infra.key_encoding_utils import serialize_entity_key
+from feast.infra.key_encoding_utils import serialize_entity_key, deserialize_entity_key
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey
 from feast.protos.feast.types.Value_pb2 import Value
@@ -102,9 +102,7 @@ class FaissOnlineStore(OnlineStore):
 
         results = []
         for entity_key in entity_keys:
-            serialized_key = serialize_entity_key(
-                entity_key, entity_key_serialization_version=2
-            )
+            serialized_key = serialize_entity_key(entity_key, config.entity_key_serialization_version).hex()
             idx = self._in_memory_store.entity_keys.get(serialized_key, -1)
             if idx == -1:
                 results.append((None, None))
@@ -134,9 +132,7 @@ class FaissOnlineStore(OnlineStore):
         serialized_keys = []
 
         for entity_key, feature_dict, _, _ in data:
-            serialized_key = serialize_entity_key(
-                entity_key, entity_key_serialization_version=2
-            )
+            serialized_key = serialize_entity_key(entity_key, config.entity_key_serialization_version).hex()
             feature_vector = np.array(
                 [
                     feature_dict[name].double_val
