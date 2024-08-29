@@ -20,7 +20,16 @@ from feast.driver_test_data import create_driver_hourly_stats_df
 from feast.field import Field
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
 from feast.on_demand_feature_view import on_demand_feature_view
-from feast.types import Array, Bool, Float32, Float64, Int64, String, UnixTimestamp
+from feast.types import (
+    Array,
+    Bool,
+    Float32,
+    Float64,
+    Int64,
+    String,
+    UnixTimestamp,
+    _utc_now,
+)
 
 
 class TestOnDemandPythonTransformation(unittest.TestCase):
@@ -58,6 +67,13 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
                 path=driver_stats_path,
                 timestamp_field="event_timestamp",
                 created_timestamp_column="created",
+            )
+            input_request_source = RequestSource(
+                name="counter_source",
+                schema=[
+                    Field(name="counter", dtype=Int64),
+                    Field(name="input_datetime", dtype=UnixTimestamp),
+                ],
             )
 
             driver_stats_fv = FeatureView(
@@ -141,10 +157,15 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
                 return output
 
             @on_demand_feature_view(
-                sources=[driver_stats_fv[["conv_rate", "acc_rate"]]],
+                sources=[
+                    driver_stats_fv[["conv_rate", "acc_rate"]],
+                    input_request_source,
+                ],
                 schema=[
                     Field(name="conv_rate_plus_acc", dtype=Float64),
                     Field(name="current_datetime", dtype=UnixTimestamp),
+                    Field(name="counter", dtype=Int64),
+                    Field(name="input_datetime", dtype=UnixTimestamp),
                 ],
                 mode="python",
                 write_to_online_store=True,
@@ -160,6 +181,8 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
                         )
                     ],
                     "current_datetime": [datetime.now() for _ in inputs["conv_rate"]],
+                    "counter": [c + 1 for c in inputs["counter"]],
+                    "input_datetime": [d for d in inputs["input_datetime"]],
                 }
                 print("running odfv transform")
                 return output
@@ -201,6 +224,8 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
         entity_rows = [
             {
                 "driver_id": 1001,
+                "counter": 0,
+                "input_datetime": _utc_now(),
             }
         ]
 
@@ -283,13 +308,18 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
         )
 
     def test_stored_writes(self):
+        current_datetime = _utc_now()
         entity_rows_to_write = [
             {
                 "driver_id": 1001,
                 "conv_rate": 0.25,
                 "acc_rate": 0.25,
+                "counter": 0,
+                "input_datetime": current_datetime,
             }
         ]
+        # Note that here we shouldn't have to pass the request source features for reading
+        # because they should have already been written to the online store
         entity_rows_to_read = [
             {
                 "driver_id": 1001,
@@ -306,6 +336,8 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
             features=[
                 "python_stored_writes_feature_view:conv_rate_plus_acc",
                 "python_stored_writes_feature_view:current_datetime",
+                "python_stored_writes_feature_view:counter",
+                "python_stored_writes_feature_view:input_datetime",
             ],
         ).to_dict()
         print(online_python_response)
@@ -313,7 +345,9 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
             [
                 "driver_id",
                 "conv_rate_plus_acc",
+                "counter",
                 "current_datetime",
+                "input_datetime",
             ]
         )
 
