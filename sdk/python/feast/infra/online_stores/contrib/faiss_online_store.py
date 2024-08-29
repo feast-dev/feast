@@ -99,12 +99,9 @@ class FaissOnlineStore(OnlineStore):
         if self._index is None:
             return [(None, None)] * len(entity_keys)
 
-        results = []
+        results: List[Tuple[Optional[datetime], Optional[Dict[str, Value]]]] = []
         for entity_key in entity_keys:
-            entity_key_tuple = tuple(
-                f"{field.name}:{field.value.string_val}"
-                for field in entity_key.join_keys
-            )
+            entity_key_tuple = tuple(entity_key.name, entity_key.join_keys)
             idx = self._in_memory_store.entity_keys.get(entity_key_tuple, -1)
             if idx == -1:
                 results.append((None, None))
@@ -134,10 +131,7 @@ class FaissOnlineStore(OnlineStore):
         entity_key_tuples = []
 
         for entity_key, feature_dict, _, _ in data:
-            entity_key_tuple = tuple(
-                f"{field.name}:{field.value.string_val}"
-                for field in entity_key.join_keys
-            )
+            entity_key_tuple = (entity_key.name, entity_key.join_keys)
             feature_vector = np.array(
                 [
                     feature_dict[name].double_val
@@ -149,7 +143,7 @@ class FaissOnlineStore(OnlineStore):
             feature_vectors.append(feature_vector)
             entity_key_tuples.append(entity_key_tuple)
 
-        feature_vectors = np.array(feature_vectors)
+        feature_vectors_array = np.array(feature_vectors)
 
         existing_indices = [
             self._in_memory_store.entity_keys.get(ekt, -1) for ekt in entity_key_tuples
@@ -161,9 +155,9 @@ class FaissOnlineStore(OnlineStore):
             )
 
         new_indices = np.arange(
-            self._index.ntotal, self._index.ntotal + len(feature_vectors)
+            self._index.ntotal, self._index.ntotal + len(feature_vectors_array)
         )
-        self._index.add(feature_vectors)
+        self._index.add(feature_vectors_array)
 
         for ekt, idx in zip(entity_key_tuples, new_indices):
             self._in_memory_store.entity_keys[ekt] = idx
