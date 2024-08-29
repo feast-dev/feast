@@ -23,6 +23,7 @@ from tests.unit.permissions.auth.server.test_utils import (
     read_permissions_perm,
     read_projects_perm,
     read_sfv_perm,
+    tag_entity_perm,
 )
 from tests.utils.auth_permissions_util import get_remote_registry_store
 from tests.utils.http_server import check_port_open  # noqa: E402
@@ -79,6 +80,7 @@ def test_registry_apis(
     remote_feature_store = get_remote_registry_store(server_port, feature_store)
     permissions = _test_list_permissions(remote_feature_store, applied_permissions)
     _test_get_entity(remote_feature_store, applied_permissions)
+    _test_tag_entity(remote_feature_store, applied_permissions)
     _test_list_entities(remote_feature_store, applied_permissions)
     _test_get_fv(remote_feature_store, applied_permissions)
     _test_list_fvs(remote_feature_store, applied_permissions)
@@ -140,6 +142,23 @@ def _test_get_entity(client_fs: FeatureStore, permissions: list[Permission]):
             client_fs.get_entity("driver")
         with pytest.raises(EntityNotFoundException):
             client_fs.get_entity("invalid-name")
+
+
+def _test_tag_entity(client_fs: FeatureStore, permissions: list[Permission]):
+    tags = {"test": "tag"}
+    if not _is_auth_enabled(client_fs) or _is_permission_enabled(
+        client_fs, permissions, tag_entity_perm
+    ):
+        client_fs.tag_entity("driver", tags=tags)
+        entity = client_fs.get_entity("driver")
+        assertpy.assert_that(entity).is_not_none()
+        assertpy.assert_that(entity.name).is_equal_to("driver")
+        assertpy.assert_that(entity.tags).is_equal_to(tags)
+    else:
+        with pytest.raises(FeastPermissionError):
+            client_fs.tag_entity("driver", tags=tags)
+        with pytest.raises(EntityNotFoundException):
+            client_fs.tag_entity("invalid-name", tags=tags)
 
 
 def _test_list_entities(client_fs: FeatureStore, permissions: list[Permission]):

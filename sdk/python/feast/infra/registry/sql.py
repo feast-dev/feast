@@ -68,7 +68,8 @@ from feast.protos.feast.core.ValidationProfile_pb2 import (
 from feast.repo_config import RegistryConfig
 from feast.saved_dataset import SavedDataset, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
-from feast.utils import _utc_now
+from feast.utils import _utc_now, apply_tags
+from feast.value_type import validate_tags
 
 metadata = MetaData()
 
@@ -312,6 +313,17 @@ class SqlRegistry(CachingRegistry):
             not_found_exception=FeatureViewNotFoundException,
         )
 
+    def tag_stream_feature_view(
+        self,
+        name: str,
+        project: str,
+        tags: Optional[dict[str, str]] = None,
+        overwrite: bool = False,
+    ):
+        obj = self._get_stream_feature_view(name, project)
+        obj.tags = apply_tags(obj.tags, tags, overwrite)
+        self.apply_feature_view(obj, project)
+
     def _list_stream_feature_views(
         self, project: str, tags: Optional[dict[str, str]]
     ) -> List[StreamFeatureView]:
@@ -400,6 +412,17 @@ class SqlRegistry(CachingRegistry):
             )
         )
 
+    def tag_entity(
+        self,
+        name: str,
+        project: str,
+        tags: Optional[dict[str, str]] = None,
+        overwrite: bool = False,
+    ):
+        obj = self._get_entity(name, project)
+        obj.tags = apply_tags(obj.tags, tags, overwrite)
+        self.apply_entity(obj, project)
+
     def _get_feature_view(self, name: str, project: str) -> FeatureView:
         return self._get_object(
             table=feature_views,
@@ -411,6 +434,17 @@ class SqlRegistry(CachingRegistry):
             proto_field_name="feature_view_proto",
             not_found_exception=FeatureViewNotFoundException,
         )
+
+    def tag_feature_view(
+        self,
+        name: str,
+        project: str,
+        tags: Optional[dict[str, str]] = None,
+        overwrite: bool = False,
+    ):
+        obj = self._get_feature_view(name, project)
+        obj.tags = apply_tags(obj.tags, tags, overwrite)
+        self.apply_feature_view(obj, project)
 
     def _get_on_demand_feature_view(
         self, name: str, project: str
@@ -426,6 +460,17 @@ class SqlRegistry(CachingRegistry):
             not_found_exception=FeatureViewNotFoundException,
         )
 
+    def tag_on_demand_feature_view(
+        self,
+        name: str,
+        project: str,
+        tags: Optional[dict[str, str]] = None,
+        overwrite: bool = False,
+    ):
+        obj = self._get_on_demand_feature_view(name, project)
+        obj.tags = apply_tags(obj.tags, tags, overwrite)
+        self.apply_feature_view(obj, project)
+
     def _get_feature_service(self, name: str, project: str) -> FeatureService:
         return self._get_object(
             table=feature_services,
@@ -437,6 +482,17 @@ class SqlRegistry(CachingRegistry):
             proto_field_name="feature_service_proto",
             not_found_exception=FeatureServiceNotFoundException,
         )
+
+    def tag_feature_service(
+        self,
+        name: str,
+        project: str,
+        tags: Optional[dict[str, str]] = None,
+        overwrite: bool = False,
+    ):
+        obj = self._get_feature_service(name, project)
+        obj.tags = apply_tags(obj.tags, tags, overwrite)
+        self.apply_feature_service(obj, project)
 
     def _get_saved_dataset(self, name: str, project: str) -> SavedDataset:
         return self._get_object(
@@ -450,6 +506,17 @@ class SqlRegistry(CachingRegistry):
             not_found_exception=SavedDatasetNotFound,
         )
 
+    def tag_saved_dataset(
+        self,
+        name: str,
+        project: str,
+        tags: Optional[dict[str, str]] = None,
+        overwrite: bool = False,
+    ):
+        obj = self._get_saved_dataset(name, project)
+        obj.tags = apply_tags(obj.tags, tags, overwrite)
+        self.apply_saved_dataset(obj, project)
+
     def _get_validation_reference(self, name: str, project: str) -> ValidationReference:
         return self._get_object(
             table=validation_references,
@@ -461,6 +528,17 @@ class SqlRegistry(CachingRegistry):
             proto_field_name="validation_reference_proto",
             not_found_exception=ValidationReferenceNotFound,
         )
+
+    def tag_validation_reference(
+        self,
+        name: str,
+        project: str,
+        tags: Optional[dict[str, str]] = None,
+        overwrite: bool = False,
+    ):
+        obj = self._get_validation_reference(name, project)
+        obj.tags = apply_tags(obj.tags, tags, overwrite)
+        self.apply_validation_reference(obj, project)
 
     def _list_validation_references(
         self, project: str, tags: Optional[dict[str, str]] = None
@@ -519,6 +597,17 @@ class SqlRegistry(CachingRegistry):
             proto_field_name="data_source_proto",
             not_found_exception=DataSourceObjectNotFoundException,
         )
+
+    def tag_data_source(
+        self,
+        name: str,
+        project: str,
+        tags: Optional[dict[str, str]] = None,
+        overwrite: bool = False,
+    ):
+        obj = self._get_data_source(name, project)
+        obj.tags = apply_tags(obj.tags, tags, overwrite)
+        self.apply_data_source(obj, project)
 
     def _list_data_sources(
         self, project: str, tags: Optional[dict[str, str]]
@@ -896,6 +985,24 @@ class SqlRegistry(CachingRegistry):
         name = name or (obj.name if hasattr(obj, "name") else None)
         assert name, f"name needs to be provided for {obj}"
 
+        if isinstance(
+            obj,
+            (
+                Project,
+                Permission,
+                FeatureService,
+                FeatureView,
+                OnDemandFeatureView,
+                StreamFeatureView,
+                ValidationReference,
+                DataSource,
+                Entity,
+                SavedDataset,
+                BaseFeatureView,
+            ),
+        ):
+            validate_tags(obj.tags)
+
         with self.write_engine.begin() as conn:
             update_datetime = _utc_now()
             update_time = int(update_datetime.timestamp())
@@ -1121,6 +1228,17 @@ class SqlRegistry(CachingRegistry):
             not_found_exception=PermissionNotFoundException,
         )
 
+    def tag_permission(
+        self,
+        name: str,
+        project: str,
+        tags: Optional[dict[str, str]] = None,
+        overwrite: bool = False,
+    ):
+        obj = self.get_permission(name, project)
+        obj._tags = apply_tags(obj.tags, tags, overwrite)
+        self.apply_permission(obj, project)
+
     def _list_permissions(
         self, project: str, tags: Optional[dict[str, str]]
     ) -> List[Permission]:
@@ -1182,6 +1300,16 @@ class SqlRegistry(CachingRegistry):
             proto_field_name="project_proto",
             not_found_exception=ProjectObjectNotFoundException,
         )
+
+    def tag_project(
+        self,
+        name: str,
+        tags: Optional[dict[str, str]] = None,
+        overwrite: bool = False,
+    ):
+        obj = self.get_project(name)
+        obj.tags = apply_tags(obj.tags, tags, overwrite)
+        self.apply_project(obj)
 
     def apply_project(
         self,

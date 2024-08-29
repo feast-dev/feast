@@ -6,10 +6,13 @@ from textwrap import dedent
 import pytest
 from assertpy import assertpy
 
+from feast import utils
 from feast.feature_store import FeatureStore
+from feast.value_type import tag_key_regex
 from tests.integration.feature_repos.universal.data_sources.file import (
     FileDataSourceCreator,
 )
+from tests.integration.feature_repos.universal.feature_views import TAGS
 from tests.utils.basic_read_write_test import basic_rw_test
 from tests.utils.cli_repo_creator import CliRunner, get_example_repo
 from tests.utils.e2e_test_validation import (
@@ -217,6 +220,153 @@ def test_universal_cli_with_project():
             assertpy.assert_that(projects_list[0].description).is_equal_to(
                 "test_universal_cli_with_project_4567 description"
             )
+
+            # tag commands should fail
+            tags = "release:test"
+
+            result = runner.run(["tag", "project", "foo", tags], cwd=repo_path)
+            assertpy.assert_that(result.returncode).is_equal_to(1)
+            assertpy.assert_that(
+                str(result.stdout, encoding="utf-8").strip()
+            ).is_equal_to("Project foo does not exist")
+
+            result = runner.run(["tag", "entity", "foo", tags], cwd=repo_path)
+            assertpy.assert_that(result.returncode).is_equal_to(1)
+            assertpy.assert_that(
+                str(result.stdout, encoding="utf-8").strip()
+            ).is_equal_to(f"Entity foo does not exist in project {project}")
+            result = runner.run(["tag", "entity", "driver", tags], cwd=repo_path)
+            assertpy.assert_that(result.returncode).is_equal_to(1)
+            assertpy.assert_that(
+                str(result.stdout, encoding="utf-8").strip()
+            ).is_equal_to("Tag 'release' already exists")
+            result = runner.run(
+                ["tag", "entity", "driver", "new:tag, new-"],
+                cwd=repo_path,
+            )
+            assertpy.assert_that(result.returncode).is_equal_to(1)
+            assertpy.assert_that(
+                str(result.stdout, encoding="utf-8").strip()
+            ).is_equal_to(
+                "Can not both modify and remove tag 'new' in the same command"
+            )
+            result = runner.run(
+                ["tag", "entity", "driver", "new-"],
+                cwd=repo_path,
+            )
+            assertpy.assert_that(result.returncode).is_equal_to(1)
+            assertpy.assert_that(
+                str(result.stdout, encoding="utf-8").strip()
+            ).is_equal_to("Tag 'new' not found")
+            result = runner.run(
+                ["tag", "entity", "driver", "new"],
+                cwd=repo_path,
+            )
+            assertpy.assert_that(result.returncode).is_equal_to(1)
+            assertpy.assert_that(
+                str(result.stdout, encoding="utf-8").strip()
+            ).is_equal_to("At least one tag update is required")
+            result = runner.run(
+                ["tag", "entity", "driver", "new.:fds"],
+                cwd=repo_path,
+            )
+            assertpy.assert_that(result.returncode).is_equal_to(1)
+            assertpy.assert_that(
+                str(result.stdout, encoding="utf-8").strip()
+            ).is_equal_to(
+                f"Invalid tag key: 'new.': name part must consist of alphanumeric characters, '-', '_' or '.', and must start and end with an alphanumeric character (e.g. 'MyName',  or 'my.name',  or '123-abc', regex used for validation is '{tag_key_regex}'"
+            )
+
+            # tag commands should succeed
+            tagsDict = utils.tags_str_to_dict(tags)
+            assertpy.assert_that(fs.list_projects(tags=tagsDict)).is_length(0)
+            assertpy.assert_that(fs.list_projects()).is_length(1)
+            result = runner.run(
+                ["tag", "project", project, tags],
+                cwd=repo_path,
+            )
+            assertpy.assert_that(result.returncode).is_equal_to(0)
+            assertpy.assert_that(
+                str(result.stdout, encoding="utf-8").strip()
+            ).is_equal_to(f"project '{project}' tagged")
+            assertpy.assert_that(fs.list_projects(tags=tagsDict)).is_length(1)
+            result = runner.run(
+                ["tag", "project", project, "new:tag"],
+                cwd=repo_path,
+            )
+            assertpy.assert_that(result.returncode).is_equal_to(0)
+            tagsDict["new"] = "tag"
+            assertpy.assert_that(fs.list_projects(tags=tagsDict)).is_length(1)
+            result = runner.run(
+                ["tag", "project", project, "new-"],
+                cwd=repo_path,
+            )
+            assertpy.assert_that(result.returncode).is_equal_to(0)
+            assertpy.assert_that(fs.list_projects(tags=tagsDict)).is_length(0)
+            assertpy.assert_that(
+                fs.list_projects(tags=utils.tags_str_to_dict(tags))
+            ).is_length(1)
+
+            tagsDict = utils.tags_str_to_dict(tags)
+            assertpy.assert_that(fs.list_entities(tags=tagsDict)).is_length(0)
+            assertpy.assert_that(fs.list_entities()).is_length(3)
+            assertpy.assert_that(fs.list_entities(tags=TAGS)).is_length(2)
+            result = runner.run(
+                ["tag", "entity", "driver", tags, "--overwrite"],
+                cwd=repo_path,
+            )
+            assertpy.assert_that(result.returncode).is_equal_to(0)
+            assertpy.assert_that(
+                str(result.stdout, encoding="utf-8").strip()
+            ).is_equal_to("entity 'driver' tagged")
+            assertpy.assert_that(fs.list_entities(tags=tagsDict)).is_length(1)
+            result = runner.run(
+                ["tag", "entity", "driver", "new:tag"],
+                cwd=repo_path,
+            )
+            assertpy.assert_that(result.returncode).is_equal_to(0)
+            tagsDict["new"] = "tag"
+            assertpy.assert_that(fs.list_entities(tags=tagsDict)).is_length(1)
+            assertpy.assert_that(fs.list_entities(tags=TAGS)).is_length(1)
+            result = runner.run(
+                ["tag", "entity", "driver", "new-"],
+                cwd=repo_path,
+            )
+            assertpy.assert_that(result.returncode).is_equal_to(0)
+            assertpy.assert_that(fs.list_entities(tags=tagsDict)).is_length(0)
+            assertpy.assert_that(
+                fs.list_entities(tags=utils.tags_str_to_dict(tags))
+            ).is_length(1)
+
+            tagsDict = utils.tags_str_to_dict(tags)
+            assertpy.assert_that(fs.list_feature_views(tags=tagsDict)).is_length(0)
+            assertpy.assert_that(fs.list_feature_views()).is_length(5)
+            result = runner.run(
+                ["tag", "feature-view", "driver_locations", tags],
+                cwd=repo_path,
+            )
+            assertpy.assert_that(result.returncode).is_equal_to(0)
+            assertpy.assert_that(
+                str(result.stdout, encoding="utf-8").strip()
+            ).is_equal_to("feature-view 'driver_locations' tagged")
+            assertpy.assert_that(fs.list_feature_views(tags=tagsDict)).is_length(1)
+            result = runner.run(
+                ["tag", "feature-view", "driver_locations", "new:tag"],
+                cwd=repo_path,
+            )
+            assertpy.assert_that(result.returncode).is_equal_to(0)
+            tagsDict["new"] = "tag"
+            assertpy.assert_that(fs.list_feature_views(tags=tagsDict)).is_length(1)
+            assertpy.assert_that(fs.list_feature_views(tags=TAGS)).is_length(0)
+            result = runner.run(
+                ["tag", "feature-view", "driver_locations", "new-"],
+                cwd=repo_path,
+            )
+            assertpy.assert_that(result.returncode).is_equal_to(0)
+            assertpy.assert_that(fs.list_feature_views(tags=tagsDict)).is_length(0)
+            assertpy.assert_that(
+                fs.list_feature_views(tags=utils.tags_str_to_dict(tags))
+            ).is_length(1)
 
             # entity & feature view describe commands should fail when objects don't exist
             result = runner.run(["projects", "describe", "foo"], cwd=repo_path)

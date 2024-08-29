@@ -322,6 +322,86 @@ def test_e2e_validation_via_cli(environment, universal_data_sources):
         )
         assert p.returncode == 0, p.stderr.decode()
 
+        # invalid tags should fail
+        p = runner.run(
+            ["tag", "saved-dataset", saved_dataset.name, "test?:wrong"],
+            cwd=local_repo.repo_path,
+        )
+        assert p.returncode == 1, p.stderr.decode()
+
+        p = runner.run(
+            ["tag", "validation-reference", reference.name, "test?:wrong"],
+            cwd=local_repo.repo_path,
+        )
+        assert p.returncode == 1, p.stderr.decode()
+
+        p = runner.run(
+            ["tag", "feature-service", feature_service.name, "test?:wrong"],
+            cwd=local_repo.repo_path,
+        )
+        assert p.returncode == 1, p.stderr.decode()
+
+        p = runner.run(
+            [
+                "tag",
+                "feature-view",
+                feature_views.customer.name,
+                "test?:wrong",
+            ],
+            cwd=local_repo.repo_path,
+        )
+        assert p.returncode == 1, p.stderr.decode()
+
+        # valid tag should succeed
+        p = runner.run(
+            ["tag", "saved-dataset", saved_dataset.name, "test:tag"],
+            cwd=local_repo.repo_path,
+        )
+        assert p.returncode == 0, p.stderr.decode()
+
+        p = runner.run(
+            ["tag", "validation-reference", reference.name, "test:tag"],
+            cwd=local_repo.repo_path,
+        )
+        assert p.returncode == 0, p.stderr.decode()
+
+        p = runner.run(
+            ["tag", "feature-service", feature_service.name, "test:tag"],
+            cwd=local_repo.repo_path,
+        )
+        assert p.returncode == 0, p.stderr.decode()
+
+        p = runner.run(
+            ["tag", "feature-view", feature_views.customer.name, "test:tag"],
+            cwd=local_repo.repo_path,
+        )
+        assert p.returncode == 0, p.stderr.decode()
+
+        # tag removal should succeed
+        p = runner.run(
+            ["tag", "saved-dataset", saved_dataset.name, "test-"],
+            cwd=local_repo.repo_path,
+        )
+        assert p.returncode == 0, p.stderr.decode()
+
+        p = runner.run(
+            ["tag", "validation-reference", reference.name, "test-"],
+            cwd=local_repo.repo_path,
+        )
+        assert p.returncode == 0, p.stderr.decode()
+
+        p = runner.run(
+            ["tag", "feature-service", feature_service.name, "test-"],
+            cwd=local_repo.repo_path,
+        )
+        assert p.returncode == 0, p.stderr.decode()
+
+        p = runner.run(
+            ["tag", "feature-view", feature_views.customer.name, "test-"],
+            cwd=local_repo.repo_path,
+        )
+        assert p.returncode == 0, p.stderr.decode()
+
         # make sure second validation will use cached profile
         shutil.rmtree(saved_dataset.storage.file_options.uri)
 

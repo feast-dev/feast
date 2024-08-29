@@ -428,6 +428,45 @@ def test_apply_entity_success(test_registry):
     assert (
         updated_entity.created_timestamp is not None
         and updated_entity.created_timestamp == entity.created_timestamp
+        and updated_entity.last_updated_timestamp is not None
+        and updated_entity.last_updated_timestamp != entity.last_updated_timestamp
+        and updated_entity.description == "Car driver Id"
+        and "team" in updated_entity.tags
+        and updated_entity.tags["team"] == "matchmaking"
+    )
+
+    with pytest.raises(ValueError):
+        if isinstance(test_registry, RemoteRegistry):
+            pytest.skip(
+                "Error handling for registry server's grpc responses needs improvement."
+            )
+        test_registry.tag_entity("driver_car_id", project, tags={"bad?": "tag"})
+    test_registry.tag_entity("driver_car_id", project, tags={"test": "tag"})
+    entity = test_registry.get_entity("driver_car_id", project)
+    assert (
+        entity.name == "driver_car_id"
+        and entity.description == "Car driver Id"
+        and entity.created_timestamp is not None
+        and entity.created_timestamp == updated_entity.created_timestamp
+        and entity.last_updated_timestamp is not None
+        and entity.last_updated_timestamp != updated_entity.last_updated_timestamp
+        and "test" in entity.tags
+        and entity.tags["test"] == "tag"
+        and "team" in entity.tags
+        and entity.tags["team"] == "matchmaking"
+    )
+
+    test_registry.tag_entity(
+        "driver_car_id", project, tags={"test": "new"}, overwrite=True
+    )
+    updated_entity = test_registry.get_entity("driver_car_id", project)
+    assert (
+        updated_entity.last_updated_timestamp is not None
+        and updated_entity.last_updated_timestamp != entity.last_updated_timestamp
+        and "test" in updated_entity.tags
+        and updated_entity.tags["test"] == "new"
+        and "team" in entity.tags
+        and updated_entity.tags["team"] == "matchmaking"
     )
     test_registry.delete_entity("driver_car_id", project)
     assert_project_uuid(project, project_uuid, test_registry)
@@ -521,17 +560,44 @@ def test_apply_feature_view_success(test_registry: BaseRegistry):
         and feature_view.features[3].name == "fs1_my_feature_4"
         and feature_view.features[3].dtype == Array(Bytes)
         and feature_view.entities[0] == "fs1_my_entity_1"
+        and feature_view.tags == fv1.tags
         and feature_view == any_feature_view
     )
-    assert feature_view.ttl == timedelta(minutes=5)
 
     # After the first apply, the created_timestamp should be the same as the last_update_timestamp.
     assert feature_view.created_timestamp == feature_view.last_updated_timestamp
 
+    with pytest.raises(ValueError):
+        if isinstance(test_registry, RemoteRegistry):
+            pytest.skip(
+                "Error handling for registry server's grpc responses needs improvement."
+            )
+        test_registry.tag_feature_view(
+            "my_feature_view_1", project, tags={"bad?": "tag"}
+        )
+    test_registry.tag_feature_view("my_feature_view_1", project, tags={"test": "tag"})
+    feature_view = test_registry.get_feature_view("my_feature_view_1", project)
+    test_tags = fv1.tags
+    test_tags.update({"test": "tag"})
+    assert (
+        feature_view.name == "my_feature_view_1"
+        and feature_view.features[0].name == "fs1_my_feature_1"
+        and feature_view.features[0].dtype == Int64
+        and feature_view.features[1].name == "fs1_my_feature_2"
+        and feature_view.features[1].dtype == String
+        and feature_view.features[2].name == "fs1_my_feature_3"
+        and feature_view.features[2].dtype == Array(String)
+        and feature_view.features[3].name == "fs1_my_feature_4"
+        and feature_view.features[3].dtype == Array(Bytes)
+        and feature_view.entities[0] == "fs1_my_entity_1"
+        and feature_view.tags == test_tags
+    )
+    assert feature_view.ttl == timedelta(minutes=5)
+
     # Modify the feature view and apply again to test if diffing the online store table works
     fv1.ttl = timedelta(minutes=6)
     test_registry.apply_feature_view(fv1, project)
-    feature_views = test_registry.list_feature_views(project)
+    feature_views = test_registry.list_feature_views(project, tags=test_tags)
     assert len(feature_views) == 1
     feature_view = test_registry.get_feature_view("my_feature_view_1", project)
     assert feature_view.ttl == timedelta(minutes=6)
@@ -628,6 +694,27 @@ def test_apply_on_demand_feature_view_success(test_registry: BaseRegistry):
         and feature_view == any_feature_view
     )
 
+    with pytest.raises(ValueError):
+        if isinstance(test_registry, RemoteRegistry):
+            pytest.skip(
+                "Error handling for registry server's grpc responses needs improvement."
+            )
+        test_registry.tag_on_demand_feature_view(
+            "location_features_from_push", project, tags={"bad?": "tag"}
+        )
+    test_registry.tag_on_demand_feature_view(
+        "location_features_from_push", project, tags={"test": "tag"}
+    )
+    feature_view = test_registry.get_on_demand_feature_view(
+        "location_features_from_push", project
+    )
+    assert (
+        feature_view.name == "location_features_from_push"
+        and feature_view.features[0].name == "first_char"
+        and feature_view.features[0].dtype == String
+        and feature_view.tags == {"test": "tag"}
+    )
+
     test_registry.delete_feature_view("location_features_from_push", project)
     feature_views = test_registry.list_on_demand_feature_views(project)
     assert len(feature_views) == 0
@@ -681,6 +768,23 @@ def test_apply_data_source(test_registry):
     assert registry_feature_view.batch_source == batch_source
     registry_data_source = registry_data_sources[0]
     assert registry_data_source == batch_source
+
+    # Tag data source
+    with pytest.raises(ValueError):
+        if isinstance(test_registry, RemoteRegistry):
+            pytest.skip(
+                "Error handling for registry server's grpc responses needs improvement."
+            )
+        test_registry.tag_data_source(
+            registry_data_sources[0].name, project, tags={"bad?": "tag"}
+        )
+    test_registry.tag_data_source(
+        registry_data_sources[0].name, project, tags={"test": "tag"}
+    )
+    registry_data_sources = test_registry.list_data_sources(project)
+    assert len(registry_data_sources) == 1 and registry_data_sources[0].tags == {
+        "test": "tag"
+    }
 
     # Check that change to batch source propagates
     batch_source.timestamp_field = "new_ts_col"
@@ -1026,6 +1130,29 @@ def test_modify_feature_views_success(test_registry):
         and len(updated_sfv.materialization_intervals) == 0
     )
 
+    # Tag stream feature view
+    with pytest.raises(ValueError):
+        if isinstance(test_registry, RemoteRegistry):
+            pytest.skip(
+                "Error handling for registry server's grpc responses needs improvement."
+            )
+        test_registry.tag_stream_feature_view(
+            "test kafka stream feature view", project, tags={"bad?": "tag"}
+        )
+    test_registry.tag_stream_feature_view(
+        "test kafka stream feature view", project, tags={"test": "tag"}
+    )
+    updated_sfv = test_registry.get_stream_feature_view(
+        "test kafka stream feature view", project
+    )
+    assert (
+        updated_sfv.name == "test kafka stream feature view"
+        and updated_sfv.features[0].name == "dummy_field"
+        and updated_sfv.features[0].dtype == String
+        and updated_sfv.entities[0] == "sfv_my_entity_1"
+        and updated_sfv.tags == {"test": "tag"}
+    )
+
 
 @pytest.mark.integration
 @pytest.mark.parametrize(
@@ -1266,6 +1393,17 @@ def test_apply_feature_service_success(test_registry):
     assert len(feature_services) == 1
     assert feature_services[0] == fs
 
+    # Tag feature service
+    with pytest.raises(ValueError):
+        if isinstance(test_registry, RemoteRegistry):
+            pytest.skip(
+                "Error handling for registry server's grpc responses needs improvement."
+            )
+        test_registry.tag_feature_service(fs.name, project, tags={"bad?": "tag"})
+    test_registry.tag_feature_service(fs.name, project, tags={"test": "tag"})
+    feature_service = test_registry.get_feature_service(fs.name, project)
+    assert feature_service.name == fs.name and feature_service.tags == {"test": "tag"}
+
     # Delete Feature Service
     test_registry.delete_feature_service("my_feature_service_1", project)
     feature_services = test_registry.list_feature_services(project)
@@ -1486,6 +1624,29 @@ def test_apply_permission_success(test_registry):
         and permission.required_tags is None
     )
 
+    with pytest.raises(ValueError):
+        if isinstance(test_registry, RemoteRegistry):
+            pytest.skip(
+                "Error handling for registry server's grpc responses needs improvement."
+            )
+        test_registry.tag_permission("read_permission", project, tags={"bad?": "tag"})
+    ptags = {"test": "tag"}
+    test_registry.tag_permission("read_permission", project, tags=ptags)
+    permission = test_registry.get_permission("read_permission", project)
+    assert (
+        permission.name == "read_permission"
+        and len(permission.types) == 1
+        and permission.types[0] == FeatureView
+        and len(permission.actions) == 1
+        and permission.actions[0] == AuthzedAction.DESCRIBE
+        and isinstance(permission.policy, RoleBasedPolicy)
+        and len(permission.policy.roles) == 1
+        and permission.policy.roles[0] == "reader"
+        and permission.name_pattern is None
+        and permission.tags == ptags
+        and permission.required_tags is None
+    )
+
     # Update permission
     updated_permission = Permission(
         name="read_permission",
@@ -1571,7 +1732,7 @@ def test_apply_project_success(test_registry):
     project = Project(
         name="project",
         description="Project description",
-        tags={"team": "project team"},
+        tags={"team": "project-team"},
         owner="owner@mail.com",
     )
 

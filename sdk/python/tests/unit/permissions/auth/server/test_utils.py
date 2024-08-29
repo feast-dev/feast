@@ -57,6 +57,13 @@ invalid_list_entities_perm = Permission(
     actions=[AuthzedAction.DESCRIBE],
 )
 
+tag_entity_perm = Permission(
+    name="tag_entity_perm",
+    types=Entity,
+    policy=RoleBasedPolicy(roles=["reader", "updater"]),
+    actions=[AuthzedAction.DESCRIBE, AuthzedAction.UPDATE],
+)
+
 
 @pytest.mark.parametrize(
     "label, value",

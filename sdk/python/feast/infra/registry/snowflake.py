@@ -60,7 +60,8 @@ from feast.protos.feast.core.ValidationProfile_pb2 import (
 from feast.repo_config import RegistryConfig
 from feast.saved_dataset import SavedDataset, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
-from feast.utils import _utc_now, has_all_tags
+from feast.utils import _utc_now, apply_tags, has_all_tags
+from feast.value_type import validate_tags
 
 logger = logging.getLogger(__name__)
 
@@ -334,6 +335,24 @@ class SnowflakeRegistry(BaseRegistry):
 
         name = name or (obj.name if hasattr(obj, "name") else None)
         assert name, f"name needs to be provided for {obj}"
+
+        if isinstance(
+            obj,
+            (
+                Project,
+                Permission,
+                FeatureService,
+                FeatureView,
+                OnDemandFeatureView,
+                StreamFeatureView,
+                ValidationReference,
+                DataSource,
+                Entity,
+                SavedDataset,
+                BaseFeatureView,
+            ),
+        ):
+            validate_tags(obj.tags)
 
         update_datetime = _utc_now()
         if hasattr(obj, "last_updated_timestamp"):
@@ -785,6 +804,116 @@ class SnowflakeRegistry(BaseRegistry):
             "PERMISSION_PROTO",
             PermissionNotFoundException,
         )
+
+    # tag operations
+    def tag_entity(
+        self,
+        name: str,
+        project: str,
+        tags: Optional[dict[str, str]] = None,
+        overwrite: bool = False,
+    ):
+        obj = self.get_entity(name, project)
+        obj.tags = apply_tags(obj.tags, tags, overwrite)
+        self.apply_entity(obj, project)
+
+    def tag_feature_service(
+        self,
+        name: str,
+        project: str,
+        tags: Optional[dict[str, str]] = None,
+        overwrite: bool = False,
+    ):
+        obj = self.get_feature_service(name, project)
+        obj.tags = apply_tags(obj.tags, tags, overwrite)
+        self.apply_feature_service(obj, project)
+
+    def tag_feature_view(
+        self,
+        name: str,
+        project: str,
+        tags: Optional[dict[str, str]] = None,
+        overwrite: bool = False,
+    ):
+        obj = self.get_feature_view(name, project)
+        obj.tags = apply_tags(obj.tags, tags, overwrite)
+        self.apply_feature_view(obj, project)
+
+    def tag_on_demand_feature_view(
+        self,
+        name: str,
+        project: str,
+        tags: Optional[dict[str, str]] = None,
+        overwrite: bool = False,
+    ):
+        obj = self.get_on_demand_feature_view(name, project)
+        obj.tags = apply_tags(obj.tags, tags, overwrite)
+        self.apply_feature_view(obj, project)
+
+    def tag_stream_feature_view(
+        self,
+        name: str,
+        project: str,
+        tags: Optional[dict[str, str]] = None,
+        overwrite: bool = False,
+    ):
+        obj = self.get_stream_feature_view(name, project)
+        obj.tags = apply_tags(obj.tags, tags, overwrite)
+        self.apply_feature_view(obj, project)
+
+    def tag_data_source(
+        self,
+        name: str,
+        project: str,
+        tags: Optional[dict[str, str]] = None,
+        overwrite: bool = False,
+    ):
+        obj = self.get_data_source(name, project)
+        obj.tags = apply_tags(obj.tags, tags, overwrite)
+        self.apply_data_source(obj, project)
+
+    def tag_saved_dataset(
+        self,
+        name: str,
+        project: str,
+        tags: Optional[dict[str, str]] = None,
+        overwrite: bool = False,
+    ):
+        obj = self.get_saved_dataset(name, project)
+        obj.tags = apply_tags(obj.tags, tags, overwrite)
+        self.apply_saved_dataset(obj, project)
+
+    def tag_validation_reference(
+        self,
+        name: str,
+        project: str,
+        tags: Optional[dict[str, str]] = None,
+        overwrite: bool = False,
+    ):
+        obj = self.get_validation_reference(name, project)
+        obj.tags = apply_tags(obj.tags, tags, overwrite)
+        self.apply_validation_reference(obj, project)
+
+    def tag_permission(
+        self,
+        name: str,
+        project: str,
+        tags: Optional[dict[str, str]] = None,
+        overwrite: bool = False,
+    ):
+        obj = self.get_permission(name, project)
+        obj._tags = apply_tags(obj.tags, tags, overwrite)
+        self.apply_permission(obj, project)
+
+    def tag_project(
+        self,
+        name: str,
+        tags: Optional[dict[str, str]] = None,
+        overwrite: bool = False,
+    ):
+        obj = self.get_project(name)
+        obj.tags = apply_tags(obj.tags, tags, overwrite)
+        self.apply_project(obj)
 
     # list operations
     def list_data_sources(

@@ -21,6 +21,7 @@ from feast.protos.feast.core.Project_pb2 import Project as ProjectProto
 from feast.protos.feast.core.Project_pb2 import ProjectMeta as ProjectMetaProto
 from feast.protos.feast.core.Project_pb2 import ProjectSpec as ProjectSpecProto
 from feast.utils import _utc_now
+from feast.value_type import validate_tags
 
 
 @typechecked
@@ -119,6 +120,8 @@ class Project:
                 f"Project name, {self.name}, should only have "
                 f"alphanumerical values and underscores but not start with an underscore."
             )
+
+        validate_tags(self.tags)
 
     @classmethod
     def from_proto(cls, project_proto: ProjectProto):

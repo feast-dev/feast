@@ -27,6 +27,7 @@ from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
 from feast.protos.feast.core.StreamFeatureView_pb2 import (
     StreamFeatureView as StreamFeatureViewProto,
 )
+from feast.value_type import validate_tags
 
 
 class BaseFeatureView(ABC):
@@ -169,6 +170,8 @@ class BaseFeatureView(ABC):
         """
         if not self.name:
             raise ValueError("Feature view needs a name.")
+
+        validate_tags(self.tags)
 
     def with_name(self, name: str):
         """

@@ -100,6 +100,28 @@ class BaseRegistry(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def tag_entity(
+        self,
+        name: str,
+        project: str,
+        tags: Optional[dict[str, str]] = None,
+        overwrite: bool = False,
+    ):
+        """
+        Updates tags of an entity.
+
+        Args:
+            name: Name of entity
+            project: Feast project that this object belongs to
+            tags: Tags to update
+            overwrite: If true, allow tags to be overwritten, otherwise reject tag updates that overwrite existing tags
+
+        Returns:
+            Raises an exception if no object is found
+        """
+        raise NotImplementedError
+
+    @abstractmethod
     def list_entities(
         self,
         project: str,
@@ -164,6 +186,28 @@ class BaseRegistry(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def tag_data_source(
+        self,
+        name: str,
+        project: str,
+        tags: Optional[dict[str, str]] = None,
+        overwrite: bool = False,
+    ):
+        """
+        Updates tags of a data source.
+
+        Args:
+            name: Name of data source
+            project: Feast project that this object belongs to
+            tags: Tags to update
+            overwrite: If true, allow tags to be overwritten, otherwise reject tag updates that overwrite existing tags
+
+        Returns:
+            Raises an exception if no object is found
+        """
+        raise NotImplementedError
+
+    @abstractmethod
     def list_data_sources(
         self,
         project: str,
@@ -224,6 +268,28 @@ class BaseRegistry(ABC):
         Returns:
             Returns either the specified feature service, or raises an exception if
             none is found
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def tag_feature_service(
+        self,
+        name: str,
+        project: str,
+        tags: Optional[dict[str, str]] = None,
+        overwrite: bool = False,
+    ):
+        """
+        Updates tags of a feature service.
+
+        Args:
+            name: Name of feature service
+            project: Feast project that this object belongs to
+            tags: Tags to update
+            overwrite: If true, allow tags to be overwritten, otherwise reject tag updates that overwrite existing tags
+
+        Returns:
+            Raises an exception if no object is found
         """
         raise NotImplementedError
 
@@ -294,6 +360,28 @@ class BaseRegistry(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def tag_stream_feature_view(
+        self,
+        name: str,
+        project: str,
+        tags: Optional[dict[str, str]] = None,
+        overwrite: bool = False,
+    ):
+        """
+        Updates tags of an stream feature view.
+
+        Args:
+            name: Name of stream feature view
+            project: Feast project that this object belongs to
+            tags: Tags to update
+            overwrite: If true, allow tags to be overwritten, otherwise reject tag updates that overwrite existing tags
+
+        Returns:
+            Raises an exception if no object is found
+        """
+        raise NotImplementedError
+
+    @abstractmethod
     def list_stream_feature_views(
         self,
         project: str,
@@ -333,6 +421,28 @@ class BaseRegistry(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def tag_on_demand_feature_view(
+        self,
+        name: str,
+        project: str,
+        tags: Optional[dict[str, str]] = None,
+        overwrite: bool = False,
+    ):
+        """
+        Updates tags of an on demand feature view.
+
+        Args:
+            name: Name of on demand feature view
+            project: Feast project that this object belongs to
+            tags: Tags to update
+            overwrite: If true, allow tags to be overwritten, otherwise reject tag updates that overwrite existing tags
+
+        Returns:
+            Raises an exception if no object is found
+        """
+        raise NotImplementedError
+
+    @abstractmethod
     def list_on_demand_feature_views(
         self,
         project: str,
@@ -368,6 +478,28 @@ class BaseRegistry(ABC):
         Returns:
             Returns either the specified feature view, or raises an exception if
             none is found
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def tag_feature_view(
+        self,
+        name: str,
+        project: str,
+        tags: Optional[dict[str, str]] = None,
+        overwrite: bool = False,
+    ):
+        """
+        Updates tags of a feature view.
+
+        Args:
+            name: Name of feature view
+            project: Feast project that this object belongs to
+            tags: Tags to update
+            overwrite: If true, allow tags to be overwritten, otherwise reject tag updates that overwrite existing tags
+
+        Returns:
+            Raises an exception if no object is found
         """
         raise NotImplementedError
 
@@ -486,6 +618,28 @@ class BaseRegistry(ABC):
         """
         raise NotImplementedError
 
+    @abstractmethod
+    def tag_saved_dataset(
+        self,
+        name: str,
+        project: str,
+        tags: Optional[dict[str, str]] = None,
+        overwrite: bool = False,
+    ):
+        """
+        Updates tags of a saved dataset.
+
+        Args:
+            name: Name of saved dataset
+            project: Feast project that this object belongs to
+            tags: Tags to update
+            overwrite: If true, allow tags to be overwritten, otherwise reject tag updates that overwrite existing tags
+
+        Returns:
+            Raises an exception if no object is found
+        """
+        raise NotImplementedError
+
     def delete_saved_dataset(self, name: str, project: str, commit: bool = True):
         """
         Delete a saved dataset.
@@ -562,6 +716,28 @@ class BaseRegistry(ABC):
         Returns:
             Returns either the specified ValidationReference, or raises an exception if
             none is found
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def tag_validation_reference(
+        self,
+        name: str,
+        project: str,
+        tags: Optional[dict[str, str]] = None,
+        overwrite: bool = False,
+    ):
+        """
+        Updates tags of a validation reference.
+
+        Args:
+            name: Name of validation reference
+            project: Feast project that this object belongs to
+            tags: Tags to update
+            overwrite: If true, allow tags to be overwritten, otherwise reject tag updates that overwrite existing tags
+
+        Returns:
+            Raises an exception if no object is found
         """
         raise NotImplementedError
 
@@ -685,6 +861,28 @@ class BaseRegistry(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def tag_permission(
+        self,
+        name: str,
+        project: str,
+        tags: Optional[dict[str, str]] = None,
+        overwrite: bool = False,
+    ):
+        """
+        Updates tags of a permission.
+
+        Args:
+            name: Name of permission
+            project: Feast project that this object belongs to
+            tags: Tags to update
+            overwrite: If true, allow tags to be overwritten, otherwise reject tag updates that overwrite existing tags
+
+        Returns:
+            Raises an exception if no object is found
+        """
+        raise NotImplementedError
+
+    @abstractmethod
     def list_permissions(
         self,
         project: str,
@@ -744,10 +942,30 @@ class BaseRegistry(ABC):
 
         Args:
             name: Feast project name
-            allow_cache: Whether to allow returning this permission from a cached registry
+            allow_cache: Whether to allow returning this project from a cached registry
 
         Returns:
             Returns either the specified project, or raises ProjectObjectNotFoundException exception if none is found
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def tag_project(
+        self,
+        name: str,
+        tags: Optional[dict[str, str]] = None,
+        overwrite: bool = False,
+    ):
+        """
+        Updates tags of a project.
+
+        Args:
+            name: Name of project
+            tags: Tags to update
+            overwrite: If true, allow tags to be overwritten, otherwise reject tag updates that overwrite existing tags
+
+        Returns:
+            Raises an exception if no object is found
         """
         raise NotImplementedError
 
@@ -761,7 +979,7 @@ class BaseRegistry(ABC):
         Retrieve a list of projects from the registry
 
         Args:
-            allow_cache: Whether to allow returning permissions from a cached registry
+            allow_cache: Whether to allow returning projects from a cached registry
 
         Returns:
             List of project

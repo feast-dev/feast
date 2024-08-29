@@ -27,7 +27,7 @@ from feast.field import Field
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.repo_config import RepoConfig, get_data_source_class_from_type
 from feast.types import from_value_type
-from feast.value_type import ValueType
+from feast.value_type import ValueType, validate_tags
 
 
 class KafkaOptions:
@@ -269,6 +269,12 @@ class DataSource(ABC):
             return False
 
         return True
+
+    def is_valid(self):
+        """
+        Validates the state of this data source locally.
+        """
+        validate_tags(self.tags)
 
     @staticmethod
     @abstractmethod

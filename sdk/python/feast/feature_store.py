@@ -408,6 +408,29 @@ class FeatureStore:
             name, self.project, allow_cache=allow_registry_cache
         )
 
+    def tag_entity(
+        self, name: str, tags: Optional[dict[str, str]] = None, overwrite: bool = False
+    ):
+        """
+        Updates tags of an entity.
+
+        Args:
+            name: Name of entity.
+            tags: Tags to update.
+            overwrite: If true, allow tags to be overwritten, otherwise reject tag updates that overwrite existing tags.
+
+        Raises:
+            EntityNotFoundException: The feast object could not be found.
+            TagKeyAlreadyExists: A tag with the same key already exists.
+            TagRequestEmpty: At least one tag update is required.
+            TagKeyDel: Can not both modify and remove a tag key in the same command.
+            TagKeyNotFound: Tag key not found.
+            ValueError: Invalid tag key or value, regex validation failed.
+        """
+        return self._registry.tag_entity(
+            name, self.project, tags=tags, overwrite=overwrite
+        )
+
     def get_feature_service(
         self, name: str, allow_cache: bool = False
     ) -> FeatureService:
@@ -425,6 +448,29 @@ class FeatureStore:
             FeatureServiceNotFoundException: The feature service could not be found.
         """
         return self._registry.get_feature_service(name, self.project, allow_cache)
+
+    def tag_feature_service(
+        self, name: str, tags: Optional[dict[str, str]] = None, overwrite: bool = False
+    ):
+        """
+        Updates tags of a feature service.
+
+        Args:
+            name: Name of feature service.
+            tags: Tags to update.
+            overwrite: If true, allow tags to be overwritten, otherwise reject tag updates that overwrite existing tags.
+
+        Raises:
+            FeatureServiceNotFoundException: The feast object could not be found.
+            TagKeyAlreadyExists: A tag with the same key already exists.
+            TagRequestEmpty: At least one tag update is required.
+            TagKeyDel: Can not both modify and remove a tag key in the same command.
+            TagKeyNotFound: Tag key not found.
+            ValueError: Invalid tag key or value, regex validation failed.
+        """
+        return self._registry.tag_feature_service(
+            name, self.project, tags=tags, overwrite=overwrite
+        )
 
     def get_feature_view(
         self, name: str, allow_registry_cache: bool = False
@@ -456,6 +502,29 @@ class FeatureStore:
         if hide_dummy_entity and feature_view.entities[0] == DUMMY_ENTITY_NAME:
             feature_view.entities = []
         return feature_view
+
+    def tag_feature_view(
+        self, name: str, tags: Optional[dict[str, str]] = None, overwrite: bool = False
+    ):
+        """
+        Updates tags of a feature view.
+
+        Args:
+            name: Name of feature view.
+            tags: Tags to update.
+            overwrite: If true, allow tags to be overwritten, otherwise reject tag updates that overwrite existing tags.
+
+        Raises:
+            FeatureViewNotFoundException: The feast object could not be found.
+            TagKeyAlreadyExists: A tag with the same key already exists.
+            TagRequestEmpty: At least one tag update is required.
+            TagKeyDel: Can not both modify and remove a tag key in the same command.
+            TagKeyNotFound: Tag key not found.
+            ValueError: Invalid tag key or value, regex validation failed.
+        """
+        return self._registry.tag_feature_view(
+            name, self.project, tags=tags, overwrite=overwrite
+        )
 
     def get_stream_feature_view(
         self, name: str, allow_registry_cache: bool = False
@@ -490,6 +559,29 @@ class FeatureStore:
             stream_feature_view.entities = []
         return stream_feature_view
 
+    def tag_stream_feature_view(
+        self, name: str, tags: Optional[dict[str, str]] = None, overwrite: bool = False
+    ):
+        """
+        Updates tags of an stream feature view.
+
+        Args:
+            name: Name of stream feature view.
+            tags: Tags to update.
+            overwrite: If true, allow tags to be overwritten, otherwise reject tag updates that overwrite existing tags.
+
+        Raises:
+            FeatureViewNotFoundException: The feast object could not be found.
+            TagKeyAlreadyExists: A tag with the same key already exists.
+            TagRequestEmpty: At least one tag update is required.
+            TagKeyDel: Can not both modify and remove a tag key in the same command.
+            TagKeyNotFound: Tag key not found.
+            ValueError: Invalid tag key or value, regex validation failed.
+        """
+        return self._registry.tag_stream_feature_view(
+            name, self.project, tags=tags, overwrite=overwrite
+        )
+
     def get_on_demand_feature_view(self, name: str) -> OnDemandFeatureView:
         """
         Retrieves a feature view.
@@ -505,6 +597,29 @@ class FeatureStore:
         """
         return self._registry.get_on_demand_feature_view(name, self.project)
 
+    def tag_on_demand_feature_view(
+        self, name: str, tags: Optional[dict[str, str]] = None, overwrite: bool = False
+    ):
+        """
+        Updates tags of an on demand feature view.
+
+        Args:
+            name: Name of on demand feature view.
+            tags: Tags to update.
+            overwrite: If true, allow tags to be overwritten, otherwise reject tag updates that overwrite existing tags.
+
+        Raises:
+            FeatureViewNotFoundException: The feast object could not be found.
+            TagKeyAlreadyExists: A tag with the same key already exists.
+            TagRequestEmpty: At least one tag update is required.
+            TagKeyDel: Can not both modify and remove a tag key in the same command.
+            TagKeyNotFound: Tag key not found.
+            ValueError: Invalid tag key or value, regex validation failed.
+        """
+        return self._registry.tag_on_demand_feature_view(
+            name, self.project, tags=tags, overwrite=overwrite
+        )
+
     def get_data_source(self, name: str) -> DataSource:
         """
         Retrieves the list of data sources from the registry.
@@ -519,6 +634,29 @@ class FeatureStore:
             DataSourceObjectNotFoundException: The data source could not be found.
         """
         return self._registry.get_data_source(name, self.project)
+
+    def tag_data_source(
+        self, name: str, tags: Optional[dict[str, str]] = None, overwrite: bool = False
+    ):
+        """
+        Updates tags of a data source.
+
+        Args:
+            name: Name of data source.
+            tags: Tags to update.
+            overwrite: If true, allow tags to be overwritten, otherwise reject tag updates that overwrite existing tags.
+
+        Raises:
+            DataSourceObjectNotFoundException: The feast object could not be found.
+            TagKeyAlreadyExists: A tag with the same key already exists.
+            TagRequestEmpty: At least one tag update is required.
+            TagKeyDel: Can not both modify and remove a tag key in the same command.
+            TagKeyNotFound: Tag key not found.
+            ValueError: Invalid tag key or value, regex validation failed.
+        """
+        return self._registry.tag_data_source(
+            name, self.project, tags=tags, overwrite=overwrite
+        )
 
     def delete_feature_view(self, name: str):
         """
@@ -1212,6 +1350,46 @@ class FeatureStore:
             config=self.config, dataset=dataset
         )
         return dataset.with_retrieval_job(retrieval_job)
+
+    def tag_saved_dataset(
+        self, name: str, tags: Optional[dict[str, str]] = None, overwrite: bool = False
+    ):
+        """
+        Updates tags of a saved dataset.
+
+        Args:
+            name: Name of saved dataset.
+            tags: Tags to update.
+            overwrite: If true, allow tags to be overwritten, otherwise reject tag updates that overwrite existing tags.
+
+        Raises:
+            SavedDatasetNotFound: The feast object could not be found.
+            TagKeyAlreadyExists: A tag with the same key already exists.
+            TagRequestEmpty: At least one tag update is required.
+            TagKeyDel: Can not both modify and remove a tag key in the same command.
+            TagKeyNotFound: Tag key not found.
+            ValueError: Invalid tag key or value, regex validation failed.
+        """
+        return self._registry.tag_saved_dataset(
+            name, self.project, tags=tags, overwrite=overwrite
+        )
+
+    def list_saved_datasets(
+        self, allow_cache: bool = False, tags: Optional[dict[str, str]] = None
+    ) -> List[SavedDataset]:
+        """
+        Retrieves the list of saved datasets from the registry.
+
+        Args:
+            allow_cache: Whether to allow returning saved datasets from a cached registry.
+            tags: Filter by tags.
+
+        Returns:
+            A list of saved datasets.
+        """
+        return self._registry.list_saved_datasets(
+            self.project, allow_cache=allow_cache, tags=tags
+        )
 
     def materialize_incremental(
         self,
@@ -1909,6 +2087,29 @@ class FeatureStore:
         ref._dataset = self.get_saved_dataset(ref.dataset_name)
         return ref
 
+    def tag_validation_reference(
+        self, name: str, tags: Optional[dict[str, str]] = None, overwrite: bool = False
+    ):
+        """
+        Updates tags of a validation reference.
+
+        Args:
+            name: Name of validation reference.
+            tags: Tags to update.
+            overwrite: If true, allow tags to be overwritten, otherwise reject tag updates that overwrite existing tags.
+
+        Raises:
+            ValidationReferenceNotFoundException: The feast object could not be found.
+            TagKeyAlreadyExists: A tag with the same key already exists.
+            TagRequestEmpty: At least one tag update is required.
+            TagKeyDel: Can not both modify and remove a tag key in the same command.
+            TagKeyNotFound: Tag key not found.
+            ValueError: Invalid tag key or value, regex validation failed.
+        """
+        return self._registry.tag_validation_reference(
+            name, self.project, tags=tags, overwrite=overwrite
+        )
+
     def list_validation_references(
         self, allow_cache: bool = False, tags: Optional[dict[str, str]] = None
     ) -> List[ValidationReference]:
@@ -1924,6 +2125,44 @@ class FeatureStore:
         """
         return self._registry.list_validation_references(
             self.project, allow_cache=allow_cache, tags=tags
+        )
+
+    def get_permission(self, name: str) -> Permission:
+        """
+        Retrieves a permission from the registry.
+
+        Args:
+            name: Name of the permission.
+
+        Returns:
+            The specified permission.
+
+        Raises:
+            PermissionObjectNotFoundException: The permission could not be found.
+        """
+        return self._registry.get_permission(name, self.project)
+
+    def tag_permission(
+        self, name: str, tags: Optional[dict[str, str]] = None, overwrite: bool = False
+    ):
+        """
+        Updates tags of a permission.
+
+        Args:
+            name: Name of permission.
+            tags: Tags to update.
+            overwrite: If true, allow tags to be overwritten, otherwise reject tag updates that overwrite existing tags.
+
+        Raises:
+            PermissionObjectNotFoundException: The feast object could not be found.
+            TagKeyAlreadyExists: A tag with the same key already exists.
+            TagRequestEmpty: At least one tag update is required.
+            TagKeyDel: Can not both modify and remove a tag key in the same command.
+            TagKeyNotFound: Tag key not found.
+            ValueError: Invalid tag key or value, regex validation failed.
+        """
+        return self._registry.tag_permission(
+            name, self.project, tags=tags, overwrite=overwrite
         )
 
     def list_permissions(
@@ -1943,36 +2182,6 @@ class FeatureStore:
             self.project, allow_cache=allow_cache, tags=tags
         )
 
-    def get_permission(self, name: str) -> Permission:
-        """
-        Retrieves a permission from the registry.
-
-        Args:
-            name: Name of the permission.
-
-        Returns:
-            The specified permission.
-
-        Raises:
-            PermissionObjectNotFoundException: The permission could not be found.
-        """
-        return self._registry.get_permission(name, self.project)
-
-    def list_projects(
-        self, allow_cache: bool = False, tags: Optional[dict[str, str]] = None
-    ) -> List[Project]:
-        """
-        Retrieves the list of projects from the registry.
-
-        Args:
-            allow_cache: Whether to allow returning projects from a cached registry.
-            tags: Filter by tags.
-
-        Returns:
-            A list of projects.
-        """
-        return self._registry.list_projects(allow_cache=allow_cache, tags=tags)
-
     def get_project(self, name: Optional[str]) -> Project:
         """
         Retrieves a project from the registry.
@@ -1988,22 +2197,41 @@ class FeatureStore:
         """
         return self._registry.get_project(name or self.project)
 
-    def list_saved_datasets(
-        self, allow_cache: bool = False, tags: Optional[dict[str, str]] = None
-    ) -> List[SavedDataset]:
+    def tag_project(
+        self, name: str, tags: Optional[dict[str, str]] = None, overwrite: bool = False
+    ):
         """
-        Retrieves the list of saved datasets from the registry.
+        Updates tags of a project.
 
         Args:
-            allow_cache: Whether to allow returning saved datasets from a cached registry.
+            name: Name of project.
+            tags: Tags to update.
+            overwrite: If true, allow tags to be overwritten, otherwise reject tag updates that overwrite existing tags.
+
+        Raises:
+            ProjectObjectNotFoundException: The feast object could not be found.
+            TagKeyAlreadyExists: A tag with the same key already exists.
+            TagRequestEmpty: At least one tag update is required.
+            TagKeyDel: Can not both modify and remove a tag key in the same command.
+            TagKeyNotFound: Tag key not found.
+            ValueError: Invalid tag key or value, regex validation failed.
+        """
+        return self._registry.tag_project(name, tags=tags, overwrite=overwrite)
+
+    def list_projects(
+        self, allow_cache: bool = False, tags: Optional[dict[str, str]] = None
+    ) -> List[Project]:
+        """
+        Retrieves the list of projects from the registry.
+
+        Args:
+            allow_cache: Whether to allow returning projects from a cached registry.
             tags: Filter by tags.
 
         Returns:
-            A list of saved datasets.
+            A list of projects.
         """
-        return self._registry.list_saved_datasets(
-            self.project, allow_cache=allow_cache, tags=tags
-        )
+        return self._registry.list_projects(allow_cache=allow_cache, tags=tags)
 
 
 def _print_materialization_log(

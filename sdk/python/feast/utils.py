@@ -17,7 +17,6 @@ from typing import (
     Set,
     Tuple,
     Union,
-    cast,
 )
 
 import pandas as pd
@@ -32,6 +31,10 @@ from feast.errors import (
     FeatureNameCollisionError,
     FeatureViewNotFoundException,
     RequestDataNotFoundInEntityRowsException,
+    TagKeyAlreadyExists,
+    TagKeyDel,
+    TagKeyNotFound,
+    TagRequestEmpty,
 )
 from feast.protos.feast.serving.ServingService_pb2 import (
     FieldStatus,
@@ -1035,17 +1038,56 @@ def tags_list_to_dict(
     tags_dict: dict[str, str] = {}
     for tags_str in tags_list:
         tags_dict.update(tags_str_to_dict(tags_str))
+    if len(tags_dict) == 0:
+        return None
     return tags_dict
 
 
 def tags_str_to_dict(tags: str = "") -> dict[str, str]:
+    tag_dict: dict[str, str] = {}
     tags_list = tags.strip().strip("()").replace('"', "").replace("'", "").split(",")
-    return {
-        key.strip(): value.strip()
-        for key, value in dict(
-            cast(tuple[str, str], tag.split(":", 1)) for tag in tags_list if ":" in tag
-        ).items()
-    }
+    for tag in tags_list:
+        if ":" in tag or tag.endswith("-"):
+            tag_split = tag.split(":", 1)
+            key = tag_split[0].strip()
+            if key:
+                if len(tag_split) > 1:
+                    tag_dict[key] = tag_split[1].strip()
+                else:
+                    tag_dict[key] = ""
+    return tag_dict
+
+
+def apply_tags(
+    obj_tags: Optional[dict[str, str]],
+    new_tags: Optional[dict[str, str]],
+    overwrite: bool,
+) -> dict[str, str]:
+    if new_tags:
+        if obj_tags is None:
+            obj_tags = {}
+        for key, value in new_tags.items():
+            # remove key
+            if not value and key.endswith("-"):
+                del_key = key[:-1]
+                if del_key in new_tags:
+                    raise TagKeyDel(del_key)
+                if del_key in obj_tags:
+                    del obj_tags[del_key]
+                else:
+                    raise TagKeyNotFound(del_key)
+            # existing key
+            elif key in obj_tags:
+                if overwrite:
+                    obj_tags[key] = value
+                else:
+                    raise TagKeyAlreadyExists(key)
+            # new key
+            else:
+                obj_tags[key] = value
+    else:
+        raise TagRequestEmpty()
+    return obj_tags
 
 
 def _utc_now() -> datetime:

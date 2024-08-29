@@ -179,7 +179,7 @@
                 "type": "SystemAssigned"
             },
             "tags": {
-                "displayName": "Azure ML Workspace"
+                "displayName": "Azure-ML-Workspace"
             },
             "dependsOn": [
                 "[variables('storageAccount')]",
@@ -224,7 +224,7 @@
             "type": "Microsoft.Storage/storageAccounts",
             "apiVersion": "2021-04-01",
             "tags": {
-                "displayName": "Feast Registry Store"
+                "displayName": "Feast-Registry-Store"
             },
             "location": "[resourceGroup().location]",
             "kind": "StorageV2",
@@ -252,7 +252,7 @@
             "apiVersion": "2014-04-01",
             "location": "[resourceGroup().location]",
             "tags": {
-                "displayName": "Feast Offline Store Server"
+                "displayName": "Feast-Offline-Store-Server"
             },
             "properties": {
                 "administratorLogin": "[parameters('administratorLogin')]",
@@ -282,7 +282,7 @@
                         "name": "Basic"
                     },
                     "tags": {
-                        "displayName": "Feast Offline Store"
+                        "displayName": "Feast-Offline-Store"
                     },
                     "dependsOn": [
                         "[resourceId('Microsoft.Sql/servers', concat(parameters('sqlServerName')))]"
@@ -297,7 +297,7 @@
             "apiVersion": "2020-12-01",
             "location": "[resourceGroup().location]",
             "tags": {
-                "displayName": "Feast Online Store"
+                "displayName": "Feast-Online-Store"
             },
             "properties": {
                 "sku": {

@@ -13,6 +13,7 @@ from feast.permissions.policy import AllowAll, Policy
 from feast.protos.feast.core.Permission_pb2 import Permission as PermissionProto
 from feast.protos.feast.core.Permission_pb2 import PermissionMeta as PermissionMetaProto
 from feast.protos.feast.core.Permission_pb2 import PermissionSpec as PermissionSpecProto
+from feast.value_type import validate_tags
 
 if TYPE_CHECKING:
     from feast.feast_object import FeastObject
@@ -156,6 +157,13 @@ class Permission(ABC):
             allowed_actions=self.actions,
             requested_actions=requested_actions,
         )
+
+    def is_valid(self):
+        """
+        Validates the state of this permission locally.
+        """
+        validate_tags(self._tags)
+        validate_tags(self._required_tags)
 
     @staticmethod
     def from_proto(permission_proto: PermissionProto) -> Any:

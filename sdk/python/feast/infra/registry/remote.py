@@ -98,6 +98,22 @@ class RemoteRegistry(BaseRegistry):
         response = self.stub.GetEntity(request)
         return Entity.from_proto(response)
 
+    def tag_entity(
+        self,
+        name: str,
+        project: str,
+        tags: Optional[dict[str, str]] = None,
+        overwrite: bool = False,
+    ):
+        request = RegistryServer_pb2.TagEntityRequest(
+            name=name,
+            project=project,
+            tags=tags,
+            overwrite=overwrite,
+        )
+
+        self.stub.TagEntity(request)
+
     def list_entities(
         self,
         project: str,
@@ -132,6 +148,22 @@ class RemoteRegistry(BaseRegistry):
         )
         response = self.stub.GetDataSource(request)
         return DataSource.from_proto(response)
+
+    def tag_data_source(
+        self,
+        name: str,
+        project: str,
+        tags: Optional[dict[str, str]] = None,
+        overwrite: bool = False,
+    ):
+        request = RegistryServer_pb2.TagDataSourceRequest(
+            name=name,
+            project=project,
+            tags=tags,
+            overwrite=overwrite,
+        )
+
+        self.stub.TagDataSource(request)
 
     def list_data_sources(
         self,
@@ -169,6 +201,22 @@ class RemoteRegistry(BaseRegistry):
         )
         response = self.stub.GetFeatureService(request)
         return FeatureService.from_proto(response)
+
+    def tag_feature_service(
+        self,
+        name: str,
+        project: str,
+        tags: Optional[dict[str, str]] = None,
+        overwrite: bool = False,
+    ):
+        request = RegistryServer_pb2.TagFeatureServiceRequest(
+            name=name,
+            project=project,
+            tags=tags,
+            overwrite=overwrite,
+        )
+
+        self.stub.TagFeatureService(request)
 
     def list_feature_services(
         self,
@@ -228,6 +276,22 @@ class RemoteRegistry(BaseRegistry):
         response = self.stub.GetStreamFeatureView(request)
         return StreamFeatureView.from_proto(response)
 
+    def tag_stream_feature_view(
+        self,
+        name: str,
+        project: str,
+        tags: Optional[dict[str, str]] = None,
+        overwrite: bool = False,
+    ):
+        request = RegistryServer_pb2.TagStreamFeatureViewRequest(
+            name=name,
+            project=project,
+            tags=tags,
+            overwrite=overwrite,
+        )
+
+        self.stub.TagStreamFeatureView(request)
+
     def list_stream_feature_views(
         self,
         project: str,
@@ -251,6 +315,22 @@ class RemoteRegistry(BaseRegistry):
         )
         response = self.stub.GetOnDemandFeatureView(request)
         return OnDemandFeatureView.from_proto(response)
+
+    def tag_on_demand_feature_view(
+        self,
+        name: str,
+        project: str,
+        tags: Optional[dict[str, str]] = None,
+        overwrite: bool = False,
+    ):
+        request = RegistryServer_pb2.TagOnDemandFeatureViewRequest(
+            name=name,
+            project=project,
+            tags=tags,
+            overwrite=overwrite,
+        )
+
+        self.stub.TagOnDemandFeatureView(request)
 
     def list_on_demand_feature_views(
         self,
@@ -306,6 +386,22 @@ class RemoteRegistry(BaseRegistry):
         )
         response = self.stub.GetFeatureView(request)
         return FeatureView.from_proto(response)
+
+    def tag_feature_view(
+        self,
+        name: str,
+        project: str,
+        tags: Optional[dict[str, str]] = None,
+        overwrite: bool = False,
+    ):
+        request = RegistryServer_pb2.TagFeatureViewRequest(
+            name=name,
+            project=project,
+            tags=tags,
+            overwrite=overwrite,
+        )
+
+        self.stub.TagFeatureView(request)
 
     def list_feature_views(
         self,
@@ -372,6 +468,22 @@ class RemoteRegistry(BaseRegistry):
         response = self.stub.GetSavedDataset(request)
         return SavedDataset.from_proto(response)
 
+    def tag_saved_dataset(
+        self,
+        name: str,
+        project: str,
+        tags: Optional[dict[str, str]] = None,
+        overwrite: bool = False,
+    ):
+        request = RegistryServer_pb2.TagSavedDatasetRequest(
+            name=name,
+            project=project,
+            tags=tags,
+            overwrite=overwrite,
+        )
+
+        self.stub.TagSavedDataset(request)
+
     def list_saved_datasets(
         self,
         project: str,
@@ -414,6 +526,22 @@ class RemoteRegistry(BaseRegistry):
         )
         response = self.stub.GetValidationReference(request)
         return ValidationReference.from_proto(response)
+
+    def tag_validation_reference(
+        self,
+        name: str,
+        project: str,
+        tags: Optional[dict[str, str]] = None,
+        overwrite: bool = False,
+    ):
+        request = RegistryServer_pb2.TagValidationReferenceRequest(
+            name=name,
+            project=project,
+            tags=tags,
+            overwrite=overwrite,
+        )
+
+        self.stub.TagValidationReference(request)
 
     def list_validation_references(
         self,
@@ -492,6 +620,22 @@ class RemoteRegistry(BaseRegistry):
 
         return Permission.from_proto(response)
 
+    def tag_permission(
+        self,
+        name: str,
+        project: str,
+        tags: Optional[dict[str, str]] = None,
+        overwrite: bool = False,
+    ):
+        request = RegistryServer_pb2.TagPermissionRequest(
+            name=name,
+            project=project,
+            tags=tags,
+            overwrite=overwrite,
+        )
+
+        self.stub.TagPermission(request)
+
     def list_permissions(
         self,
         project: str,
@@ -537,6 +681,20 @@ class RemoteRegistry(BaseRegistry):
         response = self.stub.GetProject(request)
 
         return Project.from_proto(response)
+
+    def tag_project(
+        self,
+        name: str,
+        tags: Optional[dict[str, str]] = None,
+        overwrite: bool = False,
+    ):
+        request = RegistryServer_pb2.TagProjectRequest(
+            name=name,
+            tags=tags,
+            overwrite=overwrite,
+        )
+
+        self.stub.TagProject(request)
 
     def list_projects(
         self,

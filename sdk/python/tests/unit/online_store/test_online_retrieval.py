@@ -11,7 +11,14 @@ import sqlite_vec
 from pandas.testing import assert_frame_equal
 
 from feast import FeatureStore, RepoConfig
-from feast.errors import FeatureViewNotFoundException
+from feast.errors import (
+    EntityNotFoundException,
+    FeatureViewNotFoundException,
+    TagKeyAlreadyExists,
+    TagKeyDel,
+    TagKeyNotFound,
+    TagRequestEmpty,
+)
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import FloatList as FloatListProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
@@ -97,8 +104,61 @@ def test_get_online_features() -> None:
             progress=None,
         )
 
+        store.tag_entity(name="driver", tags={"test": "tag"})
+        entity = store.get_entity(name="driver")
+        assert (
+            entity.name == "driver"
+            and "test" in entity.tags
+            and entity.tags["test"] == "tag"
+            and "release" in entity.tags
+            and entity.tags["release"] == "production"
+        )
+
+        with pytest.raises(TagKeyAlreadyExists):
+            store.tag_entity(name="driver", tags={"test": "new"})
+        entity = store.get_entity(name="driver")
+        assert (
+            entity.name == "driver"
+            and "test" in entity.tags
+            and entity.tags["test"] == "tag"
+            and "release" in entity.tags
+            and entity.tags["release"] == "production"
+        )
+
+        store.tag_entity(name="driver", tags={"test": "new"}, overwrite=True)
+        entity = store.get_entity(name="driver")
+        assert (
+            entity.name == "driver"
+            and "test" in entity.tags
+            and entity.tags["test"] == "new"
+            and "release" in entity.tags
+            and entity.tags["release"] == "production"
+        )
+
+        store.tag_entity(name="driver", tags={"release-": ""})
+        entity = store.get_entity(name="driver")
+        assert (
+            entity.name == "driver"
+            and "test" in entity.tags
+            and entity.tags["test"] == "new"
+            and "release" not in entity.tags
+        )
+
+        with pytest.raises(TagRequestEmpty):
+            store.tag_entity(name="driver")
+        with pytest.raises(TagRequestEmpty):
+            store.tag_entity(name="driver", tags={})
+        with pytest.raises(TagKeyDel):
+            store.tag_entity(name="driver", tags={"new": "tag", "new-": ""})
+        with pytest.raises(TagKeyNotFound):
+            store.tag_entity(name="driver", tags={"new-": ""})
+        with pytest.raises(ValueError):
+            store.tag_entity(name="driver", tags={"new-": "tag"})
+        with pytest.raises(EntityNotFoundException):
+            store.tag_entity(name="wrong", tags={"new": "tag"})
+
         assert len(store.list_entities()) == 3
-        assert len(store.list_entities(tags=TAGS)) == 2
+        assert len(store.list_entities(tags=TAGS)) == 1
 
         # Retrieve two features using two keys, one valid one non-existing
         result = store.get_online_features(

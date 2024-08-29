@@ -19,6 +19,7 @@ from feast.protos.feast.core.FeatureService_pb2 import (
 from feast.protos.feast.core.FeatureService_pb2 import (
     FeatureServiceSpec as FeatureServiceSpecProto,
 )
+from feast.value_type import validate_tags
 
 
 @typechecked
@@ -182,6 +183,12 @@ class FeatureService:
             return False
 
         return True
+
+    def is_valid(self):
+        """
+        Validates the state of this feature service locally.
+        """
+        validate_tags(self.tags)
 
     @classmethod
     def from_proto(cls, feature_service_proto: FeatureServiceProto):

@@ -12,32 +12,61 @@ Usage: feast [OPTIONS] COMMAND [ARGS]...
   For more information, see our public docs at https://docs.feast.dev/
 
 Options:
-  -c, --chdir TEXT  Switch to a different feature repository directory before
-                    executing the given subcommand.
-
-  --help            Show this message and exit.
+  -c, --chdir TEXT               Switch to a different feature repository
+                                 directory before executing the given
+                                 subcommand.
+  --log-level TEXT               The logging level. One of DEBUG, INFO,
+                                 WARNING, ERROR, and CRITICAL (case-
+                                 insensitive).
+  -f, --feature-store-yaml TEXT  Override the directory where the CLI should
+                                 look for the feature_store.yaml file.
+  --help                         Show this message and exit.
 
 Commands:
   apply                    Create or update a feature store deployment
+  data-sources             Access data sources
+  endpoint                 Display feature server endpoints
   entities                 Access entities
+  feature-services         Access feature services
   feature-views            Access feature views
   init                     Create a new Feast repository
+  listen                   Start a gRPC feature server to ingest...
   materialize              Run a (non-incremental) materialization job to...
-  materialize-incremental  Run an incremental materialization job to ingest...
+  materialize-incremental  Run an incremental materialization job to...
+  on-demand-feature-views  [Experimental] Access on demand feature views
   permissions              Access permissions
+  plan                     Create or update a feature store deployment
+  projects                 Access projects
   registry-dump            Print contents of the metadata registry
+  saved-datasets           [Experimental] Access saved datasets
+  serve                    Start a feature server locally on a given port.
+  serve_offline            Start a remote server locally on a given host,...
+  serve_registry           Start a registry server locally on a given port.
+  serve_transformations    [Experimental] Start a feature consumption...
+  stream-feature-views     [Experimental] Access stream feature views
+  tag                      [Experimental] Tag objects
   teardown                 Tear down deployed feature store infrastructure
+  ui                       Shows the Feast UI over the current directory
+  validate                 Perform validation of logged features...
+  validation-references    [Experimental] Access validation references
   version                  Display Feast SDK version
 ```
 
 ## Global Options
 
-The Feast CLI provides one global top-level option that can be used with other commands
+The Feast CLI provides three global top-level options that can be used with other commands
 
 **chdir \(-c, --chdir\)**
 
 This command allows users to run Feast CLI commands in a different folder from the current working directory.
 
+**log-level \(--log-level\)**
+
+This command allows users to change the logging level.
+
+**feature-store-yaml \(-f, --feature-store-yaml\)**
+
+This command allows users to override the directory where the CLI should look for the `feature_store.yaml` file.
 ```text
 feast -c path/to/my/feature/repo apply
 ```
@@ -292,6 +321,47 @@ reader             driver_hourly_stats_fresh   FeatureView      DESCRIBE
 ...
 ```
 
+## Tag
+Update tags for the following objects types:
+- data-source
+- entity
+- feature-service
+- feature-view
+- on-demand-feature-view
+- permission
+- project
+- saved-dataset
+- stream-feature-view
+- validation-reference
+
+```text
+% feast tag --help
+Usage: feast tag [OPTIONS] OBJECT_TYPE NAME TAGS...
+
+  [Experimental] Tag objects
+
+  *  A tag key and value must begin with a letter or number, and may contain
+  letters, numbers, hyphens, dots, and underscores, up to 63 characters each.
+
+  *  Optionally, the key can begin with a DNS subdomain prefix and a single
+  '/', like example.com/my-app. The 'feast.dev/' prefix is reserved.
+
+  Examples:
+
+      # Update data source 'foo' with the tag 'test' and the value 'true'.
+
+      feast tag data-source foo test:true
+
+      # Update feature view 'foo' by removing a tag named 'bar' if it exists.
+      Does not require the --overwrite flag.
+
+      feast tag feature-view foo bar-
+
+Options:
+  --overwrite  If true, allow tags to be overwritten, otherwise reject tag
+               updates that overwrite existing tags.
+  --help       Show this message and exit.
+```
 
 ## Teardown
 

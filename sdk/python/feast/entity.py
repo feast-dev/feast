@@ -20,7 +20,7 @@ from typeguard import typechecked
 from feast.protos.feast.core.Entity_pb2 import Entity as EntityProto
 from feast.protos.feast.core.Entity_pb2 import EntityMeta as EntityMetaProto
 from feast.protos.feast.core.Entity_pb2 import EntitySpecV2 as EntitySpecProto
-from feast.value_type import ValueType
+from feast.value_type import ValueType, validate_tags
 
 
 @typechecked
@@ -136,6 +136,8 @@ class Entity:
 
         if not self.value_type:
             raise ValueError(f"The entity {self.name} does not have a type.")
+
+        validate_tags(self.tags)
 
     @classmethod
     def from_proto(cls, entity_proto: EntityProto):

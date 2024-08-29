@@ -17,6 +17,7 @@ from feast.protos.feast.core.SavedDataset_pb2 import (
 from feast.protos.feast.core.ValidationProfile_pb2 import (
     ValidationReference as ValidationReferenceProto,
 )
+from feast.value_type import validate_tags
 
 if TYPE_CHECKING:
     from feast.infra.offline_stores.offline_store import RetrievalJob
@@ -139,6 +140,12 @@ class SavedDataset:
             return False
 
         return True
+
+    def is_valid(self):
+        """
+        Validates the state of this saved dataset locally.
+        """
+        validate_tags(self.tags)
 
     @staticmethod
     def from_proto(saved_dataset_proto: SavedDatasetProto):
@@ -278,6 +285,12 @@ class ValidationReference:
         self.profiler = profiler
         self.description = description
         self.tags = tags or {}
+
+    def is_valid(self):
+        """
+        Validates the state of this saved dataset locally.
+        """
+        validate_tags(self.tags)
 
     @classmethod
     def from_saved_dataset(cls, name: str, dataset: SavedDataset, profiler: Profiler):

@@ -21,12 +21,14 @@ service RegistryServer{
   // Entity RPCs
   rpc ApplyEntity (ApplyEntityRequest) returns (google.protobuf.Empty) {}
   rpc GetEntity (GetEntityRequest) returns (feast.core.Entity) {}
+  rpc TagEntity (TagEntityRequest) returns (google.protobuf.Empty) {}
   rpc ListEntities (ListEntitiesRequest) returns (ListEntitiesResponse) {}
   rpc DeleteEntity (DeleteEntityRequest) returns (google.protobuf.Empty) {}
   
   // DataSource RPCs
   rpc ApplyDataSource (ApplyDataSourceRequest) returns (google.protobuf.Empty) {}
   rpc GetDataSource (GetDataSourceRequest) returns (feast.core.DataSource) {}
+  rpc TagDataSource (TagDataSourceRequest) returns (google.protobuf.Empty) {}
   rpc ListDataSources (ListDataSourcesRequest) returns (ListDataSourcesResponse) {}
   rpc DeleteDataSource (DeleteDataSourceRequest) returns (google.protobuf.Empty) {}
 
@@ -38,43 +40,51 @@ service RegistryServer{
 
   // plain FeatureView RPCs
   rpc GetFeatureView (GetFeatureViewRequest) returns (feast.core.FeatureView) {}
+  rpc TagFeatureView (TagFeatureViewRequest) returns (google.protobuf.Empty) {}
   rpc ListFeatureViews (ListFeatureViewsRequest) returns (ListFeatureViewsResponse) {}
 
   // StreamFeatureView RPCs
   rpc GetStreamFeatureView (GetStreamFeatureViewRequest) returns (feast.core.StreamFeatureView) {}
+  rpc TagStreamFeatureView (TagStreamFeatureViewRequest) returns (google.protobuf.Empty) {}
   rpc ListStreamFeatureViews (ListStreamFeatureViewsRequest) returns (ListStreamFeatureViewsResponse) {}
 
   // OnDemandFeatureView RPCs
   rpc GetOnDemandFeatureView (GetOnDemandFeatureViewRequest) returns (feast.core.OnDemandFeatureView) {}
+  rpc TagOnDemandFeatureView (TagOnDemandFeatureViewRequest) returns (google.protobuf.Empty) {}
   rpc ListOnDemandFeatureViews (ListOnDemandFeatureViewsRequest) returns (ListOnDemandFeatureViewsResponse) {}
 
   // FeatureService RPCs
   rpc ApplyFeatureService (ApplyFeatureServiceRequest) returns (google.protobuf.Empty) {}
   rpc GetFeatureService (GetFeatureServiceRequest) returns (feast.core.FeatureService) {}
+  rpc TagFeatureService (TagFeatureServiceRequest) returns (google.protobuf.Empty) {}
   rpc ListFeatureServices (ListFeatureServicesRequest) returns (ListFeatureServicesResponse) {}
   rpc DeleteFeatureService (DeleteFeatureServiceRequest) returns (google.protobuf.Empty) {}
 
   // SavedDataset RPCs
   rpc ApplySavedDataset (ApplySavedDatasetRequest) returns (google.protobuf.Empty) {}
   rpc GetSavedDataset (GetSavedDatasetRequest) returns (feast.core.SavedDataset) {}
+  rpc TagSavedDataset (TagSavedDatasetRequest) returns (google.protobuf.Empty) {}
   rpc ListSavedDatasets (ListSavedDatasetsRequest) returns (ListSavedDatasetsResponse) {}
   rpc DeleteSavedDataset (DeleteSavedDatasetRequest) returns (google.protobuf.Empty) {}
 
   // ValidationReference RPCs
   rpc ApplyValidationReference (ApplyValidationReferenceRequest) returns (google.protobuf.Empty) {}
   rpc GetValidationReference (GetValidationReferenceRequest) returns (feast.core.ValidationReference) {}
+  rpc TagValidationReference (TagValidationReferenceRequest) returns (google.protobuf.Empty) {}
   rpc ListValidationReferences (ListValidationReferencesRequest) returns (ListValidationReferencesResponse) {}
   rpc DeleteValidationReference (DeleteValidationReferenceRequest) returns (google.protobuf.Empty) {}
 
   // Permission RPCs
   rpc ApplyPermission (ApplyPermissionRequest) returns (google.protobuf.Empty) {}
   rpc GetPermission (GetPermissionRequest) returns (feast.core.Permission) {}
+  rpc TagPermission (TagPermissionRequest) returns (google.protobuf.Empty) {}
   rpc ListPermissions (ListPermissionsRequest) returns (ListPermissionsResponse) {}
   rpc DeletePermission (DeletePermissionRequest) returns (google.protobuf.Empty) {}
 
   // Project RPCs
   rpc ApplyProject (ApplyProjectRequest) returns (google.protobuf.Empty) {}
   rpc GetProject (GetProjectRequest) returns (feast.core.Project) {}
+  rpc TagProject (TagProjectRequest) returns (google.protobuf.Empty) {}
   rpc ListProjects (ListProjectsRequest) returns (ListProjectsResponse) {}
   rpc DeleteProject (DeleteProjectRequest) returns (google.protobuf.Empty) {}
 
@@ -132,6 +142,13 @@ message GetEntityRequest {
     bool allow_cache = 3;
 }
 
+message TagEntityRequest {
+    string name = 1;
+    string project = 2;
+    map<string,string> tags = 3;
+    bool overwrite  = 4;
+}
+
 message ListEntitiesRequest {
     string project = 1;
     bool allow_cache = 2;
@@ -160,6 +177,13 @@ message GetDataSourceRequest {
     string name = 1;
     string project = 2;
     bool allow_cache = 3;
+}
+
+message TagDataSourceRequest {
+  string name = 1;
+  string project = 2;
+  map<string,string> tags = 3;
+  bool overwrite  = 4;
 }
 
 message ListDataSourcesRequest {
@@ -194,6 +218,13 @@ message GetFeatureViewRequest {
     string name = 1;
     string project = 2;
     bool allow_cache = 3;
+}
+
+message TagFeatureViewRequest {
+  string name = 1;
+  string project = 2;
+  map<string,string> tags = 3;
+  bool overwrite  = 4;
 }
 
 message ListFeatureViewsRequest {
@@ -249,6 +280,13 @@ message GetStreamFeatureViewRequest {
     bool allow_cache = 3;
 }
 
+message TagStreamFeatureViewRequest {
+  string name = 1;
+  string project = 2;
+  map<string,string> tags = 3;
+  bool overwrite  = 4;
+}
+
 message ListStreamFeatureViewsRequest {
     string project = 1;
     bool allow_cache = 2;
@@ -265,6 +303,13 @@ message GetOnDemandFeatureViewRequest {
     string name = 1;
     string project = 2;
     bool allow_cache = 3;
+}
+
+message TagOnDemandFeatureViewRequest {
+  string name = 1;
+  string project = 2;
+  map<string,string> tags = 3;
+  bool overwrite  = 4;
 }
 
 message ListOnDemandFeatureViewsRequest {
@@ -289,6 +334,13 @@ message GetFeatureServiceRequest {
     string name = 1;
     string project = 2;
     bool allow_cache = 3;
+}
+
+message TagFeatureServiceRequest {
+  string name = 1;
+  string project = 2;
+  map<string,string> tags = 3;
+  bool overwrite  = 4;
 }
 
 message ListFeatureServicesRequest {
@@ -321,6 +373,13 @@ message GetSavedDatasetRequest {
     bool allow_cache = 3;
 }
 
+message TagSavedDatasetRequest {
+  string name = 1;
+  string project = 2;
+  map<string,string> tags = 3;
+  bool overwrite  = 4;
+}
+
 message ListSavedDatasetsRequest {
     string project = 1;
     bool allow_cache = 2;
@@ -349,6 +408,13 @@ message GetValidationReferenceRequest {
     string name = 1;
     string project = 2;
     bool allow_cache = 3;
+}
+
+message TagValidationReferenceRequest {
+  string name = 1;
+  string project = 2;
+  map<string,string> tags = 3;
+  bool overwrite  = 4;
 }
 
 message ListValidationReferencesRequest {
@@ -381,6 +447,13 @@ message GetPermissionRequest {
   bool allow_cache = 3;
 }
 
+message TagPermissionRequest {
+  string name = 1;
+  string project = 2;
+  map<string,string> tags = 3;
+  bool overwrite  = 4;
+}
+
 message ListPermissionsRequest {
   string project = 1;
   bool allow_cache = 2;
@@ -407,6 +480,12 @@ message ApplyProjectRequest {
 message GetProjectRequest {
   string name = 1;
   bool allow_cache = 2;
+}
+
+message TagProjectRequest {
+  string name = 1;
+  map<string,string> tags = 3;
+  bool overwrite  = 4;
 }
 
 message ListProjectsRequest {

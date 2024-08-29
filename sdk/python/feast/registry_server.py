@@ -37,6 +37,7 @@ from feast.project import Project
 from feast.protos.feast.registry import RegistryServer_pb2, RegistryServer_pb2_grpc
 from feast.saved_dataset import SavedDataset, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
+from feast.utils import apply_tags
 
 
 def _build_any_feature_view_proto(feature_view: BaseFeatureView):
@@ -92,6 +93,27 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
             ),
             actions=[AuthzedAction.DESCRIBE],
         ).to_proto()
+
+    def TagEntity(self, request: RegistryServer_pb2.TagEntityRequest, context):
+        getter = self.proxied_registry.get_entity
+        entity = cast(
+            Entity,
+            assert_permissions_to_update(
+                resource=getter(
+                    name=request.name,
+                    project=request.project,
+                ),
+                getter=getter,
+                project=request.project,
+            ),
+        )
+        entity.tags = apply_tags(entity.tags, dict(request.tags), request.overwrite)
+        self.proxied_registry.apply_entity(
+            entity=entity,
+            project=request.project,
+        )
+
+        return Empty()
 
     def ListEntities(self, request: RegistryServer_pb2.ListEntitiesRequest, context):
         return RegistryServer_pb2.ListEntitiesResponse(
@@ -152,6 +174,29 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
             ),
             actions=AuthzedAction.DESCRIBE,
         ).to_proto()
+
+    def TagDataSource(self, request: RegistryServer_pb2.TagDataSourceRequest, context):
+        getter = self.proxied_registry.get_data_source
+        data_source = cast(
+            DataSource,
+            assert_permissions_to_update(
+                resource=getter(
+                    name=request.name,
+                    project=request.project,
+                ),
+                getter=getter,
+                project=request.project,
+            ),
+        )
+        data_source.tags = apply_tags(
+            data_source.tags, dict(request.tags), request.overwrite
+        )
+        self.proxied_registry.apply_data_source(
+            data_source=data_source,
+            project=request.project,
+        )
+
+        return Empty()
 
     def ListDataSources(
         self, request: RegistryServer_pb2.ListDataSourcesRequest, context
@@ -222,6 +267,31 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
             )
         )
 
+    def TagFeatureView(
+        self, request: RegistryServer_pb2.TagFeatureViewRequest, context
+    ):
+        getter = self.proxied_registry.get_feature_view
+        feature_view = cast(
+            FeatureView,
+            assert_permissions_to_update(
+                resource=getter(
+                    name=request.name,
+                    project=request.project,
+                ),
+                getter=getter,
+                project=request.project,
+            ),
+        )
+        feature_view.tags = apply_tags(
+            feature_view.tags, dict(request.tags), request.overwrite
+        )
+        self.proxied_registry.apply_feature_view(
+            feature_view=feature_view,
+            project=request.project,
+        )
+
+        return Empty()
+
     def ApplyFeatureView(
         self, request: RegistryServer_pb2.ApplyFeatureViewRequest, context
     ):
@@ -241,7 +311,6 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
             getter=self.proxied_registry.get_feature_view,
             project=request.project,
         )
-
         (
             self.proxied_registry.apply_feature_view(
                 feature_view=feature_view,
@@ -327,6 +396,31 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
             actions=[AuthzedAction.DESCRIBE],
         ).to_proto()
 
+    def TagStreamFeatureView(
+        self, request: RegistryServer_pb2.TagStreamFeatureViewRequest, context
+    ):
+        getter = self.proxied_registry.get_stream_feature_view
+        stream_feature_view = cast(
+            StreamFeatureView,
+            assert_permissions_to_update(
+                resource=getter(
+                    name=request.name,
+                    project=request.project,
+                ),
+                getter=getter,
+                project=request.project,
+            ),
+        )
+        stream_feature_view.tags = apply_tags(
+            stream_feature_view.tags, dict(request.tags), request.overwrite
+        )
+        self.proxied_registry.apply_feature_view(
+            feature_view=stream_feature_view,
+            project=request.project,
+        )
+
+        return Empty()
+
     def ListStreamFeatureViews(
         self, request: RegistryServer_pb2.ListStreamFeatureViewsRequest, context
     ):
@@ -358,6 +452,31 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
             ),
             actions=[AuthzedAction.DESCRIBE],
         ).to_proto()
+
+    def TagOnDemandFeatureView(
+        self, request: RegistryServer_pb2.TagOnDemandFeatureViewRequest, context
+    ):
+        getter = self.proxied_registry.get_on_demand_feature_view
+        on_demand_feature_view = cast(
+            OnDemandFeatureView,
+            assert_permissions_to_update(
+                resource=getter(
+                    name=request.name,
+                    project=request.project,
+                ),
+                getter=getter,
+                project=request.project,
+            ),
+        )
+        on_demand_feature_view.tags = apply_tags(
+            on_demand_feature_view.tags, dict(request.tags), request.overwrite
+        )
+        self.proxied_registry.apply_feature_view(
+            feature_view=on_demand_feature_view,
+            project=request.project,
+        )
+
+        return Empty()
 
     def ListOnDemandFeatureViews(
         self, request: RegistryServer_pb2.ListOnDemandFeatureViewsRequest, context
@@ -409,6 +528,31 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
             ),
             actions=[AuthzedAction.DESCRIBE],
         ).to_proto()
+
+    def TagFeatureService(
+        self, request: RegistryServer_pb2.TagFeatureServiceRequest, context
+    ):
+        getter = self.proxied_registry.get_feature_service
+        feature_service = cast(
+            FeatureService,
+            assert_permissions_to_update(
+                resource=getter(
+                    name=request.name,
+                    project=request.project,
+                ),
+                getter=getter,
+                project=request.project,
+            ),
+        )
+        feature_service.tags = apply_tags(
+            feature_service.tags, dict(request.tags), request.overwrite
+        )
+        self.proxied_registry.apply_feature_service(
+            feature_service=feature_service,
+            project=request.project,
+        )
+
+        return Empty()
 
     def ListFeatureServices(
         self, request: RegistryServer_pb2.ListFeatureServicesRequest, context
@@ -478,6 +622,31 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
             actions=[AuthzedAction.DESCRIBE],
         ).to_proto()
 
+    def TagSavedDataset(
+        self, request: RegistryServer_pb2.TagSavedDatasetRequest, context
+    ):
+        getter = self.proxied_registry.get_saved_dataset
+        saved_dataset = cast(
+            SavedDataset,
+            assert_permissions_to_update(
+                resource=getter(
+                    name=request.name,
+                    project=request.project,
+                ),
+                getter=getter,
+                project=request.project,
+            ),
+        )
+        saved_dataset.tags = apply_tags(
+            saved_dataset.tags, dict(request.tags), request.overwrite
+        )
+        self.proxied_registry.apply_saved_dataset(
+            saved_dataset=saved_dataset,
+            project=request.project,
+        )
+
+        return Empty()
+
     def ListSavedDatasets(
         self, request: RegistryServer_pb2.ListSavedDatasetsRequest, context
     ):
@@ -543,6 +712,31 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
             ),
             actions=[AuthzedAction.DESCRIBE],
         ).to_proto()
+
+    def TagValidationReference(
+        self, request: RegistryServer_pb2.TagValidationReferenceRequest, context
+    ):
+        getter = self.proxied_registry.get_validation_reference
+        validation_reference = cast(
+            ValidationReference,
+            assert_permissions_to_update(
+                resource=getter(
+                    name=request.name,
+                    project=request.project,
+                ),
+                getter=getter,
+                project=request.project,
+            ),
+        )
+        validation_reference.tags = apply_tags(
+            validation_reference.tags, dict(request.tags), request.overwrite
+        )
+        self.proxied_registry.apply_validation_reference(
+            validation_reference=validation_reference,
+            project=request.project,
+        )
+
+        return Empty()
 
     def ListValidationReferences(
         self, request: RegistryServer_pb2.ListValidationReferencesRequest, context
@@ -655,6 +849,29 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
 
         return permission.to_proto()
 
+    def TagPermission(self, request: RegistryServer_pb2.TagPermissionRequest, context):
+        getter = self.proxied_registry.get_permission
+        permission = cast(
+            Permission,
+            assert_permissions_to_update(
+                resource=getter(
+                    name=request.name,
+                    project=request.project,
+                ),
+                getter=getter,
+                project=request.project,
+            ),
+        )
+        permission._tags = apply_tags(
+            permission.tags, dict(request.tags), request.overwrite
+        )
+        self.proxied_registry.apply_permission(
+            permission=permission,
+            project=request.project,
+        )
+
+        return Empty()
+
     def ListPermissions(
         self, request: RegistryServer_pb2.ListPermissionsRequest, context
     ):
@@ -713,6 +930,25 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
             actions=[AuthzedAction.DESCRIBE],
         )
         return project.to_proto()
+
+    def TagProject(self, request: RegistryServer_pb2.TagProjectRequest, context):
+        getter = self.proxied_registry.get_project
+        project = cast(
+            Project,
+            assert_permissions_to_update(
+                resource=getter(
+                    name=request.name,
+                ),
+                getter=getter,
+                project=request.name,
+            ),
+        )
+        project.tags = apply_tags(project.tags, dict(request.tags), request.overwrite)
+        self.proxied_registry.apply_project(
+            project=project,
+        )
+
+        return Empty()
 
     def ListProjects(self, request: RegistryServer_pb2.ListProjectsRequest, context):
         return RegistryServer_pb2.ListProjectsResponse(

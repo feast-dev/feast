@@ -509,3 +509,25 @@ class FeastPermissionError(FeastError, PermissionError):
 
     def http_status_code(self) -> int:
         return HttpStatusCode.HTTP_403_FORBIDDEN
+
+
+class TagKeyAlreadyExists(Exception):
+    def __init__(self, key):
+        super().__init__(f"Tag '{key}' already exists")
+
+
+class TagRequestEmpty(Exception):
+    def __init__(self):
+        super().__init__("At least one tag update is required")
+
+
+class TagKeyNotFound(Exception):
+    def __init__(self, key):
+        super().__init__(f"Tag '{key}' not found")
+
+
+class TagKeyDel(Exception):
+    def __init__(self, key):
+        super().__init__(
+            f"Can not both modify and remove tag '{key}' in the same command"
+        )

@@ -122,7 +122,7 @@ def test_apply_feature_view(test_feature_store):
     assert utils.tags_str_to_dict() == {}
     assert utils.tags_list_to_dict() is None
     assert utils.tags_list_to_dict([]) is None
-    assert utils.tags_list_to_dict([""]) == {}
+    assert utils.tags_list_to_dict([""]) is None
     assert utils.tags_list_to_dict(
         (
             "team : driver_performance, other:tag",
@@ -130,15 +130,22 @@ def test_apply_feature_view(test_feature_store):
             "other:two",
             "other:3",
             "missing",
+            "del-",
+            "test-:fda",
         )
-    ) == {"team": "driver_performance", "other": "3", "blanktag": ""}
+    ) == {
+        "team": "driver_performance",
+        "other": "3",
+        "blanktag": "",
+        "del-": "",
+        "test-": "fda",
+    }
     assert utils.has_all_tags({})
 
     tags_dict = {"team": "matchmaking"}
+    assert utils.tags_list_to_dict(("team:matchmaking", "test")) == tags_dict
     tags_filter = utils.tags_str_to_dict("('team:matchmaking',)")
-    assert tags_filter == tags_dict
-    tags_filter = utils.tags_list_to_dict(("team:matchmaking", "test"))
-    assert tags_filter == tags_dict
+    assert tags_filter == {"team": "matchmaking"}
 
     # List Feature Views
     feature_views = test_feature_store.list_batch_feature_views(tags=tags_filter)
@@ -179,12 +186,16 @@ def test_apply_feature_view(test_feature_store):
         and feature_views[0].entities[0] == "fs1_my_entity_1"
     )
 
-    tags_dict = {"missing": "tag"}
-    tags_filter = utils.tags_list_to_dict(("missing:tag,fdsa", "fdas"))
+    tags_dict = {"missing": "tag", "two": ""}
+    tags_filter = utils.tags_list_to_dict(("missing:tag,one", "two:"))
     assert tags_filter == tags_dict
 
     # List Feature Views
     assert len(test_feature_store.list_batch_feature_views(tags=tags_filter)) == 0
+
+    assert len(test_feature_store.list_entities(tags=tags_filter)) == 0
+    test_feature_store.tag_entity(name="fs1_my_entity_1", tags=tags_filter)
+    assert len(test_feature_store.list_entities(tags=tags_filter)) == 1
 
     test_feature_store.teardown()
 

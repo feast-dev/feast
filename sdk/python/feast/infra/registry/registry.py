@@ -53,7 +53,7 @@ from feast.repo_config import RegistryConfig
 from feast.repo_contents import RepoContents
 from feast.saved_dataset import SavedDataset, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
-from feast.utils import _utc_now
+from feast.utils import _utc_now, apply_tags
 
 REGISTRY_SCHEMA_VERSION = "1"
 
@@ -339,6 +339,7 @@ class Registry(BaseRegistry):
     def apply_data_source(
         self, data_source: DataSource, project: str, commit: bool = True
     ):
+        data_source.is_valid()
         registry = self._prepare_registry_for_changes(project)
         for idx, existing_data_source_proto in enumerate(registry.data_sources):
             if existing_data_source_proto.name == data_source.name:
@@ -369,6 +370,7 @@ class Registry(BaseRegistry):
     def apply_feature_service(
         self, feature_service: FeatureService, project: str, commit: bool = True
     ):
+        feature_service.is_valid()
         now = _utc_now()
         if not feature_service.created_timestamp:
             feature_service.created_timestamp = now
@@ -414,11 +416,33 @@ class Registry(BaseRegistry):
         )
         return proto_registry_utils.get_feature_service(registry_proto, name, project)
 
+    def tag_feature_service(
+        self,
+        name: str,
+        project: str,
+        tags: Optional[dict[str, str]] = None,
+        overwrite: bool = False,
+    ):
+        obj = self.get_feature_service(name, project)
+        obj.tags = apply_tags(obj.tags, tags, overwrite)
+        self.apply_feature_service(obj, project)
+
     def get_entity(self, name: str, project: str, allow_cache: bool = False) -> Entity:
         registry_proto = self._get_registry_proto(
             project=project, allow_cache=allow_cache
         )
         return proto_registry_utils.get_entity(registry_proto, name, project)
+
+    def tag_entity(
+        self,
+        name: str,
+        project: str,
+        tags: Optional[dict[str, str]] = None,
+        overwrite: bool = False,
+    ):
+        obj = self.get_entity(name, project)
+        obj.tags = apply_tags(obj.tags, tags, overwrite)
+        self.apply_entity(obj, project)
 
     def apply_feature_view(
         self, feature_view: BaseFeatureView, project: str, commit: bool = True
@@ -520,6 +544,17 @@ class Registry(BaseRegistry):
             registry_proto, name, project
         )
 
+    def tag_on_demand_feature_view(
+        self,
+        name: str,
+        project: str,
+        tags: Optional[dict[str, str]] = None,
+        overwrite: bool = False,
+    ):
+        obj = self.get_on_demand_feature_view(name, project)
+        obj.tags = apply_tags(obj.tags, tags, overwrite)
+        self.apply_feature_view(obj, project)
+
     def get_data_source(
         self, name: str, project: str, allow_cache: bool = False
     ) -> DataSource:
@@ -527,6 +562,17 @@ class Registry(BaseRegistry):
             project=project, allow_cache=allow_cache
         )
         return proto_registry_utils.get_data_source(registry_proto, name, project)
+
+    def tag_data_source(
+        self,
+        name: str,
+        project: str,
+        tags: Optional[dict[str, str]] = None,
+        overwrite: bool = False,
+    ):
+        obj = self.get_data_source(name, project)
+        obj.tags = apply_tags(obj.tags, tags, overwrite)
+        self.apply_data_source(obj, project)
 
     def apply_materialization(
         self,
@@ -625,6 +671,17 @@ class Registry(BaseRegistry):
         )
         return proto_registry_utils.get_feature_view(registry_proto, name, project)
 
+    def tag_feature_view(
+        self,
+        name: str,
+        project: str,
+        tags: Optional[dict[str, str]] = None,
+        overwrite: bool = False,
+    ):
+        obj = self.get_feature_view(name, project)
+        obj.tags = apply_tags(obj.tags, tags, overwrite)
+        self.apply_feature_view(obj, project)
+
     def get_stream_feature_view(
         self, name: str, project: str, allow_cache: bool = False
     ) -> StreamFeatureView:
@@ -634,6 +691,17 @@ class Registry(BaseRegistry):
         return proto_registry_utils.get_stream_feature_view(
             registry_proto, name, project
         )
+
+    def tag_stream_feature_view(
+        self,
+        name: str,
+        project: str,
+        tags: Optional[dict[str, str]] = None,
+        overwrite: bool = False,
+    ):
+        obj = self.get_stream_feature_view(name, project)
+        obj.tags = apply_tags(obj.tags, tags, overwrite)
+        self.apply_feature_view(obj, project)
 
     def delete_feature_service(self, name: str, project: str, commit: bool = True):
         self._prepare_registry_for_changes(project)
@@ -718,6 +786,7 @@ class Registry(BaseRegistry):
         project: str,
         commit: bool = True,
     ):
+        saved_dataset.is_valid()
         now = _utc_now()
         if not saved_dataset.created_timestamp:
             saved_dataset.created_timestamp = now
@@ -761,6 +830,17 @@ class Registry(BaseRegistry):
         )
         return proto_registry_utils.get_saved_dataset(registry_proto, name, project)
 
+    def tag_saved_dataset(
+        self,
+        name: str,
+        project: str,
+        tags: Optional[dict[str, str]] = None,
+        overwrite: bool = False,
+    ):
+        obj = self.get_saved_dataset(name, project)
+        obj.tags = apply_tags(obj.tags, tags, overwrite)
+        self.apply_saved_dataset(obj, project)
+
     def list_saved_datasets(
         self,
         project: str,
@@ -778,6 +858,7 @@ class Registry(BaseRegistry):
         project: str,
         commit: bool = True,
     ):
+        validation_reference.is_valid()
         validation_reference_proto = validation_reference.to_proto()
         validation_reference_proto.project = project
 
@@ -805,6 +886,17 @@ class Registry(BaseRegistry):
         return proto_registry_utils.get_validation_reference(
             registry_proto, name, project
         )
+
+    def tag_validation_reference(
+        self,
+        name: str,
+        project: str,
+        tags: Optional[dict[str, str]] = None,
+        overwrite: bool = False,
+    ):
+        obj = self.get_validation_reference(name, project)
+        obj.tags = apply_tags(obj.tags, tags, overwrite)
+        self.apply_validation_reference(obj, project)
 
     def list_validation_references(
         self,
@@ -951,6 +1043,17 @@ class Registry(BaseRegistry):
         )
         return proto_registry_utils.get_permission(registry_proto, name, project)
 
+    def tag_permission(
+        self,
+        name: str,
+        project: str,
+        tags: Optional[dict[str, str]] = None,
+        overwrite: bool = False,
+    ):
+        obj = self.get_permission(name, project)
+        obj._tags = apply_tags(obj.tags, tags, overwrite)
+        self.apply_permission(obj, project)
+
     def list_permissions(
         self,
         project: str,
@@ -965,6 +1068,7 @@ class Registry(BaseRegistry):
     def apply_permission(
         self, permission: Permission, project: str, commit: bool = True
     ):
+        permission.is_valid()
         now = _utc_now()
         if not permission.created_timestamp:
             permission.created_timestamp = now
@@ -1007,6 +1111,7 @@ class Registry(BaseRegistry):
         project: Project,
         commit: bool = True,
     ):
+        project.is_valid()
         registry = self.cached_registry_proto
 
         for idx, existing_project_proto in enumerate(registry.projects):
@@ -1030,6 +1135,16 @@ class Registry(BaseRegistry):
     ) -> Project:
         registry_proto = self._get_registry_proto(project=name, allow_cache=allow_cache)
         return proto_registry_utils.get_project(registry_proto, name)
+
+    def tag_project(
+        self,
+        name: str,
+        tags: Optional[dict[str, str]] = None,
+        overwrite: bool = False,
+    ):
+        obj = self.get_project(name)
+        obj.tags = apply_tags(obj.tags, tags, overwrite)
+        self.apply_project(obj)
 
     def list_projects(
         self,

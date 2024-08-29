@@ -33,7 +33,14 @@ from feast.constants import (
     DEFAULT_REGISTRY_SERVER_PORT,
 )
 from feast.data_source import DataSource
-from feast.errors import FeastObjectNotFoundException, FeastProviderLoginError
+from feast.errors import (
+    FeastObjectNotFoundException,
+    FeastProviderLoginError,
+    TagKeyAlreadyExists,
+    TagKeyDel,
+    TagKeyNotFound,
+    TagRequestEmpty,
+)
 from feast.feature_view import FeatureView
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.permissions.policy import RoleBasedPolicy
@@ -493,6 +500,91 @@ def feature_view_list(ctx: click.Context, tags: list[str]):
     print(tabulate(table, headers=["NAME", "ENTITIES", "TYPE"], tablefmt="plain"))
 
 
+@cli.command(name="tag")
+@click.argument("object_type", type=click.STRING)
+@click.argument("name", type=click.STRING)
+@click.argument("tags", type=click.STRING, nargs=-1, required=True)
+@click.option(
+    "--overwrite",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    help="If true, allow tags to be overwritten, otherwise reject tag updates that overwrite existing tags.",
+)
+@click.pass_context
+def tag_cmd(
+    ctx: click.Context, object_type: str, name: str, tags: list[str], overwrite: bool
+):
+    """
+    [Experimental] Tag objects
+
+    *  A tag key and value must begin with a letter or number, and may contain letters, numbers, hyphens, dots, and underscores, up to 63 characters each.
+
+    *  Optionally, the key can begin with a DNS subdomain prefix and a single '/', like example.com/my-app. The 'feast.dev/' prefix is reserved.
+
+    Examples:
+
+        # Update data source 'foo' with the tag 'test' and the value 'true'.
+
+        feast tag data-source foo test:true
+
+        # Update feature view 'foo' by removing a tag named 'bar' if it exists. Does not require the --overwrite flag.
+
+        feast tag feature-view foo bar-
+    """
+    store = create_feature_store(ctx)
+    tags_dict = utils.tags_list_to_dict(tags)
+    try:
+        if object_type == "data-source":
+            store.tag_data_source(name, tags_dict, overwrite)
+        elif object_type == "entity":
+            store.tag_entity(name, tags_dict, overwrite)
+        elif object_type == "feature-service":
+            store.tag_feature_service(name, tags_dict, overwrite)
+        elif object_type == "feature-view":
+            store.tag_feature_view(name, tags_dict, overwrite)
+        elif object_type == "on-demand-feature-view":
+            store.tag_on_demand_feature_view(name, tags_dict, overwrite)
+        elif object_type == "permission":
+            store.tag_permission(name, tags_dict, overwrite)
+        elif object_type == "project":
+            store.tag_project(name, tags_dict, overwrite)
+        elif object_type == "saved-dataset":
+            store.tag_saved_dataset(name, tags_dict, overwrite)
+        elif object_type == "stream-feature-view":
+            store.tag_stream_feature_view(name, tags_dict, overwrite)
+        elif object_type == "validation-reference":
+            store.tag_validation_reference(name, tags_dict, overwrite)
+        else:
+            types = [
+                "data-source",
+                "entity",
+                "feature-service",
+                "feature-view",
+                "on-demand-feature-view",
+                "permission",
+                "project",
+                "saved-dataset",
+                "stream-feature-view",
+                "validation-reference",
+            ]
+            types.sort()
+            print("OBJECT_TYPE must be one of the following:\n -", "\n - ".join(types))
+            exit(1)
+    except (
+        FeastObjectNotFoundException,
+        TagKeyAlreadyExists,
+        TagRequestEmpty,
+        TagKeyDel,
+        TagKeyNotFound,
+        ValueError,
+    ) as e:
+        print(e)
+        exit(1)
+    else:
+        print(f"{object_type} '{name}' tagged")
+
+
 @cli.group(name="on-demand-feature-views")
 def on_demand_feature_views_cmd():
     """
@@ -732,8 +824,9 @@ def apply_total_command(ctx: click.Context, skip_source_validation: bool):
     repo_config = load_repo_config(repo, fs_yaml_file)
     try:
         apply_total(repo_config, repo, skip_source_validation)
-    except FeastProviderLoginError as e:
-        print(str(e))
+    except (FeastProviderLoginError, ValueError) as e:
+        print(e)
+        exit(1)
 
 
 @cli.command("teardown", cls=NoOptionDefaultFormat)
