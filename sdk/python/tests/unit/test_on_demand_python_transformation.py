@@ -157,6 +157,7 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
                 return output
 
             @on_demand_feature_view(
+                entities=[driver],
                 sources=[
                     driver_stats_fv[["conv_rate", "acc_rate"]],
                     input_request_source,
@@ -224,8 +225,6 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
         entity_rows = [
             {
                 "driver_id": 1001,
-                "counter": 0,
-                "input_datetime": _utc_now(),
             }
         ]
 
@@ -312,8 +311,6 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
         entity_rows_to_write = [
             {
                 "driver_id": 1001,
-                "conv_rate": 0.25,
-                "acc_rate": 0.25,
                 "counter": 0,
                 "input_datetime": current_datetime,
             }
@@ -323,6 +320,10 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
         entity_rows_to_read = [
             {
                 "driver_id": 1001,
+                "conv_rate": 0.25,
+                "acc_rate": 0.25,
+                "counter": 0,
+                "input_datetime": current_datetime,
             }
         ]
         print("storing odfv features")
