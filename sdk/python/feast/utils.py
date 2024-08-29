@@ -1019,6 +1019,17 @@ def _prepare_entities_to_read_from_online_store(
 
     num_rows = _validate_entity_values(entity_proto_values)
 
+    odfv_entities = []
+    request_source_keys = []
+    for on_demand_feature_view in requested_on_demand_feature_views:
+        odfv_entities.append(*getattr(on_demand_feature_view, "entities", None))
+        for source in on_demand_feature_view.source_request_sources:
+            source_schema = on_demand_feature_view.source_request_sources[source].schema
+            for column in source_schema:
+                request_source_keys.append(column.name)
+
+    join_keys_set.update(set(odfv_entities))
+
     join_key_values: Dict[str, List[ValueProto]] = {}
     request_data_features: Dict[str, List[ValueProto]] = {}
     # Entity rows may be either entities or request data.
@@ -1031,7 +1042,8 @@ def _prepare_entities_to_read_from_online_store(
                 join_key = join_key_or_entity_name
             else:
                 try:
-                    join_key = entity_name_to_join_key_map[join_key_or_entity_name]
+                    if join_key_or_entity_name in request_source_keys:
+                        join_key = entity_name_to_join_key_map[join_key_or_entity_name]
                 except KeyError:
                     raise EntityNotFoundException(join_key_or_entity_name, project)
                 else:
