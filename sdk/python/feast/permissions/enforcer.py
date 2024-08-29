@@ -1,5 +1,6 @@
 import logging
 
+from feast.errors import FeastPermissionError
 from feast.feast_object import FeastObject
 from feast.permissions.decision import DecisionEvaluator
 from feast.permissions.permission import (
@@ -29,14 +30,14 @@ def enforce_policy(
         user: The current user.
         resources: The resources for which we need to enforce authorized permission.
         actions: The requested actions to be authorized.
-        filter_only: If `True`, it removes unauthorized resources from the returned value, otherwise it raises a `PermissionError` the
+        filter_only: If `True`, it removes unauthorized resources from the returned value, otherwise it raises a `FeastPermissionError` the
         first unauthorized resource. Defaults to `False`.
 
     Returns:
         list[FeastObject]: A filtered list of the permitted resources.
 
     Raises:
-        PermissionError: If the current user is not authorized to eecute the requested actions on the given resources (and `filter_only` is `False`).
+        FeastPermissionError: If the current user is not authorized to eecute the requested actions on the given resources (and `filter_only` is `False`).
     """
     if not permissions:
         return resources
@@ -66,12 +67,12 @@ def enforce_policy(
                 if evaluator.is_decided():
                     grant, explanations = evaluator.grant()
                     if not grant and not filter_only:
-                        raise PermissionError(",".join(explanations))
+                        raise FeastPermissionError(",".join(explanations))
                     if grant:
                         _permitted_resources.append(resource)
                     break
         else:
             message = f"No permissions defined to manage {actions} on {type(resource)}/{resource.name}."
             logger.exception(f"**PERMISSION NOT GRANTED**: {message}")
-            raise PermissionError(message)
+            raise FeastPermissionError(message)
     return _permitted_resources
