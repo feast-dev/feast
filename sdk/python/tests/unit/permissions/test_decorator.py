@@ -1,6 +1,8 @@
 import assertpy
 import pytest
 
+from feast.errors import FeastPermissionError
+
 
 @pytest.mark.parametrize(
     "username, can_read, can_write",
@@ -22,11 +24,11 @@ def test_access_SecuredFeatureView(
     if can_read:
         fv.read_protected()
     else:
-        with pytest.raises(PermissionError):
+        with pytest.raises(FeastPermissionError):
             fv.read_protected()
     if can_write:
         fv.write_protected()
     else:
-        with pytest.raises(PermissionError):
+        with pytest.raises(FeastPermissionError):
             fv.write_protected()
     assertpy.assert_that(fv.unprotected()).is_true()

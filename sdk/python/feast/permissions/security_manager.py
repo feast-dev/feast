@@ -67,14 +67,14 @@ class SecurityManager:
         Args:
             resources: The resources for which we need to enforce authorized permission.
             actions: The requested actions to be authorized.
-            filter_only: If `True`, it removes unauthorized resources from the returned value, otherwise it raises a `PermissionError` the
+            filter_only: If `True`, it removes unauthorized resources from the returned value, otherwise it raises a `FeastPermissionError` the
             first unauthorized resource. Defaults to `False`.
 
         Returns:
             list[FeastObject]: A filtered list of the permitted resources, possibly empty.
 
         Raises:
-            PermissionError: If the current user is not authorized to execute all the requested actions on the given resources.
+            FeastPermissionError: If the current user is not authorized to execute all the requested actions on the given resources.
         """
         return enforce_policy(
             permissions=self.permissions,
@@ -108,7 +108,7 @@ def assert_permissions_to_update(
         FeastObject: The original `resource`, if permitted.
 
     Raises:
-        PermissionError: If the current user is not authorized to execute all the requested actions on the given resource or on the existing one.
+        FeastPermissionError: If the current user is not authorized to execute all the requested actions on the given resource or on the existing one.
     """
     actions = [AuthzedAction.DESCRIBE, AuthzedAction.UPDATE]
     try:
@@ -140,7 +140,7 @@ def assert_permissions(
         FeastObject: The original `resource`, if permitted.
 
     Raises:
-        PermissionError: If the current user is not authorized to execute the requested actions on the given resources.
+        FeastPermissionError: If the current user is not authorized to execute the requested actions on the given resources.
     """
     sm = get_security_manager()
     if sm is None:

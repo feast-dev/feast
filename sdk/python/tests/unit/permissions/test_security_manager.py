@@ -2,7 +2,7 @@ import assertpy
 import pytest
 
 from feast.entity import Entity
-from feast.errors import FeastObjectNotFoundException
+from feast.errors import FeastObjectNotFoundException, FeastPermissionError
 from feast.permissions.action import READ, AuthzedAction
 from feast.permissions.security_manager import (
     assert_permissions,
@@ -66,7 +66,7 @@ def test_access_SecuredFeatureView(
 
     result = []
     if raise_error_in_permit:
-        with pytest.raises(PermissionError):
+        with pytest.raises(FeastPermissionError):
             result = permitted_resources(resources=resources, actions=requested_actions)
     else:
         result = permitted_resources(resources=resources, actions=requested_actions)
@@ -82,7 +82,7 @@ def test_access_SecuredFeatureView(
             result = assert_permissions(resource=r, actions=requested_actions)
             assertpy.assert_that(result).is_equal_to(r)
         elif raise_error_in_assert[i]:
-            with pytest.raises(PermissionError):
+            with pytest.raises(FeastPermissionError):
                 assert_permissions(resource=r, actions=requested_actions)
         else:
             result = assert_permissions(resource=r, actions=requested_actions)
@@ -125,7 +125,7 @@ def test_create_entity(
         )
         assertpy.assert_that(result).is_equal_to(entity)
     else:
-        with pytest.raises(PermissionError):
+        with pytest.raises(FeastPermissionError):
             assert_permissions_to_update(resource=entity, getter=getter, project="")
 
 
@@ -165,5 +165,5 @@ def test_update_entity(
         )
         assertpy.assert_that(result).is_equal_to(entity)
     else:
-        with pytest.raises(PermissionError):
+        with pytest.raises(FeastPermissionError):
             assert_permissions_to_update(resource=entity, getter=getter, project="")
