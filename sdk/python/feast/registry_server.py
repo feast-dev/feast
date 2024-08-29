@@ -647,7 +647,7 @@ def start_server(store: FeatureStore, port: int, wait_for_termination: bool = Tr
 
     server = grpc.server(
         futures.ThreadPoolExecutor(max_workers=10),
-        interceptors=grpc_interceptors(auth_manager_type),
+        interceptors=_grpc_interceptors(auth_manager_type),
     )
     RegistryServer_pb2_grpc.add_RegistryServerServicer_to_server(
         RegistryServer(store.registry), server
@@ -672,11 +672,11 @@ def start_server(store: FeatureStore, port: int, wait_for_termination: bool = Tr
         return server
 
 
-def grpc_interceptors(
+def _grpc_interceptors(
     auth_type: AuthManagerType,
 ) -> Optional[list[grpc.ServerInterceptor]]:
     """
-    A list of the authorization interceptors.
+    A list of the interceptors for the registry server.
 
     Args:
         auth_type: The type of authorization manager, from the feature store configuration.
