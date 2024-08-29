@@ -24,22 +24,18 @@ class FaissOnlineStoreConfig(FeastConfigBaseModel):
 class InMemoryStore:
     def __init__(self):
         self.feature_names: List[str] = []
-        self.entity_keys: Dict[Tuple[str, ...], int] = {}
+        self.entity_keys: Dict[str, int] = {}
 
-    def update(self,
-               feature_names: List[str],
-               entity_keys: Dict[Tuple[str, ...], int]):
+    def update(self, feature_names: List[str], entity_keys: Dict[str, int]):
         self.feature_names = feature_names
         self.entity_keys = entity_keys
 
-    def delete(self,
-               entity_keys: List[Tuple[str, ...]]):
+    def delete(self, entity_keys: List[str]):
         for entity_key in entity_keys:
             if entity_key in self.entity_keys:
                 del self.entity_keys[entity_key]
 
-    def read(self,
-             entity_keys: List[Tuple[str, ...]]) -> List[Optional[int]]:
+    def read(self, entity_keys: List[str]) -> List[Optional[int]]:
         return [self.entity_keys.get(entity_key) for entity_key in entity_keys]
 
     def teardown(self):
@@ -53,20 +49,19 @@ class FaissOnlineStore(OnlineStore):
     _config: Optional[FaissOnlineStoreConfig] = None
     _logger: logging.Logger = logging.getLogger(__name__)
 
-    def _get_index(self,
-                   config: RepoConfig) -> faiss.IndexIVFFlat:
+    def _get_index(self, config: RepoConfig) -> faiss.IndexIVFFlat:
         if self._index is None or self._config is None:
             raise ValueError("Index is not initialized")
         return self._index
 
     def update(
-            self,
-            config: RepoConfig,
-            tables_to_delete: Sequence[FeatureView],
-            tables_to_keep: Sequence[FeatureView],
-            entities_to_delete: Sequence[Entity],
-            entities_to_keep: Sequence[Entity],
-            partial: bool,
+        self,
+        config: RepoConfig,
+        tables_to_delete: Sequence[FeatureView],
+        tables_to_keep: Sequence[FeatureView],
+        entities_to_delete: Sequence[Entity],
+        entities_to_keep: Sequence[Entity],
+        partial: bool,
     ):
         feature_views = tables_to_keep
         if not feature_views:
@@ -87,20 +82,20 @@ class FaissOnlineStore(OnlineStore):
         self._in_memory_store.update(feature_names, {})
 
     def teardown(
-            self,
-            config: RepoConfig,
-            tables: Sequence[FeatureView],
-            entities: Sequence[Entity],
+        self,
+        config: RepoConfig,
+        tables: Sequence[FeatureView],
+        entities: Sequence[Entity],
     ):
         self._index = None
         self._in_memory_store.teardown()
 
     def online_read(
-            self,
-            config: RepoConfig,
-            table: FeatureView,
-            entity_keys: List[EntityKey],
-            requested_features: Optional[List[str]] = None,
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        entity_keys: List[EntityKey],
+        requested_features: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, Value]]]]:
         if self._index is None:
             return [(None, None)] * len(entity_keys)
@@ -125,11 +120,11 @@ class FaissOnlineStore(OnlineStore):
         return results
 
     def online_write_batch(
-            self,
-            config: RepoConfig,
-            table: FeatureView,
-            data: List[Tuple[EntityKey, Dict[str, Value], datetime, Optional[datetime]]],
-            progress: Optional[Callable[[int], Any]],
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        data: List[Tuple[EntityKey, Dict[str, Value], datetime, Optional[datetime]]],
+        progress: Optional[Callable[[int], Any]],
     ) -> None:
         if self._index is None:
             self._logger.warning("Index is not initialized. Skipping write operation.")
@@ -176,13 +171,13 @@ class FaissOnlineStore(OnlineStore):
             progress(len(data))
 
     def retrieve_online_documents(
-            self,
-            config: RepoConfig,
-            table: FeatureView,
-            requested_feature: str,
-            embedding: List[float],
-            top_k: int,
-            distance_metric: Optional[str] = None,
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        requested_feature: str,
+        embedding: List[float],
+        top_k: int,
+        distance_metric: Optional[str] = None,
     ) -> List[
         Tuple[
             Optional[datetime],
@@ -231,11 +226,11 @@ class FaissOnlineStore(OnlineStore):
         return results
 
     async def online_read_async(
-            self,
-            config: RepoConfig,
-            table: FeatureView,
-            entity_keys: List[EntityKey],
-            requested_features: Optional[List[str]] = None,
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        entity_keys: List[EntityKey],
+        requested_features: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, Value]]]]:
         # Implement async read if needed
         raise NotImplementedError("Async read is not implemented for FaissOnlineStore")
