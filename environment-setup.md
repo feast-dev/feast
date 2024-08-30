@@ -13,7 +13,6 @@ pip install cryptography -U
 conda install protobuf
 conda install pymssql
 pip install -e ".[dev]"
-make install-protoc-dependencies PYTHON=3.9
 make install-python-ci-dependencies PYTHON=3.9
 ```
 4. start the docker daemon
