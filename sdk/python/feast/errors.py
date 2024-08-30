@@ -1,3 +1,5 @@
+import importlib
+import json
 import logging
 from typing import Any, List, Optional, Set
 
@@ -36,7 +38,6 @@ class FeastError(Exception):
         Returns:
           str: a string representation of a JSON document including `module`, `class` and `message` fields.
         """
-        import json
 
         m = {
             "module": f"{type(self).__module__}",
@@ -47,9 +48,6 @@ class FeastError(Exception):
 
     @staticmethod
     def from_error_detail(detail: str) -> Optional["FeastError"]:
-        import importlib
-        import json
-
         try:
             m = json.loads(detail)
             if all(f in m for f in ["module", "class", "message"]):
