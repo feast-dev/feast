@@ -8,6 +8,11 @@ import yaml
 from feast import (
     FeatureStore,
 )
+from feast.errors import (
+    EntityNotFoundException,
+    FeastPermissionError,
+    FeatureViewNotFoundException,
+)
 from feast.permissions.permission import Permission
 from feast.registry_server import start_server
 from feast.wait import wait_retry_backoff  # noqa: E402
@@ -70,7 +75,9 @@ def test_registry_apis(
     print(f"Running for\n:{auth_config}")
     remote_feature_store = get_remote_registry_store(server_port, feature_store)
     permissions = _test_list_permissions(remote_feature_store, applied_permissions)
+    _test_get_entity(remote_feature_store, applied_permissions)
     _test_list_entities(remote_feature_store, applied_permissions)
+    _test_get_fv(remote_feature_store, applied_permissions)
     _test_list_fvs(remote_feature_store, applied_permissions)
 
     if _permissions_exist_in_permission_list(
@@ -116,6 +123,20 @@ def _test_get_historical_features(client_fs: FeatureStore):
         ],
     ).to_df()
     assertpy.assert_that(training_df).is_not_none()
+
+
+def _test_get_entity(client_fs: FeatureStore, permissions: list[Permission]):
+    if not _is_auth_enabled(client_fs) or _is_permission_enabled(
+        client_fs, permissions, read_entities_perm
+    ):
+        entity = client_fs.get_entity("driver")
+        assertpy.assert_that(entity).is_not_none()
+        assertpy.assert_that(entity.name).is_equal_to("driver")
+    else:
+        with pytest.raises(FeastPermissionError):
+            client_fs.get_entity("driver")
+        with pytest.raises(EntityNotFoundException):
+            client_fs.get_entity("invalid-name")
 
 
 def _test_list_entities(client_fs: FeatureStore, permissions: list[Permission]):
@@ -186,6 +207,20 @@ def _is_listing_permissions_allowed(permissions: list[Permission]) -> bool:
 
 def _is_auth_enabled(client_fs: FeatureStore) -> bool:
     return client_fs.config.auth_config.type != "no_auth"
+
+
+def _test_get_fv(client_fs: FeatureStore, permissions: list[Permission]):
+    if not _is_auth_enabled(client_fs) or _is_permission_enabled(
+        client_fs, permissions, read_fv_perm
+    ):
+        fv = client_fs.get_feature_view("driver_hourly_stats")
+        assertpy.assert_that(fv).is_not_none()
+        assertpy.assert_that(fv.name).is_equal_to("driver_hourly_stats")
+    else:
+        with pytest.raises(FeastPermissionError):
+            client_fs.get_feature_view("driver_hourly_stats")
+        with pytest.raises(FeatureViewNotFoundException):
+            client_fs.get_feature_view("invalid-name")
 
 
 def _test_list_fvs(client_fs: FeatureStore, permissions: list[Permission]):
