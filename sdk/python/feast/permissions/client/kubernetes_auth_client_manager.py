@@ -1,6 +1,8 @@
 import logging
 import os
 
+import jwt
+
 from feast.permissions.auth_model import KubernetesAuthConfig
 from feast.permissions.client.auth_client_manager import AuthenticationClientManager
 
@@ -13,6 +15,15 @@ class KubernetesAuthClientManager(AuthenticationClientManager):
         self.token_file_path = "/var/run/secrets/kubernetes.io/serviceaccount/token"
 
     def get_token(self):
+        intra_communication_base64 = os.getenv("INTRA_COMMUNICATION_BASE64")
+        # If intra server communication call
+        if intra_communication_base64:
+            payload = {
+                "sub": f":::{intra_communication_base64}",  # Subject claim
+            }
+
+            return jwt.encode(payload, "")
+
         try:
             token = self._read_token_from_file()
             return token

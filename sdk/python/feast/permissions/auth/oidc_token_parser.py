@@ -1,4 +1,6 @@
 import logging
+import os
+from typing import Optional
 from unittest.mock import Mock
 
 import jwt
@@ -34,7 +36,7 @@ class OidcTokenParser(TokenParser):
 
     async def _validate_token(self, access_token: str):
         """
-        Validate the token extracted from the headrer of the user request against the OAuth2 server.
+        Validate the token extracted from the header of the user request against the OAuth2 server.
         """
         # FastAPI's OAuth2AuthorizationCodeBearer requires a Request type but actually uses only the headers field
         # https://github.com/tiangolo/fastapi/blob/eca465f4c96acc5f6a22e92fd2211675ca8a20c8/fastapi/security/oauth2.py#L380
@@ -59,6 +61,11 @@ class OidcTokenParser(TokenParser):
         Raises:
             AuthenticationError if any error happens.
         """
+
+        # check if intra server communication
+        user = self._get_intra_comm_user(access_token)
+        if user:
+            return user
 
         try:
             await self._validate_token(access_token)
@@ -108,3 +115,20 @@ class OidcTokenParser(TokenParser):
         except jwt.exceptions.InvalidTokenError:
             logger.exception("Exception while parsing the token:")
             raise AuthenticationError("Invalid token.")
+
+    def _get_intra_comm_user(self, access_token: str) -> Optional[User]:
+        intra_communication_base64 = os.getenv("INTRA_COMMUNICATION_BASE64")
+
+        if intra_communication_base64:
+            decoded_token = jwt.decode(
+                access_token, options={"verify_signature": False}
+            )
+            if "preferred_username" in decoded_token:
+                preferred_username: str = decoded_token["preferred_username"]
+                if (
+                    preferred_username is not None
+                    and preferred_username == intra_communication_base64
+                ):
+                    return User(username=preferred_username, roles=[])
+
+        return None
