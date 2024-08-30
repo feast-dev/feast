@@ -175,7 +175,7 @@ class FileOfflineStore(OfflineStore):
             registry.list_on_demand_feature_views(config.project),
         )
             
-        print(f"on_demand_feature_views_to_features: {on_demand_feature_views_to_features}")
+        # print(f"on_demand_feature_views_to_features: {on_demand_feature_views_to_features}")
         odfvs = [] 
         for key in list(on_demand_feature_views_to_features.keys()):
             #print(f"Key: {key}")

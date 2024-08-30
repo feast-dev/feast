@@ -728,6 +728,8 @@ class FeatureStore:
             self._registry, self.project, desired_repo_contents
         )
 
+        # print(f"Registry Diff: {registry_diff}")
+
         # Compute the desired difference between the current infra, as stored in the registry,
         # and the desired infra.
         self._registry.refresh(project=self.project)
