@@ -132,6 +132,7 @@ class FeatureView(BaseFeatureView):
         """
         self.name = name
         self.entities = [e.name for e in entities] if entities else [DUMMY_ENTITY_NAME]
+        print('fv', self.entities)
         self.ttl = ttl
         schema = schema or []
 
