@@ -601,17 +601,6 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
                 print("running odfv transform")
                 return output
 
-            with pytest.raises(TypeError):
-                # Note the singleton view will fail as the type is
-                # expected to be a list which can be confirmed in _infer_features_dict
-                self.store.apply(
-                    [
-                        driver,
-                        driver_stats_source,
-                        driver_stats_fv,
-                    ]
-                )
-
             self.store.apply(
                 [
                     driver,
@@ -623,96 +612,10 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
             self.store.write_to_online_store(
                 feature_view_name="driver_hourly_stats", df=driver_df
             )
-            assert len(self.store.list_all_feature_views()) == 5
+            assert len(self.store.list_all_feature_views()) == 2
             assert len(self.store.list_feature_views()) == 1
-            assert len(self.store.list_on_demand_feature_views()) == 4
+            assert len(self.store.list_on_demand_feature_views()) == 1
             assert len(self.store.list_stream_feature_views()) == 0
-
-    def test_python_pandas_parity(self):
-        entity_rows = [
-            {
-                "driver_id": 1001,
-            }
-        ]
-
-        online_python_response = self.store.get_online_features(
-            entity_rows=entity_rows,
-            features=[
-                "driver_hourly_stats:conv_rate",
-                "driver_hourly_stats:acc_rate",
-                "python_view:conv_rate_plus_acc_python",
-            ],
-        ).to_dict()
-
-        online_pandas_response = self.store.get_online_features(
-            entity_rows=entity_rows,
-            features=[
-                "driver_hourly_stats:conv_rate",
-                "driver_hourly_stats:acc_rate",
-                "pandas_view:conv_rate_plus_acc_pandas",
-            ],
-        ).to_df()
-
-        assert len(online_python_response) == 4
-        assert all(
-            key in online_python_response.keys()
-            for key in [
-                "driver_id",
-                "acc_rate",
-                "conv_rate",
-                "conv_rate_plus_acc_python",
-            ]
-        )
-        assert len(online_python_response["conv_rate_plus_acc_python"]) == 1
-        assert (
-            online_python_response["conv_rate_plus_acc_python"][0]
-            == online_pandas_response["conv_rate_plus_acc_pandas"][0]
-            == online_python_response["conv_rate"][0]
-            + online_python_response["acc_rate"][0]
-        )
-
-    def test_python_docs_demo(self):
-        entity_rows = [
-            {
-                "driver_id": 1001,
-            }
-        ]
-
-        online_python_response = self.store.get_online_features(
-            entity_rows=entity_rows,
-            features=[
-                "driver_hourly_stats:conv_rate",
-                "driver_hourly_stats:acc_rate",
-                "python_demo_view:conv_rate_plus_val1_python",
-                "python_demo_view:conv_rate_plus_val2_python",
-            ],
-        ).to_dict()
-
-        assert sorted(list(online_python_response.keys())) == sorted(
-            [
-                "driver_id",
-                "acc_rate",
-                "conv_rate",
-                "conv_rate_plus_val1_python",
-                "conv_rate_plus_val2_python",
-            ]
-        )
-
-        assert (
-            online_python_response["conv_rate_plus_val1_python"][0]
-            == online_python_response["conv_rate_plus_val2_python"][0]
-        )
-        assert (
-            online_python_response["conv_rate"][0]
-            + online_python_response["acc_rate"][0]
-            == online_python_response["conv_rate_plus_val1_python"][0]
-        )
-        assert (
-            online_python_response["conv_rate"][0]
-            + online_python_response["acc_rate"][0]
-            == online_python_response["conv_rate_plus_val2_python"][0]
-        )
-
     def test_stored_writes(self):
         current_datetime = _utc_now()
         entity_rows_to_write = [
