@@ -35,8 +35,8 @@ from tests.data.data_creator import (
     create_basic_driver_dataset,  # noqa: E402
     create_document_dataset,
 )
-from tests.integration.feature_repos.integration_test_repo_config import (
-    IntegrationTestRepoConfig,  # noqa: E402
+from tests.integration.feature_repos.integration_test_repo_config import (  # noqa: E402
+    IntegrationTestRepoConfig,
 )
 from tests.integration.feature_repos.repo_configuration import (  # noqa: E402
     AVAILABLE_OFFLINE_STORES,
@@ -48,8 +48,8 @@ from tests.integration.feature_repos.repo_configuration import (  # noqa: E402
     construct_universal_feature_views,
     construct_universal_test_data,
 )
-from tests.integration.feature_repos.universal.data_sources.file import (
-    FileDataSourceCreator,  # noqa: E402
+from tests.integration.feature_repos.universal.data_sources.file import (  # noqa: E402
+    FileDataSourceCreator,
 )
 from tests.integration.feature_repos.universal.entities import (  # noqa: E402
     customer,
@@ -451,15 +451,20 @@ def is_integration_test(all_markers_from_module):
 @pytest.fixture(
     scope="module",
     params=[
-        dedent("""
+        dedent(
+            """
           auth:
             type: no_auth
-          """),
-        dedent("""
+          """
+        ),
+        dedent(
+            """
           auth:
             type: kubernetes
-        """),
-        dedent("""
+        """
+        ),
+        dedent(
+            """
           auth:
             type: oidc
             client_id: feast-integration-client
@@ -468,7 +473,8 @@ def is_integration_test(all_markers_from_module):
             password: password
             realm: master
             auth_discovery_url: KEYCLOAK_URL_PLACE_HOLDER/realms/master/.well-known/openid-configuration
-        """),
+        """
+        ),
     ],
 )
 def auth_config(request, is_integration_test):

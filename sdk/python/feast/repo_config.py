@@ -9,6 +9,7 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    StrictBool,
     StrictInt,
     StrictStr,
     ValidationError,
@@ -129,11 +130,10 @@ class RegistryConfig(FeastBaseModel):
     s3_additional_kwargs: Optional[Dict[str, str]] = None
     """ Dict[str, str]: Extra arguments to pass to boto3 when writing the registry file to S3. """
 
-    sqlalchemy_config_kwargs: Dict[str, Any] = {}
-    """ Dict[str, Any]: Extra arguments to pass to SQLAlchemy.create_engine. """
-
-    cache_mode: StrictStr = "sync"
-    """ str: Cache mode type, Possible options are sync and thread(asynchronous caching using threading library)"""
+    purge_feast_metadata: StrictBool = False
+    """ bool: Stops using feast_metadata table and delete data from feast_metadata table.
+        Once this is set to True, it cannot be reverted back to False. Reverting back to False will
+        only reset the project but not all the projects"""
 
     @field_validator("path")
     def validate_path(cls, path: str, values: ValidationInfo) -> str:
@@ -345,13 +345,13 @@ class RepoConfig(FeastBaseModel):
                 elif values["auth"]["type"] not in allowed_auth_types:
                     raise ValueError(
                         f'auth configuration has invalid authentication type={values["auth"]["type"]}. Possible '
-                        f'values={allowed_auth_types}'
+                        f"values={allowed_auth_types}"
                     )
             elif isinstance(values["auth"], AuthConfig):
                 if values["auth"].type not in allowed_auth_types:
                     raise ValueError(
                         f'auth configuration has invalid authentication type={values["auth"].type}. Possible '
-                        f'values={allowed_auth_types}'
+                        f"values={allowed_auth_types}"
                     )
         return values
 

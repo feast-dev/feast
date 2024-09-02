@@ -477,6 +477,16 @@ class PermissionObjectNotFoundException(FeastObjectNotFoundException):
             super().__init__(f"Permission {name} does not exist")
 
 
+class ProjectNotFoundException(Exception):
+    def __init__(self, project):
+        super().__init__(f"Project {project} does not exist in registry")
+
+
+class ProjectObjectNotFoundException(FeastObjectNotFoundException):
+    def __init__(self, name, project=None):
+        super().__init__(f"Project {name} does not exist")
+
+
 class ZeroRowsQueryResult(FeastError):
     def __init__(self, query: str):
         super().__init__(f"This query returned zero rows:\n{query}")

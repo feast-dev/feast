@@ -38,11 +38,12 @@ from feast.infra.infra_object import Infra
 from feast.infra.online_stores.sqlite import SqliteTable
 from feast.infra.registry.registry import Registry
 from feast.infra.registry.remote import RemoteRegistry, RemoteRegistryConfig
-from feast.infra.registry.sql import SqlRegistry
+from feast.infra.registry.sql import SqlRegistry, SqlRegistryConfig
 from feast.on_demand_feature_view import on_demand_feature_view
 from feast.permissions.action import AuthzedAction
 from feast.permissions.permission import Permission
 from feast.permissions.policy import RoleBasedPolicy
+from feast.project import Project
 from feast.protos.feast.registry import RegistryServer_pb2, RegistryServer_pb2_grpc
 from feast.registry_server import RegistryServer
 from feast.repo_config import RegistryConfig
@@ -91,7 +92,7 @@ def s3_registry() -> Registry:
     return Registry("project", registry_config, None)
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def minio_registry() -> Registry:
     bucket_name = "test-bucket"
 
@@ -158,7 +159,7 @@ def pg_registry_async():
 
     container.start()
 
-    registry_config = _given_registry_config_for_pg_sql(container, 2, "thread")
+    registry_config = _given_registry_config_for_pg_sql(container, 2, "thread", 3)
 
     yield SqlRegistry(registry_config, "project", None)
 
@@ -166,7 +167,11 @@ def pg_registry_async():
 
 
 def _given_registry_config_for_pg_sql(
-    container, cache_ttl_seconds=2, cache_mode="sync"
+    container,
+    cache_ttl_seconds=2,
+    cache_mode="sync",
+    thread_pool_executor_worker_count=0,
+    purge_feast_metadata=False,
 ):
     log_string_to_wait_for = "database system is ready to accept connections"
     waited = wait_for_logs(
@@ -179,7 +184,7 @@ def _given_registry_config_for_pg_sql(
     container_port = container.get_exposed_port(5432)
     container_host = container.get_container_host_ip()
 
-    return RegistryConfig(
+    return SqlRegistryConfig(
         registry_type="sql",
         cache_ttl_seconds=cache_ttl_seconds,
         cache_mode=cache_mode,
@@ -187,6 +192,8 @@ def _given_registry_config_for_pg_sql(
         # to understand that we are using psycopg3.
         path=f"postgresql+psycopg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{container_host}:{container_port}/{POSTGRES_DB}",
         sqlalchemy_config_kwargs={"echo": False, "pool_pre_ping": True},
+        thread_pool_executor_worker_count=thread_pool_executor_worker_count,
+        purge_feast_metadata=purge_feast_metadata,
     )
 
 
@@ -207,14 +214,20 @@ def mysql_registry_async():
     container = MySqlContainer("mysql:latest")
     container.start()
 
-    registry_config = _given_registry_config_for_mysql(container, 2, "thread")
+    registry_config = _given_registry_config_for_mysql(container, 2, "thread", 3)
 
     yield SqlRegistry(registry_config, "project", None)
 
     container.stop()
 
 
-def _given_registry_config_for_mysql(container, cache_ttl_seconds=2, cache_mode="sync"):
+def _given_registry_config_for_mysql(
+    container,
+    cache_ttl_seconds=2,
+    cache_mode="sync",
+    thread_pool_executor_worker_count=0,
+    purge_feast_metadata=False,
+):
     import sqlalchemy
 
     engine = sqlalchemy.create_engine(
@@ -222,18 +235,20 @@ def _given_registry_config_for_mysql(container, cache_ttl_seconds=2, cache_mode=
     )
     engine.connect()
 
-    return RegistryConfig(
+    return SqlRegistryConfig(
         registry_type="sql",
         path=container.get_connection_url(),
         cache_ttl_seconds=cache_ttl_seconds,
         cache_mode=cache_mode,
         sqlalchemy_config_kwargs={"echo": False, "pool_pre_ping": True},
+        thread_pool_executor_worker_count=thread_pool_executor_worker_count,
+        purge_feast_metadata=purge_feast_metadata,
     )
 
 
 @pytest.fixture(scope="session")
 def sqlite_registry():
-    registry_config = RegistryConfig(
+    registry_config = SqlRegistryConfig(
         registry_type="sql",
         path="sqlite://",
     )
@@ -250,7 +265,11 @@ class GrpcMockChannel:
         )
 
     def unary_unary(
-        self, method: str, request_serializer=None, response_deserializer=None
+        self,
+        method: str,
+        request_serializer=None,
+        response_deserializer=None,
+        _registered_method=None,
     ):
         method_name = method.split("/")[-1]
         method_descriptor = self.service.methods_by_name[method_name]
@@ -347,9 +366,11 @@ def test_apply_entity_success(test_registry):
     project_uuid = project_metadata[0].project_uuid
     assert len(project_metadata[0].project_uuid) == 36
     assert_project_uuid(project, project_uuid, test_registry)
+    assert_project(project, test_registry)
 
     entities = test_registry.list_entities(project, tags=entity.tags)
     assert_project_uuid(project, project_uuid, test_registry)
+    assert_project(project, test_registry)
 
     entity = entities[0]
     assert (
@@ -386,11 +407,12 @@ def test_apply_entity_success(test_registry):
         updated_entity.created_timestamp is not None
         and updated_entity.created_timestamp == entity.created_timestamp
     )
-
     test_registry.delete_entity("driver_car_id", project)
     assert_project_uuid(project, project_uuid, test_registry)
+    assert_project(project, test_registry)
     entities = test_registry.list_entities(project)
     assert_project_uuid(project, project_uuid, test_registry)
+    assert_project(project, test_registry)
     assert len(entities) == 0
 
     test_registry.teardown()
@@ -400,6 +422,14 @@ def assert_project_uuid(project, project_uuid, test_registry):
     project_metadata = test_registry.list_project_metadata(project=project)
     assert len(project_metadata) == 1
     assert project_metadata[0].project_uuid == project_uuid
+
+
+def assert_project(project_name, test_registry, allow_cache=False):
+    project_obj = test_registry.list_projects(allow_cache=allow_cache)
+    assert len(project_obj) == 1
+    assert project_obj[0].name == "project"
+    project_obj = test_registry.get_project(name=project_name, allow_cache=allow_cache)
+    assert project_obj.name == "project"
 
 
 @pytest.mark.integration
@@ -1283,6 +1313,10 @@ def test_commit():
     project_uuid = project_metadata.project_uuid
     assert len(project_uuid) == 36
     validate_project_uuid(project_uuid, test_registry)
+    assert len(test_registry.cached_registry_proto.projects) == 1
+    project_obj = test_registry.cached_registry_proto.projects[0]
+    assert project == Project.from_proto(project_obj).name
+    assert_project(project, test_registry, True)
 
     # Retrieving the entity should still succeed
     entities = test_registry.list_entities(project, allow_cache=True, tags=entity.tags)
@@ -1295,6 +1329,7 @@ def test_commit():
         and entity.tags["team"] == "matchmaking"
     )
     validate_project_uuid(project_uuid, test_registry)
+    assert_project(project, test_registry, True)
 
     entity = test_registry.get_entity("driver_car_id", project, allow_cache=True)
     assert (
@@ -1304,6 +1339,7 @@ def test_commit():
         and entity.tags["team"] == "matchmaking"
     )
     validate_project_uuid(project_uuid, test_registry)
+    assert_project(project, test_registry, True)
 
     # Create new registry that points to the same store
     registry_with_same_store = Registry("project", registry_config, None)
@@ -1312,6 +1348,7 @@ def test_commit():
     entities = registry_with_same_store.list_entities(project)
     assert len(entities) == 0
     validate_project_uuid(project_uuid, registry_with_same_store)
+    assert_project(project, test_registry, True)
 
     # commit from the original registry
     test_registry.commit()
@@ -1330,6 +1367,7 @@ def test_commit():
         and entity.tags["team"] == "matchmaking"
     )
     validate_project_uuid(project_uuid, registry_with_same_store)
+    assert_project(project, test_registry)
 
     entity = test_registry.get_entity("driver_car_id", project)
     assert (
@@ -1371,6 +1409,7 @@ def test_apply_permission_success(test_registry):
     project_uuid = project_metadata[0].project_uuid
     assert len(project_metadata[0].project_uuid) == 36
     assert_project_uuid(project, project_uuid, test_registry)
+    assert_project(project, test_registry)
 
     permissions = test_registry.list_permissions(project)
     assert_project_uuid(project, project_uuid, test_registry)
@@ -1483,5 +1522,194 @@ def test_apply_permission_success(test_registry):
     permissions = test_registry.list_permissions(project)
     assert_project_uuid(project, project_uuid, test_registry)
     assert len(permissions) == 0
+    assert_project(project, test_registry)
+
+    test_registry.teardown()
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("test_registry", all_fixtures)
+def test_apply_project_success(test_registry):
+    project = Project(
+        name="project",
+        description="Project description",
+        tags={"team": "project team"},
+        owner="owner@mail.com",
+    )
+
+    # Register Project
+    test_registry.apply_project(project)
+    assert_project(project.name, test_registry, False)
+
+    projects_list = test_registry.list_projects(tags=project.tags)
+
+    assert_project(projects_list[0].name, test_registry)
+
+    project_get = test_registry.get_project("project")
+    assert (
+        project_get.name == project.name
+        and project_get.description == project.description
+        and project_get.tags == project.tags
+        and project_get.owner == project.owner
+    )
+
+    # Update project
+    updated_project = Project(
+        name=project.name,
+        description="New Project Description",
+        tags={"team": "matchmaking", "app": "feast"},
+    )
+    test_registry.apply_project(updated_project)
+
+    updated_project_get = test_registry.get_project(project.name)
+
+    # The created_timestamp for the entity should be set to the created_timestamp value stored from the previous apply
+    assert (
+        updated_project_get.created_timestamp is not None
+        and updated_project_get.created_timestamp == project_get.created_timestamp
+    )
+
+    assert (
+        updated_project_get.created_timestamp
+        < updated_project_get.last_updated_timestamp
+    )
+
+    entity = Entity(
+        name="driver_car_id",
+        description="Car driver id",
+        tags={"team": "matchmaking"},
+    )
+
+    test_registry.apply_entity(entity, project.name)
+    entities = test_registry.list_entities(project.name)
+    assert len(entities) == 1
+
+    test_registry.delete_project(project.name, commit=False)
+
+    test_registry.commit()
+
+    entities = test_registry.list_entities(project.name, False)
+    assert len(entities) == 0
+    projects_list = test_registry.list_projects()
+    assert len(projects_list) == 0
+
+    test_registry.refresh(project.name)
+
+    test_registry.teardown()
+
+
+@pytest.fixture
+def local_registry_purge_feast_metadata() -> Registry:
+    fd, registry_path = mkstemp()
+    registry_config = RegistryConfig(
+        path=registry_path, cache_ttl_seconds=600, purge_feast_metadata=True
+    )
+    return Registry("project", registry_config, None)
+
+
+@pytest.fixture(scope="function")
+def pg_registry_purge_feast_metadata():
+    container = (
+        DockerContainer("postgres:latest")
+        .with_exposed_ports(5432)
+        .with_env("POSTGRES_USER", POSTGRES_USER)
+        .with_env("POSTGRES_PASSWORD", POSTGRES_PASSWORD)
+        .with_env("POSTGRES_DB", POSTGRES_DB)
+    )
+
+    container.start()
+
+    registry_config = _given_registry_config_for_pg_sql(container, 2, "thread", 3, True)
+
+    yield SqlRegistry(registry_config, "project", None)
+
+    container.stop()
+
+
+@pytest.fixture(scope="function")
+def mysql_registry_purge_feast_metadata():
+    container = MySqlContainer("mysql:latest")
+    container.start()
+
+    registry_config = _given_registry_config_for_mysql(container, 2, "thread", 3, True)
+
+    yield SqlRegistry(registry_config, "project", None)
+
+    container.stop()
+
+
+purge_feast_metadata_fixtures = [
+    lazy_fixture("local_registry_purge_feast_metadata"),
+    pytest.param(
+        lazy_fixture("pg_registry_purge_feast_metadata"),
+        marks=pytest.mark.xdist_group(name="pg_registry_purge_feast_metadata"),
+    ),
+    pytest.param(
+        lazy_fixture("mysql_registry_purge_feast_metadata"),
+        marks=pytest.mark.xdist_group(name="mysql_registry_purge_feast_metadata"),
+    ),
+]
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("test_registry", purge_feast_metadata_fixtures)
+def test_apply_entity_success_with_purge_feast_metadata(test_registry):
+    entity = Entity(
+        name="driver_car_id",
+        description="Car driver id",
+        tags={"team": "matchmaking"},
+    )
+
+    project = "project"
+
+    # Register Entity
+    test_registry.apply_entity(entity, project)
+    project_metadata = test_registry.list_project_metadata(project=project)
+    assert len(project_metadata) == 0
+    assert_project(project, test_registry)
+
+    entities = test_registry.list_entities(project, tags=entity.tags)
+    assert_project(project, test_registry)
+
+    entity = entities[0]
+    assert (
+        len(entities) == 1
+        and entity.name == "driver_car_id"
+        and entity.description == "Car driver id"
+        and "team" in entity.tags
+        and entity.tags["team"] == "matchmaking"
+    )
+
+    entity = test_registry.get_entity("driver_car_id", project)
+    assert (
+        entity.name == "driver_car_id"
+        and entity.description == "Car driver id"
+        and "team" in entity.tags
+        and entity.tags["team"] == "matchmaking"
+    )
+
+    # After the first apply, the created_timestamp should be the same as the last_update_timestamp.
+    assert entity.created_timestamp == entity.last_updated_timestamp
+
+    # Update entity
+    updated_entity = Entity(
+        name="driver_car_id",
+        description="Car driver Id",
+        tags={"team": "matchmaking"},
+    )
+    test_registry.apply_entity(updated_entity, project)
+
+    updated_entity = test_registry.get_entity("driver_car_id", project)
+
+    # The created_timestamp for the entity should be set to the created_timestamp value stored from the previous apply
+    assert (
+        updated_entity.created_timestamp is not None
+        and updated_entity.created_timestamp == entity.created_timestamp
+    )
+    test_registry.delete_entity("driver_car_id", project)
+    assert_project(project, test_registry)
+    entities = test_registry.list_entities(project)
+    assert_project(project, test_registry)
+    assert len(entities) == 0
 
     test_registry.teardown()

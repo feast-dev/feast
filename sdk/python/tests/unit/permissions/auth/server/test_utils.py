@@ -6,10 +6,18 @@ from feast.permissions.action import AuthzedAction
 from feast.permissions.permission import Permission
 from feast.permissions.policy import RoleBasedPolicy
 from feast.permissions.server.utils import AuthManagerType, str_to_auth_manager_type
+from feast.project import Project
 
 read_permissions_perm = Permission(
     name="read_permissions_perm",
     types=Permission,
+    policy=RoleBasedPolicy(roles=["reader"]),
+    actions=[AuthzedAction.DESCRIBE],
+)
+
+read_projects_perm = Permission(
+    name="read_projects_perm",
+    types=Project,
     policy=RoleBasedPolicy(roles=["reader"]),
     actions=[AuthzedAction.DESCRIBE],
 )

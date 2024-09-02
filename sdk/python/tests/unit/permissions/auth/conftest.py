@@ -8,6 +8,7 @@ from tests.unit.permissions.auth.server.test_utils import (
     read_fv_perm,
     read_odfv_perm,
     read_permissions_perm,
+    read_projects_perm,
     read_sfv_perm,
 )
 from tests.unit.permissions.auth.test_token_parser import _CLIENT_ID
@@ -93,6 +94,7 @@ def oidc_config() -> OidcAuthConfig:
             read_fv_perm,
             read_odfv_perm,
             read_sfv_perm,
+            read_projects_perm,
         ],
     ],
 )

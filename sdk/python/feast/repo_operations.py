@@ -1,6 +1,7 @@
 import base64
 import importlib
 import json
+import logging
 import os
 import random
 import re
@@ -24,13 +25,17 @@ from feast.feature_service import FeatureService
 from feast.feature_store import FeatureStore
 from feast.feature_view import DUMMY_ENTITY, FeatureView
 from feast.file_utils import replace_str_in_file
+from feast.infra.registry.base_registry import BaseRegistry
 from feast.infra.registry.registry import FEAST_OBJECT_TYPES, FeastObjectType, Registry
 from feast.names import adjectives, animals
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.permissions.permission import Permission
+from feast.project import Project
 from feast.repo_config import RepoConfig
 from feast.repo_contents import RepoContents
 from feast.stream_feature_view import StreamFeatureView
+
+logger = logging.getLogger(__name__)
 
 
 def py_path_to_module(path: Path) -> str:
@@ -115,6 +120,7 @@ def parse_repo(repo_root: Path) -> RepoContents:
     not result in duplicates, but defining two equal objects will.
     """
     res = RepoContents(
+        projects=[],
         data_sources=[],
         entities=[],
         feature_views=[],
@@ -207,6 +213,8 @@ def parse_repo(repo_root: Path) -> RepoContents:
                 (obj is p) for p in res.permissions
             ):
                 res.permissions.append(obj)
+            elif isinstance(obj, Project) and not any((obj is p) for p in res.projects):
+                res.projects.append(obj)
 
     res.entities.append(DUMMY_ENTITY)
     return res
@@ -214,33 +222,57 @@ def parse_repo(repo_root: Path) -> RepoContents:
 
 def plan(repo_config: RepoConfig, repo_path: Path, skip_source_validation: bool):
     os.chdir(repo_path)
-    project, registry, repo, store = _prepare_registry_and_repo(repo_config, repo_path)
+    repo = _get_repo_contents(repo_path, repo_config.project)
+    for project in repo.projects:
+        repo_config.project = project.name
+        store, registry = _get_store_and_registry(repo_config)
+        # TODO: When we support multiple projects in a single repo, we should filter repo contents by project
+        if not skip_source_validation:
+            provider = store._get_provider()
+            data_sources = [t.batch_source for t in repo.feature_views]
+            # Make sure the data source used by this feature view is supported by Feast
+            for data_source in data_sources:
+                provider.validate_data_source(store.config, data_source)
 
-    if not skip_source_validation:
-        provider = store._get_provider()
-        data_sources = [t.batch_source for t in repo.feature_views]
-        # Make sure the data source used by this feature view is supported by Feast
-        for data_source in data_sources:
-            provider.validate_data_source(store.config, data_source)
-
-    registry_diff, infra_diff, _ = store.plan(repo)
-    click.echo(registry_diff.to_string())
-    click.echo(infra_diff.to_string())
+        registry_diff, infra_diff, _ = store.plan(repo)
+        click.echo(registry_diff.to_string())
+        click.echo(infra_diff.to_string())
 
 
-def _prepare_registry_and_repo(repo_config, repo_path):
-    store = FeatureStore(config=repo_config)
-    project = store.project
-    if not is_valid_name(project):
-        print(
-            f"{project} is not valid. Project name should only have "
-            f"alphanumerical values and underscores but not start with an underscore."
-        )
-        sys.exit(1)
-    registry = store.registry
+def _get_repo_contents(repo_path, project_name: Optional[str] = None):
     sys.dont_write_bytecode = True
     repo = parse_repo(repo_path)
-    return project, registry, repo, store
+
+    if len(repo.projects) < 1:
+        if project_name:
+            print(
+                f"No project found in the repository. Using project name {project_name} defined in feature_store.yaml"
+            )
+            repo.projects.append(Project(name=project_name))
+        else:
+            print(
+                "No project found in the repository. Either define Project in repository or define a project in feature_store.yaml"
+            )
+            sys.exit(1)
+    elif len(repo.projects) == 1:
+        if repo.projects[0].name != project_name:
+            print(
+                "Project object name should match with the project name defined in feature_store.yaml"
+            )
+            sys.exit(1)
+    else:
+        print(
+            "Multiple projects found in the repository. Currently no support for multiple projects"
+        )
+        sys.exit(1)
+
+    return repo
+
+
+def _get_store_and_registry(repo_config):
+    store = FeatureStore(config=repo_config)
+    registry = store.registry
+    return store, registry
 
 
 def extract_objects_for_apply_delete(project, registry, repo):
@@ -289,8 +321,8 @@ def extract_objects_for_apply_delete(project, registry, repo):
 
 def apply_total_with_repo_instance(
     store: FeatureStore,
-    project: str,
-    registry: Registry,
+    project_name: str,
+    registry: BaseRegistry,
     repo: RepoContents,
     skip_source_validation: bool,
 ):
@@ -307,7 +339,7 @@ def apply_total_with_repo_instance(
         all_to_delete,
         views_to_keep,
         views_to_delete,
-    ) = extract_objects_for_apply_delete(project, registry, repo)
+    ) = extract_objects_for_apply_delete(project_name, registry, repo)
 
     if store._should_use_plan():
         registry_diff, infra_diff, new_infra = store.plan(repo)
@@ -357,10 +389,21 @@ def create_feature_store(
 
 def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation: bool):
     os.chdir(repo_path)
-    project, registry, repo, store = _prepare_registry_and_repo(repo_config, repo_path)
-    apply_total_with_repo_instance(
-        store, project, registry, repo, skip_source_validation
-    )
+    repo = _get_repo_contents(repo_path, repo_config.project)
+    for project in repo.projects:
+        repo_config.project = project.name
+        store, registry = _get_store_and_registry(repo_config)
+        if not is_valid_name(project.name):
+            print(
+                f"{project.name} is not valid. Project name should only have "
+                f"alphanumerical values and underscores but not start with an underscore."
+            )
+            sys.exit(1)
+        # TODO: When we support multiple projects in a single repo, we should filter repo contents by project. Currently there is no way to associate Feast objects to project.
+        print(f"Applying changes for project {project.name}")
+        apply_total_with_repo_instance(
+            store, project.name, registry, repo, skip_source_validation
+        )
 
 
 def teardown(repo_config: RepoConfig, repo_path: Optional[str]):

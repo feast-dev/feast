@@ -256,6 +256,7 @@ def get_type_class_from_permission_type(permission_type: str):
 
 
 _PERMISSION_TYPES = {
+    "PROJECT": "feast.project.Project",
     "FEATURE_VIEW": "feast.feature_view.FeatureView",
     "ON_DEMAND_FEATURE_VIEW": "feast.on_demand_feature_view.OnDemandFeatureView",
     "BATCH_FEATURE_VIEW": "feast.batch_feature_view.BatchFeatureView",
