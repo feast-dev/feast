@@ -12,6 +12,87 @@ from feast.type_map import (
     python_type_to_feast_value_type,
 )
 
+from collections import defaultdict
+import textwrap
+import inspect
+import ast
+
+class DependencyTracker(ast.NodeVisitor):
+    def __init__(self, input_dict_name, output_dict_name):
+        self.input_dict_name = input_dict_name
+        self.output_dict_name = output_dict_name
+        self.current_key = None
+        self.dependencies = defaultdict(set)
+        self.temp_vars = {}
+
+    def visit_Assign(self, node):
+        target = node.targets[0]
+        # Check if the target is a subscript (e.g., output["key"])
+        if isinstance(target, ast.Subscript):
+            if isinstance(target.value, ast.Name) and target.value.id == self.output_dict_name:
+                # We are assigning to an output dictionary key
+                key_name = target.slice.value
+                self.current_key = key_name
+                self.visit(node.value)
+                self.current_key = None
+            else:
+                # Handle assignment to a temporary variable with a subscript
+                var_name = target.value.id
+                self.temp_vars[var_name] = node.value
+                self.visit(node.value)
+        elif isinstance(target, ast.Name):
+            # Handle assignment to a simple variable
+            var_name = target.id
+            self.temp_vars[var_name] = node.value
+            self.visit(node.value)
+        else:
+            # Other types of assignments (e.g., tuples, lists)
+            self.generic_visit(node)
+
+    def visit_Dict(self, node):
+        # Handle dictionary initialization like output = {"key": ...}
+        for key, value in zip(node.keys, node.values):
+            if isinstance(key, ast.Constant):
+                self.current_key = key.value
+                self.visit(value)
+                self.current_key = None
+
+    def visit_BinOp(self, node):
+        # Visit both sides of a binary operation
+        self.visit(node.left)
+        self.visit(node.right)
+
+    def visit_Name(self, node):
+        # Handle usage of variables
+        if node.id in self.temp_vars:
+            # If the variable is a temporary variable, expand its value
+            temp_value = self.temp_vars[node.id]
+            self.visit(temp_value)
+        elif self.current_key and node.id == self.input_dict_name:
+            # Record access to input dictionary keys
+            pass
+
+    def visit_Subscript(self, node):
+        # Handle inputs["key"] access
+        if isinstance(node.value, ast.Name) and node.value.id == self.input_dict_name:
+            key_name = node.slice.value
+            if self.current_key:
+                self.dependencies[self.current_key].add(key_name)
+        else:
+            # Handle subscript on a temporary variable
+            self.visit(node.value)
+
+    def visit_Call(self, node):
+        # Handle function calls, check for inputs["key"].some_func()
+        self.visit(node.func)
+        for arg in node.args:
+            self.visit(arg)
+
+    def get_dependencies(self):
+        return dict(self.dependencies)
+
+    def get_dependencies(self):
+        return dict(self.dependencies)
 
 class PythonTransformation:
     def __init__(self, udf: FunctionType, udf_string: str = ""):
@@ -85,3 +166,52 @@ class PythonTransformation:
             udf=dill.loads(user_defined_function_proto.body),
             udf_string=user_defined_function_proto.body_text,
         )
+    
+    def infer_feature_dependencies(self) -> dict:
+        key_usage = track_key_usage(self.udf)
+        print(f"Key usage: {key_usage}")
+        return key_usage
+
+def track_key_usage(func: FunctionType) -> dict:
+    source = inspect.getsource(func)
+    source = textwrap.dedent(source)
+    tree = ast.parse(source)
+
+    # Extract the function's input and output dictionary names
+    signature = inspect.signature(func)
+    input_dict_name = list(signature.parameters.keys())[0]
+
+    # Determine the output dictionary name by finding the returned variable
+    output_dict_name = None
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Return):
+            if isinstance(node.value, ast.Name):
+                output_dict_name = node.value.id
+                break
+
+    if not output_dict_name:
+        raise ValueError("Could not determine the output dictionary name.")
+
+    # Initialize the dependency tracker
+    tracker = DependencyTracker(input_dict_name, output_dict_name)
+    tracker.visit(tree)
+
+    # Get and resolve dependencies
+    dependencies = tracker.get_dependencies()
+    resolved_dependencies = resolve_dependencies(dependencies)
+
+    return resolved_dependencies
+
+def resolve_dependencies(dependencies):
+    def resolve(key):
+        keys = dependencies[key]
+        resolved_keys = set()
+        for k in keys:
+            if k in dependencies:
+                resolved_keys.update(resolve(k))
+            else:
+                resolved_keys.add(k)
+        return resolved_keys
+
+    resolved = {key: resolve(key) for key in dependencies}
+    return resolved

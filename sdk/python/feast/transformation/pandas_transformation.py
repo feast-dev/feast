@@ -14,51 +14,75 @@ from feast.type_map import (
 )
 
 from collections import defaultdict
+import textwrap
+import inspect
 import ast
 
-class TracingDataFrame(pd.DataFrame):
-    _accessed_columns = defaultdict(set)
-    _dependencies = defaultdict(list)
-    _current_output_col = None
+class DependencyTracker(ast.NodeVisitor):
+    def __init__(self, input_df_name, output_df_name):
+        self.input_df_name = input_df_name
+        self.output_df_name = output_df_name
+        self.current_column = None
+        self.dependencies = defaultdict(set)
+        self.temp_vars = {}
 
-    @property
-    def _constructor(self):
-        return TracingDataFrame._construct_from_dict
+    def visit_Assign(self, node):
+        # Handle assignment like df["output_col"] = ...
+        if isinstance(node.targets[0], ast.Subscript):
+            target = node.targets[0]
+            if isinstance(target.value, ast.Name) and target.value.id == self.output_df_name:
+                # We are assigning to an output DataFrame column
+                # print(f"Col name: {target.slice.value}")
+                col_name = target.slice.value
+                self.current_column = col_name
+                self.visit(node.value)
+                self.current_column = None
+            else:
+                # Handle assignment to a temporary variable
+                var_name = target.value.id
+                self.temp_vars[var_name] = node.value
+                self.visit(node.value)
+        else:
+            # Handle assignment to a variable (temporary or otherwise)
+            var_name = node.targets[0].id
+            self.temp_vars[var_name] = node.value
+            self.visit(node.value)
 
-    @classmethod
-    def _construct_from_dict(cls, *args, **kwargs):
-        df = pd.DataFrame(*args, **kwargs)
-        df.__class__ = TracingDataFrame
-        return df
+    def visit_BinOp(self, node):
+        # Visit both sides of a binary operation
+        self.visit(node.left)
+        self.visit(node.right)
 
-    def __getitem__(self, key):
-        if isinstance(key, str) and TracingDataFrame._current_output_col is not None:
-            TracingDataFrame._accessed_columns[TracingDataFrame._current_output_col].add(key)
-        return super().__getitem__(key)
+    def visit_Name(self, node):
+        # Handle usage of variables
+        if node.id in self.temp_vars:
+            # If the variable is a temporary variable, expand its value
+            temp_value = self.temp_vars[node.id]
+            self.visit(temp_value)
+        elif self.current_column and node.id == self.input_df_name:
+            # Record access to input DataFrame columns
+            pass
 
-    def __setitem__(self, key, value):
-        if isinstance(key, str):
-            if TracingDataFrame._current_output_col is not None:
-                TracingDataFrame._dependencies[key].extend(TracingDataFrame._accessed_columns[TracingDataFrame._current_output_col])
-            TracingDataFrame.reset_accessed_columns()  # Reset after each setitem to capture new context
-        super().__setitem__(key, value)
+    def visit_Subscript(self, node):
+        # Handle df["col_name"] access
+        if isinstance(node.value, ast.Name) and node.value.id == self.input_df_name:
+            # print(f"Col name: {node.slice.value}")
+            col_name = node.slice.value
+            if self.current_column:
+                self.dependencies[self.current_column].add(col_name)
+        else:
+            # Handle subscript on a temporary variable
+            self.visit(node.value)
 
-    @classmethod
-    def set_current_output_col(cls, col_name):
-        cls._current_output_col = col_name
+    def visit_Call(self, node):
+        # Handle function calls, check for df["col_name"].some_func()
+        self.visit(node.func)
+        for arg in node.args:
+            self.visit(arg)
 
-    @classmethod
-    def reset_accessed_columns(cls):
-        cls._accessed_columns = defaultdict(set)
-
-    @classmethod
-    def reset_dependencies(cls):
-        cls._dependencies = defaultdict(list)
-
-    @classmethod
-    def get_dependencies(cls):
-        return dict(cls._dependencies)
-
+    def get_dependencies(self):
+        return dict(self.dependencies)
+    
 class PandasTransformation:
     def __init__(self, udf: FunctionType, udf_string: str = ""):
         """
@@ -141,98 +165,52 @@ class PandasTransformation:
             udf=dill.loads(user_defined_function_proto.body),
             udf_string=user_defined_function_proto.body_text,
         )
+    
+    def infer_feature_dependencies(self) -> dict:
+        column_usage = track_column_usage(self.udf)
+        print(f"Column usage: {column_usage}")
+        return column_usage
+    
+def track_column_usage(func: FunctionType) -> dict:
+    source = inspect.getsource(func)
+    source = textwrap.dedent(source)
+    tree = ast.parse(source)
 
-    def infer_feature_dependencies(self) -> Dict[str, Set[str]]:
-        """
-        Infers the dependencies of each column in the transformation.
+    # Extract the function's input DataFrame name from the signature
+    signature = inspect.signature(func)
+    input_df_name = list(signature.parameters.keys())[0]
 
-        Returns:
-            A dictionary where each key is an output column name and the value is a set
-            of input column names that the output column depends on.
-        """
-        # Parse the UDF code
-        if not self.udf_string.startswith("@on_demand_feature_view"):
-            return None
-        tree = ast.parse(self.udf_string)
-        #print(f"ast tree: {ast.dump(tree, indent=2)}")
-        
-        # Initialize dependency dictionary
-        dependencies = {}
-        
-        # Helper function to extract column names used in an expression
-        def get_column_names(node):
-            if isinstance(node, ast.Name):
-                return {node.id}
-            elif isinstance(node, ast.BinOp):
-                left = get_column_names(node.left)
-                right = get_column_names(node.right)
-                #print(f"Left: {left}, Right: {right}")
-                return left.union(right)
-            elif isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
-                return get_column_names(node.args[0])
-            elif isinstance(node, ast.Subscript):
-                #print(f"Id: {node.slice.value}, Dataframe: {node.value.id}")
-                return {(("id", node.slice.value), ("df", node.value.id))}
-            return set()
-        
-        # Helper function to process a statement in the AST
-        def process_node(node):
-            if isinstance(node, ast.Assign):
-                #print("Found an assignment!")
-                targets = [t.slice.value for t in node.targets if isinstance(t, ast.Subscript)]
-                if len(targets) > 0:
-                    output_column = targets[0]
-                    dependencies[output_column] = get_column_names(node.value)
-        
-        # Find parameter name
-        input = tree.body[0].args.args[0].arg
-        #print(f"Input parameter: {input}")
+    # Determine the output DataFrame name by finding the returned variable
+    output_df_name = None
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Return):
+            if isinstance(node.value, ast.Name):
+                output_df_name = node.value.id
+                break
 
-        # Process each node in the AST
-        for node in tree.body[0].body:
-            process_node(node)
-        
-        #print(f"Dependencies before simplification: {dependencies}")
-        
-        # Recursive function to resolve full dependencies
-        # TODO: Test this better
-        # Process dependencies to create a simpler map
-        def simplify_dependencies(deps):
-            simple_deps = {}
-            for key, value in deps.items():
-                simple_deps[key] = set()
-                for dep in value:
-                    if dep[1][1] == input:
-                        simple_deps[key].add(dep[0][1])
-                    else:
-                        if dep[0][1] in deps:
-                            simple_deps[key].add(dep[0][1])
-            return simple_deps
+    if not output_df_name:
+        raise ValueError("Could not determine the output DataFrame name.")
 
-        # Simplified initial dependencies
-        simplified_dependencies = simplify_dependencies(dependencies)
+    # Initialize the dependency tracker
+    tracker = DependencyTracker(input_df_name, output_df_name)
+    tracker.visit(tree)
 
-        # Helper function to recursively resolve all dependencies
-        def resolve_dependencies(col, resolved):
-            if col in resolved:
-                return resolved[col]
+    # Get and resolve dependencies
+    dependencies = tracker.get_dependencies()
+    resolved_dependencies = resolve_dependencies(dependencies)
 
-            if col not in simplified_dependencies:
-                return set()
+    return resolved_dependencies
 
-            direct_deps = simplified_dependencies[col]
-            all_deps = set(direct_deps)
-            for dep in direct_deps:
-                all_deps.update(resolve_dependencies(dep, resolved))
+def resolve_dependencies(dependencies):
+    def resolve(col):
+        cols = dependencies[col]
+        resolved_cols = set()
+        for c in cols:
+            if c in dependencies:
+                resolved_cols.update(resolve(c))
+            else:
+                resolved_cols.add(c)
+        return resolved_cols
 
-            resolved[col] = all_deps
-            return all_deps
-
-        # Final resolved dependencies
-        final_dependencies = {}
-        for col in simplified_dependencies:
-            final_dependencies[col] = resolve_dependencies(col, {})
-
-        #print(f"Dependencies after simplification: {final_dependencies}")
-
-        return final_dependencies
+    resolved = {col: resolve(col) for col in dependencies}
+    return resolved

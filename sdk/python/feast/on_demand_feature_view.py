@@ -165,8 +165,7 @@ class OnDemandFeatureView(BaseFeatureView):
 
         self.feature_transformation = feature_transformation
 
-        # if mode == "pandas":
-        #     self.feature_dependencies = self.infer_feature_dependencies()
+        self.infer_feature_dependencies()
 
     @property
     def proto_class(self) -> Type[OnDemandFeatureViewProto]:
@@ -604,15 +603,16 @@ class OnDemandFeatureView(BaseFeatureView):
         # print(f"Requested On Demand Feature Views: {requested_on_demand_feature_views}")
         return requested_on_demand_feature_views
 
-    def infer_feature_dependencies(self) -> Dict[str, Set[str]]:
+    def infer_feature_dependencies(self) -> None:
         #print("In infer feature dependencies!")
         inferred_feature_dependencies = None
-        # if self.mode == "pandas":
-        #     inferred_feature_dependencies = self.feature_transformation.infer_feature_dependencies()
+        if self.mode == "pandas" or self.mode == "python":
+            inferred_feature_dependencies = self.feature_transformation.infer_feature_dependencies()
  
         # TODO: Map dependencies to Fields from features so that we have a dict {output field name: List[Field]}
         # Search in the registry for Field with the given name used by one of the sources
-        return inferred_feature_dependencies
+        self.feature_dependencies = inferred_feature_dependencies
+        return
         
 
 
