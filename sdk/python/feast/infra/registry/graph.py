@@ -378,13 +378,17 @@ class GraphRegistry(CachingRegistry):
                                 )
                             )
                             SET n.{proto_field_name} = $proto_data,
-                                n.last_updated_timestamp = $update_time
+                                n.last_updated_timestamp = $update_time,
+                                n.data_type = $dtype,
+                                n.description = $description
                             """, 
                             name=name, 
                             parents=[parents["ds"]],
                             project=project,
                             proto_data=obj_proto.SerializeToString(), 
-                            update_time=update_time
+                            update_time=update_time,
+                            dtype=f"{obj.dtype}",
+                            description=obj.description
                         )
                     elif parents and "odfv" in parents:
                         tx.run(
@@ -397,13 +401,17 @@ class GraphRegistry(CachingRegistry):
                                 )
                             )
                             SET n.{proto_field_name} = $proto_data,
-                                n.last_updated_timestamp = $update_time
+                                n.last_updated_timestamp = $update_time,
+                                n.data_type = $dtype,
+                                n.description = $description
                             """, 
                             name=name, 
                             parents=[parents["odfv"]],
                             project=project,
                             proto_data=obj_proto.SerializeToString(), 
-                            update_time=update_time
+                            update_time=update_time,
+                            dtype=f"{obj.dtype}",
+                            description=obj.description
                         )
                     else:
                         tx.run(
@@ -432,7 +440,9 @@ class GraphRegistry(CachingRegistry):
                             CREATE (n:{label} {{ 
                                 {id_field_name}: $name, 
                                 {proto_field_name}: $proto_data, 
-                                last_updated_timestamp: $created_time
+                                last_updated_timestamp: $created_time,
+                                data_type: $dtype,
+                                description: $description
                             }})
                             CREATE (p)-[:CONTAINS]->(n)
                             WITH n,p
@@ -445,7 +455,9 @@ class GraphRegistry(CachingRegistry):
                             parents=[parents["ds"]],
                             project=project,
                             proto_data=obj_proto.SerializeToString(), 
-                            created_time=datetime.now()
+                            created_time=datetime.now(),
+                            dtype=f"{obj.dtype}",
+                            description=obj.description
                         )
                     elif parents and "odfv" in parents:
                         tx.run(
@@ -454,7 +466,9 @@ class GraphRegistry(CachingRegistry):
                             CREATE (n:{label} {{ 
                                 {id_field_name}: $name, 
                                 {proto_field_name}: $proto_data, 
-                                last_updated_timestamp: $created_time
+                                last_updated_timestamp: $created_time,
+                                data_type: $dtype,
+                                description: $description
                             }})
                             CREATE (p)-[:CONTAINS]->(n)
                             WITH n,p
@@ -467,7 +481,9 @@ class GraphRegistry(CachingRegistry):
                             parents=[parents["odfv"]],
                             project=project,
                             proto_data=obj_proto.SerializeToString(), 
-                            created_time=datetime.now()
+                            created_time=datetime.now(),
+                            dtype=f"{obj.dtype}",
+                            description=obj.description
                         )
                     else:
                         tx.run(
@@ -489,27 +505,268 @@ class GraphRegistry(CachingRegistry):
                 if just_create:
                     return
                 
-                # # Add relationship from DataSource to Field, Field properties
-                # if isinstance(obj, (Field)):                
-                #     tx.run(
-                #         f"""
-                #         MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(n:{label} {{ {id_field_name}: $name }})
-                #         WITH n, p
-                #         UNWIND $parents AS parent_name
-                #         MATCH (p)-[:CONTAINS]->(s:DataSource {{ data_source_name: parent_name }})
-                #         MERGE (s)-[r:HAS]->(n)
-                #         ON CREATE SET r.created_at = $created_time
-                #         SET n.dtype = $dtype,
-                #             n.description = $description
-                #         """, 
-                #         name=name, 
-                #         parents=parents,
-                #         project=project, 
-                #         dtype=f"{obj.dtype}",
-                #         description=obj.description,
-                #         created_time=datetime.now() 
-                #     )
+                # Add relationship to tags if applicable
+                if hasattr(obj, "tags"):
+                    if parents and "ds" in parents:
+                        # Get existing relationships
+                        result = tx.run(
+                            f"""
+                            MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(n:{label} {{ {id_field_name}: $name }})
+                            MATCH (p)-[:CONTAINS]->(s:DataSource)
+                            WHERE ALL(parent_name IN $parents WHERE
+                                EXISTS(
+                                    (p)-[:CONTAINS]->(s {{ data_source_name: parent_name }})-[:HAS]->(n)
+                                )
+                            )
+                            MATCH (n)-[:TAG]->(t)
+                            RETURN t.value AS value, labels(t) AS label
+                            """,
+                            name=name,
+                            parents=[parents["ds"]],
+                            project=project
+                        )
+                        relationships = result.data()
+                        relationships = [{'label': r["label"][0], 'value': r["value"]} for r in relationships]
+                        relationships = [frozenset(r.items()) for r in relationships]
+                        # print(f"Existing TAG relationships: {relationships}")
+                        tags = [{'label': key.capitalize(), 'value': value} for key,value in obj.tags.items()]
+                        tags = [frozenset(t.items()) for t in tags]
+                        # print(f"New TAG relationships: {tags}")
+                        tags_to_remove = set(relationships) - set(tags)
+                        tags_to_add = set(tags) - set(relationships)
 
+                        # Remove old relationships
+                        if tags_to_remove:
+                            tags_to_remove = [dict(item) for item in tags_to_remove]
+                            for t in tags_to_remove:
+                                print(f"Remove tag: {t}")
+                                tx.run(
+                                    f"""
+                                    MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(n:{label} {{ {id_field_name}: $name }})
+                                    MATCH (p)-[:CONTAINS]->(s:DataSource)
+                                    WHERE ALL(parent_name IN $parents WHERE
+                                        EXISTS(
+                                            (p)-[:CONTAINS]->(s {{ data_source_name: parent_name }})-[:HAS]->(n)
+                                        )
+                                    )
+                                    MATCH (n)-[r:TAG]->(t:{t["label"]} {{ value: $value }})
+                                    DELETE r
+                                    """,
+                                    name=name,
+                                    parents=[parents["ds"]],
+                                    project=project,
+                                    value=t["value"]
+                                )
+                        
+                        # Add new relationships
+                        if tags_to_add:
+                            tags_to_add = [dict(item) for item in tags_to_add]
+                            for t in tags_to_add:
+                                print(f"Add tag: {t}")
+                                tx.run(
+                                    f"""
+                                    MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(n:{label} {{ {id_field_name}: $name }})
+                                    MATCH (p)-[:CONTAINS]->(s:DataSource)
+                                    WHERE ALL(parent_name IN $parents WHERE
+                                        EXISTS(
+                                            (p)-[:CONTAINS]->(s {{ data_source_name: parent_name }})-[:HAS]->(n)
+                                        )
+                                    )
+                                    MERGE (t:{t["label"]} {{ value: $value }})
+                                    MERGE (n)-[r:TAG]->(t)
+                                    """,
+                                    name=name,
+                                    parents=[parents["ds"]],
+                                    project=project,
+                                    value=t["value"]
+                                )
+                    
+                        '''
+                        for key,value in obj.tags.items(): 
+                            tag_label = key.capitalize()
+                            # Check if the relationship already exists before creating it
+                            tx.run(
+                                f"""
+                                MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(n:{label} {{ {id_field_name}: $name }})
+                                MATCH (p)-[:CONTAINS]->(s:DataSource)
+                                WHERE ALL(parent_name IN $parents WHERE
+                                    EXISTS(
+                                        (p)-[:CONTAINS]->(s {{ data_source_name: parent_name }})-[:HAS]->(n)
+                                    )
+                                )
+                                MERGE (t:{tag_label} {{ name: $value }})
+                                MERGE (n)-[r:TAG]->(t)
+                                """, 
+                                name=name, 
+                                parents=[parents["ds"]],
+                                project=project,
+                                value=value
+                            )
+                        '''
+                    elif parents and "odfv" in parents:
+                        # Get existing relationships
+                        result = tx.run(
+                            f"""
+                            MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(n:{label} {{ {id_field_name}: $name }})
+                            MATCH (p)-[:CONTAINS]->(v:OnDemandFeatureView)
+                            WHERE ALL(parent_name IN $parents WHERE
+                                EXISTS(
+                                    (p)-[:CONTAINS]->(v {{ feature_view_name: parent_name }})-[:PRODUCES]->(n)
+                                )
+                            )
+                            MATCH (n)-[:TAG]->(t)
+                            RETURN t.value AS value, labels(t) AS label
+                            """,
+                            name=name,
+                            parents=[parents["odfv"]],
+                            project=project
+                        )
+                        relationships = result.data()
+                        relationships = [{'label': r["label"][0], 'value': r["value"]} for r in relationships]
+                        relationships = [frozenset(r.items()) for r in relationships]
+                        # print(f"Existing TAG relationships: {relationships}")
+                        tags = [{'label': key.capitalize(), 'value': value} for key,value in obj.tags.items()]
+                        tags = [frozenset(t.items()) for t in tags]
+                        # print(f"New TAG relationships: {tags}")
+                        tags_to_remove = set(relationships) - set(tags)
+                        tags_to_add = set(tags) - set(relationships)
+
+                        # Remove old relationships
+                        if tags_to_remove:
+                            tags_to_remove = [dict(item) for item in tags_to_remove]
+                            for t in tags_to_remove:
+                                print(f"Remove tag: {t}")
+                                tx.run(
+                                    f"""
+                                    MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(n:{label} {{ {id_field_name}: $name }})
+                                    MATCH (p)-[:CONTAINS]->(v:OnDemandFeatureView)
+                                    WHERE ALL(parent_name IN $parents WHERE
+                                        EXISTS(
+                                            (p)-[:CONTAINS]->(v {{ feature_view_name: parent_name }})-[:PRODUCES]->(n)
+                                        )
+                                    )
+                                    MATCH (n)-[r:TAG]->(t:{t["label"]} {{ value: $value }})
+                                    DELETE r
+                                    """,
+                                    name=name,
+                                    parents=[parents["odfv"]],
+                                    project=project,
+                                    value=t["value"]
+                                )
+                        
+                        # Add new relationships
+                        if tags_to_add:
+                            tags_to_add = [dict(item) for item in tags_to_add]
+                            for t in tags_to_add:
+                                print(f"Add tag: {t}")
+                                tx.run(
+                                    f"""
+                                    MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(n:{label} {{ {id_field_name}: $name }})
+                                    MATCH (p)-[:CONTAINS]->(v:OnDemandFeatureView)
+                                    WHERE ALL(parent_name IN $parents WHERE
+                                        EXISTS(
+                                            (p)-[:CONTAINS]->(v {{ feature_view_name: parent_name }})-[:PRODUCES]->(n)
+                                        )
+                                    )
+                                    MERGE (t:{t["label"]} {{ value: $value }})
+                                    MERGE (n)-[r:TAG]->(t)
+                                    """,
+                                    name=name,
+                                    parents=[parents["odfv"]],
+                                    project=project,
+                                    value=t["value"]
+                                )
+                        '''
+                        for key,value in obj.tags.items(): 
+                            tag_label = key.capitalize()
+                            # Check if the relationship already exists before creating it
+                            tx.run(
+                                f"""
+                                MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(n:{label} {{ {id_field_name}: $name }})
+                                MATCH (p)-[:CONTAINS]->(v:OnDemandFeatureView)
+                                WHERE ALL(parent_name IN $parents WHERE
+                                    EXISTS(
+                                        (p)-[:CONTAINS]->(v {{ feature_view_name: parent_name }})-[:PRODUCES]->(n)
+                                    )
+                                )
+                                MERGE (t:{tag_label} {{ name: $value }})
+                                MERGE (n)-[r:TAG]->(t)
+                                """, 
+                                name=name, 
+                                parents=[parents["odfv"]],
+                                project=project,
+                                value=value
+                            )
+                        '''
+                    else:
+                        # Get existing relationships
+                        result = tx.run(
+                            f"""
+                            MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(n:{label} {{ {id_field_name}: $name }})
+                            MATCH (n)-[:TAG]->(t)
+                            RETURN t.value AS value, labels(t) AS label
+                            """,
+                            name=name,
+                            project=project
+                        )
+                        relationships = result.data()
+                        relationships = [{'label': r["label"][0], 'value': r["value"]} for r in relationships]
+                        relationships = [frozenset(r.items()) for r in relationships]
+                        # print(f"Existing TAG relationships: {relationships}")
+                        tags = [{'label': key.capitalize(), 'value': value} for key,value in obj.tags.items()]
+                        tags = [frozenset(t.items()) for t in tags]
+                        # print(f"New TAG relationships: {tags}")
+                        tags_to_remove = set(relationships) - set(tags)
+                        tags_to_add = set(tags) - set(relationships)
+
+                        # Remove old relationships
+                        if tags_to_remove:
+                            tags_to_remove = [dict(item) for item in tags_to_remove]
+                            for t in tags_to_remove:
+                                print(f"Remove tag: {t}")
+                                tx.run(
+                                    f"""
+                                    MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(n:{label} {{ {id_field_name}: $name }})
+                                    MATCH (n)-[r:TAG]->(t:{t["label"]} {{ value: $value }})
+                                    DELETE r
+                                    """,
+                                    name=name,
+                                    project=project,
+                                    value=t["value"]
+                                )
+                        
+                        # Add new relationships
+                        if tags_to_add:
+                            tags_to_add = [dict(item) for item in tags_to_add]
+                            for t in tags_to_add:
+                                print(f"Add tag: {t}")
+                                tx.run(
+                                    f"""
+                                    MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(n:{label} {{ {id_field_name}: $name }})
+                                    MERGE (t:{t["label"]} {{ value: $value }})
+                                    MERGE (n)-[r:TAG]->(t)
+                                    """,
+                                    name=name,
+                                    project=project,
+                                    value=t["value"]
+                                )
+                    
+                    '''
+                        for key,value in obj.tags.items(): 
+                            tag_label = key.capitalize()
+                            # Check if the relationship already exists before creating it
+                            tx.run(
+                                f"""
+                                MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(n:{label} {{ {id_field_name}: $name }})
+                                MERGE (t:{tag_label} {{ value: $value }})
+                                MERGE (n)-[:TAG]->(t)
+                                """, 
+                                name=name, 
+                                project=project,
+                                value=value
+                            )
+                    '''
+                            
                 # Add relationship from RequestSource to Fields
                 if isinstance(obj, (RequestSource)):
                     print(f"Features to connect: {obj.schema}")
@@ -920,7 +1177,13 @@ class GraphRegistry(CachingRegistry):
                             project=project,
                             created_time=datetime.now() 
                         )
-                    
+
+                    # Map dependencies with Field nodes
+                    if obj.feature_dependencies:
+                        for feature, dep in obj.feature_dependencies.items():
+                            for dep_name in dep:
+                                self._create_field_relationship(feature, dep_name, project, obj.name)  
+
                 # Add relationship from FeatureService to FeatureView/OnDemandFeatureView
                 if isinstance(obj, (FeatureService)):
                     # Get existing relationships
@@ -1123,12 +1386,7 @@ class GraphRegistry(CachingRegistry):
                 "rs": list(feature_view.source_request_sources.keys())
             }
             
-            print(f"Sources: {sources}")
-            # Map dependencies with Field nodes
-            # for feature, dep in feature_view.feature_dependencies.items():
-            #     for dep_name in dep:
-            #         self._create_field_relationship(feature, dep_name, sources, project)
-       
+            print(f"Sources: {sources}")     
 
         return self._apply_object(
             label=fv_label, 
@@ -1734,17 +1992,14 @@ class GraphRegistry(CachingRegistry):
             not_found_exception=ValidationReferenceNotFound
         )
 
-    def _create_field_relationship(self, feature_name: str, dep_name: str, sources: Dict[str, List[str]], project: str) -> None:
+    def _create_field_relationship(self, feature_name: str, dep_name: str, project: str, odfv: str) -> None:
         self._maybe_init_project_metadata(project)
-
-        fvs_condition = " OR ".join([f"(n.feature_view_name = '{fv}')" for fv in sources["fvs"]])
-        rs_condition = " OR ".join([f"(n.data_source_name = '{r}')" for r in sources["rs"]])
-        combined_condition = f"(n:FeatureView AND {fvs_condition}) OR (n:DataSource AND {rs_condition})"
         query = f"""
                 MATCH (p:Project {{ project_id: {project} }})-[:CONTAINS]->(df:Field {{ field_name: {dep_name} }})
-                MATCH (p:Project {{ project_id: {project} }})-[:CONTAINS]->(f:Field {{ field_name: {feature_name} }})
-                MATCH (n)-[:HAS]->(df)
-                WHERE {combined_condition}
+                MATCH (p)-[:CONTAINS]->(f:Field {{ field_name: {feature_name} }})
+                MATCH (odfv:OnDemandFeatureView {{ feature_view_name: {odfv} }})-[:BASED_ON]->(s)
+                MATCH (odfv)-[:PRODUCES]->(f)
+                MATCH (s)-[:HAS]->(df)
                 MERGE (df)-[r:USED_FOR]->(f)
                 ON CREATE SET r.created_at = $created_time
                 """
@@ -1755,16 +2010,18 @@ class GraphRegistry(CachingRegistry):
                 tx.run(
                     f"""
                     MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(df:Field {{ field_name: $dep_name }})
-                    MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(f:Field {{ field_name: $feature_name }})
-                    MATCH (n)-[HAS]->(df)
-                    WHERE {combined_condition}
-                    MERGE (df)-[r:USED_FOR]->(f)
+                    MATCH (p)-[:CONTAINS]->(f:Field {{ field_name: $feature_name }})
+                    MATCH (odfv:OnDemandFeatureView {{ feature_view_name: $odfv }})-[:BASED_ON]->(s)
+                    MATCH (odfv)-[:PRODUCES]->(f)
+                    MATCH (s)-[:HAS]->(df)
+                    MERGE res=(df)-[r:USED_FOR]->(f)
                     ON CREATE SET r.created_at = $created_time
+                    RETURN length(res)
                     """, 
                     feature_name=feature_name,
                     dep_name=dep_name, 
                     project=project,
-                    created_time=datetime.now(),
-                    fvs_condition=fvs_condition,
-                    rs_condition=rs_condition
+                    odfv=odfv,
+                    created_time=datetime.now()
                 )
+                    
