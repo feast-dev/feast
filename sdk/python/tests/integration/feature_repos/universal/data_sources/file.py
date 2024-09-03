@@ -455,6 +455,7 @@ auth:
         self.server_port: int = 0
         self.proc = None
 
+    @staticmethod
     def xdist_groups() -> list[str]:
         return ["keycloak"]
 
@@ -471,7 +472,7 @@ auth:
         repo_path = Path(tempfile.mkdtemp())
         with open(repo_path / "feature_store.yaml", "w") as outfile:
             yaml.dump(config.model_dump(by_alias=True), outfile)
-        repo_path = str(repo_path.resolve())
+        repo_path = str(repo_path.resolve())  # type: ignore[assignment]
 
         include_auth_config(
             file_path=f"{repo_path}/feature_store.yaml", auth_config=self.auth_config
@@ -481,14 +482,14 @@ auth:
         host = "0.0.0.0"
         cmd = [
             "feast",
-            "-c" + repo_path,
+            "-c" + repo_path,  # type: ignore[operator]
             "serve_offline",
             "--host",
             host,
             "--port",
             str(self.server_port),
         ]
-        self.proc = subprocess.Popen(
+        self.proc = subprocess.Popen(  # type: ignore[assignment]
             cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL
         )
 

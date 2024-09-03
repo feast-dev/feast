@@ -576,9 +576,9 @@ def construct_test_environment(
     }
 
     if not isinstance(offline_creator, RemoteOfflineOidcAuthStoreDataSourceCreator):
-        environment = Environment(**environment_params)
+        environment = Environment(**environment_params)  # type: ignore[arg-type]
     else:
-        environment = OfflineServerPermissionsEnvironment(**environment_params)
+        environment = OfflineServerPermissionsEnvironment(**environment_params)  # type: ignore[arg-type]
     return environment
 
 

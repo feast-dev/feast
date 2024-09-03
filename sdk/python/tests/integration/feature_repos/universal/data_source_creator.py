@@ -61,5 +61,6 @@ class DataSourceCreator(ABC):
     def teardown(self):
         raise NotImplementedError
 
+    @staticmethod
     def xdist_groups() -> list[str]:
         return []
