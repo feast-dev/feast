@@ -28,6 +28,7 @@ def _get_dummy_oidc_auth_type() -> OidcClientAuthConfig:
         username="admin_test",
         password="password_test",
         client_id="dummy_client_id",
+        client_secret="client_secret",
     )
     return oidc_config
 

@@ -449,8 +449,6 @@ class OfflineServerPermissionsEnvironment(Environment):
         keycloak_url = self.data_source_creator.get_keycloak_url()
         auth_config = OidcAuthConfig(
             client_id="feast-integration-client",
-            client_secret="feast-integration-client-secret",
-            realm="master",
             type="oidc",
             auth_discovery_url=f"{keycloak_url}/realms/master/.well-known"
             f"/openid-configuration",

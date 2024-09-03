@@ -448,7 +448,6 @@ auth:
   client_secret: feast-integration-client-secret
   username: reader_writer
   password: password
-  realm: master
   auth_discovery_url: {keycloak_url}/realms/master/.well-known/openid-configuration
 """
         self.auth_config = auth_config_template.format(keycloak_url=self.keycloak_url)

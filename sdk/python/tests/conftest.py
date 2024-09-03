@@ -466,7 +466,6 @@ def is_integration_test(all_markers_from_module):
             client_secret: feast-integration-client-secret
             username: reader_writer
             password: password
-            realm: master
             auth_discovery_url: KEYCLOAK_URL_PLACE_HOLDER/realms/master/.well-known/openid-configuration
         """),
     ],
