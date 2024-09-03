@@ -15,7 +15,6 @@
     - [Signing off commits](#signing-off-commits)
     - [Incorporating upstream changes from master](#incorporating-upstream-changes-from-master)
   - [Feast Python SDK and CLI](#feast-python-sdk-and-cli)
-    - [Environment Setup](#environment-setup)
     - [Code Style and Linting](#code-style-and-linting)
     - [Unit Tests](#unit-tests)
     - [Integration Tests](#integration-tests)
