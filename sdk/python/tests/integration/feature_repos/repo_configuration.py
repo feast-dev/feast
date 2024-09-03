@@ -450,8 +450,6 @@ class OfflineServerPermissionsEnvironment(Environment):
         auth_config = OidcAuthConfig(
             client_id="feast-integration-client",
             client_secret="feast-integration-client-secret",
-            username="reader_writer",
-            password="password",
             realm="master",
             type="oidc",
             auth_discovery_url=f"{keycloak_url}/realms/master/.well-known"

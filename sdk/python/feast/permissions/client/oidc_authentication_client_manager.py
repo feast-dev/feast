@@ -4,7 +4,7 @@ import os
 import jwt
 import requests
 
-from feast.permissions.auth_model import OidcAuthConfig
+from feast.permissions.auth_model import OidcClientAuthConfig
 from feast.permissions.client.auth_client_manager import AuthenticationClientManager
 from feast.permissions.oidc_service import OIDCDiscoveryService
 
@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 class OidcAuthClientManager(AuthenticationClientManager):
-    def __init__(self, auth_config: OidcAuthConfig):
+    def __init__(self, auth_config: OidcClientAuthConfig):
         self.auth_config = auth_config
 
     def get_token(self):
