@@ -5,7 +5,7 @@ from binascii import hexlify
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 from threading import Lock
-from typing import Any, Callable, List, Literal, Optional, Set, Union
+from typing import Any, Callable, List, Literal, Optional, Union
 
 from pydantic import ConfigDict, Field, StrictStr
 
@@ -1100,30 +1100,6 @@ class SnowflakeRegistry(BaseRegistry):
             r.last_updated.FromDatetime(max(last_updated_timestamps))
 
         return r
-
-    def _get_all_projects(self) -> Set[str]:
-        projects = set()
-
-        base_tables = [
-            "DATA_SOURCES",
-            "ENTITIES",
-            "FEATURE_VIEWS",
-            "ON_DEMAND_FEATURE_VIEWS",
-            "STREAM_FEATURE_VIEWS",
-            "PERMISSIONS",
-        ]
-
-        with GetSnowflakeConnection(self.registry_config) as conn:
-            for table in base_tables:
-                query = (
-                    f'SELECT DISTINCT project_id FROM {self.registry_path}."{table}"'
-                )
-                df = execute_snowflake_statement(conn, query).fetch_pandas_all()
-
-                for row in df.iterrows():
-                    projects.add(row[1]["PROJECT_ID"])
-
-        return projects
 
     def _get_last_updated_metadata(self, project: str):
         with GetSnowflakeConnection(self.registry_config) as conn:

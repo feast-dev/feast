@@ -4,7 +4,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Set, Union
+from typing import Any, Callable, Dict, List, Optional, Union
 
 from pydantic import StrictInt, StrictStr
 from sqlalchemy import (  # type: ignore
@@ -1042,24 +1042,6 @@ class SqlRegistry(CachingRegistry):
             update_time = int(row._mapping["last_updated_timestamp"])
 
             return datetime.fromtimestamp(update_time, tz=timezone.utc)
-
-    def _get_all_projects(self) -> Set[str]:
-        projects = set()
-        with self.engine.begin() as conn:
-            for table in {
-                entities,
-                data_sources,
-                feature_views,
-                on_demand_feature_views,
-                stream_feature_views,
-                permissions,
-            }:
-                stmt = select(table)
-                rows = conn.execute(stmt).all()
-                for row in rows:
-                    projects.add(row._mapping["project_id"])
-
-        return projects
 
     def _get_permission(self, name: str, project: str) -> Permission:
         return self._get_object(

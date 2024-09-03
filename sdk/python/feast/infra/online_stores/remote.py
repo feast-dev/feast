@@ -112,7 +112,7 @@ class RemoteOnlineStore(OnlineStore):
                 result_tuples.append((event_ts, feature_values_dict))
             return result_tuples
         else:
-            error_msg = f"Unable to retrieve the online store data using feature server API. Error_code={response.status_code}, error_message={response.reason}"
+            error_msg = f"Unable to retrieve the online store data using feature server API. Error_code={response.status_code}, error_message={response.text}"
             logger.error(error_msg)
             raise RuntimeError(error_msg)
 

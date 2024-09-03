@@ -353,7 +353,7 @@ class Registry(BaseRegistry):
             self.commit()
 
     def delete_data_source(self, name: str, project: str, commit: bool = True):
-        self._get_registry_proto(project=project, allow_cache=False)
+        self._prepare_registry_for_changes(project)
         assert self.cached_registry_proto
 
         for idx, data_source_proto in enumerate(
@@ -617,7 +617,7 @@ class Registry(BaseRegistry):
         )
 
     def delete_feature_service(self, name: str, project: str, commit: bool = True):
-        self._get_registry_proto(project=project, allow_cache=False)
+        self._prepare_registry_for_changes(project)
         assert self.cached_registry_proto
 
         for idx, feature_service_proto in enumerate(
@@ -634,7 +634,7 @@ class Registry(BaseRegistry):
         raise FeatureServiceNotFoundException(name, project)
 
     def delete_feature_view(self, name: str, project: str, commit: bool = True):
-        self._get_registry_proto(project=project, allow_cache=False)
+        self._prepare_registry_for_changes(project)
         assert self.cached_registry_proto
 
         for idx, existing_feature_view_proto in enumerate(
@@ -676,7 +676,7 @@ class Registry(BaseRegistry):
         raise FeatureViewNotFoundException(name, project)
 
     def delete_entity(self, name: str, project: str, commit: bool = True):
-        self._get_registry_proto(project=project, allow_cache=False)
+        self._prepare_registry_for_changes(project)
         assert self.cached_registry_proto
 
         for idx, existing_entity_proto in enumerate(
@@ -801,15 +801,16 @@ class Registry(BaseRegistry):
         )
 
     def delete_validation_reference(self, name: str, project: str, commit: bool = True):
-        registry_proto = self._get_registry_proto(project=project, allow_cache=False)
+        self._prepare_registry_for_changes(project)
+        assert self.cached_registry_proto
         for idx, existing_validation_reference in enumerate(
-            registry_proto.validation_references
+            self.cached_registry_proto.validation_references
         ):
             if (
                 existing_validation_reference.name == name
                 and existing_validation_reference.project == project
             ):
-                del registry_proto.validation_references[idx]
+                del self.cached_registry_proto.validation_references[idx]
                 if commit:
                     self.commit()
                 return
@@ -968,7 +969,7 @@ class Registry(BaseRegistry):
             self.commit()
 
     def delete_permission(self, name: str, project: str, commit: bool = True):
-        self._get_registry_proto(project=project, allow_cache=False)
+        self._prepare_registry_for_changes(project)
         assert self.cached_registry_proto
 
         for idx, permission_proto in enumerate(self.cached_registry_proto.permissions):
@@ -1026,7 +1027,6 @@ class Registry(BaseRegistry):
         name: str,
         commit: bool = True,
     ):
-        self._get_registry_proto(project=name, allow_cache=False)
         assert self.cached_registry_proto
 
         for idx, project_proto in enumerate(self.cached_registry_proto.projects):

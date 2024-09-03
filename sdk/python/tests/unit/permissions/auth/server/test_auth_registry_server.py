@@ -1,4 +1,3 @@
-import logging
 from datetime import datetime
 
 import assertpy
@@ -28,8 +27,6 @@ from tests.unit.permissions.auth.server.test_utils import (
 from tests.utils.auth_permissions_util import get_remote_registry_store
 from tests.utils.http_server import check_port_open  # noqa: E402
 
-logger = logging.getLogger(__name__)
-
 
 @pytest.fixture
 def start_registry_server(
@@ -39,7 +36,6 @@ def start_registry_server(
     feature_store,
     monkeypatch,
 ):
-    logger.info(f"Starting Registry call at {server_port}")
     if "kubernetes" in auth_config:
         mock_utils.mock_kubernetes(request=request, monkeypatch=monkeypatch)
     elif "oidc" in auth_config:
@@ -53,28 +49,22 @@ def start_registry_server(
     assertpy.assert_that(server_port).is_not_equal_to(0)
 
     print(f"Starting Registry at {server_port}")
-    logger.info(f"{auth_config}: {server_port}: Starting Registry at {server_port}")
     server = start_server(
         feature_store,
         server_port,
         wait_for_termination=False,
     )
     print("Waiting server availability")
-    logger.info(f"{auth_config}: {server_port}: Waiting server availability")
     wait_retry_backoff(
         lambda: (None, check_port_open("localhost", server_port)),
         timeout_secs=10,
     )
     print("Server started")
-    logger.info(f"{auth_config}: {server_port}: Server started")
 
     yield server
 
     print("Stopping server")
-    logger.info(f"{auth_config}: {server_port}: Stopping server")
     server.stop(grace=None)  # Teardown server
-
-    # server.wait_for_termination()
 
 
 def test_registry_apis(
@@ -86,9 +76,6 @@ def test_registry_apis(
     applied_permissions,
 ):
     print(f"Running for\n:{auth_config}")
-    logger.info(
-        f"Running Perm Tests for\n:{auth_config} : {applied_permissions}: {server_port}"
-    )
     remote_feature_store = get_remote_registry_store(server_port, feature_store)
     permissions = _test_list_permissions(remote_feature_store, applied_permissions)
     _test_get_entity(remote_feature_store, applied_permissions)

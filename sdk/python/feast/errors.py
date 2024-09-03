@@ -477,7 +477,7 @@ class PermissionObjectNotFoundException(FeastObjectNotFoundException):
             super().__init__(f"Permission {name} does not exist")
 
 
-class ProjectNotFoundException(Exception):
+class ProjectNotFoundException(FeastError):
     def __init__(self, project):
         super().__init__(f"Project {project} does not exist in registry")
 
