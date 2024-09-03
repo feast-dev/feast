@@ -46,7 +46,7 @@ BATCH_ENGINE_CLASS_FOR_TYPE = {
     "local": "feast.infra.materialization.local_engine.LocalMaterializationEngine",
     "snowflake.engine": "feast.infra.materialization.snowflake_engine.SnowflakeMaterializationEngine",
     "lambda": "feast.infra.materialization.aws_lambda.lambda_engine.LambdaMaterializationEngine",
-    "k8s": "feast.infra.materialization.kubernetes.kubernetes_materialization_engine.KubernetesMaterializationEngine",
+    "k8s": "feast.infra.materialization.kubernetes.k8s_materialization_engine.KubernetesMaterializationEngine",
     "spark.engine": "feast.infra.materialization.contrib.spark.spark_materialization_engine.SparkMaterializationEngine",
 }
 
@@ -61,7 +61,6 @@ ONLINE_STORE_CLASS_FOR_TYPE = {
     "hbase": "feast.infra.online_stores.contrib.hbase_online_store.hbase.HbaseOnlineStore",
     "cassandra": "feast.infra.online_stores.contrib.cassandra_online_store.cassandra_online_store.CassandraOnlineStore",
     "mysql": "feast.infra.online_stores.contrib.mysql_online_store.mysql.MySQLOnlineStore",
-    "rockset": "feast.infra.online_stores.contrib.rockset_online_store.rockset.RocksetOnlineStore",
     "hazelcast": "feast.infra.online_stores.contrib.hazelcast_online_store.hazelcast_online_store.HazelcastOnlineStore",
     "ikv": "feast.infra.online_stores.contrib.ikv_online_store.ikv.IKVOnlineStore",
     "elasticsearch": "feast.infra.online_stores.contrib.elasticsearch.ElasticSearchOnlineStore",
@@ -88,10 +87,13 @@ FEATURE_SERVER_CONFIG_CLASS_FOR_TYPE = {
     "local": "feast.infra.feature_servers.local_process.config.LocalFeatureServerConfig",
 }
 
+ALLOWED_AUTH_TYPES = ["no_auth", "kubernetes", "oidc"]
+
 AUTH_CONFIGS_CLASS_FOR_TYPE = {
     "no_auth": "feast.permissions.auth_model.NoAuthConfig",
     "kubernetes": "feast.permissions.auth_model.KubernetesAuthConfig",
     "oidc": "feast.permissions.auth_model.OidcAuthConfig",
+    "oidc_client": "feast.permissions.auth_model.OidcClientAuthConfig",
 }
 
 
@@ -292,13 +294,14 @@ class RepoConfig(FeastBaseModel):
     def auth_config(self):
         if not self._auth:
             if isinstance(self.auth, Dict):
-                self._auth = get_auth_config_from_type(self.auth.get("type"))(
-                    **self.auth
+                is_oidc_client = (
+                    self.auth.get("type") == AuthType.OIDC.value
+                    and "username" in self.auth
+                    and "password" in self.auth
                 )
-            elif isinstance(self.auth, str):
-                self._auth = get_auth_config_from_type(self.auth.get("type"))()
-            elif self.auth:
-                self._auth = self.auth
+                self._auth = get_auth_config_from_type(
+                    "oidc_client" if is_oidc_client else self.auth.get("type")
+                )(**self.auth)
 
         return self._auth
 
@@ -337,22 +340,21 @@ class RepoConfig(FeastBaseModel):
         from feast.permissions.auth_model import AuthConfig
 
         if "auth" in values:
-            allowed_auth_types = AUTH_CONFIGS_CLASS_FOR_TYPE.keys()
             if isinstance(values["auth"], Dict):
                 if values["auth"].get("type") is None:
                     raise ValueError(
-                        f"auth configuration is missing authentication type. Possible values={allowed_auth_types}"
+                        f"auth configuration is missing authentication type. Possible values={ALLOWED_AUTH_TYPES}"
                     )
-                elif values["auth"]["type"] not in allowed_auth_types:
+                elif values["auth"]["type"] not in ALLOWED_AUTH_TYPES:
                     raise ValueError(
                         f'auth configuration has invalid authentication type={values["auth"]["type"]}. Possible '
-                        f'values={allowed_auth_types}'
+                        f'values={ALLOWED_AUTH_TYPES}'
                     )
             elif isinstance(values["auth"], AuthConfig):
-                if values["auth"].type not in allowed_auth_types:
+                if values["auth"].type not in ALLOWED_AUTH_TYPES:
                     raise ValueError(
                         f'auth configuration has invalid authentication type={values["auth"].type}. Possible '
-                        f'values={allowed_auth_types}'
+                        f'values={ALLOWED_AUTH_TYPES}'
                     )
         return values
 

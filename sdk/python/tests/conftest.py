@@ -279,7 +279,11 @@ def pytest_generate_tests(metafunc: pytest.Metafunc):
                         c = IntegrationTestRepoConfig(**config)
 
                         if c not in _config_cache:
-                            _config_cache[c] = c
+                            marks = [
+                                pytest.mark.xdist_group(name=m)
+                                for m in c.offline_store_creator.xdist_groups()
+                            ]
+                            _config_cache[c] = pytest.param(c, marks=marks)
 
                         configs.append(_config_cache[c])
         else:
@@ -463,7 +467,6 @@ def is_integration_test(all_markers_from_module):
             username: reader_writer
             password: password
             realm: master
-            auth_server_url: KEYCLOAK_URL_PLACE_HOLDER
             auth_discovery_url: KEYCLOAK_URL_PLACE_HOLDER/realms/master/.well-known/openid-configuration
         """),
     ],

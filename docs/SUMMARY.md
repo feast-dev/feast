@@ -108,7 +108,6 @@
   * [PostgreSQL (contrib)](reference/online-stores/postgres.md)
   * [Cassandra + Astra DB (contrib)](reference/online-stores/cassandra.md) 
   * [MySQL (contrib)](reference/online-stores/mysql.md)
-  * [Rockset (contrib)](reference/online-stores/rockset.md)
   * [Hazelcast (contrib)](reference/online-stores/hazelcast.md)
   * [ScyllaDB (contrib)](reference/online-stores/scylladb.md)
   * [SingleStore (contrib)](reference/online-stores/singlestore.md)

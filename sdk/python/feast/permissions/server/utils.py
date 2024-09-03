@@ -15,7 +15,10 @@ from feast.permissions.auth.kubernetes_token_parser import KubernetesTokenParser
 from feast.permissions.auth.oidc_token_parser import OidcTokenParser
 from feast.permissions.auth.token_extractor import TokenExtractor
 from feast.permissions.auth.token_parser import TokenParser
-from feast.permissions.auth_model import AuthConfig, OidcAuthConfig
+from feast.permissions.auth_model import (
+    AuthConfig,
+    OidcAuthConfig,
+)
 from feast.permissions.security_manager import (
     SecurityManager,
     no_security_manager,

@@ -449,12 +449,14 @@ auth:
   username: reader_writer
   password: password
   realm: master
-  auth_server_url: {keycloak_url}
   auth_discovery_url: {keycloak_url}/realms/master/.well-known/openid-configuration
 """
         self.auth_config = auth_config_template.format(keycloak_url=self.keycloak_url)
         self.server_port: int = 0
         self.proc = None
+
+    def xdist_groups() -> list[str]:
+        return ["keycloak"]
 
     def setup(self, registry: RegistryConfig):
         parent_offline_config = super().create_offline_store_config()

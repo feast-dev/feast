@@ -9,6 +9,7 @@ from feast.permissions.auth_model import (
     KubernetesAuthConfig,
     NoAuthConfig,
     OidcAuthConfig,
+    OidcClientAuthConfig,
 )
 from feast.repo_config import FeastConfigError, load_repo_config
 
@@ -213,8 +214,6 @@ def test_auth_config():
             client_secret: test_client_secret
             username: test_user_name
             password: test_password
-            realm: master
-            auth_server_url: http://localhost:8712
             auth_discovery_url: http://localhost:8080/realms/master/.well-known/openid-configuration
         registry: "registry.db"
         provider: local
@@ -236,8 +235,6 @@ def test_auth_config():
             client_secret: test_client_secret
             username: test_user_name
             password: test_password
-            realm: master
-            auth_server_url: http://localhost:8712
             auth_discovery_url: http://localhost:8080/realms/master/.well-known/openid-configuration
         registry: "registry.db"
         provider: local
@@ -249,18 +246,13 @@ def test_auth_config():
         expect_error="invalid authentication type=not_valid_auth_type",
     )
 
-    oidc_repo_config = _test_config(
+    oidc_server_repo_config = _test_config(
         dedent(
             """
         project: foo
         auth:
             type: oidc
             client_id: test_client_id
-            client_secret: test_client_secret
-            username: test_user_name
-            password: test_password
-            realm: master
-            auth_server_url: http://localhost:8080
             auth_discovery_url: http://localhost:8080/realms/master/.well-known/openid-configuration
         registry: "registry.db"
         provider: local
@@ -271,16 +263,42 @@ def test_auth_config():
         ),
         expect_error=None,
     )
-    assert oidc_repo_config.auth["type"] == AuthType.OIDC.value
-    assert isinstance(oidc_repo_config.auth_config, OidcAuthConfig)
-    assert oidc_repo_config.auth_config.client_id == "test_client_id"
-    assert oidc_repo_config.auth_config.client_secret == "test_client_secret"
-    assert oidc_repo_config.auth_config.username == "test_user_name"
-    assert oidc_repo_config.auth_config.password == "test_password"
-    assert oidc_repo_config.auth_config.realm == "master"
-    assert oidc_repo_config.auth_config.auth_server_url == "http://localhost:8080"
+    assert oidc_server_repo_config.auth["type"] == AuthType.OIDC.value
+    assert isinstance(oidc_server_repo_config.auth_config, OidcAuthConfig)
+    assert oidc_server_repo_config.auth_config.client_id == "test_client_id"
     assert (
-        oidc_repo_config.auth_config.auth_discovery_url
+        oidc_server_repo_config.auth_config.auth_discovery_url
+        == "http://localhost:8080/realms/master/.well-known/openid-configuration"
+    )
+
+    oidc_client_repo_config = _test_config(
+        dedent(
+            """
+        project: foo
+        auth:
+            type: oidc
+            client_id: test_client_id
+            client_secret: test_client_secret
+            username: test_user_name
+            password: test_password
+            auth_discovery_url: http://localhost:8080/realms/master/.well-known/openid-configuration
+        registry: "registry.db"
+        provider: local
+        online_store:
+            path: foo
+        entity_key_serialization_version: 2
+        """
+        ),
+        expect_error=None,
+    )
+    assert oidc_client_repo_config.auth["type"] == AuthType.OIDC.value
+    assert isinstance(oidc_client_repo_config.auth_config, OidcClientAuthConfig)
+    assert oidc_client_repo_config.auth_config.client_id == "test_client_id"
+    assert oidc_client_repo_config.auth_config.client_secret == "test_client_secret"
+    assert oidc_client_repo_config.auth_config.username == "test_user_name"
+    assert oidc_client_repo_config.auth_config.password == "test_password"
+    assert (
+        oidc_client_repo_config.auth_config.auth_discovery_url
         == "http://localhost:8080/realms/master/.well-known/openid-configuration"
     )
 
