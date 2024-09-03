@@ -1,5 +1,4 @@
 import copy
-import itertools
 import logging
 import os
 import typing
@@ -381,18 +380,6 @@ def _group_feature_refs(
     return fvs_result, odfvs_result
 
 
-def apply_list_mapping(
-    lst: Iterable[Any], mapping_indexes: Iterable[List[int]]
-) -> Iterable[Any]:
-    output_len = sum(len(item) for item in mapping_indexes)
-    output = [None] * output_len
-    for elem, destinations in zip(lst, mapping_indexes):
-        for idx in destinations:
-            output[idx] = elem
-
-    return output
-
-
 def _augment_response_with_on_demand_transforms(
     online_features_response: GetOnlineFeaturesResponse,
     feature_refs: List[str],
@@ -545,45 +532,6 @@ def _get_table_entity_values(
     return entity_values
 
 
-def _get_unique_entities(
-    table: "FeatureView",
-    join_key_values: Dict[str, List[ValueProto]],
-    entity_name_to_join_key_map: Dict[str, str],
-) -> Tuple[Tuple[Dict[str, ValueProto], ...], Tuple[List[int], ...]]:
-    """Return the set of unique composite Entities for a Feature View and the indexes at which they appear.
-
-    This method allows us to query the OnlineStore for data we need only once
-    rather than requesting and processing data for the same combination of
-    Entities multiple times.
-    """
-    # Get the correct set of entity values with the correct join keys.
-    table_entity_values = _get_table_entity_values(
-        table,
-        entity_name_to_join_key_map,
-        join_key_values,
-    )
-
-    # Convert back to rowise.
-    keys = table_entity_values.keys()
-    # Sort the rowise data to allow for grouping but keep original index. This lambda is
-    # sufficient as Entity types cannot be complex (ie. lists).
-    rowise = list(enumerate(zip(*table_entity_values.values())))
-    rowise.sort(key=lambda row: tuple(getattr(x, x.WhichOneof("val")) for x in row[1]))
-
-    # Identify unique entities and the indexes at which they occur.
-    unique_entities: Tuple[Dict[str, ValueProto], ...]
-    indexes: Tuple[List[int], ...]
-    unique_entities, indexes = tuple(
-        zip(
-            *[
-                (dict(zip(keys, k)), [_[0] for _ in g])
-                for k, g in itertools.groupby(rowise, key=lambda x: x[1])
-            ]
-        )
-    )
-    return unique_entities, indexes
-
-
 def _drop_unneeded_columns(
     online_features_response: GetOnlineFeaturesResponse,
     requested_result_row_names: Set[str],
@@ -653,7 +601,6 @@ def _populate_response_from_feature_data(
             Iterable[Timestamp], Iterable["FieldStatus.ValueType"], Iterable[ValueProto]
         ]
     ],
-    indexes: Iterable[List[int]],
     online_features_response: GetOnlineFeaturesResponse,
     full_feature_names: bool,
     requested_features: Iterable[str],
@@ -667,8 +614,6 @@ def _populate_response_from_feature_data(
 
     Args:
         feature_data: A list of data in Protobuf form which was retrieved from the OnlineStore.
-        indexes: A list of indexes which should be the same length as `feature_data`. Each list
-            of indexes corresponds to a set of result rows in `online_features_response`.
         online_features_response: The object to populate.
         full_feature_names: A boolean that provides the option to add the feature view prefixes to the feature names,
             changing them from the format "feature" to "feature_view__feature" (e.g., "daily_transactions" changes to
@@ -696,9 +641,9 @@ def _populate_response_from_feature_data(
     ) in enumerate(zip(zip(*timestamps), zip(*statuses), zip(*values))):
         online_features_response.results.append(
             GetOnlineFeaturesResponse.FeatureVector(
-                values=apply_list_mapping(values_vector, indexes),
-                statuses=apply_list_mapping(statuses_vector, indexes),
-                event_timestamps=apply_list_mapping(timestamp_vector, indexes),
+                values=values_vector,
+                statuses=statuses_vector,
+                event_timestamps=timestamp_vector,
             )
         )
 
@@ -978,17 +923,6 @@ def _prepare_entities_to_read_from_online_store(
         requested_result_row_names,
         online_features_response,
     )
-
-
-def _get_entity_key_protos(
-    entity_rows: Iterable[Mapping[str, ValueProto]],
-) -> List[EntityKeyProto]:
-    # Instantiate one EntityKeyProto per Entity.
-    entity_key_protos = [
-        EntityKeyProto(join_keys=row.keys(), entity_values=row.values())
-        for row in entity_rows
-    ]
-    return entity_key_protos
 
 
 def _convert_rows_to_protobuf(

@@ -153,13 +153,16 @@ class OnlineStore(ABC):
 
         for table, requested_features in grouped_refs:
             # Get the correct set of entity values with the correct join keys.
-            table_entity_values, idxs = utils._get_unique_entities(
+            table_entity_values = utils._get_table_entity_values(
                 table,
-                join_key_values,
                 entity_name_to_join_key_map,
+                join_key_values,
             )
 
-            entity_key_protos = utils._get_entity_key_protos(table_entity_values)
+            entity_key_protos = [
+                EntityKeyProto(join_keys=table_entity_values.keys(), entity_values=row)
+                for row in list(zip(*table_entity_values.values()))
+            ]
 
             # Fetch data for Entities.
             read_rows = self.online_read(
@@ -176,7 +179,6 @@ class OnlineStore(ABC):
             # Populate the result_rows with the Features from the OnlineStore inplace.
             utils._populate_response_from_feature_data(
                 feature_data,
-                idxs,
                 online_features_response,
                 full_feature_names,
                 requested_features,
@@ -240,13 +242,16 @@ class OnlineStore(ABC):
 
         for table, requested_features in grouped_refs:
             # Get the correct set of entity values with the correct join keys.
-            table_entity_values, idxs = utils._get_unique_entities(
+            table_entity_values = utils._get_table_entity_values(
                 table,
-                join_key_values,
                 entity_name_to_join_key_map,
+                join_key_values,
             )
 
-            entity_key_protos = utils._get_entity_key_protos(table_entity_values)
+            entity_key_protos = [
+                EntityKeyProto(join_keys=table_entity_values.keys(), entity_values=row)
+                for row in list(zip(*table_entity_values.values()))
+            ]
 
             # Fetch data for Entities.
             read_rows = await self.online_read_async(
@@ -263,7 +268,6 @@ class OnlineStore(ABC):
             # Populate the result_rows with the Features from the OnlineStore inplace.
             utils._populate_response_from_feature_data(
                 feature_data,
-                idxs,
                 online_features_response,
                 full_feature_names,
                 requested_features,
