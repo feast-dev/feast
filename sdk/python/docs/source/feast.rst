@@ -196,6 +196,14 @@ feast.flags\_helper module
    :undoc-members:
    :show-inheritance:
 
+feast.grpc\_error\_interceptor module
+-------------------------------------
+
+.. automodule:: feast.grpc_error_interceptor
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 feast.importer module
 ---------------------
 
