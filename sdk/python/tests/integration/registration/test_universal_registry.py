@@ -755,9 +755,10 @@ def test_modify_feature_views_success(test_registry):
     project = "project"
 
     # Register Feature Views
-    test_registry.apply_feature_view(odfv1, project)
-    test_registry.apply_feature_view(fv1, project)
-    test_registry.apply_feature_view(sfv, project)
+    test_registry.apply_feature_view(odfv1, project, False)
+    test_registry.apply_feature_view(fv1, project, False)
+    test_registry.apply_feature_view(sfv, project, False)
+    test_registry.commit()
 
     # Modify odfv by changing a single feature dtype
     @on_demand_feature_view(
