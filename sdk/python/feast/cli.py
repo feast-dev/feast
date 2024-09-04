@@ -470,6 +470,156 @@ def on_demand_feature_view_list(ctx: click.Context, tags: list[str]):
     print(tabulate(table, headers=["NAME"], tablefmt="plain"))
 
 
+@cli.group(name="saved-datasets")
+def saved_datasets_cmd():
+    """
+    [Experimental] Access saved datasets
+    """
+    pass
+
+
+@saved_datasets_cmd.command("describe")
+@click.argument("name", type=click.STRING)
+@click.pass_context
+def saved_datasets_describe(ctx: click.Context, name: str):
+    """
+    [Experimental] Describe a saved dataset
+    """
+    store = create_feature_store(ctx)
+
+    try:
+        saved_dataset = store.get_saved_dataset(name)
+    except FeastObjectNotFoundException as e:
+        print(e)
+        exit(1)
+
+    print(
+        yaml.dump(
+            yaml.safe_load(str(saved_dataset)),
+            default_flow_style=False,
+            sort_keys=False,
+        )
+    )
+
+
+@saved_datasets_cmd.command(name="list")
+@tagsOption
+@click.pass_context
+def saved_datasets_list(ctx: click.Context, tags: list[str]):
+    """
+    [Experimental] List all saved datasets
+    """
+    store = create_feature_store(ctx)
+    table = []
+    tags_filter = utils.tags_list_to_dict(tags)
+    for saved_dataset in store.list_saved_datasets(tags=tags_filter):
+        table.append([saved_dataset.name])
+
+    from tabulate import tabulate
+
+    print(tabulate(table, headers=["NAME"], tablefmt="plain"))
+
+
+@cli.group(name="stream-feature-views")
+def stream_feature_views_cmd():
+    """
+    [Experimental] Access stream feature views
+    """
+    pass
+
+
+@stream_feature_views_cmd.command("describe")
+@click.argument("name", type=click.STRING)
+@click.pass_context
+def stream_feature_views_describe(ctx: click.Context, name: str):
+    """
+    [Experimental] Describe a stream feature view
+    """
+    store = create_feature_store(ctx)
+
+    try:
+        stream_feature_view = store.get_stream_feature_view(name)
+    except FeastObjectNotFoundException as e:
+        print(e)
+        exit(1)
+
+    print(
+        yaml.dump(
+            yaml.safe_load(str(stream_feature_view)),
+            default_flow_style=False,
+            sort_keys=False,
+        )
+    )
+
+
+@stream_feature_views_cmd.command(name="list")
+@tagsOption
+@click.pass_context
+def stream_feature_views_list(ctx: click.Context, tags: list[str]):
+    """
+    [Experimental] List all stream feature views
+    """
+    store = create_feature_store(ctx)
+    table = []
+    tags_filter = utils.tags_list_to_dict(tags)
+    for stream_feature_view in store.list_stream_feature_views(tags=tags_filter):
+        table.append([stream_feature_view.name])
+
+    from tabulate import tabulate
+
+    print(tabulate(table, headers=["NAME"], tablefmt="plain"))
+
+
+@cli.group(name="validation-references")
+def validation_references_cmd():
+    """
+    [Experimental] Access validation references
+    """
+    pass
+
+
+@validation_references_cmd.command("describe")
+@click.argument("name", type=click.STRING)
+@click.pass_context
+def validation_references_describe(ctx: click.Context, name: str):
+    """
+    [Experimental] Describe a validation reference
+    """
+    store = create_feature_store(ctx)
+
+    try:
+        validation_reference = store.get_validation_reference(name)
+    except FeastObjectNotFoundException as e:
+        print(e)
+        exit(1)
+
+    print(
+        yaml.dump(
+            yaml.safe_load(str(validation_reference)),
+            default_flow_style=False,
+            sort_keys=False,
+        )
+    )
+
+
+@validation_references_cmd.command(name="list")
+@tagsOption
+@click.pass_context
+def validation_references_list(ctx: click.Context, tags: list[str]):
+    """
+    [Experimental] List all validation references
+    """
+    store = create_feature_store(ctx)
+    table = []
+    tags_filter = utils.tags_list_to_dict(tags)
+    for validation_reference in store.list_validation_references(tags=tags_filter):
+        table.append([validation_reference.name])
+
+    from tabulate import tabulate
+
+    print(tabulate(table, headers=["NAME"], tablefmt="plain"))
+
+
 @cli.command("plan", cls=NoOptionDefaultFormat)
 @click.option(
     "--skip-source-validation",
