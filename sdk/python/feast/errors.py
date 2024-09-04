@@ -133,7 +133,7 @@ class OnDemandFeatureViewNotFoundException(FeastObjectNotFoundException):
 
 
 class RequestDataNotFoundInEntityDfException(FeastObjectNotFoundException):
-    def __init__(self, feature_name, feature_view_name):
+    def __init__(self, feature_name, feature_view_name=None):
         super().__init__(
             f"Feature {feature_name} not found in the entity dataframe, but required by feature view {feature_view_name}"
         )
@@ -165,12 +165,12 @@ class S3RegistryBucketForbiddenAccess(FeastObjectNotFoundException):
 
 
 class SavedDatasetNotFound(FeastObjectNotFoundException):
-    def __init__(self, name: str, project: str):
+    def __init__(self, name: str, project: str = ""):
         super().__init__(f"Saved dataset {name} does not exist in project {project}")
 
 
 class ValidationReferenceNotFound(FeastObjectNotFoundException):
-    def __init__(self, name: str, project: str):
+    def __init__(self, name: str, project: str = ""):
         super().__init__(
             f"Validation reference {name} does not exist in project {project}"
         )
@@ -205,21 +205,21 @@ class FeastRegistryTypeInvalidError(FeastError):
 
 
 class FeastModuleImportError(FeastError):
-    def __init__(self, module_name: str, class_name: str):
+    def __init__(self, module_name: str, class_name: str = ""):
         super().__init__(
             f"Could not import module '{module_name}' while attempting to load class '{class_name}'"
         )
 
 
 class FeastClassImportError(FeastError):
-    def __init__(self, module_name: str, class_name: str):
+    def __init__(self, module_name: str, class_name: str = ""):
         super().__init__(
             f"Could not import class '{class_name}' from module '{module_name}'"
         )
 
 
 class FeastExtrasDependencyImportError(FeastError):
-    def __init__(self, extras_type: str, nested_error: str):
+    def __init__(self, extras_type: str, nested_error: str = ""):
         message = (
             nested_error
             + "\n"
@@ -229,14 +229,16 @@ class FeastExtrasDependencyImportError(FeastError):
 
 
 class FeastOfflineStoreUnsupportedDataSource(FeastError):
-    def __init__(self, offline_store_name: str, data_source_name: str):
+    def __init__(self, offline_store_name: str, data_source_name: str = ""):
         super().__init__(
             f"Offline Store '{offline_store_name}' does not support data source '{data_source_name}'"
         )
 
 
 class FeatureNameCollisionError(FeastError):
-    def __init__(self, feature_refs_collisions: List[str], full_feature_names: bool):
+    def __init__(
+        self, feature_refs_collisions: List[str], full_feature_names: bool = False
+    ):
         if full_feature_names:
             collisions = [ref.replace(":", "__") for ref in feature_refs_collisions]
             error_message = (
@@ -261,8 +263,8 @@ class SpecifiedFeaturesNotPresentError(FeastError):
     def __init__(
         self,
         specified_features: List[Field],
-        inferred_features: List[Field],
-        feature_view_name: str,
+        inferred_features: List[Field] = [],
+        feature_view_name: str = "",
     ):
         super().__init__(
             f"Explicitly specified features {specified_features} not found in inferred list of features "
@@ -297,21 +299,21 @@ class FeastInvalidAuthConfigClass(FeastError):
 
 
 class FeastInvalidBaseClass(FeastError):
-    def __init__(self, class_name: str, class_type: str):
+    def __init__(self, class_name: str, class_type: str = ""):
         super().__init__(
             f"Class '{class_name}' should have `{class_type}` as a base class."
         )
 
 
 class FeastOnlineStoreUnsupportedDataSource(FeastError):
-    def __init__(self, online_store_name: str, data_source_name: str):
+    def __init__(self, online_store_name: str, data_source_name: str = ""):
         super().__init__(
             f"Online Store '{online_store_name}' does not support data source '{data_source_name}'"
         )
 
 
 class FeastEntityDFMissingColumnsError(FeastError):
-    def __init__(self, expected, missing):
+    def __init__(self, expected, missing=None):
         super().__init__(
             f"The entity dataframe you have provided must contain columns {expected}, "
             f"but {missing} were missing."
@@ -320,7 +322,10 @@ class FeastEntityDFMissingColumnsError(FeastError):
 
 class FeastJoinKeysDuringMaterialization(FeastError):
     def __init__(
-        self, source: str, join_key_columns: Set[str], source_columns: Set[str]
+        self,
+        source: str,
+        join_key_columns: Set[str] = set(),
+        source_columns: Set[str] = set(),
     ):
         super().__init__(
             f"The DataFrame from {source} being materialized must have at least {join_key_columns} columns present, "
@@ -337,7 +342,7 @@ class DockerDaemonNotRunning(FeastError):
 
 
 class RegistryInferenceFailure(FeastError):
-    def __init__(self, repo_obj_type: str, specific_issue: str):
+    def __init__(self, repo_obj_type: str, specific_issue: str = ""):
         super().__init__(
             f"Inference to fill in missing information for {repo_obj_type} failed. {specific_issue}. "
             "Try filling the information explicitly."
@@ -389,7 +394,7 @@ class EntityTimestampInferenceException(FeastError):
 
 
 class FeatureViewMissingDuringFeatureServiceInference(FeastError):
-    def __init__(self, feature_view_name: str, feature_service_name: str):
+    def __init__(self, feature_view_name: str, feature_service_name: str = ""):
         super().__init__(
             f"Missing {feature_view_name} feature view during inference for {feature_service_name} feature service."
         )
@@ -451,6 +456,9 @@ class PushSourceNotFoundException(FeastError):
     def __init__(self, push_source_name: str):
         super().__init__(f"Unable to find push source '{push_source_name}'.")
 
+    def http_status_code(self) -> int:
+        return HttpStatusCode.HTTP_422_UNPROCESSABLE_ENTITY
+
 
 class ReadOnlyRegistryException(FeastError):
     def __init__(self):
@@ -465,7 +473,7 @@ class DataFrameSerializationError(FeastError):
 
 
 class PermissionNotFoundException(FeastError):
-    def __init__(self, name, project):
+    def __init__(self, name, project=None):
         super().__init__(f"Permission {name} does not exist in project {project}")
 
 
