@@ -28,7 +28,7 @@ from feast.infra.feature_servers.base_config import (
 )
 from feast.infra.feature_servers.local_process.config import LocalFeatureServerConfig
 from feast.permissions.action import AuthzedAction
-from feast.permissions.auth_model import OidcAuthConfig
+from feast.permissions.auth_model import OidcClientAuthConfig
 from feast.permissions.permission import Permission
 from feast.permissions.policy import RoleBasedPolicy
 from feast.repo_config import RegistryConfig, RepoConfig
@@ -447,15 +447,14 @@ class OfflineServerPermissionsEnvironment(Environment):
     def setup(self):
         self.data_source_creator.setup(self.registry)
         keycloak_url = self.data_source_creator.get_keycloak_url()
-        auth_config = OidcAuthConfig(
+        auth_config = OidcClientAuthConfig(
             client_id="feast-integration-client",
-            client_secret="feast-integration-client-secret",
-            username="reader_writer",
-            password="password",
-            realm="master",
             type="oidc",
             auth_discovery_url=f"{keycloak_url}/realms/master/.well-known"
             f"/openid-configuration",
+            client_secret="feast-integration-client-secret",
+            username="reader_writer",
+            password="password",
         )
         self.config = RepoConfig(
             registry=self.registry,
