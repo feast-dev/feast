@@ -298,6 +298,7 @@ class RepoConfig(FeastBaseModel):
                     self.auth.get("type") == AuthType.OIDC.value
                     and "username" in self.auth
                     and "password" in self.auth
+                    and "client_secret" in self.auth
                 )
                 self._auth = get_auth_config_from_type(
                     "oidc_client" if is_oidc_client else self.auth.get("type")
