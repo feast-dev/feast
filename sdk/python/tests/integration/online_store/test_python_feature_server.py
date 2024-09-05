@@ -91,7 +91,10 @@ def test_push_source_does_not_exist(python_fs_client):
     initial_temp = _get_temperatures_from_feature_server(
         python_fs_client, location_ids=[1]
     )[0]
-    with pytest.raises(PushSourceNotFoundException, match="Unable to find push source 'push_source_does_not_exist'"):
+    with pytest.raises(
+        PushSourceNotFoundException,
+        match="Unable to find push source 'push_source_does_not_exist'",
+    ):
         python_fs_client.post(
             "/push",
             data=json.dumps(
