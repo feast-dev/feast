@@ -16,6 +16,10 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue)](https://github.com/feast-dev/feast/blob/master/LICENSE)
 [![GitHub Release](https://img.shields.io/github/v/release/feast-dev/feast.svg?style=flat&sort=semver&color=blue)](https://github.com/feast-dev/feast/releases)
 
+## Join us on Slack!
+
+👋👋👋 [Come say hi on Slack!](https://join.slack.com/t/feastopensource/signup)
+
 ## Overview
 
 Feast (**Fea**ture **St**ore) is an open source feature store for machine learning. Feast is the fastest path to manage existing infrastructure to productionize analytic data for model training and online inference.
@@ -228,5 +232,3 @@ Thanks goes to these incredible people:
 <a href="https://github.com/feast-dev/feast/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=feast-dev/feast" />
 </a>
-
-

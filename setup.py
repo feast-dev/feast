@@ -162,6 +162,8 @@ ELASTICSEARCH_REQUIRED = ["elasticsearch>=8.13.0"]
 
 SINGLESTORE_REQUIRED = ["singlestoredb"]
 
+MSSQL_REQUIRED = ["ibis-framework[mssql]>=9.0.0,<10"]
+
 CI_REQUIRED = (
     [
         "build",
@@ -189,7 +191,6 @@ CI_REQUIRED = (
         "pytest-env",
         "Sphinx>4.0.0,<7",
         "testcontainers==4.4.0",
-        "firebase-admin>=5.2.0,<6",
         "pre-commit<3.3.2",
         "assertpy==1.1",
         "pip-tools",
@@ -468,6 +469,7 @@ setup(
         "postgres": POSTGRES_REQUIRED,
         "azure": AZURE_REQUIRED,
         "mysql": MYSQL_REQUIRED,
+        "mssql": MSSQL_REQUIRED,
         "ge": GE_REQUIRED,
         "hbase": HBASE_REQUIRED,
         "docs": DOCS_REQUIRED,

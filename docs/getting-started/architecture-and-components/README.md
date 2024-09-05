@@ -1,7 +1,7 @@
 # Architecture
 
 {% content-ref url="language.md" %}
-[langauge.md](language.md)
+[language.md](language.md)
 {% endcontent-ref %}
 
 {% content-ref url="overview.md" %}

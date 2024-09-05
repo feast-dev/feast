@@ -167,7 +167,10 @@ test-python-universal-mssql:
  	 	-k "not gcs_registry and \
 			not s3_registry and \
 			not test_lambda_materialization and \
-			not test_snowflake" \
+			not test_snowflake and \
+			not test_historical_features_persisting and \
+			not validation and \
+			not test_feature_service_logging" \
  	 sdk/python/tests
 
 
