@@ -5,7 +5,7 @@ from requests import Session
 from feast.permissions.auth_model import (
     KubernetesAuthConfig,
     NoAuthConfig,
-    OidcAuthConfig,
+    OidcClientAuthConfig,
 )
 from feast.permissions.client.http_auth_requests_wrapper import (
     AuthenticatedRequestsSession,
@@ -21,13 +21,14 @@ from feast.permissions.client.oidc_authentication_client_manager import (
 MOCKED_TOKEN_VALUE: str = "dummy_token"
 
 
-def _get_dummy_oidc_auth_type() -> OidcAuthConfig:
-    oidc_config = OidcAuthConfig(
+def _get_dummy_oidc_auth_type() -> OidcClientAuthConfig:
+    oidc_config = OidcClientAuthConfig(
         auth_discovery_url="http://localhost:8080/realms/master/.well-known/openid-configuration",
         type="oidc",
         username="admin_test",
         password="password_test",
         client_id="dummy_client_id",
+        client_secret="client_secret",
     )
     return oidc_config
 

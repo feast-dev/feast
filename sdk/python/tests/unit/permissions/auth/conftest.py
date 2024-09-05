@@ -76,10 +76,7 @@ def oidc_config() -> OidcAuthConfig:
     return OidcAuthConfig(
         auth_discovery_url="https://localhost:8080/realms/master/.well-known/openid-configuration",
         client_id=_CLIENT_ID,
-        client_secret="",
-        username="",
-        password="",
-        realm="",
+        type="oidc",
     )
 
 

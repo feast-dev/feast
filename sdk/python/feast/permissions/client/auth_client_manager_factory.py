@@ -2,7 +2,7 @@ from feast.permissions.auth.auth_type import AuthType
 from feast.permissions.auth_model import (
     AuthConfig,
     KubernetesAuthConfig,
-    OidcAuthConfig,
+    OidcClientAuthConfig,
 )
 from feast.permissions.client.auth_client_manager import AuthenticationClientManager
 from feast.permissions.client.kubernetes_auth_client_manager import (
@@ -15,7 +15,7 @@ from feast.permissions.client.oidc_authentication_client_manager import (
 
 def get_auth_client_manager(auth_config: AuthConfig) -> AuthenticationClientManager:
     if auth_config.type == AuthType.OIDC.value:
-        assert isinstance(auth_config, OidcAuthConfig)
+        assert isinstance(auth_config, OidcClientAuthConfig)
         return OidcAuthClientManager(auth_config)
     elif auth_config.type == AuthType.KUBERNETES.value:
         assert isinstance(auth_config, KubernetesAuthConfig)

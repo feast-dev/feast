@@ -62,6 +62,14 @@ feast.permissions.matcher module
    :undoc-members:
    :show-inheritance:
 
+feast.permissions.oidc\_service module
+--------------------------------------
+
+.. automodule:: feast.permissions.oidc_service
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 feast.permissions.permission module
 -----------------------------------
 
