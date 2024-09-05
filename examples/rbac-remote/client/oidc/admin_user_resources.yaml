@@ -21,8 +21,6 @@ spec:
           imagePullPolicy: Always
           command: ["sleep", "infinity"]
           env:
-            - name: KEYCLOAK_CLIENT_SECRET
-              value: <KEYCLOAK_CLIENT_SECRET>
             - name: FEAST_USERNAME
               value: admin-user
             - name: FEAST_PASSWORD

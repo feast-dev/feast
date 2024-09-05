@@ -72,17 +72,19 @@ The application works under OpenShift or Kubernetes with the following instructi
     ```
 
 ### B. OIDC Authorization
-- **Step 1: Setup the keycloak see the documentation [here](https://www.keycloak.org/getting-started/getting-started-kube)**
+- **Step 1: Setup the keycloak** 
+    - See the documentation [here](https://www.keycloak.org/getting-started/getting-started-kube) and install the keycloak.
+    - Create a new realm with the name `feast-rbac` from admin console.
+    - Under the `feast-rbac` realm, create a new client with the name `feast-client`
+    - Generate the secret for the `feast-client`.
 - **Step 2: Create Server Feature Store Files**
     -  Set auth type `oidc` in the respective `feature_store` files
 
          ```yaml
-            auth:
+          auth:
             type: oidc
             client_id: _CLIENT_ID__
-            client_secret: _CLIENT_SECRET__
-            realm: _REALM__  
-            auth_discovery_url: _OIDC_SERVER_URL_/realms/master/.well-known/openid-configuration
+            auth_discovery_url: _OIDC_SERVER_URL_/realms/feast-rbac/.well-known/openid-configuration
         ``` 
     - Feature store YAML files for each server, can be created for example like below server.
 
@@ -121,11 +123,23 @@ The application works under OpenShift or Kubernetes with the following instructi
 ### B. OIDC Authorization
 - **Step 1: Create Client Feature Store YAML**
     - Set up the client feature store with remote connection details for the registry, online, and offline store.
-    - set the `Auth type` to `oidc`  
+    - Set the `Auth type` to `oidc`
+    - update the client secret in client side `feature_store.yaml` or if required any other settings as show below. 
+     ```
+      auth_discovery_url: https://keycloak-feast-dev.apps.com/realms/feast-rbac/.well-known/openid-configuration
+      client_id: feast-client
+      client_secret: update-this-value
+      username: ${FEAST_USERNAME}
+      password: ${FEAST_PASSWORD}
+     ```
     - See the client remote setting example here: [feature_store.yaml](client/oidc/feature_repo/feature_store.yaml)
-- **Step 2: Deploy Client Examples**
-    - For OIDC same like k8s examples created different users: 1. [admin_user](client/oidc/admin_user_resources.yaml), 2. [readonly_user](client/oidc/readonly_user_resources.yaml) and 3. [unauthorized_user](client/oidc/unauthorized_user_resources.yaml) .
-    - Create users, roles, and client in keycloak role for example `feast-admin-role` for user `admin-user` and `feast-user-role` for `readonly-user`
+- **Step 2: Create Roles and Users**
+     - Under the `feast-client` create the two roles `feast-admin-role` and `feast-user-role`
+     - Under the `feast-rbac` realm, create 3 different users: `admin-user`, `readonly-user`, and `unauthorized-user`. Assign the password `feast` to each user.
+     - Map the roles to users: select the `admin-user`, go to `Role mapping`, and assign the `feast-admin-role`. Select the `readonly-user` and assign the `feast-user-role`. For the `unauthorized-user`, do not assign any roles.
+- **Step 3: Deploy Client Examples**
+    - For OIDC, similar to the k8s examples, create different deployments and added the username and password into environment variables: 1. [admin_user](client/oidc/admin_user_resources.yaml), 2. [readonly_user](client/oidc/readonly_user_resources.yaml) and 3. [unauthorized_user](client/oidc/unauthorized_user_resources.yaml) .
+    - To deploy the client confirm `Apply client creation examples` `Y`
  
 ## 4. Permissions Management
 - **Step 1: Apply Permissions**

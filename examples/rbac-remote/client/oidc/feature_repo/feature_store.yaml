@@ -13,7 +13,7 @@ auth:
   type: oidc
   auth_discovery_url: https://keycloak-feast-dev.apps.com/realms/feast-rbac/.well-known/openid-configuration
   client_id: feast-client
-  client_secret: ${KEYCLOAK_CLIENT_SECRET}
+  client_secret: update-this-value
   username: ${FEAST_USERNAME}
   password: ${FEAST_PASSWORD}
 entity_key_serialization_version: 2
