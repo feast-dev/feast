@@ -30,6 +30,7 @@ from feast.errors import (
     EntityNotFoundException,
     FeatureServiceNotFoundException,
     FeatureViewNotFoundException,
+    PermissionNotFoundException,
     SavedDatasetNotFound,
     ValidationReferenceNotFound,
 )
@@ -41,6 +42,7 @@ from feast.feature_view import FeatureView
 from feast.infra.infra_object import Infra
 from feast.infra.registry.caching_registry import CachingRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
+from feast.permissions.permission import Permission
 from feast.project_metadata import ProjectMetadata
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.protos.feast.core.Entity_pb2 import Entity as EntityProto
@@ -52,6 +54,7 @@ from feast.protos.feast.core.InfraObject_pb2 import Infra as InfraProto
 from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
     OnDemandFeatureView as OnDemandFeatureViewProto,
 )
+from feast.protos.feast.core.Permission_pb2 import Permission as PermissionProto
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.protos.feast.core.SavedDataset_pb2 import SavedDataset as SavedDatasetProto
 from feast.protos.feast.core.StreamFeatureView_pb2 import (
@@ -152,6 +155,15 @@ managed_infra = Table(
     Column("infra_proto", LargeBinary, nullable=False),
 )
 
+permissions = Table(
+    "permissions",
+    metadata,
+    Column("permission_name", String(255), primary_key=True),
+    Column("project_id", String(50), primary_key=True),
+    Column("last_updated_timestamp", BigInteger, nullable=False),
+    Column("permission_proto", LargeBinary, nullable=False),
+)
+
 
 class FeastMetadataKeys(Enum):
     LAST_UPDATED_TIMESTAMP = "last_updated_timestamp"
@@ -197,11 +209,6 @@ class SqlRegistry(CachingRegistry):
         self.engine: Engine = create_engine(
             registry_config.path, **registry_config.sqlalchemy_config_kwargs
         )
-        # pool_recycle will recycle connections after the given number of seconds has passed
-        # This is to avoid automatic disconnections when no activity is detected on connection
-        # self.engine: Engine = create_engine(
-        #    registry_config.path, echo=False, pool_recycle=3600, pool_size=10
-        # )
         metadata.create_all(self.engine)
         super().__init__(
             project=project,
@@ -218,6 +225,7 @@ class SqlRegistry(CachingRegistry):
             on_demand_feature_views,
             saved_datasets,
             validation_references,
+            permissions,
         }:
             with self.engine.begin() as conn:
                 stmt = delete(t)
@@ -235,6 +243,7 @@ class SqlRegistry(CachingRegistry):
                 validation_references,
                 managed_infra,
                 feast_metadata,
+                permissions,
             }:
                 stmt = delete(t).where(t.c.project_id == project)
                 conn.execute(stmt)
@@ -350,13 +359,16 @@ class SqlRegistry(CachingRegistry):
             not_found_exception=ValidationReferenceNotFound,
         )
 
-    def _list_validation_references(self, project: str) -> List[ValidationReference]:
+    def _list_validation_references(
+        self, project: str, tags: Optional[dict[str, str]] = None
+    ) -> List[ValidationReference]:
         return self._list_objects(
             table=validation_references,
             project=project,
             proto_class=ValidationReferenceProto,
             python_class=ValidationReference,
             proto_field_name="validation_reference_proto",
+            tags=tags,
         )
 
     def _list_entities(
@@ -478,13 +490,16 @@ class SqlRegistry(CachingRegistry):
             tags=tags,
         )
 
-    def _list_saved_datasets(self, project: str) -> List[SavedDataset]:
+    def _list_saved_datasets(
+        self, project: str, tags: Optional[dict[str, str]] = None
+    ) -> List[SavedDataset]:
         return self._list_objects(
             saved_datasets,
             project,
             SavedDatasetProto,
             SavedDataset,
             "saved_dataset_proto",
+            tags=tags,
         )
 
     def _list_on_demand_feature_views(
@@ -707,6 +722,7 @@ class SqlRegistry(CachingRegistry):
                 (self.list_saved_datasets, r.saved_datasets),
                 (self.list_validation_references, r.validation_references),
                 (self.list_project_metadata, r.project_metadata),
+                (self.list_permissions, r.permissions),
             ]:
                 objs: List[Any] = lister(project)  # type: ignore
                 if objs:
@@ -762,6 +778,7 @@ class SqlRegistry(CachingRegistry):
                     "saved_dataset_proto",
                     "feature_view_proto",
                     "feature_service_proto",
+                    "permission_proto",
                 ]:
                     deserialized_proto = self.deserialize_registry_values(
                         row._mapping[proto_field_name], type(obj)
@@ -958,6 +975,7 @@ class SqlRegistry(CachingRegistry):
                 feature_views,
                 on_demand_feature_views,
                 stream_feature_views,
+                permissions,
             }:
                 stmt = select(table)
                 rows = conn.execute(stmt).all()
@@ -965,6 +983,47 @@ class SqlRegistry(CachingRegistry):
                     projects.add(row._mapping["project_id"])
 
         return projects
+
+    def _get_permission(self, name: str, project: str) -> Permission:
+        return self._get_object(
+            table=permissions,
+            name=name,
+            project=project,
+            proto_class=PermissionProto,
+            python_class=Permission,
+            id_field_name="permission_name",
+            proto_field_name="permission_proto",
+            not_found_exception=PermissionNotFoundException,
+        )
+
+    def _list_permissions(
+        self, project: str, tags: Optional[dict[str, str]]
+    ) -> List[Permission]:
+        return self._list_objects(
+            permissions,
+            project,
+            PermissionProto,
+            Permission,
+            "permission_proto",
+            tags=tags,
+        )
+
+    def apply_permission(
+        self, permission: Permission, project: str, commit: bool = True
+    ):
+        return self._apply_object(
+            permissions, project, "permission_name", permission, "permission_proto"
+        )
+
+    def delete_permission(self, name: str, project: str, commit: bool = True):
+        with self.engine.begin() as conn:
+            stmt = delete(permissions).where(
+                permissions.c.permission_name == name,
+                permissions.c.project_id == project,
+            )
+            rows = conn.execute(stmt)
+            if rows.rowcount < 1:
+                raise PermissionNotFoundException(name, project)
 
     def get_all_project_metadata(self) -> List[ProjectMetadataModel]:
         """

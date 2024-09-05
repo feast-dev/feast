@@ -13,7 +13,7 @@
 # limitations under the License.
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import (
     Any,
@@ -28,7 +28,6 @@ from typing import (
     Union,
 )
 
-import pytz
 from google.protobuf.timestamp_pb2 import Timestamp
 from pydantic import StrictStr
 
@@ -457,5 +456,5 @@ class RedisOnlineStore(OnlineStore):
         if not res:
             return None, None
         else:
-            timestamp = datetime.fromtimestamp(res_ts.seconds, tz=pytz.utc)
+            timestamp = datetime.fromtimestamp(res_ts.seconds, tz=timezone.utc)
             return timestamp, res

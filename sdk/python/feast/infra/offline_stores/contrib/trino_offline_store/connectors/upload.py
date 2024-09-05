@@ -18,13 +18,12 @@ offline_store:
 ```
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, Iterator, Optional, Set
 
 import numpy as np
 import pandas as pd
 import pyarrow
-from pytz import utc
 
 from feast.infra.offline_stores.contrib.trino_offline_store.trino_queries import Trino
 from feast.infra.offline_stores.contrib.trino_offline_store.trino_type_map import (
@@ -141,7 +140,7 @@ def format_pandas_row(df: pd.DataFrame) -> str:
 
 def format_datetime(t: datetime) -> str:
     if t.tzinfo:
-        t = t.astimezone(tz=utc)
+        t = t.astimezone(tz=timezone.utc)
     return t.strftime("%Y-%m-%d %H:%M:%S.%f")
 
 

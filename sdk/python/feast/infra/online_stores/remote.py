@@ -16,11 +16,13 @@ import logging
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
 
-import requests
 from pydantic import StrictStr
 
 from feast import Entity, FeatureView, RepoConfig
 from feast.infra.online_stores.online_store import OnlineStore
+from feast.permissions.client.http_auth_requests_wrapper import (
+    get_http_auth_requests_session,
+)
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel
@@ -70,7 +72,7 @@ class RemoteOnlineStore(OnlineStore):
         req_body = self._construct_online_read_api_json_request(
             entity_keys, table, requested_features
         )
-        response = requests.post(
+        response = get_http_auth_requests_session(config.auth_config).post(
             f"{config.online_store.path}/get-online-features", data=req_body
         )
         if response.status_code == 200:

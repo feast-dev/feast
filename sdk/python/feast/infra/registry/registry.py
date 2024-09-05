@@ -31,6 +31,7 @@ from feast.errors import (
     EntityNotFoundException,
     FeatureServiceNotFoundException,
     FeatureViewNotFoundException,
+    PermissionNotFoundException,
     ValidationReferenceNotFound,
 )
 from feast.feature_service import FeatureService
@@ -41,6 +42,8 @@ from feast.infra.registry import proto_registry_utils
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.infra.registry.registry_store import NoopRegistryStore
 from feast.on_demand_feature_view import OnDemandFeatureView
+from feast.permissions.auth_model import AuthConfig, NoAuthConfig
+from feast.permissions.permission import Permission
 from feast.project_metadata import ProjectMetadata
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.repo_config import RegistryConfig
@@ -73,6 +76,7 @@ class FeastObjectType(Enum):
     ON_DEMAND_FEATURE_VIEW = "on demand feature view"
     STREAM_FEATURE_VIEW = "stream feature view"
     FEATURE_SERVICE = "feature service"
+    PERMISSION = "permission"
 
     @staticmethod
     def get_objects_from_registry(
@@ -91,6 +95,7 @@ class FeastObjectType(Enum):
             FeastObjectType.FEATURE_SERVICE: registry.list_feature_services(
                 project=project
             ),
+            FeastObjectType.PERMISSION: registry.list_permissions(project=project),
         }
 
     @staticmethod
@@ -104,6 +109,7 @@ class FeastObjectType(Enum):
             FeastObjectType.ON_DEMAND_FEATURE_VIEW: repo_contents.on_demand_feature_views,
             FeastObjectType.STREAM_FEATURE_VIEW: repo_contents.stream_feature_views,
             FeastObjectType.FEATURE_SERVICE: repo_contents.feature_services,
+            FeastObjectType.PERMISSION: repo_contents.permissions,
         }
 
 
@@ -160,6 +166,7 @@ class Registry(BaseRegistry):
         project: str,
         registry_config: Optional[RegistryConfig],
         repo_path: Optional[Path],
+        auth_config: AuthConfig = NoAuthConfig(),
     ):
         # We override __new__ so that we can inspect registry_config and create a SqlRegistry without callers
         # needing to make any changes.
@@ -178,7 +185,7 @@ class Registry(BaseRegistry):
         elif registry_config and registry_config.registry_type == "remote":
             from feast.infra.registry.remote import RemoteRegistry
 
-            return RemoteRegistry(registry_config, project, repo_path)
+            return RemoteRegistry(registry_config, project, repo_path, auth_config)
         else:
             return super(Registry, cls).__new__(cls)
 
@@ -187,6 +194,7 @@ class Registry(BaseRegistry):
         project: str,
         registry_config: Optional[RegistryConfig],
         repo_path: Optional[Path],
+        auth_config: AuthConfig = NoAuthConfig(),
     ):
         """
         Create the Registry object.
@@ -198,6 +206,7 @@ class Registry(BaseRegistry):
         """
 
         self._refresh_lock = Lock()
+        self._auth_config = auth_config
 
         if registry_config:
             registry_store_type = registry_config.registry_store_type
@@ -215,7 +224,7 @@ class Registry(BaseRegistry):
             )
 
     def clone(self) -> "Registry":
-        new_registry = Registry("project", None, None)
+        new_registry = Registry("project", None, None, self._auth_config)
         new_registry.cached_registry_proto_ttl = timedelta(seconds=0)
         new_registry.cached_registry_proto = (
             self.cached_registry_proto.__deepcopy__()
@@ -311,9 +320,6 @@ class Registry(BaseRegistry):
             if existing_data_source_proto.name == data_source.name:
                 del registry.data_sources[idx]
         data_source_proto = data_source.to_proto()
-        data_source_proto.data_source_class_type = (
-            f"{data_source.__class__.__module__}.{data_source.__class__.__name__}"
-        )
         data_source_proto.project = project
         data_source_proto.data_source_class_type = (
             f"{data_source.__class__.__module__}.{data_source.__class__.__name__}"
@@ -713,12 +719,15 @@ class Registry(BaseRegistry):
         return proto_registry_utils.get_saved_dataset(registry_proto, name, project)
 
     def list_saved_datasets(
-        self, project: str, allow_cache: bool = False
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[SavedDataset]:
         registry_proto = self._get_registry_proto(
             project=project, allow_cache=allow_cache
         )
-        return proto_registry_utils.list_saved_datasets(registry_proto, project)
+        return proto_registry_utils.list_saved_datasets(registry_proto, project, tags)
 
     def apply_validation_reference(
         self,
@@ -755,12 +764,17 @@ class Registry(BaseRegistry):
         )
 
     def list_validation_references(
-        self, project: str, allow_cache: bool = False
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[ValidationReference]:
         registry_proto = self._get_registry_proto(
             project=project, allow_cache=allow_cache
         )
-        return proto_registry_utils.list_validation_references(registry_proto, project)
+        return proto_registry_utils.list_validation_references(
+            registry_proto, project, tags
+        )
 
     def delete_validation_reference(self, name: str, project: str, commit: bool = True):
         registry_proto = self._prepare_registry_for_changes(project)
@@ -909,3 +923,62 @@ class Registry(BaseRegistry):
             fv.spec.name: fv for fv in self.cached_registry_proto.stream_feature_views
         }
         return {**odfvs, **fvs, **sfv}
+
+    def get_permission(
+        self, name: str, project: str, allow_cache: bool = False
+    ) -> Permission:
+        registry_proto = self._get_registry_proto(
+            project=project, allow_cache=allow_cache
+        )
+        return proto_registry_utils.get_permission(registry_proto, name, project)
+
+    def list_permissions(
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
+    ) -> List[Permission]:
+        registry_proto = self._get_registry_proto(
+            project=project, allow_cache=allow_cache
+        )
+        return proto_registry_utils.list_permissions(registry_proto, project, tags)
+
+    def apply_permission(
+        self, permission: Permission, project: str, commit: bool = True
+    ):
+        now = _utc_now()
+        if not permission.created_timestamp:
+            permission.created_timestamp = now
+        permission.last_updated_timestamp = now
+
+        registry = self._prepare_registry_for_changes(project)
+        for idx, existing_permission_proto in enumerate(registry.permissions):
+            if (
+                existing_permission_proto.spec.name == permission.name
+                and existing_permission_proto.spec.project == project
+            ):
+                permission.created_timestamp = (
+                    existing_permission_proto.meta.created_timestamp.ToDatetime()
+                )
+                del registry.permissions[idx]
+
+        permission_proto = permission.to_proto()
+        permission_proto.spec.project = project
+        registry.permissions.append(permission_proto)
+        if commit:
+            self.commit()
+
+    def delete_permission(self, name: str, project: str, commit: bool = True):
+        self._prepare_registry_for_changes(project)
+        assert self.cached_registry_proto
+
+        for idx, permission_proto in enumerate(self.cached_registry_proto.permissions):
+            if (
+                permission_proto.spec.name == name
+                and permission_proto.spec.project == project
+            ):
+                del self.cached_registry_proto.permissions[idx]
+                if commit:
+                    self.commit()
+                return
+        raise PermissionNotFoundException(name, project)

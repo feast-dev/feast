@@ -1,8 +1,8 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
 
 import pandas as pd
-from pytz import timezone, utc
+from zoneinfo import ZoneInfo
 
 from feast.types import FeastType, Float32, Int32, Int64, String
 from feast.utils import _utc_now
@@ -27,11 +27,11 @@ def create_basic_driver_dataset(
             ts - timedelta(hours=3),
             # Use different time zones to test tz-naive -> tz-aware conversion
             (ts - timedelta(hours=4))
-            .replace(tzinfo=utc)
-            .astimezone(tz=timezone("Europe/Berlin")),
+            .replace(tzinfo=timezone.utc)
+            .astimezone(tz=ZoneInfo("Europe/Berlin")),
             (ts - timedelta(hours=1))
-            .replace(tzinfo=utc)
-            .astimezone(tz=timezone("US/Pacific")),
+            .replace(tzinfo=timezone.utc)
+            .astimezone(tz=ZoneInfo("US/Pacific")),
         ],
         "created_ts": [ts, ts, ts, ts, ts],
     }

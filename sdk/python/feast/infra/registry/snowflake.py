@@ -18,6 +18,7 @@ from feast.errors import (
     EntityNotFoundException,
     FeatureServiceNotFoundException,
     FeatureViewNotFoundException,
+    PermissionNotFoundException,
     SavedDatasetNotFound,
     ValidationReferenceNotFound,
 )
@@ -31,6 +32,7 @@ from feast.infra.utils.snowflake.snowflake_utils import (
     execute_snowflake_statement,
 )
 from feast.on_demand_feature_view import OnDemandFeatureView
+from feast.permissions.permission import Permission
 from feast.project_metadata import ProjectMetadata
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.protos.feast.core.Entity_pb2 import Entity as EntityProto
@@ -42,6 +44,7 @@ from feast.protos.feast.core.InfraObject_pb2 import Infra as InfraProto
 from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
     OnDemandFeatureView as OnDemandFeatureViewProto,
 )
+from feast.protos.feast.core.Permission_pb2 import Permission as PermissionProto
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.protos.feast.core.SavedDataset_pb2 import SavedDataset as SavedDatasetProto
 from feast.protos.feast.core.StreamFeatureView_pb2 import (
@@ -342,6 +345,17 @@ class SnowflakeRegistry(BaseRegistry):
 
             self._set_last_updated_metadata(update_datetime, project)
 
+    def apply_permission(
+        self, permission: Permission, project: str, commit: bool = True
+    ):
+        return self._apply_object(
+            "PERMISSIONS",
+            project,
+            "PERMISSION_NAME",
+            permission,
+            "PERMISSION_PROTO",
+        )
+
     # delete operations
     def delete_data_source(self, name: str, project: str, commit: bool = True):
         return self._delete_object(
@@ -420,6 +434,15 @@ class SnowflakeRegistry(BaseRegistry):
             self._set_last_updated_metadata(_utc_now(), project)
 
             return cursor.rowcount
+
+    def delete_permission(self, name: str, project: str, commit: bool = True):
+        return self._delete_object(
+            "PERMISSIONS",
+            name,
+            project,
+            "PERMISSION_NAME",
+            PermissionNotFoundException,
+        )
 
     # get operations
     def get_data_source(
@@ -619,6 +642,25 @@ class SnowflakeRegistry(BaseRegistry):
         else:
             return None
 
+    def get_permission(
+        self, name: str, project: str, allow_cache: bool = False
+    ) -> Permission:
+        if allow_cache:
+            self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.get_permission(
+                self.cached_registry_proto, name, project
+            )
+        return self._get_object(
+            "PERMISSIONS",
+            name,
+            project,
+            PermissionProto,
+            Permission,
+            "PERMISSION_NAME",
+            "PERMISSION_PROTO",
+            PermissionNotFoundException,
+        )
+
     # list operations
     def list_data_sources(
         self,
@@ -716,12 +758,15 @@ class SnowflakeRegistry(BaseRegistry):
         )
 
     def list_saved_datasets(
-        self, project: str, allow_cache: bool = False
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[SavedDataset]:
         if allow_cache:
             self._refresh_cached_registry_if_necessary()
             return proto_registry_utils.list_saved_datasets(
-                self.cached_registry_proto, project
+                self.cached_registry_proto, project, tags
             )
         return self._list_objects(
             "SAVED_DATASETS",
@@ -729,6 +774,7 @@ class SnowflakeRegistry(BaseRegistry):
             SavedDatasetProto,
             SavedDataset,
             "SAVED_DATASET_PROTO",
+            tags=tags,
         )
 
     def list_stream_feature_views(
@@ -752,7 +798,10 @@ class SnowflakeRegistry(BaseRegistry):
         )
 
     def list_validation_references(
-        self, project: str, allow_cache: bool = False
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[ValidationReference]:
         return self._list_objects(
             "VALIDATION_REFERENCES",
@@ -760,6 +809,7 @@ class SnowflakeRegistry(BaseRegistry):
             ValidationReferenceProto,
             ValidationReference,
             "VALIDATION_REFERENCE_PROTO",
+            tags=tags,
         )
 
     def _list_objects(
@@ -792,6 +842,26 @@ class SnowflakeRegistry(BaseRegistry):
                         objects.append(obj)
                 return objects
         return []
+
+    def list_permissions(
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
+    ) -> List[Permission]:
+        if allow_cache:
+            self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.list_permissions(
+                self.cached_registry_proto, project
+            )
+        return self._list_objects(
+            "PERMISSIONS",
+            project,
+            PermissionProto,
+            Permission,
+            "PERMISSION_PROTO",
+            tags,
+        )
 
     def apply_materialization(
         self,
@@ -934,6 +1004,7 @@ class SnowflakeRegistry(BaseRegistry):
                 (self.list_saved_datasets, r.saved_datasets),
                 (self.list_validation_references, r.validation_references),
                 (self.list_project_metadata, r.project_metadata),
+                (self.list_permissions, r.permissions),
             ]:
                 objs: List[Any] = lister(project)  # type: ignore
                 if objs:
@@ -964,6 +1035,7 @@ class SnowflakeRegistry(BaseRegistry):
             "FEATURE_VIEWS",
             "ON_DEMAND_FEATURE_VIEWS",
             "STREAM_FEATURE_VIEWS",
+            "PERMISSIONS",
         ]
 
         with GetSnowflakeConnection(self.registry_config) as conn:

@@ -1,10 +1,11 @@
 # This module generates dummy data to be used for tests and examples.
 import itertools
+from datetime import timedelta, timezone
 from enum import Enum
 
 import numpy as np
 import pandas as pd
-from pytz import FixedOffset, timezone, utc
+from zoneinfo import ZoneInfo
 
 from feast.infra.offline_stores.offline_utils import (
     DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL,
@@ -22,11 +23,15 @@ def _convert_event_timestamp(event_timestamp: pd.Timestamp, t: EventTimestampTyp
     if t == EventTimestampType.TZ_NAIVE:
         return event_timestamp
     elif t == EventTimestampType.TZ_AWARE_UTC:
-        return event_timestamp.replace(tzinfo=utc)
+        return event_timestamp.replace(tzinfo=timezone.utc)
     elif t == EventTimestampType.TZ_AWARE_FIXED_OFFSET:
-        return event_timestamp.replace(tzinfo=utc).astimezone(FixedOffset(60))
+        return event_timestamp.replace(tzinfo=timezone.utc).astimezone(
+            tz=timezone(timedelta(minutes=60))
+        )
     elif t == EventTimestampType.TZ_AWARE_US_PACIFIC:
-        return event_timestamp.replace(tzinfo=utc).astimezone(timezone("US/Pacific"))
+        return event_timestamp.replace(tzinfo=timezone.utc).astimezone(
+            tz=ZoneInfo("US/Pacific")
+        )
 
 
 def create_orders_df(

@@ -50,10 +50,6 @@ Please see [Online Store](../../getting-started/components/online-store.md) for 
 [mysql.md](mysql.md)
 {% endcontent-ref %}
 
-{% content-ref url="rockset.md" %}
-[rockset.md](rockset.md)
-{% endcontent-ref %}
-
 {% content-ref url="hazelcast.md" %}
 [hazelcast.md](hazelcast.md)
 {% endcontent-ref %}

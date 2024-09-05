@@ -1,7 +1,7 @@
 import random
 import string
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
@@ -12,7 +12,6 @@ import pandas as pd
 import pyarrow
 from ibis.expr import datatypes as dt
 from ibis.expr.types import Table
-from pytz import utc
 
 from feast.data_source import DataSource
 from feast.feature_logging import LoggingConfig, LoggingSource
@@ -55,8 +54,8 @@ def pull_latest_from_table_or_query_ibis(
     fields = join_key_columns + feature_name_columns + [timestamp_field]
     if created_timestamp_column:
         fields.append(created_timestamp_column)
-    start_date = start_date.astimezone(tz=utc)
-    end_date = end_date.astimezone(tz=utc)
+    start_date = start_date.astimezone(tz=timezone.utc)
+    end_date = end_date.astimezone(tz=timezone.utc)
 
     table = data_source_reader(data_source)
 
@@ -265,8 +264,8 @@ def pull_all_from_table_or_query_ibis(
     staging_location_endpoint_override: Optional[str] = None,
 ) -> RetrievalJob:
     fields = join_key_columns + feature_name_columns + [timestamp_field]
-    start_date = start_date.astimezone(tz=utc)
-    end_date = end_date.astimezone(tz=utc)
+    start_date = start_date.astimezone(tz=timezone.utc)
+    end_date = end_date.astimezone(tz=timezone.utc)
 
     table = data_source_reader(data_source)
 
