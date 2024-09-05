@@ -57,7 +57,7 @@ class FeastError(Exception):
                 module = importlib.import_module(module_name)
                 class_reference = getattr(module, class_name)
 
-                instance = class_reference(message)
+                instance = class_reference.__new__(class_reference)
                 setattr(instance, "__overridden_message__", message)
                 return instance
         except Exception as e:
@@ -450,6 +450,9 @@ class EntityDFNotDateTime(FeastError):
 class PushSourceNotFoundException(FeastError):
     def __init__(self, push_source_name: str):
         super().__init__(f"Unable to find push source '{push_source_name}'.")
+
+    def http_status_code(self) -> int:
+        return HttpStatusCode.HTTP_422_UNPROCESSABLE_ENTITY
 
 
 class ReadOnlyRegistryException(FeastError):
