@@ -29,7 +29,7 @@ Feature views once they are used by a feature service are intended to be immutab
 
 ### What is the difference between data sources and the offline store?
 
-The data source itself defines the underlying data warehouse table in which the features are stored. The offline store interface defines the APIs required to make an arbitrary compute layer work for Feast (e.g. pulling features given a set of feature views from their sources, exporting the data set results to different formats). Please see [data sources](concepts/data-ingestion.md) and [offline store](architecture-and-components/offline-store.md) for more details.
+The data source itself defines the underlying data warehouse table in which the features are stored. The offline store interface defines the APIs required to make an arbitrary compute layer work for Feast (e.g. pulling features given a set of feature views from their sources, exporting the data set results to different formats). Please see [data sources](concepts/data-ingestion.md) and [offline store](components/offline-store.md) for more details.
 
 ### Is it possible to have offline and online stores from different providers?
 

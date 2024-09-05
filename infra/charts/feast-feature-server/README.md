@@ -44,8 +44,12 @@ See [here](https://github.com/feast-dev/feast/tree/master/examples/python-helm-d
 | imagePullSecrets | list | `[]` |  |
 | livenessProbe.initialDelaySeconds | int | `30` |  |
 | livenessProbe.periodSeconds | int | `30` |  |
+| metrics.enabled | bool | `false` |  |
+| metrics.otelCollector.endpoint | string | `""` |  |
+| metrics.otelCollector.port | int | `4317` |  |
 | nameOverride | string | `""` |  |
 | nodeSelector | object | `{}` |  |
+| otel_service.name | string | `"otelcol"` |  |
 | podAnnotations | object | `{}` |  |
 | podSecurityContext | object | `{}` |  |
 | readinessProbe.initialDelaySeconds | int | `20` |  |

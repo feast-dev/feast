@@ -24,6 +24,7 @@ from subprocess import CalledProcessError
 from setuptools import Command, find_packages, setup
 from setuptools.command.build_py import build_py
 from setuptools.command.develop import develop
+from setuptools.command.install import install
 
 NAME = "eg-feast"
 DESCRIPTION = "EG-specific Python SDK for Feast"
@@ -59,10 +60,12 @@ REQUIRED = [
     "dask[dataframe]>=2024.2.1",
     # For HTTP Registry
     "httpx>=0.23.3",
+    "prometheus_client",
+    "psutil",
 ]
 
 GO_REQUIRED = [
-    "cffi~=1.15.0",
+    "cffi~=1.15.0"
 ]
 
 GCP_REQUIRED = [
@@ -94,13 +97,15 @@ SPARK_REQUIRED = [
 ]
 
 SQLITE_VEC_REQUIRED = [
-    "sqlite-vec==v0.0.1-alpha.10",
+    "sqlite-vec==v0.1.1",
 ]
 TRINO_REQUIRED = ["trino>=0.305.0,<0.400.0", "regex"]
 
 POSTGRES_REQUIRED = [
     "psycopg[binary,pool]>=3.0.0,<4",
 ]
+
+OPENTELEMETRY = ["prometheus_client","psutil"]
 
 MYSQL_REQUIRED = ["pymysql", "types-PyMySQL"]
 
@@ -228,6 +233,7 @@ CI_REQUIRED = (
     + ELASTICSEARCH_REQUIRED
     + SQLITE_VEC_REQUIRED
     + SINGLESTORE_REQUIRED
+    + OPENTELEMETRY
 )
 
 DOCS_REQUIRED = CI_REQUIRED
@@ -321,7 +327,6 @@ class BuildPythonProtosCommand(Command):
 
         for path in Path(self.python_folder).rglob("*.py"):
             for folder in self.sub_folders:
-                folder = folder.replace("/", ".")
                 # Read in the file
                 with open(path, "r") as file:
                     filedata = file.read()
@@ -486,6 +491,7 @@ setup(
         "elasticsearch": ELASTICSEARCH_REQUIRED,
         "sqlite_vec": SQLITE_VEC_REQUIRED,
         "singlestore": SINGLESTORE_REQUIRED,
+        "opentelemetry": OPENTELEMETRY,
     },
     include_package_data=True,
     license="Apache",
