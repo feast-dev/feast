@@ -524,12 +524,19 @@ class RequestSource(DataSource):
         *,
         name: str,
         schema: List[Field],
+        timestamp_field: Optional[str] = None,
         description: Optional[str] = "",
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
     ):
         """Creates a RequestSource object."""
-        super().__init__(name=name, description=description, tags=tags, owner=owner)
+        super().__init__(
+            name=name,
+            timestamp_field=timestamp_field,
+            description=description,
+            tags=tags,
+            owner=owner,
+        )
         self.schema = schema
 
     def validate(self, config: RepoConfig):
@@ -570,6 +577,7 @@ class RequestSource(DataSource):
         return RequestSource(
             name=data_source.name,
             schema=list_schema,
+            timestamp_field=data_source.timestamp_field,
             description=data_source.description,
             tags=dict(data_source.tags),
             owner=data_source.owner,
@@ -593,6 +601,7 @@ class RequestSource(DataSource):
             tags=self.tags,
             owner=self.owner,
         )
+        data_source_proto.timestamp_field = self.timestamp_field
         data_source_proto.request_data_options.schema.extend(schema_pb)
 
         return data_source_proto
