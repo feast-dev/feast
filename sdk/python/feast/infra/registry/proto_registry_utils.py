@@ -1,4 +1,3 @@
-import uuid
 from functools import wraps
 from typing import List, Optional
 
@@ -12,6 +11,7 @@ from feast.errors import (
     FeatureServiceNotFoundException,
     FeatureViewNotFoundException,
     PermissionObjectNotFoundException,
+    ProjectObjectNotFoundException,
     SavedDatasetNotFound,
     ValidationReferenceNotFound,
 )
@@ -19,6 +19,7 @@ from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.permissions.permission import Permission
+from feast.project import Project
 from feast.project_metadata import ProjectMetadata
 from feast.protos.feast.core.Registry_pb2 import ProjectMetadata as ProjectMetadataProto
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
@@ -68,13 +69,6 @@ def registry_proto_cache_with_tags(func):
             return cache_value
 
     return wrapper
-
-
-def init_project_metadata(cached_registry_proto: RegistryProto, project: str):
-    new_project_uuid = f"{uuid.uuid4()}"
-    cached_registry_proto.project_metadata.append(
-        ProjectMetadata(project_name=project, project_uuid=new_project_uuid).to_proto()
-    )
 
 
 def get_project_metadata(
@@ -355,3 +349,21 @@ def get_permission(
         ):
             return Permission.from_proto(permission_proto)
     raise PermissionObjectNotFoundException(name=name, project=project)
+
+
+def list_projects(
+    registry_proto: RegistryProto,
+    tags: Optional[dict[str, str]],
+) -> List[Project]:
+    projects = []
+    for project_proto in registry_proto.projects:
+        if utils.has_all_tags(project_proto.spec.tags, tags):
+            projects.append(Project.from_proto(project_proto))
+    return projects
+
+
+def get_project(registry_proto: RegistryProto, name: str) -> Project:
+    for projects_proto in registry_proto.projects:
+        if projects_proto.spec.name == name:
+            return Project.from_proto(projects_proto)
+    raise ProjectObjectNotFoundException(name=name)

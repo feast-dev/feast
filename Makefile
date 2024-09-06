@@ -86,14 +86,14 @@ test-python-unit:
 	python -m pytest -n 8 --color=yes sdk/python/tests
 
 test-python-integration:
-	python -m pytest -n 4 --integration --color=yes --durations=10 --timeout=1200 --timeout_method=thread \
+	python -m pytest -n 8 --integration --color=yes --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
 		-k "(not snowflake or not test_historical_features_main)" \
 		sdk/python/tests
 
 test-python-integration-local:
 	FEAST_IS_LOCAL_TEST=True \
 	FEAST_LOCAL_ONLINE_CONTAINER=True \
-	python -m pytest -n 4 --color=yes --integration --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
+	python -m pytest -n 8 --color=yes --integration --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
 		-k "not test_lambda_materialization and not test_snowflake_materialization" \
 		sdk/python/tests
 
@@ -394,9 +394,6 @@ test-trino-plugin-locally:
 
 kill-trino-locally:
 	cd ${ROOT_DIR}; docker stop trino
-
-install-protoc-dependencies:
-	pip install --ignore-installed protobuf==4.24.0 "grpcio-tools>=1.56.2,<2" mypy-protobuf==3.1.0
 
 # Docker
 

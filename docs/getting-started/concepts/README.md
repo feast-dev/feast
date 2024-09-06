@@ -24,10 +24,6 @@
 [point-in-time-joins.md](point-in-time-joins.md)
 {% endcontent-ref %}
 
-{% content-ref url="registry.md" %}
-[registry.md](registry.md)
-{% endcontent-ref %}
-
 {% content-ref url="dataset.md" %}
 [dataset.md](dataset.md)
 {% endcontent-ref %}

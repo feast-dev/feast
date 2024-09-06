@@ -52,6 +52,14 @@ feast.cli module
    :undoc-members:
    :show-inheritance:
 
+feast.cli\_utils module
+-----------------------
+
+.. automodule:: feast.cli_utils
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 feast.constants module
 ----------------------
 
@@ -248,14 +256,6 @@ feast.proto\_json module
 ------------------------
 
 .. automodule:: feast.proto_json
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-feast.prova module
-------------------
-
-.. automodule:: feast.prova
    :members:
    :undoc-members:
    :show-inheritance:

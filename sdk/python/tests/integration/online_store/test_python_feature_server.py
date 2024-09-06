@@ -4,6 +4,7 @@ from typing import List
 import pytest
 from fastapi.testclient import TestClient
 
+from feast.errors import PushSourceNotFoundException
 from feast.feast_object import FeastObject
 from feast.feature_server import get_app
 from feast.utils import _utc_now
@@ -90,21 +91,24 @@ def test_push_source_does_not_exist(python_fs_client):
     initial_temp = _get_temperatures_from_feature_server(
         python_fs_client, location_ids=[1]
     )[0]
-    response = python_fs_client.post(
-        "/push",
-        data=json.dumps(
-            {
-                "push_source_name": "push_source_does_not_exist",
-                "df": {
-                    "location_id": [1],
-                    "temperature": [initial_temp * 100],
-                    "event_timestamp": [str(_utc_now())],
-                    "created": [str(_utc_now())],
-                },
-            }
-        ),
-    )
-    assert response.status_code == 422
+    with pytest.raises(
+        PushSourceNotFoundException,
+        match="Unable to find push source 'push_source_does_not_exist'",
+    ):
+        python_fs_client.post(
+            "/push",
+            data=json.dumps(
+                {
+                    "push_source_name": "push_source_does_not_exist",
+                    "df": {
+                        "location_id": [1],
+                        "temperature": [initial_temp * 100],
+                        "event_timestamp": [str(_utc_now())],
+                        "created": [str(_utc_now())],
+                    },
+                }
+            ),
+        )
 
 
 def _get_temperatures_from_feature_server(client, location_ids: List[int]):

@@ -61,25 +61,36 @@ For example, the access token for a client `app` of a user with `reader` role sh
 }
 ```
 
-An example of OIDC authorization configuration is the following: 
+An example of feast OIDC authorization configuration on the server side is the following: 
 ```yaml
 project: my-project
 auth:
   type: oidc
   client_id: _CLIENT_ID__
-  client_secret: _CLIENT_SECRET__
-  realm: _REALM__
-  auth_server_url: _OIDC_SERVER_URL_
   auth_discovery_url: _OIDC_SERVER_URL_/realms/master/.well-known/openid-configuration
 ...
 ```
 
-In case of client configuration, the following settings must be added to specify the current user:
+In case of client configuration, the following settings username, password and client_secret must be added to specify the current user:
 ```yaml
 auth:
+  type: oidc
   ...
   username: _USERNAME_
   password: _PASSWORD_
+  client_secret: _CLIENT_SECRET__
+```
+
+Below is an example of feast full OIDC client auth configuration:
+```yaml
+project: my-project
+auth:
+  type: oidc
+  client_id: test_client_id
+  client_secret: test_client_secret
+  username: test_user_name
+  password: test_password
+  auth_discovery_url: http://localhost:8080/realms/master/.well-known/openid-configuration
 ```
 
 ### Kubernetes RBAC Authorization

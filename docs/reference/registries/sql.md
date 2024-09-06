@@ -1,9 +1,4 @@
----
-description: >-
-  Tutorial on how to use the SQL registry for scalable registry updates
----
-
-# Using Scalable Registry
+# SQL Registry
 
 ## Overview
 

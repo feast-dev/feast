@@ -28,7 +28,7 @@ from feast.infra.feature_servers.base_config import (
 )
 from feast.infra.feature_servers.local_process.config import LocalFeatureServerConfig
 from feast.permissions.action import AuthzedAction
-from feast.permissions.auth_model import OidcAuthConfig
+from feast.permissions.auth_model import OidcClientAuthConfig
 from feast.permissions.permission import Permission
 from feast.permissions.policy import RoleBasedPolicy
 from feast.repo_config import RegistryConfig, RepoConfig
@@ -110,12 +110,6 @@ BIGTABLE_CONFIG = {
     "instance": os.getenv("BIGTABLE_INSTANCE_ID", "feast-integration-tests"),
 }
 
-ROCKSET_CONFIG = {
-    "type": "rockset",
-    "api_key": os.getenv("ROCKSET_APIKEY", ""),
-    "host": os.getenv("ROCKSET_APISERVER", "api.rs2.usw2.rockset.com"),
-}
-
 IKV_CONFIG = {
     "type": "ikv",
     "account_id": os.getenv("IKV_ACCOUNT_ID", ""),
@@ -166,10 +160,6 @@ if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
     AVAILABLE_ONLINE_STORES["datastore"] = ("datastore", None)
     AVAILABLE_ONLINE_STORES["snowflake"] = (SNOWFLAKE_CONFIG, None)
     AVAILABLE_ONLINE_STORES["bigtable"] = (BIGTABLE_CONFIG, None)
-    # Uncomment to test using private Rockset account. Currently not enabled as
-    # there is no dedicated Rockset instance for CI testing and there is no
-    # containerized version of Rockset.
-    # AVAILABLE_ONLINE_STORES["rockset"] = (ROCKSET_CONFIG, None)
 
     # Uncomment to test using private IKV account. Currently not enabled as
     # there is no dedicated IKV instance for CI testing and there is no
@@ -457,16 +447,14 @@ class OfflineServerPermissionsEnvironment(Environment):
     def setup(self):
         self.data_source_creator.setup(self.registry)
         keycloak_url = self.data_source_creator.get_keycloak_url()
-        auth_config = OidcAuthConfig(
+        auth_config = OidcClientAuthConfig(
             client_id="feast-integration-client",
+            type="oidc",
+            auth_discovery_url=f"{keycloak_url}/realms/master/.well-known"
+            f"/openid-configuration",
             client_secret="feast-integration-client-secret",
             username="reader_writer",
             password="password",
-            realm="master",
-            type="oidc",
-            auth_server_url=keycloak_url,
-            auth_discovery_url=f"{keycloak_url}/realms/master/.well-known"
-            f"/openid-configuration",
         )
         self.config = RepoConfig(
             registry=self.registry,

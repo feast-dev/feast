@@ -16,14 +16,12 @@ from feast.infra.infra_object import Infra
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.permissions.auth.auth_type import AuthType
-from feast.permissions.auth_model import (
-    AuthConfig,
-    NoAuthConfig,
-)
+from feast.permissions.auth_model import AuthConfig, NoAuthConfig
 from feast.permissions.client.grpc_client_auth_interceptor import (
     GrpcClientAuthHeaderInterceptor,
 )
 from feast.permissions.permission import Permission
+from feast.project import Project
 from feast.project_metadata import ProjectMetadata
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.protos.feast.registry import RegistryServer_pb2, RegistryServer_pb2_grpc
@@ -68,11 +66,18 @@ class RemoteRegistry(BaseRegistry):
         auth_config: AuthConfig = NoAuthConfig(),
     ):
         self.auth_config = auth_config
-        channel = grpc.insecure_channel(registry_config.path)
+        self.channel = grpc.insecure_channel(registry_config.path)
         if self.auth_config.type != AuthType.NONE.value:
             auth_header_interceptor = GrpcClientAuthHeaderInterceptor(auth_config)
-            channel = grpc.intercept_channel(channel, auth_header_interceptor)
-        self.stub = RegistryServer_pb2_grpc.RegistryServerStub(channel)
+            self.channel = grpc.intercept_channel(self.channel, auth_header_interceptor)
+        self.stub = RegistryServer_pb2_grpc.RegistryServerStub(self.channel)
+
+    def close(self):
+        if self.channel:
+            self.channel.close()
+
+    def __del__(self):
+        self.close()
 
     def apply_entity(self, entity: Entity, project: str, commit: bool = True):
         request = RegistryServer_pb2.ApplyEntityRequest(
@@ -191,15 +196,17 @@ class RemoteRegistry(BaseRegistry):
             arg_name = "on_demand_feature_view"
 
         request = RegistryServer_pb2.ApplyFeatureViewRequest(
-            feature_view=feature_view.to_proto()
-            if arg_name == "feature_view"
-            else None,
-            stream_feature_view=feature_view.to_proto()
-            if arg_name == "stream_feature_view"
-            else None,
-            on_demand_feature_view=feature_view.to_proto()
-            if arg_name == "on_demand_feature_view"
-            else None,
+            feature_view=(
+                feature_view.to_proto() if arg_name == "feature_view" else None
+            ),
+            stream_feature_view=(
+                feature_view.to_proto() if arg_name == "stream_feature_view" else None
+            ),
+            on_demand_feature_view=(
+                feature_view.to_proto()
+                if arg_name == "on_demand_feature_view"
+                else None
+            ),
             project=project,
             commit=commit,
         )
@@ -498,6 +505,49 @@ class RemoteRegistry(BaseRegistry):
         return [
             Permission.from_proto(permission) for permission in response.permissions
         ]
+
+    def apply_project(
+        self,
+        project: Project,
+        commit: bool = True,
+    ):
+        project_proto = project.to_proto()
+
+        request = RegistryServer_pb2.ApplyProjectRequest(
+            project=project_proto, commit=commit
+        )
+        self.stub.ApplyProject(request)
+
+    def delete_project(
+        self,
+        name: str,
+        commit: bool = True,
+    ):
+        request = RegistryServer_pb2.DeleteProjectRequest(name=name, commit=commit)
+        self.stub.DeleteProject(request)
+
+    def get_project(
+        self,
+        name: str,
+        allow_cache: bool = False,
+    ) -> Project:
+        request = RegistryServer_pb2.GetProjectRequest(
+            name=name, allow_cache=allow_cache
+        )
+        response = self.stub.GetProject(request)
+
+        return Project.from_proto(response)
+
+    def list_projects(
+        self,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
+    ) -> List[Project]:
+        request = RegistryServer_pb2.ListProjectsRequest(
+            allow_cache=allow_cache, tags=tags
+        )
+        response = self.stub.ListProjects(request)
+        return [Project.from_proto(project) for project in response.projects]
 
     def proto(self) -> RegistryProto:
         return self.stub.Proto(Empty())

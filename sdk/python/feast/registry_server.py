@@ -1,6 +1,6 @@
 from concurrent import futures
 from datetime import datetime, timezone
-from typing import Union, cast
+from typing import Optional, Union, cast
 
 import grpc
 from google.protobuf.empty_pb2 import Empty
@@ -14,19 +14,26 @@ from feast.entity import Entity
 from feast.errors import FeatureViewNotFoundException
 from feast.feast_object import FeastObject
 from feast.feature_view import FeatureView
+from feast.grpc_error_interceptor import ErrorInterceptor
 from feast.infra.infra_object import Infra
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
-from feast.permissions.action import CRUD, AuthzedAction
+from feast.permissions.action import AuthzedAction
 from feast.permissions.permission import Permission
-from feast.permissions.security_manager import assert_permissions, permitted_resources
-from feast.permissions.server.grpc import grpc_interceptors
+from feast.permissions.security_manager import (
+    assert_permissions,
+    assert_permissions_to_update,
+    permitted_resources,
+)
+from feast.permissions.server.grpc import AuthInterceptor
 from feast.permissions.server.utils import (
+    AuthManagerType,
     ServerType,
     init_auth_manager,
     init_security_manager,
     str_to_auth_manager_type,
 )
+from feast.project import Project
 from feast.protos.feast.registry import RegistryServer_pb2, RegistryServer_pb2_grpc
 from feast.saved_dataset import SavedDataset, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
@@ -60,14 +67,16 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         self.proxied_registry = registry
 
     def ApplyEntity(self, request: RegistryServer_pb2.ApplyEntityRequest, context):
-        self.proxied_registry.apply_entity(
-            entity=cast(
-                Entity,
-                assert_permissions(
-                    resource=Entity.from_proto(request.entity),
-                    actions=CRUD,
-                ),
+        entity = cast(
+            Entity,
+            assert_permissions_to_update(
+                resource=Entity.from_proto(request.entity),
+                getter=self.proxied_registry.get_entity,
+                project=request.project,
             ),
+        )
+        self.proxied_registry.apply_entity(
+            entity=entity,
             project=request.project,
             commit=request.commit,
         )
@@ -118,18 +127,18 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
     def ApplyDataSource(
         self, request: RegistryServer_pb2.ApplyDataSourceRequest, context
     ):
-        (
-            self.proxied_registry.apply_data_source(
-                data_source=cast(
-                    DataSource,
-                    assert_permissions(
-                        resource=DataSource.from_proto(request.data_source),
-                        actions=CRUD,
-                    ),
-                ),
+        data_source = cast(
+            DataSource,
+            assert_permissions_to_update(
+                resource=DataSource.from_proto(request.data_source),
+                getter=self.proxied_registry.get_data_source,
                 project=request.project,
-                commit=request.commit,
             ),
+        )
+        self.proxied_registry.apply_data_source(
+            data_source=data_source,
+            project=request.project,
+            commit=request.commit,
         )
 
         return Empty()
@@ -226,12 +235,16 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         elif feature_view_type == "stream_feature_view":
             feature_view = StreamFeatureView.from_proto(request.stream_feature_view)
 
+        assert_permissions_to_update(
+            resource=feature_view,
+            # Will replace with the new get_any_feature_view method later
+            getter=self.proxied_registry.get_feature_view,
+            project=request.project,
+        )
+
         (
             self.proxied_registry.apply_feature_view(
-                feature_view=cast(
-                    FeatureView,
-                    assert_permissions(resource=feature_view, actions=CRUD),
-                ),
+                feature_view=feature_view,
                 project=request.project,
                 commit=request.commit,
             ),
@@ -369,14 +382,16 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
     def ApplyFeatureService(
         self, request: RegistryServer_pb2.ApplyFeatureServiceRequest, context
     ):
-        self.proxied_registry.apply_feature_service(
-            feature_service=cast(
-                FeatureService,
-                assert_permissions(
-                    resource=FeatureService.from_proto(request.feature_service),
-                    actions=CRUD,
-                ),
+        feature_service = cast(
+            FeatureService,
+            assert_permissions_to_update(
+                resource=FeatureService.from_proto(request.feature_service),
+                getter=self.proxied_registry.get_feature_service,
+                project=request.project,
             ),
+        )
+        self.proxied_registry.apply_feature_service(
+            feature_service=feature_service,
             project=request.project,
             commit=request.commit,
         )
@@ -435,18 +450,18 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
     def ApplySavedDataset(
         self, request: RegistryServer_pb2.ApplySavedDatasetRequest, context
     ):
-        (
-            self.proxied_registry.apply_saved_dataset(
-                saved_dataset=cast(
-                    SavedDataset,
-                    assert_permissions(
-                        resource=SavedDataset.from_proto(request.saved_dataset),
-                        actions=CRUD,
-                    ),
-                ),
+        saved_dataset = cast(
+            SavedDataset,
+            assert_permissions_to_update(
+                resource=SavedDataset.from_proto(request.saved_dataset),
+                getter=self.proxied_registry.get_saved_dataset,
                 project=request.project,
-                commit=request.commit,
             ),
+        )
+        self.proxied_registry.apply_saved_dataset(
+            saved_dataset=saved_dataset,
+            project=request.project,
+            commit=request.commit,
         )
 
         return Empty()
@@ -501,14 +516,16 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
     def ApplyValidationReference(
         self, request: RegistryServer_pb2.ApplyValidationReferenceRequest, context
     ):
-        self.proxied_registry.apply_validation_reference(
-            validation_reference=cast(
-                ValidationReference,
-                assert_permissions(
-                    ValidationReference.from_proto(request.validation_reference),
-                    actions=CRUD,
-                ),
+        validation_reference = cast(
+            ValidationReference,
+            assert_permissions_to_update(
+                resource=ValidationReference.from_proto(request.validation_reference),
+                getter=self.proxied_registry.get_validation_reference,
+                project=request.project,
             ),
+        )
+        self.proxied_registry.apply_validation_reference(
+            validation_reference=validation_reference,
             project=request.project,
             commit=request.commit,
         )
@@ -611,13 +628,16 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
     def ApplyPermission(
         self, request: RegistryServer_pb2.ApplyPermissionRequest, context
     ):
-        self.proxied_registry.apply_permission(
-            permission=cast(
-                Permission,
-                assert_permissions(
-                    Permission.from_proto(request.permission), actions=CRUD
-                ),
+        permission = cast(
+            Permission,
+            assert_permissions_to_update(
+                resource=Permission.from_proto(request.permission),
+                getter=self.proxied_registry.get_permission,
+                project=request.project,
             ),
+        )
+        self.proxied_registry.apply_permission(
+            permission=permission,
             project=request.project,
             commit=request.commit,
         )
@@ -669,6 +689,58 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         )
         return Empty()
 
+    def ApplyProject(self, request: RegistryServer_pb2.ApplyProjectRequest, context):
+        project = cast(
+            Project,
+            assert_permissions_to_update(
+                resource=Project.from_proto(request.project),
+                getter=self.proxied_registry.get_project,
+                project=Project.from_proto(request.project).name,
+            ),
+        )
+        self.proxied_registry.apply_project(
+            project=project,
+            commit=request.commit,
+        )
+        return Empty()
+
+    def GetProject(self, request: RegistryServer_pb2.GetProjectRequest, context):
+        project = self.proxied_registry.get_project(
+            name=request.name, allow_cache=request.allow_cache
+        )
+        assert_permissions(
+            resource=project,
+            actions=[AuthzedAction.DESCRIBE],
+        )
+        return project.to_proto()
+
+    def ListProjects(self, request: RegistryServer_pb2.ListProjectsRequest, context):
+        return RegistryServer_pb2.ListProjectsResponse(
+            projects=[
+                project.to_proto()
+                for project in permitted_resources(
+                    resources=cast(
+                        list[FeastObject],
+                        self.proxied_registry.list_projects(
+                            allow_cache=request.allow_cache
+                        ),
+                    ),
+                    actions=AuthzedAction.DESCRIBE,
+                )
+            ]
+        )
+
+    def DeleteProject(self, request: RegistryServer_pb2.DeleteProjectRequest, context):
+        assert_permissions(
+            resource=self.proxied_registry.get_project(
+                name=request.name,
+            ),
+            actions=[AuthzedAction.DELETE],
+        )
+
+        self.proxied_registry.delete_project(name=request.name, commit=request.commit)
+        return Empty()
+
     def Commit(self, request, context):
         self.proxied_registry.commit()
         return Empty()
@@ -692,7 +764,7 @@ def start_server(store: FeatureStore, port: int, wait_for_termination: bool = Tr
 
     server = grpc.server(
         futures.ThreadPoolExecutor(max_workers=10),
-        interceptors=grpc_interceptors(auth_manager_type),
+        interceptors=_grpc_interceptors(auth_manager_type),
     )
     RegistryServer_pb2_grpc.add_RegistryServerServicer_to_server(
         RegistryServer(store.registry), server
@@ -715,3 +787,21 @@ def start_server(store: FeatureStore, port: int, wait_for_termination: bool = Tr
         server.wait_for_termination()
     else:
         return server
+
+
+def _grpc_interceptors(
+    auth_type: AuthManagerType,
+) -> Optional[list[grpc.ServerInterceptor]]:
+    """
+    A list of the interceptors for the registry server.
+
+    Args:
+        auth_type: The type of authorization manager, from the feature store configuration.
+
+    Returns:
+        list[grpc.ServerInterceptor]: Optional list of interceptors. If the authorization type is set to `NONE`, it returns `None`.
+    """
+    if auth_type == AuthManagerType.NONE:
+        return [ErrorInterceptor()]
+
+    return [AuthInterceptor(), ErrorInterceptor()]
