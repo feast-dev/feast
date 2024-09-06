@@ -530,7 +530,13 @@ class RequestSource(DataSource):
         owner: Optional[str] = "",
     ):
         """Creates a RequestSource object."""
-        super().__init__(name=name, timestamp_field=timestamp_field, description=description, tags=tags, owner=owner)
+        super().__init__(
+            name=name,
+            timestamp_field=timestamp_field,
+            description=description,
+            tags=tags,
+            owner=owner,
+        )
         self.schema = schema
 
     def validate(self, config: RepoConfig):
