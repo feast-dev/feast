@@ -5,9 +5,7 @@ import pandas as pd
 import pytest
 import yaml
 
-from feast import (
-    FeatureStore,
-)
+from feast import FeatureStore
 from feast.errors import (
     EntityNotFoundException,
     FeastPermissionError,
@@ -23,6 +21,7 @@ from tests.unit.permissions.auth.server.test_utils import (
     read_fv_perm,
     read_odfv_perm,
     read_permissions_perm,
+    read_projects_perm,
     read_sfv_perm,
 )
 from tests.utils.auth_permissions_util import get_remote_registry_store
@@ -50,7 +49,11 @@ def start_registry_server(
     assertpy.assert_that(server_port).is_not_equal_to(0)
 
     print(f"Starting Registry at {server_port}")
-    server = start_server(feature_store, server_port, wait_for_termination=False)
+    server = start_server(
+        feature_store,
+        server_port,
+        wait_for_termination=False,
+    )
     print("Waiting server availability")
     wait_retry_backoff(
         lambda: (None, check_port_open("localhost", server_port)),
@@ -179,6 +182,7 @@ def _test_list_permissions(
             read_fv_perm,
             read_odfv_perm,
             read_sfv_perm,
+            read_projects_perm,
         ],
         permissions,
     ):
@@ -191,6 +195,7 @@ def _test_list_permissions(
                     read_fv_perm,
                     read_odfv_perm,
                     read_sfv_perm,
+                    read_projects_perm,
                 ]
             )
         )

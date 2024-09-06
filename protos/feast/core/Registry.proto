@@ -33,8 +33,9 @@ import "feast/core/SavedDataset.proto";
 import "feast/core/ValidationProfile.proto";
 import "google/protobuf/timestamp.proto";
 import "feast/core/Permission.proto";
+import "feast/core/Project.proto";
 
-// Next id: 17
+// Next id: 18
 message Registry {
     repeated Entity entities = 1;
     repeated FeatureTable feature_tables = 2;
@@ -47,12 +48,13 @@ message Registry {
     repeated ValidationReference validation_references = 13;
     Infra infra = 10;
     // Tracking metadata of Feast by project
-    repeated ProjectMetadata project_metadata = 15;
+    repeated ProjectMetadata project_metadata = 15 [deprecated = true];
 
     string registry_schema_version = 3; // to support migrations; incremented when schema is changed
     string version_id = 4; // version id, random string generated on each update of the data; now used only for debugging purposes
     google.protobuf.Timestamp last_updated = 5;
     repeated Permission permissions = 16;
+    repeated Project projects = 17;
 }
 
 message ProjectMetadata {

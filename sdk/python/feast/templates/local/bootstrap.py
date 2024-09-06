@@ -10,6 +10,7 @@ def bootstrap():
     from feast.driver_test_data import create_driver_hourly_stats_df
 
     repo_path = pathlib.Path(__file__).parent.absolute() / "feature_repo"
+    project_name = pathlib.Path(__file__).parent.absolute().name
     data_path = repo_path / "data"
     data_path.mkdir(exist_ok=True)
 
@@ -23,6 +24,7 @@ def bootstrap():
     driver_df.to_parquet(path=str(driver_stats_path), allow_truncated_timestamps=True)
 
     example_py_file = repo_path / "example_repo.py"
+    replace_str_in_file(example_py_file, "%PROJECT_NAME%", str(project_name))
     replace_str_in_file(example_py_file, "%PARQUET_PATH%", str(driver_stats_path))
     replace_str_in_file(example_py_file, "%LOGGING_PATH%", str(data_path))
 

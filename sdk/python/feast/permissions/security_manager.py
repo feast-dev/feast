@@ -10,6 +10,7 @@ from feast.permissions.action import AuthzedAction
 from feast.permissions.enforcer import enforce_policy
 from feast.permissions.permission import Permission
 from feast.permissions.user import User
+from feast.project import Project
 
 logger = logging.getLogger(__name__)
 
@@ -88,7 +89,9 @@ class SecurityManager:
 
 def assert_permissions_to_update(
     resource: FeastObject,
-    getter: Callable[[str, str, bool], FeastObject],
+    getter: Union[
+        Callable[[str, str, bool], FeastObject], Callable[[str, bool], FeastObject]
+    ],
     project: str,
     allow_cache: bool = True,
 ) -> FeastObject:
@@ -117,11 +120,17 @@ def assert_permissions_to_update(
 
     actions = [AuthzedAction.DESCRIBE, AuthzedAction.UPDATE]
     try:
-        existing_resource = getter(
-            name=resource.name,
-            project=project,
-            allow_cache=allow_cache,
-        )  # type: ignore[call-arg]
+        if isinstance(resource, Project):
+            existing_resource = getter(
+                name=resource.name,
+                allow_cache=allow_cache,
+            )  # type: ignore[call-arg]
+        else:
+            existing_resource = getter(
+                name=resource.name,
+                project=project,
+                allow_cache=allow_cache,
+            )  # type: ignore[call-arg]
         assert_permissions(resource=existing_resource, actions=actions)
     except FeastObjectNotFoundException:
         actions = [AuthzedAction.CREATE]

@@ -1,11 +1,12 @@
 import logging
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Set, Union
+from typing import Any, Callable, Dict, List, Optional, Union
 
-from pydantic import StrictStr
+from pydantic import StrictInt, StrictStr
 from sqlalchemy import (  # type: ignore
     BigInteger,
     Column,
@@ -31,6 +32,8 @@ from feast.errors import (
     FeatureServiceNotFoundException,
     FeatureViewNotFoundException,
     PermissionNotFoundException,
+    ProjectNotFoundException,
+    ProjectObjectNotFoundException,
     SavedDatasetNotFound,
     ValidationReferenceNotFound,
 )
@@ -40,6 +43,7 @@ from feast.infra.infra_object import Infra
 from feast.infra.registry.caching_registry import CachingRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.permissions.permission import Permission
+from feast.project import Project
 from feast.project_metadata import ProjectMetadata
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.protos.feast.core.Entity_pb2 import Entity as EntityProto
@@ -52,6 +56,7 @@ from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
     OnDemandFeatureView as OnDemandFeatureViewProto,
 )
 from feast.protos.feast.core.Permission_pb2 import Permission as PermissionProto
+from feast.protos.feast.core.Project_pb2 import Project as ProjectProto
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.protos.feast.core.SavedDataset_pb2 import SavedDataset as SavedDatasetProto
 from feast.protos.feast.core.StreamFeatureView_pb2 import (
@@ -67,11 +72,21 @@ from feast.utils import _utc_now
 
 metadata = MetaData()
 
+
+projects = Table(
+    "projects",
+    metadata,
+    Column("project_id", String(255), primary_key=True),
+    Column("project_name", String(255), nullable=False),
+    Column("last_updated_timestamp", BigInteger, nullable=False),
+    Column("project_proto", LargeBinary, nullable=False),
+)
+
 entities = Table(
     "entities",
     metadata,
-    Column("entity_name", String(50), primary_key=True),
-    Column("project_id", String(50), primary_key=True),
+    Column("entity_name", String(255), primary_key=True),
+    Column("project_id", String(255), primary_key=True),
     Column("last_updated_timestamp", BigInteger, nullable=False),
     Column("entity_proto", LargeBinary, nullable=False),
 )
@@ -80,7 +95,7 @@ data_sources = Table(
     "data_sources",
     metadata,
     Column("data_source_name", String(255), primary_key=True),
-    Column("project_id", String(50), primary_key=True),
+    Column("project_id", String(255), primary_key=True),
     Column("last_updated_timestamp", BigInteger, nullable=False),
     Column("data_source_proto", LargeBinary, nullable=False),
 )
@@ -88,8 +103,8 @@ data_sources = Table(
 feature_views = Table(
     "feature_views",
     metadata,
-    Column("feature_view_name", String(50), primary_key=True),
-    Column("project_id", String(50), primary_key=True),
+    Column("feature_view_name", String(255), primary_key=True),
+    Column("project_id", String(255), primary_key=True),
     Column("last_updated_timestamp", BigInteger, nullable=False),
     Column("materialized_intervals", LargeBinary, nullable=True),
     Column("feature_view_proto", LargeBinary, nullable=False),
@@ -99,8 +114,8 @@ feature_views = Table(
 stream_feature_views = Table(
     "stream_feature_views",
     metadata,
-    Column("feature_view_name", String(50), primary_key=True),
-    Column("project_id", String(50), primary_key=True),
+    Column("feature_view_name", String(255), primary_key=True),
+    Column("project_id", String(255), primary_key=True),
     Column("last_updated_timestamp", BigInteger, nullable=False),
     Column("feature_view_proto", LargeBinary, nullable=False),
     Column("user_metadata", LargeBinary, nullable=True),
@@ -109,8 +124,8 @@ stream_feature_views = Table(
 on_demand_feature_views = Table(
     "on_demand_feature_views",
     metadata,
-    Column("feature_view_name", String(50), primary_key=True),
-    Column("project_id", String(50), primary_key=True),
+    Column("feature_view_name", String(255), primary_key=True),
+    Column("project_id", String(255), primary_key=True),
     Column("last_updated_timestamp", BigInteger, nullable=False),
     Column("feature_view_proto", LargeBinary, nullable=False),
     Column("user_metadata", LargeBinary, nullable=True),
@@ -119,8 +134,8 @@ on_demand_feature_views = Table(
 feature_services = Table(
     "feature_services",
     metadata,
-    Column("feature_service_name", String(50), primary_key=True),
-    Column("project_id", String(50), primary_key=True),
+    Column("feature_service_name", String(255), primary_key=True),
+    Column("project_id", String(255), primary_key=True),
     Column("last_updated_timestamp", BigInteger, nullable=False),
     Column("feature_service_proto", LargeBinary, nullable=False),
 )
@@ -128,8 +143,8 @@ feature_services = Table(
 saved_datasets = Table(
     "saved_datasets",
     metadata,
-    Column("saved_dataset_name", String(50), primary_key=True),
-    Column("project_id", String(50), primary_key=True),
+    Column("saved_dataset_name", String(255), primary_key=True),
+    Column("project_id", String(255), primary_key=True),
     Column("last_updated_timestamp", BigInteger, nullable=False),
     Column("saved_dataset_proto", LargeBinary, nullable=False),
 )
@@ -137,8 +152,8 @@ saved_datasets = Table(
 validation_references = Table(
     "validation_references",
     metadata,
-    Column("validation_reference_name", String(50), primary_key=True),
-    Column("project_id", String(50), primary_key=True),
+    Column("validation_reference_name", String(255), primary_key=True),
+    Column("project_id", String(255), primary_key=True),
     Column("last_updated_timestamp", BigInteger, nullable=False),
     Column("validation_reference_proto", LargeBinary, nullable=False),
 )
@@ -146,8 +161,8 @@ validation_references = Table(
 managed_infra = Table(
     "managed_infra",
     metadata,
-    Column("infra_name", String(50), primary_key=True),
-    Column("project_id", String(50), primary_key=True),
+    Column("infra_name", String(255), primary_key=True),
+    Column("project_id", String(255), primary_key=True),
     Column("last_updated_timestamp", BigInteger, nullable=False),
     Column("infra_proto", LargeBinary, nullable=False),
 )
@@ -156,7 +171,7 @@ permissions = Table(
     "permissions",
     metadata,
     Column("permission_name", String(255), primary_key=True),
-    Column("project_id", String(50), primary_key=True),
+    Column("project_id", String(255), primary_key=True),
     Column("last_updated_timestamp", BigInteger, nullable=False),
     Column("permission_proto", LargeBinary, nullable=False),
 )
@@ -170,7 +185,7 @@ class FeastMetadataKeys(Enum):
 feast_metadata = Table(
     "feast_metadata",
     metadata,
-    Column("project_id", String(50), primary_key=True),
+    Column("project_id", String(255), primary_key=True),
     Column("metadata_key", String(50), primary_key=True),
     Column("metadata_value", String(50), nullable=False),
     Column("last_updated_timestamp", BigInteger, nullable=False),
@@ -190,25 +205,74 @@ class SqlRegistryConfig(RegistryConfig):
     sqlalchemy_config_kwargs: Dict[str, Any] = {"echo": False}
     """ Dict[str, Any]: Extra arguments to pass to SQLAlchemy.create_engine. """
 
+    cache_mode: StrictStr = "sync"
+    """ str: Cache mode type, Possible options are sync and thread(asynchronous caching using threading library)"""
+
+    thread_pool_executor_worker_count: StrictInt = 0
+    """ int: Number of worker threads to use for asynchronous caching in SQL Registry. If set to 0, it doesn't use ThreadPoolExecutor. """
+
 
 class SqlRegistry(CachingRegistry):
     def __init__(
         self,
-        registry_config: Optional[Union[RegistryConfig, SqlRegistryConfig]],
+        registry_config,
         project: str,
         repo_path: Optional[Path],
     ):
-        assert registry_config is not None, "SqlRegistry needs a valid registry_config"
+        assert registry_config is not None and isinstance(
+            registry_config, SqlRegistryConfig
+        ), "SqlRegistry needs a valid registry_config"
 
         self.engine: Engine = create_engine(
             registry_config.path, **registry_config.sqlalchemy_config_kwargs
         )
+        self.thread_pool_executor_worker_count = (
+            registry_config.thread_pool_executor_worker_count
+        )
         metadata.create_all(self.engine)
+        self.purge_feast_metadata = registry_config.purge_feast_metadata
+        # Sync feast_metadata to projects table
+        # when purge_feast_metadata is set to True, Delete data from
+        # feast_metadata table and list_project_metadata will not return any data
+        self._sync_feast_metadata_to_projects_table()
+        if not self.purge_feast_metadata:
+            self._maybe_init_project_metadata(project)
         super().__init__(
             project=project,
             cache_ttl_seconds=registry_config.cache_ttl_seconds,
             cache_mode=registry_config.cache_mode,
         )
+
+    def _sync_feast_metadata_to_projects_table(self):
+        feast_metadata_projects: set = []
+        projects_set: set = []
+        with self.engine.begin() as conn:
+            stmt = select(feast_metadata).where(
+                feast_metadata.c.metadata_key == FeastMetadataKeys.PROJECT_UUID.value
+            )
+            rows = conn.execute(stmt).all()
+            for row in rows:
+                feast_metadata_projects.append(row._mapping["project_id"])
+
+        if len(feast_metadata_projects) > 0:
+            with self.engine.begin() as conn:
+                stmt = select(projects)
+                rows = conn.execute(stmt).all()
+                for row in rows:
+                    projects_set.append(row._mapping["project_id"])
+
+            # Find object in feast_metadata_projects but not in projects
+            projects_to_sync = set(feast_metadata_projects) - set(projects_set)
+            for project_name in projects_to_sync:
+                self.apply_project(Project(name=project_name), commit=True)
+
+            if self.purge_feast_metadata:
+                with self.engine.begin() as conn:
+                    for project_name in feast_metadata_projects:
+                        stmt = delete(feast_metadata).where(
+                            feast_metadata.c.project_id == project_name
+                        )
+                        conn.execute(stmt)
 
     def teardown(self):
         for t in {
@@ -673,8 +737,27 @@ class SqlRegistry(CachingRegistry):
     def proto(self) -> RegistryProto:
         r = RegistryProto()
         last_updated_timestamps = []
-        projects = self._get_all_projects()
-        for project in projects:
+
+        def process_project(project: Project):
+            nonlocal r, last_updated_timestamps
+            project_name = project.name
+            last_updated_timestamp = project.last_updated_timestamp
+
+            try:
+                cached_project = self.get_project(project_name, True)
+            except ProjectObjectNotFoundException:
+                cached_project = None
+
+            allow_cache = False
+
+            if cached_project is not None:
+                allow_cache = (
+                    last_updated_timestamp <= cached_project.last_updated_timestamp
+                )
+
+            r.projects.extend([project.to_proto()])
+            last_updated_timestamps.append(last_updated_timestamp)
+
             for lister, registry_proto_field in [
                 (self.list_entities, r.entities),
                 (self.list_feature_views, r.feature_views),
@@ -684,23 +767,31 @@ class SqlRegistry(CachingRegistry):
                 (self.list_feature_services, r.feature_services),
                 (self.list_saved_datasets, r.saved_datasets),
                 (self.list_validation_references, r.validation_references),
-                (self.list_project_metadata, r.project_metadata),
                 (self.list_permissions, r.permissions),
             ]:
-                objs: List[Any] = lister(project)  # type: ignore
+                objs: List[Any] = lister(project_name, allow_cache)  # type: ignore
                 if objs:
                     obj_protos = [obj.to_proto() for obj in objs]
                     for obj_proto in obj_protos:
                         if "spec" in obj_proto.DESCRIPTOR.fields_by_name:
-                            obj_proto.spec.project = project
+                            obj_proto.spec.project = project_name
                         else:
-                            obj_proto.project = project
+                            obj_proto.project = project_name
                     registry_proto_field.extend(obj_protos)
 
             # This is suuuper jank. Because of https://github.com/feast-dev/feast/issues/2783,
             # the registry proto only has a single infra field, which we're currently setting as the "last" project.
-            r.infra.CopyFrom(self.get_infra(project).to_proto())
-            last_updated_timestamps.append(self._get_last_updated_metadata(project))
+            r.infra.CopyFrom(self.get_infra(project_name).to_proto())
+
+        projects_list = self.list_projects(allow_cache=False)
+        if self.thread_pool_executor_worker_count == 0:
+            for project in projects_list:
+                process_project(project)
+        else:
+            with ThreadPoolExecutor(
+                max_workers=self.thread_pool_executor_worker_count
+            ) as executor:
+                executor.map(process_project, projects_list)
 
         if last_updated_timestamps:
             r.last_updated.FromDatetime(max(last_updated_timestamps))
@@ -711,6 +802,17 @@ class SqlRegistry(CachingRegistry):
         # This method is a no-op since we're always writing values eagerly to the db.
         pass
 
+    def _initialize_project_if_not_exists(self, project_name: str):
+        try:
+            self.get_project(project_name, allow_cache=True)
+            return
+        except ProjectObjectNotFoundException:
+            try:
+                self.get_project(project_name, allow_cache=False)
+                return
+            except ProjectObjectNotFoundException:
+                self.apply_project(Project(name=project_name), commit=True)
+
     def _apply_object(
         self,
         table: Table,
@@ -720,8 +822,11 @@ class SqlRegistry(CachingRegistry):
         proto_field_name: str,
         name: Optional[str] = None,
     ):
-        self._maybe_init_project_metadata(project)
-
+        if not self.purge_feast_metadata:
+            self._maybe_init_project_metadata(project)
+        # Initialize project is necessary because FeatureStore object can apply objects individually without "feast apply" cli option
+        if not isinstance(obj, Project):
+            self._initialize_project_if_not_exists(project_name=project)
         name = name or (obj.name if hasattr(obj, "name") else None)
         assert name, f"name needs to be provided for {obj}"
 
@@ -742,12 +847,15 @@ class SqlRegistry(CachingRegistry):
                     "feature_view_proto",
                     "feature_service_proto",
                     "permission_proto",
+                    "project_proto",
                 ]:
                     deserialized_proto = self.deserialize_registry_values(
                         row._mapping[proto_field_name], type(obj)
                     )
                     obj.created_timestamp = (
-                        deserialized_proto.meta.created_timestamp.ToDatetime()
+                        deserialized_proto.meta.created_timestamp.ToDatetime().replace(
+                            tzinfo=timezone.utc
+                        )
                     )
                     if isinstance(obj, (FeatureView, StreamFeatureView)):
                         obj.update_materialization_intervals(
@@ -789,7 +897,12 @@ class SqlRegistry(CachingRegistry):
                 )
                 conn.execute(insert_stmt)
 
-            self._set_last_updated_metadata(update_datetime, project)
+            if not isinstance(obj, Project):
+                self.apply_project(
+                    self.get_project(name=project, allow_cache=False), commit=True
+                )
+            if not self.purge_feast_metadata:
+                self._set_last_updated_metadata(update_datetime, project)
 
     def _maybe_init_project_metadata(self, project):
         # Initialize project metadata if needed
@@ -827,7 +940,11 @@ class SqlRegistry(CachingRegistry):
             rows = conn.execute(stmt)
             if rows.rowcount < 1 and not_found_exception:
                 raise not_found_exception(name, project)
-            self._set_last_updated_metadata(_utc_now(), project)
+            self.apply_project(
+                self.get_project(name=project, allow_cache=False), commit=True
+            )
+            if not self.purge_feast_metadata:
+                self._set_last_updated_metadata(_utc_now(), project)
 
             return rows.rowcount
 
@@ -842,8 +959,6 @@ class SqlRegistry(CachingRegistry):
         proto_field_name: str,
         not_found_exception: Optional[Callable],
     ):
-        self._maybe_init_project_metadata(project)
-
         with self.engine.begin() as conn:
             stmt = select(table).where(
                 getattr(table.c, id_field_name) == name, table.c.project_id == project
@@ -866,7 +981,6 @@ class SqlRegistry(CachingRegistry):
         proto_field_name: str,
         tags: Optional[dict[str, str]] = None,
     ):
-        self._maybe_init_project_metadata(project)
         with self.engine.begin() as conn:
             stmt = select(table).where(table.c.project_id == project)
             rows = conn.execute(stmt).all()
@@ -929,24 +1043,6 @@ class SqlRegistry(CachingRegistry):
 
             return datetime.fromtimestamp(update_time, tz=timezone.utc)
 
-    def _get_all_projects(self) -> Set[str]:
-        projects = set()
-        with self.engine.begin() as conn:
-            for table in {
-                entities,
-                data_sources,
-                feature_views,
-                on_demand_feature_views,
-                stream_feature_views,
-                permissions,
-            }:
-                stmt = select(table)
-                rows = conn.execute(stmt).all()
-                for row in rows:
-                    projects.add(row._mapping["project_id"])
-
-        return projects
-
     def _get_permission(self, name: str, project: str) -> Permission:
         return self._get_object(
             table=permissions,
@@ -987,3 +1083,72 @@ class SqlRegistry(CachingRegistry):
             rows = conn.execute(stmt)
             if rows.rowcount < 1:
                 raise PermissionNotFoundException(name, project)
+
+    def _list_projects(
+        self,
+        tags: Optional[dict[str, str]],
+    ) -> List[Project]:
+        with self.engine.begin() as conn:
+            stmt = select(projects)
+            rows = conn.execute(stmt).all()
+            if rows:
+                objects = []
+                for row in rows:
+                    obj = Project.from_proto(
+                        ProjectProto.FromString(row._mapping["project_proto"])
+                    )
+                    if utils.has_all_tags(obj.tags, tags):
+                        objects.append(obj)
+                return objects
+        return []
+
+    def _get_project(
+        self,
+        name: str,
+    ) -> Project:
+        return self._get_object(
+            table=projects,
+            name=name,
+            project=name,
+            proto_class=ProjectProto,
+            python_class=Project,
+            id_field_name="project_name",
+            proto_field_name="project_proto",
+            not_found_exception=ProjectObjectNotFoundException,
+        )
+
+    def apply_project(
+        self,
+        project: Project,
+        commit: bool = True,
+    ):
+        return self._apply_object(
+            projects, project.name, "project_name", project, "project_proto"
+        )
+
+    def delete_project(
+        self,
+        name: str,
+        commit: bool = True,
+    ):
+        project = self.get_project(name, allow_cache=False)
+        if project:
+            with self.engine.begin() as conn:
+                for t in {
+                    managed_infra,
+                    saved_datasets,
+                    validation_references,
+                    feature_services,
+                    feature_views,
+                    on_demand_feature_views,
+                    stream_feature_views,
+                    data_sources,
+                    entities,
+                    permissions,
+                    projects,
+                }:
+                    stmt = delete(t).where(t.c.project_id == name)
+                    conn.execute(stmt)
+            return
+
+        raise ProjectNotFoundException(name)

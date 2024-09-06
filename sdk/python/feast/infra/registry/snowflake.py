@@ -5,7 +5,7 @@ from binascii import hexlify
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 from threading import Lock
-from typing import Any, Callable, List, Literal, Optional, Set, Union
+from typing import Any, Callable, List, Literal, Optional, Union
 
 from pydantic import ConfigDict, Field, StrictStr
 
@@ -19,6 +19,8 @@ from feast.errors import (
     FeatureServiceNotFoundException,
     FeatureViewNotFoundException,
     PermissionNotFoundException,
+    ProjectNotFoundException,
+    ProjectObjectNotFoundException,
     SavedDatasetNotFound,
     ValidationReferenceNotFound,
 )
@@ -33,6 +35,7 @@ from feast.infra.utils.snowflake.snowflake_utils import (
 )
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.permissions.permission import Permission
+from feast.project import Project
 from feast.project_metadata import ProjectMetadata
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.protos.feast.core.Entity_pb2 import Entity as EntityProto
@@ -45,6 +48,7 @@ from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
     OnDemandFeatureView as OnDemandFeatureViewProto,
 )
 from feast.protos.feast.core.Permission_pb2 import Permission as PermissionProto
+from feast.protos.feast.core.Project_pb2 import Project as ProjectProto
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.protos.feast.core.SavedDataset_pb2 import SavedDataset as SavedDatasetProto
 from feast.protos.feast.core.StreamFeatureView_pb2 import (
@@ -138,26 +142,57 @@ class SnowflakeRegistry(BaseRegistry):
                     query = command.replace("REGISTRY_PATH", f"{self.registry_path}")
                     execute_snowflake_statement(conn, query)
 
+        self.purge_feast_metadata = registry_config.purge_feast_metadata
+        self._sync_feast_metadata_to_projects_table()
+        if not self.purge_feast_metadata:
+            self._maybe_init_project_metadata(project)
+
         self.cached_registry_proto = self.proto()
-        proto_registry_utils.init_project_metadata(self.cached_registry_proto, project)
         self.cached_registry_proto_created = _utc_now()
         self._refresh_lock = Lock()
         self.cached_registry_proto_ttl = timedelta(
-            seconds=registry_config.cache_ttl_seconds
-            if registry_config.cache_ttl_seconds is not None
-            else 0
+            seconds=(
+                registry_config.cache_ttl_seconds
+                if registry_config.cache_ttl_seconds is not None
+                else 0
+            )
         )
         self.project = project
 
-    def refresh(self, project: Optional[str] = None):
-        if project:
-            project_metadata = proto_registry_utils.get_project_metadata(
-                registry_proto=self.cached_registry_proto, project=project
+    def _sync_feast_metadata_to_projects_table(self):
+        feast_metadata_projects: set = []
+        projects_set: set = []
+
+        with GetSnowflakeConnection(self.registry_config) as conn:
+            query = (
+                f'SELECT DISTINCT project_id FROM {self.registry_path}."FEAST_METADATA"'
             )
-            if not project_metadata:
-                proto_registry_utils.init_project_metadata(
-                    self.cached_registry_proto, project
-                )
+            df = execute_snowflake_statement(conn, query).fetch_pandas_all()
+
+            for row in df.iterrows():
+                feast_metadata_projects.add(row[1]["PROJECT_ID"])
+
+        if len(feast_metadata_projects) > 0:
+            with GetSnowflakeConnection(self.registry_config) as conn:
+                query = f'SELECT project_id FROM {self.registry_path}."PROJECTS"'
+                df = execute_snowflake_statement(conn, query).fetch_pandas_all()
+
+                for row in df.iterrows():
+                    projects_set.add(row[1]["PROJECT_ID"])
+
+            # Find object in feast_metadata_projects but not in projects
+            projects_to_sync = set(feast_metadata_projects) - set(projects_set)
+            for project_name in projects_to_sync:
+                self.apply_project(Project(name=project_name), commit=True)
+
+            if self.purge_feast_metadata:
+                with GetSnowflakeConnection(self.registry_config) as conn:
+                    query = f"""
+                        DELETE FROM {self.registry_path}."FEAST_METADATA"
+                    """
+                    execute_snowflake_statement(conn, query)
+
+    def refresh(self, project: Optional[str] = None):
         self.cached_registry_proto = self.proto()
         self.cached_registry_proto_created = _utc_now()
 
@@ -271,6 +306,17 @@ class SnowflakeRegistry(BaseRegistry):
             name="infra_obj",
         )
 
+    def _initialize_project_if_not_exists(self, project_name: str):
+        try:
+            self.get_project(project_name, allow_cache=True)
+            return
+        except ProjectObjectNotFoundException:
+            try:
+                self.get_project(project_name, allow_cache=False)
+                return
+            except ProjectObjectNotFoundException:
+                self.apply_project(Project(name=project_name), commit=True)
+
     def _apply_object(
         self,
         table: str,
@@ -280,7 +326,11 @@ class SnowflakeRegistry(BaseRegistry):
         proto_field_name: str,
         name: Optional[str] = None,
     ):
-        self._maybe_init_project_metadata(project)
+        if not self.purge_feast_metadata:
+            self._maybe_init_project_metadata(project)
+        # Initialize project is necessary because FeatureStore object can apply objects individually without "feast apply" cli option
+        if not isinstance(obj, Project):
+            self._initialize_project_if_not_exists(project_name=project)
 
         name = name or (obj.name if hasattr(obj, "name") else None)
         assert name, f"name needs to be provided for {obj}"
@@ -343,7 +393,13 @@ class SnowflakeRegistry(BaseRegistry):
                     """
                 execute_snowflake_statement(conn, query)
 
-            self._set_last_updated_metadata(update_datetime, project)
+            if not isinstance(obj, Project):
+                self.apply_project(
+                    self.get_project(name=project, allow_cache=False), commit=True
+                )
+
+            if not self.purge_feast_metadata:
+                self._set_last_updated_metadata(update_datetime, project)
 
     def apply_permission(
         self, permission: Permission, project: str, commit: bool = True
@@ -620,7 +676,6 @@ class SnowflakeRegistry(BaseRegistry):
         proto_field_name: str,
         not_found_exception: Optional[Callable],
     ):
-        self._maybe_init_project_metadata(project)
         with GetSnowflakeConnection(self.registry_config) as conn:
             query = f"""
                 SELECT
@@ -821,7 +876,6 @@ class SnowflakeRegistry(BaseRegistry):
         proto_field_name: str,
         tags: Optional[dict[str, str]] = None,
     ):
-        self._maybe_init_project_metadata(project)
         with GetSnowflakeConnection(self.registry_config) as conn:
             query = f"""
                 SELECT
@@ -992,8 +1046,27 @@ class SnowflakeRegistry(BaseRegistry):
     def proto(self) -> RegistryProto:
         r = RegistryProto()
         last_updated_timestamps = []
-        projects = self._get_all_projects()
-        for project in projects:
+
+        def process_project(project: Project):
+            nonlocal r, last_updated_timestamps
+            project_name = project.name
+            last_updated_timestamp = project.last_updated_timestamp
+
+            try:
+                cached_project = self.get_project(project_name, True)
+            except ProjectObjectNotFoundException:
+                cached_project = None
+
+            allow_cache = False
+
+            if cached_project is not None:
+                allow_cache = (
+                    last_updated_timestamp <= cached_project.last_updated_timestamp
+                )
+
+            r.projects.extend([project.to_proto()])
+            last_updated_timestamps.append(last_updated_timestamp)
+
             for lister, registry_proto_field in [
                 (self.list_entities, r.entities),
                 (self.list_feature_views, r.feature_views),
@@ -1003,52 +1076,30 @@ class SnowflakeRegistry(BaseRegistry):
                 (self.list_feature_services, r.feature_services),
                 (self.list_saved_datasets, r.saved_datasets),
                 (self.list_validation_references, r.validation_references),
-                (self.list_project_metadata, r.project_metadata),
                 (self.list_permissions, r.permissions),
             ]:
-                objs: List[Any] = lister(project)  # type: ignore
+                objs: List[Any] = lister(project_name, allow_cache)  # type: ignore
                 if objs:
                     obj_protos = [obj.to_proto() for obj in objs]
                     for obj_proto in obj_protos:
                         if "spec" in obj_proto.DESCRIPTOR.fields_by_name:
-                            obj_proto.spec.project = project
+                            obj_proto.spec.project = project_name
                         else:
-                            obj_proto.project = project
+                            obj_proto.project = project_name
                     registry_proto_field.extend(obj_protos)
 
             # This is suuuper jank. Because of https://github.com/feast-dev/feast/issues/2783,
             # the registry proto only has a single infra field, which we're currently setting as the "last" project.
-            r.infra.CopyFrom(self.get_infra(project).to_proto())
-            last_updated_timestamps.append(self._get_last_updated_metadata(project))
+            r.infra.CopyFrom(self.get_infra(project_name).to_proto())
+
+        projects_list = self.list_projects(allow_cache=False)
+        for project in projects_list:
+            process_project(project)
 
         if last_updated_timestamps:
             r.last_updated.FromDatetime(max(last_updated_timestamps))
 
         return r
-
-    def _get_all_projects(self) -> Set[str]:
-        projects = set()
-
-        base_tables = [
-            "DATA_SOURCES",
-            "ENTITIES",
-            "FEATURE_VIEWS",
-            "ON_DEMAND_FEATURE_VIEWS",
-            "STREAM_FEATURE_VIEWS",
-            "PERMISSIONS",
-        ]
-
-        with GetSnowflakeConnection(self.registry_config) as conn:
-            for table in base_tables:
-                query = (
-                    f'SELECT DISTINCT project_id FROM {self.registry_path}."{table}"'
-                )
-                df = execute_snowflake_statement(conn, query).fetch_pandas_all()
-
-                for row in df.iterrows():
-                    projects.add(row[1]["PROJECT_ID"])
-
-        return projects
 
     def _get_last_updated_metadata(self, project: str):
         with GetSnowflakeConnection(self.registry_config) as conn:
@@ -1153,3 +1204,98 @@ class SnowflakeRegistry(BaseRegistry):
 
     def commit(self):
         pass
+
+    def apply_project(
+        self,
+        project: Project,
+        commit: bool = True,
+    ):
+        return self._apply_object(
+            "PROJECTS", project.name, "project_name", project, "project_proto"
+        )
+
+    def delete_project(
+        self,
+        name: str,
+        commit: bool = True,
+    ):
+        project = self.get_project(name, allow_cache=False)
+        if project:
+            with GetSnowflakeConnection(self.registry_config) as conn:
+                for table in {
+                    "MANAGED_INFRA",
+                    "SAVED_DATASETS",
+                    "VALIDATION_REFERENCES",
+                    "FEATURE_SERVICES",
+                    "FEATURE_VIEWS",
+                    "ON_DEMAND_FEATURE_VIEWS",
+                    "STREAM_FEATURE_VIEWS",
+                    "DATA_SOURCES",
+                    "ENTITIES",
+                    "PERMISSIONS",
+                    "PROJECTS",
+                }:
+                    query = f"""
+                        DELETE FROM {self.registry_path}."{table}"
+                        WHERE
+                            project_id = '{project}'
+                    """
+                    execute_snowflake_statement(conn, query)
+            return
+
+        raise ProjectNotFoundException(name)
+
+    def _get_project(
+        self,
+        name: str,
+    ) -> Project:
+        return self._get_object(
+            table="PROJECTS",
+            name=name,
+            project=name,
+            proto_class=ProjectProto,
+            python_class=Project,
+            id_field_name="project_name",
+            proto_field_name="project_proto",
+            not_found_exception=ProjectObjectNotFoundException,
+        )
+
+    def get_project(
+        self,
+        name: str,
+        allow_cache: bool = False,
+    ) -> Project:
+        if allow_cache:
+            self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.get_project(self.cached_registry_proto, name)
+        return self._get_project(name)
+
+    def _list_projects(
+        self,
+        tags: Optional[dict[str, str]],
+    ) -> List[Project]:
+        with GetSnowflakeConnection(self.registry_config) as conn:
+            query = f"""
+                SELECT project_proto FROM {self.registry_path}."PROJECTS"
+            """
+            df = execute_snowflake_statement(conn, query).fetch_pandas_all()
+            if not df.empty:
+                objects = []
+                for row in df.iterrows():
+                    obj = Project.from_proto(
+                        ProjectProto.FromString(row[1]["project_proto"])
+                    )
+                    if has_all_tags(obj.tags, tags):
+                        objects.append(obj)
+                return objects
+        return []
+
+    def list_projects(
+        self,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
+    ) -> List[Project]:
+        if allow_cache:
+            self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.list_projects(self.cached_registry_proto, tags)
+        return self._list_projects(tags)

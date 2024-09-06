@@ -32,6 +32,7 @@ from feast.permissions.server.utils import (
     init_security_manager,
     str_to_auth_manager_type,
 )
+from feast.project import Project
 from feast.protos.feast.registry import RegistryServer_pb2, RegistryServer_pb2_grpc
 from feast.saved_dataset import SavedDataset, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
@@ -622,6 +623,58 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         self.proxied_registry.delete_permission(
             name=request.name, project=request.project, commit=request.commit
         )
+        return Empty()
+
+    def ApplyProject(self, request: RegistryServer_pb2.ApplyProjectRequest, context):
+        project = cast(
+            Project,
+            assert_permissions_to_update(
+                resource=Project.from_proto(request.project),
+                getter=self.proxied_registry.get_project,
+                project=Project.from_proto(request.project).name,
+            ),
+        )
+        self.proxied_registry.apply_project(
+            project=project,
+            commit=request.commit,
+        )
+        return Empty()
+
+    def GetProject(self, request: RegistryServer_pb2.GetProjectRequest, context):
+        project = self.proxied_registry.get_project(
+            name=request.name, allow_cache=request.allow_cache
+        )
+        assert_permissions(
+            resource=project,
+            actions=[AuthzedAction.DESCRIBE],
+        )
+        return project.to_proto()
+
+    def ListProjects(self, request: RegistryServer_pb2.ListProjectsRequest, context):
+        return RegistryServer_pb2.ListProjectsResponse(
+            projects=[
+                project.to_proto()
+                for project in permitted_resources(
+                    resources=cast(
+                        list[FeastObject],
+                        self.proxied_registry.list_projects(
+                            allow_cache=request.allow_cache
+                        ),
+                    ),
+                    actions=AuthzedAction.DESCRIBE,
+                )
+            ]
+        )
+
+    def DeleteProject(self, request: RegistryServer_pb2.DeleteProjectRequest, context):
+        assert_permissions(
+            resource=self.proxied_registry.get_project(
+                name=request.name,
+            ),
+            actions=[AuthzedAction.DELETE],
+        )
+
+        self.proxied_registry.delete_project(name=request.name, commit=request.commit)
         return Empty()
 
     def Commit(self, request, context):

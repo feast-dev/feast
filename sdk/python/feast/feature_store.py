@@ -60,11 +60,7 @@ from feast.errors import (
 )
 from feast.feast_object import FeastObject
 from feast.feature_service import FeatureService
-from feast.feature_view import (
-    DUMMY_ENTITY,
-    DUMMY_ENTITY_NAME,
-    FeatureView,
-)
+from feast.feature_view import DUMMY_ENTITY, DUMMY_ENTITY_NAME, FeatureView
 from feast.inference import (
     update_data_sources_with_inferred_event_timestamp_col,
     update_feature_views_with_inferred_features_and_entities,
@@ -77,6 +73,7 @@ from feast.infra.registry.sql import SqlRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.online_response import OnlineResponse
 from feast.permissions.permission import Permission
+from feast.project import Project
 from feast.protos.feast.core.InfraObject_pb2 import Infra as InfraProto
 from feast.protos.feast.serving.ServingService_pb2 import (
     FieldStatus,
@@ -162,14 +159,12 @@ class FeatureStore:
                 registry_config, self.config.project, None, self.config.auth_config
             )
         else:
-            r = Registry(
+            self._registry = Registry(
                 self.config.project,
                 registry_config,
                 repo_path=self.repo_path,
                 auth_config=self.config.auth_config,
             )
-            r._initialize_registry(self.config.project)
-            self._registry = r
 
         self._provider = get_provider(self.config)
 
@@ -205,16 +200,8 @@ class FeatureStore:
         greater than 0, then once the cache becomes stale (more time than the TTL has passed), a new cache will be
         downloaded synchronously, which may increase latencies if the triggering method is get_online_features().
         """
-        registry_config = self.config.registry
-        registry = Registry(
-            self.config.project,
-            registry_config,
-            repo_path=self.repo_path,
-            auth_config=self.config.auth_config,
-        )
-        registry.refresh(self.config.project)
 
-        self._registry = registry
+        self._registry.refresh(self.project)
 
     def list_entities(
         self, allow_cache: bool = False, tags: Optional[dict[str, str]] = None
@@ -740,6 +727,7 @@ class FeatureStore:
             ...     source=driver_hourly_stats,
             ... )
             >>> registry_diff, infra_diff, new_infra = fs.plan(RepoContents(
+            ...     projects=[Project(name="project")],
             ...     data_sources=[driver_hourly_stats],
             ...     feature_views=[driver_hourly_stats_view],
             ...     on_demand_feature_views=list(),
@@ -802,6 +790,7 @@ class FeatureStore:
     def apply(
         self,
         objects: Union[
+            Project,
             DataSource,
             Entity,
             FeatureView,
@@ -862,6 +851,9 @@ class FeatureStore:
             objects_to_delete = []
 
         # Separate all objects into entities, feature services, and different feature view types.
+        projects_to_update = [ob for ob in objects if isinstance(ob, Project)]
+        if len(projects_to_update) > 1:
+            raise ValueError("Only one project can be applied at a time.")
         entities_to_update = [ob for ob in objects if isinstance(ob, Entity)]
         views_to_update = [
             ob
@@ -924,6 +916,8 @@ class FeatureStore:
         )
 
         # Add all objects to the registry and update the provider's infrastructure.
+        for project in projects_to_update:
+            self._registry.apply_project(project, commit=False)
         for ds in data_sources_to_update:
             self._registry.apply_data_source(ds, project=self.project, commit=False)
         for view in itertools.chain(views_to_update, odfvs_to_update, sfvs_to_update):
@@ -1989,6 +1983,36 @@ class FeatureStore:
             PermissionObjectNotFoundException: The permission could not be found.
         """
         return self._registry.get_permission(name, self.project)
+
+    def list_projects(
+        self, allow_cache: bool = False, tags: Optional[dict[str, str]] = None
+    ) -> List[Project]:
+        """
+        Retrieves the list of projects from the registry.
+
+        Args:
+            allow_cache: Whether to allow returning projects from a cached registry.
+            tags: Filter by tags.
+
+        Returns:
+            A list of projects.
+        """
+        return self._registry.list_projects(allow_cache=allow_cache, tags=tags)
+
+    def get_project(self, name: Optional[str]) -> Project:
+        """
+        Retrieves a project from the registry.
+
+        Args:
+            name: Name of the project.
+
+        Returns:
+            The specified project.
+
+        Raises:
+            ProjectObjectNotFoundException: The project could not be found.
+        """
+        return self._registry.get_project(name or self.project)
 
     def list_saved_datasets(
         self, allow_cache: bool = False, tags: Optional[dict[str, str]] = None
