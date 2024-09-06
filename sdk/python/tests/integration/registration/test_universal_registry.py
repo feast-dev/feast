@@ -1200,9 +1200,6 @@ def test_apply_stream_feature_view_success(test_registry: BaseRegistry):
 
     all_feature_views = test_registry.list_all_feature_views(project, tags=sfv.tags)
 
-    print(stream_feature_views)
-    print(all_feature_views)
-
     # List Feature Views
     assert len(stream_feature_views) == 1
     assert len(all_feature_views) == 1
