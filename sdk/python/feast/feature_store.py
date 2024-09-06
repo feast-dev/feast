@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import itertools
-import logging
 import os
 import warnings
 from datetime import datetime, timedelta
@@ -247,9 +246,26 @@ class FeatureStore:
         """
         return self._registry.list_feature_services(self.project, tags=tags)
 
+    def _list_all_feature_views(
+        self, allow_cache: bool = False, tags: Optional[dict[str, str]] = None
+    ) -> List[BaseFeatureView]:
+        feature_views = []
+        for fv in self.registry.list_all_feature_views(
+            self.project, allow_cache=allow_cache, tags=tags
+        ):
+            if (
+                isinstance(fv, FeatureView)
+                and fv.entities
+                and fv.entities[0] == DUMMY_ENTITY_NAME
+            ):
+                fv.entities = []
+                fv.entity_columns = []
+            feature_views.append(fv)
+        return feature_views
+
     def list_all_feature_views(
         self, allow_cache: bool = False, tags: Optional[dict[str, str]] = None
-    ) -> List[Union[FeatureView, StreamFeatureView, OnDemandFeatureView]]:
+    ) -> List[BaseFeatureView]:
         """
         Retrieves the list of feature views from the registry.
 
@@ -274,10 +290,6 @@ class FeatureStore:
         Returns:
             A list of feature views.
         """
-        logging.warning(
-            "list_feature_views will make breaking changes. Please use list_batch_feature_views instead. "
-            "list_feature_views will behave like list_all_feature_views in the future."
-        )
         return utils._list_feature_views(
             self._registry, self.project, allow_cache, tags=tags
         )
@@ -296,44 +308,6 @@ class FeatureStore:
             A list of feature views.
         """
         return self._list_batch_feature_views(allow_cache=allow_cache, tags=tags)
-
-    def _list_all_feature_views(
-        self,
-        allow_cache: bool = False,
-        tags: Optional[dict[str, str]] = None,
-    ) -> List[Union[FeatureView, StreamFeatureView, OnDemandFeatureView]]:
-        all_feature_views = (
-            utils._list_feature_views(
-                self._registry, self.project, allow_cache, tags=tags
-            )
-            + self._list_stream_feature_views(allow_cache, tags=tags)
-            + self.list_on_demand_feature_views(allow_cache, tags=tags)
-        )
-        return all_feature_views
-
-    def _list_feature_views(
-        self,
-        allow_cache: bool = False,
-        hide_dummy_entity: bool = True,
-        tags: Optional[dict[str, str]] = None,
-    ) -> List[FeatureView]:
-        logging.warning(
-            "_list_feature_views will make breaking changes. Please use _list_batch_feature_views instead. "
-            "_list_feature_views will behave like _list_all_feature_views in the future."
-        )
-        feature_views = []
-        for fv in self._registry.list_feature_views(
-            self.project, allow_cache=allow_cache, tags=tags
-        ):
-            if (
-                hide_dummy_entity
-                and fv.entities
-                and fv.entities[0] == DUMMY_ENTITY_NAME
-            ):
-                fv.entities = []
-                fv.entity_columns = []
-            feature_views.append(fv)
-        return feature_views
 
     def _list_batch_feature_views(
         self,

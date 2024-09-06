@@ -175,7 +175,7 @@ def handle_fv_verbose_permissions_command(
             tags=tags_filter  # type: ignore[assignment]
         )
     for fv in feature_views:
-        if p.match_resource(fv):
+        if p.match_resource(fv):  # type: ignore[arg-type]
             feature_views_names.add(fv.name)
     if len(feature_views_names) > 0:
         Node(
@@ -207,8 +207,7 @@ def handle_not_verbose_permissions_command(
 def fetch_all_feast_objects(store: FeatureStore) -> list[FeastObject]:
     objects: list[FeastObject] = []
     objects.extend(store.list_entities())
-    objects.extend(store.list_all_feature_views())
-    objects.extend(store.list_batch_feature_views())
+    objects.extend(store.list_all_feature_views())  # type: ignore[arg-type]
     objects.extend(store.list_feature_services())
     objects.extend(store.list_data_sources())
     objects.extend(store.list_validation_references())

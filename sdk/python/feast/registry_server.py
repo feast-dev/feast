@@ -8,6 +8,7 @@ from grpc_health.v1 import health, health_pb2, health_pb2_grpc
 from grpc_reflection.v1alpha import reflection
 
 from feast import FeatureService, FeatureStore
+from feast.base_feature_view import BaseFeatureView
 from feast.data_source import DataSource
 from feast.entity import Entity
 from feast.errors import FeatureViewNotFoundException
@@ -36,6 +37,28 @@ from feast.project import Project
 from feast.protos.feast.registry import RegistryServer_pb2, RegistryServer_pb2_grpc
 from feast.saved_dataset import SavedDataset, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
+
+
+def _build_any_feature_view_proto(feature_view: BaseFeatureView):
+    if isinstance(feature_view, StreamFeatureView):
+        arg_name = "stream_feature_view"
+        feature_view_proto = feature_view.to_proto()
+    elif isinstance(feature_view, FeatureView):
+        arg_name = "feature_view"
+        feature_view_proto = feature_view.to_proto()
+    elif isinstance(feature_view, OnDemandFeatureView):
+        arg_name = "on_demand_feature_view"
+        feature_view_proto = feature_view.to_proto()
+
+    return RegistryServer_pb2.AnyFeatureView(
+        feature_view=feature_view_proto if arg_name == "feature_view" else None,
+        stream_feature_view=feature_view_proto
+        if arg_name == "stream_feature_view"
+        else None,
+        on_demand_feature_view=feature_view_proto
+        if arg_name == "on_demand_feature_view"
+        else None,
+    )
 
 
 class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
@@ -178,6 +201,27 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
             actions=[AuthzedAction.DESCRIBE],
         ).to_proto()
 
+    def GetAnyFeatureView(
+        self, request: RegistryServer_pb2.GetAnyFeatureViewRequest, context
+    ):
+        feature_view = assert_permissions(
+            cast(
+                FeastObject,
+                self.proxied_registry.get_any_feature_view(
+                    name=request.name,
+                    project=request.project,
+                    allow_cache=request.allow_cache,
+                ),
+            ),
+            actions=[AuthzedAction.DESCRIBE],
+        )
+
+        return RegistryServer_pb2.GetAnyFeatureViewResponse(
+            any_feature_view=_build_any_feature_view_proto(
+                cast(BaseFeatureView, feature_view)
+            )
+        )
+
     def ApplyFeatureView(
         self, request: RegistryServer_pb2.ApplyFeatureViewRequest, context
     ):
@@ -218,6 +262,26 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
                     resources=cast(
                         list[FeastObject],
                         self.proxied_registry.list_feature_views(
+                            project=request.project,
+                            allow_cache=request.allow_cache,
+                            tags=dict(request.tags),
+                        ),
+                    ),
+                    actions=AuthzedAction.DESCRIBE,
+                )
+            ]
+        )
+
+    def ListAllFeatureViews(
+        self, request: RegistryServer_pb2.ListAllFeatureViewsRequest, context
+    ):
+        return RegistryServer_pb2.ListAllFeatureViewsResponse(
+            feature_views=[
+                _build_any_feature_view_proto(cast(BaseFeatureView, feature_view))
+                for feature_view in permitted_resources(
+                    resources=cast(
+                        list[FeastObject],
+                        self.proxied_registry.list_all_feature_views(
                             project=request.project,
                             allow_cache=request.allow_cache,
                             tags=dict(request.tags),

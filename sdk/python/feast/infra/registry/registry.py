@@ -585,7 +585,26 @@ class Registry(BaseRegistry):
                     self.commit()
                 return
 
-        raise FeatureViewNotFoundException(feature_view.name, project)
+    def list_all_feature_views(
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
+    ) -> List[BaseFeatureView]:
+        registry_proto = self._get_registry_proto(
+            project=project, allow_cache=allow_cache
+        )
+        return proto_registry_utils.list_all_feature_views(
+            registry_proto, project, tags
+        )
+
+    def get_any_feature_view(
+        self, name: str, project: str, allow_cache: bool = False
+    ) -> BaseFeatureView:
+        registry_proto = self._get_registry_proto(
+            project=project, allow_cache=allow_cache
+        )
+        return proto_registry_utils.get_any_feature_view(registry_proto, name, project)
 
     def list_feature_views(
         self,

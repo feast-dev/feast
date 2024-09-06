@@ -4,7 +4,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Union, cast
 
 from pydantic import StrictInt, StrictStr
 from sqlalchemy import (  # type: ignore
@@ -332,6 +332,61 @@ class SqlRegistry(CachingRegistry):
             id_field_name="entity_name",
             proto_field_name="entity_proto",
             not_found_exception=EntityNotFoundException,
+        )
+
+    def _get_any_feature_view(self, name: str, project: str) -> BaseFeatureView:
+        fv = self._get_object(
+            table=feature_views,
+            name=name,
+            project=project,
+            proto_class=FeatureViewProto,
+            python_class=FeatureView,
+            id_field_name="feature_view_name",
+            proto_field_name="feature_view_proto",
+            not_found_exception=None,
+        )
+
+        if not fv:
+            fv = self._get_object(
+                table=on_demand_feature_views,
+                name=name,
+                project=project,
+                proto_class=OnDemandFeatureViewProto,
+                python_class=OnDemandFeatureView,
+                id_field_name="feature_view_name",
+                proto_field_name="feature_view_proto",
+                not_found_exception=None,
+            )
+
+        if not fv:
+            fv = self._get_object(
+                table=stream_feature_views,
+                name=name,
+                project=project,
+                proto_class=StreamFeatureViewProto,
+                python_class=StreamFeatureView,
+                id_field_name="feature_view_name",
+                proto_field_name="feature_view_proto",
+                not_found_exception=FeatureViewNotFoundException,
+            )
+        return fv
+
+    def _list_all_feature_views(
+        self, project: str, tags: Optional[dict[str, str]]
+    ) -> List[BaseFeatureView]:
+        return (
+            cast(
+                list[BaseFeatureView],
+                self._list_feature_views(project=project, tags=tags),
+            )
+            + cast(
+                list[BaseFeatureView],
+                self._list_stream_feature_views(project=project, tags=tags),
+            )
+            + cast(
+                list[BaseFeatureView],
+                self._list_on_demand_feature_views(project=project, tags=tags),
+            )
         )
 
     def _get_feature_view(self, name: str, project: str) -> FeatureView:

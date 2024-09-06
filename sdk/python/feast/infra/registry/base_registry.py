@@ -392,6 +392,44 @@ class BaseRegistry(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def get_any_feature_view(
+        self, name: str, project: str, allow_cache: bool = False
+    ) -> BaseFeatureView:
+        """
+        Retrieves a feature view of any type.
+
+        Args:
+            name: Name of feature view
+            project: Feast project that this feature view belongs to
+            allow_cache: Allow returning feature view from the cached registry
+
+        Returns:
+            Returns either the specified feature view, or raises an exception if
+            none is found
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def list_all_feature_views(
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
+    ) -> List[BaseFeatureView]:
+        """
+        Retrieve a list of feature views of all types from the registry
+
+        Args:
+            allow_cache: Allow returning feature views from the cached registry
+            project: Filter feature views based on project name
+            tags: Filter by tags
+
+        Returns:
+            List of feature views
+        """
+        raise NotImplementedError
+
+    @abstractmethod
     def apply_materialization(
         self,
         feature_view: FeatureView,
