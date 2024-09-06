@@ -1,4 +1,6 @@
 import logging
+import os
+from typing import Optional
 from unittest.mock import Mock
 
 import jwt
@@ -11,6 +13,7 @@ from starlette.authentication import (
 
 from feast.permissions.auth.token_parser import TokenParser
 from feast.permissions.auth_model import OidcAuthConfig
+from feast.permissions.oidc_service import OIDCDiscoveryService
 from feast.permissions.user import User
 
 logger = logging.getLogger(__name__)
@@ -27,10 +30,13 @@ class OidcTokenParser(TokenParser):
 
     def __init__(self, auth_config: OidcAuthConfig):
         self._auth_config = auth_config
+        self.oidc_discovery_service = OIDCDiscoveryService(
+            self._auth_config.auth_discovery_url
+        )
 
     async def _validate_token(self, access_token: str):
         """
-        Validate the token extracted from the headrer of the user request against the OAuth2 server.
+        Validate the token extracted from the header of the user request against the OAuth2 server.
         """
         # FastAPI's OAuth2AuthorizationCodeBearer requires a Request type but actually uses only the headers field
         # https://github.com/tiangolo/fastapi/blob/eca465f4c96acc5f6a22e92fd2211675ca8a20c8/fastapi/security/oauth2.py#L380
@@ -38,9 +44,9 @@ class OidcTokenParser(TokenParser):
         request.headers = {"Authorization": f"Bearer {access_token}"}
 
         oauth_2_scheme = OAuth2AuthorizationCodeBearer(
-            tokenUrl=f"{self._auth_config.auth_server_url}/realms/{self._auth_config.realm}/protocol/openid-connect/token",
-            authorizationUrl=f"{self._auth_config.auth_server_url}/realms/{self._auth_config.realm}/protocol/openid-connect/auth",
-            refreshUrl=f"{self._auth_config.auth_server_url}/realms/{self._auth_config.realm}/protocol/openid-connect/token",
+            tokenUrl=self.oidc_discovery_service.get_token_url(),
+            authorizationUrl=self.oidc_discovery_service.get_authorization_url(),
+            refreshUrl=self.oidc_discovery_service.get_refresh_url(),
         )
 
         await oauth_2_scheme(request=request)
@@ -56,15 +62,21 @@ class OidcTokenParser(TokenParser):
             AuthenticationError if any error happens.
         """
 
+        # check if intra server communication
+        user = self._get_intra_comm_user(access_token)
+        if user:
+            return user
+
         try:
             await self._validate_token(access_token)
             logger.info("Validated token")
         except Exception as e:
             raise AuthenticationError(f"Invalid token: {e}")
 
-        url = f"{self._auth_config.auth_server_url}/realms/{self._auth_config.realm}/protocol/openid-connect/certs"
         optional_custom_headers = {"User-agent": "custom-user-agent"}
-        jwks_client = PyJWKClient(url, headers=optional_custom_headers)
+        jwks_client = PyJWKClient(
+            self.oidc_discovery_service.get_jwks_url(), headers=optional_custom_headers
+        )
 
         try:
             signing_key = jwks_client.get_signing_key_from_jwt(access_token)
@@ -103,3 +115,20 @@ class OidcTokenParser(TokenParser):
         except jwt.exceptions.InvalidTokenError:
             logger.exception("Exception while parsing the token:")
             raise AuthenticationError("Invalid token.")
+
+    def _get_intra_comm_user(self, access_token: str) -> Optional[User]:
+        intra_communication_base64 = os.getenv("INTRA_COMMUNICATION_BASE64")
+
+        if intra_communication_base64:
+            decoded_token = jwt.decode(
+                access_token, options={"verify_signature": False}
+            )
+            if "preferred_username" in decoded_token:
+                preferred_username: str = decoded_token["preferred_username"]
+                if (
+                    preferred_username is not None
+                    and preferred_username == intra_communication_base64
+                ):
+                    return User(username=preferred_username, roles=[])
+
+        return None

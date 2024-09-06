@@ -125,10 +125,6 @@ AZURE_REQUIRED = [
     "pymssql",
 ]
 
-ROCKSET_REQUIRED = [
-    "rockset>=1.0.3",
-]
-
 IKV_REQUIRED = [
     "ikvpy>=0.0.36",
 ]
@@ -214,7 +210,6 @@ CI_REQUIRED = (
     + HBASE_REQUIRED
     + CASSANDRA_REQUIRED
     + AZURE_REQUIRED
-    + ROCKSET_REQUIRED
     + HAZELCAST_REQUIRED
     + IBIS_REQUIRED
     + GRPCIO_REQUIRED
@@ -386,7 +381,6 @@ setup(
         "cassandra": CASSANDRA_REQUIRED,
         "hazelcast": HAZELCAST_REQUIRED,
         "grpcio": GRPCIO_REQUIRED,
-        "rockset": ROCKSET_REQUIRED,
         "ibis": IBIS_REQUIRED,
         "duckdb": DUCKDB_REQUIRED,
         "ikv": IKV_REQUIRED,
@@ -409,11 +403,12 @@ setup(
     entry_points={"console_scripts": ["feast=feast.cli:cli"]},
     use_scm_version=use_scm_version,
     setup_requires=[
-        "setuptools_scm",
-        "grpcio>=1.56.2,<2",
         "grpcio-tools>=1.56.2,<2",
-        "mypy-protobuf>=3.1",
+        "grpcio>=1.56.2,<2",
+        "mypy-protobuf==3.1",
+        "protobuf==4.24.0",
         "pybindgen==0.22.0",
+        "setuptools_scm>=6.2",
     ],
     cmdclass={
         "build_python_protos": BuildPythonProtosCommand,

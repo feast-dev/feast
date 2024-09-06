@@ -18,6 +18,7 @@ from .feature_store import FeatureStore
 from .feature_view import FeatureView
 from .field import Field
 from .on_demand_feature_view import OnDemandFeatureView
+from .project import Project
 from .repo_config import RepoConfig
 from .stream_feature_view import StreamFeatureView
 from .value_type import ValueType
@@ -49,4 +50,5 @@ __all__ = [
     "PushSource",
     "RequestSource",
     "AthenaSource",
+    "Project",
 ]

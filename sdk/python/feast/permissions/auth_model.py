@@ -1,4 +1,4 @@
-from typing import Literal, Optional
+from typing import Literal
 
 from feast.repo_config import FeastConfigBaseModel
 
@@ -8,13 +8,14 @@ class AuthConfig(FeastConfigBaseModel):
 
 
 class OidcAuthConfig(AuthConfig):
-    auth_server_url: Optional[str] = None
     auth_discovery_url: str
     client_id: str
-    client_secret: Optional[str] = None
+
+
+class OidcClientAuthConfig(OidcAuthConfig):
     username: str
     password: str
-    realm: str = "master"
+    client_secret: str
 
 
 class NoAuthConfig(AuthConfig):
