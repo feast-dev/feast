@@ -322,16 +322,18 @@ def _convert_arrow_odfv_to_proto(
     }
     # Adding On Demand Features
     for feature in feature_view.features:
-        if feature.name in [c[0] for c in columns]:
+        if feature.name in [c[0] for c in columns] and feature.name not in proto_values_by_column:
             # initializing the column as null
-            proto_values_by_column[feature.name] = python_values_to_proto_values(
-                table.append_column(
-                    feature.name,
-                    pyarrow.array(
-                        [None] * table.shape[0],
+            null_column = pyarrow.array(
+                        [None] * table.num_rows,
                         type=from_feast_to_pyarrow_type(feature.dtype),
-                    ),
-                ),
+                    )
+            updated_table = pyarrow.RecordBatch.from_arrays(
+                table.columns + [null_column],
+                schema=table.schema.append(pyarrow.field(feature.name, null_column.type))
+            )
+            proto_values_by_column[feature.name] = python_values_to_proto_values(
+                updated_table.column(feature.name).to_numpy(zero_copy_only=False), feature.dtype.to_value_type(),
             )
 
     entity_keys = [
