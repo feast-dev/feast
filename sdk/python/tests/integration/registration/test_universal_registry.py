@@ -358,7 +358,7 @@ def test_apply_entity_success(test_registry):
         tags={"team": "matchmaking"},
     )
 
-    project = "test_apply_entity_success"
+    project = "project"
 
     # Register Entity
     test_registry.apply_entity(entity, project)
@@ -464,7 +464,7 @@ def test_apply_feature_view_success(test_registry: BaseRegistry):
         ttl=timedelta(minutes=5),
     )
 
-    project = "test_apply_feature_view_success"
+    project = "project"
 
     # Register Feature View
     test_registry.apply_feature_view(fv1, project)
@@ -565,7 +565,7 @@ def test_apply_on_demand_feature_view_success(test_registry: BaseRegistry):
         df["first_char"] = inputs["string_feature"].str[:1].astype("string")
         return df
 
-    project = "test_apply_on_demand_feature_view_success"
+    project = "project"
 
     with pytest.raises(FeatureViewNotFoundException):
         test_registry.get_user_metadata(project, location_features_from_push)
@@ -646,7 +646,7 @@ def test_apply_data_source(test_registry):
         ttl=timedelta(minutes=5),
     )
 
-    project = "test_apply_data_source"
+    project = "project"
 
     # Register data source and feature view
     test_registry.apply_data_source(batch_source, project, commit=False)
@@ -765,7 +765,7 @@ def test_modify_feature_views_success(test_registry):
         tags={},
     )
 
-    project = "test_modify_feature_views_success"
+    project = "project"
 
     # Register Feature Views
     test_registry.apply_feature_view(odfv1, project, False)
@@ -1013,7 +1013,7 @@ def test_modify_feature_views_success(test_registry):
 )
 def test_update_infra(test_registry):
     # Create infra object
-    project = "test_update_infra"
+    project = "project"
     infra = test_registry.get_infra(project=project)
 
     assert len(infra.infra_objects) == 0
@@ -1070,7 +1070,7 @@ def test_registry_cache(test_registry):
         ttl=timedelta(minutes=5),
     )
 
-    project = "test_registry_cache"
+    project = "project"
 
     # Register data source and feature view
     test_registry.apply_data_source(batch_source, project)
@@ -1117,7 +1117,7 @@ def test_registry_cache_thread_async(test_registry):
         created_timestamp_column="timestamp",
     )
 
-    project = "test_registry_cache_thread_async"
+    project = "project"
 
     # Register data source
     test_registry.apply_data_source(batch_source, project)
@@ -1189,7 +1189,7 @@ def test_apply_stream_feature_view_success(test_registry: BaseRegistry):
         tags={"team": "matchmaking"},
     )
 
-    project = "test_apply_stream_feature_view_success"
+    project = "project"
 
     # Register Stream Feature View
     test_registry.apply_feature_view(sfv, project)
@@ -1237,7 +1237,7 @@ def test_apply_feature_service_success(test_registry):
     fs = FeatureService(
         name="my_feature_service_1", features=[feature_view[["feature1", "feature2"]]]
     )
-    project = "test_apply_feature_service_success"
+    project = "project"
 
     # Register Feature Service
     test_registry.apply_feature_service(fs, project)
@@ -1276,7 +1276,7 @@ def test_modify_feature_service_success(test_registry):
     fs = FeatureService(
         name="my_feature_service_1", features=[feature_view[["feature1", "feature2"]]]
     )
-    project = "test_modify_feature_service_success"
+    project = "project"
 
     # Register Feature service
     test_registry.apply_feature_service(fs, project)
@@ -1323,7 +1323,7 @@ def test_commit():
         tags={"team": "matchmaking"},
     )
 
-    project = "test_commit"
+    project = "project"
 
     # Register Entity without commiting
     test_registry.apply_entity(entity, project, commit=False)
@@ -1420,7 +1420,7 @@ def test_apply_permission_success(test_registry):
         types=FeatureView,
     )
 
-    project = "test_apply_permission_success"
+    project = "project"
 
     # Register Permission
     test_registry.apply_permission(permission, project)
