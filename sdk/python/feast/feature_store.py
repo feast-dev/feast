@@ -623,8 +623,13 @@ class FeatureStore:
         for odfv in odfvs_to_update:
             odfv.infer_features()
 
+        odfvs_to_write = [
+            odfv for odfv in odfvs_to_update if odfv.write_to_online_store
+        ]
+        # Update to include ODFVs with write to online store
         fvs_to_update_map = {
-            view.name: view for view in [*views_to_update, *sfvs_to_update]
+            view.name: view
+            for view in [*views_to_update, *sfvs_to_update, *odfvs_to_write]
         }
         for feature_service in feature_services_to_update:
             feature_service.infer_features(fvs_to_update=fvs_to_update_map)
@@ -1478,7 +1483,8 @@ class FeatureStore:
 
         provider = self._get_provider()
         if isinstance(feature_view, OnDemandFeatureView):
-            # projection_mapping = {}
+            # TODO: add projection mapping
+            projection_mapping = {}
             # source_projections = feature_view.source_feature_view_projections
             # for projection in source_projections:
             #     try:
@@ -1499,7 +1505,7 @@ class FeatureStore:
             #             "Request sources not found for on demand feature view. Please check the source feature view configuration."
             #         )
             #     projection_mapping.update(self.get_feature_view(projection))
-            provider.ingest_df(feature_view, df, {})
+            provider.ingest_df(feature_view, df, projection_mapping)
         else:
             provider.ingest_df(feature_view, df)
 
