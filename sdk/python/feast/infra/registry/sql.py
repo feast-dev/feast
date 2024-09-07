@@ -202,6 +202,10 @@ class SqlRegistryConfig(RegistryConfig):
     """ str: Path to metadata store.
     If registry_type is 'sql', then this is a database URL as expected by SQLAlchemy """
 
+    read_path: Optional[StrictStr] = None
+    """ str: Read Path to metadata store if different from path.
+    If registry_type is 'sql', then this is a Read Endpoint for database URL. If not set, path will be used for read and write. """
+
     sqlalchemy_config_kwargs: Dict[str, Any] = {"echo": False}
     """ Dict[str, Any]: Extra arguments to pass to SQLAlchemy.create_engine. """
 
@@ -223,13 +227,20 @@ class SqlRegistry(CachingRegistry):
             registry_config, SqlRegistryConfig
         ), "SqlRegistry needs a valid registry_config"
 
-        self.engine: Engine = create_engine(
+        self.write_engine: Engine = create_engine(
             registry_config.path, **registry_config.sqlalchemy_config_kwargs
         )
+        if registry_config.read_path:
+            self.read_engine: Engine = create_engine(
+                registry_config.read_path,
+                **registry_config.sqlalchemy_config_kwargs,
+            )
+        else:
+            self.read_engine = self.write_engine
+        metadata.create_all(self.write_engine)
         self.thread_pool_executor_worker_count = (
             registry_config.thread_pool_executor_worker_count
         )
-        metadata.create_all(self.engine)
         self.purge_feast_metadata = registry_config.purge_feast_metadata
         # Sync feast_metadata to projects table
         # when purge_feast_metadata is set to True, Delete data from
@@ -246,7 +257,7 @@ class SqlRegistry(CachingRegistry):
     def _sync_feast_metadata_to_projects_table(self):
         feast_metadata_projects: set = []
         projects_set: set = []
-        with self.engine.begin() as conn:
+        with self.write_engine.begin() as conn:
             stmt = select(feast_metadata).where(
                 feast_metadata.c.metadata_key == FeastMetadataKeys.PROJECT_UUID.value
             )
@@ -255,7 +266,7 @@ class SqlRegistry(CachingRegistry):
                 feast_metadata_projects.append(row._mapping["project_id"])
 
         if len(feast_metadata_projects) > 0:
-            with self.engine.begin() as conn:
+            with self.write_engine.begin() as conn:
                 stmt = select(projects)
                 rows = conn.execute(stmt).all()
                 for row in rows:
@@ -267,7 +278,7 @@ class SqlRegistry(CachingRegistry):
                 self.apply_project(Project(name=project_name), commit=True)
 
             if self.purge_feast_metadata:
-                with self.engine.begin() as conn:
+                with self.write_engine.begin() as conn:
                     for project_name in feast_metadata_projects:
                         stmt = delete(feast_metadata).where(
                             feast_metadata.c.project_id == project_name
@@ -285,7 +296,7 @@ class SqlRegistry(CachingRegistry):
             validation_references,
             permissions,
         }:
-            with self.engine.begin() as conn:
+            with self.write_engine.begin() as conn:
                 stmt = delete(t)
                 conn.execute(stmt)
 
@@ -549,7 +560,7 @@ class SqlRegistry(CachingRegistry):
         )
 
     def delete_data_source(self, name: str, project: str, commit: bool = True):
-        with self.engine.begin() as conn:
+        with self.write_engine.begin() as conn:
             stmt = delete(data_sources).where(
                 data_sources.c.data_source_name == name,
                 data_sources.c.project_id == project,
@@ -607,7 +618,7 @@ class SqlRegistry(CachingRegistry):
         )
 
     def _list_project_metadata(self, project: str) -> List[ProjectMetadata]:
-        with self.engine.begin() as conn:
+        with self.read_engine.begin() as conn:
             stmt = select(feast_metadata).where(
                 feast_metadata.c.project_id == project,
             )
@@ -726,7 +737,7 @@ class SqlRegistry(CachingRegistry):
         table = self._infer_fv_table(feature_view)
 
         name = feature_view.name
-        with self.engine.begin() as conn:
+        with self.write_engine.begin() as conn:
             stmt = select(table).where(
                 getattr(table.c, "feature_view_name") == name,
                 table.c.project_id == project,
@@ -781,7 +792,7 @@ class SqlRegistry(CachingRegistry):
         table = self._infer_fv_table(feature_view)
 
         name = feature_view.name
-        with self.engine.begin() as conn:
+        with self.read_engine.begin() as conn:
             stmt = select(table).where(getattr(table.c, "feature_view_name") == name)
             row = conn.execute(stmt).first()
             if row:
@@ -885,7 +896,7 @@ class SqlRegistry(CachingRegistry):
         name = name or (obj.name if hasattr(obj, "name") else None)
         assert name, f"name needs to be provided for {obj}"
 
-        with self.engine.begin() as conn:
+        with self.write_engine.begin() as conn:
             update_datetime = _utc_now()
             update_time = int(update_datetime.timestamp())
             stmt = select(table).where(
@@ -961,7 +972,7 @@ class SqlRegistry(CachingRegistry):
 
     def _maybe_init_project_metadata(self, project):
         # Initialize project metadata if needed
-        with self.engine.begin() as conn:
+        with self.write_engine.begin() as conn:
             update_datetime = _utc_now()
             update_time = int(update_datetime.timestamp())
             stmt = select(feast_metadata).where(
@@ -988,7 +999,7 @@ class SqlRegistry(CachingRegistry):
         id_field_name: str,
         not_found_exception: Optional[Callable],
     ):
-        with self.engine.begin() as conn:
+        with self.write_engine.begin() as conn:
             stmt = delete(table).where(
                 getattr(table.c, id_field_name) == name, table.c.project_id == project
             )
@@ -1014,7 +1025,7 @@ class SqlRegistry(CachingRegistry):
         proto_field_name: str,
         not_found_exception: Optional[Callable],
     ):
-        with self.engine.begin() as conn:
+        with self.read_engine.begin() as conn:
             stmt = select(table).where(
                 getattr(table.c, id_field_name) == name, table.c.project_id == project
             )
@@ -1036,7 +1047,7 @@ class SqlRegistry(CachingRegistry):
         proto_field_name: str,
         tags: Optional[dict[str, str]] = None,
     ):
-        with self.engine.begin() as conn:
+        with self.read_engine.begin() as conn:
             stmt = select(table).where(table.c.project_id == project)
             rows = conn.execute(stmt).all()
             if rows:
@@ -1051,7 +1062,7 @@ class SqlRegistry(CachingRegistry):
         return []
 
     def _set_last_updated_metadata(self, last_updated: datetime, project: str):
-        with self.engine.begin() as conn:
+        with self.write_engine.begin() as conn:
             stmt = select(feast_metadata).where(
                 feast_metadata.c.metadata_key
                 == FeastMetadataKeys.LAST_UPDATED_TIMESTAMP.value,
@@ -1085,7 +1096,7 @@ class SqlRegistry(CachingRegistry):
                 conn.execute(insert_stmt)
 
     def _get_last_updated_metadata(self, project: str):
-        with self.engine.begin() as conn:
+        with self.read_engine.begin() as conn:
             stmt = select(feast_metadata).where(
                 feast_metadata.c.metadata_key
                 == FeastMetadataKeys.LAST_UPDATED_TIMESTAMP.value,
@@ -1130,7 +1141,7 @@ class SqlRegistry(CachingRegistry):
         )
 
     def delete_permission(self, name: str, project: str, commit: bool = True):
-        with self.engine.begin() as conn:
+        with self.write_engine.begin() as conn:
             stmt = delete(permissions).where(
                 permissions.c.permission_name == name,
                 permissions.c.project_id == project,
@@ -1143,7 +1154,7 @@ class SqlRegistry(CachingRegistry):
         self,
         tags: Optional[dict[str, str]],
     ) -> List[Project]:
-        with self.engine.begin() as conn:
+        with self.read_engine.begin() as conn:
             stmt = select(projects)
             rows = conn.execute(stmt).all()
             if rows:
@@ -1188,7 +1199,7 @@ class SqlRegistry(CachingRegistry):
     ):
         project = self.get_project(name, allow_cache=False)
         if project:
-            with self.engine.begin() as conn:
+            with self.write_engine.begin() as conn:
                 for t in {
                     managed_infra,
                     saved_datasets,

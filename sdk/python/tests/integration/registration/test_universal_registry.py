@@ -118,7 +118,41 @@ def minio_registry(minio_server):
         yield Registry("project", registry_config, None)
 
 
+POSTGRES_READONLY_USER = "read_only_user"
+POSTGRES_READONLY_PASSWORD = "readonly_password"
+
 logger = logging.getLogger(__name__)
+
+
+def add_pg_read_only_user(
+    container_host, container_port, db_name, postgres_user, postgres_password
+):
+    # Connect to PostgreSQL as an admin
+    import psycopg
+
+    conn_string = f"dbname={db_name} user={postgres_user} password={postgres_password} host={container_host} port={container_port}"
+
+    with psycopg.connect(conn_string) as conn:
+        user_exists = conn.execute(
+            f"SELECT 1 FROM pg_catalog.pg_user WHERE usename = '{POSTGRES_READONLY_USER}'"
+        ).fetchone()
+        if not user_exists:
+            conn.execute(
+                f"CREATE USER {POSTGRES_READONLY_USER} WITH PASSWORD '{POSTGRES_READONLY_PASSWORD}';"
+            )
+
+        conn.execute(
+            f"REVOKE ALL PRIVILEGES ON DATABASE {db_name} FROM {POSTGRES_READONLY_USER};"
+        )
+        conn.execute(
+            f"GRANT CONNECT ON DATABASE {db_name} TO {POSTGRES_READONLY_USER};"
+        )
+        conn.execute(
+            f"GRANT SELECT ON ALL TABLES IN SCHEMA public TO {POSTGRES_READONLY_USER};"
+        )
+        conn.execute(
+            f"ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO {POSTGRES_READONLY_USER};"
+        )
 
 
 @pytest.fixture(scope="function")
@@ -130,6 +164,14 @@ def pg_registry(postgres_server):
     container_port = postgres_server.get_exposed_port(5432)
     container_host = postgres_server.get_container_host_ip()
 
+    add_pg_read_only_user(
+        container_host,
+        container_port,
+        db_name,
+        postgres_server.username,
+        postgres_server.password,
+    )
+
     registry_config = SqlRegistryConfig(
         registry_type="sql",
         cache_ttl_seconds=2,
@@ -137,6 +179,7 @@ def pg_registry(postgres_server):
         # The `path` must include `+psycopg` in order for `sqlalchemy.create_engine()`
         # to understand that we are using psycopg3.
         path=f"postgresql+psycopg://{postgres_server.username}:{postgres_server.password}@{container_host}:{container_port}/{db_name}",
+        read_path=f"postgresql+psycopg://{POSTGRES_READONLY_USER}:{POSTGRES_READONLY_PASSWORD}@{container_host}:{container_port}/{db_name}",
         sqlalchemy_config_kwargs={"echo": False, "pool_pre_ping": True},
         thread_pool_executor_worker_count=0,
         purge_feast_metadata=False,
