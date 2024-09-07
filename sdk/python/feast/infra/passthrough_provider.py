@@ -290,11 +290,6 @@ class PassthroughProvider(Provider):
             self.online_write_batch(
                 self.repo_config, feature_view, rows_to_write, progress=None
             )
-            # We get these two sets of feature view projections, which are similar to the batch source for regular feature_views
-            # We need to extract these dependencies to get the data types and field mappings to run the _convert_arrow_to_proto function
-            #print(feature_view.source_feature_view_projections)
-            #print(feature_view.source_request_sources)
-            #print('something should happen here')
         else:
             # Note: A dictionary mapping of column names in this data
             #   source to feature names in a feature table or view. Only used for feature

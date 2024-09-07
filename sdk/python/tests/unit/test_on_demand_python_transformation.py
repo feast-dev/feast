@@ -68,13 +68,6 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
                 timestamp_field="event_timestamp",
                 created_timestamp_column="created",
             )
-            input_request_source = RequestSource(
-                name="counter_source",
-                schema=[
-                    Field(name="counter", dtype=Int64),
-                    Field(name="input_datetime", dtype=UnixTimestamp),
-                ],
-            )
 
             driver_stats_fv = FeatureView(
                 name="driver_hourly_stats",
@@ -272,6 +265,7 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
             + online_python_response["acc_rate"][0]
             == online_python_response["conv_rate_plus_val2_python"][0]
         )
+
 
 class TestOnDemandPythonTransformationAllDataTypes(unittest.TestCase):
     def setUp(self):
@@ -511,7 +505,6 @@ def test_invalid_python_transformation_raises_type_error_on_apply():
             store.apply([request_source, python_view])
 
 
-
 class TestOnDemandTransformationsWithWrites(unittest.TestCase):
     def setUp(self):
         with tempfile.TemporaryDirectory() as data_dir:
@@ -616,10 +609,16 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
             assert len(self.store.list_feature_views()) == 1
             assert len(self.store.list_on_demand_feature_views()) == 1
             assert len(self.store.list_stream_feature_views()) == 0
-            assert driver_stats_fv.entity_columns == \
-                   self.store.get_feature_view('driver_hourly_stats').entity_columns
-            assert self.store.get_on_demand_feature_view('python_stored_writes_feature_view').entity_columns == \
-                     self.store.get_feature_view('driver_hourly_stats').entity_columns
+            assert (
+                driver_stats_fv.entity_columns
+                == self.store.get_feature_view("driver_hourly_stats").entity_columns
+            )
+            assert (
+                self.store.get_on_demand_feature_view(
+                    "python_stored_writes_feature_view"
+                ).entity_columns
+                == self.store.get_feature_view("driver_hourly_stats").entity_columns
+            )
 
     def test_stored_writes(self):
         current_datetime = _utc_now()
@@ -666,4 +665,3 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
                 "input_datetime",
             ]
         )
-

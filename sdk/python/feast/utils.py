@@ -322,18 +322,24 @@ def _convert_arrow_odfv_to_proto(
     }
     # Adding On Demand Features
     for feature in feature_view.features:
-        if feature.name in [c[0] for c in columns] and feature.name not in proto_values_by_column:
+        if (
+            feature.name in [c[0] for c in columns]
+            and feature.name not in proto_values_by_column
+        ):
             # initializing the column as null
             null_column = pyarrow.array(
-                        [None] * table.num_rows,
-                        type=from_feast_to_pyarrow_type(feature.dtype),
-                    )
+                [None] * table.num_rows,
+                type=from_feast_to_pyarrow_type(feature.dtype),
+            )
             updated_table = pyarrow.RecordBatch.from_arrays(
                 table.columns + [null_column],
-                schema=table.schema.append(pyarrow.field(feature.name, null_column.type))
+                schema=table.schema.append(
+                    pyarrow.field(feature.name, null_column.type)
+                ),
             )
             proto_values_by_column[feature.name] = python_values_to_proto_values(
-                updated_table.column(feature.name).to_numpy(zero_copy_only=False), feature.dtype.to_value_type(),
+                updated_table.column(feature.name).to_numpy(zero_copy_only=False),
+                feature.dtype.to_value_type(),
             )
 
     entity_keys = [
@@ -351,28 +357,15 @@ def _convert_arrow_odfv_to_proto(
     }
     features = [dict(zip(feature_dict, vars)) for vars in zip(*feature_dict.values())]
 
-    # Convert event_timestamps
-    event_timestamps = [
-        _coerce_datetime(val)
-        for val in pd.to_datetime(
-            table.column(feature_view.batch_source.timestamp_field).to_numpy(
-                zero_copy_only=False
-            )
-        )
-    ]
+    # We need to artificially add event_timestamps and created_timestamps
+    event_timestamps = []
+    timestamp_values = pd.to_datetime([_utc_now() for i in range(table.num_rows)])
 
-    # Convert created_timestamps if they exist
-    if feature_view.batch_source.created_timestamp_column:
-        created_timestamps = [
-            _coerce_datetime(val)
-            for val in pd.to_datetime(
-                table.column(
-                    feature_view.batch_source.created_timestamp_column
-                ).to_numpy(zero_copy_only=False)
-            )
-        ]
-    else:
-        created_timestamps = [None] * table.num_rows
+    for val in timestamp_values:
+        event_timestamps.append(_coerce_datetime(val))
+
+    # setting them equivalent
+    created_timestamps = event_timestamps
 
     return list(zip(entity_keys, features, event_timestamps, created_timestamps))
 
