@@ -56,14 +56,14 @@ async def _get_connection_pool_async(config: PostgreSQLConfig) -> AsyncConnectio
 
 def _get_conninfo(config: PostgreSQLConfig) -> str:
     """Get the `conninfo` argument required for connection objects."""
-    psycopg_config = {
-        "user": config.user,
-        "password": config.password,
-        "host": config.host,
-        "port": int(config.port),
-        "dbname": config.database,
-    }
-    return make_conninfo(conninfo="", **psycopg_config)
+    return make_conninfo(
+        conninfo="",
+        user=config.user,
+        password=config.password,
+        host=config.host,
+        port=int(config.port),
+        dbname=config.database,
+    )
 
 
 def _get_conn_kwargs(config: PostgreSQLConfig) -> Dict[str, Any]:
