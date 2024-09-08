@@ -857,6 +857,11 @@ class FeatureStore:
         ]
         sfvs_to_update = [ob for ob in objects if isinstance(ob, StreamFeatureView)]
         odfvs_to_update = [ob for ob in objects if isinstance(ob, OnDemandFeatureView)]
+        odfvs_with_writes_to_update = [
+            ob
+            for ob in objects
+            if isinstance(ob, OnDemandFeatureView) and ob.write_to_online_store
+        ]
         services_to_update = [ob for ob in objects if isinstance(ob, FeatureService)]
         data_sources_set_to_update = {
             ob for ob in objects if isinstance(ob, DataSource)
@@ -878,10 +883,20 @@ class FeatureStore:
         for batch_source in batch_sources_to_add:
             data_sources_set_to_update.add(batch_source)
 
-        for fv in itertools.chain(views_to_update, sfvs_to_update):
-            data_sources_set_to_update.add(fv.batch_source)
-            if fv.stream_source:
+        for fv in itertools.chain(
+            views_to_update, sfvs_to_update, odfvs_with_writes_to_update
+        ):
+            if isinstance(fv, FeatureView):
+                data_sources_set_to_update.add(fv.batch_source)
+            if isinstance(fv, StreamFeatureView):
                 data_sources_set_to_update.add(fv.stream_source)
+            if isinstance(fv, OnDemandFeatureView):
+                for source_fvp in fv.source_feature_view_projections:
+                    data_sources_set_to_update.add(
+                        fv.source_feature_view_projections[source_fvp].batch_source
+                    )
+            else:
+                pass
 
         for odfv in odfvs_to_update:
             for v in odfv.source_request_sources.values():
@@ -999,7 +1014,9 @@ class FeatureStore:
         tables_to_delete: List[FeatureView] = (
             views_to_delete + sfvs_to_delete if not partial else []  # type: ignore
         )
-        tables_to_keep: List[FeatureView] = views_to_update + sfvs_to_update  # type: ignore
+        tables_to_keep: List[FeatureView] = (
+            views_to_update + sfvs_to_update + odfvs_with_writes_to_update
+        )  # type: ignore
 
         self._get_provider().update_infra(
             project=self.project,
