@@ -69,8 +69,8 @@ class MaterializeIncrementalRequest(BaseModel):
 
 
 def get_app(
-    store: "feast.FeatureStore",
-    registry_ttl_sec: int = DEFAULT_FEATURE_SERVER_REGISTRY_TTL,
+        store: "feast.FeatureStore",
+        registry_ttl_sec: int = DEFAULT_FEATURE_SERVER_REGISTRY_TTL,
 ):
     proto_json.patch()
     # Asynchronously refresh registry, notifying shutdown and canceling the active timer if the app is shutting down
@@ -90,9 +90,11 @@ def get_app(
         registry_proto = store.registry.proto()
         if shutting_down:
             return
-        nonlocal active_timer
-        active_timer = threading.Timer(registry_ttl_sec, async_refresh)
-        active_timer.start()
+
+        if registry_ttl_sec:
+            nonlocal active_timer
+            active_timer = threading.Timer(registry_ttl_sec, async_refresh)
+            active_timer.start()
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -181,9 +183,9 @@ def get_app(
             fv
             for fv in all_fvs
             if (
-                fv.stream_source is not None
-                and isinstance(fv.stream_source, PushSource)
-                and fv.stream_source.name == request.push_source_name
+                    fv.stream_source is not None
+                    and isinstance(fv.stream_source, PushSource)
+                    and fv.stream_source.name == request.push_source_name
             )
         }
 
@@ -269,6 +271,7 @@ def get_app(
 if sys.platform != "win32":
     import gunicorn.app.base
 
+
     class FeastServeApplication(gunicorn.app.base.BaseApplication):
         def __init__(self, store: "feast.FeatureStore", **options):
             self._app = get_app(
@@ -306,14 +309,14 @@ def monitor_resources(self, interval: int = 5):
 
 
 def start_server(
-    store: "feast.FeatureStore",
-    host: str,
-    port: int,
-    no_access_log: bool,
-    workers: int,
-    keep_alive_timeout: int,
-    registry_ttl_sec: int,
-    metrics: bool,
+        store: "feast.FeatureStore",
+        host: str,
+        port: int,
+        no_access_log: bool,
+        workers: int,
+        keep_alive_timeout: int,
+        registry_ttl_sec: int,
+        metrics: bool,
 ):
     if metrics:
         logger.info("Starting Prometheus Server")
