@@ -1502,26 +1502,6 @@ class FeatureStore:
         if isinstance(feature_view, OnDemandFeatureView):
             # TODO: add projection mapping
             projection_mapping = {}
-            # source_projections = feature_view.source_feature_view_projections
-            # for projection in source_projections:
-            #     try:
-            #         field_mapping = self.get_feature_view(projection).batch_source.field_mapping
-            #     except:
-            #         print(f'feature view {feature_view} broke')
-            #         raise ValueError(
-            #             "Field mapping not found for source feature view. Please check the source feature view configuration."
-            #         )
-            #     projection_mapping.update(self.get_feature_view(field_mapping))
-            #
-            # request_source_projections = feature_view.source_request_projections
-            # for projection in request_source_projections:
-            #     try:
-            #         field_mapping = projection.field_mapping
-            #     except:
-            #         raise ValueError(
-            #             "Request sources not found for on demand feature view. Please check the source feature view configuration."
-            #         )
-            #     projection_mapping.update(self.get_feature_view(projection))
             provider.ingest_df(feature_view, df, projection_mapping)
         else:
             provider.ingest_df(feature_view, df)

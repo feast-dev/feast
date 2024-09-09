@@ -170,7 +170,8 @@ class SqliteOnlineStore(OnlineStore):
                             ),
                         )
 
-                        conn.execute(
+                        try:
+                            conn.execute(
                             f"""INSERT OR IGNORE INTO {table_name}
                                 (entity_key, feature_name, value, event_ts, created_ts)
                                 VALUES (?, ?, ?, ?, ?)""",
@@ -182,6 +183,8 @@ class SqliteOnlineStore(OnlineStore):
                                 created_ts,
                             ),
                         )
+                        except Exception as e:
+                            pass
                 if progress:
                     progress(1)
 
