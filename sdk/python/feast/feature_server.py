@@ -90,9 +90,11 @@ def get_app(
         registry_proto = store.registry.proto()
         if shutting_down:
             return
-        nonlocal active_timer
-        active_timer = threading.Timer(registry_ttl_sec, async_refresh)
-        active_timer.start()
+
+        if registry_ttl_sec:
+            nonlocal active_timer
+            active_timer = threading.Timer(registry_ttl_sec, async_refresh)
+            active_timer.start()
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
