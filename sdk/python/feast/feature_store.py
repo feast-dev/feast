@@ -78,6 +78,7 @@ from feast.protos.feast.serving.ServingService_pb2 import (
     FieldStatus,
     GetOnlineFeaturesResponse,
 )
+from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey
 from feast.protos.feast.types.Value_pb2 import RepeatedValue, Value
 from feast.repo_config import RepoConfig, load_repo_config
@@ -1670,13 +1671,20 @@ class FeatureStore:
         # TODO currently not return the vector value since it is same as feature value, if embedding is supported,
         # the feature value can be raw text before embedded
         entity_key_vals = [feature[1] for feature in document_features]
+        join_key_values: Dict[str, List[ValueProto]] = {}
+        for entity_key_val in entity_key_vals:
+            for entity_key in entity_key_val.join_keys():
+                if entity_key not in join_key_values:
+                    join_key_values[entity_key] = []
+                join_key_values[entity_key].append(entity_key_val[entity_key])
+
         document_feature_vals = [feature[4] for feature in document_features]
         document_feature_distance_vals = [feature[5] for feature in document_features]
         online_features_response = GetOnlineFeaturesResponse(results=[])
         utils._populate_result_rows_from_columnar(
             online_features_response=online_features_response,
             data={
-                "entity_key": entity_key_vals,
+                **join_key_values,
                 requested_feature: document_feature_vals,
                 "distance": document_feature_distance_vals,
             },
@@ -1715,6 +1723,7 @@ class FeatureStore:
                 row_ts_proto.FromDatetime(row_ts)
 
             if feature_val is None or vector_value is None or distance_val is None:
+                entity_key = EntityKey()
                 feature_val = Value()
                 vector_value = Value()
                 distance_val = Value()
