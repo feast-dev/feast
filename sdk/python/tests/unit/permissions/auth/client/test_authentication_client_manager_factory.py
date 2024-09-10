@@ -4,12 +4,11 @@ from unittest import mock
 import assertpy
 import jwt
 import pytest
+import yaml
 
 from feast.permissions.auth.auth_type import AuthType
 from feast.permissions.auth_model import (
-    KubernetesAuthConfig,
-    NoAuthConfig,
-    OidcClientAuthConfig,
+    AuthConfig,
 )
 from feast.permissions.client.auth_client_manager import (
     AuthenticationClientManagerFactory,
@@ -20,27 +19,11 @@ from feast.permissions.client.intra_comm_authentication_client_manager import (
 
 
 @mock.patch.dict(os.environ, {"INTRA_COMMUNICATION_BASE64": "server_intra_com_val"})
-@pytest.mark.parametrize(
-    "auth_config",
-    [
-        NoAuthConfig(),
-        KubernetesAuthConfig(**{"type": "kubernetes"}),
-        OidcClientAuthConfig(
-            **{
-                "type": "oidc",
-                "client_id": "feast-integration-client",
-                "client_secret": "feast-integration-client-secret",
-                "username": "reader_writer",
-                "password": "password",
-                "auth_discovery_url": "KEYCLOAK_URL_PLACE_HOLDER/realms/master/.well-known/openid-configuration",
-            }
-        ),
-    ],
-)
 def test_authentication_client_manager_factory(auth_config):
-    authentication_client_manager_factory = AuthenticationClientManagerFactory(
-        auth_config
-    )
+    raw_config = yaml.safe_load(auth_config)
+    auth_config = AuthConfig(type=raw_config["auth"]["type"])
+
+    authentication_client_manager_factory = AuthenticationClientManagerFactory(auth_config)
 
     authentication_client_manager = (
         authentication_client_manager_factory.get_auth_client_manager()
