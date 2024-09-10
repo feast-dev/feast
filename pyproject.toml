@@ -172,7 +172,6 @@ ci = [
   "types-requests<2.31.0",
   "types-setuptools",
   "types-tabulate",
-  "virtualenv<20.24.2",
   "feast[aws, gcp, redis, k8s, snowflake, spark, postgres, mysql, trino, ge, hbase, cassandra, azure, hazelcast, ibis, grpcio, duckdb, delta, elasticsearch, sqlite_vec, singlestore, opentelemetry]"
 ]
 
