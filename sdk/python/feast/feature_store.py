@@ -1702,7 +1702,7 @@ class FeatureStore:
         top_k: int,
         distance_metric: Optional[str],
     ) -> List[
-        Tuple[Timestamp, EntityKey, "FieldStatus.ValueType", Value, Value, Value]
+        Tuple[Timestamp, Optional[EntityKey], "FieldStatus.ValueType", Value, Value, Value]
     ]:
         """
         Search and return document features from the online document store.
@@ -1724,8 +1724,7 @@ class FeatureStore:
             if row_ts is not None:
                 row_ts_proto.FromDatetime(row_ts)
 
-            if entity_key is None or feature_val is None or vector_value is None or distance_val is None:
-                entity_key = EntityKey()
+            if feature_val is None or vector_value is None or distance_val is None:
                 feature_val = Value()
                 vector_value = Value()
                 distance_val = Value()
