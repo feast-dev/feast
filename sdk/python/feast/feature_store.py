@@ -34,7 +34,6 @@ import pandas as pd
 import pyarrow as pa
 from colorama import Fore, Style
 from google.protobuf.timestamp_pb2 import Timestamp
-from protos.feast.types.EntityKey_pb2 import EntityKey
 from tqdm import tqdm
 
 from feast import feature_server, flags_helper, ui_server, utils
@@ -79,6 +78,7 @@ from feast.protos.feast.serving.ServingService_pb2 import (
     FieldStatus,
     GetOnlineFeaturesResponse,
 )
+from feast.protos.feast.types.EntityKey_pb2 import EntityKey
 from feast.protos.feast.types.Value_pb2 import RepeatedValue, Value
 from feast.repo_config import RepoConfig, load_repo_config
 from feast.repo_contents import RepoContents
