@@ -24,6 +24,7 @@ import pandas as pd
 import pyarrow
 from dateutil.tz import tzlocal
 from google.protobuf.timestamp_pb2 import Timestamp
+from infra.key_encoding_utils import deserialize_entity_key
 
 from feast.constants import FEAST_FS_YAML_FILE_PATH_ENV_NAME
 from feast.entity import Entity
@@ -38,13 +39,12 @@ from feast.protos.feast.serving.ServingService_pb2 import (
     GetOnlineFeaturesResponse,
 )
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
+from feast.protos.feast.types.Value_pb2 import FloatList as FloatListProto
 from feast.protos.feast.types.Value_pb2 import RepeatedValue as RepeatedValueProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
-from feast.protos.feast.types.Value_pb2 import FloatList as FloatListProto
 from feast.type_map import python_values_to_proto_values
 from feast.value_type import ValueType
 from feast.version import get_version
-from infra.key_encoding_utils import deserialize_entity_key
 
 if typing.TYPE_CHECKING:
     from feast.feature_service import FeatureService
@@ -99,9 +99,9 @@ def get_default_yaml_file_path(repo_path: Path) -> Path:
 
 
 def _get_requested_feature_views_to_features_dict(
-        feature_refs: List[str],
-        feature_views: List["FeatureView"],
-        on_demand_feature_views: List["OnDemandFeatureView"],
+    feature_refs: List[str],
+    feature_views: List["FeatureView"],
+    on_demand_feature_views: List["OnDemandFeatureView"],
 ) -> Tuple[Dict["FeatureView", List[str]], Dict["OnDemandFeatureView", List[str]]]:
     """Create a dict of FeatureView -> List[Feature] for all requested features.
     Set full_feature_names to True to have feature names prefixed by their feature view name."""
@@ -133,8 +133,7 @@ def _get_requested_feature_views_to_features_dict(
 
 
 def _get_column_names(
-        feature_view: "FeatureView",
-        entities: List[Entity]
+    feature_view: "FeatureView", entities: List[Entity]
 ) -> Tuple[List[str], List[str], str, Optional[str]]:
     """
     If a field mapping exists, run it in reverse on the join keys,
@@ -169,7 +168,7 @@ def _get_column_names(
         created_timestamp_column = (
             reverse_field_mapping[created_timestamp_column]
             if created_timestamp_column
-               and created_timestamp_column in reverse_field_mapping.keys()
+            and created_timestamp_column in reverse_field_mapping.keys()
             else created_timestamp_column
         )
         join_keys = [
@@ -187,8 +186,8 @@ def _get_column_names(
         name
         for name in feature_names
         if name not in join_keys
-           and name != timestamp_field
-           and name != created_timestamp_column
+        and name != timestamp_field
+        and name != created_timestamp_column
     ]
     return (
         join_keys,
@@ -199,8 +198,8 @@ def _get_column_names(
 
 
 def _run_pyarrow_field_mapping(
-        table: pyarrow.Table,
-        field_mapping: Dict[str, str],
+    table: pyarrow.Table,
+    field_mapping: Dict[str, str],
 ) -> pyarrow.Table:
     # run field mapping in the forward direction
     cols = table.column_names
@@ -227,17 +226,17 @@ def _coerce_datetime(ts):
 
 
 def _convert_arrow_to_proto(
-        table: Union[pyarrow.Table, pyarrow.RecordBatch],
-        feature_view: "FeatureView",
-        join_keys: Dict[str, ValueType],
+    table: Union[pyarrow.Table, pyarrow.RecordBatch],
+    feature_view: "FeatureView",
+    join_keys: Dict[str, ValueType],
 ) -> List[Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]]:
     # Avoid ChunkedArrays which guarantees `zero_copy_only` available.
     if isinstance(table, pyarrow.Table):
         table = table.to_batches()[0]
 
     columns = [
-                  (field.name, field.dtype.to_value_type()) for field in feature_view.features
-              ] + list(join_keys.items())
+        (field.name, field.dtype.to_value_type()) for field in feature_view.features
+    ] + list(join_keys.items())
 
     proto_values_by_column = {
         column: python_values_to_proto_values(
@@ -294,8 +293,7 @@ def _validate_entity_values(join_key_values: Dict[str, List[ValueProto]]):
     return set_of_row_lengths.pop()
 
 
-def _validate_feature_refs(feature_refs: List[str],
-                           full_feature_names: bool = False):
+def _validate_feature_refs(feature_refs: List[str], full_feature_names: bool = False):
     """
     Validates that there are no collisions among the feature references.
 
@@ -332,9 +330,9 @@ def _validate_feature_refs(feature_refs: List[str],
 
 
 def _group_feature_refs(
-        features: List[str],
-        all_feature_views: List["FeatureView"],
-        all_on_demand_feature_views: List["OnDemandFeatureView"],
+    features: List[str],
+    all_feature_views: List["FeatureView"],
+    all_on_demand_feature_views: List["OnDemandFeatureView"],
 ) -> Tuple[
     List[Tuple["FeatureView", List[str]]], List[Tuple["OnDemandFeatureView", List[str]]]
 ]:
@@ -384,8 +382,7 @@ def _group_feature_refs(
 
 
 def apply_list_mapping(
-        lst: Iterable[Any],
-        mapping_indexes: Iterable[List[int]]
+    lst: Iterable[Any], mapping_indexes: Iterable[List[int]]
 ) -> Iterable[Any]:
     output_len = sum(len(item) for item in mapping_indexes)
     output = [None] * output_len
@@ -397,10 +394,10 @@ def apply_list_mapping(
 
 
 def _augment_response_with_on_demand_transforms(
-        online_features_response: GetOnlineFeaturesResponse,
-        feature_refs: List[str],
-        requested_on_demand_feature_views: List["OnDemandFeatureView"],
-        full_feature_names: bool,
+    online_features_response: GetOnlineFeaturesResponse,
+    feature_refs: List[str],
+    requested_on_demand_feature_views: List["OnDemandFeatureView"],
+    full_feature_names: bool,
 ):
     """Computes on demand feature values and adds them to the result rows.
 
@@ -493,9 +490,9 @@ def _augment_response_with_on_demand_transforms(
 
 
 def _get_entity_maps(
-        registry,
-        project,
-        feature_views,
+    registry,
+    project,
+    feature_views,
 ) -> Tuple[Dict[str, str], Dict[str, ValueType], Set[str]]:
     # TODO(felixwang9817): Support entities that have different types for different feature views.
     entities = registry.list_entities(project, allow_cache=True)
@@ -526,9 +523,9 @@ def _get_entity_maps(
 
 
 def _get_table_entity_values(
-        table: "FeatureView",
-        entity_name_to_join_key_map: Dict[str, str],
-        join_key_proto_values: Dict[str, List[ValueProto]],
+    table: "FeatureView",
+    entity_name_to_join_key_map: Dict[str, str],
+    join_key_proto_values: Dict[str, List[ValueProto]],
 ) -> Dict[str, List[ValueProto]]:
     # The correct join_keys expected by the OnlineStore for this Feature View.
     table_join_keys = [
@@ -549,9 +546,9 @@ def _get_table_entity_values(
 
 
 def _get_unique_entities(
-        table: "FeatureView",
-        join_key_values: Dict[str, List[ValueProto]],
-        entity_name_to_join_key_map: Dict[str, str],
+    table: "FeatureView",
+    join_key_values: Dict[str, List[ValueProto]],
+    entity_name_to_join_key_map: Dict[str, str],
 ) -> Tuple[Tuple[Dict[str, ValueProto], ...], Tuple[List[int], ...]]:
     """Return the set of unique composite Entities for a Feature View and the indexes at which they appear.
 
@@ -588,8 +585,8 @@ def _get_unique_entities(
 
 
 def _drop_unneeded_columns(
-        online_features_response: GetOnlineFeaturesResponse,
-        requested_result_row_names: Set[str],
+    online_features_response: GetOnlineFeaturesResponse,
+    requested_result_row_names: Set[str],
 ):
     """
     Unneeded feature values such as request data and unrequested input feature views will
@@ -613,8 +610,8 @@ def _drop_unneeded_columns(
 
 
 def _populate_result_rows_from_columnar(
-        online_features_response: GetOnlineFeaturesResponse,
-        data: Dict[str, List[ValueProto]],
+    online_features_response: GetOnlineFeaturesResponse,
+    data: Dict[str, List[ValueProto]],
 ):
     timestamp = Timestamp()  # Only initialize this timestamp once.
     # Add more values to the existing result rows
@@ -630,7 +627,7 @@ def _populate_result_rows_from_columnar(
 
 
 def get_needed_request_data(
-        grouped_odfv_refs: List[Tuple["OnDemandFeatureView", List[str]]],
+    grouped_odfv_refs: List[Tuple["OnDemandFeatureView", List[str]]],
 ) -> Set[str]:
     needed_request_data: Set[str] = set()
     for odfv, _ in grouped_odfv_refs:
@@ -640,8 +637,8 @@ def get_needed_request_data(
 
 
 def ensure_request_data_values_exist(
-        needed_request_data: Set[str],
-        request_data_features: Dict[str, List[Any]],
+    needed_request_data: Set[str],
+    request_data_features: Dict[str, List[Any]],
 ):
     if len(needed_request_data) != len(request_data_features.keys()):
         missing_features = [
@@ -651,16 +648,16 @@ def ensure_request_data_values_exist(
 
 
 def _populate_response_from_feature_data(
-        feature_data: Iterable[
-            Tuple[
-                Iterable[Timestamp], Iterable["FieldStatus.ValueType"], Iterable[ValueProto]
-            ]
-        ],
-        indexes: Iterable[List[int]],
-        online_features_response: GetOnlineFeaturesResponse,
-        full_feature_names: bool,
-        requested_features: Iterable[str],
-        table: "FeatureView",
+    feature_data: Iterable[
+        Tuple[
+            Iterable[Timestamp], Iterable["FieldStatus.ValueType"], Iterable[ValueProto]
+        ]
+    ],
+    indexes: Iterable[List[int]],
+    online_features_response: GetOnlineFeaturesResponse,
+    full_feature_names: bool,
+    requested_features: Iterable[str],
+    table: "FeatureView",
 ):
     """Populate the GetOnlineFeaturesResponse with feature data.
 
@@ -694,8 +691,8 @@ def _populate_response_from_feature_data(
     # Populate the result with data fetched from the OnlineStore
     # which is guaranteed to be aligned with `requested_features`.
     for (
-            feature_idx,
-            (timestamp_vector, statuses_vector, values_vector),
+        feature_idx,
+        (timestamp_vector, statuses_vector, values_vector),
     ) in enumerate(zip(zip(*timestamps), zip(*statuses), zip(*values))):
         online_features_response.results.append(
             GetOnlineFeaturesResponse.FeatureVector(
@@ -707,10 +704,10 @@ def _populate_response_from_feature_data(
 
 
 def _get_features(
-        registry,
-        project,
-        features: Union[List[str], "FeatureService"],
-        allow_cache: bool = False,
+    registry,
+    project,
+    features: Union[List[str], "FeatureService"],
+    allow_cache: bool = False,
 ) -> List[str]:
     from feast.feature_service import FeatureService
 
@@ -741,11 +738,11 @@ def _get_features(
 
 
 def _list_feature_views(
-        registry,
-        project,
-        allow_cache: bool = False,
-        hide_dummy_entity: bool = True,
-        tags: Optional[dict[str, str]] = None,
+    registry,
+    project,
+    allow_cache: bool = False,
+    hide_dummy_entity: bool = True,
+    tags: Optional[dict[str, str]] = None,
 ) -> List["FeatureView"]:
     from feast.feature_view import DUMMY_ENTITY_NAME
 
@@ -759,11 +756,11 @@ def _list_feature_views(
 
 
 def _get_feature_views_to_use(
-        registry,
-        project,
-        features: Optional[Union[List[str], "FeatureService"]],
-        allow_cache=False,
-        hide_dummy_entity: bool = True,
+    registry,
+    project,
+    features: Optional[Union[List[str], "FeatureService"]],
+    allow_cache=False,
+    hide_dummy_entity: bool = True,
 ) -> Tuple[List["FeatureView"], List["OnDemandFeatureView"]]:
     from feast.feature_service import FeatureService
 
@@ -817,10 +814,10 @@ def _get_feature_views_to_use(
 
 
 def _get_online_request_context(
-        registry,
-        project,
-        features: Union[List[str], "FeatureService"],
-        full_feature_names: bool,
+    registry,
+    project,
+    features: Union[List[str], "FeatureService"],
+    full_feature_names: bool,
 ):
     from feast.feature_view import DUMMY_ENTITY_NAME
 
@@ -885,14 +882,14 @@ def _get_online_request_context(
 
 
 def _prepare_entities_to_read_from_online_store(
-        registry,
-        project,
-        features: Union[List[str], "FeatureService"],
-        entity_values: Mapping[
-            str, Union[Sequence[Any], Sequence[ValueProto], RepeatedValueProto]
-        ],
-        full_feature_names: bool = False,
-        native_entity_values: bool = True,
+    registry,
+    project,
+    features: Union[List[str], "FeatureService"],
+    entity_values: Mapping[
+        str, Union[Sequence[Any], Sequence[ValueProto], RepeatedValueProto]
+    ],
+    full_feature_names: bool = False,
+    native_entity_values: bool = True,
 ):
     from feast.feature_view import DUMMY_ENTITY, DUMMY_ENTITY_ID, DUMMY_ENTITY_VAL
 
@@ -980,7 +977,7 @@ def _prepare_entities_to_read_from_online_store(
 
 
 def _get_entity_key_protos(
-        entity_rows: Iterable[Mapping[str, ValueProto]],
+    entity_rows: Iterable[Mapping[str, ValueProto]],
 ) -> List[EntityKeyProto]:
     # Instantiate one EntityKeyProto per Entity.
     entity_key_protos = [
@@ -991,8 +988,8 @@ def _get_entity_key_protos(
 
 
 def _convert_rows_to_protobuf(
-        requested_features: List[str],
-        read_rows: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]],
+    requested_features: List[str],
+    read_rows: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]],
 ) -> List[Tuple[List[Timestamp], List["FieldStatus.ValueType"], List[ValueProto]]]:
     # Each row is a set of features for a given entity key.
     # We only need to convert the data to Protobuf once.
@@ -1024,8 +1021,7 @@ def _convert_rows_to_protobuf(
 
 
 def has_all_tags(
-        object_tags: dict[str, str],
-        requested_tags: Optional[dict[str, str]] = None
+    object_tags: dict[str, str], requested_tags: Optional[dict[str, str]] = None
 ) -> bool:
     if requested_tags is None:
         return True
@@ -1033,7 +1029,7 @@ def has_all_tags(
 
 
 def tags_list_to_dict(
-        tags_list: Optional[list[str]] = None,
+    tags_list: Optional[list[str]] = None,
 ) -> Optional[dict[str, str]]:
     if not tags_list:
         return None
@@ -1058,12 +1054,12 @@ def _utc_now() -> datetime:
 
 
 def _build_retrieve_online_document_record(
-        event_ts: datetime,
-        entity_key: str,
-        value: Union[str, bytes],
-        vector_value: Union[str, List[float]],
-        distance: float,
-        entity_key_serialization_version: int
+    event_ts: datetime,
+    entity_key: str,
+    value: Union[str, bytes],
+    vector_value: Union[str, List[float]],
+    distance: float,
+    entity_key_serialization_version: int,
 ) -> Tuple[
     Optional[datetime],
     Optional[EntityKeyProto],
@@ -1077,7 +1073,7 @@ def _build_retrieve_online_document_record(
         entity_key_proto_bin = bytes(entity_key)
         entity_key_proto = deserialize_entity_key(
             entity_key_proto_bin,
-            entity_key_serialization_version=entity_key_serialization_version
+            entity_key_serialization_version=entity_key_serialization_version,
         )
 
     if isinstance(value, str):
@@ -1088,9 +1084,7 @@ def _build_retrieve_online_document_record(
     if isinstance(vector_value, str):
         vector_value_proto = ValueProto(string_val=vector_value)
     else:
-        vector_value_proto = ValueProto(
-            float_list_val=FloatListProto(val=vector_value)
-        )
+        vector_value_proto = ValueProto(float_list_val=FloatListProto(val=vector_value))
 
     distance_value_proto = ValueProto(float_val=distance)
     return (

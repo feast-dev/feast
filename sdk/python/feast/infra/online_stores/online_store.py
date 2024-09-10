@@ -36,13 +36,13 @@ class OnlineStore(ABC):
 
     @abstractmethod
     def online_write_batch(
-            self,
-            config: RepoConfig,
-            table: FeatureView,
-            data: List[
-                Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
-            ],
-            progress: Optional[Callable[[int], Any]],
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        data: List[
+            Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
+        ],
+        progress: Optional[Callable[[int], Any]],
     ) -> None:
         """
         Writes a batch of feature rows to the online store.
@@ -62,11 +62,11 @@ class OnlineStore(ABC):
 
     @abstractmethod
     def online_read(
-            self,
-            config: RepoConfig,
-            table: FeatureView,
-            entity_keys: List[EntityKeyProto],
-            requested_features: Optional[List[str]] = None,
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        entity_keys: List[EntityKeyProto],
+        requested_features: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         """
         Reads features values for the given entity keys.
@@ -85,11 +85,11 @@ class OnlineStore(ABC):
         pass
 
     async def online_read_async(
-            self,
-            config: RepoConfig,
-            table: FeatureView,
-            entity_keys: List[EntityKeyProto],
-            requested_features: Optional[List[str]] = None,
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        entity_keys: List[EntityKeyProto],
+        requested_features: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         """
         Reads features values for the given entity keys asynchronously.
@@ -110,16 +110,16 @@ class OnlineStore(ABC):
         )
 
     def get_online_features(
-            self,
-            config: RepoConfig,
-            features: Union[List[str], FeatureService],
-            entity_rows: Union[
-                List[Dict[str, Any]],
-                Mapping[str, Union[Sequence[Any], Sequence[ValueProto], RepeatedValue]],
-            ],
-            registry: BaseRegistry,
-            project: str,
-            full_feature_names: bool = False,
+        self,
+        config: RepoConfig,
+        features: Union[List[str], FeatureService],
+        entity_rows: Union[
+            List[Dict[str, Any]],
+            Mapping[str, Union[Sequence[Any], Sequence[ValueProto], RepeatedValue]],
+        ],
+        registry: BaseRegistry,
+        project: str,
+        full_feature_names: bool = False,
     ) -> OnlineResponse:
         if isinstance(entity_rows, list):
             columnar: Dict[str, List[Any]] = {k: [] for k in entity_rows[0].keys()}
@@ -197,16 +197,16 @@ class OnlineStore(ABC):
         return OnlineResponse(online_features_response)
 
     async def get_online_features_async(
-            self,
-            config: RepoConfig,
-            features: Union[List[str], FeatureService],
-            entity_rows: Union[
-                List[Dict[str, Any]],
-                Mapping[str, Union[Sequence[Any], Sequence[ValueProto], RepeatedValue]],
-            ],
-            registry: BaseRegistry,
-            project: str,
-            full_feature_names: bool = False,
+        self,
+        config: RepoConfig,
+        features: Union[List[str], FeatureService],
+        entity_rows: Union[
+            List[Dict[str, Any]],
+            Mapping[str, Union[Sequence[Any], Sequence[ValueProto], RepeatedValue]],
+        ],
+        registry: BaseRegistry,
+        project: str,
+        full_feature_names: bool = False,
     ) -> OnlineResponse:
         if isinstance(entity_rows, list):
             columnar: Dict[str, List[Any]] = {k: [] for k in entity_rows[0].keys()}
@@ -285,13 +285,13 @@ class OnlineStore(ABC):
 
     @abstractmethod
     def update(
-            self,
-            config: RepoConfig,
-            tables_to_delete: Sequence[FeatureView],
-            tables_to_keep: Sequence[FeatureView],
-            entities_to_delete: Sequence[Entity],
-            entities_to_keep: Sequence[Entity],
-            partial: bool,
+        self,
+        config: RepoConfig,
+        tables_to_delete: Sequence[FeatureView],
+        tables_to_keep: Sequence[FeatureView],
+        entities_to_delete: Sequence[Entity],
+        entities_to_keep: Sequence[Entity],
+        partial: bool,
     ):
         """
         Reconciles cloud resources with the specified set of Feast objects.
@@ -310,9 +310,7 @@ class OnlineStore(ABC):
         pass
 
     def plan(
-            self,
-            config: RepoConfig,
-            desired_registry_proto: RegistryProto
+        self, config: RepoConfig, desired_registry_proto: RegistryProto
     ) -> List[InfraObject]:
         """
         Returns the set of InfraObjects required to support the desired registry.
@@ -325,10 +323,10 @@ class OnlineStore(ABC):
 
     @abstractmethod
     def teardown(
-            self,
-            config: RepoConfig,
-            tables: Sequence[FeatureView],
-            entities: Sequence[Entity],
+        self,
+        config: RepoConfig,
+        tables: Sequence[FeatureView],
+        entities: Sequence[Entity],
     ):
         """
         Tears down all cloud resources for the specified set of Feast objects.
@@ -341,13 +339,13 @@ class OnlineStore(ABC):
         pass
 
     def retrieve_online_documents(
-            self,
-            config: RepoConfig,
-            table: FeatureView,
-            requested_feature: str,
-            embedding: List[float],
-            top_k: int,
-            distance_metric: Optional[str] = None,
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        requested_feature: str,
+        embedding: List[float],
+        top_k: int,
+        distance_metric: Optional[str] = None,
     ) -> List[
         Tuple[
             Optional[datetime],

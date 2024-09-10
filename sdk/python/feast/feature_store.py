@@ -34,6 +34,7 @@ import pandas as pd
 import pyarrow as pa
 from colorama import Fore, Style
 from google.protobuf.timestamp_pb2 import Timestamp
+from protos.feast.types.EntityKey_pb2 import EntityKey
 from tqdm import tqdm
 
 from feast import feature_server, flags_helper, ui_server, utils
@@ -85,7 +86,6 @@ from feast.saved_dataset import SavedDataset, SavedDatasetStorage, ValidationRef
 from feast.stream_feature_view import StreamFeatureView
 from feast.utils import _utc_now
 from feast.version import get_version
-from protos.feast.types.EntityKey_pb2 import EntityKey
 
 warnings.simplefilter("once", DeprecationWarning)
 
@@ -1678,7 +1678,7 @@ class FeatureStore:
             data={
                 "entity_key": entity_key_vals,
                 requested_feature: document_feature_vals,
-                "distance": document_feature_distance_vals
+                "distance": document_feature_distance_vals,
             },
         )
         return OnlineResponse(online_features_response)
@@ -1691,7 +1691,9 @@ class FeatureStore:
         query: List[float],
         top_k: int,
         distance_metric: Optional[str],
-    ) -> List[Tuple[Timestamp, EntityKey, "FieldStatus.ValueType", Value, Value, Value]]:
+    ) -> List[
+        Tuple[Timestamp, EntityKey, "FieldStatus.ValueType", Value, Value, Value]
+    ]:
         """
         Search and return document features from the online document store.
         """
@@ -1721,7 +1723,14 @@ class FeatureStore:
                 status = FieldStatus.PRESENT
 
             read_row_protos.append(
-                (row_ts_proto, entity_key, status, feature_val, vector_value, distance_val)
+                (
+                    row_ts_proto,
+                    entity_key,
+                    status,
+                    feature_val,
+                    vector_value,
+                    distance_val,
+                )
             )
         return read_row_protos
 

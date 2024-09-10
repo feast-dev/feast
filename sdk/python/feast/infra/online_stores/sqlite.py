@@ -27,7 +27,7 @@ from pydantic import StrictStr
 from feast import Entity
 from feast.feature_view import FeatureView
 from feast.infra.infra_object import SQLITE_INFRA_OBJECT_CLASS_TYPE, InfraObject
-from feast.infra.key_encoding_utils import serialize_entity_key, deserialize_entity_key
+from feast.infra.key_encoding_utils import serialize_entity_key
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.core.InfraObject_pb2 import InfraObject as InfraObjectProto
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
@@ -35,7 +35,7 @@ from feast.protos.feast.core.SqliteTable_pb2 import SqliteTable as SqliteTablePr
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
-from feast.utils import to_naive_utc, _build_retrieve_online_document_record
+from feast.utils import _build_retrieve_online_document_record, to_naive_utc
 
 
 class SqliteOnlineStoreConfig(FeastConfigBaseModel):
@@ -393,14 +393,16 @@ class SqliteOnlineStore(OnlineStore):
         ] = []
 
         for entity_key, _, string_value, distance, event_ts in rows:
-            result.append(_build_retrieve_online_document_record(
-                event_ts,
-                entity_key,
-                string_value if string_value else b"",
-                embedding,
-                distance,
-                config.entity_key_serialization_version
-            ))
+            result.append(
+                _build_retrieve_online_document_record(
+                    event_ts,
+                    entity_key,
+                    string_value if string_value else b"",
+                    embedding,
+                    distance,
+                    config.entity_key_serialization_version,
+                )
+            )
 
         return result
 

@@ -9,12 +9,15 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 from elasticsearch import Elasticsearch, helpers
 
 from feast import Entity, FeatureView, RepoConfig
-from feast.infra.key_encoding_utils import get_list_val_str, serialize_entity_key, deserialize_entity_key
+from feast.infra.key_encoding_utils import (
+    get_list_val_str,
+    serialize_entity_key,
+)
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel
-from feast.utils import to_naive_utc, _build_retrieve_online_document_record
+from feast.utils import _build_retrieve_online_document_record, to_naive_utc
 
 
 class ElasticSearchOnlineStoreConfig(FeastConfigBaseModel):
@@ -46,8 +49,7 @@ class ElasticSearchOnlineStoreConfig(FeastConfigBaseModel):
 class ElasticSearchOnlineStore(OnlineStore):
     _client: Optional[Elasticsearch] = None
 
-    def _get_client(self,
-                    config: RepoConfig) -> Elasticsearch:
+    def _get_client(self, config: RepoConfig) -> Elasticsearch:
         online_store_config = config.online_store
         assert isinstance(online_store_config, ElasticSearchOnlineStoreConfig)
 
@@ -73,9 +75,7 @@ class ElasticSearchOnlineStore(OnlineStore):
             )
             return self._client
 
-    def _bulk_batch_actions(self,
-                            table: FeatureView,
-                            batch: List[Dict[str, Any]]):
+    def _bulk_batch_actions(self, table: FeatureView, batch: List[Dict[str, Any]]):
         for row in batch:
             yield {
                 "_index": table.name,
@@ -84,13 +84,13 @@ class ElasticSearchOnlineStore(OnlineStore):
             }
 
     def online_write_batch(
-            self,
-            config: RepoConfig,
-            table: FeatureView,
-            data: List[
-                Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
-            ],
-            progress: Optional[Callable[[int], Any]],
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        data: List[
+            Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
+        ],
+        progress: Optional[Callable[[int], Any]],
     ) -> None:
         insert_values = []
         for entity_key, values, timestamp, created_ts in data:
@@ -120,16 +120,16 @@ class ElasticSearchOnlineStore(OnlineStore):
 
         batch_size = config.online_store.write_batch_size
         for i in range(0, len(insert_values), batch_size):
-            batch = insert_values[i: i + batch_size]
+            batch = insert_values[i : i + batch_size]
             actions = self._bulk_batch_actions(table, batch)
             helpers.bulk(self._get_client(config), actions)
 
     def online_read(
-            self,
-            config: RepoConfig,
-            table: FeatureView,
-            entity_keys: List[EntityKeyProto],
-            requested_features: Optional[List[str]] = None,
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        entity_keys: List[EntityKeyProto],
+        requested_features: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         if not requested_features:
             body = {
@@ -159,9 +159,7 @@ class ElasticSearchOnlineStore(OnlineStore):
             )
         return results
 
-    def create_index(self,
-                     config: RepoConfig,
-                     table: FeatureView):
+    def create_index(self, config: RepoConfig, table: FeatureView):
         """
         Create an index in ElasticSearch for the given table.
         TODO: This method can be exposed to users to customize the indexing functionality.
@@ -189,13 +187,13 @@ class ElasticSearchOnlineStore(OnlineStore):
         )
 
     def update(
-            self,
-            config: RepoConfig,
-            tables_to_delete: Sequence[FeatureView],
-            tables_to_keep: Sequence[FeatureView],
-            entities_to_delete: Sequence[Entity],
-            entities_to_keep: Sequence[Entity],
-            partial: bool,
+        self,
+        config: RepoConfig,
+        tables_to_delete: Sequence[FeatureView],
+        tables_to_keep: Sequence[FeatureView],
+        entities_to_delete: Sequence[Entity],
+        entities_to_keep: Sequence[Entity],
+        partial: bool,
     ):
         # implement the update method
         for table in tables_to_delete:
@@ -204,10 +202,10 @@ class ElasticSearchOnlineStore(OnlineStore):
             self.create_index(config, table)
 
     def teardown(
-            self,
-            config: RepoConfig,
-            tables: Sequence[FeatureView],
-            entities: Sequence[Entity],
+        self,
+        config: RepoConfig,
+        tables: Sequence[FeatureView],
+        entities: Sequence[Entity],
     ):
         project = config.project
         try:
@@ -218,14 +216,14 @@ class ElasticSearchOnlineStore(OnlineStore):
             raise
 
     def retrieve_online_documents(
-            self,
-            config: RepoConfig,
-            table: FeatureView,
-            requested_feature: str,
-            embedding: List[float],
-            top_k: int,
-            *args,
-            **kwargs,
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        requested_feature: str,
+        embedding: List[float],
+        top_k: int,
+        *args,
+        **kwargs,
     ) -> List[
         Tuple[
             Optional[datetime],
@@ -261,12 +259,14 @@ class ElasticSearchOnlineStore(OnlineStore):
             distance = row["_score"]
             timestamp = datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S.%f")
 
-            result.append(_build_retrieve_online_document_record(
-                timestamp,
-                entity_key,
-                base64.b64decode(feature_value),
-                str(vector_value),
-                distance,
-                config.entity_key_serialization_version
-            ))
+            result.append(
+                _build_retrieve_online_document_record(
+                    timestamp,
+                    entity_key,
+                    base64.b64decode(feature_value),
+                    str(vector_value),
+                    distance,
+                    config.entity_key_serialization_version,
+                )
+            )
         return result
