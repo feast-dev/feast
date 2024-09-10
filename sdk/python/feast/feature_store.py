@@ -1670,8 +1670,8 @@ class FeatureStore:
         # TODO currently not return the vector value since it is same as feature value, if embedding is supported,
         # the feature value can be raw text before embedded
         entity_key_vals = [feature[1] for feature in document_features]
-        document_feature_vals = [feature[2] for feature in document_features]
-        document_feature_distance_vals = [feature[4] for feature in document_features]
+        document_feature_vals = [feature[4] for feature in document_features]
+        document_feature_distance_vals = [feature[5] for feature in document_features]
         online_features_response = GetOnlineFeaturesResponse(results=[])
         utils._populate_result_rows_from_columnar(
             online_features_response=online_features_response,
