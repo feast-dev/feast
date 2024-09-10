@@ -1673,7 +1673,9 @@ class FeatureStore:
         entity_key_vals = [feature[1] for feature in document_features]
         join_key_values: Dict[str, List[ValueProto]] = {}
         for entity_key_val in entity_key_vals:
-            for join_key, entity_value in zip(entity_key_val.join_keys, entity_key_val.entity_values):
+            for join_key, entity_value in zip(
+                entity_key_val.join_keys, entity_key_val.entity_values
+            ):
                 if join_key not in join_key_values:
                     join_key_values[join_key] = []
                 join_key_values[join_key].append(entity_value)
@@ -1722,7 +1724,7 @@ class FeatureStore:
             if row_ts is not None:
                 row_ts_proto.FromDatetime(row_ts)
 
-            if feature_val is None or vector_value is None or distance_val is None:
+            if entity_key is None or feature_val is None or vector_value is None or distance_val is None:
                 entity_key = EntityKey()
                 feature_val = Value()
                 vector_value = Value()
