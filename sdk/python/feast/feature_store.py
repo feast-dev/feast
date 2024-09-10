@@ -78,9 +78,9 @@ from feast.protos.feast.serving.ServingService_pb2 import (
     FieldStatus,
     GetOnlineFeaturesResponse,
 )
-from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey
 from feast.protos.feast.types.Value_pb2 import RepeatedValue, Value
+from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RepoConfig, load_repo_config
 from feast.repo_contents import RepoContents
 from feast.saved_dataset import SavedDataset, SavedDatasetStorage, ValidationReference
@@ -1673,10 +1673,10 @@ class FeatureStore:
         entity_key_vals = [feature[1] for feature in document_features]
         join_key_values: Dict[str, List[ValueProto]] = {}
         for entity_key_val in entity_key_vals:
-            for entity_key in entity_key_val.join_keys():
-                if entity_key not in join_key_values:
-                    join_key_values[entity_key] = []
-                join_key_values[entity_key].append(entity_key_val[entity_key])
+            for join_key, entity_value in zip(entity_key_val.join_keys, entity_key_val.entity_values):
+                if join_key not in join_key_values:
+                    join_key_values[join_key] = []
+                join_key_values[join_key].append(entity_value)
 
         document_feature_vals = [feature[4] for feature in document_features]
         document_feature_distance_vals = [feature[5] for feature in document_features]
