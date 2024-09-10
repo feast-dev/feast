@@ -392,6 +392,7 @@ setup(
         "sqlite_vec": SQLITE_VEC_REQUIRED,
         "singlestore": SINGLESTORE_REQUIRED,
         "opentelemetry": OPENTELEMETRY,
+        "faiss": FAISS_REQUIRED,
     },
     include_package_data=True,
     license="Apache",
