@@ -177,7 +177,8 @@ class SqliteOnlineStore(OnlineStore):
                             ),
                         )
 
-                        try:
+                        # try:
+                        if True:
                             conn.execute(
                                 f"""INSERT OR IGNORE INTO {table_name}
                                 (entity_key, feature_name, value, event_ts, created_ts)
@@ -190,13 +191,17 @@ class SqliteOnlineStore(OnlineStore):
                                     created_ts,
                                 ),
                             )
-                        except Exception as e:
+                        else:
+                        # except Exception as e:
                             print(
                                 f"error writing online batch for {table_name} - {feature_name} = {val}\n {e}"
                             )
                             print(
                                 f'querying all records for table: {conn.execute(f"select * from {table_name}").fetchall()}'
                             )
+                            r = conn.execute("""
+                            SELECT * FROM sqlite_master WHERE type='table' and name = 'test_on_demand_python_transformation_python_stored_writes_feature_view';
+                                """)
                 if progress:
                     progress(1)
 
