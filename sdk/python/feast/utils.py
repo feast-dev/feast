@@ -1076,10 +1076,8 @@ def _build_retrieve_online_document_record(
             entity_key_serialization_version=entity_key_serialization_version,
         )
 
-    if isinstance(value, str):
-        value = bytes(value)
     feature_value_proto = ValueProto()
-    feature_value_proto.ParseFromString(value)
+    feature_value_proto.ParseFromString(bytes(value))
 
     if isinstance(vector_value, str):
         vector_value_proto = ValueProto(string_val=vector_value)
