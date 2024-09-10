@@ -37,6 +37,7 @@ from feast.infra.utils.postgres.postgres_config import ConnectionType, PostgreSQ
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RepoConfig
+from utils import _build_retrieve_online_document_record
 
 SUPPORTED_DISTANCE_METRICS_DICT = {
     "cosine": "<=>",
@@ -64,7 +65,8 @@ class PostgreSQLOnlineStore(OnlineStore):
     _conn_pool_async: Optional[AsyncConnectionPool] = None
 
     @contextlib.contextmanager
-    def _get_conn(self, config: RepoConfig) -> Generator[Connection, Any, Any]:
+    def _get_conn(self,
+                  config: RepoConfig) -> Generator[Connection, Any, Any]:
         assert config.online_store.type == "postgres"
 
         if config.online_store.conn_type == ConnectionType.pool:
@@ -81,7 +83,8 @@ class PostgreSQLOnlineStore(OnlineStore):
 
     @contextlib.asynccontextmanager
     async def _get_conn_async(
-        self, config: RepoConfig
+            self,
+            config: RepoConfig
     ) -> AsyncGenerator[AsyncConnection, Any]:
         if config.online_store.conn_type == ConnectionType.pool:
             if not self._conn_pool_async:
@@ -98,13 +101,13 @@ class PostgreSQLOnlineStore(OnlineStore):
             yield self._conn_async
 
     def online_write_batch(
-        self,
-        config: RepoConfig,
-        table: FeatureView,
-        data: List[
-            Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
-        ],
-        progress: Optional[Callable[[int], Any]],
+            self,
+            config: RepoConfig,
+            table: FeatureView,
+            data: List[
+                Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
+            ],
+            progress: Optional[Callable[[int], Any]],
     ) -> None:
         # Format insert values
         insert_values = []
@@ -156,11 +159,11 @@ class PostgreSQLOnlineStore(OnlineStore):
             progress(len(data))
 
     def online_read(
-        self,
-        config: RepoConfig,
-        table: FeatureView,
-        entity_keys: List[EntityKeyProto],
-        requested_features: Optional[List[str]] = None,
+            self,
+            config: RepoConfig,
+            table: FeatureView,
+            entity_keys: List[EntityKeyProto],
+            requested_features: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         keys = self._prepare_keys(entity_keys, config.entity_key_serialization_version)
         query, params = self._construct_query_and_params(
@@ -174,11 +177,11 @@ class PostgreSQLOnlineStore(OnlineStore):
         return self._process_rows(keys, rows)
 
     async def online_read_async(
-        self,
-        config: RepoConfig,
-        table: FeatureView,
-        entity_keys: List[EntityKeyProto],
-        requested_features: Optional[List[str]] = None,
+            self,
+            config: RepoConfig,
+            table: FeatureView,
+            entity_keys: List[EntityKeyProto],
+            requested_features: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         keys = self._prepare_keys(entity_keys, config.entity_key_serialization_version)
         query, params = self._construct_query_and_params(
@@ -194,10 +197,10 @@ class PostgreSQLOnlineStore(OnlineStore):
 
     @staticmethod
     def _construct_query_and_params(
-        config: RepoConfig,
-        table: FeatureView,
-        keys: List[bytes],
-        requested_features: Optional[List[str]] = None,
+            config: RepoConfig,
+            table: FeatureView,
+            keys: List[bytes],
+            requested_features: Optional[List[str]] = None,
     ) -> Tuple[sql.Composed, Union[Tuple[List[bytes], List[str]], Tuple[List[bytes]]]]:
         """Construct the SQL query based on the given parameters."""
         if requested_features:
@@ -224,7 +227,8 @@ class PostgreSQLOnlineStore(OnlineStore):
 
     @staticmethod
     def _prepare_keys(
-        entity_keys: List[EntityKeyProto], entity_key_serialization_version: int
+            entity_keys: List[EntityKeyProto],
+            entity_key_serialization_version: int
     ) -> List[bytes]:
         """Prepare all keys in a list to make fewer round trips to the database."""
         return [
@@ -237,7 +241,8 @@ class PostgreSQLOnlineStore(OnlineStore):
 
     @staticmethod
     def _process_rows(
-        keys: List[bytes], rows: List[Tuple]
+            keys: List[bytes],
+            rows: List[Tuple]
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         """Transform the retrieved rows in the desired output.
 
@@ -266,13 +271,13 @@ class PostgreSQLOnlineStore(OnlineStore):
         return result
 
     def update(
-        self,
-        config: RepoConfig,
-        tables_to_delete: Sequence[FeatureView],
-        tables_to_keep: Sequence[FeatureView],
-        entities_to_delete: Sequence[Entity],
-        entities_to_keep: Sequence[Entity],
-        partial: bool,
+            self,
+            config: RepoConfig,
+            tables_to_delete: Sequence[FeatureView],
+            tables_to_keep: Sequence[FeatureView],
+            entities_to_delete: Sequence[Entity],
+            entities_to_keep: Sequence[Entity],
+            partial: bool,
     ):
         project = config.project
         schema_name = config.online_store.db_schema or config.online_store.user
@@ -334,10 +339,10 @@ class PostgreSQLOnlineStore(OnlineStore):
             conn.commit()
 
     def teardown(
-        self,
-        config: RepoConfig,
-        tables: Sequence[FeatureView],
-        entities: Sequence[Entity],
+            self,
+            config: RepoConfig,
+            tables: Sequence[FeatureView],
+            entities: Sequence[Entity],
     ):
         project = config.project
         try:
@@ -350,16 +355,17 @@ class PostgreSQLOnlineStore(OnlineStore):
             raise
 
     def retrieve_online_documents(
-        self,
-        config: RepoConfig,
-        table: FeatureView,
-        requested_feature: str,
-        embedding: List[float],
-        top_k: int,
-        distance_metric: Optional[str] = "L2",
+            self,
+            config: RepoConfig,
+            table: FeatureView,
+            requested_feature: str,
+            embedding: List[float],
+            top_k: int,
+            distance_metric: Optional[str] = "L2",
     ) -> List[
         Tuple[
             Optional[datetime],
+            Optional[EntityKeyProto],
             Optional[ValueProto],
             Optional[ValueProto],
             Optional[ValueProto],
@@ -397,6 +403,7 @@ class PostgreSQLOnlineStore(OnlineStore):
         result: List[
             Tuple[
                 Optional[datetime],
+                Optional[EntityKeyProto],
                 Optional[ValueProto],
                 Optional[ValueProto],
                 Optional[ValueProto],
@@ -430,37 +437,21 @@ class PostgreSQLOnlineStore(OnlineStore):
                 (query_embedding_str,),
             )
             rows = cur.fetchall()
-
-            for (
-                entity_key,
-                feature_name,
-                value,
-                vector_value,
-                distance,
-                event_ts,
-            ) in rows:
-                # TODO Deserialize entity_key to return the entity in response
-                # entity_key_proto = EntityKeyProto()
-                # entity_key_proto_bin = bytes(entity_key)
-
-                feature_value_proto = ValueProto()
-                feature_value_proto.ParseFromString(bytes(value))
-
-                vector_value_proto = ValueProto(string_val=vector_value)
-                distance_value_proto = ValueProto(float_val=distance)
-                result.append(
-                    (
-                        event_ts,
-                        feature_value_proto,
-                        vector_value_proto,
-                        distance_value_proto,
-                    )
-                )
+            for entity_key, _, feature_val, vector_value, distance_val, event_ts in rows:
+                result.append(_build_retrieve_online_document_record(
+                    event_ts,
+                    entity_key,
+                    feature_val,
+                    vector_value,
+                    distance_val,
+                    config.entity_key_serialization_version
+                ))
 
         return result
 
 
-def _table_id(project: str, table: FeatureView) -> str:
+def _table_id(project: str,
+              table: FeatureView) -> str:
     return f"{project}_{table.name}"
 
 

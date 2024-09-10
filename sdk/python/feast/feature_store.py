@@ -85,6 +85,7 @@ from feast.saved_dataset import SavedDataset, SavedDatasetStorage, ValidationRef
 from feast.stream_feature_view import StreamFeatureView
 from feast.utils import _utc_now
 from feast.version import get_version
+from protos.feast.types.EntityKey_pb2 import EntityKey
 
 warnings.simplefilter("once", DeprecationWarning)
 
@@ -1666,20 +1667,19 @@ class FeatureStore:
             distance_metric,
         )
 
-        # TODO Refactor to better way of populating result
-        # TODO populate entity in the response after returning entity in document_features is supported
         # TODO currently not return the vector value since it is same as feature value, if embedding is supported,
         # the feature value can be raw text before embedded
+        entity_key_vals = [feature[1] for feature in document_features]
         document_feature_vals = [feature[2] for feature in document_features]
         document_feature_distance_vals = [feature[4] for feature in document_features]
         online_features_response = GetOnlineFeaturesResponse(results=[])
         utils._populate_result_rows_from_columnar(
             online_features_response=online_features_response,
-            data={requested_feature: document_feature_vals},
-        )
-        utils._populate_result_rows_from_columnar(
-            online_features_response=online_features_response,
-            data={"distance": document_feature_distance_vals},
+            data={
+                "entity_key": entity_key_vals,
+                requested_feature: document_feature_vals,
+                "distance": document_feature_distance_vals
+            },
         )
         return OnlineResponse(online_features_response)
 
@@ -1691,7 +1691,7 @@ class FeatureStore:
         query: List[float],
         top_k: int,
         distance_metric: Optional[str],
-    ) -> List[Tuple[Timestamp, "FieldStatus.ValueType", Value, Value, Value]]:
+    ) -> List[Tuple[Timestamp, EntityKey, "FieldStatus.ValueType", Value, Value, Value]]:
         """
         Search and return document features from the online document store.
         """
@@ -1707,7 +1707,7 @@ class FeatureStore:
         read_row_protos = []
         row_ts_proto = Timestamp()
 
-        for row_ts, feature_val, vector_value, distance_val in documents:
+        for row_ts, entity_key, feature_val, vector_value, distance_val in documents:
             # Reset timestamp to default or update if row_ts is not None
             if row_ts is not None:
                 row_ts_proto.FromDatetime(row_ts)
@@ -1721,7 +1721,7 @@ class FeatureStore:
                 status = FieldStatus.PRESENT
 
             read_row_protos.append(
-                (row_ts_proto, status, feature_val, vector_value, distance_val)
+                (row_ts_proto, entity_key, status, feature_val, vector_value, distance_val)
             )
         return read_row_protos
 
