@@ -24,7 +24,7 @@ import pandas as pd
 import pyarrow
 from dateutil.tz import tzlocal
 from google.protobuf.timestamp_pb2 import Timestamp
-from infra.key_encoding_utils import deserialize_entity_key
+from feast.infra.key_encoding_utils import deserialize_entity_key
 
 from feast.constants import FEAST_FS_YAML_FILE_PATH_ENV_NAME
 from feast.entity import Entity
