@@ -443,11 +443,11 @@ class PostgreSQLOnlineStore(OnlineStore):
             ) in rows:
                 result.append(
                     _build_retrieve_online_document_record(
-                        event_ts,
                         entity_key,
                         feature_val,
                         vector_value,
                         distance_val,
+                        event_ts,
                         config.entity_key_serialization_version,
                     )
                 )

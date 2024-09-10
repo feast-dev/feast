@@ -261,11 +261,11 @@ class ElasticSearchOnlineStore(OnlineStore):
 
             result.append(
                 _build_retrieve_online_document_record(
-                    timestamp,
                     entity_key,
                     base64.b64decode(feature_value),
                     str(vector_value),
                     distance,
+                    timestamp,
                     config.entity_key_serialization_version,
                 )
             )

@@ -1054,11 +1054,11 @@ def _utc_now() -> datetime:
 
 
 def _build_retrieve_online_document_record(
-    event_ts: datetime,
     entity_key: str,
-    value: Union[str, bytes],
+    feature_value: Union[str, bytes],
     vector_value: Union[str, List[float]],
-    distance: float,
+    distance_value: float,
+    event_timestamp: datetime,
     entity_key_serialization_version: int,
 ) -> Tuple[
     Optional[datetime],
@@ -1077,16 +1077,16 @@ def _build_retrieve_online_document_record(
         )
 
     feature_value_proto = ValueProto()
-    feature_value_proto.ParseFromString(bytes(value))
+    feature_value_proto.ParseFromString(bytes(feature_value))
 
     if isinstance(vector_value, str):
         vector_value_proto = ValueProto(string_val=vector_value)
     else:
         vector_value_proto = ValueProto(float_list_val=FloatListProto(val=vector_value))
 
-    distance_value_proto = ValueProto(float_val=distance)
+    distance_value_proto = ValueProto(float_val=distance_value)
     return (
-        event_ts,
+        event_timestamp,
         entity_key_proto,
         feature_value_proto,
         vector_value_proto,

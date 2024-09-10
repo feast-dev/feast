@@ -1,10 +1,11 @@
+import abc
 import contextlib
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
 import duckdb
 from infra.key_encoding_utils import serialize_entity_key
-from utils import _build_retrieve_online_document_results
+from utils import _build_retrieve_online_document_results, _build_retrieve_online_document_record
 
 from feast.feature_view import FeatureView
 from feast.infra.online_stores.online_store import OnlineStore
@@ -22,6 +23,8 @@ class DuckDBOnlineStoreConfig:
 
 
 class DuckDBOnlineStore(OnlineStore):
+
+    @abc.abstractmethod
     async def online_read_async(
         self,
         config: RepoConfig,
@@ -45,9 +48,9 @@ class DuckDBOnlineStore(OnlineStore):
         self, config: RepoConfig, table_name: str, vector_column: str
     ) -> None:
         """Create an HNSW index for vector similarity search."""
-        if not config.enable_vector_search:
+        if not config.online_store.enable_vector_search:
             raise ValueError("Vector search is not enabled in the configuration.")
-        distance_metric = config.distance_metric
+        distance_metric = config.online_store.distance_metric
 
         with self._get_conn(None) as conn:
             conn.execute(
@@ -145,10 +148,22 @@ class DuckDBOnlineStore(OnlineStore):
             ORDER BY array_distance(vec, ?::FLOAT[]) LIMIT ?;
             """
             rows = conn.execute(query, (embedding, top_k)).fetchall()
-            result = _build_retrieve_online_document_results(
-                rows,
-                entity_key_serialization_version=config.entity_key_serialization_version,
-            )
+            for (
+                entity_key,
+                _,
+                feature_val,
+                vector_value,
+                distance_val,
+                event_ts,
+            ) in rows:
+                result.append(_build_retrieve_online_document_record(
+                    entity_key=entity_key,
+                    feature_value=feature_val,
+                    vector_value=vector_value,
+                    distance_value=distance_val,
+                    event_timestamp=event_ts,
+                    entity_key_serialization_version=config.entity_key_serialization_version,
+                ))
 
         return result
 

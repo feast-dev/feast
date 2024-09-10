@@ -395,11 +395,11 @@ class SqliteOnlineStore(OnlineStore):
         for entity_key, _, string_value, distance, event_ts in rows:
             result.append(
                 _build_retrieve_online_document_record(
-                    event_ts,
                     entity_key,
                     string_value if string_value else b"",
                     embedding,
                     distance,
+                    event_ts,
                     config.entity_key_serialization_version,
                 )
             )
