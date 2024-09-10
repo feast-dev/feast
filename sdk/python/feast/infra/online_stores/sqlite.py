@@ -153,6 +153,8 @@ class SqliteOnlineStore(OnlineStore):
                         )
 
                     else:
+                        if table_name == 'test_on_demand_python_transformation_python_stored_writes_feature_view':
+                            print(f"writing online batch for {table_name} - {feature_name} = {val}")
                         conn.execute(
                             f"""
                                 UPDATE {table_name}
@@ -184,7 +186,8 @@ class SqliteOnlineStore(OnlineStore):
                             ),
                         )
                         except Exception as e:
-                            pass
+                            print(f"error writing online batch for {table_name} - {feature_name} = {val}\n {e}")
+                            print(f'querying all records for table: {conn.execute(f"select * from {table_name}").fetchall()}')
                 if progress:
                     progress(1)
 
@@ -251,6 +254,7 @@ class SqliteOnlineStore(OnlineStore):
         project = config.project
 
         for table in tables_to_keep:
+            print(f'updating {_table_id(project, table)}')
             conn.execute(
                 f"CREATE TABLE IF NOT EXISTS {_table_id(project, table)} (entity_key BLOB, feature_name TEXT, value BLOB, vector_value BLOB, event_ts timestamp, created_ts timestamp,  PRIMARY KEY(entity_key, feature_name))"
             )
