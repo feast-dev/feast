@@ -1070,14 +1070,18 @@ def _build_retrieve_online_document_record(
     if entity_key_serialization_version < 3:
         entity_key_proto = None
     else:
-        entity_key_proto_bin = bytes(entity_key)
+        entity_key_proto_bin = entity_key.encode('utf-8')
         entity_key_proto = deserialize_entity_key(
             entity_key_proto_bin,
             entity_key_serialization_version=entity_key_serialization_version,
         )
 
     feature_value_proto = ValueProto()
-    feature_value_proto.ParseFromString(bytes(feature_value))
+
+    if isinstance(feature_value, str):
+        feature_value_proto.ParseFromString(feature_value.encode('utf-8'))
+    else:
+        feature_value_proto.ParseFromString(feature_value)
 
     if isinstance(vector_value, str):
         vector_value_proto = ValueProto(string_val=vector_value)
