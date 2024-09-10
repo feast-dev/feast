@@ -3,7 +3,7 @@ import logging
 import jwt
 
 from feast.permissions.auth.auth_type import AuthType
-from feast.permissions.auth_model import AuthConfig, OidcAuthConfig
+from feast.permissions.auth_model import AuthConfig
 from feast.permissions.client.auth_client_manager import AuthenticationClientManager
 
 logger = logging.getLogger(__name__)
@@ -11,8 +11,6 @@ logger = logging.getLogger(__name__)
 
 class IntraCommAuthClientManager(AuthenticationClientManager):
     def __init__(self, auth_config: AuthConfig, intra_communication_base64: str):
-        assert isinstance(auth_config, OidcAuthConfig)
-
         self.auth_config = auth_config
         self.intra_communication_base64 = intra_communication_base64
 
@@ -27,7 +25,7 @@ class IntraCommAuthClientManager(AuthenticationClientManager):
             }
         else:
             raise RuntimeError(
-                f"No Auth client manager implemented for the auth type:${self.auth_config.type}"
+                f"No Auth client manager implemented for the auth type:{self.auth_config.type}"
             )
 
         return jwt.encode(payload, "")
