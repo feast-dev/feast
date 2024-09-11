@@ -23,7 +23,9 @@ def test_authentication_client_manager_factory(auth_config):
     raw_config = yaml.safe_load(auth_config)
     auth_config = AuthConfig(type=raw_config["auth"]["type"])
 
-    authentication_client_manager_factory = AuthenticationClientManagerFactory(auth_config)
+    authentication_client_manager_factory = AuthenticationClientManagerFactory(
+        auth_config
+    )
 
     authentication_client_manager = (
         authentication_client_manager_factory.get_auth_client_manager()
