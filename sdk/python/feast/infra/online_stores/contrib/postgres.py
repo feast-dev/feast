@@ -16,7 +16,6 @@ from typing import (
     Union,
 )
 
-import numpy as np
 from psycopg import AsyncConnection, sql
 from psycopg.connection import Connection
 from psycopg_pool import AsyncConnectionPool, ConnectionPool
