@@ -20,7 +20,6 @@ import numpy as np
 from psycopg import AsyncConnection, sql
 from psycopg.connection import Connection
 from psycopg_pool import AsyncConnectionPool, ConnectionPool
-from feast.utils import _build_retrieve_online_document_record
 
 from feast import Entity
 from feast.feature_view import FeatureView
@@ -39,6 +38,7 @@ from feast.infra.utils.postgres.postgres_config import ConnectionType, PostgreSQ
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RepoConfig
+from feast.utils import _build_retrieve_online_document_record
 
 SUPPORTED_DISTANCE_METRICS_DICT = {
     "cosine": "<=>",
