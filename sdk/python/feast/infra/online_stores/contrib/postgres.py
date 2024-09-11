@@ -16,10 +16,11 @@ from typing import (
     Union,
 )
 
+import numpy as np
 from psycopg import AsyncConnection, sql
 from psycopg.connection import Connection
 from psycopg_pool import AsyncConnectionPool, ConnectionPool
-from utils import _build_retrieve_online_document_record
+from feast.utils import _build_retrieve_online_document_record
 
 from feast import Entity
 from feast.feature_view import FeatureView
@@ -394,7 +395,7 @@ class PostgreSQLOnlineStore(OnlineStore):
 
         distance_metric_sql = SUPPORTED_DISTANCE_METRICS_DICT[distance_metric]
         # Convert the embedding to a string to be used in postgres vector search
-        query_embedding_str = f"[{','.join(str(el) for el in embedding)}]"
+        query_embedding_array = np.array(embedding)
 
         result: List[
             Tuple[
@@ -418,19 +419,19 @@ class PostgreSQLOnlineStore(OnlineStore):
                         feature_name,
                         value,
                         vector_value,
-                        vector_value {distance_metric_sql} %s as distance,
+                        vector_value {distance_metric_sql} %s::vector as distance,
                         event_ts FROM {table_name}
                     WHERE feature_name = {feature_name}
                     ORDER BY distance
                     LIMIT {top_k};
                     """
                 ).format(
-                    distance_metric_sql=distance_metric_sql,
+                    distance_metric_sql=sql.SQL(distance_metric_sql),
                     table_name=sql.Identifier(table_name),
                     feature_name=sql.Literal(requested_feature),
                     top_k=sql.Literal(top_k),
                 ),
-                (query_embedding_str,),
+                (embedding,),
             )
             rows = cur.fetchall()
             for (

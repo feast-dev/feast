@@ -1054,7 +1054,7 @@ def _utc_now() -> datetime:
 
 
 def _build_retrieve_online_document_record(
-    entity_key: str,
+    entity_key: Union[str, bytes],
     feature_value: Union[str, bytes],
     vector_value: Union[str, List[float]],
     distance_value: float,
@@ -1070,7 +1070,10 @@ def _build_retrieve_online_document_record(
     if entity_key_serialization_version < 3:
         entity_key_proto = None
     else:
-        entity_key_proto_bin = entity_key.encode("utf-8")
+        if isinstance(entity_key, str):
+            entity_key_proto_bin = entity_key.encode("utf-8")
+        else:
+            entity_key_proto_bin = entity_key
         entity_key_proto = deserialize_entity_key(
             entity_key_proto_bin,
             entity_key_serialization_version=entity_key_serialization_version,

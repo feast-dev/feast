@@ -861,6 +861,9 @@ def test_retrieve_online_documents(environment, fake_document_data):
     ).to_dict()
     assert len(documents["embedding_float"]) == 2
 
+    # assert returned the entity_id
+    assert len(documents["item_id"]) == 2
+
     documents = fs.retrieve_online_documents(
         feature="item_embeddings:embedding_float",
         query=[1.0, 2.0],
