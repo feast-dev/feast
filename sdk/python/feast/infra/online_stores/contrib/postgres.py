@@ -394,8 +394,6 @@ class PostgreSQLOnlineStore(OnlineStore):
             )
 
         distance_metric_sql = SUPPORTED_DISTANCE_METRICS_DICT[distance_metric]
-        # Convert the embedding to a string to be used in postgres vector search
-        query_embedding_array = np.array(embedding)
 
         result: List[
             Tuple[
