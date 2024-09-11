@@ -1,7 +1,6 @@
 import base64
 import json
 import sys
-import tempfile
 import traceback
 from pathlib import Path
 
@@ -27,8 +26,10 @@ def handler(event, context):
 
         config_bytes = base64.b64decode(config_base64)
 
-        # Create a new unique directory for writing feature_store.yaml
-        repo_path = Path(tempfile.mkdtemp())
+        # Create a directory for writing feature_store.yaml
+        repo_path = Path("/feature_repo")
+        if not repo_path.exists():
+            repo_path.mkdir(parents=True, exist_ok=True)
 
         with open(repo_path / "feature_store.yaml", "wb") as f:
             f.write(config_bytes)
