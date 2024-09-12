@@ -224,6 +224,48 @@ tags:
   key2: value2
 
 ```
+### Permission check
+The `permissions check` command is used to identify resources that lack the appropriate permissions based on their type, name, or tags.
+
+This command is particularly useful for administrators when roles, actions, or permissions have been modified or newly configured. By running this command, administrators can easily verify which resources and actions are not protected by any permission configuration, ensuring that proper security measures are in place.
+
+```text
+> feast permissions check
+
+
+The following resources are not secured by any permission configuration:
+NAME                         TYPE
+driver                       Entity
+driver_hourly_stats_fresh    FeatureView
+The following actions are not secured by any permission configuration (Note: this might not be a security concern, depending on the used APIs):
+NAME                         TYPE                 UNSECURED ACTIONS
+driver                       Entity               CREATE
+                                                  DESCRIBE
+                                                  UPDATE
+                                                  DELETE
+                                                  READ_ONLINE
+                                                  READ_OFFLINE
+                                                  WRITE_ONLINE
+                                                  WRITE_OFFLINE
+driver_hourly_stats_fresh    FeatureView          CREATE
+                                                  DESCRIBE
+                                                  UPDATE
+                                                  DELETE
+                                                  READ_ONLINE
+                                                  READ_OFFLINE
+                                                  WRITE_ONLINE
+                                                  WRITE_OFFLINE
+
+Based on the above results, the administrator can reassess the permissions configuration and make any necessary adjustments to meet their security requirements.
+
+If no resources are accessible publicly, the permissions check command will return the following response:
+> feast permissions check
+The following resources are not secured by any permission configuration:
+NAME    TYPE
+The following actions are not secured by any permission configuration (Note: this might not be a security concern, depending on the used APIs):
+NAME    TYPE    UNSECURED ACTIONS
+```
+
 
 ### List of the configured roles
 List all the configured roles
