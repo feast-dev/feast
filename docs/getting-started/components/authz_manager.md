@@ -44,9 +44,9 @@ The server, in turn, uses the same OIDC server to validate the token and extract
 
 Some assumptions are made in the OIDC server configuration:
 * The OIDC token refers to a client with roles matching the RBAC roles of the configured `Permission`s (*)
-* The roles are exposed in the access token passed to the server 
-* JWT token is expected to have verified signature and not expired. Feast oidc token parser logic validates for `verify_signature` and `verify_exp` so make sure that given OIDC provider is configured to meet this requirement.
-* preferred_username should be part of the jwt token claim.
+* The roles are exposed in the access token that is passed to the server
+* The JWT token is expected to have a verified signature and not be expired. The Feast OIDC token parser logic validates for `verify_signature` and `verify_exp` so make sure that the given OIDC provider is configured to meet these requirements.
+* The preferred_username should be part of the JWT token claim.
 
 
 (*) Please note that **the role match is case-sensitive**, e.g. the name of the role in the OIDC server and in the `Permission` configuration
