@@ -176,7 +176,7 @@ class GraphRegistry(CachingRegistry):
             if self._get_last_updated_metadata(project) is not None:
                 last_updated_timestamps.append(self._get_last_updated_metadata(project))
         
-        print(f"Last updated timestamps: {last_updated_timestamps}")
+        # print(f"Last updated timestamps: {last_updated_timestamps}")
         if last_updated_timestamps:
             r.last_updated.FromDatetime(max(last_updated_timestamps))
         
@@ -345,7 +345,7 @@ class GraphRegistry(CachingRegistry):
                     node = result.single()
                 
                 if node:
-                    print(f"Node: {node}")
+                    # print(f"Node: {node}")
                     obj_proto = obj.to_proto()
                     '''
                     if proto_field_name in [
@@ -505,6 +505,59 @@ class GraphRegistry(CachingRegistry):
                 if just_create:
                     return
                 
+                # Add description to nodes other than Fields
+                if hasattr(obj, "description") and not isinstance(obj, Field):
+                    tx.run(
+                        f"""
+                        MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(n:{label} {{ {id_field_name}: $name }})
+                        SET n.description = $description
+                        """, 
+                        name=name, 
+                        project=project, 
+                        description=obj.description
+                    )
+
+                # Add owner relationship to nodes other than Fields
+                if hasattr(obj, "owner") and obj.owner != "":
+                    # Get existing owner
+                    result = tx.run(
+                        f"""
+                        MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(n:{label} {{ {id_field_name}: $name }})
+                        MATCH (o:Owner)-[:OWNS]->(n)
+                        RETURN o.name AS name
+                        """,
+                        name=name,
+                        project=project
+                    )
+                    owner = result.data()
+                    print(f"Current owner: {owner}")
+                    if owner != obj.owner:
+                        # Delete relationship to previous owner (if needed)
+                        # Create relationship to current owner (and node if needed)
+                        tx.run(
+                            f"""
+                            MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(n:{label} {{ {id_field_name}: $name }})
+                            OPTIONAL MATCH (o:Owner)-[r:OWNS]->(n)
+                            DELETE r
+                            MERGE (co:Owner {{ name: $owner}})
+                            MERGE (co)-[:OWNS]->(n)
+                            """, 
+                            name=name, 
+                            project=project,
+                            owner=obj.owner
+                        )
+                else:
+                    # Delete relationship to previous owner (if needed)
+                    tx.run(
+                            f"""
+                            MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(n:{label} {{ {id_field_name}: $name }})
+                            OPTIONAL MATCH (o:Owner)-[r:OWNS]->(n)
+                            DELETE r
+                            """, 
+                            name=name, 
+                            project=project
+                        )            
+
                 # Add relationship to tags if applicable
                 if hasattr(obj, "tags"):
                     if parents and "ds" in parents:
@@ -1184,7 +1237,7 @@ class GraphRegistry(CachingRegistry):
                             for dep_name in dep:
                                 self._create_field_relationship(feature, dep_name, project, obj.name)  
 
-                # Add relationship from FeatureService to FeatureView/OnDemandFeatureView
+                # Add relationship from FeatureService to FeatureView/OnDemandFeatureView and Fields
                 if isinstance(obj, (FeatureService)):
                     # Get existing relationships
                     result = tx.run(
@@ -1231,6 +1284,106 @@ class GraphRegistry(CachingRegistry):
                             fvs_to_add=list(fvs_to_add),
                             created_time=datetime.now()
                         )
+                    
+                    # Get existing relationships
+                    result = tx.run(
+                        f"""
+                        MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(n:{label} {{ {id_field_name}: $name }})
+                        MATCH (n)-[:SERVES]->(f:Field)
+                        OPTIONAL MATCH (s:DataSource)-[:HAS]->(f)
+                        OPTIONAL MATCH (fv:OnDemandFeatureView)-[:PRODUCES]->(f)
+                        RETURN f.field_name AS field, s.data_source_name AS source, fv.feature_view_name AS odfv
+                        """,
+                        name=name,
+                        project=project
+                    )
+                    relationships = result.data()
+                    relationships = [frozenset(r.items()) for r in relationships]
+                    print(f"Existing relationships: {relationships}")
+                    features = []
+                    for fv in obj._features:
+                        if isinstance(fv, (FeatureView)):
+                            print(f"FV Projection: {fv.projection.name} features: {fv.projection.features}")
+                            source = fv.stream_source or fv.batch_source
+                            print(f"FV Projection: {fv.projection.name} source: {source.name}")
+                            for f in fv.projection.features:
+                                features.append({'field': f.name, 'source': source.name, 'odfv': None})
+                        elif isinstance(fv, (OnDemandFeatureView)):
+                            print(f"ODFV Projection: {fv.projection.name} features: {fv.projection.features}")
+                            for f in fv.projection.features:
+                                features.append({'field': f.name, 'odfv': fv.projection.name, 'source': None})
+                    fields = [frozenset(f.items()) for f in features]
+                    print(f"New relationships: {features}")
+                    fields_to_remove = set(relationships) - set(fields)
+                    fields_to_add = set(fields) - set(relationships)
+
+                    # Remove old relationships
+                    if fields_to_remove:
+                        fields_to_remove = [dict(item) for item in fields_to_remove]
+                        for f in fields_to_remove:
+                            print(f"Remove field: {f}")
+                            if f["source"] is not None:
+                                tx.run(
+                                    f"""
+                                    MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(n:{label} {{ {id_field_name}: $name }})
+                                    MATCH (n)-[r:SERVES]->(f:Field {{ field_name: $field_name}})
+                                    MATCH (s:DataSource {{ data_source_name: $source_name}})-[:HAS]->(f)
+                                    DELETE r
+                                    """,
+                                    name=name,
+                                    project=project,
+                                    field_name=f["field"],
+                                    source_name=f["source"]
+                                )
+                            elif f["odfv"] is not None:
+                                tx.run(
+                                    f"""
+                                    MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(n:{label} {{ {id_field_name}: $name }})
+                                    MATCH (n)-[r:SERVES]->(f:Field {{ field_name: $field_name}})
+                                    MATCH (fv:OnDemandFeatureView {{ feature_view_name: $odfv_name}})-[:PRODUCES]->(f:Field {{ field_name: $field_name}})
+                                    DELETE r
+                                    """,
+                                    name=name,
+                                    project=project,
+                                    field_name=f["field"],
+                                    odfv_name=f["odfv"],
+                                    created_time=datetime.now()
+                                )
+
+                    # Add new relationships
+                    if fields_to_add:
+                        fields_to_add = [dict(item) for item in fields_to_add]
+                        for f in fields_to_add:
+                            print(f"Add field: {f}")
+                            if f["source"] is not None:
+                                tx.run(
+                                    f"""
+                                    MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(n:{label} {{ {id_field_name}: $name }})
+                                    MATCH (s:DataSource {{ data_source_name: $source_name}})-[:HAS]->(f:Field {{ field_name: $field_name}})
+                                    MERGE (n)-[r:SERVES]->(f)
+                                    ON CREATE SET r.created_at = $created_time
+                                    """,
+                                    name=name,
+                                    project=project,
+                                    field_name=f["field"],
+                                    source_name=f["source"],
+                                    created_time=datetime.now()
+                                )
+                            elif f["odfv"] is not None:
+                                tx.run(
+                                    f"""
+                                    MATCH (p:Project {{ project_id: $project }})-[:CONTAINS]->(n:{label} {{ {id_field_name}: $name }})
+                                    MATCH (fv:OnDemandFeatureView {{ feature_view_name: $odfv_name}})-[:PRODUCES]->(f:Field {{ field_name: $field_name}})
+                                    MERGE (n)-[r:SERVES]->(f)
+                                    ON CREATE SET r.created_at = $created_time
+                                    """,
+                                    name=name,
+                                    project=project,
+                                    field_name=f["field"],
+                                    odfv_name=f["odfv"],
+                                    created_time=datetime.now()
+                                )
+
                     '''
                     for view in obj._features: 
                         # Check if the relationship already exists before creating it  
@@ -1398,11 +1551,12 @@ class GraphRegistry(CachingRegistry):
 
     def apply_feature_service(self, feature_service: FeatureService, project: str, commit: bool = True):
         # TODO: Apply feature views
-        #print(f"Feature View Projections: {feature_service.feature_view_projections}")
+        # print(f"Feature View Projections: {feature_service.feature_view_projections}")
 
         # TODO: Apply (on demand) feature views
         print(f"Feature service _features: {feature_service._features}")
         for fv in feature_service._features:
+            # print(f"Projection: {fv.projection.name} features: {fv.projection.features}")
             self.apply_feature_view(
                 feature_view=fv,
                 project=project,
@@ -1732,13 +1886,13 @@ class GraphRegistry(CachingRegistry):
                     project=project
                 )
                 node = result.single()
-                print(f"Node: {node}")
+                # print(f"Node: {node}")
 
                 if not node:
                     print("No metadata node found")
                     return None
                 update_time = int(node["last_updated_timestamp"])
-                print(f"Found metadata node with timestamp: {update_time}")
+                # print(f"Found metadata node with timestamp: {update_time}")
 
                 return datetime.fromtimestamp(update_time)
 
