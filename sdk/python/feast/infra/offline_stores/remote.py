@@ -10,9 +10,12 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.flight as fl
 import pyarrow.parquet
+from pyarrow import Schema
+from pyarrow._flight import FlightCallOptions, FlightDescriptor, Ticket
 from pydantic import StrictInt, StrictStr
 
 from feast import OnDemandFeatureView
+from feast.arrow_error_handler import arrow_client_error_handling_decorator
 from feast.data_source import DataSource
 from feast.feature_logging import (
     FeatureServiceLoggingSource,
@@ -27,13 +30,52 @@ from feast.infra.offline_stores.offline_store import (
     RetrievalMetadata,
 )
 from feast.infra.registry.base_registry import BaseRegistry
+from feast.permissions.auth.auth_type import AuthType
+from feast.permissions.auth_model import AuthConfig
 from feast.permissions.client.arrow_flight_auth_interceptor import (
-    build_arrow_flight_client,
+    FlightAuthInterceptorFactory,
 )
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 
 logger = logging.getLogger(__name__)
+
+
+class FeastFlightClient(fl.FlightClient):
+    @arrow_client_error_handling_decorator
+    def get_flight_info(
+        self, descriptor: FlightDescriptor, options: FlightCallOptions = None
+    ):
+        return super().get_flight_info(descriptor, options)
+
+    @arrow_client_error_handling_decorator
+    def do_get(self, ticket: Ticket, options: FlightCallOptions = None):
+        return super().do_get(ticket, options)
+
+    @arrow_client_error_handling_decorator
+    def do_put(
+        self,
+        descriptor: FlightDescriptor,
+        schema: Schema,
+        options: FlightCallOptions = None,
+    ):
+        return super().do_put(descriptor, schema, options)
+
+    @arrow_client_error_handling_decorator
+    def list_flights(self, criteria: bytes = b"", options: FlightCallOptions = None):
+        return super().list_flights(criteria, options)
+
+    @arrow_client_error_handling_decorator
+    def list_actions(self, options: FlightCallOptions = None):
+        return super().list_actions(options)
+
+
+def build_arrow_flight_client(host: str, port, auth_config: AuthConfig):
+    if auth_config.type != AuthType.NONE.value:
+        middlewares = [FlightAuthInterceptorFactory(auth_config)]
+        return FeastFlightClient(f"grpc://{host}:{port}", middleware=middlewares)
+
+    return FeastFlightClient(f"grpc://{host}:{port}")
 
 
 class RemoteOfflineStoreConfig(FeastConfigBaseModel):
@@ -48,7 +90,7 @@ class RemoteOfflineStoreConfig(FeastConfigBaseModel):
 class RemoteRetrievalJob(RetrievalJob):
     def __init__(
         self,
-        client: fl.FlightClient,
+        client: FeastFlightClient,
         api: str,
         api_parameters: Dict[str, Any],
         entity_df: Union[pd.DataFrame, str] = None,
@@ -338,7 +380,7 @@ def _send_retrieve_remote(
     api_parameters: Dict[str, Any],
     entity_df: Union[pd.DataFrame, str],
     table: pa.Table,
-    client: fl.FlightClient,
+    client: FeastFlightClient,
 ):
     command_descriptor = _call_put(
         api,
@@ -351,19 +393,19 @@ def _send_retrieve_remote(
 
 
 def _call_get(
-    client: fl.FlightClient,
+    client: FeastFlightClient,
     command_descriptor: fl.FlightDescriptor,
 ):
     flight = client.get_flight_info(command_descriptor)
     ticket = flight.endpoints[0].ticket
     reader = client.do_get(ticket)
-    return reader.read_all()
+    return read_all(reader)
 
 
 def _call_put(
     api: str,
     api_parameters: Dict[str, Any],
-    client: fl.FlightClient,
+    client: FeastFlightClient,
     entity_df: Union[pd.DataFrame, str],
     table: pa.Table,
 ):
@@ -391,7 +433,7 @@ def _put_parameters(
     command_descriptor: fl.FlightDescriptor,
     entity_df: Union[pd.DataFrame, str],
     table: pa.Table,
-    client: fl.FlightClient,
+    client: FeastFlightClient,
 ):
     updatedTable: pa.Table
 
@@ -404,8 +446,18 @@ def _put_parameters(
 
     writer, _ = client.do_put(command_descriptor, updatedTable.schema)
 
-    writer.write_table(updatedTable)
+    write_table(writer, updatedTable)
+
+
+@arrow_client_error_handling_decorator
+def write_table(writer, updated_table: pa.Table):
+    writer.write_table(updated_table)
     writer.close()
+
+
+@arrow_client_error_handling_decorator
+def read_all(reader):
+    return reader.read_all()
 
 
 def _create_empty_table():

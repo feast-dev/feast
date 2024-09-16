@@ -5,7 +5,7 @@ A module with utility functions and classes to support authorizing the Arrow Fli
 import asyncio
 import functools
 import logging
-from typing import Optional, cast
+from typing import cast
 
 import pyarrow.flight as fl
 from pyarrow.flight import ServerCallContext
@@ -14,32 +14,10 @@ from feast.permissions.auth.auth_manager import (
     get_auth_manager,
 )
 from feast.permissions.security_manager import get_security_manager
-from feast.permissions.server.utils import (
-    AuthManagerType,
-)
 from feast.permissions.user import User
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-
-
-def arrowflight_middleware(
-    auth_type: AuthManagerType,
-) -> Optional[dict[str, fl.ServerMiddlewareFactory]]:
-    """
-    A dictionary with the configured middlewares to support extracting the user details when the authorization manager is defined.
-    The authorization middleware key is `auth`.
-
-    Returns:
-        dict[str, fl.ServerMiddlewareFactory]: Optional dictionary of middlewares. If the authorization type is set to `NONE`, it returns `None`.
-    """
-
-    if auth_type == AuthManagerType.NONE:
-        return None
-
-    return {
-        "auth": AuthorizationMiddlewareFactory(),
-    }
 
 
 class AuthorizationMiddlewareFactory(fl.ServerMiddlewareFactory):
@@ -47,8 +25,8 @@ class AuthorizationMiddlewareFactory(fl.ServerMiddlewareFactory):
     A middleware factory to intercept the authorization header and propagate it to the authorization middleware.
     """
 
-    def __init__(self):
-        pass
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
     def start_call(self, info, headers):
         """
@@ -65,7 +43,8 @@ class AuthorizationMiddleware(fl.ServerMiddleware):
     A server middleware holding the authorization header and offering a method to extract the user credentials.
     """
 
-    def __init__(self, access_token: str):
+    def __init__(self, access_token: str, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.access_token = access_token
 
     def call_completed(self, exception):
