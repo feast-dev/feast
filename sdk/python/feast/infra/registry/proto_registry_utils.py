@@ -1,8 +1,8 @@
-import uuid
 from functools import wraps
 from typing import List, Optional
 
 from feast import utils
+from feast.base_feature_view import BaseFeatureView
 from feast.data_source import DataSource
 from feast.entity import Entity
 from feast.errors import (
@@ -11,6 +11,7 @@ from feast.errors import (
     FeatureServiceNotFoundException,
     FeatureViewNotFoundException,
     PermissionObjectNotFoundException,
+    ProjectObjectNotFoundException,
     SavedDatasetNotFound,
     ValidationReferenceNotFound,
 )
@@ -18,6 +19,7 @@ from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.permissions.permission import Permission
+from feast.project import Project
 from feast.project_metadata import ProjectMetadata
 from feast.protos.feast.core.Registry_pb2 import ProjectMetadata as ProjectMetadataProto
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
@@ -69,16 +71,6 @@ def registry_proto_cache_with_tags(func):
     return wrapper
 
 
-def init_project_metadata(cached_registry_proto: RegistryProto, project: str):
-    if project is not None:
-        new_project_uuid = f"{uuid.uuid4()}"
-        cached_registry_proto.project_metadata.append(
-            ProjectMetadata(
-                project_name=project, project_uuid=new_project_uuid
-            ).to_proto()
-        )
-
-
 def get_project_metadata(
     registry_proto: Optional[RegistryProto], project: str
 ) -> Optional[ProjectMetadataProto]:
@@ -100,6 +92,33 @@ def get_feature_service(
         ):
             return FeatureService.from_proto(feature_service_proto)
     raise FeatureServiceNotFoundException(name, project=project)
+
+
+def get_any_feature_view(
+    registry_proto: RegistryProto, name: str, project: str
+) -> BaseFeatureView:
+    for feature_view_proto in registry_proto.feature_views:
+        if (
+            feature_view_proto.spec.name == name
+            and feature_view_proto.spec.project == project
+        ):
+            return FeatureView.from_proto(feature_view_proto)
+
+    for feature_view_proto in registry_proto.stream_feature_views:
+        if (
+            feature_view_proto.spec.name == name
+            and feature_view_proto.spec.project == project
+        ):
+            return StreamFeatureView.from_proto(feature_view_proto)
+
+    for on_demand_feature_view in registry_proto.on_demand_feature_views:
+        if (
+            on_demand_feature_view.spec.project == project
+            and on_demand_feature_view.spec.name == name
+        ):
+            return OnDemandFeatureView.from_proto(on_demand_feature_view)
+
+    raise FeatureViewNotFoundException(name, project)
 
 
 def get_feature_view(
@@ -186,6 +205,17 @@ def list_feature_services(
         ):
             feature_services.append(FeatureService.from_proto(feature_service_proto))
     return feature_services
+
+
+@registry_proto_cache_with_tags
+def list_all_feature_views(
+    registry_proto: RegistryProto, project: str, tags: Optional[dict[str, str]]
+) -> List[BaseFeatureView]:
+    return (
+        list_feature_views(registry_proto, project, tags)
+        + list_stream_feature_views(registry_proto, project, tags)
+        + list_on_demand_feature_views(registry_proto, project, tags)
+    )
 
 
 @registry_proto_cache_with_tags
@@ -319,3 +349,21 @@ def get_permission(
         ):
             return Permission.from_proto(permission_proto)
     raise PermissionObjectNotFoundException(name=name, project=project)
+
+
+def list_projects(
+    registry_proto: RegistryProto,
+    tags: Optional[dict[str, str]],
+) -> List[Project]:
+    projects = []
+    for project_proto in registry_proto.projects:
+        if utils.has_all_tags(project_proto.spec.tags, tags):
+            projects.append(Project.from_proto(project_proto))
+    return projects
+
+
+def get_project(registry_proto: RegistryProto, name: str) -> Project:
+    for projects_proto in registry_proto.projects:
+        if projects_proto.spec.name == name:
+            return Project.from_proto(projects_proto)
+    raise ProjectObjectNotFoundException(name=name)

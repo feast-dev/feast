@@ -2,13 +2,13 @@
 # for more info about CODEOWNERS file
 
 # Core Interfaces
-/sdk/python/feast/infra/offline_stores/offline_store.py @feast-dev/maintainers @sfc-gh-madkins
-/sdk/python/feast/infra/online_stores/online_store.py @feast-dev/maintainers @DvirDukhan
-/sdk/python/feast/infra/materialization_engine/batch_materialization_engine.py @feast-dev/maintainers @whoahbot @sfc-gh-madkins
+/sdk/python/feast/infra/offline_stores/offline_store.py @feast-dev/maintainers
+/sdk/python/feast/infra/online_stores/online_store.py @feast-dev/maintainers
+/sdk/python/feast/infra/materialization_engine/batch_materialization_engine.py @feast-dev/maintainers
 
 # ==== Offline Stores ====
 # Core utils
-/sdk/python/feast/infra/offline_stores/offline_utils.py @feast-dev/maintainers @sfc-gh-madkins
+/sdk/python/feast/infra/offline_stores/offline_utils.py @feast-dev/maintainers
 
 # Offline interfaces
 /sdk/python/feast/infra/offline_stores/offline_store.py @feast-dev/maintainers
@@ -18,38 +18,10 @@
 /sdk/python/feast/infra/offline_stores/bigquery_source.py @sudohainguyen
 /sdk/python/tests/integration/feature_repos/universal/data_sources/bigquery.py @sudohainguyen
 
-# Snowflake
-/sdk/python/feast/infra/offline_stores/snowflake* @sfc-gh-madkins
-
-# Athena (contrib)
-/sdk/python/feast/infra/offline_stores/contrib/athena_offline_store/ @toping4445
-
-# Azure SQL (contrib)
-/sdk/python/feast/infra/offline_stores/contrib/mssql_offline_store/ @kevjumba
-
-# Spark (contrib)
-/sdk/python/feast/infra/offline_stores/contrib/spark_offline_store/ @niklasvm @kevjumba
-
 # ==== Online Stores ====
 
 # HBase
 /sdk/python/feast/infra/online_stores/hbase.py @sudohainguyen
 /sdk/python/feast/infra/online_stores/contrib/hbase_online_store     @sudohainguyen
 
-# Redis
-/sdk/python/feast/infra/online_stores/redis.py @DvirDukhan
-/java/feast/serving/connectors/redis/ @DvirDukhan
-
-# Snowflake
-/sdk/python/feast/infra/online_stores/snowflake.py @sfc-gh-madkins
-
-# Cassandra (contrib)
-/sdk/python/feast/infra/online_stores/cassandra_online_store/ @hemidactylus
-
 # ==== Batch Materialization Engines ====
-
-# Snowflake
-/sdk/python/feast/infra/materialization/snowflake* @sfc-gh-madkins
-
-# AWS Lambda
-/sdk/python/feast/infra/materialization/contrib/aws_lambda/ @achals

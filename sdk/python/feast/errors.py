@@ -57,7 +57,7 @@ class FeastError(Exception):
                 module = importlib.import_module(module_name)
                 class_reference = getattr(module, class_name)
 
-                instance = class_reference(message)
+                instance = class_reference.__new__(class_reference)
                 setattr(instance, "__overridden_message__", message)
                 return instance
         except Exception as e:
@@ -456,6 +456,9 @@ class PushSourceNotFoundException(FeastError):
     def __init__(self, push_source_name: str):
         super().__init__(f"Unable to find push source '{push_source_name}'.")
 
+    def http_status_code(self) -> int:
+        return HttpStatusCode.HTTP_422_UNPROCESSABLE_ENTITY
+
 
 class ReadOnlyRegistryException(FeastError):
     def __init__(self):
@@ -480,6 +483,16 @@ class PermissionObjectNotFoundException(FeastObjectNotFoundException):
             super().__init__(f"Permission {name} does not exist in project {project}")
         else:
             super().__init__(f"Permission {name} does not exist")
+
+
+class ProjectNotFoundException(FeastError):
+    def __init__(self, project):
+        super().__init__(f"Project {project} does not exist in registry")
+
+
+class ProjectObjectNotFoundException(FeastObjectNotFoundException):
+    def __init__(self, name, project=None):
+        super().__init__(f"Project {name} does not exist")
 
 
 class ZeroRowsQueryResult(FeastError):

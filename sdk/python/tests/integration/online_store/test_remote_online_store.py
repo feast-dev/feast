@@ -187,9 +187,6 @@ def _create_remote_client_feature_store(
         auth_config=auth_config,
     )
 
-    result = runner.run(["--chdir", repo_path, "apply"], cwd=temp_dir)
-    assert result.returncode == 0
-
     return FeatureStore(repo_path=repo_path)
 
 

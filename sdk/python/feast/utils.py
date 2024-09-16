@@ -1,6 +1,5 @@
 import copy
 import itertools
-import logging
 import os
 import typing
 import warnings
@@ -746,10 +745,6 @@ def _list_feature_views(
 ) -> List["FeatureView"]:
     from feast.feature_view import DUMMY_ENTITY_NAME
 
-    logging.warning(
-        "_list_feature_views will make breaking changes. Please use _list_batch_feature_views instead. "
-        "_list_feature_views will behave like _list_all_feature_views in the future."
-    )
     feature_views = []
     for fv in registry.list_feature_views(project, allow_cache=allow_cache, tags=tags):
         if hide_dummy_entity and fv.entities and fv.entities[0] == DUMMY_ENTITY_NAME:

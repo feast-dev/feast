@@ -11,6 +11,7 @@ from feast.feature_view import DUMMY_ENTITY_NAME
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.infra.registry.registry import FEAST_OBJECT_TYPES, FeastObjectType
 from feast.permissions.permission import Permission
+from feast.project import Project
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.protos.feast.core.Entity_pb2 import Entity as EntityProto
 from feast.protos.feast.core.FeatureService_pb2 import (
@@ -371,6 +372,11 @@ def apply_diff_to_registry(
             TransitionType.CREATE,
             TransitionType.UPDATE,
         ]:
+            if feast_object_diff.feast_object_type == FeastObjectType.PROJECT:
+                registry.apply_project(
+                    cast(Project, feast_object_diff.new_feast_object),
+                    commit=False,
+                )
             if feast_object_diff.feast_object_type == FeastObjectType.DATA_SOURCE:
                 registry.apply_data_source(
                     cast(DataSource, feast_object_diff.new_feast_object),

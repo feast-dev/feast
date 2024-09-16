@@ -1,5 +1,5 @@
 # Authorization Manager
-An Authorization Manager is an instance of the `AuthManager` class that is plugged into one of the Feast servers to extract user details from the current request and inject them into the [permissions](../../getting-started/concepts/permissions.md) framework.
+An Authorization Manager is an instance of the `AuthManager` class that is plugged into one of the Feast servers to extract user details from the current request and inject them into the [permission](../../getting-started/concepts/permission.md) framework.
 
 {% hint style="info" %}
 **Note**: Feast does not provide authentication capabilities; it is the client's responsibility to manage the authentication token and pass it to
@@ -44,7 +44,10 @@ The server, in turn, uses the same OIDC server to validate the token and extract
 
 Some assumptions are made in the OIDC server configuration:
 * The OIDC token refers to a client with roles matching the RBAC roles of the configured `Permission`s (*)
-* The roles are exposed in the access token passed to the server
+* The roles are exposed in the access token that is passed to the server
+* The JWT token is expected to have a verified signature and not be expired. The Feast OIDC token parser logic validates for `verify_signature` and `verify_exp` so make sure that the given OIDC provider is configured to meet these requirements.
+* The preferred_username should be part of the JWT token claim.
+
 
 (*) Please note that **the role match is case-sensitive**, e.g. the name of the role in the OIDC server and in the `Permission` configuration
 must be exactly the same.
@@ -57,7 +60,8 @@ For example, the access token for a client `app` of a user with `reader` role sh
       "roles": [
         "reader"
       ]
-    },
+    }
+  }
 }
 ```
 

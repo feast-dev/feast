@@ -15,6 +15,7 @@ import "feast/core/SavedDataset.proto";
 import "feast/core/ValidationProfile.proto";
 import "feast/core/InfraObject.proto";
 import "feast/core/Permission.proto";
+import "feast/core/Project.proto";
 
 service RegistryServer{
   // Entity RPCs
@@ -31,9 +32,13 @@ service RegistryServer{
 
   // FeatureView RPCs
   rpc ApplyFeatureView (ApplyFeatureViewRequest) returns (google.protobuf.Empty) {}
+  rpc DeleteFeatureView (DeleteFeatureViewRequest) returns (google.protobuf.Empty) {}
+  rpc GetAnyFeatureView (GetAnyFeatureViewRequest) returns (GetAnyFeatureViewResponse) {}
+  rpc ListAllFeatureViews (ListAllFeatureViewsRequest) returns (ListAllFeatureViewsResponse) {}
+
+  // plain FeatureView RPCs
   rpc GetFeatureView (GetFeatureViewRequest) returns (feast.core.FeatureView) {}
   rpc ListFeatureViews (ListFeatureViewsRequest) returns (ListFeatureViewsResponse) {}
-  rpc DeleteFeatureView (DeleteFeatureViewRequest) returns (google.protobuf.Empty) {}
 
   // StreamFeatureView RPCs
   rpc GetStreamFeatureView (GetStreamFeatureViewRequest) returns (feast.core.StreamFeatureView) {}
@@ -66,6 +71,12 @@ service RegistryServer{
   rpc GetPermission (GetPermissionRequest) returns (feast.core.Permission) {}
   rpc ListPermissions (ListPermissionsRequest) returns (ListPermissionsResponse) {}
   rpc DeletePermission (DeletePermissionRequest) returns (google.protobuf.Empty) {}
+
+  // Project RPCs
+  rpc ApplyProject (ApplyProjectRequest) returns (google.protobuf.Empty) {}
+  rpc GetProject (GetProjectRequest) returns (feast.core.Project) {}
+  rpc ListProjects (ListProjectsRequest) returns (ListProjectsResponse) {}
+  rpc DeleteProject (DeleteProjectRequest) returns (google.protobuf.Empty) {}
 
   rpc ApplyMaterialization (ApplyMaterializationRequest) returns (google.protobuf.Empty) {}
   rpc ListProjectMetadata (ListProjectMetadataRequest) returns (ListProjectMetadataResponse) {}
@@ -200,6 +211,35 @@ message DeleteFeatureViewRequest {
     string project = 2;
     bool commit = 3;
 }
+
+message AnyFeatureView {
+    oneof any_feature_view {
+        feast.core.FeatureView feature_view = 1;
+        feast.core.OnDemandFeatureView on_demand_feature_view = 2;
+        feast.core.StreamFeatureView stream_feature_view = 3;
+    }    
+}
+
+message GetAnyFeatureViewRequest {
+    string name = 1;
+    string project = 2;
+    bool allow_cache = 3;
+}
+
+message GetAnyFeatureViewResponse {
+    AnyFeatureView any_feature_view = 1;
+}
+
+message ListAllFeatureViewsRequest {
+    string project = 1;
+    bool allow_cache = 2;
+    map<string,string> tags = 3;
+}
+
+message ListAllFeatureViewsResponse {
+    repeated AnyFeatureView feature_views = 1;
+}
+
 
 // StreamFeatureView
 
@@ -355,4 +395,30 @@ message DeletePermissionRequest {
   string name = 1;
   string project = 2;
   bool commit = 3;
+}
+
+// Projects
+
+message ApplyProjectRequest {
+  feast.core.Project project = 1;
+  bool commit = 2;
+}
+
+message GetProjectRequest {
+  string name = 1;
+  bool allow_cache = 2;
+}
+
+message ListProjectsRequest {
+  bool allow_cache = 1;
+  map<string,string> tags = 2;
+}
+
+message ListProjectsResponse {
+  repeated feast.core.Project projects = 1;
+}
+
+message DeleteProjectRequest {
+  string name = 1;
+  bool commit = 2;
 }

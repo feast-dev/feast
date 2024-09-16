@@ -454,15 +454,20 @@ def is_integration_test(all_markers_from_module):
 @pytest.fixture(
     scope="module",
     params=[
-        dedent("""
+        dedent(
+            """
           auth:
             type: no_auth
-          """),
-        dedent("""
+          """
+        ),
+        dedent(
+            """
           auth:
             type: kubernetes
-        """),
-        dedent("""
+        """
+        ),
+        dedent(
+            """
           auth:
             type: oidc
             client_id: feast-integration-client
@@ -470,7 +475,8 @@ def is_integration_test(all_markers_from_module):
             username: reader_writer
             password: password
             auth_discovery_url: KEYCLOAK_URL_PLACE_HOLDER/realms/master/.well-known/openid-configuration
-        """),
+        """
+        ),
     ],
 )
 def auth_config(request, is_integration_test):

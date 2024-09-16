@@ -51,7 +51,7 @@ def get_app(
 
     async_refresh()
 
-    ui_dir_ref = importlib_resources.files(__spec__.parent) / "ui/build/"  # type: ignore[name-defined]
+    ui_dir_ref = importlib_resources.files(__spec__.parent) / "ui/build/"  # type: ignore[name-defined, arg-type]
     with importlib_resources.as_file(ui_dir_ref) as ui_dir:
         # Initialize with the projects-list.json file
         with ui_dir.joinpath("projects-list.json").open(mode="w") as f:

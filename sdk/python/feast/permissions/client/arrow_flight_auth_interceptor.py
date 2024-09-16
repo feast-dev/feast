@@ -2,7 +2,7 @@ import pyarrow.flight as fl
 
 from feast.permissions.auth.auth_type import AuthType
 from feast.permissions.auth_model import AuthConfig
-from feast.permissions.client.auth_client_manager_factory import get_auth_token
+from feast.permissions.client.client_auth_token import get_auth_token
 
 
 class FlightBearerTokenInterceptor(fl.ClientMiddleware):

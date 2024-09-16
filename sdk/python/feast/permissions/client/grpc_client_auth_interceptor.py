@@ -4,7 +4,7 @@ import grpc
 
 from feast.errors import FeastError
 from feast.permissions.auth_model import AuthConfig
-from feast.permissions.client.auth_client_manager_factory import get_auth_token
+from feast.permissions.client.client_auth_token import get_auth_token
 
 logger = logging.getLogger(__name__)
 

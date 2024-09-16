@@ -1,5 +1,8 @@
 from typing import Union, get_args
 
+from feast.project import Project
+from feast.protos.feast.core.Project_pb2 import ProjectSpec
+
 from .batch_feature_view import BatchFeatureView
 from .data_source import DataSource
 from .entity import Entity
@@ -23,6 +26,7 @@ from .stream_feature_view import StreamFeatureView
 
 # Convenience type representing all Feast objects
 FeastObject = Union[
+    Project,
     FeatureView,
     OnDemandFeatureView,
     BatchFeatureView,
@@ -36,6 +40,7 @@ FeastObject = Union[
 ]
 
 FeastObjectSpecProto = Union[
+    ProjectSpec,
     FeatureViewSpec,
     OnDemandFeatureViewSpec,
     StreamFeatureViewSpec,
