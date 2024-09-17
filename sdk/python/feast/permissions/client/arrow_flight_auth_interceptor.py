@@ -1,6 +1,5 @@
 import pyarrow.flight as fl
 
-from feast.permissions.auth.auth_type import AuthType
 from feast.permissions.auth_model import AuthConfig
 from feast.permissions.client.client_auth_token import get_auth_token
 
@@ -28,11 +27,3 @@ class FlightAuthInterceptorFactory(fl.ClientMiddlewareFactory):
 
     def start_call(self, info):
         return FlightBearerTokenInterceptor(self.auth_config)
-
-
-def build_arrow_flight_client(host: str, port, auth_config: AuthConfig):
-    if auth_config.type != AuthType.NONE.value:
-        middleware_factory = FlightAuthInterceptorFactory(auth_config)
-        return fl.FlightClient(f"grpc://{host}:{port}", middleware=[middleware_factory])
-    else:
-        return fl.FlightClient(f"grpc://{host}:{port}")
