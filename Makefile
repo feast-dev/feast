@@ -53,7 +53,7 @@ install-python-ci-dependencies-uv-venv:
 	python setup.py build_python_protos --inplace
 
 install-protoc-dependencies:
-	pip install "grpcio-tools>=1.56.2,<2" "mypy-protobuf>=3.1"
+	pip install "protobuf==5.27.2" "grpcio-tools>=1.56.2,<2" "mypy-protobuf>=3.1"
 
 lock-python-ci-dependencies:
 	uv pip compile --system --no-strip-extras -p $(PYTHON_VERSION) setup.py --extra ci --output-file sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt
@@ -422,7 +422,7 @@ install-go-ci-dependencies:
 	# The `go get` command on the previous lines download the lib along with replacing the dep to `feast-dev/gopy`
 	# but the following command is needed to install it for some reason.
 	go install github.com/go-python/gopy
-	python -m pip install "pybindgen==0.22.1" "protobuf==4.24.0"
+	python -m pip install "pybindgen==0.22.1" "protobuf==5.27.2"
 
 compile-protos-go: install-go-proto-dependencies install-protoc-dependencies
 	python setup.py build_go_protos

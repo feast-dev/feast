@@ -42,7 +42,7 @@ REQUIRED = [
     "mmh3",
     "numpy>=1.22,<2",
     "pandas>=1.4.3,<3",
-    # "protobuf>=4.24.0,<5.0.0",
+    "protobuf==5.27.2",
     "pyarrow>=4",
     "pydantic>=2.0.0",
     "pygments>=2.12.0,<3",
@@ -291,6 +291,7 @@ class BuildPythonProtosCommand(Command):
         return os.path.join(self.build_lib, "feast/protos")
 
     def _generate_python_protos(self, path: str):
+        subprocess.check_call(self.python_protoc + ["--version"])
         proto_files = glob.glob(os.path.join(self.proto_folder, path))
         Path(self.python_folder).mkdir(parents=True, exist_ok=True)
         subprocess.check_call(
@@ -501,13 +502,13 @@ setup(
     ],
     entry_points={"console_scripts": ["feast=feast.cli:cli"]},
     use_scm_version=use_scm_version,
-    setup_requires=[
-        "grpcio-tools>=1.56.2,<2",
-        "grpcio>=1.56.2,<2",
-        "mypy-protobuf>=3.1",
-        "pybindgen==0.22.0",
-        "setuptools_scm>=6.2",
-    ],
+    # setup_requires=[
+    #     "grpcio-tools>=1.56.2,<2",
+    #     "grpcio>=1.56.2,<2",
+    #     "mypy-protobuf>=3.1",
+    #     "pybindgen==0.22.0",
+    #     "setuptools_scm>=6.2",
+    # ],
     cmdclass={
         "build_python_protos": BuildPythonProtosCommand,
         "build_go_protos": BuildGoProtosCommand,
