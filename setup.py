@@ -291,7 +291,6 @@ class BuildPythonProtosCommand(Command):
         return os.path.join(self.build_lib, "feast/protos")
 
     def _generate_python_protos(self, path: str):
-        subprocess.check_call(self.python_protoc + ["--version"])
         proto_files = glob.glob(os.path.join(self.proto_folder, path))
         Path(self.python_folder).mkdir(parents=True, exist_ok=True)
         subprocess.check_call(

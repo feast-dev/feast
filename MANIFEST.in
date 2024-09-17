@@ -7,3 +7,5 @@ prune examples
 
 graft sdk/python/feast/ui/build
 graft sdk/python/feast/embedded_go/lib
+
+include sdk/python/protos/*
