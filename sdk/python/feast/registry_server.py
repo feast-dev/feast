@@ -52,12 +52,12 @@ def _build_any_feature_view_proto(feature_view: BaseFeatureView):
 
     return RegistryServer_pb2.AnyFeatureView(
         feature_view=feature_view_proto if arg_name == "feature_view" else None,
-        stream_feature_view=feature_view_proto
-        if arg_name == "stream_feature_view"
-        else None,
-        on_demand_feature_view=feature_view_proto
-        if arg_name == "on_demand_feature_view"
-        else None,
+        stream_feature_view=(
+            feature_view_proto if arg_name == "stream_feature_view" else None
+        ),
+        on_demand_feature_view=(
+            feature_view_proto if arg_name == "on_demand_feature_view" else None
+        ),
     )
 
 

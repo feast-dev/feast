@@ -327,7 +327,9 @@ class SqlRegistry(CachingRegistry):
             tags=tags,
         )
 
-    def apply_project_metadata(self, project: str, commit: bool) -> ProjectMetadataModel:
+    def apply_project_metadata(
+        self, project: str, commit: bool
+    ) -> ProjectMetadataModel:
         self._maybe_init_project_metadata(project)
         return self.get_project_metadata(project)
 
@@ -1241,7 +1243,7 @@ class SqlRegistry(CachingRegistry):
         Returns all projects metadata. No supporting function in SQL Registry so implemented this here instead of _get_all_projects.
         """
         project_metadata_model_dict: Dict[str, ProjectMetadataModel] = {}
-        with self.engine.begin() as conn:
+        with self.read_engine.begin() as conn:
             stmt = select(feast_metadata)
             rows = conn.execute(stmt).all()
             if rows:
@@ -1279,7 +1281,7 @@ class SqlRegistry(CachingRegistry):
         project_metadata_model: ProjectMetadataModel = ProjectMetadataModel(
             project_name=project
         )
-        with self.engine.begin() as conn:
+        with self.read_engine.begin() as conn:
             stmt = select(feast_metadata).where(
                 feast_metadata.c.project_id == project,
             )

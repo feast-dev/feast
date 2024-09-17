@@ -44,6 +44,7 @@ from feast.infra.registry import proto_registry_utils
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.permissions.permission import Permission
+from feast.project import Project
 from feast.project_metadata import ProjectMetadata
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.repo_config import RegistryConfig
@@ -91,7 +92,7 @@ class HttpRegistry(BaseRegistry):
             timeout=timeout, transport=transport, headers=headers
         )
         self.project = project
-        self.apply_project(self.project)
+        self.apply_project(Project(name=project))
         self.cached_registry_proto_created = datetime.utcnow()
         self._refresh_lock = Lock()
         self.cached_registry_proto_ttl = timedelta(
@@ -143,7 +144,7 @@ class HttpRegistry(BaseRegistry):
         except Exception as exception:
             self._handle_exception(exception)
 
-    def apply_project(  # type: ignore[return]
+    def apply_project_metadata(  # type: ignore[return]
         self,
         project: str,
         commit: bool = True,
@@ -751,16 +752,48 @@ class HttpRegistry(BaseRegistry):
         # This method is a no-op since we're always writing values eagerly to the db.
         pass
 
-    def refresh(self, project: Optional[str] = None):
-        if project:
-            project_metadata = proto_registry_utils.get_project_metadata(
-                registry_proto=self.cached_registry_proto, project=project
-            )
-            if project_metadata is None:
-                proto_registry_utils.init_project_metadata(
-                    self.cached_registry_proto, project
-                )
+    def apply_project(
+        self,
+        project: Project,
+        commit: bool = True,
+    ):  # type: ignore[return]
+        return None
 
+    def delete_project(
+        self,
+        name: str,
+        commit: bool = True,
+    ):
+        pass
+
+    def get_any_feature_view(  # type: ignore
+        self, name: str, project: str, allow_cache: bool = False
+    ) -> BaseFeatureView:
+        raise NotImplementedError("Method not implemented")
+
+    def get_project(  # type: ignore
+        self,
+        name: str,
+        allow_cache: bool = False,
+    ) -> Project:
+        raise NotImplementedError("Method not implemented")
+
+    def list_all_feature_views(
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
+    ) -> List[BaseFeatureView]:
+        return []
+
+    def list_projects(
+        self,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
+    ) -> List[Project]:
+        return []
+
+    def refresh(self, project: Optional[str] = None):
         refreshed_cache_registry_proto = self.proto()
         with self._refresh_lock:
             self.cached_registry_proto = refreshed_cache_registry_proto
