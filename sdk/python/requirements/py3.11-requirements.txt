@@ -83,7 +83,7 @@ mypy==1.11.2
     # via sqlalchemy
 mypy-extensions==1.0.0
     # via mypy
-mypy-protobuf==3.6.0
+mypy-protobuf==3.5.0
     # via eg-feast (setup.py)
 numpy==1.26.4
     # via
@@ -106,7 +106,7 @@ partd==1.4.2
     # via dask
 prometheus-client==0.20.0
     # via eg-feast (setup.py)
-protobuf==4.25.4
+protobuf==4.24.0
     # via
     #   eg-feast (setup.py)
     #   mypy-protobuf

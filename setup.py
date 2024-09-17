@@ -42,7 +42,7 @@ REQUIRED = [
     "mmh3",
     "numpy>=1.22,<2",
     "pandas>=1.4.3,<3",
-    "protobuf>=4.24.0,<5.0.0",
+    "protobuf==4.24.0",
     "pyarrow>=4",
     "pydantic>=2.0.0",
     "pygments>=2.12.0,<3",
