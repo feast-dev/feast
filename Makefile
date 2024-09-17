@@ -52,14 +52,16 @@ install-python-ci-dependencies-uv-venv:
 	uv pip install --no-deps -e .
 	python setup.py build_python_protos --inplace
 
+install-protoc-dependencies:
+	pip install --ignore-installed "protobuf==4.24.0" "grpcio-tools>=1.56.2,<2" mypy-protobuf==3.1
+
 lock-python-ci-dependencies:
 	uv pip compile --system --no-strip-extras -p $(PYTHON_VERSION) setup.py --extra ci --output-file sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt
 
 package-protos:
 	cp -r ${ROOT_DIR}/protos ${ROOT_DIR}/sdk/python/feast/protos
 
-compile-protos-python:
-	pip install --ignore-installed "protobuf==4.24.0" "grpcio-tools>=1.56.2,<2" mypy-protobuf==3.1
+compile-protos-python: install-protoc-dependencies
 	python setup.py build_python_protos --inplace
 
 install-python:
@@ -422,8 +424,7 @@ install-go-ci-dependencies:
 	go install github.com/go-python/gopy
 	python -m pip install "pybindgen==0.22.1" "protobuf==4.24.0"
 
-compile-protos-go: install-go-proto-dependencies
-	pip install --ignore-installed "protobuf==4.24.0" "grpcio-tools>=1.56.2,<2" mypy-protobuf==3.1
+compile-protos-go: install-go-proto-dependencies install-protoc-dependencies
 	python setup.py build_go_protos
 
 install-feast-ci-locally:
