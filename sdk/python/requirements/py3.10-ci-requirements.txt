@@ -40,6 +40,10 @@ async-lru==2.0.4
     # via jupyterlab
 async-property==0.2.2
     # via python-keycloak
+async-timeout==4.0.3
+     # via
+     #   aiohttp
+     #   redis
 atpublic==5.0
     # via ibis-framework
 attrs==24.2.0
@@ -178,6 +182,11 @@ entrypoints==0.4
     # via altair
 environs==9.5.0
     # via pymilvus
+exceptiongroup==1.2.1
+     # via
+     #   anyio
+     #   ipython
+     #   pytest
 execnet==2.1.1
     # via pytest-xdist
 executing==2.1.0
