@@ -13,6 +13,7 @@ from feast.infra.offline_stores.contrib.mssql_offline_store.mssqlserver_source i
 from feast.infra.offline_stores.file_source import FileSource
 from feast.infra.offline_stores.redshift_source import RedshiftSource
 from feast.infra.offline_stores.snowflake_source import SnowflakeSource
+from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import RepoConfig
 from feast.stream_feature_view import StreamFeatureView
 from feast.types import String
@@ -94,7 +95,7 @@ def update_data_sources_with_inferred_event_timestamp_col(
 
 
 def update_feature_views_with_inferred_features_and_entities(
-    fvs: Union[List[FeatureView], List[StreamFeatureView]],
+    fvs: Union[List[FeatureView], List[StreamFeatureView], List[OnDemandFeatureView]],
     entities: List[Entity],
     config: RepoConfig,
 ) -> None:
@@ -127,13 +128,14 @@ def update_feature_views_with_inferred_features_and_entities(
 
         # Fields whose names match a join key are considered to be entity columns; all
         # other fields are considered to be feature columns.
+        entity_columns = fv.entity_columns if fv.entity_columns else []
         for field in fv.schema:
             if field.name in join_keys:
                 # Do not override a preexisting field with the same name.
                 if field.name not in [
-                    entity_column.name for entity_column in fv.entity_columns
+                    entity_column.name for entity_column in entity_columns
                 ]:
-                    fv.entity_columns.append(field)
+                    entity_columns.append(field)
             else:
                 if field.name not in [feature.name for feature in fv.features]:
                     fv.features.append(field)
@@ -146,10 +148,10 @@ def update_feature_views_with_inferred_features_and_entities(
                 continue
             if (
                 entity.join_key
-                not in [entity_column.name for entity_column in fv.entity_columns]
+                not in [entity_column.name for entity_column in entity_columns]
                 and entity.value_type != ValueType.UNKNOWN
             ):
-                fv.entity_columns.append(
+                entity_columns.append(
                     Field(
                         name=entity.join_key,
                         dtype=from_value_type(entity.value_type),
@@ -160,10 +162,11 @@ def update_feature_views_with_inferred_features_and_entities(
         if (
             len(fv.entities) == 1
             and fv.entities[0] == DUMMY_ENTITY_NAME
-            and not fv.entity_columns
+            and not entity_columns
         ):
-            fv.entity_columns.append(Field(name=DUMMY_ENTITY_ID, dtype=String))
+            entity_columns.append(Field(name=DUMMY_ENTITY_ID, dtype=String))
 
+        fv.entity_columns = entity_columns
         # Run inference for entity columns if there are fewer entity fields than expected.
         run_inference_for_entities = len(fv.entity_columns) < len(join_keys)
 
@@ -200,49 +203,116 @@ def _infer_features_and_entities(
         run_inference_for_features: Whether to run inference for features.
         config: The config for the current feature store.
     """
-    columns_to_exclude = {
-        fv.batch_source.timestamp_field,
-        fv.batch_source.created_timestamp_column,
-    }
-    for original_col, mapped_col in fv.batch_source.field_mapping.items():
-        if mapped_col in columns_to_exclude:
-            columns_to_exclude.remove(mapped_col)
-            columns_to_exclude.add(original_col)
+    entity_columns = []
+    if isinstance(fv, OnDemandFeatureView):
+        columns_to_exclude = set()
+        for (
+            source_feature_view_name,
+            source_feature_view,
+        ) in fv.source_feature_view_projections.items():
+            columns_to_exclude.add(source_feature_view.timestamp_field)
+            columns_to_exclude.add(source_feature_view.created_timestamp_column)
 
-    table_column_names_and_types = fv.batch_source.get_table_column_names_and_types(
-        config
-    )
+            for (
+                original_col,
+                mapped_col,
+            ) in source_feature_view.batch_source.field_mapping.items():
+                if mapped_col in columns_to_exclude:
+                    columns_to_exclude.remove(mapped_col)
+                    columns_to_exclude.add(original_col)
 
-    for col_name, col_datatype in table_column_names_and_types:
-        if col_name in columns_to_exclude:
-            continue
-        elif col_name in join_keys:
-            field = Field(
-                name=col_name,
-                dtype=from_value_type(
-                    fv.batch_source.source_datatype_to_feast_value_type()(col_datatype)
-                ),
-            )
-            if field.name not in [
-                entity_column.name for entity_column in fv.entity_columns
-            ]:
-                fv.entity_columns.append(field)
-        elif not re.match(
-            "^__|__$", col_name
-        ):  # double underscores often signal an internal-use column
-            if run_inference_for_features:
-                feature_name = (
-                    fv.batch_source.field_mapping[col_name]
-                    if col_name in fv.batch_source.field_mapping
-                    else col_name
+            table_column_names_and_types = (
+                source_feature_view.batch_source.get_table_column_names_and_types(
+                    config
                 )
+            )
+
+        for col_name, col_datatype in table_column_names_and_types:
+            if col_name in columns_to_exclude:
+                continue
+            elif col_name in join_keys:
                 field = Field(
-                    name=feature_name,
+                    name=col_name,
+                    dtype=from_value_type(
+                        source_feature_view.batch_source.source_datatype_to_feast_value_type()(
+                            col_datatype
+                        )
+                    ),
+                )
+                if field.name not in [
+                    entity_column.name for entity_column in entity_columns
+                ]:
+                    entity_columns.append(field)
+            elif not re.match(
+                "^__|__$", col_name
+            ):  # double underscores often signal an internal-use column
+                if run_inference_for_features:
+                    feature_name = (
+                        source_feature_view.batch_source.field_mapping[col_name]
+                        if col_name in source_feature_view.batch_source.field_mapping
+                        else col_name
+                    )
+                    field = Field(
+                        name=feature_name,
+                        dtype=from_value_type(
+                            source_feature_view.batch_source.source_datatype_to_feast_value_type()(
+                                col_datatype
+                            )
+                        ),
+                    )
+                    if field.name not in [
+                        feature.name for feature in source_feature_view.features
+                    ]:
+                        source_feature_view.features.append(field)
+
+    else:
+        columns_to_exclude = {
+            fv.batch_source.timestamp_field,
+            fv.batch_source.created_timestamp_column,
+        }
+        for original_col, mapped_col in fv.batch_source.field_mapping.items():
+            if mapped_col in columns_to_exclude:
+                columns_to_exclude.remove(mapped_col)
+                columns_to_exclude.add(original_col)
+
+        table_column_names_and_types = fv.batch_source.get_table_column_names_and_types(
+            config
+        )
+
+        for col_name, col_datatype in table_column_names_and_types:
+            if col_name in columns_to_exclude:
+                continue
+            elif col_name in join_keys:
+                field = Field(
+                    name=col_name,
                     dtype=from_value_type(
                         fv.batch_source.source_datatype_to_feast_value_type()(
                             col_datatype
                         )
                     ),
                 )
-                if field.name not in [feature.name for feature in fv.features]:
-                    fv.features.append(field)
+                if field.name not in [
+                    entity_column.name for entity_column in entity_columns
+                ]:
+                    entity_columns.append(field)
+            elif not re.match(
+                "^__|__$", col_name
+            ):  # double underscores often signal an internal-use column
+                if run_inference_for_features:
+                    feature_name = (
+                        fv.batch_source.field_mapping[col_name]
+                        if col_name in fv.batch_source.field_mapping
+                        else col_name
+                    )
+                    field = Field(
+                        name=feature_name,
+                        dtype=from_value_type(
+                            fv.batch_source.source_datatype_to_feast_value_type()(
+                                col_datatype
+                            )
+                        ),
+                    )
+                    if field.name not in [feature.name for feature in fv.features]:
+                        fv.features.append(field)
+
+    fv.entity_columns = entity_columns

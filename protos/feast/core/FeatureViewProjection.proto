@@ -6,6 +6,7 @@ option java_outer_classname = "FeatureReferenceProto";
 option java_package = "feast.proto.core";
 
 import "feast/core/Feature.proto";
+import "feast/core/DataSource.proto";
 
 
 // A projection to be applied on top of a FeatureView. 
@@ -22,4 +23,13 @@ message FeatureViewProjection {
 
   // Map for entity join_key overrides of feature data entity join_key to entity data join_key
   map<string,string> join_key_map = 4;
+
+  string timestamp_field = 5;
+  string date_partition_column = 6;
+  string created_timestamp_column = 7;
+  // Batch/Offline DataSource where this view can retrieve offline feature data.
+  DataSource batch_source = 8;
+  // Streaming DataSource from where this view can consume "online" feature data.
+  DataSource stream_source = 9;
+
 }

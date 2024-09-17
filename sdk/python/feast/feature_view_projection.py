@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING, Dict, List, Optional
 
 from attr import dataclass
 
+from feast.data_source import DataSource
 from feast.field import Field
 from feast.protos.feast.core.FeatureViewProjection_pb2 import (
     FeatureViewProjection as FeatureViewProjectionProto,
@@ -27,6 +28,13 @@ class FeatureViewProjection:
             is not ready to be projected, i.e. still needs to go through feature inference.
         join_key_map: A map to modify join key columns during retrieval of this feature
             view projection.
+        timestamp_field: The timestamp field of the feature view projection.
+        date_partition_column: The date partition column of the feature view projection.
+        created_timestamp_column: The created timestamp column of the feature view projection.
+        batch_source: The batch source of data where this group of features
+            is stored. This is optional ONLY if a push source is specified as the
+            stream_source, since push sources contain their own batch sources.
+
     """
 
     name: str
@@ -34,6 +42,10 @@ class FeatureViewProjection:
     desired_features: List[str]
     features: List[Field]
     join_key_map: Dict[str, str] = {}
+    timestamp_field: Optional[str] = None
+    date_partition_column: Optional[str] = None
+    created_timestamp_column: Optional[str] = None
+    batch_source: Optional[DataSource] = None
 
     def name_to_use(self):
         return self.name_alias or self.name
@@ -43,6 +55,10 @@ class FeatureViewProjection:
             feature_view_name=self.name,
             feature_view_name_alias=self.name_alias or "",
             join_key_map=self.join_key_map,
+            timestamp_field=self.timestamp_field,
+            date_partition_column=self.date_partition_column,
+            created_timestamp_column=self.created_timestamp_column,
+            batch_source=self.batch_source.to_proto() or None,
         )
         for feature in self.features:
             feature_reference_proto.feature_columns.append(feature.to_proto())
@@ -57,6 +73,10 @@ class FeatureViewProjection:
             features=[],
             join_key_map=dict(proto.join_key_map),
             desired_features=[],
+            timestamp_field=proto.timestamp_field or None,
+            date_partition_column=proto.date_partition_column or None,
+            created_timestamp_column=proto.created_timestamp_column or None,
+            batch_source=proto.batch_source or None,
         )
         for feature_column in proto.feature_columns:
             feature_view_projection.features.append(Field.from_proto(feature_column))
@@ -65,6 +85,21 @@ class FeatureViewProjection:
 
     @staticmethod
     def from_definition(base_feature_view: "BaseFeatureView"):
+        # TODO need to implement this for StreamFeatureViews
+        if getattr(base_feature_view, "batch_source", None):
+            return FeatureViewProjection(
+                name=base_feature_view.name,
+                name_alias=None,
+                features=base_feature_view.features,
+                desired_features=[],
+                timestamp_field=base_feature_view.batch_source.created_timestamp_column
+                or None,
+                created_timestamp_column=base_feature_view.batch_source.created_timestamp_column
+                or None,
+                date_partition_column=base_feature_view.batch_source.date_partition_column
+                or None,
+                batch_source=base_feature_view.batch_source or None,
+            )
         return FeatureViewProjection(
             name=base_feature_view.name,
             name_alias=None,
