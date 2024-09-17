@@ -502,9 +502,9 @@ setup(
     entry_points={"console_scripts": ["feast=feast.cli:cli"]},
     use_scm_version=use_scm_version,
     setup_requires=[
-        "protobuf==4.25.4",
         "grpcio-tools>=1.56.2,<2",
         "grpcio>=1.56.2,<2",
+        "protobuf==4.24.0",
         "mypy-protobuf==3.1",
         "pybindgen==0.22.0",
         "setuptools_scm>=6.2",
