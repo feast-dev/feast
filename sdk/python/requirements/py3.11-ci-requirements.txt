@@ -316,6 +316,8 @@ idna==3.8
     #   yarl
 imagesize==1.4.1
     # via sphinx
+importlib-metadata==8.5.0
+    # via dask
 iniconfig==2.0.0
     # via pytest
 ipykernel==6.29.5
