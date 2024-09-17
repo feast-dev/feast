@@ -53,7 +53,7 @@ install-python-ci-dependencies-uv-venv:
 	python setup.py build_python_protos --inplace
 
 lock-python-ci-dependencies:
-	uv pip compile --system --no-strip-extras setup.py --extra ci --output-file sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt
+	uv pip compile --system --no-strip-extras -p $(PYTHON_VERSION) setup.py --extra ci --output-file sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt
 
 package-protos:
 	cp -r ${ROOT_DIR}/protos ${ROOT_DIR}/sdk/python/feast/protos
@@ -67,15 +67,23 @@ install-python:
 	python setup.py develop
 
 lock-python-dependencies:
-	uv pip compile --system --no-strip-extras setup.py --output-file sdk/python/requirements/py$(PYTHON_VERSION)-requirements.txt
+	uv pip compile --system --no-strip-extras -p $(PYTHON_VERSION) setup.py --output-file sdk/python/requirements/py$(PYTHON_VERSION)-requirements.txt
 
 lock-python-dependencies-all:
-	pixi run --environment py39 --manifest-path infra/scripts/pixi/pixi.toml "uv pip compile --system --no-strip-extras setup.py --output-file sdk/python/requirements/py3.9-requirements.txt"
-	pixi run --environment py39 --manifest-path infra/scripts/pixi/pixi.toml "uv pip compile --system --no-strip-extras setup.py --extra ci --output-file sdk/python/requirements/py3.9-ci-requirements.txt"
-	pixi run --environment py310 --manifest-path infra/scripts/pixi/pixi.toml "uv pip compile --system --no-strip-extras setup.py --output-file sdk/python/requirements/py3.10-requirements.txt"
-	pixi run --environment py310 --manifest-path infra/scripts/pixi/pixi.toml "uv pip compile --system --no-strip-extras setup.py --extra ci --output-file sdk/python/requirements/py3.10-ci-requirements.txt"
-	pixi run --environment py311 --manifest-path infra/scripts/pixi/pixi.toml "uv pip compile --system --no-strip-extras setup.py --output-file sdk/python/requirements/py3.11-requirements.txt"
-	pixi run --environment py311 --manifest-path infra/scripts/pixi/pixi.toml "uv pip compile --system --no-strip-extras setup.py --extra ci --output-file sdk/python/requirements/py3.11-ci-requirements.txt"
+	pixi run --environment py39 --manifest-path infra/scripts/pixi/pixi.toml "uv pip compile --system --no-strip-extras -p 3.9 setup.py --output-file sdk/python/requirements/py3.9-requirements.txt"
+	pixi run --environment py39 --manifest-path infra/scripts/pixi/pixi.toml "uv pip compile --system --no-strip-extras  -p 3.9 setup.py --extra ci --output-file sdk/python/requirements/py3.9-ci-requirements.txt"
+	pixi run --environment py310 --manifest-path infra/scripts/pixi/pixi.toml "uv pip compile --system --no-strip-extras  -p 3.10 setup.py --output-file sdk/python/requirements/py3.10-requirements.txt"
+	pixi run --environment py310 --manifest-path infra/scripts/pixi/pixi.toml "uv pip compile --system --no-strip-extras  -p 3.10 setup.py --extra ci --output-file sdk/python/requirements/py3.10-ci-requirements.txt"
+	pixi run --environment py311 --manifest-path infra/scripts/pixi/pixi.toml "uv pip compile --system --no-strip-extras  -p 3.11 setup.py --output-file sdk/python/requirements/py3.11-requirements.txt"
+	pixi run --environment py311 --manifest-path infra/scripts/pixi/pixi.toml "uv pip compile --system --no-strip-extras  -p 3.11 setup.py --extra ci --output-file sdk/python/requirements/py3.11-ci-requirements.txt"
+
+lock-python-dependencies-uv-all:
+	uv pip compile --system --no-strip-extras -p 3.9 setup.py --output-file sdk/python/requirements/py3.9-requirements.txt
+	uv pip compile --system --no-strip-extras  -p 3.9 setup.py --extra ci --output-file sdk/python/requirements/py3.9-ci-requirements.txt
+	uv pip compile --system --no-strip-extras  -p 3.10 setup.py --output-file sdk/python/requirements/py3.10-requirements.txt
+	uv pip compile --system --no-strip-extras  -p 3.10 setup.py --extra ci --output-file sdk/python/requirements/py3.10-ci-requirements.txt
+	uv pip compile --system --no-strip-extras  -p 3.11 setup.py --output-file sdk/python/requirements/py3.11-requirements.txt
+	uv pip compile --system --no-strip-extras  -p 3.11 setup.py --extra ci --output-file sdk/python/requirements/py3.11-ci-requirements.txt
 
 benchmark-python:
 	IS_TEST=True python -m pytest --integration --benchmark  --benchmark-autosave --benchmark-save-data sdk/python/tests
