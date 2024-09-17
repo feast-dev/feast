@@ -53,7 +53,7 @@ install-python-ci-dependencies-uv-venv:
 	python setup.py build_python_protos --inplace
 
 install-protoc-dependencies:
-	pip install --ignore-installed "protobuf==4.24.0" "grpcio-tools>=1.56.2,<2" mypy-protobuf==3.1
+	pip install "grpcio-tools>=1.56.2,<2" "mypy-protobuf>=3.1"
 
 lock-python-ci-dependencies:
 	uv pip compile --system --no-strip-extras -p $(PYTHON_VERSION) setup.py --extra ci --output-file sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt

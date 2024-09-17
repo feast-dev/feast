@@ -94,16 +94,15 @@ jobs:
           node-version: '17.x'
           registry-url: 'https://registry.npmjs.org'
       - name: Build and install dependencies
-        # There's a `git restore` in here because `make install-go-ci-dependencies` is actually messing up go.mod & go.sum.
         run: |
           pip install -U pip setuptools wheel twine
+          make install-protoc-dependencies
           make build-ui
           git status
-          git restore go.mod go.sum
           git restore sdk/python/feast/ui/yarn.lock
       - name: Build
         run: |
-          python3 setup.py sdist
+          python3 setup.py build_py sdist
       - uses: actions/upload-artifact@v3
         with:
           name: wheels
