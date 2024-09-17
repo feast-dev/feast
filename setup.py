@@ -67,9 +67,7 @@ REQUIRED = [
     "kubernetes<=20.13.0",
 ]
 
-GO_REQUIRED = [
-    "cffi~=1.15.0"
-]
+GO_REQUIRED = ["cffi~=1.15.0"]
 
 GCP_REQUIRED = [
     "google-api-core>=1.23.0,<3",
@@ -108,7 +106,7 @@ POSTGRES_REQUIRED = [
     "psycopg[binary,pool]>=3.0.0,<4",
 ]
 
-OPENTELEMETRY = ["prometheus_client","psutil"]
+OPENTELEMETRY = ["prometheus_client", "psutil"]
 
 MYSQL_REQUIRED = ["pymysql", "types-PyMySQL"]
 
@@ -504,10 +502,10 @@ setup(
     entry_points={"console_scripts": ["feast=feast.cli:cli"]},
     use_scm_version=use_scm_version,
     setup_requires=[
+        "protobuf==4.25.4",
         "grpcio-tools>=1.56.2,<2",
         "grpcio>=1.56.2,<2",
         "mypy-protobuf==3.1",
-        "protobuf==4.24.0",
         "pybindgen==0.22.0",
         "setuptools_scm>=6.2",
     ],
