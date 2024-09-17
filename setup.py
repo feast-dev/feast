@@ -63,7 +63,6 @@ REQUIRED = [
     "psutil",
     "bigtree>=0.19.2",
     "pyjwt",
-    "kubernetes<=20.13.0",
 ]
 
 GCP_REQUIRED = [
