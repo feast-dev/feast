@@ -203,7 +203,7 @@ def _infer_features_and_entities(
         run_inference_for_features: Whether to run inference for features.
         config: The config for the current feature store.
     """
-    entity_columns = []
+    entity_columns: list[str] = []
     if isinstance(fv, OnDemandFeatureView):
         columns_to_exclude = set()
         for (

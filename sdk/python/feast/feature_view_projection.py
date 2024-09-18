@@ -10,6 +10,7 @@ from feast.protos.feast.core.FeatureViewProjection_pb2 import (
 
 if TYPE_CHECKING:
     from feast.base_feature_view import BaseFeatureView
+    from feast.feature_view import FeatureView
 
 
 @dataclass
@@ -53,17 +54,17 @@ class FeatureViewProjection:
     def to_proto(self) -> FeatureViewProjectionProto:
         batch_source = None
         if getattr(self, "batch_source", None):
-            if type(self.batch_source).__name__ == "DataSource":
-                batch_source = self.batch_source
-            else:
+            if isinstance(self.batch_source, DataSource):
                 batch_source = self.batch_source.to_proto()
+            else:
+                batch_source = self.batch_source
         feature_reference_proto = FeatureViewProjectionProto(
             feature_view_name=self.name,
             feature_view_name_alias=self.name_alias or "",
             join_key_map=self.join_key_map,
-            timestamp_field=self.timestamp_field,
-            date_partition_column=self.date_partition_column,
-            created_timestamp_column=self.created_timestamp_column,
+            timestamp_field=self.timestamp_field or "",
+            date_partition_column=self.date_partition_column or "",
+            created_timestamp_column=self.created_timestamp_column or "",
             batch_source=batch_source,
         )
         for feature in self.features:
@@ -90,8 +91,25 @@ class FeatureViewProjection:
         return feature_view_projection
 
     @staticmethod
-    def from_definition(base_feature_view: "BaseFeatureView"):
+    def from_feature_view_definition(feature_view: "FeatureView"):
         # TODO need to implement this for StreamFeatureViews
+        if getattr(feature_view, "batch_source", None):
+            return FeatureViewProjection(
+                name=feature_view.name,
+                name_alias=None,
+                features=feature_view.features,
+                desired_features=[],
+                timestamp_field=feature_view.batch_source.created_timestamp_column
+                or None,
+                created_timestamp_column=feature_view.batch_source.created_timestamp_column
+                or None,
+                date_partition_column=feature_view.batch_source.date_partition_column
+                or None,
+                batch_source=feature_view.batch_source or None,
+            )
+
+    @staticmethod
+    def from_definition(base_feature_view: "BaseFeatureView"):
         if getattr(base_feature_view, "batch_source", None):
             return FeatureViewProjection(
                 name=base_feature_view.name,
@@ -106,12 +124,13 @@ class FeatureViewProjection:
                 or None,
                 batch_source=base_feature_view.batch_source or None,
             )
-        return FeatureViewProjection(
-            name=base_feature_view.name,
-            name_alias=None,
-            features=base_feature_view.features,
-            desired_features=[],
-        )
+        else:
+            return FeatureViewProjection(
+                name=base_feature_view.name,
+                name_alias=None,
+                features=base_feature_view.features,
+                desired_features=[],
+            )
 
     def get_feature(self, feature_name: str) -> Field:
         try:

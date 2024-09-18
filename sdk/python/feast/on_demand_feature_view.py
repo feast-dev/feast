@@ -235,9 +235,9 @@ class OnDemandFeatureView(BaseFeatureView):
                 "Comparisons should only involve OnDemandFeatureView class objects."
             )
 
-        if not super().__eq__(other):
-            return False
-
+        # Note, no longer evaluating the base feature view layer as ODFVs can have
+        # multiple datasources and a base_feature_view only has one source
+        # though maybe that shouldn't be true
         if (
             self.source_feature_view_projections
             != other.source_feature_view_projections
