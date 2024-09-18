@@ -17,7 +17,6 @@ from feast.permissions.security_manager import get_security_manager
 from feast.permissions.user import User
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 
 class AuthorizationMiddlewareFactory(fl.ServerMiddlewareFactory):
@@ -49,7 +48,7 @@ class AuthorizationMiddleware(fl.ServerMiddleware):
 
     def call_completed(self, exception):
         if exception:
-            logger.error(
+            logger.exception(
                 f"{AuthorizationMiddleware.__name__} encountered an exception: {exception}"
             )
 
@@ -78,7 +77,7 @@ def inject_user_details(context: ServerCallContext):
     if sm is not None:
         auth_middleware = cast(AuthorizationMiddleware, context.get_middleware("auth"))
         current_user = asyncio.run(auth_middleware.extract_user())
-        logger.info(f"User extracted: {current_user}")
+        logger.debug(f"User extracted: {current_user}")
 
         sm.set_current_user(current_user)
 

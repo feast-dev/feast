@@ -17,7 +17,6 @@ from feast.permissions.oidc_service import OIDCDiscoveryService
 from feast.permissions.user import User
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 
 class OidcTokenParser(TokenParser):
