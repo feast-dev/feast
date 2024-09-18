@@ -51,6 +51,12 @@ class FeatureViewProjection:
         return self.name_alias or self.name
 
     def to_proto(self) -> FeatureViewProjectionProto:
+        batch_source = None
+        if getattr(self, "batch_source", None):
+            if type(self.batch_source).__name__ == "DataSource":
+                batch_source = self.batch_source
+            else:
+                batch_source = self.batch_source.to_proto()
         feature_reference_proto = FeatureViewProjectionProto(
             feature_view_name=self.name,
             feature_view_name_alias=self.name_alias or "",
@@ -58,7 +64,7 @@ class FeatureViewProjection:
             timestamp_field=self.timestamp_field,
             date_partition_column=self.date_partition_column,
             created_timestamp_column=self.created_timestamp_column,
-            batch_source=self.batch_source.to_proto() or None,
+            batch_source=batch_source,
         )
         for feature in self.features:
             feature_reference_proto.feature_columns.append(feature.to_proto())

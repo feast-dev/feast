@@ -126,11 +126,13 @@ def test_proto_conversion():
 
     feature_view_proto = feature_view_1.to_proto()
     assert (
-        feature_view_proto.spec.name == "my-feature-view" and
-        feature_view_proto.spec.batch_source.file_options.uri == "test.parquet" and
-        feature_view_proto.spec.batch_source.name == "my-file-source" and
-        feature_view_proto.spec.batch_source.type == 1
+        feature_view_proto.spec.name == "my-feature-view"
+        and feature_view_proto.spec.batch_source.file_options.uri == "test.parquet"
+        and feature_view_proto.spec.batch_source.name == "my-file-source"
+        and feature_view_proto.spec.batch_source.type == 1
     )
+
+
 # TODO(felixwang9817): Add tests for field mapping logic.
 
 
