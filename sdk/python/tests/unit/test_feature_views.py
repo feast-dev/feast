@@ -111,7 +111,6 @@ def test_hash():
     assert len(s4) == 3
 
 
-# TODO(felixwang9817): Add tests for proto conversion.
 def test_proto_conversion():
     file_source = FileSource(name="my-file-source", path="test.parquet")
     feature_view_1 = FeatureView(
