@@ -405,7 +405,7 @@ setup(
         "grpcio-tools>=1.56.2,<2",
         "grpcio>=1.56.2,<2",
         "mypy-protobuf==3.1",
-        "protobuf==4.24.0",
+        "protobuf>=4.24.0,<5.0.0",
         "pybindgen==0.22.0",
         "setuptools_scm>=6.2",
     ],
