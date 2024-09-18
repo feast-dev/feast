@@ -161,7 +161,6 @@ class BaseFeatureView(ABC):
             or self.description != other.description
             or self.tags != other.tags
             or self.owner != other.owner
-            or self.source != other.source
         ):
             # This is meant to ignore the File Source change to Push Source
             if isinstance(type(self.source), type(other.source)):
