@@ -35,4 +35,4 @@ jobs:
       - name: Install dependencies
         run: make install-python-dependencies-uv
       - name: Test Imports
-        run: pixi run python -c "from feast import cli"
+        run: python -c "from feast import cli"
