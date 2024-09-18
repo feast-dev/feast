@@ -102,7 +102,7 @@ jobs:
           git restore sdk/python/feast/ui/yarn.lock
       - name: Build
         run: |
-          python3 setup.py build_py sdist
+          python3 setup.py sdist
       - uses: actions/upload-artifact@v3
         with:
           name: wheels
