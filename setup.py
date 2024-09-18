@@ -139,7 +139,7 @@ IBIS_REQUIRED = [
 
 GRPCIO_REQUIRED = [
     "grpcio>=1.56.2,<2",
-    "grpcio-tools>=1.56.2,<2",
+    "grpcio-tools==1.56.2", # TODO why isn't this a dev dependency?
     "grpcio-reflection>=1.56.2,<2",
     "grpcio-health-checking>=1.56.2,<2",
 ]
@@ -402,7 +402,7 @@ setup(
     entry_points={"console_scripts": ["feast=feast.cli:cli"]},
     use_scm_version=use_scm_version,
     setup_requires=[
-        "grpcio-tools>=1.56.2,<2",
+        "grpcio-tools==1.56.2",
         "grpcio>=1.56.2,<2",
         "mypy-protobuf==3.1",
         "protobuf>=4.24.0,<5.0.0",

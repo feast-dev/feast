@@ -11,34 +11,28 @@ attrs==24.2.0
     #   jsonschema
     #   referencing
 bigtree==0.21.1
-    # via feast (setup.py)
 certifi==2024.8.30
     # via requests
 charset-normalizer==3.3.2
     # via requests
 click==8.1.7
     # via
-    #   feast (setup.py)
     #   dask
     #   uvicorn
 cloudpickle==3.0.0
     # via dask
 colorama==0.4.6
-    # via feast (setup.py)
 dask[dataframe]==2024.8.2
-    # via
-    #   feast (setup.py)
-    #   dask-expr
+    # via dask-expr
 dask-expr==1.1.13
     # via dask
 dill==0.3.8
-    # via feast (setup.py)
 fastapi==0.114.1
-    # via feast (setup.py)
 fsspec==2024.9.0
     # via dask
+greenlet==3.1.0
+    # via sqlalchemy
 gunicorn==23.0.0
-    # via feast (setup.py)
 h11==0.14.0
     # via uvicorn
 httptools==0.6.1
@@ -50,9 +44,7 @@ idna==3.8
 importlib-metadata==8.5.0
     # via dask
 jinja2==3.1.4
-    # via feast (setup.py)
 jsonschema==4.23.0
-    # via feast (setup.py)
 jsonschema-specifications==2023.12.1
     # via jsonschema
 locket==1.0.0
@@ -60,16 +52,13 @@ locket==1.0.0
 markupsafe==2.1.5
     # via jinja2
 mmh3==4.1.0
-    # via feast (setup.py)
 mypy==1.11.2
     # via sqlalchemy
 mypy-extensions==1.0.0
     # via mypy
 mypy-protobuf==3.6.0
-    # via feast (setup.py)
 numpy==1.26.4
     # via
-    #   feast (setup.py)
     #   dask
     #   pandas
     #   pyarrow
@@ -79,33 +68,22 @@ packaging==24.1
     #   gunicorn
 pandas==2.2.2
     # via
-    #   feast (setup.py)
     #   dask
     #   dask-expr
 partd==1.4.2
     # via dask
 prometheus-client==0.20.0
-    # via feast (setup.py)
 protobuf==4.25.4
-    # via
-    #   feast (setup.py)
-    #   mypy-protobuf
+    # via mypy-protobuf
 psutil==6.0.0
-    # via feast (setup.py)
 pyarrow==17.0.0
-    # via
-    #   feast (setup.py)
-    #   dask-expr
+    # via dask-expr
 pydantic==2.9.1
-    # via
-    #   feast (setup.py)
-    #   fastapi
+    # via fastapi
 pydantic-core==2.23.3
     # via pydantic
 pygments==2.18.0
-    # via feast (setup.py)
 pyjwt==2.9.0
-    # via feast (setup.py)
 python-dateutil==2.9.0.post0
     # via pandas
 python-dotenv==1.0.1
@@ -114,7 +92,6 @@ pytz==2024.2
     # via pandas
 pyyaml==6.0.2
     # via
-    #   feast (setup.py)
     #   dask
     #   uvicorn
 referencing==0.35.1
@@ -122,7 +99,6 @@ referencing==0.35.1
     #   jsonschema
     #   jsonschema-specifications
 requests==2.32.3
-    # via feast (setup.py)
 rpds-py==0.20.0
     # via
     #   jsonschema
@@ -132,23 +108,17 @@ six==1.16.0
 sniffio==1.3.1
     # via anyio
 sqlalchemy[mypy]==2.0.34
-    # via feast (setup.py)
 starlette==0.38.5
     # via fastapi
 tabulate==0.9.0
-    # via feast (setup.py)
 tenacity==8.5.0
-    # via feast (setup.py)
 toml==0.10.2
-    # via feast (setup.py)
 toolz==0.12.1
     # via
     #   dask
     #   partd
 tqdm==4.66.5
-    # via feast (setup.py)
 typeguard==4.3.0
-    # via feast (setup.py)
 types-protobuf==5.27.0.20240907
     # via mypy-protobuf
 typing-extensions==4.12.2
@@ -164,7 +134,6 @@ tzdata==2024.1
 urllib3==2.2.2
     # via requests
 uvicorn[standard]==0.30.6
-    # via feast (setup.py)
 uvloop==0.20.0
     # via uvicorn
 watchfiles==0.24.0
