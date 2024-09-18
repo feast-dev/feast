@@ -111,9 +111,7 @@ partd==1.4.2
 prometheus-client==0.20.0
     # via eg-feast (setup.py)
 protobuf==5.27.2
-    # via
-    #   eg-feast (setup.py)
-    #   mypy-protobuf
+    # via mypy-protobuf
 psutil==6.0.0
     # via eg-feast (setup.py)
 pyarrow==17.0.0

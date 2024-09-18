@@ -742,9 +742,7 @@ class FeatureStore:
         # and the desired infra.
         self._registry.refresh(project=self.project)
         current_infra_proto = InfraProto()
-        registry_proto = self._registry.proto()
-        if registry_proto.HasField("infra"):
-            current_infra_proto.CopyFrom(registry_proto.infra)
+        current_infra_proto.CopyFrom(self._registry.proto().infra)
         desired_registry_proto = desired_repo_contents.to_registry_proto()
         new_infra = self._provider.plan_infra(self.config, desired_registry_proto)
         new_infra_proto = new_infra.to_proto()

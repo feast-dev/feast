@@ -584,7 +584,6 @@ proto-plus==1.24.0
     #   google-cloud-datastore
 protobuf==5.27.2
     # via
-    #   eg-feast (setup.py)
     #   google-api-core
     #   google-cloud-bigquery-storage
     #   google-cloud-bigtable

@@ -42,7 +42,6 @@ REQUIRED = [
     "mmh3",
     "numpy>=1.22,<2",
     "pandas>=1.4.3,<3",
-    "protobuf==5.27.2",
     "pyarrow>=4",
     "pydantic>=2.0.0",
     "pygments>=2.12.0,<3",
@@ -151,7 +150,6 @@ IBIS_REQUIRED = [
 
 GRPCIO_REQUIRED = [
     "grpcio>=1.56.2,<2",
-    "grpcio-tools>=1.56.2,<2",
     "grpcio-reflection>=1.56.2,<2",
     "grpcio-health-checking>=1.56.2,<2",
 ]
@@ -172,6 +170,7 @@ CI_REQUIRED = (
         "virtualenv==20.23.0",
         "cryptography>=35.0,<43",
         "ruff>=0.3.3",
+        "grpcio-tools>=1.56.2,<2",
         "grpcio-testing>=1.56.2,<2",
         # FastAPI does not correctly pull starlette dependency on httpx see thread(https://github.com/tiangolo/fastapi/issues/5656).
         "httpx>=0.23.3",
@@ -503,9 +502,7 @@ setup(
     use_scm_version=use_scm_version,
     setup_requires=[
         "grpcio-tools>=1.56.2,<2",
-        "grpcio>=1.56.2,<2",
         "mypy-protobuf>=3.1",
-        "protobuf==5.27.2",
         "pybindgen==0.22.0",
         "setuptools_scm>=6.2",
     ],
