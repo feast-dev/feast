@@ -116,13 +116,13 @@ class FeatureViewProjection:
                 name_alias=None,
                 features=base_feature_view.features,
                 desired_features=[],
-                timestamp_field=base_feature_view.batch_source.created_timestamp_column
+                timestamp_field=base_feature_view.batch_source.created_timestamp_column  # type:ignore[attr-defined]
                 or None,
-                created_timestamp_column=base_feature_view.batch_source.created_timestamp_column
+                created_timestamp_column=base_feature_view.batch_source.created_timestamp_column  # type:ignore[attr-defined]
                 or None,
-                date_partition_column=base_feature_view.batch_source.date_partition_column
+                date_partition_column=base_feature_view.batch_source.date_partition_column  # type:ignore[attr-defined]
                 or None,
-                batch_source=base_feature_view.batch_source or None,
+                batch_source=base_feature_view.batch_source or None,  # type:ignore[attr-defined]
             )
         else:
             return FeatureViewProjection(

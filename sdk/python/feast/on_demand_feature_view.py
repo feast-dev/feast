@@ -241,6 +241,7 @@ class OnDemandFeatureView(BaseFeatureView):
         if (
             self.source_feature_view_projections
             != other.source_feature_view_projections
+            or self.description != other.description
             or self.source_request_sources != other.source_request_sources
             or self.mode != other.mode
             or self.feature_transformation != other.feature_transformation
@@ -423,9 +424,9 @@ class OnDemandFeatureView(BaseFeatureView):
         else:
             write_to_online_store = False
         if hasattr(on_demand_feature_view_proto.spec, "entities"):
-            entities = on_demand_feature_view_proto.spec.entities
+            entities = list(on_demand_feature_view_proto.spec.entities)
         else:
-            entities = None
+            entities = []
         if hasattr(on_demand_feature_view_proto.spec, "entity_columns"):
             entity_columns = [
                 Field.from_proto(field_proto)
@@ -452,7 +453,7 @@ class OnDemandFeatureView(BaseFeatureView):
             write_to_online_store=write_to_online_store,
         )
 
-        on_demand_feature_view_obj.entities = list(entities)
+        on_demand_feature_view_obj.entities = entities
         on_demand_feature_view_obj.entity_columns = entity_columns
 
         # FeatureViewProjections are not saved in the OnDemandFeatureView proto.
