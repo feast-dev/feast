@@ -13,7 +13,7 @@ feast:
     - name: online # Name of the store (referenced by active_store)
       type: REDIS # Type of the store. REDIS, REDIS_CLUSTER are available options
       config:  # Store specific configuration. See
-        host: marketplace-fs-mo.slkos6.clustercfg.aps1.cache.amazonaws.com
+        host: marketplace-fs-mo-v1.slkos6.clustercfg.aps1.cache.amazonaws.com
         port: 6379
       # Subscriptions indicate which feature sets needs to be retrieved and used to populate this store
     - name: online_cluster
