@@ -501,13 +501,14 @@ setup(
     ],
     entry_points={"console_scripts": ["feast=feast.cli:cli"]},
     use_scm_version=use_scm_version,
-    # setup_requires=[
-    #     "grpcio-tools>=1.56.2,<2",
-    #     "grpcio>=1.56.2,<2",
-    #     "mypy-protobuf>=3.1",
-    #     "pybindgen==0.22.0",
-    #     "setuptools_scm>=6.2",
-    # ],
+    setup_requires=[
+        "grpcio-tools>=1.56.2,<2",
+        "grpcio>=1.56.2,<2",
+        "mypy-protobuf>=3.1",
+        "protobuf==5.27.2",
+        "pybindgen==0.22.0",
+        "setuptools_scm>=6.2",
+    ],
     cmdclass={
         "build_python_protos": BuildPythonProtosCommand,
         "build_go_protos": BuildGoProtosCommand,
