@@ -18,10 +18,9 @@ import re
 import shutil
 import subprocess
 import sys
-
 from pathlib import Path
 
-from setuptools import find_packages, setup, Command
+from setuptools import Command, find_packages, setup
 from setuptools.command.build_ext import build_ext as _build_ext
 from setuptools.command.build_py import build_py
 from setuptools.command.develop import develop
@@ -43,7 +42,6 @@ REQUIRED = [
     "mmh3",
     "numpy>=1.22,<2",
     "pandas>=1.4.3,<3",
-    "protobuf>=4.24.0,<5.0.0",
     "pyarrow>=4",
     "pydantic>=2.0.0",
     "pygments>=2.12.0,<3",
@@ -102,7 +100,7 @@ POSTGRES_REQUIRED = [
     "psycopg[binary,pool]>=3.0.0,<4",
 ]
 
-OPENTELEMETRY = ["prometheus_client","psutil"]
+OPENTELEMETRY = ["prometheus_client", "psutil"]
 
 MYSQL_REQUIRED = ["pymysql", "types-PyMySQL"]
 
@@ -139,7 +137,6 @@ IBIS_REQUIRED = [
 
 GRPCIO_REQUIRED = [
     "grpcio>=1.56.2,<2",
-    "grpcio-tools==1.56.2", # TODO why isn't this a dev dependency?
     "grpcio-reflection>=1.56.2,<2",
     "grpcio-health-checking>=1.56.2,<2",
 ]
@@ -160,6 +157,7 @@ CI_REQUIRED = (
         "virtualenv==20.23.0",
         "cryptography>=35.0,<43",
         "ruff>=0.3.3",
+        "grpcio-tools>=1.56.2,<2",
         "grpcio-testing>=1.56.2,<2",
         # FastAPI does not correctly pull starlette dependency on httpx see thread(https://github.com/tiangolo/fastapi/issues/5656).
         "httpx>=0.23.3",
@@ -402,10 +400,8 @@ setup(
     entry_points={"console_scripts": ["feast=feast.cli:cli"]},
     use_scm_version=use_scm_version,
     setup_requires=[
-        "grpcio-tools==1.56.2",
-        "grpcio>=1.56.2,<2",
-        "mypy-protobuf==3.1",
-        "protobuf>=4.24.0,<5.0.0",
+        "grpcio-tools>=1.56.2,<2",
+        "mypy-protobuf>=3.1",
         "pybindgen==0.22.0",
         "setuptools_scm>=6.2",
     ],

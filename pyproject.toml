@@ -1,3 +1,14 @@
+[build-system]
+requires = [
+  "grpcio-tools>=1.56.2,<2",
+  "mypy-protobuf>=3.1",
+  "pybindgen==0.22.0",
+  "setuptools>=60",
+  "setuptools_scm>=6.2",
+  "sphinx!=4.0.0",
+  "wheel",
+]
+
 [tool.setuptools_scm]
 # Including this section is comparable to supplying use_scm_version=True in setup.py.
 
