@@ -19,6 +19,7 @@ class FeastError(Exception):
 
     def grpc_status_code(self) -> "GrpcStatusCode":
         from grpc import StatusCode as GrpcStatusCode
+
         return GrpcStatusCode.INTERNAL
 
     def http_status_code(self) -> int:
@@ -94,6 +95,7 @@ class FeastObjectNotFoundException(FeastError):
 
     def grpc_status_code(self) -> "GrpcStatusCode":
         from grpc import StatusCode as GrpcStatusCode
+
         return GrpcStatusCode.NOT_FOUND
 
     def http_status_code(self) -> int:
@@ -510,6 +512,7 @@ class FeastPermissionError(FeastError, PermissionError):
 
     def grpc_status_code(self) -> "GrpcStatusCode":
         from grpc import StatusCode as GrpcStatusCode
+
         return GrpcStatusCode.PERMISSION_DENIED
 
     def http_status_code(self) -> int:
