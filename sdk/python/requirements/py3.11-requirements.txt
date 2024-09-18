@@ -106,7 +106,7 @@ partd==1.4.2
     # via dask
 prometheus-client==0.20.0
     # via eg-feast (setup.py)
-protobuf==4.24.0
+protobuf==5.27.2
     # via
     #   eg-feast (setup.py)
     #   mypy-protobuf
