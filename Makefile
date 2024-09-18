@@ -58,10 +58,7 @@ lock-python-ci-dependencies:
 package-protos:
 	cp -r ${ROOT_DIR}/protos ${ROOT_DIR}/sdk/python/feast/protos
 
-install-protoc-dependencies:
-	pip install "grpcio-tools>=1.56.2,<2" "mypy-protobuf>=3.1"
-
-compile-protos-python: install-protoc-dependencies
+compile-protos-python:
 	python setup.py build_python_protos --inplace
 
 install-python:
