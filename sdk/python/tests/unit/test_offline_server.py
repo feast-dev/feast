@@ -8,7 +8,8 @@ import pyarrow as pa
 import pyarrow.flight as flight
 import pytest
 
-from feast import FeatureStore
+from feast import FeatureStore, FeatureView, FileSource
+from feast.errors import FeatureViewNotFoundException
 from feast.feature_logging import FeatureServiceLoggingSource
 from feast.infra.offline_stores.remote import (
     RemoteOfflineStore,
@@ -118,6 +119,35 @@ def test_remote_offline_store_apis():
         _test_write_logged_features(str(temp_dir), fs)
         _test_pull_latest_from_table_or_query(str(temp_dir), fs)
         _test_pull_all_from_table_or_query(str(temp_dir), fs)
+
+
+def test_remote_offline_store_exception_handling():
+    with tempfile.TemporaryDirectory() as temp_dir:
+        store = default_store(str(temp_dir))
+        location = "grpc+tcp://localhost:0"
+
+        _init_auth_manager(store=store)
+        server = OfflineServer(store=store, location=location)
+
+        assertpy.assert_that(server).is_not_none
+        assertpy.assert_that(server.port).is_not_equal_to(0)
+
+        fs = remote_feature_store(server)
+        data_file = os.path.join(
+            temp_dir, fs.project, "feature_repo/data/driver_stats.parquet"
+        )
+        data_df = pd.read_parquet(data_file)
+
+        with pytest.raises(
+            FeatureViewNotFoundException,
+            match="Feature view test does not exist in project test_remote_offline",
+        ):
+            RemoteOfflineStore.offline_write_batch(
+                fs.config,
+                FeatureView(name="test", source=FileSource(path="test")),
+                pa.Table.from_pandas(data_df),
+                progress=None,
+            )
 
 
 def _test_get_historical_features_returns_data(fs: FeatureStore):
