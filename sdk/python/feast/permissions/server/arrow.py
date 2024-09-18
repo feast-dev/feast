@@ -49,7 +49,9 @@ class AuthorizationMiddleware(fl.ServerMiddleware):
 
     def call_completed(self, exception):
         if exception:
-            print(f"{AuthorizationMiddleware.__name__} received {exception}")
+            logger.error(
+                f"{AuthorizationMiddleware.__name__} encountered an exception: {exception}"
+            )
 
     async def extract_user(self) -> User:
         """
@@ -69,14 +71,14 @@ def inject_user_details(context: ServerCallContext):
         context: The endpoint context.
     """
     if context.get_middleware("auth") is None:
-        logger.info("No `auth` middleware.")
+        logger.warning("No `auth` middleware.")
         return
 
     sm = get_security_manager()
     if sm is not None:
         auth_middleware = cast(AuthorizationMiddleware, context.get_middleware("auth"))
         current_user = asyncio.run(auth_middleware.extract_user())
-        print(f"extracted user: {current_user}")
+        logger.info(f"User extracted: {current_user}")
 
         sm.set_current_user(current_user)
 
