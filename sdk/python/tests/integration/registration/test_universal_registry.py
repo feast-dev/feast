@@ -1769,38 +1769,10 @@ def test_apply_entity_success_with_purge_feast_metadata(test_registry):
     test_registry.teardown()
 
 
-combined_sql_fixtures = [
-    pytest.param(
-        lazy_fixture("pg_registry"), marks=pytest.mark.xdist_group(name="pg_registry")
-    ),
-    pytest.param(
-        lazy_fixture("mysql_registry"),
-        marks=pytest.mark.xdist_group(name="mysql_registry"),
-    ),
-    lazy_fixture("sqlite_registry"),
-    pytest.param(
-        lazy_fixture("pg_registry_async"),
-        marks=pytest.mark.xdist_group(name="pg_registry"),
-    ),
-    pytest.param(
-        lazy_fixture("mysql_registry_async"),
-        marks=pytest.mark.xdist_group(name="mysql_registry"),
-    ),
-    pytest.param(
-        lazy_fixture("pg_registry_purge_feast_metadata"),
-        marks=pytest.mark.xdist_group(name="pg_registry"),
-    ),
-    pytest.param(
-        lazy_fixture("mysql_registry_purge_feast_metadata"),
-        marks=pytest.mark.xdist_group(name="mysql_registry"),
-    ),
-]
-
-
 @pytest.mark.integration
 @pytest.mark.parametrize(
     "test_registry",
-    combined_sql_fixtures,
+    sql_fixtures + async_sql_fixtures,
 )
 def test_apply_entity_to_sql_registry_and_reinitialize_sql_registry(test_registry):
     entity = Entity(
