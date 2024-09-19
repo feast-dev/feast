@@ -73,7 +73,12 @@ class FeatureViewProjection:
         return feature_reference_proto
 
     @staticmethod
-    def from_proto(proto: FeatureViewProjectionProto):
+    def from_proto(proto: FeatureViewProjectionProto) -> "FeatureViewProjection":
+        batch_source = (
+            DataSource.from_proto(proto.batch_source)
+            if str(getattr(proto, "batch_source"))
+            else None
+        )
         feature_view_projection = FeatureViewProjection(
             name=proto.feature_view_name,
             name_alias=proto.feature_view_name_alias or None,
@@ -83,7 +88,7 @@ class FeatureViewProjection:
             timestamp_field=proto.timestamp_field or None,
             date_partition_column=proto.date_partition_column or None,
             created_timestamp_column=proto.created_timestamp_column or None,
-            batch_source=proto.batch_source or None,
+            batch_source=batch_source,
         )
         for feature_column in proto.feature_columns:
             feature_view_projection.features.append(Field.from_proto(feature_column))
