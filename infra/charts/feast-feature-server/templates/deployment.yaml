@@ -42,20 +42,28 @@ spec:
           command:
             {{- if eq .Values.feast_mode "offline" }}
             - "feast"
+            - "--log-level"
+            - "{{ .Values.logLevel }}"
             - "serve_offline"
             - "-h"
             - "0.0.0.0"
             {{- else if eq .Values.feast_mode "ui" }}
             - "feast"
+            - "--log-level"
+            - "{{ .Values.logLevel }}"
             - "ui"
             - "-h"
             - "0.0.0.0"
             {{- else if eq .Values.feast_mode "registry" }}
             - "feast"
+            - "--log-level"
+            - "{{ .Values.logLevel }}"
             - "serve_registry"
             {{- else }}
             {{- if .Values.metrics.enlabled }}
             - "feast"
+            - "--log-level"
+            - "{{ .Values.logLevel }}"
             - "serve"
             - "--metrics"
             - "-h"
