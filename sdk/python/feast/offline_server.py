@@ -9,16 +9,18 @@ import pyarrow as pa
 import pyarrow.flight as fl
 
 from feast import FeatureStore, FeatureView, utils
+from feast.arrow_error_handler import arrow_server_error_handling_decorator
 from feast.feature_logging import FeatureServiceLoggingSource
 from feast.feature_view import DUMMY_ENTITY_NAME
 from feast.infra.offline_stores.offline_utils import get_offline_store_from_config
 from feast.permissions.action import AuthzedAction
 from feast.permissions.security_manager import assert_permissions
 from feast.permissions.server.arrow import (
-    arrowflight_middleware,
+    AuthorizationMiddlewareFactory,
     inject_user_details_decorator,
 )
 from feast.permissions.server.utils import (
+    AuthManagerType,
     ServerType,
     init_auth_manager,
     init_security_manager,
@@ -34,7 +36,7 @@ class OfflineServer(fl.FlightServerBase):
     def __init__(self, store: FeatureStore, location: str, **kwargs):
         super(OfflineServer, self).__init__(
             location,
-            middleware=arrowflight_middleware(
+            middleware=self.arrow_flight_auth_middleware(
                 str_to_auth_manager_type(store.config.auth_config.type)
             ),
             **kwargs,
@@ -44,6 +46,25 @@ class OfflineServer(fl.FlightServerBase):
         self.flights: Dict[str, Any] = {}
         self.store = store
         self.offline_store = get_offline_store_from_config(store.config.offline_store)
+
+    def arrow_flight_auth_middleware(
+        self,
+        auth_type: AuthManagerType,
+    ) -> dict[str, fl.ServerMiddlewareFactory]:
+        """
+        A dictionary with the configured middlewares to support extracting the user details when the authorization manager is defined.
+        The authorization middleware key is `auth`.
+
+        Returns:
+            dict[str, fl.ServerMiddlewareFactory]: Optional dictionary of middlewares. If the authorization type is set to `NONE`, it returns an empty dict.
+        """
+
+        if auth_type == AuthManagerType.NONE:
+            return {}
+
+        return {
+            "auth": AuthorizationMiddlewareFactory(),
+        }
 
     @classmethod
     def descriptor_to_key(self, descriptor: fl.FlightDescriptor):
@@ -61,15 +82,7 @@ class OfflineServer(fl.FlightServerBase):
         return fl.FlightInfo(schema, descriptor, endpoints, -1, -1)
 
     @inject_user_details_decorator
-    def get_flight_info(
-        self, context: fl.ServerCallContext, descriptor: fl.FlightDescriptor
-    ):
-        key = OfflineServer.descriptor_to_key(descriptor)
-        if key in self.flights:
-            return self._make_flight_info(key, descriptor)
-        raise KeyError("Flight not found.")
-
-    @inject_user_details_decorator
+    @arrow_server_error_handling_decorator
     def list_flights(self, context: fl.ServerCallContext, criteria: bytes):
         for key, table in self.flights.items():
             if key[1] is not None:
@@ -79,9 +92,20 @@ class OfflineServer(fl.FlightServerBase):
 
             yield self._make_flight_info(key, descriptor)
 
+    @inject_user_details_decorator
+    @arrow_server_error_handling_decorator
+    def get_flight_info(
+        self, context: fl.ServerCallContext, descriptor: fl.FlightDescriptor
+    ):
+        key = OfflineServer.descriptor_to_key(descriptor)
+        if key in self.flights:
+            return self._make_flight_info(key, descriptor)
+        raise KeyError("Flight not found.")
+
     # Expects to receive request parameters and stores them in the flights dictionary
     # Indexed by the unique command
     @inject_user_details_decorator
+    @arrow_server_error_handling_decorator
     def do_put(
         self,
         context: fl.ServerCallContext,
@@ -179,6 +203,7 @@ class OfflineServer(fl.FlightServerBase):
     # Extracts the API parameters from the flights dictionary, delegates the execution to the FeatureStore instance
     # and returns the stream of data
     @inject_user_details_decorator
+    @arrow_server_error_handling_decorator
     def do_get(self, context: fl.ServerCallContext, ticket: fl.Ticket):
         key = ast.literal_eval(ticket.ticket.decode())
         if key not in self.flights:
@@ -337,6 +362,7 @@ class OfflineServer(fl.FlightServerBase):
             utils.make_tzaware(datetime.fromisoformat(command["end_date"])),
         )
 
+    @arrow_server_error_handling_decorator
     def list_actions(self, context):
         return [
             (
@@ -430,12 +456,6 @@ class OfflineServer(fl.FlightServerBase):
             logger.exception(e)
             traceback.print_exc()
             raise e
-
-    def do_action(self, context: fl.ServerCallContext, action: fl.Action):
-        pass
-
-    def do_drop_dataset(self, dataset):
-        pass
 
 
 def remove_dummies(fv: FeatureView) -> FeatureView:
