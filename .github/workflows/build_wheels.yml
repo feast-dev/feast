@@ -97,6 +97,7 @@ jobs:
         # There's a `git restore` in here because `make install-go-ci-dependencies` is actually messing up go.mod & go.sum.
         run: |
           pip install -U pip setuptools wheel twine
+          make install-protoc-dependencies
           make build-ui
           git status
           git restore go.mod go.sum

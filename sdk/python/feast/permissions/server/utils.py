@@ -30,7 +30,6 @@ from feast.permissions.server.grpc_token_extractor import GrpcTokenExtractor
 from feast.permissions.server.rest_token_extractor import RestTokenExtractor
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 
 class ServerType(enum.Enum):

@@ -17,7 +17,6 @@ from feast.permissions.oidc_service import OIDCDiscoveryService
 from feast.permissions.user import User
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 
 class OidcTokenParser(TokenParser):
@@ -69,8 +68,9 @@ class OidcTokenParser(TokenParser):
 
         try:
             await self._validate_token(access_token)
-            logger.info("Validated token")
+            logger.debug("Token successfully validated.")
         except Exception as e:
+            logger.error(f"Token validation failed: {e}")
             raise AuthenticationError(f"Invalid token: {e}")
 
         optional_custom_headers = {"User-agent": "custom-user-agent"}

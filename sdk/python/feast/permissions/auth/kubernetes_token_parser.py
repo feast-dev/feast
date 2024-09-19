@@ -40,14 +40,16 @@ class KubernetesTokenParser(TokenParser):
         """
         sa_namespace, sa_name = _decode_token(access_token)
         current_user = f"{sa_namespace}:{sa_name}"
-        logging.info(f"Received request from {sa_name} in {sa_namespace}")
+        logger.info(
+            f"Request received from ServiceAccount: {sa_name} in namespace: {sa_namespace}"
+        )
 
         intra_communication_base64 = os.getenv("INTRA_COMMUNICATION_BASE64")
         if sa_name is not None and sa_name == intra_communication_base64:
             return User(username=sa_name, roles=[])
         else:
             roles = self.get_roles(sa_namespace, sa_name)
-            logging.info(f"SA roles are: {roles}")
+            logger.info(f"Roles for ServiceAccount {sa_name}: {roles}")
 
             return User(username=current_user, roles=roles)
 
