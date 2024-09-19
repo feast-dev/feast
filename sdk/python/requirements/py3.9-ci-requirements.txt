@@ -15,7 +15,7 @@ altair==4.2.2
     # via great-expectations
 annotated-types==0.7.0
     # via pydantic
-anyio==4.4.0
+anyio==4.5.0
     # via
     #   httpx
     #   jupyter-server
@@ -47,12 +47,12 @@ attrs==24.2.0
     #   aiohttp
     #   jsonschema
     #   referencing
-azure-core==1.30.2
+azure-core==1.31.0
     # via
     #   azure-identity
     #   azure-storage-blob
 azure-identity==1.17.1
-azure-storage-blob==12.22.0
+azure-storage-blob==12.23.0
 babel==2.16.0
     # via
     #   jupyterlab-server
@@ -143,7 +143,7 @@ decorator==5.1.1
     # via ipython
 defusedxml==0.7.1
     # via nbconvert
-deltalake==0.19.2
+deltalake==0.20.0
 deprecation==2.1.0
     # via python-keycloak
 dill==0.3.8
@@ -169,10 +169,10 @@ execnet==2.1.1
     # via pytest-xdist
 executing==2.1.0
     # via stack-data
-fastapi==0.114.1
+fastapi==0.115.0
 fastjsonschema==2.20.0
     # via nbformat
-filelock==3.16.0
+filelock==3.16.1
     # via
     #   snowflake-connector-python
     #   virtualenv
@@ -186,7 +186,7 @@ fsspec==2024.9.0
     # via dask
 geomet==0.2.1.post1
     # via cassandra-driver
-google-api-core[grpc]==2.19.2
+google-api-core[grpc]==2.20.0
     # via
     #   google-cloud-bigquery
     #   google-cloud-bigquery-storage
@@ -194,7 +194,7 @@ google-api-core[grpc]==2.19.2
     #   google-cloud-core
     #   google-cloud-datastore
     #   google-cloud-storage
-google-auth==2.34.0
+google-auth==2.35.0
     # via
     #   google-api-core
     #   google-cloud-bigquery
@@ -228,7 +228,7 @@ googleapis-common-protos[grpc]==1.65.0
     #   google-api-core
     #   grpc-google-iam-v1
     #   grpcio-status
-great-expectations==0.18.20
+great-expectations==0.18.21
 greenlet==3.1.0
     # via sqlalchemy
 grpc-google-iam-v1==0.13.1
@@ -248,7 +248,7 @@ grpcio-reflection==1.62.3
 grpcio-status==1.62.3
     # via google-api-core
 grpcio-testing==1.62.3
-grpcio-tools==1.56.2
+grpcio-tools==1.62.3
 gunicorn==23.0.0
 h11==0.14.0
     # via
@@ -268,9 +268,9 @@ httpx==0.27.2
 ibis-framework[duckdb]==9.0.0
     # via ibis-substrait
 ibis-substrait==4.0.1
-identify==2.6.0
+identify==2.6.1
     # via pre-commit
-idna==3.8
+idna==3.10
     # via
     #   anyio
     #   httpx
@@ -339,7 +339,7 @@ jsonschema[format-nongpl]==4.23.0
     #   nbformat
 jsonschema-specifications==2023.12.1
     # via jsonschema
-jupyter-client==8.6.2
+jupyter-client==8.6.3
     # via
     #   ipykernel
     #   jupyter-server
@@ -403,7 +403,7 @@ mistune==3.0.2
     # via
     #   great-expectations
     #   nbconvert
-mmh3==4.1.0
+mmh3==5.0.0
 mock==2.0.0
 moto==4.2.14
 msal==1.31.0
@@ -523,7 +523,7 @@ proto-plus==1.24.0
     #   google-cloud-bigquery-storage
     #   google-cloud-bigtable
     #   google-cloud-datastore
-protobuf==4.25.4
+protobuf==4.25.5
     # via
     #   google-api-core
     #   google-cloud-bigquery-storage
@@ -541,10 +541,10 @@ protobuf==4.25.4
     #   substrait
 psutil==5.9.0
     # via ipykernel
-psycopg[binary, pool]==3.1.18
-psycopg-binary==3.1.18
+psycopg[binary, pool]==3.2.2
+psycopg-binary==3.2.2
     # via psycopg
-psycopg-pool==3.2.2
+psycopg-pool==3.2.3
     # via psycopg
 ptyprocess==0.7.0
     # via
@@ -576,11 +576,11 @@ pyasn1-modules==0.4.1
 pybindgen==0.22.1
 pycparser==2.22
     # via cffi
-pydantic==2.9.1
+pydantic==2.9.2
     # via
     #   fastapi
     #   great-expectations
-pydantic-core==2.23.3
+pydantic-core==2.23.4
     # via pydantic
 pygments==2.18.0
     # via
@@ -667,7 +667,7 @@ referencing==0.35.1
     #   jsonschema
     #   jsonschema-specifications
     #   jupyter-events
-regex==2024.7.24
+regex==2024.9.11
     # via parsimonious
 requests==2.32.3
     # via
@@ -715,14 +715,14 @@ ruamel-yaml==0.17.40
     # via great-expectations
 ruamel-yaml-clib==0.2.8
     # via ruamel-yaml
-ruff==0.6.4
+ruff==0.6.5
 s3transfer==0.10.2
     # via boto3
 scipy==1.13.1
     # via great-expectations
 send2trash==1.8.3
     # via jupyter-server
-setuptools==74.1.2
+setuptools==75.1.0
     # via
     #   grpcio-tools
     #   jupyterlab
@@ -749,7 +749,7 @@ sniffio==1.3.1
     #   httpx
 snowballstemmer==2.2.0
     # via sphinx
-snowflake-connector-python[pandas]==3.12.1
+snowflake-connector-python[pandas]==3.12.2
 sortedcontainers==2.4.0
     # via snowflake-connector-python
 soupsieve==2.6
@@ -767,7 +767,7 @@ sphinxcontrib-qthelp==2.0.0
     # via sphinx
 sphinxcontrib-serializinghtml==2.0.0
     # via sphinx
-sqlalchemy[mypy]==2.0.34
+sqlalchemy[mypy]==2.0.35
 sqlglot==23.12.2
     # via ibis-framework
 sqlite-vec==0.1.1
@@ -777,7 +777,7 @@ stack-data==0.6.3
     # via ipython
 starlette==0.38.5
     # via fastapi
-substrait==0.22.0
+substrait==0.23.0
     # via ibis-substrait
 tabulate==0.9.0
 tenacity==8.5.0
@@ -845,11 +845,11 @@ types-pyopenssl==24.1.0.20240722
     # via types-redis
 types-python-dateutil==2.9.0.20240906
     # via arrow
-types-pytz==2024.1.0.20240417
-types-pyyaml==6.0.12.20240808
+types-pytz==2024.2.0.20240913
+types-pyyaml==6.0.12.20240917
 types-redis==4.6.0.20240903
 types-requests==2.30.0.0
-types-setuptools==74.1.0.20240907
+types-setuptools==75.1.0.20240917
     # via types-cffi
 types-tabulate==0.9.0.20240106
 types-urllib3==1.26.25.14
@@ -936,5 +936,5 @@ xmltodict==0.13.0
     # via moto
 yarl==1.11.1
     # via aiohttp
-zipp==3.20.1
+zipp==3.20.2
     # via importlib-metadata
