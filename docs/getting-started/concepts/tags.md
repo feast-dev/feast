@@ -2,7 +2,7 @@
 
 ## Overview
 
-Tags is a way to filter Feast objects when listing the objects in the UI, Cli or when directly querying the registry.
+Tags in Feast allow for efficient filtering of Feast objects when listing them in the UI, CLI, or querying the registry directly.
 
 The way to define tags on the feast objects is through the definition file or directly in the object that will be applied to the feature store.
 
@@ -39,7 +39,7 @@ In this example we define a Stream Feature View that has a tag, in the code:
         tags={"team": "driver_performance"},
 ```
 
-An example of listing feature-views with the tag `team:driver_performance`:
+An example of filtering feature-views with the tag `team:driver_performance`:
 ```commandline
 $ feast feature-views list --tags team:driver_performance              
 NAME                       ENTITIES    TYPE
