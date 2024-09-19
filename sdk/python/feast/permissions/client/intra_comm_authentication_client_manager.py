@@ -13,6 +13,7 @@ class IntraCommAuthClientManager(AuthenticationClientManager):
     def __init__(self, auth_config: AuthConfig, intra_communication_base64: str):
         self.auth_config = auth_config
         self.intra_communication_base64 = intra_communication_base64
+        logger.debug(f"AuthConfig type set to {self.auth_config.type}")
 
     def get_token(self):
         if self.auth_config.type == AuthType.OIDC.value:
