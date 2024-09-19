@@ -112,6 +112,13 @@ class FeatureViewProjection:
                 or None,
                 batch_source=feature_view.batch_source or None,
             )
+        else:
+            return FeatureViewProjection(
+                name=feature_view.name,
+                name_alias=None,
+                features=feature_view.features,
+                desired_features=[],
+            )
 
     @staticmethod
     def from_definition(base_feature_view: "BaseFeatureView"):
