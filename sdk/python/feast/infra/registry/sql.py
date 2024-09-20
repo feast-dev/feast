@@ -1237,6 +1237,7 @@ class SqlRegistry(CachingRegistry):
                     data_sources,
                     entities,
                     permissions,
+                    feast_metadata,
                     projects,
                 }:
                     stmt = delete(t).where(t.c.project_id == name)
