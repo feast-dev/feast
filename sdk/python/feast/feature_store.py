@@ -78,7 +78,9 @@ from feast.protos.feast.serving.ServingService_pb2 import (
     FieldStatus,
     GetOnlineFeaturesResponse,
 )
+from feast.protos.feast.types.EntityKey_pb2 import EntityKey
 from feast.protos.feast.types.Value_pb2 import RepeatedValue, Value
+from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RepoConfig, load_repo_config
 from feast.repo_contents import RepoContents
 from feast.saved_dataset import SavedDataset, SavedDatasetStorage, ValidationReference
@@ -1666,20 +1668,29 @@ class FeatureStore:
             distance_metric,
         )
 
-        # TODO Refactor to better way of populating result
-        # TODO populate entity in the response after returning entity in document_features is supported
         # TODO currently not return the vector value since it is same as feature value, if embedding is supported,
         # the feature value can be raw text before embedded
-        document_feature_vals = [feature[2] for feature in document_features]
-        document_feature_distance_vals = [feature[4] for feature in document_features]
+        entity_key_vals = [feature[1] for feature in document_features]
+        join_key_values: Dict[str, List[ValueProto]] = {}
+        for entity_key_val in entity_key_vals:
+            if entity_key_val is not None:
+                for join_key, entity_value in zip(
+                    entity_key_val.join_keys, entity_key_val.entity_values
+                ):
+                    if join_key not in join_key_values:
+                        join_key_values[join_key] = []
+                    join_key_values[join_key].append(entity_value)
+
+        document_feature_vals = [feature[4] for feature in document_features]
+        document_feature_distance_vals = [feature[5] for feature in document_features]
         online_features_response = GetOnlineFeaturesResponse(results=[])
         utils._populate_result_rows_from_columnar(
             online_features_response=online_features_response,
-            data={requested_feature: document_feature_vals},
-        )
-        utils._populate_result_rows_from_columnar(
-            online_features_response=online_features_response,
-            data={"distance": document_feature_distance_vals},
+            data={
+                **join_key_values,
+                requested_feature: document_feature_vals,
+                "distance": document_feature_distance_vals,
+            },
         )
         return OnlineResponse(online_features_response)
 
@@ -1691,7 +1702,11 @@ class FeatureStore:
         query: List[float],
         top_k: int,
         distance_metric: Optional[str],
-    ) -> List[Tuple[Timestamp, "FieldStatus.ValueType", Value, Value, Value]]:
+    ) -> List[
+        Tuple[
+            Timestamp, Optional[EntityKey], "FieldStatus.ValueType", Value, Value, Value
+        ]
+    ]:
         """
         Search and return document features from the online document store.
         """
@@ -1707,7 +1722,7 @@ class FeatureStore:
         read_row_protos = []
         row_ts_proto = Timestamp()
 
-        for row_ts, feature_val, vector_value, distance_val in documents:
+        for row_ts, entity_key, feature_val, vector_value, distance_val in documents:
             # Reset timestamp to default or update if row_ts is not None
             if row_ts is not None:
                 row_ts_proto.FromDatetime(row_ts)
@@ -1721,7 +1736,14 @@ class FeatureStore:
                 status = FieldStatus.PRESENT
 
             read_row_protos.append(
-                (row_ts_proto, status, feature_val, vector_value, distance_val)
+                (
+                    row_ts_proto,
+                    entity_key,
+                    status,
+                    feature_val,
+                    vector_value,
+                    distance_val,
+                )
             )
         return read_row_protos
 

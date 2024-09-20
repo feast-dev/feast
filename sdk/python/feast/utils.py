@@ -33,11 +33,13 @@ from feast.errors import (
     FeatureViewNotFoundException,
     RequestDataNotFoundInEntityRowsException,
 )
+from feast.infra.key_encoding_utils import deserialize_entity_key
 from feast.protos.feast.serving.ServingService_pb2 import (
     FieldStatus,
     GetOnlineFeaturesResponse,
 )
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
+from feast.protos.feast.types.Value_pb2 import FloatList as FloatListProto
 from feast.protos.feast.types.Value_pb2 import RepeatedValue as RepeatedValueProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.type_map import python_values_to_proto_values
@@ -48,7 +50,6 @@ if typing.TYPE_CHECKING:
     from feast.feature_service import FeatureService
     from feast.feature_view import FeatureView
     from feast.on_demand_feature_view import OnDemandFeatureView
-
 
 APPLICATION_NAME = "feast-dev/feast"
 USER_AGENT = "{}/{}".format(APPLICATION_NAME, get_version())
@@ -1050,3 +1051,51 @@ def tags_str_to_dict(tags: str = "") -> dict[str, str]:
 
 def _utc_now() -> datetime:
     return datetime.now(tz=timezone.utc)
+
+
+def _build_retrieve_online_document_record(
+    entity_key: Union[str, bytes],
+    feature_value: Union[str, bytes],
+    vector_value: Union[str, List[float]],
+    distance_value: float,
+    event_timestamp: datetime,
+    entity_key_serialization_version: int,
+) -> Tuple[
+    Optional[datetime],
+    Optional[EntityKeyProto],
+    Optional[ValueProto],
+    Optional[ValueProto],
+    Optional[ValueProto],
+]:
+    if entity_key_serialization_version < 3:
+        entity_key_proto = None
+    else:
+        if isinstance(entity_key, str):
+            entity_key_proto_bin = entity_key.encode("utf-8")
+        else:
+            entity_key_proto_bin = entity_key
+        entity_key_proto = deserialize_entity_key(
+            entity_key_proto_bin,
+            entity_key_serialization_version=entity_key_serialization_version,
+        )
+
+    feature_value_proto = ValueProto()
+
+    if isinstance(feature_value, str):
+        feature_value_proto.ParseFromString(feature_value.encode("utf-8"))
+    else:
+        feature_value_proto.ParseFromString(feature_value)
+
+    if isinstance(vector_value, str):
+        vector_value_proto = ValueProto(string_val=vector_value)
+    else:
+        vector_value_proto = ValueProto(float_list_val=FloatListProto(val=vector_value))
+
+    distance_value_proto = ValueProto(float_val=distance_value)
+    return (
+        event_timestamp,
+        entity_key_proto,
+        feature_value_proto,
+        vector_value_proto,
+        distance_value_proto,
+    )

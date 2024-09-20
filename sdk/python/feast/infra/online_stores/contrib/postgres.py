@@ -37,6 +37,7 @@ from feast.infra.utils.postgres.postgres_config import ConnectionType, PostgreSQ
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RepoConfig
+from feast.utils import _build_retrieve_online_document_record
 
 SUPPORTED_DISTANCE_METRICS_DICT = {
     "cosine": "<=>",
@@ -360,6 +361,7 @@ class PostgreSQLOnlineStore(OnlineStore):
     ) -> List[
         Tuple[
             Optional[datetime],
+            Optional[EntityKeyProto],
             Optional[ValueProto],
             Optional[ValueProto],
             Optional[ValueProto],
@@ -391,12 +393,11 @@ class PostgreSQLOnlineStore(OnlineStore):
             )
 
         distance_metric_sql = SUPPORTED_DISTANCE_METRICS_DICT[distance_metric]
-        # Convert the embedding to a string to be used in postgres vector search
-        query_embedding_str = f"[{','.join(str(el) for el in embedding)}]"
 
         result: List[
             Tuple[
                 Optional[datetime],
+                Optional[EntityKeyProto],
                 Optional[ValueProto],
                 Optional[ValueProto],
                 Optional[ValueProto],
@@ -415,45 +416,37 @@ class PostgreSQLOnlineStore(OnlineStore):
                         feature_name,
                         value,
                         vector_value,
-                        vector_value {distance_metric_sql} %s as distance,
+                        vector_value {distance_metric_sql} %s::vector as distance,
                         event_ts FROM {table_name}
                     WHERE feature_name = {feature_name}
                     ORDER BY distance
                     LIMIT {top_k};
                     """
                 ).format(
-                    distance_metric_sql=distance_metric_sql,
+                    distance_metric_sql=sql.SQL(distance_metric_sql),
                     table_name=sql.Identifier(table_name),
                     feature_name=sql.Literal(requested_feature),
                     top_k=sql.Literal(top_k),
                 ),
-                (query_embedding_str,),
+                (embedding,),
             )
             rows = cur.fetchall()
-
             for (
                 entity_key,
-                feature_name,
-                value,
+                _,
+                feature_val,
                 vector_value,
-                distance,
+                distance_val,
                 event_ts,
             ) in rows:
-                # TODO Deserialize entity_key to return the entity in response
-                # entity_key_proto = EntityKeyProto()
-                # entity_key_proto_bin = bytes(entity_key)
-
-                feature_value_proto = ValueProto()
-                feature_value_proto.ParseFromString(bytes(value))
-
-                vector_value_proto = ValueProto(string_val=vector_value)
-                distance_value_proto = ValueProto(float_val=distance)
                 result.append(
-                    (
+                    _build_retrieve_online_document_record(
+                        entity_key,
+                        feature_val,
+                        vector_value,
+                        distance_val,
                         event_ts,
-                        feature_value_proto,
-                        vector_value_proto,
-                        distance_value_proto,
+                        config.entity_key_serialization_version,
                     )
                 )
 
