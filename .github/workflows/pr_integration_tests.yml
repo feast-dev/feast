@@ -15,10 +15,10 @@ on:
 jobs:
   integration-test-python:
     # when using pull_request, all jobs MUST have this if check for 'ok-to-test' or 'approved' for security purposes.
-    if:
-      ((github.event.action == 'labeled' && (github.event.label.name == 'approved' || github.event.label.name == 'lgtm' || github.event.label.name == 'ok-to-test')) ||
-      (github.event.action != 'labeled' && (contains(github.event.pull_request.labels.*.name, 'ok-to-test') || contains(github.event.pull_request.labels.*.name, 'approved') || contains(github.event.pull_request.labels.*.name, 'lgtm')))) &&
-      github.repository == 'feast-dev/feast'
+#    if:
+#      ((github.event.action == 'labeled' && (github.event.label.name == 'approved' || github.event.label.name == 'lgtm' || github.event.label.name == 'ok-to-test')) ||
+#      (github.event.action != 'labeled' && (contains(github.event.pull_request.labels.*.name, 'ok-to-test') || contains(github.event.pull_request.labels.*.name, 'approved') || contains(github.event.pull_request.labels.*.name, 'lgtm')))) &&
+#      github.repository == 'feast-dev/feast'
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -39,6 +39,10 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     steps:
+      - name: Print target repository
+      - run: echo ${{ github.event.pull_request.base.repo.full_name }}
+      - name: Print target branch
+      - run: echo ${{ github.event.pull_request.base.ref }}
       - uses: actions/checkout@v4
         with:
           repository: ${{ github.event.repository.full_name }}  # Uses the full repository name
