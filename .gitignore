@@ -185,7 +185,6 @@ dmypy.json
 
 # Protos
 sdk/python/docs/html
-#sdk/python/feast/protos/
 sdk/go/protos/
 go/protos/
 
