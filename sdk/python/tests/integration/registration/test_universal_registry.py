@@ -1767,3 +1767,64 @@ def test_apply_entity_success_with_purge_feast_metadata(test_registry):
     assert len(entities) == 0
 
     test_registry.teardown()
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "test_registry",
+    sql_fixtures + async_sql_fixtures,
+)
+def test_apply_entity_to_sql_registry_and_reinitialize_sql_registry(test_registry):
+    entity = Entity(
+        name="driver_car_id",
+        description="Car driver id",
+        tags={"team": "matchmaking"},
+    )
+
+    project = "project"
+
+    # Register Entity
+    test_registry.apply_entity(entity, project)
+    assert_project(project, test_registry)
+
+    entities = test_registry.list_entities(project, tags=entity.tags)
+    assert_project(project, test_registry)
+
+    entity = entities[0]
+    assert (
+        len(entities) == 1
+        and entity.name == "driver_car_id"
+        and entity.description == "Car driver id"
+        and "team" in entity.tags
+        and entity.tags["team"] == "matchmaking"
+    )
+
+    entity = test_registry.get_entity("driver_car_id", project)
+    assert (
+        entity.name == "driver_car_id"
+        and entity.description == "Car driver id"
+        and "team" in entity.tags
+        and entity.tags["team"] == "matchmaking"
+    )
+
+    # After the first apply, the created_timestamp should be the same as the last_update_timestamp.
+    assert entity.created_timestamp == entity.last_updated_timestamp
+    updated_test_registry = SqlRegistry(test_registry.registry_config, "project", None)
+
+    # Update entity
+    updated_entity = Entity(
+        name="driver_car_id",
+        description="Car driver Id",
+        tags={"team": "matchmaking"},
+    )
+    updated_test_registry.apply_entity(updated_entity, project)
+
+    updated_entity = updated_test_registry.get_entity("driver_car_id", project)
+    updated_test_registry.delete_entity("driver_car_id", project)
+    assert_project(project, updated_test_registry)
+    entities = updated_test_registry.list_entities(project)
+    assert_project(project, updated_test_registry)
+    assert len(entities) == 0
+
+    updated_test_registry.teardown()
+    test_registry.teardown()
