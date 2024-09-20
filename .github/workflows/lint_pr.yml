@@ -1,14 +1,14 @@
 name: lint-pr
 
 on:
-  pull_request_target:
+  pull_request:
     types:
       - opened
       - edited
       - synchronize
 
 permissions:
-  # read-only perms specified due to use of pull_request_target in lieu of security label check
+  # read-only perms specified due to use of pull_request in lieu of security label check
   pull-requests: read
 
 jobs:
