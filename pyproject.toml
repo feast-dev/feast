@@ -1,11 +1,5 @@
 [build-system]
 requires = [
-<<<<<<< HEAD
-=======
-  "protobuf<5",
-  "grpcio-tools>=1.56.2,<2",
-  "mypy-protobuf>=3.1",
->>>>>>> 4e2eacc1 (fix: Fix for SQL registry initialization fails #4543 (#4544))
   "pybindgen==0.22.0",
   "setuptools>=60",
   "setuptools_scm>=6.2",
