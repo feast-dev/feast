@@ -771,7 +771,8 @@ def _get_feature_views_to_use(
             for projection in features.feature_view_projections
         ]
     else:
-        feature_views = [(feature.split(":")[0], None) for feature in features]
+        assert features is not None
+        feature_views = [(feature.split(":")[0], None) for feature in features]  # type: ignore[misc]
 
     fvs_to_use, od_fvs_to_use = [], []
     for name, projection in feature_views:
@@ -786,13 +787,14 @@ def _get_feature_views_to_use(
                 source_fv = registry.get_any_feature_view(
                     source_projection.name, project, allow_cache
                 )
+                # TODO better way to handler dummy entities
                 if (
                     hide_dummy_entity
-                    and source_fv.entities
-                    and source_fv.entities[0] == DUMMY_ENTITY_NAME
+                    and source_fv.entities  # type: ignore[attr-defined]
+                    and source_fv.entities[0] == DUMMY_ENTITY_NAME  # type: ignore[attr-defined]
                 ):
-                    source_fv.entities = []
-                    source_fv.entity_columns = []
+                    source_fv.entities = []  # type: ignore[attr-defined]
+                    source_fv.entity_columns = []  # type: ignore[attr-defined]
 
                 if source_fv not in fvs_to_use:
                     fvs_to_use.append(
@@ -801,11 +803,11 @@ def _get_feature_views_to_use(
         else:
             if (
                 hide_dummy_entity
-                and fv.entities
-                and fv.entities[0] == DUMMY_ENTITY_NAME
+                and fv.entities  # type: ignore[attr-defined]
+                and fv.entities[0] == DUMMY_ENTITY_NAME  # type: ignore[attr-defined]
             ):
-                fv.entities = []
-                fv.entity_columns = []
+                fv.entities = []  # type: ignore[attr-defined]
+                fv.entity_columns = []  # type: ignore[attr-defined]
             fvs_to_use.append(
                 fv.with_projection(copy.copy(projection)) if projection else fv
             )
