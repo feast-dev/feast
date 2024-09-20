@@ -251,6 +251,8 @@ class SqlRegistry(CachingRegistry):
             registry_config, SqlRegistryConfig
         ), "SqlRegistry needs a valid registry_config"
 
+        self.registry_config = registry_config
+
         self.write_engine: Engine = create_engine(
             registry_config.path, **registry_config.sqlalchemy_config_kwargs
         )
@@ -281,7 +283,7 @@ class SqlRegistry(CachingRegistry):
     def _sync_feast_metadata_to_projects_table(self):
         feast_metadata_projects: set = []
         projects_set: set = []
-        with self.write_engine.begin() as conn:
+        with self.read_engine.begin() as conn:
             stmt = select(feast_metadata).where(
                 feast_metadata.c.metadata_key == FeastMetadataKeys.PROJECT_UUID.value
             )
@@ -290,7 +292,7 @@ class SqlRegistry(CachingRegistry):
                 feast_metadata_projects.append(row._mapping["project_id"])
 
         if len(feast_metadata_projects) > 0:
-            with self.write_engine.begin() as conn:
+            with self.read_engine.begin() as conn:
                 stmt = select(projects)
                 rows = conn.execute(stmt).all()
                 for row in rows:
