@@ -26,9 +26,9 @@ jobs:
       PYTHON: ${{ matrix.python-version }}
     steps:
       - name: Print target repository
-      - run: echo ${{ github.event.pull_request.base.repo.full_name }}
+      - run: echo "${{ github.event.pull_request.base.repo.full_name }}"
       - name: Print target branch
-      - run: echo ${{ github.event.pull_request.base.ref }}
+      - run: echo "${{ github.event.pull_request.base.ref }}"
       - uses: actions/checkout@v4
         with:
           repository: ${{ github.event.repository.full_name }}  # Uses the full repository name
