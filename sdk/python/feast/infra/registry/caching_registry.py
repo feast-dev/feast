@@ -19,6 +19,7 @@ from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.permissions.permission import Permission
 from feast.project import Project
 from feast.project_metadata import ProjectMetadata
+from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.saved_dataset import SavedDataset, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
 from feast.utils import _utc_now
@@ -28,13 +29,14 @@ logger = logging.getLogger(__name__)
 
 class CachingRegistry(BaseRegistry):
     def __init__(self, project: str, cache_ttl_seconds: int, cache_mode: str):
-        self.cached_registry_proto = self.proto()
-        self.cached_registry_proto_created = _utc_now()
+        self.cache_mode = cache_mode
+        self.cached_registry_proto = RegistryProto()
         self._refresh_lock = Lock()
         self.cached_registry_proto_ttl = timedelta(
             seconds=cache_ttl_seconds if cache_ttl_seconds is not None else 0
         )
-        self.cache_mode = cache_mode
+        self.cached_registry_proto = self.proto()
+        self.cached_registry_proto_created = _utc_now()
         if cache_mode == "thread":
             self._start_thread_async_refresh(cache_ttl_seconds)
             atexit.register(self._exit_handler)
@@ -429,20 +431,26 @@ class CachingRegistry(BaseRegistry):
     def _refresh_cached_registry_if_necessary(self):
         if self.cache_mode == "sync":
             with self._refresh_lock:
-                expired = (
-                    self.cached_registry_proto is None
-                    or self.cached_registry_proto_created is None
-                ) or (
-                    self.cached_registry_proto_ttl.total_seconds()
-                    > 0  # 0 ttl means infinity
-                    and (
-                        _utc_now()
-                        > (
-                            self.cached_registry_proto_created
-                            + self.cached_registry_proto_ttl
+                if self.cached_registry_proto == RegistryProto():
+                    # Avoids the need to refresh the registry when cache is not populated yet
+                    # Specially during the __init__ phase
+                    # proto() will populate the cache with project metadata if no objects are registered
+                    expired = False
+                else:
+                    expired = (
+                        self.cached_registry_proto is None
+                        or self.cached_registry_proto_created is None
+                    ) or (
+                        self.cached_registry_proto_ttl.total_seconds()
+                        > 0  # 0 ttl means infinity
+                        and (
+                            _utc_now()
+                            > (
+                                self.cached_registry_proto_created
+                                + self.cached_registry_proto_ttl
+                            )
                         )
                     )
-                )
                 if expired:
                     logger.info("Registry cache expired, so refreshing")
                     self.refresh()

@@ -31,3 +31,7 @@
 {% content-ref url="permission.md" %}
 [permission.md](permission.md)
 {% endcontent-ref %}
+
+{% content-ref url="tags.md" %}
+[tags.md](tags.md)
+{% endcontent-ref %}
