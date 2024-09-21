@@ -373,14 +373,15 @@ def test_apply_dummuy_entity_and_feature_view_columns(test_feature_store):
         ttl=timedelta(minutes=5),
     )
 
+    # Check that the entity_columns are empty before applying
+    assert fv.entity_columns == []
+
     # Register Feature View
     test_feature_store.apply([fv, e1])
-
     fv_actual = test_feature_store.get_feature_view("my_feature_view_no_entity")
 
-    # Here we need to simply test that the entity_columns are correctly set
     # Note that after the apply() the feature_view serializes the Dummy Entity ID
-    assert fv.entity_columns == []
+    assert fv.entity_columns[0].name == DUMMY_ENTITY_ID
     assert fv_actual.entity_columns[0].name == DUMMY_ENTITY_ID
 
     test_feature_store.teardown()
