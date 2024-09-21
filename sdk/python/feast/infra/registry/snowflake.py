@@ -1303,6 +1303,7 @@ class SnowflakeRegistry(BaseRegistry):
                     "DATA_SOURCES",
                     "ENTITIES",
                     "PERMISSIONS",
+                    "FEAST_METADATA",
                     "PROJECTS",
                 }:
                     query = f"""
