@@ -307,7 +307,6 @@ class SnowflakeMaterializationEngine(BatchMaterializationEngine):
                 """
 
                 with GetSnowflakeConnection(self.repo_config.offline_store) as conn:
-                    print(query)
                     entities_to_write = conn.cursor().execute(query).fetchall()[0][0]
 
             if feature_view.batch_source.field_mapping is not None:
