@@ -21,7 +21,6 @@
     "react-query": "^3.34.12",
     "react-router-dom": "6",
     "react-scripts": "^5.0.0",
-    "typescript": "^4.4.2",
     "use-query-params": "^1.2.3",
     "zod": "^3.11.6"
   },
