@@ -11,7 +11,7 @@ from feast.data_source import KafkaSource
 from feast.entity import Entity
 from feast.feast_object import ALL_RESOURCE_TYPES
 from feast.feature_store import FeatureStore
-from feast.feature_view import FeatureView
+from feast.feature_view import DUMMY_ENTITY_ID, FeatureView
 from feast.field import Field
 from feast.infra.offline_stores.file_source import FileSource
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
@@ -338,6 +338,50 @@ def test_apply_entities_and_feature_views(test_feature_store):
     assert e1 == e1_actual
     assert fv2 != fv1_actual
     assert e2 != e1_actual
+
+    test_feature_store.teardown()
+
+
+@pytest.mark.parametrize(
+    "test_feature_store",
+    [lazy_fixture("feature_store_with_local_registry")],
+)
+def test_apply_dummuy_entity_and_feature_view_columns(test_feature_store):
+    assert isinstance(test_feature_store, FeatureStore)
+    # Create Feature Views
+    batch_source = FileSource(
+        file_format=ParquetFormat(),
+        path="file://feast/*",
+        timestamp_field="ts_col",
+        created_timestamp_column="timestamp",
+    )
+
+    e1 = Entity(name="fs1_my_entity_1", description="something")
+
+    fv = FeatureView(
+        name="my_feature_view_no_entity",
+        schema=[
+            Field(name="fs1_my_feature_1", dtype=Int64),
+            Field(name="fs1_my_feature_2", dtype=String),
+            Field(name="fs1_my_feature_3", dtype=Array(String)),
+            Field(name="fs1_my_feature_4", dtype=Array(Bytes)),
+            Field(name="fs1_my_entity_2", dtype=Int64),
+        ],
+        entities=[],
+        tags={"team": "matchmaking"},
+        source=batch_source,
+        ttl=timedelta(minutes=5),
+    )
+
+    # Register Feature View
+    test_feature_store.apply([fv, e1])
+
+    fv_actual = test_feature_store.get_feature_view("my_feature_view_no_entity")
+
+    # Here we need to simply test that the entity_columns are correctly set
+    # Note that after the apply() the feature_view serializes the Dummy Entity ID
+    assert fv.entity_columns == []
+    assert fv_actual.entity_columns[0].name == DUMMY_ENTITY_ID
 
     test_feature_store.teardown()
 
