@@ -37,6 +37,14 @@ build: protos build-java build-docker
 
 # Python SDK
 
+install-python-dependencies-uv:
+	uv pip sync --system sdk/python/requirements/py$(PYTHON_VERSION)-requirements.txt
+	uv pip install --system --no-deps .
+
+install-python-dependencies-uv-venv:
+	uv pip sync sdk/python/requirements/py$(PYTHON_VERSION)-requirements.txt
+	uv pip install --no-deps .
+
 install-python-ci-dependencies:
 	python -m piptools sync sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt
 	pip install --no-deps -e .
