@@ -846,8 +846,8 @@ def assert_feature_service_entity_mapping_correctness(
 
 @pytest.mark.integration
 @pytest.mark.universal_online_stores(only=["pgvector", "elasticsearch"])
-def test_retrieve_online_documents(environment, fake_document_data):
-    fs = environment.feature_store
+def test_retrieve_online_documents(vectordb_environment, fake_document_data):
+    fs = vectordb_environment.feature_store
     df, data_source = fake_document_data
     item_embeddings_feature_view = create_item_embeddings_feature_view(data_source)
     fs.apply([item_embeddings_feature_view, item()])
@@ -860,6 +860,9 @@ def test_retrieve_online_documents(environment, fake_document_data):
         distance_metric="L2",
     ).to_dict()
     assert len(documents["embedding_float"]) == 2
+
+    # assert returned the entity_id
+    assert len(documents["item_id"]) == 2
 
     documents = fs.retrieve_online_documents(
         feature="item_embeddings:embedding_float",

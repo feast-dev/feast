@@ -10,6 +10,7 @@ from pydantic import StrictInt, StrictStr
 from sqlalchemy import (  # type: ignore
     BigInteger,
     Column,
+    Index,
     LargeBinary,
     MetaData,
     String,
@@ -82,6 +83,8 @@ projects = Table(
     Column("project_proto", LargeBinary, nullable=False),
 )
 
+Index("idx_projects_project_id", projects.c.project_id)
+
 entities = Table(
     "entities",
     metadata,
@@ -91,6 +94,8 @@ entities = Table(
     Column("entity_proto", LargeBinary, nullable=False),
 )
 
+Index("idx_entities_project_id", entities.c.project_id)
+
 data_sources = Table(
     "data_sources",
     metadata,
@@ -99,6 +104,8 @@ data_sources = Table(
     Column("last_updated_timestamp", BigInteger, nullable=False),
     Column("data_source_proto", LargeBinary, nullable=False),
 )
+
+Index("idx_data_sources_project_id", data_sources.c.project_id)
 
 feature_views = Table(
     "feature_views",
@@ -111,6 +118,8 @@ feature_views = Table(
     Column("user_metadata", LargeBinary, nullable=True),
 )
 
+Index("idx_feature_views_project_id", feature_views.c.project_id)
+
 stream_feature_views = Table(
     "stream_feature_views",
     metadata,
@@ -120,6 +129,8 @@ stream_feature_views = Table(
     Column("feature_view_proto", LargeBinary, nullable=False),
     Column("user_metadata", LargeBinary, nullable=True),
 )
+
+Index("idx_stream_feature_views_project_id", stream_feature_views.c.project_id)
 
 on_demand_feature_views = Table(
     "on_demand_feature_views",
@@ -131,6 +142,8 @@ on_demand_feature_views = Table(
     Column("user_metadata", LargeBinary, nullable=True),
 )
 
+Index("idx_on_demand_feature_views_project_id", on_demand_feature_views.c.project_id)
+
 feature_services = Table(
     "feature_services",
     metadata,
@@ -139,6 +152,8 @@ feature_services = Table(
     Column("last_updated_timestamp", BigInteger, nullable=False),
     Column("feature_service_proto", LargeBinary, nullable=False),
 )
+
+Index("idx_feature_services_project_id", feature_services.c.project_id)
 
 saved_datasets = Table(
     "saved_datasets",
@@ -149,6 +164,8 @@ saved_datasets = Table(
     Column("saved_dataset_proto", LargeBinary, nullable=False),
 )
 
+Index("idx_saved_datasets_project_id", saved_datasets.c.project_id)
+
 validation_references = Table(
     "validation_references",
     metadata,
@@ -157,6 +174,7 @@ validation_references = Table(
     Column("last_updated_timestamp", BigInteger, nullable=False),
     Column("validation_reference_proto", LargeBinary, nullable=False),
 )
+Index("idx_validation_references_project_id", validation_references.c.project_id)
 
 managed_infra = Table(
     "managed_infra",
@@ -167,6 +185,8 @@ managed_infra = Table(
     Column("infra_proto", LargeBinary, nullable=False),
 )
 
+Index("idx_managed_infra_project_id", managed_infra.c.project_id)
+
 permissions = Table(
     "permissions",
     metadata,
@@ -175,6 +195,8 @@ permissions = Table(
     Column("last_updated_timestamp", BigInteger, nullable=False),
     Column("permission_proto", LargeBinary, nullable=False),
 )
+
+Index("idx_permissions_project_id", permissions.c.project_id)
 
 
 class FeastMetadataKeys(Enum):
@@ -190,6 +212,8 @@ feast_metadata = Table(
     Column("metadata_value", String(50), nullable=False),
     Column("last_updated_timestamp", BigInteger, nullable=False),
 )
+
+Index("idx_feast_metadata_project_id", feast_metadata.c.project_id)
 
 logger = logging.getLogger(__name__)
 
@@ -227,6 +251,8 @@ class SqlRegistry(CachingRegistry):
             registry_config, SqlRegistryConfig
         ), "SqlRegistry needs a valid registry_config"
 
+        self.registry_config = registry_config
+
         self.write_engine: Engine = create_engine(
             registry_config.path, **registry_config.sqlalchemy_config_kwargs
         )
@@ -257,7 +283,7 @@ class SqlRegistry(CachingRegistry):
     def _sync_feast_metadata_to_projects_table(self):
         feast_metadata_projects: set = []
         projects_set: set = []
-        with self.write_engine.begin() as conn:
+        with self.read_engine.begin() as conn:
             stmt = select(feast_metadata).where(
                 feast_metadata.c.metadata_key == FeastMetadataKeys.PROJECT_UUID.value
             )
@@ -266,7 +292,7 @@ class SqlRegistry(CachingRegistry):
                 feast_metadata_projects.append(row._mapping["project_id"])
 
         if len(feast_metadata_projects) > 0:
-            with self.write_engine.begin() as conn:
+            with self.read_engine.begin() as conn:
                 stmt = select(projects)
                 rows = conn.execute(stmt).all()
                 for row in rows:
@@ -1211,6 +1237,7 @@ class SqlRegistry(CachingRegistry):
                     data_sources,
                     entities,
                     permissions,
+                    feast_metadata,
                     projects,
                 }:
                     stmt = delete(t).where(t.c.project_id == name)

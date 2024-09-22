@@ -33,11 +33,13 @@ from feast.errors import (
     FeatureViewNotFoundException,
     RequestDataNotFoundInEntityRowsException,
 )
+from feast.infra.key_encoding_utils import deserialize_entity_key
 from feast.protos.feast.serving.ServingService_pb2 import (
     FieldStatus,
     GetOnlineFeaturesResponse,
 )
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
+from feast.protos.feast.types.Value_pb2 import FloatList as FloatListProto
 from feast.protos.feast.types.Value_pb2 import RepeatedValue as RepeatedValueProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.type_map import python_values_to_proto_values
@@ -47,8 +49,8 @@ from feast.version import get_version
 if typing.TYPE_CHECKING:
     from feast.feature_service import FeatureService
     from feast.feature_view import FeatureView
+    from feast.infra.registry.base_registry import BaseRegistry
     from feast.on_demand_feature_view import OnDemandFeatureView
-
 
 APPLICATION_NAME = "feast-dev/feast"
 USER_AGENT = "{}/{}".format(APPLICATION_NAME, get_version())
@@ -755,61 +757,64 @@ def _list_feature_views(
 
 
 def _get_feature_views_to_use(
-    registry,
+    registry: "BaseRegistry",
     project,
     features: Optional[Union[List[str], "FeatureService"]],
     allow_cache=False,
     hide_dummy_entity: bool = True,
 ) -> Tuple[List["FeatureView"], List["OnDemandFeatureView"]]:
     from feast.feature_service import FeatureService
-
-    fvs = {
-        fv.name: fv
-        for fv in [
-            *_list_feature_views(registry, project, allow_cache, hide_dummy_entity),
-            *registry.list_stream_feature_views(
-                project=project, allow_cache=allow_cache
-            ),
-        ]
-    }
-
-    od_fvs = {
-        fv.name: fv
-        for fv in registry.list_on_demand_feature_views(
-            project=project, allow_cache=allow_cache
-        )
-    }
+    from feast.feature_view import DUMMY_ENTITY_NAME
+    from feast.on_demand_feature_view import OnDemandFeatureView
 
     if isinstance(features, FeatureService):
-        fvs_to_use, od_fvs_to_use = [], []
-        for fv_name, projection in [
+        feature_views = [
             (projection.name, projection)
             for projection in features.feature_view_projections
-        ]:
-            if fv_name in fvs:
-                fvs_to_use.append(fvs[fv_name].with_projection(copy.copy(projection)))
-            elif fv_name in od_fvs:
-                odfv = od_fvs[fv_name].with_projection(copy.copy(projection))
-                od_fvs_to_use.append(odfv)
-                # Let's make sure to include an FVs which the ODFV requires Features from.
-                for projection in odfv.source_feature_view_projections.values():
-                    fv = fvs[projection.name].with_projection(copy.copy(projection))
-                    if fv not in fvs_to_use:
-                        fvs_to_use.append(fv)
-            else:
-                raise ValueError(
-                    f"The provided feature service {features.name} contains a reference to a feature view"
-                    f"{fv_name} which doesn't exist. Please make sure that you have created the feature view"
-                    f'{fv_name} and that you have registered it by running "apply".'
-                )
-        views_to_use = (fvs_to_use, od_fvs_to_use)
+        ]
     else:
-        views_to_use = (
-            [*fvs.values()],
-            [*od_fvs.values()],
-        )
+        assert features is not None
+        feature_views = [(feature.split(":")[0], None) for feature in features]  # type: ignore[misc]
 
-    return views_to_use
+    fvs_to_use, od_fvs_to_use = [], []
+    for name, projection in feature_views:
+        fv = registry.get_any_feature_view(name, project, allow_cache)
+
+        if isinstance(fv, OnDemandFeatureView):
+            od_fvs_to_use.append(
+                fv.with_projection(copy.copy(projection)) if projection else fv
+            )
+
+            for source_projection in fv.source_feature_view_projections.values():
+                source_fv = registry.get_any_feature_view(
+                    source_projection.name, project, allow_cache
+                )
+                # TODO better way to handler dummy entities
+                if (
+                    hide_dummy_entity
+                    and source_fv.entities  # type: ignore[attr-defined]
+                    and source_fv.entities[0] == DUMMY_ENTITY_NAME  # type: ignore[attr-defined]
+                ):
+                    source_fv.entities = []  # type: ignore[attr-defined]
+                    source_fv.entity_columns = []  # type: ignore[attr-defined]
+
+                if source_fv not in fvs_to_use:
+                    fvs_to_use.append(
+                        source_fv.with_projection(copy.copy(source_projection))
+                    )
+        else:
+            if (
+                hide_dummy_entity
+                and fv.entities  # type: ignore[attr-defined]
+                and fv.entities[0] == DUMMY_ENTITY_NAME  # type: ignore[attr-defined]
+            ):
+                fv.entities = []  # type: ignore[attr-defined]
+                fv.entity_columns = []  # type: ignore[attr-defined]
+            fvs_to_use.append(
+                fv.with_projection(copy.copy(projection)) if projection else fv
+            )
+
+    return (fvs_to_use, od_fvs_to_use)
 
 
 def _get_online_request_context(
@@ -1050,3 +1055,51 @@ def tags_str_to_dict(tags: str = "") -> dict[str, str]:
 
 def _utc_now() -> datetime:
     return datetime.now(tz=timezone.utc)
+
+
+def _build_retrieve_online_document_record(
+    entity_key: Union[str, bytes],
+    feature_value: Union[str, bytes],
+    vector_value: Union[str, List[float]],
+    distance_value: float,
+    event_timestamp: datetime,
+    entity_key_serialization_version: int,
+) -> Tuple[
+    Optional[datetime],
+    Optional[EntityKeyProto],
+    Optional[ValueProto],
+    Optional[ValueProto],
+    Optional[ValueProto],
+]:
+    if entity_key_serialization_version < 3:
+        entity_key_proto = None
+    else:
+        if isinstance(entity_key, str):
+            entity_key_proto_bin = entity_key.encode("utf-8")
+        else:
+            entity_key_proto_bin = entity_key
+        entity_key_proto = deserialize_entity_key(
+            entity_key_proto_bin,
+            entity_key_serialization_version=entity_key_serialization_version,
+        )
+
+    feature_value_proto = ValueProto()
+
+    if isinstance(feature_value, str):
+        feature_value_proto.ParseFromString(feature_value.encode("utf-8"))
+    else:
+        feature_value_proto.ParseFromString(feature_value)
+
+    if isinstance(vector_value, str):
+        vector_value_proto = ValueProto(string_val=vector_value)
+    else:
+        vector_value_proto = ValueProto(float_list_val=FloatListProto(val=vector_value))
+
+    distance_value_proto = ValueProto(float_val=distance_value)
+    return (
+        event_timestamp,
+        entity_key_proto,
+        feature_value_proto,
+        vector_value_proto,
+        distance_value_proto,
+    )
