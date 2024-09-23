@@ -15,7 +15,16 @@ import warnings
 from abc import ABC
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, List, Optional, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Iterable,
+    List,
+    Optional,
+    Tuple,
+    Union,
+)
 
 import pandas as pd
 import pyarrow
@@ -352,8 +361,8 @@ class OfflineStore(ABC):
         """
         raise NotImplementedError
 
-    @staticmethod
     def validate_data_source(
+        self,
         config: RepoConfig,
         data_source: DataSource,
     ):
@@ -365,3 +374,17 @@ class OfflineStore(ABC):
             data_source: DataSource object that needs to be validated
         """
         data_source.validate(config=config)
+
+    def get_table_column_names_and_types_from_data_source(
+        self,
+        config: RepoConfig,
+        data_source: DataSource,
+    ) -> Iterable[Tuple[str, str]]:
+        """
+        Returns the list of column names and raw column types for a DataSource.
+
+        Args:
+            config: Configuration object used to configure a feature store.
+            data_source: DataSource object
+        """
+        return data_source.get_table_column_names_and_types(config=config)

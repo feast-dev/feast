@@ -13,6 +13,7 @@ from feast.infra.offline_stores.contrib.mssql_offline_store.mssqlserver_source i
 from feast.infra.offline_stores.file_source import FileSource
 from feast.infra.offline_stores.redshift_source import RedshiftSource
 from feast.infra.offline_stores.snowflake_source import SnowflakeSource
+from feast.infra.provider import Provider
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import RepoConfig
 from feast.stream_feature_view import StreamFeatureView
@@ -95,6 +96,7 @@ def update_data_sources_with_inferred_event_timestamp_col(
 
 
 def update_feature_views_with_inferred_features_and_entities(
+    provider: Provider,
     fvs: Union[List[FeatureView], List[StreamFeatureView], List[OnDemandFeatureView]],
     entities: List[Entity],
     config: RepoConfig,
@@ -176,6 +178,7 @@ def update_feature_views_with_inferred_features_and_entities(
 
         if run_inference_for_entities or run_inference_for_features:
             _infer_features_and_entities(
+                provider,
                 fv,
                 join_keys,
                 run_inference_for_features,
@@ -193,6 +196,7 @@ def update_feature_views_with_inferred_features_and_entities(
 
 
 def _infer_features_and_entities(
+    provider: Provider,
     fv: Union[FeatureView, OnDemandFeatureView],
     join_keys: Set[Optional[str]],
     run_inference_for_features,
@@ -222,8 +226,10 @@ def _infer_features_and_entities(
             columns_to_exclude.remove(mapped_col)
             columns_to_exclude.add(original_col)
 
-    table_column_names_and_types = fv.batch_source.get_table_column_names_and_types(
-        config
+    table_column_names_and_types = (
+        provider.get_table_column_names_and_types_from_data_source(
+            config, fv.batch_source
+        )
     )
 
     for col_name, col_datatype in table_column_names_and_types:

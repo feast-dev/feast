@@ -1,5 +1,16 @@
 from datetime import datetime, timedelta
-from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+)
 
 import pandas as pd
 import pyarrow as pa
@@ -19,6 +30,7 @@ from feast.infra.materialization.batch_materialization_engine import (
     MaterializationJobStatus,
     MaterializationTask,
 )
+from feast.infra.offline_stores.file_source import FileSource
 from feast.infra.offline_stores.offline_store import RetrievalJob
 from feast.infra.offline_stores.offline_utils import get_offline_store_from_config
 from feast.infra.online_stores.helpers import get_online_store_from_config
@@ -455,3 +467,12 @@ class PassthroughProvider(Provider):
         data_source: DataSource,
     ):
         self.offline_store.validate_data_source(config=config, data_source=data_source)
+
+    def get_table_column_names_and_types_from_data_source(
+        self, config: RepoConfig, data_source: DataSource
+    ) -> Iterable[Tuple[str, str]]:
+        if isinstance(data_source, FileSource):
+            return data_source.get_table_column_names_and_types(config=config)
+        return self.offline_store.get_table_column_names_and_types_from_data_source(
+            config=config, data_source=data_source
+        )

@@ -6,7 +6,10 @@ import pytest
 from feast import BigQuerySource, FileSource, RedshiftSource, SnowflakeSource
 from feast.data_source import RequestSource
 from feast.entity import Entity
-from feast.errors import DataSourceNoNameException, SpecifiedFeaturesNotPresentError
+from feast.errors import (
+    DataSourceNoNameException,
+    SpecifiedFeaturesNotPresentError,
+)
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.field import Field
@@ -14,6 +17,7 @@ from feast.inference import update_feature_views_with_inferred_features_and_enti
 from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import (
     SparkSource,
 )
+from feast.infra.provider import get_provider
 from feast.on_demand_feature_view import on_demand_feature_view
 from feast.repo_config import RepoConfig
 from feast.types import Float32, Float64, Int64, String, UnixTimestamp
@@ -253,15 +257,18 @@ def test_feature_view_inference_respects_basic_inference():
     assert len(feature_view_1.features) == 1
     assert len(feature_view_1.entity_columns) == 1
 
+    config = RepoConfig(
+        provider="local",
+        project="test",
+        entity_key_serialization_version=2,
+        registry="dummy_registry.pb",
+    )
+    provider = get_provider(config)
     update_feature_views_with_inferred_features_and_entities(
+        provider,
         [feature_view_1],
         [entity1],
-        RepoConfig(
-            provider="local",
-            project="test",
-            entity_key_serialization_version=2,
-            registry="dummy_registry.pb",
-        ),
+        config,
     )
     assert len(feature_view_1.schema) == 2
     assert len(feature_view_1.features) == 1
@@ -271,15 +278,18 @@ def test_feature_view_inference_respects_basic_inference():
     assert len(feature_view_2.features) == 1
     assert len(feature_view_2.entity_columns) == 2
 
+    config = RepoConfig(
+        provider="local",
+        project="test",
+        entity_key_serialization_version=2,
+        registry="dummy_registry.pb",
+    )
+    provider = get_provider(config)
     update_feature_views_with_inferred_features_and_entities(
+        provider,
         [feature_view_2],
         [entity1, entity2],
-        RepoConfig(
-            provider="local",
-            project="test",
-            entity_key_serialization_version=2,
-            registry="dummy_registry.pb",
-        ),
+        config,
     )
     assert len(feature_view_2.schema) == 3
     assert len(feature_view_2.features) == 1
@@ -305,15 +315,18 @@ def test_feature_view_inference_on_entity_value_types():
     assert len(feature_view_1.features) == 1
     assert len(feature_view_1.entity_columns) == 0
 
+    config = RepoConfig(
+        provider="local",
+        project="test",
+        entity_key_serialization_version=2,
+        registry="dummy_registry.pb",
+    )
+    provider = get_provider(config)
     update_feature_views_with_inferred_features_and_entities(
+        provider,
         [feature_view_1],
         [entity1],
-        RepoConfig(
-            provider="local",
-            project="test",
-            entity_key_serialization_version=2,
-            registry="dummy_registry.pb",
-        ),
+        config,
     )
 
     # The schema must be entity and features
@@ -378,15 +391,18 @@ def test_feature_view_inference_on_entity_columns(simple_dataset_1):
         assert len(feature_view_1.features) == 1
         assert len(feature_view_1.entity_columns) == 0
 
+        config = RepoConfig(
+            provider="local",
+            project="test",
+            entity_key_serialization_version=2,
+            registry="dummy_registry.pb",
+        )
+        provider = get_provider(config)
         update_feature_views_with_inferred_features_and_entities(
+            provider,
             [feature_view_1],
             [entity1],
-            RepoConfig(
-                provider="local",
-                project="test",
-                entity_key_serialization_version=2,
-                registry="dummy_registry.pb",
-            ),
+            config,
         )
 
         # Since there is already a feature specified, additional features are not inferred.
@@ -416,15 +432,18 @@ def test_feature_view_inference_on_feature_columns(simple_dataset_1):
         assert len(feature_view_1.features) == 0
         assert len(feature_view_1.entity_columns) == 1
 
+        config = RepoConfig(
+            provider="local",
+            project="test",
+            entity_key_serialization_version=2,
+            registry="dummy_registry.pb",
+        )
+        provider = get_provider(config)
         update_feature_views_with_inferred_features_and_entities(
+            provider,
             [feature_view_1],
             [entity1],
-            RepoConfig(
-                provider="local",
-                project="test",
-                entity_key_serialization_version=2,
-                registry="dummy_registry.pb",
-            ),
+            config,
         )
 
         # The schema is a property concatenating features and entity_columns
@@ -471,15 +490,18 @@ def test_update_feature_services_with_inferred_features(simple_dataset_1):
         assert len(feature_service.feature_view_projections[1].features) == 0
         assert len(feature_service.feature_view_projections[1].desired_features) == 0
 
+        config = RepoConfig(
+            provider="local",
+            project="test",
+            entity_key_serialization_version=2,
+            registry="dummy_registry.pb",
+        )
+        provider = get_provider(config)
         update_feature_views_with_inferred_features_and_entities(
+            provider,
             [feature_view_1, feature_view_2],
             [entity1],
-            RepoConfig(
-                provider="local",
-                project="test",
-                entity_key_serialization_version=2,
-                registry="dummy_registry.pb",
-            ),
+            config,
         )
         feature_service.infer_features(
             fvs_to_update={
@@ -531,15 +553,18 @@ def test_update_feature_services_with_specified_features(simple_dataset_1):
         assert len(feature_service.feature_view_projections[1].features) == 1
         assert len(feature_service.feature_view_projections[1].desired_features) == 0
 
+        config = RepoConfig(
+            provider="local",
+            project="test",
+            entity_key_serialization_version=2,
+            registry="dummy_registry.pb",
+        )
+        provider = get_provider(config)
         update_feature_views_with_inferred_features_and_entities(
+            provider,
             [feature_view_1, feature_view_2],
             [entity1],
-            RepoConfig(
-                provider="local",
-                project="test",
-                entity_key_serialization_version=2,
-                registry="dummy_registry.pb",
-            ),
+            config,
         )
         assert len(feature_view_1.features) == 1
         assert len(feature_view_2.features) == 1

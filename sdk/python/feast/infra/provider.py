@@ -1,7 +1,18 @@
 from abc import ABC, abstractmethod
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+)
 
 import pandas as pd
 import pyarrow
@@ -402,6 +413,19 @@ class Provider(ABC):
         Args:
             config: Configuration object used to configure a feature store.
             data_source: DataSource object that needs to be validated
+        """
+        pass
+
+    @abstractmethod
+    def get_table_column_names_and_types_from_data_source(
+        self, config: RepoConfig, data_source: DataSource
+    ) -> Iterable[Tuple[str, str]]:
+        """
+        Returns the list of column names and raw column types for a DataSource.
+
+        Args:
+            config: Configuration object used to configure a feature store.
+            data_source: DataSource object
         """
         pass
 
