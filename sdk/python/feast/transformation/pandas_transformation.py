@@ -167,9 +167,13 @@ class PandasTransformation:
         )
     
     def infer_feature_dependencies(self) -> dict:
-        column_usage = track_column_usage(self.udf)
-        print(f"Column usage: {column_usage}")
-        return column_usage
+        try:
+            column_usage = track_column_usage(self.udf)
+            print(f"Column usage: {column_usage}")
+            return column_usage
+        except Exception as e:
+            print(f"Warning: An error occurred while tracking column usage: {str(e)}")
+            return {}
     
 def track_column_usage(func: FunctionType) -> dict:
     source = inspect.getsource(func)
