@@ -344,7 +344,9 @@ def _group_feature_refs(
 
     # on demand view to on demand view proto
     on_demand_view_index = {
-        view.projection.name_to_use(): view for view in all_on_demand_feature_views
+        view.projection.name_to_use(): view
+        for view in all_on_demand_feature_views
+        if view.projection
     }
 
     # view name to feature names
