@@ -37,32 +37,31 @@ build: protos build-java build-docker
 
 # Python SDK
 
+install-python-dependencies-uv:
+	uv pip sync --system sdk/python/requirements/py$(PYTHON_VERSION)-requirements.txt
+	uv pip install --system --no-deps .
+
+install-python-dependencies-uv-venv:
+	uv pip sync sdk/python/requirements/py$(PYTHON_VERSION)-requirements.txt
+	uv pip install --no-deps .
+
 install-python-ci-dependencies:
 	python -m piptools sync sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt
 	pip install --no-deps -e .
-	python setup.py build_python_protos --inplace
 
 install-python-ci-dependencies-uv:
 	uv pip sync --system sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt
 	uv pip install --system --no-deps -e .
-	python setup.py build_python_protos --inplace
 
 install-python-ci-dependencies-uv-venv:
 	uv pip sync sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt
 	uv pip install --no-deps -e .
-	python setup.py build_python_protos --inplace
-
-install-protoc-dependencies:
-	pip install "protobuf<5" "grpcio-tools>=1.56.2,<2" "mypy-protobuf>=3.1"
 
 lock-python-ci-dependencies:
 	uv pip compile --system --no-strip-extras setup.py --extra ci --output-file sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt
 
-package-protos:
-	cp -r ${ROOT_DIR}/protos ${ROOT_DIR}/sdk/python/feast/protos
-
-compile-protos-python: install-protoc-dependencies
-	python setup.py build_python_protos --inplace
+compile-protos-python:
+	python infra/scripts/generate_protos.py
 
 install-python:
 	python -m piptools sync sdk/python/requirements/py$(PYTHON_VERSION)-requirements.txt
