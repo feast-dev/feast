@@ -45,6 +45,8 @@ from feast.repo_operations import (
 )
 from feast.utils import maybe_local_tz
 
+from feast.infra.registry.graph import GraphRegistry
+
 _logger = logging.getLogger(__name__)
 
 
@@ -832,6 +834,433 @@ def validate(
     print(colorful_json)
     exit(1)
 
+@cli.group(name="graph")
+def graph_cmd():
+    """
+    Query graph registry contents
+    """
+    pass
+
+@graph_cmd.command("execute-query")
+@click.option("--query", "-q", required=True, help="Cypher query to execute.")
+@click.pass_context
+def graph_execute_query(ctx, query):
+    """
+    Execute Cypher query
+    """
+    store = create_feature_store(ctx)
+    registry = store._registry
+    if not isinstance(registry, GraphRegistry):
+        print("Graph commands are not supported for this type of registry.")
+        exit(1)
+    else:
+        with registry.driver.session(database=registry.database) as session:
+            with session.begin_transaction() as tx:
+                result = tx.run(query)
+                results = result.data()
+                if results:
+                    from tabulate import tabulate
+
+                    headers = None
+                    rows = []
+                    for item in results:
+                        row = {}
+                        for top_key, sub_dict in item.items():
+                            for key, value in sub_dict.items():
+                                if 'proto' not in key:
+                                    if 'last_updated_timestamp' in key:
+                                        value = datetime.fromtimestamp(value).strftime('%Y-%m-%d %H:%M:%S')
+                                    header_key = f"{top_key}:{key}"
+                                    row[header_key] = value
+
+                        if headers is None:
+                            headers = sorted(row.keys(), key=lambda x: ('name' not in x, x))
+                        
+                        rows.append([row.get(header, '') for header in headers])
+
+                    print(tabulate(rows, headers=headers, tablefmt='plain'))
+
+                else:
+                    click.echo("No results found.")
+        
+@graph_cmd.command("most-used")
+@click.option(
+    "--object",
+    "-o",
+    type=click.Choice(["feature-views", "on-demand-feature-views", "data-sources", "entities", "fields"]),
+    required=True,
+    help="Count relationships and sort for the most used object of the specified type."
+)
+@click.option(
+    "--limit",
+    "-l",
+    type=click.INT,
+    help="Limit the number of objects shown."
+)
+@click.pass_context
+def graph_most_used(ctx, object, limit: Optional[int]):
+    """
+    Count relationships and sort for the most used object of the specified type
+    """
+    store = create_feature_store(ctx)
+    registry = store._registry
+    if not isinstance(registry, GraphRegistry):
+        print("Graph commands are not supported for this type of registry.")
+        exit(1)
+    else:
+        query = ""
+        if object == "feature-views":
+            query = """
+                MATCH (fv:FeatureView)<-[c:CONSUMES]-(fs:FeatureService)
+                RETURN fv.feature_view_name AS name, COUNT(fs) AS usage_count
+                ORDER BY usage_count DESC
+            """
+        elif object == "on-demand-feature-views":
+            query = """
+                MATCH (odfv:OnDemandFeatureView)<-[c:CONSUMES]-(fs:FeatureService)
+                RETURN odfv.feature_view_name AS name, COUNT(fs) AS usage_count
+                ORDER BY usage_count DESC
+            """
+        elif object == "data-sources":
+            query = """
+                MATCH (ds:DataSource)
+                OPTIONAL MATCH (ds)<-[p:POPULATED_FROM]-(fv:FeatureView)
+                OPTIONAL MATCH (ds)<-[b:BASED_ON]-(odfv:OnDemandFeatureView)
+                RETURN ds.data_source_name AS name,
+                       (COUNT(fv) + COUNT(odfv)) AS usage_count
+                ORDER BY usage_count DESC
+            """
+        elif object == "entities":
+            query = """
+                MATCH (e:Entity)<-[u:USES]-(fv:FeatureView)
+                RETURN e.entity_name AS name, COUNT(fv) AS usage_count
+                ORDER BY usage_count DESC
+            """
+        elif object == "fields":
+            query = """
+                MATCH (f:Field)<-[h1:HAS]-(fv:FeatureView)
+                MATCH (ds:DataSource)-[h2:HAS]->(f)
+                RETURN f.field_name AS name, ds.data_source_name AS source_name, COUNT(fv) AS usage_count
+                ORDER BY usage_count DESC
+            """
+
+        if query and limit:
+            query += f"LIMIT {limit}"
+
+        with registry.driver.session(database=registry.database) as session:
+            with session.begin_transaction() as tx:                
+                result = tx.run(query)
+                results = result.data()
+                if results:
+                    print(f"Results: {results}")
+                    from tabulate import tabulate
+
+                    print(f"Most used {object.replace('-', ' ')}:")
+                    print(tabulate(results, headers="keys", tablefmt="plain"))
+
+                else:
+                    click.echo(f"No {object.replace('-', ' ')} found.")
+
+@graph_cmd.command("most-dependencies")
+@click.option(
+    "--object",
+    "-o",
+    type=click.Choice(["feature-views", "fields"]),
+    required=True,
+    help="Count relationships and sort for the most used object of the specified type as a dependency for transformations."
+)
+@click.option(
+    "--limit",
+    "-l",
+    type=click.INT,
+    help="Limit the number of objects shown."
+)
+@click.pass_context
+def graph_most_dependencies(ctx, object, limit: Optional[int]):
+    """
+    Count relationships and sort for the most used object of the specified type as a dependency for transformations
+    """
+    store = create_feature_store(ctx)
+    registry = store._registry
+    if not isinstance(registry, GraphRegistry):
+        print("Graph commands are not supported for this type of registry.")
+        exit(1)
+    else:
+        query = ""
+        if object == "feature-views":
+            query = """
+                MATCH (fv:FeatureView)<-[b:BASED_ON]-(odfv:OnDemandFeatureView)
+                RETURN fv.feature_view_name AS name, COUNT(odfv) AS dependency_count
+                ORDER BY dependency_count DESC
+            """
+        elif object == "fields":
+            query = """
+                MATCH (of:Field)<-[u:USED_FOR]-(f:Field)
+                MATCH (ds:DataSource)-[h:HAS]->(f)
+                RETURN f.field_name AS name, ds.data_source_name AS source_name, COUNT(of) AS dependency_count
+                ORDER BY dependency_count DESC
+            """
+        if query and limit:
+            query += f"LIMIT {limit}"
+
+        with registry.driver.session(database=registry.database) as session:
+            with session.begin_transaction() as tx:                
+                result = tx.run(query)
+                results = result.data()
+                if results:
+                    print(f"Results: {results}")
+                    from tabulate import tabulate
+
+                    print(f"Most used {object.replace('-', ' ')} as dependencies:")
+                    print(tabulate(results, headers="keys", tablefmt="plain"))
+
+                else:
+                    click.echo(f"No {object.replace('-', ' ')} found.")
+
+
+@graph_cmd.command("common-tags")
+@click.pass_context
+def graph_common_tags(ctx):
+    """
+    Group objects based on their tags
+    """
+    store = create_feature_store(ctx)
+    registry = store._registry
+    if not isinstance(registry, GraphRegistry):
+        print("Graph commands are not supported for this type of registry.")
+        exit(1)
+    else:
+        query = """
+            MATCH (n)-[:TAG]->(t)
+            WITH 
+                t.value AS value, 
+                HEAD(labels(t)) AS tag, 
+                CASE 
+                    WHEN "Field" IN labels(n) THEN n.field_name
+                    WHEN "Entity" IN labels(n) THEN n.entity_name
+                    WHEN "DataSource" IN labels(n) THEN n.data_source_name
+                    WHEN "FeatureView" IN labels(n) THEN n.feature_view_name
+                    WHEN "OnDemandFeatureView" IN labels(n) THEN n.feature_view_name
+                    WHEN "FeatureService" IN labels(n) THEN n.feature_service_name
+                    ELSE 'Unknown'
+                END AS object_name,
+                HEAD(labels(n)) AS object_label
+            RETURN 
+                tag, 
+                value, 
+                COLLECT({object_name: object_name, object_label: object_label}) AS objects
+            ORDER BY tag, value
+        """
+        with registry.driver.session(database=registry.database) as session:
+            with session.begin_transaction() as tx:                
+                result = tx.run(query)
+                results = result.data()
+                if results:
+                    from collections import defaultdict
+
+                    for result in results:
+                        new_objects = {}
+                        objects = result.get('objects', [])
+                        for obj in objects:
+                            label = obj.get('object_label')
+                            name = obj.get('object_name')
+                            if label in new_objects.keys():
+                                new_objects[label].append(name)
+                            else:
+                                new_objects[label] = [name]
+                        result["objects"] = new_objects
+
+                    from tabulate import tabulate
+
+                    # print(f"Most used {object.replace('-', ' ')}:")
+                    print(tabulate(results, headers="keys", tablefmt="plain"))
+
+                else:
+                    click.echo(f"No tags found.")
+
+
+@graph_cmd.command("common-owner")
+@click.pass_context
+def graph_common_owner(ctx):
+    """
+    Group objects based on their owner
+    """
+    store = create_feature_store(ctx)
+    registry = store._registry
+    if not isinstance(registry, GraphRegistry):
+        print("Graph commands are not supported for this type of registry.")
+        exit(1)
+    else:
+        query = """
+            MATCH (o:Owner)-[:OWNS]->(n)
+            WITH 
+                o.name AS owner, 
+                CASE 
+                    WHEN "Entity" IN labels(n) THEN n.entity_name
+                    WHEN "DataSource" IN labels(n) THEN n.data_source_name
+                    WHEN "FeatureView" IN labels(n) THEN n.feature_view_name
+                    WHEN "OnDemandFeatureView" IN labels(n) THEN n.feature_view_name
+                    WHEN "FeatureService" IN labels(n) THEN n.feature_service_name
+                    ELSE 'Unknown'
+                END AS object_name,
+                HEAD(labels(n)) AS object_label
+            RETURN 
+                owner, 
+                COLLECT({object_name: object_name, object_label: object_label}) AS objects
+            ORDER BY owner
+        """
+        with registry.driver.session(database=registry.database) as session:
+            with session.begin_transaction() as tx:                
+                result = tx.run(query)
+                results = result.data()
+                if results:
+                    from collections import defaultdict
+
+                    for result in results:
+                        new_objects = {}
+                        objects = result.get('objects', [])
+                        for obj in objects:
+                            label = obj.get('object_label')
+                            name = obj.get('object_name')
+                            if label in new_objects.keys():
+                                new_objects[label].append(name)
+                            else:
+                                new_objects[label] = [name]
+                        result["objects"] = new_objects
+
+                    from tabulate import tabulate
+
+                    # print(f"Most used {object.replace('-', ' ')}:")
+                    print(tabulate(results, headers="keys", tablefmt="plain"))
+
+                else:
+                    click.echo(f"No owners found.")
+
+@graph_cmd.command("upstream-impact")
+@click.option(
+    "--data-source",
+    "-d",
+    type=click.STRING,
+    required=True,
+    help="The name of the data source for which impacted objects will be gathered."
+)
+@click.option(
+    "--field",
+    "-f",
+    type=click.STRING,
+    help="The specific field from the data source for which impacted objects will be gathered."
+)
+@click.pass_context
+def graph_upstream_impact(ctx, data_source, field: Optional[str]):
+    """
+    Return the data sources, feature views, on-demand feature views and feature services that use the data source or specific field from the data source if specified
+    """
+    store = create_feature_store(ctx)
+    registry = store._registry
+    if not isinstance(registry, GraphRegistry):
+        print("Graph commands are not supported for this type of registry.")
+        exit(1)
+    else:
+        query = ""
+        if field:
+            query = f"""
+                MATCH (f:Field {{ field_name: $field_name }})<-[h1:HAS]-(ds1:DataSource {{ data_source_name: $data_source_name }})
+                OPTIONAL MATCH (of:Field {{ field_name: $field_name }})<-[h2:HAS]-(ds2:DataSource)-[r:RETRIEVES_FROM]->(ds1)
+                OPTIONAL MATCH (f)<-[h3:HAS]-(fv1:FeatureView)
+                OPTIONAL MATCH (of)<-[h4:HAS]-(fv2:FeatureView)
+                OPTIONAL MATCH (df:Field)<-[u1:USED_FOR]-(f)
+                OPTIONAL MATCH (dof:Field)<-[u2:USED_FOR]-(of)
+                OPTIONAL MATCH (df)<-[p1:PRODUCES]-(odfv1:OnDemandFeatureView)
+                OPTIONAL MATCH (dof)<-[p2:PRODUCES]-(odfv2:OnDemandFeatureView)
+                OPTIONAL MATCH (f)<-[s1:SERVES]-(fs1:FeatureService)
+                OPTIONAL MATCH (df)<-[s2:SERVES]-(fs2:FeatureService)
+                OPTIONAL MATCH (of)<-[s3:SERVES]-(fs3:FeatureService)
+                OPTIONAL MATCH (dof)<-[s4:SERVES]-(fs4:FeatureService)
+                RETURN 
+                    COLLECT(DISTINCT ds2.data_source_name) AS data_sources,
+                    COLLECT(fv1.feature_view_name) AS feature_views1, 
+                    COLLECT(fv2.feature_view_name) AS feature_views2, 
+                    COLLECT(odfv1.feature_view_name) AS on_demand_feature_views1, 
+                    COLLECT(odfv2.feature_view_name) AS on_demand_feature_views2, 
+                    COLLECT(fs1.feature_service_name) AS feature_services1,
+                    COLLECT(fs2.feature_service_name) AS feature_services2,
+                    COLLECT(fs3.feature_service_name) AS feature_services3,
+                    COLLECT(fs4.feature_service_name) AS feature_services4
+            """
+        else:
+            query = f"""
+                MATCH (ds:DataSource {{ data_source_name: $data_source_name }})<-[p1:POPULATED_FROM]-(fv1:FeatureView)
+                OPTIONAL MATCH (ds)<-[r:RETRIEVES_FROM]-(s:DataSource)
+                OPTIONAL MATCH (s)<-[p2:POPULATED_FROM]-(fv2:FeatureView)
+                OPTIONAL MATCH (ds)<-[b1:BASED_ON]-(odfv1:OnDemandFeatureView)
+                OPTIONAL MATCH (fv1)<-[b2:BASED_ON]-(odfv2:OnDemandFeatureView)
+                OPTIONAL MATCH (s)<-[b3:BASED_ON]-(odfv3:OnDemandFeatureView)
+                OPTIONAL MATCH (fv2)<-[b4:BASED_ON]-(odfv4:OnDemandFeatureView)
+                OPTIONAL MATCH (fv1)<-[c1:CONSUMES]-(fs1:FeatureService)
+                OPTIONAL MATCH (fv2)<-[c2:CONSUMES]-(fs2:FeatureService)
+                OPTIONAL MATCH (odfv1)<-[c3:CONSUMES]-(fs3:FeatureService)
+                OPTIONAL MATCH (odfv2)<-[c4:CONSUMES]-(fs4:FeatureService)
+                OPTIONAL MATCH (odfv3)<-[c5:CONSUMES]-(fs5:FeatureService)
+                OPTIONAL MATCH (odfv4)<-[c6:CONSUMES]-(fs6:FeatureService)
+                RETURN 
+                    COLLECT(DISTINCT s.data_source_name) AS data_sources,
+                    COLLECT(fv1.feature_view_name) AS feature_views1, 
+                    COLLECT(fv2.feature_view_name) AS feature_views2, 
+                    COLLECT(odfv1.feature_view_name) AS on_demand_feature_views1, 
+                    COLLECT(odfv2.feature_view_name) AS on_demand_feature_views2,
+                    COLLECT(odfv3.feature_view_name) AS on_demand_feature_views3,
+                    COLLECT(odfv4.feature_view_name) AS on_demand_feature_views4,
+                    COLLECT(fs1.feature_service_name) AS feature_services1,
+                    COLLECT(fs2.feature_service_name) AS feature_services2,
+                    COLLECT(fs3.feature_service_name) AS feature_services3,
+                    COLLECT(fs4.feature_service_name) AS feature_services4,
+                    COLLECT(fs5.feature_service_name) AS feature_services5,
+                    COLLECT(fs6.feature_service_name) AS feature_services6
+            """        
+
+        with registry.driver.session(database=registry.database) as session:
+            with session.begin_transaction() as tx:     
+                params = {"data_source_name": data_source}
+
+                if field:
+                    params["field_name"] = field
+
+                result = tx.run(query, params)
+                results = result.single()           
+                
+                if results:
+                    print(f"Results: {results}")
+                    fvs = set()
+                    for fv in results["feature_views1"]+results["feature_views2"]:
+                        fvs.add(fv)
+                    odfvs = set()
+                    for odfv in results["on_demand_feature_views1"]+results["on_demand_feature_views2"]:
+                        odfvs.add(odfv)
+                    if not field:
+                        for odfv in results["on_demand_feature_views3"]+results["on_demand_feature_views4"]:
+                            odfvs.add(odfv)
+                    fss = set()
+                    for fs in results["feature_services1"]+results["feature_services2"]:
+                        fss.add(fs)
+                    for fs in results["feature_services3"]+results["feature_services4"]:
+                        fss.add(fs)    
+                    if not field:
+                        for fs in results["feature_services5"]+results["feature_services6"]:
+                            fss.add(fs)
+                    
+                    d = {}
+                    d["Data Sources"] = sorted(results["data_sources"])
+                    d["Feature Views"] = sorted(list(fvs))
+                    d["On-Demand Feature Views"] = sorted(list(odfvs))
+                    d["Feature Services"] = sorted(list(fss))
+
+                    from tabulate import tabulate
+
+                    print(f"Upstream impact of " + (f"field '{field}' from " if field else "") + f"data source '{data_source}':")
+                    print(tabulate(d, headers="keys", tablefmt="plain"))
+
+                else:
+                    click.echo(f"No impacted objects found.")
 
 if __name__ == "__main__":
-    cli()
+    cli()  
