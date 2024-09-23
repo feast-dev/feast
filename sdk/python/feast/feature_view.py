@@ -206,6 +206,7 @@ class FeatureView(BaseFeatureView):
             description=description,
             tags=tags,
             owner=owner,
+            source=source,
         )
         self.online = online
         self.materialization_intervals = []
@@ -429,7 +430,9 @@ class FeatureView(BaseFeatureView):
 
         # FeatureViewProjections are not saved in the FeatureView proto.
         # Create the default projection.
-        feature_view.projection = FeatureViewProjection.from_definition(feature_view)
+        feature_view.projection = FeatureViewProjection.from_feature_view_definition(
+            feature_view
+        )
 
         if feature_view_proto.meta.HasField("created_timestamp"):
             feature_view.created_timestamp = (

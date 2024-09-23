@@ -18,6 +18,7 @@ from typing import Dict, List, Optional, Type, Union
 from google.protobuf.json_format import MessageToJson
 from google.protobuf.message import Message
 
+from feast.data_source import DataSource
 from feast.feature_view_projection import FeatureViewProjection
 from feast.field import Field
 from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
@@ -65,6 +66,7 @@ class BaseFeatureView(ABC):
         description: str = "",
         tags: Optional[Dict[str, str]] = None,
         owner: str = "",
+        source: Optional[DataSource] = None,
     ):
         """
         Creates a BaseFeatureView object.
@@ -76,7 +78,8 @@ class BaseFeatureView(ABC):
             tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
             owner (optional): The owner of the base feature view, typically the email of the
                 primary maintainer.
-
+            source (optional): The source of data for this group of features. May be a stream source, or a batch source.
+                If a stream source, the source should contain a batch_source for backfills & batch materialization.
         Raises:
             ValueError: A field mapping conflicts with an Entity or a Feature.
         """
@@ -89,6 +92,9 @@ class BaseFeatureView(ABC):
         self.projection = FeatureViewProjection.from_definition(self)
         self.created_timestamp = None
         self.last_updated_timestamp = None
+
+        if source:
+            self.source = source
 
     @property
     @abstractmethod
@@ -156,6 +162,10 @@ class BaseFeatureView(ABC):
             or self.tags != other.tags
             or self.owner != other.owner
         ):
+            # This is meant to ignore the File Source change to Push Source
+            if isinstance(type(self.source), type(other.source)):
+                if self.source != other.source:
+                    return False
             return False
 
         return True

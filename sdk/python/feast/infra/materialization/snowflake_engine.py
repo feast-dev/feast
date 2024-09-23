@@ -285,8 +285,14 @@ class SnowflakeMaterializationEngine(BatchMaterializationEngine):
 
             fv_latest_values_sql = offline_job.to_sql()
 
+            if feature_view.entity_columns:
+                first_feature_view_entity_name = getattr(
+                    feature_view.entity_columns[0], "name", None
+                )
+            else:
+                first_feature_view_entity_name = None
             if (
-                feature_view.entity_columns[0].name == DUMMY_ENTITY_ID
+                first_feature_view_entity_name == DUMMY_ENTITY_ID
             ):  # entityless Feature View's placeholder entity
                 entities_to_write = 1
             else:

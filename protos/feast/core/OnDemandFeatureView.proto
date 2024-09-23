@@ -63,6 +63,12 @@ message OnDemandFeatureViewSpec {
     // Owner of the on demand feature view.
     string owner = 8;
     string mode = 11;
+    bool write_to_online_store = 12;
+
+    // List of names of entities associated with this feature view.
+    repeated string entities = 13;
+    // List of specifications for each entity defined as part of this feature view.
+    repeated FeatureSpecV2 entity_columns = 14;
 }
 
 message OnDemandFeatureViewMeta {

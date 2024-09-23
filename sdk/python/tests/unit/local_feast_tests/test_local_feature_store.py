@@ -209,8 +209,9 @@ def test_apply_feature_view_with_inline_batch_source(
         test_feature_store.apply([entity, driver_fv])
 
         fvs = test_feature_store.list_batch_feature_views()
+        dfv = fvs[0]
         assert len(fvs) == 1
-        assert fvs[0] == driver_fv
+        assert dfv == driver_fv
 
         ds = test_feature_store.list_data_sources()
         assert len(ds) == 1

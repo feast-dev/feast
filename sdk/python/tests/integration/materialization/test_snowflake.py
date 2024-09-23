@@ -221,9 +221,11 @@ def test_snowflake_materialization_entityless_fv():
         ttl=timedelta(weeks=52),
         source=ds,
     )
+    assert overall_stats_fv.entity_columns == []
 
     try:
         fs.apply([overall_stats_fv, driver])
+        assert overall_stats_fv.entity_columns != []
 
         # materialization is run in two steps and
         # we use timestamp from generated dataframe as a split point

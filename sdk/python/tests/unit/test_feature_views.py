@@ -111,7 +111,27 @@ def test_hash():
     assert len(s4) == 3
 
 
-# TODO(felixwang9817): Add tests for proto conversion.
+def test_proto_conversion():
+    file_source = FileSource(name="my-file-source", path="test.parquet")
+    feature_view_1 = FeatureView(
+        name="my-feature-view",
+        entities=[],
+        schema=[
+            Field(name="feature1", dtype=Float32),
+            Field(name="feature2", dtype=Float32),
+        ],
+        source=file_source,
+    )
+
+    feature_view_proto = feature_view_1.to_proto()
+    assert (
+        feature_view_proto.spec.name == "my-feature-view"
+        and feature_view_proto.spec.batch_source.file_options.uri == "test.parquet"
+        and feature_view_proto.spec.batch_source.name == "my-file-source"
+        and feature_view_proto.spec.batch_source.type == 1
+    )
+
+
 # TODO(felixwang9817): Add tests for field mapping logic.
 
 
