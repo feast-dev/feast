@@ -283,18 +283,17 @@ def _infer_on_demand_features_and_entities(
 
         batch_source = getattr(source_feature_view, "batch_source")
         batch_field_mapping = getattr(batch_source or None, "field_mapping")
-        if batch_field_mapping:
-            for (
-                original_col,
-                mapped_col,
-            ) in batch_field_mapping.items():
-                if mapped_col in columns_to_exclude:
-                    columns_to_exclude.remove(mapped_col)
-                    columns_to_exclude.add(original_col)
+        for (
+            original_col,
+            mapped_col,
+        ) in batch_field_mapping.items():
+            if mapped_col in columns_to_exclude:
+                columns_to_exclude.remove(mapped_col)
+                columns_to_exclude.add(original_col)
 
-            table_column_names_and_types = (
-                batch_source.get_table_column_names_and_types(config)
-            )
+        table_column_names_and_types = batch_source.get_table_column_names_and_types(
+            config
+        )
         for col_name, col_datatype in table_column_names_and_types:
             if col_name in columns_to_exclude:
                 continue
