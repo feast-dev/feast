@@ -12,13 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from abc import ABC, abstractmethod
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Dict, Union
 
 import pyarrow
 
 from feast.value_type import ValueType
-from feast.utils import _utc_now
 
 PRIMITIVE_FEAST_TYPES_TO_VALUE_TYPES = {
     "INVALID": "UNKNOWN",
@@ -31,6 +31,10 @@ PRIMITIVE_FEAST_TYPES_TO_VALUE_TYPES = {
     "BOOL": "BOOL",
     "UNIX_TIMESTAMP": "UNIX_TIMESTAMP",
 }
+
+
+def _utc_now() -> datetime:
+    return datetime.now(tz=timezone.utc)
 
 
 class ComplexFeastType(ABC):
@@ -189,7 +193,7 @@ FEAST_TYPES_TO_PYARROW_TYPES = {
     Float32: pyarrow.float32(),
     Float64: pyarrow.float64(),
     # Note: datetime only supports microseconds https://github.com/python/cpython/blob/3.8/Lib/datetime.py#L1559
-    UnixTimestamp: pyarrow.timestamp('us', tz=_utc_now().tzname()),
+    UnixTimestamp: pyarrow.timestamp("us", tz=_utc_now().tzname()),
 }
 
 
