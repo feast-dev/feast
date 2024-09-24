@@ -132,7 +132,6 @@ class OnDemandFeatureView(BaseFeatureView):
 
         schema = schema or []
         self.entities = [e.name for e in entities] if entities else [DUMMY_ENTITY_NAME]
-        print('odfv', self.entities)
         self.mode = mode.lower()
 
         if self.mode not in {"python", "pandas", "substrait"}:
