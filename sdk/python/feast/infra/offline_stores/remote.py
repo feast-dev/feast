@@ -340,7 +340,7 @@ class RemoteOfflineStore(OfflineStore):
         )
 
         api_parameters = {
-            "data_source_name": data_source.name,
+            "data_source_proto": str(data_source),
         }
         logger.debug(f"validating DataSource {data_source.name}")
         _call_put(

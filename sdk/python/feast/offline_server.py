@@ -4,16 +4,14 @@ import logging
 import traceback
 from datetime import datetime
 from typing import Any, Dict, List, cast
-from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 
 import pyarrow as pa
 import pyarrow.flight as fl
-from google.protobuf.json_format import MessageToDict, Parse
+from google.protobuf.json_format import Parse
 
 from feast import FeatureStore, FeatureView, utils
 from feast.arrow_error_handler import arrow_server_error_handling_decorator
 from feast.data_source import DataSource
-from feast.errors import FeastObjectNotFoundException
 from feast.feature_logging import FeatureServiceLoggingSource
 from feast.feature_view import DUMMY_ENTITY_NAME
 from feast.infra.offline_stores.offline_utils import get_offline_store_from_config
@@ -30,6 +28,7 @@ from feast.permissions.server.utils import (
     init_security_manager,
     str_to_auth_manager_type,
 )
+from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.saved_dataset import SavedDatasetStorage
 
 logger = logging.getLogger(__name__)
@@ -469,27 +468,30 @@ class OfflineServer(fl.FlightServerBase):
             traceback.print_exc()
             raise e
 
-    def validate_data_source(self, command: dict):
-        data_source_name = command["data_source_name"]
-        logger.debug(f"Validating data source {data_source_name}")
-        try:
-            data_source = self.store.registry.get_data_source(
-                name=data_source_name, project=self.store.config.project
-            )
-            self.offline_store.validate_data_source(
-                config=self.store.config,
-                data_source=data_source,
-            )
-        except FeastObjectNotFoundException:
-            logger.debug(f"DataSource {data_source_name} not found, validation skipped")
-
-    def get_table_column_names_and_types_from_data_source(self, command: dict):
+    @staticmethod
+    def _extract_data_source_from_command(command) -> DataSource:
         data_source_proto_str = command["data_source_proto"]
-        logger.debug(f"Fetching table columns metadata from {data_source_proto_str}")
+        logger.debug(f"Extracted data_source_proto {data_source_proto_str}")
         data_source_proto = DataSourceProto()
         Parse(data_source_proto_str, data_source_proto)
         data_source = DataSource.from_proto(data_source_proto)
         logger.debug(f"Converted to DataSource {data_source}")
+        return data_source
+
+    def validate_data_source(self, command: dict):
+        data_source = OfflineServer._extract_data_source_from_command(command)
+        logger.debug(f"Validating data source {data_source.name}")
+        assert_permissions(data_source, actions=[AuthzedAction.READ_OFFLINE])
+
+        self.offline_store.validate_data_source(
+            config=self.store.config,
+            data_source=data_source,
+        )
+
+    def get_table_column_names_and_types_from_data_source(self, command: dict):
+        data_source = OfflineServer._extract_data_source_from_command(command)
+        logger.debug(f"Fetching table columns metadata from {data_source.name}")
+        assert_permissions(data_source, actions=[AuthzedAction.READ_OFFLINE])
 
         column_names_and_types = data_source.get_table_column_names_and_types(
             self.store.config
