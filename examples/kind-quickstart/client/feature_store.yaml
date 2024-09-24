@@ -1,0 +1,14 @@
+project: sample
+registry:
+  path: localhost:8001
+  registry_type: remote
+offline_store:
+  host: localhost
+  port: 8002
+  type: remote
+online_store:
+  path: http://localhost:8003
+  type: remote
+entity_key_serialization_version: 2
+auth:
+  type: no_auth
