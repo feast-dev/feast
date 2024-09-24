@@ -18,6 +18,7 @@ from typing import Dict, Union
 import pyarrow
 
 from feast.value_type import ValueType
+from feast.utils import _utc_now
 
 PRIMITIVE_FEAST_TYPES_TO_VALUE_TYPES = {
     "INVALID": "UNKNOWN",
@@ -187,7 +188,8 @@ FEAST_TYPES_TO_PYARROW_TYPES = {
     Int64: pyarrow.int64(),
     Float32: pyarrow.float32(),
     Float64: pyarrow.float64(),
-    UnixTimestamp: pyarrow.timestamp(),
+    # Note: datetime only supports microseconds https://github.com/python/cpython/blob/3.8/Lib/datetime.py#L1559
+    UnixTimestamp: pyarrow.timestamp('us', tz=_utc_now().tzname()),
 }
 
 
