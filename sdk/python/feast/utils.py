@@ -232,7 +232,8 @@ def _convert_arrow_to_proto(
     feature_view: "FeatureView",
     join_keys: Dict[str, ValueType],
 ) -> List[Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]]:
-    if isinstance(feature_view, OnDemandFeatureView):
+    # This is a workaround for isinstance(feature_view, OnDemandFeatureView), which triggers a circular import
+    if getattr(feature_view, "source_request_sources", None):
         return _convert_arrow_odfv_to_proto(table, feature_view, join_keys)
     else:
         return _convert_arrow_fv_to_proto(table, feature_view, join_keys)
@@ -1140,6 +1141,7 @@ def tags_str_to_dict(tags: str = "") -> dict[str, str]:
             cast(tuple[str, str], tag.split(":", 1)) for tag in tags_list if ":" in tag
         ).items()
     }
+<<<<<<< HEAD
 
 
 def _utc_now() -> datetime:
@@ -1192,3 +1194,5 @@ def _build_retrieve_online_document_record(
         vector_value_proto,
         distance_value_proto,
     )
+=======
+>>>>>>> f97a28ca (checking in progress)

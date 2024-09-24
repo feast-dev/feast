@@ -1,7 +1,6 @@
 import os
 import re
 import tempfile
-import time
 import unittest
 from datetime import datetime, timedelta
 from typing import Any
@@ -162,6 +161,7 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
                     ],
                     "current_datetime": [datetime.now() for _ in inputs["conv_rate"]],
                 }
+                print("running odfv transform")
                 return output
 
             with pytest.raises(TypeError):
@@ -283,27 +283,32 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
         )
 
     def test_stored_writes(self):
-        entity_rows = [
+        entity_rows_to_write = [
             {
                 "driver_id": 1001,
                 "conv_rate": 0.25,
                 "acc_rate": 0.25,
             }
         ]
-
+        entity_rows_to_read = [
+            {
+                "driver_id": 1001,
+            }
+        ]
+        print("storing odfv features")
         self.store.write_to_online_store(
             feature_view_name="python_stored_writes_feature_view",
-            df=entity_rows,
+            df=entity_rows_to_write,
         )
-        time.sleep(1)
+        print("reading odfv features")
         online_python_response = self.store.get_online_features(
-            entity_rows=entity_rows,
+            entity_rows=entity_rows_to_read,
             features=[
                 "python_stored_writes_feature_view:conv_rate_plus_acc",
                 "python_stored_writes_feature_view:current_datetime",
             ],
         ).to_dict()
-
+        print(online_python_response)
         assert sorted(list(online_python_response.keys())) == sorted(
             [
                 "driver_id",
