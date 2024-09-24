@@ -311,8 +311,6 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
                 "current_datetime",
             ]
         )
-        print(online_python_response)
-        # Now this is where we need to test the stored writes, this should return the same output as the previous
 
 
 class TestOnDemandPythonTransformationAllDataTypes(unittest.TestCase):

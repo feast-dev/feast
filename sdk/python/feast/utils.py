@@ -43,6 +43,7 @@ from feast.protos.feast.types.Value_pb2 import FloatList as FloatListProto
 from feast.protos.feast.types.Value_pb2 import RepeatedValue as RepeatedValueProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.type_map import python_values_to_proto_values
+from feast.types import from_feast_to_pyarrow_type
 from feast.value_type import ValueType
 from feast.version import get_version
 
@@ -231,6 +232,17 @@ def _convert_arrow_to_proto(
     feature_view: "FeatureView",
     join_keys: Dict[str, ValueType],
 ) -> List[Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]]:
+    if isinstance(feature_view, OnDemandFeatureView):
+        return _convert_arrow_odfv_to_proto(table, feature_view, join_keys)
+    else:
+        return _convert_arrow_fv_to_proto(table, feature_view, join_keys)
+
+
+def _convert_arrow_fv_to_proto(
+    table: Union[pyarrow.Table, pyarrow.RecordBatch],
+    feature_view: "FeatureView",
+    join_keys: Dict[str, ValueType],
+) -> List[Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]]:
     # Avoid ChunkedArrays which guarantees `zero_copy_only` available.
     if isinstance(table, pyarrow.Table):
         table = table.to_batches()[0]
@@ -245,6 +257,81 @@ def _convert_arrow_to_proto(
         )
         for column, value_type in columns
     }
+
+    entity_keys = [
+        EntityKeyProto(
+            join_keys=join_keys,
+            entity_values=[proto_values_by_column[k][idx] for k in join_keys],
+        )
+        for idx in range(table.num_rows)
+    ]
+
+    # Serialize the features per row
+    feature_dict = {
+        feature.name: proto_values_by_column[feature.name]
+        for feature in feature_view.features
+    }
+    features = [dict(zip(feature_dict, vars)) for vars in zip(*feature_dict.values())]
+
+    # Convert event_timestamps
+    event_timestamps = [
+        _coerce_datetime(val)
+        for val in pd.to_datetime(
+            table.column(feature_view.batch_source.timestamp_field).to_numpy(
+                zero_copy_only=False
+            )
+        )
+    ]
+
+    # Convert created_timestamps if they exist
+    if feature_view.batch_source.created_timestamp_column:
+        created_timestamps = [
+            _coerce_datetime(val)
+            for val in pd.to_datetime(
+                table.column(
+                    feature_view.batch_source.created_timestamp_column
+                ).to_numpy(zero_copy_only=False)
+            )
+        ]
+    else:
+        created_timestamps = [None] * table.num_rows
+
+    return list(zip(entity_keys, features, event_timestamps, created_timestamps))
+
+
+def _convert_arrow_odfv_to_proto(
+    table: Union[pyarrow.Table, pyarrow.RecordBatch],
+    feature_view: "FeatureView",
+    join_keys: Dict[str, ValueType],
+) -> List[Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]]:
+    # Avoid ChunkedArrays which guarantees `zero_copy_only` available.
+    if isinstance(table, pyarrow.Table):
+        table = table.to_batches()[0]
+
+    columns = [
+        (field.name, field.dtype.to_value_type()) for field in feature_view.features
+    ] + list(join_keys.items())
+
+    proto_values_by_column = {
+        column: python_values_to_proto_values(
+            table.column(column).to_numpy(zero_copy_only=False), value_type
+        )
+        for column, value_type in columns
+        if column in table.column_names
+    }
+    # Adding On Demand Features
+    for feature in feature_view.features:
+        if feature.name in [c[0] for c in columns]:
+            # initializing the column as null
+            proto_values_by_column[feature.name] = python_values_to_proto_values(
+                table.append_column(
+                    feature.name,
+                    pyarrow.array(
+                        [None] * table.shape[0],
+                        type=from_feast_to_pyarrow_type(feature.dtype),
+                    ),
+                ),
+            )
 
     entity_keys = [
         EntityKeyProto(
