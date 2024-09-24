@@ -193,6 +193,7 @@ def update_feature_views_with_inferred_features_and_entities(
 
 
 def _infer_features_and_entities(
+    provider: Provider,
     fv: Union[FeatureView, OnDemandFeatureView],
     join_keys: Set[Optional[str]],
     run_inference_for_features,
