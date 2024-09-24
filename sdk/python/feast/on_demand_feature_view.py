@@ -128,6 +128,7 @@ class OnDemandFeatureView(BaseFeatureView):
             description=description,
             tags=tags,
             owner=owner,
+            write_to_online_store=write_to_online_store,
         )
 
         schema = schema or []
@@ -246,7 +247,10 @@ class OnDemandFeatureView(BaseFeatureView):
             or self.mode != other.mode
             or self.feature_transformation != other.feature_transformation
             or self.write_to_online_store != other.write_to_online_store
+<<<<<<< HEAD
             or sorted(self.entity_columns) != sorted(other.entity_columns)
+=======
+>>>>>>> ac077c6b (feat: Adding write capabability to online store to on demand feature views)
         ):
             return False
 
