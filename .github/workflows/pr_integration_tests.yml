@@ -1,7 +1,7 @@
 name: pr-integration-tests
 
 on:
-  pull_request:
+  pull_request_target:
     types:
       - opened
       - synchronize
@@ -11,10 +11,13 @@ on:
 #concurrency:
 #  group: pr-integration-tests-${{ github.event.pull_request.number }}
 #  cancel-in-progress: true
+permissions:
+  actions: write
+  pull-requests: read
 
 jobs:
   integration-test-python:
-    # when using pull_request, all jobs MUST have this if check for 'ok-to-test' or 'approved' for security purposes.
+    # when using pull_request_target, all jobs MUST have this if check for 'ok-to-test' or 'approved' for security purposes.
     if:
       ((github.event.action == 'labeled' && (github.event.label.name == 'approved' || github.event.label.name == 'lgtm' || github.event.label.name == 'ok-to-test')) ||
       (github.event.action != 'labeled' && (contains(github.event.pull_request.labels.*.name, 'ok-to-test') || contains(github.event.pull_request.labels.*.name, 'approved') || contains(github.event.pull_request.labels.*.name, 'lgtm')))) &&
@@ -41,10 +44,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          repository: ${{ github.event.repository.full_name }}  # Uses the full repository name
-          ref: ${{ github.ref }}                                  # Uses the ref from the event
-          token: ${{ secrets.GITHUB_TOKEN }}                     # Automatically provided token
+          # pull_request_target runs the workflow in the context of the base repo
+          # as such actions/checkout needs to be explicit configured to retrieve
+          # code from the PR.
+          ref: refs/pull/${{ github.event.pull_request.number }}/merge
           submodules: recursive
+          persist-credentials: false
       - name: Setup Python
         uses: actions/setup-python@v5
         id: setup-python
