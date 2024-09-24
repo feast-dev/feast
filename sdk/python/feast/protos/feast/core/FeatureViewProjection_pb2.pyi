@@ -4,6 +4,7 @@ isort:skip_file
 """
 import builtins
 import collections.abc
+import feast.core.DataSource_pb2
 import feast.core.Feature_pb2
 import google.protobuf.descriptor
 import google.protobuf.internal.containers
@@ -43,6 +44,11 @@ class FeatureViewProjection(google.protobuf.message.Message):
     FEATURE_VIEW_NAME_ALIAS_FIELD_NUMBER: builtins.int
     FEATURE_COLUMNS_FIELD_NUMBER: builtins.int
     JOIN_KEY_MAP_FIELD_NUMBER: builtins.int
+    TIMESTAMP_FIELD_FIELD_NUMBER: builtins.int
+    DATE_PARTITION_COLUMN_FIELD_NUMBER: builtins.int
+    CREATED_TIMESTAMP_COLUMN_FIELD_NUMBER: builtins.int
+    BATCH_SOURCE_FIELD_NUMBER: builtins.int
+    STREAM_SOURCE_FIELD_NUMBER: builtins.int
     feature_view_name: builtins.str
     """The feature view name"""
     feature_view_name_alias: builtins.str
@@ -53,6 +59,15 @@ class FeatureViewProjection(google.protobuf.message.Message):
     @property
     def join_key_map(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, builtins.str]:
         """Map for entity join_key overrides of feature data entity join_key to entity data join_key"""
+    timestamp_field: builtins.str
+    date_partition_column: builtins.str
+    created_timestamp_column: builtins.str
+    @property
+    def batch_source(self) -> feast.core.DataSource_pb2.DataSource:
+        """Batch/Offline DataSource where this view can retrieve offline feature data."""
+    @property
+    def stream_source(self) -> feast.core.DataSource_pb2.DataSource:
+        """Streaming DataSource from where this view can consume "online" feature data."""
     def __init__(
         self,
         *,
@@ -60,7 +75,13 @@ class FeatureViewProjection(google.protobuf.message.Message):
         feature_view_name_alias: builtins.str = ...,
         feature_columns: collections.abc.Iterable[feast.core.Feature_pb2.FeatureSpecV2] | None = ...,
         join_key_map: collections.abc.Mapping[builtins.str, builtins.str] | None = ...,
+        timestamp_field: builtins.str = ...,
+        date_partition_column: builtins.str = ...,
+        created_timestamp_column: builtins.str = ...,
+        batch_source: feast.core.DataSource_pb2.DataSource | None = ...,
+        stream_source: feast.core.DataSource_pb2.DataSource | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["feature_columns", b"feature_columns", "feature_view_name", b"feature_view_name", "feature_view_name_alias", b"feature_view_name_alias", "join_key_map", b"join_key_map"]) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["batch_source", b"batch_source", "stream_source", b"stream_source"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["batch_source", b"batch_source", "created_timestamp_column", b"created_timestamp_column", "date_partition_column", b"date_partition_column", "feature_columns", b"feature_columns", "feature_view_name", b"feature_view_name", "feature_view_name_alias", b"feature_view_name_alias", "join_key_map", b"join_key_map", "stream_source", b"stream_source", "timestamp_field", b"timestamp_field"]) -> None: ...
 
 global___FeatureViewProjection = FeatureViewProjection
