@@ -30,7 +30,6 @@ from feast.infra.materialization.batch_materialization_engine import (
     MaterializationJobStatus,
     MaterializationTask,
 )
-from feast.infra.offline_stores.file_source import FileSource
 from feast.infra.offline_stores.offline_store import RetrievalJob
 from feast.infra.offline_stores.offline_utils import get_offline_store_from_config
 from feast.infra.online_stores.helpers import get_online_store_from_config
