@@ -361,8 +361,11 @@ class RemoteOfflineStore(OfflineStore):
         )
 
         api_parameters = {
-            "data_source_name": data_source.name,
+            "data_source_proto": str(data_source),
         }
+        logger.debug(
+            f"Calling {OfflineStore.get_table_column_names_and_types_from_data_source.__name__} with {api_parameters}"
+        )
         table = _send_retrieve_remote(
             api=OfflineStore.get_table_column_names_and_types_from_data_source.__name__,
             api_parameters=api_parameters,
