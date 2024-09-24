@@ -3,11 +3,14 @@ name: pr-local-integration-tests
 
 on:
   pull_request_target:
+    paths-ignore:
+      - 'community/**'
+      - 'docs/**'
+      - 'examples/**'
     types:
       - opened
       - synchronize
       - labeled
-
 jobs:
   integration-test-python-local:
     # when using pull_request_target, all jobs MUST have this if check for 'ok-to-test' or 'approved' for security purposes.
