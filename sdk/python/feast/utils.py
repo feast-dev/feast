@@ -1141,7 +1141,6 @@ def tags_str_to_dict(tags: str = "") -> dict[str, str]:
             cast(tuple[str, str], tag.split(":", 1)) for tag in tags_list if ":" in tag
         ).items()
     }
-<<<<<<< HEAD
 
 
 def _utc_now() -> datetime:
@@ -1194,5 +1193,3 @@ def _build_retrieve_online_document_record(
         vector_value_proto,
         distance_value_proto,
     )
-=======
->>>>>>> f97a28ca (checking in progress)
