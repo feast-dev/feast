@@ -1,5 +1,12 @@
 # Feature Serving and Model Inference
 
+![](assets/feast_model_inference_architecture.png)
+
+{% hint style="info" %}
+**Note:** this ML Infrastructure diagram highlights an orchestration pattern that is driven by a client application. 
+This is not the only approach that can be taken and different patterns will result in different trade-offs.
+{% endhint %}
+
 Production machine learning systems can choose from four approaches to serving machine learning predictions (the output 
 of model inference):
 1. Online model inference with online features
