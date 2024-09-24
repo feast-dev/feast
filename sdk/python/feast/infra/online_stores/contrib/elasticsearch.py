@@ -9,12 +9,15 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 from elasticsearch import Elasticsearch, helpers
 
 from feast import Entity, FeatureView, RepoConfig
-from feast.infra.key_encoding_utils import get_list_val_str, serialize_entity_key
+from feast.infra.key_encoding_utils import (
+    get_list_val_str,
+    serialize_entity_key,
+)
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel
-from feast.utils import to_naive_utc
+from feast.utils import _build_retrieve_online_document_record, to_naive_utc
 
 
 class ElasticSearchOnlineStoreConfig(FeastConfigBaseModel):
@@ -224,6 +227,7 @@ class ElasticSearchOnlineStore(OnlineStore):
     ) -> List[
         Tuple[
             Optional[datetime],
+            Optional[EntityKeyProto],
             Optional[ValueProto],
             Optional[ValueProto],
             Optional[ValueProto],
@@ -232,6 +236,7 @@ class ElasticSearchOnlineStore(OnlineStore):
         result: List[
             Tuple[
                 Optional[datetime],
+                Optional[EntityKeyProto],
                 Optional[ValueProto],
                 Optional[ValueProto],
                 Optional[ValueProto],
@@ -247,23 +252,21 @@ class ElasticSearchOnlineStore(OnlineStore):
         )
         rows = response["hits"]["hits"][0:top_k]
         for row in rows:
+            entity_key = row["_source"]["entity_key"]
             feature_value = row["_source"]["feature_value"]
             vector_value = row["_source"]["vector_value"]
             timestamp = row["_source"]["timestamp"]
             distance = row["_score"]
             timestamp = datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S.%f")
 
-            feature_value_proto = ValueProto()
-            feature_value_proto.ParseFromString(base64.b64decode(feature_value))
-
-            vector_value_proto = ValueProto(string_val=str(vector_value))
-            distance_value_proto = ValueProto(float_val=distance)
             result.append(
-                (
+                _build_retrieve_online_document_record(
+                    entity_key,
+                    base64.b64decode(feature_value),
+                    str(vector_value),
+                    distance,
                     timestamp,
-                    feature_value_proto,
-                    vector_value_proto,
-                    distance_value_proto,
+                    config.entity_key_serialization_version,
                 )
             )
         return result

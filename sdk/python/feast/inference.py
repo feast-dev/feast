@@ -13,6 +13,7 @@ from feast.infra.offline_stores.contrib.mssql_offline_store.mssqlserver_source i
 from feast.infra.offline_stores.file_source import FileSource
 from feast.infra.offline_stores.redshift_source import RedshiftSource
 from feast.infra.offline_stores.snowflake_source import SnowflakeSource
+from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import RepoConfig
 from feast.stream_feature_view import StreamFeatureView
 from feast.types import String
@@ -94,7 +95,7 @@ def update_data_sources_with_inferred_event_timestamp_col(
 
 
 def update_feature_views_with_inferred_features_and_entities(
-    fvs: Union[List[FeatureView], List[StreamFeatureView]],
+    fvs: Union[List[FeatureView], List[StreamFeatureView], List[OnDemandFeatureView]],
     entities: List[Entity],
     config: RepoConfig,
 ) -> None:
@@ -121,35 +122,37 @@ def update_feature_views_with_inferred_features_and_entities(
         join_keys = set(
             [
                 entity_name_to_join_key_map.get(entity_name)
-                for entity_name in fv.entities
+                for entity_name in getattr(fv, "entities", [])
             ]
         )
 
         # Fields whose names match a join key are considered to be entity columns; all
         # other fields are considered to be feature columns.
+        entity_columns = fv.entity_columns if fv.entity_columns else []
         for field in fv.schema:
             if field.name in join_keys:
                 # Do not override a preexisting field with the same name.
                 if field.name not in [
-                    entity_column.name for entity_column in fv.entity_columns
+                    entity_column.name for entity_column in entity_columns
                 ]:
-                    fv.entity_columns.append(field)
+                    entity_columns.append(field)
             else:
                 if field.name not in [feature.name for feature in fv.features]:
                     fv.features.append(field)
 
         # Respect the `value_type` attribute of the entity, if it is specified.
-        for entity_name in fv.entities:
+        fv_entities = getattr(fv, "entities", [])
+        for entity_name in fv_entities:
             entity = entity_name_to_entity_map.get(entity_name)
             # pass when entity does not exist. Entityless feature view case
             if entity is None:
                 continue
             if (
                 entity.join_key
-                not in [entity_column.name for entity_column in fv.entity_columns]
+                not in [entity_column.name for entity_column in entity_columns]
                 and entity.value_type != ValueType.UNKNOWN
             ):
-                fv.entity_columns.append(
+                entity_columns.append(
                     Field(
                         name=entity.join_key,
                         dtype=from_value_type(entity.value_type),
@@ -158,12 +161,13 @@ def update_feature_views_with_inferred_features_and_entities(
 
         # Infer a dummy entity column for entityless feature views.
         if (
-            len(fv.entities) == 1
-            and fv.entities[0] == DUMMY_ENTITY_NAME
-            and not fv.entity_columns
+            len(fv_entities) == 1
+            and fv_entities[0] == DUMMY_ENTITY_NAME
+            and not entity_columns
         ):
-            fv.entity_columns.append(Field(name=DUMMY_ENTITY_ID, dtype=String))
+            entity_columns.append(Field(name=DUMMY_ENTITY_ID, dtype=String))
 
+        fv.entity_columns = entity_columns
         # Run inference for entity columns if there are fewer entity fields than expected.
         run_inference_for_entities = len(fv.entity_columns) < len(join_keys)
 
@@ -186,7 +190,7 @@ def update_feature_views_with_inferred_features_and_entities(
 
 
 def _infer_features_and_entities(
-    fv: FeatureView,
+    fv: Union[FeatureView, OnDemandFeatureView],
     join_keys: Set[Optional[str]],
     run_inference_for_features,
     config,
@@ -200,6 +204,11 @@ def _infer_features_and_entities(
         run_inference_for_features: Whether to run inference for features.
         config: The config for the current feature store.
     """
+    if isinstance(fv, OnDemandFeatureView):
+        return _infer_on_demand_features_and_entities(
+            fv, join_keys, run_inference_for_features, config
+        )
+
     columns_to_exclude = {
         fv.batch_source.timestamp_field,
         fv.batch_source.created_timestamp_column,
@@ -246,3 +255,80 @@ def _infer_features_and_entities(
                 )
                 if field.name not in [feature.name for feature in fv.features]:
                     fv.features.append(field)
+
+
+def _infer_on_demand_features_and_entities(
+    fv: OnDemandFeatureView,
+    join_keys: Set[Optional[str]],
+    run_inference_for_features,
+    config,
+) -> None:
+    """
+    Updates the specific feature in place with inferred features and entities.
+    Args:
+        fv: The feature view on which to run inference.
+        join_keys: The set of join keys for the feature view's entities.
+        run_inference_for_features: Whether to run inference for features.
+        config: The config for the current feature store.
+    """
+    entity_columns: list[Field] = []
+    columns_to_exclude = set()
+    for (
+        source_feature_view_name,
+        source_feature_view,
+    ) in fv.source_feature_view_projections.items():
+        columns_to_exclude.add(source_feature_view.timestamp_field)
+        columns_to_exclude.add(source_feature_view.created_timestamp_column)
+
+        batch_source = getattr(source_feature_view, "batch_source")
+        batch_field_mapping = getattr(batch_source or None, "field_mapping")
+        if batch_field_mapping:
+            for (
+                original_col,
+                mapped_col,
+            ) in batch_field_mapping.items():
+                if mapped_col in columns_to_exclude:
+                    columns_to_exclude.remove(mapped_col)
+                    columns_to_exclude.add(original_col)
+
+            table_column_names_and_types = (
+                batch_source.get_table_column_names_and_types(config)
+            )
+        for col_name, col_datatype in table_column_names_and_types:
+            if col_name in columns_to_exclude:
+                continue
+            elif col_name in join_keys:
+                field = Field(
+                    name=col_name,
+                    dtype=from_value_type(
+                        batch_source.source_datatype_to_feast_value_type()(col_datatype)
+                    ),
+                )
+                if field.name not in [
+                    entity_column.name
+                    for entity_column in entity_columns
+                    if hasattr(entity_column, "name")
+                ]:
+                    entity_columns.append(field)
+            elif not re.match(
+                "^__|__$", col_name
+            ):  # double underscores often signal an internal-use column
+                if run_inference_for_features:
+                    feature_name = (
+                        batch_field_mapping[col_name]
+                        if col_name in batch_field_mapping
+                        else col_name
+                    )
+                    field = Field(
+                        name=feature_name,
+                        dtype=from_value_type(
+                            batch_source.source_datatype_to_feast_value_type()(
+                                col_datatype
+                            )
+                        ),
+                    )
+                    if field.name not in [
+                        feature.name for feature in source_feature_view.features
+                    ]:
+                        source_feature_view.features.append(field)
+    fv.entity_columns = entity_columns

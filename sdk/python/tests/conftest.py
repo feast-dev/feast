@@ -197,6 +197,26 @@ def environment(request, worker_id):
     e.teardown()
 
 
+@pytest.fixture
+def vectordb_environment(request, worker_id):
+    e = construct_test_environment(
+        request.param,
+        worker_id=worker_id,
+        fixture_request=request,
+        entity_key_serialization_version=3,
+    )
+
+    e.setup()
+
+    if hasattr(e.data_source_creator, "mock_environ"):
+        with mock.patch.dict(os.environ, e.data_source_creator.mock_environ):
+            yield e
+    else:
+        yield e
+
+    e.teardown()
+
+
 _config_cache: Any = {}
 
 

@@ -33,10 +33,9 @@ from feast.protos.feast.core.InfraObject_pb2 import InfraObject as InfraObjectPr
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.protos.feast.core.SqliteTable_pb2 import SqliteTable as SqliteTableProto
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
-from feast.protos.feast.types.Value_pb2 import FloatList as FloatListProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
-from feast.utils import to_naive_utc
+from feast.utils import _build_retrieve_online_document_record, to_naive_utc
 
 
 class SqliteOnlineStoreConfig(FeastConfigBaseModel):
@@ -303,6 +302,7 @@ class SqliteOnlineStore(OnlineStore):
     ) -> List[
         Tuple[
             Optional[datetime],
+            Optional[EntityKeyProto],
             Optional[ValueProto],
             Optional[ValueProto],
             Optional[ValueProto],
@@ -385,6 +385,7 @@ class SqliteOnlineStore(OnlineStore):
         result: List[
             Tuple[
                 Optional[datetime],
+                Optional[EntityKeyProto],
                 Optional[ValueProto],
                 Optional[ValueProto],
                 Optional[ValueProto],
@@ -392,19 +393,14 @@ class SqliteOnlineStore(OnlineStore):
         ] = []
 
         for entity_key, _, string_value, distance, event_ts in rows:
-            feature_value_proto = ValueProto()
-            feature_value_proto.ParseFromString(string_value if string_value else b"")
-            vector_value_proto = ValueProto(
-                float_list_val=FloatListProto(val=embedding)
-            )
-            distance_value_proto = ValueProto(float_val=distance)
-
             result.append(
-                (
+                _build_retrieve_online_document_record(
+                    entity_key,
+                    string_value if string_value else b"",
+                    embedding,
+                    distance,
                     event_ts,
-                    feature_value_proto,
-                    vector_value_proto,
-                    distance_value_proto,
+                    config.entity_key_serialization_version,
                 )
             )
 

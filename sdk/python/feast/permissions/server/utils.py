@@ -11,7 +11,6 @@ from feast.permissions.auth.auth_manager import (
     AuthManager,
     set_auth_manager,
 )
-from feast.permissions.auth.kubernetes_token_parser import KubernetesTokenParser
 from feast.permissions.auth.oidc_token_parser import OidcTokenParser
 from feast.permissions.auth.token_extractor import TokenExtractor
 from feast.permissions.auth.token_parser import TokenParser
@@ -31,7 +30,6 @@ from feast.permissions.server.grpc_token_extractor import GrpcTokenExtractor
 from feast.permissions.server.rest_token_extractor import RestTokenExtractor
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 
 class ServerType(enum.Enum):
@@ -116,6 +114,10 @@ def init_auth_manager(
             raise ValueError(f"Unmanaged server type {server_type}")
 
         if auth_type == AuthManagerType.KUBERNETES:
+            from feast.permissions.auth.kubernetes_token_parser import (
+                KubernetesTokenParser,
+            )
+
             token_parser = KubernetesTokenParser()
         elif auth_type == AuthManagerType.OIDC:
             assert isinstance(auth_config, OidcAuthConfig)

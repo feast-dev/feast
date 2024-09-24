@@ -17,13 +17,13 @@
 		"ghcr.io/devcontainers-contrib/features/maven-sdkman:2": {
 			"jdkVersion": "11.0.24-amzn"
 		}
-	},
+	}
 
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
 	// "forwardPorts": [],
 
 	// Uncomment the next line to run commands after the container is created.
-	"postCreateCommand": "make install-python-ci-dependencies-uv-venv"
+	// "postCreateCommand": "make install-python-ci-dependencies-uv-venv"
 
 	// Configure tool-specific properties.
 	// "customizations": {},
