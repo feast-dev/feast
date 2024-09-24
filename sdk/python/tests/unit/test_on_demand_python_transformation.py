@@ -183,9 +183,9 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
             self.store.write_to_online_store(
                 feature_view_name="driver_hourly_stats", df=driver_df
             )
-            assert len(self.store.list_all_feature_views()) == 5
+            assert len(self.store.list_all_feature_views()) == 4
             assert len(self.store.list_feature_views()) == 1
-            assert len(self.store.list_on_demand_feature_views()) == 4
+            assert len(self.store.list_on_demand_feature_views()) == 3
             assert len(self.store.list_stream_feature_views()) == 0
 
     def test_python_pandas_parity(self):
@@ -616,6 +616,11 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
             assert len(self.store.list_feature_views()) == 1
             assert len(self.store.list_on_demand_feature_views()) == 1
             assert len(self.store.list_stream_feature_views()) == 0
+            assert driver_stats_fv.entity_columns == \
+                   self.store.get_feature_view('driver_hourly_stats').entity_columns
+            assert self.store.get_on_demand_feature_view('python_stored_writes_feature_view').entity_columns == \
+                     self.store.get_feature_view('driver_hourly_stats').entity_columns
+
     def test_stored_writes(self):
         current_datetime = _utc_now()
         entity_rows_to_write = [

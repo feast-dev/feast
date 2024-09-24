@@ -608,6 +608,9 @@ class FeatureStore:
         update_feature_views_with_inferred_features_and_entities(
             sfvs_to_update, entities + entities_to_update, self.config
         )
+        update_feature_views_with_inferred_features_and_entities(
+            odfvs_to_update, entities + entities_to_update, self.config
+        )
         # TODO(kevjumba): Update schema inferrence
         for sfv in sfvs_to_update:
             if not sfv.schema:
