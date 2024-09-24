@@ -162,13 +162,8 @@ def update_feature_views_with_inferred_features_and_entities(
 
         # Infer a dummy entity column for entityless feature views.
         if (
-<<<<<<< HEAD
             len(fv_entities) == 1
             and fv_entities[0] == DUMMY_ENTITY_NAME
-=======
-            len(fv.entities) == 1
-            and fv.entities[0] == DUMMY_ENTITY_NAME
->>>>>>> 743ae513 (storing current progress...things are getting overriden in the _infer_features_and_entities() method in FeatureStore...that is another thing we have to chnage)
             and not entity_columns
         ):
             entity_columns.append(Field(name=DUMMY_ENTITY_ID, dtype=String))
@@ -210,15 +205,12 @@ def _infer_features_and_entities(
         run_inference_for_features: Whether to run inference for features.
         config: The config for the current feature store.
     """
-<<<<<<< HEAD
     if isinstance(fv, OnDemandFeatureView):
         return _infer_on_demand_features_and_entities(
             fv, join_keys, run_inference_for_features, config
         )
 
-=======
     entity_columns = []
->>>>>>> 743ae513 (storing current progress...things are getting overriden in the _infer_features_and_entities() method in FeatureStore...that is another thing we have to chnage)
     columns_to_exclude = {
         fv.batch_source.timestamp_field,
         fv.batch_source.created_timestamp_column,
@@ -266,7 +258,6 @@ def _infer_features_and_entities(
                 if field.name not in [feature.name for feature in fv.features]:
                     fv.features.append(field)
 
-<<<<<<< HEAD
 
 def _infer_on_demand_features_and_entities(
     fv: OnDemandFeatureView,
@@ -342,6 +333,4 @@ def _infer_on_demand_features_and_entities(
                         feature.name for feature in source_feature_view.features
                     ]:
                         source_feature_view.features.append(field)
-=======
->>>>>>> 743ae513 (storing current progress...things are getting overriden in the _infer_features_and_entities() method in FeatureStore...that is another thing we have to chnage)
     fv.entity_columns = entity_columns

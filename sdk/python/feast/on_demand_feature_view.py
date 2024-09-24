@@ -162,6 +162,7 @@ class OnDemandFeatureView(BaseFeatureView):
                 self.source_request_sources[odfv_source.name] = odfv_source
             elif isinstance(odfv_source, FeatureViewProjection):
                 self.source_feature_view_projections[odfv_source.name] = odfv_source
+
             else:
                 self.source_feature_view_projections[odfv_source.name] = (
                     odfv_source.projection

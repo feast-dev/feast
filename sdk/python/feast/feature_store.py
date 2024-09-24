@@ -608,6 +608,8 @@ class FeatureStore:
         update_feature_views_with_inferred_features_and_entities(
             sfvs_to_update, entities + entities_to_update, self.config
         )
+        # We need to attach the time stamp fields to the underlying data sources
+        # and cascade the dependencies
         update_feature_views_with_inferred_features_and_entities(
             odfvs_to_update, entities + entities_to_update, self.config
         )
