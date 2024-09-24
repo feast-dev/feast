@@ -1,6 +1,7 @@
 # Feature Serving and Model Inference
 
-![](assets/feast_model_inference_architecture.png)
+![](../../assets/feast_model_inference_architecture.png)
+
 
 {% hint style="info" %}
 **Note:** this ML Infrastructure diagram highlights an orchestration pattern that is driven by a client application. 
