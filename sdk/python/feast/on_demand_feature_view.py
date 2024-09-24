@@ -162,7 +162,6 @@ class OnDemandFeatureView(BaseFeatureView):
                 self.source_request_sources[odfv_source.name] = odfv_source
             elif isinstance(odfv_source, FeatureViewProjection):
                 self.source_feature_view_projections[odfv_source.name] = odfv_source
-
             else:
                 self.source_feature_view_projections[odfv_source.name] = (
                     odfv_source.projection
@@ -246,10 +245,7 @@ class OnDemandFeatureView(BaseFeatureView):
             or self.mode != other.mode
             or self.feature_transformation != other.feature_transformation
             or self.write_to_online_store != other.write_to_online_store
-<<<<<<< HEAD
             or sorted(self.entity_columns) != sorted(other.entity_columns)
-=======
->>>>>>> ac077c6b (feat: Adding write capabability to online store to on demand feature views)
         ):
             return False
 
