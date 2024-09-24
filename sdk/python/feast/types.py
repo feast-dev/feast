@@ -15,6 +15,8 @@ from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Dict, Union
 
+import pyarrow
+
 from feast.value_type import ValueType
 
 PRIMITIVE_FEAST_TYPES_TO_VALUE_TYPES = {
@@ -103,7 +105,6 @@ Float32 = PrimitiveFeastType.FLOAT32
 Float64 = PrimitiveFeastType.FLOAT64
 UnixTimestamp = PrimitiveFeastType.UNIX_TIMESTAMP
 
-
 SUPPORTED_BASE_TYPES = [
     Invalid,
     String,
@@ -159,7 +160,6 @@ class Array(ComplexFeastType):
 
 FeastType = Union[ComplexFeastType, PrimitiveFeastType]
 
-
 VALUE_TYPES_TO_FEAST_TYPES: Dict["ValueType", FeastType] = {
     ValueType.UNKNOWN: Invalid,
     ValueType.BYTES: Bytes,
@@ -179,6 +179,32 @@ VALUE_TYPES_TO_FEAST_TYPES: Dict["ValueType", FeastType] = {
     ValueType.BOOL_LIST: Array(Bool),
     ValueType.UNIX_TIMESTAMP_LIST: Array(UnixTimestamp),
 }
+
+FEAST_TYPES_TO_PYARROW_TYPES = {
+    String: pyarrow.string(),
+    Bool: pyarrow.bool_(),
+    Int32: pyarrow.int32(),
+    Int64: pyarrow.int64(),
+    Float32: pyarrow.float32(),
+    Float64: pyarrow.float64(),
+    UnixTimestamp: pyarrow.timestamp(),
+}
+
+
+def from_feast_to_pyarrow_type(feast_type: FeastType) -> pyarrow.DataType:
+    """
+    Converts a Feast type to a PyArrow type.
+
+    Args:
+        feast_type: The Feast type to be converted.
+
+    Raises:
+        ValueError: The conversion could not be performed.
+    """
+    if feast_type in FEAST_TYPES_TO_PYARROW_TYPES:
+        return FEAST_TYPES_TO_PYARROW_TYPES[feast_type]
+
+    raise ValueError(f"Could not convert Feast type {feast_type} to PyArrow type.")
 
 
 def from_value_type(
