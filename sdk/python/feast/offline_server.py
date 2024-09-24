@@ -4,12 +4,15 @@ import logging
 import traceback
 from datetime import datetime
 from typing import Any, Dict, List, cast
+from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 
 import pyarrow as pa
 import pyarrow.flight as fl
+from google.protobuf.json_format import MessageToDict, Parse
 
 from feast import FeatureStore, FeatureView, utils
 from feast.arrow_error_handler import arrow_server_error_handling_decorator
+from feast.data_source import DataSource
 from feast.errors import FeastObjectNotFoundException
 from feast.feature_logging import FeatureServiceLoggingSource
 from feast.feature_view import DUMMY_ENTITY_NAME
@@ -481,26 +484,21 @@ class OfflineServer(fl.FlightServerBase):
             logger.debug(f"DataSource {data_source_name} not found, validation skipped")
 
     def get_table_column_names_and_types_from_data_source(self, command: dict):
-        data_source_name = command["data_source_name"]
-        logger.info(f"Fetching table columns metadata for {data_source_name}")
-        try:
-            data_source = self.store.registry.get_data_source(
-                name=data_source_name, project=self.store.config.project
-            )
-            column_names_and_types = data_source.get_table_column_names_and_types(
-                self.store.config
-            )
+        data_source_proto_str = command["data_source_proto"]
+        logger.debug(f"Fetching table columns metadata from {data_source_proto_str}")
+        data_source_proto = DataSourceProto()
+        Parse(data_source_proto_str, data_source_proto)
+        data_source = DataSource.from_proto(data_source_proto)
+        logger.debug(f"Converted to DataSource {data_source}")
 
-            column_names, types = zip(*column_names_and_types)
-            logger.debug(
-                f"DataSource {data_source_name} has columns {column_names} with types {types}"
-            )
-        except FeastObjectNotFoundException:
-            logger.debug(
-                f"DataSource {data_source_name} not found, returning empty columns and no types"
-            )
-            column_names = tuple()
-            types = tuple()
+        column_names_and_types = data_source.get_table_column_names_and_types(
+            self.store.config
+        )
+
+        column_names, types = zip(*column_names_and_types)
+        logger.debug(
+            f"DataSource {data_source.name} has columns {column_names} with types {types}"
+        )
         return pa.table({"name": column_names, "type": types})
 
 

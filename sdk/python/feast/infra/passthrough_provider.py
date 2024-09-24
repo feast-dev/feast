@@ -471,8 +471,6 @@ class PassthroughProvider(Provider):
     def get_table_column_names_and_types_from_data_source(
         self, config: RepoConfig, data_source: DataSource
     ) -> Iterable[Tuple[str, str]]:
-        if isinstance(data_source, FileSource):
-            return data_source.get_table_column_names_and_types(config=config)
         return self.offline_store.get_table_column_names_and_types_from_data_source(
             config=config, data_source=data_source
         )
