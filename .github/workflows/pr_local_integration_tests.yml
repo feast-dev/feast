@@ -2,7 +2,7 @@ name: pr-local-integration-tests
 # This runs local tests with containerized stubs of online stores. This is the main dev workflow
 
 on:
-  pull_request_target:
+  pull_request:
     types:
       - opened
       - synchronize
@@ -10,11 +10,10 @@ on:
 
 jobs:
   integration-test-python-local:
-    # when using pull_request_target, all jobs MUST have this if check for 'ok-to-test' or 'approved' for security purposes.
     if:
       ((github.event.action == 'labeled' && (github.event.label.name == 'approved' || github.event.label.name == 'lgtm' || github.event.label.name == 'ok-to-test')) ||
       (github.event.action != 'labeled' && (contains(github.event.pull_request.labels.*.name, 'ok-to-test') || contains(github.event.pull_request.labels.*.name, 'approved') || contains(github.event.pull_request.labels.*.name, 'lgtm')))) &&
-      github.repository == 'feast-dev/feast'
+      github.event.pull_request.base.repo.full_name == 'feast-dev/feast'
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -27,10 +26,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # pull_request_target runs the workflow in the context of the base repo
-          # as such actions/checkout needs to be explicit configured to retrieve
-          # code from the PR.
-          ref: refs/pull/${{ github.event.pull_request.number }}/merge
+          repository: ${{ github.event.repository.full_name }}  # Uses the full repository name
+          ref: ${{ github.ref }}                                  # Uses the ref from the event
+          token: ${{ secrets.GITHUB_TOKEN }}                     # Automatically provided token
           submodules: recursive
       - name: Setup Python
         uses: actions/setup-python@v5
