@@ -11,7 +11,7 @@ from feast.data_source import KafkaSource
 from feast.entity import Entity
 from feast.feast_object import ALL_RESOURCE_TYPES
 from feast.feature_store import FeatureStore
-from feast.feature_view import DUMMY_ENTITY_ID, FeatureView
+from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_NAME, FeatureView
 from feast.field import Field
 from feast.infra.offline_stores.file_source import FileSource
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
@@ -347,7 +347,7 @@ def test_apply_entities_and_feature_views(test_feature_store):
     "test_feature_store",
     [lazy_fixture("feature_store_with_local_registry")],
 )
-def test_apply_dummuy_entity_and_feature_view_columns(test_feature_store):
+def test_apply_dummy_entity_and_feature_view_columns(test_feature_store):
     assert isinstance(test_feature_store, FeatureStore)
     # Create Feature Views
     batch_source = FileSource(
@@ -359,14 +359,25 @@ def test_apply_dummuy_entity_and_feature_view_columns(test_feature_store):
 
     e1 = Entity(name="fs1_my_entity_1", description="something")
 
-    fv = FeatureView(
-        name="my_feature_view_no_entity",
+    fv_with_entity = FeatureView(
+        name="my_feature_view_with_entity",
         schema=[
             Field(name="fs1_my_feature_1", dtype=Int64),
             Field(name="fs1_my_feature_2", dtype=String),
             Field(name="fs1_my_feature_3", dtype=Array(String)),
             Field(name="fs1_my_feature_4", dtype=Array(Bytes)),
-            Field(name="fs1_my_entity_2", dtype=Int64),
+            Field(name="fs1_my_entity_1", dtype=Int64),
+        ],
+        entities=[e1],
+        tags={"team": "matchmaking"},
+        source=batch_source,
+        ttl=timedelta(minutes=5),
+    )
+
+    fv_no_entity = FeatureView(
+        name="my_feature_view_no_entity",
+        schema=[
+            Field(name="fs1_my_feature_1", dtype=Int64),
         ],
         entities=[],
         tags={"team": "matchmaking"},
@@ -375,16 +386,22 @@ def test_apply_dummuy_entity_and_feature_view_columns(test_feature_store):
     )
 
     # Check that the entity_columns are empty before applying
-    assert fv.entity_columns == []
+    assert fv_no_entity.entities == [DUMMY_ENTITY_NAME]
+    assert fv_no_entity.entity_columns == []
+    assert fv_with_entity.entity_columns[0].name == e1.name
 
     # Register Feature View
-    test_feature_store.apply([fv, e1])
-    fv_actual = test_feature_store.get_feature_view("my_feature_view_no_entity")
+    test_feature_store.apply([e1, fv_no_entity, fv_with_entity])
+    fv_from_online_store = test_feature_store.get_feature_view("my_feature_view_no_entity")
 
     # Note that after the apply() the feature_view serializes the Dummy Entity ID
-    assert fv.entity_columns[0].name == DUMMY_ENTITY_ID
-    assert fv_actual.entity_columns[0].name == DUMMY_ENTITY_ID
+    assert fv_no_entity.entity_columns[0].name == DUMMY_ENTITY_ID
+    assert fv_from_online_store.entity_columns[0].name == DUMMY_ENTITY_ID
+    assert fv_from_online_store.entities == []
+    assert fv_no_entity.entities == [DUMMY_ENTITY_NAME]
 
+    assert fv_with_entity.entity_columns[0].name == e1.name
+    assert fv_with_entity.entities == [e1.name]
     test_feature_store.teardown()
 
 
