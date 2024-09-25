@@ -392,7 +392,9 @@ def test_apply_dummy_entity_and_feature_view_columns(test_feature_store):
 
     # Register Feature View
     test_feature_store.apply([e1, fv_no_entity, fv_with_entity])
-    fv_from_online_store = test_feature_store.get_feature_view("my_feature_view_no_entity")
+    fv_from_online_store = test_feature_store.get_feature_view(
+        "my_feature_view_no_entity"
+    )
 
     # Note that after the apply() the feature_view serializes the Dummy Entity ID
     assert fv_no_entity.entity_columns[0].name == DUMMY_ENTITY_ID
