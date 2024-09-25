@@ -307,6 +307,8 @@ class TestOnDemandPythonTransformationAllDataTypes(unittest.TestCase):
                 online=True,
                 source=driver_stats_source,
             )
+            assert driver_stats_fv.entities == [driver.name]
+            assert driver_stats_fv.entity_columns == []
 
             request_source = RequestSource(
                 name="request_source",
@@ -372,6 +374,11 @@ class TestOnDemandPythonTransformationAllDataTypes(unittest.TestCase):
             self.store.write_to_online_store(
                 feature_view_name="driver_hourly_stats", df=driver_df
             )
+
+            fv_applied = self.store.get_feature_view("driver_hourly_stats")
+            assert fv_applied.entities == [driver.name]
+            # Note here that after apply() is called, the entity_columns are populated with the join_key
+            assert fv_applied.entity_columns[0].name == driver.join_key
 
     def test_python_transformation_returning_all_data_types(self):
         entity_rows = [
