@@ -3,7 +3,7 @@ import functools
 import inspect
 import warnings
 from types import FunctionType
-from typing import Any, Optional, Union, get_type_hints, List
+from typing import Any, List, Optional, Union, get_type_hints
 
 import dill
 import pandas as pd
