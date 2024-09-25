@@ -286,8 +286,6 @@ class PassthroughProvider(Provider):
                 for entity in feature_view.entity_columns
             }
             rows_to_write = _convert_arrow_to_proto(table, feature_view, join_keys)
-            print(rows_to_write)
-            # List[Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]]
 
             self.online_write_batch(
                 self.repo_config, feature_view, rows_to_write, progress=None
