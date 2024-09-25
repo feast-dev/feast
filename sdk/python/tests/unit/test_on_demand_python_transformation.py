@@ -561,6 +561,8 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
                 online=True,
                 source=driver_stats_source,
             )
+            assert driver_stats_fv.entities == [driver.name]
+            assert driver_stats_fv.entity_columns == [driver.name]
 
             @on_demand_feature_view(
                 entities=[driver],
@@ -602,6 +604,10 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
                     python_stored_writes_feature_view,
                 ]
             )
+            applied_fv = self.store.get_feature_view("driver_hourly_stats")
+            assert applied_fv.entities[0] == driver.name
+            assert applied_fv.entity_columns[0].name == driver.name
+
             self.store.write_to_online_store(
                 feature_view_name="driver_hourly_stats", df=driver_df
             )
