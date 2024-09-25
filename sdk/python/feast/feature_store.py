@@ -492,20 +492,24 @@ class FeatureStore:
             stream_feature_view.entities = []
         return stream_feature_view
 
-    def get_on_demand_feature_view(self, name: str) -> OnDemandFeatureView:
+    def get_on_demand_feature_view(
+        self, name: str, allow_registry_cache: bool = False
+    ) -> OnDemandFeatureView:
         """
         Retrieves a feature view.
 
         Args:
             name: Name of feature view.
-
+            allow_registry_cache: (Optional) Whether to allow returning this entity from a cached registry
         Returns:
             The specified feature view.
 
         Raises:
             FeatureViewNotFoundException: The feature view could not be found.
         """
-        return self._registry.get_on_demand_feature_view(name, self.project)
+        return self._registry.get_on_demand_feature_view(
+            name, self.project, allow_cache=allow_registry_cache
+        )
 
     def get_data_source(self, name: str) -> DataSource:
         """
