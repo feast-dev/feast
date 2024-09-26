@@ -45,11 +45,14 @@ Start with bootstrapping a React app with `create-react-app`
 npx create-react-app your-feast-ui
 ```
 
-Then, in your app folder, install Feast UI and its peer dependencies. Assuming you use yarn
+Then, in your app folder, install Feast UI and optionally its peer dependencies. Assuming you use yarn
 
 ```
 yarn add @feast-dev/feast-ui
-yarn add @elastic/eui @elastic/datemath @emotion/react moment prop-types inter-ui react-query react-router-dom use-query-params zod typescript query-string d3 @types/d3
+# For custom UI using the Elastic UI Framework (optional):
+yarn add @elastic/eui
+# For general custom styling (optional):
+yarn add @emotion/react
 ```
 
 Edit `index.js` in the React app to use Feast UI.
