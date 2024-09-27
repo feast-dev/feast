@@ -1,5 +1,5 @@
 import struct
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, List
 
 import mmh3
