@@ -1,8 +1,9 @@
-FROM python:3.11
-
+FROM debian:11-slim
 RUN apt update && \
         apt install -y \
         jq \
+        python3 \
+        python3-pip \
         python3-dev \
         build-essential
 
@@ -18,4 +19,4 @@ RUN apt update
 RUN apt -y install libarrow-dev
 # modify permissions to support running with a random uid
 RUN mkdir -m 775 /.cache
-RUN chmod g+w $(python -c "import feast.ui as _; print(_.__path__)" | tr -d "[']")/build/projects-list.json
+RUN chmod g+w $(python3 -c "import feast.ui as _; print(_.__path__)" | tr -d "[']")/build/projects-list.json
