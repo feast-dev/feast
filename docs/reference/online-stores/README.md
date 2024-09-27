@@ -1,6 +1,6 @@
 # Online stores
 
-Please see [Online Store](../../getting-started/architecture-and-components/online-store.md) for an explanation of online stores.
+Please see [Online Store](../../getting-started/components/online-store.md) for an explanation of online stores.
 
 {% content-ref url="overview.md" %}
 [overview.md](overview.md)
@@ -48,10 +48,6 @@ Please see [Online Store](../../getting-started/architecture-and-components/onli
 
 {% content-ref url="mysql.md" %}
 [mysql.md](mysql.md)
-{% endcontent-ref %}
-
-{% content-ref url="rockset.md" %}
-[rockset.md](rockset.md)
 {% endcontent-ref %}
 
 {% content-ref url="hazelcast.md" %}

@@ -12,6 +12,7 @@ Subpackages
    feast.embedded_go
    feast.infra
    feast.loaders
+   feast.permissions
    feast.protos
    feast.transformation
    feast.ui
@@ -47,6 +48,14 @@ feast.cli module
 ----------------
 
 .. automodule:: feast.cli
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+feast.cli\_utils module
+-----------------------
+
+.. automodule:: feast.cli_utils
    :members:
    :undoc-members:
    :show-inheritance:

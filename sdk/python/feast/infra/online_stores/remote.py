@@ -24,6 +24,7 @@ from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel
+from feast.rest_error_handler import rest_error_handling_decorator
 from feast.type_map import python_values_to_proto_values
 from feast.value_type import ValueType
 
@@ -70,9 +71,7 @@ class RemoteOnlineStore(OnlineStore):
         req_body = self._construct_online_read_api_json_request(
             entity_keys, table, requested_features
         )
-        response = requests.post(
-            f"{config.online_store.path}/get-online-features", data=req_body
-        )
+        response = get_remote_online_features(config=config, req_body=req_body)
         if response.status_code == 200:
             logger.debug("Able to retrieve the online features from feature server.")
             response_json = json.loads(response.text)
@@ -110,7 +109,7 @@ class RemoteOnlineStore(OnlineStore):
                 result_tuples.append((event_ts, feature_values_dict))
             return result_tuples
         else:
-            error_msg = f"Unable to retrieve the online store data using feature server API. Error_code={response.status_code}, error_message={response.reason}"
+            error_msg = f"Unable to retrieve the online store data using feature server API. Error_code={response.status_code}, error_message={response.text}"
             logger.error(error_msg)
             raise RuntimeError(error_msg)
 
@@ -165,3 +164,12 @@ class RemoteOnlineStore(OnlineStore):
         entities: Sequence[Entity],
     ):
         pass
+
+
+@rest_error_handling_decorator
+def get_remote_online_features(
+    session: requests.Session, config: RepoConfig, req_body: str
+) -> requests.Response:
+    return session.post(
+        f"{config.online_store.path}/get-online-features", data=req_body
+    )

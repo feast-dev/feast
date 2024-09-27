@@ -228,6 +228,38 @@ feast.protos.feast.core.OnDemandFeatureView\_pb2\_grpc module
    :undoc-members:
    :show-inheritance:
 
+feast.protos.feast.core.Permission\_pb2 module
+----------------------------------------------
+
+.. automodule:: feast.protos.feast.core.Permission_pb2
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+feast.protos.feast.core.Permission\_pb2\_grpc module
+----------------------------------------------------
+
+.. automodule:: feast.protos.feast.core.Permission_pb2_grpc
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+feast.protos.feast.core.Policy\_pb2 module
+------------------------------------------
+
+.. automodule:: feast.protos.feast.core.Policy_pb2
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+feast.protos.feast.core.Policy\_pb2\_grpc module
+------------------------------------------------
+
+.. automodule:: feast.protos.feast.core.Policy_pb2_grpc
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 feast.protos.feast.core.Registry\_pb2 module
 --------------------------------------------
 

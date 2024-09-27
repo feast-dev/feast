@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import (
     Any,
     Callable,
@@ -11,7 +11,6 @@ from typing import (
     Tuple,
 )
 
-import pytz
 from google.protobuf.timestamp_pb2 import Timestamp
 from ikvpy.client import IKVReader, IKVWriter
 from ikvpy.clientoptions import ClientOptions, ClientOptionsBuilder
@@ -163,7 +162,7 @@ class IKVOnlineStore(OnlineStore):
         if dt_bytes:
             proto_timestamp = Timestamp()
             proto_timestamp.ParseFromString(dt_bytes)
-            dt = datetime.fromtimestamp(proto_timestamp.seconds, tz=pytz.utc)
+            dt = datetime.fromtimestamp(proto_timestamp.seconds, tz=timezone.utc)
 
         # decode other features
         features = {}

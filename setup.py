@@ -22,8 +22,10 @@ from pathlib import Path
 from subprocess import CalledProcessError
 
 from setuptools import Command, find_packages, setup
+from setuptools.command.build_ext import build_ext as _build_ext
 from setuptools.command.build_py import build_py
 from setuptools.command.develop import develop
+from setuptools.command.install import install
 
 NAME = "eg-feast"
 DESCRIPTION = "EG-specific Python SDK for Feast"
@@ -35,13 +37,12 @@ REQUIRED = [
     "click>=7.0.0,<9.0.0",
     "colorama>=0.3.9,<1",
     "dill~=0.3.0",
-    "mypy-protobuf>=3.1",
+    "protobuf<5",
     "Jinja2>=2,<4",
     "jsonschema",
     "mmh3",
     "numpy>=1.22,<2",
     "pandas>=1.4.3,<3",
-    "protobuf>=4.24.0,<5.0.0",
     "pyarrow>=4",
     "pydantic>=2.0.0",
     "pygments>=2.12.0,<3",
@@ -59,11 +60,13 @@ REQUIRED = [
     "dask[dataframe]>=2024.2.1",
     # For HTTP Registry
     "httpx>=0.23.3",
+    "prometheus_client",
+    "psutil",
+    "bigtree>=0.19.2",
+    "pyjwt",
 ]
 
-GO_REQUIRED = [
-    "cffi~=1.15.0",
-]
+GO_REQUIRED = ["cffi~=1.15.0"]
 
 GCP_REQUIRED = [
     "google-api-core>=1.23.0,<3",
@@ -73,7 +76,7 @@ GCP_REQUIRED = [
     "google-cloud-datastore>=2.16.0,<3",
     "google-cloud-storage>=1.34.0,<3",
     "google-cloud-bigtable>=2.11.0,<3",
-    "fsspec<=2024.1.0",
+    "fsspec<=2024.9.0",
 ]
 
 REDIS_REQUIRED = [
@@ -81,7 +84,7 @@ REDIS_REQUIRED = [
     "hiredis>=2.0.0,<3",
 ]
 
-AWS_REQUIRED = ["boto3>=1.17.0,<2", "fsspec<=2024.1.0", "aiobotocore>2,<3"]
+AWS_REQUIRED = ["boto3>=1.17.0,<2", "fsspec<=2024.9.0", "aiobotocore>2,<3"]
 
 KUBERNETES_REQUIRED = ["kubernetes<=20.13.0"]
 
@@ -94,13 +97,15 @@ SPARK_REQUIRED = [
 ]
 
 SQLITE_VEC_REQUIRED = [
-    "sqlite-vec==v0.0.1-alpha.10",
+    "sqlite-vec==v0.1.1",
 ]
 TRINO_REQUIRED = ["trino>=0.305.0,<0.400.0", "regex"]
 
 POSTGRES_REQUIRED = [
     "psycopg[binary,pool]>=3.0.0,<4",
 ]
+
+OPENTELEMETRY = ["prometheus_client", "psutil"]
 
 MYSQL_REQUIRED = ["pymysql", "types-PyMySQL"]
 
@@ -120,10 +125,6 @@ AZURE_REQUIRED = [
     "SQLAlchemy>=1.4.19",
     "pyodbc>=4.0.30",
     "pymssql",
-]
-
-ROCKSET_REQUIRED = [
-    "rockset>=1.0.3",
 ]
 
 IKV_REQUIRED = [
@@ -149,7 +150,6 @@ IBIS_REQUIRED = [
 
 GRPCIO_REQUIRED = [
     "grpcio>=1.56.2,<2",
-    "grpcio-tools>=1.56.2,<2",
     "grpcio-reflection>=1.56.2,<2",
     "grpcio-health-checking>=1.56.2,<2",
 ]
@@ -162,12 +162,17 @@ ELASTICSEARCH_REQUIRED = ["elasticsearch>=8.13.0"]
 
 SINGLESTORE_REQUIRED = ["singlestoredb"]
 
+MSSQL_REQUIRED = ["ibis-framework[mssql]>=9.0.0,<10"]
+
 CI_REQUIRED = (
     [
         "build",
         "virtualenv==20.23.0",
         "cryptography>=35.0,<43",
         "ruff>=0.3.3",
+        "protobuf<5",
+        "mypy-protobuf>=3.1",
+        "grpcio-tools>=1.56.2,<2",
         "grpcio-testing>=1.56.2,<2",
         # FastAPI does not correctly pull starlette dependency on httpx see thread(https://github.com/tiangolo/fastapi/issues/5656).
         "httpx>=0.23.3",
@@ -189,7 +194,7 @@ CI_REQUIRED = (
         "pytest-env",
         "Sphinx>4.0.0,<7",
         "testcontainers==4.4.0",
-        "firebase-admin>=5.2.0,<6",
+        "python-keycloak==4.2.2",
         "pre-commit<3.3.2",
         "assertpy==1.1",
         "pip-tools",
@@ -217,7 +222,6 @@ CI_REQUIRED = (
     + HBASE_REQUIRED
     + CASSANDRA_REQUIRED
     + AZURE_REQUIRED
-    + ROCKSET_REQUIRED
     + HAZELCAST_REQUIRED
     + MILVUS_REQUIRED
     + IBIS_REQUIRED
@@ -227,6 +231,7 @@ CI_REQUIRED = (
     + ELASTICSEARCH_REQUIRED
     + SQLITE_VEC_REQUIRED
     + SINGLESTORE_REQUIRED
+    + OPENTELEMETRY
 )
 
 DOCS_REQUIRED = CI_REQUIRED
@@ -320,7 +325,6 @@ class BuildPythonProtosCommand(Command):
 
         for path in Path(self.python_folder).rglob("*.py"):
             for folder in self.sub_folders:
-                folder = folder.replace("/", ".")
                 # Read in the file
                 with open(path, "r") as file:
                     filedata = file.read()
@@ -468,13 +472,13 @@ setup(
         "postgres": POSTGRES_REQUIRED,
         "azure": AZURE_REQUIRED,
         "mysql": MYSQL_REQUIRED,
+        "mssql": MSSQL_REQUIRED,
         "ge": GE_REQUIRED,
         "hbase": HBASE_REQUIRED,
         "docs": DOCS_REQUIRED,
         "cassandra": CASSANDRA_REQUIRED,
         "hazelcast": HAZELCAST_REQUIRED,
         "grpcio": GRPCIO_REQUIRED,
-        "rockset": ROCKSET_REQUIRED,
         "ibis": IBIS_REQUIRED,
         "duckdb": DUCKDB_REQUIRED,
         "ikv": IKV_REQUIRED,
@@ -484,6 +488,7 @@ setup(
         "elasticsearch": ELASTICSEARCH_REQUIRED,
         "sqlite_vec": SQLITE_VEC_REQUIRED,
         "singlestore": SINGLESTORE_REQUIRED,
+        "opentelemetry": OPENTELEMETRY,
     },
     include_package_data=True,
     license="Apache",
@@ -498,11 +503,13 @@ setup(
     entry_points={"console_scripts": ["feast=feast.cli:cli"]},
     use_scm_version=use_scm_version,
     setup_requires=[
-        "setuptools_scm",
-        "grpcio>=1.56.2,<2",
+        # snowflake udf packages refer to conda packages, not pypi libraries. Conda stack is still on protobuf 4
+        # So we are adding protobuf<5 as a requirement
+        "protobuf<5",
         "grpcio-tools>=1.56.2,<2",
         "mypy-protobuf>=3.1",
         "pybindgen==0.22.0",
+        "setuptools_scm>=6.2",
     ],
     cmdclass={
         "build_python_protos": BuildPythonProtosCommand,

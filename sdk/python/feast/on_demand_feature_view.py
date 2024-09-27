@@ -227,19 +227,15 @@ class OnDemandFeatureView(BaseFeatureView):
             )
 
         feature_transformation = FeatureTransformationProto(
-            user_defined_function=(
-                self.feature_transformation.to_proto()
-                if isinstance(
-                    self.feature_transformation,
-                    (PandasTransformation, PythonTransformation),
-                )
-                else None
-            ),
-            substrait_transformation=(
-                self.feature_transformation.to_proto()
-                if isinstance(self.feature_transformation, SubstraitTransformation)
-                else None
-            ),
+            user_defined_function=self.feature_transformation.to_proto()
+            if isinstance(
+                self.feature_transformation,
+                (PandasTransformation, PythonTransformation),
+            )
+            else None,
+            substrait_transformation=self.feature_transformation.to_proto()
+            if isinstance(self.feature_transformation, SubstraitTransformation)
+            else None,
         )
         spec = OnDemandFeatureViewSpec(
             name=self.name,
@@ -635,14 +631,6 @@ def on_demand_feature_view(
             obj.__module__ = "__main__"
 
     def decorator(user_function):
-        # get_type_hints will resolve the forward references based on the
-        # current global and local namespace, giving you the actual type
-        # objects instead of strings.
-
-        # signature function to get the return annotation, can sometimes
-        # return it as a string if the annotation itself was defined using
-        # forward references
-
         return_annotation = get_type_hints(user_function).get("return", inspect._empty)
         udf_string = dill.source.getsource(user_function)
         mainify(user_function)

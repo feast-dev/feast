@@ -28,6 +28,8 @@ from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.infra.infra_object import Infra
 from feast.on_demand_feature_view import OnDemandFeatureView
+from feast.permissions.permission import Permission
+from feast.project import Project
 from feast.project_metadata import ProjectMetadata
 from feast.protos.feast.core.Entity_pb2 import Entity as EntityProto
 from feast.protos.feast.core.FeatureService_pb2 import (
@@ -37,6 +39,8 @@ from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewPr
 from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
     OnDemandFeatureView as OnDemandFeatureViewProto,
 )
+from feast.protos.feast.core.Permission_pb2 import Permission as PermissionProto
+from feast.protos.feast.core.Project_pb2 import Project as ProjectProto
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.protos.feast.core.SavedDataset_pb2 import SavedDataset as SavedDatasetProto
 from feast.protos.feast.core.StreamFeatureView_pb2 import (
@@ -388,6 +392,44 @@ class BaseRegistry(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def get_any_feature_view(
+        self, name: str, project: str, allow_cache: bool = False
+    ) -> BaseFeatureView:
+        """
+        Retrieves a feature view of any type.
+
+        Args:
+            name: Name of feature view
+            project: Feast project that this feature view belongs to
+            allow_cache: Allow returning feature view from the cached registry
+
+        Returns:
+            Returns either the specified feature view, or raises an exception if
+            none is found
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def list_all_feature_views(
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
+    ) -> List[BaseFeatureView]:
+        """
+        Retrieve a list of feature views of all types from the registry
+
+        Args:
+            allow_cache: Allow returning feature views from the cached registry
+            project: Filter feature views based on project name
+            tags: Filter by tags
+
+        Returns:
+            List of feature views
+        """
+        raise NotImplementedError
+
+    @abstractmethod
     def apply_materialization(
         self,
         feature_view: FeatureView,
@@ -457,7 +499,10 @@ class BaseRegistry(ABC):
 
     @abstractmethod
     def list_saved_datasets(
-        self, project: str, allow_cache: bool = False
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[SavedDataset]:
         """
         Retrieves a list of all saved datasets in specified project
@@ -465,6 +510,7 @@ class BaseRegistry(ABC):
         Args:
             project: Feast project
             allow_cache: Whether to allow returning this dataset from a cached registry
+            tags: Filter by tags
 
         Returns:
             Returns the list of SavedDatasets
@@ -521,17 +567,21 @@ class BaseRegistry(ABC):
 
     # TODO: Needs to be implemented.
     def list_validation_references(
-        self, project: str, allow_cache: bool = False
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
     ) -> List[ValidationReference]:
         """
         Retrieve a list of validation references from the registry
 
         Args:
-            allow_cache: Allow returning feature views from the cached registry
-            project: Filter feature views based on project name
+            project: Filter validation references based on project name
+            allow_cache: Allow returning validation references from the cached registry
+            tags: Filter by tags
 
         Returns:
-            List of request feature views
+            List of request validation references
         """
         raise NotImplementedError
 
@@ -589,6 +639,134 @@ class BaseRegistry(ABC):
     def get_user_metadata(
         self, project: str, feature_view: BaseFeatureView
     ) -> Optional[bytes]: ...
+
+    # Permission operations
+    @abstractmethod
+    def apply_permission(
+        self, permission: Permission, project: str, commit: bool = True
+    ):
+        """
+        Registers a single permission with Feast
+
+        Args:
+            permission: A permission that will be registered
+            project: Feast project that this permission belongs to
+            commit: Whether to immediately commit to the registry
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def delete_permission(self, name: str, project: str, commit: bool = True):
+        """
+        Deletes a permission or raises an exception if not found.
+
+        Args:
+            name: Name of permission
+            project: Feast project that this permission belongs to
+            commit: Whether the change should be persisted immediately
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_permission(
+        self, name: str, project: str, allow_cache: bool = False
+    ) -> Permission:
+        """
+        Retrieves a permission.
+
+        Args:
+            name: Name of permission
+            project: Feast project that this permission belongs to
+            allow_cache: Whether to allow returning this permission from a cached registry
+
+        Returns:
+            Returns either the specified permission, or raises an exception if none is found
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def list_permissions(
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
+    ) -> List[Permission]:
+        """
+        Retrieve a list of permissions from the registry
+
+        Args:
+            project: Filter permission based on project name
+            allow_cache: Whether to allow returning permissions from a cached registry
+
+        Returns:
+            List of permissions
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def apply_project(
+        self,
+        project: Project,
+        commit: bool = True,
+    ):
+        """
+        Registers a project with Feast
+
+        Args:
+            project: A project that will be registered
+            commit: Whether to immediately commit to the registry
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def delete_project(
+        self,
+        name: str,
+        commit: bool = True,
+    ):
+        """
+        Deletes a project or raises an ProjectNotFoundException exception if not found.
+
+        Args:
+            project: Feast project name that needs to be deleted
+            commit: Whether the change should be persisted immediately
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_project(
+        self,
+        name: str,
+        allow_cache: bool = False,
+    ) -> Project:
+        """
+        Retrieves a project.
+
+        Args:
+            name: Feast project name
+            allow_cache: Whether to allow returning this permission from a cached registry
+
+        Returns:
+            Returns either the specified project, or raises ProjectObjectNotFoundException exception if none is found
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def list_projects(
+        self,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
+    ) -> List[Project]:
+        """
+        Retrieve a list of projects from the registry
+
+        Args:
+            allow_cache: Whether to allow returning permissions from a cached registry
+
+        Returns:
+            List of project
+        """
+        raise NotImplementedError
 
     @abstractmethod
     def proto(self) -> RegistryProto:
@@ -716,6 +894,13 @@ class BaseRegistry(ABC):
             registry_dict["infra"].append(
                 self._message_to_sorted_dict(infra_object.to_proto())
             )
+        for permission in sorted(
+            self.list_permissions(project=project), key=lambda ds: ds.name
+        ):
+            registry_dict["permissions"].append(
+                self._message_to_sorted_dict(permission.to_proto())
+            )
+
         return registry_dict
 
     @staticmethod
@@ -732,4 +917,8 @@ class BaseRegistry(ABC):
             return OnDemandFeatureViewProto.FromString(serialized_proto)
         if feast_obj_type == FeatureService:
             return FeatureServiceProto.FromString(serialized_proto)
+        if feast_obj_type == Permission:
+            return PermissionProto.FromString(serialized_proto)
+        if feast_obj_type == Project:
+            return ProjectProto.FromString(serialized_proto)
         return None

@@ -1,6 +1,5 @@
 import copy
 import itertools
-import logging
 import os
 import typing
 import warnings
@@ -25,7 +24,6 @@ import pandas as pd
 import pyarrow
 from dateutil.tz import tzlocal
 from google.protobuf.timestamp_pb2 import Timestamp
-from pytz import utc
 
 from feast.constants import FEAST_FS_YAML_FILE_PATH_ENV_NAME
 from feast.entity import Entity
@@ -63,7 +61,7 @@ def get_user_agent():
 def make_tzaware(t: datetime) -> datetime:
     """We assume tz-naive datetimes are UTC"""
     if t.tzinfo is None:
-        return t.replace(tzinfo=utc)
+        return t.replace(tzinfo=timezone.utc)
     else:
         return t
 
@@ -81,7 +79,7 @@ def to_naive_utc(ts: datetime) -> datetime:
     if ts.tzinfo is None:
         return ts
     else:
-        return ts.astimezone(utc).replace(tzinfo=None)
+        return ts.astimezone(timezone.utc).replace(tzinfo=None)
 
 
 def maybe_local_tz(t: datetime) -> datetime:
@@ -747,10 +745,6 @@ def _list_feature_views(
 ) -> List["FeatureView"]:
     from feast.feature_view import DUMMY_ENTITY_NAME
 
-    logging.warning(
-        "_list_feature_views will make breaking changes. Please use _list_batch_feature_views instead. "
-        "_list_feature_views will behave like _list_all_feature_views in the future."
-    )
     feature_views = []
     for fv in registry.list_feature_views(project, allow_cache=allow_cache, tags=tags):
         if hide_dummy_entity and fv.entities and fv.entities[0] == DUMMY_ENTITY_NAME:

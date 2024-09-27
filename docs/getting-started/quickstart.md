@@ -103,11 +103,16 @@ from feast import (
     FeatureView,
     Field,
     FileSource,
+    Project,
     PushSource,
     RequestSource,
 )
 from feast.on_demand_feature_view import on_demand_feature_view
 from feast.types import Float32, Float64, Int64
+
+# Define a project for the feature repo
+project = Project(name="my_project", description="A project for driver statistics")
+
 
 # Define an entity for the driver. You can think of an entity as a primary key used to
 # fetch features.
@@ -623,6 +628,6 @@ show up in the upcoming concepts + architecture + tutorial pages as well.
 ## Next steps
 
 * Read the [Concepts](concepts/) page to understand the Feast data model.
-* Read the [Architecture](architecture-and-components/) page.
+* Read the [Architecture](architecture/) page.
 * Check out our [Tutorials](../tutorials/tutorials-overview/) section for more examples on how to use Feast.
 * Follow our [Running Feast with Snowflake/GCP/AWS](../how-to-guides/feast-snowflake-gcp-aws/) guide for a more in-depth tutorial on using Feast.

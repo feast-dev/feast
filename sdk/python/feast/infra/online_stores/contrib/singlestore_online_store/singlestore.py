@@ -1,10 +1,9 @@
 from __future__ import absolute_import
 
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
 
-import pytz
 import singlestoredb
 from pydantic import StrictStr
 from singlestoredb.connection import Connection, Cursor
@@ -232,4 +231,4 @@ def _to_naive_utc(ts: datetime) -> datetime:
     if ts.tzinfo is None:
         return ts
     else:
-        return ts.astimezone(pytz.utc).replace(tzinfo=None)
+        return ts.astimezone(tz=timezone.utc).replace(tzinfo=None)

@@ -14,10 +14,14 @@ spec:
     {{- with .Values.podAnnotations }}
       annotations:
         {{- toYaml . | nindent 8 }}
+        {{- if .Values.metrics.enabled }}
+        instrumentation.opentelemetry.io/inject-python: "true"
+        {{- end }}
     {{- end }}
       labels:
         {{- include "feast-feature-server.selectorLabels" . | nindent 8 }}
     spec:
+      serviceAccountName: {{ .Values.serviceAccount.name | default "default" }}
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
@@ -33,25 +37,43 @@ spec:
           env:
             - name: FEATURE_STORE_YAML_BASE64
               value: {{ .Values.feature_store_yaml_base64 }}
+            - name: INTRA_COMMUNICATION_BASE64
+              value: {{ "intra-server-communication" | b64enc }}
           command:
             {{- if eq .Values.feast_mode "offline" }}
             - "feast"
+            - "--log-level"
+            - "{{ .Values.logLevel }}"
             - "serve_offline"
             - "-h"
             - "0.0.0.0"
             {{- else if eq .Values.feast_mode "ui" }}
             - "feast"
+            - "--log-level"
+            - "{{ .Values.logLevel }}"
             - "ui"
             - "-h"
             - "0.0.0.0"
             {{- else if eq .Values.feast_mode "registry" }}
             - "feast"
+            - "--log-level"
+            - "{{ .Values.logLevel }}"
             - "serve_registry"
+            {{- else }}
+            {{- if .Values.metrics.enlabled }}
+            - "feast"
+            - "--log-level"
+            - "{{ .Values.logLevel }}"
+            - "serve"
+            - "--metrics"
+            - "-h"
+            - "0.0.0.0"
             {{- else }}
             - "feast"
             - "serve"
             - "-h"
             - "0.0.0.0"
+            {{- end }}
             {{- end }}
           ports:
             - name: {{ .Values.feast_mode }}

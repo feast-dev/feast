@@ -305,6 +305,23 @@ def test_e2e_validation_via_cli(environment, universal_data_sources):
         assert p.returncode == 0, p.stderr.decode()
         assert "Validation successful" in p.stdout.decode(), p.stderr.decode()
 
+        p = runner.run(
+            ["saved-datasets", "describe", saved_dataset.name], cwd=local_repo.repo_path
+        )
+        assert p.returncode == 0, p.stderr.decode()
+
+        p = runner.run(
+            ["validation-references", "describe", reference.name],
+            cwd=local_repo.repo_path,
+        )
+        assert p.returncode == 0, p.stderr.decode()
+
+        p = runner.run(
+            ["feature-services", "describe", feature_service.name],
+            cwd=local_repo.repo_path,
+        )
+        assert p.returncode == 0, p.stderr.decode()
+
         # make sure second validation will use cached profile
         shutil.rmtree(saved_dataset.storage.file_options.uri)
 

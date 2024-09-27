@@ -9,6 +9,7 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    StrictBool,
     StrictInt,
     StrictStr,
     ValidationError,
@@ -19,12 +20,14 @@ from pydantic import (
 
 from feast.errors import (
     FeastFeatureServerTypeInvalidError,
+    FeastInvalidAuthConfigClass,
     FeastOfflineStoreInvalidName,
     FeastOnlineStoreInvalidName,
     FeastRegistryNotSetError,
     FeastRegistryTypeInvalidError,
 )
 from feast.importer import import_class
+from feast.permissions.auth.auth_type import AuthType
 
 warnings.simplefilter("once", RuntimeWarning)
 
@@ -45,7 +48,7 @@ BATCH_ENGINE_CLASS_FOR_TYPE = {
     "local": "feast.infra.materialization.local_engine.LocalMaterializationEngine",
     "snowflake.engine": "feast.infra.materialization.snowflake_engine.SnowflakeMaterializationEngine",
     "lambda": "feast.infra.materialization.aws_lambda.lambda_engine.LambdaMaterializationEngine",
-    "k8s": "feast.infra.materialization.kubernetes.kubernetes_materialization_engine.KubernetesMaterializationEngine",
+    "k8s": "feast.infra.materialization.kubernetes.k8s_materialization_engine.KubernetesMaterializationEngine",
     "spark.engine": "feast.infra.materialization.contrib.spark.spark_materialization_engine.SparkMaterializationEngine",
 }
 
@@ -60,7 +63,6 @@ ONLINE_STORE_CLASS_FOR_TYPE = {
     "hbase": "feast.infra.online_stores.contrib.hbase_online_store.hbase.HbaseOnlineStore",
     "cassandra": "feast.infra.online_stores.contrib.cassandra_online_store.cassandra_online_store.CassandraOnlineStore",
     "mysql": "feast.infra.online_stores.contrib.mysql_online_store.mysql.MySQLOnlineStore",
-    "rockset": "feast.infra.online_stores.contrib.rockset_online_store.rockset.RocksetOnlineStore",
     "hazelcast": "feast.infra.online_stores.contrib.hazelcast_online_store.hazelcast_online_store.HazelcastOnlineStore",
     "milvus": "feast.expediagroup.vectordb.milvus_online_store.MilvusOnlineStore",
     "elasticsearch": "feast.expediagroup.vectordb.elasticsearch_online_store.ElasticsearchOnlineStore",
@@ -87,6 +89,15 @@ OFFLINE_STORE_CLASS_FOR_TYPE = {
 
 FEATURE_SERVER_CONFIG_CLASS_FOR_TYPE = {
     "local": "feast.infra.feature_servers.local_process.config.LocalFeatureServerConfig",
+}
+
+ALLOWED_AUTH_TYPES = ["no_auth", "kubernetes", "oidc"]
+
+AUTH_CONFIGS_CLASS_FOR_TYPE = {
+    "no_auth": "feast.permissions.auth_model.NoAuthConfig",
+    "kubernetes": "feast.permissions.auth_model.KubernetesAuthConfig",
+    "oidc": "feast.permissions.auth_model.OidcAuthConfig",
+    "oidc_client": "feast.permissions.auth_model.OidcClientAuthConfig",
 }
 
 
@@ -128,11 +139,10 @@ class RegistryConfig(FeastBaseModel):
     client_id: Optional[StrictStr] = "Unknown"
     """ Client ID used for HTTP Registry """
 
-    sqlalchemy_config_kwargs: Dict[str, Any] = {}
-    """ Dict[str, Any]: Extra arguments to pass to SQLAlchemy.create_engine. """
-
-    cache_mode: StrictStr = "sync"
-    """ str: Cache mode type, Possible options are sync and thread(asynchronous caching using threading library)"""
+    purge_feast_metadata: StrictBool = False
+    """ bool: Stops using feast_metadata table and delete data from feast_metadata table.
+        Once this is set to True, it cannot be reverted back to False. Reverting back to False will
+        only reset the project but not all the projects"""
 
     @field_validator("path")
     def validate_path(cls, path: str, values: ValidationInfo) -> str:
@@ -172,6 +182,9 @@ class RepoConfig(FeastBaseModel):
 
     online_config: Any = Field(None, alias="online_store")
     """ OnlineStoreConfig: Online store configuration (optional depending on provider) """
+
+    auth: Any = Field(None, alias="auth")
+    """ auth: Optional if the services needs the authentication against IDPs (optional depending on provider) """
 
     offline_config: Any = Field(None, alias="offline_store")
     """ OfflineStoreConfig: Offline store configuration (optional depending on provider) """
@@ -231,6 +244,13 @@ class RepoConfig(FeastBaseModel):
             self.online_config = data.get("online_store", "redis")
         else:
             self.online_config = data.get("online_store", "sqlite")
+
+        self._auth = None
+        if "auth" not in data:
+            self.auth = dict()
+            self.auth["type"] = AuthType.NONE.value
+        else:
+            self.auth = data.get("auth")
 
         self._batch_engine = None
         if "batch_engine" in data:
@@ -294,6 +314,26 @@ class RepoConfig(FeastBaseModel):
         return self._offline_store
 
     @property
+    def auth_config(self):
+        if not self._auth:
+            if isinstance(self.auth, Dict):
+                is_oidc_client = (
+                    self.auth.get("type") == AuthType.OIDC.value
+                    and "username" in self.auth
+                    and "password" in self.auth
+                    and "client_secret" in self.auth
+                )
+                self._auth = get_auth_config_from_type(
+                    "oidc_client" if is_oidc_client else self.auth.get("type")
+                )(**self.auth)
+            elif isinstance(self.auth, str):
+                self._auth = get_auth_config_from_type(self.auth)()
+            elif self.auth:
+                self._auth = self.auth
+
+        return self._auth
+
+    @property
     def online_store(self):
         if not self._online_store:
             if isinstance(self.online_config, Dict):
@@ -322,6 +362,29 @@ class RepoConfig(FeastBaseModel):
                 self._batch_engine = self._batch_engine
 
         return self._batch_engine
+
+    @model_validator(mode="before")
+    def _validate_auth_config(cls, values: Any) -> Any:
+        from feast.permissions.auth_model import AuthConfig
+
+        if "auth" in values:
+            if isinstance(values["auth"], Dict):
+                if values["auth"].get("type") is None:
+                    raise ValueError(
+                        f"auth configuration is missing authentication type. Possible values={ALLOWED_AUTH_TYPES}"
+                    )
+                elif values["auth"]["type"] not in ALLOWED_AUTH_TYPES:
+                    raise ValueError(
+                        f'auth configuration has invalid authentication type={values["auth"]["type"]}. Possible '
+                        f'values={ALLOWED_AUTH_TYPES}'
+                    )
+            elif isinstance(values["auth"], AuthConfig):
+                if values["auth"].type not in ALLOWED_AUTH_TYPES:
+                    raise ValueError(
+                        f'auth configuration has invalid authentication type={values["auth"].type}. Possible '
+                        f'values={ALLOWED_AUTH_TYPES}'
+                    )
+        return values
 
     @model_validator(mode="before")
     def _validate_online_store_config(cls, values: Any) -> Any:
@@ -507,6 +570,17 @@ def get_online_config_from_type(online_store_type: str):
         raise FeastOnlineStoreInvalidName(online_store_type)
     module_name, online_store_class_type = online_store_type.rsplit(".", 1)
     config_class_name = f"{online_store_class_type}Config"
+
+    return import_class(module_name, config_class_name, config_class_name)
+
+
+def get_auth_config_from_type(auth_config_type: str):
+    if auth_config_type in AUTH_CONFIGS_CLASS_FOR_TYPE:
+        auth_config_type = AUTH_CONFIGS_CLASS_FOR_TYPE[auth_config_type]
+    elif not auth_config_type.endswith("AuthConfig"):
+        raise FeastInvalidAuthConfigClass(auth_config_type)
+    module_name, online_store_class_type = auth_config_type.rsplit(".", 1)
+    config_class_name = f"{online_store_class_type}"
 
     return import_class(module_name, config_class_name, config_class_name)
 

@@ -1,6 +1,6 @@
 import os
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union
 
@@ -178,6 +178,8 @@ class DaskOfflineStore(OfflineStore):
             entity_df_event_timestamp_col_type = entity_df_with_features.dtypes[
                 entity_df_event_timestamp_col
             ]
+
+            # TODO: need to figure out why the value of entity_df_event_timestamp_col_type.tz is pytz.UTC
             if (
                 not hasattr(entity_df_event_timestamp_col_type, "tz")
                 or entity_df_event_timestamp_col_type.tz != pytz.UTC
@@ -189,7 +191,7 @@ class DaskOfflineStore(OfflineStore):
                     ].apply(
                         lambda x: x
                         if x.tzinfo is not None
-                        else x.replace(tzinfo=pytz.utc)
+                        else x.replace(tzinfo=timezone.utc)
                     )
                 )
 
@@ -616,6 +618,7 @@ def _normalize_timestamp(
     if created_timestamp_column:
         created_timestamp_column_type = df_to_join_types[created_timestamp_column]
 
+    # TODO: need to figure out why the value of timestamp_field_type.tz is pytz.UTC
     if not hasattr(timestamp_field_type, "tz") or timestamp_field_type.tz != pytz.UTC:
         # if you are querying for the event timestamp field, we have to deduplicate
         if len(df_to_join[timestamp_field].shape) > 1:
@@ -624,10 +627,11 @@ def _normalize_timestamp(
 
         # Make sure all timestamp fields are tz-aware. We default tz-naive fields to UTC
         df_to_join[timestamp_field] = df_to_join[timestamp_field].apply(
-            lambda x: x if x.tzinfo is not None else x.replace(tzinfo=pytz.utc),
+            lambda x: x if x.tzinfo else x.replace(tzinfo=timezone.utc),
             meta=(timestamp_field, "datetime64[ns, UTC]"),
         )
 
+    # TODO: need to figure out why the value of created_timestamp_column_type.tz is pytz.UTC
     if created_timestamp_column and (
         not hasattr(created_timestamp_column_type, "tz")
         or created_timestamp_column_type.tz != pytz.UTC
@@ -640,7 +644,7 @@ def _normalize_timestamp(
         df_to_join[created_timestamp_column] = df_to_join[
             created_timestamp_column
         ].apply(
-            lambda x: x if x.tzinfo is not None else x.replace(tzinfo=pytz.utc),
+            lambda x: x if x.tzinfo else x.replace(tzinfo=timezone.utc),
             meta=(timestamp_field, "datetime64[ns, UTC]"),
         )
 

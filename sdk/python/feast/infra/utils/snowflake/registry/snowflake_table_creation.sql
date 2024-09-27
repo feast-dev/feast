@@ -1,3 +1,11 @@
+CREATE TABLE IF NOT EXISTS REGISTRY_PATH."PROJECTS" (
+  project_id VARCHAR,
+  project_name VARCHAR NOT NULL,
+  last_updated_timestamp TIMESTAMP_LTZ NOT NULL,
+  project_proto BINARY NOT NULL,
+  PRIMARY KEY (project_id)
+);
+
 CREATE TABLE IF NOT EXISTS REGISTRY_PATH."DATA_SOURCES" (
   data_source_name VARCHAR,
   project_id VARCHAR,
@@ -80,4 +88,12 @@ CREATE TABLE IF NOT EXISTS REGISTRY_PATH."VALIDATION_REFERENCES" (
   last_updated_timestamp TIMESTAMP_LTZ NOT NULL,
   validation_reference_proto BINARY NOT NULL,
   PRIMARY KEY (validation_reference_name, project_id)
-)
+);
+
+CREATE TABLE IF NOT EXISTS REGISTRY_PATH."PERMISSIONS" (
+    permission_name VARCHAR,
+    project_id VARCHAR,
+    last_updated_timestamp TIMESTAMP_LTZ NOT NULL,
+    permission_proto BINARY NOT NULL,
+    PRIMARY KEY (permission_name, project_id)
+);

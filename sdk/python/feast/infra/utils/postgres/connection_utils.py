@@ -5,6 +5,7 @@ import pandas as pd
 import psycopg
 import pyarrow as pa
 from psycopg import AsyncConnection, Connection
+from psycopg.conninfo import make_conninfo
 from psycopg_pool import AsyncConnectionPool, ConnectionPool
 
 from feast.infra.utils.postgres.postgres_config import PostgreSQLConfig
@@ -55,12 +56,13 @@ async def _get_connection_pool_async(config: PostgreSQLConfig) -> AsyncConnectio
 
 def _get_conninfo(config: PostgreSQLConfig) -> str:
     """Get the `conninfo` argument required for connection objects."""
-    return (
-        f"postgresql://{config.user}"
-        f":{config.password}"
-        f"@{config.host}"
-        f":{int(config.port)}"
-        f"/{config.database}"
+    return make_conninfo(
+        conninfo="",
+        user=config.user,
+        password=config.password,
+        host=config.host,
+        port=int(config.port),
+        dbname=config.database,
     )
 
 

@@ -16,23 +16,27 @@ import logging
 from datetime import datetime
 from importlib.metadata import version as importlib_version
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, List, Optional
 
 import click
 import yaml
+from bigtree import Node
 from colorama import Fore, Style
 from dateutil import parser
 from pygments import formatters, highlight, lexers
 
-from feast import utils
+import feast.cli_utils as cli_utils
+from feast import BatchFeatureView, Entity, FeatureService, StreamFeatureView, utils
 from feast.constants import (
     DEFAULT_FEATURE_TRANSFORMATION_SERVER_PORT,
     DEFAULT_OFFLINE_SERVER_PORT,
     DEFAULT_REGISTRY_SERVER_PORT,
 )
+from feast.data_source import DataSource
 from feast.errors import FeastObjectNotFoundException, FeastProviderLoginError
 from feast.feature_view import FeatureView
 from feast.on_demand_feature_view import OnDemandFeatureView
+from feast.permissions.policy import RoleBasedPolicy
 from feast.repo_config import load_repo_config
 from feast.repo_operations import (
     apply_total,
@@ -44,6 +48,7 @@ from feast.repo_operations import (
     registry_dump,
     teardown,
 )
+from feast.saved_dataset import SavedDataset, ValidationReference
 from feast.utils import maybe_local_tz
 
 _logger = logging.getLogger(__name__)
@@ -247,6 +252,79 @@ def data_source_list(ctx: click.Context, tags: list[str]):
     from tabulate import tabulate
 
     print(tabulate(table, headers=["NAME", "CLASS"], tablefmt="plain"))
+
+
+@cli.group(name="projects")
+def projects_cmd():
+    """
+    Access projects
+    """
+    pass
+
+
+@projects_cmd.command("describe")
+@click.argument("name", type=click.STRING)
+@click.pass_context
+def project_describe(ctx: click.Context, name: str):
+    """
+    Describe a project
+    """
+    store = create_feature_store(ctx)
+
+    try:
+        project = store.get_project(name)
+    except FeastObjectNotFoundException as e:
+        print(e)
+        exit(1)
+
+    print(
+        yaml.dump(
+            yaml.safe_load(str(project)), default_flow_style=False, sort_keys=False
+        )
+    )
+
+
+@projects_cmd.command("current_project")
+@click.pass_context
+def project_current(ctx: click.Context):
+    """
+    Returns the current project configured with FeatureStore object
+    """
+    store = create_feature_store(ctx)
+
+    try:
+        project = store.get_project(name=None)
+    except FeastObjectNotFoundException as e:
+        print(e)
+        exit(1)
+
+    print(
+        yaml.dump(
+            yaml.safe_load(str(project)), default_flow_style=False, sort_keys=False
+        )
+    )
+
+
+@projects_cmd.command(name="list")
+@tagsOption
+@click.pass_context
+def project_list(ctx: click.Context, tags: list[str]):
+    """
+    List all projects
+    """
+    store = create_feature_store(ctx)
+    table = []
+    tags_filter = utils.tags_list_to_dict(tags)
+    for project in store.list_projects(tags=tags_filter):
+        table.append([project.name, project.description, project.tags, project.owner])
+
+    from tabulate import tabulate
+
+    print(
+        tabulate(
+            table, headers=["NAME", "DESCRIPTION", "TAGS", "OWNER"], tablefmt="plain"
+        )
+    )
 
 
 @cli.group(name="entities")
@@ -465,6 +543,156 @@ def on_demand_feature_view_list(ctx: click.Context, tags: list[str]):
     print(tabulate(table, headers=["NAME"], tablefmt="plain"))
 
 
+@cli.group(name="saved-datasets")
+def saved_datasets_cmd():
+    """
+    [Experimental] Access saved datasets
+    """
+    pass
+
+
+@saved_datasets_cmd.command("describe")
+@click.argument("name", type=click.STRING)
+@click.pass_context
+def saved_datasets_describe(ctx: click.Context, name: str):
+    """
+    [Experimental] Describe a saved dataset
+    """
+    store = create_feature_store(ctx)
+
+    try:
+        saved_dataset = store.get_saved_dataset(name)
+    except FeastObjectNotFoundException as e:
+        print(e)
+        exit(1)
+
+    print(
+        yaml.dump(
+            yaml.safe_load(str(saved_dataset)),
+            default_flow_style=False,
+            sort_keys=False,
+        )
+    )
+
+
+@saved_datasets_cmd.command(name="list")
+@tagsOption
+@click.pass_context
+def saved_datasets_list(ctx: click.Context, tags: list[str]):
+    """
+    [Experimental] List all saved datasets
+    """
+    store = create_feature_store(ctx)
+    table = []
+    tags_filter = utils.tags_list_to_dict(tags)
+    for saved_dataset in store.list_saved_datasets(tags=tags_filter):
+        table.append([saved_dataset.name])
+
+    from tabulate import tabulate
+
+    print(tabulate(table, headers=["NAME"], tablefmt="plain"))
+
+
+@cli.group(name="stream-feature-views")
+def stream_feature_views_cmd():
+    """
+    [Experimental] Access stream feature views
+    """
+    pass
+
+
+@stream_feature_views_cmd.command("describe")
+@click.argument("name", type=click.STRING)
+@click.pass_context
+def stream_feature_views_describe(ctx: click.Context, name: str):
+    """
+    [Experimental] Describe a stream feature view
+    """
+    store = create_feature_store(ctx)
+
+    try:
+        stream_feature_view = store.get_stream_feature_view(name)
+    except FeastObjectNotFoundException as e:
+        print(e)
+        exit(1)
+
+    print(
+        yaml.dump(
+            yaml.safe_load(str(stream_feature_view)),
+            default_flow_style=False,
+            sort_keys=False,
+        )
+    )
+
+
+@stream_feature_views_cmd.command(name="list")
+@tagsOption
+@click.pass_context
+def stream_feature_views_list(ctx: click.Context, tags: list[str]):
+    """
+    [Experimental] List all stream feature views
+    """
+    store = create_feature_store(ctx)
+    table = []
+    tags_filter = utils.tags_list_to_dict(tags)
+    for stream_feature_view in store.list_stream_feature_views(tags=tags_filter):
+        table.append([stream_feature_view.name])
+
+    from tabulate import tabulate
+
+    print(tabulate(table, headers=["NAME"], tablefmt="plain"))
+
+
+@cli.group(name="validation-references")
+def validation_references_cmd():
+    """
+    [Experimental] Access validation references
+    """
+    pass
+
+
+@validation_references_cmd.command("describe")
+@click.argument("name", type=click.STRING)
+@click.pass_context
+def validation_references_describe(ctx: click.Context, name: str):
+    """
+    [Experimental] Describe a validation reference
+    """
+    store = create_feature_store(ctx)
+
+    try:
+        validation_reference = store.get_validation_reference(name)
+    except FeastObjectNotFoundException as e:
+        print(e)
+        exit(1)
+
+    print(
+        yaml.dump(
+            yaml.safe_load(str(validation_reference)),
+            default_flow_style=False,
+            sort_keys=False,
+        )
+    )
+
+
+@validation_references_cmd.command(name="list")
+@tagsOption
+@click.pass_context
+def validation_references_list(ctx: click.Context, tags: list[str]):
+    """
+    [Experimental] List all validation references
+    """
+    store = create_feature_store(ctx)
+    table = []
+    tags_filter = utils.tags_list_to_dict(tags)
+    for validation_reference in store.list_validation_references(tags=tags_filter):
+        table.append([validation_reference.name])
+
+    from tabulate import tabulate
+
+    print(tabulate(table, headers=["NAME"], tablefmt="plain"))
+
+
 @cli.command("plan", cls=NoOptionDefaultFormat)
 @click.option(
     "--skip-source-validation",
@@ -609,7 +837,6 @@ def materialize_incremental_command(ctx: click.Context, end_ts: str, views: List
             "postgres",
             "hbase",
             "cassandra",
-            "rockset",
             "hazelcast",
             "ikv",
         ],
@@ -684,6 +911,13 @@ def init_command(project_directory, minimal: bool, template: str):
     default=5,
     show_default=True,
 )
+@click.option(
+    "--metrics",
+    "-m",
+    is_flag=True,
+    show_default=True,
+    help="Enable the Metrics Server",
+)
 @click.pass_context
 def serve_command(
     ctx: click.Context,
@@ -692,6 +926,7 @@ def serve_command(
     type_: str,
     no_access_log: bool,
     workers: int,
+    metrics: bool,
     keep_alive_timeout: int,
     registry_ttl_sec: int = 5,
 ):
@@ -705,6 +940,7 @@ def serve_command(
             type_=type_,
             no_access_log=no_access_log,
             workers=workers,
+            metrics=metrics,
             keep_alive_timeout=keep_alive_timeout,
             registry_ttl_sec=registry_ttl_sec,
         )
@@ -876,6 +1112,254 @@ def validate(
     print(f"{Style.BRIGHT + Fore.RED}Validation failed!{Style.RESET_ALL}")
     print(colorful_json)
     exit(1)
+
+
+@cli.group(name="permissions")
+def feast_permissions_cmd():
+    """
+    Access permissions
+    """
+    pass
+
+
+@feast_permissions_cmd.command(name="list")
+@click.option(
+    "--verbose",
+    "-v",
+    is_flag=True,
+    help="Print the resources matching each configured permission",
+)
+@tagsOption
+@click.pass_context
+def feast_permissions_list_command(ctx: click.Context, verbose: bool, tags: list[str]):
+    from tabulate import tabulate
+
+    table: list[Any] = []
+    tags_filter = utils.tags_list_to_dict(tags)
+
+    store = create_feature_store(ctx)
+
+    permissions = store.list_permissions(tags=tags_filter)
+
+    root_node = Node("permissions")
+    roles: set[str] = set()
+
+    for p in permissions:
+        policy = p.policy
+        if not verbose:
+            cli_utils.handle_not_verbose_permissions_command(p, policy, table)
+        else:
+            if isinstance(policy, RoleBasedPolicy) and len(policy.get_roles()) > 0:
+                roles = set(policy.get_roles())
+                permission_node = Node(
+                    p.name + " " + str(list(roles)), parent=root_node
+                )
+            else:
+                permission_node = Node(p.name, parent=root_node)
+
+            for feast_type in p.types:
+                if feast_type in [
+                    FeatureView,
+                    OnDemandFeatureView,
+                    BatchFeatureView,
+                    StreamFeatureView,
+                ]:
+                    cli_utils.handle_fv_verbose_permissions_command(
+                        feast_type,  # type: ignore[arg-type]
+                        p,
+                        permission_node,
+                        store,
+                        tags_filter,
+                    )
+                elif feast_type == Entity:
+                    cli_utils.handle_entity_verbose_permissions_command(
+                        feast_type,  # type: ignore[arg-type]
+                        p,
+                        permission_node,
+                        store,
+                        tags_filter,
+                    )
+                elif feast_type == FeatureService:
+                    cli_utils.handle_fs_verbose_permissions_command(
+                        feast_type,  # type: ignore[arg-type]
+                        p,
+                        permission_node,
+                        store,
+                        tags_filter,
+                    )
+                elif feast_type == DataSource:
+                    cli_utils.handle_ds_verbose_permissions_command(
+                        feast_type,  # type: ignore[arg-type]
+                        p,
+                        permission_node,
+                        store,
+                        tags_filter,
+                    )
+                elif feast_type == ValidationReference:
+                    cli_utils.handle_vr_verbose_permissions_command(
+                        feast_type,  # type: ignore[arg-type]
+                        p,
+                        permission_node,
+                        store,
+                        tags_filter,
+                    )
+                elif feast_type == SavedDataset:
+                    cli_utils.handle_sd_verbose_permissions_command(
+                        feast_type,  # type: ignore[arg-type]
+                        p,
+                        permission_node,
+                        store,
+                        tags_filter,
+                    )
+
+    if not verbose:
+        print(
+            tabulate(
+                table,
+                headers=[
+                    "NAME",
+                    "TYPES",
+                    "NAME_PATTERN",
+                    "ACTIONS",
+                    "ROLES",
+                    "REQUIRED_TAGS",
+                ],
+                tablefmt="plain",
+            )
+        )
+    else:
+        cli_utils.print_permission_verbose_example()
+
+        print("Permissions:")
+        print("")
+        root_node.show()
+
+
+@feast_permissions_cmd.command("describe")
+@click.argument("name", type=click.STRING)
+@click.pass_context
+def permission_describe(ctx: click.Context, name: str):
+    """
+    Describe a permission
+    """
+    store = create_feature_store(ctx)
+
+    try:
+        permission = store.get_permission(name)
+    except FeastObjectNotFoundException as e:
+        print(e)
+        exit(1)
+
+    print(
+        yaml.dump(
+            yaml.safe_load(str(permission)), default_flow_style=False, sort_keys=False
+        )
+    )
+
+
+@feast_permissions_cmd.command(name="check")
+@click.pass_context
+def feast_permissions_check_command(ctx: click.Context):
+    """
+    Validate the permissions configuration
+    """
+    from tabulate import tabulate
+
+    all_unsecured_table: list[Any] = []
+    store = create_feature_store(ctx)
+    permissions = store.list_permissions()
+    objects = cli_utils.fetch_all_feast_objects(
+        store=store,
+    )
+
+    print(
+        f"{Style.BRIGHT + Fore.RED}The following resources are not secured by any permission configuration:{Style.RESET_ALL}"
+    )
+    for o in objects:
+        cli_utils.handle_permissions_check_command(
+            object=o, permissions=permissions, table=all_unsecured_table
+        )
+    print(
+        tabulate(
+            all_unsecured_table,
+            headers=[
+                "NAME",
+                "TYPE",
+            ],
+            tablefmt="plain",
+        )
+    )
+
+    all_unsecured_actions_table: list[Any] = []
+    print(
+        f"{Style.BRIGHT + Fore.RED}The following actions are not secured by any permission configuration (Note: this might not be a security concern, depending on the used APIs):{Style.RESET_ALL}"
+    )
+    for o in objects:
+        cli_utils.handle_permissions_check_command_with_actions(
+            object=o, permissions=permissions, table=all_unsecured_actions_table
+        )
+    print(
+        tabulate(
+            all_unsecured_actions_table,
+            headers=[
+                "NAME",
+                "TYPE",
+                "UNSECURED ACTIONS",
+            ],
+            tablefmt="plain",
+        )
+    )
+
+
+@feast_permissions_cmd.command(name="list-roles")
+@click.option(
+    "--verbose",
+    "-v",
+    is_flag=True,
+    help="Print the resources and actions permitted to each configured role",
+)
+@click.pass_context
+def feast_permissions_list_roles_command(ctx: click.Context, verbose: bool):
+    """
+    List all the configured roles
+    """
+    from tabulate import tabulate
+
+    table: list[Any] = []
+    store = create_feature_store(ctx)
+    permissions = store.list_permissions()
+    if not verbose:
+        cli_utils.handler_list_all_permissions_roles(
+            permissions=permissions, table=table
+        )
+        print(
+            tabulate(
+                table,
+                headers=[
+                    "ROLE NAME",
+                ],
+                tablefmt="grid",
+            )
+        )
+    else:
+        objects = cli_utils.fetch_all_feast_objects(
+            store=store,
+        )
+        cli_utils.handler_list_all_permissions_roles_verbose(
+            objects=objects, permissions=permissions, table=table
+        )
+        print(
+            tabulate(
+                table,
+                headers=[
+                    "ROLE NAME",
+                    "RESOURCE NAME",
+                    "RESOURCE TYPE",
+                    "PERMITTED ACTIONS",
+                ],
+                tablefmt="plain",
+            )
+        )
 
 
 if __name__ == "__main__":

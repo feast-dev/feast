@@ -18,7 +18,7 @@ You can run the overall workflow with `python test_workflow.py`.
    - You can see your options if you run `feast init --help`.
 2. `feature_store.yaml` points to a local file as a registry. You'll want to setup a remote file (e.g. in S3/GCS) or a 
 SQL registry. See [registry docs](https://docs.feast.dev/getting-started/concepts/registry) for more details. 
-3. This example uses a file [offline store](https://docs.feast.dev/getting-started/architecture-and-components/offline-store) 
+3. This example uses a file [offline store](https://docs.feast.dev/getting-started/components/offline-store) 
    to generate training data. It does not scale. We recommend instead using a data warehouse such as BigQuery, 
    Snowflake, Redshift. There is experimental support for Spark as well.
 4. Setup CI/CD + dev vs staging vs prod environments to automatically update the registry as you change Feast feature definitions. See [docs](https://docs.feast.dev/how-to-guides/running-feast-in-production#1.-automatically-deploying-changes-to-your-feature-definitions).

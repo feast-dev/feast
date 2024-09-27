@@ -73,6 +73,8 @@ from feast.infra.registry.registry import Registry
 from feast.infra.registry.sql import SqlRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.online_response import OnlineResponse
+from feast.permissions.permission import Permission
+from feast.project import Project
 from feast.protos.feast.core.InfraObject_pb2 import Infra as InfraProto
 from feast.protos.feast.serving.ServingService_pb2 import (
     FieldStatus,
@@ -158,11 +160,16 @@ class FeatureStore:
         elif registry_config and registry_config.registry_type == "remote":
             from feast.infra.registry.remote import RemoteRegistry
 
-            self._registry = RemoteRegistry(registry_config, self.config.project, None)
+            self._registry = RemoteRegistry(
+                registry_config, self.config.project, None, self.config.auth_config
+            )
         else:
-            r = Registry(self.config.project, registry_config, repo_path=self.repo_path)
-            r._initialize_registry(self.config.project)
-            self._registry = r
+            self._registry = Registry(
+                self.config.project,
+                registry_config,
+                repo_path=self.repo_path,
+                auth_config=self.config.auth_config,
+            )
 
         self._provider = get_provider(self.config)
 
@@ -198,13 +205,8 @@ class FeatureStore:
         greater than 0, then once the cache becomes stale (more time than the TTL has passed), a new cache will be
         downloaded synchronously, which may increase latencies if the triggering method is get_online_features().
         """
-        registry_config = self.config.registry
-        registry = Registry(
-            self.config.project, registry_config, repo_path=self.repo_path
-        )
-        registry.refresh(self.config.project)
 
-        self._registry = registry
+        self._registry.refresh(self.project)
 
     def list_entities(
         self, allow_cache: bool = False, tags: Optional[dict[str, str]] = None
@@ -250,9 +252,26 @@ class FeatureStore:
         """
         return self._registry.list_feature_services(self.project, tags=tags)
 
+    def _list_all_feature_views(
+        self, allow_cache: bool = False, tags: Optional[dict[str, str]] = None
+    ) -> List[BaseFeatureView]:
+        feature_views = []
+        for fv in self.registry.list_all_feature_views(
+            self.project, allow_cache=allow_cache, tags=tags
+        ):
+            if (
+                isinstance(fv, FeatureView)
+                and fv.entities
+                and fv.entities[0] == DUMMY_ENTITY_NAME
+            ):
+                fv.entities = []
+                fv.entity_columns = []
+            feature_views.append(fv)
+        return feature_views
+
     def list_all_feature_views(
         self, allow_cache: bool = False, tags: Optional[dict[str, str]] = None
-    ) -> List[Union[FeatureView, StreamFeatureView, OnDemandFeatureView]]:
+    ) -> List[BaseFeatureView]:
         """
         Retrieves the list of feature views from the registry.
 
@@ -277,10 +296,6 @@ class FeatureStore:
         Returns:
             A list of feature views.
         """
-        logging.warning(
-            "list_feature_views will make breaking changes. Please use list_batch_feature_views instead. "
-            "list_feature_views will behave like list_all_feature_views in the future."
-        )
         return utils._list_feature_views(
             self._registry, self.project, allow_cache, tags=tags
         )
@@ -299,44 +314,6 @@ class FeatureStore:
             A list of feature views.
         """
         return self._list_batch_feature_views(allow_cache=allow_cache, tags=tags)
-
-    def _list_all_feature_views(
-        self,
-        allow_cache: bool = False,
-        tags: Optional[dict[str, str]] = None,
-    ) -> List[Union[FeatureView, StreamFeatureView, OnDemandFeatureView]]:
-        all_feature_views = (
-            utils._list_feature_views(
-                self._registry, self.project, allow_cache, tags=tags
-            )
-            + self._list_stream_feature_views(allow_cache, tags=tags)
-            + self.list_on_demand_feature_views(allow_cache, tags=tags)
-        )
-        return all_feature_views
-
-    def _list_feature_views(
-        self,
-        allow_cache: bool = False,
-        hide_dummy_entity: bool = True,
-        tags: Optional[dict[str, str]] = None,
-    ) -> List[FeatureView]:
-        logging.warning(
-            "_list_feature_views will make breaking changes. Please use _list_batch_feature_views instead. "
-            "_list_feature_views will behave like _list_all_feature_views in the future."
-        )
-        feature_views = []
-        for fv in self._registry.list_feature_views(
-            self.project, allow_cache=allow_cache, tags=tags
-        ):
-            if (
-                hide_dummy_entity
-                and fv.entities
-                and fv.entities[0] == DUMMY_ENTITY_NAME
-            ):
-                fv.entities = []
-                fv.entity_columns = []
-            feature_views.append(fv)
-        return feature_views
 
     def _list_batch_feature_views(
         self,
@@ -730,12 +707,14 @@ class FeatureStore:
             ...     source=driver_hourly_stats,
             ... )
             >>> registry_diff, infra_diff, new_infra = fs.plan(RepoContents(
+            ...     projects=[Project(name="project")],
             ...     data_sources=[driver_hourly_stats],
             ...     feature_views=[driver_hourly_stats_view],
             ...     on_demand_feature_views=list(),
             ...     stream_feature_views=list(),
             ...     entities=[driver],
-            ...     feature_services=list())) # register entity and feature view
+            ...     feature_services=list(),
+            ...     permissions=list())) # register entity and feature view
         """
         # Validate and run inference on all the objects to be registered.
         self._validate_all_feature_views(
@@ -791,6 +770,7 @@ class FeatureStore:
     def apply(
         self,
         objects: Union[
+            Project,
             DataSource,
             Entity,
             FeatureView,
@@ -799,6 +779,7 @@ class FeatureStore:
             StreamFeatureView,
             FeatureService,
             ValidationReference,
+            Permission,
             List[FeastObject],
         ],
         objects_to_delete: Optional[List[FeastObject]] = None,
@@ -850,6 +831,9 @@ class FeatureStore:
             objects_to_delete = []
 
         # Separate all objects into entities, feature services, and different feature view types.
+        projects_to_update = [ob for ob in objects if isinstance(ob, Project)]
+        if len(projects_to_update) > 1:
+            raise ValueError("Only one project can be applied at a time.")
         entities_to_update = [ob for ob in objects if isinstance(ob, Entity)]
         views_to_update = [
             ob
@@ -870,6 +854,7 @@ class FeatureStore:
         validation_references_to_update = [
             ob for ob in objects if isinstance(ob, ValidationReference)
         ]
+        permissions_to_update = [ob for ob in objects if isinstance(ob, Permission)]
 
         batch_sources_to_add: List[DataSource] = []
         for data_source in data_sources_set_to_update:
@@ -911,6 +896,8 @@ class FeatureStore:
         )
 
         # Add all objects to the registry and update the provider's infrastructure.
+        for project in projects_to_update:
+            self._registry.apply_project(project, commit=False)
         for ds in data_sources_to_update:
             self._registry.apply_data_source(ds, project=self.project, commit=False)
         for view in itertools.chain(views_to_update, odfvs_to_update, sfvs_to_update):
@@ -925,10 +912,15 @@ class FeatureStore:
             self._registry.apply_validation_reference(
                 validation_references, project=self.project, commit=False
             )
+        for permission in permissions_to_update:
+            self._registry.apply_permission(
+                permission, project=self.project, commit=False
+            )
 
         entities_to_delete = []
         views_to_delete = []
         sfvs_to_delete = []
+        permissions_to_delete = []
         if not partial:
             # Delete all registry objects that should not exist.
             entities_to_delete = [
@@ -956,6 +948,9 @@ class FeatureStore:
             ]
             validation_references_to_delete = [
                 ob for ob in objects_to_delete if isinstance(ob, ValidationReference)
+            ]
+            permissions_to_delete = [
+                ob for ob in objects_to_delete if isinstance(ob, Permission)
             ]
 
             for data_source in data_sources_to_delete:
@@ -985,6 +980,10 @@ class FeatureStore:
             for validation_references in validation_references_to_delete:
                 self._registry.delete_validation_reference(
                     validation_references.name, project=self.project, commit=False
+                )
+            for permission in permissions_to_delete:
+                self._registry.delete_permission(
+                    permission.name, project=self.project, commit=False
                 )
 
         tables_to_delete: List[FeatureView] = (
@@ -1753,6 +1752,7 @@ class FeatureStore:
         type_: str = "http",
         no_access_log: bool = True,
         workers: int = 1,
+        metrics: bool = False,
         keep_alive_timeout: int = 30,
         registry_ttl_sec: int = 2,
     ) -> None:
@@ -1770,6 +1770,7 @@ class FeatureStore:
             port=port,
             no_access_log=no_access_log,
             workers=workers,
+            metrics=metrics,
             keep_alive_timeout=keep_alive_timeout,
             registry_ttl_sec=registry_ttl_sec,
         )
@@ -1931,6 +1932,102 @@ class FeatureStore:
         )
         ref._dataset = self.get_saved_dataset(ref.dataset_name)
         return ref
+
+    def list_validation_references(
+        self, allow_cache: bool = False, tags: Optional[dict[str, str]] = None
+    ) -> List[ValidationReference]:
+        """
+        Retrieves the list of validation references from the registry.
+
+        Args:
+            allow_cache: Whether to allow returning validation references from a cached registry.
+            tags: Filter by tags.
+
+        Returns:
+            A list of validation references.
+        """
+        return self._registry.list_validation_references(
+            self.project, allow_cache=allow_cache, tags=tags
+        )
+
+    def list_permissions(
+        self, allow_cache: bool = False, tags: Optional[dict[str, str]] = None
+    ) -> List[Permission]:
+        """
+        Retrieves the list of permissions from the registry.
+
+        Args:
+            allow_cache: Whether to allow returning permissions from a cached registry.
+            tags: Filter by tags.
+
+        Returns:
+            A list of permissions.
+        """
+        return self._registry.list_permissions(
+            self.project, allow_cache=allow_cache, tags=tags
+        )
+
+    def get_permission(self, name: str) -> Permission:
+        """
+        Retrieves a permission from the registry.
+
+        Args:
+            name: Name of the permission.
+
+        Returns:
+            The specified permission.
+
+        Raises:
+            PermissionObjectNotFoundException: The permission could not be found.
+        """
+        return self._registry.get_permission(name, self.project)
+
+    def list_projects(
+        self, allow_cache: bool = False, tags: Optional[dict[str, str]] = None
+    ) -> List[Project]:
+        """
+        Retrieves the list of projects from the registry.
+
+        Args:
+            allow_cache: Whether to allow returning projects from a cached registry.
+            tags: Filter by tags.
+
+        Returns:
+            A list of projects.
+        """
+        return self._registry.list_projects(allow_cache=allow_cache, tags=tags)
+
+    def get_project(self, name: Optional[str]) -> Project:
+        """
+        Retrieves a project from the registry.
+
+        Args:
+            name: Name of the project.
+
+        Returns:
+            The specified project.
+
+        Raises:
+            ProjectObjectNotFoundException: The project could not be found.
+        """
+        return self._registry.get_project(name or self.project)
+
+    def list_saved_datasets(
+        self, allow_cache: bool = False, tags: Optional[dict[str, str]] = None
+    ) -> List[SavedDataset]:
+        """
+        Retrieves the list of saved datasets from the registry.
+
+        Args:
+            allow_cache: Whether to allow returning saved datasets from a cached registry.
+            tags: Filter by tags.
+
+        Returns:
+            A list of saved datasets.
+        """
+        return self._registry.list_saved_datasets(
+            self.project, allow_cache=allow_cache, tags=tags
+        )
 
 
 def _print_materialization_log(

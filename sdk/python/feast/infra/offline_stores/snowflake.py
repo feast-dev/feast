@@ -3,7 +3,7 @@ import json
 import os
 import uuid
 import warnings
-from datetime import datetime
+from datetime import datetime, timezone
 from functools import reduce
 from pathlib import Path
 from typing import (
@@ -25,7 +25,6 @@ import numpy as np
 import pandas as pd
 import pyarrow
 from pydantic import ConfigDict, Field, StrictStr
-from pytz import utc
 
 from feast import OnDemandFeatureView
 from feast.data_source import DataSource
@@ -106,6 +105,9 @@ class SnowflakeOfflineStoreConfig(FeastConfigBaseModel):
 
     private_key: Optional[str] = None
     """ Snowflake private key file path"""
+
+    private_key_content: Optional[bytes] = None
+    """ Snowflake private key stored as bytes"""
 
     private_key_passphrase: Optional[str] = None
     """ Snowflake private key file passphrase"""
@@ -193,8 +195,8 @@ class SnowflakeOfflineStore(OfflineStore):
         with GetSnowflakeConnection(config.offline_store) as conn:
             snowflake_conn = conn
 
-        start_date = start_date.astimezone(tz=utc)
-        end_date = end_date.astimezone(tz=utc)
+        start_date = start_date.astimezone(tz=timezone.utc)
+        end_date = end_date.astimezone(tz=timezone.utc)
 
         query = f"""
             SELECT
@@ -245,8 +247,8 @@ class SnowflakeOfflineStore(OfflineStore):
         with GetSnowflakeConnection(config.offline_store) as conn:
             snowflake_conn = conn
 
-        start_date = start_date.astimezone(tz=utc)
-        end_date = end_date.astimezone(tz=utc)
+        start_date = start_date.astimezone(tz=timezone.utc)
+        end_date = end_date.astimezone(tz=timezone.utc)
 
         query = f"""
             SELECT {field_string}
