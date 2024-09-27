@@ -226,4 +226,3 @@ def _drop_table_and_index(cur: Cursor, project: str, table: FeatureView) -> None
 
 def _table_id(project: str, table: FeatureView) -> str:
     return f"{project}_{table.name}"
-
