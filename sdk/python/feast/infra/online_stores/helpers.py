@@ -62,3 +62,10 @@ def compute_entity_id(
             entity_key_serialization_version=entity_key_serialization_version,
         )
     ).hex()
+
+
+def _to_naive_utc(ts: datetime) -> datetime:
+    if ts.tzinfo is None:
+        return ts
+    else:
+        return ts.astimezone(tz=timezone.utc).replace(tzinfo=None)
