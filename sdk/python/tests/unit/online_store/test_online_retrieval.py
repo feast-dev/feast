@@ -441,7 +441,7 @@ def test_sqlite_get_online_documents() -> None:
     with runner.local_repo(
         get_example_repo("example_feature_repo_1.py"), "file"
     ) as store:
-        store.config.online_store.vec_enabled = True
+        store.config.online_store.vector_enabled = True
         store.config.online_store.vector_len = vector_length
         # Write some data to two tables
         document_embeddings_fv = store.get_feature_view(name="document_embeddings")
