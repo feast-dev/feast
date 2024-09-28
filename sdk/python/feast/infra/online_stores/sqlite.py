@@ -78,7 +78,7 @@ class SqliteOnlineStore(OnlineStore):
         if not self._conn:
             db_path = self._get_db_path(config)
             self._conn = _initialize_conn(db_path)
-            if sys.version_info[0:2] == (3, 10) and config.online_store.vec_enabled:
+            if sys.version_info[0:2] == (3, 10) and config.online_store.vector_enabled:
                 import sqlite_vec  # noqa: F401
 
                 self._conn.enable_load_extension(True)  # type: ignore
@@ -116,7 +116,7 @@ class SqliteOnlineStore(OnlineStore):
 
                 table_name = _table_id(project, table)
                 for feature_name, val in values.items():
-                    if config.online_store.vec_enabled:
+                    if config.online_store.vector_enabled:
                         vector_bin = serialize_f32(
                             val.float_list_val.val, config.online_store.vector_len
                         )  # type: ignore
@@ -316,7 +316,7 @@ class SqliteOnlineStore(OnlineStore):
         """
         project = config.project
 
-        if not config.online_store.vec_enabled:
+        if not config.online_store.vector_enabled:
             raise ValueError("sqlite-vss is not enabled in the online store config")
 
         conn = self._get_conn(config)
