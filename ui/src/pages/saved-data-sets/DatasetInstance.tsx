@@ -1,12 +1,8 @@
 import React from "react";
 import { Route, Routes, useNavigate, useParams } from "react-router-dom";
-import {
-  EuiPageHeader,
-  EuiPageContent,
-  EuiPageContentBody,
-} from "@elastic/eui";
+import { EuiPageTemplate } from "@elastic/eui";
 
-import { DatasetIcon32 } from "../../graphics/DatasetIcon";
+import { DatasetIcon } from "../../graphics/DatasetIcon";
 
 import { useMatchExact, useMatchSubpath } from "../../hooks/useMatchSubpath";
 import DatasetOverviewTab from "./DatasetOverviewTab";
@@ -27,10 +23,10 @@ const DatasetInstance = () => {
   const CustomTabRoutes = useDataSourceCustomTabRoutes();
 
   return (
-    <React.Fragment>
-      <EuiPageHeader
+    <EuiPageTemplate panelled>
+      <EuiPageTemplate.Header
         restrictWidth
-        iconType={DatasetIcon32}
+        iconType={DatasetIcon}
         pageTitle={`Entity: ${datasetName}`}
         tabs={[
           {
@@ -50,22 +46,14 @@ const DatasetInstance = () => {
           ...customNavigationTabs,
         ]}
       />
-      <EuiPageContent
-        hasBorder={false}
-        hasShadow={false}
-        paddingSize="none"
-        color="transparent"
-        borderRadius="none"
-      >
-        <EuiPageContentBody>
-          <Routes>
-            <Route path="/" element={<DatasetOverviewTab />} />
-            <Route path="/expectations" element={<DatasetExpectationsTab />} />
-            {CustomTabRoutes}
-          </Routes>
-        </EuiPageContentBody>
-      </EuiPageContent>
-    </React.Fragment>
+      <EuiPageTemplate.Section>
+        <Routes>
+          <Route path="/" element={<DatasetOverviewTab />} />
+          <Route path="/expectations" element={<DatasetExpectationsTab />} />
+          {CustomTabRoutes}
+        </Routes>
+      </EuiPageTemplate.Section>
+    </EuiPageTemplate>
   );
 };
 

@@ -1,14 +1,13 @@
 import React, { useContext } from "react";
 
 import {
-  EuiPageContent,
-  EuiPageContentBody,
+  EuiPageTemplate,
   EuiText,
   EuiFlexGroup,
   EuiFlexItem,
   EuiTitle,
   EuiSpacer,
-  EuiLoadingContent,
+  EuiSkeletonText,
   EuiEmptyPrompt,
 } from "@elastic/eui";
 
@@ -24,17 +23,11 @@ const ProjectOverviewPage = () => {
   const { isLoading, isSuccess, isError, data } = useLoadRegistry(registryUrl);
 
   return (
-    <EuiPageContent
-      hasBorder={false}
-      hasShadow={false}
-      paddingSize="none"
-      color="transparent"
-      borderRadius="none"
-    >
-      <EuiPageContentBody>
+    <EuiPageTemplate panelled>
+      <EuiPageTemplate.Section>
         <EuiTitle size="l">
           <h1>
-            {isLoading && <EuiLoadingContent lines={1} />}
+            {isLoading && <EuiSkeletonText lines={1} />}
             {isSuccess && data?.project && `Project: ${data.project}`}
           </h1>
         </EuiTitle>
@@ -42,7 +35,7 @@ const ProjectOverviewPage = () => {
 
         <EuiFlexGroup>
           <EuiFlexItem grow={2}>
-            {isLoading && <EuiLoadingContent lines={4} />}
+            {isLoading && <EuiSkeletonText lines={4} />}
             {isError && (
               <EuiEmptyPrompt
                 iconType="alert"
@@ -91,8 +84,8 @@ const ProjectOverviewPage = () => {
             <ExplorePanel />
           </EuiFlexItem>
         </EuiFlexGroup>
-      </EuiPageContentBody>
-    </EuiPageContent>
+      </EuiPageTemplate.Section>
+    </EuiPageTemplate>
   );
 };
 

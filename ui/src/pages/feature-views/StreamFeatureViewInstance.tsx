@@ -1,13 +1,9 @@
 import React from "react";
 import { Route, Routes, useNavigate } from "react-router-dom";
 import { useParams } from "react-router-dom";
-import {
-  EuiPageHeader,
-  EuiPageContent,
-  EuiPageContentBody,
-} from "@elastic/eui";
+import { EuiPageTemplate } from "@elastic/eui";
 
-import { FeatureViewIcon32 } from "../../graphics/FeatureViewIcon";
+import { FeatureViewIcon } from "../../graphics/FeatureViewIcon";
 import { useMatchExact } from "../../hooks/useMatchSubpath";
 import StreamFeatureViewOverviewTab from "./StreamFeatureViewOverviewTab";
 
@@ -29,10 +25,11 @@ const StreamFeatureInstance = ({ data }: StreamFeatureInstanceProps) => {
   const CustomTabRoutes = useStreamFeatureViewCustomTabRoutes();
 
   return (
-    <React.Fragment>
-      <EuiPageHeader
+    <EuiPageTemplate panelled>
+      <EuiPageTemplate.Header
         restrictWidth
-        iconType={FeatureViewIcon32}
+        paddingSize="l"
+        iconType={FeatureViewIcon}
         pageTitle={`${featureViewName}`}
         tabs={[
           {
@@ -45,24 +42,16 @@ const StreamFeatureInstance = ({ data }: StreamFeatureInstanceProps) => {
           ...customNavigationTabs,
         ]}
       />
-      <EuiPageContent
-        hasBorder={false}
-        hasShadow={false}
-        paddingSize="none"
-        color="transparent"
-        borderRadius="none"
-      >
-        <EuiPageContentBody>
-          <Routes>
-            <Route
-              path="/"
-              element={<StreamFeatureViewOverviewTab data={data} />}
-            />
-            {CustomTabRoutes}
-          </Routes>
-        </EuiPageContentBody>
-      </EuiPageContent>
-    </React.Fragment>
+      <EuiPageTemplate.Section>
+        <Routes>
+          <Route
+            path="/"
+            element={<StreamFeatureViewOverviewTab data={data} />}
+          />
+          {CustomTabRoutes}
+        </Routes>
+      </EuiPageTemplate.Section>
+    </EuiPageTemplate>
   );
 };
 

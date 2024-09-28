@@ -1,13 +1,8 @@
 import React, { useContext } from "react";
 
-import {
-  EuiPageHeader,
-  EuiPageContent,
-  EuiPageContentBody,
-  EuiLoadingSpinner,
-} from "@elastic/eui";
+import { EuiPageTemplate, EuiLoadingSpinner } from "@elastic/eui";
 
-import { DatasetIcon32 } from "../../graphics/DatasetIcon";
+import { DatasetIcon } from "../../graphics/DatasetIcon";
 
 import useLoadRegistry from "../../queries/useLoadRegistry";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
@@ -36,31 +31,23 @@ const Index = () => {
   useDocumentTitle(`Saved Datasets | Feast`);
 
   return (
-    <React.Fragment>
-      <EuiPageHeader
+    <EuiPageTemplate panelled>
+      <EuiPageTemplate.Header
         restrictWidth
-        iconType={DatasetIcon32}
+        iconType={DatasetIcon}
         pageTitle="Datasets"
       />
-      <EuiPageContent
-        hasBorder={false}
-        hasShadow={false}
-        paddingSize="none"
-        color="transparent"
-        borderRadius="none"
-      >
-        <EuiPageContentBody>
-          {isLoading && (
-            <p>
-              <EuiLoadingSpinner size="m" /> Loading
-            </p>
-          )}
-          {isError && <p>We encountered an error while loading.</p>}
-          {isSuccess && data && <DatasetsListingTable datasets={data} />}
-          {isSuccess && !data && <DatasetsIndexEmptyState />}
-        </EuiPageContentBody>
-      </EuiPageContent>
-    </React.Fragment>
+      <EuiPageTemplate.Section>
+        {isLoading && (
+          <p>
+            <EuiLoadingSpinner size="m" /> Loading
+          </p>
+        )}
+        {isError && <p>We encountered an error while loading.</p>}
+        {isSuccess && data && <DatasetsListingTable datasets={data} />}
+        {isSuccess && !data && <DatasetsIndexEmptyState />}
+      </EuiPageTemplate.Section>
+    </EuiPageTemplate>
   );
 };
 

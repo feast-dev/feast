@@ -1,4 +1,4 @@
-import { EuiEmptyPrompt, EuiLoadingContent } from "@elastic/eui";
+import { EuiEmptyPrompt, EuiSkeletonText } from "@elastic/eui";
 import React, { useContext } from "react";
 import { Outlet, useParams } from "react-router-dom";
 import {
@@ -14,7 +14,7 @@ const NoProjectGuard = () => {
   const projectListContext = useContext(ProjectListContext);
 
   if (isLoading && !data) {
-    return <EuiLoadingContent lines={3} />;
+    return <EuiSkeletonText lines={3} />;
   }
 
   if (isError) {

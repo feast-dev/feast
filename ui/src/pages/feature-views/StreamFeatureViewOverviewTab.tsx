@@ -47,7 +47,7 @@ const StreamFeatureViewOverviewTab = ({
     : [];
 
   return (
-    <React.Fragment>
+    <EuiFlexGroup direction="column">
       <EuiFlexGroup>
         <EuiFlexItem>
           <EuiPanel hasBorder={true}>
@@ -126,7 +126,7 @@ const StreamFeatureViewOverviewTab = ({
           </EuiPanel>
         </EuiFlexItem>
       </EuiFlexGroup>
-    </React.Fragment>
+    </EuiFlexGroup>
   );
 };
 

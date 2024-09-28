@@ -1,17 +1,9 @@
 import React from "react";
 
-const DatasetIcon = ({
-  size,
-  className,
-}: {
-  size: number;
-  className?: string;
-}) => {
+const DatasetIcon = (props: React.SVGProps<SVGSVGElement>) => {
   return (
     <svg
-      className={className}
-      width={size}
-      height={size}
+      {...props}
       viewBox="0 0 32 32"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
@@ -36,17 +28,4 @@ const DatasetIcon = ({
   );
 };
 
-const DatasetIcon16 = () => {
-  return <DatasetIcon size={16} className="euiSideNavItemButton__icon" />;
-};
-
-const DatasetIcon32 = () => {
-  return (
-    <DatasetIcon
-      size={32}
-      className="euiIcon euiIcon--xLarge euiPageHeaderContent__titleIcon"
-    />
-  );
-};
-
-export { DatasetIcon, DatasetIcon16, DatasetIcon32 };
+export { DatasetIcon };

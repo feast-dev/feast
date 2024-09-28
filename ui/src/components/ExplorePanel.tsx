@@ -5,7 +5,7 @@ import {
   EuiPanel,
   EuiTitle,
   EuiBadge,
-  EuiLoadingContent,
+  EuiSkeletonText,
   EuiFlexGroup,
   EuiFlexItem,
   EuiSpacer,
@@ -25,7 +25,7 @@ const ExplorePanel = () => {
         <h3>Explore this Project</h3>
       </EuiTitle>
       <EuiHorizontalRule margin="xs" />
-      {isLoading && <EuiLoadingContent lines={3} />}
+      {isLoading && <EuiSkeletonText lines={3} />}
       {isSuccess &&
         data &&
         data.map((suggestionGroup, i) => {

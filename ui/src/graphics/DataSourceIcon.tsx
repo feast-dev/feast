@@ -1,17 +1,9 @@
 import React from "react";
 
-const DataSourceIcon = ({
-  size,
-  className,
-}: {
-  size: number;
-  className?: string;
-}) => {
+const DataSourceIcon = (props: React.SVGProps<SVGSVGElement>) => {
   return (
     <svg
-      className={className}
-      width={size}
-      height={size}
+      {...props}
       viewBox="0 0 32 32"
       fill="none"
     >
@@ -27,17 +19,4 @@ const DataSourceIcon = ({
   );
 };
 
-const DataSourceIcon16 = () => {
-  return <DataSourceIcon size={16} className="euiSideNavItemButton__icon" />;
-};
-
-const DataSourceIcon32 = () => {
-  return (
-    <DataSourceIcon
-      size={32}
-      className="euiIcon euiIcon--xLarge euiPageHeaderContent__titleIcon"
-    />
-  );
-};
-
-export { DataSourceIcon, DataSourceIcon16, DataSourceIcon32 };
+export { DataSourceIcon };
