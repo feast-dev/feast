@@ -629,16 +629,31 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
 
     def test_stored_writes(self):
         current_datetime = _utc_now()
-        entity_rows_to_write = [
+        fv_entity_rows_to_write = [
+            {
+                "driver_id": 1001,
+                "conv_rate": 0.25,
+                "acc_rate": 0.25,
+                "avg_daily_trips": 2,
+                "event_timestamp": current_datetime,
+                "created": current_datetime,
+            }
+        ]
+        odfv_entity_rows_to_write = [
             {
                 "driver_id": 1001,
                 "counter": 0,
                 "input_datetime": current_datetime,
             }
         ]
+        fv_entity_rows_to_read = [
+            {
+                "driver_id": 1001,
+            }
+        ]
         # Note that here we shouldn't have to pass the request source features for reading
         # because they should have already been written to the online store
-        entity_rows_to_read = [
+        odfv_entity_rows_to_read = [
             {
                 "driver_id": 1001,
                 "conv_rate": 0.25,
@@ -647,14 +662,29 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
                 "input_datetime": current_datetime,
             }
         ]
+        print("storing fv  features")
+        self.store.write_to_online_store(
+            feature_view_name="driver_hourly_stats",
+            df=fv_entity_rows_to_write,
+        )
+        print("reading fv features")
+        online_python_response = self.store.get_online_features(
+            entity_rows=fv_entity_rows_to_read,
+            features=[
+                "driver_hourly_stats:conv_rate",
+                "driver_hourly_stats:acc_rate",
+                "driver_hourly_stats:avg_daily_trips",
+            ],
+        ).to_dict()
+        print(online_python_response)
         print("storing odfv features")
         self.store.write_to_online_store(
             feature_view_name="python_stored_writes_feature_view",
-            df=entity_rows_to_write,
+            df=odfv_entity_rows_to_write,
         )
         print("reading odfv features")
         online_python_response = self.store.get_online_features(
-            entity_rows=entity_rows_to_read,
+            entity_rows=odfv_entity_rows_to_read,
             features=[
                 "python_stored_writes_feature_view:conv_rate_plus_acc",
                 "python_stored_writes_feature_view:current_datetime",
