@@ -328,6 +328,7 @@ class OnDemandFeatureView(BaseFeatureView):
             owner=self.owner,
             write_to_online_store=self.write_to_online_store,
         )
+        print("*" * 40, "\n", spec)
 
         return OnDemandFeatureViewProto(spec=spec, meta=meta)
 

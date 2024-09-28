@@ -596,6 +596,9 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
                 print("running odfv transform")
                 return output
 
+            assert python_stored_writes_feature_view.entities == [driver.name]
+            assert python_stored_writes_feature_view.entity_columns == []
+
             self.store.apply(
                 [
                     driver,
@@ -605,9 +608,16 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
                 ]
             )
             fv_applied = self.store.get_feature_view("driver_hourly_stats")
+            odfv_applied = self.store.get_on_demand_feature_view(
+                "python_stored_writes_feature_view"
+            )
+
             assert fv_applied.entities == [driver.name]
+            assert odfv_applied.entites == [driver.name]
+
             # Note here that after apply() is called, the entity_columns are populated with the join_key
             assert fv_applied.entity_columns[0].name == driver.join_key
+            assert odfv_applied.entity_columns[0].name == driver.join_key
 
             self.store.write_to_online_store(
                 feature_view_name="driver_hourly_stats", df=driver_df

@@ -889,12 +889,14 @@ class FeatureStore:
             if isinstance(fv, FeatureView):
                 data_sources_set_to_update.add(fv.batch_source)
             if isinstance(fv, StreamFeatureView):
-                data_sources_set_to_update.add(fv.stream_source)
+                if fv.stream_source:
+                    data_sources_set_to_update.add(fv.stream_source)
             if isinstance(fv, OnDemandFeatureView):
                 for source_fvp in fv.source_feature_view_projections:
-                    data_sources_set_to_update.add(
-                        fv.source_feature_view_projections[source_fvp].batch_source
-                    )
+                    if fv.source_feature_view_projections[source_fvp].batch_source:
+                        data_sources_set_to_update.add(
+                            fv.source_feature_view_projections[source_fvp].batch_source
+                        )
             else:
                 pass
 
@@ -909,7 +911,9 @@ class FeatureStore:
 
         # Validate all feature views and make inferences.
         self._validate_all_feature_views(
-            views_to_update, odfvs_to_update, sfvs_to_update,
+            views_to_update,
+            odfvs_to_update,
+            sfvs_to_update,
         )
         self._make_inferences(
             data_sources_to_update,
