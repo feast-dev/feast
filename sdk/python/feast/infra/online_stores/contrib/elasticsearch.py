@@ -14,13 +14,14 @@ from feast.infra.key_encoding_utils import (
     serialize_entity_key,
 )
 from feast.infra.online_stores.online_store import OnlineStore
+from feast.infra.online_stores.vector_store import VectorStoreConfig
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel
 from feast.utils import _build_retrieve_online_document_record, to_naive_utc
 
 
-class ElasticSearchOnlineStoreConfig(FeastConfigBaseModel):
+class ElasticSearchOnlineStoreConfig(FeastConfigBaseModel, VectorStoreConfig):
     """
     Configuration for the ElasticSearch online store.
     NOTE: The class *must* end with the `OnlineStoreConfig` suffix.
@@ -37,13 +38,6 @@ class ElasticSearchOnlineStoreConfig(FeastConfigBaseModel):
 
     # The number of rows to write in a single batch
     write_batch_size: Optional[int] = 40
-
-    # The length of the vector value
-    vector_len: Optional[int] = 512
-
-    # The vector similarity metric to use in KNN search
-    # more details: https://www.elastic.co/guide/en/elasticsearch/reference/current/dense-vector.html
-    similarity: Optional[str] = "cosine"
 
 
 class ElasticSearchOnlineStore(OnlineStore):
