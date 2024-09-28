@@ -2,7 +2,6 @@ from typing import Optional
 
 
 class VectorStoreConfig:
-
     # Whether to enable the vector for vector similarity search,
     # This is only applicable for online store.
     vector_enabled: Optional[bool] = False
