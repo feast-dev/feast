@@ -613,7 +613,7 @@ class FeatureStore:
         update_feature_views_with_inferred_features_and_entities(
             odfvs_to_update, entities + entities_to_update, self.config
         )
-        # TODO(kevjumba): Update schema inferrence
+        # TODO(kevjumba): Update schema inference
         for sfv in sfvs_to_update:
             if not sfv.schema:
                 raise ValueError(
@@ -909,7 +909,7 @@ class FeatureStore:
 
         # Validate all feature views and make inferences.
         self._validate_all_feature_views(
-            views_to_update, odfvs_to_update, sfvs_to_update
+            views_to_update, odfvs_to_update, sfvs_to_update,
         )
         self._make_inferences(
             data_sources_to_update,
