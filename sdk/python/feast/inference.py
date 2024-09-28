@@ -296,33 +296,13 @@ def _infer_on_demand_features_and_entities(
         table_column_names_and_types = batch_source.get_table_column_names_and_types(
             config
         )
-        for col_name, col_datatype in table_column_names_and_types:
-            if col_name in columns_to_exclude:
-                continue
-            elif col_name in join_keys:
-                field = Field(
-                    name=col_name,
-                    dtype=from_value_type(
-                        batch_source.source_datatype_to_feast_value_type()(col_datatype)
-                    ),
-                )
-                if field.name not in [
-                    entity_column.name
-                    for entity_column in entity_columns
-                    if hasattr(entity_column, "name")
-                ]:
-                    entity_columns.append(field)
-            elif not re.match(
-                "^__|__$", col_name
-            ):  # double underscores often signal an internal-use column
-                if run_inference_for_features:
-                    feature_name = (
-                        batch_field_mapping[col_name]
-                        if col_name in batch_field_mapping
-                        else col_name
-                    )
+        if batch_field_mapping:
+            for col_name, col_datatype in table_column_names_and_types:
+                if col_name in columns_to_exclude:
+                    continue
+                elif col_name in join_keys:
                     field = Field(
-                        name=feature_name,
+                        name=col_name,
                         dtype=from_value_type(
                             batch_source.source_datatype_to_feast_value_type()(
                                 col_datatype
@@ -330,7 +310,30 @@ def _infer_on_demand_features_and_entities(
                         ),
                     )
                     if field.name not in [
-                        feature.name for feature in source_feature_view.features
+                        entity_column.name
+                        for entity_column in entity_columns
+                        if hasattr(entity_column, "name")
                     ]:
-                        source_feature_view.features.append(field)
+                        entity_columns.append(field)
+                elif not re.match(
+                    "^__|__$", col_name
+                ):  # double underscores often signal an internal-use column
+                    if run_inference_for_features:
+                        feature_name = (
+                            batch_field_mapping[col_name]
+                            if col_name in batch_field_mapping
+                            else col_name
+                        )
+                        field = Field(
+                            name=feature_name,
+                            dtype=from_value_type(
+                                batch_source.source_datatype_to_feast_value_type()(
+                                    col_datatype
+                                )
+                            ),
+                        )
+                        if field.name not in [
+                            feature.name for feature in source_feature_view.features
+                        ]:
+                            source_feature_view.features.append(field)
     fv.entity_columns = entity_columns

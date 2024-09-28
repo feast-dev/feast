@@ -21,7 +21,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union
 
-import pandas as pd
 from google.protobuf.internal.containers import RepeatedScalarFieldContainer
 from pydantic import StrictStr
 
@@ -171,40 +170,18 @@ class SqliteOnlineStore(OnlineStore):
                             ),
                         )
 
-                        try:
-                            conn.execute(
-                                f"""INSERT OR IGNORE INTO {table_name}
+                        conn.execute(
+                            f"""INSERT OR IGNORE INTO {table_name}
                                 (entity_key, feature_name, value, event_ts, created_ts)
                                 VALUES (?, ?, ?, ?, ?)""",
-                                (
-                                    entity_key_bin,
-                                    feature_name,
-                                    val.SerializeToString(),
-                                    timestamp,
-                                    created_ts,
-                                ),
-                            )
-                        except Exception as e:
-                            # print(
-                            #     f"error writing online batch for {table_name} - {feature_name} = {val}\n {e}"
-                            # )
-                            print(
-                                f'querying all records for table: {conn.execute(f"select * from {table_name}").fetchall()}'
-                            )
-                            def get_table_data(conn):
-                                x = conn.execute(f"select * from sqlite_master").fetchall()
-                                y = conn.execute(f"select * from sqlite_master")
-                                names = list(map(lambda x: x[0], y.description))
-                                return pd.DataFrame(x, columns=names)
-
-                            df = get_table_data(conn)
-                            tmp = [ conn.execute(f"select count(*) from {table_name}").fetchall() for table_name in df['name'].values if table_name not in ['sqlite_autoindex_test_on_demand_python_transformation_driver_hourly_stats_1', 'test_on_demand_python_transformation_driver_hourly_stats_ek', 'sqlite_autoindex_test_on_demand_python_transformation_python_stored_writes_feature_view_1', 'test_on_demand_python_transformation_python_stored_writes_feature_view_ek']]
-                            print(tmp)
-
-                            r = conn.execute("""
-                            SELECT * FROM sqlite_master WHERE type='table' and name = 'test_on_demand_python_transformation_python_stored_writes_feature_view';
-                                """)
-                            print(f"table exists: {r.fetchall()}")
+                            (
+                                entity_key_bin,
+                                feature_name,
+                                val.SerializeToString(),
+                                timestamp,
+                                created_ts,
+                            ),
+                        )
                 if progress:
                     progress(1)
 
@@ -271,7 +248,6 @@ class SqliteOnlineStore(OnlineStore):
         project = config.project
 
         for table in tables_to_keep:
-            print(f"updating {_table_id(project, table)}")
             conn.execute(
                 f"CREATE TABLE IF NOT EXISTS {_table_id(project, table)} (entity_key BLOB, feature_name TEXT, value BLOB, vector_value BLOB, event_ts timestamp, created_ts timestamp,  PRIMARY KEY(entity_key, feature_name))"
             )
