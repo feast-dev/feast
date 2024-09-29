@@ -120,7 +120,7 @@ class OnDemandFeatureView(BaseFeatureView):
             owner (optional): The owner of the on demand feature view, typically the email
                 of the primary maintainer.
             write_to_online_store (optional): A boolean that indicates whether to write the on demand feature view to
-                the online store for faster retrieval.
+            the online store for faster retrieval.
         """
         super().__init__(
             name=name,
@@ -162,6 +162,7 @@ class OnDemandFeatureView(BaseFeatureView):
                 self.source_request_sources[odfv_source.name] = odfv_source
             elif isinstance(odfv_source, FeatureViewProjection):
                 self.source_feature_view_projections[odfv_source.name] = odfv_source
+
             else:
                 self.source_feature_view_projections[odfv_source.name] = (
                     odfv_source.projection
