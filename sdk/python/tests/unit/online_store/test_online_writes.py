@@ -75,6 +75,8 @@ class TestOnlineWrites(unittest.TestCase):
                 online=True,
                 source=driver_stats_source,
             )
+            # Before apply() join_keys is empty
+            assert driver_stats_fv.join_keys == []
 
             @on_demand_feature_view(
                 sources=[driver_stats_fv[["conv_rate", "acc_rate"]]],
@@ -100,6 +102,8 @@ class TestOnlineWrites(unittest.TestCase):
                     test_view,
                 ]
             )
+            # after apply() join_keys is [driver]
+            assert driver_stats_fv.join_keys == [driver]
             self.store.write_to_online_store(
                 feature_view_name="driver_hourly_stats", df=driver_df
             )
