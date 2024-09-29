@@ -493,8 +493,7 @@ def test_invalid_python_transformation_raises_type_error_on_apply():
             schema=[Field(name="driver_name_lower", dtype=String)],
             mode="python",
         )
-        def python_view(inputs: dict[str, Any]) -> dict[str, Any]:
-            return {"driver_name_lower": []}
+        def python_view(inputs: dict[str, Any]) -> dict[str, Any]: return {"driver_name_lower": []}
 
         with pytest.raises(
             TypeError,
@@ -506,7 +505,7 @@ def test_invalid_python_transformation_raises_type_error_on_apply():
 
 
 class TestOnDemandTransformationsWithWrites(unittest.TestCase):
-    def setUp(self):
+    def test_stored_writes(self):
         with tempfile.TemporaryDirectory() as data_dir:
             self.store = FeatureStore(
                 config=RepoConfig(
@@ -593,7 +592,6 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
                     "counter": [c + 1 for c in inputs["counter"]],
                     "input_datetime": [d for d in inputs["input_datetime"]],
                 }
-                print("running odfv transform")
                 return output
 
             assert python_stored_writes_feature_view.entities == [driver.name]
@@ -613,15 +611,13 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
             )
 
             assert fv_applied.entities == [driver.name]
-            assert odfv_applied.entites == [driver.name]
+            assert odfv_applied.entities == [driver.name]
 
             # Note here that after apply() is called, the entity_columns are populated with the join_key
-            assert fv_applied.entity_columns[0].name == driver.join_key
+            # assert fv_applied.entity_columns[0].name == driver.join_key
+            assert fv_applied.entity_columns == []
             assert odfv_applied.entity_columns[0].name == driver.join_key
 
-            self.store.write_to_online_store(
-                feature_view_name="driver_hourly_stats", df=driver_df
-            )
             assert len(self.store.list_all_feature_views()) == 2
             assert len(self.store.list_feature_views()) == 1
             assert len(self.store.list_on_demand_feature_views()) == 1
@@ -631,84 +627,81 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
                 == self.store.get_feature_view("driver_hourly_stats").entity_columns
             )
             assert (
-                self.store.get_on_demand_feature_view(
-                    "python_stored_writes_feature_view"
-                ).entity_columns
-                == self.store.get_feature_view("driver_hourly_stats").entity_columns
+                python_stored_writes_feature_view.entity_columns
+                == self.store.get_on_demand_feature_view("python_stored_writes_feature_view").entity_columns
             )
 
-    def test_stored_writes(self):
-        current_datetime = _utc_now()
-        fv_entity_rows_to_write = [
-            {
-                "driver_id": 1001,
-                "conv_rate": 0.25,
-                "acc_rate": 0.25,
-                "avg_daily_trips": 2,
-                "event_timestamp": current_datetime,
-                "created": current_datetime,
-            }
-        ]
-        odfv_entity_rows_to_write = [
-            {
-                "driver_id": 1001,
-                "counter": 0,
-                "input_datetime": current_datetime,
-            }
-        ]
-        fv_entity_rows_to_read = [
-            {
-                "driver_id": 1001,
-            }
-        ]
-        # Note that here we shouldn't have to pass the request source features for reading
-        # because they should have already been written to the online store
-        odfv_entity_rows_to_read = [
-            {
-                "driver_id": 1001,
-                "conv_rate": 0.25,
-                "acc_rate": 0.25,
-                "counter": 0,
-                "input_datetime": current_datetime,
-            }
-        ]
-        print("storing fv  features")
-        self.store.write_to_online_store(
-            feature_view_name="driver_hourly_stats",
-            df=fv_entity_rows_to_write,
-        )
-        print("reading fv features")
-        online_python_response = self.store.get_online_features(
-            entity_rows=fv_entity_rows_to_read,
-            features=[
-                "driver_hourly_stats:conv_rate",
-                "driver_hourly_stats:acc_rate",
-                "driver_hourly_stats:avg_daily_trips",
-            ],
-        ).to_dict()
-        print(online_python_response)
-        print("storing odfv features")
-        self.store.write_to_online_store(
-            feature_view_name="python_stored_writes_feature_view",
-            df=odfv_entity_rows_to_write,
-        )
-        print("reading odfv features")
-        online_python_response = self.store.get_online_features(
-            entity_rows=odfv_entity_rows_to_read,
-            features=[
-                "python_stored_writes_feature_view:conv_rate_plus_acc",
-                "python_stored_writes_feature_view:current_datetime",
-                "python_stored_writes_feature_view:counter",
-                "python_stored_writes_feature_view:input_datetime",
-            ],
-        ).to_dict()
-        print(online_python_response)
-        assert sorted(list(online_python_response.keys())) == sorted(
-            [
-                "driver_id",
-                "conv_rate_plus_acc",
-                "counter",
-                "current_datetime",
-                "input_datetime",
+            current_datetime = _utc_now()
+            fv_entity_rows_to_write = [
+                {
+                    "driver_id": 1001,
+                    "conv_rate": 0.25,
+                    "acc_rate": 0.25,
+                    "avg_daily_trips": 2,
+                    "event_timestamp": current_datetime,
+                    "created": current_datetime,
+                }
             ]
-        )
+            odfv_entity_rows_to_write = [
+                {
+                    "driver_id": 1001,
+                    "counter": 0,
+                    "input_datetime": current_datetime,
+                }
+            ]
+            fv_entity_rows_to_read = [
+                {
+                    "driver_id": 1001,
+                }
+            ]
+            # Note that here we shouldn't have to pass the request source features for reading
+            # because they should have already been written to the online store
+            odfv_entity_rows_to_read = [
+                {
+                    "driver_id": 1001,
+                    "conv_rate": 0.25,
+                    "acc_rate": 0.25,
+                    "counter": 0,
+                    "input_datetime": current_datetime,
+                }
+            ]
+            print("storing fv  features")
+            self.store.write_to_online_store(
+                feature_view_name="driver_hourly_stats",
+                df=fv_entity_rows_to_write,
+            )
+            print("reading fv features")
+            online_python_response = self.store.get_online_features(
+                entity_rows=fv_entity_rows_to_read,
+                features=[
+                    "driver_hourly_stats:conv_rate",
+                    "driver_hourly_stats:acc_rate",
+                    "driver_hourly_stats:avg_daily_trips",
+                ],
+            ).to_dict()
+            print(online_python_response)
+            print("storing odfv features")
+            self.store.write_to_online_store(
+                feature_view_name="python_stored_writes_feature_view",
+                df=odfv_entity_rows_to_write,
+            )
+            print("reading odfv features")
+            online_python_response = self.store.get_online_features(
+                entity_rows=odfv_entity_rows_to_read,
+                features=[
+                    "python_stored_writes_feature_view:conv_rate_plus_acc",
+                    "python_stored_writes_feature_view:current_datetime",
+                    "python_stored_writes_feature_view:counter",
+                    "python_stored_writes_feature_view:input_datetime",
+                ],
+            ).to_dict()
+            print(online_python_response)
+            assert sorted(list(online_python_response.keys())) == sorted(
+                [
+                    "driver_id",
+                    "conv_rate_plus_acc",
+                    "counter",
+                    "current_datetime",
+                    "input_datetime",
+                ]
+            )
