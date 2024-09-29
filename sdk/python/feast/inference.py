@@ -224,8 +224,6 @@ def _infer_features_and_entities(
         config
     )
 
-    print('\n', "*" * 50, '\ncolumn names and types\n', "*" * 50)
-    print(fv.name, list(zip(table_column_names_and_types)))
     for col_name, col_datatype in table_column_names_and_types:
         if col_name in columns_to_exclude:
             continue
