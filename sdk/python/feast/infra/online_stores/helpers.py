@@ -70,3 +70,7 @@ def _to_naive_utc(ts: datetime) -> datetime:
         return ts
     else:
         return ts.astimezone(tz=timezone.utc).replace(tzinfo=None)
+
+
+def _table_id(project: str, table: FeatureView) -> str:
+    return f"{project}_{table.name}"
