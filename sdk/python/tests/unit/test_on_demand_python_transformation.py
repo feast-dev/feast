@@ -615,7 +615,7 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
 
             # Note here that after apply() is called, the entity_columns are populated with the join_key
             # assert fv_applied.entity_columns[0].name == driver.join_key
-            assert fv_applied.entity_columns == []
+            assert fv_applied.entity_columns[0].name == driver.join_key
             assert odfv_applied.entity_columns[0].name == driver.join_key
 
             assert len(self.store.list_all_feature_views()) == 2
