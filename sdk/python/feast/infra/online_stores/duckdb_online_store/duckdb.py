@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Literal, Optional, Tuple
+from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Sequence
 
 import duckdb
 
@@ -31,8 +31,7 @@ class DuckDBOnlineStoreConfig(FeastConfigBaseModel, VectorStoreConfig):
 class DuckDBOnlineStore(OnlineStore):
     _conn: Optional[duckdb.DuckDBPyConnection] = None
 
-    def _get_conn(self,
-                  config: RepoConfig) -> duckdb.DuckDBPyConnection:
+    def _get_conn(self, config: RepoConfig) -> duckdb.DuckDBPyConnection:
         if not self._conn:
             self._conn = duckdb.connect(config.online_store.path)
         return self._conn
@@ -43,13 +42,13 @@ class DuckDBOnlineStore(OnlineStore):
             self._conn = None
 
     def online_write_batch(
-            self,
-            config: RepoConfig,
-            table: FeatureView,
-            data: List[
-                Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
-            ],
-            progress: Optional[Callable[[int], Any]] = None,
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        data: List[
+            Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
+        ],
+        progress: Optional[Callable[[int], Any]] = None,
     ) -> None:
         conn = self._get_conn(config)
         insert_values = []
@@ -93,14 +92,17 @@ class DuckDBOnlineStore(OnlineStore):
             self._close_conn()
 
     def online_read(
-            self,
-            config: RepoConfig,
-            table: FeatureView,
-            entity_keys: List[EntityKeyProto],
-            requested_features: Optional[List[str]] = None,
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        entity_keys: List[EntityKeyProto],
+        requested_features: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         conn = self._get_conn(config)
-        keys = [serialize_entity_key(entity_key, config.entity_key_serialization_version) for entity_key in entity_keys]
+        keys = [
+            serialize_entity_key(entity_key, config.entity_key_serialization_version)
+            for entity_key in entity_keys
+        ]
         query = f"""
             SELECT entity_key, feature_name, value, event_ts
             FROM {_table_id(config.project, table)}
@@ -115,13 +117,13 @@ class DuckDBOnlineStore(OnlineStore):
             self._close_conn()
 
     def update(
-            self,
-            config: RepoConfig,
-            tables_to_delete: List[FeatureView],
-            tables_to_keep: List[FeatureView],
-            entities_to_delete: List[Entity],
-            entities_to_keep: List[Entity],
-            partial: bool,
+        self,
+        config: RepoConfig,
+        tables_to_delete: Sequence[FeatureView],
+        tables_to_keep: Sequence[FeatureView],
+        entities_to_delete: Sequence[Entity],
+        entities_to_keep: Sequence[Entity],
+        partial: bool,
     ):
         conn = self._get_conn(config)
         online_store_config = config.online_store
@@ -151,10 +153,10 @@ class DuckDBOnlineStore(OnlineStore):
             self._close_conn()
 
     def teardown(
-            self,
-            config: RepoConfig,
-            tables: List[FeatureView],
-            entities: List[Entity],
+        self,
+        config: RepoConfig,
+        tables: List[FeatureView],
+        entities: List[Entity],
     ):
         conn = self._get_conn(config)
         try:
@@ -167,13 +169,13 @@ class DuckDBOnlineStore(OnlineStore):
             self._close_conn()
 
     def retrieve_online_documents(
-            self,
-            config: RepoConfig,
-            table: FeatureView,
-            requested_feature: str,
-            embedding: List[float],
-            top_k: int,
-            distance_metric: Optional[str] = None,
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        requested_feature: str,
+        embedding: List[float],
+        top_k: int,
+        distance_metric: Optional[str] = None,
     ) -> List[
         Tuple[
             Optional[datetime],
@@ -212,7 +214,12 @@ class DuckDBOnlineStore(OnlineStore):
             for row in rows:
                 result.append(
                     _build_retrieve_online_document_record(
-                        row[0], row[2], row[3], row[4], row[5], config.entity_key_serialization_version
+                        row[0],
+                        row[2],
+                        row[3],
+                        row[4],
+                        row[5],
+                        config.entity_key_serialization_version,
                     )
                 )
             return result
@@ -221,9 +228,7 @@ class DuckDBOnlineStore(OnlineStore):
         finally:
             self._close_conn()
 
-    def create_index(self,
-                     config: RepoConfig,
-                     table: FeatureView):
+    def create_index(self, config: RepoConfig, table: FeatureView):
         conn = self._get_conn(config)
         table_name = _table_id(config.project, table)
         online_store_config = config.online_store
@@ -238,9 +243,9 @@ class DuckDBOnlineStore(OnlineStore):
             self._close_conn()
 
     def _process_rows(
-            self,
-            keys: List[bytes],
-            rows: List[Tuple[bytes, str, bytes, datetime]],
+        self,
+        keys: List[bytes],
+        rows: List[Tuple[bytes, str, bytes, datetime]],
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         result = []
         for key in keys:

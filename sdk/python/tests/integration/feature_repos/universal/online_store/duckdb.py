@@ -9,9 +9,7 @@ from tests.integration.feature_repos.universal.online_store_creator import (
 
 
 class DuckDBOnlineStoreCreator(OnlineStoreCreator):
-    def __init__(self,
-                 project_name: str,
-                 **kwargs):
+    def __init__(self, project_name: str, **kwargs):
         super().__init__(project_name)
         self.db_path = os.path.join(os.getcwd(), f"{project_name}_online_store.db")
         self.container = None
