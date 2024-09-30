@@ -1,3 +1,4 @@
+from collections import defaultdict
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
 
@@ -244,19 +245,32 @@ class DuckDBOnlineStore(OnlineStore):
         finally:
             self._close_conn()
 
+    @staticmethod
     def _process_rows(
-        self,
-        keys: List[bytes],
-        rows: List[Tuple[bytes, str, bytes, datetime]],
+        keys: List[bytes], rows: List[Tuple]
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
-        result = []
+        """Transform the retrieved rows in the desired output.
+
+        PostgreSQL may return rows in an unpredictable order. Therefore, `values_dict`
+        is created to quickly look up the correct row using the keys, since these are
+        actually in the correct order.
+        """
+        values_dict = defaultdict(list)
+        for row in rows if rows is not None else []:
+            values_dict[
+                row[0] if isinstance(row[0], bytes) else row[0].tobytes()
+            ].append(row[1:])
+
+        result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
         for key in keys:
-            row_dict = {}
-            for row in rows:
-                if row[0] == key:
-                    row_dict[row[1]] = ValueProto.FromString(row[2])
-            if row_dict:
-                result.append((row[3], row_dict))
+            if key in values_dict:
+                value = values_dict[key]
+                res = {}
+                for feature_name, value_bin, event_ts in value:
+                    val = ValueProto()
+                    val.ParseFromString(bytes(value_bin))
+                    res[feature_name] = val
+                result.append((event_ts, res))
             else:
                 result.append((None, None))
-        return result
+        return resul
