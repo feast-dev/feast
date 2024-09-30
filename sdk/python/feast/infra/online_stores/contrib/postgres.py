@@ -183,7 +183,7 @@ class PostgreSQLOnlineStore(OnlineStore):
                 await cur.execute(query, params)
                 rows = await cur.fetchall()
 
-        return self._process_rows(keys, rows)
+        return _process_rows(keys, rows)
 
     @staticmethod
     def _construct_query_and_params(
