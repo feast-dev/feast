@@ -1,6 +1,7 @@
 import struct
+from collections import defaultdict
 from datetime import datetime, timezone
-from typing import Any, List, Tuple, Optional, Dict
+from typing import Any, Dict, List, Optional, Tuple
 
 import mmh3
 
@@ -13,7 +14,6 @@ from feast.infra.key_encoding_utils import (
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
-from collections import defaultdict
 
 
 def get_online_store_from_config(online_store_config: Any) -> OnlineStore:
@@ -26,9 +26,7 @@ def get_online_store_from_config(online_store_config: Any) -> OnlineStore:
 
 
 def _redis_key(
-        project: str,
-        entity_key: EntityKeyProto,
-        entity_key_serialization_version=1
+    project: str, entity_key: EntityKeyProto, entity_key_serialization_version=1
 ) -> bytes:
     key: List[bytes] = [
         serialize_entity_key(
@@ -55,8 +53,7 @@ def _mmh3(key: str):
 
 
 def compute_entity_id(
-        entity_key: EntityKeyProto,
-        entity_key_serialization_version=1
+    entity_key: EntityKeyProto, entity_key_serialization_version=1
 ) -> str:
     """
     Compute Entity id given Feast Entity Key for online stores.
@@ -78,14 +75,12 @@ def _to_naive_utc(ts: datetime) -> datetime:
         return ts.astimezone(tz=timezone.utc).replace(tzinfo=None)
 
 
-def _table_id(project: str,
-              table: FeatureView) -> str:
+def _table_id(project: str, table: FeatureView) -> str:
     return f"{project}_{table.name}"
 
 
 def _process_rows(
-        keys: List[bytes],
-        rows: List[Tuple]
+    keys: List[bytes], rows: List[Tuple]
 ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
     """Transform the retrieved rows in the desired output.
 
@@ -95,9 +90,9 @@ def _process_rows(
     """
     values_dict = defaultdict(list)
     for row in rows if rows is not None else []:
-        values_dict[
-            row[0] if isinstance(row[0], bytes) else row[0].tobytes()
-        ].append(row[1:])
+        values_dict[row[0] if isinstance(row[0], bytes) else row[0].tobytes()].append(
+            row[1:]
+        )
 
     result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
     for key in keys:

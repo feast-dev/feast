@@ -1,4 +1,3 @@
-from collections import defaultdict
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
 
@@ -7,7 +6,7 @@ import duckdb
 from feast import Entity
 from feast.feature_view import FeatureView
 from feast.infra.key_encoding_utils import serialize_entity_key
-from feast.infra.online_stores.helpers import _table_id, _to_naive_utc, _process_rows
+from feast.infra.online_stores.helpers import _process_rows, _table_id, _to_naive_utc
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.online_stores.vector_store import VectorStoreConfig
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
