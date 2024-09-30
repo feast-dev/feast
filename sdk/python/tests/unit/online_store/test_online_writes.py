@@ -103,7 +103,7 @@ class TestOnlineWrites(unittest.TestCase):
                 ]
             )
             # after apply() join_keys is [driver]
-            assert driver_stats_fv.join_keys == [driver]
+            assert driver_stats_fv.join_keys == [driver.join_key]
             self.store.write_to_online_store(
                 feature_view_name="driver_hourly_stats", df=driver_df
             )
