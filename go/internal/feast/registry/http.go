@@ -34,6 +34,7 @@ func NewHttpRegistryStore(config *RegistryConfig, project string) (*HttpRegistry
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		IdleConnTimeout: 60 * time.Second,
 	}
+	log.Info().Msgf("Using Feature Registry: %s", config.Path)
 
 	hrs := &HttpRegistryStore{
 		project:  project,

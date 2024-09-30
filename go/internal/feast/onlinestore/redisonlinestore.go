@@ -21,6 +21,7 @@ import (
 
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/feast-dev/feast/go/protos/feast/types"
+	"github.com/rs/zerolog/log"
 	redistrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/redis/go-redis.v9"
 )
 
@@ -112,9 +113,10 @@ func NewRedisOnlineStore(project string, config *registry.RepoConfig, onlineStor
 	}
 
 	if redisStoreType == redisNode {
+		log.Info().Msgf("Using Redis: %s", address[0])
 		store.client = redis.NewClient(&redis.Options{
 			Addr:      address[0],
-			Password:  password, // No password set
+			Password:  password,
 			DB:        db,
 			TLSConfig: tlsConfig,
 		})
@@ -122,9 +124,10 @@ func NewRedisOnlineStore(project string, config *registry.RepoConfig, onlineStor
 			redistrace.WrapClient(store.client, redistrace.WithServiceName(redisTraceServiceName))
 		}
 	} else if redisStoreType == redisCluster {
+		log.Info().Msgf("Using Redis Cluster: %s", address)
 		store.clusterClient = redis.NewClusterClient(&redis.ClusterOptions{
-			Addrs:     []string{address[0]},
-			Password:  password, // No password set
+			Addrs:     address,
+			Password:  password,
 			TLSConfig: tlsConfig,
 			ReadOnly:  true,
 		})

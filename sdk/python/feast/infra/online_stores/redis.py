@@ -223,6 +223,7 @@ class RedisOnlineStore(OnlineStore):
                 online_store_config.connection_string
             )
             if online_store_config.redis_type == RedisType.redis_cluster:
+                logger.info(f"Using Redis Cluster: {startup_nodes}")
                 kwargs["startup_nodes"] = [
                     ClusterNode(**node) for node in startup_nodes
                 ]
@@ -233,10 +234,12 @@ class RedisOnlineStore(OnlineStore):
                 for item in startup_nodes:
                     sentinel_hosts.append((item["host"], int(item["port"])))
 
+                logger.info(f"Using Redis Sentinel: {sentinel_hosts}")
                 sentinel = Sentinel(sentinel_hosts, **kwargs)
                 master = sentinel.master_for(online_store_config.sentinel_master)
                 self._client = master
             else:
+                logger.info(f"Using Redis: {startup_nodes[0]}")
                 kwargs["host"] = startup_nodes[0]["host"]
                 kwargs["port"] = startup_nodes[0]["port"]
                 self._client = Redis(**kwargs)
