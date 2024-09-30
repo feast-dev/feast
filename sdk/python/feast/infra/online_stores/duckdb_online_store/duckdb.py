@@ -1,19 +1,17 @@
-from typing import Literal
-from feast.repo_config import FeastConfigBaseModel
+from datetime import datetime
+from typing import Any, Callable, Dict, List, Literal, Optional, Tuple
 
 import duckdb
-from typing import Any, Callable, Dict, List, Optional, Tuple
-from datetime import datetime
 
 from feast import Entity
 from feast.feature_view import FeatureView
 from feast.infra.key_encoding_utils import serialize_entity_key
+from feast.infra.online_stores.helpers import _table_id, _to_naive_utc
 from feast.infra.online_stores.online_store import OnlineStore
-from feast.infra.online_stores.helpers import _to_naive_utc, _table_id
 from feast.infra.online_stores.vector_store import VectorStoreConfig
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
-from feast.repo_config import RepoConfig
+from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.utils import _build_retrieve_online_document_record
 
 # For more information on the duckdb distance metrics, see:
@@ -187,7 +185,7 @@ class DuckDBOnlineStore(OnlineStore):
     ]:
         if distance_metric:
             raise ValueError(
-                f"Distance Metric is not supported at retrieval time for DuckDB. Please specify the distance metric in the online store config."
+                "Distance Metric is not supported at retrieval time for DuckDB. Please specify the distance metric in the online store config."
             )
         distance_metric = config.online_store.vector_config.similarity
 
