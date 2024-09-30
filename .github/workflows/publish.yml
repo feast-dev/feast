@@ -49,7 +49,7 @@ jobs:
     needs: [get-version, publish-python-sdk]
     strategy:
       matrix:
-        component: [feature-server, feature-server-java, feature-transformation-server, feast-operator]
+        component: [feature-server, feature-server-java, feature-transformation-server, feast-helm-operator]
     env:
       MAVEN_CACHE: gs://feast-templocation-kf-feast/.m2.2020-08-19.tar
       REGISTRY: feastdev
