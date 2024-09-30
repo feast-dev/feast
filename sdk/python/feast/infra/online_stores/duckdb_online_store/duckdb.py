@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Sequence
+from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
 
 import duckdb
 
@@ -155,8 +155,8 @@ class DuckDBOnlineStore(OnlineStore):
     def teardown(
         self,
         config: RepoConfig,
-        tables: List[FeatureView],
-        entities: List[Entity],
+        tables: Sequence[FeatureView],
+        entities: Sequence[Entity],
     ):
         conn = self._get_conn(config)
         try:
@@ -190,6 +190,8 @@ class DuckDBOnlineStore(OnlineStore):
                 "Distance Metric is not supported at retrieval time for DuckDB. Please specify the distance metric in the online store config."
             )
         distance_metric = config.online_store.vector_config.similarity
+        if not distance_metric:
+            distance_metric = "l2sq"
 
         distance_metric_sql = SUPPORTED_DISTANCE_METRICS_DICT[distance_metric]
         conn = self._get_conn(config)
@@ -235,7 +237,7 @@ class DuckDBOnlineStore(OnlineStore):
         distance_metric = online_store_config.vector_config.similarity
         try:
             conn.execute(f"""
-                CREATE INDEX {self.index_name} ON {table_name} USING HNSW(vector_value) WITH (metric = '{distance_metric}')
+                CREATE INDEX {table_name}_index ON {table_name} USING HNSW(vector_value) WITH (metric = '{distance_metric}')
             """)
         except Exception as e:
             raise RuntimeError(f"Failed to create index in DuckDB: {e}")
