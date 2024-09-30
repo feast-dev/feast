@@ -273,4 +273,4 @@ class DuckDBOnlineStore(OnlineStore):
                 result.append((event_ts, res))
             else:
                 result.append((None, None))
-        return resuls
+        return result
