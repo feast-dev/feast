@@ -493,7 +493,8 @@ def test_invalid_python_transformation_raises_type_error_on_apply():
             schema=[Field(name="driver_name_lower", dtype=String)],
             mode="python",
         )
-        def python_view(inputs: dict[str, Any]) -> dict[str, Any]: return {"driver_name_lower": []}
+        def python_view(inputs: dict[str, Any]) -> dict[str, Any]:
+            return {"driver_name_lower": []}
 
         with pytest.raises(
             TypeError,
@@ -628,7 +629,9 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
             )
             assert (
                 python_stored_writes_feature_view.entity_columns
-                == self.store.get_on_demand_feature_view("python_stored_writes_feature_view").entity_columns
+                == self.store.get_on_demand_feature_view(
+                    "python_stored_writes_feature_view"
+                ).entity_columns
             )
 
             current_datetime = _utc_now()
@@ -660,7 +663,7 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
                 {
                     "driver_id": 1001,
                     "conv_rate": 0.25,
-                    "acc_rate": 0.25,
+                    "acc_rate": 0.50,
                     "counter": 0,
                     "input_datetime": current_datetime,
                 }
@@ -679,14 +682,21 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
                     "driver_hourly_stats:avg_daily_trips",
                 ],
             ).to_dict()
-            print(online_python_response)
+
+            assert online_python_response == {
+                "driver_id": [1001],
+                "conv_rate": [0.25],
+                "avg_daily_trips": [2],
+                "acc_rate": [0.25],
+            }
+
             print("storing odfv features")
             self.store.write_to_online_store(
                 feature_view_name="python_stored_writes_feature_view",
                 df=odfv_entity_rows_to_write,
             )
             print("reading odfv features")
-            online_python_response = self.store.get_online_features(
+            online_odfv_python_response = self.store.get_online_features(
                 entity_rows=odfv_entity_rows_to_read,
                 features=[
                     "python_stored_writes_feature_view:conv_rate_plus_acc",
@@ -695,8 +705,8 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
                     "python_stored_writes_feature_view:input_datetime",
                 ],
             ).to_dict()
-            print(online_python_response)
-            assert sorted(list(online_python_response.keys())) == sorted(
+            print(online_odfv_python_response)
+            assert sorted(list(online_odfv_python_response.keys())) == sorted(
                 [
                     "driver_id",
                     "conv_rate_plus_acc",

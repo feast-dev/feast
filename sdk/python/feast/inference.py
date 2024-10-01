@@ -306,9 +306,7 @@ def _infer_on_demand_features_and_entities(
                 field = Field(
                     name=col_name,
                     dtype=from_value_type(
-                        batch_source.source_datatype_to_feast_value_type()(
-                            col_datatype
-                        )
+                        batch_source.source_datatype_to_feast_value_type()(col_datatype)
                     ),
                 )
                 if field.name not in [

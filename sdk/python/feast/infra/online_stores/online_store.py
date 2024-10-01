@@ -151,6 +151,8 @@ class OnlineStore(ABC):
             native_entity_values=True,
         )
 
+        if join_key_values.get("driver_id", None):
+            print("table_entity_values:", join_key_values)
         for table, requested_features in grouped_refs:
             # Get the correct set of entity values with the correct join keys.
             table_entity_values, idxs = utils._get_unique_entities(

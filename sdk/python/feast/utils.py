@@ -28,7 +28,6 @@ from google.protobuf.timestamp_pb2 import Timestamp
 from feast.constants import FEAST_FS_YAML_FILE_PATH_ENV_NAME
 from feast.entity import Entity
 from feast.errors import (
-    EntityNotFoundException,
     FeatureNameCollisionError,
     FeatureViewNotFoundException,
     RequestDataNotFoundInEntityRowsException,
@@ -1032,23 +1031,20 @@ def _prepare_entities_to_read_from_online_store(
         # Found request data
         if join_key_or_entity_name in needed_request_data:
             request_data_features[join_key_or_entity_name] = values
-        else:
-            if join_key_or_entity_name in join_keys_set:
-                join_key = join_key_or_entity_name
-            else:
-                try:
-                    if join_key_or_entity_name in request_source_keys:
-                        join_key = entity_name_to_join_key_map[join_key_or_entity_name]
-                except KeyError:
-                    raise EntityNotFoundException(join_key_or_entity_name, project)
-                else:
-                    warnings.warn(
-                        "Using entity name is deprecated. Use join_key instead."
-                    )
-
-            # All join keys should be returned in the result.
+        elif join_key_or_entity_name in join_keys_set:
+            # It's a join key
+            join_key = join_key_or_entity_name
             requested_result_row_names.add(join_key)
             join_key_values[join_key] = values
+        elif join_key_or_entity_name in entity_name_to_join_key_map:
+            # It's an entity name (deprecated)
+            join_key = entity_name_to_join_key_map[join_key_or_entity_name]
+            warnings.warn("Using entity name is deprecated. Use join_key instead.")
+            requested_result_row_names.add(join_key)
+            join_key_values[join_key] = values
+        else:
+            # Key is not recognized (likely a feature value), so we skip it.
+            continue  # Or handle accordingly
 
     ensure_request_data_values_exist(needed_request_data, request_data_features)
 
