@@ -1,7 +1,7 @@
-FROM python:3.11-slim-bullseye AS build
+FROM debian:11-slim AS build
 
 RUN apt-get update && \
-    apt-get install --no-install-suggests --no-install-recommends --yes git
+    apt-get install --no-install-suggests --no-install-recommends --yes git python3 python3-pip
 
 WORKDIR /app
 

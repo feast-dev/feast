@@ -8,7 +8,7 @@ layout:
 plugins:
   manifests.sdk.operatorframework.io/v2: {}
   scorecard.sdk.operatorframework.io/v2: {}
-projectName: feast-operator
+projectName: feast-helm-operator
 resources:
 - api:
     crdVersion: v1

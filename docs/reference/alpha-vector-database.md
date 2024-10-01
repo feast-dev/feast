@@ -40,7 +40,7 @@ registry:
   path: postgresql://@localhost:5432/feast
 online_store:
   type: postgres
-  pgvector_enabled: true
+  vector_enabled: true
   vector_len: 384
   host: 127.0.0.1
   port: 5432

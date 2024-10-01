@@ -29,6 +29,7 @@ from feast.feature_view import FeatureView
 from feast.infra.infra_object import SQLITE_INFRA_OBJECT_CLASS_TYPE, InfraObject
 from feast.infra.key_encoding_utils import serialize_entity_key
 from feast.infra.online_stores.online_store import OnlineStore
+from feast.infra.online_stores.vector_store import VectorStoreConfig
 from feast.protos.feast.core.InfraObject_pb2 import InfraObject as InfraObjectProto
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.protos.feast.core.SqliteTable_pb2 import SqliteTable as SqliteTableProto
@@ -38,7 +39,7 @@ from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.utils import _build_retrieve_online_document_record, to_naive_utc
 
 
-class SqliteOnlineStoreConfig(FeastConfigBaseModel):
+class SqliteOnlineStoreConfig(FeastConfigBaseModel, VectorStoreConfig):
     """Online store config for local (SQLite-based) store"""
 
     type: Literal["sqlite", "feast.infra.online_stores.sqlite.SqliteOnlineStore"] = (
@@ -48,12 +49,6 @@ class SqliteOnlineStoreConfig(FeastConfigBaseModel):
 
     path: StrictStr = "data/online.db"
     """ (optional) Path to sqlite db """
-
-    vec_enabled: Optional[bool] = False
-    """ (optional) Enable or disable sqlite-vss for vector search"""
-
-    vector_len: Optional[int] = 512
-    """ (optional) Length of the vector to be stored in the database"""
 
 
 class SqliteOnlineStore(OnlineStore):
@@ -83,7 +78,7 @@ class SqliteOnlineStore(OnlineStore):
         if not self._conn:
             db_path = self._get_db_path(config)
             self._conn = _initialize_conn(db_path)
-            if sys.version_info[0:2] == (3, 10) and config.online_store.vec_enabled:
+            if sys.version_info[0:2] == (3, 10) and config.online_store.vector_enabled:
                 import sqlite_vec  # noqa: F401
 
                 self._conn.enable_load_extension(True)  # type: ignore
@@ -121,7 +116,7 @@ class SqliteOnlineStore(OnlineStore):
 
                 table_name = _table_id(project, table)
                 for feature_name, val in values.items():
-                    if config.online_store.vec_enabled:
+                    if config.online_store.vector_enabled:
                         vector_bin = serialize_f32(
                             val.float_list_val.val, config.online_store.vector_len
                         )  # type: ignore
@@ -321,7 +316,7 @@ class SqliteOnlineStore(OnlineStore):
         """
         project = config.project
 
-        if not config.online_store.vec_enabled:
+        if not config.online_store.vector_enabled:
             raise ValueError("sqlite-vss is not enabled in the online store config")
 
         conn = self._get_conn(config)

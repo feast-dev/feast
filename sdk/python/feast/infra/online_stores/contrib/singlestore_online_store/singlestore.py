@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
 
 import singlestoredb
@@ -11,6 +11,7 @@ from singlestoredb.exceptions import InterfaceError
 
 from feast import Entity, FeatureView, RepoConfig
 from feast.infra.key_encoding_utils import serialize_entity_key
+from feast.infra.online_stores.helpers import _to_naive_utc
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
@@ -225,10 +226,3 @@ def _drop_table_and_index(cur: Cursor, project: str, table: FeatureView) -> None
 
 def _table_id(project: str, table: FeatureView) -> str:
     return f"{project}_{table.name}"
-
-
-def _to_naive_utc(ts: datetime) -> datetime:
-    if ts.tzinfo is None:
-        return ts
-    else:
-        return ts.astimezone(tz=timezone.utc).replace(tzinfo=None)

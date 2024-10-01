@@ -23,10 +23,9 @@ from psycopg_pool import AsyncConnectionPool, ConnectionPool
 from feast import Entity
 from feast.feature_view import FeatureView
 from feast.infra.key_encoding_utils import get_list_val_str, serialize_entity_key
-from feast.infra.online_stores.contrib.singlestore_online_store.singlestore import (
-    _to_naive_utc,
-)
+from feast.infra.online_stores.helpers import _to_naive_utc
 from feast.infra.online_stores.online_store import OnlineStore
+from feast.infra.online_stores.vector_store import VectorStoreConfig
 from feast.infra.utils.postgres.connection_utils import (
     _get_conn,
     _get_conn_async,
@@ -47,14 +46,8 @@ SUPPORTED_DISTANCE_METRICS_DICT = {
 }
 
 
-class PostgreSQLOnlineStoreConfig(PostgreSQLConfig):
+class PostgreSQLOnlineStoreConfig(PostgreSQLConfig, VectorStoreConfig):
     type: Literal["postgres"] = "postgres"
-
-    # Whether to enable the pgvector extension for vector similarity search
-    pgvector_enabled: Optional[bool] = False
-
-    # If pgvector is enabled, the length of the vector field
-    vector_len: Optional[int] = 512
 
 
 class PostgreSQLOnlineStore(OnlineStore):
@@ -120,7 +113,7 @@ class PostgreSQLOnlineStore(OnlineStore):
 
             for feature_name, val in values.items():
                 vector_val = None
-                if config.online_store.pgvector_enabled:
+                if config.online_store.vector_enabled:
                     vector_val = get_list_val_str(val)
                 insert_values.append(
                     (
@@ -304,7 +297,7 @@ class PostgreSQLOnlineStore(OnlineStore):
 
             for table in tables_to_keep:
                 table_name = _table_id(project, table)
-                if config.online_store.pgvector_enabled:
+                if config.online_store.vector_enabled:
                     vector_value_type = f"vector({config.online_store.vector_len})"
                 else:
                     # keep the vector_value_type as BYTEA if pgvector is not enabled, to maintain compatibility
@@ -382,7 +375,7 @@ class PostgreSQLOnlineStore(OnlineStore):
         """
         project = config.project
 
-        if not config.online_store.pgvector_enabled:
+        if not config.online_store.vector_enabled:
             raise ValueError(
                 "pgvector is not enabled in the online store configuration"
             )

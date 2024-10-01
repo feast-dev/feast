@@ -9,21 +9,18 @@
   "types": "./dist/FeastUI.d.ts",
   "module": "./dist/feast-ui.module.js",
   "peerDependencies": {
-    "@elastic/datemath": "^5.0.3",
     "@elastic/eui": "^55.0.1",
     "@emotion/react": "^11.7.1",
-    "d3": "^7.3.0",
-    "inter-ui": "^3.19.3",
-    "moment": "^2.29.1",
-    "prop-types": "^15.8.1",
-    "query-string": "^7.1.1",
     "react": "^17.0.2",
-    "react-dom": "^17.0.2",
-    "react-query": "^3.34.12",
-    "react-router-dom": "<6.4.0",
-    "react-scripts": "^5.0.0",
-    "use-query-params": "^1.2.3",
-    "zod": "^3.11.6"
+    "react-dom": "^17.0.2"
+  },
+  "peerDependenciesMeta": {
+    "@elastic/eui": {
+      "optional": true
+    },
+    "@emotion/react": {
+      "optional": true
+    }
   },
   "dependencies": {
     "@elastic/datemath": "^5.0.3",

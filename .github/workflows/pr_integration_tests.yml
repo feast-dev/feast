@@ -11,6 +11,9 @@ on:
 #concurrency:
 #  group: pr-integration-tests-${{ github.event.pull_request.number }}
 #  cancel-in-progress: true
+permissions:
+  actions: write
+  pull-requests: read
 
 jobs:
   integration-test-python:
@@ -46,6 +49,7 @@ jobs:
           # code from the PR.
           ref: refs/pull/${{ github.event.pull_request.number }}/merge
           submodules: recursive
+          persist-credentials: false
       - name: Setup Python
         uses: actions/setup-python@v5
         id: setup-python
