@@ -18,7 +18,7 @@ metadata:
         }
       ]
     capabilities: Basic Install
-    createdAt: "2024-10-01T21:03:03Z"
+    createdAt: "2024-10-01T21:27:54Z"
     operators.operatorframework.io/builder: operator-sdk-v1.37.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
   name: feast-operator.v0.40.0
@@ -129,7 +129,7 @@ spec:
                 - --leader-elect
                 command:
                 - /manager
-                image: controller:latest
+                image: feastdev/feast-operator:0.40.0
                 livenessProbe:
                   httpGet:
                     path: /healthz
