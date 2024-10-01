@@ -8,6 +8,7 @@ import pyarrow
 from tqdm import tqdm
 
 from feast import FeatureService, errors
+from feast.base_feature_view import BaseFeatureView
 from feast.data_source import DataSource
 from feast.entity import Entity
 from feast.feature_view import FeatureView
@@ -15,6 +16,7 @@ from feast.importer import import_class
 from feast.infra.infra_object import Infra
 from feast.infra.offline_stores.offline_store import RetrievalJob
 from feast.infra.registry.base_registry import BaseRegistry
+from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.online_response import OnlineResponse
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
@@ -47,7 +49,7 @@ class Provider(ABC):
         self,
         project: str,
         tables_to_delete: Sequence[FeatureView],
-        tables_to_keep: Sequence[FeatureView],
+        tables_to_keep: Sequence[Union[FeatureView, OnDemandFeatureView]],
         entities_to_delete: Sequence[Entity],
         entities_to_keep: Sequence[Entity],
         partial: bool,
@@ -125,8 +127,9 @@ class Provider(ABC):
 
     def ingest_df(
         self,
-        feature_view: FeatureView,
+        feature_view: Union[BaseFeatureView, FeatureView, OnDemandFeatureView],
         df: pd.DataFrame,
+        field_mapping: Optional[Dict] = None,
     ):
         """
         Persists a dataframe to the online store.
@@ -134,6 +137,7 @@ class Provider(ABC):
         Args:
             feature_view: The feature view to which the dataframe corresponds.
             df: The dataframe to be persisted.
+            field_mapping: A dictionary mapping dataframe column names to feature names.
         """
         pass
 

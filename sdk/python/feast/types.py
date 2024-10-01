@@ -207,6 +207,9 @@ def from_feast_to_pyarrow_type(feast_type: FeastType) -> pyarrow.DataType:
     Raises:
         ValueError: The conversion could not be performed.
     """
+    assert isinstance(
+        feast_type, FeastType
+    ), f"Expected FeastType, got {type(feast_type)}"
     if feast_type in FEAST_TYPES_TO_PYARROW_TYPES:
         return FEAST_TYPES_TO_PYARROW_TYPES[feast_type]
 

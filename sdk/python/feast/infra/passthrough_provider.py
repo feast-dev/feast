@@ -6,6 +6,7 @@ import pyarrow as pa
 from tqdm import tqdm
 
 from feast import OnDemandFeatureView, importer
+from feast.base_feature_view import BaseFeatureView
 from feast.batch_feature_view import BatchFeatureView
 from feast.data_source import DataSource
 from feast.entity import Entity
@@ -122,7 +123,7 @@ class PassthroughProvider(Provider):
         self,
         project: str,
         tables_to_delete: Sequence[FeatureView],
-        tables_to_keep: Sequence[FeatureView],
+        tables_to_keep: Sequence[Union[FeatureView, OnDemandFeatureView]],
         entities_to_delete: Sequence[Entity],
         entities_to_keep: Sequence[Entity],
         partial: bool,
@@ -274,12 +275,14 @@ class PassthroughProvider(Provider):
 
     def ingest_df(
         self,
-        feature_view: FeatureView,
+        feature_view: Union[BaseFeatureView, FeatureView, OnDemandFeatureView],
         df: pd.DataFrame,
         field_mapping: Optional[Dict] = None,
     ):
         table = pa.Table.from_pandas(df)
         if isinstance(feature_view, OnDemandFeatureView):
+            if not field_mapping:
+                field_mapping = {}
             table = _run_pyarrow_field_mapping(table, field_mapping)
             join_keys = {
                 entity.name: entity.dtype.to_value_type()

@@ -893,10 +893,11 @@ class FeatureStore:
                     data_sources_set_to_update.add(fv.stream_source)
             if isinstance(fv, OnDemandFeatureView):
                 for source_fvp in fv.source_feature_view_projections:
-                    if fv.source_feature_view_projections[source_fvp].batch_source:
-                        data_sources_set_to_update.add(
-                            fv.source_feature_view_projections[source_fvp].batch_source
-                        )
+                    odfv_batch_source: Optional[DataSource] = (
+                        fv.source_feature_view_projections[source_fvp].batch_source
+                    )
+                    if odfv_batch_source is not None:
+                        data_sources_set_to_update.add(odfv_batch_source)
             else:
                 pass
 
@@ -1018,9 +1019,9 @@ class FeatureStore:
         tables_to_delete: List[FeatureView] = (
             views_to_delete + sfvs_to_delete if not partial else []  # type: ignore
         )
-        tables_to_keep: List[FeatureView] = (
-            views_to_update + sfvs_to_update + odfvs_with_writes_to_update
-        )  # type: ignore
+        tables_to_keep: List[
+            Union[FeatureView, StreamFeatureView, OnDemandFeatureView]
+        ] = views_to_update + sfvs_to_update + odfvs_with_writes_to_update  # type: ignore
 
         self._get_provider().update_infra(
             project=self.project,
@@ -1503,12 +1504,7 @@ class FeatureStore:
                     raise DataFrameSerializationError
 
         provider = self._get_provider()
-        if isinstance(feature_view, OnDemandFeatureView):
-            # TODO: add projection mapping
-            projection_mapping = {}
-            provider.ingest_df(feature_view, df, projection_mapping)
-        else:
-            provider.ingest_df(feature_view, df)
+        provider.ingest_df(feature_view, df)
 
     def write_to_offline_store(
         self,

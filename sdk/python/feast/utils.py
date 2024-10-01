@@ -228,14 +228,14 @@ def _coerce_datetime(ts):
 
 def _convert_arrow_to_proto(
     table: Union[pyarrow.Table, pyarrow.RecordBatch],
-    feature_view: "FeatureView",
+    feature_view: Union["FeatureView", "OnDemandFeatureView"],
     join_keys: Dict[str, ValueType],
 ) -> List[Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]]:
     # This is a workaround for isinstance(feature_view, OnDemandFeatureView), which triggers a circular import
     if getattr(feature_view, "source_request_sources", None):
-        return _convert_arrow_odfv_to_proto(table, feature_view, join_keys)
+        return _convert_arrow_odfv_to_proto(table, feature_view, join_keys)  # type: ignore[arg-type]
     else:
-        return _convert_arrow_fv_to_proto(table, feature_view, join_keys)
+        return _convert_arrow_fv_to_proto(table, feature_view, join_keys)  # type: ignore[arg-type]
 
 
 def _convert_arrow_fv_to_proto(
@@ -301,7 +301,7 @@ def _convert_arrow_fv_to_proto(
 
 def _convert_arrow_odfv_to_proto(
     table: Union[pyarrow.Table, pyarrow.RecordBatch],
-    feature_view: "FeatureView",
+    feature_view: "OnDemandFeatureView",
     join_keys: Dict[str, ValueType],
 ) -> List[Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]]:
     # Avoid ChunkedArrays which guarantees `zero_copy_only` available.
@@ -1013,7 +1013,7 @@ def _prepare_entities_to_read_from_online_store(
 
     num_rows = _validate_entity_values(entity_proto_values)
 
-    odfv_entities = []
+    odfv_entities: List[Entity] = []
     request_source_keys = []
     for on_demand_feature_view in requested_on_demand_feature_views:
         odfv_entities.append(*getattr(on_demand_feature_view, "entities", None))

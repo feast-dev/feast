@@ -209,7 +209,7 @@ def _infer_features_and_entities(
             fv, join_keys, run_inference_for_features, config
         )
 
-    entity_columns = []
+    entity_columns: List[Field] = []
     columns_to_exclude = {
         fv.batch_source.timestamp_field,
         fv.batch_source.created_timestamp_column,
