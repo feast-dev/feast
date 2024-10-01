@@ -39,10 +39,11 @@ spec:
           spec:
             description: FeatureStoreSpec defines the desired state of FeatureStore
             properties:
-              foo:
-                description: Foo is an example field of FeatureStore. Edit featurestore_types.go
-                  to remove/update
+              feastProject:
+                description: FeastProject ...
                 type: string
+            required:
+            - feastProject
             type: object
           status:
             description: FeatureStoreStatus defines the observed state of FeatureStore
