@@ -30,7 +30,6 @@ from feast.infra.offline_stores.offline_store import (
     RetrievalMetadata,
 )
 from feast.infra.registry.base_registry import BaseRegistry
-from feast.infra.utils import aws_utils
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 from feast.type_map import spark_schema_to_np_dtypes
@@ -399,6 +398,8 @@ class SparkRetrievalJob(RetrievalJob):
 
                 return _list_files_in_folder(output_uri)
             elif self._config.offline_store.staging_location.startswith("s3://"):
+                from feast.infra.utils import aws_utils
+
                 spark_compatible_s3_staging_location = (
                     self._config.offline_store.staging_location.replace(
                         "s3://", "s3a://"
