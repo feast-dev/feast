@@ -1,11 +1,13 @@
 import importlib
 import json
 import logging
-from typing import Any, List, Optional, Set
+from typing import TYPE_CHECKING, Any, List, Optional, Set
 
 from colorama import Fore, Style
 from fastapi import status as HttpStatusCode
-from grpc import StatusCode as GrpcStatusCode
+
+if TYPE_CHECKING:
+    from grpc import StatusCode as GrpcStatusCode
 
 from feast.field import Field
 
@@ -15,7 +17,9 @@ logger = logging.getLogger(__name__)
 class FeastError(Exception):
     pass
 
-    def grpc_status_code(self) -> GrpcStatusCode:
+    def grpc_status_code(self) -> "GrpcStatusCode":
+        from grpc import StatusCode as GrpcStatusCode
+
         return GrpcStatusCode.INTERNAL
 
     def http_status_code(self) -> int:
@@ -89,7 +93,9 @@ class DataSourceRepeatNamesException(FeastError):
 class FeastObjectNotFoundException(FeastError):
     pass
 
-    def grpc_status_code(self) -> GrpcStatusCode:
+    def grpc_status_code(self) -> "GrpcStatusCode":
+        from grpc import StatusCode as GrpcStatusCode
+
         return GrpcStatusCode.NOT_FOUND
 
     def http_status_code(self) -> int:
@@ -509,7 +515,9 @@ class FeastPermissionError(FeastError, PermissionError):
     def __init__(self, details: str):
         super().__init__(f"Permission error:\n{details}")
 
-    def grpc_status_code(self) -> GrpcStatusCode:
+    def grpc_status_code(self) -> "GrpcStatusCode":
+        from grpc import StatusCode as GrpcStatusCode
+
         return GrpcStatusCode.PERMISSION_DENIED
 
     def http_status_code(self) -> int:
