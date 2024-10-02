@@ -888,7 +888,7 @@ class FeatureStore:
         ):
             if isinstance(fv, FeatureView):
                 data_sources_set_to_update.add(fv.batch_source)
-            if hasattr(fv, 'stream_source'):
+            if hasattr(fv, "stream_source"):
                 if fv.stream_source:
                     data_sources_set_to_update.add(fv.stream_source)
             if isinstance(fv, OnDemandFeatureView):

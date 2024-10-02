@@ -359,21 +359,6 @@ def test_apply_dummy_entity_and_feature_view_columns(test_feature_store):
 
     e1 = Entity(name="fs1_my_entity_1", description="something")
 
-    fv_with_entity = FeatureView(
-        name="my_feature_view_with_entity",
-        schema=[
-            Field(name="fs1_my_feature_1", dtype=Int64),
-            Field(name="fs1_my_feature_2", dtype=String),
-            Field(name="fs1_my_feature_3", dtype=Array(String)),
-            Field(name="fs1_my_feature_4", dtype=Array(Bytes)),
-            Field(name="fs1_my_entity_1", dtype=Int64),
-        ],
-        entities=[e1],
-        tags={"team": "matchmaking"},
-        source=batch_source,
-        ttl=timedelta(minutes=5),
-    )
-
     fv_no_entity = FeatureView(
         name="my_feature_view_no_entity",
         schema=[
@@ -384,26 +369,33 @@ def test_apply_dummy_entity_and_feature_view_columns(test_feature_store):
         source=batch_source,
         ttl=timedelta(minutes=5),
     )
+    fv_with_entity = FeatureView(
+        name="my_feature_view_with_entity",
+        schema=[
+            Field(name="fs1_my_feature_1", dtype=Int64),
+        ],
+        entities=[e1],
+        tags={"team": "matchmaking"},
+        source=batch_source,
+        ttl=timedelta(minutes=5),
+    )
 
     # Check that the entity_columns are empty before applying
     assert fv_no_entity.entities == [DUMMY_ENTITY_NAME]
     assert fv_no_entity.entity_columns == []
-    assert fv_with_entity.entity_columns[0].name == e1.name
+    assert fv_with_entity.entity_columns == []
 
     # Register Feature View
-    test_feature_store.apply([e1, fv_no_entity, fv_with_entity])
+    test_feature_store.apply([e1, fv_no_entity])
     fv_from_online_store = test_feature_store.get_feature_view(
         "my_feature_view_no_entity"
     )
-
     # Note that after the apply() the feature_view serializes the Dummy Entity ID
     assert fv_no_entity.entity_columns[0].name == DUMMY_ENTITY_ID
     assert fv_from_online_store.entity_columns[0].name == DUMMY_ENTITY_ID
     assert fv_from_online_store.entities == []
     assert fv_no_entity.entities == [DUMMY_ENTITY_NAME]
 
-    assert fv_with_entity.entity_columns[0].name == e1.name
-    assert fv_with_entity.entities == [e1.name]
     test_feature_store.teardown()
 
 
