@@ -398,7 +398,6 @@ class SparkRetrievalJob(RetrievalJob):
 
                 return _list_files_in_folder(output_uri)
             elif self._config.offline_store.staging_location.startswith("s3://"):
-
                 from feast.infra.utils import aws_utils
 
                 spark_compatible_s3_staging_location = (
