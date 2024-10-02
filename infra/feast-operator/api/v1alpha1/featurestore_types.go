@@ -28,7 +28,9 @@ type FeatureStoreSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// FeastProject ...
+	// +kubebuilder:validation:MaxLength=16
+	// +kubebuilder:validation:Pattern="^[a-zA-Z0-9]+$"
+	// FeastProject is the Feast project id. This can be any alphanumeric string up to 16 characters.
 	FeastProject string `json:"feastProject"`
 }
 

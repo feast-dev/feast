@@ -40,7 +40,10 @@ spec:
             description: FeatureStoreSpec defines the desired state of FeatureStore
             properties:
               feastProject:
-                description: FeastProject ...
+                description: FeastProject is the Feast project id. This can be any
+                  alphanumeric string up to 16 characters.
+                maxLength: 16
+                pattern: ^[a-zA-Z0-9]+$
                 type: string
             required:
             - feastProject
