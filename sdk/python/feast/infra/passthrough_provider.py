@@ -161,7 +161,7 @@ class PassthroughProvider(Provider):
     def online_write_batch(
         self,
         config: RepoConfig,
-        table: FeatureView,
+        table: Union[FeatureView, BaseFeatureView, OnDemandFeatureView],
         data: List[
             Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
         ],
@@ -297,15 +297,16 @@ class PassthroughProvider(Provider):
             # Note: A dictionary mapping of column names in this data
             #   source to feature names in a feature table or view. Only used for feature
             #   columns, not entity or timestamp columns.
-            if feature_view.batch_source.field_mapping is not None:
-                table = _run_pyarrow_field_mapping(
-                    table, feature_view.batch_source.field_mapping
-                )
+            if hasattr(feature_view, "batch_source"):
+                if feature_view.batch_source.field_mapping is not None:
+                    table = _run_pyarrow_field_mapping(
+                        table, feature_view.batch_source.field_mapping
+                    )
 
-            join_keys = {
-                entity.name: entity.dtype.to_value_type()
-                for entity in feature_view.entity_columns
-            }
+            join_keys = {}
+            if not isinstance(feature_view, BaseFeatureView):
+                for entity in feature_view.entity_columns:
+                    join_keys[entity.name] = entity.dtype.to_value_type()
             rows_to_write = _convert_arrow_to_proto(table, feature_view, join_keys)
 
             self.online_write_batch(

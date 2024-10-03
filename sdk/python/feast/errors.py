@@ -474,7 +474,7 @@ class DataFrameSerializationError(FeastError):
             )
         else:
             super().__init__(
-                f"Failed to serialize the provided input into a pandas DataFrame"
+                "Failed to serialize the provided input into a pandas DataFrame"
             )
 
 

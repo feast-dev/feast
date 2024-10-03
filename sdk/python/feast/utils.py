@@ -47,6 +47,7 @@ from feast.value_type import ValueType
 from feast.version import get_version
 
 if typing.TYPE_CHECKING:
+    from feast.base_feature_view import BaseFeatureView
     from feast.feature_service import FeatureService
     from feast.feature_view import FeatureView
     from feast.infra.registry.base_registry import BaseRegistry
@@ -228,7 +229,7 @@ def _coerce_datetime(ts):
 
 def _convert_arrow_to_proto(
     table: Union[pyarrow.Table, pyarrow.RecordBatch],
-    feature_view: Union["FeatureView", "OnDemandFeatureView"],
+    feature_view: Union["FeatureView", "BaseFeatureView", "OnDemandFeatureView"],
     join_keys: Dict[str, ValueType],
 ) -> List[Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]]:
     # This is a workaround for isinstance(feature_view, OnDemandFeatureView), which triggers a circular import
@@ -1016,7 +1017,7 @@ def _prepare_entities_to_read_from_online_store(
     odfv_entities: List[Entity] = []
     request_source_keys: List[str] = []
     for on_demand_feature_view in requested_on_demand_feature_views:
-        odfv_entities.append(*getattr(on_demand_feature_view, "entities", None))
+        odfv_entities.append(*getattr(on_demand_feature_view, "entities", []))
         for source in on_demand_feature_view.source_request_sources:
             source_schema = on_demand_feature_view.source_request_sources[source].schema
             for column in source_schema:
