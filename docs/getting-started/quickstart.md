@@ -475,7 +475,12 @@ We now serialize the latest values of features since the beginning of time to pr
 {% tab title="Bash" %}
 ```bash
 CURRENT_TIME=$(date -u +"%Y-%m-%dT%H:%M:%S")
-feast materialize-incremental $CURRENT_TIME
+# For mac
+LAST_YEAR=$(date -u -v -1y +"%Y-%m-%dT%H:%M:%S")
+# For Linux
+# LAST_YEAR=$(date -u -d "last year" +"%Y-%m-%dT%H:%M:%S")
+
+feast materialize-incremental $LAST_YEAR $CURRENT_TIME
 ```
 {% endtab %}
 {% endtabs %}
