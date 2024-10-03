@@ -294,6 +294,14 @@ class PassthroughProvider(Provider):
                 self.repo_config, feature_view, rows_to_write, progress=None
             )
         else:
+            if hasattr(feature_view, 'entity_columns'):
+                join_keys = {
+                    entity.name: entity.dtype.to_value_type()
+                    for entity in feature_view.entity_columns
+                }
+            else:
+                join_keys = {}
+
             # Note: A dictionary mapping of column names in this data
             #   source to feature names in a feature table or view. Only used for feature
             #   columns, not entity or timestamp columns.
@@ -302,8 +310,9 @@ class PassthroughProvider(Provider):
                     table = _run_pyarrow_field_mapping(
                         table, feature_view.batch_source.field_mapping
                     )
+            else:
+                table = _run_pyarrow_field_mapping(table, {})
 
-            join_keys = {}
             if not isinstance(feature_view, BaseFeatureView):
                 for entity in feature_view.entity_columns:
                     join_keys[entity.name] = entity.dtype.to_value_type()
