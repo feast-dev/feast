@@ -208,10 +208,14 @@ def from_feast_to_pyarrow_type(feast_type: FeastType) -> pyarrow.DataType:
         ValueError: The conversion could not be performed.
     """
     assert isinstance(
-        feast_type, FeastType
+        feast_type, (ComplexFeastType, PrimitiveFeastType)
     ), f"Expected FeastType, got {type(feast_type)}"
-    if feast_type in FEAST_TYPES_TO_PYARROW_TYPES:
-        return FEAST_TYPES_TO_PYARROW_TYPES[feast_type]
+    if isinstance(feast_type, PrimitiveFeastType):
+        if feast_type in FEAST_TYPES_TO_PYARROW_TYPES:
+            return FEAST_TYPES_TO_PYARROW_TYPES[feast_type]
+    elif isinstance(feast_type, ComplexFeastType):
+        # Handle the case when feast_type is an instance of ComplexFeastType
+        pass
 
     raise ValueError(f"Could not convert Feast type {feast_type} to PyArrow type.")
 

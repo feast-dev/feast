@@ -1014,7 +1014,7 @@ def _prepare_entities_to_read_from_online_store(
     num_rows = _validate_entity_values(entity_proto_values)
 
     odfv_entities: List[Entity] = []
-    request_source_keys = []
+    request_source_keys: List[str] = []
     for on_demand_feature_view in requested_on_demand_feature_views:
         odfv_entities.append(*getattr(on_demand_feature_view, "entities", None))
         for source in on_demand_feature_view.source_request_sources:

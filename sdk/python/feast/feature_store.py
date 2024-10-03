@@ -1501,7 +1501,7 @@ class FeatureStore:
                 try:
                     df = pd.DataFrame(df)
                 except Exception as _:
-                    raise DataFrameSerializationError
+                    raise DataFrameSerializationError(df)
 
         provider = self._get_provider()
         provider.ingest_df(feature_view, df)
