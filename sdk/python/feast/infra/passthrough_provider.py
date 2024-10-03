@@ -294,7 +294,7 @@ class PassthroughProvider(Provider):
                 self.repo_config, feature_view, rows_to_write, progress=None
             )
         else:
-            if hasattr(feature_view, 'entity_columns'):
+            if hasattr(feature_view, "entity_columns"):
                 join_keys = {
                     entity.name: entity.dtype.to_value_type()
                     for entity in feature_view.entity_columns
