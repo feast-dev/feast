@@ -46,7 +46,10 @@ class SnowflakeMaterializationEngineConfig(FeastConfigBaseModel):
     """ Type selector"""
 
     config_path: Optional[str] = os.path.expanduser("~/.snowsql/config")
-    """ Snowflake config path -- absolute path required (Cant use ~)"""
+    """ Snowflake snowsql config path -- absolute path required (Cant use ~)"""
+
+    connection_name: Optional[str] = None
+    """ Snowflake connector connection name -- typically defined in ~/.snowflake/connections.toml """
 
     account: Optional[str] = None
     """ Snowflake deployment identifier -- drop .snowflakecomputing.com"""
