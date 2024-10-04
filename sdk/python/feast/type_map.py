@@ -559,6 +559,7 @@ def pa_to_feast_value_type(pa_type_as_str: str) -> ValueType:
             "binary": ValueType.BYTES,
             "bool": ValueType.BOOL,
             "null": ValueType.NULL,
+            "list<element: double>": ValueType.DOUBLE_LIST,
         }
         value_type = type_map[pa_type_as_str]
 

@@ -183,10 +183,13 @@ def update_feature_views_with_inferred_features_and_entities(
             )
 
             if not fv.features:
-                raise RegistryInferenceFailure(
-                    "FeatureView",
-                    f"Could not infer Features for the FeatureView named {fv.name}.",
-                )
+                if isinstance(fv, OnDemandFeatureView):
+                    return None
+                else:
+                    raise RegistryInferenceFailure(
+                        "FeatureView",
+                        f"Could not infer Features for the FeatureView named {fv.name}.",
+                    )
 
 
 def _infer_features_and_entities(
