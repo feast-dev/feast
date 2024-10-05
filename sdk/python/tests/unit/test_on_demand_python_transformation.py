@@ -17,10 +17,20 @@ from feast import (
     RequestSource,
 )
 from feast.driver_test_data import create_driver_hourly_stats_df
+from feast.feature_view import DUMMY_ENTITY_FIELD
 from feast.field import Field
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
 from feast.on_demand_feature_view import on_demand_feature_view
-from feast.types import Array, Bool, Float32, Float64, Int64, String
+from feast.types import (
+    Array,
+    Bool,
+    Float32,
+    Float64,
+    Int64,
+    String,
+    ValueType,
+    from_value_type,
+)
 
 
 class TestOnDemandPythonTransformation(unittest.TestCase):
@@ -51,7 +61,9 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
                 path=driver_stats_path, allow_truncated_timestamps=True
             )
 
-            driver = Entity(name="driver", join_keys=["driver_id"])
+            driver = Entity(
+                name="driver", join_keys=["driver_id"], value_type=ValueType.INT64
+            )
 
             driver_stats_source = FileSource(
                 name="driver_hourly_stats_source",
@@ -63,6 +75,19 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
             driver_stats_fv = FeatureView(
                 name="driver_hourly_stats",
                 entities=[driver],
+                ttl=timedelta(days=0),
+                schema=[
+                    Field(name="conv_rate", dtype=Float32),
+                    Field(name="acc_rate", dtype=Float32),
+                    Field(name="avg_daily_trips", dtype=Int64),
+                ],
+                online=True,
+                source=driver_stats_source,
+            )
+
+            driver_stats_entity_less_fv = FeatureView(
+                name="driver_hourly_stats_no_entity",
+                entities=[],
                 ttl=timedelta(days=0),
                 schema=[
                     Field(name="conv_rate", dtype=Float32),
@@ -151,6 +176,7 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
                         pandas_view,
                         python_view,
                         python_singleton_view,
+                        driver_stats_entity_less_fv,
                     ]
                 )
 
@@ -162,13 +188,19 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
                     pandas_view,
                     python_view,
                     python_demo_view,
+                    driver_stats_entity_less_fv,
                 ]
             )
             self.store.write_to_online_store(
                 feature_view_name="driver_hourly_stats", df=driver_df
             )
-            assert len(self.store.list_all_feature_views()) == 4
-            assert len(self.store.list_feature_views()) == 1
+            assert driver_stats_fv.entity_columns == [
+                Field(name=driver.join_key, dtype=from_value_type(driver.value_type))
+            ]
+            assert driver_stats_entity_less_fv.entity_columns == [DUMMY_ENTITY_FIELD]
+
+            assert len(self.store.list_all_feature_views()) == 5
+            assert len(self.store.list_feature_views()) == 2
             assert len(self.store.list_on_demand_feature_views()) == 3
             assert len(self.store.list_stream_feature_views()) == 0
 

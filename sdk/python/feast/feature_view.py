@@ -49,6 +49,10 @@ DUMMY_ENTITY = Entity(
     name=DUMMY_ENTITY_NAME,
     join_keys=[DUMMY_ENTITY_ID],
 )
+DUMMY_ENTITY_FIELD = Field(
+    name=DUMMY_ENTITY_ID,
+    dtype=from_value_type(ValueType.STRING),
+)
 
 
 @typechecked
