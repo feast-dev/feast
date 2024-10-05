@@ -494,7 +494,7 @@ def _initialize_dynamodb_resource(
     endpoint_url: Optional[str] = None,
     session_based_auth: Optional[bool] = False,
 ):
-    if session_based_auth is True:
+    if session_based_auth:
         return boto3.Session().resource(
             "dynamodb", region_name=region, endpoint_url=endpoint_url
         )
