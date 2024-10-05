@@ -20,7 +20,7 @@ from feast.permissions.permission import Permission
 from feast.permissions.policy import RoleBasedPolicy
 from feast.repo_config import RepoConfig
 from feast.stream_feature_view import stream_feature_view
-from feast.types import Array, Bytes, Float32, Int64, String
+from feast.types import Array, Bytes, Float32, Int64, String, ValueType, from_value_type
 from tests.integration.feature_repos.universal.feature_views import TAGS
 from tests.utils.cli_repo_creator import CliRunner, get_example_repo
 from tests.utils.data_source_test_creator import prep_file_source
@@ -357,12 +357,15 @@ def test_apply_dummy_entity_and_feature_view_columns(test_feature_store):
         created_timestamp_column="timestamp",
     )
 
-    e1 = Entity(name="fs1_my_entity_1", description="something")
+    e1 = Entity(
+        name="fs1_my_entity_1", description="something", value_type=ValueType.INT64
+    )
 
     fv_no_entity = FeatureView(
         name="my_feature_view_no_entity",
         schema=[
             Field(name="fs1_my_feature_1", dtype=Int64),
+            Field(name="fs1_my_entity_1", dtype=Int64),
         ],
         entities=[],
         tags={"team": "matchmaking"},
@@ -373,6 +376,7 @@ def test_apply_dummy_entity_and_feature_view_columns(test_feature_store):
         name="my_feature_view_with_entity",
         schema=[
             Field(name="fs1_my_feature_1", dtype=Int64),
+            Field(name="fs1_my_entity_1", dtype=Int64),
         ],
         entities=[e1],
         tags={"team": "matchmaking"},
@@ -383,8 +387,10 @@ def test_apply_dummy_entity_and_feature_view_columns(test_feature_store):
     # Check that the entity_columns are empty before applying
     assert fv_no_entity.entities == [DUMMY_ENTITY_NAME]
     assert fv_no_entity.entity_columns == []
-    assert fv_with_entity.entity_columns == []
-
+    # Note that this test is a special case rooted in the entity being included in the schema
+    assert fv_with_entity.entity_columns == [
+        Field(name=e1.join_key, dtype=from_value_type(e1.value_type))
+    ]
     # Register Feature View
     test_feature_store.apply([e1, fv_no_entity, fv_with_entity])
     fv_from_online_store = test_feature_store.get_feature_view(
@@ -395,7 +401,7 @@ def test_apply_dummy_entity_and_feature_view_columns(test_feature_store):
     assert fv_from_online_store.entity_columns[0].name == DUMMY_ENTITY_ID
     assert fv_from_online_store.entities == []
     assert fv_no_entity.entities == [DUMMY_ENTITY_NAME]
-    assert fv_with_entity.entity_columns[0] == e1.join_key
+    assert fv_with_entity.entity_columns[0].name == e1.join_key
 
     test_feature_store.teardown()
 
