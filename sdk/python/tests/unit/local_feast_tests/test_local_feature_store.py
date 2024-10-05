@@ -386,7 +386,7 @@ def test_apply_dummy_entity_and_feature_view_columns(test_feature_store):
     assert fv_with_entity.entity_columns == []
 
     # Register Feature View
-    test_feature_store.apply([e1, fv_no_entity])
+    test_feature_store.apply([e1, fv_no_entity, fv_with_entity])
     fv_from_online_store = test_feature_store.get_feature_view(
         "my_feature_view_no_entity"
     )
@@ -395,6 +395,7 @@ def test_apply_dummy_entity_and_feature_view_columns(test_feature_store):
     assert fv_from_online_store.entity_columns[0].name == DUMMY_ENTITY_ID
     assert fv_from_online_store.entities == []
     assert fv_no_entity.entities == [DUMMY_ENTITY_NAME]
+    assert fv_with_entity.entity_columns[0] == e1.join_key
 
     test_feature_store.teardown()
 
