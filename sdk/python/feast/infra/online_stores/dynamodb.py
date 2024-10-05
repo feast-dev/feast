@@ -73,6 +73,7 @@ class DynamoDBOnlineStoreConfig(FeastConfigBaseModel):
     session_based_auth: bool = False
     """AWS session based client authentication"""
 
+
 class DynamoDBOnlineStore(OnlineStore):
     """
     AWS DynamoDB implementation of the online store interface.
@@ -106,10 +107,14 @@ class DynamoDBOnlineStore(OnlineStore):
         online_config = config.online_store
         assert isinstance(online_config, DynamoDBOnlineStoreConfig)
         dynamodb_client = self._get_dynamodb_client(
-            online_config.region, online_config.endpoint_url, online_config.session_based_auth
+            online_config.region,
+            online_config.endpoint_url,
+            online_config.session_based_auth,
         )
         dynamodb_resource = self._get_dynamodb_resource(
-            online_config.region, online_config.endpoint_url, online_config.session_based_auth
+            online_config.region,
+            online_config.endpoint_url,
+            online_config.session_based_auth,
         )
         # Add Tags attribute to creation request only if configured to prevent
         # TagResource permission issues, even with an empty Tags array.
@@ -168,7 +173,9 @@ class DynamoDBOnlineStore(OnlineStore):
         online_config = config.online_store
         assert isinstance(online_config, DynamoDBOnlineStoreConfig)
         dynamodb_resource = self._get_dynamodb_resource(
-            online_config.region, online_config.endpoint_url, online_config.session_based_auth
+            online_config.region,
+            online_config.endpoint_url,
+            online_config.session_based_auth,
         )
 
         for table in tables:
@@ -203,7 +210,9 @@ class DynamoDBOnlineStore(OnlineStore):
         online_config = config.online_store
         assert isinstance(online_config, DynamoDBOnlineStoreConfig)
         dynamodb_resource = self._get_dynamodb_resource(
-            online_config.region, online_config.endpoint_url, online_config.session_based_auth
+            online_config.region,
+            online_config.endpoint_url,
+            online_config.session_based_auth,
         )
 
         table_instance = dynamodb_resource.Table(
@@ -230,7 +239,9 @@ class DynamoDBOnlineStore(OnlineStore):
         assert isinstance(online_config, DynamoDBOnlineStoreConfig)
 
         dynamodb_resource = self._get_dynamodb_resource(
-            online_config.region, online_config.endpoint_url, online_config.session_based_auth
+            online_config.region,
+            online_config.endpoint_url,
+            online_config.session_based_auth,
         )
         table_instance = dynamodb_resource.Table(
             _get_table_name(online_config, config, table)
@@ -325,12 +336,24 @@ class DynamoDBOnlineStore(OnlineStore):
     def _get_aiodynamodb_client(self, region: str):
         return self._get_aioboto_session().create_client("dynamodb", region_name=region)
 
-    def _get_dynamodb_client(self, region: str, endpoint_url: Optional[str] = None, session_based_auth: Optional[bool] = False):
+    def _get_dynamodb_client(
+        self,
+        region: str,
+        endpoint_url: Optional[str] = None,
+        session_based_auth: Optional[bool] = False,
+    ):
         if self._dynamodb_client is None:
-            self._dynamodb_client = _initialize_dynamodb_client(region, endpoint_url, session_based_auth)
+            self._dynamodb_client = _initialize_dynamodb_client(
+                region, endpoint_url, session_based_auth
+            )
         return self._dynamodb_client
 
-    def _get_dynamodb_resource(self, region: str, endpoint_url: Optional[str] = None, session_based_auth: Optional[bool] = False):
+    def _get_dynamodb_resource(
+        self,
+        region: str,
+        endpoint_url: Optional[str] = None,
+        session_based_auth: Optional[bool] = False,
+    ):
         if self._dynamodb_resource is None:
             self._dynamodb_resource = _initialize_dynamodb_resource(
                 region, endpoint_url, session_based_auth
@@ -445,8 +468,11 @@ class DynamoDBOnlineStore(OnlineStore):
         }
 
 
-def _initialize_dynamodb_client(region: str, endpoint_url: Optional[str] = None, session_based_auth: Optional[bool] = False):
-
+def _initialize_dynamodb_client(
+    region: str,
+    endpoint_url: Optional[str] = None,
+    session_based_auth: Optional[bool] = False,
+):
     if session_based_auth is True:
         return boto3.Session().client(
             "dynamodb",
@@ -459,18 +485,21 @@ def _initialize_dynamodb_client(region: str, endpoint_url: Optional[str] = None,
             "dynamodb",
             region_name=region,
             endpoint_url=endpoint_url,
-            config=Config(user_agent=get_user_agent())
-
+            config=Config(user_agent=get_user_agent()),
         )
 
 
-def _initialize_dynamodb_resource(region: str, endpoint_url: Optional[str] = None, session_based_auth: Optional[bool] = False):
+def _initialize_dynamodb_resource(
+    region: str,
+    endpoint_url: Optional[str] = None,
+    session_based_auth: Optional[bool] = False,
+):
     if session_based_auth is True:
-        return boto3.Session().resource("dynamodb", region_name=region, endpoint_url=endpoint_url)
+        return boto3.Session().resource(
+            "dynamodb", region_name=region, endpoint_url=endpoint_url
+        )
     else:
         return boto3.resource("dynamodb", region_name=region, endpoint_url=endpoint_url)
-
-
 
 
 # TODO(achals): This form of user-facing templating is experimental.
