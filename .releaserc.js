@@ -66,7 +66,7 @@ module.exports = {
                     "CHANGELOG.md",
                     "java/pom.xml",
                     "infra/charts/**/*.*",
-                    "infra/feast-operator/**/*",
+                    "infra/feast-helm-operator/**/*",
                     "ui/package.json",
                     "sdk/python/feast/ui/package.json",
                     "sdk/python/feast/ui/yarn.lock"
