@@ -608,19 +608,12 @@ class FeatureStore:
         update_feature_views_with_inferred_features_and_entities(
             sfvs_to_update, entities + entities_to_update, self.config
         )
-<<<<<<< HEAD
         # We need to attach the time stamp fields to the underlying data sources
         # and cascade the dependencies
         update_feature_views_with_inferred_features_and_entities(
             odfvs_to_update, entities + entities_to_update, self.config
         )
         # TODO(kevjumba): Update schema inference
-=======
-        update_feature_views_with_inferred_features_and_entities(
-            odfvs_to_update, entities + entities_to_update, self.config
-        )
-        # TODO(kevjumba): Update schema inferrence
->>>>>>> 569884db8 (cleaned up test)
         for sfv in sfvs_to_update:
             if not sfv.schema:
                 raise ValueError(
