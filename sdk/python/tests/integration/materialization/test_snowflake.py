@@ -5,7 +5,7 @@ import pytest
 
 from feast import Field
 from feast.entity import Entity
-from feast.feature_view import FeatureView
+from feast.feature_view import DUMMY_ENTITY_FIELD, FeatureView
 from feast.types import Array, Bool, Bytes, Float64, Int32, Int64, String, UnixTimestamp
 from feast.utils import _utc_now
 from tests.data.data_creator import create_basic_driver_dataset
@@ -189,7 +189,7 @@ def test_snowflake_materialization_consistency_internal_with_lists(
         snowflake_environment.data_source_creator.teardown()
 
 
-@pytest.mark.integration
+# @pytest.mark.integration
 def test_snowflake_materialization_entityless_fv():
     snowflake_config = IntegrationTestRepoConfig(
         online_store=SNOWFLAKE_ONLINE_CONFIG,
@@ -225,7 +225,7 @@ def test_snowflake_materialization_entityless_fv():
 
     try:
         fs.apply([overall_stats_fv, driver])
-        assert overall_stats_fv.entity_columns != []
+        assert overall_stats_fv.entity_columns == [DUMMY_ENTITY_FIELD]
 
         # materialization is run in two steps and
         # we use timestamp from generated dataframe as a split point
