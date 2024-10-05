@@ -189,7 +189,7 @@ def test_snowflake_materialization_consistency_internal_with_lists(
         snowflake_environment.data_source_creator.teardown()
 
 
-# @pytest.mark.integration
+@pytest.mark.integration
 def test_snowflake_materialization_entityless_fv():
     snowflake_config = IntegrationTestRepoConfig(
         online_store=SNOWFLAKE_ONLINE_CONFIG,
