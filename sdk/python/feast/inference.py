@@ -13,9 +13,9 @@ from feast.infra.offline_stores.contrib.mssql_offline_store.mssqlserver_source i
 from feast.infra.offline_stores.file_source import FileSource
 from feast.infra.offline_stores.redshift_source import RedshiftSource
 from feast.infra.offline_stores.snowflake_source import SnowflakeSource
-from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import RepoConfig
 from feast.stream_feature_view import StreamFeatureView
+from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.types import String
 from feast.value_type import ValueType
 

@@ -28,7 +28,6 @@ from feast.types import (
     Float64,
     Int64,
     String,
-    UnixTimestamp,
     ValueType,
     _utc_now,
     from_value_type,
