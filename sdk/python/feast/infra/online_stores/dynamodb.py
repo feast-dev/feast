@@ -473,6 +473,7 @@ def _initialize_dynamodb_client(
     endpoint_url: Optional[str] = None,
     session_based_auth: Optional[bool] = False,
 ):
+
     if session_based_auth:
         return boto3.Session().client(
             "dynamodb",
