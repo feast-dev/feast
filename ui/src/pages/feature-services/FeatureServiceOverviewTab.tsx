@@ -51,7 +51,7 @@ const FeatureServiceOverviewTab = () => {
       {isEmpty && <p>No feature service with name: {featureServiceName}</p>}
       {isError && <p>Error loading feature service: {featureServiceName}</p>}
       {isSuccess && data && (
-        <React.Fragment>
+        <EuiFlexGroup direction="column">
           <EuiFlexGroup alignItems="center">
             <EuiFlexItem grow={false}>
               <EuiStat title={`${numFeatures}`} description="Total Features" />
@@ -167,7 +167,7 @@ const FeatureServiceOverviewTab = () => {
               </EuiPanel>
             </EuiFlexItem>
           </EuiFlexGroup>
-        </React.Fragment>
+        </EuiFlexGroup>
       )}
     </React.Fragment>
   );

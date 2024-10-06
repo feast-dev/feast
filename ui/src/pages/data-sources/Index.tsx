@@ -1,10 +1,13 @@
 import React, { useContext } from "react";
 
 import {
-    EuiPageHeader,
-    EuiPageContent,
-    EuiPageContentBody,
-    EuiLoadingSpinner, EuiFlexGroup, EuiFlexItem, EuiTitle, EuiFieldSearch, EuiSpacer,
+  EuiPageTemplate,
+  EuiLoadingSpinner,
+  EuiFlexGroup,
+  EuiFlexItem,
+  EuiTitle,
+  EuiFieldSearch,
+  EuiSpacer,
 } from "@elastic/eui";
 
 import useLoadRegistry from "../../queries/useLoadRegistry";
@@ -12,8 +15,8 @@ import DatasourcesListingTable from "./DataSourcesListingTable";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import RegistryPathContext from "../../contexts/RegistryPathContext";
 import DataSourceIndexEmptyState from "./DataSourceIndexEmptyState";
-import { DataSourceIcon32 } from "../../graphics/DataSourceIcon";
-import { useSearchQuery} from "../../hooks/useSearchInputWithTags";
+import { DataSourceIcon } from "../../graphics/DataSourceIcon";
+import { useSearchQuery } from "../../hooks/useSearchInputWithTags";
 import { feast } from "../../protos";
 
 const useLoadDatasources = () => {
@@ -52,56 +55,48 @@ const Index = () => {
 
   const { searchString, searchTokens, setSearchString } = useSearchQuery();
 
-    const filterResult = data
+  const filterResult = data
     ? filterFn(data, searchTokens)
     : data;
 
 
   return (
-    <React.Fragment>
-      <EuiPageHeader
+    <EuiPageTemplate panelled>
+      <EuiPageTemplate.Header
         restrictWidth
-        iconType={DataSourceIcon32}
+        iconType={DataSourceIcon}
         pageTitle="Data Sources"
       />
-      <EuiPageContent
-        hasBorder={false}
-        hasShadow={false}
-        paddingSize="none"
-        color="transparent"
-        borderRadius="none"
-      >
-        <EuiPageContentBody>
-          {isLoading && (
-            <p>
-              <EuiLoadingSpinner size="m" /> Loading
-            </p>
-          )}
-          {isError && <p>We encountered an error while loading.</p>}
-          {isSuccess && !data && <DataSourceIndexEmptyState />}
-          {isSuccess && data && data.length > 0 && filterResult && (
-            <React.Fragment>
-              <EuiFlexGroup>
-                <EuiFlexItem grow={2}>
-                  <EuiTitle size="xs">
-                    <h2>Search</h2>
-                  </EuiTitle>
-                  <EuiFieldSearch
-                    value={searchString}
-                    fullWidth={true}
-                    onChange={(e) => {
-                      setSearchString(e.target.value);
-                    }}
-                  />
-                </EuiFlexItem>
-              </EuiFlexGroup>
-              <EuiSpacer size="m" />
-              <DatasourcesListingTable dataSources={filterResult} />
-            </React.Fragment>
-          )}
-        </EuiPageContentBody>
-      </EuiPageContent>
-    </React.Fragment>
+      <EuiPageTemplate.Section>
+        {isLoading && (
+          <p>
+            <EuiLoadingSpinner size="m" /> Loading
+          </p>
+        )}
+        {isError && <p>We encountered an error while loading.</p>}
+        {isSuccess && !data && <DataSourceIndexEmptyState />}
+        {isSuccess && data && data.length > 0 && filterResult && (
+          <React.Fragment>
+            <EuiFlexGroup>
+              <EuiFlexItem grow={2}>
+                <EuiTitle size="xs">
+                  <h2>Search</h2>
+                </EuiTitle>
+                <EuiFieldSearch
+                  value={searchString}
+                  fullWidth={true}
+                  onChange={(e) => {
+                    setSearchString(e.target.value);
+                  }}
+                />
+              </EuiFlexItem>
+            </EuiFlexGroup>
+            <EuiSpacer size="m" />
+            <DatasourcesListingTable dataSources={filterResult} />
+          </React.Fragment>
+        )}
+      </EuiPageTemplate.Section>
+    </EuiPageTemplate>
   );
 };
 

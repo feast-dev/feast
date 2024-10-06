@@ -1,17 +1,9 @@
 import React from "react";
 
-const FeatureViewIcon = ({
-  size,
-  className,
-}: {
-  size: number;
-  className?: string;
-}) => {
+const FeatureViewIcon = (props: React.SVGProps<SVGSVGElement>) => {
   return (
     <svg
-      className={className}
-      width={size}
-      height={size}
+      {...props}
       viewBox="0 0 32 32"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
@@ -38,17 +30,4 @@ const FeatureViewIcon = ({
   );
 };
 
-const FeatureViewIcon16 = () => {
-  return <FeatureViewIcon size={16} className="euiSideNavItemButton__icon" />;
-};
-
-const FeatureViewIcon32 = () => {
-  return (
-    <FeatureViewIcon
-      size={32}
-      className="euiIcon euiIcon--xLarge euiPageHeaderContent__titleIcon"
-    />
-  );
-};
-
-export { FeatureViewIcon, FeatureViewIcon16, FeatureViewIcon32 };
+export { FeatureViewIcon };

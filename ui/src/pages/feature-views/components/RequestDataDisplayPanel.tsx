@@ -1,5 +1,5 @@
 import React from "react";
-import { EuiBasicTable, EuiPanel, EuiText, EuiTitle } from "@elastic/eui";
+import { EuiBasicTable, EuiPanel, EuiSpacer, EuiText, EuiTitle } from "@elastic/eui";
 import { useParams } from "react-router-dom";
 import EuiCustomLink from "../../../components/EuiCustomLink";
 import { feast } from "../../../protos";
@@ -36,6 +36,7 @@ const RequestDataDisplayPanel = ({
       <EuiText size="xs">
         <span>Request Data</span>
       </EuiText>
+      <EuiSpacer size="xs" />
       <EuiTitle size="s">
         <EuiCustomLink
           href={`${process.env.PUBLIC_URL || ""}/p/${projectName}/data-source/${requestDataSource?.name}`}
@@ -44,6 +45,7 @@ const RequestDataDisplayPanel = ({
           {requestDataSource?.name}
         </EuiCustomLink>
       </EuiTitle>
+      <EuiSpacer size="s" />
       <EuiBasicTable columns={columns} items={items} />
     </EuiPanel>
   );

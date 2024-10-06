@@ -48,7 +48,7 @@ const OnDemandFeatureViewOverviewTab = ({
     : [];
 
   return (
-    <React.Fragment>
+    <EuiFlexGroup direction="column">
       <EuiFlexGroup>
         <EuiFlexItem>
           <EuiPanel hasBorder={true}>
@@ -138,7 +138,7 @@ const OnDemandFeatureViewOverviewTab = ({
           </EuiPanel>
         </EuiFlexItem>
       </EuiFlexGroup>
-    </React.Fragment>
+    </EuiFlexGroup>
   );
 };
 

@@ -16,7 +16,7 @@ const ConsumingFeatureServicesList = ({
     {
       name: "Name",
       field: "",
-      render: (name: string) => {
+      render: ({ name }: { name: string }) => {
         return (
           <EuiCustomLink
             href={`${process.env.PUBLIC_URL || ""}/p/${projectName}/feature-service/${name}`}
@@ -36,7 +36,7 @@ const ConsumingFeatureServicesList = ({
   };
 
   return (
-    <EuiBasicTable columns={columns} items={fsNames} rowProps={getRowProps} />
+    <EuiBasicTable columns={columns} items={fsNames.map(name => ({ name }))} rowProps={getRowProps} />
   );
 };
 

@@ -1,12 +1,8 @@
 import React from "react";
 import { Route, Routes, useNavigate, useParams } from "react-router-dom";
-import {
-  EuiPageHeader,
-  EuiPageContent,
-  EuiPageContentBody,
-} from "@elastic/eui";
+import { EuiPageTemplate } from "@elastic/eui";
 
-import { EntityIcon32 } from "../../graphics/EntityIcon";
+import { EntityIcon } from "../../graphics/EntityIcon";
 import { useMatchExact } from "../../hooks/useMatchSubpath";
 import EntityOverviewTab from "./EntityOverviewTab";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
@@ -25,10 +21,10 @@ const EntityInstance = () => {
   useDocumentTitle(`${entityName} | Entity | Feast`);
 
   return (
-    <React.Fragment>
-      <EuiPageHeader
+    <EuiPageTemplate panelled>
+      <EuiPageTemplate.Header
         restrictWidth
-        iconType={EntityIcon32}
+        iconType={EntityIcon}
         pageTitle={`Entity: ${entityName}`}
         tabs={[
           {
@@ -41,21 +37,13 @@ const EntityInstance = () => {
           ...customNavigationTabs,
         ]}
       />
-      <EuiPageContent
-        hasBorder={false}
-        hasShadow={false}
-        paddingSize="none"
-        color="transparent"
-        borderRadius="none"
-      >
-        <EuiPageContentBody>
-          <Routes>
-            <Route path="/" element={<EntityOverviewTab />} />
-            {CustomTabRoutes}
-          </Routes>
-        </EuiPageContentBody>
-      </EuiPageContent>
-    </React.Fragment>
+      <EuiPageTemplate.Section>
+        <Routes>
+          <Route path="/" element={<EntityOverviewTab />} />
+          {CustomTabRoutes}
+        </Routes>
+      </EuiPageTemplate.Section>
+    </EuiPageTemplate>
   );
 };
 

@@ -1,6 +1,5 @@
 import React from "react";
-import { EuiBasicTable, EuiPanel, EuiText, EuiTitle } from "@elastic/eui";
-
+import { EuiBasicTable, EuiPanel, EuiSpacer, EuiText, EuiTitle } from "@elastic/eui";
 import { useParams } from "react-router-dom";
 import EuiCustomLink from "../../../components/EuiCustomLink";
 import { feast } from "../../../protos";
@@ -29,6 +28,7 @@ const FeatureViewProjectionDisplayPanel = (featureViewProjection: RequestDataDis
       <EuiText size="xs">
         <span>Feature View</span>
       </EuiText>
+      <EuiSpacer size="xs" />
       <EuiTitle size="s">
         <EuiCustomLink
           href={`${process.env.PUBLIC_URL || ""}/p/${projectName}/feature-view/${featureViewProjection.featureViewName}`}
@@ -37,6 +37,7 @@ const FeatureViewProjectionDisplayPanel = (featureViewProjection: RequestDataDis
           {featureViewProjection?.featureViewName}
         </EuiCustomLink>
       </EuiTitle>
+      <EuiSpacer size="s" />
       <EuiBasicTable
         columns={columns}
         items={featureViewProjection?.featureColumns!}

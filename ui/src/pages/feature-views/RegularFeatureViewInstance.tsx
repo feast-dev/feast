@@ -1,12 +1,8 @@
 import React, { useContext } from "react";
 import { Route, Routes, useNavigate } from "react-router-dom";
-import {
-  EuiPageHeader,
-  EuiPageContent,
-  EuiPageContentBody,
-} from "@elastic/eui";
+import { EuiPageTemplate } from "@elastic/eui";
 
-import { FeatureViewIcon32 } from "../../graphics/FeatureViewIcon";
+import { FeatureViewIcon } from "../../graphics/FeatureViewIcon";
 
 import { useMatchExact, useMatchSubpath } from "../../hooks/useMatchSubpath";
 import RegularFeatureViewOverviewTab from "./RegularFeatureViewOverviewTab";
@@ -53,31 +49,23 @@ const RegularFeatureInstance = ({ data }: RegularFeatureInstanceProps) => {
   const TabRoutes = useRegularFeatureViewCustomTabRoutes();
 
   return (
-    <React.Fragment>
-      <EuiPageHeader
+    <EuiPageTemplate panelled>
+      <EuiPageTemplate.Header
         restrictWidth
-        iconType={FeatureViewIcon32}
+        iconType={FeatureViewIcon}
         pageTitle={`${data?.spec?.name}`}
         tabs={tabs}
       />
-      <EuiPageContent
-        hasBorder={false}
-        hasShadow={false}
-        paddingSize="none"
-        color="transparent"
-        borderRadius="none"
-      >
-        <EuiPageContentBody>
-          <Routes>
-            <Route
-              path="/"
-              element={<RegularFeatureViewOverviewTab data={data} />}
-            />
-            {TabRoutes}
-          </Routes>
-        </EuiPageContentBody>
-      </EuiPageContent>
-    </React.Fragment>
+      <EuiPageTemplate.Section>
+        <Routes>
+          <Route
+            path="/"
+            element={<RegularFeatureViewOverviewTab data={data} />}
+          />
+          {TabRoutes}
+        </Routes>
+      </EuiPageTemplate.Section>
+    </EuiPageTemplate>
   );
 };
 

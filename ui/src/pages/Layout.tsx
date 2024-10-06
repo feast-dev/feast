@@ -2,7 +2,7 @@ import React from "react";
 
 import {
   EuiPage,
-  EuiPageSideBar,
+  EuiPageSidebar,
   EuiPageBody,
   EuiErrorBoundary,
   EuiHorizontalRule,
@@ -35,9 +35,9 @@ const Layout = () => {
   return (
     <RegistryPathContext.Provider value={registryPath}>
       <EuiPage paddingSize="none" style={{ background: "transparent" }}>
-        <EuiPageSideBar
+        <EuiPageSidebar
           paddingSize="l"
-          sticky
+          sticky={{ offset: 0 }}
           role={"navigation"}
           aria-label={"Top Level"}
         >
@@ -50,9 +50,9 @@ const Layout = () => {
               <Sidebar />
             </React.Fragment>
           )}
-        </EuiPageSideBar>
+        </EuiPageSidebar>
 
-        <EuiPageBody panelled>
+        <EuiPageBody>
           <EuiErrorBoundary>
             <Outlet />
           </EuiErrorBoundary>

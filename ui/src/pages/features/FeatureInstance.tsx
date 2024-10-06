@@ -1,12 +1,8 @@
 import React from "react";
 import { Route, Routes, useNavigate, useParams } from "react-router-dom";
-import {
-  EuiPageHeader,
-  EuiPageContent,
-  EuiPageContentBody,
-} from "@elastic/eui";
+import { EuiPageTemplate } from "@elastic/eui";
 
-import { FeatureIcon32 } from "../../graphics/FeatureIcon";
+import { FeatureIcon } from "../../graphics/FeatureIcon";
 import { useMatchExact } from "../../hooks/useMatchSubpath";
 import FeatureOverviewTab from "./FeatureOverviewTab";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
@@ -25,10 +21,10 @@ const FeatureInstance = () => {
   useDocumentTitle(`${FeatureName} | ${FeatureViewName} | Feast`);
 
   return (
-    <React.Fragment>
-      <EuiPageHeader
+    <EuiPageTemplate panelled>
+      <EuiPageTemplate.Header
         restrictWidth
-        iconType={FeatureIcon32}
+        iconType={FeatureIcon}
         pageTitle={`Feature: ${FeatureName}`}
         tabs={[
           {
@@ -41,21 +37,13 @@ const FeatureInstance = () => {
           ...customNavigationTabs,
         ]}
       />
-      <EuiPageContent
-        hasBorder={false}
-        hasShadow={false}
-        paddingSize="none"
-        color="transparent"
-        borderRadius="none"
-      >
-        <EuiPageContentBody>
-          <Routes>
-            <Route path="/" element={<FeatureOverviewTab />} />
-            {CustomTabRoutes}
-          </Routes>
-        </EuiPageContentBody>
-      </EuiPageContent>
-    </React.Fragment>
+      <EuiPageTemplate.Section>
+        <Routes>
+          <Route path="/" element={<FeatureOverviewTab />} />
+          {CustomTabRoutes}
+        </Routes>
+      </EuiPageTemplate.Section>
+    </EuiPageTemplate>
   );
 };
 

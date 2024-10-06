@@ -51,7 +51,7 @@ const FeatureViewEdgesList = ({ fvNames }: FeatureViewEdgesListInterace) => {
     {
       name: "Name",
       field: "",
-      render: (name: string) => {
+      render: ({ name }: { name: string }) => {
         return (
           <EuiCustomLink
             href={`${process.env.PUBLIC_URL || ""}/p/${projectName}/feature-view/${name}`}
@@ -64,7 +64,8 @@ const FeatureViewEdgesList = ({ fvNames }: FeatureViewEdgesListInterace) => {
     },
     {
       name: "FS Consumers",
-      render: (name: string) => {
+      field: "",
+      render: ({ name }: { name: string }) => {
         return (
           <React.Fragment>
             {isLoading && <EuiLoadingSpinner size="s" />}
@@ -82,7 +83,7 @@ const FeatureViewEdgesList = ({ fvNames }: FeatureViewEdgesListInterace) => {
   };
 
   return (
-    <EuiBasicTable columns={columns} items={fvNames} rowProps={getRowProps} />
+    <EuiBasicTable columns={columns} items={fvNames.map(name => ({ name }))} rowProps={getRowProps} />
   );
 };
 

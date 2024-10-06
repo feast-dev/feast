@@ -1,12 +1,8 @@
 import React from "react";
 import { Route, Routes, useNavigate, useParams } from "react-router-dom";
-import {
-  EuiPageHeader,
-  EuiPageContent,
-  EuiPageContentBody,
-} from "@elastic/eui";
+import { EuiPageTemplate } from "@elastic/eui";
 
-import { DataSourceIcon32 } from "../../graphics/DataSourceIcon";
+import { DataSourceIcon } from "../../graphics/DataSourceIcon";
 import { useMatchExact } from "../../hooks/useMatchSubpath";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import DataSourceRawData from "./DataSourceRawData";
@@ -39,29 +35,21 @@ const DataSourceInstance = () => {
   const CustomTabRoutes = useDataSourceCustomTabRoutes();
 
   return (
-    <React.Fragment>
-      <EuiPageHeader
+    <EuiPageTemplate panelled>
+      <EuiPageTemplate.Header
         restrictWidth
-        iconType={DataSourceIcon32}
+        iconType={DataSourceIcon}
         pageTitle={`Data Source: ${dataSourceName}`}
         tabs={tabs}
       />
-      <EuiPageContent
-        hasBorder={false}
-        hasShadow={false}
-        paddingSize="none"
-        color="transparent"
-        borderRadius="none"
-      >
-        <EuiPageContentBody>
-          <Routes>
-            <Route path="/" element={<DataSourceOverviewTab />} />
-            <Route path="/raw-data" element={<DataSourceRawData />} />
-            {CustomTabRoutes}
-          </Routes>
-        </EuiPageContentBody>
-      </EuiPageContent>
-    </React.Fragment>
+      <EuiPageTemplate.Section>
+        <Routes>
+          <Route path="/" element={<DataSourceOverviewTab />} />
+          <Route path="/raw-data" element={<DataSourceRawData />} />
+          {CustomTabRoutes}
+        </Routes>
+      </EuiPageTemplate.Section>
+    </EuiPageTemplate>
   );
 };
 

@@ -1,17 +1,9 @@
 import React from "react";
 
-const EntityIcon = ({
-  size,
-  className,
-}: {
-  size: number;
-  className?: string;
-}) => {
+const EntityIcon = (props: React.SVGProps<SVGSVGElement>) => {
   return (
     <svg
-      className={className}
-      width={size}
-      height={size}
+      {...props}
       viewBox="0 0 32 32"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
@@ -30,17 +22,4 @@ const EntityIcon = ({
   );
 };
 
-const EntityIcon16 = () => {
-  return <EntityIcon size={16} className="euiSideNavItemButton__icon" />;
-};
-
-const EntityIcon32 = () => {
-  return (
-    <EntityIcon
-      size={32}
-      className="euiIcon euiIcon--xLarge euiPageHeaderContent__titleIcon"
-    />
-  );
-};
-
-export { EntityIcon, EntityIcon16, EntityIcon32 };
+export { EntityIcon };

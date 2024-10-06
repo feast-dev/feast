@@ -6,11 +6,11 @@ import { useMatchSubpath } from "../hooks/useMatchSubpath";
 import useLoadRegistry from "../queries/useLoadRegistry";
 import RegistryPathContext from "../contexts/RegistryPathContext";
 
-import { DataSourceIcon16 } from "../graphics/DataSourceIcon";
-import { EntityIcon16 } from "../graphics/EntityIcon";
-import { FeatureViewIcon16 } from "../graphics/FeatureViewIcon";
-import { FeatureServiceIcon16 } from "../graphics/FeatureServiceIcon";
-import { DatasetIcon16 } from "../graphics/DatasetIcon";
+import { DataSourceIcon } from "../graphics/DataSourceIcon";
+import { EntityIcon } from "../graphics/EntityIcon";
+import { FeatureViewIcon } from "../graphics/FeatureViewIcon";
+import { FeatureServiceIcon } from "../graphics/FeatureServiceIcon";
+import { DatasetIcon } from "../graphics/DatasetIcon";
 
 const SideNav = () => {
   const registryUrl = useContext(RegistryPathContext);
@@ -66,7 +66,7 @@ const SideNav = () => {
         {
           name: dataSourcesLabel,
           id: htmlIdGenerator("dataSources")(),
-          icon: <EuiIcon type={DataSourceIcon16} />,
+          icon: <EuiIcon type={DataSourceIcon} />,
           onClick: () => {
             navigate(`${process.env.PUBLIC_URL || ""}/p/${projectName}/data-source`);
           },
@@ -75,7 +75,7 @@ const SideNav = () => {
         {
           name: entitiesLabel,
           id: htmlIdGenerator("entities")(),
-          icon: <EuiIcon type={EntityIcon16} />,
+          icon: <EuiIcon type={EntityIcon} />,
           onClick: () => {
             navigate(`${process.env.PUBLIC_URL || ""}/p/${projectName}/entity`);
           },
@@ -84,7 +84,7 @@ const SideNav = () => {
         {
           name: featureViewsLabel,
           id: htmlIdGenerator("featureView")(),
-          icon: <EuiIcon type={FeatureViewIcon16} />,
+          icon: <EuiIcon type={FeatureViewIcon} />,
           onClick: () => {
             navigate(`${process.env.PUBLIC_URL || ""}/p/${projectName}/feature-view`);
           },
@@ -93,7 +93,7 @@ const SideNav = () => {
         {
           name: featureServicesLabel,
           id: htmlIdGenerator("featureService")(),
-          icon: <EuiIcon type={FeatureServiceIcon16} />,
+          icon: <EuiIcon type={FeatureServiceIcon} />,
           onClick: () => {
             navigate(`${process.env.PUBLIC_URL || ""}/p/${projectName}/feature-service`);
           },
@@ -102,7 +102,7 @@ const SideNav = () => {
         {
           name: savedDatasetsLabel,
           id: htmlIdGenerator("savedDatasets")(),
-          icon: <EuiIcon type={DatasetIcon16} />,
+          icon: <EuiIcon type={DatasetIcon} />,
           onClick: () => {
             navigate(`${process.env.PUBLIC_URL || ""}/p/${projectName}/data-set`);
           },
@@ -118,7 +118,6 @@ const SideNav = () => {
       mobileTitle="Feast"
       toggleOpenOnMobile={() => toggleOpenOnMobile()}
       isOpenOnMobile={isSideNavOpenOnMobile}
-      style={{ width: 192 }}
       items={sideNav}
     />
   );

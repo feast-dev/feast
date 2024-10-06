@@ -6,7 +6,7 @@ import {
 } from "../types";
 
 import {
-  EuiLoadingContent,
+  EuiSkeletonText,
   EuiEmptyPrompt,
   EuiFlexGroup,
   EuiFlexItem,
@@ -29,7 +29,7 @@ const DemoCustomTab = ({ id, feastObjectQuery }: DataSourceCustomTabProps) => {
   if (isLoading) {
     // Handle Loading State
     // https://elastic.github.io/eui/#/display/loading
-    return <EuiLoadingContent lines={3} />;
+    return <EuiSkeletonText lines={3} />;
   }
 
   if (isError) {

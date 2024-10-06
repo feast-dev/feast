@@ -4,9 +4,8 @@ import {
   EuiFlexGrid,
   EuiFlexItem,
   EuiIcon,
-  EuiLoadingContent,
-  EuiPageContent,
-  EuiPageContentBody,
+  EuiSkeletonText,
+  EuiPageTemplate,
   EuiText,
   EuiTitle,
   EuiHorizontalRule,
@@ -47,14 +46,8 @@ const RootProjectSelectionPage = () => {
   });
 
   return (
-    <EuiPageContent
-      hasBorder={false}
-      hasShadow={false}
-      paddingSize="none"
-      color="transparent"
-      borderRadius="none"
-    >
-      <EuiPageContentBody>
+    <EuiPageTemplate panelled>
+      <EuiPageTemplate.Section>
         <EuiTitle size="s">
           <h1>Welcome to Feast</h1>
         </EuiTitle>
@@ -62,14 +55,14 @@ const RootProjectSelectionPage = () => {
           <p>Select one of the projects.</p>
         </EuiText>
         <EuiHorizontalRule margin="m" />
-        {isLoading && <EuiLoadingContent lines={1} />}
+        {isLoading && <EuiSkeletonText lines={1} />}
         {isSuccess && data?.projects && (
           <EuiFlexGrid columns={3} gutterSize="l">
             {projectCards}
           </EuiFlexGrid>
         )}
-      </EuiPageContentBody>
-    </EuiPageContent>
+      </EuiPageTemplate.Section>
+    </EuiPageTemplate>
   );
 };
 
