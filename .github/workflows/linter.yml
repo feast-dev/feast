@@ -1,7 +1,16 @@
 name: linter
 
-on: [push, pull_request]
-
+on:
+  push:
+    paths-ignore:
+      - 'community/**'
+      - 'docs/**'
+      - 'examples/**'
+  pull_request:
+    paths-ignore:
+      - 'community/**'
+      - 'docs/**'
+      - 'examples/**'
 jobs:
   lint-python:
     runs-on: [ubuntu-latest]
