@@ -212,7 +212,7 @@ def _infer_features_and_entities(
             fv, join_keys, run_inference_for_features, config
         )
 
-    entity_columns: List[Field] = []
+    entity_columns: List[Field] = fv.entity_columns if fv.entity_columns else []
     columns_to_exclude = {
         fv.batch_source.timestamp_field,
         fv.batch_source.created_timestamp_column,
@@ -222,7 +222,6 @@ def _infer_features_and_entities(
             columns_to_exclude.remove(mapped_col)
             columns_to_exclude.add(original_col)
 
-    # this is what gets the right stuff
     table_column_names_and_types = fv.batch_source.get_table_column_names_and_types(
         config
     )
@@ -238,7 +237,7 @@ def _infer_features_and_entities(
                 ),
             )
             if field.name not in [
-                entity_column.name for entity_column in entity_columns
+                entity_column.name for entity_column in fv.entity_columns
             ]:
                 entity_columns.append(field)
         elif not re.match(

@@ -28,11 +28,10 @@ from feast.types import (
     Float64,
     Int64,
     String,
+    UnixTimestamp,
     ValueType,
     _utc_now,
     from_value_type,
-    UnixTimestamp,
-    _utc_now,
 )
 
 
@@ -240,7 +239,7 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
             ]
             assert driver_stats_entity_less_fv.entity_columns == [DUMMY_ENTITY_FIELD]
 
-            assert len(self.store.list_all_feature_views()) == 5
+            assert len(self.store.list_all_feature_views()) == 6
             assert len(self.store.list_feature_views()) == 2
             assert len(self.store.list_on_demand_feature_views()) == 4
             assert len(self.store.list_stream_feature_views()) == 0
@@ -333,21 +332,14 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
         )
 
     def test_stored_writes(self):
-        current_datetime = _utc_now()
-        entity_rows_to_write = [
-            {
-                "driver_id": 1001,
-                "conv_rate": 0.25,
-                "acc_rate": 0.25,
-                "counter": 0,
-                "input_datetime": current_datetime,
-            }
-        ]
         # Note that here we shouldn't have to pass the request source features for reading
         # because they should have already been written to the online store
+        current_datetime = _utc_now()
         entity_rows_to_read = [
             {
                 "driver_id": 1001,
+                "counter": 0,
+                "input_datetime": current_datetime,
             }
         ]
 
