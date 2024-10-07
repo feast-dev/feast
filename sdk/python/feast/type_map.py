@@ -372,11 +372,18 @@ def _python_value_to_proto_value(
                 if feast_value_type == ValueType.BYTES_LIST:
                     raise _type_err(sample, ValueType.BYTES_LIST)
 
-                json_value = json.loads(sample)
-                if isinstance(json_value, list):
+                json_sample = json.loads(sample)
+                if isinstance(json_sample, list):
+                    json_values = [json.loads(value) for value in values]
                     if feast_value_type == ValueType.BOOL_LIST:
-                        json_value = [bool(item) for item in json_value]
-                    return [ProtoValue(**{field_name: proto_type(val=json_value)})]  # type: ignore
+                        json_values = [
+                            [bool(item) for item in list_item]
+                            for list_item in json_values
+                        ]
+                    return [
+                        ProtoValue(**{field_name: proto_type(val=v)})  # type: ignore
+                        for v in json_values
+                    ]
                 raise _type_err(sample, valid_types[0])
 
             if sample is not None and not all(
@@ -506,7 +513,14 @@ def python_values_to_proto_values(
     if value_type == ValueType.UNKNOWN:
         raise TypeError("Couldn't infer value type from empty value")
 
-    return _python_value_to_proto_value(value_type, values)
+    proto_values = _python_value_to_proto_value(value_type, values)
+
+    if len(proto_values) != len(values):
+        raise ValueError(
+            f"Number of proto values {len(proto_values)} does not match number of values {len(values)}"
+        )
+
+    return proto_values
 
 
 def _proto_value_to_value_type(proto_value: ProtoValue) -> ValueType:
