@@ -4,16 +4,16 @@
 
 ## Overview
 
-On demand feature views allows data scientists to use existing features and request time data (features only available at request time) to transform and create new features. Users define python transformation logic which is executed in both historical retrieval and online retrieval paths.
-
-Currently, these transformations are executed locally. This is fine for online serving, but does not scale well offline.
+On demand feature views allows data scientists to use existing features and request time data (features only available 
+at request time) to transform and create new features at the time the data is read from the online store. Users define 
+python transformation logic which is executed in both historical retrieval and online retrieval paths.
 
 ### Why use on demand feature views?
 
 This enables data scientists to easily impact the online feature retrieval path. For example, a data scientist could
 
 1. Call `get_historical_features` to generate a training dataframe
-2. Iterate in notebook on feature engineering in Pandas
+2. Iterate in notebook on feature engineering in Pandas/Python
 3. Copy transformation logic into on demand feature views and commit to a dev branch of the feature repository
 4. Verify with `get_historical_features` (on a small dataset) that the transformation gives expected output over historical data
 5. Verify with `get_online_features` on dev branch that the transformation correctly outputs online features
