@@ -7,9 +7,11 @@ from typing import Any, Dict, List, cast
 
 import pyarrow as pa
 import pyarrow.flight as fl
+from google.protobuf.json_format import Parse
 
 from feast import FeatureStore, FeatureView, utils
 from feast.arrow_error_handler import arrow_server_error_handling_decorator
+from feast.data_source import DataSource
 from feast.feature_logging import FeatureServiceLoggingSource
 from feast.feature_view import DUMMY_ENTITY_NAME
 from feast.infra.offline_stores.offline_utils import get_offline_store_from_config
@@ -26,6 +28,7 @@ from feast.permissions.server.utils import (
     init_security_manager,
     str_to_auth_manager_type,
 )
+from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.saved_dataset import SavedDatasetStorage
 
 logger = logging.getLogger(__name__)
@@ -138,6 +141,9 @@ class OfflineServer(fl.FlightServerBase):
             elif api == OfflineServer.persist.__name__:
                 self.persist(command, key)
                 remove_data = True
+            elif api == OfflineServer.validate_data_source.__name__:
+                self.validate_data_source(command)
+                remove_data = True
         except Exception as e:
             remove_data = True
             logger.exception(e)
@@ -224,6 +230,11 @@ class OfflineServer(fl.FlightServerBase):
                 table = self.pull_all_from_table_or_query(command).to_arrow()
             elif api == OfflineServer.pull_latest_from_table_or_query.__name__:
                 table = self.pull_latest_from_table_or_query(command).to_arrow()
+            elif (
+                api
+                == OfflineServer.get_table_column_names_and_types_from_data_source.__name__
+            ):
+                table = self.get_table_column_names_and_types_from_data_source(command)
             else:
                 raise NotImplementedError
         except Exception as e:
@@ -456,6 +467,41 @@ class OfflineServer(fl.FlightServerBase):
             logger.exception(e)
             traceback.print_exc()
             raise e
+
+    @staticmethod
+    def _extract_data_source_from_command(command) -> DataSource:
+        data_source_proto_str = command["data_source_proto"]
+        logger.debug(f"Extracted data_source_proto {data_source_proto_str}")
+        data_source_proto = DataSourceProto()
+        Parse(data_source_proto_str, data_source_proto)
+        data_source = DataSource.from_proto(data_source_proto)
+        logger.debug(f"Converted to DataSource {data_source}")
+        return data_source
+
+    def validate_data_source(self, command: dict):
+        data_source = OfflineServer._extract_data_source_from_command(command)
+        logger.debug(f"Validating data source {data_source.name}")
+        assert_permissions(data_source, actions=[AuthzedAction.READ_OFFLINE])
+
+        self.offline_store.validate_data_source(
+            config=self.store.config,
+            data_source=data_source,
+        )
+
+    def get_table_column_names_and_types_from_data_source(self, command: dict):
+        data_source = OfflineServer._extract_data_source_from_command(command)
+        logger.debug(f"Fetching table columns metadata from {data_source.name}")
+        assert_permissions(data_source, actions=[AuthzedAction.READ_OFFLINE])
+
+        column_names_and_types = data_source.get_table_column_names_and_types(
+            self.store.config
+        )
+
+        column_names, types = zip(*column_names_and_types)
+        logger.debug(
+            f"DataSource {data_source.name} has columns {column_names} with types {types}"
+        )
+        return pa.table({"name": column_names, "type": types})
 
 
 def remove_dummies(fv: FeatureView) -> FeatureView:

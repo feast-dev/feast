@@ -3,7 +3,7 @@ import logging
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Iterable, List, Literal, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -327,6 +327,57 @@ class RemoteOfflineStore(OfflineStore):
             table=table,
             entity_df=None,
         )
+
+    def validate_data_source(
+        self,
+        config: RepoConfig,
+        data_source: DataSource,
+    ):
+        assert isinstance(config.offline_store, RemoteOfflineStoreConfig)
+
+        client = build_arrow_flight_client(
+            config.offline_store.host, config.offline_store.port, config.auth_config
+        )
+
+        api_parameters = {
+            "data_source_proto": str(data_source),
+        }
+        logger.debug(f"validating DataSource {data_source.name}")
+        _call_put(
+            api=OfflineStore.validate_data_source.__name__,
+            api_parameters=api_parameters,
+            client=client,
+            table=None,
+            entity_df=None,
+        )
+
+    def get_table_column_names_and_types_from_data_source(
+        self, config: RepoConfig, data_source: DataSource
+    ) -> Iterable[Tuple[str, str]]:
+        assert isinstance(config.offline_store, RemoteOfflineStoreConfig)
+
+        client = build_arrow_flight_client(
+            config.offline_store.host, config.offline_store.port, config.auth_config
+        )
+
+        api_parameters = {
+            "data_source_proto": str(data_source),
+        }
+        logger.debug(
+            f"Calling {OfflineStore.get_table_column_names_and_types_from_data_source.__name__} with {api_parameters}"
+        )
+        table = _send_retrieve_remote(
+            api=OfflineStore.get_table_column_names_and_types_from_data_source.__name__,
+            api_parameters=api_parameters,
+            client=client,
+            table=None,
+            entity_df=None,
+        )
+
+        logger.debug(
+            f"get_table_column_names_and_types_from_data_source for {data_source.name}: {table}"
+        )
+        return zip(table.column("name").to_pylist(), table.column("type").to_pylist())
 
 
 def _create_retrieval_metadata(feature_refs: List[str], entity_df: pd.DataFrame):

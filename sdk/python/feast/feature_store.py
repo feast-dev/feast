@@ -602,11 +602,18 @@ class FeatureStore:
 
         # New feature views may reference previously applied entities.
         entities = self._list_entities()
+        provider = self._get_provider()
         update_feature_views_with_inferred_features_and_entities(
-            views_to_update, entities + entities_to_update, self.config
+            provider,
+            views_to_update,
+            entities + entities_to_update,
+            self.config,
         )
         update_feature_views_with_inferred_features_and_entities(
-            sfvs_to_update, entities + entities_to_update, self.config
+            provider,
+            sfvs_to_update,
+            entities + entities_to_update,
+            self.config,
         )
         # TODO(kevjumba): Update schema inferrence
         for sfv in sfvs_to_update:
@@ -1491,9 +1498,12 @@ class FeatureStore:
                 feature_view_name, allow_registry_cache=allow_registry_cache
             )
 
+        provider = self._get_provider()
         # Get columns of the batch source and the input dataframe.
         column_names_and_types = (
-            feature_view.batch_source.get_table_column_names_and_types(self.config)
+            provider.get_table_column_names_and_types_from_data_source(
+                self.config, feature_view.batch_source
+            )
         )
         source_columns = [column for column, _ in column_names_and_types]
         input_columns = df.columns.values.tolist()
@@ -1507,7 +1517,6 @@ class FeatureStore:
             df = df.reindex(columns=source_columns)
 
         table = pa.Table.from_pandas(df)
-        provider = self._get_provider()
         provider.ingest_df_to_offline_store(feature_view, table)
 
     def get_online_features(
