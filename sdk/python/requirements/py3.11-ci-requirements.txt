@@ -124,6 +124,8 @@ comm==0.2.2
     # via
     #   ipykernel
     #   ipywidgets
+couchbase==4.3.2
+    # via feast (setup.py)
 coverage[toml]==7.6.4
     # via pytest-cov
 cryptography==42.0.8
@@ -182,7 +184,7 @@ executing==2.1.0
     # via stack-data
 faiss-cpu==1.9.0
     # via feast (setup.py)
-fastapi==0.115.3
+fastapi==0.115.4
     # via feast (setup.py)
 fastjsonschema==2.20.0
     # via nbformat
@@ -202,7 +204,7 @@ fsspec==2024.9.0
     #   dask
 geomet==0.2.1.post1
     # via cassandra-driver
-google-api-core[grpc]==2.21.0
+google-api-core[grpc]==2.22.0
     # via
     #   feast (setup.py)
     #   google-cloud-bigquery
@@ -251,7 +253,7 @@ googleapis-common-protos[grpc]==1.65.0
     #   google-api-core
     #   grpc-google-iam-v1
     #   grpcio-status
-great-expectations==0.18.21
+great-expectations==0.18.22
     # via feast (setup.py)
 grpc-google-iam-v1==0.13.1
     # via google-cloud-bigtable
@@ -333,7 +335,7 @@ iniconfig==2.0.0
     # via pytest
 ipykernel==6.29.5
     # via jupyterlab
-ipython==8.28.0
+ipython==8.29.0
     # via
     #   great-expectations
     #   ipykernel
@@ -552,7 +554,7 @@ pbr==6.1.0
     # via mock
 pexpect==4.9.0
     # via ipython
-pip==24.2
+pip==24.3.1
     # via pip-tools
 pip-tools==7.4.1
     # via feast (setup.py)
@@ -877,7 +879,7 @@ sqlparams==6.1.0
     # via singlestoredb
 stack-data==0.6.3
     # via ipython
-starlette==0.41.0
+starlette==0.41.2
     # via fastapi
 substrait==0.23.0
     # via ibis-substrait
@@ -913,7 +915,7 @@ tornado==6.4.1
     #   jupyterlab
     #   notebook
     #   terminado
-tqdm==4.66.5
+tqdm==4.66.6
     # via
     #   feast (setup.py)
     #   great-expectations
@@ -934,7 +936,7 @@ traitlets==5.14.3
     #   nbformat
 trino==0.330.0
     # via feast (setup.py)
-typeguard==4.3.0
+typeguard==4.4.0
     # via feast (setup.py)
 types-cffi==1.16.0.20240331
     # via types-pyopenssl
@@ -958,7 +960,7 @@ types-redis==4.6.0.20241004
     # via feast (setup.py)
 types-requests==2.30.0.0
     # via feast (setup.py)
-types-setuptools==75.2.0.20241019
+types-setuptools==75.2.0.20241025
     # via
     #   feast (setup.py)
     #   types-cffi
@@ -1034,7 +1036,7 @@ websocket-client==1.8.0
     #   kubernetes
 websockets==13.1
     # via uvicorn
-werkzeug==3.0.5
+werkzeug==3.0.6
     # via moto
 wheel==0.44.0
     # via
