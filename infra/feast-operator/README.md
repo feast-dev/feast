@@ -1,8 +1,5 @@
-# feast-operator
-// TODO(user): Add simple overview of use/purpose
-
-## Description
-// TODO(user): An in-depth paragraph about your project and overview of use
+# Feast Operator
+This is a K8s Operator that can be used to deploy and manage **Feast**, an open source feature store for machine learning.
 
 ## Getting Started
 
@@ -13,26 +10,16 @@
 - Access to a Kubernetes v1.11.3+ cluster.
 
 ### To Deploy on the cluster
-**Build and push your image to the location specified by `IMG`:**
-
-```sh
-make docker-build docker-push IMG=<some-registry>/feast-operator:tag
-```
-
-**NOTE:** This image ought to be published in the personal registry you specified.
-And it is required to have access to pull the image from the working environment.
-Make sure you have the proper permission to the registry if the above commands don’t work.
-
 **Install the CRDs into the cluster:**
 
 ```sh
 make install
 ```
 
-**Deploy the Manager to the cluster with the image specified by `IMG`:**
+**Deploy the Manager to the cluster:**
 
 ```sh
-make deploy IMG=<some-registry>/feast-operator:tag
+make deploy
 ```
 
 > **NOTE**: If you encounter RBAC errors, you may need to grant yourself cluster-admin
@@ -73,7 +60,7 @@ Following are the steps to build the installer and distribute this project to us
 1. Build the installer for the image built and published in the registry:
 
 ```sh
-make build-installer IMG=<some-registry>/feast-operator:tag
+make build-installer
 ```
 
 NOTE: The makefile target mentioned above generates an 'install.yaml'
@@ -90,7 +77,35 @@ kubectl apply -f https://raw.githubusercontent.com/<org>/feast-operator/<tag or 
 ```
 
 ## Contributing
-// TODO(user): Add detailed information on how you would like others to contribute to this project
+Additional Feast contrib information can be found on the project's [README](https://github.com/feast-dev/feast?tab=readme-ov-file#-contributing).
+
+**Before submitting a PR, the following command should run to a successful completion:**
+
+```sh
+make test
+```
+
+**Build and push your image to the location specified by `IMG`:**
+
+```sh
+make docker-build docker-push IMG=<some-registry>/feast-operator:<some-tag>
+```
+
+**NOTE:** This image ought to be published in the personal registry you specified.
+And it is required to have access to pull the image from the working environment.
+Make sure you have the proper permission to the registry if the above commands don’t work.
+
+**Install the CRDs into the cluster:**
+
+```sh
+make install
+```
+
+**Deploy the Manager to the cluster with the image specified by `IMG`:**
+
+```sh
+make deploy IMG=<some-registry>/feast-operator:<some-tag>
+```
 
 ### Prerequisites
 - go version v1.21

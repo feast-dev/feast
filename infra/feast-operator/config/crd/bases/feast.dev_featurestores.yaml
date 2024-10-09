@@ -41,9 +41,9 @@ spec:
             properties:
               feastProject:
                 description: FeastProject is the Feast project id. This can be any
-                  alphanumeric string up to 16 characters.
-                maxLength: 16
-                pattern: ^[a-zA-Z0-9]+$
+                  alphanumeric string with underscores, but it cannot start with an
+                  underscore.
+                pattern: ^[A-Za-z0-9][A-Za-z0-9_]*$
                 type: string
             required:
             - feastProject
