@@ -1,0 +1,27 @@
+# permissions for end users to edit featurestores.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: feast-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: featurestore-editor-role
+rules:
+- apiGroups:
+  - feast.dev
+  resources:
+  - featurestores
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - feast.dev
+  resources:
+  - featurestores/status
+  verbs:
+  - get

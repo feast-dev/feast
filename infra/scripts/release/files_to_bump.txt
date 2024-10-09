@@ -12,5 +12,7 @@ infra/charts/feast-feature-server/README.md 3
 infra/charts/feast-feature-server/values.yaml 12
 infra/feast-helm-operator/Makefile 6
 infra/feast-helm-operator/config/manager/kustomization.yaml 8
+infra/feast-operator/Makefile 6
+infra/feast-operator/config/manager/kustomization.yaml 8
 java/pom.xml 38
 ui/package.json 3

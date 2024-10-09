@@ -1,0 +1,51 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: ClusterServiceVersion
+metadata:
+  annotations:
+    alm-examples: '[]'
+    capabilities: Basic Install
+  name: feast-operator.v0.0.0
+  namespace: placeholder
+spec:
+  apiservicedefinitions: {}
+  customresourcedefinitions:
+    owned:
+    - description: FeatureStore is the Schema for the featurestores API
+      displayName: Feature Store
+      kind: FeatureStore
+      name: featurestores.feast.dev
+      version: v1alpha1
+  description: Feast (Feature Store) is an open source feature store for machine learning.
+  displayName: Feast Operator
+  icon:
+  - base64data: ""
+    mediatype: ""
+  install:
+    spec:
+      deployments: null
+    strategy: ""
+  installModes:
+  - supported: false
+    type: OwnNamespace
+  - supported: false
+    type: SingleNamespace
+  - supported: false
+    type: MultiNamespace
+  - supported: true
+    type: AllNamespaces
+  keywords:
+  - feast
+  - feature
+  - store
+  - ai
+  links:
+  - name: Feast Operator
+    url: https://feast.dev/
+  maintainers:
+  - email: feast-discuss@googlegroups.com
+    name: feast-discuss
+  maturity: alpha
+  provider:
+    name: Feast Community
+    url: https://lf-aidata.atlassian.net/wiki/spaces/FEAST/
+  version: 0.0.0

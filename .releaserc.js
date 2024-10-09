@@ -67,6 +67,7 @@ module.exports = {
                     "java/pom.xml",
                     "infra/charts/**/*.*",
                     "infra/feast-helm-operator/**/*",
+                    "infra/feast-operator/**/*",
                     "ui/package.json",
                     "sdk/python/feast/ui/package.json",
                     "sdk/python/feast/ui/yarn.lock"

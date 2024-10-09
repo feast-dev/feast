@@ -442,6 +442,18 @@ build-feast-helm-operator-docker:
 	VERSION=$(VERSION) \
 	$(MAKE) docker-build
 
+push-feast-operator-docker:
+	cd infra/feast-operator && \
+	IMAGE_TAG_BASE=$(REGISTRY)/feast-operator \
+	VERSION=$(VERSION) \
+	$(MAKE) docker-push
+
+build-feast-operator-docker:
+	cd infra/feast-operator && \
+	IMAGE_TAG_BASE=$(REGISTRY)/feast-operator \
+	VERSION=$(VERSION) \
+	$(MAKE) docker-build
+
 # Dev images
 
 build-feature-server-dev:
