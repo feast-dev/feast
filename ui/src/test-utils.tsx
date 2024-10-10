@@ -1,12 +1,12 @@
 import React from "react";
-import { render } from "@testing-library/react";
+import { render, RenderOptions } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "react-query";
 import { QueryParamProvider } from "use-query-params";
 import { MemoryRouter as Router } from "react-router-dom";
 import RouteAdapter from "./hacks/RouteAdapter";
 
 interface ProvidersProps {
-  children: React.ReactElement;
+  children: React.ReactNode;
 }
 
 const queryClient = new QueryClient();
@@ -27,7 +27,7 @@ const AllTheProviders = ({ children }: ProvidersProps) => {
 
 const customRender = (
   ui: React.ReactElement,
-  options?: Record<string, unknown>
+  options?: Omit<RenderOptions, 'wrapper'>
 ) => render(ui, { wrapper: AllTheProviders, ...options });
 
 // re-export everything
