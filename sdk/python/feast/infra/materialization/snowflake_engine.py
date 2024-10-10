@@ -31,6 +31,7 @@ from feast.infra.utils.snowflake.snowflake_utils import (
     get_snowflake_online_store_path,
     package_snowpark_zip,
 )
+from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
@@ -120,10 +121,10 @@ class SnowflakeMaterializationEngine(BatchMaterializationEngine):
         self,
         project: str,
         views_to_delete: Sequence[
-            Union[BatchFeatureView, StreamFeatureView, FeatureView]
+            Union[BatchFeatureView, StreamFeatureView, FeatureView, OnDemandFeatureView]
         ],
         views_to_keep: Sequence[
-            Union[BatchFeatureView, StreamFeatureView, FeatureView]
+            Union[BatchFeatureView, StreamFeatureView, FeatureView, OnDemandFeatureView]
         ],
         entities_to_delete: Sequence[Entity],
         entities_to_keep: Sequence[Entity],

@@ -24,6 +24,7 @@ from feast.infra.materialization.batch_materialization_engine import (
 from feast.infra.offline_stores.offline_store import OfflineStore
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.registry.base_registry import BaseRegistry
+from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.stream_feature_view import StreamFeatureView
 from feast.utils import _get_column_names
@@ -80,10 +81,10 @@ class LambdaMaterializationEngine(BatchMaterializationEngine):
         self,
         project: str,
         views_to_delete: Sequence[
-            Union[BatchFeatureView, StreamFeatureView, FeatureView]
+            Union[BatchFeatureView, StreamFeatureView, FeatureView, OnDemandFeatureView]
         ],
         views_to_keep: Sequence[
-            Union[BatchFeatureView, StreamFeatureView, FeatureView]
+            Union[BatchFeatureView, StreamFeatureView, FeatureView, OnDemandFeatureView]
         ],
         entities_to_delete: Sequence[Entity],
         entities_to_keep: Sequence[Entity],

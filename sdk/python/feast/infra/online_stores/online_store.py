@@ -17,6 +17,7 @@ from datetime import datetime
 from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Union
 
 from feast import Entity, utils
+from feast.batch_feature_view import BatchFeatureView
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.infra.infra_object import InfraObject
@@ -27,6 +28,7 @@ from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import RepeatedValue
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RepoConfig
+from feast.stream_feature_view import StreamFeatureView
 
 
 class OnlineStore(ABC):
@@ -288,7 +290,9 @@ class OnlineStore(ABC):
         self,
         config: RepoConfig,
         tables_to_delete: Sequence[FeatureView],
-        tables_to_keep: Sequence[FeatureView],
+        tables_to_keep: Sequence[
+            Union[BatchFeatureView, StreamFeatureView, FeatureView]
+        ],
         entities_to_delete: Sequence[Entity],
         entities_to_keep: Sequence[Entity],
         partial: bool,

@@ -467,10 +467,15 @@ class ReadOnlyRegistryException(FeastError):
 
 
 class DataFrameSerializationError(FeastError):
-    def __init__(self, input_dict: dict):
-        super().__init__(
-            f"Failed to serialize the provided dictionary into a pandas DataFrame: {input_dict.keys()}"
-        )
+    def __init__(self, input: Any):
+        if isinstance(input, dict):
+            super().__init__(
+                f"Failed to serialize the provided dictionary into a pandas DataFrame: {input.keys()}"
+            )
+        else:
+            super().__init__(
+                "Failed to serialize the provided input into a pandas DataFrame"
+            )
 
 
 class PermissionNotFoundException(FeastError):

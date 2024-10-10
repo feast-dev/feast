@@ -23,6 +23,7 @@ from feast.infra.offline_stores.contrib.spark_offline_store.spark import (
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.passthrough_provider import PassthroughProvider
 from feast.infra.registry.base_registry import BaseRegistry
+from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.stream_feature_view import StreamFeatureView
@@ -77,10 +78,10 @@ class SparkMaterializationEngine(BatchMaterializationEngine):
         self,
         project: str,
         views_to_delete: Sequence[
-            Union[BatchFeatureView, StreamFeatureView, FeatureView]
+            Union[BatchFeatureView, StreamFeatureView, FeatureView, OnDemandFeatureView]
         ],
         views_to_keep: Sequence[
-            Union[BatchFeatureView, StreamFeatureView, FeatureView]
+            Union[BatchFeatureView, StreamFeatureView, FeatureView, OnDemandFeatureView]
         ],
         entities_to_delete: Sequence[Entity],
         entities_to_keep: Sequence[Entity],

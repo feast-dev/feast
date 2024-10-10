@@ -28,7 +28,6 @@ from google.protobuf.timestamp_pb2 import Timestamp
 from feast.constants import FEAST_FS_YAML_FILE_PATH_ENV_NAME
 from feast.entity import Entity
 from feast.errors import (
-    EntityNotFoundException,
     FeatureNameCollisionError,
     FeatureViewNotFoundException,
     RequestDataNotFoundInEntityRowsException,
@@ -43,10 +42,12 @@ from feast.protos.feast.types.Value_pb2 import FloatList as FloatListProto
 from feast.protos.feast.types.Value_pb2 import RepeatedValue as RepeatedValueProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.type_map import python_values_to_proto_values
+from feast.types import from_feast_to_pyarrow_type
 from feast.value_type import ValueType
 from feast.version import get_version
 
 if typing.TYPE_CHECKING:
+    from feast.base_feature_view import BaseFeatureView
     from feast.feature_service import FeatureService
     from feast.feature_view import FeatureView
     from feast.infra.registry.base_registry import BaseRegistry
@@ -228,6 +229,18 @@ def _coerce_datetime(ts):
 
 def _convert_arrow_to_proto(
     table: Union[pyarrow.Table, pyarrow.RecordBatch],
+    feature_view: Union["FeatureView", "BaseFeatureView", "OnDemandFeatureView"],
+    join_keys: Dict[str, ValueType],
+) -> List[Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]]:
+    # This is a workaround for isinstance(feature_view, OnDemandFeatureView), which triggers a circular import
+    if getattr(feature_view, "source_request_sources", None):
+        return _convert_arrow_odfv_to_proto(table, feature_view, join_keys)  # type: ignore[arg-type]
+    else:
+        return _convert_arrow_fv_to_proto(table, feature_view, join_keys)  # type: ignore[arg-type]
+
+
+def _convert_arrow_fv_to_proto(
+    table: Union[pyarrow.Table, pyarrow.RecordBatch],
     feature_view: "FeatureView",
     join_keys: Dict[str, ValueType],
 ) -> List[Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]]:
@@ -283,6 +296,76 @@ def _convert_arrow_to_proto(
         ]
     else:
         created_timestamps = [None] * table.num_rows
+
+    return list(zip(entity_keys, features, event_timestamps, created_timestamps))
+
+
+def _convert_arrow_odfv_to_proto(
+    table: Union[pyarrow.Table, pyarrow.RecordBatch],
+    feature_view: "OnDemandFeatureView",
+    join_keys: Dict[str, ValueType],
+) -> List[Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]]:
+    # Avoid ChunkedArrays which guarantees `zero_copy_only` available.
+    if isinstance(table, pyarrow.Table):
+        table = table.to_batches()[0]
+
+    columns = [
+        (field.name, field.dtype.to_value_type()) for field in feature_view.features
+    ] + list(join_keys.items())
+
+    proto_values_by_column = {
+        column: python_values_to_proto_values(
+            table.column(column).to_numpy(zero_copy_only=False), value_type
+        )
+        for column, value_type in columns
+        if column in table.column_names
+    }
+    # Adding On Demand Features
+    for feature in feature_view.features:
+        if (
+            feature.name in [c[0] for c in columns]
+            and feature.name not in proto_values_by_column
+        ):
+            # initializing the column as null
+            null_column = pyarrow.array(
+                [None] * table.num_rows,
+                type=from_feast_to_pyarrow_type(feature.dtype),
+            )
+            updated_table = pyarrow.RecordBatch.from_arrays(
+                table.columns + [null_column],
+                schema=table.schema.append(
+                    pyarrow.field(feature.name, null_column.type)
+                ),
+            )
+            proto_values_by_column[feature.name] = python_values_to_proto_values(
+                updated_table.column(feature.name).to_numpy(zero_copy_only=False),
+                feature.dtype.to_value_type(),
+            )
+
+    entity_keys = [
+        EntityKeyProto(
+            join_keys=join_keys,
+            entity_values=[proto_values_by_column[k][idx] for k in join_keys],
+        )
+        for idx in range(table.num_rows)
+    ]
+
+    # Serialize the features per row
+    feature_dict = {
+        feature.name: proto_values_by_column[feature.name]
+        for feature in feature_view.features
+    }
+    features = [dict(zip(feature_dict, vars)) for vars in zip(*feature_dict.values())]
+
+    # We need to artificially add event_timestamps and created_timestamps
+    event_timestamps = []
+    timestamp_values = pd.to_datetime([_utc_now() for i in range(table.num_rows)])
+
+    for val in timestamp_values:
+        event_timestamps.append(_coerce_datetime(val))
+
+    # setting them equivalent
+    created_timestamps = event_timestamps
 
     return list(zip(entity_keys, features, event_timestamps, created_timestamps))
 
@@ -931,6 +1014,17 @@ def _prepare_entities_to_read_from_online_store(
 
     num_rows = _validate_entity_values(entity_proto_values)
 
+    odfv_entities: List[Entity] = []
+    request_source_keys: List[str] = []
+    for on_demand_feature_view in requested_on_demand_feature_views:
+        odfv_entities.append(*getattr(on_demand_feature_view, "entities", []))
+        for source in on_demand_feature_view.source_request_sources:
+            source_schema = on_demand_feature_view.source_request_sources[source].schema
+            for column in source_schema:
+                request_source_keys.append(column.name)
+
+    join_keys_set.update(set(odfv_entities))
+
     join_key_values: Dict[str, List[ValueProto]] = {}
     request_data_features: Dict[str, List[ValueProto]] = {}
     # Entity rows may be either entities or request data.
@@ -938,22 +1032,20 @@ def _prepare_entities_to_read_from_online_store(
         # Found request data
         if join_key_or_entity_name in needed_request_data:
             request_data_features[join_key_or_entity_name] = values
-        else:
-            if join_key_or_entity_name in join_keys_set:
-                join_key = join_key_or_entity_name
-            else:
-                try:
-                    join_key = entity_name_to_join_key_map[join_key_or_entity_name]
-                except KeyError:
-                    raise EntityNotFoundException(join_key_or_entity_name, project)
-                else:
-                    warnings.warn(
-                        "Using entity name is deprecated. Use join_key instead."
-                    )
-
-            # All join keys should be returned in the result.
+        elif join_key_or_entity_name in join_keys_set:
+            # It's a join key
+            join_key = join_key_or_entity_name
             requested_result_row_names.add(join_key)
             join_key_values[join_key] = values
+        elif join_key_or_entity_name in entity_name_to_join_key_map:
+            # It's an entity name (deprecated)
+            join_key = entity_name_to_join_key_map[join_key_or_entity_name]
+            warnings.warn("Using entity name is deprecated. Use join_key instead.")
+            requested_result_row_names.add(join_key)
+            join_key_values[join_key] = values
+        else:
+            # Key is not recognized (likely a feature value), so we skip it.
+            continue  # Or handle accordingly
 
     ensure_request_data_values_exist(needed_request_data, request_data_features)
 

@@ -183,10 +183,13 @@ def update_feature_views_with_inferred_features_and_entities(
             )
 
             if not fv.features:
-                raise RegistryInferenceFailure(
-                    "FeatureView",
-                    f"Could not infer Features for the FeatureView named {fv.name}.",
-                )
+                if isinstance(fv, OnDemandFeatureView):
+                    return None
+                else:
+                    raise RegistryInferenceFailure(
+                        "FeatureView",
+                        f"Could not infer Features for the FeatureView named {fv.name}.",
+                    )
 
 
 def _infer_features_and_entities(
@@ -209,6 +212,7 @@ def _infer_features_and_entities(
             fv, join_keys, run_inference_for_features, config
         )
 
+    entity_columns: List[Field] = fv.entity_columns if fv.entity_columns else []
     columns_to_exclude = {
         fv.batch_source.timestamp_field,
         fv.batch_source.created_timestamp_column,
@@ -235,7 +239,7 @@ def _infer_features_and_entities(
             if field.name not in [
                 entity_column.name for entity_column in fv.entity_columns
             ]:
-                fv.entity_columns.append(field)
+                entity_columns.append(field)
         elif not re.match(
             "^__|__$", col_name
         ):  # double underscores often signal an internal-use column
@@ -255,6 +259,8 @@ def _infer_features_and_entities(
                 )
                 if field.name not in [feature.name for feature in fv.features]:
                     fv.features.append(field)
+
+    fv.entity_columns = entity_columns
 
 
 def _infer_on_demand_features_and_entities(
@@ -282,18 +288,19 @@ def _infer_on_demand_features_and_entities(
 
         batch_source = getattr(source_feature_view, "batch_source")
         batch_field_mapping = getattr(batch_source or None, "field_mapping")
-        if batch_field_mapping:
-            for (
-                original_col,
-                mapped_col,
-            ) in batch_field_mapping.items():
-                if mapped_col in columns_to_exclude:
-                    columns_to_exclude.remove(mapped_col)
-                    columns_to_exclude.add(original_col)
+        for (
+            original_col,
+            mapped_col,
+        ) in batch_field_mapping.items():
+            if mapped_col in columns_to_exclude:
+                columns_to_exclude.remove(mapped_col)
+                columns_to_exclude.add(original_col)
 
-            table_column_names_and_types = (
-                batch_source.get_table_column_names_and_types(config)
-            )
+        table_column_names_and_types = batch_source.get_table_column_names_and_types(
+            config
+        )
+        batch_field_mapping = getattr(batch_source, "field_mapping", {})
+
         for col_name, col_datatype in table_column_names_and_types:
             if col_name in columns_to_exclude:
                 continue

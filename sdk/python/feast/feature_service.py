@@ -84,7 +84,9 @@ class FeatureService:
             if isinstance(feature_grouping, BaseFeatureView):
                 self.feature_view_projections.append(feature_grouping.projection)
 
-    def infer_features(self, fvs_to_update: Dict[str, FeatureView]):
+    def infer_features(
+        self, fvs_to_update: Dict[str, Union[FeatureView, BaseFeatureView]]
+    ):
         """
         Infers the features for the projections of this feature service, and updates this feature
         service in place.

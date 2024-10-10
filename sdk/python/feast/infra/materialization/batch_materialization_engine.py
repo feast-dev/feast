@@ -12,6 +12,7 @@ from feast.feature_view import FeatureView
 from feast.infra.offline_stores.offline_store import OfflineStore
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.registry.base_registry import BaseRegistry
+from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import RepoConfig
 from feast.stream_feature_view import StreamFeatureView
 
@@ -89,7 +90,7 @@ class BatchMaterializationEngine(ABC):
             Union[BatchFeatureView, StreamFeatureView, FeatureView]
         ],
         views_to_keep: Sequence[
-            Union[BatchFeatureView, StreamFeatureView, FeatureView]
+            Union[BatchFeatureView, StreamFeatureView, FeatureView, OnDemandFeatureView]
         ],
         entities_to_delete: Sequence[Entity],
         entities_to_keep: Sequence[Entity],

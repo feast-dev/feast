@@ -12,8 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from abc import ABC, abstractmethod
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Dict, Union
+
+import pyarrow
 
 from feast.value_type import ValueType
 
@@ -28,6 +31,10 @@ PRIMITIVE_FEAST_TYPES_TO_VALUE_TYPES = {
     "BOOL": "BOOL",
     "UNIX_TIMESTAMP": "UNIX_TIMESTAMP",
 }
+
+
+def _utc_now() -> datetime:
+    return datetime.now(tz=timezone.utc)
 
 
 class ComplexFeastType(ABC):
@@ -103,7 +110,6 @@ Float32 = PrimitiveFeastType.FLOAT32
 Float64 = PrimitiveFeastType.FLOAT64
 UnixTimestamp = PrimitiveFeastType.UNIX_TIMESTAMP
 
-
 SUPPORTED_BASE_TYPES = [
     Invalid,
     String,
@@ -159,7 +165,6 @@ class Array(ComplexFeastType):
 
 FeastType = Union[ComplexFeastType, PrimitiveFeastType]
 
-
 VALUE_TYPES_TO_FEAST_TYPES: Dict["ValueType", FeastType] = {
     ValueType.UNKNOWN: Invalid,
     ValueType.BYTES: Bytes,
@@ -179,6 +184,40 @@ VALUE_TYPES_TO_FEAST_TYPES: Dict["ValueType", FeastType] = {
     ValueType.BOOL_LIST: Array(Bool),
     ValueType.UNIX_TIMESTAMP_LIST: Array(UnixTimestamp),
 }
+
+FEAST_TYPES_TO_PYARROW_TYPES = {
+    String: pyarrow.string(),
+    Bool: pyarrow.bool_(),
+    Int32: pyarrow.int32(),
+    Int64: pyarrow.int64(),
+    Float32: pyarrow.float32(),
+    Float64: pyarrow.float64(),
+    # Note: datetime only supports microseconds https://github.com/python/cpython/blob/3.8/Lib/datetime.py#L1559
+    UnixTimestamp: pyarrow.timestamp("us", tz=_utc_now().tzname()),
+}
+
+
+def from_feast_to_pyarrow_type(feast_type: FeastType) -> pyarrow.DataType:
+    """
+    Converts a Feast type to a PyArrow type.
+
+    Args:
+        feast_type: The Feast type to be converted.
+
+    Raises:
+        ValueError: The conversion could not be performed.
+    """
+    assert isinstance(
+        feast_type, (ComplexFeastType, PrimitiveFeastType)
+    ), f"Expected FeastType, got {type(feast_type)}"
+    if isinstance(feast_type, PrimitiveFeastType):
+        if feast_type in FEAST_TYPES_TO_PYARROW_TYPES:
+            return FEAST_TYPES_TO_PYARROW_TYPES[feast_type]
+    elif isinstance(feast_type, ComplexFeastType):
+        # Handle the case when feast_type is an instance of ComplexFeastType
+        pass
+
+    raise ValueError(f"Could not convert Feast type {feast_type} to PyArrow type.")
 
 
 def from_value_type(

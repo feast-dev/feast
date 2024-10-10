@@ -77,6 +77,7 @@ class TestOnlineWrites(unittest.TestCase):
             )
             # Before apply() join_keys is empty
             assert driver_stats_fv.join_keys == []
+            assert driver_stats_fv.entity_columns == []
 
             @on_demand_feature_view(
                 sources=[driver_stats_fv[["conv_rate", "acc_rate"]]],
@@ -104,6 +105,8 @@ class TestOnlineWrites(unittest.TestCase):
             )
             # after apply() join_keys is [driver]
             assert driver_stats_fv.join_keys == [driver.join_key]
+            assert driver_stats_fv.entity_columns[0].name == driver.join_key
+
             self.store.write_to_online_store(
                 feature_view_name="driver_hourly_stats", df=driver_df
             )

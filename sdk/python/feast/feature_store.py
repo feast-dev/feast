@@ -608,7 +608,12 @@ class FeatureStore:
         update_feature_views_with_inferred_features_and_entities(
             sfvs_to_update, entities + entities_to_update, self.config
         )
-        # TODO(kevjumba): Update schema inferrence
+        # We need to attach the time stamp fields to the underlying data sources
+        # and cascade the dependencies
+        update_feature_views_with_inferred_features_and_entities(
+            odfvs_to_update, entities + entities_to_update, self.config
+        )
+        # TODO(kevjumba): Update schema inference
         for sfv in sfvs_to_update:
             if not sfv.schema:
                 raise ValueError(
@@ -618,8 +623,13 @@ class FeatureStore:
         for odfv in odfvs_to_update:
             odfv.infer_features()
 
+        odfvs_to_write = [
+            odfv for odfv in odfvs_to_update if odfv.write_to_online_store
+        ]
+        # Update to include ODFVs with write to online store
         fvs_to_update_map = {
-            view.name: view for view in [*views_to_update, *sfvs_to_update]
+            view.name: view
+            for view in [*views_to_update, *sfvs_to_update, *odfvs_to_write]
         }
         for feature_service in feature_services_to_update:
             feature_service.infer_features(fvs_to_update=fvs_to_update_map)
@@ -847,6 +857,11 @@ class FeatureStore:
         ]
         sfvs_to_update = [ob for ob in objects if isinstance(ob, StreamFeatureView)]
         odfvs_to_update = [ob for ob in objects if isinstance(ob, OnDemandFeatureView)]
+        odfvs_with_writes_to_update = [
+            ob
+            for ob in objects
+            if isinstance(ob, OnDemandFeatureView) and ob.write_to_online_store
+        ]
         services_to_update = [ob for ob in objects if isinstance(ob, FeatureService)]
         data_sources_set_to_update = {
             ob for ob in objects if isinstance(ob, DataSource)
@@ -868,10 +883,23 @@ class FeatureStore:
         for batch_source in batch_sources_to_add:
             data_sources_set_to_update.add(batch_source)
 
-        for fv in itertools.chain(views_to_update, sfvs_to_update):
-            data_sources_set_to_update.add(fv.batch_source)
-            if fv.stream_source:
-                data_sources_set_to_update.add(fv.stream_source)
+        for fv in itertools.chain(
+            views_to_update, sfvs_to_update, odfvs_with_writes_to_update
+        ):
+            if isinstance(fv, FeatureView):
+                data_sources_set_to_update.add(fv.batch_source)
+            if hasattr(fv, "stream_source"):
+                if fv.stream_source:
+                    data_sources_set_to_update.add(fv.stream_source)
+            if isinstance(fv, OnDemandFeatureView):
+                for source_fvp in fv.source_feature_view_projections:
+                    odfv_batch_source: Optional[DataSource] = (
+                        fv.source_feature_view_projections[source_fvp].batch_source
+                    )
+                    if odfv_batch_source is not None:
+                        data_sources_set_to_update.add(odfv_batch_source)
+            else:
+                pass
 
         for odfv in odfvs_to_update:
             for v in odfv.source_request_sources.values():
@@ -884,7 +912,9 @@ class FeatureStore:
 
         # Validate all feature views and make inferences.
         self._validate_all_feature_views(
-            views_to_update, odfvs_to_update, sfvs_to_update
+            views_to_update,
+            odfvs_to_update,
+            sfvs_to_update,
         )
         self._make_inferences(
             data_sources_to_update,
@@ -989,7 +1019,9 @@ class FeatureStore:
         tables_to_delete: List[FeatureView] = (
             views_to_delete + sfvs_to_delete if not partial else []  # type: ignore
         )
-        tables_to_keep: List[FeatureView] = views_to_update + sfvs_to_update  # type: ignore
+        tables_to_keep: List[
+            Union[FeatureView, StreamFeatureView, OnDemandFeatureView]
+        ] = views_to_update + sfvs_to_update + odfvs_with_writes_to_update  # type: ignore
 
         self._get_provider().update_infra(
             project=self.project,
@@ -1444,19 +1476,18 @@ class FeatureStore:
             inputs: Optional the dictionary object to be written
             allow_registry_cache (optional): Whether to allow retrieving feature views from a cached registry.
         """
-        # TODO: restrict this to work with online StreamFeatureViews and validate the FeatureView type
+        feature_view_dict = {
+            fv_proto.name: fv_proto
+            for fv_proto in self.list_all_feature_views(allow_registry_cache)
+        }
         try:
-            feature_view: FeatureView = self.get_stream_feature_view(
-                feature_view_name, allow_registry_cache=allow_registry_cache
-            )
+            feature_view = feature_view_dict[feature_view_name]
         except FeatureViewNotFoundException:
-            feature_view = self.get_feature_view(
-                feature_view_name, allow_registry_cache=allow_registry_cache
-            )
+            raise FeatureViewNotFoundException(feature_view_name, self.project)
         if df is not None and inputs is not None:
             raise ValueError("Both df and inputs cannot be provided at the same time.")
         if df is None and inputs is not None:
-            if isinstance(inputs, dict):
+            if isinstance(inputs, dict) or isinstance(inputs, List):
                 try:
                     df = pd.DataFrame(inputs)
                 except Exception as _:
@@ -1465,6 +1496,13 @@ class FeatureStore:
                 pass
             else:
                 raise ValueError("inputs must be a dictionary or a pandas DataFrame.")
+        if df is not None and inputs is None:
+            if isinstance(df, dict) or isinstance(df, List):
+                try:
+                    df = pd.DataFrame(df)
+                except Exception as _:
+                    raise DataFrameSerializationError(df)
+
         provider = self._get_provider()
         provider.ingest_df(feature_view, df)
 

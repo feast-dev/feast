@@ -5,7 +5,8 @@ import pandas as pd
 import pyarrow as pa
 from tqdm import tqdm
 
-from feast import importer
+from feast import OnDemandFeatureView, importer
+from feast.base_feature_view import BaseFeatureView
 from feast.batch_feature_view import BatchFeatureView
 from feast.data_source import DataSource
 from feast.entity import Entity
@@ -122,7 +123,7 @@ class PassthroughProvider(Provider):
         self,
         project: str,
         tables_to_delete: Sequence[FeatureView],
-        tables_to_keep: Sequence[FeatureView],
+        tables_to_keep: Sequence[Union[FeatureView, OnDemandFeatureView]],
         entities_to_delete: Sequence[Entity],
         entities_to_keep: Sequence[Entity],
         partial: bool,
@@ -160,7 +161,7 @@ class PassthroughProvider(Provider):
     def online_write_batch(
         self,
         config: RepoConfig,
-        table: FeatureView,
+        table: Union[FeatureView, BaseFeatureView, OnDemandFeatureView],
         data: List[
             Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
         ],
@@ -274,25 +275,52 @@ class PassthroughProvider(Provider):
 
     def ingest_df(
         self,
-        feature_view: FeatureView,
+        feature_view: Union[BaseFeatureView, FeatureView, OnDemandFeatureView],
         df: pd.DataFrame,
+        field_mapping: Optional[Dict] = None,
     ):
         table = pa.Table.from_pandas(df)
+        if isinstance(feature_view, OnDemandFeatureView):
+            if not field_mapping:
+                field_mapping = {}
+            table = _run_pyarrow_field_mapping(table, field_mapping)
+            join_keys = {
+                entity.name: entity.dtype.to_value_type()
+                for entity in feature_view.entity_columns
+            }
+            rows_to_write = _convert_arrow_to_proto(table, feature_view, join_keys)
 
-        if feature_view.batch_source.field_mapping is not None:
-            table = _run_pyarrow_field_mapping(
-                table, feature_view.batch_source.field_mapping
+            self.online_write_batch(
+                self.repo_config, feature_view, rows_to_write, progress=None
             )
+        else:
+            if hasattr(feature_view, "entity_columns"):
+                join_keys = {
+                    entity.name: entity.dtype.to_value_type()
+                    for entity in feature_view.entity_columns
+                }
+            else:
+                join_keys = {}
 
-        join_keys = {
-            entity.name: entity.dtype.to_value_type()
-            for entity in feature_view.entity_columns
-        }
-        rows_to_write = _convert_arrow_to_proto(table, feature_view, join_keys)
+            # Note: A dictionary mapping of column names in this data
+            #   source to feature names in a feature table or view. Only used for feature
+            #   columns, not entity or timestamp columns.
+            if hasattr(feature_view, "batch_source"):
+                if feature_view.batch_source.field_mapping is not None:
+                    table = _run_pyarrow_field_mapping(
+                        table, feature_view.batch_source.field_mapping
+                    )
+            else:
+                table = _run_pyarrow_field_mapping(table, {})
 
-        self.online_write_batch(
-            self.repo_config, feature_view, rows_to_write, progress=None
-        )
+            if not isinstance(feature_view, BaseFeatureView):
+                for entity in feature_view.entity_columns:
+                    join_keys[entity.name] = entity.dtype.to_value_type()
+            rows_to_write = _convert_arrow_to_proto(table, feature_view, join_keys)
+
+            self.online_write_batch(
+                self.repo_config, feature_view, rows_to_write, progress=None
+            )
 
     def ingest_df_to_offline_store(self, feature_view: FeatureView, table: pa.Table):
         if feature_view.batch_source.field_mapping is not None:
