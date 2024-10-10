@@ -566,12 +566,12 @@ class TestOnDemandPythonTransformationAllDataTypes(unittest.TestCase):
                 "conv_rate",
                 "conv_rate_plus_val1",
                 "conv_rate_plus_val2",
-                "created__",
-                "driver_id",
-                "event_timestamp",
                 # It should not have the items below
-                "val_to_add",
-                "val_to_add_2",
+                # "created__",
+                # "driver_id",
+                # "event_timestamp",
+                # "val_to_add",
+                # "val_to_add_2",
             ]
             with pytest.raises(TypeError):
                 _ = self.store.get_online_features(
@@ -610,7 +610,7 @@ class TestOnDemandPythonTransformationAllDataTypes(unittest.TestCase):
                 # "val_to_add",
                 # "val_to_add_2",
             ]
-            assert sorted(resp_online.columns) != sorted(resp_offline.columns)
+            assert sorted(resp_online.columns) == sorted(resp_offline.columns)
 
     def test_setup(self):
         pass
