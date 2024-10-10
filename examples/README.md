@@ -14,3 +14,5 @@
 
 7. **[Podman/Podman Compose_local](https://github.com/feast-dev/feast/tree/master/examples/podman_local)**: Demonstrates how to deploy Feast remote server components using Podman Compose locally.
 
+8. **[RHOAI Feast Demo](https://github.com/feast-dev/feast/tree/master/examples/rhoai-quickstart)**: Showcases Feast's core functionality using a Jupyter notebook, including fetching online feature data from a remote server and retrieving metadata from a remote registry.
+
