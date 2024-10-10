@@ -4,9 +4,16 @@
 
 ## Overview
 
-On demand feature views allows data scientists to use existing features and request time data (features only available 
-at request time) to transform and create new features at the time the data is read from the online store. Users define 
-python transformation logic which is executed in both historical retrieval and online retrieval paths.
+On Demand Feature Views (ODFVs) allow data scientists to use existing features and request-time data (features only 
+available at request time) to transform and create new features. Users define Python transformation logic which is 
+executed during both historical retrieval and online retrieval. Additionally, ODFVs provide flexibility in 
+applying transformations either during data ingestion (at write time) or during feature retrieval (at read time), 
+controlled via the `write_to_online_store` parameter.
+
+By setting `write_to_online_store=True`, transformations are applied during data ingestion, and the transformed 
+features are stored in the online store. This can improve online feature retrieval performance by reducing computation 
+during reads. Conversely, if `write_to_online_store=False` (the default if omitted), transformations are applied during 
+feature retrieval.
 
 ### Why use on demand feature views?
 
@@ -14,10 +21,11 @@ This enables data scientists to easily impact the online feature retrieval path.
 
 1. Call `get_historical_features` to generate a training dataframe
 2. Iterate in notebook on feature engineering in Pandas/Python
-3. Copy transformation logic into on demand feature views and commit to a dev branch of the feature repository
+3. Copy transformation logic into ODFVs and commit to a development branch of the feature repository
 4. Verify with `get_historical_features` (on a small dataset) that the transformation gives expected output over historical data
-5. Verify with `get_online_features` on dev branch that the transformation correctly outputs online features
-6. Submit a pull request to the staging / prod branches which impact production traffic
+5. Decide whether to apply the transformation on writes or on reads by setting the `write_to_online_store` parameter accordingly.
+6. Verify with `get_online_features` on dev branch that the transformation correctly outputs online features
+7. Submit a pull request to the staging / prod branches which impact production traffic
 
 ## CLI
 
@@ -32,9 +40,17 @@ See [https://github.com/feast-dev/on-demand-feature-views-demo](https://github.c
 
 ### **Registering transformations**
 
-On Demand Transformations support transformations using Pandas and native Python. Note, Native Python is much faster but not yet tested for offline retrieval.
+On Demand Transformations support transformations using Pandas and native Python. Note, Native Python is much faster 
+but not yet tested for offline retrieval.
+
+When defining an ODFV, you can control when the transformation is applied using the write_to_online_store parameter:
+
+- `write_to_online_store=True`: The transformation is applied during data ingestion (on write), and the transformed features are stored in the online store.
+- `write_to_online_store=False` (default when omitted): The transformation is applied during feature retrieval (on read).
 
 We register `RequestSource` inputs and the transform in `on_demand_feature_view`:
+
+## Example of an On Demand Transformation on Read
 
 ```python
 from feast import Field, RequestSource
@@ -99,6 +115,52 @@ def transformed_conv_rate_python(inputs: Dict[str, Any]) -> Dict[str, Any]:
     }
     return output
 ```
+
+## Example of an On Demand Transformation on Write 
+
+```python
+from feast import Field, on_demand_feature_view
+from feast.types import Float64
+import pandas as pd
+
+# Existing Feature View
+driver_hourly_stats_view = ...
+
+# Define an ODFV without RequestSource
+@on_demand_feature_view(
+    sources=[driver_hourly_stats_view],
+    schema=[
+        Field(name='conv_rate_adjusted', dtype=Float64),
+    ],
+    mode="pandas",
+    write_to_online_store=True,  # Apply transformation during write time
+)
+def transformed_conv_rate(features_df: pd.DataFrame) -> pd.DataFrame:
+    df = pd.DataFrame()
+    df['conv_rate_adjusted'] = features_df['conv_rate'] * 1.1  # Adjust conv_rate by 10%
+    return df
+```
+Then to ingest the data with the new feature view make sure to include all of the input features required for the 
+transformations:
+
+```python
+from feast import FeatureStore
+import pandas as pd
+
+store = FeatureStore(repo_path=".")
+
+# Data to ingest
+data = pd.DataFrame({
+    "driver_id": [1001],
+    "event_timestamp": [pd.Timestamp.now()],
+    "conv_rate": [0.5],
+    "acc_rate": [0.8],
+    "avg_daily_trips": [10],
+})
+
+# Ingest data to the online store
+store.push("driver_hourly_stats_view", data)
+``` 
 
 ### **Feature retrieval**
 
