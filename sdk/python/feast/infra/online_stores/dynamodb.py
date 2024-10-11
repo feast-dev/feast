@@ -302,6 +302,14 @@ class DynamoDBOnlineStore(OnlineStore):
 
         deserialize = TypeDeserializer().deserialize
 
+        def to_tbl_resp(raw_client_response):
+            return {
+                "entity_id": deserialize(raw_client_response["entity_id"]),
+                "event_ts": deserialize(raw_client_response["event_ts"]),
+                "values": deserialize(raw_client_response["values"]),
+            }
+
+        batches = []
         entity_id_batches = []
         while True:
             batch = list(itertools.islice(entity_ids_iter, batch_size))
@@ -310,35 +318,29 @@ class DynamoDBOnlineStore(OnlineStore):
             entity_id_batch = self._to_client_batch_get_payload(
                 online_config, table_name, batch
             )
+            batches.append(batch)
             entity_id_batches.append(entity_id_batch)
 
         async with self._get_aiodynamodb_client(online_config.region) as client:
-
-            async def get_and_format(entity_id_batch):
-                def to_tbl_resp(raw_client_response):
-                    return {
-                        "entity_id": deserialize(raw_client_response["entity_id"]),
-                        "event_ts": deserialize(raw_client_response["event_ts"]),
-                        "values": deserialize(raw_client_response["values"]),
-                    }
-
-                response = await client.batch_get_item(
-                    RequestItems=entity_id_batch,
-                )
-                return self._process_batch_get_response(
-                    table_name,
-                    response,
-                    entity_ids,
-                    batch,
-                    to_tbl_response=to_tbl_resp,
-                )
-
-            result_batches = await asyncio.gather(
+            response_batches = await asyncio.gather(
                 *[
-                    get_and_format(entity_id_batch)
+                    client.batch_get_item(
+                        RequestItems=entity_id_batch,
+                    )
                     for entity_id_batch in entity_id_batches
                 ]
             )
+
+        result_batches = []
+        for batch, response in zip(batches, response_batches):
+            result_batch = self._process_batch_get_response(
+                table_name,
+                response,
+                entity_ids,
+                batch,
+                to_tbl_response=to_tbl_resp,
+            )
+            result_batches.append(result_batch)
 
         return list(itertools.chain(*result_batches))
 
