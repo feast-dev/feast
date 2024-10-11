@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import asyncio
 import itertools
 import logging
 from datetime import datetime
@@ -297,36 +298,49 @@ class DynamoDBOnlineStore(OnlineStore):
         batch_size = online_config.batch_size
         entity_ids = self._to_entity_ids(config, entity_keys)
         entity_ids_iter = iter(entity_ids)
-        result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
         table_name = _get_table_name(online_config, config, table)
 
         deserialize = TypeDeserializer().deserialize
 
-        def to_tbl_resp(raw_client_response):
-            return {
-                "entity_id": deserialize(raw_client_response["entity_id"]),
-                "event_ts": deserialize(raw_client_response["event_ts"]),
-                "values": deserialize(raw_client_response["values"]),
-            }
+        entity_id_batches = []
+        while True:
+            batch = list(itertools.islice(entity_ids_iter, batch_size))
+            if not batch:
+                break
+            entity_id_batch = self._to_client_batch_get_payload(
+                online_config, table_name, batch
+            )
+            entity_id_batches.append(entity_id_batch)
 
         async with self._get_aiodynamodb_client(online_config.region) as client:
-            while True:
-                batch = list(itertools.islice(entity_ids_iter, batch_size))
 
-                # No more items to insert
-                if len(batch) == 0:
-                    break
-                batch_entity_ids = self._to_client_batch_get_payload(
-                    online_config, table_name, batch
-                )
+            async def get_and_format(entity_id_batch):
+                def to_tbl_resp(raw_client_response):
+                    return {
+                        "entity_id": deserialize(raw_client_response["entity_id"]),
+                        "event_ts": deserialize(raw_client_response["event_ts"]),
+                        "values": deserialize(raw_client_response["values"]),
+                    }
+
                 response = await client.batch_get_item(
-                    RequestItems=batch_entity_ids,
+                    RequestItems=entity_id_batch,
                 )
-                batch_result = self._process_batch_get_response(
-                    table_name, response, entity_ids, batch, to_tbl_response=to_tbl_resp
+                return self._process_batch_get_response(
+                    table_name,
+                    response,
+                    entity_ids,
+                    batch,
+                    to_tbl_response=to_tbl_resp,
                 )
-                result.extend(batch_result)
-        return result
+
+            result_batches = await asyncio.gather(
+                *[
+                    get_and_format(entity_id_batch)
+                    for entity_id_batch in entity_id_batches
+                ]
+            )
+
+        return list(itertools.chain(*result_batches))
 
     def _get_aioboto_session(self):
         if self._aioboto_session is None:
