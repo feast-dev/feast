@@ -1,6 +1,23 @@
 # Quickstart
 
-In this tutorial we will
+## What is Feast?
+
+Feast (Feature Store) is an open-source feature store designed to facilitate the management and serving of machine learning features in a way that supports both batch and real-time applications.
+
+For more info refer to [Introduction to feast](../README.md)
+
+## Prerequisites
+* Ensure that you have Python (3.9 or above) installed.
+* It is recommended to create and work in a virtual environment:
+  ```sh
+  # create & activate a virtual environment
+  python -m venv venv/
+  source venv/bin/activate
+  ```
+
+## Overview
+
+In this tutorial we will:
 
 1. Deploy a local feature store with a **Parquet file offline store** and **Sqlite online store**.
 2. Build a training dataset using our time series features from our **Parquet files**.
@@ -9,7 +26,7 @@ In this tutorial we will
 5. Read the latest features from the online store for real-time inference.
 6. Explore the (experimental) Feast UI
 
-## Overview
+***Note*** - Feast can used as an executable or as a server, please refer to [feast feature server](../reference/feature-servers/python-feature-server.md)
 
 In this tutorial, we'll use Feast to generate training data and power online model inference for a 
 ride-sharing driver satisfaction prediction model. Feast solves several common issues in this flow:
@@ -279,7 +296,7 @@ There's an included `test_workflow.py` file which runs through a full sample wor
 7. Verify online features are updated / fresher
 
 We'll walk through some snippets of code below and explain
-### Step 3a: Register feature definitions and deploy your feature store
+### Step 4: Register feature definitions and deploy your feature store
 
 The `apply` command scans python files in the current directory for feature view/entity definitions, registers the 
 objects, and deploys infrastructure. In this example, it reads `example_repo.py` and sets up SQLite online store tables. Note that we had specified SQLite as the default online store by 
@@ -311,7 +328,7 @@ Created sqlite table my_project_driver_hourly_stats
 {% endtab %}
 {% endtabs %}
 
-### Step 3b: Generating training data or powering batch scoring models
+### Step 5: Generating training data or powering batch scoring models
 
 To train a model, we need features and labels. Often, this label data is stored separately (e.g. you have one table storing user survey results and another set of tables with feature values). Feast can help generate the features that map to these labels.
 
@@ -466,7 +483,7 @@ print(training_df.head())
 ```
 {% endtab %}
 {% endtabs %}
-### Step 3c: Ingest batch features into your online store
+### Step 6: Ingest batch features into your online store
 
 We now serialize the latest values of features since the beginning of time to prepare for serving (note: 
 `materialize-incremental` serializes all new features since the last `materialize` call).
@@ -499,7 +516,7 @@ Materializing 2 feature views to 2024-04-19 10:59:58-04:00 into the sqlite onlin
 {% endtab %}
 {% endtabs %}
 
-### Step 3d: Fetching feature vectors for inference
+### Step 7: Fetching feature vectors for inference
 
 At inference time, we need to quickly read the latest feature values for different drivers (which otherwise might 
 have existed only in batch sources) from the online feature store using `get_online_features()`. These feature 
@@ -544,7 +561,7 @@ pprint(feature_vector)
 {% endtab %}
 {% endtabs %}
 
-### Step 3e: Using a feature service to fetch online features instead.
+### Step 8: Using a feature service to fetch online features instead.
 
 You can also use feature services to manage multiple features, and decouple feature view definitions and the 
 features needed by end applications. The feature store can also be used to fetch either online or historical 
@@ -594,7 +611,7 @@ pprint(feature_vector)
 {% endtab %}
 {% endtabs %}
 
-## Step 4: Browse your features with the Web UI (experimental)
+## Step 9: Browse your features with the Web UI (experimental)
 
 View all registered features, data sources, entities, and feature services with the Web UI.
 
@@ -626,7 +643,7 @@ INFO:     Uvicorn running on http://0.0.0.0:8888 (Press CTRL+C to quit)
 
 ![](../reference/ui.png)
 
-## Step 5: Re-examine `test_workflow.py`
+## Step 10: Re-examine `test_workflow.py`
 Take a look at `test_workflow.py` again. It showcases many sample flows on how to interact with Feast. You'll see these 
 show up in the upcoming concepts + architecture + tutorial pages as well. 
 
