@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import asyncio
 import itertools
 import logging
 from datetime import datetime
@@ -297,7 +298,6 @@ class DynamoDBOnlineStore(OnlineStore):
         batch_size = online_config.batch_size
         entity_ids = self._to_entity_ids(config, entity_keys)
         entity_ids_iter = iter(entity_ids)
-        result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
         table_name = _get_table_name(online_config, config, table)
 
         deserialize = TypeDeserializer().deserialize
@@ -309,24 +309,40 @@ class DynamoDBOnlineStore(OnlineStore):
                 "values": deserialize(raw_client_response["values"]),
             }
 
-        async with self._get_aiodynamodb_client(online_config.region) as client:
-            while True:
-                batch = list(itertools.islice(entity_ids_iter, batch_size))
+        batches = []
+        entity_id_batches = []
+        while True:
+            batch = list(itertools.islice(entity_ids_iter, batch_size))
+            if not batch:
+                break
+            entity_id_batch = self._to_client_batch_get_payload(
+                online_config, table_name, batch
+            )
+            batches.append(batch)
+            entity_id_batches.append(entity_id_batch)
 
-                # No more items to insert
-                if len(batch) == 0:
-                    break
-                batch_entity_ids = self._to_client_batch_get_payload(
-                    online_config, table_name, batch
-                )
-                response = await client.batch_get_item(
-                    RequestItems=batch_entity_ids,
-                )
-                batch_result = self._process_batch_get_response(
-                    table_name, response, entity_ids, batch, to_tbl_response=to_tbl_resp
-                )
-                result.extend(batch_result)
-        return result
+        async with self._get_aiodynamodb_client(online_config.region) as client:
+            response_batches = await asyncio.gather(
+                *[
+                    client.batch_get_item(
+                        RequestItems=entity_id_batch,
+                    )
+                    for entity_id_batch in entity_id_batches
+                ]
+            )
+
+        result_batches = []
+        for batch, response in zip(batches, response_batches):
+            result_batch = self._process_batch_get_response(
+                table_name,
+                response,
+                entity_ids,
+                batch,
+                to_tbl_response=to_tbl_resp,
+            )
+            result_batches.append(result_batch)
+
+        return list(itertools.chain(*result_batches))
 
     def _get_aioboto_session(self):
         if self._aioboto_session is None:

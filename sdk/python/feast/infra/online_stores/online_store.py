@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+import asyncio
 from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Union
@@ -240,7 +240,7 @@ class OnlineStore(ABC):
             native_entity_values=True,
         )
 
-        for table, requested_features in grouped_refs:
+        async def query_table(table, requested_features):
             # Get the correct set of entity values with the correct join keys.
             table_entity_values, idxs = utils._get_unique_entities(
                 table,
@@ -258,6 +258,18 @@ class OnlineStore(ABC):
                 requested_features=requested_features,
             )
 
+            return idxs, read_rows
+
+        all_responses = await asyncio.gather(
+            *[
+                query_table(table, requested_features)
+                for table, requested_features in grouped_refs
+            ]
+        )
+
+        for (idxs, read_rows), (table, requested_features) in zip(
+            all_responses, grouped_refs
+        ):
             feature_data = utils._convert_rows_to_protobuf(
                 requested_features, read_rows
             )
