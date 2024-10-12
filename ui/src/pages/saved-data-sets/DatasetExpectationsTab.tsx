@@ -19,8 +19,6 @@ const DatasetExpectationsTab = () => {
     );
   }
 
-  let expectationsData;
-
   return isSuccess ? (
     <EuiPanel hasBorder={true} hasShadow={false}>
       <pre>{JSON.stringify(data.spec, null, 2)}</pre>
