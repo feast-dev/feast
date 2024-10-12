@@ -1,6 +1,5 @@
 import contextlib
 import logging
-from collections import defaultdict
 from datetime import datetime
 from typing import (
     Any,
@@ -23,7 +22,7 @@ from psycopg_pool import AsyncConnectionPool, ConnectionPool
 from feast import Entity
 from feast.feature_view import FeatureView
 from feast.infra.key_encoding_utils import get_list_val_str, serialize_entity_key
-from feast.infra.online_stores.helpers import _to_naive_utc
+from feast.infra.online_stores.helpers import _process_rows, _table_id, _to_naive_utc
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.online_stores.vector_store import VectorStoreConfig
 from feast.infra.utils.postgres.connection_utils import (
@@ -165,7 +164,7 @@ class PostgreSQLOnlineStore(OnlineStore):
             cur.execute(query, params)
             rows = cur.fetchall()
 
-        return self._process_rows(keys, rows)
+        return _process_rows(keys, rows)
 
     async def online_read_async(
         self,
@@ -184,7 +183,7 @@ class PostgreSQLOnlineStore(OnlineStore):
                 await cur.execute(query, params)
                 rows = await cur.fetchall()
 
-        return self._process_rows(keys, rows)
+        return _process_rows(keys, rows)
 
     @staticmethod
     def _construct_query_and_params(
@@ -228,36 +227,6 @@ class PostgreSQLOnlineStore(OnlineStore):
             )
             for entity_key in entity_keys
         ]
-
-    @staticmethod
-    def _process_rows(
-        keys: List[bytes], rows: List[Tuple]
-    ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
-        """Transform the retrieved rows in the desired output.
-
-        PostgreSQL may return rows in an unpredictable order. Therefore, `values_dict`
-        is created to quickly look up the correct row using the keys, since these are
-        actually in the correct order.
-        """
-        values_dict = defaultdict(list)
-        for row in rows if rows is not None else []:
-            values_dict[
-                row[0] if isinstance(row[0], bytes) else row[0].tobytes()
-            ].append(row[1:])
-
-        result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
-        for key in keys:
-            if key in values_dict:
-                value = values_dict[key]
-                res = {}
-                for feature_name, value_bin, event_ts in value:
-                    val = ValueProto()
-                    val.ParseFromString(bytes(value_bin))
-                    res[feature_name] = val
-                result.append((event_ts, res))
-            else:
-                result.append((None, None))
-        return result
 
     def update(
         self,
@@ -444,10 +413,6 @@ class PostgreSQLOnlineStore(OnlineStore):
                 )
 
         return result
-
-
-def _table_id(project: str, table: FeatureView) -> str:
-    return f"{project}_{table.name}"
 
 
 def _drop_table_and_index(table_name):
