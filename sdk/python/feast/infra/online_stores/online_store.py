@@ -260,12 +260,16 @@ class OnlineStore(ABC):
 
             return idxs, read_rows
 
-        all_responses = await asyncio.gather(*[
-            query_table(table, requested_features)
-            for table, requested_features in grouped_refs
-        ])
+        all_responses = await asyncio.gather(
+            *[
+                query_table(table, requested_features)
+                for table, requested_features in grouped_refs
+            ]
+        )
 
-        for (idxs, read_rows), (table, requested_features) in zip(all_responses, grouped_refs):
+        for (idxs, read_rows), (table, requested_features) in zip(
+            all_responses, grouped_refs
+        ):
             feature_data = utils._convert_rows_to_protobuf(
                 requested_features, read_rows
             )
