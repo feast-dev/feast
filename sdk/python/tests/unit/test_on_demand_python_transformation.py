@@ -228,6 +228,7 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
                     python_view,
                     python_demo_view,
                     driver_stats_entity_less_fv,
+                    python_stored_writes_feature_view,
                 ]
             )
             self.store.write_to_online_store(
