@@ -85,11 +85,12 @@ def get_app(
             active_timer.cancel()
 
     def async_refresh():
+        if shutting_down:
+            return
+
         store.refresh_registry()
         nonlocal registry_proto
         registry_proto = store.registry.proto()
-        if shutting_down:
-            return
 
         if registry_ttl_sec:
             nonlocal active_timer
@@ -222,8 +223,12 @@ def get_app(
         )
 
     @app.get("/health")
-    def health():
-        return Response(status_code=status.HTTP_200_OK)
+    async def health():
+        return (
+            Response(status_code=status.HTTP_200_OK)
+            if registry_proto
+            else Response(status_code=status.HTTP_503_SERVICE_UNAVAILABLE)
+        )
 
     @app.post("/materialize", dependencies=[Depends(inject_user_details)])
     def materialize(body=Depends(get_body)):
