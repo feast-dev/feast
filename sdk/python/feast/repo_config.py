@@ -158,9 +158,9 @@ class RepoConfig(FeastBaseModel):
     """Repo config. Typically loaded from `feature_store.yaml`"""
 
     project: StrictStr
-    """ str: Feast project id. This can be any alphanumeric string up to 16 characters.
+    """ str: This acts as a Feast unique project identifier. This can be any alphanumeric string and can have '_' but can not start with '_'.
         You can have multiple independent feature repositories deployed to the same cloud
-        provider account, as long as they have different project ids.
+        provider account, as long as they have different project identifier.
     """
 
     provider: StrictStr = "local"
