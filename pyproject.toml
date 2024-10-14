@@ -1,6 +1,6 @@
 [build-system]
 requires = [
-  "protobuf<5",
+  "protobuf>=4.24.0,<5.0.0",
   "grpcio-tools>=1.56.2,<2",
   "mypy-protobuf>=3.1",
   "pybindgen==0.22.0",

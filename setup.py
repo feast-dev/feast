@@ -37,7 +37,7 @@ REQUIRED = [
     "click>=7.0.0,<9.0.0",
     "colorama>=0.3.9,<1",
     "dill~=0.3.0",
-    "protobuf<5",
+    "protobuf>=4.24.0,<5.0.0",
     "Jinja2>=2,<4",
     "jsonschema",
     "mmh3",
@@ -170,7 +170,7 @@ CI_REQUIRED = (
         "virtualenv==20.23.0",
         "cryptography>=35.0,<43",
         "ruff>=0.3.3",
-        "protobuf<5",
+        "protobuf>=4.24.0,<5.0.0",
         "mypy-protobuf>=3.1",
         "grpcio-tools>=1.56.2,<2",
         "grpcio-testing>=1.56.2,<2",
@@ -505,7 +505,7 @@ setup(
     setup_requires=[
         # snowflake udf packages refer to conda packages, not pypi libraries. Conda stack is still on protobuf 4
         # So we are adding protobuf<5 as a requirement
-        "protobuf<5",
+        "protobuf>=4.24.0,<5.0.0",
         "grpcio-tools>=1.56.2,<2",
         "mypy-protobuf>=3.1",
         "pybindgen==0.22.0",
