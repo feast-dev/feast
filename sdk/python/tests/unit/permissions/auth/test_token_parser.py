@@ -145,27 +145,26 @@ def test_oidc_inter_server_comm(
 @patch(
     "feast.permissions.auth.kubernetes_token_parser.client.RbacAuthorizationV1Api.list_namespaced_role_binding"
 )
-@patch(
-    "feast.permissions.auth.kubernetes_token_parser.client.RbacAuthorizationV1Api.list_cluster_role_binding"
-)
 def test_k8s_token_validation_success(
-    mock_crb,
     mock_rb,
     mock_jwt,
     mock_config,
     rolebindings,
-    clusterrolebindings,
+    monkeypatch,
+    my_namespace,
+    sa_name,
+    sa_namespace,
 ):
-    sa_name = "my-name"
-    namespace = "my-ns"
-    subject = f"system:serviceaccount:{namespace}:{sa_name}"
+    monkeypatch.setattr(
+        "feast.permissions.auth.kubernetes_token_parser.KubernetesTokenParser._read_namespace_from_file",
+        lambda self: my_namespace,
+    )
+    subject = f"system:serviceaccount:{sa_namespace}:{sa_name}"
     mock_jwt.return_value = {"sub": subject}
 
     mock_rb.return_value = rolebindings["items"]
-    mock_crb.return_value = clusterrolebindings["items"]
 
     roles = rolebindings["roles"]
-    croles = clusterrolebindings["roles"]
 
     access_token = "aaa-bbb-ccc"
     token_parser = KubernetesTokenParser()
@@ -175,12 +174,10 @@ def test_k8s_token_validation_success(
 
     assertpy.assert_that(user).is_type_of(User)
     if isinstance(user, User):
-        assertpy.assert_that(user.username).is_equal_to(f"{namespace}:{sa_name}")
-        assertpy.assert_that(user.roles.sort()).is_equal_to((roles + croles).sort())
+        assertpy.assert_that(user.username).is_equal_to(f"{sa_namespace}:{sa_name}")
+        assertpy.assert_that(user.roles.sort()).is_equal_to(roles.sort())
         for r in roles:
             assertpy.assert_that(user.has_matching_role([r])).is_true()
-        for cr in croles:
-            assertpy.assert_that(user.has_matching_role([cr])).is_true()
         assertpy.assert_that(user.has_matching_role(["foo"])).is_false()
 
 
@@ -212,29 +209,28 @@ def test_k8s_inter_server_comm(
     oidc_config,
     request,
     rolebindings,
-    clusterrolebindings,
     monkeypatch,
 ):
     if is_intra_server:
         subject = f":::{intra_communication_val}"
     else:
         sa_name = request.getfixturevalue("sa_name")
-        namespace = request.getfixturevalue("namespace")
-        subject = f"system:serviceaccount:{namespace}:{sa_name}"
+        sa_namespace = request.getfixturevalue("sa_namespace")
+        my_namespace = request.getfixturevalue("my_namespace")
+        subject = f"system:serviceaccount:{sa_namespace}:{sa_name}"
         rolebindings = request.getfixturevalue("rolebindings")
-        clusterrolebindings = request.getfixturevalue("clusterrolebindings")
 
         monkeypatch.setattr(
             "feast.permissions.auth.kubernetes_token_parser.client.RbacAuthorizationV1Api.list_namespaced_role_binding",
             lambda *args, **kwargs: rolebindings["items"],
         )
         monkeypatch.setattr(
-            "feast.permissions.auth.kubernetes_token_parser.client.RbacAuthorizationV1Api.list_cluster_role_binding",
-            lambda *args, **kwargs: clusterrolebindings["items"],
-        )
-        monkeypatch.setattr(
             "feast.permissions.client.kubernetes_auth_client_manager.KubernetesAuthClientManager.get_token",
             lambda self: "my-token",
+        )
+        monkeypatch.setattr(
+            "feast.permissions.auth.kubernetes_token_parser.KubernetesTokenParser._read_namespace_from_file",
+            lambda self: my_namespace,
         )
 
     monkeypatch.setattr(
@@ -248,7 +244,6 @@ def test_k8s_inter_server_comm(
     )
 
     roles = rolebindings["roles"]
-    croles = clusterrolebindings["roles"]
 
     access_token = "aaa-bbb-ccc"
     token_parser = KubernetesTokenParser()
@@ -263,10 +258,8 @@ def test_k8s_inter_server_comm(
     else:
         assertpy.assert_that(user).is_type_of(User)
         if isinstance(user, User):
-            assertpy.assert_that(user.username).is_equal_to(f"{namespace}:{sa_name}")
-            assertpy.assert_that(user.roles.sort()).is_equal_to((roles + croles).sort())
+            assertpy.assert_that(user.username).is_equal_to(f"{sa_namespace}:{sa_name}")
+            assertpy.assert_that(user.roles.sort()).is_equal_to(roles.sort())
             for r in roles:
                 assertpy.assert_that(user.has_matching_role([r])).is_true()
-            for cr in croles:
-                assertpy.assert_that(user.has_matching_role([cr])).is_true()
             assertpy.assert_that(user.has_matching_role(["foo"])).is_false()

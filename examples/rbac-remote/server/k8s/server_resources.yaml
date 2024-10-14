@@ -5,23 +5,23 @@ metadata:
   namespace: feast-dev
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
+kind: Role
 metadata:
-  name: feast-cluster-role
+  name: feast-role
 rules:
   - apiGroups: ["rbac.authorization.k8s.io"]
-    resources: ["roles", "rolebindings", "clusterrolebindings"]
+    resources: ["roles", "rolebindings"]
     verbs: ["get", "list", "watch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
+kind: RoleBinding
 metadata:
-  name: feast-cluster-rolebinding
+  name: feast-rolebinding
 subjects:
   - kind: ServiceAccount
     name: feast-sa
     namespace: feast-dev
 roleRef:
   apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: feast-cluster-role
+  kind: Role
+  name: feast-role
