@@ -528,9 +528,27 @@ class TestOnDemandPythonTransformationAllDataTypes(unittest.TestCase):
             batch_sample["val_to_add_2"] = 1
             batch_sample["event_timestamp"] = start_date
             batch_sample["created"] = start_date
+            fv_only_cols = ["driver_id", "event_timestamp", "created"]
 
+            resp_base_fv = self.store.get_historical_features(
+                entity_df=batch_sample[fv_only_cols],
+                features=[
+                    "driver_hourly_stats:conv_rate",
+                    "driver_hourly_stats:acc_rate",
+                    "driver_hourly_stats:avg_daily_trips",
+                ],
+            ).to_df()
+            assert resp_base_fv is not None
+            assert sorted(resp_base_fv.columns) == [
+                "acc_rate",
+                "avg_daily_trips",
+                "conv_rate",
+                "created__",
+                "driver_id",
+                "event_timestamp",
+            ]
             resp = self.store.get_historical_features(
-                entity_df=pd.DataFrame(batch_sample),
+                entity_df=batch_sample,
                 features=[
                     "driver_hourly_stats:conv_rate",
                     "driver_hourly_stats:acc_rate",
@@ -549,7 +567,7 @@ class TestOnDemandPythonTransformationAllDataTypes(unittest.TestCase):
             missing_batch_sample["event_timestamp"] = start_date
             missing_batch_sample["created"] = start_date
             resp_offline = self.store.get_historical_features(
-                entity_df=pd.DataFrame(missing_batch_sample),
+                entity_df=missing_batch_sample,
                 features=[
                     "driver_hourly_stats:conv_rate",
                     "driver_hourly_stats:acc_rate",
@@ -566,12 +584,11 @@ class TestOnDemandPythonTransformationAllDataTypes(unittest.TestCase):
                 "conv_rate",
                 "conv_rate_plus_val1",
                 "conv_rate_plus_val2",
-                # It should not have the items below
-                # "created__",
-                # "driver_id",
-                # "event_timestamp",
-                # "val_to_add",
-                # "val_to_add_2",
+                "created__",
+                "driver_id",
+                "event_timestamp",
+                "val_to_add",
+                "val_to_add_2",
             ]
             with pytest.raises(TypeError):
                 _ = self.store.get_online_features(
@@ -610,7 +627,13 @@ class TestOnDemandPythonTransformationAllDataTypes(unittest.TestCase):
                 # "val_to_add",
                 # "val_to_add_2",
             ]
-            assert sorted(resp_online.columns) == sorted(resp_offline.columns)
+            # Note online and offline columns will not match because:
+            # you want to be space efficient online when considering the impact of network latency so you want to send
+            # and receive the minimally required set of data, which means after transformation you only need to send the
+            # output in the response.
+            # Offline, you will probably prioritize reproducibility and being able to iterate, which means you will want
+            # the underlying inputs into your transformation, so the extra data is tolerable.
+            assert sorted(resp_online.columns) != sorted(resp_offline.columns)
 
     def test_setup(self):
         pass
