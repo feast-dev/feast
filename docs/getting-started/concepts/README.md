@@ -4,10 +4,6 @@
 [overview.md](overview.md)
 {% endcontent-ref %}
 
-{% content-ref url="project.md" %}
-[project.md](project.md)
-{% endcontent-ref %}
-
 {% content-ref url="data-ingestion.md" %}
 [data-ingestion.md](data-ingestion.md)
 {% endcontent-ref %}
