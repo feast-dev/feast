@@ -275,9 +275,7 @@ def bootstrap():
 
     # example_repo.py
     example_py_file = repo_path / "example_repo.py"
-    replace_str_in_file(
-        example_py_file, "%PARQUET_PATH%", str(driver_stats_path.relative_to(repo_path))
-    )
+    replace_str_in_file(example_py_file, "%PARQUET_PATH%", str(driver_stats_path))
 
     # store config yaml, interact with user and then customize file:
     settings = collect_cassandra_store_settings()
