@@ -1,5 +1,5 @@
 import React from "react";
-import ReactDOM from "react-dom";
+import { createRoot } from "react-dom/client";
 import { QueryClient } from "react-query";
 import FeastUI from "./FeastUI";
 
@@ -91,7 +91,8 @@ const tabsRegistry = {
   ],
 };
 
-ReactDOM.render(
+const root = createRoot(document.getElementById("root")!);
+root.render(
   <React.StrictMode>
     <FeastUI
       reactQueryClient={queryClient}
@@ -106,6 +107,5 @@ ReactDOM.render(
           })
       }}
     />
-  </React.StrictMode>,
-  document.getElementById("root")
+  </React.StrictMode>
 );

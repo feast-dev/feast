@@ -65,9 +65,9 @@ test("full app rendering", async () => {
   });
 });
 
-const leftClick = { button: 0 };
-
 test("routes are reachable", async () => {
+  const user = userEvent.setup();
+
   render(<FeastUISansProviders />);
 
   // Wait for content to load
@@ -89,10 +89,7 @@ test("routes are reachable", async () => {
 
     const routeRegExp = new RegExp(routeName, "i");
 
-    userEvent.click(
-      screen.getByRole("button", { name: routeRegExp }),
-      leftClick
-    );
+    await user.click(screen.getByRole("button", { name: routeRegExp }));
 
     // Should land on a page with the heading
     screen.getByRole("heading", {
@@ -107,13 +104,15 @@ const featureViewName = spec.name!;
 const featureName = spec.features![0]!.name!;
 
 test("features are reachable", async () => {
+  const user = userEvent.setup();
+
   render(<FeastUISansProviders />);
 
   // Wait for content to load
   await screen.findByText(/Explore this Project/i);
   const routeRegExp = new RegExp("Feature Views", "i");
 
-  userEvent.click(screen.getByRole("button", { name: routeRegExp }), leftClick);
+  await user.click(screen.getByRole("button", { name: routeRegExp }));
 
   screen.getByRole("heading", {
     name: "Feature Views",
@@ -122,12 +121,12 @@ test("features are reachable", async () => {
   await screen.findAllByText(/Feature Views/i);
   const fvRegExp = new RegExp(featureViewName, "i");
 
-  userEvent.click(screen.getByRole("link", { name: fvRegExp }), leftClick);
+  await user.click(screen.getByRole("link", { name: fvRegExp }));
 
   await screen.findByText(featureName);
   const fRegExp = new RegExp(featureName, "i");
 
-  userEvent.click(screen.getByRole("link", { name: fRegExp }), leftClick);
+  await user.click(screen.getByRole("link", { name: fRegExp }));
   // Should land on a page with the heading
   // await screen.findByText("Feature: " + featureName);
   screen.getByRole("heading", {

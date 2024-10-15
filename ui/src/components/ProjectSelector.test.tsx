@@ -25,6 +25,8 @@ afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
 test("in a full App render, it shows the right initial project", async () => {
+  const user = userEvent.setup();
+
   render(<FeastUISansProviders />);
 
   const select = await screen.findByRole("combobox", {
@@ -54,7 +56,7 @@ test("in a full App render, it shows the right initial project", async () => {
 
   // Do the select option user event
   // https://stackoverflow.com/a/69478957
-  userEvent.selectOptions(
+  await user.selectOptions(
     // Find the select element
     within(topLevelNavigation).getByRole("combobox"),
     // Find and select the Ireland option
