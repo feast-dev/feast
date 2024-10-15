@@ -115,3 +115,13 @@ auth:
 In case the client cannot run on the same cluster as the servers, the client token can be injected using the `LOCAL_K8S_TOKEN` 
 environment variable on the client side. The value must refer to the token of a service account created on the servers cluster
 and linked to the desired RBAC roles.
+
+#### Setting Up Kubernetes RBAC for Feast
+
+To ensure the Kubernetes RBAC environment aligns with Feast's RBAC configuration, follow these guidelines:
+* The roles defined in Feast `Permission` instances must have corresponding Kubernetes RBAC `Role` names.
+* The Kubernetes RBAC `Role` must reside in the same namespace as the Feast service.
+* The client application can run in a different namespace, using its own dedicated `ServiceAccount`.
+* Finally, the `RoleBinding` that links the client `ServiceAccount` to the RBAC `Role` must be defined in the namespace of the Feast service.
+
+If the above rules are satisfied, the Feast service must be  granted permissions to fetch `RoleBinding` instances from the local namespace.

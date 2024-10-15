@@ -53,11 +53,11 @@ def mock_oidc(request, monkeypatch, client_id):
 
 
 def mock_kubernetes(request, monkeypatch):
+    my_namespace = request.getfixturevalue("my_namespace")
     sa_name = request.getfixturevalue("sa_name")
-    namespace = request.getfixturevalue("namespace")
-    subject = f"system:serviceaccount:{namespace}:{sa_name}"
+    sa_namespace = request.getfixturevalue("sa_namespace")
+    subject = f"system:serviceaccount:{sa_namespace}:{sa_name}"
     rolebindings = request.getfixturevalue("rolebindings")
-    clusterrolebindings = request.getfixturevalue("clusterrolebindings")
 
     monkeypatch.setattr(
         "feast.permissions.auth.kubernetes_token_parser.config.load_incluster_config",
@@ -72,10 +72,10 @@ def mock_kubernetes(request, monkeypatch):
         lambda *args, **kwargs: rolebindings["items"],
     )
     monkeypatch.setattr(
-        "feast.permissions.auth.kubernetes_token_parser.client.RbacAuthorizationV1Api.list_cluster_role_binding",
-        lambda *args, **kwargs: clusterrolebindings["items"],
-    )
-    monkeypatch.setattr(
         "feast.permissions.client.kubernetes_auth_client_manager.KubernetesAuthClientManager.get_token",
         lambda self: "my-token",
+    )
+    monkeypatch.setattr(
+        "feast.permissions.auth.kubernetes_token_parser.KubernetesTokenParser._read_namespace_from_file",
+        lambda self: my_namespace,
     )

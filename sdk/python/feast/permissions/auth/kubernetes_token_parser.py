@@ -11,6 +11,7 @@ from feast.permissions.auth.token_parser import TokenParser
 from feast.permissions.user import User
 
 logger = logging.getLogger(__name__)
+_namespace_file_path = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
 
 
 class KubernetesTokenParser(TokenParser):
@@ -48,24 +49,42 @@ class KubernetesTokenParser(TokenParser):
         if sa_name is not None and sa_name == intra_communication_base64:
             return User(username=sa_name, roles=[])
         else:
-            roles = self.get_roles(sa_namespace, sa_name)
-            logger.info(f"Roles for ServiceAccount {sa_name}: {roles}")
+            current_namespace = self._read_namespace_from_file()
+            logger.info(
+                f"Looking for ServiceAccount roles of {sa_namespace}:{sa_name} in {current_namespace}"
+            )
+            roles = self.get_roles(
+                current_namespace=current_namespace,
+                service_account_namespace=sa_namespace,
+                service_account_name=sa_name,
+            )
+            logger.info(f"Roles: {roles}")
 
             return User(username=current_user, roles=roles)
 
-    def get_roles(self, namespace: str, service_account_name: str) -> list[str]:
-        """
-        Fetches the Kubernetes `Role`s associated to the given `ServiceAccount` in the given `namespace`.
+    def _read_namespace_from_file(self):
+        try:
+            with open(_namespace_file_path, "r") as file:
+                namespace = file.read().strip()
+            return namespace
+        except Exception as e:
+            raise e
 
-        The research also includes the `ClusterRole`s, so the running deployment must be granted enough permissions to query
-        for such instances in all the namespaces.
+    def get_roles(
+        self,
+        current_namespace: str,
+        service_account_namespace: str,
+        service_account_name: str,
+    ) -> list[str]:
+        """
+        Fetches the Kubernetes `Role`s associated to the given `ServiceAccount` in `current_namespace` namespace.
+
+        The running deployment must be granted enough permissions to query for such instances in this namespace.
 
         Returns:
-            list[str]: Name of the `Role`s and `ClusterRole`s associated to the service account. No string manipulation is performed on the role name.
+            list[str]: Name of the `Role`s associated to the service account. No string manipulation is performed on the role name.
         """
-        role_bindings = self.rbac_v1.list_namespaced_role_binding(namespace)
-        cluster_role_bindings = self.rbac_v1.list_cluster_role_binding()
-
+        role_bindings = self.rbac_v1.list_namespaced_role_binding(current_namespace)
         roles: set[str] = set()
 
         for binding in role_bindings.items:
@@ -74,16 +93,7 @@ class KubernetesTokenParser(TokenParser):
                     if (
                         subject.kind == "ServiceAccount"
                         and subject.name == service_account_name
-                    ):
-                        roles.add(binding.role_ref.name)
-
-        for binding in cluster_role_bindings.items:
-            if binding.subjects is not None:
-                for subject in binding.subjects:
-                    if (
-                        subject.kind == "ServiceAccount"
-                        and subject.name == service_account_name
-                        and subject.namespace == namespace
+                        and subject.namespace == service_account_namespace
                     ):
                         roles.add(binding.role_ref.name)
 

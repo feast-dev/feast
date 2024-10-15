@@ -20,46 +20,28 @@ def sa_name():
 
 
 @pytest.fixture
-def namespace():
+def my_namespace():
     return "my-ns"
 
 
 @pytest.fixture
-def rolebindings(sa_name, namespace) -> dict:
+def sa_namespace():
+    return "sa-ns"
+
+
+@pytest.fixture
+def rolebindings(my_namespace, sa_name, sa_namespace) -> dict:
     roles = ["reader", "writer"]
     items = []
     for r in roles:
         items.append(
             client.V1RoleBinding(
-                metadata=client.V1ObjectMeta(name=r, namespace=namespace),
+                metadata=client.V1ObjectMeta(name=r, namespace=my_namespace),
                 subjects=[
                     client.V1Subject(
                         kind="ServiceAccount",
                         name=sa_name,
-                        api_group="rbac.authorization.k8s.io",
-                    )
-                ],
-                role_ref=client.V1RoleRef(
-                    kind="Role", name=r, api_group="rbac.authorization.k8s.io"
-                ),
-            )
-        )
-    return {"items": client.V1RoleBindingList(items=items), "roles": roles}
-
-
-@pytest.fixture
-def clusterrolebindings(sa_name, namespace) -> dict:
-    roles = ["updater"]
-    items = []
-    for r in roles:
-        items.append(
-            client.V1ClusterRoleBinding(
-                metadata=client.V1ObjectMeta(name=r, namespace=namespace),
-                subjects=[
-                    client.V1Subject(
-                        kind="ServiceAccount",
-                        name=sa_name,
-                        namespace=namespace,
+                        namespace=sa_namespace,
                         api_group="rbac.authorization.k8s.io",
                     )
                 ],
