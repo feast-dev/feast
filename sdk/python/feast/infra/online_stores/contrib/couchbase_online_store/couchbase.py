@@ -35,6 +35,7 @@ class CouchbaseOnlineStoreConfig(FeastConfigBaseModel):
     user: Optional[StrictStr] = None
     password: Optional[StrictStr] = None
     bucket_name: Optional[StrictStr] = None
+    kv_port: Optional[StrictStr] = None
 
 
 class CouchbaseOnlineStore(OnlineStore):
@@ -50,14 +51,16 @@ class CouchbaseOnlineStore(OnlineStore):
 
         if not self._cluster:
             self._cluster = Cluster(
-                f"couchbase://{online_store_config.host or '127.0.0.1'}",
+                f"couchbase://{online_store_config.host or '127.0.0.1'}:{online_store_config.kv_port or '11210'}",
                 ClusterOptions(
                     PasswordAuthenticator(
                         online_store_config.user or "Administrator",
                         online_store_config.password or "password",
-                    )
+                    ),
+                    network="external",
                 ),
             )
+
             self.bucket = self._cluster.bucket(
                 online_store_config.bucket_name or "feast"
             )
@@ -83,7 +86,10 @@ class CouchbaseOnlineStore(OnlineStore):
         collection = self._get_conn(config, scope_name, collection_name)
 
         for entity_key, values, timestamp, created_ts in data:
-            entity_key_str = serialize_entity_key(entity_key).hex()
+            entity_key_str = serialize_entity_key(
+                entity_key,
+                entity_key_serialization_version=config.entity_key_serialization_version,
+            ).hex()
             timestamp = _to_naive_utc(timestamp).isoformat()  # Convert to ISO format
             if created_ts is not None:
                 created_ts = _to_naive_utc(
@@ -133,7 +139,10 @@ class CouchbaseOnlineStore(OnlineStore):
 
         result: List[Tuple[Optional[datetime], Optional[Dict[str, Any]]]] = []
         for entity_key in entity_keys:
-            entity_key_str = serialize_entity_key(entity_key).hex()
+            entity_key_str = serialize_entity_key(
+                entity_key,
+                entity_key_serialization_version=config.entity_key_serialization_version,
+            ).hex()
             try:
                 features = {}
                 for feature_name in requested_features or []:
