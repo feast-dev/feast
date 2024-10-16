@@ -11,8 +11,10 @@ from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.permissions.action import ALL_ACTIONS, AuthzedAction
+from feast.permissions.matcher import _resource_name_matches_name_patterns
 from feast.permissions.permission import (
     Permission,
+    _normalize_name_patterns
 )
 from feast.permissions.policy import AllowAll, Policy
 from feast.saved_dataset import ValidationReference
@@ -23,7 +25,7 @@ def test_defaults():
     p = Permission(name="test")
     assertpy.assert_that(type(p.types)).is_equal_to(list)
     assertpy.assert_that(p.types).is_equal_to(ALL_RESOURCE_TYPES)
-    assertpy.assert_that(p.name_pattern).is_none()
+    assertpy.assert_that(p.name_patterns).is_equal_to([])
     assertpy.assert_that(p.tags).is_none()
     assertpy.assert_that(type(p.actions)).is_equal_to(list)
     assertpy.assert_that(p.actions).is_equal_to(ALL_ACTIONS)
@@ -65,6 +67,48 @@ def test_normalized_args():
     p = Permission(name="test", actions=AuthzedAction.CREATE)
     assertpy.assert_that(type(p.actions)).is_equal_to(list)
     assertpy.assert_that(p.actions).is_equal_to([AuthzedAction.CREATE])
+
+    p = Permission(name="test", name_patterns=None)
+    assertpy.assert_that(type(p.name_patterns)).is_equal_to(list)
+    assertpy.assert_that(p.name_patterns).is_equal_to([])
+
+    p = Permission(name="test", name_patterns="a_pattern")
+    assertpy.assert_that(type(p.name_patterns)).is_equal_to(list)
+    assertpy.assert_that(p.name_patterns).is_equal_to(["a_pattern"])
+
+    p = Permission(name="test", name_patterns=["pattern1", "pattern2"])
+    assertpy.assert_that(type(p.name_patterns)).is_equal_to(list)
+    assertpy.assert_that(p.name_patterns).is_equal_to(["pattern1", "pattern2"])
+
+    p = Permission(
+        name="test", name_patterns=["   pattern1  ", "  pattern2", "pattern3  "]
+    )
+    assertpy.assert_that(type(p.name_patterns)).is_equal_to(list)
+    assertpy.assert_that(p.name_patterns).is_equal_to(
+        ["pattern1", "pattern2", "pattern3"]
+    )
+
+@pytest.mark.parametrize(
+    "name, patterns, result",
+    [
+        (None, None, True),
+        (None, "", True),
+        (None, [], True),
+        (None, [""], True),
+        ("name", "name", True),
+        ("name", "another", False),
+        ("name", ".*me", True),
+        ("name", "^na.*", True),
+        ("123_must_start_by_number", "^[\d].*", True),
+        ("name", ["invalid", "another_invalid"], False),
+        ("name", ["invalid", "name"], True),
+        ("name", ["name", "invalid"], True),
+        ("name", ["invalid", "another_invalid", "name"], True),
+        ("name", ["invalid", "name", "name"], True),
+    ])
+def test_match_name_patterns(name, patterns, result):
+    assertpy.assert_that(_resource_name_matches_name_patterns(Permission(name = name), _normalize_name_patterns(patterns))).is_equal_to(result)
+
 
 
 @pytest.mark.parametrize(
@@ -152,7 +196,7 @@ def test_match_resource_with_subclasses(resource, types, result):
     ],
 )
 def test_resource_match_with_name_filter(pattern, name, match):
-    p = Permission(name="test", name_pattern=pattern)
+    p = Permission(name="test", name_patterns=pattern)
     for t in ALL_RESOURCE_TYPES:
         resource = Mock(spec=t)
         resource.name = name

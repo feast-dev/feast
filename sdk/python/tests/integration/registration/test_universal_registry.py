@@ -1463,7 +1463,7 @@ def test_apply_permission_success(test_registry):
         and isinstance(permission.policy, RoleBasedPolicy)
         and len(permission.policy.roles) == 1
         and permission.policy.roles[0] == "reader"
-        and permission.name_pattern is None
+        and permission.name_patterns == []
         and permission.tags is None
         and permission.required_tags is None
     )
@@ -1481,7 +1481,7 @@ def test_apply_permission_success(test_registry):
         and isinstance(permission.policy, RoleBasedPolicy)
         and len(permission.policy.roles) == 1
         and permission.policy.roles[0] == "reader"
-        and permission.name_pattern is None
+        and permission.name_patterns == []
         and permission.tags is None
         and permission.required_tags is None
     )
@@ -1511,7 +1511,7 @@ def test_apply_permission_success(test_registry):
         and len(updated_permission.policy.roles) == 2
         and "reader" in updated_permission.policy.roles
         and "writer" in updated_permission.policy.roles
-        and updated_permission.name_pattern is None
+        and updated_permission.name_patterns == []
         and updated_permission.tags is None
         and updated_permission.required_tags is None
     )
@@ -1527,7 +1527,7 @@ def test_apply_permission_success(test_registry):
         actions=[AuthzedAction.DESCRIBE, AuthzedAction.WRITE_ONLINE],
         policy=RoleBasedPolicy(roles=["reader", "writer"]),
         types=FeatureView,
-        name_pattern="aaa",
+        name_patterns="aaa",
         tags={"team": "matchmaking"},
         required_tags={"tag1": "tag1-value"},
     )
@@ -1549,7 +1549,7 @@ def test_apply_permission_success(test_registry):
         and len(updated_permission.policy.roles) == 2
         and "reader" in updated_permission.policy.roles
         and "writer" in updated_permission.policy.roles
-        and updated_permission.name_pattern == "aaa"
+        and updated_permission.name_patterns == ["aaa"]
         and "team" in updated_permission.tags
         and updated_permission.tags["team"] == "matchmaking"
         and updated_permission.required_tags["tag1"] == "tag1-value"

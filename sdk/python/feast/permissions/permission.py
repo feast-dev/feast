@@ -33,7 +33,7 @@ class Permission(ABC):
         name: The permission name (can be duplicated, used for logging troubleshooting).
         types: The list of protected resource types as defined by the `FeastObject` type. The match includes all the sub-classes of the given types.
         Defaults to all managed types (e.g. the `ALL_RESOURCE_TYPES` constant)
-        name_pattern: A regex to match the resource name. Defaults to None, meaning that no name filtering is applied
+        name_patterns: A possibly empty list of regex patterns to match the resource name. Defaults to empty list, e.g. no name filtering is applied
         be present in a resource tags with the given value. Defaults to None, meaning that no tags filtering is applied.
         actions: The actions authorized by this permission. Defaults to `ALL_ACTIONS`.
         policy: The policy to be applied to validate a client request.
@@ -43,7 +43,7 @@ class Permission(ABC):
 
     _name: str
     _types: list["FeastObject"]
-    _name_pattern: Optional[str]
+    _name_patterns: list[str]
     _actions: list[AuthzedAction]
     _policy: Policy
     _tags: Dict[str, str]
@@ -54,8 +54,8 @@ class Permission(ABC):
     def __init__(
         self,
         name: str,
-        types: Optional[Union[list["FeastObject"], "FeastObject"]] = None,
-        name_pattern: Optional[str] = None,
+        types: Optional[Union[list["FeastObject"], "FeastObject"]] = [],
+        name_patterns: Optional[Union[str, list[str]]] = [],
         actions: Union[list[AuthzedAction], AuthzedAction] = ALL_ACTIONS,
         policy: Policy = AllowAll,
         tags: Optional[dict[str, str]] = None,
@@ -74,7 +74,7 @@ class Permission(ABC):
             raise ValueError("The list 'policy' must be non-empty.")
         self._name = name
         self._types = types if isinstance(types, list) else [types]
-        self._name_pattern = _normalize_name_pattern(name_pattern)
+        self._name_patterns = _normalize_name_patterns(name_patterns)
         self._actions = actions if isinstance(actions, list) else [actions]
         self._policy = policy
         self._tags = _normalize_tags(tags)
@@ -88,7 +88,7 @@ class Permission(ABC):
 
         if (
             self.name != other.name
-            or self.name_pattern != other.name_pattern
+            or self.name_patterns != other.name_patterns
             or self.tags != other.tags
             or self.policy != other.policy
             or self.actions != other.actions
@@ -116,8 +116,8 @@ class Permission(ABC):
         return self._types
 
     @property
-    def name_pattern(self) -> Optional[str]:
-        return self._name_pattern
+    def name_patterns(self) -> list[str]:
+        return self._name_patterns
 
     @property
     def actions(self) -> list[AuthzedAction]:
@@ -143,7 +143,7 @@ class Permission(ABC):
         return resource_match_config(
             resource=resource,
             expected_types=self.types,
-            name_pattern=self.name_pattern,
+            name_patterns=self.name_patterns,
             required_tags=self.required_tags,
         )
 
@@ -175,6 +175,9 @@ class Permission(ABC):
             )
             for t in permission_proto.spec.types
         ]
+        name_patterns = [
+            name_pattern for name_pattern in permission_proto.spec.name_patterns
+        ]
         actions = [
             AuthzedAction[PermissionSpecProto.AuthzedAction.Name(action)]
             for action in permission_proto.spec.actions
@@ -183,7 +186,7 @@ class Permission(ABC):
         permission = Permission(
             permission_proto.spec.name,
             types,
-            permission_proto.spec.name_pattern or None,
+            name_patterns,
             actions,
             Policy.from_proto(permission_proto.spec.policy),
             dict(permission_proto.spec.tags) or None,
@@ -220,7 +223,7 @@ class Permission(ABC):
         permission_spec = PermissionSpecProto(
             name=self.name,
             types=types,
-            name_pattern=self.name_pattern if self.name_pattern is not None else "",
+            name_patterns=self.name_patterns,
             actions=actions,
             policy=self.policy.to_proto(),
             tags=self.tags,
@@ -236,10 +239,17 @@ class Permission(ABC):
         return PermissionProto(spec=permission_spec, meta=meta)
 
 
-def _normalize_name_pattern(name_pattern: Optional[str]):
-    if name_pattern is not None:
-        return name_pattern.strip()
-    return None
+def _normalize_name_patterns(
+    name_patterns: Optional[Union[str, list[str]]],
+) -> list[str]:
+    if name_patterns is None:
+        return []
+    if isinstance(name_patterns, str):
+        return _normalize_name_patterns([name_patterns])
+    normalized_name_patterns = []
+    for name_pattern in name_patterns:
+        normalized_name_patterns.append(name_pattern.strip())
+    return normalized_name_patterns
 
 
 def _normalize_tags(tags: Optional[dict[str, str]]):

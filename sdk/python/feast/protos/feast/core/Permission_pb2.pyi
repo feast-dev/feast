@@ -134,7 +134,7 @@ class PermissionSpec(google.protobuf.message.Message):
     NAME_FIELD_NUMBER: builtins.int
     PROJECT_FIELD_NUMBER: builtins.int
     TYPES_FIELD_NUMBER: builtins.int
-    NAME_PATTERN_FIELD_NUMBER: builtins.int
+    NAME_PATTERNS_FIELD_NUMBER: builtins.int
     REQUIRED_TAGS_FIELD_NUMBER: builtins.int
     ACTIONS_FIELD_NUMBER: builtins.int
     POLICY_FIELD_NUMBER: builtins.int
@@ -145,7 +145,8 @@ class PermissionSpec(google.protobuf.message.Message):
     """Name of Feast project."""
     @property
     def types(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[global___PermissionSpec.Type.ValueType]: ...
-    name_pattern: builtins.str
+    @property
+    def name_patterns(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[builtins.str]: ...
     @property
     def required_tags(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, builtins.str]: ...
     @property
@@ -163,14 +164,14 @@ class PermissionSpec(google.protobuf.message.Message):
         name: builtins.str = ...,
         project: builtins.str = ...,
         types: collections.abc.Iterable[global___PermissionSpec.Type.ValueType] | None = ...,
-        name_pattern: builtins.str = ...,
+        name_patterns: collections.abc.Iterable[builtins.str] | None = ...,
         required_tags: collections.abc.Mapping[builtins.str, builtins.str] | None = ...,
         actions: collections.abc.Iterable[global___PermissionSpec.AuthzedAction.ValueType] | None = ...,
         policy: feast.core.Policy_pb2.Policy | None = ...,
         tags: collections.abc.Mapping[builtins.str, builtins.str] | None = ...,
     ) -> None: ...
     def HasField(self, field_name: typing_extensions.Literal["policy", b"policy"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["actions", b"actions", "name", b"name", "name_pattern", b"name_pattern", "policy", b"policy", "project", b"project", "required_tags", b"required_tags", "tags", b"tags", "types", b"types"]) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["actions", b"actions", "name", b"name", "name_patterns", b"name_patterns", "policy", b"policy", "project", b"project", "required_tags", b"required_tags", "tags", b"tags", "types", b"types"]) -> None: ...
 
 global___PermissionSpec = PermissionSpec
 
