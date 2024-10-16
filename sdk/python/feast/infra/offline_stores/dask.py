@@ -57,6 +57,7 @@ class DaskRetrievalJob(RetrievalJob):
         self,
         evaluation_function: Callable,
         full_feature_names: bool,
+        repo_path: str,
         on_demand_feature_views: Optional[List[OnDemandFeatureView]] = None,
         metadata: Optional[RetrievalMetadata] = None,
     ):
@@ -67,6 +68,7 @@ class DaskRetrievalJob(RetrievalJob):
         self._full_feature_names = full_feature_names
         self._on_demand_feature_views = on_demand_feature_views or []
         self._metadata = metadata
+        self.repo_path = repo_path
 
     @property
     def full_feature_names(self) -> bool:
@@ -99,8 +101,13 @@ class DaskRetrievalJob(RetrievalJob):
         if not allow_overwrite and os.path.exists(storage.file_options.uri):
             raise SavedDatasetLocationAlreadyExists(location=storage.file_options.uri)
 
+        if not Path(storage.file_options.uri).is_absolute():
+            absolute_path = Path(self.repo_path) / storage.file_options.uri
+        else:
+            absolute_path = Path(storage.file_options.uri)
+
         filesystem, path = FileSource.create_filesystem_and_path(
-            storage.file_options.uri,
+            str(absolute_path),
             storage.file_options.s3_endpoint_override,
         )
 
@@ -243,7 +250,9 @@ class DaskOfflineStore(OfflineStore):
 
                 all_join_keys = list(set(all_join_keys + join_keys))
 
-                df_to_join = _read_datasource(feature_view.batch_source)
+                df_to_join = _read_datasource(
+                    feature_view.batch_source, config.repo_path
+                )
 
                 df_to_join, timestamp_field = _field_mapping(
                     df_to_join,
@@ -297,6 +306,7 @@ class DaskOfflineStore(OfflineStore):
                 min_event_timestamp=entity_df_event_timestamp_range[0],
                 max_event_timestamp=entity_df_event_timestamp_range[1],
             ),
+            repo_path=str(config.repo_path),
         )
         return job
 
@@ -316,7 +326,7 @@ class DaskOfflineStore(OfflineStore):
 
         # Create lazy function that is only called from the RetrievalJob object
         def evaluate_offline_job():
-            source_df = _read_datasource(data_source)
+            source_df = _read_datasource(data_source, config.repo_path)
 
             source_df = _normalize_timestamp(
                 source_df, timestamp_field, created_timestamp_column
@@ -377,6 +387,7 @@ class DaskOfflineStore(OfflineStore):
         return DaskRetrievalJob(
             evaluation_function=evaluate_offline_job,
             full_feature_names=False,
+            repo_path=str(config.repo_path),
         )
 
     @staticmethod
@@ -420,8 +431,13 @@ class DaskOfflineStore(OfflineStore):
             # Since this code will be mostly used from Go-created thread, it's better to avoid producing new threads
             data = pyarrow.parquet.read_table(data, use_threads=False, pre_buffer=False)
 
+        if config.repo_path is not None and not Path(destination.path).is_absolute():
+            absolute_path = config.repo_path / destination.path
+        else:
+            absolute_path = Path(destination.path)
+
         filesystem, path = FileSource.create_filesystem_and_path(
-            destination.path,
+            str(absolute_path),
             destination.s3_endpoint_override,
         )
 
@@ -456,8 +472,14 @@ class DaskOfflineStore(OfflineStore):
             )
 
         file_options = feature_view.batch_source.file_options
+
+        if config.repo_path is not None and not Path(file_options.uri).is_absolute():
+            absolute_path = config.repo_path / file_options.uri
+        else:
+            absolute_path = Path(file_options.uri)
+
         filesystem, path = FileSource.create_filesystem_and_path(
-            file_options.uri, file_options.s3_endpoint_override
+            str(absolute_path), file_options.s3_endpoint_override
         )
         prev_table = pyarrow.parquet.read_table(
             path, filesystem=filesystem, memory_map=True
@@ -493,7 +515,7 @@ def _get_entity_df_event_timestamp_range(
     )
 
 
-def _read_datasource(data_source) -> dd.DataFrame:
+def _read_datasource(data_source, repo_path) -> dd.DataFrame:
     storage_options = (
         {
             "client_kwargs": {
@@ -504,8 +526,12 @@ def _read_datasource(data_source) -> dd.DataFrame:
         else None
     )
 
+    if not Path(data_source.path).is_absolute():
+        path = repo_path / data_source.path
+    else:
+        path = data_source.path
     return dd.read_parquet(
-        data_source.path,
+        path,
         storage_options=storage_options,
     )
 

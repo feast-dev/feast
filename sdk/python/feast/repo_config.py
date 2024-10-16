@@ -193,6 +193,7 @@ class RepoConfig(FeastBaseModel):
     """ Flags (deprecated field): Feature flags for experimental features """
 
     repo_path: Optional[Path] = None
+    """When using relative path in FileSource path, this parameter is mandatory"""
 
     entity_key_serialization_version: StrictInt = 1
     """ Entity key serialization version: This version is used to control what serialization scheme is

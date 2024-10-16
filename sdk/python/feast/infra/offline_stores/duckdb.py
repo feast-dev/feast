@@ -27,7 +27,7 @@ from feast.infra.registry.base_registry import BaseRegistry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 
 
-def _read_data_source(data_source: DataSource) -> Table:
+def _read_data_source(data_source: DataSource, repo_path: str) -> Table:
     assert isinstance(data_source, FileSource)
 
     if isinstance(data_source.file_format, ParquetFormat):
@@ -43,6 +43,7 @@ def _read_data_source(data_source: DataSource) -> Table:
 def _write_data_source(
     table: Table,
     data_source: DataSource,
+    repo_path: str,
     mode: str = "append",
     allow_overwrite: bool = False,
 ):
@@ -50,14 +51,24 @@ def _write_data_source(
 
     file_options = data_source.file_options
 
-    if mode == "overwrite" and not allow_overwrite and os.path.exists(file_options.uri):
+    if not Path(file_options.uri).is_absolute():
+        absolute_path = Path(repo_path) / file_options.uri
+    else:
+        absolute_path = Path(file_options.uri)
+
+    if (
+        mode == "overwrite"
+        and not allow_overwrite
+        and os.path.exists(str(absolute_path))
+    ):
         raise SavedDatasetLocationAlreadyExists(location=file_options.uri)
 
     if isinstance(data_source.file_format, ParquetFormat):
         if mode == "overwrite":
             table = table.to_pyarrow()
+
             filesystem, path = FileSource.create_filesystem_and_path(
-                file_options.uri,
+                str(absolute_path),
                 file_options.s3_endpoint_override,
             )
 

@@ -95,6 +95,7 @@ def remote_feature_store(offline_server):
             provider="local",
             offline_store=offline_config,
             entity_key_serialization_version=2,
+            # repo_config =
         )
     )
     return store
