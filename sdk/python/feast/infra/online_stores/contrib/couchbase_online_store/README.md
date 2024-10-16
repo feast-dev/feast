@@ -1,5 +1,5 @@
 # Couchbase Online Store
-Utilizes Couchbase Server as the underlying store for the online feature store.
+This contribution makes it possible to use [Couchbase Capella Operational](https://docs.couchbase.com/cloud/get-started/intro.html) as an online store for Feast.
 
 
 #### Create a feature repository
@@ -11,7 +11,7 @@ cd feature_repo
 
 #### Edit `feature_store.yaml`
 
-set `online_store` type to be `couchbase`
+Set the `online_store` type to `couchbase`, and fill in the required fields as shown below.
 
 ```yaml
 project: feature_repo
@@ -19,10 +19,11 @@ registry: data/registry.db
 provider: local
 online_store:
   type: couchbase
-  host: 127.0.0.1  # Couchbase host, default to 127.0.0.1
+  connection_string: couchbase://127.0.0.1 # Couchbase connection string, default to couchbase://127.0.0.1
   user: Administrator  # Couchbase username, default to Administrator
   password: password  # Couchbase password, default to password
   bucket_name: feast  # Couchbase bucket name, default to feast
+  kv_port: 11210  # Couchbase key-value port, default to 11210. Required if custom ports are used. 
 entity_key_serialization_version: 2
 ```
 
