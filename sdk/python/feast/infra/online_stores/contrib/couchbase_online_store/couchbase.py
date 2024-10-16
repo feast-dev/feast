@@ -37,7 +37,7 @@ class CouchbaseOnlineStoreConfig(FeastConfigBaseModel):
     user: Optional[StrictStr] = None
     password: Optional[StrictStr] = None
     bucket_name: Optional[StrictStr] = None
-    kv_port: Optional[StrictStr] = None
+    kv_port: Optional[int] = None
 
 
 class CouchbaseOnlineStore(OnlineStore):
