@@ -13,8 +13,6 @@ jobs:
       - name: Operator tests
         run: |
           cd infra/feast-operator/
-          pwd
-          go version
           make test
       - name: After code formatting, check for uncommitted differences
         run: git diff --exit-code infra/feast-operator
