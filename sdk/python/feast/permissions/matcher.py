@@ -112,14 +112,13 @@ def _resource_name_matches_name_patterns(
 
     if resource.name is None:
         return True
-    
+
     if not isinstance(resource.name, str):
         logger.warning(
             f"Resource {resource} has `name` attribute of unexpected type {type(resource.name)}"
         )
         return True
 
-        
     for name_pattern in name_patterns:
         match = bool(re.fullmatch(name_pattern, resource.name))
         if not match:

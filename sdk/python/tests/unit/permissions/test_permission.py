@@ -12,10 +12,7 @@ from feast.feature_view import FeatureView
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.permissions.action import ALL_ACTIONS, AuthzedAction
 from feast.permissions.matcher import _resource_name_matches_name_patterns
-from feast.permissions.permission import (
-    Permission,
-    _normalize_name_patterns
-)
+from feast.permissions.permission import Permission, _normalize_name_patterns
 from feast.permissions.policy import AllowAll, Policy
 from feast.saved_dataset import ValidationReference
 from feast.stream_feature_view import StreamFeatureView
@@ -88,6 +85,7 @@ def test_normalized_args():
         ["pattern1", "pattern2", "pattern3"]
     )
 
+
 @pytest.mark.parametrize(
     "name, patterns, result",
     [
@@ -99,16 +97,20 @@ def test_normalized_args():
         ("name", "another", False),
         ("name", ".*me", True),
         ("name", "^na.*", True),
-        ("123_must_start_by_number", "^[\d].*", True),
+        ("123_must_start_by_number", r"^[\d].*", True),
         ("name", ["invalid", "another_invalid"], False),
         ("name", ["invalid", "name"], True),
         ("name", ["name", "invalid"], True),
         ("name", ["invalid", "another_invalid", "name"], True),
         ("name", ["invalid", "name", "name"], True),
-    ])
+    ],
+)
 def test_match_name_patterns(name, patterns, result):
-    assertpy.assert_that(_resource_name_matches_name_patterns(Permission(name = name), _normalize_name_patterns(patterns))).is_equal_to(result)
-
+    assertpy.assert_that(
+        _resource_name_matches_name_patterns(
+            Permission(name=name), _normalize_name_patterns(patterns)
+        )
+    ).is_equal_to(result)
 
 
 @pytest.mark.parametrize(
