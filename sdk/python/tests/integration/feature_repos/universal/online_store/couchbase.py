@@ -43,7 +43,7 @@ class CouchbaseOnlineStoreCreator(OnlineStoreCreator):
         views_port = self.container.get_exposed_port("8092")
         query_port = self.container.get_exposed_port("8093")
         kv_port = self.container.get_exposed_port("11210")
-        base_url = f"http://localhost:{rest_port}"
+        base_url = f"http://127.0.0.1:{rest_port}"
 
         port_map = {
             "rest": rest_port,
@@ -67,7 +67,7 @@ class CouchbaseOnlineStoreCreator(OnlineStoreCreator):
         # Return the configuration for Feast
         return {
             "type": "couchbase",
-            "host": "127.0.0.1",
+            "connection_string": "couchbase://127.0.0.1",
             "user": self.username,
             "password": self.password,
             "bucket_name": self.bucket_name,

@@ -31,7 +31,7 @@ class CouchbaseOnlineStoreConfig(FeastConfigBaseModel):
 
     type: Literal["couchbase"] = "couchbase"
 
-    host: Optional[StrictStr] = None
+    connection_string: Optional[StrictStr] = None
     user: Optional[StrictStr] = None
     password: Optional[StrictStr] = None
     bucket_name: Optional[StrictStr] = None
@@ -51,7 +51,7 @@ class CouchbaseOnlineStore(OnlineStore):
 
         if not self._cluster:
             self._cluster = Cluster(
-                f"couchbase://{online_store_config.host or '127.0.0.1'}:{online_store_config.kv_port or '11210'}",
+                f"{online_store_config.connection_string or 'couchbase://127.0.0.1'}:{online_store_config.kv_port or '11210'}",
                 ClusterOptions(
                     PasswordAuthenticator(
                         online_store_config.user or "Administrator",
