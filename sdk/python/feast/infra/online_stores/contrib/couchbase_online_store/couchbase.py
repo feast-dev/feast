@@ -1,5 +1,6 @@
-import base64  # Import base64 to handle binary encoding
+import base64
 import logging
+import warnings
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union
 
@@ -22,6 +23,7 @@ from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel
 
 logger = logging.getLogger(__name__)
+warnings.simplefilter("once", RuntimeWarning)
 
 
 class CouchbaseOnlineStoreConfig(FeastConfigBaseModel):
@@ -46,6 +48,9 @@ class CouchbaseOnlineStore(OnlineStore):
     _cluster = None
 
     def _get_conn(self, config: RepoConfig, scope_name: str, collection_name: str):
+        """
+        Obtain a connection to the Couchbase cluster and get the specific scope and collection.
+        """
         online_store_config = config.online_store
         assert isinstance(online_store_config, CouchbaseOnlineStoreConfig)
 
@@ -80,6 +85,25 @@ class CouchbaseOnlineStore(OnlineStore):
         ],
         progress: Optional[Callable[[int], Any]],
     ) -> None:
+        """
+        Write a batch of feature data to the online Couchbase store.
+
+        Args:
+            config: The RepoConfig for the current FeatureStore.
+            table: Feast FeatureView.
+            data: a list of quadruplets containing Feature data. Each
+                  quadruplet contains an Entity Key, a dict containing feature
+                  values, an event timestamp for the row, and
+                  the created timestamp for the row if it exists.
+            progress: Optional function to be called once every mini-batch of
+                      rows is written to the online store. Can be used to
+                      display progress.
+        """
+        warnings.warn(
+            "This online store is an experimental feature in alpha development. "
+            "Some functionality may still be unstable so functionality can change in the future.",
+            RuntimeWarning,
+        )
         project = config.project
         scope_name = f"{project}_{table.name}_scope"
         collection_name = f"{project}_{table.name}_collection"
@@ -130,6 +154,22 @@ class CouchbaseOnlineStore(OnlineStore):
         entity_keys: List[EntityKeyProto],
         requested_features: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
+        """
+        Read feature values pertaining to the requested entities from
+        the online store.
+
+        Args:
+            config: The RepoConfig for the current FeatureStore.
+            table: Feast FeatureView.
+            entity_keys: a list of entity keys that should be read
+                         from the FeatureStore.
+            requested_features: Optional list of feature names to read.
+        """
+        warnings.warn(
+            "This online store is an experimental feature in alpha development. "
+            "Some functionality may still be unstable so functionality can change in the future.",
+            RuntimeWarning,
+        )
         project = config.project
 
         scope_name = f"{project}_{table.name}_scope"
@@ -183,6 +223,22 @@ class CouchbaseOnlineStore(OnlineStore):
         entities_to_keep: Sequence[Entity],
         partial: bool,
     ):
+        """
+        Update schema on DB, by creating and destroying tables accordingly.
+
+        Args:
+            config: The RepoConfig for the current FeatureStore.
+            tables_to_delete: Tables to delete from the Online Store.
+            tables_to_keep: Tables to keep in the Online Store.
+            entities_to_delete: Entities to delete from the Online Store.
+            entities_to_keep: Entities to keep in the Online Store.
+            partial: Whether to partially update the schema.
+        """
+        warnings.warn(
+            "This online store is an experimental feature in alpha development. "
+            "Some functionality may still be unstable so functionality can change in the future.",
+            RuntimeWarning,
+        )
         project = config.project
 
         for table in tables_to_keep:
@@ -219,6 +275,19 @@ class CouchbaseOnlineStore(OnlineStore):
         tables: Sequence[Union[FeatureView]],
         entities: Sequence[Entity],
     ):
+        """
+        Delete tables from the database.
+
+        Args:
+            config: The RepoConfig for the current FeatureStore.
+            tables: Tables to delete from the feature repo.
+            entities: Entities to delete from the feature repo.
+        """
+        warnings.warn(
+            "This online store is an experimental feature in alpha development. "
+            "Some functionality may still be unstable so functionality can change in the future.",
+            RuntimeWarning,
+        )
         project = config.project
 
         for table in tables:
