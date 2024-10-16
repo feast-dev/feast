@@ -2,7 +2,7 @@ import base64
 import logging
 import warnings
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
 
 import pytz
 from couchbase.auth import PasswordAuthenticator
@@ -79,7 +79,7 @@ class CouchbaseOnlineStore(OnlineStore):
     def online_write_batch(
         self,
         config: RepoConfig,
-        table: Union[FeatureView],
+        table: FeatureView,
         data: List[
             Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
         ],
@@ -150,7 +150,7 @@ class CouchbaseOnlineStore(OnlineStore):
     def online_read(
         self,
         config: RepoConfig,
-        table: Union[FeatureView],
+        table: FeatureView,
         entity_keys: List[EntityKeyProto],
         requested_features: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
@@ -217,8 +217,8 @@ class CouchbaseOnlineStore(OnlineStore):
     def update(
         self,
         config: RepoConfig,
-        tables_to_delete: Sequence[Union[FeatureView]],
-        tables_to_keep: Sequence[Union[FeatureView]],
+        tables_to_delete: Sequence[FeatureView],
+        tables_to_keep: Sequence[FeatureView],
         entities_to_delete: Sequence[Entity],
         entities_to_keep: Sequence[Entity],
         partial: bool,
@@ -272,7 +272,7 @@ class CouchbaseOnlineStore(OnlineStore):
     def teardown(
         self,
         config: RepoConfig,
-        tables: Sequence[Union[FeatureView]],
+        tables: Sequence[FeatureView],
         entities: Sequence[Entity],
     ):
         """
@@ -303,7 +303,7 @@ class CouchbaseOnlineStore(OnlineStore):
 
 
 def _document_id(
-    project: str, table: Union[FeatureView], entity_key_str: str, feature_name: str
+    project: str, table: FeatureView, entity_key_str: str, feature_name: str
 ) -> str:
     return f"{project}:{table.name}:{entity_key_str}:{feature_name}"
 
