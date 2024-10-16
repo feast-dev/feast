@@ -1,6 +1,23 @@
 # Couchbase Online Store
+> NOTE:
+> This is a community-contributed online store that is in alpha development. It is not officially supported by the Feast project.
+
 This contribution makes it possible to use [Couchbase Capella Operational](https://docs.couchbase.com/cloud/get-started/intro.html) as an online store for Feast.
 
+
+### Get Started with Couchbase Capella Operational
+You'll need a Couchbase Capella Operational cluster to use this online store. Follow the steps below to get started:
+1. [Create a Couchbase Capella account](https://docs.couchbase.com/cloud/get-started/create-account.html#sign-up-free-tier)
+2. [Deploy an Operational cluster](https://docs.couchbase.com/cloud/get-started/create-account.html#getting-started)
+3. [Create a bucket](https://docs.couchbase.com/cloud/clusters/data-service/manage-buckets.html#add-bucket)
+    - This can be named anything, but must correspond to the bucket described in the `feature_store.yaml` configuration file.
+    - The default bucket name is `feast`.
+4. [Create cluster access credentials](https://docs.couchbase.com/cloud/clusters/manage-database-users.html#create-database-credentials)
+    - These credentials should have full access to the bucket created in step 3.
+5. [Configure allowed IP addresses](https://docs.couchbase.com/cloud/clusters/allow-ip-address.html)
+    - You must allow the IP address of the machine running Feast.
+
+### Use Couchbase Online Store with Feast
 
 #### Create a feature repository
 
@@ -19,16 +36,15 @@ registry: data/registry.db
 provider: local
 online_store:
   type: couchbase
-  connection_string: couchbase://127.0.0.1 # Couchbase connection string, default to couchbase://127.0.0.1
-  user: Administrator  # Couchbase username, default to Administrator
-  password: password  # Couchbase password, default to password
-  bucket_name: feast  # Couchbase bucket name, default to feast
-  kv_port: 11210  # Couchbase key-value port, default to 11210. Required if custom ports are used. 
+  connection_string: couchbase://127.0.0.1 # Couchbase connection string, copied from 'Connect' page in Couchbase Capella console
+  user: Administrator  # Couchbase username from access credentials
+  password: password  # Couchbase password from access credentials
+  bucket_name: feast  # Couchbase bucket name, defaults to feast
+  kv_port: 11210  # Couchbase key-value port, defaults to 11210. Required if custom ports are used. 
 entity_key_serialization_version: 2
 ```
 
-#### Apply the feature definitions in `example.py` (go/internal/test/feature_repo/example.py)
-[//]: # (// todo: link for example.py)
+#### Apply the feature definitions in [`example.py`](https://github.com/feast-dev/feast/blob/master/go/internal/test/feature_repo/example.py)
 
 ```shell
 feast -c feature_repo apply
@@ -40,8 +56,8 @@ Registered feature view driver_hourly_stats_view
 Deploying infrastructure for driver_hourly_stats_view
 ```
 
-### Materialize Latest Data to Online Feature Store (Couchbase)
-```
+### Materialize Latest Data to Couchbase Online Feature Store
+```shell
 $ CURRENT_TIME=$(date -u +"%Y-%m-%dT%H:%M:%S") 
 $ feast -c feature_repo materialize-incremental $CURRENT_TIME
 ```
@@ -74,7 +90,7 @@ pprint(feature_vector)
 
 ```
 #### Output
-```
+```python
 {'acc_rate': [0.01390857808291912, 0.4063614010810852],
  'avg_daily_trips': [69, 706],
  'conv_rate': [0.6624961495399475, 0.7595928311347961],
