@@ -71,7 +71,7 @@ class CouchbaseOnlineStoreCreator(OnlineStoreCreator):
             "user": self.username,
             "password": self.password,
             "bucket_name": self.bucket_name,
-            "kv_port": kv_port,
+            "kv_port": int(kv_port),
         }
 
     def _wait_for_server_ready(self, base_url: str, timeout: int = 120):
