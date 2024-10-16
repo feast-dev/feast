@@ -50,7 +50,7 @@ message PermissionSpec {
 
   repeated Type types = 3;
 
-  string name_pattern = 4;
+  repeated string name_patterns = 4;
 
   map<string, string> required_tags = 5;
 

@@ -1211,7 +1211,7 @@ def feast_permissions_list_command(ctx: click.Context, verbose: bool, tags: list
                 headers=[
                     "NAME",
                     "TYPES",
-                    "NAME_PATTERN",
+                    "NAME_PATTERNS",
                     "ACTIONS",
                     "ROLES",
                     "REQUIRED_TAGS",
