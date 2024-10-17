@@ -2,6 +2,10 @@ name: java_pr
 
 on:
   pull_request_target:
+    paths-ignore:
+      - 'community/**'
+      - 'docs/**'
+      - 'examples/**'
     types:
       - opened
       - synchronize

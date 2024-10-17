@@ -2,6 +2,10 @@ name: lint-pr
 
 on:
   pull_request:
+    paths-ignore:
+      - 'community/**'
+      - 'docs/**'
+      - 'examples/**'
     types:
       - opened
       - edited
