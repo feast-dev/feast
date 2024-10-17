@@ -119,6 +119,7 @@ def get_remote_registry_store(server_port, feature_store):
             registry=registry_config,
             provider="local",
             entity_key_serialization_version=2,
+            repo_path=feature_store.repo_path,
         )
     )
     return store

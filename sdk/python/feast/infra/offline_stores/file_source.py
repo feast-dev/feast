@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Callable, Dict, Iterable, List, Optional, Tuple
 
 import pyarrow
@@ -154,8 +155,16 @@ class FileSource(DataSource):
     def get_table_column_names_and_types(
         self, config: RepoConfig
     ) -> Iterable[Tuple[str, str]]:
+        if (
+            config.repo_path is not None
+            and not Path(self.file_options.uri).is_absolute()
+        ):
+            absolute_path = config.repo_path / self.file_options.uri
+        else:
+            absolute_path = Path(self.file_options.uri)
+
         filesystem, path = FileSource.create_filesystem_and_path(
-            self.path, self.file_options.s3_endpoint_override
+            str(absolute_path), self.file_options.s3_endpoint_override
         )
 
         # TODO why None check necessary
