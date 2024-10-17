@@ -28,6 +28,14 @@ feast.aggregation module
    :undoc-members:
    :show-inheritance:
 
+feast.arrow\_error\_handler module
+----------------------------------
+
+.. automodule:: feast.arrow_error_handler
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 feast.base\_feature\_view module
 --------------------------------
 
@@ -196,6 +204,14 @@ feast.flags\_helper module
    :undoc-members:
    :show-inheritance:
 
+feast.grpc\_error\_interceptor module
+-------------------------------------
+
+.. automodule:: feast.grpc_error_interceptor
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 feast.importer module
 ---------------------
 
@@ -244,6 +260,14 @@ feast.online\_response module
    :undoc-members:
    :show-inheritance:
 
+feast.project module
+--------------------
+
+.. automodule:: feast.project
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 feast.project\_metadata module
 ------------------------------
 
@@ -288,6 +312,14 @@ feast.repo\_operations module
 -----------------------------
 
 .. automodule:: feast.repo_operations
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+feast.rest\_error\_handler module
+---------------------------------
+
+.. automodule:: feast.rest_error_handler
    :members:
    :undoc-members:
    :show-inheritance:
