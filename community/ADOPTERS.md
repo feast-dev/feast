@@ -11,5 +11,6 @@ alphabetical order.
 | Get Ground | Zhiling Chen | zhilingc | 
 | Gojek  | Pradithya Aria Pura | pradithya |
 | Twitter  | David Liu | mavysavydav|
+| SeatGeek | Rob Howley | robhowley
 | Shopify  | Matt Delacour | MattDelac |
 | Snowflake | Miles Adkins | sfc-gh-madkins | 
