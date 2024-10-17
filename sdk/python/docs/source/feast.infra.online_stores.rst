@@ -84,6 +84,14 @@ feast.infra.online\_stores.sqlite module
    :undoc-members:
    :show-inheritance:
 
+feast.infra.online\_stores.vector\_store module
+-----------------------------------------------
+
+.. automodule:: feast.infra.online_stores.vector_store
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Module contents
 ---------------
 
