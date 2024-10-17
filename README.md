@@ -42,8 +42,13 @@ The above architecture is the minimal Feast deployment. Want to run the full Fea
 ## 🐣 Getting Started
 
 ### 1. Install Feast
+Using pip
 ```commandline
 pip install feast
+```
+Using conda/mamba
+```commandline
+conda install conda-forge::feast
 ```
 
 ### 2. Create a feature repository
