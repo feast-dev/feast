@@ -388,9 +388,3 @@ class OfflineStore(ABC):
             data_source: DataSource object
         """
         return data_source.get_table_column_names_and_types(config=config)
-
-    async def initialize(self, config: RepoConfig) -> None:
-        pass
-
-    async def close(self) -> None:
-        pass

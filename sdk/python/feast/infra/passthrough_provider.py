@@ -521,8 +521,6 @@ class PassthroughProvider(Provider):
 
     async def initialize(self, config: RepoConfig) -> None:
         await self.online_store.initialize(config)
-        await self.offline_store.initialize(config)
 
     async def close(self) -> None:
         await self.online_store.close()
-        await self.offline_store.close()
