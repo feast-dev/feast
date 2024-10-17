@@ -12,11 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import asyncio
+import contextlib
 import itertools
 import logging
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union
 
+from aiobotocore.config import AioConfig
 from pydantic import StrictBool, StrictStr
 
 from feast import Entity, FeatureView, utils
@@ -74,6 +76,9 @@ class DynamoDBOnlineStoreConfig(FeastConfigBaseModel):
     session_based_auth: bool = False
     """AWS session based client authentication"""
 
+    max_pool_connections: int = 10
+    """Max number of connections for async Dynamodb operations"""
+
 
 class DynamoDBOnlineStore(OnlineStore):
     """
@@ -86,7 +91,14 @@ class DynamoDBOnlineStore(OnlineStore):
 
     _dynamodb_client = None
     _dynamodb_resource = None
-    _aioboto_session = None
+
+    async def initialize(self, config: RepoConfig):
+        await _get_aiodynamodb_client(
+            config.online_store.region, config.online_store.max_pool_connections
+        )
+
+    async def close(self):
+        await _aiodynamodb_close()
 
     def update(
         self,
@@ -321,15 +333,17 @@ class DynamoDBOnlineStore(OnlineStore):
             batches.append(batch)
             entity_id_batches.append(entity_id_batch)
 
-        async with self._get_aiodynamodb_client(online_config.region) as client:
-            response_batches = await asyncio.gather(
-                *[
-                    client.batch_get_item(
-                        RequestItems=entity_id_batch,
-                    )
-                    for entity_id_batch in entity_id_batches
-                ]
-            )
+        client = await _get_aiodynamodb_client(
+            online_config.region, online_config.max_pool_connections
+        )
+        response_batches = await asyncio.gather(
+            *[
+                client.batch_get_item(
+                    RequestItems=entity_id_batch,
+                )
+                for entity_id_batch in entity_id_batches
+            ]
+        )
 
         result_batches = []
         for batch, response in zip(batches, response_batches):
@@ -343,14 +357,6 @@ class DynamoDBOnlineStore(OnlineStore):
             result_batches.append(result_batch)
 
         return list(itertools.chain(*result_batches))
-
-    def _get_aioboto_session(self):
-        if self._aioboto_session is None:
-            self._aioboto_session = session.get_session()
-        return self._aioboto_session
-
-    def _get_aiodynamodb_client(self, region: str):
-        return self._get_aioboto_session().create_client("dynamodb", region_name=region)
 
     def _get_dynamodb_client(
         self,
@@ -482,6 +488,38 @@ class DynamoDBOnlineStore(OnlineStore):
                 "ConsistentRead": online_config.consistent_reads,
             }
         }
+
+
+_aioboto_session = None
+_aioboto_client = None
+
+
+def _get_aioboto_session():
+    global _aioboto_session
+    if _aioboto_session is None:
+        logger.debug("initializing the aiobotocore session")
+        _aioboto_session = session.get_session()
+    return _aioboto_session
+
+
+async def _get_aiodynamodb_client(region: str, max_pool_connections: int):
+    global _aioboto_client
+    if _aioboto_client is None:
+        logger.debug("initializing the aiobotocore dynamodb client")
+        client_context = _get_aioboto_session().create_client(
+            "dynamodb",
+            region_name=region,
+            config=AioConfig(max_pool_connections=max_pool_connections),
+        )
+        context_stack = contextlib.AsyncExitStack()
+        _aioboto_client = await context_stack.enter_async_context(client_context)
+    return _aioboto_client
+
+
+async def _aiodynamodb_close():
+    global _aioboto_client
+    if _aioboto_client:
+        await _aioboto_client.close()
 
 
 def _initialize_dynamodb_client(

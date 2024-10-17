@@ -390,3 +390,9 @@ class OnlineStore(ABC):
         raise NotImplementedError(
             f"Online store {self.__class__.__name__} does not support online retrieval"
         )
+
+    async def initialize(self, config: RepoConfig) -> None:
+        pass
+
+    async def close(self) -> None:
+        pass

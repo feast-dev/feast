@@ -79,7 +79,7 @@ def security_manager() -> SecurityManager:
         Permission(
             name="special",
             types=FeatureView,
-            name_pattern="special.*",
+            name_patterns="special.*",
             policy=RoleBasedPolicy(roles=["special-reader"]),
             actions=[AuthzedAction.DESCRIBE, AuthzedAction.UPDATE],
         )

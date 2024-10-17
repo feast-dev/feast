@@ -109,7 +109,7 @@ class MockRetrievalJob(RetrievalJob):
 )
 def retrieval_job(request, environment):
     if request.param is DaskRetrievalJob:
-        return DaskRetrievalJob(lambda: 1, full_feature_names=False)
+        return DaskRetrievalJob(lambda: 1, full_feature_names=False, repo_path="")
     elif request.param is RedshiftRetrievalJob:
         offline_store_config = RedshiftOfflineStoreConfig(
             cluster_id="feast-int-bucket",

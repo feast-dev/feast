@@ -287,7 +287,7 @@
     <dependency>
       <groupId>org.apache.avro</groupId>
       <artifactId>avro</artifactId>
-      <version>1.11.3</version>
+      <version>1.11.4</version>
     </dependency>
 
     <!-- https://mvnrepository.com/artifact/org.apache.arrow/arrow-java-root -->

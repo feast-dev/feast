@@ -172,9 +172,10 @@ Options:
 
 ```text
 +-----------------------+-------------+-----------------------+-----------+----------------+-------------------------+
-| NAME                  | TYPES       | NAME_PATTERN          | ACTIONS   | ROLES          | REQUIRED_TAGS           |
+| NAME                  | TYPES       | NAME_PATTERNS         | ACTIONS   | ROLES          | REQUIRED_TAGS           |
 +=======================+=============+=======================+===========+================+================+========+
 | reader_permission1234 | FeatureView | transformed_conv_rate | DESCRIBE  | reader         | -                       |
+|                       |             | driver_hourly_stats   | DESCRIBE  | reader         | -                       |
 +-----------------------+-------------+-----------------------+-----------+----------------+-------------------------+
 | writer_permission1234 | FeatureView | transformed_conv_rate | CREATE    | writer         | -                       |
 +-----------------------+-------------+-----------------------+-----------+----------------+-------------------------+

@@ -713,7 +713,7 @@ class FeatureStore:
             >>> fs = FeatureStore(repo_path="project/feature_repo")
             >>> driver = Entity(name="driver_id", description="driver id")
             >>> driver_hourly_stats = FileSource(
-            ...     path="project/feature_repo/data/driver_stats.parquet",
+            ...     path="data/driver_stats.parquet",
             ...     timestamp_field="event_timestamp",
             ...     created_timestamp_column="created",
             ... )
@@ -827,7 +827,7 @@ class FeatureStore:
             >>> fs = FeatureStore(repo_path="project/feature_repo")
             >>> driver = Entity(name="driver_id", description="driver id")
             >>> driver_hourly_stats = FileSource(
-            ...     path="project/feature_repo/data/driver_stats.parquet",
+            ...     path="data/driver_stats.parquet",
             ...     timestamp_field="event_timestamp",
             ...     created_timestamp_column="created",
             ... )
@@ -2077,6 +2077,14 @@ class FeatureStore:
         return self._registry.list_saved_datasets(
             self.project, allow_cache=allow_cache, tags=tags
         )
+
+    async def initialize(self) -> None:
+        """Initialize long-lived clients and/or resources needed for accessing datastores"""
+        await self._get_provider().initialize(self.config)
+
+    async def close(self) -> None:
+        """Cleanup any long-lived clients and/or resources"""
+        await self._get_provider().close()
 
 
 def _print_materialization_log(

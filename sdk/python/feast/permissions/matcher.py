@@ -44,7 +44,7 @@ def _get_type(resource: "FeastObject") -> Any:
 def resource_match_config(
     resource: "FeastObject",
     expected_types: list["FeastObject"],
-    name_pattern: Optional[str] = None,
+    name_patterns: list[str],
     required_tags: Optional[dict[str, str]] = None,
 ) -> bool:
     """
@@ -53,7 +53,7 @@ def resource_match_config(
     Args:
         resource: A FeastObject instance to match agains the permission.
         expected_types: The list of object types configured in the permission. Type match also includes all the sub-classes.
-        name_pattern: The optional name pattern filter configured in the permission.
+        name_patterns: The possibly empty list of name pattern filters configured in the permission.
         required_tags: The optional dictionary of required tags configured in the permission.
 
     Returns:
@@ -75,21 +75,8 @@ def resource_match_config(
         )
         return False
 
-    if name_pattern is not None:
-        if hasattr(resource, "name"):
-            if isinstance(resource.name, str):
-                match = bool(re.fullmatch(name_pattern, resource.name))
-                if not match:
-                    logger.info(
-                        f"Resource name {resource.name} does not match pattern {name_pattern}"
-                    )
-                    return False
-            else:
-                logger.warning(
-                    f"Resource {resource} has no `name` attribute of unexpected type {type(resource.name)}"
-                )
-        else:
-            logger.warning(f"Resource {resource} has no `name` attribute")
+    if not _resource_name_matches_name_patterns(resource, name_patterns):
+        return False
 
     if required_tags:
         if hasattr(resource, "required_tags"):
@@ -110,6 +97,39 @@ def resource_match_config(
             logger.warning(f"Resource {resource} has no `required_tags` attribute")
 
     return True
+
+
+def _resource_name_matches_name_patterns(
+    resource: "FeastObject",
+    name_patterns: list[str],
+) -> bool:
+    if not hasattr(resource, "name"):
+        logger.warning(f"Resource {resource} has no `name` attribute")
+        return True
+
+    if not name_patterns:
+        return True
+
+    if resource.name is None:
+        return True
+
+    if not isinstance(resource.name, str):
+        logger.warning(
+            f"Resource {resource} has `name` attribute of unexpected type {type(resource.name)}"
+        )
+        return True
+
+    for name_pattern in name_patterns:
+        match = bool(re.fullmatch(name_pattern, resource.name))
+        if not match:
+            logger.info(
+                f"Resource name {resource.name} does not match pattern {name_pattern}"
+            )
+        else:
+            logger.info(f"Resource name {resource.name} matched pattern {name_pattern}")
+            return True
+
+    return False
 
 
 def actions_match_config(
