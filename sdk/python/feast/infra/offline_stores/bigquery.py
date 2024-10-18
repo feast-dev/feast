@@ -242,6 +242,7 @@ class BigQueryOfflineStore(OfflineStore):
             dataset_project,
             config.offline_store.dataset,
             config.offline_store.location,
+            config.offline_store.table_create_disposition,
         )
 
         entity_schema = _get_entity_schema(
@@ -670,6 +671,7 @@ def _get_table_reference_for_new_entity(
     dataset_project: str,
     dataset_name: str,
     dataset_location: Optional[str],
+    table_create_disposition: str,
 ) -> str:
     """Gets the table_id for the new entity to be uploaded."""
 
@@ -679,8 +681,13 @@ def _get_table_reference_for_new_entity(
 
     try:
         client.get_dataset(dataset.reference)
-    except NotFound:
+    except NotFound as nfe:
         # Only create the dataset if it does not exist
+        if table_create_disposition == "CREATE_NEVER":
+            raise ValueError(
+                f"Dataset {dataset_project}.{dataset_name} does not exist "
+                f"and table_create_disposition is set to {table_create_disposition}."
+            ) from nfe
         client.create_dataset(dataset, exists_ok=True)
 
     table_name = offline_utils.get_temp_entity_table_name()
