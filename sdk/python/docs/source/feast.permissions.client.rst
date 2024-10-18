@@ -20,10 +20,10 @@ feast.permissions.client.auth\_client\_manager module
    :undoc-members:
    :show-inheritance:
 
-feast.permissions.client.auth\_client\_manager\_factory module
---------------------------------------------------------------
+feast.permissions.client.client\_auth\_token module
+---------------------------------------------------
 
-.. automodule:: feast.permissions.client.auth_client_manager_factory
+.. automodule:: feast.permissions.client.client_auth_token
    :members:
    :undoc-members:
    :show-inheritance:
@@ -40,6 +40,14 @@ feast.permissions.client.http\_auth\_requests\_wrapper module
 -------------------------------------------------------------
 
 .. automodule:: feast.permissions.client.http_auth_requests_wrapper
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+feast.permissions.client.intra\_comm\_authentication\_client\_manager module
+----------------------------------------------------------------------------
+
+.. automodule:: feast.permissions.client.intra_comm_authentication_client_manager
    :members:
    :undoc-members:
    :show-inheritance:
