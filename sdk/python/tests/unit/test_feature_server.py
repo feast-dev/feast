@@ -37,7 +37,6 @@ def test_push_online_async_supported(online_write, push_mode, async_count, envir
     )
 
     provider = FooProvider.with_async_support(online_write=online_write)
-    print(provider.async_supported.online.write)
     with patch.object(FeatureStore, "_get_provider", return_value=provider):
         fs = environment.feature_store
         fs.push = MagicMock()
