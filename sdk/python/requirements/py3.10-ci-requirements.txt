@@ -767,7 +767,7 @@ sqlparams==6.1.0
     # via singlestoredb
 stack-data==0.6.3
     # via ipython
-starlette==0.38.5
+starlette==0.40.0
     # via fastapi
 substrait==0.23.0
     # via ibis-substrait
