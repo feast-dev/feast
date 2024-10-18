@@ -84,7 +84,6 @@ class PassthroughProvider(Provider):
     def async_supported(self) -> ProviderAsyncMethods:
         return ProviderAsyncMethods(
             online=self.online_store.async_supported,
-            offline=self.offline_store.async_supported,
         )
 
     @property

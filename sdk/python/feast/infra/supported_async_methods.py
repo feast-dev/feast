@@ -8,4 +8,3 @@ class SupportedAsyncMethods(BaseModel):
 
 class ProviderAsyncMethods(BaseModel):
     online: SupportedAsyncMethods = Field(default_factory=SupportedAsyncMethods)
-    offline: SupportedAsyncMethods = Field(default_factory=SupportedAsyncMethods)
