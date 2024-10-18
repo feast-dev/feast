@@ -10,6 +10,7 @@ import pandas as pd
 import psutil
 from dateutil import parser
 from fastapi import Depends, FastAPI, Request, Response, status
+from fastapi.concurrency import run_in_threadpool
 from fastapi.logger import logger
 from fastapi.responses import JSONResponse
 from google.protobuf.json_format import MessageToDict
@@ -112,7 +113,7 @@ def get_app(
         "/get-online-features",
         dependencies=[Depends(inject_user_details)],
     )
-    def get_online_features(body=Depends(get_body)):
+    async def get_online_features(body=Depends(get_body)):
         body = json.loads(body)
         full_feature_names = body.get("full_feature_names", False)
         entity_rows = body["entities"]
@@ -145,15 +146,22 @@ def get_app(
                     resource=od_feature_view, actions=[AuthzedAction.READ_ONLINE]
                 )
 
-        response_proto = store.get_online_features(
+        read_params = dict(
             features=features,
             entity_rows=entity_rows,
             full_feature_names=full_feature_names,
-        ).proto
+        )
+
+        if store._get_provider().async_supported.online.read:
+            response = await store.get_online_features_async(**read_params)
+        else:
+            response = await run_in_threadpool(
+                lambda: store.get_online_features(**read_params)
+            )
 
         # Convert the Protobuf object to JSON and return it
         return MessageToDict(
-            response_proto, preserving_proto_field_name=True, float_precision=18
+            response.proto, preserving_proto_field_name=True, float_precision=18
         )
 
     @app.post("/push", dependencies=[Depends(inject_user_details)])

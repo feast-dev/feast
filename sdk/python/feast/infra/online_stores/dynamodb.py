@@ -23,6 +23,7 @@ from feast import Entity, FeatureView, utils
 from feast.infra.infra_object import DYNAMODB_INFRA_OBJECT_CLASS_TYPE, InfraObject
 from feast.infra.online_stores.helpers import compute_entity_id
 from feast.infra.online_stores.online_store import OnlineStore
+from feast.infra.supported_async_methods import SupportedAsyncMethods
 from feast.protos.feast.core.DynamoDBTable_pb2 import (
     DynamoDBTable as DynamoDBTableProto,
 )
@@ -87,6 +88,10 @@ class DynamoDBOnlineStore(OnlineStore):
     _dynamodb_client = None
     _dynamodb_resource = None
     _aioboto_session = None
+
+    @property
+    def async_supported(self) -> SupportedAsyncMethods:
+        return SupportedAsyncMethods(read=True)
 
     def update(
         self,
