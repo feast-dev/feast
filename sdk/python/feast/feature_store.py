@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import asyncio
 import itertools
 import os
 import warnings
@@ -33,6 +34,7 @@ from typing import (
 import pandas as pd
 import pyarrow as pa
 from colorama import Fore, Style
+from fastapi.concurrency import run_in_threadpool
 from google.protobuf.timestamp_pb2 import Timestamp
 from tqdm import tqdm
 
@@ -1423,6 +1425,29 @@ class FeatureStore:
                 end_date,
             )
 
+    def _fvs_for_push_source_or_raise(
+        self, push_source_name: str, allow_cache: bool
+    ) -> set[FeatureView]:
+        from feast.data_source import PushSource
+
+        all_fvs = self.list_feature_views(allow_cache=allow_cache)
+        all_fvs += self.list_stream_feature_views(allow_cache=allow_cache)
+
+        fvs_with_push_sources = {
+            fv
+            for fv in all_fvs
+            if (
+                fv.stream_source is not None
+                and isinstance(fv.stream_source, PushSource)
+                and fv.stream_source.name == push_source_name
+            )
+        }
+
+        if not fvs_with_push_sources:
+            raise PushSourceNotFoundException(push_source_name)
+
+        return fvs_with_push_sources
+
     def push(
         self,
         push_source_name: str,
@@ -1439,25 +1464,9 @@ class FeatureStore:
             allow_registry_cache: Whether to allow cached versions of the registry.
             to: Whether to push to online or offline store. Defaults to online store only.
         """
-        from feast.data_source import PushSource
-
-        all_fvs = self.list_feature_views(allow_cache=allow_registry_cache)
-        all_fvs += self.list_stream_feature_views(allow_cache=allow_registry_cache)
-
-        fvs_with_push_sources = {
-            fv
-            for fv in all_fvs
-            if (
-                fv.stream_source is not None
-                and isinstance(fv.stream_source, PushSource)
-                and fv.stream_source.name == push_source_name
-            )
-        }
-
-        if not fvs_with_push_sources:
-            raise PushSourceNotFoundException(push_source_name)
-
-        for fv in fvs_with_push_sources:
+        for fv in self._fvs_for_push_source_or_raise(
+            push_source_name, allow_registry_cache
+        ):
             if to == PushMode.ONLINE or to == PushMode.ONLINE_AND_OFFLINE:
                 self.write_to_online_store(
                     fv.name, df, allow_registry_cache=allow_registry_cache
@@ -1467,22 +1476,42 @@ class FeatureStore:
                     fv.name, df, allow_registry_cache=allow_registry_cache
                 )
 
-    def write_to_online_store(
+    async def push_async(
+        self,
+        push_source_name: str,
+        df: pd.DataFrame,
+        allow_registry_cache: bool = True,
+        to: PushMode = PushMode.ONLINE,
+    ):
+        fvs = self._fvs_for_push_source_or_raise(push_source_name, allow_registry_cache)
+
+        if to == PushMode.ONLINE or to == PushMode.ONLINE_AND_OFFLINE:
+            _ = await asyncio.gather(
+                *[
+                    self.write_to_online_store_async(
+                        fv.name, df, allow_registry_cache=allow_registry_cache
+                    )
+                    for fv in fvs
+                ]
+            )
+
+        if to == PushMode.OFFLINE or to == PushMode.ONLINE_AND_OFFLINE:
+
+            def _offline_write():
+                for fv in fvs:
+                    self.write_to_offline_store(
+                        fv.name, df, allow_registry_cache=allow_registry_cache
+                    )
+
+            await run_in_threadpool(_offline_write)
+
+    def _get_feature_view_and_df_for_online_write(
         self,
         feature_view_name: str,
         df: Optional[pd.DataFrame] = None,
         inputs: Optional[Union[Dict[str, List[Any]], pd.DataFrame]] = None,
         allow_registry_cache: bool = True,
     ):
-        """
-        Persists a dataframe to the online store.
-
-        Args:
-            feature_view_name: The feature view to which the dataframe corresponds.
-            df: The dataframe to be persisted.
-            inputs: Optional the dictionary object to be written
-            allow_registry_cache (optional): Whether to allow retrieving feature views from a cached registry.
-        """
         feature_view_dict = {
             fv_proto.name: fv_proto
             for fv_proto in self.list_all_feature_views(allow_registry_cache)
@@ -1509,9 +1538,59 @@ class FeatureStore:
                     df = pd.DataFrame(df)
                 except Exception as _:
                     raise DataFrameSerializationError(df)
+        return feature_view, df
 
+    def write_to_online_store(
+        self,
+        feature_view_name: str,
+        df: Optional[pd.DataFrame] = None,
+        inputs: Optional[Union[Dict[str, List[Any]], pd.DataFrame]] = None,
+        allow_registry_cache: bool = True,
+    ):
+        """
+        Persists a dataframe to the online store.
+
+        Args:
+            feature_view_name: The feature view to which the dataframe corresponds.
+            df: The dataframe to be persisted.
+            inputs: Optional the dictionary object to be written
+            allow_registry_cache (optional): Whether to allow retrieving feature views from a cached registry.
+        """
+
+        feature_view, df = self._get_feature_view_and_df_for_online_write(
+            feature_view_name=feature_view_name,
+            df=df,
+            inputs=inputs,
+            allow_registry_cache=allow_registry_cache,
+        )
         provider = self._get_provider()
         provider.ingest_df(feature_view, df)
+
+    async def write_to_online_store_async(
+        self,
+        feature_view_name: str,
+        df: Optional[pd.DataFrame] = None,
+        inputs: Optional[Union[Dict[str, List[Any]], pd.DataFrame]] = None,
+        allow_registry_cache: bool = True,
+    ):
+        """
+        Persists a dataframe to the online store asynchronously.
+
+        Args:
+            feature_view_name: The feature view to which the dataframe corresponds.
+            df: The dataframe to be persisted.
+            inputs: Optional the dictionary object to be written
+            allow_registry_cache (optional): Whether to allow retrieving feature views from a cached registry.
+        """
+
+        feature_view, df = self._get_feature_view_and_df_for_online_write(
+            feature_view_name=feature_view_name,
+            df=df,
+            inputs=inputs,
+            allow_registry_cache=allow_registry_cache,
+        )
+        provider = self._get_provider()
+        await provider.ingest_df_async(feature_view, df)
 
     def write_to_offline_store(
         self,
