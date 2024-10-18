@@ -35,6 +35,7 @@ from feast.dqm.errors import ValidationFailed
 from feast.feature_logging import LoggingConfig, LoggingSource
 from feast.feature_view import FeatureView
 from feast.infra.registry.base_registry import BaseRegistry
+from feast.infra.supported_async_methods import SupportedAsyncMethods
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
@@ -222,6 +223,10 @@ class OfflineStore(ABC):
     Each offline store implementation is designed to work only with the corresponding data source. For example,
     the SnowflakeOfflineStore can handle SnowflakeSources but not FileSources.
     """
+
+    @property
+    def async_supported(self) -> SupportedAsyncMethods:
+        return SupportedAsyncMethods()
 
     @staticmethod
     def pull_latest_from_table_or_query(

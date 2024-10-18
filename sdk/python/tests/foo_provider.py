@@ -184,9 +184,3 @@ class FooProvider(Provider):
         full_feature_names: bool = False,
     ) -> OnlineResponse:
         pass
-
-    async def initialize(self, config: RepoConfig) -> None:
-        pass
-
-    async def close(self) -> None:
-        pass

@@ -35,6 +35,7 @@ from feast.infra.offline_stores.offline_utils import get_offline_store_from_conf
 from feast.infra.online_stores.helpers import get_online_store_from_config
 from feast.infra.provider import Provider
 from feast.infra.registry.base_registry import BaseRegistry
+from feast.infra.supported_async_methods import ProviderAsyncMethods
 from feast.online_response import OnlineResponse
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
@@ -78,6 +79,13 @@ class PassthroughProvider(Provider):
                 self.repo_config.offline_store
             )
         return self._offline_store
+
+    @property
+    def async_supported(self) -> ProviderAsyncMethods:
+        return ProviderAsyncMethods(
+            online=self.online_store.async_supported,
+            offline=self.offline_store.async_supported,
+        )
 
     @property
     def batch_engine(self) -> BatchMaterializationEngine:
@@ -473,9 +481,3 @@ class PassthroughProvider(Provider):
         return self.offline_store.get_table_column_names_and_types_from_data_source(
             config=config, data_source=data_source
         )
-
-    async def initialize(self, config: RepoConfig) -> None:
-        await self.online_store.initialize(config)
-
-    async def close(self) -> None:
-        await self.online_store.close()

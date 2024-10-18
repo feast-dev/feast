@@ -27,6 +27,7 @@ from feast.importer import import_class
 from feast.infra.infra_object import Infra
 from feast.infra.offline_stores.offline_store import RetrievalJob
 from feast.infra.registry.base_registry import BaseRegistry
+from feast.infra.supported_async_methods import ProviderAsyncMethods
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.online_response import OnlineResponse
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
@@ -54,6 +55,10 @@ class Provider(ABC):
     @abstractmethod
     def __init__(self, config: RepoConfig):
         pass
+
+    @property
+    def async_supported(self) -> ProviderAsyncMethods:
+        return ProviderAsyncMethods()
 
     @abstractmethod
     def update_infra(
@@ -427,14 +432,6 @@ class Provider(ABC):
             config: Configuration object used to configure a feature store.
             data_source: DataSource object
         """
-        pass
-
-    @abstractmethod
-    async def initialize(self, config: RepoConfig) -> None:
-        pass
-
-    @abstractmethod
-    async def close(self) -> None:
         pass
 
 
