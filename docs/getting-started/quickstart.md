@@ -4,6 +4,12 @@
 
 Feast (Feature Store) is an open-source feature store designed to facilitate the management and serving of machine learning features in a way that supports both batch and real-time applications.
 
+* *For Data Scientists*: Feast is a a tool where you can easily define, store, and retrieve your features for both model development and model deployment. By using Feast, you can focus on what you do best: build features that power your AI/ML models and maximize the value of your data.
+	
+* *For MLOps Engineers*: Feast is a library that allows you to connect your existing infrastructure (e.g., online database, application server, microservice, analytical database, and orchestration tooling) that enables your Data Scientists to ship features for their models to production using a friendly SDK without having to be concerned with software engineering challenges that occur from serving real-time production systems. By using Feast, you can focus on maintaining a resilient system, instead of implementing features for Data Scientists.
+	
+* *For Data Engineers*: Feast provides a centralized catalog for storing feature definitions allowing one to maintain a single source of truth for feature data. It provides the abstraction for reading and writing to many different types of offline and online data stores. Using either the provided python SDK or the feature server service, users can write data to the online and/or offline stores and then read that data out again in either low-latency online scenarios for model inference, or in batch scenarios for model training.
+
 For more info refer to [Introduction to feast](../README.md)
 
 ## Prerequisites
@@ -26,7 +32,9 @@ In this tutorial we will:
 5. Read the latest features from the online store for real-time inference.
 6. Explore the (experimental) Feast UI
 
-***Note*** - Feast can used as an executable or as a server, please refer to [feast feature server](../reference/feature-servers/python-feature-server.md)
+***Note*** - Feast provides a python SDK as well as an optional [hosted service](../reference/feature-servers/python-feature-server.md) for reading and writing feature data to the online and offline data stores. The latter might be useful when non-python languages are required.
+
+For this tutorial, we will be using the python SDK.
 
 In this tutorial, we'll use Feast to generate training data and power online model inference for a 
 ride-sharing driver satisfaction prediction model. Feast solves several common issues in this flow:

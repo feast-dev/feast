@@ -6,7 +6,7 @@ Projects provide complete isolation of feature stores at the infrastructure leve
 
 Users define one or more [feature views](feature-view.md) within a project. Each feature view contains one or more [features](feature-view.md#field). These features typically relate to one or more [entities](entity.md). A feature view must always have a [data source](data-ingestion.md), which in turn is used during the generation of training [datasets](feature-retrieval.md#dataset) and when materializing feature values into the online store.
 
-The concept of project provide the following benefits:
+The concept of a "project" provide the following benefits:
 
 **Logical Grouping**: Projects group related features together, making it easier to manage and track them.
 

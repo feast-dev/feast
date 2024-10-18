@@ -17,6 +17,7 @@ venv.bak/
 *.egg-info/
 dist/
 build/
+.venv
 
 # Pytest
 .cache
