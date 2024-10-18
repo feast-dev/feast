@@ -13,6 +13,14 @@ for serving features at low-latency in production systems and applications.
 Feast is a configurable operational data system that re-uses existing infrastructure to manage and serve machine learning 
 features to realtime models. For more details please review our [architecture](getting-started/architecture/overview.md).
 
+Concretely, Feast provides:
+
+* A python SDK for programtically defining features, entities, sources, and (optionally) transformations
+* A python SDK for for reading and writing features to configured offline and online data stores
+* An [optional feature server](reference/feature-servers/README.md) for reading and writing features (useful for non-python languages)
+* A [UI](reference/alpha-web-ui.md) for viewing and exploring information about features defined in the project
+* A [CLI tool](reference/feast-cli-commands.md) for viewing and updating feature information
+
 Feast allows ML platform teams to:
 
 * **Make features consistently available for training and low-latency serving** by managing an _offline store_ (to process historical data for scale-out batch scoring or model training), a low-latency _online store_ (to power real-time prediction)_,_ and a battle-tested _feature server_ (to serve pre-computed features online).
