@@ -28,13 +28,13 @@ REQUIRED = [
     "click>=7.0.0,<9.0.0",
     "colorama>=0.3.9,<1",
     "dill~=0.3.0",
-    "protobuf<5",
+    "protobuf>=4.24.0,<5.0.0",
     "Jinja2>=2,<4",
     "jsonschema",
     "mmh3",
     "numpy>=1.22,<2",
     "pandas>=1.4.3,<3",
-    "pyarrow>=4",
+    "pyarrow>=9.0.0",
     "pydantic>=2.0.0",
     "pygments>=2.12.0,<3",
     "PyYAML>=5.4.0,<7",
@@ -292,7 +292,7 @@ setup(
     entry_points={"console_scripts": ["feast=feast.cli:cli"]},
     use_scm_version=use_scm_version,
     setup_requires=[
-        "pybindgen==0.22.0", #TODO do we need this?
-        "setuptools_scm>=6.2", #TODO do we need this?
-    ]
+        "pybindgen==0.22.0",  # TODO do we need this?
+        "setuptools_scm>=6.2",  # TODO do we need this?
+    ],
 )
