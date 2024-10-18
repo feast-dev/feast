@@ -22,6 +22,7 @@ from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.infra.infra_object import InfraObject
 from feast.infra.registry.base_registry import BaseRegistry
+from feast.infra.supported_async_methods import SupportedAsyncMethods
 from feast.online_response import OnlineResponse
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
@@ -35,6 +36,10 @@ class OnlineStore(ABC):
     """
     The interface that Feast uses to interact with the storage system that handles online features.
     """
+
+    @property
+    def async_supported(self) -> SupportedAsyncMethods:
+        return SupportedAsyncMethods()
 
     @abstractmethod
     def online_write_batch(
