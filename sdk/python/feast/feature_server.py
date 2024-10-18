@@ -165,7 +165,7 @@ def get_app(
         )
 
     @app.post("/push", dependencies=[Depends(inject_user_details)])
-    def push(body=Depends(get_body)):
+    async def push(body=Depends(get_body)):
         request = PushFeaturesRequest(**json.loads(body))
         df = pd.DataFrame(request.df)
         actions = []
@@ -201,12 +201,21 @@ def get_app(
         for feature_view in fvs_with_push_sources:
             assert_permissions(resource=feature_view, actions=actions)
 
-        store.push(
+        push_params = dict(
             push_source_name=request.push_source_name,
             df=df,
             allow_registry_cache=request.allow_registry_cache,
             to=to,
         )
+
+        should_push_async = (
+            store._get_provider().async_supported.online.write
+            and to in [PushMode.ONLINE, PushMode.ONLINE_AND_OFFLINE]
+        )
+        if should_push_async:
+            await store.push_async(**push_params)
+        else:
+            store.push(**push_params)
 
     @app.post("/write-to-online-store", dependencies=[Depends(inject_user_details)])
     def write_to_online_store(body=Depends(get_body)):

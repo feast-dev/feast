@@ -184,3 +184,14 @@ class FooProvider(Provider):
         full_feature_names: bool = False,
     ) -> OnlineResponse:
         pass
+
+    async def online_write_batch_async(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        data: List[
+            Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
+        ],
+        progress: Optional[Callable[[int], Any]],
+    ) -> None:
+        pass
