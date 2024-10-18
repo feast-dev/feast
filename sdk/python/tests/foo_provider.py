@@ -22,6 +22,10 @@ from feast.data_source import DataSource
 from feast.infra.offline_stores.offline_store import RetrievalJob
 from feast.infra.provider import Provider
 from feast.infra.registry.base_registry import BaseRegistry
+from feast.infra.supported_async_methods import (
+    ProviderAsyncMethods,
+    SupportedAsyncMethods,
+)
 from feast.online_response import OnlineResponse
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import RepeatedValue
@@ -30,6 +34,20 @@ from feast.saved_dataset import SavedDataset
 
 
 class FooProvider(Provider):
+    @staticmethod
+    def with_async_support(online_read=False, online_write=False):
+        class _FooProvider(FooProvider):
+            @property
+            def async_supported(self):
+                return ProviderAsyncMethods(
+                    online=SupportedAsyncMethods(
+                        read=online_read,
+                        write=online_write,
+                    )
+                )
+
+        return _FooProvider(None)
+
     def __init__(self, config: RepoConfig):
         pass
 

@@ -213,6 +213,7 @@ def get_app(
             and to in [PushMode.ONLINE, PushMode.ONLINE_AND_OFFLINE]
         )
         if should_push_async:
+            print("im in async?")
             await store.push_async(**push_params)
         else:
             store.push(**push_params)
