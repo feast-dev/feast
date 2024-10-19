@@ -34,7 +34,7 @@
     "react-code-blocks": "^0.1.6",
     "react-query": "^3.39.3",
     "react-router-dom": "<6.4.0",
-    "react-scripts": "^5.0.0",
+    "react-scripts": "^5.0.1",
     "tslib": "^2.3.1",
     "use-query-params": "^1.2.3",
     "zod": "^3.11.6"
@@ -64,6 +64,7 @@
   ],
   "devDependencies": {
     "@babel/core": "^7.25.8",
+    "@babel/plugin-proposal-private-property-in-object": "^7.21.11",
     "@babel/preset-env": "^7.25.8",
     "@babel/preset-react": "^7.25.7",
     "@rollup/plugin-babel": "^5.3.1",
