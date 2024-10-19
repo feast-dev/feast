@@ -26,11 +26,11 @@ class PythonTransformation:
         self.udf_string = udf_string
 
     def transform_arrow(
-        self, pa_table: pyarrow.Table, features: list[Field]
+        self,
+        pa_table: pyarrow.Table,
+        features: list[Field],
     ) -> pyarrow.Table:
-        raise Exception(
-            'OnDemandFeatureView with mode "python" does not support offline processing.'
-        )
+        return pyarrow.Table.from_pydict(self.udf(pa_table.to_pydict()))
 
     def transform(self, input_dict: dict) -> dict:
         # Ensuring that the inputs are included as well
