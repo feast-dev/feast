@@ -561,6 +561,24 @@ class TestOnDemandPythonTransformationAllDataTypes(unittest.TestCase):
             assert resp is not None
             assert resp["conv_rate_plus_val1"].isnull().sum() == 0
 
+            batch_sample["avg_daily_trip_rank_thresholds"] = [
+                [100, 250, 500, 1000]
+            ] * batch_sample.shape[0]
+            batch_sample["avg_daily_trip_rank_names"] = [
+                ["Bronze", "Silver", "Gold", "Platinum"]
+            ] * batch_sample.shape[0]
+            resp_python = self.store.get_historical_features(
+                entity_df=batch_sample,
+                features=[
+                    "driver_hourly_stats:conv_rate",
+                    "driver_hourly_stats:acc_rate",
+                    "driver_hourly_stats:avg_daily_trips",
+                    "python_view:conv_rate_plus_acc",
+                ],
+            ).to_df()
+            assert resp_python is not None
+            assert resp_python["conv_rate_plus_acc"].isnull().sum() == 0
+
             # Now testing feature retrieval for driver ids not in the dataset
             missing_batch_sample = pd.DataFrame([1234567890], columns=["driver_id"])
             missing_batch_sample["val_to_add"] = 0
