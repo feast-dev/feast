@@ -94,10 +94,10 @@
     "react-dom": "^18.3.1",
     "rimraf": "^3.0.2",
     "rollup": "^2.68.0",
-    "rollup-plugin-copy": "^3.4.0",
+    "rollup-plugin-copy": "^3.5.0",
     "rollup-plugin-import-css": "^3.0.2",
     "rollup-plugin-svg": "^2.0.0",
-    "rollup-plugin-svgo": "^1.1.0",
+    "rollup-plugin-svgo": "^2.0.0",
     "rollup-plugin-terser": "^7.0.2",
     "typescript": "^4.9.5"
   },
