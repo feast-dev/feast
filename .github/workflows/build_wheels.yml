@@ -64,7 +64,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v3
         with:
-          node-version: '17.x'
+          node-version-file: './ui/.nvmrc'
           registry-url: 'https://registry.npmjs.org'
       - name: Build UI
         run: make build-ui
@@ -91,7 +91,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v3
         with:
-          node-version: '17.x'
+          node-version-file: './ui/.nvmrc'
           registry-url: 'https://registry.npmjs.org'
       - name: Build and install dependencies
         # There's a `git restore` in here because `make install-go-ci-dependencies` is actually messing up go.mod & go.sum.

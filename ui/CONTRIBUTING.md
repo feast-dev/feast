@@ -21,6 +21,9 @@ You can see the logic in [../sdk/python/feast/ui](../sdk/python/feast/ui/). This
 
 Under the hood, what happens is that the Feast SDK spins up a server which exposes an endpoint to the registry. It then mounts the UI on the server and points it to fetch data from that registry.
 
+## Node.js version
+[Node Version Manager](https://github.com/nvm-sh/nvm) is used for conveniently ensuring a consistent Node.js version. The version is defined in the [`.nvmrc`](.nvmrc) file, and you can install and use that version by running `nvm install` (or `nvm use` once it's installed).
+
 ## NPM package project structure
 The Web UI is powered by a JSON registry dump from Feast (running `feast registry-dump`). Running `yarn start` launches a UI
 powered by test data. 
