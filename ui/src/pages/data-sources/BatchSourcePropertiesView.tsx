@@ -70,11 +70,11 @@ const BatchSourcePropertiesView = (props: BatchSourcePropertiesViewProps) => {
                         {batchSource.bigqueryOptions.table}
                     </EuiDescriptionListDescription>
                 ) : <CopyBlock
-                        text={batchSource.bigqueryOptions.query}
+                        text={batchSource.bigqueryOptions.query ?? ""}
                         language="sql"
                         showLineNumbers={false}
                         theme={atomOneDark}
-                        wrapLines
+                        wrapLongLines
                     />
                 }
 

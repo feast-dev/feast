@@ -31,7 +31,7 @@
     "moment": "^2.29.1",
     "protobufjs": "^7.1.1",
     "query-string": "^7.1.1",
-    "react-code-blocks": "^0.0.9-0",
+    "react-code-blocks": "^0.1.6",
     "react-query": "^3.39.3",
     "react-router-dom": "<6.4.0",
     "react-scripts": "^5.0.0",
