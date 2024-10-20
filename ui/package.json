@@ -34,7 +34,7 @@
     "react-code-blocks": "^0.1.6",
     "react-query": "^3.39.3",
     "react-router-dom": "<6.4.0",
-    "react-scripts": "^5.0.0",
+    "react-scripts": "^5.0.1",
     "tslib": "^2.3.1",
     "use-query-params": "^1.2.3",
     "zod": "^3.11.6"
@@ -59,22 +59,14 @@
       "chroma-js": "<rootDir>/node_modules/chroma-js/dist/chroma.min.cjs"
     }
   },
-  "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
-    ]
-  },
+  "browserslist": [
+    "defaults"
+  ],
   "devDependencies": {
-    "@babel/core": "^7.17.5",
-    "@babel/preset-env": "^7.16.11",
-    "@babel/preset-react": "^7.16.7",
+    "@babel/core": "^7.25.8",
+    "@babel/plugin-proposal-private-property-in-object": "^7.21.11",
+    "@babel/preset-env": "^7.25.8",
+    "@babel/preset-react": "^7.25.7",
     "@rollup/plugin-babel": "^5.3.1",
     "@rollup/plugin-commonjs": "^21.0.2",
     "@rollup/plugin-json": "^4.1.0",
@@ -89,15 +81,15 @@
     "@types/react": "^18.3.11",
     "@types/react-dom": "^18.3.0",
     "msw": "^0.36.8",
-    "protobufjs-cli": "^1.0.2",
+    "protobufjs-cli": "^1.1.3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "rimraf": "^3.0.2",
     "rollup": "^2.68.0",
-    "rollup-plugin-copy": "^3.4.0",
+    "rollup-plugin-copy": "^3.5.0",
     "rollup-plugin-import-css": "^3.0.2",
     "rollup-plugin-svg": "^2.0.0",
-    "rollup-plugin-svgo": "^1.1.0",
+    "rollup-plugin-svgo": "^2.0.0",
     "rollup-plugin-terser": "^7.0.2",
     "typescript": "^4.9.5"
   },
