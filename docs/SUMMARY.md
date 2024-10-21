@@ -107,6 +107,7 @@
   * [Remote](reference/online-stores/remote.md)
   * [PostgreSQL (contrib)](reference/online-stores/postgres.md)
   * [Cassandra + Astra DB (contrib)](reference/online-stores/cassandra.md) 
+  * [Couchbase (contrib)](reference/online-stores/couchbase.md) 
   * [MySQL (contrib)](reference/online-stores/mysql.md)
   * [Hazelcast (contrib)](reference/online-stores/hazelcast.md)
   * [ScyllaDB (contrib)](reference/online-stores/scylladb.md)
