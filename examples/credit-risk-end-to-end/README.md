@@ -10,6 +10,7 @@ The example is organized in four notebooks:
 2. [02_Deploying_the_Feature_Store.ipynb](02_Deploying_the_Feature_Store.ipynb)
 3. [03_Credit_Risk_Model_Training.ipynb](03_Credit_Risk_Model_Training.ipynb)
 4. [04_Credit_Risk_Model_Serving.ipynb](04_Credit_Risk_Model_Serving.ipynb)
+5. [05_Credit_Risk_Cleanup.ipynb](05_Credit_Risk_Cleanup.ipynb)
 
 Run the notebooks in order to progress through the example. See below for prerequisite setup steps.
 
