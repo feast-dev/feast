@@ -1,6 +1,6 @@
 apiVersion: feast.dev/v1alpha1
 kind: FeatureStore
 metadata:
-  name: feast-sample
+  name: sample
 spec:
   feastProject: my_project
