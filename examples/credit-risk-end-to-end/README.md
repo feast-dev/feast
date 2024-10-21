@@ -5,7 +5,7 @@
 
 This example starts with an [OpenML](https://openml.org) credit risk dataset, and walks through the steps of preparing the data, setting up feature store resources, and serving features; this is all done inside the paradigm of an ML workflow, with the goal of helping users understand how Feast fits in the progression from exploratory data analysis, to model training and model serving.
 
-The example is organized in four notebooks:
+The example is organized in five notebooks:
 1. [01_Credit_Risk_Data_Prep.ipynb](01_Credit_Risk_Data_Prep.ipynb)
 2. [02_Deploying_the_Feature_Store.ipynb](02_Deploying_the_Feature_Store.ipynb)
 3. [03_Credit_Risk_Model_Training.ipynb](03_Credit_Risk_Model_Training.ipynb)
