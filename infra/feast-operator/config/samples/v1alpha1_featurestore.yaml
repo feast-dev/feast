@@ -1,9 +1,6 @@
 apiVersion: feast.dev/v1alpha1
 kind: FeatureStore
 metadata:
-  labels:
-    app.kubernetes.io/name: feast-operator
-    app.kubernetes.io/managed-by: kustomize
-  name: featurestore-sample
+  name: sample
 spec:
-  # TODO(user): Add fields here
+  feastProject: my_project
