@@ -49,7 +49,7 @@ def default_store(
 
     fs = FeatureStore(repo_path=repo_path)
 
-    fs.apply(permissions)
+    fs.apply(permissions)  # type: ignore
 
     return fs
 

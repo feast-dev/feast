@@ -451,6 +451,7 @@ auth:
         self.server_port: int = 0
         self.proc = None
 
+    @staticmethod
     def xdist_groups() -> list[str]:
         return ["keycloak"]
 
@@ -464,10 +465,10 @@ auth:
             entity_key_serialization_version=2,
         )
 
-        repo_path = Path(tempfile.mkdtemp())
-        with open(repo_path / "feature_store.yaml", "w") as outfile:
+        repo_base_path = Path(tempfile.mkdtemp())
+        with open(repo_base_path / "feature_store.yaml", "w") as outfile:
             yaml.dump(config.model_dump(by_alias=True), outfile)
-        repo_path = str(repo_path.resolve())
+        repo_path = str(repo_base_path.resolve())
 
         include_auth_config(
             file_path=f"{repo_path}/feature_store.yaml", auth_config=self.auth_config
@@ -486,7 +487,7 @@ auth:
         ]
         self.proc = subprocess.Popen(
             cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL
-        )
+        )  # type: ignore
 
         _time_out_sec: int = 60
         # Wait for server to start
