@@ -188,6 +188,20 @@ class PassthroughProvider(Provider):
         if self.online_store:
             self.online_store.online_write_batch(config, table, data, progress)
 
+    async def online_write_batch_async(
+        self,
+        config: RepoConfig,
+        table: Union[FeatureView, BaseFeatureView, OnDemandFeatureView],
+        data: List[
+            Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
+        ],
+        progress: Optional[Callable[[int], Any]],
+    ) -> None:
+        if self.online_store:
+            await self.online_store.online_write_batch_async(
+                config, table, data, progress
+            )
+
     def offline_write_batch(
         self,
         config: RepoConfig,
@@ -291,8 +305,8 @@ class PassthroughProvider(Provider):
             )
         return result
 
-    def ingest_df(
-        self,
+    @staticmethod
+    def _prep_rows_to_write_for_ingestion(
         feature_view: Union[BaseFeatureView, FeatureView, OnDemandFeatureView],
         df: pd.DataFrame,
         field_mapping: Optional[Dict] = None,
@@ -307,10 +321,6 @@ class PassthroughProvider(Provider):
                 for entity in feature_view.entity_columns
             }
             rows_to_write = _convert_arrow_to_proto(table, feature_view, join_keys)
-
-            self.online_write_batch(
-                self.repo_config, feature_view, rows_to_write, progress=None
-            )
         else:
             if hasattr(feature_view, "entity_columns"):
                 join_keys = {
@@ -336,9 +346,37 @@ class PassthroughProvider(Provider):
                     join_keys[entity.name] = entity.dtype.to_value_type()
             rows_to_write = _convert_arrow_to_proto(table, feature_view, join_keys)
 
-            self.online_write_batch(
-                self.repo_config, feature_view, rows_to_write, progress=None
-            )
+        return rows_to_write
+
+    def ingest_df(
+        self,
+        feature_view: Union[BaseFeatureView, FeatureView, OnDemandFeatureView],
+        df: pd.DataFrame,
+        field_mapping: Optional[Dict] = None,
+    ):
+        rows_to_write = self._prep_rows_to_write_for_ingestion(
+            feature_view=feature_view,
+            df=df,
+            field_mapping=field_mapping,
+        )
+        self.online_write_batch(
+            self.repo_config, feature_view, rows_to_write, progress=None
+        )
+
+    async def ingest_df_async(
+        self,
+        feature_view: Union[BaseFeatureView, FeatureView, OnDemandFeatureView],
+        df: pd.DataFrame,
+        field_mapping: Optional[Dict] = None,
+    ):
+        rows_to_write = self._prep_rows_to_write_for_ingestion(
+            feature_view=feature_view,
+            df=df,
+            field_mapping=field_mapping,
+        )
+        await self.online_write_batch_async(
+            self.repo_config, feature_view, rows_to_write, progress=None
+        )
 
     def ingest_df_to_offline_store(self, feature_view: FeatureView, table: pa.Table):
         if feature_view.batch_source.field_mapping is not None:
