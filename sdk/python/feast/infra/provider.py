@@ -476,6 +476,14 @@ class Provider(ABC):
         """
         pass
 
+    @abstractmethod
+    async def initialize(self, config: RepoConfig) -> None:
+        pass
+
+    @abstractmethod
+    async def close(self) -> None:
+        pass
+
 
 def get_provider(config: RepoConfig) -> Provider:
     if "." not in config.provider:

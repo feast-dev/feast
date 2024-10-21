@@ -203,6 +203,12 @@ class FooProvider(Provider):
     ) -> OnlineResponse:
         pass
 
+    async def initialize(self, config: RepoConfig) -> None:
+        pass
+
+    async def close(self) -> None:
+        pass
+
     async def online_write_batch_async(
         self,
         config: RepoConfig,
