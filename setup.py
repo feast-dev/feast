@@ -47,6 +47,7 @@ REQUIRED = [
     "typeguard>=4.0.0",
     "fastapi>=0.68.0",
     "uvicorn[standard]>=0.14.0,<1",
+    "uvicorn-worker",
     "gunicorn; platform_system != 'Windows'",
     "dask[dataframe]>=2024.2.1",
     "prometheus_client",

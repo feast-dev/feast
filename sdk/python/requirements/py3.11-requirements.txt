@@ -27,7 +27,7 @@ dask[dataframe]==2024.9.0
 dask-expr==1.1.14
     # via dask
 dill==0.3.8
-fastapi==0.115.0
+fastapi==0.115.2
 fsspec==2024.9.0
     # via dask
 greenlet==3.1.0
@@ -130,6 +130,7 @@ tzdata==2024.1
 urllib3==2.2.3
     # via requests
 uvicorn[standard]==0.30.6
+uvicorn-worker
 uvloop==0.20.0
     # via uvicorn
 watchfiles==0.24.0
