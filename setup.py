@@ -119,6 +119,10 @@ CASSANDRA_REQUIRED = [
 
 GE_REQUIRED = ["great_expectations>=0.15.41"]
 
+SCYLLADB_REQUIRED = [
+    "scylla-driver>=3.24.0,<4",
+]
+
 AZURE_REQUIRED = [
     "azure-storage-blob>=0.37.0",
     "azure-identity>=1.6.1",
@@ -477,6 +481,7 @@ setup(
         "hbase": HBASE_REQUIRED,
         "docs": DOCS_REQUIRED,
         "cassandra": CASSANDRA_REQUIRED,
+        "scylladb": SCYLLADB_REQUIRED,
         "hazelcast": HAZELCAST_REQUIRED,
         "grpcio": GRPCIO_REQUIRED,
         "ibis": IBIS_REQUIRED,

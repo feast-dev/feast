@@ -124,7 +124,7 @@ class CassandraOnlineStoreConfig(FeastConfigBaseModel):
     and password being the Client ID and Client Secret of the database token.
     """
 
-    type: Literal["cassandra"] = "cassandra"
+    type: Literal["cassandra", "scylladb"] = "cassandra"
     """Online store type selector."""
 
     # settings for connection to Cassandra / Astra DB
@@ -152,6 +152,12 @@ class CassandraOnlineStoreConfig(FeastConfigBaseModel):
 
     request_timeout: Optional[StrictFloat] = None
     """Request timeout in seconds."""
+
+    lazy_table_creation: Optional[bool] = False
+    """
+    If True, tables will be created on during materialization, rather than registration.
+    Table deletion is not currently supported in this mode.
+    """
 
     class CassandraLoadBalancingPolicy(FeastConfigBaseModel):
         """
