@@ -41,6 +41,7 @@ func NewSqliteOnlineStore(project string, repoConfig *registry.RepoConfig, onlin
 			return nil, fmt.Errorf("cannot find convert sqlite path to string %s", db_path)
 		} else {
 			store.path = fmt.Sprintf("%s/%s", repoConfig.RepoPath, dbPathStr)
+
 			db, err := initializeConnection(store.path)
 			if err != nil {
 				return nil, err
