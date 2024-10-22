@@ -42,7 +42,7 @@ from feast.protos.feast.types.Value_pb2 import FloatList as FloatListProto
 from feast.protos.feast.types.Value_pb2 import RepeatedValue as RepeatedValueProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.type_map import python_values_to_proto_values
-from feast.types import from_feast_to_pyarrow_type
+from feast.types import ComplexFeastType, PrimitiveFeastType, from_feast_to_pyarrow_type
 from feast.value_type import ValueType
 from feast.version import get_version
 
@@ -555,10 +555,18 @@ def _augment_response_with_on_demand_transforms(
         schema_dict = {k.name: k.dtype for k in odfv.schema}
         for selected_feature in selected_subset:
             feature_vector = transformed_features[selected_feature]
-            feature_type = schema_dict.get(selected_feature, None)
-            feature_type = (
-                feature_type.to_value_type() if feature_type else ValueType.UNKNOWN
-            )
+            selected_feature_type = schema_dict.get(selected_feature, None)
+            feature_type: ValueType = ValueType.UNKNOWN
+            if selected_feature_type is not None:
+                if isinstance(
+                    selected_feature_type, (ComplexFeastType, PrimitiveFeastType)
+                ):
+                    feature_type = selected_feature_type.to_value_type()
+                elif not isinstance(selected_feature_type, ValueType):
+                    raise TypeError(
+                        f"Unexpected type for feature_type: {type(feature_type)}"
+                    )
+
             proto_values.append(
                 python_values_to_proto_values(
                     feature_vector
