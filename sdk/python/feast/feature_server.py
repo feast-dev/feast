@@ -307,7 +307,7 @@ if sys.platform != "win32":
                 if key.lower() in self.cfg.settings and value is not None:
                     self.cfg.set(key.lower(), value)
 
-            self.cfg.set("worker_class", "uvicorn.workers.UvicornWorker")
+            self.cfg.set("worker_class", "uvicorn_worker.UvicornWorker")
 
         def load(self):
             return self._app
