@@ -148,10 +148,16 @@ class PassthroughProvider(Provider):
     ):
         # Call update only if there is an online store
         if self.online_store:
+            tables_to_keep_online = [
+                fv
+                for fv in tables_to_keep
+                if not hasattr(fv, "online") or (hasattr(fv, "online") and fv.online)
+            ]
+
             self.online_store.update(
                 config=self.repo_config,
                 tables_to_delete=tables_to_delete,
-                tables_to_keep=tables_to_keep,
+                tables_to_keep=tables_to_keep_online,
                 entities_to_keep=entities_to_keep,
                 entities_to_delete=entities_to_delete,
                 partial=partial,
