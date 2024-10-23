@@ -99,6 +99,20 @@ class Entity:
         self.created_timestamp = None
         self.last_updated_timestamp = None
 
+    def __repr__(self):
+        return (
+            f"Entity(\n"
+            f"    name={self.name!r},\n"
+            f"    value_type={self.value_type!r},\n"
+            f"    join_key={self.join_key!r},\n"
+            f"    description={self.description!r},\n"
+            f"    tags={self.tags!r},\n"
+            f"    owner={self.owner!r},\n"
+            f"    created_timestamp={self.created_timestamp!r},\n"
+            f"    last_updated_timestamp={self.last_updated_timestamp!r}\n"
+            f")"
+        )
+
     def __hash__(self) -> int:
         return hash((self.name, self.join_key))
 
