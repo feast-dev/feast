@@ -148,6 +148,8 @@ SINGLESTORE_REQUIRED = ["singlestoredb"]
 
 MSSQL_REQUIRED = ["ibis-framework[mssql]>=9.0.0,<10"]
 
+GO_REQUIRED = ["cffi~=1.15.0"]
+
 CI_REQUIRED = (
     [
         "build",
@@ -339,6 +341,7 @@ setup(
         "sqlite_vec": SQLITE_VEC_REQUIRED,
         "singlestore": SINGLESTORE_REQUIRED,
         "opentelemetry": OPENTELEMETRY,
+        "go": GO_REQUIRED,
     },
     include_package_data=True,
     license="Apache",
