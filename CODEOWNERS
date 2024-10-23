@@ -1,6 +1,15 @@
 # See https://help.github.com/articles/about-codeowners/
 # for more info about CODEOWNERS file
 
+/docs/ @feast-dev/reviewers-and-approvers
+/examples/ @feast-dev/reviewers-and-approvers
+/go/ @feast-dev/reviewers-and-approvers
+/infra/ @feast-dev/reviewers-and-approvers
+/java/ @feast-dev/reviewers-and-approvers
+/protos/ @feast-dev/reviewers-and-approvers
+/sdk/ @feast-dev/reviewers-and-approvers
+/ui/ @feast-dev/reviewers-and-approvers
+
 # Core Interfaces
 /sdk/python/feast/infra/offline_stores/offline_store.py @feast-dev/maintainers
 /sdk/python/feast/infra/online_stores/online_store.py @feast-dev/maintainers
