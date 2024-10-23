@@ -101,10 +101,10 @@ def get_app(
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         async_refresh()
-        await store.initialize()
+        # await store.initialize()
         yield
         stop_refresh()
-        await store.close()
+        # await store.close()
 
     app = FastAPI(lifespan=lifespan)
 
