@@ -1,3 +1,4 @@
+import asyncio
 import json
 from typing import List
 
@@ -137,5 +138,7 @@ def python_fs_client(environment, universal_data_sources, request):
     feast_objects.extend([driver(), customer(), location()])
     fs.apply(feast_objects)
     fs.materialize(environment.start_date, environment.end_date)
+    asyncio.run(fs.initalize())
     client = TestClient(get_app(fs))
     yield client
+    asyncio.run(fs.close())
