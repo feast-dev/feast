@@ -360,8 +360,11 @@ def start_server(
         auth_config=store.config.auth_config,
     )
     logger.debug("Auth manager initialized successfully")
+    key_cert_file = "/Users/lokeshrangineni/Documents/Src/feast/tls-support/key.pem"
+    cert_file = "/Users/lokeshrangineni/Documents/Src/feast/tls-support/cert.pem"
 
     if sys.platform != "win32":
+        print("in if block, starting with workers")
         FeastServeApplication(
             store=store,
             bind=f"{host}:{port}",
@@ -369,9 +372,19 @@ def start_server(
             workers=workers,
             keepalive=keep_alive_timeout,
             registry_ttl_sec=registry_ttl_sec,
+            keyfile=key_cert_file,
+            certfile=cert_file,
         ).run()
     else:
+        print("in else block, starting without workers")
         import uvicorn
 
         app = get_app(store, registry_ttl_sec)
-        uvicorn.run(app, host=host, port=port, access_log=(not no_access_log))
+        uvicorn.run(
+            app,
+            host=host,
+            port=port,
+            access_log=(not no_access_log),
+            ssl_keyfile=key_cert_file,
+            ssl_certfile=cert_file,
+        )
