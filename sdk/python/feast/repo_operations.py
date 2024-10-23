@@ -468,6 +468,10 @@ def init_repo(repo_name: str, template: str):
         raise IOError(f"Could not find template {template}")
     copytree(template_path, str(repo_path), dirs_exist_ok=True)
 
+    # Rename gitignore files back to .gitignore
+    for gitignore_path in repo_path.rglob("gitignore"):
+        gitignore_path.rename(gitignore_path.with_name(".gitignore"))
+
     # Seed the repository
     bootstrap_path = repo_path / "bootstrap.py"
     if os.path.exists(bootstrap_path):
