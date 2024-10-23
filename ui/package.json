@@ -48,12 +48,6 @@
     "test": "npm run generate-protos && node scripts/test.js",
     "generate-protos": "pbjs --no-encode -o src/protos.js -w commonjs -t static-module `find ../protos/feast/ -iname *.proto` && pbts -n protos -o src/protos.d.ts src/protos.js"
   },
-  "eslintConfig": {
-    "extends": [
-      "react-app",
-      "react-app/jest"
-    ]
-  },
   "browserslist": [
     "defaults"
   ],
