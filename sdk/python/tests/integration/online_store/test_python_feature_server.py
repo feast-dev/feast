@@ -139,7 +139,7 @@ def python_fs_client(environment, universal_data_sources, request):
     fs.apply(feast_objects)
     fs.materialize(environment.start_date, environment.end_date)
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(fs.initalize())
+    loop.run_until_complete(fs.initialize())
     client = TestClient(get_app(fs))
     yield client
     loop.run_until_complete(fs.close())
