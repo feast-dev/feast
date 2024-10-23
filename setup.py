@@ -152,8 +152,9 @@ COUCHBASE_REQUIRED = ["couchbase==4.3.2"]
 MSSQL_REQUIRED = ["ibis-framework[mssql]>=9.0.0,<10"]
 
 FAISS_REQUIRED = ["faiss-cpu>=1.7.0,<2"]
-
 QDRANT_REQUIRED = ["qdrant-client>=1.12.0"]
+
+GO_REQUIRED = ["cffi~=1.15.0"]
 
 CI_REQUIRED = (
     [
@@ -352,7 +353,8 @@ setup(
         "couchbase": COUCHBASE_REQUIRED,
         "opentelemetry": OPENTELEMETRY,
         "faiss": FAISS_REQUIRED,
-        "qdrant": QDRANT_REQUIRED
+        "qdrant": QDRANT_REQUIRED,
+        "go": GO_REQUIRED,
     },
     include_package_data=True,
     license="Apache",
