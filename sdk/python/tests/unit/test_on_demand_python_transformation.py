@@ -609,19 +609,19 @@ class TestOnDemandPythonTransformationAllDataTypes(unittest.TestCase):
                 "val_to_add",
                 "val_to_add_2",
             ]
-            with pytest.raises(TypeError):
-                _ = self.store.get_online_features(
-                    entity_rows=[
-                        {"driver_id": 1234567890, "val_to_add": 0, "val_to_add_2": 1}
-                    ],
-                    features=[
-                        "driver_hourly_stats:conv_rate",
-                        "driver_hourly_stats:acc_rate",
-                        "driver_hourly_stats:avg_daily_trips",
-                        "pandas_view:conv_rate_plus_val1",
-                        "pandas_view:conv_rate_plus_val2",
-                    ],
-                )
+            resp_online_missing_entity = self.store.get_online_features(
+                entity_rows=[
+                    {"driver_id": 1234567890, "val_to_add": 0, "val_to_add_2": 1}
+                ],
+                features=[
+                    "driver_hourly_stats:conv_rate",
+                    "driver_hourly_stats:acc_rate",
+                    "driver_hourly_stats:avg_daily_trips",
+                    "pandas_view:conv_rate_plus_val1",
+                    "pandas_view:conv_rate_plus_val2",
+                ],
+            )
+            assert resp_online_missing_entity is not None
             resp_online = self.store.get_online_features(
                 entity_rows=[{"driver_id": 1001, "val_to_add": 0, "val_to_add_2": 1}],
                 features=[
