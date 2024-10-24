@@ -1,4 +1,4 @@
-from sdk.python.feast.repo_operations import is_valid_name
+from feast.repo_operations import is_valid_name
 
 
 def test_is_valid_name():
