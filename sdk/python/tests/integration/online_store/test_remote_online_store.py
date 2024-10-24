@@ -18,8 +18,9 @@ from tests.utils.cli_repo_creator import CliRunner
 from tests.utils.http_server import free_port
 
 
+@pytest.mark.parametrize("run_ssl", [True, False])
 @pytest.mark.integration
-def test_remote_online_store_read(auth_config):
+def test_remote_online_store_read(auth_config, run_ssl):
     with tempfile.TemporaryDirectory() as remote_server_tmp_dir, tempfile.TemporaryDirectory() as remote_client_tmp_dir:
         permissions_list = [
             Permission(
@@ -46,6 +47,7 @@ def test_remote_online_store_read(auth_config):
                 temp_dir=remote_server_tmp_dir,
                 auth_config=auth_config,
                 permissions_list=permissions_list,
+                run_ssl=run_ssl,
             )
         )
         assert None not in (server_store, server_url, registry_path)
@@ -159,13 +161,15 @@ def _assert_client_server_online_stores_are_matching(
 
 
 def _create_server_store_spin_feature_server(
-    temp_dir, auth_config: str, permissions_list
+    temp_dir, auth_config: str, permissions_list, run_ssl: bool
 ):
     store = default_store(str(temp_dir), auth_config, permissions_list)
     feast_server_port = free_port()
     server_url = next(
         start_feature_server(
-            repo_path=str(store.repo_path), server_port=feast_server_port
+            repo_path=str(store.repo_path),
+            server_port=feast_server_port,
+            run_ssl=run_ssl,
         )
     )
     print(f"Server started successfully, {server_url}")
