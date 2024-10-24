@@ -55,7 +55,11 @@ def default_store(
 
 
 def start_feature_server(
-    repo_path: str, server_port: int, metrics: bool = False, run_ssl: bool = False
+    repo_path: str,
+    server_port: int,
+    metrics: bool = False,
+    ssl_key_path: str = "",
+    ssl_cert_path: str = "",
 ):
     host = "0.0.0.0"
     cmd = [
@@ -68,12 +72,11 @@ def start_feature_server(
         str(server_port),
     ]
 
-    if run_ssl:
-        # TODO: Generate these certificates during the test run.
+    if ssl_cert_path and ssl_cert_path:
         cmd.append("--ssl-key-path")
-        cmd.append("test_key.pem")
-        cmd.append("--ssl-key-path")
-        cmd.append("test_cert.pem")
+        cmd.append(ssl_key_path)
+        cmd.append("--ssl-cert-path")
+        cmd.append(ssl_cert_path)
 
     feast_server_process = subprocess.Popen(
         cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE
@@ -101,11 +104,13 @@ def start_feature_server(
             "localhost", 8000
         ), "Prometheus server is running when it should be disabled."
 
-    yield (
+    online_server_url = (
         f"https://localhost:{server_port}"
-        if run_ssl
+        if ssl_key_path and ssl_cert_path
         else f"http://localhost:{server_port}"
     )
+
+    yield (online_server_url)
 
     if feast_server_process is not None:
         feast_server_process.kill()
