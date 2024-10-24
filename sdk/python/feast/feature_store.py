@@ -2167,6 +2167,14 @@ class FeatureStore:
             self.project, allow_cache=allow_cache, tags=tags
         )
 
+    async def initialize(self) -> None:
+        """Initialize long-lived clients and/or resources needed for accessing datastores"""
+        await self._get_provider().initialize(self.config)
+
+    async def close(self) -> None:
+        """Cleanup any long-lived clients and/or resources"""
+        await self._get_provider().close()
+
 
 def _print_materialization_log(
     start_date, end_date, num_feature_views: int, online_store: str

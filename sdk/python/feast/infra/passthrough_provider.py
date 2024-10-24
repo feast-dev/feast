@@ -518,3 +518,9 @@ class PassthroughProvider(Provider):
         return self.offline_store.get_table_column_names_and_types_from_data_source(
             config=config, data_source=data_source
         )
+
+    async def initialize(self, config: RepoConfig) -> None:
+        await self.online_store.initialize(config)
+
+    async def close(self) -> None:
+        await self.online_store.close()
