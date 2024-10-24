@@ -63,13 +63,13 @@ def test_get_online_features(python_fs_client):
 async def test_push(python_fs_client):
     initial_temp = await _get_temperatures_from_feature_server(
         python_fs_client, location_ids=[1]
-    )[0]
+    )
     json_data = json.dumps(
         {
             "push_source_name": "location_stats_push_source",
             "df": {
                 "location_id": [1],
-                "temperature": [initial_temp * 100],
+                "temperature": [initial_temp[0] * 100],
                 "event_timestamp": [str(_utc_now())],
                 "created": [str(_utc_now())],
             },
@@ -82,9 +82,10 @@ async def test_push(python_fs_client):
 
     # Check new pushed temperature is fetched
     assert response.status_code == 200
-    assert await _get_temperatures_from_feature_server(
+    actual = await _get_temperatures_from_feature_server(
         python_fs_client, location_ids=[1]
-    ) == [initial_temp * 100]
+    )
+    assert actual == [initial_temp[0] * 100]
 
 
 @pytest.mark.integration
@@ -142,5 +143,7 @@ def python_fs_client(environment, universal_data_sources, request):
     loop = asyncio.get_event_loop()
     loop.run_until_complete(fs.initialize())
     client = TestClient(get_app(fs))
-    yield client
-    loop.run_until_complete(fs.close())
+    try:
+        yield client
+    finally:
+        loop.run_until_complete(fs.close())
