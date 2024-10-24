@@ -81,7 +81,14 @@ class Field:
         return self.name < other.name
 
     def __repr__(self):
-        return f"Field(name='{self.name}', dtype={self.dtype}, description='{self.description}' tags={self.tags})"
+        return (
+            f"Field(\n"
+            f"    name={self.name!r},\n"
+            f"    dtype={self.dtype!r},\n"
+            f"    description={self.description!r},\n"
+            f"    tags={self.tags!r}\n"
+            f")"
+        )
 
     def __str__(self):
         return f"Field(name={self.name}, dtype={self.dtype}, tags={self.tags})"
