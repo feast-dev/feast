@@ -8,17 +8,15 @@ metadata:
           "apiVersion": "feast.dev/v1alpha1",
           "kind": "FeatureStore",
           "metadata": {
-            "labels": {
-              "app.kubernetes.io/managed-by": "kustomize",
-              "app.kubernetes.io/name": "feast-operator"
-            },
-            "name": "featurestore-sample"
+            "name": "sample"
           },
-          "spec": null
+          "spec": {
+            "feastProject": "my_project"
+          }
         }
       ]
     capabilities: Basic Install
-    createdAt: "2024-10-09T16:16:53Z"
+    createdAt: "2024-10-21T16:35:01Z"
     operators.operatorframework.io/builder: operator-sdk-v1.37.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
   name: feast-operator.v0.40.0
@@ -41,6 +39,29 @@ spec:
     spec:
       clusterPermissions:
       - rules:
+        - apiGroups:
+          - apps
+          resources:
+          - deployments
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - update
+          - watch
+        - apiGroups:
+          - ""
+          resources:
+          - configmaps
+          - services
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - update
+          - watch
         - apiGroups:
           - feast.dev
           resources:
