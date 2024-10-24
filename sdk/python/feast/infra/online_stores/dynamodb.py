@@ -267,10 +267,10 @@ class DynamoDBOnlineStore(OnlineStore):
 
         table_name = _get_table_name(online_config, config, table)
         items = [
-            _to_write_item(config, entity_key, features, timestamp)
+            _to_client_write_item(config, entity_key, features, timestamp)
             for entity_key, features, timestamp, _ in data
         ]
-        client = _get_aiodynamodb_client(
+        client = await _get_aiodynamodb_client(
             online_config.region, config.online_store.max_pool_connections
         )
         await dynamo_write_items_async(client, table_name, items)
@@ -457,7 +457,9 @@ class DynamoDBOnlineStore(OnlineStore):
         with table_instance.batch_writer(overwrite_by_pkeys=["entity_id"]) as batch:
             for entity_key, features, timestamp, created_ts in data:
                 batch.put_item(
-                    Item=_to_write_item(config, entity_key, features, timestamp)
+                    Item=_to_resource_write_item(
+                        config, entity_key, features, timestamp
+                    )
                 )
                 if progress:
                     progress(1)
@@ -703,7 +705,7 @@ class DynamoDBTable(InfraObject):
         return self._dynamodb_resource
 
 
-def _to_write_item(config, entity_key, features, timestamp):
+def _to_resource_write_item(config, entity_key, features, timestamp):
     entity_id = compute_entity_id(
         entity_key,
         entity_key_serialization_version=config.entity_key_serialization_version,
@@ -714,5 +716,22 @@ def _to_write_item(config, entity_key, features, timestamp):
         "values": {
             k: v.SerializeToString()
             for k, v in features.items()  # Serialized Features
+        },
+    }
+
+
+def _to_client_write_item(config, entity_key, features, timestamp):
+    entity_id = compute_entity_id(
+        entity_key,
+        entity_key_serialization_version=config.entity_key_serialization_version,
+    )
+    return {
+        "entity_id": {"S": entity_id},  # PartitionKey
+        "event_ts": {"S": str(utils.make_tzaware(timestamp))},
+        "values": {
+            "M": {
+                k: {"B": v.SerializeToString()}
+                for k, v in features.items()  # Serialized Features
+            }
         },
     }

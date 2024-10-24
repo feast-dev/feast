@@ -1086,8 +1086,17 @@ class DynamoUnprocessedWriteItems(Exception):
 
 
 async def dynamo_write_items_async(
-    dynamo_client, table_name: str, items: list[Any]
+    dynamo_client, table_name: str, items: list[dict]
 ) -> None:
+    """
+    Writes in batches to a dynamo table asynchronously. Max batch size is 25.
+    Raises DynamoUnprocessedWriteItems if not all items can be written.
+
+    Args:
+        dynamo_client: async dynamodb client
+        table_name: name of table being written to
+        items: list of items to be written. see boto3 docs on format of the items.
+    """
     DYNAMO_MAX_WRITE_BATCH_SIZE = 25
 
     async def _do_write(items):
@@ -1120,7 +1129,7 @@ async def dynamo_write_items_async(
         reraise=True,
     )
 
-    for attempt in retries:
+    async for attempt in retries:
         with attempt:
             response_batches = await _do_write(put_items)
 
