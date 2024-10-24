@@ -21,7 +21,7 @@ from tests.integration.feature_repos.universal.entities import (
 
 @pytest.mark.integration
 @pytest.mark.universal_online_stores
-def test_get_online_features(python_fs_client):
+async def test_get_online_features(python_fs_client):
     request_data_dict = {
         "features": [
             "driver_stats:conv_rate",
@@ -59,7 +59,6 @@ def test_get_online_features(python_fs_client):
 
 @pytest.mark.integration
 @pytest.mark.universal_online_stores
-@pytest.mark.asyncio
 async def test_push(python_fs_client):
     initial_temp = await _get_temperatures_from_feature_server(
         python_fs_client, location_ids=[1]
@@ -91,9 +90,6 @@ async def test_push(python_fs_client):
 @pytest.mark.integration
 @pytest.mark.universal_online_stores
 def test_push_source_does_not_exist(python_fs_client):
-    initial_temp = _get_temperatures_from_feature_server(
-        python_fs_client, location_ids=[1]
-    )[0]
     with pytest.raises(
         PushSourceNotFoundException,
         match="Unable to find push source 'push_source_does_not_exist'",
@@ -105,7 +101,7 @@ def test_push_source_does_not_exist(python_fs_client):
                     "push_source_name": "push_source_does_not_exist",
                     "df": {
                         "location_id": [1],
-                        "temperature": [initial_temp * 100],
+                        "temperature": [100],
                         "event_timestamp": [str(_utc_now())],
                         "created": [str(_utc_now())],
                     },
