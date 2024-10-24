@@ -1,4 +1,6 @@
+import asyncio
 import contextlib
+import itertools
 import os
 import tempfile
 import uuid
@@ -10,6 +12,7 @@ import pyarrow
 import pyarrow as pa
 import pyarrow.parquet as pq
 from tenacity import (
+    AsyncRetrying,
     retry,
     retry_if_exception_type,
     stop_after_attempt,
@@ -1076,3 +1079,54 @@ def upload_arrow_table_to_athena(
         # Clean up S3 temporary data
         # for file_path in uploaded_files:
         #     s3_resource.Object(bucket, file_path).delete()
+
+
+class DynamoUnprocessedWriteItems(Exception):
+    pass
+
+
+async def dynamo_write_items_async(
+    dynamo_client, table_name: str, items: list[Any]
+) -> None:
+    DYNAMO_MAX_WRITE_BATCH_SIZE = 25
+
+    async def _do_write(items):
+        item_iter = iter(items)
+        item_batches = []
+        while True:
+            item_batch = [
+                item
+                for item in itertools.islice(item_iter, DYNAMO_MAX_WRITE_BATCH_SIZE)
+            ]
+            if not item_batch:
+                break
+
+            item_batches.append(item_batch)
+
+        return await asyncio.gather(
+            *[
+                dynamo_client.batch_write_item(
+                    RequestItems={table_name: item_batch},
+                )
+                for item_batch in item_batches
+            ]
+        )
+
+    put_items = [{"PutRequest": {"Item": item}} for item in items]
+
+    retries = AsyncRetrying(
+        retry=retry_if_exception_type(DynamoUnprocessedWriteItems),
+        wait=wait_exponential(multiplier=1, max=4),
+        reraise=True,
+    )
+
+    for attempt in retries:
+        with attempt:
+            response_batches = await _do_write(put_items)
+
+            put_items = []
+            for response in response_batches:
+                put_items.extend(response["UnprocessedItems"])
+
+            if put_items:
+                raise DynamoUnprocessedWriteItems()
