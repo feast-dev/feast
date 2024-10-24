@@ -175,6 +175,16 @@ class FeatureStore:
         """Returns the version of the current Feast SDK/CLI."""
         return get_version()
 
+    def __repr__(self) -> str:
+        return (
+            f"FeatureStore(\n"
+            f"    repo_path={self.repo_path!r},\n"
+            f"    config={self.config!r},\n"
+            f"    registry={self._registry!r},\n"
+            f"    provider={self._provider!r}\n"
+            f")"
+        )
+
     @property
     def registry(self) -> BaseRegistry:
         """Gets the registry of this feature store."""
