@@ -139,4 +139,3 @@ def python_fs_client(environment, universal_data_sources, request):
     asyncio.get_event_loop().run_until_complete(fs.initialize())
     client = TestClient(get_app(fs))
     yield client
-    asyncio.get_event_loop().run_until_complete(fs.close())
