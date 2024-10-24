@@ -137,6 +137,7 @@
 * [\[Beta\] On demand feature view](reference/beta-on-demand-feature-view.md)
 * [\[Alpha\] Vector Database](reference/alpha-vector-database.md)
 * [\[Alpha\] Data quality monitoring](reference/dqm.md)
+* [\[Alpha\] Streaming feature computation with Denormalized](reference/denormalized.md)
 * [Feast CLI reference](reference/feast-cli-commands.md)
 * [Python API reference](http://rtd.feast.dev)
 * [Usage](reference/usage.md)
