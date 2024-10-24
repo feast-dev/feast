@@ -15,6 +15,7 @@ import asyncio
 import contextlib
 import itertools
 import logging
+from collections import OrderedDict
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union
 
@@ -26,6 +27,7 @@ from feast.infra.infra_object import DYNAMODB_INFRA_OBJECT_CLASS_TYPE, InfraObje
 from feast.infra.online_stores.helpers import compute_entity_id
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.supported_async_methods import SupportedAsyncMethods
+from feast.infra.utils.aws_utils import dynamo_write_items_async
 from feast.protos.feast.core.DynamoDBTable_pb2 import (
     DynamoDBTable as DynamoDBTableProto,
 )
@@ -103,7 +105,7 @@ class DynamoDBOnlineStore(OnlineStore):
 
     @property
     def async_supported(self) -> SupportedAsyncMethods:
-        return SupportedAsyncMethods(read=True)
+        return SupportedAsyncMethods(read=True, write=True)
 
     def update(
         self,
@@ -237,6 +239,42 @@ class DynamoDBOnlineStore(OnlineStore):
             _get_table_name(online_config, config, table)
         )
         self._write_batch_non_duplicates(table_instance, data, progress, config)
+
+    async def online_write_batch_async(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        data: List[
+            Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
+        ],
+        progress: Optional[Callable[[int], Any]],
+    ) -> None:
+        """
+        Writes a batch of feature rows to the online store asynchronously.
+
+        If a tz-naive timestamp is passed to this method, it is assumed to be UTC.
+
+        Args:
+            config: The config for the current feature store.
+            table: Feature view to which these feature rows correspond.
+            data: A list of quadruplets containing feature data. Each quadruplet contains an entity
+                key, a dict containing feature values, an event timestamp for the row, and the created
+                timestamp for the row if it exists.
+            progress: Function to be called once a batch of rows is written to the online store, used
+                to show progress.
+        """
+        online_config = config.online_store
+        assert isinstance(online_config, DynamoDBOnlineStoreConfig)
+
+        table_name = _get_table_name(online_config, config, table)
+        items = [
+            _to_client_write_item(config, entity_key, features, timestamp)
+            for entity_key, features, timestamp, _ in _latest_data_to_write(data)
+        ]
+        client = await _get_aiodynamodb_client(
+            online_config.region, config.online_store.max_pool_connections
+        )
+        await dynamo_write_items_async(client, table_name, items)
 
     def online_read(
         self,
@@ -419,19 +457,10 @@ class DynamoDBOnlineStore(OnlineStore):
         """Deduplicate write batch request items on ``entity_id`` primary key."""
         with table_instance.batch_writer(overwrite_by_pkeys=["entity_id"]) as batch:
             for entity_key, features, timestamp, created_ts in data:
-                entity_id = compute_entity_id(
-                    entity_key,
-                    entity_key_serialization_version=config.entity_key_serialization_version,
-                )
                 batch.put_item(
-                    Item={
-                        "entity_id": entity_id,  # PartitionKey
-                        "event_ts": str(utils.make_tzaware(timestamp)),
-                        "values": {
-                            k: v.SerializeToString()
-                            for k, v in features.items()  # Serialized Features
-                        },
-                    }
+                    Item=_to_resource_write_item(
+                        config, entity_key, features, timestamp
+                    )
                 )
                 if progress:
                     progress(1)
@@ -675,3 +704,45 @@ class DynamoDBTable(InfraObject):
                 region, endpoint_url
             )
         return self._dynamodb_resource
+
+
+def _to_resource_write_item(config, entity_key, features, timestamp):
+    entity_id = compute_entity_id(
+        entity_key,
+        entity_key_serialization_version=config.entity_key_serialization_version,
+    )
+    return {
+        "entity_id": entity_id,  # PartitionKey
+        "event_ts": str(utils.make_tzaware(timestamp)),
+        "values": {
+            k: v.SerializeToString()
+            for k, v in features.items()  # Serialized Features
+        },
+    }
+
+
+def _to_client_write_item(config, entity_key, features, timestamp):
+    entity_id = compute_entity_id(
+        entity_key,
+        entity_key_serialization_version=config.entity_key_serialization_version,
+    )
+    return {
+        "entity_id": {"S": entity_id},  # PartitionKey
+        "event_ts": {"S": str(utils.make_tzaware(timestamp))},
+        "values": {
+            "M": {
+                k: {"B": v.SerializeToString()}
+                for k, v in features.items()  # Serialized Features
+            }
+        },
+    }
+
+
+def _latest_data_to_write(
+    data: List[
+        Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
+    ],
+):
+    as_hashable = ((d[0].SerializeToString(), d) for d in data)
+    sorted_data = sorted(as_hashable, key=lambda ah: (ah[0], ah[1][2]))
+    return (v for _, v in OrderedDict((ah[0], ah[1]) for ah in sorted_data).items())
