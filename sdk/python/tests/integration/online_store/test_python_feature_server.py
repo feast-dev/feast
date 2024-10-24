@@ -20,7 +20,7 @@ from tests.integration.feature_repos.universal.entities import (
 
 @pytest.mark.integration
 @pytest.mark.universal_online_stores
-def test_get_online_features(python_fs_client):
+async def test_get_online_features(python_fs_client):
     request_data_dict = {
         "features": [
             "driver_stats:conv_rate",
@@ -58,16 +58,16 @@ def test_get_online_features(python_fs_client):
 
 @pytest.mark.integration
 @pytest.mark.universal_online_stores
-def test_push(python_fs_client):
-    initial_temp = _get_temperatures_from_feature_server(
+async def test_push(python_fs_client):
+    initial_temp = await _get_temperatures_from_feature_server(
         python_fs_client, location_ids=[1]
-    )[0]
+    )
     json_data = json.dumps(
         {
             "push_source_name": "location_stats_push_source",
             "df": {
                 "location_id": [1],
-                "temperature": [initial_temp * 100],
+                "temperature": [initial_temp[0] * 100],
                 "event_timestamp": [str(_utc_now())],
                 "created": [str(_utc_now())],
             },
@@ -80,17 +80,15 @@ def test_push(python_fs_client):
 
     # Check new pushed temperature is fetched
     assert response.status_code == 200
-    assert _get_temperatures_from_feature_server(
+    actual = await _get_temperatures_from_feature_server(
         python_fs_client, location_ids=[1]
-    ) == [initial_temp * 100]
+    )
+    assert actual == [initial_temp[0] * 100]
 
 
 @pytest.mark.integration
 @pytest.mark.universal_online_stores
 def test_push_source_does_not_exist(python_fs_client):
-    initial_temp = _get_temperatures_from_feature_server(
-        python_fs_client, location_ids=[1]
-    )[0]
     with pytest.raises(
         PushSourceNotFoundException,
         match="Unable to find push source 'push_source_does_not_exist'",
@@ -102,7 +100,7 @@ def test_push_source_does_not_exist(python_fs_client):
                     "push_source_name": "push_source_does_not_exist",
                     "df": {
                         "location_id": [1],
-                        "temperature": [initial_temp * 100],
+                        "temperature": [100],
                         "event_timestamp": [str(_utc_now())],
                         "created": [str(_utc_now())],
                     },
@@ -111,7 +109,7 @@ def test_push_source_does_not_exist(python_fs_client):
         )
 
 
-def _get_temperatures_from_feature_server(client, location_ids: List[int]):
+async def _get_temperatures_from_feature_server(client, location_ids: List[int]):
     get_request_data = {
         "features": ["pushable_location_stats:temperature"],
         "entities": {"location_id": location_ids},
@@ -137,5 +135,5 @@ def python_fs_client(environment, universal_data_sources, request):
     feast_objects.extend([driver(), customer(), location()])
     fs.apply(feast_objects)
     fs.materialize(environment.start_date, environment.end_date)
-    client = TestClient(get_app(fs))
-    yield client
+    with TestClient(get_app(fs)) as client:
+        yield client

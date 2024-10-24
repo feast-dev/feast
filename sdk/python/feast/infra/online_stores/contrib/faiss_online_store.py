@@ -9,8 +9,8 @@ from google.protobuf.timestamp_pb2 import Timestamp
 from feast import Entity, FeatureView, RepoConfig
 from feast.infra.key_encoding_utils import serialize_entity_key
 from feast.infra.online_stores.online_store import OnlineStore
-from feast.protos.feast.types.EntityKey_pb2 import EntityKey
-from feast.protos.feast.types.Value_pb2 import Value
+from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
+from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel
 
 
@@ -94,9 +94,9 @@ class FaissOnlineStore(OnlineStore):
         self,
         config: RepoConfig,
         table: FeatureView,
-        entity_keys: List[EntityKey],
+        entity_keys: List[EntityKeyProto],
         requested_features: Optional[List[str]] = None,
-    ) -> List[Tuple[Optional[datetime], Optional[Dict[str, Value]]]]:
+    ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         if self._index is None:
             return [(None, None)] * len(entity_keys)
 
@@ -111,7 +111,7 @@ class FaissOnlineStore(OnlineStore):
             else:
                 feature_vector = self._index.reconstruct(int(idx))
                 feature_dict = {
-                    name: Value(double_val=value)
+                    name: ValueProto(double_val=value)
                     for name, value in zip(
                         self._in_memory_store.feature_names, feature_vector
                     )
@@ -123,7 +123,9 @@ class FaissOnlineStore(OnlineStore):
         self,
         config: RepoConfig,
         table: FeatureView,
-        data: List[Tuple[EntityKey, Dict[str, Value], datetime, Optional[datetime]]],
+        data: List[
+            Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
+        ],
         progress: Optional[Callable[[int], Any]],
     ) -> None:
         if self._index is None:
@@ -181,9 +183,10 @@ class FaissOnlineStore(OnlineStore):
     ) -> List[
         Tuple[
             Optional[datetime],
-            Optional[Value],
-            Optional[Value],
-            Optional[Value],
+            Optional[EntityKeyProto],
+            Optional[ValueProto],
+            Optional[ValueProto],
+            Optional[ValueProto],
         ]
     ]:
         if self._index is None:
@@ -196,9 +199,10 @@ class FaissOnlineStore(OnlineStore):
         results: List[
             Tuple[
                 Optional[datetime],
-                Optional[Value],
-                Optional[Value],
-                Optional[Value],
+                Optional[EntityKeyProto],
+                Optional[ValueProto],
+                Optional[ValueProto],
+                Optional[ValueProto],
             ]
         ] = []
         for i, idx in enumerate(indices[0]):
@@ -209,14 +213,15 @@ class FaissOnlineStore(OnlineStore):
 
             timestamp = Timestamp()
             timestamp.GetCurrentTime()
-
-            feature_value = Value(string_val=",".join(map(str, feature_vector)))
-            vector_value = Value(string_val=",".join(map(str, feature_vector)))
-            distance_value = Value(float_val=distances[0][i])
+            entity_value = EntityKeyProto()
+            feature_value = ValueProto(string_val=",".join(map(str, feature_vector)))
+            vector_value = ValueProto(string_val=",".join(map(str, feature_vector)))
+            distance_value = ValueProto(float_val=distances[0][i])
 
             results.append(
                 (
                     timestamp.ToDatetime(),
+                    entity_value,
                     feature_value,
                     vector_value,
                     distance_value,
@@ -229,8 +234,8 @@ class FaissOnlineStore(OnlineStore):
         self,
         config: RepoConfig,
         table: FeatureView,
-        entity_keys: List[EntityKey],
+        entity_keys: List[EntityKeyProto],
         requested_features: Optional[List[str]] = None,
-    ) -> List[Tuple[Optional[datetime], Optional[Dict[str, Value]]]]:
+    ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         # Implement async read if needed
         raise NotImplementedError("Async read is not implemented for FaissOnlineStore")

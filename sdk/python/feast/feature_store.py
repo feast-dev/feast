@@ -175,6 +175,16 @@ class FeatureStore:
         """Returns the version of the current Feast SDK/CLI."""
         return get_version()
 
+    def __repr__(self) -> str:
+        return (
+            f"FeatureStore(\n"
+            f"    repo_path={self.repo_path!r},\n"
+            f"    config={self.config!r},\n"
+            f"    registry={self._registry!r},\n"
+            f"    provider={self._provider!r}\n"
+            f")"
+        )
+
     @property
     def registry(self) -> BaseRegistry:
         """Gets the registry of this feature store."""
@@ -2156,6 +2166,14 @@ class FeatureStore:
         return self._registry.list_saved_datasets(
             self.project, allow_cache=allow_cache, tags=tags
         )
+
+    async def initialize(self) -> None:
+        """Initialize long-lived clients and/or resources needed for accessing datastores"""
+        await self._get_provider().initialize(self.config)
+
+    async def close(self) -> None:
+        """Cleanup any long-lived clients and/or resources"""
+        await self._get_provider().close()
 
 
 def _print_materialization_log(

@@ -213,3 +213,9 @@ class FooProvider(Provider):
         progress: Optional[Callable[[int], Any]],
     ) -> None:
         pass
+
+    async def initialize(self, config: RepoConfig) -> None:
+        pass
+
+    async def close(self) -> None:
+        pass
