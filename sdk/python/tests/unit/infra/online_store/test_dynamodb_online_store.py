@@ -1,5 +1,6 @@
 from copy import deepcopy
 from dataclasses import dataclass
+from datetime import datetime
 
 import boto3
 import pytest
@@ -10,6 +11,7 @@ from feast.infra.online_stores.dynamodb import (
     DynamoDBOnlineStore,
     DynamoDBOnlineStoreConfig,
     DynamoDBTable,
+    _latest_data_to_write,
 )
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
@@ -358,3 +360,24 @@ def test_dynamodb_online_store_online_read_unknown_entity_end_of_batch(
     # ensure the entity is not dropped
     assert len(returned_items) == len(entity_keys)
     assert returned_items[-1] == (None, None)
+
+
+def test_batch_write_deduplication():
+    def to_ek_proto(val):
+        return EntityKeyProto(
+            join_keys=["customer"], entity_values=[ValueProto(string_val=val)]
+        )
+
+    # is out of order and has duplicate keys
+    data = [
+        (to_ek_proto("key-1"), {}, datetime(2024, 1, 1), None),
+        (to_ek_proto("key-2"), {}, datetime(2024, 1, 1), None),
+        (to_ek_proto("key-1"), {}, datetime(2024, 1, 3), None),
+        (to_ek_proto("key-1"), {}, datetime(2024, 1, 2), None),
+        (to_ek_proto("key-3"), {}, datetime(2024, 1, 2), None),
+    ]
+
+    # assert we only keep the most recent record per key
+    actual = list(_latest_data_to_write(data))
+    expected = [data[2], data[1], data[4]]
+    assert expected == actual
