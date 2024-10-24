@@ -107,3 +107,4 @@ class TestBigQueryRetrievalJobWithBillingProject:
                 full_feature_names=True,
                 on_demand_feature_views=[],
             )
+            retrieval_job.to_df()
