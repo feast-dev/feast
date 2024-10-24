@@ -1089,7 +1089,8 @@ async def dynamo_write_items_async(
     dynamo_client, table_name: str, items: list[dict]
 ) -> None:
     """
-    Writes in batches to a dynamo table asynchronously. Max batch size is 25.
+    Writes in batches to a dynamo table asynchronously. Max size of each
+    attempted batch is 25.
     Raises DynamoUnprocessedWriteItems if not all items can be written.
 
     Args:
