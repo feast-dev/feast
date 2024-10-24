@@ -160,7 +160,7 @@ CI_REQUIRED = (
         "minio==7.1.0",
         "mock==2.0.0",
         "moto<5",
-        "mypy>=1.4.1,<1.13.0",
+        "mypy>=1.4.1,<1.11.3",
         "urllib3>=1.25.4,<3",
         "psutil==5.9.0",
         "py>=1.11.0",  # https://github.com/pytest-dev/pytest/issues/10420
