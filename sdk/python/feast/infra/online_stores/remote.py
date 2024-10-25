@@ -41,6 +41,10 @@ class RemoteOnlineStoreConfig(FeastConfigBaseModel):
     """ str: Path to metadata store.
     If type is 'remote', then this is a URL for registry server """
 
+    ssl_cert_path: StrictStr = ""
+    """ str: Path to the public certificate when the online server starts in SSL mode. This may be needed if the online server started with a self-signed certificate, typically this file ends with `*.crt`, `*.cer`, or `*.pem`.
+    If type is 'remote', then this configuration is needed to connect to remote online server in SSL mode. """
+
 
 class RemoteOnlineStore(OnlineStore):
     """
@@ -170,6 +174,13 @@ class RemoteOnlineStore(OnlineStore):
 def get_remote_online_features(
     session: requests.Session, config: RepoConfig, req_body: str
 ) -> requests.Response:
-    return session.post(
-        f"{config.online_store.path}/get-online-features", data=req_body
-    )
+    if config.online_store.ssl_cert_path:
+        return session.post(
+            f"{config.online_store.path}/get-online-features",
+            data=req_body,
+            verify=config.online_store.ssl_cert_path,
+        )
+    else:
+        return session.post(
+            f"{config.online_store.path}/get-online-features", data=req_body
+        )
