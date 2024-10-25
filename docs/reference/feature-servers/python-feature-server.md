@@ -202,8 +202,10 @@ requests.post(
 
 ## Starting the feature server in SSL mode
 
+Enabling SSL mode ensures that data between the Feast client and server is transmitted securely. For an ideal production environment, it’s recommended to start the feature server in SSL mode.
+
 ### Obtaining a self-signed SSL certificate and key
-In development mode we can generate a self-signed certificate for testing. In an actual production environment it is always recommended to get it from an SSL certificate provider.
+In development mode we can generate a self-signed certificate for testing. In an actual production environment it is always recommended to get it from a trusted SSL certificate provider.
 
 ```shell
 openssl req -x509 -newkey rsa:2048 -keyout key.pem -out cert.pem -days 365 -nodes
