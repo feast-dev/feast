@@ -8,8 +8,11 @@ from pytest_lazyfixture import lazy_fixture
 from feast.data_source import PushMode
 from feast.errors import PushSourceNotFoundException
 from feast.feature_server import get_app
+from feast.online_response import OnlineResponse
+from feast.protos.feast.serving.ServingService_pb2 import GetOnlineFeaturesResponse
 from feast.utils import _utc_now
 from tests.foo_provider import FooProvider
+from tests.utils.cli_repo_creator import CliRunner, get_example_repo
 
 
 @pytest.fixture
@@ -18,13 +21,23 @@ def mock_fs_factory():
         provider = FooProvider.with_async_support(**async_support)
         fs = MagicMock()
         fs._get_provider.return_value = provider
-        fs.get_online_features = MagicMock()
+        empty_response = OnlineResponse(GetOnlineFeaturesResponse(results=[]))
+        fs.get_online_features = MagicMock(return_value=empty_response)
         fs.push = MagicMock()
-        fs.get_online_features_async = AsyncMock()
+        fs.get_online_features_async = AsyncMock(return_value=empty_response)
         fs.push_async = AsyncMock()
         return fs
 
     return builder
+
+
+@pytest.fixture
+def feature_store_with_local_registry():
+    runner = CliRunner()
+    with runner.local_repo(
+        get_example_repo("example_feature_repo_1.py"), "file"
+    ) as store:
+        yield store
 
 
 def get_online_features_body():
@@ -51,19 +64,13 @@ def push_body(push_mode=PushMode.ONLINE, temp=100):
     }
 
 
-@pytest.mark.parametrize(
-    "async_online_read",
-    [
-        (True,),
-        (False,),
-    ],
-)
+@pytest.mark.parametrize("async_online_read", [True, False])
 def test_get_online_features_async_supported(async_online_read, mock_fs_factory):
     fs = mock_fs_factory(online_read=async_online_read)
     client = TestClient(get_app(fs))
-    client.post("/get-online-features", data=get_online_features_body())
-    assert fs.get_online_features.assert_called() == (not async_online_read)
-    assert fs.get_online_features_async.await_count == async_online_read
+    client.post("/get-online-features", json=get_online_features_body())
+    assert fs.get_online_features.call_count == int(not async_online_read)
+    assert fs.get_online_features_async.await_count == int(async_online_read)
 
 
 @pytest.mark.parametrize(
@@ -74,7 +81,7 @@ def test_get_online_features(test_feature_store):
     request_payload = get_online_features_body()
 
     client = TestClient(get_app(test_feature_store))
-    response = client.post("/get-online-features", data=request_payload)
+    response = client.post("/get-online-features", json=request_payload)
 
     # Check entities and features are present
     parsed_response = json.loads(response.text)
@@ -115,7 +122,7 @@ def test_push_online_async_supported(
 ):
     fs = mock_fs_factory(online_write=online_write)
     client = TestClient(get_app(fs))
-    client.post("/push", data=push_body(push_mode))
+    client.post("/push", json=push_body(push_mode))
     assert fs.push.call_count == 1 - async_count
     assert fs.push_async.await_count == async_count
 
