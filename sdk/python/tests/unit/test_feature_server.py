@@ -3,7 +3,6 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
-from pytest_lazyfixture import lazy_fixture
 
 from feast.data_source import PushMode
 from feast.errors import PushSourceNotFoundException
@@ -32,12 +31,12 @@ def mock_fs_factory():
 
 
 @pytest.fixture
-def feature_store_with_local_registry():
+def test_client():
     runner = CliRunner()
     with runner.local_repo(
         get_example_repo("example_feature_repo_1.py"), "file"
     ) as store:
-        yield store
+        yield TestClient(get_app(store))
 
 
 def get_online_features_body():
@@ -94,20 +93,15 @@ def test_push_online_async_supported(
     assert fs.push_async.await_count == async_count
 
 
-@pytest.mark.parametrize(
-    "test_feature_store",
-    [lazy_fixture("feature_store_with_local_registry")],
-)
-async def test_push_and_get(test_feature_store):
+async def test_push_and_get(test_client):
     driver_lat = 55.1
     push_payload = push_body(lat=driver_lat)
-    client = TestClient(get_app(test_feature_store))
-    response = client.post("/push", json=push_payload)
+    response = test_client.post("/push", json=push_payload)
     assert response.status_code == 200
 
     # Check new pushed temperature is fetched
     request_payload = get_online_features_body()
-    actual_resp = client.post("/get-online-features", json=request_payload)
+    actual_resp = test_client.post("/get-online-features", json=request_payload)
     actual = json.loads(actual_resp.text)
 
     ix = actual["metadata"]["feature_names"].index("driver_lat")
@@ -137,17 +131,12 @@ def assert_get_online_features_response_format(parsed_response, expected_entity_
     assert results[results_driver_id_index]["values"][0] == expected_entity_id
 
 
-@pytest.mark.parametrize(
-    "test_feature_store",
-    [lazy_fixture("feature_store_with_local_registry")],
-)
-def test_push_source_does_not_exist(test_feature_store):
+def test_push_source_does_not_exist(test_client):
     with pytest.raises(
         PushSourceNotFoundException,
         match="Unable to find push source 'push_source_does_not_exist'",
     ):
-        client = TestClient(get_app(test_feature_store))
-        client.post(
+        test_client.post(
             "/push",
             json={
                 "push_source_name": "push_source_does_not_exist",
