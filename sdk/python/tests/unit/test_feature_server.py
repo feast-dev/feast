@@ -58,6 +58,7 @@ def push_body(push_mode=PushMode.ONLINE, lat=42.0):
             "driver_long": ["42.0"],
             "driver_id": [123],
             "event_timestamp": [str(_utc_now())],
+            "created_timestamp": [str(_utc_now())],
         },
         "to": push_mode.name.lower(),
     }
@@ -70,39 +71,6 @@ def test_get_online_features_async_supported(async_online_read, mock_fs_factory)
     client.post("/get-online-features", json=get_online_features_body())
     assert fs.get_online_features.call_count == int(not async_online_read)
     assert fs.get_online_features_async.await_count == int(async_online_read)
-
-
-@pytest.mark.parametrize(
-    "test_feature_store",
-    [lazy_fixture("feature_store_with_local_registry")],
-)
-def test_get_online_features(test_feature_store):
-    request_payload = get_online_features_body()
-
-    client = TestClient(get_app(test_feature_store))
-    response = client.post("/get-online-features", json=request_payload)
-
-    # Check entities and features are present
-    parsed_response = json.loads(response.text)
-    assert "metadata" in parsed_response
-    metadata = parsed_response["metadata"]
-    expected_features = ["driver_id", "lat", "lon"]
-    response_feature_names = metadata["feature_names"]
-    assert len(response_feature_names) == len(expected_features)
-    for expected_feature in expected_features:
-        assert expected_feature in response_feature_names
-    assert "results" in parsed_response
-    results = parsed_response["results"]
-    for result in results:
-        # Same order as in metadata
-        assert len(result["statuses"]) == 2  # Requested two entities
-        for status in result["statuses"]:
-            assert status == "PRESENT"
-    results_driver_id_index = response_feature_names.index("driver_id")
-    assert (
-        results[results_driver_id_index]["values"]
-        == request_payload["entities"]["driver_id"]
-    )
 
 
 @pytest.mark.parametrize(
@@ -130,7 +98,7 @@ def test_push_online_async_supported(
     "test_feature_store",
     [lazy_fixture("feature_store_with_local_registry")],
 )
-async def test_push(test_feature_store):
+async def test_push_and_get(test_feature_store):
     request_payload = push_body(lat=55.1)
     client = TestClient(get_app(test_feature_store))
     response = client.post("/push", json=request_payload)
@@ -140,13 +108,36 @@ async def test_push(test_feature_store):
     actual_resp = client.post(
         "/get-online-features",
         json={
-            "features": ["driver_locations_push:driver_lat"],
+            "feature_service": "driver_locations_service",
             "entities": {"driver_id": [request_payload["entities"]["driver_id"][0]]},
         },
     )
     actual = json.loads(actual_resp.text)
-    ix = actual["metadata"]["feature_names"].index("driver_lat")
-    assert actual["results"][ix]["values"][0] == request_payload["df"]["driver_lat"]
+    print(actual)
+    ix = actual["metadata"]["feature_names"].index("lat")
+    assert actual["results"][ix]["values"][0] == request_payload["df"]["lon"]
+    assert_get_online_features_response_format(
+        actual, request_payload["entities"]["driver_id"]
+    )
+
+
+def assert_get_online_features_response_format(parsed_response, expected_entity_id):
+    assert "metadata" in parsed_response
+    metadata = parsed_response["metadata"]
+    expected_features = ["driver_id", "lat", "lon"]
+    response_feature_names = metadata["feature_names"]
+    assert len(response_feature_names) == len(expected_features)
+    for expected_feature in expected_features:
+        assert expected_feature in response_feature_names
+    assert "results" in parsed_response
+    results = parsed_response["results"]
+    for result in results:
+        # Same order as in metadata
+        assert len(result["statuses"]) == 2  # Requested two entities
+        for status in result["statuses"]:
+            assert status == "PRESENT"
+    results_driver_id_index = response_feature_names.index("driver_id")
+    assert results[results_driver_id_index]["values"] == expected_entity_id
 
 
 @pytest.mark.parametrize(
