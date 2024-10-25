@@ -1,6 +1,7 @@
 from feast import FeatureStore
 import requests
 import json
+import pandas as pd
 
 
 def run_demo_http():
@@ -14,7 +15,14 @@ def run_demo_http():
     r = requests.post(
         "http://localhost:6566/get-online-features", data=json.dumps(online_request)
     )
-    print(json.dumps(r.json(), indent=4, sort_keys=True))
+
+    resp_data = json.loads(r.text)
+    records = pd.DataFrame.from_records(
+        columns=resp_data["metadata"]["feature_names"], 
+        data=[[r["values"][i] for r in resp_data["results"]] for i in range(len(resp_data["results"]))]
+    )
+    for col in sorted(records.columns):
+        print(col, " : ", records[col].values)
 
 
 def run_demo_sdk():
