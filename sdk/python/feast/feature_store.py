@@ -1896,6 +1896,8 @@ class FeatureStore:
         workers: int = 1,
         metrics: bool = False,
         keep_alive_timeout: int = 30,
+        ssl_key_path: str = "",
+        ssl_cert_path: str = "",
         registry_ttl_sec: int = 2,
     ) -> None:
         """Start the feature consumption server locally on a given port."""
@@ -1913,6 +1915,8 @@ class FeatureStore:
             workers=workers,
             metrics=metrics,
             keep_alive_timeout=keep_alive_timeout,
+            ssl_key_path=ssl_key_path,
+            ssl_cert_path=ssl_cert_path,
             registry_ttl_sec=registry_ttl_sec,
         )
 
