@@ -43,22 +43,21 @@ def feature_store_with_local_registry():
 def get_online_features_body():
     return {
         "features": [
-            "driver_stats:conv_rate",
-            "driver_stats:acc_rate",
-            "driver_stats:avg_daily_trips",
+            "driver_locations:lat",
+            "driver_locations:lon",
+            "driver_locations:driver_id",
         ],
         "entities": {"driver_id": [5001, 5002]},
     }
 
 
-def push_body(push_mode=PushMode.ONLINE, temp=100):
+def push_body(push_mode=PushMode.ONLINE, lat=42.0):
     return {
-        "push_source_name": "location_stats_push_source",
+        "push_source_name": "driver_locations_push",
         "df": {
-            "location_id": [1],
-            "temperature": [temp],
-            "event_timestamp": [str(_utc_now())],
-            "created": [str(_utc_now())],
+            "driver_lat": [lat],
+            "driver_long": ["42.0"],
+            "driver_id": [123],
         },
         "to": push_mode.name.lower(),
     }
@@ -87,7 +86,7 @@ def test_get_online_features(test_feature_store):
     parsed_response = json.loads(response.text)
     assert "metadata" in parsed_response
     metadata = parsed_response["metadata"]
-    expected_features = ["driver_id", "conv_rate", "acc_rate", "avg_daily_trips"]
+    expected_features = ["driver_id", "lat", "lon"]
     response_feature_names = metadata["feature_names"]
     assert len(response_feature_names) == len(expected_features)
     for expected_feature in expected_features:
@@ -132,20 +131,22 @@ def test_push_online_async_supported(
     [lazy_fixture("feature_store_with_local_registry")],
 )
 async def test_push(test_feature_store):
-    request_payload = push_body(temp=55)
+    request_payload = push_body(lat=55.1)
     client = TestClient(get_app(test_feature_store))
-    response = client.post("/push", data=request_payload)
+    response = client.post("/push", json=request_payload)
 
     # Check new pushed temperature is fetched
     assert response.status_code == 200
-    actual = client.post(
+    actual_resp = client.post(
         "/get-online-features",
-        data={
-            "features": ["pushable_location_stats:temperature"],
-            "entities": {"location_id": request_payload["df"]["location_id"]},
+        json={
+            "features": ["driver_locations_push:driver_lat"],
+            "entities": {"driver_id": request_payload["df"]["driver_id"]},
         },
     )
-    assert actual == request_payload["df"]["temperature"]
+    actual = json.loads(actual_resp.text)
+    ix = actual["metadata"]["feature_names"].index("driver_lat")
+    assert actual["results"][ix]["values"][0] == request_payload["df"]["driver_lat"]
 
 
 @pytest.mark.parametrize(
@@ -160,7 +161,7 @@ def test_push_source_does_not_exist(test_feature_store):
         client = TestClient(get_app(test_feature_store))
         client.post(
             "/push",
-            data={
+            json={
                 "push_source_name": "push_source_does_not_exist",
                 "df": {
                     "location_id": [1],
