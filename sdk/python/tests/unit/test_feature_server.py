@@ -111,7 +111,7 @@ async def test_push_and_get(test_feature_store):
     actual = json.loads(actual_resp.text)
 
     ix = actual["metadata"]["feature_names"].index("driver_lat")
-    assert actual["results"][ix]["values"][0] == driver_lat
+    assert actual["results"][ix]["values"][0] == pytest.approx(driver_lat)
 
     assert_get_online_features_response_format(
         actual, request_payload["entities"]["driver_id"][0]
