@@ -20,7 +20,10 @@ from tests.integration.feature_repos.universal.entities import (
 
 @pytest.mark.integration
 @pytest.mark.universal_online_stores
-async def test_get_online_features(python_fs_client):
+async def test_get_online_features(python_fs_client_w_fs):
+    python_fs_client, fs = python_fs_client_w_fs
+    await fs.initialize()
+
     request_data_dict = {
         "features": [
             "driver_stats:conv_rate",
@@ -55,10 +58,15 @@ async def test_get_online_features(python_fs_client):
         == request_data_dict["entities"]["driver_id"]
     )
 
+    await fs.close()
+
 
 @pytest.mark.integration
 @pytest.mark.universal_online_stores
-async def test_push(python_fs_client):
+async def test_push(python_fs_client_w_fs):
+    python_fs_client, fs = python_fs_client_w_fs
+
+    await fs.initialize()
     initial_temp = await _get_temperatures_from_feature_server(
         python_fs_client, location_ids=[1]
     )
@@ -84,11 +92,14 @@ async def test_push(python_fs_client):
         python_fs_client, location_ids=[1]
     )
     assert actual == [initial_temp[0] * 100]
+    await fs.close()
 
 
 @pytest.mark.integration
 @pytest.mark.universal_online_stores
-def test_push_source_does_not_exist(python_fs_client):
+def test_push_source_does_not_exist(python_fs_client_w_fs):
+    python_fs_client, _ = python_fs_client_w_fs
+
     with pytest.raises(
         PushSourceNotFoundException,
         match="Unable to find push source 'push_source_does_not_exist'",
@@ -126,7 +137,7 @@ async def _get_temperatures_from_feature_server(client, location_ids: List[int])
 
 
 @pytest.fixture
-def python_fs_client(environment, universal_data_sources, request):
+def python_fs_client_w_fs(environment, universal_data_sources, request):
     fs = environment.feature_store
     entities, datasets, data_sources = universal_data_sources
     feature_views = construct_universal_feature_views(data_sources)
@@ -136,4 +147,4 @@ def python_fs_client(environment, universal_data_sources, request):
     fs.apply(feast_objects)
     fs.materialize(environment.start_date, environment.end_date)
     with TestClient(get_app(fs)) as client:
-        yield client
+        yield client, fs
