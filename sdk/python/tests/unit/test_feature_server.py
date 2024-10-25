@@ -45,7 +45,6 @@ def get_online_features_body():
         "features": [
             "driver_locations:lat",
             "driver_locations:lon",
-            "driver_locations:driver_id",
         ],
         "entities": {"driver_id": [5001, 5002]},
     }
@@ -58,6 +57,7 @@ def push_body(push_mode=PushMode.ONLINE, lat=42.0):
             "driver_lat": [lat],
             "driver_long": ["42.0"],
             "driver_id": [123],
+            "event_timestamp": [str(_utc_now())],
         },
         "to": push_mode.name.lower(),
     }
@@ -141,7 +141,7 @@ async def test_push(test_feature_store):
         "/get-online-features",
         json={
             "features": ["driver_locations_push:driver_lat"],
-            "entities": {"driver_id": request_payload["df"]["driver_id"]},
+            "entities": {"driver_id": [request_payload["entities"]["driver_id"][0]]},
         },
     )
     actual = json.loads(actual_resp.text)
@@ -164,10 +164,8 @@ def test_push_source_does_not_exist(test_feature_store):
             json={
                 "push_source_name": "push_source_does_not_exist",
                 "df": {
-                    "location_id": [1],
-                    "temperature": [100],
+                    "any_data": [1],
                     "event_timestamp": [str(_utc_now())],
-                    "created": [str(_utc_now())],
                 },
             },
         )
