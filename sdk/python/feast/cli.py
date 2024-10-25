@@ -898,11 +898,10 @@ def init_command(project_directory, minimal: bool, template: str):
 )
 @click.option(
     "--threads",
-    "-t",
     type=click.INT,
     default=1,
     show_default=True,
-    help="Number of thread"
+    help="Number of thread. When this value increases, concurrency request handling is enabled"
 )
 @click.option(
     "--max-requests",
