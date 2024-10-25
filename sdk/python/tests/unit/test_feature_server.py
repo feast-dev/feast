@@ -42,7 +42,10 @@ def feature_store_with_local_registry():
 
 def get_online_features_body():
     return {
-        "feature_service": "driver_locations_service",
+        "features": [
+            "pushed_driver_locations:driver_lat",
+            "pushed_driver_locations:driver_long",
+        ],
         "entities": {"driver_id": [123]},
     }
 
@@ -107,7 +110,7 @@ async def test_push_and_get(test_feature_store):
     actual = json.loads(actual_resp.text)
     print(actual)
     ix = actual["metadata"]["feature_names"].index("lat")
-    assert actual["results"][ix]["values"][0] == request_payload["df"]["lon"]
+    assert actual["results"][ix]["values"][0] == push_payload["df"]["driver_long"]
     assert_get_online_features_response_format(
         actual, request_payload["entities"]["driver_id"][0]
     )
