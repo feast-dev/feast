@@ -15,11 +15,13 @@ from tests.utils.auth_permissions_util import (
     start_feature_server,
 )
 from tests.utils.cli_repo_creator import CliRunner
+from tests.utils.generate_self_signed_certifcate_util import generate_self_signed_cert
 from tests.utils.http_server import free_port
 
 
+@pytest.mark.parametrize("ssl_mode", [True, False])
 @pytest.mark.integration
-def test_remote_online_store_read(auth_config):
+def test_remote_online_store_read(auth_config, ssl_mode):
     with tempfile.TemporaryDirectory() as remote_server_tmp_dir, tempfile.TemporaryDirectory() as remote_client_tmp_dir:
         permissions_list = [
             Permission(
@@ -41,11 +43,12 @@ def test_remote_online_store_read(auth_config):
                 actions=[AuthzedAction.READ_ONLINE],
             ),
         ]
-        server_store, server_url, registry_path = (
+        server_store, server_url, registry_path, ssl_cert_path = (
             _create_server_store_spin_feature_server(
                 temp_dir=remote_server_tmp_dir,
                 auth_config=auth_config,
                 permissions_list=permissions_list,
+                ssl_mode=ssl_mode,
             )
         )
         assert None not in (server_store, server_url, registry_path)
@@ -54,6 +57,7 @@ def test_remote_online_store_read(auth_config):
             server_registry_path=str(registry_path),
             feature_server_url=server_url,
             auth_config=auth_config,
+            ssl_cert_path=ssl_cert_path,
         )
         assert client_store is not None
         _assert_non_existing_entity_feature_views_entity(
@@ -159,21 +163,46 @@ def _assert_client_server_online_stores_are_matching(
 
 
 def _create_server_store_spin_feature_server(
-    temp_dir, auth_config: str, permissions_list
+    temp_dir, auth_config: str, permissions_list, ssl_mode: bool
 ):
     store = default_store(str(temp_dir), auth_config, permissions_list)
     feast_server_port = free_port()
+    if ssl_mode:
+        certificates_path = tempfile.mkdtemp()
+        ssl_key_path = os.path.join(certificates_path, "key.pem")
+        ssl_cert_path = os.path.join(certificates_path, "cert.pem")
+        generate_self_signed_cert(cert_path=ssl_cert_path, key_path=ssl_key_path)
+    else:
+        ssl_key_path = ""
+        ssl_cert_path = ""
+
     server_url = next(
         start_feature_server(
-            repo_path=str(store.repo_path), server_port=feast_server_port
+            repo_path=str(store.repo_path),
+            server_port=feast_server_port,
+            ssl_key_path=ssl_key_path,
+            ssl_cert_path=ssl_cert_path,
         )
     )
-    print(f"Server started successfully, {server_url}")
-    return store, server_url, os.path.join(store.repo_path, "data", "registry.db")
+    if ssl_cert_path and ssl_key_path:
+        print(f"Online Server started successfully in SSL mode, {server_url}")
+    else:
+        print(f"Server started successfully, {server_url}")
+
+    return (
+        store,
+        server_url,
+        os.path.join(store.repo_path, "data", "registry.db"),
+        ssl_cert_path,
+    )
 
 
 def _create_remote_client_feature_store(
-    temp_dir, server_registry_path: str, feature_server_url: str, auth_config: str
+    temp_dir,
+    server_registry_path: str,
+    feature_server_url: str,
+    auth_config: str,
+    ssl_cert_path: str = "",
 ) -> FeatureStore:
     project_name = "REMOTE_ONLINE_CLIENT_PROJECT"
     runner = CliRunner()
@@ -185,27 +214,35 @@ def _create_remote_client_feature_store(
         registry_path=server_registry_path,
         feature_server_url=feature_server_url,
         auth_config=auth_config,
+        ssl_cert_path=ssl_cert_path,
     )
 
     return FeatureStore(repo_path=repo_path)
 
 
 def _overwrite_remote_client_feature_store_yaml(
-    repo_path: str, registry_path: str, feature_server_url: str, auth_config: str
+    repo_path: str,
+    registry_path: str,
+    feature_server_url: str,
+    auth_config: str,
+    ssl_cert_path: str = "",
 ):
     repo_config = os.path.join(repo_path, "feature_store.yaml")
-    with open(repo_config, "w") as repo_config:
-        repo_config.write(
-            dedent(
-                f"""
-            project: {PROJECT_NAME}
-            registry: {registry_path}
-            provider: local
-            online_store:
-                path: {feature_server_url}
-                type: remote
-            entity_key_serialization_version: 2
-            """
-            )
-            + auth_config
-        )
+
+    config_content = "entity_key_serialization_version: 2\n" + auth_config
+    config_content += dedent(
+        f"""
+    project: {PROJECT_NAME}
+    registry: {registry_path}
+    provider: local
+    online_store:
+        path: {feature_server_url}
+        type: remote
+    """
+    )
+
+    if ssl_cert_path:
+        config_content += f"    ssl_cert_path: {ssl_cert_path}\n"
+
+    with open(repo_config, "w") as repo_config_file:
+        repo_config_file.write(config_content)
