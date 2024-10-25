@@ -42,11 +42,8 @@ def feature_store_with_local_registry():
 
 def get_online_features_body():
     return {
-        "features": [
-            "driver_locations:lat",
-            "driver_locations:lon",
-        ],
-        "entities": {"driver_id": [5001, 5002]},
+        "feature_service": "driver_locations_service",
+        "entities": {"driver_id": [123]},
     }
 
 
@@ -99,25 +96,20 @@ def test_push_online_async_supported(
     [lazy_fixture("feature_store_with_local_registry")],
 )
 async def test_push_and_get(test_feature_store):
-    request_payload = push_body(lat=55.1)
+    push_payload = push_body(lat=55.1)
     client = TestClient(get_app(test_feature_store))
-    response = client.post("/push", json=request_payload)
+    response = client.post("/push", json=push_payload)
+    assert response.status_code == 200
 
     # Check new pushed temperature is fetched
-    assert response.status_code == 200
-    actual_resp = client.post(
-        "/get-online-features",
-        json={
-            "feature_service": "driver_locations_service",
-            "entities": {"driver_id": [request_payload["entities"]["driver_id"][0]]},
-        },
-    )
+    request_payload = get_online_features_body()
+    actual_resp = client.post("/get-online-features", json=request_payload)
     actual = json.loads(actual_resp.text)
     print(actual)
     ix = actual["metadata"]["feature_names"].index("lat")
     assert actual["results"][ix]["values"][0] == request_payload["df"]["lon"]
     assert_get_online_features_response_format(
-        actual, request_payload["entities"]["driver_id"]
+        actual, request_payload["entities"]["driver_id"][0]
     )
 
 
