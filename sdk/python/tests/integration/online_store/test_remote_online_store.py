@@ -228,7 +228,9 @@ def _overwrite_remote_client_feature_store_yaml(
     ssl_cert_path: str = "",
 ):
     repo_config = os.path.join(repo_path, "feature_store.yaml")
-    config_content = dedent(
+
+    config_content = "entity_key_serialization_version: 2\n" + auth_config
+    config_content += dedent(
         f"""
     project: {PROJECT_NAME}
     registry: {registry_path}
@@ -241,8 +243,6 @@ def _overwrite_remote_client_feature_store_yaml(
 
     if ssl_cert_path:
         config_content += f"    ssl_cert_path: {ssl_cert_path}\n"
-
-    config_content += "    entity_key_serialization_version: 2\n" + auth_config
 
     with open(repo_config, "w") as repo_config_file:
         repo_config_file.write(config_content)
