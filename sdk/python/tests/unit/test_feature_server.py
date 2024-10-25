@@ -99,7 +99,8 @@ def test_push_online_async_supported(
     [lazy_fixture("feature_store_with_local_registry")],
 )
 async def test_push_and_get(test_feature_store):
-    push_payload = push_body(lat=55.1)
+    driver_lat = 55.1
+    push_payload = push_body(lat=driver_lat)
     client = TestClient(get_app(test_feature_store))
     response = client.post("/push", json=push_payload)
     assert response.status_code == 200
@@ -108,9 +109,10 @@ async def test_push_and_get(test_feature_store):
     request_payload = get_online_features_body()
     actual_resp = client.post("/get-online-features", json=request_payload)
     actual = json.loads(actual_resp.text)
-    print(actual)
-    ix = actual["metadata"]["feature_names"].index("lat")
-    assert actual["results"][ix]["values"][0] == push_payload["df"]["driver_long"]
+
+    ix = actual["metadata"]["feature_names"].index("driver_lat")
+    assert actual["results"][ix]["values"][0] == driver_lat
+
     assert_get_online_features_response_format(
         actual, request_payload["entities"]["driver_id"][0]
     )
