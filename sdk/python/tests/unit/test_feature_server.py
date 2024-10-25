@@ -121,7 +121,7 @@ async def test_push_and_get(test_feature_store):
 def assert_get_online_features_response_format(parsed_response, expected_entity_id):
     assert "metadata" in parsed_response
     metadata = parsed_response["metadata"]
-    expected_features = ["driver_id", "lat", "lon"]
+    expected_features = ["driver_id", "driver_lat", "driver_long"]
     response_feature_names = metadata["feature_names"]
     assert len(response_feature_names) == len(expected_features)
     for expected_feature in expected_features:
@@ -130,11 +130,11 @@ def assert_get_online_features_response_format(parsed_response, expected_entity_
     results = parsed_response["results"]
     for result in results:
         # Same order as in metadata
-        assert len(result["statuses"]) == 2  # Requested two entities
+        assert len(result["statuses"]) == 1  # Requested one entity
         for status in result["statuses"]:
             assert status == "PRESENT"
     results_driver_id_index = response_feature_names.index("driver_id")
-    assert results[results_driver_id_index]["values"] == expected_entity_id
+    assert results[results_driver_id_index]["values"][0] == expected_entity_id
 
 
 @pytest.mark.parametrize(
