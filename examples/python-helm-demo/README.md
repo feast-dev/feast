@@ -157,7 +157,7 @@ are defined in [minio.env](./minio.env):
       python test_python_fetch.py
       ```
 
-      Outpu example:
+      Output example:
       ```console
       --- Online features with SDK ---
       WARNING:root:_list_feature_views will make breaking changes. Please use _list_batch_feature_views instead. _list_feature_views will behave like _list_all_feature_views in the future.
