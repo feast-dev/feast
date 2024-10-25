@@ -485,11 +485,7 @@ def test_online_retrieval_with_event_timestamps(environment, universal_data_sour
     assert_feature_store_universal_feature_views_response(df)
 
 
-@pytest.mark.integration
-@pytest.mark.universal_online_stores(only=["redis", "dynamodb", "postgres"])
-async def test_async_online_retrieval_with_event_timestamps(
-    environment, universal_data_sources
-):
+async def _do_async_retrieval_test(environment, universal_data_sources):
     fs = setup_feature_store_universal_feature_views(
         environment, universal_data_sources
     )
@@ -508,6 +504,22 @@ async def test_async_online_retrieval_with_event_timestamps(
     assert_feature_store_universal_feature_views_response(df)
 
     await fs.close()
+
+
+@pytest.mark.integration
+@pytest.mark.universal_online_stores(only=["redis", "postgres"])
+async def test_async_online_retrieval_with_event_timestamps(
+    environment, universal_data_sources
+):
+    await _do_async_retrieval_test(environment, universal_data_sources)
+
+
+@pytest.mark.integration
+@pytest.mark.universal_online_stores(only=["dynamodb"])
+async def test_async_online_retrieval_with_event_timestamps_dynamo(
+    environment, universal_data_sources
+):
+    await _do_async_retrieval_test(environment, universal_data_sources)
 
 
 @pytest.mark.integration
