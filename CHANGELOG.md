@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.41.3](https://github.com/feast-dev/feast/compare/v0.41.2...v0.41.3) (2024-10-26)
+
+
+### Bug Fixes
+
+* Revert artifact actions back to v3 ([#4705](https://github.com/feast-dev/feast/issues/4705)) ([5f8ba92](https://github.com/feast-dev/feast/commit/5f8ba9224c3b5f279e9d1e9fd11416d2aef8c62a))
+
 ## [0.41.2](https://github.com/feast-dev/feast/compare/v0.41.1...v0.41.2) (2024-10-26)
 
 
