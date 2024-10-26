@@ -912,6 +912,22 @@ def init_command(project_directory, minimal: bool, template: str):
     show_default=True,
 )
 @click.option(
+    "--ssl-key-path",
+    "-k",
+    type=click.STRING,
+    default="",
+    show_default=False,
+    help="path to SSL certificate private key. You need to pass ssl-cert-path as well to start server in SSL mode",
+)
+@click.option(
+    "--ssl-cert-path",
+    "-c",
+    type=click.STRING,
+    default="",
+    show_default=False,
+    help="path to SSL certificate public key. You need to pass ssl-key-path as well to start server in SSL mode",
+)
+@click.option(
     "--metrics",
     "-m",
     is_flag=True,
@@ -928,9 +944,16 @@ def serve_command(
     workers: int,
     metrics: bool,
     keep_alive_timeout: int,
+    ssl_key_path: str,
+    ssl_cert_path: str,
     registry_ttl_sec: int = 5,
 ):
     """Start a feature server locally on a given port."""
+    if (ssl_key_path and not ssl_cert_path) or (not ssl_key_path and ssl_cert_path):
+        raise click.BadParameter(
+            "Please configure ssl-cert-path and ssl-key-path args to start the feature server in SSL mode."
+        )
+
     store = create_feature_store(ctx)
 
     store.serve(
@@ -941,6 +964,8 @@ def serve_command(
         workers=workers,
         metrics=metrics,
         keep_alive_timeout=keep_alive_timeout,
+        ssl_key_path=ssl_key_path,
+        ssl_cert_path=ssl_cert_path,
         registry_ttl_sec=registry_ttl_sec,
     )
 
