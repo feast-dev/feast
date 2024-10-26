@@ -342,6 +342,8 @@ def start_server(
     max_requests_jitter: int,
     keep_alive_timeout: int,
     registry_ttl_sec: int,
+    ssl_key_path: str,
+    ssl_cert_path: str,
     metrics: bool,
 ):
     if metrics:
@@ -367,19 +369,34 @@ def start_server(
     logger.debug("Auth manager initialized successfully")
 
     if sys.platform != "win32":
-        FeastServeApplication(
-            store=store,
-            bind=f"{host}:{port}",
-            accesslog=None if no_access_log else "-",
-            workers=workers,
-            threads=threads,
-            max_requests=max_requests,
-            max_requests_jitter=max_requests_jitter,
-            keepalive=keep_alive_timeout,
-            registry_ttl_sec=registry_ttl_sec,
-        ).run()
+        options = {
+            "bind": f"{host}:{port}",
+            "accesslog": None if no_access_log else "-",
+            "workers": workers,
+            "threads": threads,
+            "max_requests": max_requests,
+            "max_requests_jitter": max_requests_jitter,
+            "keepalive": keep_alive_timeout,
+            "registry_ttl_sec": registry_ttl_sec,
+        }
+
+        # Add SSL options if the paths exist
+        if ssl_key_path and ssl_cert_path:
+            options["keyfile"] = ssl_key_path
+            options["certfile"] = ssl_cert_path
+        FeastServeApplication(store=store, **options).run()
     else:
         import uvicorn
 
         app = get_app(store, registry_ttl_sec)
-        uvicorn.run(app, host=host, port=port, access_log=(not no_access_log))
+        if ssl_key_path and ssl_cert_path:
+            uvicorn.run(
+                app,
+                host=host,
+                port=port,
+                access_log=(not no_access_log),
+                ssl_keyfile=ssl_key_path,
+                ssl_certfile=ssl_cert_path,
+            )
+        else:
+            uvicorn.run(app, host=host, port=port, access_log=(not no_access_log))
