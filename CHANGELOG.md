@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.41.2](https://github.com/feast-dev/feast/compare/v0.41.1...v0.41.2) (2024-10-26)
+
+
+### Bug Fixes
+
+* add semantic-release dry-run display ([#4704](https://github.com/feast-dev/feast/issues/4704)) ([745c8bf](https://github.com/feast-dev/feast/commit/745c8bf19c5b92f1093709811e5173c2de4aeb71))
+
 ## [0.41.1](https://github.com/feast-dev/feast/compare/v0.41.0...v0.41.1) (2024-10-26)
 
 

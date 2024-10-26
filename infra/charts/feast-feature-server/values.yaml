@@ -9,7 +9,7 @@ image:
   repository: feastdev/feature-server
   pullPolicy: IfNotPresent
   # image.tag -- The Docker image tag (can be overwritten if custom feature server deps are needed for on demand transforms)
-  tag: 0.41.1
+  tag: 0.41.2
 
 logLevel: "WARNING"  # Set log level DEBUG, INFO, WARNING, ERROR, and CRITICAL (case-insensitive)
 
