@@ -1,6 +1,6 @@
 # Streaming feature computation with Denormalized
 
-Denormalized makes it easy to compute real-time features and write them directly to your Feast feature store. This guide will walk you through setting up a streaming pipeline that computes feature aggregations and pushes them to Feast in real-time.
+Denormalized makes it easy to compute real-time features and write them directly to your Feast online store. This guide will walk you through setting up a streaming pipeline that computes feature aggregations and pushes them to Feast in real-time.
 
 ![Denormalized/Feast integration diagram](../assets/feast-denormalized.png)
 
