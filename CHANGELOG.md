@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.41.1](https://github.com/feast-dev/feast/compare/v0.41.0...v0.41.1) (2024-10-26)
+
+
+### Reverts
+
+* Reverting "chore Bump actions/download-artifact from 2 to 4.1.7 in /.gi… ([#4701](https://github.com/feast-dev/feast/issues/4701)) ([a2a9125](https://github.com/feast-dev/feast/commit/a2a912524c55d1e9e2e064ab8cac0a3b4ddc7fb3))
+
 # [0.41.0](https://github.com/feast-dev/feast/compare/v0.40.0...v0.41.0) (2024-10-26)
 
 
