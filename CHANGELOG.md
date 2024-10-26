@@ -1,5 +1,138 @@
 # Changelog
 
+# [0.41.0](https://github.com/feast-dev/feast/compare/v0.40.0...v0.41.0) (2024-10-26)
+
+
+* chore!: Update @elastic/eui and @emotion/react in Feast UI ([#4597](https://github.com/feast-dev/feast/issues/4597)) ([b9ddbf9](https://github.com/feast-dev/feast/commit/b9ddbf9351a55b1a5c102102b06ad3b2f28b3d1f))
+
+
+### Bug Fixes
+
+* Add --chdir to test_workflow.py ([#4453](https://github.com/feast-dev/feast/issues/4453)) ([6b2f026](https://github.com/feast-dev/feast/commit/6b2f026747b8adebe659aed3d4d2f95d551d5d1e))
+* Add feast-operator files to semantic-release script ([#4382](https://github.com/feast-dev/feast/issues/4382)) ([8eceff2](https://github.com/feast-dev/feast/commit/8eceff26ba00fd446d27ad5ce2ee9d039c57fd9a))
+* Add feast-operator Makefile to semantic-release script ([#4424](https://github.com/feast-dev/feast/issues/4424)) ([d18d01d](https://github.com/feast-dev/feast/commit/d18d01de8356ffdc29b35c93978f36e7541d415e))
+* Added Offline Store Arrow client errors handler ([#4524](https://github.com/feast-dev/feast/issues/4524)) ([7535b40](https://github.com/feast-dev/feast/commit/7535b4036ce980c9a05bc33a9e61a7938ea1303e))
+* Added Online Store REST client errors handler ([#4488](https://github.com/feast-dev/feast/issues/4488)) ([2118719](https://github.com/feast-dev/feast/commit/21187199173f4c4f5417205d99535af6be492a9a))
+* Added Permission API docs ([#4485](https://github.com/feast-dev/feast/issues/4485)) ([2bd03fa](https://github.com/feast-dev/feast/commit/2bd03fa4da5e76f6b29b0b54b455d5552d256838))
+* Added support for multiple name patterns to Permissions ([#4633](https://github.com/feast-dev/feast/issues/4633)) ([f05e928](https://github.com/feast-dev/feast/commit/f05e92861da64d1c5e9cfe3c6307b3422d0d83b8))
+* Adding protobuf<5 as a required dependency due to snowflake limitations ([#4537](https://github.com/feast-dev/feast/issues/4537)) ([cecca83](https://github.com/feast-dev/feast/commit/cecca8360bed62ab2f4fddc5d3a888247ea0a87a))
+* Avoid the python 3.9+ threadpool cleanup bug ([#4627](https://github.com/feast-dev/feast/issues/4627)) ([ba05893](https://github.com/feast-dev/feast/commit/ba05893ba6db2d8d1e7bcc8cf8162f4fb72c9563))
+* Bigquery dataset create table disposition ([#4649](https://github.com/feast-dev/feast/issues/4649)) ([58e03d1](https://github.com/feast-dev/feast/commit/58e03d17448a883ef57bcd6d8926d1e54ddcdece))
+* Changes template file path to relative path ([#4624](https://github.com/feast-dev/feast/issues/4624)) ([3e313b1](https://github.com/feast-dev/feast/commit/3e313b15efc7fc72d35d70315fc8b7c172fc7993))
+* Check for snowflake functions when setting up materialization engine ([#4456](https://github.com/feast-dev/feast/issues/4456)) ([c365b4e](https://github.com/feast-dev/feast/commit/c365b4e71a16fb69883608c5f781c6d55502bb8e))
+* Correctly handle list values in _python_value_to_proto_value ([#4608](https://github.com/feast-dev/feast/issues/4608)) ([c0a1026](https://github.com/feast-dev/feast/commit/c0a10269914c2ca01fe1cf6b24b120bfa58d04e7))
+* Default to pandas mode if not specified in ODFV proto in database ([#4420](https://github.com/feast-dev/feast/issues/4420)) ([d235832](https://github.com/feast-dev/feast/commit/d235832b78027b98df8e8a9e434a51a0c78b3092))
+* Deleting data from feast_metadata when we delete project ([#4550](https://github.com/feast-dev/feast/issues/4550)) ([351a2d0](https://github.com/feast-dev/feast/commit/351a2d0a7f9808178ab9d201083eb2894ce7384f))
+* Disable active_timer When registry_ttl_sec is 0 ([#4499](https://github.com/feast-dev/feast/issues/4499)) ([c94f32f](https://github.com/feast-dev/feast/commit/c94f32f2b637c7b7d917d2456432180af7569cf5))
+* Escape special characters in the Postgres password ([#4394](https://github.com/feast-dev/feast/issues/4394)) ([419ca5e](https://github.com/feast-dev/feast/commit/419ca5e9523ff38f27141b79ae12ebb0646c6617))
+* FeastExtrasDependencyImportError when using SparkOfflineStore without S3 ([#4594](https://github.com/feast-dev/feast/issues/4594)) ([1ba94f7](https://github.com/feast-dev/feast/commit/1ba94f7e2018fea0114f1703dd3942d589071825))
+* Fix Feast project name test ([#4685](https://github.com/feast-dev/feast/issues/4685)) ([9f41fd6](https://github.com/feast-dev/feast/commit/9f41fd6673b9576c802c2378b56e04b9a090d99d))
+* Fix for SQL registry initialization fails [#4543](https://github.com/feast-dev/feast/issues/4543) ([#4544](https://github.com/feast-dev/feast/issues/4544)) ([4e2eacc](https://github.com/feast-dev/feast/commit/4e2eacc1beea8f8866b78968abadfd42eee63d6a))
+* Fix gitignore issue ([#4674](https://github.com/feast-dev/feast/issues/4674)) ([2807dfa](https://github.com/feast-dev/feast/commit/2807dfaf46d3d9e79f84b0ff22dbaeede377c89b))
+* Fix online pg import ([#4581](https://github.com/feast-dev/feast/issues/4581)) ([1f17caa](https://github.com/feast-dev/feast/commit/1f17caacdaa573d08dbf8dc68b20e73a187ed8a4))
+* Fix the mypy type check issue. ([#4498](https://github.com/feast-dev/feast/issues/4498)) ([7ecc615](https://github.com/feast-dev/feast/commit/7ecc615945b7bb48e103ca6eb278b39759d71c5a))
+* Fix vector store config ([#4583](https://github.com/feast-dev/feast/issues/4583)) ([11c00d4](https://github.com/feast-dev/feast/commit/11c00d43fd1b2c5caf4d49f705bd55c704edae8a))
+* Fixes validator field access for 'project_id' in BigQuery offline Store ([#4509](https://github.com/feast-dev/feast/issues/4509)) ([9a0398e](https://github.com/feast-dev/feast/commit/9a0398e2e18585172d857cf3202a81551d31609b))
+* Fixing failure of protos during ODFV transformations for missing entities ([#4667](https://github.com/feast-dev/feast/issues/4667)) ([41aaeeb](https://github.com/feast-dev/feast/commit/41aaeebaa5908f44cda28a4410e2fca412f53e92))
+* Fixing the master branch build failure. ([#4563](https://github.com/feast-dev/feast/issues/4563)) ([0192b2e](https://github.com/feast-dev/feast/commit/0192b2eb245c8e0ea9a913195ddf28382dc23982))
+* Hao xu request source timestamp_field ([#4495](https://github.com/feast-dev/feast/issues/4495)) ([96344b2](https://github.com/feast-dev/feast/commit/96344b2b6830dcc280567542d111d1b0f39879e0))
+* Ignore the type check as both functions calls are not belonging to Feast code. ([#4500](https://github.com/feast-dev/feast/issues/4500)) ([867f532](https://github.com/feast-dev/feast/commit/867f532154977790e3bb11f2a94baa4f2289de99))
+* Import grpc only for type checking in errors.py ([#4533](https://github.com/feast-dev/feast/issues/4533)) ([f308572](https://github.com/feast-dev/feast/commit/f308572715d0593951f71bb3da5c5be6de29a2f9))
+* Initial commit targetting grpc registry server ([#4458](https://github.com/feast-dev/feast/issues/4458)) ([484240c](https://github.com/feast-dev/feast/commit/484240c4e783d68bc521b62b723c2dcbd00fab5e)), closes [#4465](https://github.com/feast-dev/feast/issues/4465)
+* Links to the RBAC documentation under Concepts and Components ([#4430](https://github.com/feast-dev/feast/issues/4430)) ([0a48f7b](https://github.com/feast-dev/feast/commit/0a48f7bb436febb0171c78a559a577eedeff421f))
+* Locate feature_store.yaml from __file__ ([#4443](https://github.com/feast-dev/feast/issues/4443)) ([20290ce](https://github.com/feast-dev/feast/commit/20290ce28c513f705db1dbb6b0f719ba1846217f))
+* Logger settings for feature servers and updated logger for permission flow ([#4531](https://github.com/feast-dev/feast/issues/4531)) ([50b8f23](https://github.com/feast-dev/feast/commit/50b8f238b6f9adbc9ff0b20e18b78b2948c2f440))
+* Move tslib from devDependencies to dependencies in Feast UI ([#4525](https://github.com/feast-dev/feast/issues/4525)) ([c5a4d90](https://github.com/feast-dev/feast/commit/c5a4d907bf34f4cf7477b212cd2820b0e7d24b7b))
+* Null value compatibility for unit timestamp list value type ([#4378](https://github.com/feast-dev/feast/issues/4378)) ([8f264b6](https://github.com/feast-dev/feast/commit/8f264b6807a07874dc01207c655baeef7dfaa7b2))
+* Patch FAISS online return signature ([#4671](https://github.com/feast-dev/feast/issues/4671)) ([0d45e95](https://github.com/feast-dev/feast/commit/0d45e95767773846861d53feb4af4c6bc1451b5e))
+* Quickstart documentation changes ([#4618](https://github.com/feast-dev/feast/issues/4618)) ([7ac0908](https://github.com/feast-dev/feast/commit/7ac0908f3846cc0ab05082f748506814c84b2e9c))
+* Refactor auth_client_manager_factory.py in function get_auth_client_m… ([#4505](https://github.com/feast-dev/feast/issues/4505)) ([def8633](https://github.com/feast-dev/feast/commit/def863360bf0e553d242900ee915e953c6c3f9b6))
+* Remote apply using offline store ([#4559](https://github.com/feast-dev/feast/issues/4559)) ([ac62a32](https://github.com/feast-dev/feast/commit/ac62a323c86fba8096eefde85775dd7a857e9e25))
+* Remove Feast UI TypeScript dependencies from `peerDependencies` and `dependencies` ([#4554](https://github.com/feast-dev/feast/issues/4554)) ([e781e16](https://github.com/feast-dev/feast/commit/e781e1652cadc6576dbab369248d6e4afdb5f158))
+* Remove unnecessary peer dependencies from Feast UI ([#4577](https://github.com/feast-dev/feast/issues/4577)) ([9ac7f4e](https://github.com/feast-dev/feast/commit/9ac7f4ea77357219fc8420f05e493767bc5357c2))
+* Removed protobuf as a required dependency ([#4535](https://github.com/feast-dev/feast/issues/4535)) ([0fb76e9](https://github.com/feast-dev/feast/commit/0fb76e9041885659c68e294b0c033c62050bd374))
+* Removed the k8s dependency from required dependencies ([#4519](https://github.com/feast-dev/feast/issues/4519)) ([3073ea5](https://github.com/feast-dev/feast/commit/3073ea5911339a5744be45512a9a2ee8b250292b))
+* Removed usage of pull_request_target as much as possible to prevent security concerns ([#4549](https://github.com/feast-dev/feast/issues/4549)) ([3198371](https://github.com/feast-dev/feast/commit/3198371fc0e07f6b51b62c7e3abbc48729078bb9))
+* Replaced ClusterRoles with local RoleBindings ([#4625](https://github.com/feast-dev/feast/issues/4625)) ([ca9fb9b](https://github.com/feast-dev/feast/commit/ca9fb9bc8c3f3b06b4ba5fce362e26633144715c))
+* Retire pytz library ([#4406](https://github.com/feast-dev/feast/issues/4406)) ([23c6c86](https://github.com/feast-dev/feast/commit/23c6c862e1da4e9523530eb48c7ce79319dc442d))
+* Typos related to k8s ([#4442](https://github.com/feast-dev/feast/issues/4442)) ([dda0088](https://github.com/feast-dev/feast/commit/dda0088f25eab5828613bd6d080aeddf681641f0))
+* Update java testcontainers to use Compose V2 ([#4381](https://github.com/feast-dev/feast/issues/4381)) ([9a33fce](https://github.com/feast-dev/feast/commit/9a33fce695c54226b3afd7b998e284f358bab141))
+* Update min versions for pyarrow and protobuf ([#4646](https://github.com/feast-dev/feast/issues/4646)) ([c7ddd4b](https://github.com/feast-dev/feast/commit/c7ddd4bb48290d6d9327fcb6349b84b4d14334af))
+* Update react-router-dom to 6.3.0 and restrict its version in Feast UI ([#4556](https://github.com/feast-dev/feast/issues/4556)) ([4293608](https://github.com/feast-dev/feast/commit/42936084a7d214d65faea5359ae70eefda8d23ad)), closes [#3794](https://github.com/feast-dev/feast/issues/3794) [/github.com/remix-run/react-router/blob/main/CHANGELOG.md#v630](https://github.com//github.com/remix-run/react-router/blob/main/CHANGELOG.md/issues/v630)
+* Update the base image for feature-server. ([#4576](https://github.com/feast-dev/feast/issues/4576)) ([0390d8a](https://github.com/feast-dev/feast/commit/0390d8a86f50360a4df89165db62972328d22ca4))
+* Update the base image of materilization engine. ([#4580](https://github.com/feast-dev/feast/issues/4580)) ([f8592d8](https://github.com/feast-dev/feast/commit/f8592d86b2903ebfebc505bbf9392927aae5609c))
+* Updated README link ([#4669](https://github.com/feast-dev/feast/issues/4669)) ([35fbdc9](https://github.com/feast-dev/feast/commit/35fbdc91cc8a327be2a8cd162f7ccff983b16932))
+* Updating the documentation and adding tests for project length ([#4628](https://github.com/feast-dev/feast/issues/4628)) ([945b0fa](https://github.com/feast-dev/feast/commit/945b0faadd40c8dc76d104bce14ee902bd513127))
+* Using get_type_hints instead of inspect signature for udf return annotation  ([#4391](https://github.com/feast-dev/feast/issues/4391)) ([3a32e8a](https://github.com/feast-dev/feast/commit/3a32e8ae28110db0934fc26ec6992eb606fed012))
+* Using repo_config parameter in teardown to allow for feature-store-yaml overrides ([#4413](https://github.com/feast-dev/feast/issues/4413)) ([0baeeb5](https://github.com/feast-dev/feast/commit/0baeeb5ec524c1e6209edab9605ca8a098a2ec88))
+* Validating permission to update an existing request on both the new and the old instance ([#4449](https://github.com/feast-dev/feast/issues/4449)) ([635a01b](https://github.com/feast-dev/feast/commit/635a01b4c77db781d67f9f5ebb1067806b1e2a13))
+
+
+### Features
+
+* Add boto3 session based auth for dynamodb online store for cross account access ([#4606](https://github.com/feast-dev/feast/issues/4606)) ([00eaf74](https://github.com/feast-dev/feast/commit/00eaf744f50f56f449c7ad8f6ceb92a09304ee0b))
+* Add cli list/describe for SavedDatasets, StreamFeatureViews, & … ([#4487](https://github.com/feast-dev/feast/issues/4487)) ([7b250e5](https://github.com/feast-dev/feast/commit/7b250e5eff5de56f5c5da103e91051276940298a))
+* Add connection_name field to Snowflake config ([#4600](https://github.com/feast-dev/feast/issues/4600)) ([10ce2aa](https://github.com/feast-dev/feast/commit/10ce2aa0050e419acfae27971a6fff87bade3ba4))
+* Add health check service to registry server ([#4421](https://github.com/feast-dev/feast/issues/4421)) ([46655f0](https://github.com/feast-dev/feast/commit/46655f06de339ee09245de3e1a648eb4e3bcd729))
+* Add more __repr__ methods ([#4676](https://github.com/feast-dev/feast/issues/4676)) ([e726c09](https://github.com/feast-dev/feast/commit/e726c096f2de93d6dc0a807c97c47476cc79dd61))
+* Add registry methods for dealing with all FV types ([#4435](https://github.com/feast-dev/feast/issues/4435)) ([ac381b2](https://github.com/feast-dev/feast/commit/ac381b292cfa29804ee5f0822f876d227a0989d9))
+* Added Project object to Feast Objects ([#4475](https://github.com/feast-dev/feast/issues/4475)) ([4a6b663](https://github.com/feast-dev/feast/commit/4a6b663f80bc91d6de35ed2ec428d34811d17a18))
+* Added support for reading from Reader  Endpoints for AWS Aurora use cases ([#4494](https://github.com/feast-dev/feast/issues/4494)) ([d793c77](https://github.com/feast-dev/feast/commit/d793c77d923df95a186b9d4829b167f1a5a304e6))
+* Adding documentation for On Demand Feature Transformations with writes ([#4607](https://github.com/feast-dev/feast/issues/4607)) ([8e0c1b5](https://github.com/feast-dev/feast/commit/8e0c1b51665357d44229239401a04b76396b9047))
+* Adding mode='python' for get_historical_features on ODFVs ([#4653](https://github.com/feast-dev/feast/issues/4653)) ([c40d539](https://github.com/feast-dev/feast/commit/c40d539b85fe537077dd26904d78624da3d33951))
+* Adding registry cache support for get_on_demand_feature_view ([#4572](https://github.com/feast-dev/feast/issues/4572)) ([354c059](https://github.com/feast-dev/feast/commit/354c059e5475f9c3927d9180a421118507a22cf0))
+* Adding SSL support for online server ([#4677](https://github.com/feast-dev/feast/issues/4677)) ([80a5b3c](https://github.com/feast-dev/feast/commit/80a5b3c499faca8625d60267a34dcbddfe0c042a))
+* Adding write capability to online store to on demand feature views ([#4585](https://github.com/feast-dev/feast/issues/4585)) ([ef9e0bb](https://github.com/feast-dev/feast/commit/ef9e0bbdb2a80250786b87972a53c4cf5890bb76)), closes [#4603](https://github.com/feast-dev/feast/issues/4603)
+* Allow feast snowflake to read in byte string for private-key authentication ([#4384](https://github.com/feast-dev/feast/issues/4384)) ([5215a21](https://github.com/feast-dev/feast/commit/5215a2139a9d824dc2d8f45181bd177a1e8e9561))
+* An action to test operator at PR time ([#4635](https://github.com/feast-dev/feast/issues/4635)) ([14c1000](https://github.com/feast-dev/feast/commit/14c1000554c590cb89ecb5ef44c57aa1b5dd1387))
+* Create ADOPTERS.md ([#4410](https://github.com/feast-dev/feast/issues/4410)) ([721ec74](https://github.com/feast-dev/feast/commit/721ec74f17ee95e375054f21135e54e0687104a7))
+* Create initial structure of Feast Go Operator ([#4596](https://github.com/feast-dev/feast/issues/4596)) ([b5ab6c7](https://github.com/feast-dev/feast/commit/b5ab6c799d529aaea19a196cedca7bb2c93cbbe9))
+* Faiss and In memory store ([#4464](https://github.com/feast-dev/feast/issues/4464)) ([a1ff129](https://github.com/feast-dev/feast/commit/a1ff1290002376b4c9ac8ad14e60df4622bb47a4))
+* Feast Security Model (aka RBAC) ([#4380](https://github.com/feast-dev/feast/issues/4380)) ([1771f66](https://github.com/feast-dev/feast/commit/1771f668247ef3b46ea7dac634e557e249bc1ba9)), closes [#36](https://github.com/feast-dev/feast/issues/36)
+* Instrument Feast using Prometheus and OpenTelemetry ([#4366](https://github.com/feast-dev/feast/issues/4366)) ([a571e08](https://github.com/feast-dev/feast/commit/a571e08b97a95f8543d7dea27902c135ab3a4378))
+* Intra server to server communication ([#4433](https://github.com/feast-dev/feast/issues/4433)) ([729c874](https://github.com/feast-dev/feast/commit/729c874e8c30719f23ad287d3cb84f1d654274ec))
+* Publish TypeScript types in Feast UI package ([#4551](https://github.com/feast-dev/feast/issues/4551)) ([334e5d7](https://github.com/feast-dev/feast/commit/334e5d78855709d4ca56619f16eecb414f88ce2d))
+* Refactoring code to get oidc end points from discovery URL. ([#4429](https://github.com/feast-dev/feast/issues/4429)) ([896360a](https://github.com/feast-dev/feast/commit/896360af19a37c9a2a4634ec88021c4f69bdb141))
+* Return entity key in the retrieval document api ([#4511](https://github.com/feast-dev/feast/issues/4511)) ([5f5caf0](https://github.com/feast-dev/feast/commit/5f5caf0cac539ed779692e0ec819659cf5a33a0d))
+* Update roadmap.md ([#4445](https://github.com/feast-dev/feast/issues/4445)) ([34238d2](https://github.com/feast-dev/feast/commit/34238d2a0bfe9dbad753fec9613c83d848b1a520))
+* Update sqlite-vec package ([#4389](https://github.com/feast-dev/feast/issues/4389)) ([b734cb1](https://github.com/feast-dev/feast/commit/b734cb147a4afd28407ec57d95f70ff604f82954))
+* Updated Feast model Inference Architecture ([#4570](https://github.com/feast-dev/feast/issues/4570)) ([8cd0dcf](https://github.com/feast-dev/feast/commit/8cd0dcff0cc3b1387c7ca65018ebb09e03538242))
+* Updating docs to include model inference guidelines ([#4416](https://github.com/feast-dev/feast/issues/4416)) ([cebbe04](https://github.com/feast-dev/feast/commit/cebbe045597b85e1ae4394a8c14741e88347a6b8))
+* Updating FeatureViewProjection and OnDemandFeatureView to add batch_source and entities ([#4530](https://github.com/feast-dev/feast/issues/4530)) ([0795496](https://github.com/feast-dev/feast/commit/07954960c5501e2ecc1f1285ddf4aa68f9ac880b))
+* Upgrade React from 17.0.2 to 18.3.1 in Feast UI ([#4620](https://github.com/feast-dev/feast/issues/4620)) ([d6f3cb8](https://github.com/feast-dev/feast/commit/d6f3cb81a4c2a51bae2d29a185753cf6b1d2b16d))
+
+
+### Performance Improvements
+
+* Add init and cleanup of long lived resources ([#4642](https://github.com/feast-dev/feast/issues/4642)) ([47dc04d](https://github.com/feast-dev/feast/commit/47dc04d43f483944f97248abaccd15dba319281f))
+* Added indexes to sql tables to optimize query execution ([#4538](https://github.com/feast-dev/feast/issues/4538)) ([9688790](https://github.com/feast-dev/feast/commit/9688790a5e7a70f628a46021bde0201922c7e04d))
+* Default to async endpoints, use threadpool for sync ([#4647](https://github.com/feast-dev/feast/issues/4647)) ([c1f1912](https://github.com/feast-dev/feast/commit/c1f19127ab5c22dfe67869990480e7e9d8183ab1))
+* Implement dynamo write_batch_async ([#4675](https://github.com/feast-dev/feast/issues/4675)) ([ba4404c](https://github.com/feast-dev/feast/commit/ba4404cecfb196c4084f9bf892cd3528184d42c1))
+* Make /push async ([#4650](https://github.com/feast-dev/feast/issues/4650)) ([61abf89](https://github.com/feast-dev/feast/commit/61abf894aca7aa52042c40e77f64b49835f4324e))
+* Parallelize read calls by table and batch ([#4619](https://github.com/feast-dev/feast/issues/4619)) ([043eff1](https://github.com/feast-dev/feast/commit/043eff1a87bdf775a437503395acda87cbecf875))
+
+
+### BREAKING CHANGES
+
+* Consuming apps that use @elastic/eui should update it
+to a compatible version. If you use @elastic/eui components that have
+been renamed or replaced with others, you'll need to update your code
+accordingly.
+
+Signed-off-by: Harri Lehtola <peruukki@hotmail.com>
+
+* chore: Update Node version from 17 to 20 in UI unit tests
+
+Node 17 is not an LTS (long-term support) version and apparently
+rejected by the latest versions of Elastic UI:
+
+> error @elastic/eui@95.12.0: The engine "node" is incompatible with
+> this module. Expected version "16.x || 18.x || >=20.x". Got "17.9.1"
+
+Let's try with the latest LTS version.
+
+Signed-off-by: Harri Lehtola <peruukki@hotmail.com>
+
 # [0.40.0](https://github.com/feast-dev/feast/compare/v0.39.0...v0.40.0) (2024-07-31)
 
 
