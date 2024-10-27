@@ -67,6 +67,7 @@ ONLINE_STORE_CLASS_FOR_TYPE = {
     "elasticsearch": "feast.infra.online_stores.contrib.elasticsearch.ElasticSearchOnlineStore",
     "remote": "feast.infra.online_stores.remote.RemoteOnlineStore",
     "singlestore": "feast.infra.online_stores.contrib.singlestore_online_store.singlestore.SingleStoreOnlineStore",
+    "qdrant": "feast.infra.online_stores.contrib.qdrant.QdrantOnlineStore",
 }
 
 OFFLINE_STORE_CLASS_FOR_TYPE = {

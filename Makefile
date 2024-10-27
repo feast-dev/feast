@@ -351,6 +351,14 @@ test-python-universal-singlestore-online:
 				not test_snowflake" \
 			sdk/python/tests
 
+ test-python-universal-qdrant-online:
+	PYTHONPATH='.' \
+		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.contrib.qdrant_repo_configuration \
+		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.qdrant \
+		python -m pytest -n 8 --integration \
+ 			-k "test_retrieve_online_documents" \
+ 			sdk/python/tests/integration/online_store/test_universal_online.py
+
 test-python-universal:
 	python -m pytest -n 8 --integration sdk/python/tests
 

@@ -183,7 +183,9 @@ def start_test_local_server(repo_path: str, port: int):
 @pytest.fixture
 def environment(request, worker_id):
     e = construct_test_environment(
-        request.param, worker_id=worker_id, fixture_request=request
+        request.param,
+        worker_id=worker_id,
+        fixture_request=request,
     )
 
     e.setup()

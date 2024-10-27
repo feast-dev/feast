@@ -40,6 +40,22 @@ feast.infra.online\_stores.contrib.elasticsearch\_repo\_configuration module
    :undoc-members:
    :show-inheritance:
 
+feast.infra.online\_stores.contrib.qdrant module
+-------------------------------------------------------
+
+.. automodule:: feast.infra.online_stores.contrib.qdrant
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+feast.infra.online\_stores.contrib.qdrant\_repo\_configuration module
+----------------------------------------------------------------------------
+
+.. automodule:: feast.infra.online_stores.contrib.qdrant_repo_configuration
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 feast.infra.online\_stores.contrib.hazelcast\_repo\_configuration module
 ------------------------------------------------------------------------
 
