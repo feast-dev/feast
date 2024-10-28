@@ -137,7 +137,9 @@ class BigQueryOfflineStore(OfflineStore):
         assert isinstance(data_source, BigQuerySource)
         from_expression = data_source.get_table_query_string()
 
-        partition_by_join_key_string = ", ".join(join_key_columns)
+        partition_by_join_key_string = ", ".join(
+            BigQueryOfflineStore._escape_query_columns(join_key_columns)
+        )
         if partition_by_join_key_string != "":
             partition_by_join_key_string = (
                 "PARTITION BY " + partition_by_join_key_string
@@ -146,7 +148,11 @@ class BigQueryOfflineStore(OfflineStore):
         if created_timestamp_column:
             timestamps.append(created_timestamp_column)
         timestamp_desc_string = " DESC, ".join(timestamps) + " DESC"
-        field_string = ", ".join(join_key_columns + feature_name_columns + timestamps)
+        field_string = ", ".join(
+            BigQueryOfflineStore._escape_query_columns(join_key_columns)
+            + BigQueryOfflineStore._escape_query_columns(feature_name_columns)
+            + timestamps
+        )
         project_id = (
             config.offline_store.billing_project_id or config.offline_store.project_id
         )
@@ -196,7 +202,9 @@ class BigQueryOfflineStore(OfflineStore):
             location=config.offline_store.location,
         )
         field_string = ", ".join(
-            join_key_columns + feature_name_columns + [timestamp_field]
+            BigQueryOfflineStore._escape_query_columns(join_key_columns)
+            + BigQueryOfflineStore._escape_query_columns(feature_name_columns)
+            + [timestamp_field]
         )
         query = f"""
             SELECT {field_string}
@@ -428,6 +436,10 @@ class BigQueryOfflineStore(OfflineStore):
                 destination=feature_view.batch_source.table,
                 job_config=job_config,
             ).result()
+
+    @staticmethod
+    def _escape_query_columns(columns: List[str]) -> List[str]:
+        return [f"`{x}`" for x in columns]
 
 
 class BigQueryRetrievalJob(RetrievalJob):
