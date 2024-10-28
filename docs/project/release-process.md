@@ -4,9 +4,12 @@
 
 For Feast maintainers, these are the concrete steps for making a new release.
 
+Note: Make sure you have a [Personal Access Token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token) or retrieve your saved personal access token. 
+
+If something goes wrong, investigate the workflow and try to rerun different pieces locally. 
+
 ### 0. Cutting a minor release
-You only need to hit the `release` workflow using [the GitHub action](https://github.com/feast-dev/feast/blob/master/.github/workflows/release.yml).
-First test with a `dry-run` then run it live. This is all you need to do. All deployments to dockerhub, PyPI, and npm are handled by the workflows.
+You only need to hit the `release` workflow using [the GitHub action](https://github.com/feast-dev/feast/blob/master/.github/workflows/release.yml). This is all you need to do. All deployments to dockerhub, PyPI, and npm are handled by the workflows.
 
 Also note that as a part of the workflow, the [infra/scripts/release/bump_file_versions.py](https://github.com/feast-dev/feast/blob/master/infra/scripts/release/bump_file_versions.py) file will increment the Feast versions in the appropriate files. 
 
