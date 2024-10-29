@@ -1,4 +1,3 @@
-import asyncio
 import datetime
 import os
 import time
@@ -486,28 +485,41 @@ def test_online_retrieval_with_event_timestamps(environment, universal_data_sour
     assert_feature_store_universal_feature_views_response(df)
 
 
-@pytest.mark.integration
-@pytest.mark.universal_online_stores(only=["redis", "dynamodb", "postgres"])
-def test_async_online_retrieval_with_event_timestamps(
-    environment, universal_data_sources
-):
+async def _do_async_retrieval_test(environment, universal_data_sources):
     fs = setup_feature_store_universal_feature_views(
         environment, universal_data_sources
     )
+    await fs.initialize()
 
-    response = asyncio.run(
-        fs.get_online_features_async(
-            features=[
-                "driver_stats:avg_daily_trips",
-                "driver_stats:acc_rate",
-                "driver_stats:conv_rate",
-            ],
-            entity_rows=[{"driver_id": 1}, {"driver_id": 2}],
-        )
+    response = await fs.get_online_features_async(
+        features=[
+            "driver_stats:avg_daily_trips",
+            "driver_stats:acc_rate",
+            "driver_stats:conv_rate",
+        ],
+        entity_rows=[{"driver_id": 1}, {"driver_id": 2}],
     )
     df = response.to_df(True)
 
     assert_feature_store_universal_feature_views_response(df)
+
+    await fs.close()
+
+
+@pytest.mark.integration
+@pytest.mark.universal_online_stores(only=["redis", "postgres"])
+async def test_async_online_retrieval_with_event_timestamps(
+    environment, universal_data_sources
+):
+    await _do_async_retrieval_test(environment, universal_data_sources)
+
+
+@pytest.mark.integration
+@pytest.mark.universal_online_stores(only=["dynamodb"])
+async def test_async_online_retrieval_with_event_timestamps_dynamo(
+    environment, universal_data_sources
+):
+    await _do_async_retrieval_test(environment, universal_data_sources)
 
 
 @pytest.mark.integration
@@ -845,7 +857,7 @@ def assert_feature_service_entity_mapping_correctness(
 
 
 @pytest.mark.integration
-@pytest.mark.universal_online_stores(only=["pgvector", "elasticsearch"])
+@pytest.mark.universal_online_stores(only=["pgvector", "elasticsearch", "qdrant"])
 def test_retrieve_online_documents(vectordb_environment, fake_document_data):
     fs = vectordb_environment.feature_store
     df, data_source = fake_document_data

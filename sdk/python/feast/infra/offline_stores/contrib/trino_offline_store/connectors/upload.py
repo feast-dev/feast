@@ -45,6 +45,7 @@ CONNECTORS_DONT_SUPPORT_CREATE_TABLE: Set[str] = {
     "thrift",
     "tpcds",
     "tpch",
+    "qdrant",
 }
 CONNECTORS_WITHOUT_WITH_STATEMENTS: Set[str] = {
     "bigquery",

@@ -14,8 +14,9 @@ Below are supported vector databases and implemented features:
 | Milvus          | [ ]       | [ ]      |
 | Faiss           | [ ]       | [ ]      |
 | SQLite          | [x]       | [ ]      |
+| Qdrant          | [x]       | [x]      |
 
-Note: SQLite is in limited access and only working on Python 3.10. It will be updated as [sqlite_vec](https://github.com/asg017/sqlite-vec/) progresses.   
+Note: SQLite is in limited access and only working on Python 3.10. It will be updated as [sqlite_vec](https://github.com/asg017/sqlite-vec/) progresses.
 
 ## Example
 
@@ -30,7 +31,7 @@ python batch_score_documents.py
 The output will be stored in `data/city_wikipedia_summaries.csv.`
 
 ### **Initialize Feast feature store and materialize the data to the online store**
-Use the feature_tore.yaml file to initialize the feature store. This will use the data as offline store, and Pgvector as online store.
+Use the feature_store.yaml file to initialize the feature store. This will use the data as offline store, and Pgvector as online store.
 
 ```yaml
 project: feast_demo_local
@@ -113,9 +114,11 @@ print_online_features(features)
 ```
 
 ### Configuration
-We offer two Online Store options for Vector Databases. PGVector and SQLite.
+
+We offer [PGVector](https://github.com/pgvector/pgvector), [SQLite](https://github.com/asg017/sqlite-vec), [Elasticsearch](https://www.elastic.co) and [Qdrant](https://qdrant.tech/) as Online Store options for Vector Databases.
 
 #### Installation with SQLite
+
 If you are using `pyenv` to manage your Python versions, you can install the SQLite extension with the following command:
 ```bash
 PYTHON_CONFIGURE_OPTS="--enable-loadable-sqlite-extensions" \
@@ -124,6 +127,19 @@ PYTHON_CONFIGURE_OPTS="--enable-loadable-sqlite-extensions" \
     pyenv install 3.10.14
 ```
 And you can the Feast install package via:
+
 ```bash
 pip install feast[sqlite_vec]
+```
+
+#### Installation with Elasticsearch
+
+```bash
+pip install feast[elasticsearch]
+```
+
+#### Installation with Qdrant
+
+```bash
+pip install feast[qdrant]
 ```

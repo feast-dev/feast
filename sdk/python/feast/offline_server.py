@@ -1,10 +1,13 @@
 import ast
 import json
 import logging
+import os
+import sys
 import traceback
 from datetime import datetime
 from typing import Any, Dict, List, cast
 
+import click
 import pyarrow as pa
 import pyarrow.flight as fl
 from google.protobuf.json_format import Parse
@@ -503,6 +506,24 @@ class OfflineServer(fl.FlightServerBase):
         )
         return pa.table({"name": column_names, "type": types})
 
+    def serve(self):
+        message = "offline server starting with pid: "
+        logger.info(
+            message + "[%d]",
+            os.getpid(),
+            extra={"color_message": message + "[" + click.style("%d", fg="cyan") + "]"},
+        )
+        super().serve()
+
+    def shutdown(self):
+        message = "Sending a shutdown signal to the offline server running with pid:: "
+        logger.info(
+            message + "[%d]",
+            os.getpid(),
+            extra={"color_message": message + "[" + click.style("%d", fg="cyan") + "]"},
+        )
+        super().shutdown()
+
 
 def remove_dummies(fv: FeatureView) -> FeatureView:
     """
@@ -533,5 +554,12 @@ def start_server(
 
     location = "grpc+tcp://{}:{}".format(host, port)
     server = OfflineServer(store, location)
-    logger.info(f"Offline store server serving on {location}")
-    server.serve()
+    try:
+        logger.info(f"Offline store server serving at: {location}")
+        server.serve()
+    except KeyboardInterrupt:
+        logger.info("KeyboardInterrupt received, stopping the offline server.")
+    finally:
+        server.shutdown()
+        logger.info("offline server stopped.")
+        sys.exit(0)
