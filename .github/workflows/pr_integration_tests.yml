@@ -6,7 +6,6 @@ on:
       - opened
       - synchronize
       - labeled
-  push:
     paths-ignore:
       - 'community/**'
       - 'docs/**'
