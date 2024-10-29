@@ -294,6 +294,10 @@ class CassandraOnlineStore(OnlineStore):
 
             # creation of Cluster (Cassandra vs. Astra)
             if hosts:
+                logger.info(f"Connecting to Cassandra cluster at {hosts}.")
+                logger.info(f"Username: {username}.")
+                logger.info(f"Keyspace: {keyspace}.")
+                logger.info(f"Port: {port}.")
                 self._cluster = Cluster(
                     hosts, port=port, auth_provider=auth_provider, **cluster_kwargs
                 )
