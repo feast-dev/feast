@@ -2,6 +2,11 @@ name: unit-tests
 
 on: [pull_request]
 jobs:
+  push:
+    paths-ignore:
+      - 'community/**'
+      - 'docs/**'
+      - 'examples/**'
   unit-test-python:
     runs-on: ${{ matrix.os }}
     strategy:
