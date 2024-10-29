@@ -219,7 +219,7 @@ The above command will generate two files
 To start the feature server in SSL mode, you need to provide the private and public keys using the `--ssl-key-path` and `--ssl-cert-path` arguments with the `feast serve` command.
 
 ```shell
-feast serve --ssl-key-path key.pem --ssl-cert-path cert.pem
+feast serve --ssl-key-path /path/to/key.pem --ssl-cert-path /path/to/cert.pem
 ```
 
 # Online Feature Server Permissions and Access Control

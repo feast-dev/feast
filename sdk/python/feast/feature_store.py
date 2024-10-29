@@ -1949,11 +1949,15 @@ class FeatureStore:
             root_path=root_path,
         )
 
-    def serve_registry(self, port: int) -> None:
+    def serve_registry(
+        self, port: int, ssl_key_path: str = "", ssl_cert_path: str = ""
+    ) -> None:
         """Start registry server locally on a given port."""
         from feast import registry_server
 
-        registry_server.start_server(self, port)
+        registry_server.start_server(
+            self, port=port, ssl_key_path=ssl_key_path, ssl_cert_path=ssl_cert_path
+        )
 
     def serve_offline(self, host: str, port: int) -> None:
         """Start offline server locally on a given port."""
