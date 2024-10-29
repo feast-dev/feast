@@ -6,7 +6,11 @@ on:
       - opened
       - synchronize
       - labeled
-
+  push:
+    paths-ignore:
+      - 'community/**'
+      - 'docs/**'
+      - 'examples/**'
 # concurrency is currently broken, see details https://github.com/actions/runner/issues/1532
 #concurrency:
 #  group: pr-integration-tests-${{ github.event.pull_request.number }}
