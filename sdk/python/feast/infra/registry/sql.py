@@ -281,7 +281,7 @@ class SqlRegistry(CachingRegistry):
         )
 
     def _sync_feast_metadata_to_projects_table(self):
-        feast_metadata_projects: set = []
+        feast_metadata_projects: dict = {}
         projects_set: set = []
         with self.read_engine.begin() as conn:
             stmt = select(feast_metadata).where(
@@ -289,7 +289,9 @@ class SqlRegistry(CachingRegistry):
             )
             rows = conn.execute(stmt).all()
             for row in rows:
-                feast_metadata_projects.append(row._mapping["project_id"])
+                feast_metadata_projects[row._mapping["project_id"]] = int(
+                    row._mapping["last_updated_timestamp"]
+                )
 
         if len(feast_metadata_projects) > 0:
             with self.read_engine.begin() as conn:
@@ -299,9 +301,17 @@ class SqlRegistry(CachingRegistry):
                     projects_set.append(row._mapping["project_id"])
 
             # Find object in feast_metadata_projects but not in projects
-            projects_to_sync = set(feast_metadata_projects) - set(projects_set)
+            projects_to_sync = set(feast_metadata_projects.keys()) - set(projects_set)
             for project_name in projects_to_sync:
-                self.apply_project(Project(name=project_name), commit=True)
+                self.apply_project(
+                    Project(
+                        name=project_name,
+                        created_timestamp=datetime.fromtimestamp(
+                            feast_metadata_projects[project_name], tz=timezone.utc
+                        ),
+                    ),
+                    commit=True,
+                )
 
             if self.purge_feast_metadata:
                 with self.write_engine.begin() as conn:
@@ -976,7 +986,8 @@ class SqlRegistry(CachingRegistry):
                 if hasattr(obj_proto, "meta") and hasattr(
                     obj_proto.meta, "created_timestamp"
                 ):
-                    obj_proto.meta.created_timestamp.FromDatetime(update_datetime)
+                    if not obj_proto.meta.HasField("created_timestamp"):
+                        obj_proto.meta.created_timestamp.FromDatetime(update_datetime)
 
                 values = {
                     id_field_name: name,
