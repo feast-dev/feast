@@ -127,7 +127,7 @@ def get_app(
             assert_permissions(
                 resource=feature_service, actions=[AuthzedAction.READ_ONLINE]
             )
-            features = request.feature_service  # type: ignore
+            features = feature_service  # type: ignore
         else:
             all_feature_views, all_on_demand_feature_views = (
                 utils._get_feature_views_to_use(
