@@ -71,7 +71,7 @@ class RemoteRegistry(BaseRegistry):
         self.auth_config = auth_config
         assert isinstance(registry_config, RemoteRegistryConfig)
         if registry_config.ssl_cert_path:
-            with open("server.crt", "rb") as cert_file:
+            with open(registry_config.ssl_cert_path, "rb") as cert_file:
                 trusted_certs = cert_file.read()
                 ssl_credentials = grpc.ssl_channel_credentials(
                     root_certificates=trusted_certs

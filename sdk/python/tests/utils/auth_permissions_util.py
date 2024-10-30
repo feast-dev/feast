@@ -126,10 +126,18 @@ def start_feature_server(
         )
 
 
-def get_remote_registry_store(server_port, feature_store):
-    registry_config = RemoteRegistryConfig(
-        registry_type="remote", path=f"localhost:{server_port}"
-    )
+def get_remote_registry_store(server_port, feature_store, ssl_mode):
+    is_ssl_mode, _, ssl_cert_path = ssl_mode
+    if is_ssl_mode:
+        registry_config = RemoteRegistryConfig(
+            registry_type="remote",
+            path=f"localhost:{server_port}",
+            ssl_cert_path=ssl_cert_path,
+        )
+    else:
+        registry_config = RemoteRegistryConfig(
+            registry_type="remote", path=f"localhost:{server_port}"
+        )
 
     store = FeatureStore(
         config=RepoConfig(

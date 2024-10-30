@@ -57,6 +57,7 @@ from tests.integration.feature_repos.universal.entities import (  # noqa: E402
     location,
 )
 from tests.utils.auth_permissions_util import default_store
+from tests.utils.generate_self_signed_certifcate_util import generate_self_signed_cert
 from tests.utils.http_server import check_port_open, free_port  # noqa: E402
 
 logger = logging.getLogger(__name__)
@@ -511,3 +512,19 @@ def auth_config(request, is_integration_test):
             return auth_configuration.replace("KEYCLOAK_URL_PLACE_HOLDER", keycloak_url)
 
     return auth_configuration
+
+
+@pytest.fixture(params=[True, False], scope="module")
+def ssl_mode(request):
+    is_ssl_mode = request.param
+
+    if is_ssl_mode:
+        certificates_path = tempfile.mkdtemp()
+        ssl_key_path = os.path.join(certificates_path, "key.pem")
+        ssl_cert_path = os.path.join(certificates_path, "cert.pem")
+        generate_self_signed_cert(cert_path=ssl_cert_path, key_path=ssl_key_path)
+    else:
+        ssl_key_path = ""
+        ssl_cert_path = ""
+
+    return is_ssl_mode, ssl_key_path, ssl_cert_path

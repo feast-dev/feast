@@ -30,11 +30,7 @@ from tests.utils.http_server import check_port_open  # noqa: E402
 
 @pytest.fixture
 def start_registry_server(
-    request,
-    auth_config,
-    server_port,
-    feature_store,
-    monkeypatch,
+    request, auth_config, server_port, feature_store, monkeypatch, ssl_mode
 ):
     if "kubernetes" in auth_config:
         mock_utils.mock_kubernetes(request=request, monkeypatch=monkeypatch)
@@ -48,12 +44,23 @@ def start_registry_server(
 
     assertpy.assert_that(server_port).is_not_equal_to(0)
 
-    print(f"Starting Registry at {server_port}")
-    server = start_server(
-        feature_store,
-        server_port,
-        wait_for_termination=False,
-    )
+    is_ssl_mode, ssl_key_path, ssl_cert_path = ssl_mode
+    if is_ssl_mode:
+        print(f"Starting Registry in SSL mode at {server_port}")
+        server = start_server(
+            store=feature_store,
+            port=server_port,
+            wait_for_termination=False,
+            ssl_key_path=ssl_key_path,
+            ssl_cert_path=ssl_cert_path,
+        )
+    else:
+        print(f"Starting Registry in Non-SSL mode at {server_port}")
+        server = start_server(
+            feature_store,
+            server_port,
+            wait_for_termination=False,
+        )
     print("Waiting server availability")
     wait_retry_backoff(
         lambda: (None, check_port_open("localhost", server_port)),
@@ -69,6 +76,7 @@ def start_registry_server(
 
 def test_registry_apis(
     auth_config,
+    ssl_mode,
     temp_dir,
     server_port,
     start_registry_server,
@@ -76,7 +84,9 @@ def test_registry_apis(
     applied_permissions,
 ):
     print(f"Running for\n:{auth_config}")
-    remote_feature_store = get_remote_registry_store(server_port, feature_store)
+    remote_feature_store = get_remote_registry_store(
+        server_port, feature_store, ssl_mode
+    )
     permissions = _test_list_permissions(remote_feature_store, applied_permissions)
     _test_get_entity(remote_feature_store, applied_permissions)
     _test_list_entities(remote_feature_store, applied_permissions)

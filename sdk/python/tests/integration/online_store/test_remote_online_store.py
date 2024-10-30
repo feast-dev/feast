@@ -1,3 +1,4 @@
+import logging
 import os
 import tempfile
 from textwrap import dedent
@@ -15,11 +16,11 @@ from tests.utils.auth_permissions_util import (
     start_feature_server,
 )
 from tests.utils.cli_repo_creator import CliRunner
-from tests.utils.generate_self_signed_certifcate_util import generate_self_signed_cert
 from tests.utils.http_server import free_port
 
+logger = logging.getLogger(__name__)
 
-@pytest.mark.parametrize("ssl_mode", [True, False])
+
 @pytest.mark.integration
 def test_remote_online_store_read(auth_config, ssl_mode):
     with tempfile.TemporaryDirectory() as remote_server_tmp_dir, tempfile.TemporaryDirectory() as remote_client_tmp_dir:
@@ -43,7 +44,7 @@ def test_remote_online_store_read(auth_config, ssl_mode):
                 actions=[AuthzedAction.READ_ONLINE],
             ),
         ]
-        server_store, server_url, registry_path, ssl_cert_path = (
+        server_store, server_url, registry_path = (
             _create_server_store_spin_feature_server(
                 temp_dir=remote_server_tmp_dir,
                 auth_config=auth_config,
@@ -52,6 +53,7 @@ def test_remote_online_store_read(auth_config, ssl_mode):
             )
         )
         assert None not in (server_store, server_url, registry_path)
+        _, _, ssl_cert_path = ssl_mode
         client_store = _create_remote_client_feature_store(
             temp_dir=remote_client_tmp_dir,
             server_registry_path=str(registry_path),
@@ -167,14 +169,7 @@ def _create_server_store_spin_feature_server(
 ):
     store = default_store(str(temp_dir), auth_config, permissions_list)
     feast_server_port = free_port()
-    if ssl_mode:
-        certificates_path = tempfile.mkdtemp()
-        ssl_key_path = os.path.join(certificates_path, "key.pem")
-        ssl_cert_path = os.path.join(certificates_path, "cert.pem")
-        generate_self_signed_cert(cert_path=ssl_cert_path, key_path=ssl_key_path)
-    else:
-        ssl_key_path = ""
-        ssl_cert_path = ""
+    is_ssl_mode, ssl_key_path, ssl_cert_path = ssl_mode
 
     server_url = next(
         start_feature_server(
@@ -184,16 +179,15 @@ def _create_server_store_spin_feature_server(
             ssl_cert_path=ssl_cert_path,
         )
     )
-    if ssl_cert_path and ssl_key_path:
-        print(f"Online Server started successfully in SSL mode, {server_url}")
+    if is_ssl_mode:
+        logger.info(f"Online Server started successfully in SSL mode, {server_url}")
     else:
-        print(f"Server started successfully, {server_url}")
+        logger.info(f"Online Server started successfully in Non-SSL mode, {server_url}")
 
     return (
         store,
         server_url,
         os.path.join(store.repo_path, "data", "registry.db"),
-        ssl_cert_path,
     )
 
 
