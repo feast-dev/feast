@@ -118,7 +118,7 @@ def get_app(
         "/get-online-features",
         dependencies=[Depends(inject_user_details)],
     )
-    async def get_online_features(request: GetOnlineFeaturesRequest):
+    async def get_online_features(request: GetOnlineFeaturesRequest) -> Dict[str, Any]:
         # Initialize parameters for FeatureStore.get_online_features(...) call
         if request.feature_service:
             feature_service = store.get_feature_service(
@@ -167,7 +167,7 @@ def get_app(
         )
 
     @app.post("/push", dependencies=[Depends(inject_user_details)])
-    async def push(request: PushFeaturesRequest):
+    async def push(request: PushFeaturesRequest) -> None:
         df = pd.DataFrame(request.df)
         actions = []
         if request.to == "offline":
@@ -219,7 +219,7 @@ def get_app(
             store.push(**push_params)
 
     @app.post("/write-to-online-store", dependencies=[Depends(inject_user_details)])
-    def write_to_online_store(request: WriteToFeatureStoreRequest):
+    def write_to_online_store(request: WriteToFeatureStoreRequest) -> None:
         df = pd.DataFrame(request.df)
         feature_view_name = request.feature_view_name
         allow_registry_cache = request.allow_registry_cache
@@ -248,7 +248,7 @@ def get_app(
         )
 
     @app.post("/materialize", dependencies=[Depends(inject_user_details)])
-    def materialize(request: MaterializeRequest):
+    def materialize(request: MaterializeRequest) -> None:
         for feature_view in request.feature_views or []:
             # TODO: receives a str for resource but isn't in the Union. is str actually allowed?
             assert_permissions(
@@ -262,7 +262,7 @@ def get_app(
         )
 
     @app.post("/materialize-incremental", dependencies=[Depends(inject_user_details)])
-    def materialize_incremental(request: MaterializeIncrementalRequest):
+    def materialize_incremental(request: MaterializeIncrementalRequest) -> None:
         for feature_view in request.feature_views or []:
             # TODO: receives a str for resource but isn't in the Union. is str actually allowed?
             assert_permissions(
