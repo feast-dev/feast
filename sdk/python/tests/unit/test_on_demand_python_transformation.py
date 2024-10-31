@@ -204,21 +204,6 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
                 }
                 return output
 
-            with pytest.raises(TypeError):
-                # Note the singleton view will fail as the type is
-                # expected to be a list which can be confirmed in _infer_features_dict
-                self.store.apply(
-                    [
-                        driver,
-                        driver_stats_source,
-                        driver_stats_fv,
-                        pandas_view,
-                        python_view,
-                        python_singleton_view,
-                        driver_stats_entity_less_fv,
-                    ]
-                )
-
             self.store.apply(
                 [
                     driver,
@@ -226,6 +211,7 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
                     driver_stats_fv,
                     pandas_view,
                     python_view,
+                    python_singleton_view,
                     python_demo_view,
                     driver_stats_entity_less_fv,
                     python_stored_writes_feature_view,
@@ -243,6 +229,39 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
             assert len(self.store.list_feature_views()) == 2
             assert len(self.store.list_on_demand_feature_views()) == 4
             assert len(self.store.list_stream_feature_views()) == 0
+
+    def test_setup(self):
+        pass
+
+    def test_python_singleton_view(self):
+        entity_rows = [
+            {
+                "driver_id": 1001,
+            }
+        ]
+
+        online_python_response = self.store.get_online_features(
+            entity_rows=entity_rows,
+            features=[
+                "driver_hourly_stats:conv_rate",
+                "driver_hourly_stats:acc_rate",
+                "python_singleton_view:conv_rate_plus_acc_python_singleton",
+            ],
+        ).to_dict()
+
+        assert sorted(list(online_python_response.keys())) == sorted(
+            [
+                "driver_id",
+                "acc_rate",
+                "conv_rate",
+                "conv_rate_plus_acc_python_singleton",
+            ]
+        )
+
+        assert online_python_response["conv_rate_plus_acc_python_singleton"][0] == (
+            online_python_response["conv_rate"][0]
+            + online_python_response["acc_rate"][0]
+        )
 
     def test_python_pandas_parity(self):
         entity_rows = [
