@@ -236,7 +236,7 @@ def _overwrite_remote_client_feature_store_yaml(
     )
 
     if ssl_cert_path:
-        config_content += f"    ssl_cert_path: {ssl_cert_path}\n"
+        config_content += f"    cert: {ssl_cert_path}\n"
 
     with open(repo_config, "w") as repo_config_file:
         repo_config_file.write(config_content)

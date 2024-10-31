@@ -132,7 +132,7 @@ def get_remote_registry_store(server_port, feature_store, ssl_mode):
         registry_config = RemoteRegistryConfig(
             registry_type="remote",
             path=f"localhost:{server_port}",
-            ssl_cert_path=ssl_cert_path,
+            cert=ssl_cert_path,
         )
     else:
         registry_config = RemoteRegistryConfig(
