@@ -1,4 +1,4 @@
-from pydantic import StrictStr, ConfigDict
+from pydantic import ConfigDict, StrictStr
 
 from feast.repo_config import FeastConfigBaseModel
 

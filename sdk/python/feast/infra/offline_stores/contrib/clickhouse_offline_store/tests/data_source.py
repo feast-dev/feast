@@ -16,13 +16,8 @@ from feast.infra.offline_stores.contrib.clickhouse_offline_store.clickhouse_sour
     ClickhouseSource,
 )
 from feast.infra.utils.clickhouse.clickhouse_config import ClickhouseConfig
-from feast.infra.utils.clickhouse.connection_utils import get_client
-from feast.saved_dataset import SavedDatasetStorage
 from tests.integration.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
-)
-from tests.integration.feature_repos.universal.online_store_creator import (
-    OnlineStoreCreator,
 )
 
 logger = logging.getLogger(__name__)
@@ -61,7 +56,7 @@ def clickhouse_container():
     container.stop()
 
 
-class ClickhouseDataSourceCreator(DataSourceCreator, OnlineStoreCreator):
+class ClickhouseDataSourceCreator(DataSourceCreator):
     def create_logged_features_destination(self) -> LoggingDestination:
         return None  # type: ignore
 
@@ -101,6 +96,8 @@ class ClickhouseDataSourceCreator(DataSourceCreator, OnlineStoreCreator):
         destination_name = self.get_prefixed_table_name(destination_name)
 
         if self.offline_store_config:
+            if timestamp_field is None:
+                timestamp_field = "ts"
             df_to_clickhouse_table(
                 self.offline_store_config, df, destination_name, timestamp_field
             )
@@ -119,24 +116,8 @@ class ClickhouseDataSourceCreator(DataSourceCreator, OnlineStoreCreator):
     def get_prefixed_table_name(self, suffix: str) -> str:
         return f"{self.project_name}_{suffix}"
 
-    def create_online_store(self) -> ClickhouseOnlineStoreConfig:
-        assert self.container
-
-        get_client(self.offline_store_config).command(
-            f"CREATE DATABASE {CLICKHOUSE_ONLINE_DB}"
-        )
-
-        return ClickhouseOnlineStoreConfig(
-            type="feast.infra.offline_stores.contrib.clickhouse_offline_store.clickhouse.ClickhouseOfflineStore",
-            host="localhost",
-            port=self.container.get_exposed_port(8123),
-            database=CLICKHOUSE_ONLINE_DB,
-            user=CLICKHOUSE_USER,
-            password=CLICKHOUSE_PASSWORD,
-        )
-
-    def create_saved_dataset_destination(self) -> SavedDatasetStorage:
-        return None
+    def create_saved_dataset_destination(self):
+        pass
 
     def teardown(self):
         pass

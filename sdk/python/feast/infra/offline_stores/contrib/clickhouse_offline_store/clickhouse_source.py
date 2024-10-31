@@ -173,9 +173,9 @@ class SavedDatasetClickhouseStorage(SavedDatasetStorage):
         return ClickhouseSource(table=self.clickhouse_options._table)
 
 
-def ch_type_to_feast_value_type(type_: str) -> ValueType:
-    type_obj = get_from_name(type_)
-    type_ = type(type_obj)
+def ch_type_to_feast_value_type(type_str: str) -> ValueType:
+    type_obj = get_from_name(type_str)
+    type_cls = type(type_obj)
     container_type = None
     if isinstance(type_obj, Array):
         container_type = Array
@@ -201,9 +201,9 @@ def ch_type_to_feast_value_type(type_: str) -> ValueType:
         (Array, DateTime): ValueType.UNIX_TIMESTAMP_LIST,
         (Array, DateTime64): ValueType.UNIX_TIMESTAMP_LIST,
     }
-    value = type_map.get((container_type, type_), ValueType.UNKNOWN)
+    value = type_map.get((container_type, type_cls), ValueType.UNKNOWN)
     if value == ValueType.UNKNOWN:
-        print("unknown type:", type_)
+        print("unknown type:", type_str)
     return value
 
 

@@ -382,21 +382,22 @@ def _arrow_to_ch_timestamp_type(t_str: str) -> str:
     unit = unit.strip()
     precision = _ARROW_PRECISION_TO_CH_PRECISION[unit]
 
-    tz: Optional[str] = None
     if len(rest):
-        tz: str = rest[0]
+        tz = rest[0]
         tz = (
             tz.strip()
             .removeprefix("tz=")
             .translate(
                 str.maketrans(
-                    {
+                    {  # type: ignore[arg-type]
                         "'": None,
                         '"': None,
                     }
                 )
             )
         )
+    else:
+        tz = None
 
     if precision > 0:
         if tz is not None:
