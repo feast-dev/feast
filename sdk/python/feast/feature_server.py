@@ -339,8 +339,8 @@ def start_server(
     workers: int,
     keep_alive_timeout: int,
     registry_ttl_sec: int,
-    ssl_key_path: str,
-    ssl_cert_path: str,
+    tls_key_path: str,
+    tls_cert_path: str,
     metrics: bool,
 ):
     if metrics:
@@ -375,22 +375,22 @@ def start_server(
         }
 
         # Add SSL options if the paths exist
-        if ssl_key_path and ssl_cert_path:
-            options["keyfile"] = ssl_key_path
-            options["certfile"] = ssl_cert_path
+        if tls_key_path and tls_cert_path:
+            options["keyfile"] = tls_key_path
+            options["certfile"] = tls_cert_path
         FeastServeApplication(store=store, **options).run()
     else:
         import uvicorn
 
         app = get_app(store, registry_ttl_sec)
-        if ssl_key_path and ssl_cert_path:
+        if tls_key_path and tls_cert_path:
             uvicorn.run(
                 app,
                 host=host,
                 port=port,
                 access_log=(not no_access_log),
-                ssl_keyfile=ssl_key_path,
-                ssl_certfile=ssl_cert_path,
+                ssl_keyfile=tls_key_path,
+                ssl_certfile=tls_cert_path,
             )
         else:
             uvicorn.run(app, host=host, port=port, access_log=(not no_access_log))

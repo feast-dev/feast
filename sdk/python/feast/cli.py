@@ -914,20 +914,20 @@ def init_command(project_directory, minimal: bool, template: str):
 @click.option(
     "--key",
     "-k",
-    "ssl_key_path",
+    "tls_key_path",
     type=click.STRING,
     default="",
     show_default=False,
-    help="path to SSL certificate private key. You need to pass --cert as well to start server in SSL mode",
+    help="path to TLS certificate private key. You need to pass --cert as well to start server in TLS mode",
 )
 @click.option(
     "--cert",
     "-c",
-    "ssl_cert_path",
+    "tls_cert_path",
     type=click.STRING,
     default="",
     show_default=False,
-    help="path to SSL certificate public key. You need to pass --key as well to start server in SSL mode",
+    help="path to TLS certificate public key. You need to pass --key as well to start server in TLS mode",
 )
 @click.option(
     "--metrics",
@@ -946,14 +946,14 @@ def serve_command(
     workers: int,
     metrics: bool,
     keep_alive_timeout: int,
-    ssl_key_path: str,
-    ssl_cert_path: str,
+    tls_key_path: str,
+    tls_cert_path: str,
     registry_ttl_sec: int = 5,
 ):
     """Start a feature server locally on a given port."""
-    if (ssl_key_path and not ssl_cert_path) or (not ssl_key_path and ssl_cert_path):
+    if (tls_key_path and not tls_cert_path) or (not tls_key_path and tls_cert_path):
         raise click.BadParameter(
-            "Please pass --cert and --key args to start the feature server in SSL mode."
+            "Please pass --cert and --key args to start the feature server in TLS mode."
         )
 
     store = create_feature_store(ctx)
@@ -966,8 +966,8 @@ def serve_command(
         workers=workers,
         metrics=metrics,
         keep_alive_timeout=keep_alive_timeout,
-        ssl_key_path=ssl_key_path,
-        ssl_cert_path=ssl_cert_path,
+        tls_key_path=tls_key_path,
+        tls_cert_path=tls_cert_path,
         registry_ttl_sec=registry_ttl_sec,
     )
 
@@ -1040,36 +1040,36 @@ def serve_transformations_command(ctx: click.Context, port: int):
 @click.option(
     "--key",
     "-k",
-    "ssl_key_path",
+    "tls_key_path",
     type=click.STRING,
     default="",
     show_default=False,
-    help="path to SSL certificate private key. You need to pass --cert as well to start server in SSL mode",
+    help="path to TLS certificate private key. You need to pass --cert as well to start server in TLS mode",
 )
 @click.option(
     "--cert",
     "-c",
-    "ssl_cert_path",
+    "tls_cert_path",
     type=click.STRING,
     default="",
     show_default=False,
-    help="path to SSL certificate public key. You need to pass --key as well to start server in SSL mode",
+    help="path to TLS certificate public key. You need to pass --key as well to start server in TLS mode",
 )
 @click.pass_context
 def serve_registry_command(
     ctx: click.Context,
     port: int,
-    ssl_key_path: str,
-    ssl_cert_path: str,
+    tls_key_path: str,
+    tls_cert_path: str,
 ):
     """Start a registry server locally on a given port."""
-    if (ssl_key_path and not ssl_cert_path) or (not ssl_key_path and ssl_cert_path):
+    if (tls_key_path and not tls_cert_path) or (not tls_key_path and tls_cert_path):
         raise click.BadParameter(
-            "Please pass --cert and --key args to start the registry server in SSL mode."
+            "Please pass --cert and --key args to start the registry server in TLS mode."
         )
     store = create_feature_store(ctx)
 
-    store.serve_registry(port, ssl_key_path, ssl_cert_path)
+    store.serve_registry(port, tls_key_path, tls_cert_path)
 
 
 @cli.command("serve_offline")

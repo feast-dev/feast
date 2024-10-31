@@ -56,8 +56,8 @@ class RemoteRegistryConfig(RegistryConfig):
     If registry_type is 'remote', then this is a URL for registry server """
 
     cert: StrictStr = ""
-    """ str: Path to the public certificate when the registry server starts in SSL mode. This may be needed if the registry server started with a self-signed certificate, typically this file ends with `*.crt`, `*.cer`, or `*.pem`.
-    If registry_type is 'remote', then this configuration is needed to connect to remote registry server in SSL mode. If the remote registry started in non-ssl mode then this configuration is not needed."""
+    """ str: Path to the public certificate when the registry server starts in TLS(SSL) mode. This may be needed if the registry server started with a self-signed certificate, typically this file ends with `*.crt`, `*.cer`, or `*.pem`.
+    If registry_type is 'remote', then this configuration is needed to connect to remote registry server in TLS mode. If the remote registry started in non-tls mode then this configuration is not needed."""
 
 
 class RemoteRegistry(BaseRegistry):
@@ -73,10 +73,10 @@ class RemoteRegistry(BaseRegistry):
         if registry_config.cert:
             with open(registry_config.cert, "rb") as cert_file:
                 trusted_certs = cert_file.read()
-                ssl_credentials = grpc.ssl_channel_credentials(
+                tls_credentials = grpc.ssl_channel_credentials(
                     root_certificates=trusted_certs
                 )
-            self.channel = grpc.secure_channel(registry_config.path, ssl_credentials)
+            self.channel = grpc.secure_channel(registry_config.path, tls_credentials)
         else:
             self.channel = grpc.insecure_channel(registry_config.path)
 

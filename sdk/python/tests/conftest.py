@@ -515,16 +515,16 @@ def auth_config(request, is_integration_test):
 
 
 @pytest.fixture(params=[True, False], scope="module")
-def ssl_mode(request):
-    is_ssl_mode = request.param
+def tls_mode(request):
+    is_tls_mode = request.param
 
-    if is_ssl_mode:
+    if is_tls_mode:
         certificates_path = tempfile.mkdtemp()
-        ssl_key_path = os.path.join(certificates_path, "key.pem")
-        ssl_cert_path = os.path.join(certificates_path, "cert.pem")
-        generate_self_signed_cert(cert_path=ssl_cert_path, key_path=ssl_key_path)
+        tls_key_path = os.path.join(certificates_path, "key.pem")
+        tls_cert_path = os.path.join(certificates_path, "cert.pem")
+        generate_self_signed_cert(cert_path=tls_cert_path, key_path=tls_key_path)
     else:
-        ssl_key_path = ""
-        ssl_cert_path = ""
+        tls_key_path = ""
+        tls_cert_path = ""
 
-    return is_ssl_mode, ssl_key_path, ssl_cert_path
+    return is_tls_mode, tls_key_path, tls_cert_path

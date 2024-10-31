@@ -761,8 +761,8 @@ def start_server(
     store: FeatureStore,
     port: int,
     wait_for_termination: bool = True,
-    ssl_key_path: str = "",
-    ssl_cert_path: str = "",
+    tls_key_path: str = "",
+    tls_cert_path: str = "",
 ):
     auth_manager_type = str_to_auth_manager_type(store.config.auth_config.type)
     init_security_manager(auth_type=auth_manager_type, fs=store)
@@ -791,24 +791,24 @@ def start_server(
     )
     reflection.enable_server_reflection(service_names_available_for_reflection, server)
 
-    if ssl_cert_path and ssl_key_path:
-        with open(ssl_cert_path, "rb") as cert_file, open(
-            ssl_key_path, "rb"
+    if tls_cert_path and tls_key_path:
+        with open(tls_cert_path, "rb") as cert_file, open(
+            tls_key_path, "rb"
         ) as key_file:
             certificate_chain = cert_file.read()
             private_key = key_file.read()
             server_credentials = grpc.ssl_server_credentials(
                 ((private_key, certificate_chain),)
             )
-        logger.info("Starting grpc registry server in SSL mode")
+        logger.info("Starting grpc registry server in TLS(SSL) mode")
         server.add_secure_port(f"[::]:{port}", server_credentials)
     else:
-        logger.info("Starting grpc registry server in non-SSL mode")
+        logger.info("Starting grpc registry server in non-TLS(SSL) mode")
         server.add_insecure_port(f"[::]:{port}")
     server.start()
     if wait_for_termination:
         logger.info(
-            f"Grpc server started at {'https' if ssl_cert_path and ssl_key_path else 'http'}://localhost:{port}"
+            f"Grpc server started at {'https' if tls_cert_path and tls_key_path else 'http'}://localhost:{port}"
         )
         server.wait_for_termination()
     else:

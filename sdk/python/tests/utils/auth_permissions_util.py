@@ -58,8 +58,8 @@ def start_feature_server(
     repo_path: str,
     server_port: int,
     metrics: bool = False,
-    ssl_key_path: str = "",
-    ssl_cert_path: str = "",
+    tls_key_path: str = "",
+    tls_cert_path: str = "",
 ):
     host = "0.0.0.0"
     cmd = [
@@ -72,11 +72,11 @@ def start_feature_server(
         str(server_port),
     ]
 
-    if ssl_cert_path and ssl_cert_path:
+    if tls_cert_path and tls_cert_path:
         cmd.append("--key")
-        cmd.append(ssl_key_path)
+        cmd.append(tls_key_path)
         cmd.append("--cert")
-        cmd.append(ssl_cert_path)
+        cmd.append(tls_cert_path)
 
     feast_server_process = subprocess.Popen(
         cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE
@@ -106,7 +106,7 @@ def start_feature_server(
 
     online_server_url = (
         f"https://localhost:{server_port}"
-        if ssl_key_path and ssl_cert_path
+        if tls_key_path and tls_cert_path
         else f"http://localhost:{server_port}"
     )
 
@@ -126,13 +126,13 @@ def start_feature_server(
         )
 
 
-def get_remote_registry_store(server_port, feature_store, ssl_mode):
-    is_ssl_mode, _, ssl_cert_path = ssl_mode
-    if is_ssl_mode:
+def get_remote_registry_store(server_port, feature_store, tls_mode):
+    is_tls_mode, _, tls_cert_path = tls_mode
+    if is_tls_mode:
         registry_config = RemoteRegistryConfig(
             registry_type="remote",
             path=f"localhost:{server_port}",
-            cert=ssl_cert_path,
+            cert=tls_cert_path,
         )
     else:
         registry_config = RemoteRegistryConfig(
