@@ -73,9 +73,9 @@ def start_feature_server(
     ]
 
     if ssl_cert_path and ssl_cert_path:
-        cmd.append("--ssl-key-path")
+        cmd.append("--key")
         cmd.append(ssl_key_path)
-        cmd.append("--ssl-cert-path")
+        cmd.append("--cert")
         cmd.append(ssl_cert_path)
 
     feast_server_process = subprocess.Popen(
