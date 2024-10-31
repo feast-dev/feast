@@ -24,6 +24,7 @@ from feast.errors import (
     FeastError,
     FeatureViewNotFoundException,
 )
+from feast.feast_object import FeastObject
 from feast.permissions.action import WRITE, AuthzedAction
 from feast.permissions.security_manager import assert_permissions
 from feast.permissions.server.rest import inject_user_details
@@ -218,21 +219,25 @@ def get_app(
         else:
             store.push(**push_params)
 
+    def _get_feast_object(
+        feature_view_name: str, allow_registry_cache: bool
+    ) -> FeastObject:
+        try:
+            return store.get_stream_feature_view(  # type: ignore
+                feature_view_name, allow_registry_cache=allow_registry_cache
+            )
+        except FeatureViewNotFoundException:
+            return store.get_feature_view(  # type: ignore
+                feature_view_name, allow_registry_cache=allow_registry_cache
+            )
+
     @app.post("/write-to-online-store", dependencies=[Depends(inject_user_details)])
     def write_to_online_store(request: WriteToFeatureStoreRequest) -> None:
         df = pd.DataFrame(request.df)
         feature_view_name = request.feature_view_name
         allow_registry_cache = request.allow_registry_cache
-        try:
-            feature_view = store.get_stream_feature_view(  # type: ignore
-                feature_view_name, allow_registry_cache=allow_registry_cache
-            )
-        except FeatureViewNotFoundException:
-            feature_view = store.get_feature_view(  # type: ignore
-                feature_view_name, allow_registry_cache=allow_registry_cache
-            )
-
-        assert_permissions(resource=feature_view, actions=[AuthzedAction.WRITE_ONLINE])
+        resource = _get_feast_object(feature_view_name, allow_registry_cache)
+        assert_permissions(resource=resource, actions=[AuthzedAction.WRITE_ONLINE])
         store.write_to_online_store(
             feature_view_name=feature_view_name,
             df=df,
@@ -250,9 +255,8 @@ def get_app(
     @app.post("/materialize", dependencies=[Depends(inject_user_details)])
     def materialize(request: MaterializeRequest) -> None:
         for feature_view in request.feature_views or []:
-            # TODO: receives a str for resource but isn't in the Union. is str actually allowed?
             assert_permissions(
-                resource=feature_view,  # type: ignore
+                resource=_get_feast_object(feature_view, True),
                 actions=[AuthzedAction.WRITE_ONLINE],
             )
         store.materialize(
@@ -264,9 +268,8 @@ def get_app(
     @app.post("/materialize-incremental", dependencies=[Depends(inject_user_details)])
     def materialize_incremental(request: MaterializeIncrementalRequest) -> None:
         for feature_view in request.feature_views or []:
-            # TODO: receives a str for resource but isn't in the Union. is str actually allowed?
             assert_permissions(
-                resource=feature_view,  # type: ignore
+                resource=_get_feast_object(feature_view, True),
                 actions=[AuthzedAction.WRITE_ONLINE],
             )
         store.materialize_incremental(
