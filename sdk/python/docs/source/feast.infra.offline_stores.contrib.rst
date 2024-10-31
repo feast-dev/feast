@@ -8,6 +8,7 @@ Subpackages
    :maxdepth: 4
 
    feast.infra.offline_stores.contrib.athena_offline_store
+   feast.infra.offline_stores.contrib.clickhouse_offline_store
    feast.infra.offline_stores.contrib.mssql_offline_store
    feast.infra.offline_stores.contrib.postgres_offline_store
    feast.infra.offline_stores.contrib.spark_offline_store
@@ -20,6 +21,14 @@ feast.infra.offline\_stores.contrib.athena\_repo\_configuration module
 ----------------------------------------------------------------------
 
 .. automodule:: feast.infra.offline_stores.contrib.athena_repo_configuration
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+feast.infra.offline\_stores.contrib.clickhouse\_repo\_configuration module
+--------------------------------------------------------------------------
+
+.. automodule:: feast.infra.offline_stores.contrib.clickhouse_repo_configuration
    :members:
    :undoc-members:
    :show-inheritance:

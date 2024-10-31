@@ -40,18 +40,10 @@ feast.infra.online\_stores.contrib.elasticsearch\_repo\_configuration module
    :undoc-members:
    :show-inheritance:
 
-feast.infra.online\_stores.contrib.qdrant module
--------------------------------------------------------
+feast.infra.online\_stores.contrib.faiss\_online\_store module
+--------------------------------------------------------------
 
-.. automodule:: feast.infra.online_stores.contrib.qdrant
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-feast.infra.online\_stores.contrib.qdrant\_repo\_configuration module
-----------------------------------------------------------------------------
-
-.. automodule:: feast.infra.online_stores.contrib.qdrant_repo_configuration
+.. automodule:: feast.infra.online_stores.contrib.faiss_online_store
    :members:
    :undoc-members:
    :show-inheritance:
@@ -100,6 +92,22 @@ feast.infra.online\_stores.contrib.postgres\_repo\_configuration module
 -----------------------------------------------------------------------
 
 .. automodule:: feast.infra.online_stores.contrib.postgres_repo_configuration
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+feast.infra.online\_stores.contrib.qdrant module
+------------------------------------------------
+
+.. automodule:: feast.infra.online_stores.contrib.qdrant
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+feast.infra.online\_stores.contrib.qdrant\_repo\_configuration module
+---------------------------------------------------------------------
+
+.. automodule:: feast.infra.online_stores.contrib.qdrant_repo_configuration
    :members:
    :undoc-members:
    :show-inheritance:
