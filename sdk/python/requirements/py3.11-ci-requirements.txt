@@ -328,8 +328,6 @@ idna==3.10
     #   yarl
 imagesize==1.4.1
     # via sphinx
-importlib-metadata==8.5.0
-    # via dask
 iniconfig==2.0.0
     # via pytest
 ipykernel==6.29.5
@@ -978,7 +976,6 @@ typing-extensions==4.12.2
     #   fastapi
     #   great-expectations
     #   ibis-framework
-    #   ipython
     #   jwcrypto
     #   mypy
     #   psycopg
@@ -1055,7 +1052,5 @@ xmltodict==0.14.2
     # via moto
 yarl==1.16.0
     # via aiohttp
-zipp==3.20.2
-    # via importlib-metadata
 zstandard==0.23.0
     # via clickhouse-connect
