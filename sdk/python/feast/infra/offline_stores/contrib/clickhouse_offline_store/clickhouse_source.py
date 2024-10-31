@@ -209,4 +209,3 @@ def ch_type_to_feast_value_type(type_: str) -> ValueType:
 
 def _ch_type_to_ch_type_str(type_: ClickHouseType) -> str:
     return type_.name
-    # return type_  # type: ignore
