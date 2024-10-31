@@ -55,7 +55,7 @@ class RemoteRegistryConfig(RegistryConfig):
     """ str: Path to metadata store.
     If registry_type is 'remote', then this is a URL for registry server """
 
-    ssl_cert_path: StrictStr = ""
+    cert: StrictStr = ""
     """ str: Path to the public certificate when the registry server starts in SSL mode. This may be needed if the registry server started with a self-signed certificate, typically this file ends with `*.crt`, `*.cer`, or `*.pem`.
     If registry_type is 'remote', then this configuration is needed to connect to remote registry server in SSL mode. If the remote registry started in non-ssl mode then this configuration is not needed."""
 
@@ -70,8 +70,8 @@ class RemoteRegistry(BaseRegistry):
     ):
         self.auth_config = auth_config
         assert isinstance(registry_config, RemoteRegistryConfig)
-        if registry_config.ssl_cert_path:
-            with open(registry_config.ssl_cert_path, "rb") as cert_file:
+        if registry_config.cert:
+            with open(registry_config.cert, "rb") as cert_file:
                 trusted_certs = cert_file.read()
                 ssl_credentials = grpc.ssl_channel_credentials(
                     root_certificates=trusted_certs
