@@ -193,40 +193,6 @@ class ClickhouseOfflineStore(OfflineStore):
             on_demand_feature_views=None,
         )
 
-    @staticmethod
-    def pull_all_from_table_or_query(
-        config: RepoConfig,
-        data_source: DataSource,
-        join_key_columns: List[str],
-        feature_name_columns: List[str],
-        timestamp_field: str,
-        start_date: datetime,
-        end_date: datetime,
-    ) -> RetrievalJob:
-        raise NotImplementedError("Not tested (not needed?)")
-        assert isinstance(config.offline_store, ClickhouseOfflineStoreConfig)
-        assert isinstance(data_source, ClickhouseSource)
-        from_expression = data_source.get_table_query_string()
-
-        field_string = ", ".join(
-            join_key_columns + feature_name_columns + [timestamp_field]
-        )
-
-        query = f"""
-            SELECT {field_string}
-            FROM {from_expression} AS paftoq_alias
-            WHERE "{timestamp_field}"
-                BETWEEN toDateTime64('{start_date.replace(tzinfo=None)!s}', 6, '{start_date.tzinfo!s}')
-                AND toDateTime64('{end_date.replace(tzinfo=None)!s}', 6, '{end_date.tzinfo!s}')
-        """
-
-        return ClickhouseRetrievalJob(
-            query=query,
-            config=config,
-            full_feature_names=False,
-            on_demand_feature_views=None,
-        )
-
 
 class ClickhouseRetrievalJob(PostgreSQLRetrievalJob):
     def _to_df_internal(self, timeout: Optional[int] = None) -> pd.DataFrame:
