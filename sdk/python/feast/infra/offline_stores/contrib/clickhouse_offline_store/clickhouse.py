@@ -306,11 +306,6 @@ def df_to_clickhouse_table(
     table_name: str,
     entity_timestamp_col: str,
 ) -> None:
-    # pd_dtypes = df.dtypes.to_dict()
-    # ch_dtypes = convert_pd_dtypes_to_ch(pd_dtypes)
-    # table_schema = ", ".join(
-    #     [f'"{col}" {ch_dtype}' for col, ch_dtype in ch_dtypes.items()]
-    # )
     table_schema = _df_to_create_table_schema(df)
     if config.use_temporary_tables_for_entity_df:
         query = f"CREATE TEMPORARY TABLE {table_name} ({table_schema})"
@@ -328,13 +323,10 @@ def df_to_clickhouse_table(
 
 def _df_to_create_table_schema(entity_df: pd.DataFrame) -> str:
     pa_table = pa.Table.from_pandas(entity_df)
-    # print(f"{pa_table.schema=}")
-    # print(f"{entity_df=}")
     columns = [
         f""""{f.name}" {arrow_to_ch_type(str(f.type), f.nullable)}"""
         for f in pa_table.schema
     ]
-    # print(f"{columns=}")
     return ", ".join(columns)
 
 
