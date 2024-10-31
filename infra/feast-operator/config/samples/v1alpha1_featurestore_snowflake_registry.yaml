@@ -1,0 +1,26 @@
+apiVersion: feast.dev/v1alpha1
+kind: FeatureStore
+metadata:
+  name: sample-snowflake-registry
+spec:
+  feastProject: my_project
+  services:
+    registry:
+      persistence:
+        store:
+          type: snowflake
+          secretRef: snowflake-secret
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: snowflake-secret
+stringData:
+  account: snowflake_deployment.us-east-1
+  user: user_login
+  password: user_password
+  role: SYSADMIN
+  warehouse: COMPUTE_WH
+  database: FEAST
+  schema: PUBLIC
+  cache_ttl_seconds: '60'

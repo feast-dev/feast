@@ -1,0 +1,61 @@
+apiVersion: feast.dev/v1alpha1
+kind: FeatureStore
+metadata:
+  name: sample-sql
+spec:
+  feastProject: my_project
+  services:
+    onlineStore:
+      persistence:
+        store:
+          type: postgres
+          secretRef:
+            name: postgres-secret
+    offlineStore:
+      persistence:
+        store:
+          type: spark
+          secretRef:
+            name: spark-secret
+    registry:
+      persistence:
+        store:
+          type: sql
+          secretRef:
+            name: postgres-secret
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-secret
+stringData:
+  host: _DB_HOST_
+  port: _DB_PORT_
+  database: _DB_NAME
+  db_schema: _DB_SCHEMA
+  user: _DB_USERNAME_
+  password: _DB_PASSWORD_
+  sslmode: verify-ca
+  sslkey_path: /path/to/client-key.pem
+  sslcert_path: /path/to/client-cert.pem
+  sslrootcert_path: /path/to/server-ca.pem
+  vector_enabled: "false"
+  vector_len: "512"
+  sqlalchemy_config_kwargs: |
+    echo: 'false'
+    pool_pre_ping: 'true'
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: spark-secret
+stringData:
+  spark_conf: |
+    spark.master: "local[*]"
+    spark.ui.enabled: "false"
+    spark.eventLog.enabled: "false"
+    spark.sql.catalogImplementation: "hive"
+    spark.sql.parser.quotedRegexColumnNames: "true"
+    spark.sql.session.timeZone: "UTC"
+    spark.sql.execution.arrow.fallback.enabled: "true"
+    spark.sql.execution.arrow.pyspark.enabled: "true"

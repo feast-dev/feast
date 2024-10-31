@@ -54,6 +54,245 @@ spec:
                   underscore. Required.
                 pattern: ^[A-Za-z0-9][A-Za-z0-9_]*$
                 type: string
+              services:
+                properties:
+                  offlineStore:
+                    properties:
+                      persistence:
+                        properties:
+                          file:
+                            properties:
+                              pvc:
+                                properties:
+                                  mountPath:
+                                    description: Default path depend on Feast service.
+                                    type: string
+                                  name:
+                                    description: The name of the PersistenceVolumeClaim
+                                      to be created, or reused it is already there
+                                    type: string
+                                  storage:
+                                    anyOf:
+                                    - type: integer
+                                    - type: string
+                                    description: |-
+                                      Default value depend on Feast service.
+                                      Only for newly created PVC.
+                                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                    x-kubernetes-int-or-string: true
+                                  storageClassName:
+                                    description: |-
+                                      Name of the StorageClass required by the claim.
+                                      Only for newly created PVC.
+                                    type: string
+                                type: object
+                              type:
+                                enum:
+                                - dask
+                                - duckdb
+                                type: string
+                            type: object
+                          store:
+                            properties:
+                              secretRef:
+                                description: |-
+                                  LocalObjectReference contains enough information to let you locate the
+                                  referenced object inside the same namespace.
+                                properties:
+                                  name:
+                                    description: |-
+                                      Name of the referent.
+                                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                      TODO: Add other useful fields. apiVersion, kind, uid?
+                                    type: string
+                                type: object
+                                x-kubernetes-map-type: atomic
+                              type:
+                                enum:
+                                - snowflake
+                                - bigquery
+                                - redshift
+                                - spark
+                                - postgres
+                                - trino
+                                - mssql
+                                type: string
+                            required:
+                            - type
+                            type: object
+                        type: object
+                        x-kubernetes-validations:
+                        - message: One file or store persistence is allowed.
+                          rule: '!(has(self.file) && has(self.store))'
+                        - message: Either file or store persistence are required.
+                          rule: has(self.file) || has(self.store)
+                    type: object
+                  onlineStore:
+                    properties:
+                      persistence:
+                        properties:
+                          file:
+                            properties:
+                              path:
+                                type: string
+                              pvc:
+                                properties:
+                                  mountPath:
+                                    description: Default path depend on Feast service.
+                                    type: string
+                                  name:
+                                    description: The name of the PersistenceVolumeClaim
+                                      to be created, or reused it is already there
+                                    type: string
+                                  storage:
+                                    anyOf:
+                                    - type: integer
+                                    - type: string
+                                    description: |-
+                                      Default value depend on Feast service.
+                                      Only for newly created PVC.
+                                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                    x-kubernetes-int-or-string: true
+                                  storageClassName:
+                                    description: |-
+                                      Name of the StorageClass required by the claim.
+                                      Only for newly created PVC.
+                                    type: string
+                                type: object
+                            type: object
+                            x-kubernetes-validations:
+                            - message: Ephemeral stores must have absolute paths.
+                              rule: '!has(self.pvc) ? self.path.startsWith(''/'')
+                                : true'
+                            - message: PVC path must be a file name only, with no
+                                slashes.
+                              rule: 'has(self.pvc) ? !self.path.startsWith(''/'')
+                                : true'
+                            - message: Online store does not support S3 or GS buckets.
+                              rule: '!self.path.startsWith(''s3://'') && !self.path.startsWith(''gs://'')'
+                          store:
+                            properties:
+                              secretRef:
+                                description: |-
+                                  LocalObjectReference contains enough information to let you locate the
+                                  referenced object inside the same namespace.
+                                properties:
+                                  name:
+                                    description: |-
+                                      Name of the referent.
+                                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                      TODO: Add other useful fields. apiVersion, kind, uid?
+                                    type: string
+                                type: object
+                                x-kubernetes-map-type: atomic
+                              type:
+                                enum:
+                                - snowflake
+                                - redis
+                                - ikv
+                                - datastore
+                                - dynamodb
+                                - bigtable
+                                - postgres
+                                - cassandra
+                                - mysql
+                                - hazelcast
+                                - singlestore
+                                type: string
+                            required:
+                            - type
+                            type: object
+                        type: object
+                        x-kubernetes-validations:
+                        - message: One file or store persistence is allowed.
+                          rule: '!(has(self.file) && has(self.store))'
+                        - message: Either file or store persistence are required.
+                          rule: has(self.file) || has(self.store)
+                    type: object
+                  registry:
+                    properties:
+                      persistence:
+                        properties:
+                          file:
+                            properties:
+                              path:
+                                type: string
+                              pvc:
+                                properties:
+                                  mountPath:
+                                    description: Default path depend on Feast service.
+                                    type: string
+                                  name:
+                                    description: The name of the PersistenceVolumeClaim
+                                      to be created, or reused it is already there
+                                    type: string
+                                  storage:
+                                    anyOf:
+                                    - type: integer
+                                    - type: string
+                                    description: |-
+                                      Default value depend on Feast service.
+                                      Only for newly created PVC.
+                                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                    x-kubernetes-int-or-string: true
+                                  storageClassName:
+                                    description: |-
+                                      Name of the StorageClass required by the claim.
+                                      Only for newly created PVC.
+                                    type: string
+                                type: object
+                              s3_additional_kwargs:
+                                additionalProperties:
+                                  type: string
+                                type: object
+                            type: object
+                            x-kubernetes-validations:
+                            - message: Ephemeral stores must have absolute paths.
+                              rule: '!has(self.pvc) ? (self.path.startsWith(''/'')
+                                || self.path.startsWith(''s3://'') || self.path.startsWith(''gs://''))
+                                : true'
+                            - message: PVC path must be a file name only, with no
+                                slashes.
+                              rule: 'has(self.pvc) ? !self.path.startsWith(''/'')
+                                : true'
+                            - message: PVC persistence does not support S3 or GS buckets.
+                              rule: 'has(self.pvc) ? !(self.path.startsWith(''s3://'')
+                                || self.path.startsWith(''gs://'')) : true'
+                            - message: Additional S3 settings are available only for
+                                S3 buckets.
+                              rule: 'has(self.s3_additional_kwargs) ? self.path.startsWith(''s3://'')
+                                : true'
+                          store:
+                            properties:
+                              secretRef:
+                                description: |-
+                                  LocalObjectReference contains enough information to let you locate the
+                                  referenced object inside the same namespace.
+                                properties:
+                                  name:
+                                    description: |-
+                                      Name of the referent.
+                                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                      TODO: Add other useful fields. apiVersion, kind, uid?
+                                    type: string
+                                type: object
+                                x-kubernetes-map-type: atomic
+                              type:
+                                enum:
+                                - sql
+                                - snowflake
+                                type: string
+                            required:
+                            - type
+                            type: object
+                        type: object
+                        x-kubernetes-validations:
+                        - message: One file or store persistence is allowed.
+                          rule: '!(has(self.file) && has(self.store))'
+                        - message: Either file or store persistence are required.
+                          rule: has(self.file) || has(self.store)
+                    type: object
+                type: object
             required:
             - feastProject
             type: object
@@ -69,6 +308,250 @@ spec:
                       with an underscore. Required.
                     pattern: ^[A-Za-z0-9][A-Za-z0-9_]*$
                     type: string
+                  services:
+                    properties:
+                      offlineStore:
+                        properties:
+                          persistence:
+                            properties:
+                              file:
+                                properties:
+                                  pvc:
+                                    properties:
+                                      mountPath:
+                                        description: Default path depend on Feast
+                                          service.
+                                        type: string
+                                      name:
+                                        description: The name of the PersistenceVolumeClaim
+                                          to be created, or reused it is already there
+                                        type: string
+                                      storage:
+                                        anyOf:
+                                        - type: integer
+                                        - type: string
+                                        description: |-
+                                          Default value depend on Feast service.
+                                          Only for newly created PVC.
+                                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                        x-kubernetes-int-or-string: true
+                                      storageClassName:
+                                        description: |-
+                                          Name of the StorageClass required by the claim.
+                                          Only for newly created PVC.
+                                        type: string
+                                    type: object
+                                  type:
+                                    enum:
+                                    - dask
+                                    - duckdb
+                                    type: string
+                                type: object
+                              store:
+                                properties:
+                                  secretRef:
+                                    description: |-
+                                      LocalObjectReference contains enough information to let you locate the
+                                      referenced object inside the same namespace.
+                                    properties:
+                                      name:
+                                        description: |-
+                                          Name of the referent.
+                                          More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                          TODO: Add other useful fields. apiVersion, kind, uid?
+                                        type: string
+                                    type: object
+                                    x-kubernetes-map-type: atomic
+                                  type:
+                                    enum:
+                                    - snowflake
+                                    - bigquery
+                                    - redshift
+                                    - spark
+                                    - postgres
+                                    - trino
+                                    - mssql
+                                    type: string
+                                required:
+                                - type
+                                type: object
+                            type: object
+                            x-kubernetes-validations:
+                            - message: One file or store persistence is allowed.
+                              rule: '!(has(self.file) && has(self.store))'
+                            - message: Either file or store persistence are required.
+                              rule: has(self.file) || has(self.store)
+                        type: object
+                      onlineStore:
+                        properties:
+                          persistence:
+                            properties:
+                              file:
+                                properties:
+                                  path:
+                                    type: string
+                                  pvc:
+                                    properties:
+                                      mountPath:
+                                        description: Default path depend on Feast
+                                          service.
+                                        type: string
+                                      name:
+                                        description: The name of the PersistenceVolumeClaim
+                                          to be created, or reused it is already there
+                                        type: string
+                                      storage:
+                                        anyOf:
+                                        - type: integer
+                                        - type: string
+                                        description: |-
+                                          Default value depend on Feast service.
+                                          Only for newly created PVC.
+                                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                        x-kubernetes-int-or-string: true
+                                      storageClassName:
+                                        description: |-
+                                          Name of the StorageClass required by the claim.
+                                          Only for newly created PVC.
+                                        type: string
+                                    type: object
+                                type: object
+                                x-kubernetes-validations:
+                                - message: Ephemeral stores must have absolute paths.
+                                  rule: '!has(self.pvc) ? self.path.startsWith(''/'')
+                                    : true'
+                                - message: PVC path must be a file name only, with
+                                    no slashes.
+                                  rule: 'has(self.pvc) ? !self.path.startsWith(''/'')
+                                    : true'
+                                - message: Online store does not support S3 or GS
+                                    buckets.
+                                  rule: '!self.path.startsWith(''s3://'') && !self.path.startsWith(''gs://'')'
+                              store:
+                                properties:
+                                  secretRef:
+                                    description: |-
+                                      LocalObjectReference contains enough information to let you locate the
+                                      referenced object inside the same namespace.
+                                    properties:
+                                      name:
+                                        description: |-
+                                          Name of the referent.
+                                          More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                          TODO: Add other useful fields. apiVersion, kind, uid?
+                                        type: string
+                                    type: object
+                                    x-kubernetes-map-type: atomic
+                                  type:
+                                    enum:
+                                    - snowflake
+                                    - redis
+                                    - ikv
+                                    - datastore
+                                    - dynamodb
+                                    - bigtable
+                                    - postgres
+                                    - cassandra
+                                    - mysql
+                                    - hazelcast
+                                    - singlestore
+                                    type: string
+                                required:
+                                - type
+                                type: object
+                            type: object
+                            x-kubernetes-validations:
+                            - message: One file or store persistence is allowed.
+                              rule: '!(has(self.file) && has(self.store))'
+                            - message: Either file or store persistence are required.
+                              rule: has(self.file) || has(self.store)
+                        type: object
+                      registry:
+                        properties:
+                          persistence:
+                            properties:
+                              file:
+                                properties:
+                                  path:
+                                    type: string
+                                  pvc:
+                                    properties:
+                                      mountPath:
+                                        description: Default path depend on Feast
+                                          service.
+                                        type: string
+                                      name:
+                                        description: The name of the PersistenceVolumeClaim
+                                          to be created, or reused it is already there
+                                        type: string
+                                      storage:
+                                        anyOf:
+                                        - type: integer
+                                        - type: string
+                                        description: |-
+                                          Default value depend on Feast service.
+                                          Only for newly created PVC.
+                                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                        x-kubernetes-int-or-string: true
+                                      storageClassName:
+                                        description: |-
+                                          Name of the StorageClass required by the claim.
+                                          Only for newly created PVC.
+                                        type: string
+                                    type: object
+                                  s3_additional_kwargs:
+                                    additionalProperties:
+                                      type: string
+                                    type: object
+                                type: object
+                                x-kubernetes-validations:
+                                - message: Ephemeral stores must have absolute paths.
+                                  rule: '!has(self.pvc) ? (self.path.startsWith(''/'')
+                                    || self.path.startsWith(''s3://'') || self.path.startsWith(''gs://''))
+                                    : true'
+                                - message: PVC path must be a file name only, with
+                                    no slashes.
+                                  rule: 'has(self.pvc) ? !self.path.startsWith(''/'')
+                                    : true'
+                                - message: PVC persistence does not support S3 or
+                                    GS buckets.
+                                  rule: 'has(self.pvc) ? !(self.path.startsWith(''s3://'')
+                                    || self.path.startsWith(''gs://'')) : true'
+                                - message: Additional S3 settings are available only
+                                    for S3 buckets.
+                                  rule: 'has(self.s3_additional_kwargs) ? self.path.startsWith(''s3://'')
+                                    : true'
+                              store:
+                                properties:
+                                  secretRef:
+                                    description: |-
+                                      LocalObjectReference contains enough information to let you locate the
+                                      referenced object inside the same namespace.
+                                    properties:
+                                      name:
+                                        description: |-
+                                          Name of the referent.
+                                          More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                          TODO: Add other useful fields. apiVersion, kind, uid?
+                                        type: string
+                                    type: object
+                                    x-kubernetes-map-type: atomic
+                                  type:
+                                    enum:
+                                    - sql
+                                    - snowflake
+                                    type: string
+                                required:
+                                - type
+                                type: object
+                            type: object
+                            x-kubernetes-validations:
+                            - message: One file or store persistence is allowed.
+                              rule: '!(has(self.file) && has(self.store))'
+                            - message: Either file or store persistence are required.
+                              rule: has(self.file) || has(self.store)
+                        type: object
+                    type: object
                 required:
                 - feastProject
                 type: object

@@ -1,0 +1,34 @@
+apiVersion: feast.dev/v1alpha1
+kind: FeatureStore
+metadata:
+  name: sample-pvc-persistence
+spec:
+  feastProject: my_project
+  services:
+    onlineStore:
+      persistence:
+        file:
+          path: online_store.db
+          pvc:
+            name: online-pvc
+            storageClassName: standard
+            storage: 10Gi
+            mountPath: /data/online
+    offlineStore:
+      persistence:
+        file:
+          type: duckdb
+          pvc:
+            name: offline-pvc
+            storageClassName: standard
+            storage: 20Gi
+            mountPath: /data/offline
+    registry:
+      persistence:
+        file:
+          path: registry.db
+          pvc:
+            name: registry-pvc
+            storageClassName: gp2
+            storage: 1Gi
+            mountPath: /data/registry
