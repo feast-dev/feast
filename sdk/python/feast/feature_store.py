@@ -640,7 +640,10 @@ class FeatureStore:
                 )
 
         for odfv in odfvs_to_update:
-            odfv.infer_features()
+            try:
+                odfv.infer_features()
+            except Exception as _:
+                odfv.infer_features(use_lists=False)
 
         odfvs_to_write = [
             odfv for odfv in odfvs_to_update if odfv.write_to_online_store

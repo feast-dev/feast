@@ -126,12 +126,8 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
             )
             def python_view(inputs: dict[str, Any]) -> dict[str, Any]:
                 output: dict[str, Any] = {
-                    "conv_rate_plus_acc_python": [
-                        conv_rate + acc_rate
-                        for conv_rate, acc_rate in zip(
-                            inputs["conv_rate"], inputs["acc_rate"]
-                        )
-                    ]
+                    "conv_rate_plus_acc_python": inputs["conv_rate"]
+                    + inputs["acc_rate"]
                 }
                 return output
 
@@ -225,9 +221,9 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
             ]
             assert driver_stats_entity_less_fv.entity_columns == [DUMMY_ENTITY_FIELD]
 
-            assert len(self.store.list_all_feature_views()) == 6
+            assert len(self.store.list_all_feature_views()) == 7
             assert len(self.store.list_feature_views()) == 2
-            assert len(self.store.list_on_demand_feature_views()) == 4
+            assert len(self.store.list_on_demand_feature_views()) == 5
             assert len(self.store.list_stream_feature_views()) == 0
 
     def test_setup(self):

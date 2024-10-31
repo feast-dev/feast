@@ -621,10 +621,9 @@ class OnDemandFeatureView(BaseFeatureView):
             del output_dict[feature_name]
         return output_dict
 
-    def infer_features(self) -> None:
-        inferred_features = self.feature_transformation.infer_features(
-            self._construct_random_input()
-        )
+    def infer_features(self, use_lists=True) -> None:
+        random_input = self._construct_random_input(use_lists)
+        inferred_features = self.feature_transformation.infer_features(random_input)
 
         if self.features:
             missing_features = []
@@ -644,8 +643,10 @@ class OnDemandFeatureView(BaseFeatureView):
                 f"Could not infer Features for the feature view '{self.name}'.",
             )
 
-    def _construct_random_input(self) -> dict[str, list[Any]]:
-        rand_dict_value: dict[ValueType, list[Any]] = {
+    def _construct_random_input(
+        self, use_lists: bool = True
+    ) -> dict[str, Union[list[Any], Any]]:
+        rand_dict_value: dict[ValueType, Union[list[Any], Any]] = {
             ValueType.BYTES: [str.encode("hello world")],
             ValueType.STRING: ["hello world"],
             ValueType.INT32: [1],
@@ -663,20 +664,25 @@ class OnDemandFeatureView(BaseFeatureView):
             ValueType.BOOL_LIST: [[True]],
             ValueType.UNIX_TIMESTAMP_LIST: [[_utc_now()]],
         }
+        if not use_lists:
+            rand_dict_value = {k: rand_dict_value[k][0] for k in rand_dict_value}
 
+        rand_missing_value = [None] if use_lists else None
         feature_dict = {}
         for feature_view_projection in self.source_feature_view_projections.values():
             for feature in feature_view_projection.features:
                 feature_dict[f"{feature_view_projection.name}__{feature.name}"] = (
-                    rand_dict_value.get(feature.dtype.to_value_type(), [None])
+                    rand_dict_value.get(
+                        feature.dtype.to_value_type(), rand_missing_value
+                    )
                 )
                 feature_dict[f"{feature.name}"] = rand_dict_value.get(
-                    feature.dtype.to_value_type(), [None]
+                    feature.dtype.to_value_type(), rand_missing_value
                 )
         for request_data in self.source_request_sources.values():
             for field in request_data.schema:
                 feature_dict[f"{field.name}"] = rand_dict_value.get(
-                    field.dtype.to_value_type(), [None]
+                    field.dtype.to_value_type(), rand_missing_value
                 )
 
         return feature_dict
