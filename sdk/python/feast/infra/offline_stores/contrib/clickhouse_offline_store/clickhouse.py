@@ -338,6 +338,37 @@ def _df_to_create_table_schema(entity_df: pd.DataFrame) -> str:
     return ", ".join(columns)
 
 
+def arrow_to_ch_type(t_str: str, nullable: bool) -> str:
+    list_pattern = r"list<item: (.*)>"
+    list_res = re.search(list_pattern, t_str)
+    if list_res is not None:
+        item_type_str = list_res.group(1)
+        return f"Array({arrow_to_ch_type(item_type_str, nullable)})"
+
+    if nullable:
+        return f"Nullable({arrow_to_ch_type(t_str, nullable=False)})"
+
+    try:
+        if t_str.startswith("timestamp"):
+            return _arrow_to_ch_timestamp_type(t_str)
+        return {
+            "bool": "Boolean",
+            "int8": "Int8",
+            "int16": "Int16",
+            "int32": "Int32",
+            "int64": "Int64",
+            "uint8": "UInt8",
+            "uint16": "UInt16",
+            "uint32": "UInt32",
+            "uint64": "Uint64",
+            "float": "Float32",
+            "double": "Float64",
+            "string": "String",
+        }[t_str]
+    except KeyError:
+        raise ValueError(f"Unsupported type: {t_str}")
+
+
 def _arrow_to_ch_timestamp_type(t_str: str) -> str:
     _ARROW_PRECISION_TO_CH_PRECISION = {
         "s": 0,
@@ -377,37 +408,6 @@ def _arrow_to_ch_timestamp_type(t_str: str) -> str:
             return f"DateTime('{tz}')"
         else:
             return "DateTime"
-
-
-def arrow_to_ch_type(t_str: str, nullable: bool) -> str:
-    list_pattern = r"list<item: (.*)>"
-    list_res = re.search(list_pattern, t_str)
-    if list_res is not None:
-        item_type_str = list_res.group(1)
-        return f"Array({arrow_to_ch_type(item_type_str, nullable)})"
-
-    if nullable:
-        return f"Nullable({arrow_to_ch_type(t_str, nullable=False)})"
-
-    try:
-        if t_str.startswith("timestamp"):
-            return _arrow_to_ch_timestamp_type(t_str)
-        return {
-            "bool": "Boolean",
-            "int8": "Int8",
-            "int16": "Int16",
-            "int32": "Int32",
-            "int64": "Int64",
-            "uint8": "UInt8",
-            "uint16": "UInt16",
-            "uint32": "UInt32",
-            "uint64": "Uint64",
-            "float": "Float32",
-            "double": "Float64",
-            "string": "String",
-        }[t_str]
-    except KeyError:
-        raise ValueError(f"Unsupported type: {t_str}")
 
 
 def _append_alias(field_names: List[str], alias: str) -> List[str]:
