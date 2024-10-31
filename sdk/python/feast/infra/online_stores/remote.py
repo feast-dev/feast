@@ -42,8 +42,8 @@ class RemoteOnlineStoreConfig(FeastConfigBaseModel):
     If type is 'remote', then this is a URL for registry server """
 
     cert: StrictStr = ""
-    """ str: Path to the public certificate when the online server starts in SSL mode. This may be needed if the online server started with a self-signed certificate, typically this file ends with `*.crt`, `*.cer`, or `*.pem`.
-    If type is 'remote', then this configuration is needed to connect to remote online server in SSL mode. """
+    """ str: Path to the public certificate when the online server starts in TLS(SSL) mode. This may be needed if the online server started with a self-signed certificate, typically this file ends with `*.crt`, `*.cer`, or `*.pem`.
+    If type is 'remote', then this configuration is needed to connect to remote online server in TLS mode. """
 
 
 class RemoteOnlineStore(OnlineStore):
