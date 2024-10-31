@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, Literal, Optional
+from typing import Dict, Optional
 
 import pandas as pd
 import pytest
@@ -15,7 +15,6 @@ from feast.infra.offline_stores.contrib.clickhouse_offline_store.clickhouse impo
 from feast.infra.offline_stores.contrib.clickhouse_offline_store.clickhouse_source import (
     ClickhouseSource,
 )
-from feast.infra.utils.clickhouse.clickhouse_config import ClickhouseConfig
 from tests.integration.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
 )
@@ -26,12 +25,6 @@ CLICKHOUSE_USER = "default"
 CLICKHOUSE_PASSWORD = "password"
 CLICKHOUSE_OFFLINE_DB = "default"
 CLICKHOUSE_ONLINE_DB = "default_online"
-
-
-class ClickhouseOnlineStoreConfig(ClickhouseConfig):
-    type: Literal[
-        "feast.infra.offline_stores.contrib.clickhouse_offline_store.clickhouse.ClickhouseOfflineStore"
-    ] = "feast.infra.offline_stores.contrib.clickhouse_offline_store.clickhouse.ClickhouseOfflineStore"
 
 
 @pytest.fixture(scope="session")
