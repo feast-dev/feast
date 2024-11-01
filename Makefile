@@ -560,6 +560,9 @@ install-go-ci-dependencies:
 build-go: compile-protos-go
 	go build -o feast ./go/main.go
 
+install-feast-ci-locally:
+	pip install -e ".[ci]"
+
 test-go: compile-protos-go compile-protos-python install-feast-ci-locally
 	CGO_ENABLED=1 go test -coverprofile=coverage.out ./... && go tool cover -html=coverage.out -o coverage.html
 
