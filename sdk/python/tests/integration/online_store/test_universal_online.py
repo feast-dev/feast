@@ -623,7 +623,7 @@ def test_online_retrieval_success(feature_store_for_online_retrieval):
 
 
 @pytest.mark.integration
-@pytest.mark.universal_online_stores(only=["milvus"])
+@pytest.mark.universal_online_stores(only=["eg-milvus"])
 def test_write_vectors_to_online_store(environment, universal_data_sources):
     fs = environment.feature_store
     entities, datasets, data_sources = universal_data_sources

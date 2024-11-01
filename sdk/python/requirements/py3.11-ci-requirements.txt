@@ -655,7 +655,7 @@ pyjwt[crypto]==2.9.0
     #   msal
     #   singlestoredb
     #   snowflake-connector-python
-pymilvus==2.4.6
+pymilvus==2.4.9
     # via eg-feast (setup.py)
 pymssql==2.3.1
     # via eg-feast (setup.py)
@@ -879,7 +879,7 @@ terminado==0.18.1
     # via
     #   jupyter-server
     #   jupyter-server-terminals
-testcontainers==4.4.0
+testcontainers==4.8.2
     # via eg-feast (setup.py)
 thriftpy2==0.5.2
     # via happybase

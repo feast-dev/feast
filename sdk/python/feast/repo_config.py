@@ -65,7 +65,7 @@ ONLINE_STORE_CLASS_FOR_TYPE = {
     "scylladb": "feast.infra.online_stores.contrib.cassandra_online_store.cassandra_online_store.CassandraOnlineStore",
     "mysql": "feast.infra.online_stores.contrib.mysql_online_store.mysql.MySQLOnlineStore",
     "hazelcast": "feast.infra.online_stores.contrib.hazelcast_online_store.hazelcast_online_store.HazelcastOnlineStore",
-    "milvus": "feast.expediagroup.vectordb.milvus_online_store.MilvusOnlineStore",
+    "eg-milvus": "feast.expediagroup.vectordb.eg_milvus_online_store.EGMilvusOnlineStore",
     "elasticsearch": "feast.expediagroup.vectordb.elasticsearch_online_store.ElasticsearchOnlineStore",
     "ikv": "feast.infra.online_stores.contrib.ikv_online_store.ikv.IKVOnlineStore",
     # "elasticsearch": "feast.infra.online_stores.contrib.elasticsearch.ElasticSearchOnlineStore",

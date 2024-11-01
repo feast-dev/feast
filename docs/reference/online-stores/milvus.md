@@ -13,7 +13,7 @@ Features:
 
 ## Getting started
 In order to use this online store, you'll need to install the milvus extra:
-- `pip install 'feast[milvus]'`
+- `pip install 'feast[eg-milvus]'`
 
 ## Example
 

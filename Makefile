@@ -119,7 +119,7 @@ test-milvus-integration-local:
 		FEAST_IS_LOCAL_TEST=True \
 		FEAST_LOCAL_ONLINE_CONTAINER=True \
 		python -m pytest -n 8 --integration \
-			-k "milvus" \
+			-k "eg-milvus" \
 		sdk/python/tests \
 	) || echo "This script uses Docker, and it isn't running - please start the Docker Daemon and try again!";
 

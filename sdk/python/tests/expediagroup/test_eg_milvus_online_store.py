@@ -15,10 +15,10 @@ from pymilvus import (
 
 from feast import FeatureView
 from feast.entity import Entity
-from feast.expediagroup.vectordb.milvus_online_store import (
-    MilvusConnectionManager,
-    MilvusOnlineStore,
-    MilvusOnlineStoreConfig,
+from feast.expediagroup.vectordb.eg_milvus_online_store import (
+    EGMilvusConnectionManager,
+    EGMilvusOnlineStore,
+    EGMilvusOnlineStoreConfig,
 )
 from feast.field import Field
 from feast.infra.offline_stores.dask import DaskOfflineStoreConfig
@@ -28,7 +28,7 @@ from feast.protos.feast.types.Value_pb2 import FloatList
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RepoConfig
 from feast.types import Array, Bytes, Float32, Int64, String
-from tests.expediagroup.milvus_online_store_creator import MilvusOnlineStoreCreator
+from tests.expediagroup.eg_milvus_online_store_creator import EGMilvusOnlineStoreCreator
 
 logging.basicConfig(level=logging.INFO)
 
@@ -52,7 +52,7 @@ def repo_config(embedded_milvus):
         registry=REGISTRY,
         project=PROJECT,
         provider=PROVIDER,
-        online_store=MilvusOnlineStoreConfig(
+        online_store=EGMilvusOnlineStoreConfig(
             alias=embedded_milvus["alias"],
             host=embedded_milvus["host"],
             port=embedded_milvus["port"],
@@ -67,7 +67,7 @@ def repo_config(embedded_milvus):
 @pytest.fixture(scope="session")
 def embedded_milvus():
     # Creating an online store through embedded Milvus for all tests in the class
-    online_store_creator = MilvusOnlineStoreCreator("milvus")
+    online_store_creator = EGMilvusOnlineStoreCreator("milvus")
     online_store_config = online_store_creator.create_online_store()
 
     yield online_store_config
@@ -79,7 +79,7 @@ def embedded_milvus():
 class TestMilvusConnectionManager:
     def test_connection_manager(self, repo_config, caplog, mocker):
         mocker.patch("pymilvus.connections.connect")
-        with MilvusConnectionManager(repo_config.online_store):
+        with EGMilvusConnectionManager(repo_config.online_store):
             assert (
                 f"Connecting to Milvus with alias {repo_config.online_store.alias} and host {repo_config.online_store.host} and port {repo_config.online_store.port}."
                 in caplog.text
@@ -100,17 +100,17 @@ class TestMilvusConnectionManager:
 
         # Create a mock logger to capture log calls
         mock_logger = mocker.patch(
-            "feast.expediagroup.vectordb.milvus_online_store.logger", autospec=True
+            "feast.expediagroup.vectordb.eg_milvus_online_store.logger", autospec=True
         )
 
-        with MilvusConnectionManager(repo_config.online_store):
+        with EGMilvusConnectionManager(repo_config.online_store):
             print("Doing something")
 
         # Assert that connections.disconnect was called with the expected argument
         mock_disconnect.assert_called_once_with(repo_config.online_store.alias)
 
         with pytest.raises(Exception):
-            with MilvusConnectionManager(repo_config.online_store):
+            with EGMilvusConnectionManager(repo_config.online_store):
                 raise Exception("Test Exception")
         mock_logger.error.assert_called_once()
 
@@ -123,7 +123,7 @@ class TestMilvusOnlineStore:
     @pytest.fixture(autouse=True)
     def setup_method(self, repo_config):
         # Ensuring that the collections created are dropped before the tests are run
-        with MilvusConnectionManager(repo_config.online_store):
+        with EGMilvusConnectionManager(repo_config.online_store):
             # Dropping collections if they exist
             if utility.has_collection(self.collection_to_delete):
                 utility.drop_collection(self.collection_to_delete)
@@ -251,7 +251,7 @@ class TestMilvusOnlineStore:
             ),
         ]
 
-        MilvusOnlineStore().update(
+        EGMilvusOnlineStore().update(
             config=repo_config,
             tables_to_delete=[],
             tables_to_keep=[
@@ -309,7 +309,7 @@ class TestMilvusOnlineStore:
         )
 
         # Here we want to open and check whether the collection was added and then close the connection.
-        with MilvusConnectionManager(repo_config.online_store):
+        with EGMilvusConnectionManager(repo_config.online_store):
             assert utility.has_collection(self.collection_to_write)
             assert (
                 Collection(self.collection_to_write).schema == schema1
@@ -342,7 +342,7 @@ class TestMilvusOnlineStore:
 
         self._create_collection_in_milvus(self.collection_to_write, repo_config)
 
-        MilvusOnlineStore().update(
+        EGMilvusOnlineStore().update(
             config=repo_config,
             tables_to_delete=[],
             tables_to_keep=[
@@ -359,7 +359,7 @@ class TestMilvusOnlineStore:
         )
 
         # Here we want to open and add a collection using pymilvus directly and close the connection, we need to check if the collection count remains 1 and exists.
-        with MilvusConnectionManager(repo_config.online_store):
+        with EGMilvusConnectionManager(repo_config.online_store):
             assert utility.has_collection(self.collection_to_write) is True
             assert len(utility.list_collections()) == 1
 
@@ -397,11 +397,11 @@ class TestMilvusOnlineStore:
         )
 
         # Here we want to open and add a collection using pymilvus directly and close the connection
-        with MilvusConnectionManager(repo_config.online_store):
+        with EGMilvusConnectionManager(repo_config.online_store):
             Collection(name=self.collection_to_write, schema=schema)
             assert utility.has_collection(self.collection_to_write) is True
 
-        MilvusOnlineStore().update(
+        EGMilvusOnlineStore().update(
             config=repo_config,
             tables_to_delete=[
                 FeatureView(
@@ -418,7 +418,7 @@ class TestMilvusOnlineStore:
         )
 
         # Opening and closing the connection and checking if the collection is actually deleted.
-        with MilvusConnectionManager(repo_config.online_store):
+        with EGMilvusConnectionManager(repo_config.online_store):
             assert utility.has_collection(self.collection_to_write) is False
 
     def test_milvus_update_delete_unavailable_collection(self, repo_config, caplog):
@@ -441,7 +441,7 @@ class TestMilvusOnlineStore:
             ),
         ]
 
-        MilvusOnlineStore().update(
+        EGMilvusOnlineStore().update(
             config=repo_config,
             tables_to_delete=[
                 FeatureView(
@@ -457,7 +457,7 @@ class TestMilvusOnlineStore:
             partial=None,
         )
 
-        with MilvusConnectionManager(repo_config.online_store):
+        with EGMilvusConnectionManager(repo_config.online_store):
             assert len(utility.list_collections()) == 0
 
     def test_milvus_online_write_batch(self, repo_config, caplog):
@@ -489,11 +489,11 @@ class TestMilvusOnlineStore:
 
         total_rows_to_write = 100
         data = self._create_n_customer_test_samples_milvus(n=total_rows_to_write)
-        MilvusOnlineStore().online_write_batch(
+        EGMilvusOnlineStore().online_write_batch(
             config=repo_config, table=feature_view, data=data, progress=None
         )
 
-        with MilvusConnectionManager(repo_config.online_store):
+        with EGMilvusConnectionManager(repo_config.online_store):
             collection = Collection(name=self.collection_to_write)
             progress = utility.index_building_progress(collection_name=collection.name)
             assert progress["total_rows"] == total_rows_to_write
@@ -506,12 +506,12 @@ class TestMilvusOnlineStore:
             source=SOURCE,
         )
 
-        milvus_online_store = MilvusOnlineStore()
+        milvus_online_store = EGMilvusOnlineStore()
         milvus_online_store.teardown(
             config=repo_config, tables=[feature_view], entities=[]
         )
 
-        with MilvusConnectionManager(repo_config.online_store):
+        with EGMilvusConnectionManager(repo_config.online_store):
             assert not utility.has_collection(self.collection_to_write)
 
     def test_milvus_teardown_with_non_empty_collection(self, repo_config, caplog):
@@ -526,12 +526,12 @@ class TestMilvusOnlineStore:
         data = self._create_n_customer_test_samples_milvus(n=total_rows_to_write)
         self._write_data_to_milvus(self.collection_to_write, data, repo_config)
 
-        milvus_online_store = MilvusOnlineStore()
+        milvus_online_store = EGMilvusOnlineStore()
         milvus_online_store.teardown(
             config=repo_config, tables=[feature_view], entities=[]
         )
 
-        with MilvusConnectionManager(repo_config.online_store):
+        with EGMilvusConnectionManager(repo_config.online_store):
             assert not utility.has_collection(self.collection_to_write)
 
     def test_milvus_teardown_with_collection_not_existing(self, repo_config, caplog):
@@ -540,12 +540,12 @@ class TestMilvusOnlineStore:
             source=SOURCE,
         )
 
-        milvus_online_store = MilvusOnlineStore()
+        milvus_online_store = EGMilvusOnlineStore()
         milvus_online_store.teardown(
             config=repo_config, tables=[feature_view], entities=[]
         )
 
-        with MilvusConnectionManager(repo_config.online_store):
+        with EGMilvusConnectionManager(repo_config.online_store):
             assert not utility.has_collection(self.collection_to_write)
 
     def _create_collection_in_milvus(self, collection_name, repo_config):
@@ -565,7 +565,7 @@ class TestMilvusOnlineStore:
             ]
         )
 
-        with MilvusConnectionManager(repo_config.online_store):
+        with EGMilvusConnectionManager(repo_config.online_store):
             # Create a collection
             collection = Collection(name=self.collection_to_write, schema=milvus_schema)
             # Drop all indexes if any exists
@@ -579,9 +579,9 @@ class TestMilvusOnlineStore:
             collection.create_index("avg_orders_day", index_params)
 
     def _write_data_to_milvus(self, collection_name, data, repo_config):
-        with MilvusConnectionManager(repo_config.online_store):
+        with EGMilvusConnectionManager(repo_config.online_store):
             collection_to_load_data = Collection(collection_name)
-            rows = MilvusOnlineStore()._format_data_for_milvus(
+            rows = EGMilvusOnlineStore()._format_data_for_milvus(
                 data, collection_to_load_data
             )
             collection_to_load_data.insert(rows)
@@ -605,7 +605,7 @@ class TestMilvusOnlineStore:
             ]
         )
 
-        with MilvusConnectionManager(repo_config.online_store):
+        with EGMilvusConnectionManager(repo_config.online_store):
             # Create a collection
             collection = Collection(name=self.collection_to_write, schema=schema)
             # Drop all indexes if any exists
@@ -647,7 +647,7 @@ class TestMilvusOnlineStore:
         entity_keys, features, *rest = zip(*film_data_with_entity_keys)
         feature_list = ["film_date", "films", "film_id"]
 
-        result = MilvusOnlineStore().online_read(
+        result = EGMilvusOnlineStore().online_read(
             config=repo_config,
             table=FeatureView(
                 name=self.collection_to_write, schema=feast_schema, source=SOURCE

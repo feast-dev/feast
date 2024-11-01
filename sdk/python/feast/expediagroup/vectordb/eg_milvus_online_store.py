@@ -53,10 +53,10 @@ MAX_SEARCH_SIZE = 16_384
 BATCH_SIZE = 10_000
 
 
-class MilvusOnlineStoreConfig(FeastConfigBaseModel):
+class EGMilvusOnlineStoreConfig(FeastConfigBaseModel):
     """Online store config for the Milvus online store"""
 
-    type: Literal["milvus"] = "milvus"
+    type: Literal["eg-milvus"] = "eg-milvus"
     """Online store type selector"""
 
     alias: str = "default"
@@ -75,7 +75,7 @@ class MilvusOnlineStoreConfig(FeastConfigBaseModel):
     """ the port to connect to a Milvus instance. Should be the one used for GRPC (default: 19530) """
 
 
-class MilvusConnectionManager:
+class EGMilvusConnectionManager:
     def __init__(self, online_config: RepoConfig):
         self.online_config = online_config
 
@@ -107,7 +107,7 @@ class MilvusConnectionManager:
             print(f"An exception of type {exc_type} occurred: {exc_value}")
 
 
-class MilvusOnlineStore(OnlineStore):
+class EGMilvusOnlineStore(OnlineStore):
     def online_write_batch(
         self,
         config: RepoConfig,
@@ -117,7 +117,7 @@ class MilvusOnlineStore(OnlineStore):
         ],
         progress: Optional[Callable[[int], Any]],
     ) -> None:
-        with MilvusConnectionManager(config.online_store):
+        with EGMilvusConnectionManager(config.online_store):
             self._create_collection_if_not_exists(table)
             print("Starting the process to batch write data into Milvus.")
             collection_to_load_data = Collection(table.name)
@@ -139,7 +139,7 @@ class MilvusOnlineStore(OnlineStore):
         entity_keys: List[EntityKeyProto],
         requested_features: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
-        with MilvusConnectionManager(config.online_store):
+        with EGMilvusConnectionManager(config.online_store):
             quer_expr = self._construct_milvus_query(entity_keys)
             use_iter_search = len(entity_keys) > MAX_SEARCH_SIZE
             collection = Collection(table.name)
@@ -179,7 +179,7 @@ class MilvusOnlineStore(OnlineStore):
         entities_to_keep: Sequence[Entity],
         partial: bool,
     ):
-        with MilvusConnectionManager(config.online_store):
+        with EGMilvusConnectionManager(config.online_store):
             for table_to_keep in tables_to_keep:
                 self._create_collection_if_not_exists(table_to_keep)
 
@@ -204,7 +204,7 @@ class MilvusOnlineStore(OnlineStore):
         tables: Sequence[FeatureView],
         entities: Sequence[Entity],
     ):
-        with MilvusConnectionManager(config.online_store):
+        with EGMilvusConnectionManager(config.online_store):
             for table in tables:
                 collection_name = table.name
                 if utility.has_collection(collection_name):

@@ -140,7 +140,7 @@ HAZELCAST_REQUIRED = [
 ]
 
 
-MILVUS_REQUIRED = ["pymilvus>=2.3.0", "bidict==0.22.1"]
+EG_MILVUS_REQUIRED = ["pymilvus>=2.4.4", "bidict==0.22.1"]
 
 # TODO: EG Implemented. Make decision on EG vs OpenSource
 # ELASTICSEARCH_REQUIRED = [
@@ -169,7 +169,7 @@ SINGLESTORE_REQUIRED = ["singlestoredb"]
 MSSQL_REQUIRED = ["ibis-framework[mssql]>=9.0.0,<10"]
 
 CI_REQUIRED = (
-    [
+        [
         "build",
         "virtualenv==20.23.0",
         "cryptography>=35.0,<43",
@@ -197,7 +197,7 @@ CI_REQUIRED = (
         "pytest-mock==1.10.4",
         "pytest-env",
         "Sphinx>4.0.0,<7",
-        "testcontainers==4.4.0",
+        "testcontainers==4.8.2",
         "python-keycloak==4.2.2",
         "pre-commit<3.3.2",
         "assertpy==1.1",
@@ -213,29 +213,29 @@ CI_REQUIRED = (
         "types-tabulate",
         "virtualenv<20.24.2",
     ]
-    + GCP_REQUIRED
-    + REDIS_REQUIRED
-    + AWS_REQUIRED
-    + KUBERNETES_REQUIRED
-    + SNOWFLAKE_REQUIRED
-    + SPARK_REQUIRED
-    + POSTGRES_REQUIRED
-    + MYSQL_REQUIRED
-    + TRINO_REQUIRED
-    + GE_REQUIRED
-    + HBASE_REQUIRED
-    + CASSANDRA_REQUIRED
-    + AZURE_REQUIRED
-    + HAZELCAST_REQUIRED
-    + MILVUS_REQUIRED
-    + IBIS_REQUIRED
-    + GRPCIO_REQUIRED
-    + DUCKDB_REQUIRED
-    + DELTA_REQUIRED
-    + ELASTICSEARCH_REQUIRED
-    + SQLITE_VEC_REQUIRED
-    + SINGLESTORE_REQUIRED
-    + OPENTELEMETRY
+        + GCP_REQUIRED
+        + REDIS_REQUIRED
+        + AWS_REQUIRED
+        + KUBERNETES_REQUIRED
+        + SNOWFLAKE_REQUIRED
+        + SPARK_REQUIRED
+        + POSTGRES_REQUIRED
+        + MYSQL_REQUIRED
+        + TRINO_REQUIRED
+        + GE_REQUIRED
+        + HBASE_REQUIRED
+        + CASSANDRA_REQUIRED
+        + AZURE_REQUIRED
+        + HAZELCAST_REQUIRED
+        + EG_MILVUS_REQUIRED
+        + IBIS_REQUIRED
+        + GRPCIO_REQUIRED
+        + DUCKDB_REQUIRED
+        + DELTA_REQUIRED
+        + ELASTICSEARCH_REQUIRED
+        + SQLITE_VEC_REQUIRED
+        + SINGLESTORE_REQUIRED
+        + OPENTELEMETRY
 )
 
 DOCS_REQUIRED = CI_REQUIRED
@@ -488,7 +488,7 @@ setup(
         "duckdb": DUCKDB_REQUIRED,
         "ikv": IKV_REQUIRED,
         "delta": DELTA_REQUIRED,
-        "milvus": MILVUS_REQUIRED,
+        "eg-milvus": EG_MILVUS_REQUIRED,
         "go": GO_REQUIRED,
         "elasticsearch": ELASTICSEARCH_REQUIRED,
         "sqlite_vec": SQLITE_VEC_REQUIRED,
