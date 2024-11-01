@@ -343,6 +343,10 @@ def start_server(
     tls_cert_path: str,
     metrics: bool,
 ):
+    if (tls_key_path and not tls_cert_path) or (not tls_key_path and tls_cert_path):
+        raise ValueError(
+            "Both key and cert file paths are required to start server in TLS mode."
+        )
     if metrics:
         logger.info("Starting Prometheus Server")
         start_http_server(8000)
