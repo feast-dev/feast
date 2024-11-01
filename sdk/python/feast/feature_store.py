@@ -1288,6 +1288,9 @@ class FeatureStore:
                 f" from {Style.BRIGHT + Fore.GREEN}{start_date.replace(microsecond=0).astimezone()}{Style.RESET_ALL}"
                 f" to {Style.BRIGHT + Fore.GREEN}{end_date.replace(microsecond=0).astimezone()}{Style.RESET_ALL}:"
             )
+            logger.info(
+                f"Materializing {feature_view.name} from {start_date.astimezone()} to {end_date.astimezone()}"
+            )
 
             def tqdm_builder(length):
                 return tqdm(total=length, ncols=100)
@@ -1363,6 +1366,9 @@ class FeatureStore:
         for feature_view in feature_views_to_materialize:
             provider = self._get_provider()
             print(f"{Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}:")
+            logger.info(
+                f"Materializing {feature_view.name} from {start_date.astimezone()} to {end_date.astimezone()}"
+            )
 
             def tqdm_builder(length):
                 return tqdm(total=length, ncols=100)
