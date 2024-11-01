@@ -18,6 +18,8 @@ from feast.value_type import ValueType
 
 @typechecked
 class PostgreSQLSource(DataSource):
+    """A PostgreSQLSource object defines a data source that a PostgreSQLOfflineStore class can use."""
+
     def __init__(
         self,
         name: Optional[str] = None,
@@ -30,6 +32,24 @@ class PostgreSQLSource(DataSource):
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
     ):
+        """Creates a PostgreSQLSource object.
+
+        Args:
+            name: Name of PostgreSQLSource, which should be unique within a project.
+            query: SQL query that will be used to fetch the data.
+            table: Table name.
+            timestamp_field (optional): Event timestamp field used for point-in-time joins of
+                feature values.
+            created_timestamp_column (optional): Timestamp column indicating when the row
+                was created, used for deduplicating rows.
+            field_mapping (optional): A dictionary mapping of column names in this data
+                source to feature names in a feature table or view. Only used for feature
+                columns, not entity or timestamp columns.
+            description (optional): A human-readable description.
+            tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
+            owner (optional): The owner of the data source, typically the email of the primary
+                maintainer.
+        """
         self._postgres_options = PostgreSQLOptions(name=name, query=query, table=table)
 
         # If no name, use the table as the default name.
