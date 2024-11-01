@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
+	//"os"
 	"runtime"
 	"strconv"
-	"strings"
+	//"strings"
 	"time"
 
 	"github.com/feast-dev/feast/go/internal/feast"
@@ -19,8 +19,8 @@ import (
 	prototypes "github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/feast-dev/feast/go/types"
 	"github.com/rs/zerolog/log"
-	httptrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/net/http"
-	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
+	//httptrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/net/http"
+	//"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 )
 
 type httpServer struct {
@@ -149,10 +149,11 @@ func NewHttpServer(fs *feast.FeatureStore, loggingService *logging.LoggingServic
 func (s *httpServer) getOnlineFeatures(w http.ResponseWriter, r *http.Request) {
 	var err error
 
-	span, ctx := tracer.StartSpanFromContext(r.Context(), "getOnlineFeatures", tracer.ResourceName("/get-online-features"))
-	defer span.Finish(tracer.WithError(err))
+	ctx := r.Context()
+	//span, ctx := tracer.StartSpanFromContext(r.Context(), "getOnlineFeatures", tracer.ResourceName("/get-online-features"))
+	//defer span.Finish(tracer.WithError(err))
 
-	logSpanContext := LogWithSpanContext(span)
+	//logSpanContext := LogWithSpanContext(span)
 
 	if r.Method != "POST" {
 		http.NotFound(w, r)
@@ -165,7 +166,7 @@ func (s *httpServer) getOnlineFeatures(w http.ResponseWriter, r *http.Request) {
 	if statusQuery != "" {
 		status, err = strconv.ParseBool(statusQuery)
 		if err != nil {
-			logSpanContext.Error().Err(err).Msg("Error parsing status query parameter")
+			//logSpanContext.Error().Err(err).Msg("Error parsing status query parameter")
 			writeJSONError(w, fmt.Errorf("Error parsing status query parameter: %+v", err), http.StatusBadRequest)
 			return
 		}
@@ -175,7 +176,7 @@ func (s *httpServer) getOnlineFeatures(w http.ResponseWriter, r *http.Request) {
 	var request getOnlineFeaturesRequest
 	err = decoder.Decode(&request)
 	if err != nil {
-		logSpanContext.Error().Err(err).Msg("Error decoding JSON request data")
+		//logSpanContext.Error().Err(err).Msg("Error decoding JSON request data")
 		writeJSONError(w, fmt.Errorf("Error decoding JSON request data: %+v", err), http.StatusInternalServerError)
 		return
 	}
@@ -183,7 +184,7 @@ func (s *httpServer) getOnlineFeatures(w http.ResponseWriter, r *http.Request) {
 	if request.FeatureService != nil {
 		featureService, err = s.fs.GetFeatureService(*request.FeatureService)
 		if err != nil {
-			logSpanContext.Error().Err(err).Msg("Error getting feature service from registry")
+			//logSpanContext.Error().Err(err).Msg("Error getting feature service from registry")
 			writeJSONError(w, fmt.Errorf("Error getting feature service from registry: %+v", err), http.StatusInternalServerError)
 			return
 		}
@@ -206,7 +207,7 @@ func (s *httpServer) getOnlineFeatures(w http.ResponseWriter, r *http.Request) {
 		request.FullFeatureNames)
 
 	if err != nil {
-		logSpanContext.Error().Err(err).Msg("Error getting feature vector")
+		//logSpanContext.Error().Err(err).Msg("Error getting feature vector")
 		writeJSONError(w, fmt.Errorf("Error getting feature vector: %+v", err), http.StatusInternalServerError)
 		return
 	}
@@ -248,7 +249,7 @@ func (s *httpServer) getOnlineFeatures(w http.ResponseWriter, r *http.Request) {
 	err = json.NewEncoder(w).Encode(response)
 
 	if err != nil {
-		logSpanContext.Error().Err(err).Msg("Error encoding response")
+		//logSpanContext.Error().Err(err).Msg("Error encoding response")
 		writeJSONError(w, fmt.Errorf("Error encoding response: %+v", err), http.StatusInternalServerError)
 		return
 	}
@@ -256,7 +257,7 @@ func (s *httpServer) getOnlineFeatures(w http.ResponseWriter, r *http.Request) {
 	if featureService != nil && featureService.LoggingConfig != nil && s.loggingService != nil {
 		logger, err := s.loggingService.GetOrCreateLogger(featureService)
 		if err != nil {
-			logSpanContext.Error().Err(err).Msgf("Couldn't instantiate logger for feature service %s", featureService.Name)
+			//logSpanContext.Error().Err(err).Msgf("Couldn't instantiate logger for feature service %s", featureService.Name)
 			writeJSONError(w, fmt.Errorf("Couldn't instantiate logger for feature service %s: %+v", featureService.Name, err), http.StatusInternalServerError)
 			return
 		}
@@ -269,7 +270,7 @@ func (s *httpServer) getOnlineFeatures(w http.ResponseWriter, r *http.Request) {
 		for _, vector := range featureVectors[len(request.Entities):] {
 			values, err := types.ArrowValuesToProtoValues(vector.Values)
 			if err != nil {
-				logSpanContext.Error().Err(err).Msg("Couldn't convert arrow values into protobuf")
+				//logSpanContext.Error().Err(err).Msg("Couldn't convert arrow values into protobuf")
 				writeJSONError(w, fmt.Errorf("Couldn't convert arrow values into protobuf: %+v", err), http.StatusInternalServerError)
 				return
 			}
@@ -339,11 +340,12 @@ func recoverMiddleware(next http.Handler) http.Handler {
 }
 
 func (s *httpServer) Serve(host string, port int) error {
-	if strings.ToLower(os.Getenv("ENABLE_DATADOG_TRACING")) == "true" {
-		tracer.Start(tracer.WithRuntimeMetrics())
-		defer tracer.Stop()
-	}
-	mux := httptrace.NewServeMux()
+	// DD
+	//if strings.ToLower(os.Getenv("ENABLE_DATADOG_TRACING")) == "true" {
+	//	tracer.Start(tracer.WithRuntimeMetrics())
+	//	defer tracer.Stop()
+	//}
+	mux := http.NewServeMux()
 	mux.Handle("/get-online-features", recoverMiddleware(http.HandlerFunc(s.getOnlineFeatures)))
 	mux.HandleFunc("/health", healthCheckHandler)
 	s.server = &http.Server{Addr: fmt.Sprintf("%s:%d", host, port), Handler: mux, ReadTimeout: 5 * time.Second, WriteTimeout: 10 * time.Second, IdleTimeout: 15 * time.Second}

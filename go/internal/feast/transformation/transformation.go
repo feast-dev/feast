@@ -9,7 +9,7 @@ import (
 	"github.com/apache/arrow/go/v17/arrow"
 	"github.com/apache/arrow/go/v17/arrow/memory"
 	"github.com/rs/zerolog/log"
-	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
+	//"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 
 	"github.com/feast-dev/feast/go/internal/feast/model"
 	"github.com/feast-dev/feast/go/internal/feast/onlineserving"
@@ -38,8 +38,8 @@ func AugmentResponseWithOnDemandTransforms(
 	fullFeatureNames bool,
 
 ) ([]*onlineserving.FeatureVector, error) {
-	span, _ := tracer.StartSpanFromContext(ctx, "transformation.AugmentResponseWithOnDemandTransforms")
-	defer span.Finish()
+	//span, _ := tracer.StartSpanFromContext(ctx, "transformation.AugmentResponseWithOnDemandTransforms")
+	//defer span.Finish()
 
 	result := make([]*onlineserving.FeatureVector, 0)
 	var err error

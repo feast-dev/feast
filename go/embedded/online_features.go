@@ -7,11 +7,11 @@ import (
 	"net"
 	"os"
 	"os/signal"
-	"strings"
+	//"strings"
 	"syscall"
 	"time"
 
-	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
+	//"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 
 	"github.com/apache/arrow/go/v17/arrow"
 	"github.com/apache/arrow/go/v17/arrow/array"
@@ -32,7 +32,7 @@ import (
 	jsonlog "github.com/rs/zerolog/log"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
-	grpctrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/google.golang.org/grpc"
+	//grpctrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/google.golang.org/grpc"
 )
 
 type OnlineFeatureService struct {
@@ -302,10 +302,10 @@ func (s *OnlineFeatureService) constructLoggingService(writeLoggedFeaturesCallba
 // StartGrpcServerWithLogging starts gRPC server with enabled feature logging
 // Caller of this function must provide Python callback to flush buffered logs as well as logging configuration (loggingOpts)
 func (s *OnlineFeatureService) StartGrpcServerWithLogging(host string, port int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts LoggingOptions) error {
-	if strings.ToLower(os.Getenv("ENABLE_DATADOG_TRACING")) == "true" {
-		tracer.Start(tracer.WithRuntimeMetrics())
-		defer tracer.Stop()
-	}
+	//if strings.ToLower(os.Getenv("ENABLE_DATADOG_TRACING")) == "true" {
+	//	tracer.Start(tracer.WithRuntimeMetrics())
+	//	defer tracer.Stop()
+	//}
 
 	loggingService, err := s.constructLoggingService(writeLoggedFeaturesCallback, loggingOpts)
 	if err != nil {
@@ -318,7 +318,8 @@ func (s *OnlineFeatureService) StartGrpcServerWithLogging(host string, port int,
 		return err
 	}
 
-	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(grpctrace.UnaryServerInterceptor()))
+	//grpcServer := grpc.NewServer(grpc.UnaryInterceptor(grpctrace.UnaryServerInterceptor()))
+	grpcServer := grpc.NewServer()
 
 	serving.RegisterServingServiceServer(grpcServer, ser)
 	healthService := health.NewServer()

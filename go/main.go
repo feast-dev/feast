@@ -6,7 +6,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
-	"strings"
+	//"strings"
 	"syscall"
 
 	"github.com/feast-dev/feast/go/internal/feast"
@@ -19,8 +19,8 @@ import (
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
 
-	grpctrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/google.golang.org/grpc"
-	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
+	//grpctrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/google.golang.org/grpc"
+	//"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 )
 
 type ServerStarter interface {
@@ -111,10 +111,11 @@ func constructLoggingService(fs *feast.FeatureStore, writeLoggedFeaturesCallback
 
 // StartGprcServerWithLogging starts gRPC server with enabled feature logging
 func StartGrpcServer(fs *feast.FeatureStore, host string, port int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts *logging.LoggingOptions) error {
-	if strings.ToLower(os.Getenv("ENABLE_DATADOG_TRACING")) == "true" {
-		tracer.Start(tracer.WithRuntimeMetrics())
-		defer tracer.Stop()
-	}
+	// #DD
+	//if strings.ToLower(os.Getenv("ENABLE_DATADOG_TRACING")) == "true" {
+	//	tracer.Start(tracer.WithRuntimeMetrics())
+	//	defer tracer.Stop()
+	//}
 	loggingService, err := constructLoggingService(fs, writeLoggedFeaturesCallback, loggingOpts)
 	if err != nil {
 		return err
@@ -126,7 +127,7 @@ func StartGrpcServer(fs *feast.FeatureStore, host string, port int, writeLoggedF
 		return err
 	}
 
-	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(grpctrace.UnaryServerInterceptor()))
+	grpcServer := grpc.NewServer()
 	serving.RegisterServingServiceServer(grpcServer, ser)
 	healthService := health.NewServer()
 	grpc_health_v1.RegisterHealthServer(grpcServer, healthService)

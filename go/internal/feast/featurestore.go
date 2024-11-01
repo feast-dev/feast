@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/apache/arrow/go/v17/arrow/memory"
-	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
+	//"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 
 	"github.com/feast-dev/feast/go/internal/feast/model"
 	"github.com/feast-dev/feast/go/internal/feast/onlineserving"
@@ -316,8 +316,8 @@ func (fs *FeatureStore) readFromOnlineStore(ctx context.Context, entityRows []*p
 	requestedFeatureNames []string,
 ) ([][]onlinestore.FeatureData, error) {
 	// Create a Datadog span from context
-	span, _ := tracer.StartSpanFromContext(ctx, "fs.readFromOnlineStore")
-	defer span.Finish()
+	//span, _ := tracer.StartSpanFromContext(ctx, "fs.readFromOnlineStore")
+	//defer span.Finish()
 
 	numRows := len(entityRows)
 	entityRowsValue := make([]*prototypes.EntityKey, numRows)

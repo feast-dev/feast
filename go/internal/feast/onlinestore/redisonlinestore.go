@@ -6,13 +6,13 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"os"
+	//"os"
 	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/feast-dev/feast/go/internal/feast/registry"
-	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
+	//"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 
 	"github.com/redis/go-redis/v9"
 	"github.com/spaolacci/murmur3"
@@ -22,7 +22,7 @@ import (
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/rs/zerolog/log"
-	redistrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/redis/go-redis.v9"
+	//redistrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/redis/go-redis.v9"
 )
 
 type redisType int
@@ -107,10 +107,10 @@ func NewRedisOnlineStore(project string, config *registry.RepoConfig, onlineStor
 	}
 
 	// Metrics are not showing up when the service name is set to DD_SERVICE
-	redisTraceServiceName := os.Getenv("DD_SERVICE") + "-redis"
-	if redisTraceServiceName == "" {
-		redisTraceServiceName = "redis.client" // default service name if DD_SERVICE is not set
-	}
+	//redisTraceServiceName := os.Getenv("DD_SERVICE") + "-redis"
+	//if redisTraceServiceName == "" {
+	//	redisTraceServiceName = "redis.client" // default service name if DD_SERVICE is not set
+	//}
 
 	if redisStoreType == redisNode {
 		log.Info().Msgf("Using Redis: %s", address[0])
@@ -120,9 +120,9 @@ func NewRedisOnlineStore(project string, config *registry.RepoConfig, onlineStor
 			DB:        db,
 			TLSConfig: tlsConfig,
 		})
-		if strings.ToLower(os.Getenv("ENABLE_DATADOG_REDIS_TRACING")) == "true" {
-			redistrace.WrapClient(store.client, redistrace.WithServiceName(redisTraceServiceName))
-		}
+		//if strings.ToLower(os.Getenv("ENABLE_DATADOG_REDIS_TRACING")) == "true" {
+		//	redistrace.WrapClient(store.client, redistrace.WithServiceName(redisTraceServiceName))
+		//}
 	} else if redisStoreType == redisCluster {
 		log.Info().Msgf("Using Redis Cluster: %s", address)
 		store.clusterClient = redis.NewClusterClient(&redis.ClusterOptions{
@@ -131,9 +131,9 @@ func NewRedisOnlineStore(project string, config *registry.RepoConfig, onlineStor
 			TLSConfig: tlsConfig,
 			ReadOnly:  true,
 		})
-		if strings.ToLower(os.Getenv("ENABLE_DATADOG_REDIS_TRACING")) == "true" {
-			redistrace.WrapClient(store.clusterClient, redistrace.WithServiceName(redisTraceServiceName))
-		}
+		//if strings.ToLower(os.Getenv("ENABLE_DATADOG_REDIS_TRACING")) == "true" {
+		//	redistrace.WrapClient(store.clusterClient, redistrace.WithServiceName(redisTraceServiceName))
+		//}
 	}
 
 	return &store, nil
@@ -212,8 +212,8 @@ func (r *RedisOnlineStore) buildRedisKeys(entityKeys []*types.EntityKey) ([]*[]b
 }
 
 func (r *RedisOnlineStore) OnlineRead(ctx context.Context, entityKeys []*types.EntityKey, featureViewNames []string, featureNames []string) ([][]FeatureData, error) {
-	span, _ := tracer.StartSpanFromContext(ctx, "redis.OnlineRead")
-	defer span.Finish()
+	//span, _ := tracer.StartSpanFromContext(ctx, "redis.OnlineRead")
+	//defer span.Finish()
 
 	featureCount := len(featureNames)
 	featureViewIndices, indicesFeatureView, index := r.buildFeatureViewIndices(featureViewNames, featureNames)
