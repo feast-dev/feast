@@ -223,7 +223,7 @@ test-python-universal-postgres-offline:
 
 test-python-universal-postgres-online:
 	PYTHONPATH='.' \
-		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.contrib.postgres_repo_configuration \
+		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.postgres_repo_configuration \
 		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.postgres \
 		python -m pytest -n 8 --integration \
  			-k "not test_universal_cli and \
@@ -242,7 +242,7 @@ test-python-universal-postgres-online:
 
  test-python-universal-pgvector-online:
 	PYTHONPATH='.' \
-		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.contrib.pgvector_repo_configuration \
+		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.pgvector_repo_configuration \
 		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.postgres \
 		python -m pytest -n 8 --integration \
  			-k "not test_universal_cli and \
@@ -261,7 +261,7 @@ test-python-universal-postgres-online:
 
  test-python-universal-mysql-online:
 	PYTHONPATH='.' \
-		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.contrib.mysql_repo_configuration \
+		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.mysql_repo_configuration \
 		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.mysql \
 		python -m pytest -n 8 --integration \
  			-k "not test_universal_cli and \
@@ -280,14 +280,14 @@ test-python-universal-postgres-online:
 
 test-python-universal-cassandra:
 	PYTHONPATH='.' \
-	FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.contrib.cassandra_repo_configuration \
+	FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.cassandra_repo_configuration \
 	PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.cassandra \
 	python -m pytest -x --integration \
 	sdk/python/tests
 
 test-python-universal-hazelcast:
 	PYTHONPATH='.' \
-		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.contrib.hazelcast_repo_configuration \
+		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.hazelcast_repo_configuration \
 		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.hazelcast \
 		python -m pytest -n 8 --integration \
  			-k "not test_universal_cli and \
@@ -306,7 +306,7 @@ test-python-universal-hazelcast:
 
 test-python-universal-cassandra-no-cloud-providers:
 	PYTHONPATH='.' \
-	FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.contrib.cassandra_repo_configuration \
+	FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.cassandra_repo_configuration \
 	PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.cassandra \
 	python -m pytest -x --integration \
 	-k "not test_lambda_materialization_consistency   and \
@@ -323,7 +323,7 @@ test-python-universal-cassandra-no-cloud-providers:
 
  test-python-universal-elasticsearch-online:
 	PYTHONPATH='.' \
-		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.contrib.elasticsearch_repo_configuration \
+		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.elasticsearch_repo_configuration \
 		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.elasticsearch \
 		python -m pytest -n 8 --integration \
  			-k "not test_universal_cli and \
@@ -342,7 +342,7 @@ test-python-universal-cassandra-no-cloud-providers:
 
 test-python-universal-singlestore-online:
 	PYTHONPATH='.' \
-		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.contrib.singlestore_repo_configuration \
+		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.singlestore_repo_configuration \
 		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.singlestore \
 		python -m pytest -n 8 --integration \
 			-k "not test_universal_cli and \
@@ -353,7 +353,7 @@ test-python-universal-singlestore-online:
 
  test-python-universal-qdrant-online:
 	PYTHONPATH='.' \
-		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.contrib.qdrant_repo_configuration \
+		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.qdrant_repo_configuration \
 		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.qdrant \
 		python -m pytest -n 8 --integration \
  			-k "test_retrieve_online_documents" \

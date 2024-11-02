@@ -35,7 +35,7 @@ online_store:
 ```
 {% endcode %}
 
-The full set of configuration options is available in [PostgreSQLOnlineStoreConfig](https://rtd.feast.dev/en/master/#feast.infra.online_stores.contrib.postgres.PostgreSQLOnlineStoreConfig).
+The full set of configuration options is available in [PostgreSQLOnlineStoreConfig](https://rtd.feast.dev/en/master/#feast.infra.online_stores.postgres.PostgreSQLOnlineStoreConfig).
 
 ## Functionality Matrix
 
