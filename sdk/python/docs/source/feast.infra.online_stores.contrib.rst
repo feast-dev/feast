@@ -67,7 +67,7 @@ feast.infra.online\_stores.contrib.hazelcast\_repo\_configuration module
 feast.infra.online\_stores.contrib.hbase\_repo\_configuration module
 --------------------------------------------------------------------
 
-.. automodule:: feast.infra.online_stores.hbase_repo_configuration
+.. automodule:: feast.infra.online_stores.hbase_online_store.hbase_repo_configuration
    :members:
    :undoc-members:
    :show-inheritance:
