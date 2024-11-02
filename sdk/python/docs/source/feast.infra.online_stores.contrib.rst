@@ -91,7 +91,7 @@ feast.infra.online\_stores.contrib.pgvector\_repo\_configuration module
 feast.infra.online\_stores.contrib.postgres module
 --------------------------------------------------
 
-.. automodule:: feast.infra.online_stores.postgres
+.. automodule:: feast.infra.online_stores.postgres_online_store
    :members:
    :undoc-members:
    :show-inheritance:
@@ -99,7 +99,7 @@ feast.infra.online\_stores.contrib.postgres module
 feast.infra.online\_stores.contrib.postgres\_repo\_configuration module
 -----------------------------------------------------------------------
 
-.. automodule:: feast.infra.online_stores.postgres_repo_configuration
+.. automodule:: feast.infra.online_stores.postgres_online_store.postgres_repo_configuration
    :members:
    :undoc-members:
    :show-inheritance:

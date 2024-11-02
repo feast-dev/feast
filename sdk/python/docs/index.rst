@@ -359,10 +359,10 @@ Snowflake Online Store
 PostgreSQL Online Store
 -----------------------
 
-.. autoclass:: feast.infra.online_stores.postgres.PostgreSQLOnlineStore
+.. autoclass:: feast.infra.online_stores.postgres_online_store.PostgreSQLOnlineStore
     :members:
 
-.. autoclass:: feast.infra.online_stores.postgres.PostgreSQLOnlineStoreConfig
+.. autoclass:: feast.infra.online_stores.postgres_online_store.PostgreSQLOnlineStoreConfig
     :members:
 
 HBase Online Store
