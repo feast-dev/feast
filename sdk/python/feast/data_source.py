@@ -343,6 +343,8 @@ class DataSource(ABC):
 
 @typechecked
 class KafkaSource(DataSource):
+    """A KafkaSource allow users to register Kafka streams as data sources."""
+
     def __init__(
         self,
         *,
@@ -616,6 +618,8 @@ class RequestSource(DataSource):
 
 @typechecked
 class KinesisSource(DataSource):
+    """A KinesisSource allows users to register Kinesis streams as data sources."""
+
     def validate(self, config: RepoConfig):
         raise NotImplementedError
 
@@ -666,6 +670,25 @@ class KinesisSource(DataSource):
         owner: Optional[str] = "",
         batch_source: Optional[DataSource] = None,
     ):
+        """
+        Args:
+            name: The unique name of the Kinesis source.
+            record_format: The record format of the Kinesis stream.
+            region: The AWS region of the Kinesis stream.
+            stream_name: The name of the Kinesis stream.
+            timestamp_field: Event timestamp field used for point-in-time joins of
+            feature values.
+            created_timestamp_column:  Timestamp column indicating when the row
+            was created, used for deduplicating rows.
+            field_mapping: A dictionary mapping of column names in this data
+            source to feature names in a feature table or view. Only used for feature
+            columns, not entity or timestamp columns.
+            description: A human-readable description.
+            tags: A dictionary of key-value pairs to store arbitrary metadata.
+            owner: The owner of the Kinesis source, typically the email of the primary
+            maintainer.
+            batch_source: A DataSource backing the Kinesis stream (used for retrieving historical features).
+        """
         if record_format is None:
             raise ValueError("Record format must be specified for kinesis source")
 
