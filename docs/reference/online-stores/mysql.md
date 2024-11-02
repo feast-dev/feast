@@ -26,7 +26,7 @@ online_store:
 ```
 {% endcode %}
 
-The full set of configuration options is available in [MySQLOnlineStoreConfig](https://rtd.feast.dev/en/master/#feast.infra.online_stores.mysql.MySQLOnlineStoreConfig).
+The full set of configuration options is available in [MySQLOnlineStoreConfig](https://rtd.feast.dev/en/master/#feast.infra.online_stores.mysql_online_store.MySQLOnlineStoreConfig).
 
 ## Functionality Matrix
 

@@ -19,7 +19,7 @@ Submodules
 feast.infra.online\_stores.contrib.cassandra\_repo\_configuration module
 ------------------------------------------------------------------------
 
-.. automodule:: feast.infra.online_stores.cassandra_repo_configuration
+.. automodule:: feast.infra.online_stores.cassandra_online_store.cassandra_repo_configuration
    :members:
    :undoc-members:
    :show-inheritance:
@@ -27,7 +27,7 @@ feast.infra.online\_stores.contrib.cassandra\_repo\_configuration module
 feast.infra.online\_stores.contrib.elasticsearch module
 -------------------------------------------------------
 
-.. automodule:: feast.infra.online_stores.elasticsearch
+.. automodule:: feast.infra.online_stores.elasticsearch_online_store
    :members:
    :undoc-members:
    :show-inheritance:
@@ -35,7 +35,7 @@ feast.infra.online\_stores.contrib.elasticsearch module
 feast.infra.online\_stores.contrib.elasticsearch\_repo\_configuration module
 ----------------------------------------------------------------------------
 
-.. automodule:: feast.infra.online_stores.elasticsearch_repo_configuration
+.. automodule:: feast.infra.online_stores.elasticsearch_online_store.elasticsearch_repo_configuration
    :members:
    :undoc-members:
    :show-inheritance:
@@ -43,7 +43,7 @@ feast.infra.online\_stores.contrib.elasticsearch\_repo\_configuration module
 feast.infra.online\_stores.contrib.qdrant module
 -------------------------------------------------------
 
-.. automodule:: feast.infra.online_stores.qdrant
+.. automodule:: feast.infra.online_stores.qdrant_online_store
    :members:
    :undoc-members:
    :show-inheritance:
@@ -51,7 +51,7 @@ feast.infra.online\_stores.contrib.qdrant module
 feast.infra.online\_stores.contrib.qdrant\_repo\_configuration module
 ----------------------------------------------------------------------------
 
-.. automodule:: feast.infra.online_stores.qdrant_repo_configuration
+.. automodule:: feast.infra.online_stores.qdrant_online_store.qdrant_repo_configuration
    :members:
    :undoc-members:
    :show-inheritance:
@@ -59,7 +59,7 @@ feast.infra.online\_stores.contrib.qdrant\_repo\_configuration module
 feast.infra.online\_stores.contrib.hazelcast\_repo\_configuration module
 ------------------------------------------------------------------------
 
-.. automodule:: feast.infra.online_stores.hazelcast_repo_configuration
+.. automodule:: feast.infra.online_stores.hazelcast_online_store.hazelcast_repo_configuration
    :members:
    :undoc-members:
    :show-inheritance:
@@ -75,7 +75,7 @@ feast.infra.online\_stores.contrib.hbase\_repo\_configuration module
 feast.infra.online\_stores.contrib.mysql\_repo\_configuration module
 --------------------------------------------------------------------
 
-.. automodule:: feast.infra.online_stores.mysql_repo_configuration
+.. automodule:: feast.infra.online_stores.mysql_online_store.mysql_repo_configuration
    :members:
    :undoc-members:
    :show-inheritance:

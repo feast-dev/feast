@@ -26,7 +26,7 @@ online_store:
 
 {% endcode %}
 
-The full set of configuration options is available in [QdrantOnlineStoreConfig](https://rtd.feast.dev/en/master/#feast.infra.online_stores.qdrant.QdrantOnlineStoreConfig).
+The full set of configuration options is available in [QdrantOnlineStoreConfig](https://rtd.feast.dev/en/master/#feast.infra.online_stores.qdrant_online_store.QdrantOnlineStoreConfig).
 
 ## Functionality Matrix
 
