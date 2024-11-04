@@ -1,4 +1,4 @@
-# MySQL online store (contrib)
+# MySQL online store
 
 ## Description
 

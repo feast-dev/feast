@@ -1,4 +1,4 @@
-# Qdrant online store (contrib)
+# Qdrant online store
 
 ## Description
 

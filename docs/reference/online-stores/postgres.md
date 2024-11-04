@@ -1,4 +1,4 @@
-# PostgreSQL online store (contrib)
+# PostgreSQL online store
 
 ## Description
 

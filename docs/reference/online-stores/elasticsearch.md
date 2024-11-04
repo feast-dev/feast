@@ -1,4 +1,4 @@
-# ElasticSearch online store (contrib)
+# ElasticSearch online store
 
 ## Description
 
