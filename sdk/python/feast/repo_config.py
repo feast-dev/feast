@@ -52,24 +52,15 @@ BATCH_ENGINE_CLASS_FOR_TYPE = {
 }
 
 LEGACY_ONLINE_STORE_CLASS_FOR_TYPE = {
-    "feast.infra.online_stores.contrib.postgres.PostgreSQLOnlineStore":
-        "feast.infra.online_stores.postgres_online_store.PostgreSQLOnlineStore",
-    "feast.infra.online_stores.contrib.hbase_online_store.hbase.HbaseOnlineStore":
-        "feast.infra.online_stores.hbase_online_store.hbase.HbaseOnlineStore",
-    "feast.infra.online_stores.contrib.cassandra_online_store.cassandra_online_store.CassandraOnlineStore":
-        "feast.infra.online_stores.cassandra_online_store.cassandra_online_store.CassandraOnlineStore",
-    "feast.infra.online_stores.contrib.mysql_online_store.mysql.MySQLOnlineStore":
-        "feast.infra.online_stores.mysql_online_store.mysql.MySQLOnlineStore",
-    "feast.infra.online_stores.contrib.hazelcast_online_store.hazelcast_online_store.HazelcastOnlineStore":
-        "feast.infra.online_stores.hazelcast_online_store.hazelcast_online_store.HazelcastOnlineStore",
-    "feast.infra.online_stores.contrib.ikv_online_store.ikv.IKVOnlineStore":
-        "feast.infra.online_stores.ikv_online_store.ikv.IKVOnlineStore",
-    "feast.infra.online_stores.contrib.elasticsearch.ElasticSearchOnlineStore":
-        "feast.infra.online_stores.elasticsearch_online_store.ElasticSearchOnlineStore",
-    "feast.infra.online_stores.contrib.singlestore_online_store.singlestore.SingleStoreOnlineStore":
-        "feast.infra.online_stores.singlestore_online_store.singlestore.SingleStoreOnlineStore",
-    "feast.infra.online_stores.contrib.qdrant.QdrantOnlineStore":
-        "feast.infra.online_stores.cqdrant.QdrantOnlineStore"
+    "feast.infra.online_stores.contrib.postgres.PostgreSQLOnlineStore": "feast.infra.online_stores.postgres_online_store.PostgreSQLOnlineStore",
+    "feast.infra.online_stores.contrib.hbase_online_store.hbase.HbaseOnlineStore": "feast.infra.online_stores.hbase_online_store.hbase.HbaseOnlineStore",
+    "feast.infra.online_stores.contrib.cassandra_online_store.cassandra_online_store.CassandraOnlineStore": "feast.infra.online_stores.cassandra_online_store.cassandra_online_store.CassandraOnlineStore",
+    "feast.infra.online_stores.contrib.mysql_online_store.mysql.MySQLOnlineStore": "feast.infra.online_stores.mysql_online_store.mysql.MySQLOnlineStore",
+    "feast.infra.online_stores.contrib.hazelcast_online_store.hazelcast_online_store.HazelcastOnlineStore": "feast.infra.online_stores.hazelcast_online_store.hazelcast_online_store.HazelcastOnlineStore",
+    "feast.infra.online_stores.contrib.ikv_online_store.ikv.IKVOnlineStore": "feast.infra.online_stores.ikv_online_store.ikv.IKVOnlineStore",
+    "feast.infra.online_stores.contrib.elasticsearch.ElasticSearchOnlineStore": "feast.infra.online_stores.elasticsearch_online_store.ElasticSearchOnlineStore",
+    "feast.infra.online_stores.contrib.singlestore_online_store.singlestore.SingleStoreOnlineStore": "feast.infra.online_stores.singlestore_online_store.singlestore.SingleStoreOnlineStore",
+    "feast.infra.online_stores.contrib.qdrant.QdrantOnlineStore": "feast.infra.online_stores.cqdrant.QdrantOnlineStore",
 }
 
 ONLINE_STORE_CLASS_FOR_TYPE = {
@@ -89,7 +80,7 @@ ONLINE_STORE_CLASS_FOR_TYPE = {
     "remote": "feast.infra.online_stores.remote.RemoteOnlineStore",
     "singlestore": "feast.infra.online_stores.singlestore_online_store.singlestore.SingleStoreOnlineStore",
     "qdrant": "feast.infra.online_stores.cqdrant.QdrantOnlineStore",
-    **LEGACY_ONLINE_STORE_CLASS_FOR_TYPE
+    **LEGACY_ONLINE_STORE_CLASS_FOR_TYPE,
 }
 
 OFFLINE_STORE_CLASS_FOR_TYPE = {
