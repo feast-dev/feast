@@ -47,7 +47,7 @@ Please see [Online Store](../../getting-started/components/online-store.md) for 
 {% endcontent-ref %}
 
 {% content-ref url="couchbase.md" %}
-[couchbase.md](cassandra.md)
+[couchbase.md](couchbase.md)
 {% endcontent-ref %}
 
 {% content-ref url="mysql.md" %}

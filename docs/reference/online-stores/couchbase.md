@@ -22,7 +22,7 @@ The data model for using Couchbase as an online store follows a document format:
 In order to use this online store, you'll need to run `pip install 'feast[couchbase]'`. You can then get started with the command `feast init REPO_NAME -t couchbase`.
 
 To get started with Couchbase Capella Operational:
-1. [Create a Couchbase Capella account](https://docs.couchbase.com/cloud/get-started/create-account.html#sign-up-free-tier)
+1. [Sign up for a Couchbase Capella account](https://docs.couchbase.com/cloud/get-started/create-account.html#sign-up-free-tier)
 2. [Deploy an Operational cluster](https://docs.couchbase.com/cloud/get-started/create-account.html#getting-started)
 3. [Create a bucket](https://docs.couchbase.com/cloud/clusters/data-service/manage-buckets.html#add-bucket)
     - This can be named anything, but must correspond to the bucket described in the `feature_store.yaml` configuration file.
