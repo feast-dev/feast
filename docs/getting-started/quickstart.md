@@ -493,19 +493,14 @@ print(training_df.head())
 {% endtabs %}
 ### Step 6: Ingest batch features into your online store
 
-We now serialize the latest values of features since the beginning of time to prepare for serving (note: 
-`materialize-incremental` serializes all new features since the last `materialize` call).
+We now serialize the latest values of features since the beginning of time to prepare for serving. Note, `materialize_incremental` serializes all new features since the last `materialize` call, or since the time provided minus the `ttl` timedelta. In this case, this will be `CURRENT_TIME - 1 day` (`ttl` was set on the `FeatureView` instances in [feature_repo/feature_repo/example_repo.py](feature_repo/feature_repo/example_repo.py)).
 
 {% tabs %}
 {% tab title="Bash" %}
 ```bash
 CURRENT_TIME=$(date -u +"%Y-%m-%dT%H:%M:%S")
-# For mac
-LAST_YEAR=$(date -u -v -1y +"%Y-%m-%dT%H:%M:%S")
-# For Linux
-# LAST_YEAR=$(date -u -d "last year" +"%Y-%m-%dT%H:%M:%S")
 
-feast materialize-incremental $LAST_YEAR $CURRENT_TIME
+feast materialize-incremental $CURRENT_TIME
 ```
 {% endtab %}
 {% endtabs %}
