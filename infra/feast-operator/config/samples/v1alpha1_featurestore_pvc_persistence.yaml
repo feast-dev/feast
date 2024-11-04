@@ -24,11 +24,12 @@ spec:
             storage: 20Gi
             mountPath: /data/offline
     registry:
-      persistence:
-        file:
-          path: registry.db
-          pvc:
-            name: registry-pvc
-            storageClassName: gp2
-            storage: 1Gi
-            mountPath: /data/registry
+      local:
+        persistence:
+          file:
+            path: registry.db
+            pvc:
+              name: registry-pvc
+              storageClassName: gp2
+              storage: 1Gi
+              mountPath: /data/registry

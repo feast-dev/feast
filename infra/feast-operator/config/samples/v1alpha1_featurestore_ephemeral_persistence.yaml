@@ -14,6 +14,7 @@ spec:
         file:
           type: dask
     registry:
-      persistence:
-        file:
-          path: /data/registry.db
+      local:
+        persistence:
+          file:
+            path: /data/registry.db

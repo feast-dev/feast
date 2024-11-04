@@ -29,20 +29,26 @@ const (
 	FailedPhase  = "Failed"
 
 	// Feast condition types:
-	ClientReadyType   = "Client"
-	RegistryReadyType = "Registry"
-	ReadyType         = "FeatureStore"
+	ClientReadyType       = "Client"
+	OfflineStoreReadyType = "OfflineStore"
+	OnlineStoreReadyType  = "OnlineStore"
+	RegistryReadyType     = "Registry"
+	ReadyType             = "FeatureStore"
 
 	// Feast condition reasons:
-	ReadyReason          = "Ready"
-	FailedReason         = "FeatureStoreFailed"
-	RegistryFailedReason = "RegistryDeploymentFailed"
-	ClientFailedReason   = "ClientDeploymentFailed"
+	ReadyReason              = "Ready"
+	FailedReason             = "FeatureStoreFailed"
+	OfflineStoreFailedReason = "OfflineStoreDeploymentFailed"
+	OnlineStoreFailedReason  = "OnlineStoreDeploymentFailed"
+	RegistryFailedReason     = "RegistryDeploymentFailed"
+	ClientFailedReason       = "ClientDeploymentFailed"
 
 	// Feast condition messages:
-	ReadyMessage         = "FeatureStore installation complete"
-	RegistryReadyMessage = "Registry installation complete"
-	ClientReadyMessage   = "Client installation complete"
+	ReadyMessage             = "FeatureStore installation complete"
+	OfflineStoreReadyMessage = "Offline Store installation complete"
+	OnlineStoreReadyMessage  = "Online Store installation complete"
+	RegistryReadyMessage     = "Registry installation complete"
+	ClientReadyMessage       = "Client installation complete"
 
 	// entity_key_serialization_version
 	SerializationVersion = 3
@@ -52,30 +58,78 @@ const (
 type FeatureStoreSpec struct {
 	// +kubebuilder:validation:Pattern="^[A-Za-z0-9][A-Za-z0-9_]*$"
 	// FeastProject is the Feast project id. This can be any alphanumeric string with underscores, but it cannot start with an underscore. Required.
-	FeastProject string `json:"feastProject"`
-	// +optional
-	Services *Services `json:"services"`
+	FeastProject string                `json:"feastProject"`
+	Services     *FeatureStoreServices `json:"services,omitempty"`
 }
 
-type Services struct {
-	// +optional
-	OnlineStore *OnlineStore `json:"onlineStore,omitempty"`
-	// +optional
+// FeatureStoreServices defines the desired feast service deployments. ephemeral registry is deployed by default.
+type FeatureStoreServices struct {
 	OfflineStore *OfflineStore `json:"offlineStore,omitempty"`
-	// +optional
-	Registry *Registry `json:"registry,omitempty"`
+	OnlineStore  *OnlineStore  `json:"onlineStore,omitempty"`
+	Registry     *Registry     `json:"registry,omitempty"`
 }
-type OnlineStore struct {
-	// +optional
-	Persistence *OnlineStorePersistence `json:"persistence,omitempty"`
-}
+
+// OfflineStore configures the deployed offline store service
 type OfflineStore struct {
+	ServiceConfigs `json:",inline"`
 	// +optional
 	Persistence *OfflineStorePersistence `json:"persistence,omitempty"`
 }
-type Registry struct {
+
+// OnlineStore configures the deployed online store service
+type OnlineStore struct {
+	ServiceConfigs `json:",inline"`
+	// +optional
+	Persistence *OnlineStorePersistence `json:"persistence,omitempty"`
+}
+
+// LocalRegistryConfig configures the deployed registry service
+type LocalRegistryConfig struct {
+	ServiceConfigs `json:",inline"`
 	// +optional
 	Persistence *RegistryPersistence `json:"persistence,omitempty"`
+}
+
+// Registry configures the registry service. One selection is required. Local is the default setting.
+// +kubebuilder:validation:XValidation:rule="[has(self.local), has(self.remote)].exists_one(c, c)",message="One selection required."
+type Registry struct {
+	Local  *LocalRegistryConfig  `json:"local,omitempty"`
+	Remote *RemoteRegistryConfig `json:"remote,omitempty"`
+}
+
+// RemoteRegistryConfig points to a remote feast registry server. When set, the operator will not deploy a registry for this FeatureStore CR.
+// Instead, this FeatureStore CR's online/offline services will use a remote registry. One selection is required.
+// +kubebuilder:validation:XValidation:rule="[has(self.hostname), has(self.feastRef)].exists_one(c, c)",message="One selection required."
+type RemoteRegistryConfig struct {
+	// Host address of the remote registry service - <domain>:<port>, e.g. `registry.<namespace>.svc.cluster.local:80`
+	Hostname *string `json:"hostname,omitempty"`
+	// Reference to an existing `FeatureStore` CR in the same k8s cluster.
+	FeastRef *FeatureStoreRef `json:"feastRef,omitempty"`
+}
+
+// FeatureStoreRef defines which existing FeatureStore's registry should be used
+type FeatureStoreRef struct {
+	// Name of the FeatureStore
+	Name string `json:"name"`
+	// Namespace of the FeatureStore
+	Namespace string `json:"namespace,omitempty"`
+}
+
+// ServiceConfigs k8s container settings
+type ServiceConfigs struct {
+	DefaultConfigs  `json:",inline"`
+	OptionalConfigs `json:",inline"`
+}
+
+// DefaultConfigs k8s container settings that are applied by default
+type DefaultConfigs struct {
+	Image *string `json:"image,omitempty"`
+}
+
+// OptionalConfigs k8s container settings that are optional
+type OptionalConfigs struct {
+	ImagePullPolicy *corev1.PullPolicy           `json:"imagePullPolicy,omitempty"`
+	Resources       *corev1.ResourceRequirements `json:"resources,omitempty"`
 }
 
 // +kubebuilder:validation:XValidation:rule="!(has(self.file) && has(self.store))",message="One file or store persistence is allowed."
@@ -172,17 +226,22 @@ type PvcStore struct {
 
 // FeatureStoreStatus defines the observed state of FeatureStore
 type FeatureStoreStatus struct {
-	Applied         FeatureStoreSpec   `json:"applied,omitempty"`
+	// Shows the currently applied feast configuration, including any pertinent defaults
+	Applied FeatureStoreSpec `json:"applied,omitempty"`
+	// ConfigMap in this namespace containing a client `feature_store.yaml` for this feast deployment
 	ClientConfigMap string             `json:"clientConfigMap,omitempty"`
 	Conditions      []metav1.Condition `json:"conditions,omitempty"`
-	FeastVersion    string             `json:"feastVersion,omitempty"`
-	Phase           string             `json:"phase,omitempty"`
-	ServiceUrls     ServiceUrls        `json:"serviceUrls,omitempty"`
+	// Version of feast that's currently deployed
+	FeastVersion     string           `json:"feastVersion,omitempty"`
+	Phase            string           `json:"phase,omitempty"`
+	ServiceHostnames ServiceHostnames `json:"serviceHostnames,omitempty"`
 }
 
-// ServiceUrls
-type ServiceUrls struct {
-	Registry string `json:"registry,omitempty"`
+// ServiceHostnames defines the service hostnames in the format of <domain>:<port>, e.g. example.svc.cluster.local:80
+type ServiceHostnames struct {
+	OfflineStore string `json:"offlineStore,omitempty"`
+	OnlineStore  string `json:"onlineStore,omitempty"`
+	Registry     string `json:"registry,omitempty"`
 }
 
 //+kubebuilder:object:root=true

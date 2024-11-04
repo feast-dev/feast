@@ -17,8 +17,6 @@ limitations under the License.
 package services
 
 import (
-	feastdevv1alpha1 "github.com/feast-dev/feast/infra/feast-operator/api/v1alpha1"
-	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -26,9 +24,9 @@ import (
 
 func (feast *FeastServices) deployClient() error {
 	if err := feast.createClientConfigMap(); err != nil {
-		return err
+		return feast.setFeastServiceCondition(err, ClientFeastType)
 	}
-	return nil
+	return feast.setFeastServiceCondition(nil, ClientFeastType)
 }
 
 func (feast *FeastServices) createClientConfigMap() error {
@@ -53,27 +51,7 @@ func (feast *FeastServices) setClientConfigMap(cm *corev1.ConfigMap) error {
 	if err != nil {
 		return err
 	}
-	cm.Data = map[string]string{"feature_store.yaml": string(clientYaml)}
+	cm.Data = map[string]string{FeatureStoreYamlCmKey: string(clientYaml)}
 	feast.FeatureStore.Status.ClientConfigMap = cm.Name
 	return controllerutil.SetControllerReference(feast.FeatureStore, cm, feast.Scheme)
-}
-
-func (feast *FeastServices) getClientFeatureStoreYaml() ([]byte, error) {
-	return yaml.Marshal(feast.getClientRepoConfig())
-}
-
-func (feast *FeastServices) getClientRepoConfig() RepoConfig {
-	status := feast.FeatureStore.Status
-	clientRepoConfig := RepoConfig{
-		Project:                       status.Applied.FeastProject,
-		Provider:                      LocalProviderType,
-		EntityKeySerializationVersion: feastdevv1alpha1.SerializationVersion,
-	}
-	if len(status.ServiceUrls.Registry) > 0 {
-		clientRepoConfig.Registry = RegistryConfig{
-			RegistryType: RegistryRemoteConfigType,
-			Path:         status.ServiceUrls.Registry,
-		}
-	}
-	return clientRepoConfig
 }

@@ -26,6 +26,8 @@ from feast.value_type import ValueType
 
 @typechecked
 class FileSource(DataSource):
+    """A FileSource object defines a data source that a DaskOfflineStore or DuckDBOfflineStore class can use."""
+
     def __init__(
         self,
         *,

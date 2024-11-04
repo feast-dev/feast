@@ -18,11 +18,12 @@ spec:
           secretRef:
             name: spark-secret
     registry:
-      persistence:
-        store:
-          type: sql
-          secretRef:
-            name: postgres-secret
+      local:
+        persistence:
+          store:
+            type: sql
+            secretRef:
+              name: postgres-secret
 ---
 apiVersion: v1
 kind: Secret

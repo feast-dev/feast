@@ -38,7 +38,7 @@ func attemptInvalidCreationAndAsserts(ctx context.Context, featurestore *feastde
 
 func onlineStoreWithBothFileAndStore(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
 	copy := featureStore.DeepCopy()
-	copy.Spec.Services = &feastdevv1alpha1.Services{
+	copy.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
 		OnlineStore: &feastdevv1alpha1.OnlineStore{
 			Persistence: &feastdevv1alpha1.OnlineStorePersistence{
 				FilePersistence: &feastdevv1alpha1.OnlineStoreFilePersistence{
@@ -54,7 +54,7 @@ func onlineStoreWithBothFileAndStore(featureStore *feastdevv1alpha1.FeatureStore
 }
 func onlineStoreWithNeitherFileNorStore(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
 	copy := featureStore.DeepCopy()
-	copy.Spec.Services = &feastdevv1alpha1.Services{
+	copy.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
 		OnlineStore: &feastdevv1alpha1.OnlineStore{
 			Persistence: &feastdevv1alpha1.OnlineStorePersistence{},
 		},
@@ -63,7 +63,7 @@ func onlineStoreWithNeitherFileNorStore(featureStore *feastdevv1alpha1.FeatureSt
 }
 func onlineStoreWithUnmanagedStore(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
 	copy := featureStore.DeepCopy()
-	copy.Spec.Services = &feastdevv1alpha1.Services{
+	copy.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
 		OnlineStore: &feastdevv1alpha1.OnlineStore{
 			Persistence: &feastdevv1alpha1.OnlineStorePersistence{
 				StorePersistence: &feastdevv1alpha1.OnlineStoreStorePersistence{
@@ -77,7 +77,7 @@ func onlineStoreWithUnmanagedStore(featureStore *feastdevv1alpha1.FeatureStore) 
 
 func onlineStoreWithAbsolutePathForPvc(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
 	copy := featureStore.DeepCopy()
-	copy.Spec.Services = &feastdevv1alpha1.Services{
+	copy.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
 		OnlineStore: &feastdevv1alpha1.OnlineStore{
 			Persistence: &feastdevv1alpha1.OnlineStorePersistence{
 				FilePersistence: &feastdevv1alpha1.OnlineStoreFilePersistence{
@@ -93,7 +93,7 @@ func onlineStoreWithAbsolutePathForPvc(featureStore *feastdevv1alpha1.FeatureSto
 }
 func onlineStoreWithS3BucketForPvc(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
 	copy := featureStore.DeepCopy()
-	copy.Spec.Services = &feastdevv1alpha1.Services{
+	copy.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
 		OnlineStore: &feastdevv1alpha1.OnlineStore{
 			Persistence: &feastdevv1alpha1.OnlineStorePersistence{
 				FilePersistence: &feastdevv1alpha1.OnlineStoreFilePersistence{
@@ -109,7 +109,7 @@ func onlineStoreWithS3BucketForPvc(featureStore *feastdevv1alpha1.FeatureStore) 
 }
 func onlineStoreWithGsBucketForPvc(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
 	copy := featureStore.DeepCopy()
-	copy.Spec.Services = &feastdevv1alpha1.Services{
+	copy.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
 		OnlineStore: &feastdevv1alpha1.OnlineStore{
 			Persistence: &feastdevv1alpha1.OnlineStorePersistence{
 				FilePersistence: &feastdevv1alpha1.OnlineStoreFilePersistence{
@@ -125,7 +125,7 @@ func onlineStoreWithGsBucketForPvc(featureStore *feastdevv1alpha1.FeatureStore) 
 }
 func onlineStoreWithRelativePathForEphemeral(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
 	copy := featureStore.DeepCopy()
-	copy.Spec.Services = &feastdevv1alpha1.Services{
+	copy.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
 		OnlineStore: &feastdevv1alpha1.OnlineStore{
 			Persistence: &feastdevv1alpha1.OnlineStorePersistence{
 				FilePersistence: &feastdevv1alpha1.OnlineStoreFilePersistence{
@@ -139,7 +139,7 @@ func onlineStoreWithRelativePathForEphemeral(featureStore *feastdevv1alpha1.Feat
 
 func offlineStoreWithBothFileAndStore(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
 	copy := featureStore.DeepCopy()
-	copy.Spec.Services = &feastdevv1alpha1.Services{
+	copy.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
 		OfflineStore: &feastdevv1alpha1.OfflineStore{
 			Persistence: &feastdevv1alpha1.OfflineStorePersistence{
 				FilePersistence: &feastdevv1alpha1.OfflineStoreFilePersistence{},
@@ -153,7 +153,7 @@ func offlineStoreWithBothFileAndStore(featureStore *feastdevv1alpha1.FeatureStor
 }
 func offlineStoreWithNeitherFileNorStore(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
 	copy := featureStore.DeepCopy()
-	copy.Spec.Services = &feastdevv1alpha1.Services{
+	copy.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
 		OfflineStore: &feastdevv1alpha1.OfflineStore{
 			Persistence: &feastdevv1alpha1.OfflineStorePersistence{},
 		},
@@ -162,7 +162,7 @@ func offlineStoreWithNeitherFileNorStore(featureStore *feastdevv1alpha1.FeatureS
 }
 func offlineStoreWithUnmanagedStore(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
 	copy := featureStore.DeepCopy()
-	copy.Spec.Services = &feastdevv1alpha1.Services{
+	copy.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
 		OfflineStore: &feastdevv1alpha1.OfflineStore{
 			Persistence: &feastdevv1alpha1.OfflineStorePersistence{
 				StorePersistence: &feastdevv1alpha1.OfflineStoreStorePersistence{
@@ -175,7 +175,7 @@ func offlineStoreWithUnmanagedStore(featureStore *feastdevv1alpha1.FeatureStore)
 }
 func offlineStoreWithUnmanagedFileType(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
 	copy := featureStore.DeepCopy()
-	copy.Spec.Services = &feastdevv1alpha1.Services{
+	copy.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
 		OfflineStore: &feastdevv1alpha1.OfflineStore{
 			Persistence: &feastdevv1alpha1.OfflineStorePersistence{
 				FilePersistence: &feastdevv1alpha1.OfflineStoreFilePersistence{
@@ -189,14 +189,16 @@ func offlineStoreWithUnmanagedFileType(featureStore *feastdevv1alpha1.FeatureSto
 
 func registryWithBothFileAndStore(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
 	copy := featureStore.DeepCopy()
-	copy.Spec.Services = &feastdevv1alpha1.Services{
+	copy.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
 		Registry: &feastdevv1alpha1.Registry{
-			Persistence: &feastdevv1alpha1.RegistryPersistence{
-				FilePersistence: &feastdevv1alpha1.RegistryFilePersistence{
-					Path: "/data/online_store.db",
-				},
-				StorePersistence: &feastdevv1alpha1.RegistryStorePersistence{
-					Type: "sql",
+			Local: &feastdevv1alpha1.LocalRegistryConfig{
+				Persistence: &feastdevv1alpha1.RegistryPersistence{
+					FilePersistence: &feastdevv1alpha1.RegistryFilePersistence{
+						Path: "/data/online_store.db",
+					},
+					StorePersistence: &feastdevv1alpha1.RegistryStorePersistence{
+						Type: "sql",
+					},
 				},
 			},
 		},
@@ -205,24 +207,27 @@ func registryWithBothFileAndStore(featureStore *feastdevv1alpha1.FeatureStore) *
 }
 func registryWithNeitherFileNorStore(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
 	copy := featureStore.DeepCopy()
-	copy.Spec.Services = &feastdevv1alpha1.Services{
+	copy.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
 		Registry: &feastdevv1alpha1.Registry{
-			Persistence: &feastdevv1alpha1.RegistryPersistence{},
+			Local: &feastdevv1alpha1.LocalRegistryConfig{
+				Persistence: &feastdevv1alpha1.RegistryPersistence{},
+			},
 		},
 	}
 	return copy
 }
 func registryWithAbsolutePathForPvc(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
 	copy := featureStore.DeepCopy()
-	copy.Spec.Services = &feastdevv1alpha1.Services{
+	copy.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
 		Registry: &feastdevv1alpha1.Registry{
-			Persistence: &feastdevv1alpha1.RegistryPersistence{
-				FilePersistence: &feastdevv1alpha1.RegistryFilePersistence{
-					Path: "/data/registry.db",
-					PvcStore: &feastdevv1alpha1.PvcStore{
-						Name: "example-pvc",
-					},
-				},
+			Local: &feastdevv1alpha1.LocalRegistryConfig{
+				Persistence: &feastdevv1alpha1.RegistryPersistence{
+					FilePersistence: &feastdevv1alpha1.RegistryFilePersistence{
+						Path: "/data/registry.db",
+						PvcStore: &feastdevv1alpha1.PvcStore{
+							Name: "example-pvc",
+						},
+					}},
 			},
 		},
 	}
@@ -230,13 +235,15 @@ func registryWithAbsolutePathForPvc(featureStore *feastdevv1alpha1.FeatureStore)
 }
 func registryWithS3BucketForPvc(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
 	copy := featureStore.DeepCopy()
-	copy.Spec.Services = &feastdevv1alpha1.Services{
+	copy.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
 		Registry: &feastdevv1alpha1.Registry{
-			Persistence: &feastdevv1alpha1.RegistryPersistence{
-				FilePersistence: &feastdevv1alpha1.RegistryFilePersistence{
-					Path: "s3://bucket/registry.db",
-					PvcStore: &feastdevv1alpha1.PvcStore{
-						Name: "example-pvc",
+			Local: &feastdevv1alpha1.LocalRegistryConfig{
+				Persistence: &feastdevv1alpha1.RegistryPersistence{
+					FilePersistence: &feastdevv1alpha1.RegistryFilePersistence{
+						Path: "s3://bucket/registry.db",
+						PvcStore: &feastdevv1alpha1.PvcStore{
+							Name: "example-pvc",
+						},
 					},
 				},
 			},
@@ -246,13 +253,15 @@ func registryWithS3BucketForPvc(featureStore *feastdevv1alpha1.FeatureStore) *fe
 }
 func registryWithGsBucketForPvc(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
 	copy := featureStore.DeepCopy()
-	copy.Spec.Services = &feastdevv1alpha1.Services{
+	copy.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
 		Registry: &feastdevv1alpha1.Registry{
-			Persistence: &feastdevv1alpha1.RegistryPersistence{
-				FilePersistence: &feastdevv1alpha1.RegistryFilePersistence{
-					Path: "gs://bucket/registry.db",
-					PvcStore: &feastdevv1alpha1.PvcStore{
-						Name: "example-pvc",
+			Local: &feastdevv1alpha1.LocalRegistryConfig{
+				Persistence: &feastdevv1alpha1.RegistryPersistence{
+					FilePersistence: &feastdevv1alpha1.RegistryFilePersistence{
+						Path: "gs://bucket/registry.db",
+						PvcStore: &feastdevv1alpha1.PvcStore{
+							Name: "example-pvc",
+						},
 					},
 				},
 			},
@@ -262,11 +271,13 @@ func registryWithGsBucketForPvc(featureStore *feastdevv1alpha1.FeatureStore) *fe
 }
 func registryWithRelativePathForEphemeral(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
 	copy := featureStore.DeepCopy()
-	copy.Spec.Services = &feastdevv1alpha1.Services{
+	copy.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
 		Registry: &feastdevv1alpha1.Registry{
-			Persistence: &feastdevv1alpha1.RegistryPersistence{
-				FilePersistence: &feastdevv1alpha1.RegistryFilePersistence{
-					Path: "data/online_store.db",
+			Local: &feastdevv1alpha1.LocalRegistryConfig{
+				Persistence: &feastdevv1alpha1.RegistryPersistence{
+					FilePersistence: &feastdevv1alpha1.RegistryFilePersistence{
+						Path: "data/online_store.db",
+					},
 				},
 			},
 		},
@@ -275,11 +286,13 @@ func registryWithRelativePathForEphemeral(featureStore *feastdevv1alpha1.Feature
 }
 func registryWithUnmanagedStore(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
 	copy := featureStore.DeepCopy()
-	copy.Spec.Services = &feastdevv1alpha1.Services{
+	copy.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
 		Registry: &feastdevv1alpha1.Registry{
-			Persistence: &feastdevv1alpha1.RegistryPersistence{
-				StorePersistence: &feastdevv1alpha1.RegistryStorePersistence{
-					Type: "unmanaged",
+			Local: &feastdevv1alpha1.LocalRegistryConfig{
+				Persistence: &feastdevv1alpha1.RegistryPersistence{
+					StorePersistence: &feastdevv1alpha1.RegistryStorePersistence{
+						Type: "unmanaged",
+					},
 				},
 			},
 		},
@@ -288,12 +301,14 @@ func registryWithUnmanagedStore(featureStore *feastdevv1alpha1.FeatureStore) *fe
 }
 func registryWithS3AdditionalKeywordsForFile(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
 	copy := featureStore.DeepCopy()
-	copy.Spec.Services = &feastdevv1alpha1.Services{
+	copy.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
 		Registry: &feastdevv1alpha1.Registry{
-			Persistence: &feastdevv1alpha1.RegistryPersistence{
-				FilePersistence: &feastdevv1alpha1.RegistryFilePersistence{
-					Path:          "/data/online_store.db",
-					S3AddtlKwargs: &map[string]string{},
+			Local: &feastdevv1alpha1.LocalRegistryConfig{
+				Persistence: &feastdevv1alpha1.RegistryPersistence{
+					FilePersistence: &feastdevv1alpha1.RegistryFilePersistence{
+						Path:          "/data/online_store.db",
+						S3AddtlKwargs: &map[string]string{},
+					},
 				},
 			},
 		},
@@ -302,12 +317,14 @@ func registryWithS3AdditionalKeywordsForFile(featureStore *feastdevv1alpha1.Feat
 }
 func registryWithS3AdditionalKeywordsForGsBucket(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
 	copy := featureStore.DeepCopy()
-	copy.Spec.Services = &feastdevv1alpha1.Services{
+	copy.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
 		Registry: &feastdevv1alpha1.Registry{
-			Persistence: &feastdevv1alpha1.RegistryPersistence{
-				FilePersistence: &feastdevv1alpha1.RegistryFilePersistence{
-					Path:          "gs://online_store.db",
-					S3AddtlKwargs: &map[string]string{},
+			Local: &feastdevv1alpha1.LocalRegistryConfig{
+				Persistence: &feastdevv1alpha1.RegistryPersistence{
+					FilePersistence: &feastdevv1alpha1.RegistryFilePersistence{
+						Path:          "gs://online_store.db",
+						S3AddtlKwargs: &map[string]string{},
+					},
 				},
 			},
 		},

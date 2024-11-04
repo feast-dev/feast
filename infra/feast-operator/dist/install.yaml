@@ -63,9 +63,19 @@ spec:
                 pattern: ^[A-Za-z0-9][A-Za-z0-9_]*$
                 type: string
               services:
+                description: FeatureStoreServices defines the desired feast service
+                  deployments. ephemeral registry is deployed by default.
                 properties:
                   offlineStore:
+                    description: OfflineStore configures the deployed offline store
+                      service
                     properties:
+                      image:
+                        type: string
+                      imagePullPolicy:
+                        description: PullPolicy describes a policy for if/when to
+                          pull a container image
+                        type: string
                       persistence:
                         properties:
                           file:
@@ -134,9 +144,73 @@ spec:
                           rule: '!(has(self.file) && has(self.store))'
                         - message: Either file or store persistence are required.
                           rule: has(self.file) || has(self.store)
+                      resources:
+                        description: ResourceRequirements describes the compute resource
+                          requirements.
+                        properties:
+                          claims:
+                            description: |-
+                              Claims lists the names of resources, defined in spec.resourceClaims,
+                              that are used by this container.
+
+
+                              This is an alpha field and requires enabling the
+                              DynamicResourceAllocation feature gate.
+
+
+                              This field is immutable. It can only be set for containers.
+                            items:
+                              description: ResourceClaim references one entry in PodSpec.ResourceClaims.
+                              properties:
+                                name:
+                                  description: |-
+                                    Name must match the name of one entry in pod.spec.resourceClaims of
+                                    the Pod where this field is used. It makes that resource available
+                                    inside a container.
+                                  type: string
+                              required:
+                              - name
+                              type: object
+                            type: array
+                            x-kubernetes-list-map-keys:
+                            - name
+                            x-kubernetes-list-type: map
+                          limits:
+                            additionalProperties:
+                              anyOf:
+                              - type: integer
+                              - type: string
+                              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                              x-kubernetes-int-or-string: true
+                            description: |-
+                              Limits describes the maximum amount of compute resources allowed.
+                              More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+                            type: object
+                          requests:
+                            additionalProperties:
+                              anyOf:
+                              - type: integer
+                              - type: string
+                              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                              x-kubernetes-int-or-string: true
+                            description: |-
+                              Requests describes the minimum amount of compute resources required.
+                              If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
+                              otherwise to an implementation-defined value. Requests cannot exceed Limits.
+                              More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+                            type: object
+                        type: object
                     type: object
                   onlineStore:
+                    description: OnlineStore configures the deployed online store
+                      service
                     properties:
+                      image:
+                        type: string
+                      imagePullPolicy:
+                        description: PullPolicy describes a policy for if/when to
+                          pull a container image
+                        type: string
                       persistence:
                         properties:
                           file:
@@ -216,266 +290,77 @@ spec:
                           rule: '!(has(self.file) && has(self.store))'
                         - message: Either file or store persistence are required.
                           rule: has(self.file) || has(self.store)
+                      resources:
+                        description: ResourceRequirements describes the compute resource
+                          requirements.
+                        properties:
+                          claims:
+                            description: |-
+                              Claims lists the names of resources, defined in spec.resourceClaims,
+                              that are used by this container.
+
+
+                              This is an alpha field and requires enabling the
+                              DynamicResourceAllocation feature gate.
+
+
+                              This field is immutable. It can only be set for containers.
+                            items:
+                              description: ResourceClaim references one entry in PodSpec.ResourceClaims.
+                              properties:
+                                name:
+                                  description: |-
+                                    Name must match the name of one entry in pod.spec.resourceClaims of
+                                    the Pod where this field is used. It makes that resource available
+                                    inside a container.
+                                  type: string
+                              required:
+                              - name
+                              type: object
+                            type: array
+                            x-kubernetes-list-map-keys:
+                            - name
+                            x-kubernetes-list-type: map
+                          limits:
+                            additionalProperties:
+                              anyOf:
+                              - type: integer
+                              - type: string
+                              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                              x-kubernetes-int-or-string: true
+                            description: |-
+                              Limits describes the maximum amount of compute resources allowed.
+                              More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+                            type: object
+                          requests:
+                            additionalProperties:
+                              anyOf:
+                              - type: integer
+                              - type: string
+                              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                              x-kubernetes-int-or-string: true
+                            description: |-
+                              Requests describes the minimum amount of compute resources required.
+                              If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
+                              otherwise to an implementation-defined value. Requests cannot exceed Limits.
+                              More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+                            type: object
+                        type: object
                     type: object
                   registry:
+                    description: Registry configures the registry service. One selection
+                      is required. Local is the default setting.
                     properties:
-                      persistence:
+                      local:
+                        description: LocalRegistryConfig configures the deployed registry
+                          service
                         properties:
-                          file:
-                            properties:
-                              path:
-                                type: string
-                              pvc:
-                                properties:
-                                  mountPath:
-                                    description: Default path depend on Feast service.
-                                    type: string
-                                  name:
-                                    description: The name of the PersistenceVolumeClaim
-                                      to be created, or reused it is already there
-                                    type: string
-                                  storage:
-                                    anyOf:
-                                    - type: integer
-                                    - type: string
-                                    description: |-
-                                      Default value depend on Feast service.
-                                      Only for newly created PVC.
-                                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                    x-kubernetes-int-or-string: true
-                                  storageClassName:
-                                    description: |-
-                                      Name of the StorageClass required by the claim.
-                                      Only for newly created PVC.
-                                    type: string
-                                type: object
-                              s3_additional_kwargs:
-                                additionalProperties:
-                                  type: string
-                                type: object
-                            type: object
-                            x-kubernetes-validations:
-                            - message: Ephemeral stores must have absolute paths.
-                              rule: '!has(self.pvc) ? (self.path.startsWith(''/'')
-                                || self.path.startsWith(''s3://'') || self.path.startsWith(''gs://''))
-                                : true'
-                            - message: PVC path must be a file name only, with no
-                                slashes.
-                              rule: 'has(self.pvc) ? !self.path.startsWith(''/'')
-                                : true'
-                            - message: PVC persistence does not support S3 or GS buckets.
-                              rule: 'has(self.pvc) ? !(self.path.startsWith(''s3://'')
-                                || self.path.startsWith(''gs://'')) : true'
-                            - message: Additional S3 settings are available only for
-                                S3 buckets.
-                              rule: 'has(self.s3_additional_kwargs) ? self.path.startsWith(''s3://'')
-                                : true'
-                          store:
-                            properties:
-                              secretRef:
-                                description: |-
-                                  LocalObjectReference contains enough information to let you locate the
-                                  referenced object inside the same namespace.
-                                properties:
-                                  name:
-                                    description: |-
-                                      Name of the referent.
-                                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                                      TODO: Add other useful fields. apiVersion, kind, uid?
-                                    type: string
-                                type: object
-                                x-kubernetes-map-type: atomic
-                              type:
-                                enum:
-                                - sql
-                                - snowflake
-                                type: string
-                            required:
-                            - type
-                            type: object
-                        type: object
-                        x-kubernetes-validations:
-                        - message: One file or store persistence is allowed.
-                          rule: '!(has(self.file) && has(self.store))'
-                        - message: Either file or store persistence are required.
-                          rule: has(self.file) || has(self.store)
-                    type: object
-                type: object
-            required:
-            - feastProject
-            type: object
-          status:
-            description: FeatureStoreStatus defines the observed state of FeatureStore
-            properties:
-              applied:
-                description: FeatureStoreSpec defines the desired state of FeatureStore
-                properties:
-                  feastProject:
-                    description: FeastProject is the Feast project id. This can be
-                      any alphanumeric string with underscores, but it cannot start
-                      with an underscore. Required.
-                    pattern: ^[A-Za-z0-9][A-Za-z0-9_]*$
-                    type: string
-                  services:
-                    properties:
-                      offlineStore:
-                        properties:
-                          persistence:
-                            properties:
-                              file:
-                                properties:
-                                  pvc:
-                                    properties:
-                                      mountPath:
-                                        description: Default path depend on Feast
-                                          service.
-                                        type: string
-                                      name:
-                                        description: The name of the PersistenceVolumeClaim
-                                          to be created, or reused it is already there
-                                        type: string
-                                      storage:
-                                        anyOf:
-                                        - type: integer
-                                        - type: string
-                                        description: |-
-                                          Default value depend on Feast service.
-                                          Only for newly created PVC.
-                                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                        x-kubernetes-int-or-string: true
-                                      storageClassName:
-                                        description: |-
-                                          Name of the StorageClass required by the claim.
-                                          Only for newly created PVC.
-                                        type: string
-                                    type: object
-                                  type:
-                                    enum:
-                                    - dask
-                                    - duckdb
-                                    type: string
-                                type: object
-                              store:
-                                properties:
-                                  secretRef:
-                                    description: |-
-                                      LocalObjectReference contains enough information to let you locate the
-                                      referenced object inside the same namespace.
-                                    properties:
-                                      name:
-                                        description: |-
-                                          Name of the referent.
-                                          More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                                          TODO: Add other useful fields. apiVersion, kind, uid?
-                                        type: string
-                                    type: object
-                                    x-kubernetes-map-type: atomic
-                                  type:
-                                    enum:
-                                    - snowflake
-                                    - bigquery
-                                    - redshift
-                                    - spark
-                                    - postgres
-                                    - trino
-                                    - mssql
-                                    type: string
-                                required:
-                                - type
-                                type: object
-                            type: object
-                            x-kubernetes-validations:
-                            - message: One file or store persistence is allowed.
-                              rule: '!(has(self.file) && has(self.store))'
-                            - message: Either file or store persistence are required.
-                              rule: has(self.file) || has(self.store)
-                        type: object
-                      onlineStore:
-                        properties:
-                          persistence:
-                            properties:
-                              file:
-                                properties:
-                                  path:
-                                    type: string
-                                  pvc:
-                                    properties:
-                                      mountPath:
-                                        description: Default path depend on Feast
-                                          service.
-                                        type: string
-                                      name:
-                                        description: The name of the PersistenceVolumeClaim
-                                          to be created, or reused it is already there
-                                        type: string
-                                      storage:
-                                        anyOf:
-                                        - type: integer
-                                        - type: string
-                                        description: |-
-                                          Default value depend on Feast service.
-                                          Only for newly created PVC.
-                                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                        x-kubernetes-int-or-string: true
-                                      storageClassName:
-                                        description: |-
-                                          Name of the StorageClass required by the claim.
-                                          Only for newly created PVC.
-                                        type: string
-                                    type: object
-                                type: object
-                                x-kubernetes-validations:
-                                - message: Ephemeral stores must have absolute paths.
-                                  rule: '!has(self.pvc) ? self.path.startsWith(''/'')
-                                    : true'
-                                - message: PVC path must be a file name only, with
-                                    no slashes.
-                                  rule: 'has(self.pvc) ? !self.path.startsWith(''/'')
-                                    : true'
-                                - message: Online store does not support S3 or GS
-                                    buckets.
-                                  rule: '!self.path.startsWith(''s3://'') && !self.path.startsWith(''gs://'')'
-                              store:
-                                properties:
-                                  secretRef:
-                                    description: |-
-                                      LocalObjectReference contains enough information to let you locate the
-                                      referenced object inside the same namespace.
-                                    properties:
-                                      name:
-                                        description: |-
-                                          Name of the referent.
-                                          More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                                          TODO: Add other useful fields. apiVersion, kind, uid?
-                                        type: string
-                                    type: object
-                                    x-kubernetes-map-type: atomic
-                                  type:
-                                    enum:
-                                    - snowflake
-                                    - redis
-                                    - ikv
-                                    - datastore
-                                    - dynamodb
-                                    - bigtable
-                                    - postgres
-                                    - cassandra
-                                    - mysql
-                                    - hazelcast
-                                    - singlestore
-                                    type: string
-                                required:
-                                - type
-                                type: object
-                            type: object
-                            x-kubernetes-validations:
-                            - message: One file or store persistence is allowed.
-                              rule: '!(has(self.file) && has(self.store))'
-                            - message: Either file or store persistence are required.
-                              rule: has(self.file) || has(self.store)
-                        type: object
-                      registry:
-                        properties:
+                          image:
+                            type: string
+                          imagePullPolicy:
+                            description: PullPolicy describes a policy for if/when
+                              to pull a container image
+                            type: string
                           persistence:
                             properties:
                               file:
@@ -558,12 +443,597 @@ spec:
                               rule: '!(has(self.file) && has(self.store))'
                             - message: Either file or store persistence are required.
                               rule: has(self.file) || has(self.store)
+                          resources:
+                            description: ResourceRequirements describes the compute
+                              resource requirements.
+                            properties:
+                              claims:
+                                description: |-
+                                  Claims lists the names of resources, defined in spec.resourceClaims,
+                                  that are used by this container.
+
+
+                                  This is an alpha field and requires enabling the
+                                  DynamicResourceAllocation feature gate.
+
+
+                                  This field is immutable. It can only be set for containers.
+                                items:
+                                  description: ResourceClaim references one entry
+                                    in PodSpec.ResourceClaims.
+                                  properties:
+                                    name:
+                                      description: |-
+                                        Name must match the name of one entry in pod.spec.resourceClaims of
+                                        the Pod where this field is used. It makes that resource available
+                                        inside a container.
+                                      type: string
+                                  required:
+                                  - name
+                                  type: object
+                                type: array
+                                x-kubernetes-list-map-keys:
+                                - name
+                                x-kubernetes-list-type: map
+                              limits:
+                                additionalProperties:
+                                  anyOf:
+                                  - type: integer
+                                  - type: string
+                                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                  x-kubernetes-int-or-string: true
+                                description: |-
+                                  Limits describes the maximum amount of compute resources allowed.
+                                  More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+                                type: object
+                              requests:
+                                additionalProperties:
+                                  anyOf:
+                                  - type: integer
+                                  - type: string
+                                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                  x-kubernetes-int-or-string: true
+                                description: |-
+                                  Requests describes the minimum amount of compute resources required.
+                                  If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
+                                  otherwise to an implementation-defined value. Requests cannot exceed Limits.
+                                  More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+                                type: object
+                            type: object
                         type: object
+                      remote:
+                        description: |-
+                          RemoteRegistryConfig points to a remote feast registry server. When set, the operator will not deploy a registry for this FeatureStore CR.
+                          Instead, this FeatureStore CR's online/offline services will use a remote registry. One selection is required.
+                        properties:
+                          feastRef:
+                            description: Reference to an existing `FeatureStore` CR
+                              in the same k8s cluster.
+                            properties:
+                              name:
+                                description: Name of the FeatureStore
+                                type: string
+                              namespace:
+                                description: Namespace of the FeatureStore
+                                type: string
+                            required:
+                            - name
+                            type: object
+                          hostname:
+                            description: Host address of the remote registry service
+                              - <domain>:<port>, e.g. `registry.<namespace>.svc.cluster.local:80`
+                            type: string
+                        type: object
+                        x-kubernetes-validations:
+                        - message: One selection required.
+                          rule: '[has(self.hostname), has(self.feastRef)].exists_one(c,
+                            c)'
+                    type: object
+                    x-kubernetes-validations:
+                    - message: One selection required.
+                      rule: '[has(self.local), has(self.remote)].exists_one(c, c)'
+                type: object
+            required:
+            - feastProject
+            type: object
+          status:
+            description: FeatureStoreStatus defines the observed state of FeatureStore
+            properties:
+              applied:
+                description: Shows the currently applied feast configuration, including
+                  any pertinent defaults
+                properties:
+                  feastProject:
+                    description: FeastProject is the Feast project id. This can be
+                      any alphanumeric string with underscores, but it cannot start
+                      with an underscore. Required.
+                    pattern: ^[A-Za-z0-9][A-Za-z0-9_]*$
+                    type: string
+                  services:
+                    description: FeatureStoreServices defines the desired feast service
+                      deployments. ephemeral registry is deployed by default.
+                    properties:
+                      offlineStore:
+                        description: OfflineStore configures the deployed offline
+                          store service
+                        properties:
+                          image:
+                            type: string
+                          imagePullPolicy:
+                            description: PullPolicy describes a policy for if/when
+                              to pull a container image
+                            type: string
+                          persistence:
+                            properties:
+                              file:
+                                properties:
+                                  pvc:
+                                    properties:
+                                      mountPath:
+                                        description: Default path depend on Feast
+                                          service.
+                                        type: string
+                                      name:
+                                        description: The name of the PersistenceVolumeClaim
+                                          to be created, or reused it is already there
+                                        type: string
+                                      storage:
+                                        anyOf:
+                                        - type: integer
+                                        - type: string
+                                        description: |-
+                                          Default value depend on Feast service.
+                                          Only for newly created PVC.
+                                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                        x-kubernetes-int-or-string: true
+                                      storageClassName:
+                                        description: |-
+                                          Name of the StorageClass required by the claim.
+                                          Only for newly created PVC.
+                                        type: string
+                                    type: object
+                                  type:
+                                    enum:
+                                    - dask
+                                    - duckdb
+                                    type: string
+                                type: object
+                              store:
+                                properties:
+                                  secretRef:
+                                    description: |-
+                                      LocalObjectReference contains enough information to let you locate the
+                                      referenced object inside the same namespace.
+                                    properties:
+                                      name:
+                                        description: |-
+                                          Name of the referent.
+                                          More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                          TODO: Add other useful fields. apiVersion, kind, uid?
+                                        type: string
+                                    type: object
+                                    x-kubernetes-map-type: atomic
+                                  type:
+                                    enum:
+                                    - snowflake
+                                    - bigquery
+                                    - redshift
+                                    - spark
+                                    - postgres
+                                    - trino
+                                    - mssql
+                                    type: string
+                                required:
+                                - type
+                                type: object
+                            type: object
+                            x-kubernetes-validations:
+                            - message: One file or store persistence is allowed.
+                              rule: '!(has(self.file) && has(self.store))'
+                            - message: Either file or store persistence are required.
+                              rule: has(self.file) || has(self.store)
+                          resources:
+                            description: ResourceRequirements describes the compute
+                              resource requirements.
+                            properties:
+                              claims:
+                                description: |-
+                                  Claims lists the names of resources, defined in spec.resourceClaims,
+                                  that are used by this container.
+
+
+                                  This is an alpha field and requires enabling the
+                                  DynamicResourceAllocation feature gate.
+
+
+                                  This field is immutable. It can only be set for containers.
+                                items:
+                                  description: ResourceClaim references one entry
+                                    in PodSpec.ResourceClaims.
+                                  properties:
+                                    name:
+                                      description: |-
+                                        Name must match the name of one entry in pod.spec.resourceClaims of
+                                        the Pod where this field is used. It makes that resource available
+                                        inside a container.
+                                      type: string
+                                  required:
+                                  - name
+                                  type: object
+                                type: array
+                                x-kubernetes-list-map-keys:
+                                - name
+                                x-kubernetes-list-type: map
+                              limits:
+                                additionalProperties:
+                                  anyOf:
+                                  - type: integer
+                                  - type: string
+                                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                  x-kubernetes-int-or-string: true
+                                description: |-
+                                  Limits describes the maximum amount of compute resources allowed.
+                                  More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+                                type: object
+                              requests:
+                                additionalProperties:
+                                  anyOf:
+                                  - type: integer
+                                  - type: string
+                                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                  x-kubernetes-int-or-string: true
+                                description: |-
+                                  Requests describes the minimum amount of compute resources required.
+                                  If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
+                                  otherwise to an implementation-defined value. Requests cannot exceed Limits.
+                                  More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+                                type: object
+                            type: object
+                        type: object
+                      onlineStore:
+                        description: OnlineStore configures the deployed online store
+                          service
+                        properties:
+                          image:
+                            type: string
+                          imagePullPolicy:
+                            description: PullPolicy describes a policy for if/when
+                              to pull a container image
+                            type: string
+                          persistence:
+                            properties:
+                              file:
+                                properties:
+                                  path:
+                                    type: string
+                                  pvc:
+                                    properties:
+                                      mountPath:
+                                        description: Default path depend on Feast
+                                          service.
+                                        type: string
+                                      name:
+                                        description: The name of the PersistenceVolumeClaim
+                                          to be created, or reused it is already there
+                                        type: string
+                                      storage:
+                                        anyOf:
+                                        - type: integer
+                                        - type: string
+                                        description: |-
+                                          Default value depend on Feast service.
+                                          Only for newly created PVC.
+                                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                        x-kubernetes-int-or-string: true
+                                      storageClassName:
+                                        description: |-
+                                          Name of the StorageClass required by the claim.
+                                          Only for newly created PVC.
+                                        type: string
+                                    type: object
+                                type: object
+                                x-kubernetes-validations:
+                                - message: Ephemeral stores must have absolute paths.
+                                  rule: '!has(self.pvc) ? self.path.startsWith(''/'')
+                                    : true'
+                                - message: PVC path must be a file name only, with
+                                    no slashes.
+                                  rule: 'has(self.pvc) ? !self.path.startsWith(''/'')
+                                    : true'
+                                - message: Online store does not support S3 or GS
+                                    buckets.
+                                  rule: '!self.path.startsWith(''s3://'') && !self.path.startsWith(''gs://'')'
+                              store:
+                                properties:
+                                  secretRef:
+                                    description: |-
+                                      LocalObjectReference contains enough information to let you locate the
+                                      referenced object inside the same namespace.
+                                    properties:
+                                      name:
+                                        description: |-
+                                          Name of the referent.
+                                          More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                          TODO: Add other useful fields. apiVersion, kind, uid?
+                                        type: string
+                                    type: object
+                                    x-kubernetes-map-type: atomic
+                                  type:
+                                    enum:
+                                    - snowflake
+                                    - redis
+                                    - ikv
+                                    - datastore
+                                    - dynamodb
+                                    - bigtable
+                                    - postgres
+                                    - cassandra
+                                    - mysql
+                                    - hazelcast
+                                    - singlestore
+                                    type: string
+                                required:
+                                - type
+                                type: object
+                            type: object
+                            x-kubernetes-validations:
+                            - message: One file or store persistence is allowed.
+                              rule: '!(has(self.file) && has(self.store))'
+                            - message: Either file or store persistence are required.
+                              rule: has(self.file) || has(self.store)
+                          resources:
+                            description: ResourceRequirements describes the compute
+                              resource requirements.
+                            properties:
+                              claims:
+                                description: |-
+                                  Claims lists the names of resources, defined in spec.resourceClaims,
+                                  that are used by this container.
+
+
+                                  This is an alpha field and requires enabling the
+                                  DynamicResourceAllocation feature gate.
+
+
+                                  This field is immutable. It can only be set for containers.
+                                items:
+                                  description: ResourceClaim references one entry
+                                    in PodSpec.ResourceClaims.
+                                  properties:
+                                    name:
+                                      description: |-
+                                        Name must match the name of one entry in pod.spec.resourceClaims of
+                                        the Pod where this field is used. It makes that resource available
+                                        inside a container.
+                                      type: string
+                                  required:
+                                  - name
+                                  type: object
+                                type: array
+                                x-kubernetes-list-map-keys:
+                                - name
+                                x-kubernetes-list-type: map
+                              limits:
+                                additionalProperties:
+                                  anyOf:
+                                  - type: integer
+                                  - type: string
+                                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                  x-kubernetes-int-or-string: true
+                                description: |-
+                                  Limits describes the maximum amount of compute resources allowed.
+                                  More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+                                type: object
+                              requests:
+                                additionalProperties:
+                                  anyOf:
+                                  - type: integer
+                                  - type: string
+                                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                  x-kubernetes-int-or-string: true
+                                description: |-
+                                  Requests describes the minimum amount of compute resources required.
+                                  If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
+                                  otherwise to an implementation-defined value. Requests cannot exceed Limits.
+                                  More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+                                type: object
+                            type: object
+                        type: object
+                      registry:
+                        description: Registry configures the registry service. One
+                          selection is required. Local is the default setting.
+                        properties:
+                          local:
+                            description: LocalRegistryConfig configures the deployed
+                              registry service
+                            properties:
+                              image:
+                                type: string
+                              imagePullPolicy:
+                                description: PullPolicy describes a policy for if/when
+                                  to pull a container image
+                                type: string
+                              persistence:
+                                properties:
+                                  file:
+                                    properties:
+                                      path:
+                                        type: string
+                                      pvc:
+                                        properties:
+                                          mountPath:
+                                            description: Default path depend on Feast
+                                              service.
+                                            type: string
+                                          name:
+                                            description: The name of the PersistenceVolumeClaim
+                                              to be created, or reused it is already
+                                              there
+                                            type: string
+                                          storage:
+                                            anyOf:
+                                            - type: integer
+                                            - type: string
+                                            description: |-
+                                              Default value depend on Feast service.
+                                              Only for newly created PVC.
+                                            pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                            x-kubernetes-int-or-string: true
+                                          storageClassName:
+                                            description: |-
+                                              Name of the StorageClass required by the claim.
+                                              Only for newly created PVC.
+                                            type: string
+                                        type: object
+                                      s3_additional_kwargs:
+                                        additionalProperties:
+                                          type: string
+                                        type: object
+                                    type: object
+                                    x-kubernetes-validations:
+                                    - message: Ephemeral stores must have absolute
+                                        paths.
+                                      rule: '!has(self.pvc) ? (self.path.startsWith(''/'')
+                                        || self.path.startsWith(''s3://'') || self.path.startsWith(''gs://''))
+                                        : true'
+                                    - message: PVC path must be a file name only,
+                                        with no slashes.
+                                      rule: 'has(self.pvc) ? !self.path.startsWith(''/'')
+                                        : true'
+                                    - message: PVC persistence does not support S3
+                                        or GS buckets.
+                                      rule: 'has(self.pvc) ? !(self.path.startsWith(''s3://'')
+                                        || self.path.startsWith(''gs://'')) : true'
+                                    - message: Additional S3 settings are available
+                                        only for S3 buckets.
+                                      rule: 'has(self.s3_additional_kwargs) ? self.path.startsWith(''s3://'')
+                                        : true'
+                                  store:
+                                    properties:
+                                      secretRef:
+                                        description: |-
+                                          LocalObjectReference contains enough information to let you locate the
+                                          referenced object inside the same namespace.
+                                        properties:
+                                          name:
+                                            description: |-
+                                              Name of the referent.
+                                              More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                              TODO: Add other useful fields. apiVersion, kind, uid?
+                                            type: string
+                                        type: object
+                                        x-kubernetes-map-type: atomic
+                                      type:
+                                        enum:
+                                        - sql
+                                        - snowflake
+                                        type: string
+                                    required:
+                                    - type
+                                    type: object
+                                type: object
+                                x-kubernetes-validations:
+                                - message: One file or store persistence is allowed.
+                                  rule: '!(has(self.file) && has(self.store))'
+                                - message: Either file or store persistence are required.
+                                  rule: has(self.file) || has(self.store)
+                              resources:
+                                description: ResourceRequirements describes the compute
+                                  resource requirements.
+                                properties:
+                                  claims:
+                                    description: |-
+                                      Claims lists the names of resources, defined in spec.resourceClaims,
+                                      that are used by this container.
+
+
+                                      This is an alpha field and requires enabling the
+                                      DynamicResourceAllocation feature gate.
+
+
+                                      This field is immutable. It can only be set for containers.
+                                    items:
+                                      description: ResourceClaim references one entry
+                                        in PodSpec.ResourceClaims.
+                                      properties:
+                                        name:
+                                          description: |-
+                                            Name must match the name of one entry in pod.spec.resourceClaims of
+                                            the Pod where this field is used. It makes that resource available
+                                            inside a container.
+                                          type: string
+                                      required:
+                                      - name
+                                      type: object
+                                    type: array
+                                    x-kubernetes-list-map-keys:
+                                    - name
+                                    x-kubernetes-list-type: map
+                                  limits:
+                                    additionalProperties:
+                                      anyOf:
+                                      - type: integer
+                                      - type: string
+                                      pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                      x-kubernetes-int-or-string: true
+                                    description: |-
+                                      Limits describes the maximum amount of compute resources allowed.
+                                      More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+                                    type: object
+                                  requests:
+                                    additionalProperties:
+                                      anyOf:
+                                      - type: integer
+                                      - type: string
+                                      pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                      x-kubernetes-int-or-string: true
+                                    description: |-
+                                      Requests describes the minimum amount of compute resources required.
+                                      If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
+                                      otherwise to an implementation-defined value. Requests cannot exceed Limits.
+                                      More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+                                    type: object
+                                type: object
+                            type: object
+                          remote:
+                            description: |-
+                              RemoteRegistryConfig points to a remote feast registry server. When set, the operator will not deploy a registry for this FeatureStore CR.
+                              Instead, this FeatureStore CR's online/offline services will use a remote registry. One selection is required.
+                            properties:
+                              feastRef:
+                                description: Reference to an existing `FeatureStore`
+                                  CR in the same k8s cluster.
+                                properties:
+                                  name:
+                                    description: Name of the FeatureStore
+                                    type: string
+                                  namespace:
+                                    description: Namespace of the FeatureStore
+                                    type: string
+                                required:
+                                - name
+                                type: object
+                              hostname:
+                                description: Host address of the remote registry service
+                                  - <domain>:<port>, e.g. `registry.<namespace>.svc.cluster.local:80`
+                                type: string
+                            type: object
+                            x-kubernetes-validations:
+                            - message: One selection required.
+                              rule: '[has(self.hostname), has(self.feastRef)].exists_one(c,
+                                c)'
+                        type: object
+                        x-kubernetes-validations:
+                        - message: One selection required.
+                          rule: '[has(self.local), has(self.remote)].exists_one(c,
+                            c)'
                     type: object
                 required:
                 - feastProject
                 type: object
               clientConfigMap:
+                description: ConfigMap in this namespace containing a client `feature_store.yaml`
+                  for this feast deployment
                 type: string
               conditions:
                 items:
@@ -635,12 +1105,18 @@ spec:
                   type: object
                 type: array
               feastVersion:
+                description: Version of feast that's currently deployed
                 type: string
               phase:
                 type: string
-              serviceUrls:
-                description: ServiceUrls
+              serviceHostnames:
+                description: ServiceHostnames defines the service hostnames in the
+                  format of <domain>:<port>, e.g. example.svc.cluster.local:80
                 properties:
+                  offlineStore:
+                    type: string
+                  onlineStore:
+                    type: string
                   registry:
                     type: string
                 type: object

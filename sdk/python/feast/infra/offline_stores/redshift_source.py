@@ -24,6 +24,8 @@ from feast.value_type import ValueType
 
 @typechecked
 class RedshiftSource(DataSource):
+    """A RedshiftSource object defines a data source that a RedshiftOfflineStore class can use."""
+
     def __init__(
         self,
         *,

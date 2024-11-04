@@ -1,7 +1,7 @@
 apiVersion: feast.dev/v1alpha1
 kind: FeatureStore
 metadata:
-  name: sample-ephemeral-persistence
+  name: sample-s3-registry
 spec:
   feastProject: my_project
   services:
@@ -14,10 +14,11 @@ spec:
         file:
           type: dask
     registry:
-      persistence:
-        file:
-          path: s3://bucket/registry.db
-          s3_additional_kwargs:
-            ServerSideEncryption: AES256
-            ACL: bucket-owner-full-control
-            CacheControl: max-age=3600
+      local:
+        persistence:
+          file:
+            path: s3://bucket/registry.db
+            s3_additional_kwargs:
+              ServerSideEncryption: AES256
+              ACL: bucket-owner-full-control
+              CacheControl: max-age=3600

@@ -6,10 +6,11 @@ spec:
   feastProject: my_project
   services:
     registry:
-      persistence:
-        store:
-          type: snowflake
-          secretRef: snowflake-secret
+      local:
+        persistence:
+          store:
+            type: snowflake
+            secretRef: snowflake-secret
 ---
 apiVersion: v1
 kind: Secret
@@ -23,4 +24,4 @@ stringData:
   warehouse: COMPUTE_WH
   database: FEAST
   schema: PUBLIC
-  cache_ttl_seconds: '60'
+  cache_ttl_seconds: "60"
