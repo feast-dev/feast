@@ -51,6 +51,14 @@ feast.infra.provider module
    :undoc-members:
    :show-inheritance:
 
+feast.infra.supported\_async\_methods module
+--------------------------------------------
+
+.. automodule:: feast.infra.supported_async_methods
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Module contents
 ---------------
 

@@ -148,6 +148,8 @@ FAISS_REQUIRED = ["faiss-cpu>=1.7.0,<2"]
 
 QDRANT_REQUIRED = ["qdrant-client>=1.12.0"]
 
+CLICKHOUSE_REQUIRED = ["clickhouse-connect>=0.7.19"]
+
 CI_REQUIRED = (
     [
         "build",
@@ -217,6 +219,7 @@ CI_REQUIRED = (
     + OPENTELEMETRY
     + FAISS_REQUIRED
     + QDRANT_REQUIRED
+    + CLICKHOUSE_REQUIRED
 )
 
 DOCS_REQUIRED = CI_REQUIRED
@@ -287,7 +290,8 @@ setup(
         "singlestore": SINGLESTORE_REQUIRED,
         "opentelemetry": OPENTELEMETRY,
         "faiss": FAISS_REQUIRED,
-        "qdrant": QDRANT_REQUIRED
+        "qdrant": QDRANT_REQUIRED,
+        "clickhouse": CLICKHOUSE_REQUIRED,
     },
     include_package_data=True,
     license="Apache",
