@@ -69,6 +69,7 @@ message OnDemandFeatureViewSpec {
     repeated string entities = 13;
     // List of specifications for each entity defined as part of this feature view.
     repeated FeatureSpecV2 entity_columns = 14;
+    bool singleton = 15;
 }
 
 message OnDemandFeatureViewMeta {
