@@ -162,6 +162,7 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
                     Field(name="conv_rate_plus_acc_python_singleton", dtype=Float64)
                 ],
                 mode="python",
+                singleton=True,
             )
             def python_singleton_view(inputs: dict[str, Any]) -> dict[str, Any]:
                 output: dict[str, Any] = dict(conv_rate_plus_acc_python=float("-inf"))
@@ -233,6 +234,8 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
         entity_rows = [
             {
                 "driver_id": 1001,
+                "acc_rate": 0.25,
+                "conv_rate": 0.25,
             }
         ]
 
