@@ -128,7 +128,7 @@ couchbase==4.3.2
     # via feast (setup.py)
 coverage[toml]==7.6.4
     # via pytest-cov
-cryptography==42.0.8
+cryptography==43.0.1
     # via
     #   feast (setup.py)
     #   azure-identity
