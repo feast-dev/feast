@@ -29,6 +29,8 @@ class SparkSourceFormat(Enum):
 
 
 class SparkSource(DataSource):
+    """A SparkSource object defines a data source that a Spark offline store can use"""
+
     def __init__(
         self,
         *,
@@ -44,6 +46,25 @@ class SparkSource(DataSource):
         owner: Optional[str] = "",
         timestamp_field: Optional[str] = None,
     ):
+        """Creates a SparkSource object.
+
+        Args:
+            name: The name of the data source, which should be unique within a project.
+            table: The name of a Spark table.
+            query: The query to be executed in Spark.
+            path: The path to file data.
+            file_format: The format of the file data.
+            created_timestamp_column: Timestamp column indicating when the row
+                was created, used for deduplicating rows.
+            field_mapping: A dictionary mapping of column names in this data
+                source to feature names in a feature table or view.
+            description: A human-readable description.
+            tags: A dictionary of key-value pairs to store arbitrary metadata.
+            owner: The owner of the DataSource, typically the email of the primary
+                maintainer.
+            timestamp_field: Event timestamp field used for point-in-time joins of
+                feature values.
+        """
         # If no name, use the table as the default name.
         if name is None and table is None:
             raise DataSourceNoNameException()
