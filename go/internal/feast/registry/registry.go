@@ -18,8 +18,6 @@ var REGISTRY_STORE_CLASS_FOR_SCHEME map[string]string = map[string]string{
 	"gs":    "GCSRegistryStore",
 	"s3":    "S3RegistryStore",
 	"file":  "FileRegistryStore",
-	"http":  "HttpRegistryStore",
-	"https": "HttpRegistryStore",
 	"":      "FileRegistryStore",
 }
 
@@ -70,7 +68,7 @@ func NewRegistry(registryConfig *RegistryConfig, repoPath string, project string
 func (r *Registry) InitializeRegistry() error {
 	_, err := r.getRegistryProto()
 	if err != nil {
-		if _, ok := r.registryStore.(*HttpRegistryStore); ok {
+		if _, ok := r.registryStore.(*FileRegistryStore); ok {
 			log.Error().Err(err).Msg("Registry Initialization Failed")
 			return err
 		}
@@ -366,8 +364,6 @@ func getRegistryStoreFromType(registryStoreType string, registryConfig *Registry
 	switch registryStoreType {
 	case "FileRegistryStore":
 		return NewFileRegistryStore(registryConfig, repoPath), nil
-	case "HttpRegistryStore":
-		return NewHttpRegistryStore(registryConfig, project)
 	}
-	return nil, errors.New("only FileRegistryStore or HttpRegistryStore as a RegistryStore is supported at this moment")
+	return nil, errors.New("only FileRegistryStore as a RegistryStore is supported at this moment")
 }
