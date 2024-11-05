@@ -126,8 +126,10 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
             )
             def python_view(inputs: dict[str, Any]) -> dict[str, Any]:
                 output: dict[str, Any] = {
-                    "conv_rate_plus_acc_python": inputs["conv_rate"]
-                    + inputs["acc_rate"]
+                    "conv_rate_plus_acc_python": conv_rate + acc_rate
+                    for conv_rate, acc_rate in zip(
+                        inputs["conv_rate"], inputs["acc_rate"]
+                    )
                 }
                 return output
 
