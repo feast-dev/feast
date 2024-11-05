@@ -46,6 +46,10 @@ Please see [Online Store](../../getting-started/components/online-store.md) for 
 [cassandra.md](cassandra.md)
 {% endcontent-ref %}
 
+{% content-ref url="couchbase.md" %}
+[couchbase.md](couchbase.md)
+{% endcontent-ref %}
+
 {% content-ref url="mysql.md" %}
 [mysql.md](mysql.md)
 {% endcontent-ref %}
@@ -60,6 +64,7 @@ Please see [Online Store](../../getting-started/components/online-store.md) for 
 
 {% content-ref url="remote.md" %}
 [remote.md](remote.md)
+{% endcontent-ref %}
 
 {% content-ref url="singlestore.md" %}
 [singlestore.md](singlestore.md)

@@ -8,6 +8,7 @@ Subpackages
    :maxdepth: 4
 
    feast.infra.online_stores.contrib.cassandra_online_store
+   feast.infra.online_stores.contrib.couchbase_online_store
    feast.infra.online_stores.contrib.hazelcast_online_store
    feast.infra.online_stores.contrib.hbase_online_store
    feast.infra.online_stores.contrib.ikv_online_store
@@ -20,6 +21,14 @@ feast.infra.online\_stores.contrib.cassandra\_repo\_configuration module
 ------------------------------------------------------------------------
 
 .. automodule:: feast.infra.online_stores.contrib.cassandra_repo_configuration
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+feast.infra.online\_stores.contrib.couchbase\_repo\_configuration module
+------------------------------------------------------------------------
+
+.. automodule:: feast.infra.online_stores.contrib.couchbase_repo_configuration
    :members:
    :undoc-members:
    :show-inheritance:

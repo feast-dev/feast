@@ -68,6 +68,7 @@ ONLINE_STORE_CLASS_FOR_TYPE = {
     "remote": "feast.infra.online_stores.remote.RemoteOnlineStore",
     "singlestore": "feast.infra.online_stores.contrib.singlestore_online_store.singlestore.SingleStoreOnlineStore",
     "qdrant": "feast.infra.online_stores.contrib.qdrant.QdrantOnlineStore",
+    "couchbase": "feast.infra.online_stores.contrib.couchbase_online_store.couchbase.CouchbaseOnlineStore",
 }
 
 OFFLINE_STORE_CLASS_FOR_TYPE = {
