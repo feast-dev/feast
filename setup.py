@@ -142,6 +142,8 @@ ELASTICSEARCH_REQUIRED = ["elasticsearch>=8.13.0"]
 
 SINGLESTORE_REQUIRED = ["singlestoredb"]
 
+COUCHBASE_REQUIRED = ["couchbase==4.3.2"]
+
 MSSQL_REQUIRED = ["ibis-framework[mssql]>=9.0.0,<10"]
 
 FAISS_REQUIRED = ["faiss-cpu>=1.7.0,<2"]
@@ -214,6 +216,7 @@ CI_REQUIRED = (
     + ELASTICSEARCH_REQUIRED
     + SQLITE_VEC_REQUIRED
     + SINGLESTORE_REQUIRED
+    + COUCHBASE_REQUIRED
     + OPENTELEMETRY
     + FAISS_REQUIRED
     + QDRANT_REQUIRED
@@ -285,6 +288,7 @@ setup(
         "elasticsearch": ELASTICSEARCH_REQUIRED,
         "sqlite_vec": SQLITE_VEC_REQUIRED,
         "singlestore": SINGLESTORE_REQUIRED,
+        "couchbase": COUCHBASE_REQUIRED,
         "opentelemetry": OPENTELEMETRY,
         "faiss": FAISS_REQUIRED,
         "qdrant": QDRANT_REQUIRED

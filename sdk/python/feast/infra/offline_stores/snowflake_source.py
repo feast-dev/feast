@@ -21,6 +21,8 @@ from feast.value_type import ValueType
 
 @typechecked
 class SnowflakeSource(DataSource):
+    """A SnowflakeSource object defines a data source that a SnowflakeOfflineStore class can use."""
+
     def __init__(
         self,
         *,

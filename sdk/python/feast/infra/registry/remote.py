@@ -55,6 +55,10 @@ class RemoteRegistryConfig(RegistryConfig):
     """ str: Path to metadata store.
     If registry_type is 'remote', then this is a URL for registry server """
 
+    cert: StrictStr = ""
+    """ str: Path to the public certificate when the registry server starts in TLS(SSL) mode. This may be needed if the registry server started with a self-signed certificate, typically this file ends with `*.crt`, `*.cer`, or `*.pem`.
+    If registry_type is 'remote', then this configuration is needed to connect to remote registry server in TLS mode. If the remote registry started in non-tls mode then this configuration is not needed."""
+
 
 class RemoteRegistry(BaseRegistry):
     def __init__(
@@ -65,7 +69,17 @@ class RemoteRegistry(BaseRegistry):
         auth_config: AuthConfig = NoAuthConfig(),
     ):
         self.auth_config = auth_config
-        self.channel = grpc.insecure_channel(registry_config.path)
+        assert isinstance(registry_config, RemoteRegistryConfig)
+        if registry_config.cert:
+            with open(registry_config.cert, "rb") as cert_file:
+                trusted_certs = cert_file.read()
+                tls_credentials = grpc.ssl_channel_credentials(
+                    root_certificates=trusted_certs
+                )
+            self.channel = grpc.secure_channel(registry_config.path, tls_credentials)
+        else:
+            self.channel = grpc.insecure_channel(registry_config.path)
+
         auth_header_interceptor = GrpcClientAuthHeaderInterceptor(auth_config)
         self.channel = grpc.intercept_channel(self.channel, auth_header_interceptor)
         self.stub = RegistryServer_pb2_grpc.RegistryServerStub(self.channel)
