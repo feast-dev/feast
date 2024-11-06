@@ -19,35 +19,18 @@ func ApplyDefaultsToStatus(cr *feastdevv1alpha1.FeatureStore) {
 
 	// default to registry service deployment
 	if applied.Services.Registry == nil {
-		applied.Services.Registry = &feastdevv1alpha1.Registry{
-			Local: &feastdevv1alpha1.LocalRegistryConfig{
-				Persistence: &feastdevv1alpha1.RegistryPersistence{
-					FilePersistence: &feastdevv1alpha1.RegistryFilePersistence{
-						Path: DefaultRegistryPath,
-					},
-				},
-			},
-		}
+		applied.Services.Registry = &feastdevv1alpha1.Registry{}
 	}
 	// if remote registry not set, proceed w/ local registry defaults
 	if applied.Services.Registry.Remote == nil {
 		// if local registry not set, apply an empty pointer struct
 		if applied.Services.Registry.Local == nil {
-			applied.Services.Registry.Local = &feastdevv1alpha1.LocalRegistryConfig{
-				Persistence: &feastdevv1alpha1.RegistryPersistence{
-					FilePersistence: &feastdevv1alpha1.RegistryFilePersistence{
-						Path: DefaultRegistryPath,
-					},
-				},
-			}
+			applied.Services.Registry.Local = &feastdevv1alpha1.LocalRegistryConfig{}
 		}
 		if applied.Services.Registry.Local.Persistence == nil {
-			applied.Services.Registry.Local.Persistence = &feastdevv1alpha1.RegistryPersistence{
-				FilePersistence: &feastdevv1alpha1.RegistryFilePersistence{
-					Path: DefaultRegistryPath,
-				},
-			}
-		} else if applied.Services.Registry.Local.Persistence.FilePersistence == nil {
+			applied.Services.Registry.Local.Persistence = &feastdevv1alpha1.RegistryPersistence{}
+		}
+		if applied.Services.Registry.Local.Persistence.FilePersistence == nil {
 			applied.Services.Registry.Local.Persistence.FilePersistence = &feastdevv1alpha1.RegistryFilePersistence{
 				Path: DefaultRegistryPath,
 			}
@@ -57,12 +40,9 @@ func ApplyDefaultsToStatus(cr *feastdevv1alpha1.FeatureStore) {
 	if applied.Services.OfflineStore != nil {
 		setServiceDefaultConfigs(&applied.Services.OfflineStore.ServiceConfigs.DefaultConfigs)
 		if applied.Services.OfflineStore.Persistence == nil {
-			applied.Services.OfflineStore.Persistence = &feastdevv1alpha1.OfflineStorePersistence{
-				FilePersistence: &feastdevv1alpha1.OfflineStoreFilePersistence{
-					Type: string(OfflineDaskConfigType),
-				},
-			}
-		} else if applied.Services.OfflineStore.Persistence.FilePersistence == nil {
+			applied.Services.OfflineStore.Persistence = &feastdevv1alpha1.OfflineStorePersistence{}
+		}
+		if applied.Services.OfflineStore.Persistence.FilePersistence == nil {
 			applied.Services.OfflineStore.Persistence.FilePersistence = &feastdevv1alpha1.OfflineStoreFilePersistence{
 				Type: string(OfflineDaskConfigType),
 			}
@@ -71,12 +51,9 @@ func ApplyDefaultsToStatus(cr *feastdevv1alpha1.FeatureStore) {
 	if applied.Services.OnlineStore != nil {
 		setServiceDefaultConfigs(&applied.Services.OnlineStore.ServiceConfigs.DefaultConfigs)
 		if applied.Services.OnlineStore.Persistence == nil {
-			applied.Services.OnlineStore.Persistence = &feastdevv1alpha1.OnlineStorePersistence{
-				FilePersistence: &feastdevv1alpha1.OnlineStoreFilePersistence{
-					Path: DefaultOnlinePath,
-				},
-			}
-		} else if applied.Services.OnlineStore.Persistence.FilePersistence == nil {
+			applied.Services.OnlineStore.Persistence = &feastdevv1alpha1.OnlineStorePersistence{}
+		}
+		if applied.Services.OnlineStore.Persistence.FilePersistence == nil {
 			applied.Services.OnlineStore.Persistence.FilePersistence = &feastdevv1alpha1.OnlineStoreFilePersistence{
 				Path: DefaultOnlinePath,
 			}
