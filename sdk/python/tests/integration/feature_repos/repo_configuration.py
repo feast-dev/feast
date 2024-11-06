@@ -48,7 +48,7 @@ from tests.integration.feature_repos.universal.data_sources.file import (
     DuckDBDeltaDataSourceCreator,
     FileDataSourceCreator,
     RemoteOfflineOidcAuthStoreDataSourceCreator,
-    RemoteOfflineStoreDataSourceCreator,
+    RemoteOfflineStoreDataSourceCreator, RemoteOfflineTlsStoreDataSourceCreator,
 )
 from tests.integration.feature_repos.universal.data_sources.redshift import (
     RedshiftDataSourceCreator,
@@ -131,6 +131,7 @@ AVAILABLE_OFFLINE_STORES: List[Tuple[str, Type[DataSourceCreator]]] = [
     ("local", DuckDBDeltaDataSourceCreator),
     ("local", RemoteOfflineStoreDataSourceCreator),
     ("local", RemoteOfflineOidcAuthStoreDataSourceCreator),
+    ("local", RemoteOfflineTlsStoreDataSourceCreator),
 ]
 
 if os.getenv("FEAST_IS_LOCAL_TEST", "False") == "True":

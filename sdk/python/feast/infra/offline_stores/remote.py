@@ -70,21 +70,37 @@ class FeastFlightClient(fl.FlightClient):
         return super().list_actions(options)
 
 
-def build_arrow_flight_client(host: str, port, auth_config: AuthConfig):
+def build_arrow_flight_client(scheme: str, host: str, port, auth_config: AuthConfig):
+    arrow_scheme = "grpc+tcp"
+    if scheme == "https":
+        logger.info(
+            "Scheme is https so going to connect offline server in SSL(TLS) mode."
+        )
+        arrow_scheme = "grpc+tls"
+
     if auth_config.type != AuthType.NONE.value:
         middlewares = [FlightAuthInterceptorFactory(auth_config)]
-        return FeastFlightClient(f"grpc://{host}:{port}", middleware=middlewares)
+        return FeastFlightClient(
+            f"{arrow_scheme}://{host}:{port}", middleware=middlewares
+        )
 
-    return FeastFlightClient(f"grpc://{host}:{port}")
+    return FeastFlightClient(f"{arrow_scheme}://{host}:{port}")
 
 
 class RemoteOfflineStoreConfig(FeastConfigBaseModel):
     type: Literal["remote"] = "remote"
+
+    scheme: Literal["http", "https"] = "http"
+
     host: StrictStr
     """ str: remote offline store server port, e.g. the host URL for offline store  of arrow flight server. """
 
     port: Optional[StrictInt] = None
     """ str: remote offline store server port."""
+
+    cert: StrictStr = ""
+    """ str: Path to the public certificate when the offline server starts in TLS(SSL) mode. This may be needed if the offline server started with a self-signed certificate, typically this file ends with `*.crt`, `*.cer`, or `*.pem`.
+    If type is 'remote', then this configuration is needed to connect to remote offline server in TLS mode. """
 
 
 class RemoteRetrievalJob(RetrievalJob):
@@ -178,7 +194,10 @@ class RemoteOfflineStore(OfflineStore):
         assert isinstance(config.offline_store, RemoteOfflineStoreConfig)
 
         client = build_arrow_flight_client(
-            config.offline_store.host, config.offline_store.port, config.auth_config
+            scheme=config.offline_store.scheme,
+            host=config.offline_store.host,
+            port=config.offline_store.port,
+            auth_config=config.auth_config,
         )
 
         feature_view_names = [fv.name for fv in feature_views]
