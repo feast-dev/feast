@@ -1931,6 +1931,8 @@ class FeatureStore:
         get_registry_dump: Callable,
         registry_ttl_sec: int,
         root_path: str = "",
+        tls_key_path: str = "",
+        tls_cert_path: str = "",
     ) -> None:
         """Start the UI server locally"""
         if flags_helper.is_test():
@@ -1947,6 +1949,8 @@ class FeatureStore:
             project_id=self.config.project,
             registry_ttl_sec=registry_ttl_sec,
             root_path=root_path,
+            tls_key_path=tls_key_path,
+            tls_cert_path=tls_cert_path,
         )
 
     def serve_registry(
