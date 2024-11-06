@@ -570,6 +570,8 @@ def _augment_response_with_on_demand_transforms(
             proto_values.append(
                 python_values_to_proto_values(
                     feature_vector
+                    if isinstance(feature_vector, list)
+                    else [feature_vector]
                     if odfv.mode == "python"
                     else feature_vector.to_numpy(),
                     feature_type,
