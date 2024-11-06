@@ -18,6 +18,7 @@ package services
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/feast-dev/feast/infra/feast-operator/api/feastversion"
 	feastdevv1alpha1 "github.com/feast-dev/feast/infra/feast-operator/api/v1alpha1"
@@ -30,8 +31,8 @@ const (
 	FeastPrefix            = "feast-"
 	FeatureStoreYamlEnvVar = "FEATURE_STORE_YAML_BASE64"
 	FeatureStoreYamlCmKey  = "feature_store.yaml"
-	LocalRegistryPath      = "/tmp/registry.db"
-	LocalOnlinePath        = "/tmp/online_store.db"
+	DefaultRegistryPath    = "/tmp/registry.db"
+	DefaultOnlinePath      = "/tmp/online_store.db"
 	svcDomain              = ".svc.cluster.local"
 	HttpPort               = 80
 
@@ -42,6 +43,7 @@ const (
 
 	OfflineRemoteConfigType OfflineConfigType = "remote"
 	OfflineDaskConfigType   OfflineConfigType = "dask"
+	OfflineDuckDbConfigType OfflineConfigType = "duckdb"
 
 	OnlineRemoteConfigType OnlineConfigType = "remote"
 	OnlineSqliteConfigType OnlineConfigType = "sqlite"
@@ -134,6 +136,17 @@ type FeastServiceType string
 
 // OfflineConfigType provider name or a class name that implements Offline Store
 type OfflineConfigType string
+
+func ParseOfflineConfigType(value string) (OfflineConfigType, error) {
+	switch value {
+	case string(OfflineDaskConfigType):
+		return OfflineDaskConfigType, nil
+	case string(OfflineDuckDbConfigType):
+		return OfflineDuckDbConfigType, nil
+	default:
+		return "", fmt.Errorf("invalid OfflineConfigType value %s", value)
+	}
+}
 
 // RegistryConfigType provider name or a class name that implements Registry
 type RegistryConfigType string

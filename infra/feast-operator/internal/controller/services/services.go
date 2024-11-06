@@ -329,8 +329,7 @@ func (feast *FeastServices) setRemoteRegistryURL() error {
 }
 
 func (feast *FeastServices) isLocalRegistry() bool {
-	appliedServices := feast.FeatureStore.Status.Applied.Services
-	return appliedServices != nil && appliedServices.Registry != nil && appliedServices.Registry.Local != nil
+	return IsLocalRegistry(feast.FeatureStore)
 }
 
 func (feast *FeastServices) isRemoteRegistry() bool {

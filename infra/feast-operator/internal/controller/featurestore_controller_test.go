@@ -233,7 +233,7 @@ var _ = Describe("FeatureStore Controller", func() {
 				EntityKeySerializationVersion: feastdevv1alpha1.SerializationVersion,
 				Registry: services.RegistryConfig{
 					RegistryType: services.RegistryFileConfigType,
-					Path:         services.LocalRegistryPath,
+					Path:         services.DefaultRegistryPath,
 				},
 			}
 			Expect(repoConfig).To(Equal(testConfig))
@@ -590,7 +590,7 @@ var _ = Describe("FeatureStore Controller", func() {
 				EntityKeySerializationVersion: feastdevv1alpha1.SerializationVersion,
 				Registry: services.RegistryConfig{
 					RegistryType: services.RegistryFileConfigType,
-					Path:         services.LocalRegistryPath,
+					Path:         services.DefaultRegistryPath,
 				},
 			}
 			Expect(repoConfig).To(Equal(testConfig))
@@ -666,7 +666,7 @@ var _ = Describe("FeatureStore Controller", func() {
 				EntityKeySerializationVersion: feastdevv1alpha1.SerializationVersion,
 				OfflineStore:                  offlineRemote,
 				OnlineStore: services.OnlineStoreConfig{
-					Path: services.LocalOnlinePath,
+					Path: services.DefaultOnlinePath,
 					Type: services.OnlineSqliteConfigType,
 				},
 				Registry: regRemote,

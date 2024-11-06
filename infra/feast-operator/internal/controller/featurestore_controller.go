@@ -34,7 +34,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/feast-dev/feast/infra/feast-operator/api/feastversion"
 	feastdevv1alpha1 "github.com/feast-dev/feast/infra/feast-operator/api/v1alpha1"
 	"github.com/feast-dev/feast/infra/feast-operator/internal/controller/services"
 )
@@ -78,7 +77,7 @@ func (r *FeatureStoreReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	currentStatus := cr.Status.DeepCopy()
 
 	// initial status defaults must occur before feast deployment
-	applyDefaultsToStatus(cr)
+	services.ApplyDefaultsToStatus(cr)
 	result, recErr = r.deployFeast(ctx, cr)
 	if cr.DeletionTimestamp == nil && !reflect.DeepEqual(currentStatus, cr.Status) {
 		if err := r.Client.Status().Update(ctx, cr); err != nil {
@@ -183,40 +182,4 @@ func (r *FeatureStoreReconciler) mapFeastRefsToFeastRequests(ctx context.Context
 	}
 
 	return requests
-}
-
-func applyDefaultsToStatus(cr *feastdevv1alpha1.FeatureStore) {
-	cr.Status.FeastVersion = feastversion.FeastVersion
-	applied := cr.Spec.DeepCopy()
-	if applied.Services == nil {
-		applied.Services = &feastdevv1alpha1.FeatureStoreServices{}
-	}
-
-	// default to registry service deployment
-	if applied.Services.Registry == nil {
-		applied.Services.Registry = &feastdevv1alpha1.Registry{}
-	}
-	// if remote registry not set, proceed w/ local registry defaults
-	if applied.Services.Registry.Remote == nil {
-		// if local registry not set, apply an empty pointer struct
-		if applied.Services.Registry.Local == nil {
-			applied.Services.Registry.Local = &feastdevv1alpha1.LocalRegistryConfig{}
-		}
-		setServiceDefaultConfigs(&applied.Services.Registry.Local.ServiceConfigs.DefaultConfigs)
-	}
-	if applied.Services.OfflineStore != nil {
-		setServiceDefaultConfigs(&applied.Services.OfflineStore.ServiceConfigs.DefaultConfigs)
-	}
-	if applied.Services.OnlineStore != nil {
-		setServiceDefaultConfigs(&applied.Services.OnlineStore.ServiceConfigs.DefaultConfigs)
-	}
-
-	// overwrite status.applied with every reconcile
-	applied.DeepCopyInto(&cr.Status.Applied)
-}
-
-func setServiceDefaultConfigs(defaultConfigs *feastdevv1alpha1.DefaultConfigs) {
-	if defaultConfigs.Image == nil {
-		defaultConfigs.Image = &services.DefaultImage
-	}
 }
