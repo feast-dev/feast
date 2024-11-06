@@ -71,20 +71,16 @@ type FeatureStoreServices struct {
 // OfflineStore configures the deployed offline store service
 type OfflineStore struct {
 	ServiceConfigs `json:",inline"`
-	// +optional
-	Persistence *OfflineStorePersistence `json:"persistence,omitempty"`
+	Persistence    *OfflineStorePersistence `json:"persistence,omitempty"`
 }
 
 // OfflineStorePersistence configures the persistence settings for the offline store service
 type OfflineStorePersistence struct {
-	// +optional
 	FilePersistence *OfflineStoreFilePersistence `json:"file,omitempty"`
 }
 
 // OfflineStorePersistence configures the file-based persistence for the offline store service
 type OfflineStoreFilePersistence struct {
-	// +optional
-	// +default:value=dask
 	// +kubebuilder:validation:Enum=dask;duckdb
 	Type string `json:"type,omitempty"`
 }
@@ -92,38 +88,32 @@ type OfflineStoreFilePersistence struct {
 // OnlineStore configures the deployed online store service
 type OnlineStore struct {
 	ServiceConfigs `json:",inline"`
-	// +optional
-	Persistence *OnlineStorePersistence `json:"persistence,omitempty"`
+	Persistence    *OnlineStorePersistence `json:"persistence,omitempty"`
 }
 
 // OnlineStorePersistence configures the persistence settings for the online store service
 type OnlineStorePersistence struct {
-	// +optional
 	FilePersistence *OnlineStoreFilePersistence `json:"file,omitempty"`
 }
 
 // OnlineStoreFilePersistence configures the file-based persistence for the offline store service
 type OnlineStoreFilePersistence struct {
-	// +optional
 	Path string `json:"path,omitempty"`
 }
 
 // LocalRegistryConfig configures the deployed registry service
 type LocalRegistryConfig struct {
 	ServiceConfigs `json:",inline"`
-	// +optional
-	Persistence *RegistryPersistence `json:"persistence,omitempty"`
+	Persistence    *RegistryPersistence `json:"persistence,omitempty"`
 }
 
 // RegistryPersistence configures the persistence settings for the registry service
 type RegistryPersistence struct {
-	// +optional
 	FilePersistence *RegistryFilePersistence `json:"file,omitempty"`
 }
 
 // RegistryFilePersistence configures the file-based persistence for the registry service
 type RegistryFilePersistence struct {
-	// +optional
 	Path string `json:"path,omitempty"`
 }
 
