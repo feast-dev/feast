@@ -31,9 +31,10 @@ func ApplyDefaultsToStatus(cr *feastdevv1alpha1.FeatureStore) {
 			applied.Services.Registry.Local.Persistence = &feastdevv1alpha1.RegistryPersistence{}
 		}
 		if applied.Services.Registry.Local.Persistence.FilePersistence == nil {
-			applied.Services.Registry.Local.Persistence.FilePersistence = &feastdevv1alpha1.RegistryFilePersistence{
-				Path: DefaultRegistryPath,
-			}
+			applied.Services.Registry.Local.Persistence.FilePersistence = &feastdevv1alpha1.RegistryFilePersistence{}
+		}
+		if len(applied.Services.Registry.Local.Persistence.FilePersistence.Path) == 0 {
+			applied.Services.Registry.Local.Persistence.FilePersistence.Path = DefaultRegistryPath
 		}
 		setServiceDefaultConfigs(&applied.Services.Registry.Local.ServiceConfigs.DefaultConfigs)
 	}
@@ -43,9 +44,10 @@ func ApplyDefaultsToStatus(cr *feastdevv1alpha1.FeatureStore) {
 			applied.Services.OfflineStore.Persistence = &feastdevv1alpha1.OfflineStorePersistence{}
 		}
 		if applied.Services.OfflineStore.Persistence.FilePersistence == nil {
-			applied.Services.OfflineStore.Persistence.FilePersistence = &feastdevv1alpha1.OfflineStoreFilePersistence{
-				Type: string(OfflineDaskConfigType),
-			}
+			applied.Services.OfflineStore.Persistence.FilePersistence = &feastdevv1alpha1.OfflineStoreFilePersistence{}
+		}
+		if len(applied.Services.OfflineStore.Persistence.FilePersistence.Type) == 0 {
+			applied.Services.OfflineStore.Persistence.FilePersistence.Type = string(OfflineDaskConfigType)
 		}
 	}
 	if applied.Services.OnlineStore != nil {
@@ -54,12 +56,12 @@ func ApplyDefaultsToStatus(cr *feastdevv1alpha1.FeatureStore) {
 			applied.Services.OnlineStore.Persistence = &feastdevv1alpha1.OnlineStorePersistence{}
 		}
 		if applied.Services.OnlineStore.Persistence.FilePersistence == nil {
-			applied.Services.OnlineStore.Persistence.FilePersistence = &feastdevv1alpha1.OnlineStoreFilePersistence{
-				Path: DefaultOnlinePath,
-			}
+			applied.Services.OnlineStore.Persistence.FilePersistence = &feastdevv1alpha1.OnlineStoreFilePersistence{}
+		}
+		if len(applied.Services.OnlineStore.Persistence.FilePersistence.Path) == 0 {
+			applied.Services.OnlineStore.Persistence.FilePersistence.Path = DefaultOnlinePath
 		}
 	}
-
 	// overwrite status.applied with every reconcile
 	applied.DeepCopyInto(&cr.Status.Applied)
 }
