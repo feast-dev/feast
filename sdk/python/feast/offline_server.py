@@ -589,7 +589,6 @@ def start_server(
         store,
         location=location,
         host=host,
-        port=port,
         tls_certificates=tls_certificates,
         verify_client=True,
     )
