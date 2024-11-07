@@ -103,7 +103,8 @@ def _get_requested_feature_views_to_features_dict(
     on_demand_feature_views: List["OnDemandFeatureView"],
 ) -> Tuple[Dict["FeatureView", List[str]], Dict["OnDemandFeatureView", List[str]]]:
     """Create a dict of FeatureView -> List[Feature] for all requested features.
-    Set full_feature_names to True to have feature names prefixed by their feature view name."""
+    Set full_feature_names to True to have feature names prefixed by their feature view name.
+    """
 
     feature_views_to_feature_map: Dict["FeatureView", List[str]] = defaultdict(list)
     on_demand_feature_views_to_feature_map: Dict["OnDemandFeatureView", List[str]] = (
@@ -207,6 +208,28 @@ def _run_pyarrow_field_mapping(
     ]
     table = table.rename_columns(mapped_cols)
     return table
+
+
+def _get_fields_with_aliases(
+    fields: List[str],
+    field_mappings: Dict[str, str],
+) -> Tuple[List[str], List[str]]:
+    """
+    Get a list of fields with aliases based on the field mappings.
+    """
+    for field in fields:
+        if "." in field and field not in field_mappings:
+            raise ValueError(
+                f"Feature {field} contains a '.' character, which is not allowed in field names. Use field mappings to rename fields."
+            )
+    fields_with_aliases = [
+        f"{field} AS {field_mappings[field]}" if field in field_mappings else field
+        for field in fields
+    ]
+    aliases = [
+        field_mappings[field] if field in field_mappings else field for field in fields
+    ]
+    return (fields_with_aliases, aliases)
 
 
 def _coerce_datetime(ts):
@@ -678,9 +701,11 @@ def _populate_response_from_feature_data(
     """
     # Add the feature names to the response.
     requested_feature_refs = [
-        f"{table.projection.name_to_use()}__{feature_name}"
-        if full_feature_names
-        else feature_name
+        (
+            f"{table.projection.name_to_use()}__{feature_name}"
+            if full_feature_names
+            else feature_name
+        )
         for feature_name in requested_features
     ]
     online_features_response.metadata.feature_names.val.extend(requested_feature_refs)
