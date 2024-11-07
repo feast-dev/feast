@@ -74,21 +74,22 @@ def build_arrow_flight_client(
     scheme: str, host: str, port, auth_config: AuthConfig, cert: str = ""
 ):
     arrow_scheme = "grpc+tcp"
-    if scheme == "https":
+    if cert:
         logger.info(
             "Scheme is https so going to connect offline server in SSL(TLS) mode."
         )
         arrow_scheme = "grpc+tls"
 
-    if auth_config.type != AuthType.NONE.value:
-        middlewares = [FlightAuthInterceptorFactory(auth_config)]
-        return FeastFlightClient(
-            f"{arrow_scheme}://{host}:{port}", middleware=middlewares
-        )
     kwargs = {}
     if cert:
         with open(cert, "rb") as root_certs:
             kwargs["tls_root_certs"] = root_certs.read()
+
+    if auth_config.type != AuthType.NONE.value:
+        middlewares = [FlightAuthInterceptorFactory(auth_config)]
+        return FeastFlightClient(
+            f"{arrow_scheme}://{host}:{port}", middleware=middlewares, **kwargs
+        )
 
     return FeastFlightClient(f"{arrow_scheme}://{host}:{port}", **kwargs)
 
