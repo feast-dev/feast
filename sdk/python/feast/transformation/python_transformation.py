@@ -37,24 +37,39 @@ class PythonTransformation:
         output_dict = self.udf.__call__(input_dict)
         return {**input_dict, **output_dict}
 
-    def infer_features(self, random_input: dict[str, list[Any]]) -> list[Field]:
-        output_dict: dict[str, list[Any]] = self.transform(random_input)
+    def transform_singleton(self, input_dict: dict) -> dict:
+        # This flattens the list of elements to extract the first one
+        # in the case of a singleton element, it takes the value directly
+        # in the case of a list of lists, it takes the first list
+        input_dict = {k: v[0] for k, v in input_dict.items()}
+        output_dict = self.udf.__call__(input_dict)
+        return {**input_dict, **output_dict}
+
+    def infer_features(self, random_input: dict[str, Any]) -> list[Field]:
+        output_dict: dict[str, Any] = self.transform(random_input)
 
         fields = []
         for feature_name, feature_value in output_dict.items():
-            if len(feature_value) <= 0:
-                raise TypeError(
-                    f"Failed to infer type for feature '{feature_name}' with value "
-                    + f"'{feature_value}' since no items were returned by the UDF."
-                )
+            if isinstance(feature_value, list):
+                if len(feature_value) <= 0:
+                    raise TypeError(
+                        f"Failed to infer type for feature '{feature_name}' with value "
+                        + f"'{feature_value}' since no items were returned by the UDF."
+                    )
+                inferred_type = type(feature_value[0])
+                inferred_value = feature_value[0]
+            else:
+                inferred_type = type(feature_value)
+                inferred_value = feature_value
+
             fields.append(
                 Field(
                     name=feature_name,
                     dtype=from_value_type(
                         python_type_to_feast_value_type(
                             feature_name,
-                            value=feature_value[0],
-                            type_name=type(feature_value[0]).__name__,
+                            value=inferred_value,
+                            type_name=inferred_type.__name__,
                         )
                     ),
                 )

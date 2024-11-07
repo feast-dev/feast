@@ -74,6 +74,7 @@ class OnDemandFeatureView(BaseFeatureView):
     tags: dict[str, str]
     owner: str
     write_to_online_store: bool
+    singleton: bool
 
     def __init__(  # noqa: C901
         self,
@@ -98,6 +99,7 @@ class OnDemandFeatureView(BaseFeatureView):
         tags: Optional[dict[str, str]] = None,
         owner: str = "",
         write_to_online_store: bool = False,
+        singleton: bool = False,
     ):
         """
         Creates an OnDemandFeatureView object.
@@ -121,6 +123,8 @@ class OnDemandFeatureView(BaseFeatureView):
                 of the primary maintainer.
             write_to_online_store (optional): A boolean that indicates whether to write the on demand feature view to
             the online store for faster retrieval.
+            singleton (optional): A boolean that indicates whether the transformation is executed on a singleton
+                (only applicable when mode="python").
         """
         super().__init__(
             name=name,
@@ -204,6 +208,9 @@ class OnDemandFeatureView(BaseFeatureView):
         self.features = features
         self.feature_transformation = feature_transformation
         self.write_to_online_store = write_to_online_store
+        self.singleton = singleton
+        if self.singleton and self.mode != "python":
+            raise ValueError("Singleton is only supported for Python mode.")
 
     @property
     def proto_class(self) -> type[OnDemandFeatureViewProto]:
@@ -221,6 +228,7 @@ class OnDemandFeatureView(BaseFeatureView):
             tags=self.tags,
             owner=self.owner,
             write_to_online_store=self.write_to_online_store,
+            singleton=self.singleton,
         )
         fv.entities = self.entities
         fv.features = self.features
@@ -247,6 +255,7 @@ class OnDemandFeatureView(BaseFeatureView):
             or self.feature_transformation != other.feature_transformation
             or self.write_to_online_store != other.write_to_online_store
             or sorted(self.entity_columns) != sorted(other.entity_columns)
+            or self.singleton != other.singleton
         ):
             return False
 
@@ -328,6 +337,7 @@ class OnDemandFeatureView(BaseFeatureView):
             tags=self.tags,
             owner=self.owner,
             write_to_online_store=self.write_to_online_store,
+            singleton=self.singleton if self.singleton else False,
         )
 
         return OnDemandFeatureViewProto(spec=spec, meta=meta)
@@ -434,6 +444,9 @@ class OnDemandFeatureView(BaseFeatureView):
             ]
         else:
             entity_columns = []
+        singleton = False
+        if hasattr(on_demand_feature_view_proto.spec, "singleton"):
+            singleton = on_demand_feature_view_proto.spec.singleton
 
         on_demand_feature_view_obj = cls(
             name=on_demand_feature_view_proto.spec.name,
@@ -451,6 +464,7 @@ class OnDemandFeatureView(BaseFeatureView):
             tags=dict(on_demand_feature_view_proto.spec.tags),
             owner=on_demand_feature_view_proto.spec.owner,
             write_to_online_store=write_to_online_store,
+            singleton=singleton,
         )
 
         on_demand_feature_view_obj.entities = entities
@@ -614,17 +628,19 @@ class OnDemandFeatureView(BaseFeatureView):
                     feature_dict[full_feature_ref] = feature_dict[feature.name]
                     columns_to_cleanup.append(str(full_feature_ref))
 
-        output_dict: dict[str, Any] = self.feature_transformation.transform(
-            feature_dict
-        )
+        if self.singleton and self.mode == "python":
+            output_dict: dict[str, Any] = (
+                self.feature_transformation.transform_singleton(feature_dict)
+            )
+        else:
+            output_dict = self.feature_transformation.transform(feature_dict)
         for feature_name in columns_to_cleanup:
             del output_dict[feature_name]
         return output_dict
 
     def infer_features(self) -> None:
-        inferred_features = self.feature_transformation.infer_features(
-            self._construct_random_input()
-        )
+        random_input = self._construct_random_input(singleton=self.singleton)
+        inferred_features = self.feature_transformation.infer_features(random_input)
 
         if self.features:
             missing_features = []
@@ -644,8 +660,10 @@ class OnDemandFeatureView(BaseFeatureView):
                 f"Could not infer Features for the feature view '{self.name}'.",
             )
 
-    def _construct_random_input(self) -> dict[str, list[Any]]:
-        rand_dict_value: dict[ValueType, list[Any]] = {
+    def _construct_random_input(
+        self, singleton: bool = False
+    ) -> dict[str, Union[list[Any], Any]]:
+        rand_dict_value: dict[ValueType, Union[list[Any], Any]] = {
             ValueType.BYTES: [str.encode("hello world")],
             ValueType.STRING: ["hello world"],
             ValueType.INT32: [1],
@@ -663,20 +681,25 @@ class OnDemandFeatureView(BaseFeatureView):
             ValueType.BOOL_LIST: [[True]],
             ValueType.UNIX_TIMESTAMP_LIST: [[_utc_now()]],
         }
+        if singleton:
+            rand_dict_value = {k: rand_dict_value[k][0] for k in rand_dict_value}
 
+        rand_missing_value = [None] if singleton else None
         feature_dict = {}
         for feature_view_projection in self.source_feature_view_projections.values():
             for feature in feature_view_projection.features:
                 feature_dict[f"{feature_view_projection.name}__{feature.name}"] = (
-                    rand_dict_value.get(feature.dtype.to_value_type(), [None])
+                    rand_dict_value.get(
+                        feature.dtype.to_value_type(), rand_missing_value
+                    )
                 )
                 feature_dict[f"{feature.name}"] = rand_dict_value.get(
-                    feature.dtype.to_value_type(), [None]
+                    feature.dtype.to_value_type(), rand_missing_value
                 )
         for request_data in self.source_request_sources.values():
             for field in request_data.schema:
                 feature_dict[f"{field.name}"] = rand_dict_value.get(
-                    field.dtype.to_value_type(), [None]
+                    field.dtype.to_value_type(), rand_missing_value
                 )
 
         return feature_dict
@@ -713,6 +736,7 @@ def on_demand_feature_view(
     tags: Optional[dict[str, str]] = None,
     owner: str = "",
     write_to_online_store: bool = False,
+    singleton: bool = False,
 ):
     """
     Creates an OnDemandFeatureView object with the given user function as udf.
@@ -731,6 +755,8 @@ def on_demand_feature_view(
             of the primary maintainer.
         write_to_online_store (optional): A boolean that indicates whether to write the on demand feature view to
             the online store for faster retrieval.
+        singleton (optional): A boolean that indicates whether the transformation is executed on a singleton
+            (only applicable when mode="python").
     """
 
     def mainify(obj) -> None:
@@ -775,6 +801,7 @@ def on_demand_feature_view(
             owner=owner,
             write_to_online_store=write_to_online_store,
             entities=entities,
+            singleton=singleton,
         )
         functools.update_wrapper(
             wrapper=on_demand_feature_view_obj, wrapped=user_function
