@@ -75,11 +75,11 @@ func setServiceDefaultConfigs(defaultConfigs *feastdevv1alpha1.DefaultConfigs) {
 	}
 }
 
-func isValidOfflineStoreFilePersistenceType(value string) (bool, error) {
+func checkOfflineStoreFilePersistenceType(value string) error {
 	for _, v := range feastdevv1alpha1.ValidOfflineStoreFilePersistenceTypes {
 		if v == value {
-			return true, nil
+			return nil
 		}
 	}
-	return false, fmt.Errorf("invalid  file type %s for offline store", value)
+	return fmt.Errorf("invalid  file type %s for offline store", value)
 }
