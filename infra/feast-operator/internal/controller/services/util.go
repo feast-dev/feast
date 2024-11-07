@@ -2,6 +2,7 @@ package services
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/feast-dev/feast/infra/feast-operator/api/feastversion"
 	feastdevv1alpha1 "github.com/feast-dev/feast/infra/feast-operator/api/v1alpha1"
@@ -76,10 +77,8 @@ func setServiceDefaultConfigs(defaultConfigs *feastdevv1alpha1.DefaultConfigs) {
 }
 
 func checkOfflineStoreFilePersistenceType(value string) error {
-	for _, v := range feastdevv1alpha1.ValidOfflineStoreFilePersistenceTypes {
-		if v == value {
-			return nil
-		}
+	if slices.Contains(feastdevv1alpha1.ValidOfflineStoreFilePersistenceTypes, value) {
+		return nil
 	}
 	return fmt.Errorf("invalid  file type %s for offline store", value)
 }
