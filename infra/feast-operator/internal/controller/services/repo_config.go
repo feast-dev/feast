@@ -55,15 +55,14 @@ func getServiceRepoConfig(feastType FeastServiceType, featureStore *feastdevv1al
 		// Offline server has an `offline_store` section and a remote `registry`
 		if feastType == OfflineFeastType && appliedSpec.Services.OfflineStore != nil {
 			fileType := string(OfflineDaskConfigType)
-			if appliedSpec.Services.OfflineStore.Persistence != nil && appliedSpec.Services.OfflineStore.Persistence.FilePersistence != nil {
+			if appliedSpec.Services.OfflineStore.Persistence != nil &&
+				appliedSpec.Services.OfflineStore.Persistence.FilePersistence != nil &&
+				len(appliedSpec.Services.OfflineStore.Persistence.FilePersistence.Type) > 0 {
 				fileType = appliedSpec.Services.OfflineStore.Persistence.FilePersistence.Type
 			}
 
-			repoConfig.OfflineStore = OfflineStoreConfig{}
-			var err error
-			repoConfig.OfflineStore.Type, err = ParseOfflineConfigType(fileType)
-			if err != nil {
-				return repoConfig, err
+			repoConfig.OfflineStore = OfflineStoreConfig{
+				Type: OfflineConfigType(fileType),
 			}
 			repoConfig.OnlineStore = OnlineStoreConfig{}
 		}

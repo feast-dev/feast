@@ -18,7 +18,6 @@ package services
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/feast-dev/feast/infra/feast-operator/api/feastversion"
 	feastdevv1alpha1 "github.com/feast-dev/feast/infra/feast-operator/api/v1alpha1"
@@ -136,17 +135,6 @@ type FeastServiceType string
 
 // OfflineConfigType provider name or a class name that implements Offline Store
 type OfflineConfigType string
-
-func ParseOfflineConfigType(value string) (OfflineConfigType, error) {
-	switch value {
-	case string(OfflineDaskConfigType):
-		return OfflineDaskConfigType, nil
-	case string(OfflineDuckDbConfigType):
-		return OfflineDuckDbConfigType, nil
-	default:
-		return "", fmt.Errorf("invalid OfflineConfigType value %s", value)
-	}
-}
 
 // RegistryConfigType provider name or a class name that implements Registry
 type RegistryConfigType string

@@ -77,10 +77,14 @@ func (r *FeatureStoreReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	currentStatus := cr.Status.DeepCopy()
 
 	// initial status defaults must occur before feast deployment
-	services.ApplyDefaultsToStatus(cr)
+	if err := services.ApplyDefaultsToStatus(cr); err != nil {
+		logger.Error(err, "Error updating the FeatureStore status")
+		result = ctrl.Result{Requeue: true, RequeueAfter: RequeueDelayError}
+		return result, err
+	}
 	result, recErr = r.deployFeast(ctx, cr)
 	if cr.DeletionTimestamp == nil && !reflect.DeepEqual(currentStatus, cr.Status) {
-		if err := r.Client.Status().Update(ctx, cr); err != nil {
+		if err = r.Client.Status().Update(ctx, cr); err != nil {
 			if apierrors.IsConflict(err) {
 				logger.Info("FeatureStore object modified, retry syncing status")
 				// Re-queue and preserve existing recErr

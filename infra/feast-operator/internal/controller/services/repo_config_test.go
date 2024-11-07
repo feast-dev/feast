@@ -31,8 +31,10 @@ var _ = Describe("Repo Config", func() {
 		It("should successfully create the repo configs", func() {
 			By("Having the minimal created resource")
 			featureStore := minimalFeatureStore()
-			ApplyDefaultsToStatus(featureStore)
-			repoConfig, err := getServiceRepoConfig(OfflineFeastType, featureStore)
+			err := ApplyDefaultsToStatus(featureStore)
+			Expect(err).NotTo(HaveOccurred())
+			var repoConfig RepoConfig
+			repoConfig, err = getServiceRepoConfig(OfflineFeastType, featureStore)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(repoConfig.OfflineStore).To(Equal(emptyOfflineStoreConfig()))
 			Expect(repoConfig.OnlineStore).To(Equal(emptyOnlineStoreConfig()))
@@ -67,7 +69,8 @@ var _ = Describe("Repo Config", func() {
 					},
 				},
 			}
-			ApplyDefaultsToStatus(featureStore)
+			err = ApplyDefaultsToStatus(featureStore)
+			Expect(err).NotTo(HaveOccurred())
 			repoConfig, err = getServiceRepoConfig(OfflineFeastType, featureStore)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(repoConfig.OfflineStore).To(Equal(emptyOfflineStoreConfig()))
@@ -102,7 +105,8 @@ var _ = Describe("Repo Config", func() {
 					},
 				},
 			}
-			ApplyDefaultsToStatus(featureStore)
+			err = ApplyDefaultsToStatus(featureStore)
+			Expect(err).NotTo(HaveOccurred())
 			repoConfig, err = getServiceRepoConfig(OfflineFeastType, featureStore)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(repoConfig.OfflineStore).To(Equal(emptyOfflineStoreConfig()))
@@ -148,7 +152,8 @@ var _ = Describe("Repo Config", func() {
 					},
 				},
 			}
-			ApplyDefaultsToStatus(featureStore)
+			err = ApplyDefaultsToStatus(featureStore)
+			Expect(err).NotTo(HaveOccurred())
 			repoConfig, err = getServiceRepoConfig(OfflineFeastType, featureStore)
 			Expect(err).NotTo(HaveOccurred())
 			expectedOfflineConfig := OfflineStoreConfig{
@@ -191,8 +196,7 @@ var _ = Describe("Repo Config", func() {
 					},
 				},
 			}
-			ApplyDefaultsToStatus(featureStore)
-			_, err := getServiceRepoConfig(OfflineFeastType, featureStore)
+			err := ApplyDefaultsToStatus(featureStore)
 			Expect(err).To(HaveOccurred())
 		})
 	})

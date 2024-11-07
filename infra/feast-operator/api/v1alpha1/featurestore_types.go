@@ -17,6 +17,8 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"fmt"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -83,6 +85,21 @@ type OfflineStorePersistence struct {
 type OfflineStoreFilePersistence struct {
 	// +kubebuilder:validation:Enum=dask;duckdb
 	Type string `json:"type,omitempty"`
+}
+
+var validOfflineStoreFilePersistenceType = []string{
+	"dask",
+	"duckdb",
+}
+
+// A function to validate the file persistence types for offline stores
+func IsValidOfflineStoreFilePersistenceType(value string) (bool, error) {
+	for _, v := range validOfflineStoreFilePersistenceType {
+		if v == value {
+			return true, nil
+		}
+	}
+	return false, fmt.Errorf("invalid  file type %s for offline store", value)
 }
 
 // OnlineStore configures the deployed online store service

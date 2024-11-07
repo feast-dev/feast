@@ -10,7 +10,7 @@ func IsLocalRegistry(featureStore *feastdevv1alpha1.FeatureStore) bool {
 	return appliedServices != nil && appliedServices.Registry != nil && appliedServices.Registry.Local != nil
 }
 
-func ApplyDefaultsToStatus(cr *feastdevv1alpha1.FeatureStore) {
+func ApplyDefaultsToStatus(cr *feastdevv1alpha1.FeatureStore) error {
 	cr.Status.FeastVersion = feastversion.FeastVersion
 	applied := cr.Spec.DeepCopy()
 	if applied.Services == nil {
@@ -48,6 +48,11 @@ func ApplyDefaultsToStatus(cr *feastdevv1alpha1.FeatureStore) {
 		}
 		if len(applied.Services.OfflineStore.Persistence.FilePersistence.Type) == 0 {
 			applied.Services.OfflineStore.Persistence.FilePersistence.Type = string(OfflineDaskConfigType)
+		} else {
+			_, err := feastdevv1alpha1.IsValidOfflineStoreFilePersistenceType(applied.Services.OfflineStore.Persistence.FilePersistence.Type)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	if applied.Services.OnlineStore != nil {
@@ -64,6 +69,7 @@ func ApplyDefaultsToStatus(cr *feastdevv1alpha1.FeatureStore) {
 	}
 	// overwrite status.applied with every reconcile
 	applied.DeepCopyInto(&cr.Status.Applied)
+	return nil
 }
 
 func setServiceDefaultConfigs(defaultConfigs *feastdevv1alpha1.DefaultConfigs) {
