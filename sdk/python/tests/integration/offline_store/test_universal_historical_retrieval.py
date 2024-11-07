@@ -22,7 +22,8 @@ from tests.integration.feature_repos.repo_configuration import (
 )
 from tests.integration.feature_repos.universal.data_sources.file import (
     RemoteOfflineOidcAuthStoreDataSourceCreator,
-    RemoteOfflineStoreDataSourceCreator, RemoteOfflineTlsStoreDataSourceCreator,
+    RemoteOfflineStoreDataSourceCreator,
+    RemoteOfflineTlsStoreDataSourceCreator,
 )
 from tests.integration.feature_repos.universal.data_sources.snowflake import (
     SnowflakeDataSourceCreator,

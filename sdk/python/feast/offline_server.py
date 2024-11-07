@@ -44,7 +44,7 @@ class OfflineServer(fl.FlightServerBase):
         store: FeatureStore,
         location: str,
         host: str = "localhost",
-        tls_certificates: [] = None,
+        tls_certificates: List = [],
         verify_client=False,
         **kwargs,
     ):

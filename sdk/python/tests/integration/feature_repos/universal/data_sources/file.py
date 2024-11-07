@@ -411,11 +411,12 @@ class RemoteOfflineStoreDataSourceCreator(FileDataSourceCreator):
         )
         return "grpc+tcp://{}:{}".format(host, self.server_port)
 
+
 class RemoteOfflineTlsStoreDataSourceCreator(FileDataSourceCreator):
     def __init__(self, project_name: str, *args, **kwargs):
-            super().__init__(project_name)
-            self.server_port: int = 0
-            self.proc: Optional[Popen[bytes]] = None
+        super().__init__(project_name)
+        self.server_port: int = 0
+        self.proc: Optional[Popen[bytes]] = None
 
     def setup(self, registry: RegistryConfig):
         parent_offline_config = super().create_offline_store_config()
@@ -431,7 +432,6 @@ class RemoteOfflineTlsStoreDataSourceCreator(FileDataSourceCreator):
         tls_key_path = os.path.join(certificates_path, "key.pem")
         self.tls_cert_path = os.path.join(certificates_path, "cert.pem")
         generate_self_signed_cert(cert_path=self.tls_cert_path, key_path=tls_key_path)
-
 
         repo_path = Path(tempfile.mkdtemp())
         with open(repo_path / "feature_store.yaml", "w") as outfile:
@@ -451,8 +451,8 @@ class RemoteOfflineTlsStoreDataSourceCreator(FileDataSourceCreator):
             "--key",
             str(tls_key_path),
             "--cert",
-            str(self.tls_cert_path)
-            ]
+            str(self.tls_cert_path),
+        ]
         self.proc = subprocess.Popen(
             cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL
         )
@@ -466,10 +466,13 @@ class RemoteOfflineTlsStoreDataSourceCreator(FileDataSourceCreator):
         )
         return "grpc+tls://{}:{}".format(host, self.server_port)
 
-
     def create_offline_store_config(self) -> FeastConfigBaseModel:
         remote_offline_store_config = RemoteOfflineStoreConfig(
-            type="remote", host="0.0.0.0", port=self.server_port, scheme="https", cert=self.tls_cert_path
+            type="remote",
+            host="0.0.0.0",
+            port=self.server_port,
+            scheme="https",
+            cert=self.tls_cert_path,
         )
         return remote_offline_store_config
 

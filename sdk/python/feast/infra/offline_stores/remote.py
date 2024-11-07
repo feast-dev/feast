@@ -233,7 +233,10 @@ class RemoteOfflineStore(OfflineStore):
 
         # Initialize the client connection
         client = build_arrow_flight_client(
-            config.offline_store.host, config.offline_store.port, config.auth_config
+            config.offline_store.scheme,
+            config.offline_store.host,
+            config.offline_store.port,
+            config.auth_config,
         )
 
         api_parameters = {
@@ -266,7 +269,10 @@ class RemoteOfflineStore(OfflineStore):
 
         # Initialize the client connection
         client = build_arrow_flight_client(
-            config.offline_store.host, config.offline_store.port, config.auth_config
+            config.offline_store.scheme,
+            config.offline_store.host,
+            config.offline_store.port,
+            config.auth_config,
         )
 
         api_parameters = {
@@ -301,7 +307,10 @@ class RemoteOfflineStore(OfflineStore):
 
         # Initialize the client connection
         client = build_arrow_flight_client(
-            config.offline_store.host, config.offline_store.port, config.auth_config
+            config.offline_store.scheme,
+            config.offline_store.host,
+            config.offline_store.port,
+            config.auth_config,
         )
 
         api_parameters = {
@@ -327,7 +336,10 @@ class RemoteOfflineStore(OfflineStore):
 
         # Initialize the client connection
         client = build_arrow_flight_client(
-            config.offline_store.host, config.offline_store.port, config.auth_config
+            config.offline_store.scheme,
+            config.offline_store.host,
+            config.offline_store.port,
+            config.auth_config,
         )
 
         feature_view_names = [feature_view.name]
@@ -355,7 +367,10 @@ class RemoteOfflineStore(OfflineStore):
         assert isinstance(config.offline_store, RemoteOfflineStoreConfig)
 
         client = build_arrow_flight_client(
-            config.offline_store.host, config.offline_store.port, config.auth_config
+            config.offline_store.scheme,
+            config.offline_store.host,
+            config.offline_store.port,
+            config.auth_config,
         )
 
         api_parameters = {
@@ -376,7 +391,10 @@ class RemoteOfflineStore(OfflineStore):
         assert isinstance(config.offline_store, RemoteOfflineStoreConfig)
 
         client = build_arrow_flight_client(
-            config.offline_store.host, config.offline_store.port, config.auth_config
+            config.offline_store.scheme,
+            config.offline_store.host,
+            config.offline_store.port,
+            config.auth_config,
         )
 
         api_parameters = {

@@ -48,7 +48,8 @@ from tests.integration.feature_repos.universal.data_sources.file import (
     DuckDBDeltaDataSourceCreator,
     FileDataSourceCreator,
     RemoteOfflineOidcAuthStoreDataSourceCreator,
-    RemoteOfflineStoreDataSourceCreator, RemoteOfflineTlsStoreDataSourceCreator,
+    RemoteOfflineStoreDataSourceCreator,
+    RemoteOfflineTlsStoreDataSourceCreator,
 )
 from tests.integration.feature_repos.universal.data_sources.redshift import (
     RedshiftDataSourceCreator,
