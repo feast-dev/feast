@@ -50,7 +50,7 @@ func getServiceRepoConfig(feastType FeastServiceType, featureStore *feastdevv1al
 	appliedSpec := featureStore.Status.Applied
 
 	repoConfig := getClientRepoConfig(featureStore)
-	isLocalRegistry := IsLocalRegistry(featureStore)
+	isLocalRegistry := isLocalRegistry(featureStore)
 	if appliedSpec.Services != nil {
 		// Offline server has an `offline_store` section and a remote `registry`
 		if feastType == OfflineFeastType && appliedSpec.Services.OfflineStore != nil {

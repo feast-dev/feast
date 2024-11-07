@@ -7,7 +7,7 @@ import (
 	feastdevv1alpha1 "github.com/feast-dev/feast/infra/feast-operator/api/v1alpha1"
 )
 
-func IsLocalRegistry(featureStore *feastdevv1alpha1.FeatureStore) bool {
+func isLocalRegistry(featureStore *feastdevv1alpha1.FeatureStore) bool {
 	appliedServices := featureStore.Status.Applied.Services
 	return appliedServices != nil && appliedServices.Registry != nil && appliedServices.Registry.Local != nil
 }
