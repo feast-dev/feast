@@ -31,10 +31,9 @@ var _ = Describe("Repo Config", func() {
 		It("should successfully create the repo configs", func() {
 			By("Having the minimal created resource")
 			featureStore := minimalFeatureStore()
-			err := ApplyDefaultsToStatus(featureStore)
-			Expect(err).NotTo(HaveOccurred())
+			ApplyDefaultsToStatus(featureStore)
 			var repoConfig RepoConfig
-			repoConfig, err = getServiceRepoConfig(OfflineFeastType, featureStore)
+			repoConfig, err := getServiceRepoConfig(OfflineFeastType, featureStore)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(repoConfig.OfflineStore).To(Equal(emptyOfflineStoreConfig()))
 			Expect(repoConfig.OnlineStore).To(Equal(emptyOnlineStoreConfig()))
@@ -69,8 +68,7 @@ var _ = Describe("Repo Config", func() {
 					},
 				},
 			}
-			err = ApplyDefaultsToStatus(featureStore)
-			Expect(err).NotTo(HaveOccurred())
+			ApplyDefaultsToStatus(featureStore)
 			repoConfig, err = getServiceRepoConfig(OfflineFeastType, featureStore)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(repoConfig.OfflineStore).To(Equal(emptyOfflineStoreConfig()))
@@ -105,8 +103,7 @@ var _ = Describe("Repo Config", func() {
 					},
 				},
 			}
-			err = ApplyDefaultsToStatus(featureStore)
-			Expect(err).NotTo(HaveOccurred())
+			ApplyDefaultsToStatus(featureStore)
 			repoConfig, err = getServiceRepoConfig(OfflineFeastType, featureStore)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(repoConfig.OfflineStore).To(Equal(emptyOfflineStoreConfig()))
@@ -152,8 +149,7 @@ var _ = Describe("Repo Config", func() {
 					},
 				},
 			}
-			err = ApplyDefaultsToStatus(featureStore)
-			Expect(err).NotTo(HaveOccurred())
+			ApplyDefaultsToStatus(featureStore)
 			repoConfig, err = getServiceRepoConfig(OfflineFeastType, featureStore)
 			Expect(err).NotTo(HaveOccurred())
 			expectedOfflineConfig := OfflineStoreConfig{
@@ -182,22 +178,6 @@ var _ = Describe("Repo Config", func() {
 				Path:         "/data/registry.db",
 			}
 			Expect(repoConfig.Registry).To(Equal(expectedRegistryConfig))
-		})
-
-		It("should fail the creation of repo configs", func() {
-			By("Having wrong offline persistence type")
-			featureStore := minimalFeatureStore()
-			featureStore.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
-				OfflineStore: &feastdevv1alpha1.OfflineStore{
-					Persistence: &feastdevv1alpha1.OfflineStorePersistence{
-						FilePersistence: &feastdevv1alpha1.OfflineStoreFilePersistence{
-							Type: "invalid",
-						},
-					},
-				},
-			}
-			err := ApplyDefaultsToStatus(featureStore)
-			Expect(err).To(HaveOccurred())
 		})
 	})
 })

@@ -77,11 +77,7 @@ func (r *FeatureStoreReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	currentStatus := cr.Status.DeepCopy()
 
 	// initial status defaults must occur before feast deployment
-	if err := services.ApplyDefaultsToStatus(cr); err != nil {
-		logger.Error(err, "Error updating the FeatureStore status")
-		result = ctrl.Result{Requeue: true, RequeueAfter: RequeueDelayError}
-		return result, err
-	}
+	services.ApplyDefaultsToStatus(cr)
 	result, recErr = r.deployFeast(ctx, cr)
 	if cr.DeletionTimestamp == nil && !reflect.DeepEqual(currentStatus, cr.Status) {
 		if err = r.Client.Status().Update(ctx, cr); err != nil {

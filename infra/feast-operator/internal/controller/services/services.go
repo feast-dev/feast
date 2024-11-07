@@ -43,6 +43,13 @@ func (feast *FeastServices) Deploy() error {
 	services := feast.FeatureStore.Status.Applied.Services
 	if services != nil {
 		if services.OfflineStore != nil {
+			if services.OfflineStore.Persistence != nil &&
+				services.OfflineStore.Persistence.FilePersistence != nil &&
+				len(services.OfflineStore.Persistence.FilePersistence.Type) > 0 {
+				if _, err := isValidOfflineStoreFilePersistenceType(services.OfflineStore.Persistence.FilePersistence.Type); err != nil {
+					return err
+				}
+			}
 			if err := feast.deployFeastServiceByType(OfflineFeastType); err != nil {
 				return err
 			}
