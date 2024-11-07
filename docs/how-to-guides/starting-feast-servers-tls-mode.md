@@ -143,7 +143,7 @@ You will see the output something similar to as below. Note the server url start
 11/07/2024 11:10:01 AM feast.offline_server INFO: offline server starting with pid: [11606]
 ```
 
-### Feast client connecting to remote registry sever started in TLS mode.
+### Feast client connecting to remote offline sever started in TLS mode.
 
 Sometimes you may need to pass the self-signed public key to connect to the remote registry server started in SSL mode if you have not added the public key to the certificate store.
 You have to add `scheme` to `https`.
