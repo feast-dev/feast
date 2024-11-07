@@ -568,6 +568,7 @@ def start_server(
     port: int,
     tls_key_path: str = "",
     tls_cert_path: str = "",
+    tls_verify_client: bool = True,
 ):
     _init_auth_manager(store)
 
@@ -590,7 +591,7 @@ def start_server(
         location=location,
         host=host,
         tls_certificates=tls_certificates,
-        verify_client=True,
+        verify_client=tls_verify_client,
     )
     try:
         logger.info(f"Offline store server serving at: {location}")

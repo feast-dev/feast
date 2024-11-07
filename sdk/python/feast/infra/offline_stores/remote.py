@@ -70,7 +70,9 @@ class FeastFlightClient(fl.FlightClient):
         return super().list_actions(options)
 
 
-def build_arrow_flight_client(scheme: str, host: str, port, auth_config: AuthConfig):
+def build_arrow_flight_client(
+    scheme: str, host: str, port, auth_config: AuthConfig, cert: str = ""
+):
     arrow_scheme = "grpc+tcp"
     if scheme == "https":
         logger.info(
@@ -83,8 +85,12 @@ def build_arrow_flight_client(scheme: str, host: str, port, auth_config: AuthCon
         return FeastFlightClient(
             f"{arrow_scheme}://{host}:{port}", middleware=middlewares
         )
+    kwargs = {}
+    if cert:
+        with open(cert, "rb") as root_certs:
+            kwargs["tls_root_certs"] = root_certs.read()
 
-    return FeastFlightClient(f"{arrow_scheme}://{host}:{port}")
+    return FeastFlightClient(f"{arrow_scheme}://{host}:{port}", **kwargs)
 
 
 class RemoteOfflineStoreConfig(FeastConfigBaseModel):
@@ -198,6 +204,7 @@ class RemoteOfflineStore(OfflineStore):
             host=config.offline_store.host,
             port=config.offline_store.port,
             auth_config=config.auth_config,
+            cert=config.offline_store.cert,
         )
 
         feature_view_names = [fv.name for fv in feature_views]
@@ -233,10 +240,11 @@ class RemoteOfflineStore(OfflineStore):
 
         # Initialize the client connection
         client = build_arrow_flight_client(
-            config.offline_store.scheme,
-            config.offline_store.host,
-            config.offline_store.port,
-            config.auth_config,
+            scheme=config.offline_store.scheme,
+            host=config.offline_store.host,
+            port=config.offline_store.port,
+            auth_config=config.auth_config,
+            cert=config.offline_store.cert,
         )
 
         api_parameters = {
@@ -273,6 +281,7 @@ class RemoteOfflineStore(OfflineStore):
             config.offline_store.host,
             config.offline_store.port,
             config.auth_config,
+            cert=config.offline_store.cert,
         )
 
         api_parameters = {
@@ -311,6 +320,7 @@ class RemoteOfflineStore(OfflineStore):
             config.offline_store.host,
             config.offline_store.port,
             config.auth_config,
+            config.offline_store.cert,
         )
 
         api_parameters = {
@@ -340,6 +350,7 @@ class RemoteOfflineStore(OfflineStore):
             config.offline_store.host,
             config.offline_store.port,
             config.auth_config,
+            config.offline_store.cert,
         )
 
         feature_view_names = [feature_view.name]
@@ -371,6 +382,7 @@ class RemoteOfflineStore(OfflineStore):
             config.offline_store.host,
             config.offline_store.port,
             config.auth_config,
+            config.offline_store.cert,
         )
 
         api_parameters = {
@@ -395,6 +407,7 @@ class RemoteOfflineStore(OfflineStore):
             config.offline_store.host,
             config.offline_store.port,
             config.auth_config,
+            config.offline_store.cert,
         )
 
         api_parameters = {
