@@ -189,6 +189,21 @@ spec:
                         description: PullPolicy describes a policy for if/when to
                           pull a container image
                         type: string
+                      persistence:
+                        description: OfflineStorePersistence configures the persistence
+                          settings for the offline store service
+                        properties:
+                          file:
+                            description: OfflineStorePersistence configures the file-based
+                              persistence for the offline store service
+                            properties:
+                              type:
+                                enum:
+                                - dask
+                                - duckdb
+                                type: string
+                            type: object
+                        type: object
                       resources:
                         description: ResourceRequirements describes the compute resource
                           requirements.
@@ -369,6 +384,18 @@ spec:
                         description: PullPolicy describes a policy for if/when to
                           pull a container image
                         type: string
+                      persistence:
+                        description: OnlineStorePersistence configures the persistence
+                          settings for the online store service
+                        properties:
+                          file:
+                            description: OnlineStoreFilePersistence configures the
+                              file-based persistence for the offline store service
+                            properties:
+                              path:
+                                type: string
+                            type: object
+                        type: object
                       resources:
                         description: ResourceRequirements describes the compute resource
                           requirements.
@@ -554,6 +581,18 @@ spec:
                             description: PullPolicy describes a policy for if/when
                               to pull a container image
                             type: string
+                          persistence:
+                            description: RegistryPersistence configures the persistence
+                              settings for the registry service
+                            properties:
+                              file:
+                                description: RegistryFilePersistence configures the
+                                  file-based persistence for the registry service
+                                properties:
+                                  path:
+                                    type: string
+                                type: object
+                            type: object
                           resources:
                             description: ResourceRequirements describes the compute
                               resource requirements.
@@ -788,6 +827,21 @@ spec:
                             description: PullPolicy describes a policy for if/when
                               to pull a container image
                             type: string
+                          persistence:
+                            description: OfflineStorePersistence configures the persistence
+                              settings for the offline store service
+                            properties:
+                              file:
+                                description: OfflineStorePersistence configures the
+                                  file-based persistence for the offline store service
+                                properties:
+                                  type:
+                                    enum:
+                                    - dask
+                                    - duckdb
+                                    type: string
+                                type: object
+                            type: object
                           resources:
                             description: ResourceRequirements describes the compute
                               resource requirements.
@@ -970,6 +1024,19 @@ spec:
                             description: PullPolicy describes a policy for if/when
                               to pull a container image
                             type: string
+                          persistence:
+                            description: OnlineStorePersistence configures the persistence
+                              settings for the online store service
+                            properties:
+                              file:
+                                description: OnlineStoreFilePersistence configures
+                                  the file-based persistence for the offline store
+                                  service
+                                properties:
+                                  path:
+                                    type: string
+                                type: object
+                            type: object
                           resources:
                             description: ResourceRequirements describes the compute
                               resource requirements.
@@ -1159,6 +1226,19 @@ spec:
                                 description: PullPolicy describes a policy for if/when
                                   to pull a container image
                                 type: string
+                              persistence:
+                                description: RegistryPersistence configures the persistence
+                                  settings for the registry service
+                                properties:
+                                  file:
+                                    description: RegistryFilePersistence configures
+                                      the file-based persistence for the registry
+                                      service
+                                    properties:
+                                      path:
+                                        type: string
+                                    type: object
+                                type: object
                               resources:
                                 description: ResourceRequirements describes the compute
                                   resource requirements.

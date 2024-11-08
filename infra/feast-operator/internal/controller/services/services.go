@@ -43,6 +43,13 @@ func (feast *FeastServices) Deploy() error {
 	services := feast.FeatureStore.Status.Applied.Services
 	if services != nil {
 		if services.OfflineStore != nil {
+			if services.OfflineStore.Persistence != nil &&
+				services.OfflineStore.Persistence.FilePersistence != nil &&
+				len(services.OfflineStore.Persistence.FilePersistence.Type) > 0 {
+				if err := checkOfflineStoreFilePersistenceType(services.OfflineStore.Persistence.FilePersistence.Type); err != nil {
+					return err
+				}
+			}
 			if err := feast.deployFeastServiceByType(OfflineFeastType); err != nil {
 				return err
 			}
@@ -329,8 +336,7 @@ func (feast *FeastServices) setRemoteRegistryURL() error {
 }
 
 func (feast *FeastServices) isLocalRegistry() bool {
-	appliedServices := feast.FeatureStore.Status.Applied.Services
-	return appliedServices != nil && appliedServices.Registry != nil && appliedServices.Registry.Local != nil
+	return isLocalRegistry(feast.FeatureStore)
 }
 
 func (feast *FeastServices) isRemoteRegistry() bool {
