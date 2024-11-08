@@ -1,3 +1,4 @@
+import ipaddress
 import logging
 from datetime import datetime, timedelta
 
@@ -36,6 +37,14 @@ def generate_self_signed_cert(
         ]
     )
 
+    # Define the certificate's Subject Alternative Names (SANs)
+    alt_names = [
+        x509.DNSName("localhost"),  # Hostname
+        x509.IPAddress(ipaddress.IPv4Address("127.0.0.1")),  # Localhost IP
+        x509.IPAddress(ipaddress.IPv4Address("0.0.0.0")),  # Bind-all IP (optional)
+    ]
+    san = x509.SubjectAlternativeName(alt_names)
+
     certificate = (
         x509.CertificateBuilder()
         .subject_name(subject)
@@ -47,10 +56,7 @@ def generate_self_signed_cert(
             # Certificate valid for 1 year
             datetime.utcnow() + timedelta(days=365)
         )
-        .add_extension(
-            x509.SubjectAlternativeName([x509.DNSName(common_name)]),
-            critical=False,
-        )
+        .add_extension(san, critical=False)
         .sign(key, hashes.SHA256(), default_backend())
     )
 

@@ -23,6 +23,7 @@ from tests.integration.feature_repos.repo_configuration import (
 from tests.integration.feature_repos.universal.data_sources.file import (
     RemoteOfflineOidcAuthStoreDataSourceCreator,
     RemoteOfflineStoreDataSourceCreator,
+    RemoteOfflineTlsStoreDataSourceCreator,
 )
 from tests.integration.feature_repos.universal.data_sources.snowflake import (
     SnowflakeDataSourceCreator,
@@ -166,6 +167,7 @@ def test_historical_features_main(
         environment.data_source_creator,
         (
             RemoteOfflineStoreDataSourceCreator,
+            RemoteOfflineTlsStoreDataSourceCreator,
             RemoteOfflineOidcAuthStoreDataSourceCreator,
         ),
     ):
