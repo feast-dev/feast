@@ -27,13 +27,19 @@ import (
 )
 
 const (
-	FeastPrefix            = "feast-"
-	FeatureStoreYamlEnvVar = "FEATURE_STORE_YAML_BASE64"
-	FeatureStoreYamlCmKey  = "feature_store.yaml"
-	DefaultRegistryPath    = "/tmp/registry.db"
-	DefaultOnlinePath      = "/tmp/online_store.db"
-	svcDomain              = ".svc.cluster.local"
-	HttpPort               = 80
+	FeastPrefix                     = "feast-"
+	FeatureStoreYamlEnvVar          = "FEATURE_STORE_YAML_BASE64"
+	FeatureStoreYamlCmKey           = "feature_store.yaml"
+	DefaultRegistryEphemeralPath    = "/tmp/registry.db"
+	DefaultRegistryPvcPath          = "registry.db"
+	DefaultOnlineStoreEphemeralPath = "/tmp/online_store.db"
+	DefaultOnlineStorePvcPath       = "online_store.db"
+	svcDomain                       = ".svc.cluster.local"
+	HttpPort                        = 80
+
+	DefaultOfflineStorageRequest  = "20Gi"
+	DefaultOnlineStorageRequest   = "5Gi"
+	DefaultRegistryStorageRequest = "5Gi"
 
 	OfflineFeastType  FeastServiceType = "offline"
 	OnlineFeastType   FeastServiceType = "online"

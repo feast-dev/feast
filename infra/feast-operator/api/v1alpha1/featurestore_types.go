@@ -82,7 +82,8 @@ type OfflineStorePersistence struct {
 // OfflineStorePersistence configures the file-based persistence for the offline store service
 type OfflineStoreFilePersistence struct {
 	// +kubebuilder:validation:Enum=dask;duckdb
-	Type string `json:"type,omitempty"`
+	Type      string     `json:"type,omitempty"`
+	PvcConfig *PvcConfig `json:"pvc,omitempty"`
 }
 
 var ValidOfflineStoreFilePersistenceTypes = []string{
@@ -102,8 +103,11 @@ type OnlineStorePersistence struct {
 }
 
 // OnlineStoreFilePersistence configures the file-based persistence for the offline store service
+// +kubebuilder:validation:XValidation:rule="(!has(self.pvc) && has(self.path)) ? self.path.startsWith('/') : true",message="Ephemeral stores must have absolute paths."
+// +kubebuilder:validation:XValidation:rule="(has(self.pvc) && has(self.path)) ? !self.path.startsWith('/') : true",message="PVC path must be a file name only, with no slashes."
 type OnlineStoreFilePersistence struct {
-	Path string `json:"path,omitempty"`
+	Path      string     `json:"path,omitempty"`
+	PvcConfig *PvcConfig `json:"pvc,omitempty"`
 }
 
 // LocalRegistryConfig configures the deployed registry service
@@ -118,8 +122,40 @@ type RegistryPersistence struct {
 }
 
 // RegistryFilePersistence configures the file-based persistence for the registry service
+// +kubebuilder:validation:XValidation:rule="(!has(self.pvc) && has(self.path)) ? self.path.startsWith('/') : true",message="Ephemeral stores must have absolute paths."
+// +kubebuilder:validation:XValidation:rule="(has(self.pvc) && has(self.path)) ? !self.path.startsWith('/') : true",message="PVC path must be a file name only, with no slashes."
 type RegistryFilePersistence struct {
-	Path string `json:"path,omitempty"`
+	Path      string     `json:"path,omitempty"`
+	PvcConfig *PvcConfig `json:"pvc,omitempty"`
+}
+
+// PvcConfig defines the settings for a persistent file store based on PVCs.
+// We can refer to an existing PVC using the `Ref` field, or create a new one using the `Create` field.
+// +kubebuilder:validation:XValidation:rule="[has(self.ref), has(self.create)].exists_one(c, c)",message="One selection is required between ref and create."
+// +kubebuilder:validation:XValidation:rule="self.mountPath.matches('^/[^:]*$')",message="Mount path must start with '/' and must not contain ':'"
+type PvcConfig struct {
+	// Reference to an existing field
+	Ref *corev1.LocalObjectReference `json:"ref,omitempty"`
+	// Settings for creating a new PVC
+	Create *PvcCreate `json:"create,omitempty"`
+	// MountPath within the container at which the volume should be mounted.
+	// Must start by "/" and cannot contain ':'.
+	MountPath string `json:"mountPath,omitempty"`
+}
+
+// PvcCreate defines the immutable settings to create a new PVC mounted at the given path.
+// The PVC name is the same as the associated deployment name.
+// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="PvcCreate is immutable"
+type PvcCreate struct {
+	// StorageClassName is the name of an existing StorageClass to which this persistent volume belongs. Empty value
+	// means that this volume does not belong to any StorageClass and the cluster default will be used.
+	StorageClassName *string `json:"storageClassName,omitempty"`
+	// Resources describes the storage resource requirements for a volume.
+	// Default requested storage size depends on the associated service:
+	// - 10Gi for offline store
+	// - 5Gi for online store
+	// - 5Gi for registry
+	Resources corev1.VolumeResourceRequirements `json:"resources,omitempty"`
 }
 
 // Registry configures the registry service. One selection is required. Local is the default setting.

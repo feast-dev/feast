@@ -1,0 +1,45 @@
+apiVersion: feast.dev/v1alpha1
+kind: FeatureStore
+metadata:
+  name: sample-pvc-persistence
+spec:
+  feastProject: my_project
+  services:
+    onlineStore:
+      persistence:
+        file:
+          path: online_store.db
+          pvc:
+            ref:
+              name: online-pvc
+            mountPath: /data/online
+    offlineStore:
+      persistence:
+        file:
+          type: duckdb
+          pvc:
+            create:
+              storageClassName: standard
+              resources:
+                requests:
+                  storage: 5Gi
+            mountPath: /data/offline
+    registry:
+      local:
+        persistence:
+          file:
+            path: registry.db
+            pvc:
+              create: {}
+              mountPath: /data/registryma
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: online-pvc
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 5Gi

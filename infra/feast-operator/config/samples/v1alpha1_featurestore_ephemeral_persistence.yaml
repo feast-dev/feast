@@ -6,15 +6,18 @@ spec:
   feastProject: my_project
   services:
     onlineStore:
+      image: quay.io/dmartino/feature-server:0.2
       persistence:
         file:
           path: /data/online_store.db
     offlineStore:
+      image: quay.io/dmartino/feature-server:0.2
       persistence:
         file:
           type: dask
     registry:
       local:
+        image: quay.io/dmartino/feature-server:0.2
         persistence:
           file:
             path: /data/registry.db
