@@ -162,9 +162,12 @@ func (feast *FeastServices) createDeployment(feastType FeastServiceType) error {
 
 func (feast *FeastServices) createPVC(pvcCreate *feastdevv1alpha1.PvcCreate, feastType FeastServiceType) error {
 	logger := log.FromContext(feast.Context)
-	pvc := feast.initPVC(feastType)
-	feast.setPVC(pvc, pvcCreate, feastType)
-	err := feast.Client.Get(feast.Context, client.ObjectKeyFromObject(pvc), pvc)
+	pvc, err := feast.createNewPVC(pvcCreate, feastType)
+	if err != nil {
+		return err
+	}
+
+	err = feast.Client.Get(feast.Context, client.ObjectKeyFromObject(pvc), pvc)
 	if err != nil && apierrors.IsNotFound(err) {
 		err = feast.Client.Create(feast.Context, pvc)
 		if err != nil {
@@ -264,15 +267,14 @@ func (feast *FeastServices) setService(svc *corev1.Service, feastType FeastServi
 	return controllerutil.SetControllerReference(feast.FeatureStore, svc, feast.Scheme)
 }
 
-func (feast *FeastServices) setPVC(pvc *corev1.PersistentVolumeClaim, pvcCreate *feastdevv1alpha1.PvcCreate, feastType FeastServiceType) error {
-	pvc.Labels = feast.getLabels(feastType)
+func (feast *FeastServices) createNewPVC(pvcCreate *feastdevv1alpha1.PvcCreate, feastType FeastServiceType) (*corev1.PersistentVolumeClaim, error) {
+	pvc := feast.initPVC(feastType)
 
 	pvc.Spec = corev1.PersistentVolumeClaimSpec{
 		AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany},
 		Resources:   pvcCreate.Resources,
 	}
-
-	return controllerutil.SetControllerReference(feast.FeatureStore, pvc, feast.Scheme)
+	return pvc, controllerutil.SetControllerReference(feast.FeatureStore, pvc, feast.Scheme)
 }
 
 func (feast *FeastServices) getServiceConfigs(feastType FeastServiceType) feastdevv1alpha1.ServiceConfigs {
