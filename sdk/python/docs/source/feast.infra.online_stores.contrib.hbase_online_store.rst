@@ -7,7 +7,7 @@ Submodules
 feast.infra.online\_stores.contrib.hbase\_online\_store.hbase module
 --------------------------------------------------------------------
 
-.. automodule:: feast.infra.online_stores.contrib.hbase_online_store.hbase
+.. automodule:: feast.infra.online_stores.hbase_online_store.hbase
    :members:
    :undoc-members:
    :show-inheritance:
@@ -15,7 +15,7 @@ feast.infra.online\_stores.contrib.hbase\_online\_store.hbase module
 Module contents
 ---------------
 
-.. automodule:: feast.infra.online_stores.contrib.hbase_online_store
+.. automodule:: feast.infra.online_stores.hbase_online_store
    :members:
    :undoc-members:
    :show-inheritance:

@@ -55,7 +55,7 @@ online_store:
 {% endcode %}
 
 
-The full set of configuration options is available in [CassandraOnlineStoreConfig](https://rtd.feast.dev/en/master/#feast.infra.online_stores.contrib.cassandra_online_store.cassandra_online_store.CassandraOnlineStoreConfig).
+The full set of configuration options is available in [CassandraOnlineStoreConfig](https://rtd.feast.dev/en/master/#feast.infra.online_stores.cassandra_online_store.cassandra_online_store.CassandraOnlineStoreConfig).
 For a full explanation of configuration options please look at file
 `sdk/python/feast/infra/online_stores/contrib/cassandra_online_store/README.md`.
 
