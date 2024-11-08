@@ -168,3 +168,46 @@ def test_update_materialization_intervals():
         second_updated_feature_view.materialization_intervals[0][1]
         == updated_feature_view.materialization_intervals[0][1]
     )
+
+
+def test_online_store_key_ttl_seconds_retrieval():
+    # Test when TTL is set as a valid integer in tags
+    file_source = FileSource(name="my-file-source", path="test.parquet")
+    feature_view = FeatureView(
+        name="feature_view_with_ttl",
+        entities=[],
+        schema=[Field(name="feature1", dtype=Float32)],
+        source=file_source,
+        tags={"online_store_key_ttl_seconds": "3600"},
+    )
+    assert feature_view.online_store_key_ttl_seconds == 3600
+
+
+def test_online_store_key_ttl_seconds_none_when_not_set():
+    # Test when TTL is not set in tags, expecting None
+    file_source = FileSource(name="my-file-source", path="test.parquet")
+    feature_view = FeatureView(
+        name="feature_view_without_ttl",
+        entities=[],
+        schema=[Field(name="feature1", dtype=Float32)],
+        source=file_source,
+        tags={},
+    )
+    assert feature_view.online_store_key_ttl_seconds is None
+
+
+def test_online_store_key_ttl_seconds_invalid_value():
+    # Test when TTL is set as a non-integer string, expecting a ValueError
+    file_source = FileSource(name="my-file-source", path="test.parquet")
+    feature_view = FeatureView(
+        name="feature_view_invalid_ttl",
+        entities=[],
+        schema=[Field(name="feature1", dtype=Float32)],
+        source=file_source,
+        tags={"online_store_key_ttl_seconds": "invalid_ttl"},
+    )
+    with pytest.raises(
+        ValueError,
+        match="Invalid online_store_key_ttl_seconds value 'invalid_ttl' in tags. It must be an integer representing seconds.",
+    ):
+        _ = feature_view.online_store_key_ttl_seconds

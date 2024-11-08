@@ -494,3 +494,22 @@ class FeatureView(BaseFeatureView):
         if len(self.materialization_intervals) == 0:
             return None
         return max([interval[1] for interval in self.materialization_intervals])
+
+    @property
+    def online_store_key_ttl_seconds(self) -> Optional[int]:
+        """
+        Retrieves the online store TTL from the FeatureView's tags.
+
+        Returns:
+            An integer representing the TTL in seconds, or None if not set.
+        """
+        ttl_str = self.tags.get("online_store_key_ttl_seconds")
+        if ttl_str:
+            try:
+                return int(ttl_str)
+            except ValueError:
+                raise ValueError(
+                    f"Invalid online_store_key_ttl_seconds value '{ttl_str}' in tags. It must be an integer representing seconds."
+                )
+        else:
+            return None

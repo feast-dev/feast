@@ -74,7 +74,7 @@ class RedisOnlineStoreConfig(FeastConfigBaseModel):
      format: host:port,parameter1,parameter2 eg. redis:6379,db=0 """
 
     key_ttl_seconds: Optional[int] = None
-    """(Optional) redis key bin ttl (in seconds) for expiring entities"""
+    """(Optional) redis key bin ttl (in seconds) for expiring entities. Value None means No TTL. Value 0 means expire in 0 seconds."""
 
     full_scan_for_deletion: Optional[bool] = True
     """(Optional) whether to scan for deletion of features"""
@@ -330,10 +330,13 @@ class RedisOnlineStore(OnlineStore):
 
                 pipe.hset(redis_key_bin, mapping=entity_hset)
 
-                if online_store_config.key_ttl_seconds:
-                    pipe.expire(
-                        name=redis_key_bin, time=online_store_config.key_ttl_seconds
-                    )
+                ttl = (
+                    table.online_store_key_ttl_seconds
+                    or online_store_config.key_ttl_seconds
+                    or None
+                )
+                if ttl:
+                    pipe.expire(name=redis_key_bin, time=ttl)
             results = pipe.execute()
             if progress:
                 progress(len(results))
