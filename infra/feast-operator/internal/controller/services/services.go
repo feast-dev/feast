@@ -163,16 +163,14 @@ func (feast *FeastServices) createDeployment(feastType FeastServiceType) error {
 func (feast *FeastServices) createPVC(pvcCreate *feastdevv1alpha1.PvcCreate, feastType FeastServiceType) error {
 	logger := log.FromContext(feast.Context)
 	pvc := feast.initPVC(feastType)
-	err := feast.setPVC(pvc, pvcCreate, feastType)
-	if err != nil {
-		return err
-	}
-	if op, err := controllerutil.CreateOrUpdate(feast.Context, feast.Client, pvc, controllerutil.MutateFn(func() error {
-		return nil
-	})); err != nil {
-		return err
-	} else if op == controllerutil.OperationResultCreated || op == controllerutil.OperationResultUpdated {
-		logger.Info("Successfully reconciled", "PersistentVolumeClaim", pvc.Name, "operation", op)
+	feast.setPVC(pvc, pvcCreate, feastType)
+	err := feast.Client.Get(feast.Context, client.ObjectKeyFromObject(pvc), pvc)
+	if err != nil && apierrors.IsNotFound(err) {
+		err = feast.Client.Create(feast.Context, pvc)
+		if err != nil {
+			return err
+		}
+		logger.Info("Successfully created", "PersistentVolumeClaim", pvc.Name)
 	}
 
 	return nil
@@ -443,6 +441,8 @@ func (feast *FeastServices) initPVC(feastType FeastServiceType) *corev1.Persiste
 
 // delete an object if the FeatureStore is set as the object's controller/owner
 func (feast *FeastServices) deleteOwnedFeastObj(obj client.Object) error {
+	name := obj.GetName()
+	kind := obj.GetObjectKind().GroupVersionKind().Kind
 	if err := feast.Client.Get(feast.Context, client.ObjectKeyFromObject(obj), obj); err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil
@@ -454,6 +454,7 @@ func (feast *FeastServices) deleteOwnedFeastObj(obj client.Object) error {
 			if err := feast.Client.Delete(feast.Context, obj); err != nil {
 				return err
 			}
+			log.FromContext(feast.Context).Info("Successfully deleted", kind, name)
 		}
 	}
 	return nil

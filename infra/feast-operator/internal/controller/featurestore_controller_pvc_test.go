@@ -35,6 +35,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/feast-dev/feast/infra/feast-operator/api/feastversion"
@@ -44,7 +45,7 @@ import (
 
 var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 	Context("When deploying a resource with all ephemeral services", func() {
-		const resourceName = "services-ephemeral"
+		const resourceName = "services-pvc"
 		var pullPolicy = corev1.PullAlways
 		var testEnvVarName = "testEnvVarName"
 		var testEnvVarValue = "testEnvVarValue"
@@ -326,15 +327,15 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			Expect(deploy.Spec.Template.Spec.Containers[0].VolumeMounts).To(HaveLen(0))
 
 			// check online pvc is deleted
+			log.FromContext(feast.Context).Info("Checking deletion of", "PersistentVolumeClaim", deploy.Name)
 			pvc = &corev1.PersistentVolumeClaim{}
 			err = k8sClient.Get(ctx, types.NamespacedName{
 				Name:      deploy.Name,
 				Namespace: resource.Namespace,
 			},
 				pvc)
-			print(err)
-			// Expect(err).To(HaveOccurred())
-			// Expect(errors.IsNotFound(err)).To(BeTrue())
+			Expect(err).To(HaveOccurred())
+			Expect(errors.IsNotFound(err)).To(BeTrue())
 		})
 
 		It("should properly encode a feature_store.yaml config", func() {
