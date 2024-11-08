@@ -31,7 +31,7 @@ spec:
             path: registry.db
             pvc:
               create: {}
-              mountPath: /data/registryma
+              mountPath: /data/registry
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
