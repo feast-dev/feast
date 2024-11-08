@@ -180,7 +180,7 @@ class SparkMaterializationEngine(BatchMaterializationEngine):
                 )
 
             print(
-                f"INFO!!! Processing {feature_view.name} with {spark_df.count()} records"
+                f"INFO: Processing {feature_view.name} with {spark_df.count()} records and {spark_df.rdd.getNumPartitions()} partitions"
             )
 
             spark_df.mapInPandas(

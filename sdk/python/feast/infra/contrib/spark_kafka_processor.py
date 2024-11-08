@@ -23,6 +23,7 @@ from feast.infra.contrib.stream_processor import (
 from feast.infra.materialization.contrib.spark.spark_materialization_engine import (
     _SparkSerializedArtifacts,
 )
+from feast.infra.provider import get_provider
 from feast.stream_feature_view import StreamFeatureView
 from feast.utils import _convert_arrow_to_proto, _run_pyarrow_field_mapping
 
@@ -116,9 +117,27 @@ class SparkKafkaProcessor(StreamProcessor):
         # data_source type has been checked to be an instance of KafkaSource.
         self.data_source: KafkaSource = self.data_source  # type: ignore
 
+    def _create_infra_if_necessary(self):
+        if self.fs.config.online_store is not None and getattr(
+            self.fs.config.online_store, "lazy_table_creation", False
+        ):
+            print(
+                f"Online store {self.fs.config.online_store.__class__.__name__} supports lazy table creation and it is enabled"
+            )
+            provider = get_provider(self.fs.config)
+            provider.update_infra(
+                project=self.fs.project,
+                tables_to_delete=[],
+                tables_to_keep=[self.sfv],
+                entities_to_delete=[],
+                entities_to_keep=[],
+                partial=True,
+            )
+
     def ingest_stream_feature_view(
         self, to: PushMode = PushMode.ONLINE
     ) -> StreamingQuery:
+        self._create_infra_if_necessary()
         ingested_stream_df = self._ingest_stream_data()
         transformed_df = self._construct_transformation_plan(ingested_stream_df)
         if self.fs.config.provider == "expedia":
