@@ -198,6 +198,7 @@ def get_app(
             allow_registry_cache=request.allow_registry_cache,
             to=to,
         )
+        
 
     @app.post("/write-to-online-store", dependencies=[Depends(inject_user_details)])
     def write_to_online_store(body=Depends(get_body)):
