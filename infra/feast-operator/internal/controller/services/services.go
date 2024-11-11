@@ -99,9 +99,7 @@ func (feast *FeastServices) deployFeastServiceByType(feastType FeastServiceType)
 			return feast.setFeastServiceCondition(err, feastType)
 		}
 	} else {
-		if err := feast.deleteOwnedFeastObj(feast.initPVC(feastType)); err != nil && !apierrors.IsNotFound(err) {
-			return err
-		}
+		_ = feast.deleteOwnedFeastObj(feast.initPVC(feastType))
 	}
 	return feast.setFeastServiceCondition(nil, feastType)
 }
