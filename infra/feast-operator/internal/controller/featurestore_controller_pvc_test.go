@@ -239,6 +239,7 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(pvc.Name).To(Equal(deploy.Name))
 			Expect(pvc.Spec.Resources.Requests.Storage().String()).To(Equal(services.DefaultOfflineStorageRequest))
+			Expect(pvc.DeletionTimestamp).To(BeNil())
 
 			// check online deployment
 			deploy = &appsv1.Deployment{}
@@ -268,6 +269,7 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(pvc.Name).To(Equal(deploy.Name))
 			Expect(pvc.Spec.Resources.Requests.Storage().String()).To(Equal(services.DefaultOnlineStorageRequest))
+			Expect(pvc.DeletionTimestamp).To(BeNil())
 
 			// check registry deployment
 			deploy = &appsv1.Deployment{}
@@ -297,6 +299,7 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(pvc.Name).To(Equal(deploy.Name))
 			Expect(pvc.Spec.Resources.Requests.Storage().String()).To(Equal(services.DefaultRegistryStorageRequest))
+			Expect(pvc.DeletionTimestamp).To(BeNil())
 
 			// remove online PVC and reconcile
 			resourceNew := resource.DeepCopy()
@@ -334,8 +337,8 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 				Namespace: resource.Namespace,
 			},
 				pvc)
-			Expect(err).To(HaveOccurred())
-			Expect(errors.IsNotFound(err)).To(BeTrue())
+			Expect(err).NotTo(HaveOccurred())
+			Expect(pvc.DeletionTimestamp).NotTo(BeNil())
 		})
 
 		It("should properly encode a feature_store.yaml config", func() {
