@@ -53,11 +53,6 @@ func (feast *FeastServices) Deploy() error {
 			if err := feast.deployFeastServiceByType(OfflineFeastType); err != nil {
 				return err
 			}
-			if _, shouldCreate := shouldCreatePvc(feast.FeatureStore, OfflineFeastType); !shouldCreate {
-				if err := feast.deleteOwnedFeastObj(feast.initPVC(OfflineFeastType)); err != nil && !apierrors.IsNotFound(err) {
-					return err
-				}
-			}
 		} else {
 			if err := feast.removeFeastServiceByType(OfflineFeastType); err != nil {
 				return err
@@ -68,11 +63,6 @@ func (feast *FeastServices) Deploy() error {
 			if err := feast.deployFeastServiceByType(OnlineFeastType); err != nil {
 				return err
 			}
-			if _, shouldCreate := shouldCreatePvc(feast.FeatureStore, OnlineFeastType); !shouldCreate {
-				if err := feast.deleteOwnedFeastObj(feast.initPVC(OnlineFeastType)); err != nil && !apierrors.IsNotFound(err) {
-					return err
-				}
-			}
 		} else {
 			if err := feast.removeFeastServiceByType(OnlineFeastType); err != nil {
 				return err
@@ -82,11 +72,6 @@ func (feast *FeastServices) Deploy() error {
 		if feast.isLocalRegistry() {
 			if err := feast.deployFeastServiceByType(RegistryFeastType); err != nil {
 				return err
-			}
-			if _, shouldCreate := shouldCreatePvc(feast.FeatureStore, RegistryFeastType); !shouldCreate {
-				if err := feast.deleteOwnedFeastObj(feast.initPVC(RegistryFeastType)); err != nil && !apierrors.IsNotFound(err) {
-					return err
-				}
 			}
 		} else {
 			if err := feast.removeFeastServiceByType(RegistryFeastType); err != nil {
@@ -113,6 +98,10 @@ func (feast *FeastServices) deployFeastServiceByType(feastType FeastServiceType)
 		if err := feast.createPVC(pvcCreate, feastType); err != nil {
 			return feast.setFeastServiceCondition(err, feastType)
 		}
+	} else {
+		if err := feast.deleteOwnedFeastObj(feast.initPVC(feastType)); err != nil && !apierrors.IsNotFound(err) {
+			return err
+		}
 	}
 	return feast.setFeastServiceCondition(nil, feastType)
 }
@@ -124,10 +113,8 @@ func (feast *FeastServices) removeFeastServiceByType(feastType FeastServiceType)
 	if err := feast.deleteOwnedFeastObj(feast.initFeastSvc(feastType)); err != nil {
 		return err
 	}
-	if _, shouldCreate := shouldCreatePvc(feast.FeatureStore, feastType); shouldCreate {
-		if err := feast.deleteOwnedFeastObj(feast.initPVC(feastType)); err != nil {
-			return err
-		}
+	if err := feast.deleteOwnedFeastObj(feast.initPVC(feastType)); err != nil {
+		return err
 	}
 	apimeta.RemoveStatusCondition(&feast.FeatureStore.Status.Conditions, FeastServiceConditions[feastType][metav1.ConditionTrue].Type)
 	return nil
