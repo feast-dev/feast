@@ -11,14 +11,14 @@ import sqlite_vec
 from pandas.testing import assert_frame_equal
 
 from feast import FeatureStore, RepoConfig
-from feast.infra.online_stores.contrib.milvus import MilvusOnlineStoreConfig
 from feast.errors import FeatureViewNotFoundException
+from feast.infra.online_stores.milvus_online_store.milvus import MilvusOnlineStoreConfig
+from feast.infra.provider import Provider
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import FloatList as FloatListProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RegistryConfig
 from feast.utils import _utc_now
-from feast.infra.provider import Provider
 from tests.integration.feature_repos.universal.feature_views import TAGS
 from tests.utils.cli_repo_creator import CliRunner, get_example_repo
 
@@ -564,10 +564,7 @@ def test_sqlite_vec_import() -> None:
     result = [(rowid, round(distance, 2)) for rowid, distance in result]
     assert result == [(2, 2.39), (1, 2.39)]
 
-def test_milvus_get_online_documents() -> None:
-    """
-    Test retrieving documents from the online store in local mode.
-    """
+
 def test_milvus_get_online_documents() -> None:
     """
     Test retrieving documents from the online store in local mode using Milvus.
