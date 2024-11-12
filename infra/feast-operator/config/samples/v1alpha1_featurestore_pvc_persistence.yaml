@@ -30,11 +30,7 @@ spec:
           file:
             path: registry.db
             pvc:
-              create:
-                storageClassName: standard
-                resources:
-                  requests:
-                    storage: 1Gi
+              create: {}
               mountPath: /data/registry
 ---
 apiVersion: v1
