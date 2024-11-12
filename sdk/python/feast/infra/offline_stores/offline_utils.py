@@ -262,4 +262,3 @@ def enclose_in_backticks(value):
         return [f'`{v}`' for v in value]
     else:
         return f'`{value}`'
-
