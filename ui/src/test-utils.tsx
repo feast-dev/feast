@@ -3,7 +3,6 @@ import { render, RenderOptions } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "react-query";
 import { QueryParamProvider } from "use-query-params";
 import { MemoryRouter as Router } from "react-router-dom";
-import RouteAdapter from "./hacks/RouteAdapter";
 
 interface ProvidersProps {
   children: React.ReactNode;
@@ -15,9 +14,7 @@ const AllTheProviders = ({ children }: ProvidersProps) => {
   return (
     <QueryClientProvider client={queryClient}>
       <Router initialEntries={["/"]}>
-        <QueryParamProvider
-          ReactRouterRoute={RouteAdapter as unknown as React.FunctionComponent}
-        >
+        <QueryParamProvider>
           {children}
         </QueryParamProvider>
       </Router>

@@ -3,7 +3,6 @@ import React from "react";
 import { BrowserRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "react-query";
 import { QueryParamProvider } from "use-query-params";
-import RouteAdapter from "./hacks/RouteAdapter";
 import FeastUISansProviders, { FeastUIConfigs } from "./FeastUISansProviders";
 
 interface FeastUIProps {
@@ -19,9 +18,7 @@ const FeastUI = ({ reactQueryClient, feastUIConfigs }: FeastUIProps) => {
   return (
     <BrowserRouter>
       <QueryClientProvider client={queryClient}>
-        <QueryParamProvider
-          ReactRouterRoute={RouteAdapter as unknown as React.FunctionComponent}
-        >
+        <QueryParamProvider>
           <FeastUISansProviders feastUIConfigs={feastUIConfigs} />
         </QueryParamProvider>
       </QueryClientProvider>
