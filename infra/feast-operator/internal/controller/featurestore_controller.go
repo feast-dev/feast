@@ -53,7 +53,7 @@ type FeatureStoreReconciler struct {
 //+kubebuilder:rbac:groups=feast.dev,resources=featurestores/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=feast.dev,resources=featurestores/finalizers,verbs=update
 //+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;create;update;watch;delete
-//+kubebuilder:rbac:groups=core,resources=services;configmaps,verbs=get;list;create;update;watch;delete
+//+kubebuilder:rbac:groups=core,resources=services;configmaps;persistentvolumeclaims,verbs=get;list;create;update;watch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -142,6 +142,7 @@ func (r *FeatureStoreReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&corev1.ConfigMap{}).
 		Owns(&appsv1.Deployment{}).
 		Owns(&corev1.Service{}).
+		Owns(&corev1.PersistentVolumeClaim{}).
 		Watches(&feastdevv1alpha1.FeatureStore{}, handler.EnqueueRequestsFromMapFunc(r.mapFeastRefsToFeastRequests)).
 		Complete(r)
 }

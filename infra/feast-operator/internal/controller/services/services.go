@@ -259,20 +259,28 @@ func (feast *FeastServices) createNewPVC(pvcCreate *feastdevv1alpha1.PvcCreate, 
 		AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany},
 		Resources:   pvcCreate.Resources,
 	}
+	if pvcCreate.StorageClassName != nil {
+		pvc.Spec.StorageClassName = pvcCreate.StorageClassName
+	}
 	return pvc, controllerutil.SetControllerReference(feast.FeatureStore, pvc, feast.Scheme)
 }
 
 func (feast *FeastServices) getServiceConfigs(feastType FeastServiceType) feastdevv1alpha1.ServiceConfigs {
 	appliedSpec := feast.FeatureStore.Status.Applied
-	if feastType == OfflineFeastType && appliedSpec.Services.OfflineStore != nil {
-		return appliedSpec.Services.OfflineStore.ServiceConfigs
-	}
-	if feastType == OnlineFeastType && appliedSpec.Services.OnlineStore != nil {
-		return appliedSpec.Services.OnlineStore.ServiceConfigs
-	}
-	if feastType == RegistryFeastType && appliedSpec.Services.Registry != nil {
-		if appliedSpec.Services.Registry.Local != nil {
-			return appliedSpec.Services.Registry.Local.ServiceConfigs
+	switch feastType {
+	case OfflineFeastType:
+		if appliedSpec.Services.OfflineStore != nil {
+			return appliedSpec.Services.OfflineStore.ServiceConfigs
+		}
+	case OnlineFeastType:
+		if appliedSpec.Services.OnlineStore != nil {
+			return appliedSpec.Services.OnlineStore.ServiceConfigs
+		}
+	case RegistryFeastType:
+		if appliedSpec.Services.Registry != nil {
+			if appliedSpec.Services.Registry.Local != nil {
+				return appliedSpec.Services.Registry.Local.ServiceConfigs
+			}
 		}
 	}
 	return feastdevv1alpha1.ServiceConfigs{}

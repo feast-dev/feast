@@ -18,14 +18,19 @@ func isLocalRegistry(featureStore *feastdevv1alpha1.FeatureStore) bool {
 func hasPvcConfig(featureStore *feastdevv1alpha1.FeatureStore, feastType FeastServiceType) (*feastdevv1alpha1.PvcConfig, bool) {
 	services := featureStore.Status.Applied.Services
 	var pvcConfig *feastdevv1alpha1.PvcConfig = nil
-	if feastType == OnlineFeastType && services.OnlineStore != nil && services.OnlineStore.Persistence.FilePersistence != nil {
-		pvcConfig = services.OnlineStore.Persistence.FilePersistence.PvcConfig
-	}
-	if feastType == OfflineFeastType && services.OfflineStore != nil && services.OfflineStore.Persistence.FilePersistence != nil {
-		pvcConfig = services.OfflineStore.Persistence.FilePersistence.PvcConfig
-	}
-	if feastType == RegistryFeastType && isLocalRegistry(featureStore) && services.Registry.Local.Persistence.FilePersistence != nil {
-		pvcConfig = services.Registry.Local.Persistence.FilePersistence.PvcConfig
+	switch feastType {
+	case OnlineFeastType:
+		if services.OnlineStore != nil && services.OnlineStore.Persistence.FilePersistence != nil {
+			pvcConfig = services.OnlineStore.Persistence.FilePersistence.PvcConfig
+		}
+	case OfflineFeastType:
+		if services.OfflineStore != nil && services.OfflineStore.Persistence.FilePersistence != nil {
+			pvcConfig = services.OfflineStore.Persistence.FilePersistence.PvcConfig
+		}
+	case RegistryFeastType:
+		if isLocalRegistry(featureStore) && services.Registry.Local.Persistence.FilePersistence != nil {
+			pvcConfig = services.Registry.Local.Persistence.FilePersistence.PvcConfig
+		}
 	}
 	return pvcConfig, pvcConfig != nil
 }

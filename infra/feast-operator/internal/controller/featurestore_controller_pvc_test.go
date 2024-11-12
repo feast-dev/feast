@@ -67,6 +67,8 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 		onlineStoreMountPath := "/online"
 		registryMountPath := "/registry"
 
+		storageClassName := "default"
+
 		onlineStoreMountedPath := path.Join(onlineStoreMountPath, onlineStorePath)
 		registryMountedPath := path.Join(registryMountPath, registryPath)
 
@@ -80,7 +82,9 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 					FilePersistence: &feastdevv1alpha1.OfflineStoreFilePersistence{
 						Type: offlineType,
 						PvcConfig: &feastdevv1alpha1.PvcConfig{
-							Create:    &feastdevv1alpha1.PvcCreate{},
+							Create: &feastdevv1alpha1.PvcCreate{
+								StorageClassName: &storageClassName,
+							},
 							MountPath: offlineStoreMountPath,
 						},
 					},
@@ -153,7 +157,7 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			Expect(resource.Status.Applied.Services.OfflineStore.Persistence.FilePersistence.Type).To(Equal(offlineType))
 			Expect(resource.Status.Applied.Services.OfflineStore.Persistence.FilePersistence.PvcConfig).NotTo(BeNil())
 			Expect(resource.Status.Applied.Services.OfflineStore.Persistence.FilePersistence.PvcConfig.Create).NotTo(BeNil())
-			Expect(resource.Status.Applied.Services.OfflineStore.Persistence.FilePersistence.PvcConfig.Create.StorageClassName).To(BeNil())
+			Expect(resource.Status.Applied.Services.OfflineStore.Persistence.FilePersistence.PvcConfig.Create.StorageClassName).To(Equal(&storageClassName))
 			expectedResources := corev1.VolumeResourceRequirements{
 				Requests: corev1.ResourceList{
 					corev1.ResourceStorage: apiresource.MustParse("20Gi"),
@@ -270,6 +274,7 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 				pvc)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(pvc.Name).To(Equal(deploy.Name))
+			Expect(pvc.Spec.StorageClassName).To(Equal(&storageClassName))
 			Expect(pvc.Spec.Resources.Requests.Storage().String()).To(Equal(services.DefaultOfflineStorageRequest))
 			Expect(pvc.DeletionTimestamp).To(BeNil())
 
