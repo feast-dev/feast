@@ -19,6 +19,7 @@ rules:
   - ""
   resources:
   - configmaps
+  - persistentvolumeclaims
   - services
   verbs:
   - create

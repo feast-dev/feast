@@ -51,7 +51,7 @@ var _ = Describe("Repo Config", func() {
 			Expect(repoConfig.OnlineStore).To(Equal(emptyOnlineStoreConfig()))
 			expectedRegistryConfig := RegistryConfig{
 				RegistryType: "file",
-				Path:         DefaultRegistryPath,
+				Path:         DefaultRegistryEphemeralPath,
 			}
 			Expect(repoConfig.Registry).To(Equal(expectedRegistryConfig))
 

@@ -18,6 +18,7 @@ package services
 
 import (
 	"encoding/base64"
+	"path"
 	"strings"
 
 	feastdevv1alpha1 "github.com/feast-dev/feast/infra/feast-operator/api/v1alpha1"
@@ -52,45 +53,53 @@ func getServiceRepoConfig(feastType FeastServiceType, featureStore *feastdevv1al
 	repoConfig := getClientRepoConfig(featureStore)
 	isLocalRegistry := isLocalRegistry(featureStore)
 	if appliedSpec.Services != nil {
-		// Offline server has an `offline_store` section and a remote `registry`
-		if feastType == OfflineFeastType && appliedSpec.Services.OfflineStore != nil {
-			fileType := string(OfflineDaskConfigType)
-			if appliedSpec.Services.OfflineStore.Persistence != nil &&
-				appliedSpec.Services.OfflineStore.Persistence.FilePersistence != nil &&
-				len(appliedSpec.Services.OfflineStore.Persistence.FilePersistence.Type) > 0 {
-				fileType = appliedSpec.Services.OfflineStore.Persistence.FilePersistence.Type
-			}
+		services := appliedSpec.Services
+		switch feastType {
+		case OfflineFeastType:
+			// Offline server has an `offline_store` section and a remote `registry`
+			if services.OfflineStore != nil {
+				fileType := string(OfflineDaskConfigType)
+				if services.OfflineStore.Persistence != nil &&
+					services.OfflineStore.Persistence.FilePersistence != nil &&
+					len(services.OfflineStore.Persistence.FilePersistence.Type) > 0 {
+					fileType = services.OfflineStore.Persistence.FilePersistence.Type
+				}
 
-			repoConfig.OfflineStore = OfflineStoreConfig{
-				Type: OfflineConfigType(fileType),
+				repoConfig.OfflineStore = OfflineStoreConfig{
+					Type: OfflineConfigType(fileType),
+				}
+				repoConfig.OnlineStore = OnlineStoreConfig{}
 			}
-			repoConfig.OnlineStore = OnlineStoreConfig{}
-		}
-		// Online server has an `online_store` section, a remote `registry` and a remote `offline_store`
-		if feastType == OnlineFeastType && appliedSpec.Services.OnlineStore != nil {
-			path := DefaultOnlinePath
-			if appliedSpec.Services.OnlineStore.Persistence != nil && appliedSpec.Services.OnlineStore.Persistence.FilePersistence != nil {
-				path = appliedSpec.Services.OnlineStore.Persistence.FilePersistence.Path
-			}
+		case OnlineFeastType:
+			// Online server has an `online_store` section, a remote `registry` and a remote `offline_store`
+			if services.OnlineStore != nil {
+				path := DefaultOnlineStoreEphemeralPath
+				if services.OnlineStore.Persistence != nil && services.OnlineStore.Persistence.FilePersistence != nil {
+					filePersistence := services.OnlineStore.Persistence.FilePersistence
+					path = getActualPath(filePersistence.Path, filePersistence.PvcConfig)
+				}
 
-			repoConfig.OnlineStore = OnlineStoreConfig{
-				Type: OnlineSqliteConfigType,
-				Path: path,
+				repoConfig.OnlineStore = OnlineStoreConfig{
+					Type: OnlineSqliteConfigType,
+					Path: path,
+				}
 			}
-		}
-		// Registry server only has a `registry` section
-		if feastType == RegistryFeastType && isLocalRegistry {
-			path := DefaultRegistryPath
-			if appliedSpec.Services != nil && appliedSpec.Services.Registry != nil && appliedSpec.Services.Registry.Local != nil &&
-				appliedSpec.Services.Registry.Local.Persistence != nil && appliedSpec.Services.Registry.Local.Persistence.FilePersistence != nil {
-				path = appliedSpec.Services.Registry.Local.Persistence.FilePersistence.Path
+		case RegistryFeastType:
+			// Registry server only has a `registry` section
+			if isLocalRegistry {
+				path := DefaultRegistryEphemeralPath
+				if services != nil && services.Registry != nil && services.Registry.Local != nil &&
+					services.Registry.Local.Persistence != nil && services.Registry.Local.Persistence.FilePersistence != nil {
+					filePersistence := services.Registry.Local.Persistence.FilePersistence
+					path = getActualPath(filePersistence.Path, filePersistence.PvcConfig)
+				}
+				repoConfig.Registry = RegistryConfig{
+					RegistryType: RegistryFileConfigType,
+					Path:         path,
+				}
+				repoConfig.OfflineStore = OfflineStoreConfig{}
+				repoConfig.OnlineStore = OnlineStoreConfig{}
 			}
-			repoConfig.Registry = RegistryConfig{
-				RegistryType: RegistryFileConfigType,
-				Path:         path,
-			}
-			repoConfig.OfflineStore = OfflineStoreConfig{}
-			repoConfig.OnlineStore = OnlineStoreConfig{}
 		}
 	}
 
@@ -128,4 +137,11 @@ func getClientRepoConfig(featureStore *feastdevv1alpha1.FeatureStore) RepoConfig
 		}
 	}
 	return clientRepoConfig
+}
+
+func getActualPath(filePath string, pvcConfig *feastdevv1alpha1.PvcConfig) string {
+	if pvcConfig == nil {
+		return filePath
+	}
+	return path.Join(pvcConfig.MountPath, filePath)
 }

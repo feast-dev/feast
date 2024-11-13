@@ -94,6 +94,13 @@ func (feast *FeastServices) deployFeastServiceByType(feastType FeastServiceType)
 	if err := feast.createDeployment(feastType); err != nil {
 		return feast.setFeastServiceCondition(err, feastType)
 	}
+	if pvcCreate, shouldCreate := shouldCreatePvc(feast.FeatureStore, feastType); shouldCreate {
+		if err := feast.createPVC(pvcCreate, feastType); err != nil {
+			return feast.setFeastServiceCondition(err, feastType)
+		}
+	} else {
+		_ = feast.deleteOwnedFeastObj(feast.initPVC(feastType))
+	}
 	return feast.setFeastServiceCondition(nil, feastType)
 }
 
@@ -102,6 +109,9 @@ func (feast *FeastServices) removeFeastServiceByType(feastType FeastServiceType)
 		return err
 	}
 	if err := feast.deleteOwnedFeastObj(feast.initFeastSvc(feastType)); err != nil {
+		return err
+	}
+	if err := feast.deleteOwnedFeastObj(feast.initPVC(feastType)); err != nil {
 		return err
 	}
 	apimeta.RemoveStatusCondition(&feast.FeatureStore.Status.Conditions, FeastServiceConditions[feastType][metav1.ConditionTrue].Type)
@@ -130,6 +140,25 @@ func (feast *FeastServices) createDeployment(feastType FeastServiceType) error {
 		return err
 	} else if op == controllerutil.OperationResultCreated || op == controllerutil.OperationResultUpdated {
 		logger.Info("Successfully reconciled", "Deployment", deploy.Name, "operation", op)
+	}
+
+	return nil
+}
+
+func (feast *FeastServices) createPVC(pvcCreate *feastdevv1alpha1.PvcCreate, feastType FeastServiceType) error {
+	logger := log.FromContext(feast.Context)
+	pvc, err := feast.createNewPVC(pvcCreate, feastType)
+	if err != nil {
+		return err
+	}
+
+	err = feast.Client.Get(feast.Context, client.ObjectKeyFromObject(pvc), pvc)
+	if err != nil && apierrors.IsNotFound(err) {
+		err = feast.Client.Create(feast.Context, pvc)
+		if err != nil {
+			return err
+		}
+		logger.Info("Successfully created", "PersistentVolumeClaim", pvc.Name)
 	}
 
 	return nil
@@ -196,6 +225,9 @@ func (feast *FeastServices) setDeployment(deploy *appsv1.Deployment, feastType F
 	// configs are applied here
 	container := &deploy.Spec.Template.Spec.Containers[0]
 	applyOptionalContainerConfigs(container, serviceConfigs.OptionalConfigs)
+	if pvcConfig, hasPvcConfig := hasPvcConfig(feast.FeatureStore, feastType); hasPvcConfig {
+		mountPvcConfig(&deploy.Spec.Template.Spec, pvcConfig, deploy.Name)
+	}
 
 	return controllerutil.SetControllerReference(feast.FeatureStore, deploy, feast.Scheme)
 }
@@ -220,17 +252,35 @@ func (feast *FeastServices) setService(svc *corev1.Service, feastType FeastServi
 	return controllerutil.SetControllerReference(feast.FeatureStore, svc, feast.Scheme)
 }
 
+func (feast *FeastServices) createNewPVC(pvcCreate *feastdevv1alpha1.PvcCreate, feastType FeastServiceType) (*corev1.PersistentVolumeClaim, error) {
+	pvc := feast.initPVC(feastType)
+
+	pvc.Spec = corev1.PersistentVolumeClaimSpec{
+		AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany},
+		Resources:   pvcCreate.Resources,
+	}
+	if pvcCreate.StorageClassName != nil {
+		pvc.Spec.StorageClassName = pvcCreate.StorageClassName
+	}
+	return pvc, controllerutil.SetControllerReference(feast.FeatureStore, pvc, feast.Scheme)
+}
+
 func (feast *FeastServices) getServiceConfigs(feastType FeastServiceType) feastdevv1alpha1.ServiceConfigs {
 	appliedSpec := feast.FeatureStore.Status.Applied
-	if feastType == OfflineFeastType && appliedSpec.Services.OfflineStore != nil {
-		return appliedSpec.Services.OfflineStore.ServiceConfigs
-	}
-	if feastType == OnlineFeastType && appliedSpec.Services.OnlineStore != nil {
-		return appliedSpec.Services.OnlineStore.ServiceConfigs
-	}
-	if feastType == RegistryFeastType && appliedSpec.Services.Registry != nil {
-		if appliedSpec.Services.Registry.Local != nil {
-			return appliedSpec.Services.Registry.Local.ServiceConfigs
+	switch feastType {
+	case OfflineFeastType:
+		if appliedSpec.Services.OfflineStore != nil {
+			return appliedSpec.Services.OfflineStore.ServiceConfigs
+		}
+	case OnlineFeastType:
+		if appliedSpec.Services.OnlineStore != nil {
+			return appliedSpec.Services.OnlineStore.ServiceConfigs
+		}
+	case RegistryFeastType:
+		if appliedSpec.Services.Registry != nil {
+			if appliedSpec.Services.Registry.Local != nil {
+				return appliedSpec.Services.Registry.Local.ServiceConfigs
+			}
 		}
 	}
 	return feastdevv1alpha1.ServiceConfigs{}
@@ -376,8 +426,18 @@ func (feast *FeastServices) initFeastSvc(feastType FeastServiceType) *corev1.Ser
 	return svc
 }
 
+func (feast *FeastServices) initPVC(feastType FeastServiceType) *corev1.PersistentVolumeClaim {
+	pvc := &corev1.PersistentVolumeClaim{
+		ObjectMeta: feast.GetObjectMeta(feastType),
+	}
+	pvc.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("PersistentVolumeClaim"))
+	return pvc
+}
+
 // delete an object if the FeatureStore is set as the object's controller/owner
 func (feast *FeastServices) deleteOwnedFeastObj(obj client.Object) error {
+	name := obj.GetName()
+	kind := obj.GetObjectKind().GroupVersionKind().Kind
 	if err := feast.Client.Get(feast.Context, client.ObjectKeyFromObject(obj), obj); err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil
@@ -389,6 +449,7 @@ func (feast *FeastServices) deleteOwnedFeastObj(obj client.Object) error {
 			if err := feast.Client.Delete(feast.Context, obj); err != nil {
 				return err
 			}
+			log.FromContext(feast.Context).Info("Successfully deleted", kind, name)
 		}
 	}
 	return nil
@@ -426,4 +487,31 @@ func mergeEnvVarsArrays(envVars1 []corev1.EnvVar, envVars2 *[]corev1.EnvVar) []c
 	}
 
 	return result
+}
+
+func mountPvcConfig(podSpec *corev1.PodSpec, pvcConfig *feastdevv1alpha1.PvcConfig, deployName string) {
+	container := &podSpec.Containers[0]
+	var pvcName string
+	if pvcConfig.Create != nil {
+		pvcName = deployName
+	} else {
+		pvcName = pvcConfig.Ref.Name
+	}
+
+	podSpec.Volumes = []corev1.Volume{
+		{
+			Name: pvcName,
+			VolumeSource: corev1.VolumeSource{
+				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+					ClaimName: pvcName,
+				},
+			},
+		},
+	}
+	container.VolumeMounts = []corev1.VolumeMount{
+		{
+			Name:      pvcName,
+			MountPath: pvcConfig.MountPath,
+		},
+	}
 }
