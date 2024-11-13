@@ -128,9 +128,8 @@ type RegistryPersistence struct {
 // +kubebuilder:validation:XValidation:rule="(has(self.pvc) && has(self.path)) ? !(self.path.startsWith('s3://') || self.path.startsWith('gs://')) : true",message="PVC persistence does not support S3 or GS object store URIs."
 // +kubebuilder:validation:XValidation:rule="(has(self.s3_additional_kwargs) && has(self.path)) ? self.path.startsWith('s3://') : true",message="Additional S3 settings are available only for S3 object store URIs."
 type RegistryFilePersistence struct {
-	Path      string     `json:"path,omitempty"`
-	PvcConfig *PvcConfig `json:"pvc,omitempty"`
-	// +optional
+	Path          string             `json:"path,omitempty"`
+	PvcConfig     *PvcConfig         `json:"pvc,omitempty"`
 	S3AddtlKwargs *map[string]string `json:"s3_additional_kwargs,omitempty"`
 }
 

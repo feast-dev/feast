@@ -185,8 +185,9 @@ type OnlineStoreConfig struct {
 
 // RegistryConfig is the configuration that relates to reading from and writing to the Feast registry.
 type RegistryConfig struct {
-	Path         string             `yaml:"path,omitempty"`
-	RegistryType RegistryConfigType `yaml:"registry_type,omitempty"`
+	Path          string             `yaml:"path,omitempty"`
+	RegistryType  RegistryConfigType `yaml:"registry_type,omitempty"`
+	S3AddtlKwargs *map[string]string `json:"s3_additional_kwargs,omitempty"`
 }
 
 type deploymentSettings struct {
