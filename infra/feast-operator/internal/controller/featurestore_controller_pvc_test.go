@@ -67,7 +67,7 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 		onlineStoreMountPath := "/online"
 		registryMountPath := "/registry"
 
-		storageClassName := "default"
+		storageClassName := "test"
 
 		onlineStoreMountedPath := path.Join(onlineStoreMountPath, onlineStorePath)
 		registryMountedPath := path.Join(registryMountPath, registryPath)
