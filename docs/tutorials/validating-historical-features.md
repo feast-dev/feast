@@ -173,7 +173,7 @@ def on_demand_stats(inp: pd.DataFrame) -> pd.DataFrame:
     return out
 ```
 
-*Read more about on demand feature views [here](https://docs.feast.dev/reference/alpha-on-demand-feature-view)*
+*Read more about on demand feature views [here](../reference/beta-on-demand-feature-view.md)*
 
 
 ```python
