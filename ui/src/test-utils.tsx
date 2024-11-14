@@ -14,7 +14,11 @@ const queryClient = new QueryClient();
 const AllTheProviders = ({ children }: ProvidersProps) => {
   return (
     <QueryClientProvider client={queryClient}>
-      <Router initialEntries={["/"]}>
+      <Router
+        // Disable v7_relativeSplatPath: custom tab routes don't currently work with it
+        future={{ v7_relativeSplatPath: false, v7_startTransition: true }}
+        initialEntries={["/"]}
+      >
         <QueryParamProvider adapter={ReactRouter6Adapter}>
           {children}
         </QueryParamProvider>
