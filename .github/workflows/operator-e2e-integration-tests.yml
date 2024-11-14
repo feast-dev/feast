@@ -1,0 +1,79 @@
+# .github/workflows/operator-e2e-integration-tests.yml
+name: Operator e2e tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - labeled
+
+jobs:
+  e2e-tests:
+    if:
+      ((github.event.action == 'labeled' && (github.event.label.name == 'approved' || github.event.label.name == 'lgtm' || github.event.label.name == 'ok-to-test')) ||
+      (github.event.action != 'labeled' && (contains(github.event.pull_request.labels.*.name, 'ok-to-test') || contains(github.event.pull_request.labels.*.name, 'approved') || contains(github.event.pull_request.labels.*.name, 'lgtm')))) &&
+      github.repository == 'feast-dev/feast'
+    runs-on: ubuntu-latest
+
+    services:
+      kind:
+        # Specify the Kubernetes version
+        image: kindest/node:v1.30.6
+        options: >-
+          --privileged
+
+    env:
+      KIND_CLUSTER_NAME: "operator-e2e-cluster"
+      NAMESPACE: "test-namespace"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21.0'
+
+#      - name: Install dependencies
+#        run: |
+#          go mod download
+#          go install github.com/operator-framework/operator-sdk/cmd/operator-sdk@latest
+
+      - name: Create KIND cluster
+        run: |
+          kind create cluster --name $KIND_CLUSTER_NAME --wait 5m
+
+      - name: Set up kubeconfig
+        run: |
+          # Point kubeconfig to the KIND cluster
+          export KUBECONFIG="$(kind get kubeconfig-path --name=$KIND_CLUSTER_NAME)"
+          echo "KUBECONFIG is set to $(kind get kubeconfig-path --name=$KIND_CLUSTER_NAME)"
+
+      - name: Load Docker image into KIND cluster
+        run: |
+          # TODO Build the operator image real time or pick the latest one. something needs to figure it out.
+          export IMG=quay.io/lrangine/feast-operator:latest
+          docker build -t $IMG .
+          kind load docker-image $IMG --name $KIND_CLUSTER_NAME
+
+      - name: Deploy the operator
+        run: |
+          # Deploy the operator using Operator SDK
+          operator-sdk run bundle $IMG --namespace=$NAMESPACE
+
+      - name: Run E2E tests
+        run: |
+          # Run the e2e tests
+          cd infra/feast-operator/
+          make test-e2e
+
+      - name: Clean up
+        if: always()
+        run: |
+          # Delete the KIND cluster after tests
+          kind delete cluster --name $KIND_CLUSTER_NAME
