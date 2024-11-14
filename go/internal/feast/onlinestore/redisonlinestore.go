@@ -14,13 +14,15 @@ import (
 	"github.com/feast-dev/feast/go/internal/feast/registry"
 	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 
-	"github.com/redis/go-redis/v9"
+	redisprometheus "github.com/redis/go-redis/extra/redisprometheus/v9"
+	redis "github.com/redis/go-redis/v9"
 	"github.com/spaolacci/murmur3"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/feast-dev/feast/go/protos/feast/types"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/rs/zerolog/log"
 	redistrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/redis/go-redis.v9"
 )
@@ -122,6 +124,8 @@ func NewRedisOnlineStore(project string, config *registry.RepoConfig, onlineStor
 		})
 		if strings.ToLower(os.Getenv("ENABLE_DATADOG_REDIS_TRACING")) == "true" {
 			redistrace.WrapClient(store.client, redistrace.WithServiceName(redisTraceServiceName))
+			collector := redisprometheus.NewCollector("mlpfs", "redis", store.client)
+			prometheus.MustRegister(collector)
 		}
 	} else if redisStoreType == redisCluster {
 		log.Info().Msgf("Using Redis Cluster: %s", address)
@@ -133,6 +137,8 @@ func NewRedisOnlineStore(project string, config *registry.RepoConfig, onlineStor
 		})
 		if strings.ToLower(os.Getenv("ENABLE_DATADOG_REDIS_TRACING")) == "true" {
 			redistrace.WrapClient(store.clusterClient, redistrace.WithServiceName(redisTraceServiceName))
+			collector := redisprometheus.NewCollector("mlpfs", "redis", store.clusterClient)
+			prometheus.MustRegister(collector)
 		}
 	}
 

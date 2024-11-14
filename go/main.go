@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"strings"
@@ -14,13 +15,16 @@ import (
 	"github.com/feast-dev/feast/go/internal/feast/server"
 	"github.com/feast-dev/feast/go/internal/feast/server/logging"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
 
+	grpcPrometheus "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	_ "go.uber.org/automaxprocs"
-	grpctrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/google.golang.org/grpc"
+	grpcTrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/google.golang.org/grpc"
 	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 )
 
@@ -127,10 +131,21 @@ func StartGrpcServer(fs *feast.FeatureStore, host string, port int, writeLoggedF
 		return err
 	}
 
-	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(grpctrace.UnaryServerInterceptor()))
+	grpcPromMetrics := grpcPrometheus.NewServerMetrics()
+	prometheus.MustRegister(grpcPromMetrics)
+	grpcServer := grpc.NewServer(
+		grpc.ChainUnaryInterceptor(grpcTrace.UnaryServerInterceptor(), grpcPromMetrics.UnaryServerInterceptor()),
+	)
 	serving.RegisterServingServiceServer(grpcServer, ser)
 	healthService := health.NewServer()
 	grpc_health_v1.RegisterHealthServer(grpcServer, healthService)
+
+	// Running Prometheus metrics endpoint on a separate goroutine
+	go func() {
+		http.Handle("/metrics", promhttp.Handler())
+		log.Info().Msg("Starting metrics endpoint on port 8080")
+		log.Fatal().Stack().Err(http.ListenAndServe(":8080", nil))
+	}()
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
