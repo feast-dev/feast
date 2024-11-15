@@ -368,7 +368,7 @@ var _ = Describe("FeatureStore API", func() {
 			attemptInvalidCreationAndAsserts(ctx, registryWithAbsolutePathForPvc(featurestore), "PVC path must be a file name only")
 		})
 		It("should fail when ephemeral persistence has relative path", func() {
-			attemptInvalidCreationAndAsserts(ctx, registryWithRelativePathForEphemeral(featurestore), "Ephemeral stores must use absolute paths or be S3 ('s3://') or GS ('gs://')")
+			attemptInvalidCreationAndAsserts(ctx, registryWithRelativePathForEphemeral(featurestore), "Registry files must use absolute paths or be S3 ('s3://') or GS ('gs://')")
 		})
 		It("should fail when PVC persistence has S3 bucket", func() {
 			attemptInvalidCreationAndAsserts(ctx, registryWithS3BucketForPvc(featurestore), "PVC persistence does not support S3 or GS object store URIs")

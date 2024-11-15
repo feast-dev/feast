@@ -833,7 +833,7 @@ spec:
                                     type: object
                                 type: object
                                 x-kubernetes-validations:
-                                - message: Ephemeral stores must use absolute paths
+                                - message: Registry files must use absolute paths
                                     or be S3 ('s3://') or GS ('gs://') object store
                                     URIs.
                                   rule: '(!has(self.pvc) && has(self.path)) ? (self.path.startsWith(''/'')
@@ -1741,8 +1741,8 @@ spec:
                                         type: object
                                     type: object
                                     x-kubernetes-validations:
-                                    - message: Ephemeral stores must use absolute
-                                        paths or be S3 ('s3://') or GS ('gs://') object
+                                    - message: Registry files must use absolute paths
+                                        or be S3 ('s3://') or GS ('gs://') object
                                         store URIs.
                                       rule: '(!has(self.pvc) && has(self.path)) ?
                                         (self.path.startsWith(''/'') || self.path.startsWith(''s3://'')

@@ -205,8 +205,6 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			// update S3 additional args and reconcile
 			resourceNew := resource.DeepCopy()
 			newS3AddtlKwargs := make(map[string]string)
-
-			// Copy each key-value pair
 			for k, v := range s3AddtlKwargs {
 				newS3AddtlKwargs[k] = v
 			}
