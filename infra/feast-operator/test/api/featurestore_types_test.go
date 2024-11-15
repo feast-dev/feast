@@ -191,8 +191,8 @@ func registryWithS3AdditionalKeywordsForFile(featureStore *feastdevv1alpha1.Feat
 			Local: &feastdevv1alpha1.LocalRegistryConfig{
 				Persistence: &feastdevv1alpha1.RegistryPersistence{
 					FilePersistence: &feastdevv1alpha1.RegistryFilePersistence{
-						Path:          "/data/online_store.db",
-						S3AddtlKwargs: &map[string]string{},
+						Path:               "/data/online_store.db",
+						S3AdditionalKwargs: &map[string]string{},
 					},
 				},
 			},
@@ -207,8 +207,8 @@ func registryWithS3AdditionalKeywordsForGsBucket(featureStore *feastdevv1alpha1.
 			Local: &feastdevv1alpha1.LocalRegistryConfig{
 				Persistence: &feastdevv1alpha1.RegistryPersistence{
 					FilePersistence: &feastdevv1alpha1.RegistryFilePersistence{
-						Path:          "gs://online_store.db",
-						S3AddtlKwargs: &map[string]string{},
+						Path:               "gs://online_store.db",
+						S3AdditionalKwargs: &map[string]string{},
 					},
 				},
 			},

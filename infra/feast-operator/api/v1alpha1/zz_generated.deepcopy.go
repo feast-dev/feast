@@ -452,8 +452,8 @@ func (in *RegistryFilePersistence) DeepCopyInto(out *RegistryFilePersistence) {
 		*out = new(PvcConfig)
 		(*in).DeepCopyInto(*out)
 	}
-	if in.S3AddtlKwargs != nil {
-		in, out := &in.S3AddtlKwargs, &out.S3AddtlKwargs
+	if in.S3AdditionalKwargs != nil {
+		in, out := &in.S3AdditionalKwargs, &out.S3AdditionalKwargs
 		*out = new(map[string]string)
 		if **in != nil {
 			in, out := *in, *out

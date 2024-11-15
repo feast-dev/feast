@@ -57,7 +57,7 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 		featurestore := &feastdevv1alpha1.FeatureStore{}
 		registryPath := "s3://bucket/registry.db"
 
-		s3AddtlKwargs := map[string]string{
+		s3AdditionalKwargs := map[string]string{
 			"key1": "value1",
 			"key2": "value2",
 		}
@@ -74,8 +74,8 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 					Local: &feastdevv1alpha1.LocalRegistryConfig{
 						Persistence: &feastdevv1alpha1.RegistryPersistence{
 							FilePersistence: &feastdevv1alpha1.RegistryFilePersistence{
-								Path:          registryPath,
-								S3AddtlKwargs: &s3AddtlKwargs,
+								Path:               registryPath,
+								S3AdditionalKwargs: &s3AdditionalKwargs,
 							},
 						},
 					},
@@ -127,8 +127,8 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			Expect(resource.Status.Applied.Services.Registry.Local.Persistence).NotTo(BeNil())
 			Expect(resource.Status.Applied.Services.Registry.Local.Persistence.FilePersistence).NotTo(BeNil())
 			Expect(resource.Status.Applied.Services.Registry.Local.Persistence.FilePersistence.Path).To(Equal(registryPath))
-			Expect(resource.Status.Applied.Services.Registry.Local.Persistence.FilePersistence.S3AddtlKwargs).NotTo(BeNil())
-			Expect(resource.Status.Applied.Services.Registry.Local.Persistence.FilePersistence.S3AddtlKwargs).To(Equal(&s3AddtlKwargs))
+			Expect(resource.Status.Applied.Services.Registry.Local.Persistence.FilePersistence.S3AdditionalKwargs).NotTo(BeNil())
+			Expect(resource.Status.Applied.Services.Registry.Local.Persistence.FilePersistence.S3AdditionalKwargs).To(Equal(&s3AdditionalKwargs))
 			Expect(resource.Status.Applied.Services.Registry.Local.Persistence.FilePersistence.PvcConfig).To(BeNil())
 			Expect(resource.Status.Applied.Services.Registry.Local.ImagePullPolicy).To(BeNil())
 			Expect(resource.Status.Applied.Services.Registry.Local.Resources).To(BeNil())
@@ -204,12 +204,12 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 
 			// update S3 additional args and reconcile
 			resourceNew := resource.DeepCopy()
-			newS3AddtlKwargs := make(map[string]string)
-			for k, v := range s3AddtlKwargs {
-				newS3AddtlKwargs[k] = v
+			newS3AdditionalKwargs := make(map[string]string)
+			for k, v := range s3AdditionalKwargs {
+				newS3AdditionalKwargs[k] = v
 			}
-			newS3AddtlKwargs["key3"] = "value3"
-			resourceNew.Spec.Services.Registry.Local.Persistence.FilePersistence.S3AddtlKwargs = &newS3AddtlKwargs
+			newS3AdditionalKwargs["key3"] = "value3"
+			resourceNew.Spec.Services.Registry.Local.Persistence.FilePersistence.S3AdditionalKwargs = &newS3AdditionalKwargs
 			err = k8sClient.Update(ctx, resourceNew)
 			Expect(err).NotTo(HaveOccurred())
 			_, err = controllerReconciler.Reconcile(ctx, reconcile.Request{
@@ -221,9 +221,9 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			err = k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 			feast.FeatureStore = resource
-			Expect(resource.Status.Applied.Services.Registry.Local.Persistence.FilePersistence.S3AddtlKwargs).NotTo(BeNil())
-			Expect(resource.Status.Applied.Services.Registry.Local.Persistence.FilePersistence.S3AddtlKwargs).NotTo(Equal(&s3AddtlKwargs))
-			Expect(resource.Status.Applied.Services.Registry.Local.Persistence.FilePersistence.S3AddtlKwargs).To(Equal(&newS3AddtlKwargs))
+			Expect(resource.Status.Applied.Services.Registry.Local.Persistence.FilePersistence.S3AdditionalKwargs).NotTo(BeNil())
+			Expect(resource.Status.Applied.Services.Registry.Local.Persistence.FilePersistence.S3AdditionalKwargs).NotTo(Equal(&s3AdditionalKwargs))
+			Expect(resource.Status.Applied.Services.Registry.Local.Persistence.FilePersistence.S3AdditionalKwargs).To(Equal(&newS3AdditionalKwargs))
 
 			// check registry deployment
 			deploy = &appsv1.Deployment{}
@@ -308,9 +308,9 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 				Provider:                      services.LocalProviderType,
 				EntityKeySerializationVersion: feastdevv1alpha1.SerializationVersion,
 				Registry: services.RegistryConfig{
-					RegistryType:  services.RegistryFileConfigType,
-					Path:          registryPath,
-					S3AddtlKwargs: &s3AddtlKwargs,
+					RegistryType:       services.RegistryFileConfigType,
+					Path:               registryPath,
+					S3AdditionalKwargs: &s3AdditionalKwargs,
 				},
 			}
 			Expect(repoConfig).To(Equal(testConfig))
@@ -360,7 +360,7 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 
 			// remove S3 additional keywords and reconcile
 			resourceNew := resource.DeepCopy()
-			resourceNew.Spec.Services.Registry.Local.Persistence.FilePersistence.S3AddtlKwargs = nil
+			resourceNew.Spec.Services.Registry.Local.Persistence.FilePersistence.S3AdditionalKwargs = nil
 			err = k8sClient.Update(ctx, resourceNew)
 			Expect(err).NotTo(HaveOccurred())
 			_, err = controllerReconciler.Reconcile(ctx, reconcile.Request{
@@ -392,7 +392,7 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			repoConfig = &services.RepoConfig{}
 			err = yaml.Unmarshal(envByte, repoConfig)
 			Expect(err).NotTo(HaveOccurred())
-			testConfig.Registry.S3AddtlKwargs = nil
+			testConfig.Registry.S3AdditionalKwargs = nil
 			Expect(repoConfig).To(Equal(testConfig))
 
 			// check offline deployment

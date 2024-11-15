@@ -88,17 +88,17 @@ func getServiceRepoConfig(feastType FeastServiceType, featureStore *feastdevv1al
 			// Registry server only has a `registry` section
 			if isLocalRegistry {
 				path := DefaultRegistryEphemeralPath
-				var s3AddtlKwargs *map[string]string
+				var s3AdditionalKwargs *map[string]string
 				if services != nil && services.Registry != nil && services.Registry.Local != nil &&
 					services.Registry.Local.Persistence != nil && services.Registry.Local.Persistence.FilePersistence != nil {
 					filePersistence := services.Registry.Local.Persistence.FilePersistence
 					path = getActualPath(filePersistence.Path, filePersistence.PvcConfig)
-					s3AddtlKwargs = filePersistence.S3AddtlKwargs
+					s3AdditionalKwargs = filePersistence.S3AdditionalKwargs
 				}
 				repoConfig.Registry = RegistryConfig{
-					RegistryType:  RegistryFileConfigType,
-					Path:          path,
-					S3AddtlKwargs: s3AddtlKwargs,
+					RegistryType:       RegistryFileConfigType,
+					Path:               path,
+					S3AdditionalKwargs: s3AdditionalKwargs,
 				}
 				repoConfig.OfflineStore = OfflineStoreConfig{}
 				repoConfig.OnlineStore = OnlineStoreConfig{}
