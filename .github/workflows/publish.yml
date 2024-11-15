@@ -162,7 +162,7 @@ jobs:
         with:
           python-version: '3.11'
           architecture: 'x64'
-      - uses: actions/cache@v2
+      - uses: actions/cache@v4
         with:
           path: ~/.m2/repository
           key: ${{ runner.os }}-it-maven-${{ hashFiles('**/pom.xml') }}
