@@ -553,6 +553,9 @@ spec:
                                 slashes.
                               rule: '(has(self.pvc) && has(self.path)) ? !self.path.startsWith(''/'')
                                 : true'
+                            - message: Online store does not support S3 or GS buckets.
+                              rule: has(self.path) && !self.path.startsWith('s3://')
+                                && !self.path.startsWith('gs://')
                         type: object
                       resources:
                         description: ResourceRequirements describes the compute resource
@@ -824,15 +827,30 @@ spec:
                                     - message: Mount path must start with '/' and
                                         must not contain ':'
                                       rule: self.mountPath.matches('^/[^:]*$')
+                                  s3_additional_kwargs:
+                                    additionalProperties:
+                                      type: string
+                                    type: object
                                 type: object
                                 x-kubernetes-validations:
-                                - message: Ephemeral stores must have absolute paths.
-                                  rule: '(!has(self.pvc) && has(self.path)) ? self.path.startsWith(''/'')
+                                - message: Registry files must use absolute paths
+                                    or be S3 ('s3://') or GS ('gs://') object store
+                                    URIs.
+                                  rule: '(!has(self.pvc) && has(self.path)) ? (self.path.startsWith(''/'')
+                                    || self.path.startsWith(''s3://'') || self.path.startsWith(''gs://''))
                                     : true'
                                 - message: PVC path must be a file name only, with
                                     no slashes.
                                   rule: '(has(self.pvc) && has(self.path)) ? !self.path.startsWith(''/'')
                                     : true'
+                                - message: PVC persistence does not support S3 or
+                                    GS object store URIs.
+                                  rule: '(has(self.pvc) && has(self.path)) ? !(self.path.startsWith(''s3://'')
+                                    || self.path.startsWith(''gs://'')) : true'
+                                - message: Additional S3 settings are available only
+                                    for S3 object store URIs.
+                                  rule: '(has(self.s3_additional_kwargs) && has(self.path))
+                                    ? self.path.startsWith(''s3://'') : true'
                             type: object
                           resources:
                             description: ResourceRequirements describes the compute
@@ -1435,6 +1453,10 @@ spec:
                                     no slashes.
                                   rule: '(has(self.pvc) && has(self.path)) ? !self.path.startsWith(''/'')
                                     : true'
+                                - message: Online store does not support S3 or GS
+                                    buckets.
+                                  rule: has(self.path) && !self.path.startsWith('s3://')
+                                    && !self.path.startsWith('gs://')
                             type: object
                           resources:
                             description: ResourceRequirements describes the compute
@@ -1713,16 +1735,30 @@ spec:
                                         - message: Mount path must start with '/'
                                             and must not contain ':'
                                           rule: self.mountPath.matches('^/[^:]*$')
+                                      s3_additional_kwargs:
+                                        additionalProperties:
+                                          type: string
+                                        type: object
                                     type: object
                                     x-kubernetes-validations:
-                                    - message: Ephemeral stores must have absolute
-                                        paths.
+                                    - message: Registry files must use absolute paths
+                                        or be S3 ('s3://') or GS ('gs://') object
+                                        store URIs.
                                       rule: '(!has(self.pvc) && has(self.path)) ?
-                                        self.path.startsWith(''/'') : true'
+                                        (self.path.startsWith(''/'') || self.path.startsWith(''s3://'')
+                                        || self.path.startsWith(''gs://'')) : true'
                                     - message: PVC path must be a file name only,
                                         with no slashes.
                                       rule: '(has(self.pvc) && has(self.path)) ? !self.path.startsWith(''/'')
                                         : true'
+                                    - message: PVC persistence does not support S3
+                                        or GS object store URIs.
+                                      rule: '(has(self.pvc) && has(self.path)) ? !(self.path.startsWith(''s3://'')
+                                        || self.path.startsWith(''gs://'')) : true'
+                                    - message: Additional S3 settings are available
+                                        only for S3 object store URIs.
+                                      rule: '(has(self.s3_additional_kwargs) && has(self.path))
+                                        ? self.path.startsWith(''s3://'') : true'
                                 type: object
                               resources:
                                 description: ResourceRequirements describes the compute

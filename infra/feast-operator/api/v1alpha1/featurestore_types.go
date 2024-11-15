@@ -105,6 +105,7 @@ type OnlineStorePersistence struct {
 // OnlineStoreFilePersistence configures the file-based persistence for the offline store service
 // +kubebuilder:validation:XValidation:rule="(!has(self.pvc) && has(self.path)) ? self.path.startsWith('/') : true",message="Ephemeral stores must have absolute paths."
 // +kubebuilder:validation:XValidation:rule="(has(self.pvc) && has(self.path)) ? !self.path.startsWith('/') : true",message="PVC path must be a file name only, with no slashes."
+// +kubebuilder:validation:XValidation:rule="has(self.path) && !self.path.startsWith('s3://') && !self.path.startsWith('gs://')",message="Online store does not support S3 or GS buckets."
 type OnlineStoreFilePersistence struct {
 	Path      string     `json:"path,omitempty"`
 	PvcConfig *PvcConfig `json:"pvc,omitempty"`
@@ -122,11 +123,14 @@ type RegistryPersistence struct {
 }
 
 // RegistryFilePersistence configures the file-based persistence for the registry service
-// +kubebuilder:validation:XValidation:rule="(!has(self.pvc) && has(self.path)) ? self.path.startsWith('/') : true",message="Ephemeral stores must have absolute paths."
+// +kubebuilder:validation:XValidation:rule="(!has(self.pvc) && has(self.path)) ? (self.path.startsWith('/') || self.path.startsWith('s3://') || self.path.startsWith('gs://')) : true",message="Registry files must use absolute paths or be S3 ('s3://') or GS ('gs://') object store URIs."
 // +kubebuilder:validation:XValidation:rule="(has(self.pvc) && has(self.path)) ? !self.path.startsWith('/') : true",message="PVC path must be a file name only, with no slashes."
+// +kubebuilder:validation:XValidation:rule="(has(self.pvc) && has(self.path)) ? !(self.path.startsWith('s3://') || self.path.startsWith('gs://')) : true",message="PVC persistence does not support S3 or GS object store URIs."
+// +kubebuilder:validation:XValidation:rule="(has(self.s3_additional_kwargs) && has(self.path)) ? self.path.startsWith('s3://') : true",message="Additional S3 settings are available only for S3 object store URIs."
 type RegistryFilePersistence struct {
-	Path      string     `json:"path,omitempty"`
-	PvcConfig *PvcConfig `json:"pvc,omitempty"`
+	Path               string             `json:"path,omitempty"`
+	PvcConfig          *PvcConfig         `json:"pvc,omitempty"`
+	S3AdditionalKwargs *map[string]string `json:"s3_additional_kwargs,omitempty"`
 }
 
 // PvcConfig defines the settings for a persistent file store based on PVCs.

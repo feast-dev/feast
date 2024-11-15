@@ -67,6 +67,24 @@ func onlineStoreWithRelativePathForEphemeral(featureStore *feastdevv1alpha1.Feat
 	return copy
 }
 
+func onlineStoreWithObjectStoreBucketForPvc(path string, featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
+	copy := featureStore.DeepCopy()
+	copy.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
+		OnlineStore: &feastdevv1alpha1.OnlineStore{
+			Persistence: &feastdevv1alpha1.OnlineStorePersistence{
+				FilePersistence: &feastdevv1alpha1.OnlineStoreFilePersistence{
+					Path: path,
+					PvcConfig: &feastdevv1alpha1.PvcConfig{
+						Create:    &feastdevv1alpha1.PvcCreate{},
+						MountPath: "/data/online",
+					},
+				},
+			},
+		},
+	}
+	return copy
+}
+
 func offlineStoreWithUnmanagedFileType(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
 	copy := featureStore.DeepCopy()
 	copy.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
@@ -111,6 +129,58 @@ func registryWithRelativePathForEphemeral(featureStore *feastdevv1alpha1.Feature
 	}
 	return copy
 }
+func registryWithObjectStoreBucketForPvc(path string, featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
+	copy := featureStore.DeepCopy()
+	copy.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
+		Registry: &feastdevv1alpha1.Registry{
+			Local: &feastdevv1alpha1.LocalRegistryConfig{
+				Persistence: &feastdevv1alpha1.RegistryPersistence{
+					FilePersistence: &feastdevv1alpha1.RegistryFilePersistence{
+						Path: path,
+						PvcConfig: &feastdevv1alpha1.PvcConfig{
+							Create:    &feastdevv1alpha1.PvcCreate{},
+							MountPath: "/data/registry",
+						},
+					},
+				},
+			},
+		},
+	}
+	return copy
+}
+func registryWithS3AdditionalKeywordsForFile(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
+	copy := featureStore.DeepCopy()
+	copy.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
+		Registry: &feastdevv1alpha1.Registry{
+			Local: &feastdevv1alpha1.LocalRegistryConfig{
+				Persistence: &feastdevv1alpha1.RegistryPersistence{
+					FilePersistence: &feastdevv1alpha1.RegistryFilePersistence{
+						Path:               "/data/online_store.db",
+						S3AdditionalKwargs: &map[string]string{},
+					},
+				},
+			},
+		},
+	}
+	return copy
+}
+func registryWithS3AdditionalKeywordsForGsBucket(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
+	copy := featureStore.DeepCopy()
+	copy.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
+		Registry: &feastdevv1alpha1.Registry{
+			Local: &feastdevv1alpha1.LocalRegistryConfig{
+				Persistence: &feastdevv1alpha1.RegistryPersistence{
+					FilePersistence: &feastdevv1alpha1.RegistryFilePersistence{
+						Path:               "gs://online_store.db",
+						S3AdditionalKwargs: &map[string]string{},
+					},
+				},
+			},
+		},
+	}
+	return copy
+}
+
 func pvcConfigWithNeitherRefNorCreate(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
 	copy := featureStore.DeepCopy()
 	copy.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
@@ -239,6 +309,10 @@ var _ = Describe("FeatureStore API", func() {
 		It("should fail when ephemeral persistence has relative path", func() {
 			attemptInvalidCreationAndAsserts(ctx, onlineStoreWithRelativePathForEphemeral(featurestore), "Ephemeral stores must have absolute paths")
 		})
+		It("should fail when PVC persistence has object store bucket", func() {
+			attemptInvalidCreationAndAsserts(ctx, onlineStoreWithObjectStoreBucketForPvc("s3://bucket/online_store.db", featurestore), "Online store does not support S3 or GS")
+			attemptInvalidCreationAndAsserts(ctx, onlineStoreWithObjectStoreBucketForPvc("gs://bucket/online_store.db", featurestore), "Online store does not support S3 or GS")
+		})
 	})
 
 	Context("When creating an invalid Offline Store", func() {
@@ -256,7 +330,15 @@ var _ = Describe("FeatureStore API", func() {
 			attemptInvalidCreationAndAsserts(ctx, registryWithAbsolutePathForPvc(featurestore), "PVC path must be a file name only")
 		})
 		It("should fail when ephemeral persistence has relative path", func() {
-			attemptInvalidCreationAndAsserts(ctx, registryWithRelativePathForEphemeral(featurestore), "Ephemeral stores must have absolute paths")
+			attemptInvalidCreationAndAsserts(ctx, registryWithRelativePathForEphemeral(featurestore), "Registry files must use absolute paths or be S3 ('s3://') or GS ('gs://')")
+		})
+		It("should fail when PVC persistence has object store bucket", func() {
+			attemptInvalidCreationAndAsserts(ctx, registryWithObjectStoreBucketForPvc("s3://bucket/registry.db", featurestore), "PVC persistence does not support S3 or GS object store URIs")
+			attemptInvalidCreationAndAsserts(ctx, registryWithObjectStoreBucketForPvc("gs://bucket/registry.db", featurestore), "PVC persistence does not support S3 or GS object store URIs")
+		})
+		It("should fail when additional S3 settings are provided to non S3 bucket", func() {
+			attemptInvalidCreationAndAsserts(ctx, registryWithS3AdditionalKeywordsForFile(featurestore), "Additional S3 settings are available only for S3 object store URIs")
+			attemptInvalidCreationAndAsserts(ctx, registryWithS3AdditionalKeywordsForGsBucket(featurestore), "Additional S3 settings are available only for S3 object store URIs")
 		})
 	})
 
