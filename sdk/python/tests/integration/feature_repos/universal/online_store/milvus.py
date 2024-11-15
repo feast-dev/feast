@@ -1,3 +1,4 @@
+import time
 from typing import Any, Dict
 
 from testcontainers.milvus import MilvusContainer
