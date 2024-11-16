@@ -2,6 +2,7 @@ import React from "react";
 import { render, RenderOptions } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "react-query";
 import { QueryParamProvider } from "use-query-params";
+import { ReactRouter6Adapter } from 'use-query-params/adapters/react-router-6';
 import { MemoryRouter as Router } from "react-router-dom";
 
 interface ProvidersProps {
@@ -14,7 +15,7 @@ const AllTheProviders = ({ children }: ProvidersProps) => {
   return (
     <QueryClientProvider client={queryClient}>
       <Router initialEntries={["/"]}>
-        <QueryParamProvider>
+        <QueryParamProvider adapter={ReactRouter6Adapter}>
           {children}
         </QueryParamProvider>
       </Router>
