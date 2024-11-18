@@ -2035,6 +2035,7 @@ rules:
   resources:
   - configmaps
   - persistentvolumeclaims
+  - serviceaccounts
   - services
   verbs:
   - create

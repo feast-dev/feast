@@ -173,6 +173,7 @@ var _ = Describe("FeatureStore Controller", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(deploy.Spec.Replicas).To(Equal(&services.DefaultReplicas))
 			Expect(controllerutil.HasControllerReference(deploy)).To(BeTrue())
+			Expect(deploy.Spec.Template.Spec.ServiceAccountName).To(Equal(deploy.Name))
 			Expect(deploy.Spec.Template.Spec.Containers).To(HaveLen(1))
 
 			svc := &corev1.Service{}
@@ -216,6 +217,7 @@ var _ = Describe("FeatureStore Controller", func() {
 			},
 				deploy)
 			Expect(err).NotTo(HaveOccurred())
+			Expect(deploy.Spec.Template.Spec.ServiceAccountName).To(Equal(deploy.Name))
 			Expect(deploy.Spec.Template.Spec.Containers).To(HaveLen(1))
 			Expect(deploy.Spec.Template.Spec.Containers[0].Env).To(HaveLen(1))
 			env := getFeatureStoreYamlEnvVar(deploy.Spec.Template.Spec.Containers[0].Env)
@@ -517,6 +519,7 @@ var _ = Describe("FeatureStore Controller", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(deploy.Spec.Replicas).To(Equal(&services.DefaultReplicas))
 			Expect(controllerutil.HasControllerReference(deploy)).To(BeTrue())
+			Expect(deploy.Spec.Template.Spec.ServiceAccountName).To(Equal(deploy.Name))
 			Expect(deploy.Spec.Template.Spec.Containers).To(HaveLen(1))
 
 			svc := &corev1.Service{}
@@ -555,6 +558,11 @@ var _ = Describe("FeatureStore Controller", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(deployList.Items).To(HaveLen(3))
 
+			saList := corev1.ServiceAccountList{}
+			err = k8sClient.List(ctx, &saList, listOpts)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(saList.Items).To(HaveLen(3))
+
 			svcList := corev1.ServiceList{}
 			err = k8sClient.List(ctx, &svcList, listOpts)
 			Expect(err).NotTo(HaveOccurred())
@@ -580,6 +588,7 @@ var _ = Describe("FeatureStore Controller", func() {
 			},
 				deploy)
 			Expect(err).NotTo(HaveOccurred())
+			Expect(deploy.Spec.Template.Spec.ServiceAccountName).To(Equal(deploy.Name))
 			Expect(deploy.Spec.Template.Spec.Containers).To(HaveLen(1))
 			Expect(deploy.Spec.Template.Spec.Containers[0].Env).To(HaveLen(1))
 			env := getFeatureStoreYamlEnvVar(deploy.Spec.Template.Spec.Containers[0].Env)
@@ -613,6 +622,7 @@ var _ = Describe("FeatureStore Controller", func() {
 			},
 				deploy)
 			Expect(err).NotTo(HaveOccurred())
+			Expect(deploy.Spec.Template.Spec.ServiceAccountName).To(Equal(deploy.Name))
 			Expect(deploy.Spec.Template.Spec.Containers).To(HaveLen(1))
 			Expect(deploy.Spec.Template.Spec.Containers[0].Env).To(HaveLen(1))
 			env = getFeatureStoreYamlEnvVar(deploy.Spec.Template.Spec.Containers[0].Env)
@@ -650,6 +660,7 @@ var _ = Describe("FeatureStore Controller", func() {
 			},
 				deploy)
 			Expect(err).NotTo(HaveOccurred())
+			Expect(deploy.Spec.Template.Spec.ServiceAccountName).To(Equal(deploy.Name))
 			Expect(deploy.Spec.Template.Spec.Containers).To(HaveLen(1))
 			Expect(deploy.Spec.Template.Spec.Containers[0].Env).To(HaveLen(3))
 			Expect(deploy.Spec.Template.Spec.Containers[0].ImagePullPolicy).To(Equal(corev1.PullAlways))
@@ -799,6 +810,7 @@ var _ = Describe("FeatureStore Controller", func() {
 			},
 				deploy)
 			Expect(err).NotTo(HaveOccurred())
+			Expect(deploy.Spec.Template.Spec.ServiceAccountName).To(Equal(deploy.Name))
 			Expect(deploy.Spec.Template.Spec.Containers).To(HaveLen(1))
 			Expect(deploy.Spec.Template.Spec.Containers[0].Env).To(HaveLen(3))
 			Expect(areEnvVarArraysEqual(deploy.Spec.Template.Spec.Containers[0].Env, []corev1.EnvVar{{Name: testEnvVarName, Value: testEnvVarValue}, {Name: services.FeatureStoreYamlEnvVar, Value: fsYamlStr}, {Name: "fieldRefName", ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "metadata.namespace"}}}})).To(BeTrue())
