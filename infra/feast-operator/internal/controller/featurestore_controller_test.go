@@ -45,6 +45,7 @@ import (
 
 const feastProject = "test_project"
 const domain = ".svc.cluster.local:80"
+const domainTls = ".svc.cluster.local:443"
 
 var image = "test:latest"
 
@@ -188,7 +189,7 @@ var _ = Describe("FeatureStore Controller", func() {
 				svc)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(controllerutil.HasControllerReference(svc)).To(BeTrue())
-			Expect(svc.Spec.Ports[0].TargetPort).To(Equal(intstr.FromInt(int(services.FeastServiceConstants[services.RegistryFeastType].TargetPort))))
+			Expect(svc.Spec.Ports[0].TargetPort).To(Equal(intstr.FromInt(int(services.FeastServiceConstants[services.RegistryFeastType].TargetHttpPort))))
 		})
 
 		It("should properly encode a feature_store.yaml config", func() {
@@ -549,7 +550,7 @@ var _ = Describe("FeatureStore Controller", func() {
 				svc)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(controllerutil.HasControllerReference(svc)).To(BeTrue())
-			Expect(svc.Spec.Ports[0].TargetPort).To(Equal(intstr.FromInt(int(services.FeastServiceConstants[services.RegistryFeastType].TargetPort))))
+			Expect(svc.Spec.Ports[0].TargetPort).To(Equal(intstr.FromInt(int(services.FeastServiceConstants[services.RegistryFeastType].TargetHttpPort))))
 		})
 
 		It("should properly encode a feature_store.yaml config", func() {

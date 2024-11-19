@@ -24,7 +24,6 @@ import (
 
 	feastdevv1alpha1 "github.com/feast-dev/feast/infra/feast-operator/api/v1alpha1"
 	"gopkg.in/yaml.v3"
-	corev1 "k8s.io/api/core/v1"
 )
 
 // GetServiceFeatureStoreYamlBase64 returns a base64 encoded feature_store.yaml config for the feast service
@@ -52,7 +51,6 @@ func getServiceRepoConfig(feastType FeastServiceType, featureStore *feastdevv1al
 	appliedSpec := featureStore.Status.Applied
 
 	repoConfig := getClientRepoConfig(featureStore)
-	isLocalRegistry := IsLocalRegistry(featureStore)
 	if appliedSpec.Services != nil {
 		services := appliedSpec.Services
 
@@ -75,7 +73,7 @@ func getServiceRepoConfig(feastType FeastServiceType, featureStore *feastdevv1al
 			}
 		case RegistryFeastType:
 			// Registry server only has a `registry` section
-			if isLocalRegistry {
+			if IsLocalRegistry(featureStore) {
 				err := setRepoConfigRegistry(services, secretExtractionFunc, &repoConfig)
 				if err != nil {
 					return repoConfig, err
@@ -208,6 +206,7 @@ func (feast *FeastServices) getClientFeatureStoreYaml() ([]byte, error) {
 
 func getClientRepoConfig(featureStore *feastdevv1alpha1.FeatureStore) RepoConfig {
 	status := featureStore.Status
+	appliedServices := status.Applied.Services
 	clientRepoConfig := RepoConfig{
 		Project:                       status.Applied.FeastProject,
 		Provider:                      LocalProviderType,
@@ -219,17 +218,33 @@ func getClientRepoConfig(featureStore *feastdevv1alpha1.FeatureStore) RepoConfig
 			Host: strings.Split(status.ServiceHostnames.OfflineStore, ":")[0],
 			Port: HttpPort,
 		}
+		if appliedServices.OfflineStore != nil && appliedServices.OfflineStore.TLS != nil &&
+			(&appliedServices.OfflineStore.TLS.TlsConfigs).IsTLS() {
+			clientRepoConfig.OfflineStore.Cert = GetTlsPath(OfflineFeastType) + appliedServices.OfflineStore.TLS.TlsConfigs.SecretKeyNames.TlsCrt
+			clientRepoConfig.OfflineStore.Port = HttpsPort
+			clientRepoConfig.OfflineStore.Scheme = HttpsScheme
+		}
 	}
 	if len(status.ServiceHostnames.OnlineStore) > 0 {
+		onlinePath := "://" + status.ServiceHostnames.OnlineStore
 		clientRepoConfig.OnlineStore = OnlineStoreConfig{
 			Type: OnlineRemoteConfigType,
-			Path: strings.ToLower(string(corev1.URISchemeHTTP)) + "://" + status.ServiceHostnames.OnlineStore,
+			Path: HttpScheme + onlinePath,
+		}
+		if appliedServices.OnlineStore != nil && appliedServices.OnlineStore.TLS.IsTLS() {
+			clientRepoConfig.OnlineStore.Cert = GetTlsPath(OnlineFeastType) + appliedServices.OnlineStore.TLS.SecretKeyNames.TlsCrt
+			clientRepoConfig.OnlineStore.Path = HttpsScheme + onlinePath
 		}
 	}
 	if len(status.ServiceHostnames.Registry) > 0 {
 		clientRepoConfig.Registry = RegistryConfig{
 			RegistryType: RegistryRemoteConfigType,
 			Path:         status.ServiceHostnames.Registry,
+		}
+		if localRegistryTls(featureStore) {
+			clientRepoConfig.Registry.Cert = GetTlsPath(RegistryFeastType) + appliedServices.Registry.Local.TLS.SecretKeyNames.TlsCrt
+		} else if remoteRegistryTls(featureStore) {
+			clientRepoConfig.Registry.Cert = GetTlsPath(RegistryFeastType) + appliedServices.Registry.Remote.TLS.CertName
 		}
 	}
 

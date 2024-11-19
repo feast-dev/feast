@@ -76,6 +76,14 @@ type FeatureStoreServices struct {
 type OfflineStore struct {
 	ServiceConfigs `json:",inline"`
 	Persistence    *OfflineStorePersistence `json:"persistence,omitempty"`
+	TLS            *OfflineTlsConfigs       `json:"tls,omitempty"`
+}
+
+// OfflineTlsConfigs configures server TLS for the offline feast service. in an openshift cluster, this is configured by default using service serving certificates.
+type OfflineTlsConfigs struct {
+	TlsConfigs `json:",inline"`
+	// verify the client TLS certificate.
+	VerifyClient *bool `json:"verifyClient,omitempty"`
 }
 
 // OfflineStorePersistence configures the persistence settings for the offline store service
@@ -119,6 +127,7 @@ var ValidOfflineStoreDBStorePersistenceTypes = []string{
 type OnlineStore struct {
 	ServiceConfigs `json:",inline"`
 	Persistence    *OnlineStorePersistence `json:"persistence,omitempty"`
+	TLS            *TlsConfigs             `json:"tls,omitempty"`
 }
 
 // OnlineStorePersistence configures the persistence settings for the online store service
@@ -163,9 +172,11 @@ var ValidOnlineStoreDBStorePersistenceTypes = []string{
 type LocalRegistryConfig struct {
 	ServiceConfigs `json:",inline"`
 	Persistence    *RegistryPersistence `json:"persistence,omitempty"`
+	TLS            *TlsConfigs          `json:"tls,omitempty"`
 }
 
 // RegistryPersistence configures the persistence settings for the registry service
+// +kubebuilder:validation:XValidation:rule="[has(self.file), has(self.store)].exists_one(c, c)",message="One selection required between file or store."
 type RegistryPersistence struct {
 	FilePersistence *RegistryFilePersistence    `json:"file,omitempty"`
 	DBPersistence   *RegistryDBStorePersistence `json:"store,omitempty"`
@@ -238,7 +249,8 @@ type RemoteRegistryConfig struct {
 	// Host address of the remote registry service - <domain>:<port>, e.g. `registry.<namespace>.svc.cluster.local:80`
 	Hostname *string `json:"hostname,omitempty"`
 	// Reference to an existing `FeatureStore` CR in the same k8s cluster.
-	FeastRef *FeatureStoreRef `json:"feastRef,omitempty"`
+	FeastRef *FeatureStoreRef          `json:"feastRef,omitempty"`
+	TLS      *TlsRemoteRegistryConfigs `json:"tls,omitempty"`
 }
 
 // FeatureStoreRef defines which existing FeatureStore's registry should be used
@@ -282,6 +294,45 @@ type KubernetesAuthz struct {
 	// This configuration option is only providing a way to automate this procedure.
 	// Important note: the operator cannot ensure that these roles will match the ones used in the configured Feast permissions.
 	Roles []string `json:"roles,omitempty"`
+}
+
+// TlsConfigs configures server TLS for a feast service. in an openshift cluster, this is configured by default using service serving certificates.
+// +kubebuilder:validation:XValidation:rule="(!has(self.disable) || !self.disable) ? has(self.secretRef) : true",message="`secretRef` required if `disable` is false."
+type TlsConfigs struct {
+	// references the local k8s secret where the TLS key and cert reside
+	SecretRef      *corev1.LocalObjectReference `json:"secretRef,omitempty"`
+	SecretKeyNames SecretKeyNames               `json:"secretKeyNames,omitempty"`
+	// will disable TLS for the feast service. useful in an openshift cluster, for example, where TLS is configured by default
+	Disable *bool `json:"disable,omitempty"`
+}
+
+// `secretRef` required if `disable` is false.
+func (tls *TlsConfigs) IsTLS() bool {
+	if tls != nil {
+		if tls.Disable != nil && *tls.Disable {
+			return false
+		} else if tls.SecretRef == nil {
+			return false
+		}
+		return true
+	}
+	return false
+}
+
+// TlsRemoteRegistryConfigs configures client TLS for a remote feast registry. in an openshift cluster, this is configured by default when the remote feast registry is using service serving certificates.
+type TlsRemoteRegistryConfigs struct {
+	// references the local k8s configmap where the TLS cert resides
+	ConfigMapRef corev1.LocalObjectReference `json:"configMapRef"`
+	// defines the configmap key name for the client TLS cert.
+	CertName string `json:"certName"`
+}
+
+// SecretKeyNames defines the secret key names for the TLS key and cert.
+type SecretKeyNames struct {
+	// defaults to "tls.crt"
+	TlsCrt string `json:"tlsCrt,omitempty"`
+	// defaults to "tls.key"
+	TlsKey string `json:"tlsKey,omitempty"`
 }
 
 // FeatureStoreStatus defines the observed state of FeatureStore

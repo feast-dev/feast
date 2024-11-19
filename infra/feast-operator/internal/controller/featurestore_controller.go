@@ -81,8 +81,6 @@ func (r *FeatureStoreReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 	currentStatus := cr.Status.DeepCopy()
 
-	// initial status defaults must occur before feast deployment
-	services.ApplyDefaultsToStatus(cr)
 	result, recErr = r.deployFeast(ctx, cr)
 	if cr.DeletionTimestamp == nil && !reflect.DeepEqual(currentStatus, cr.Status) {
 		if err = r.Client.Status().Update(ctx, cr); err != nil {

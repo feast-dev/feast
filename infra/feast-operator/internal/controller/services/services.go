@@ -37,61 +37,63 @@ import (
 
 // Deploy the feast services
 func (feast *FeastServices) Deploy() error {
-	if err := feast.setServiceHostnames(); err != nil {
+	// initial status defaults must be applied before feast deployment
+	if err := feast.ApplyDefaults(); err != nil {
 		return err
+	}
+	if openshiftTls, err := feast.checkOpenshiftTls(); openshiftTls {
+		if err := feast.createCaConfigMap(); err != nil {
+			return err
+		}
+	} else if err != nil {
+		return err
+	} else {
+		_ = feast.Handler.DeleteOwnedFeastObj(feast.initCaConfigMap())
 	}
 
 	services := feast.Handler.FeatureStore.Status.Applied.Services
-	if services != nil {
-		if services.OfflineStore != nil {
-			offlinePersistence := services.OfflineStore.Persistence
-
-			err := feast.validateOfflineStorePersistence(offlinePersistence)
-			if err != nil {
-				return err
-			}
-
-			if err = feast.deployFeastServiceByType(OfflineFeastType); err != nil {
-				return err
-			}
-		} else {
-			if err := feast.removeFeastServiceByType(OfflineFeastType); err != nil {
-				return err
-			}
+	if feast.isOfflinStore() {
+		err := feast.validateOfflineStorePersistence(services.OfflineStore.Persistence)
+		if err != nil {
+			return err
 		}
 
-		if services.OnlineStore != nil {
-			onlinePersistence := services.OnlineStore.Persistence
+		if err = feast.deployFeastServiceByType(OfflineFeastType); err != nil {
+			return err
+		}
+	} else {
+		if err := feast.removeFeastServiceByType(OfflineFeastType); err != nil {
+			return err
+		}
+	}
 
-			err := feast.validateOnlineStorePersistence(onlinePersistence)
-			if err != nil {
-				return err
-			}
-
-			if err = feast.deployFeastServiceByType(OnlineFeastType); err != nil {
-				return err
-			}
-		} else {
-			if err := feast.removeFeastServiceByType(OnlineFeastType); err != nil {
-				return err
-			}
+	if feast.isOnlinStore() {
+		err := feast.validateOnlineStorePersistence(services.OnlineStore.Persistence)
+		if err != nil {
+			return err
 		}
 
-		if feast.isLocalRegistry() {
-			registryPersistence := services.Registry.Local.Persistence
+		if err = feast.deployFeastServiceByType(OnlineFeastType); err != nil {
+			return err
+		}
+	} else {
+		if err := feast.removeFeastServiceByType(OnlineFeastType); err != nil {
+			return err
+		}
+	}
 
-			err := feast.validateRegistryPersistence(registryPersistence)
-			if err != nil {
-				return err
-			}
+	if feast.isLocalRegistry() {
+		err := feast.validateRegistryPersistence(services.Registry.Local.Persistence)
+		if err != nil {
+			return err
+		}
 
-			if err = feast.deployFeastServiceByType(RegistryFeastType); err != nil {
-				return err
-			}
-		} else {
-			if err := feast.removeFeastServiceByType(RegistryFeastType); err != nil {
-				return err
-			}
+		if err = feast.deployFeastServiceByType(RegistryFeastType); err != nil {
+			return err
+		}
+	} else {
+		if err := feast.removeFeastServiceByType(RegistryFeastType); err != nil {
+			return err
 		}
 	}
 
@@ -179,13 +181,13 @@ func (feast *FeastServices) deployFeastServiceByType(feastType FeastServiceType)
 	} else {
 		_ = feast.Handler.DeleteOwnedFeastObj(feast.initPVC(feastType))
 	}
+	if err := feast.createService(feastType); err != nil {
+		return feast.setFeastServiceCondition(err, feastType)
+	}
 	if err := feast.createServiceAccount(feastType); err != nil {
 		return feast.setFeastServiceCondition(err, feastType)
 	}
 	if err := feast.createDeployment(feastType); err != nil {
-		return feast.setFeastServiceCondition(err, feastType)
-	}
-	if err := feast.createService(feastType); err != nil {
 		return feast.setFeastServiceCondition(err, feastType)
 	}
 	return feast.setFeastServiceCondition(nil, feastType)
@@ -205,6 +207,17 @@ func (feast *FeastServices) removeFeastServiceByType(feastType FeastServiceType)
 		return err
 	}
 	apimeta.RemoveStatusCondition(&feast.Handler.FeatureStore.Status.Conditions, FeastServiceConditions[feastType][metav1.ConditionTrue].Type)
+	return nil
+}
+
+func (feast *FeastServices) ApplyDefaults() error {
+	ApplyDefaultsToStatus(feast.Handler.FeatureStore)
+	if err := feast.setTlsDefaults(); err != nil {
+		return err
+	}
+	if err := feast.setServiceHostnames(); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -255,6 +268,7 @@ func (feast *FeastServices) createPVC(pvcCreate *feastdevv1alpha1.PvcCreate, fea
 		return err
 	}
 
+	// PVCs are immutable, so we only create... we don't update an existing one.
 	err = feast.Handler.Client.Get(feast.Handler.Context, client.ObjectKeyFromObject(pvc), pvc)
 	if err != nil && apierrors.IsNotFound(err) {
 		err = feast.Handler.Client.Create(feast.Handler.Context, pvc)
@@ -273,17 +287,12 @@ func (feast *FeastServices) setDeployment(deploy *appsv1.Deployment, feastType F
 		return err
 	}
 	deploy.Labels = feast.getLabels(feastType)
-	deploySettings := FeastServiceConstants[feastType]
+	sa := feast.initFeastSA(feastType)
+	tls := feast.getTlsConfigs(feastType)
 	serviceConfigs := feast.getServiceConfigs(feastType)
 	defaultServiceConfigs := serviceConfigs.DefaultConfigs
-	sa := feast.initFeastSA(feastType)
+	probeHandler := getProbeHandler(feastType, tls)
 
-	// standard configs are applied here
-	probeHandler := corev1.ProbeHandler{
-		TCPSocket: &corev1.TCPSocketAction{
-			Port: intstr.FromInt(int(deploySettings.TargetPort)),
-		},
-	}
 	deploy.Spec = appsv1.DeploymentSpec{
 		Replicas: &DefaultReplicas,
 		Selector: metav1.SetAsLabelSelector(deploy.GetLabels()),
@@ -297,11 +306,11 @@ func (feast *FeastServices) setDeployment(deploy *appsv1.Deployment, feastType F
 					{
 						Name:    string(feastType),
 						Image:   *defaultServiceConfigs.Image,
-						Command: deploySettings.Command,
+						Command: feast.getContainerCommand(feastType),
 						Ports: []corev1.ContainerPort{
 							{
 								Name:          string(feastType),
-								ContainerPort: deploySettings.TargetPort,
+								ContainerPort: getTargetPort(feastType, tls),
 								Protocol:      corev1.ProtocolTCP,
 							},
 						},
@@ -319,7 +328,7 @@ func (feast *FeastServices) setDeployment(deploy *appsv1.Deployment, feastType F
 						ReadinessProbe: &corev1.Probe{
 							ProbeHandler:        probeHandler,
 							InitialDelaySeconds: 20,
-							PeriodSeconds:       10,
+							PeriodSeconds:       30,
 						},
 					},
 				},
@@ -328,28 +337,100 @@ func (feast *FeastServices) setDeployment(deploy *appsv1.Deployment, feastType F
 	}
 
 	// configs are applied here
-	container := &deploy.Spec.Template.Spec.Containers[0]
-	applyOptionalContainerConfigs(container, serviceConfigs.OptionalConfigs)
+	podSpec := &deploy.Spec.Template.Spec
+	applyOptionalContainerConfigs(&podSpec.Containers[0], serviceConfigs.OptionalConfigs)
+	feast.mountTlsConfig(feastType, podSpec)
 	if pvcConfig, hasPvcConfig := hasPvcConfig(feast.Handler.FeatureStore, feastType); hasPvcConfig {
-		mountPvcConfig(&deploy.Spec.Template.Spec, pvcConfig, deploy.Name)
+		mountPvcConfig(podSpec, pvcConfig, deploy.Name)
+	}
+
+	switch feastType {
+	case OfflineFeastType:
+		feast.registryClientPodConfigs(podSpec)
+	case OnlineFeastType:
+		feast.registryClientPodConfigs(podSpec)
+		feast.offlineClientPodConfigs(podSpec)
 	}
 
 	return controllerutil.SetControllerReference(feast.Handler.FeatureStore, deploy, feast.Handler.Scheme)
 }
 
+func (feast *FeastServices) getContainerCommand(feastType FeastServiceType) []string {
+	deploySettings := FeastServiceConstants[feastType]
+	targetPort := deploySettings.TargetHttpPort
+	tls := feast.getTlsConfigs(feastType)
+	if tls.IsTLS() {
+		targetPort = deploySettings.TargetHttpsPort
+		feastTlsPath := GetTlsPath(feastType)
+		deploySettings.Command = append(deploySettings.Command, []string{"--key", feastTlsPath + tls.SecretKeyNames.TlsKey,
+			"--cert", feastTlsPath + tls.SecretKeyNames.TlsCrt}...)
+	}
+	deploySettings.Command = append(deploySettings.Command, []string{"-p", strconv.Itoa(int(targetPort))}...)
+
+	if feastType == OfflineFeastType {
+		if tls.IsTLS() && feast.Handler.FeatureStore.Status.Applied.Services.OfflineStore.TLS.VerifyClient != nil {
+			deploySettings.Command = append(deploySettings.Command,
+				[]string{"--verify_client", strconv.FormatBool(*feast.Handler.FeatureStore.Status.Applied.Services.OfflineStore.TLS.VerifyClient)}...)
+		}
+	}
+
+	return deploySettings.Command
+}
+
+func (feast *FeastServices) offlineClientPodConfigs(podSpec *corev1.PodSpec) {
+	feast.mountTlsConfig(OfflineFeastType, podSpec)
+}
+
+func (feast *FeastServices) registryClientPodConfigs(podSpec *corev1.PodSpec) {
+	feast.setRegistryClientInitContainer(podSpec)
+	feast.mountRegistryClientTls(podSpec)
+}
+
+func (feast *FeastServices) setRegistryClientInitContainer(podSpec *corev1.PodSpec) {
+	hostname := feast.Handler.FeatureStore.Status.ServiceHostnames.Registry
+	if len(hostname) > 0 {
+		grpcurlFlag := "-plaintext"
+		hostSplit := strings.Split(hostname, ":")
+		if len(hostSplit) > 1 && hostSplit[1] == "443" {
+			grpcurlFlag = "-insecure"
+		}
+		podSpec.InitContainers = []corev1.Container{
+			{
+				Name:  "init-registry",
+				Image: "fullstorydev/grpcurl:v1.9.1-alpine",
+				Command: []string{
+					"sh", "-c",
+					"until grpcurl " + grpcurlFlag + " -d '' -format text " + hostname + " grpc.health.v1.Health/Check; do echo waiting for registry; sleep 2; done",
+				},
+			},
+		}
+	}
+}
+
 func (feast *FeastServices) setService(svc *corev1.Service, feastType FeastServiceType) error {
 	svc.Labels = feast.getLabels(feastType)
-	deploySettings := FeastServiceConstants[feastType]
+	if feast.isOpenShiftTls(feastType) {
+		svc.Annotations = map[string]string{
+			"service.beta.openshift.io/serving-cert-secret-name": svc.Name + tlsNameSuffix,
+		}
+	}
 
+	var port int32 = HttpPort
+	scheme := HttpScheme
+	tls := feast.getTlsConfigs(feastType)
+	if tls.IsTLS() {
+		port = HttpsPort
+		scheme = HttpsScheme
+	}
 	svc.Spec = corev1.ServiceSpec{
 		Selector: svc.GetLabels(),
 		Type:     corev1.ServiceTypeClusterIP,
 		Ports: []corev1.ServicePort{
 			{
-				Name:       strings.ToLower(string(corev1.URISchemeHTTP)),
-				Port:       HttpPort,
+				Name:       scheme,
+				Port:       port,
 				Protocol:   corev1.ProtocolTCP,
-				TargetPort: intstr.FromInt(int(deploySettings.TargetPort)),
+				TargetPort: intstr.FromInt(int(getTargetPort(feastType, tls))),
 			},
 		},
 	}
@@ -376,21 +457,19 @@ func (feast *FeastServices) createNewPVC(pvcCreate *feastdevv1alpha1.PvcCreate, 
 }
 
 func (feast *FeastServices) getServiceConfigs(feastType FeastServiceType) feastdevv1alpha1.ServiceConfigs {
-	appliedSpec := feast.Handler.FeatureStore.Status.Applied
+	appliedServices := feast.Handler.FeatureStore.Status.Applied.Services
 	switch feastType {
 	case OfflineFeastType:
-		if appliedSpec.Services.OfflineStore != nil {
-			return appliedSpec.Services.OfflineStore.ServiceConfigs
+		if feast.isOfflinStore() {
+			return appliedServices.OfflineStore.ServiceConfigs
 		}
 	case OnlineFeastType:
-		if appliedSpec.Services.OnlineStore != nil {
-			return appliedSpec.Services.OnlineStore.ServiceConfigs
+		if feast.isOnlinStore() {
+			return appliedServices.OnlineStore.ServiceConfigs
 		}
 	case RegistryFeastType:
-		if appliedSpec.Services.Registry != nil {
-			if appliedSpec.Services.Registry.Local != nil {
-				return appliedSpec.Services.Registry.Local.ServiceConfigs
-			}
+		if feast.isLocalRegistry() {
+			return appliedServices.Registry.Local.ServiceConfigs
 		}
 	}
 	return feastdevv1alpha1.ServiceConfigs{}
@@ -423,23 +502,26 @@ func (feast *FeastServices) getLabels(feastType FeastServiceType) map[string]str
 
 func (feast *FeastServices) setServiceHostnames() error {
 	feast.Handler.FeatureStore.Status.ServiceHostnames = feastdevv1alpha1.ServiceHostnames{}
-	services := feast.Handler.FeatureStore.Status.Applied.Services
-	if services != nil {
-		domain := svcDomain + ":" + strconv.Itoa(HttpPort)
-		if services.OfflineStore != nil {
-			objMeta := feast.GetObjectMeta(OfflineFeastType)
-			feast.Handler.FeatureStore.Status.ServiceHostnames.OfflineStore = objMeta.Name + "." + objMeta.Namespace + domain
+	domain := svcDomain + ":"
+	if feast.isOfflinStore() {
+		objMeta := feast.GetObjectMeta(OfflineFeastType)
+		port := strconv.Itoa(HttpPort)
+		if feast.offlineTls() {
+			port = strconv.Itoa(HttpsPort)
 		}
-		if services.OnlineStore != nil {
-			objMeta := feast.GetObjectMeta(OnlineFeastType)
-			feast.Handler.FeatureStore.Status.ServiceHostnames.OnlineStore = objMeta.Name + "." + objMeta.Namespace + domain
-		}
-		if feast.isLocalRegistry() {
-			objMeta := feast.GetObjectMeta(RegistryFeastType)
-			feast.Handler.FeatureStore.Status.ServiceHostnames.Registry = objMeta.Name + "." + objMeta.Namespace + domain
-		} else if feast.isRemoteRegistry() {
-			return feast.setRemoteRegistryURL()
-		}
+		feast.Handler.FeatureStore.Status.ServiceHostnames.OfflineStore = objMeta.Name + "." + objMeta.Namespace + domain + port
+	}
+	if feast.isOnlinStore() {
+		objMeta := feast.GetObjectMeta(OnlineFeastType)
+		feast.Handler.FeatureStore.Status.ServiceHostnames.OnlineStore = objMeta.Name + "." + objMeta.Namespace + domain +
+			getPortStr(feast.Handler.FeatureStore.Status.Applied.Services.OnlineStore.TLS)
+	}
+	if feast.isLocalRegistry() {
+		objMeta := feast.GetObjectMeta(RegistryFeastType)
+		feast.Handler.FeatureStore.Status.ServiceHostnames.Registry = objMeta.Name + "." + objMeta.Namespace + domain +
+			getPortStr(feast.Handler.FeatureStore.Status.Applied.Services.Registry.Local.TLS)
+	} else if feast.isRemoteRegistry() {
+		return feast.setRemoteRegistryURL()
 	}
 	return nil
 }
@@ -463,42 +545,51 @@ func (feast *FeastServices) setRemoteRegistryURL() error {
 	if feast.isRemoteHostnameRegistry() {
 		feast.Handler.FeatureStore.Status.ServiceHostnames.Registry = *feast.Handler.FeatureStore.Status.Applied.Services.Registry.Remote.Hostname
 	} else if feast.IsRemoteRefRegistry() {
+		remoteFeast, err := feast.getRemoteRegistryFeastHandler()
+		if err != nil {
+			return err
+		}
+		// referenced/remote registry must use the local install option and be in a 'Ready' state.
+		if remoteFeast != nil &&
+			remoteFeast.isLocalRegistry() &&
+			apimeta.IsStatusConditionTrue(remoteFeast.Handler.FeatureStore.Status.Conditions, feastdevv1alpha1.RegistryReadyType) {
+			feast.Handler.FeatureStore.Status.ServiceHostnames.Registry = remoteFeast.Handler.FeatureStore.Status.ServiceHostnames.Registry
+		} else {
+			return errors.New("Remote feast registry of referenced FeatureStore '" + remoteFeast.Handler.FeatureStore.Name + "' is not ready")
+		}
+	}
+	return nil
+}
+
+func (feast *FeastServices) getRemoteRegistryFeastHandler() (*FeastServices, error) {
+	if feast.IsRemoteRefRegistry() {
 		feastRemoteRef := feast.Handler.FeatureStore.Status.Applied.Services.Registry.Remote.FeastRef
 		// default to FeatureStore namespace if not set
 		if len(feastRemoteRef.Namespace) == 0 {
 			feastRemoteRef.Namespace = feast.Handler.FeatureStore.Namespace
 		}
-
 		nsName := types.NamespacedName{Name: feastRemoteRef.Name, Namespace: feastRemoteRef.Namespace}
 		crNsName := client.ObjectKeyFromObject(feast.Handler.FeatureStore)
 		if nsName == crNsName {
-			return errors.New("FeatureStore '" + crNsName.Name + "' can't reference itself in `spec.services.registry.remote.feastRef`")
+			return nil, errors.New("FeatureStore '" + crNsName.Name + "' can't reference itself in `spec.services.registry.remote.feastRef`")
 		}
-
 		remoteFeastObj := &feastdevv1alpha1.FeatureStore{}
 		if err := feast.Handler.Client.Get(feast.Handler.Context, nsName, remoteFeastObj); err != nil {
 			if apierrors.IsNotFound(err) {
-				return errors.New("Referenced FeatureStore '" + feastRemoteRef.Name + "' was not found")
+				return nil, errors.New("Referenced FeatureStore '" + feastRemoteRef.Name + "' was not found")
 			}
-			return err
+			return nil, err
 		}
-
-		remoteFeast := FeastServices{
+		return &FeastServices{
 			Handler: handler.FeastHandler{
 				Client:       feast.Handler.Client,
 				Context:      feast.Handler.Context,
 				FeatureStore: remoteFeastObj,
 				Scheme:       feast.Handler.Scheme,
 			},
-		}
-		// referenced/remote registry must use the local install option and be in a 'Ready' state.
-		if remoteFeast.isLocalRegistry() && apimeta.IsStatusConditionTrue(remoteFeastObj.Status.Conditions, feastdevv1alpha1.RegistryReadyType) {
-			feast.Handler.FeatureStore.Status.ServiceHostnames.Registry = remoteFeastObj.Status.ServiceHostnames.Registry
-		} else {
-			return errors.New("Remote feast registry of referenced FeatureStore '" + feastRemoteRef.Name + "' is not ready")
-		}
+		}, nil
 	}
-	return nil
+	return nil, nil
 }
 
 func (feast *FeastServices) isLocalRegistry() bool {
@@ -506,8 +597,7 @@ func (feast *FeastServices) isLocalRegistry() bool {
 }
 
 func (feast *FeastServices) isRemoteRegistry() bool {
-	appliedServices := feast.Handler.FeatureStore.Status.Applied.Services
-	return appliedServices != nil && appliedServices.Registry != nil && appliedServices.Registry.Remote != nil
+	return isRemoteRegistry(feast.Handler.FeatureStore)
 }
 
 func (feast *FeastServices) IsRemoteRefRegistry() bool {
@@ -524,6 +614,16 @@ func (feast *FeastServices) isRemoteHostnameRegistry() bool {
 		return remote != nil && remote.Hostname != nil
 	}
 	return false
+}
+
+func (feast *FeastServices) isOfflinStore() bool {
+	appliedServices := feast.Handler.FeatureStore.Status.Applied.Services
+	return appliedServices != nil && appliedServices.OfflineStore != nil
+}
+
+func (feast *FeastServices) isOnlinStore() bool {
+	appliedServices := feast.Handler.FeatureStore.Status.Applied.Services
+	return appliedServices != nil && appliedServices.OnlineStore != nil
 }
 
 func (feast *FeastServices) initFeastDeploy(feastType FeastServiceType) *appsv1.Deployment {
@@ -593,28 +693,54 @@ func mergeEnvVarsArrays(envVars1 []corev1.EnvVar, envVars2 *[]corev1.EnvVar) []c
 }
 
 func mountPvcConfig(podSpec *corev1.PodSpec, pvcConfig *feastdevv1alpha1.PvcConfig, deployName string) {
-	container := &podSpec.Containers[0]
-	var pvcName string
-	if pvcConfig.Create != nil {
-		pvcName = deployName
-	} else {
-		pvcName = pvcConfig.Ref.Name
-	}
+	if podSpec != nil && pvcConfig != nil {
+		container := &podSpec.Containers[0]
+		var pvcName string
+		if pvcConfig.Create != nil {
+			pvcName = deployName
+		} else {
+			pvcName = pvcConfig.Ref.Name
+		}
 
-	podSpec.Volumes = []corev1.Volume{
-		{
+		podSpec.Volumes = append(podSpec.Volumes, corev1.Volume{
 			Name: pvcName,
 			VolumeSource: corev1.VolumeSource{
 				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
 					ClaimName: pvcName,
 				},
 			},
-		},
-	}
-	container.VolumeMounts = []corev1.VolumeMount{
-		{
+		})
+		container.VolumeMounts = append(container.VolumeMounts, corev1.VolumeMount{
 			Name:      pvcName,
 			MountPath: pvcConfig.MountPath,
+		})
+	}
+}
+
+func getTargetPort(feastType FeastServiceType, tls *feastdevv1alpha1.TlsConfigs) int32 {
+	if tls.IsTLS() {
+		return FeastServiceConstants[feastType].TargetHttpsPort
+	}
+	return FeastServiceConstants[feastType].TargetHttpPort
+}
+
+func getProbeHandler(feastType FeastServiceType, tls *feastdevv1alpha1.TlsConfigs) corev1.ProbeHandler {
+	targetPort := getTargetPort(feastType, tls)
+	if feastType == OnlineFeastType {
+		probeHandler := corev1.ProbeHandler{
+			HTTPGet: &corev1.HTTPGetAction{
+				Path: "/health",
+				Port: intstr.FromInt(int(targetPort)),
+			},
+		}
+		if tls.IsTLS() {
+			probeHandler.HTTPGet.Scheme = corev1.URISchemeHTTPS
+		}
+		return probeHandler
+	}
+	return corev1.ProbeHandler{
+		TCPSocket: &corev1.TCPSocketAction{
+			Port: intstr.FromInt(int(targetPort)),
 		},
 	}
 }
