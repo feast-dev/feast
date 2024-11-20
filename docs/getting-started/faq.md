@@ -55,7 +55,7 @@ Yes. In earlier versions of Feast, we used Feast Spark to manage ingestion from 
 
 There are several kinds of transformations:
 
-* On demand transformations (See [docs](../reference/alpha-on-demand-feature-view.md))
+* On demand transformations (See [docs](../reference/beta-on-demand-feature-view.md))
   * These transformations are Pandas transformations run on batch data when you call `get_historical_features` and at online serving time when you call \`get\_online\_features.
   * Note that if you use push sources to ingest streaming features, these transformations will execute on the fly as well
 * Batch transformations (WIP, see [RFC](https://docs.google.com/document/d/1964OkzuBljifDvkV-0fakp2uaijnVzdwWNGdz7Vz50A/edit))

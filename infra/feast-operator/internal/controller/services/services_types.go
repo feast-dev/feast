@@ -27,13 +27,19 @@ import (
 )
 
 const (
-	FeastPrefix            = "feast-"
-	FeatureStoreYamlEnvVar = "FEATURE_STORE_YAML_BASE64"
-	FeatureStoreYamlCmKey  = "feature_store.yaml"
-	LocalRegistryPath      = "/tmp/registry.db"
-	LocalOnlinePath        = "/tmp/online_store.db"
-	svcDomain              = ".svc.cluster.local"
-	HttpPort               = 80
+	FeastPrefix                     = "feast-"
+	FeatureStoreYamlEnvVar          = "FEATURE_STORE_YAML_BASE64"
+	FeatureStoreYamlCmKey           = "feature_store.yaml"
+	DefaultRegistryEphemeralPath    = "/tmp/registry.db"
+	DefaultRegistryPvcPath          = "registry.db"
+	DefaultOnlineStoreEphemeralPath = "/tmp/online_store.db"
+	DefaultOnlineStorePvcPath       = "online_store.db"
+	svcDomain                       = ".svc.cluster.local"
+	HttpPort                        = 80
+
+	DefaultOfflineStorageRequest  = "20Gi"
+	DefaultOnlineStorageRequest   = "5Gi"
+	DefaultRegistryStorageRequest = "5Gi"
 
 	OfflineFeastType  FeastServiceType = "offline"
 	OnlineFeastType   FeastServiceType = "online"
@@ -42,6 +48,7 @@ const (
 
 	OfflineRemoteConfigType OfflineConfigType = "remote"
 	OfflineDaskConfigType   OfflineConfigType = "dask"
+	OfflineDuckDbConfigType OfflineConfigType = "duckdb"
 
 	OnlineRemoteConfigType OnlineConfigType = "remote"
 	OnlineSqliteConfigType OnlineConfigType = "sqlite"
@@ -178,8 +185,9 @@ type OnlineStoreConfig struct {
 
 // RegistryConfig is the configuration that relates to reading from and writing to the Feast registry.
 type RegistryConfig struct {
-	Path         string             `yaml:"path,omitempty"`
-	RegistryType RegistryConfigType `yaml:"registry_type,omitempty"`
+	Path               string             `yaml:"path,omitempty"`
+	RegistryType       RegistryConfigType `yaml:"registry_type,omitempty"`
+	S3AdditionalKwargs *map[string]string `json:"s3_additional_kwargs,omitempty"`
 }
 
 type deploymentSettings struct {

@@ -88,7 +88,6 @@ from feast.repo_contents import RepoContents
 from feast.saved_dataset import SavedDataset, SavedDatasetStorage, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
 from feast.utils import _utc_now
-from feast.version import get_version
 
 warnings.simplefilter("once", DeprecationWarning)
 
@@ -170,10 +169,6 @@ class FeatureStore:
             )
 
         self._provider = get_provider(self.config)
-
-    def version(self) -> str:
-        """Returns the version of the current Feast SDK/CLI."""
-        return get_version()
 
     def __repr__(self) -> str:
         return (
@@ -1963,11 +1958,20 @@ class FeatureStore:
             self, port=port, tls_key_path=tls_key_path, tls_cert_path=tls_cert_path
         )
 
-    def serve_offline(self, host: str, port: int) -> None:
+    def serve_offline(
+        self,
+        host: str,
+        port: int,
+        tls_key_path: str = "",
+        tls_cert_path: str = "",
+        tls_verify_client: bool = True,
+    ) -> None:
         """Start offline server locally on a given port."""
         from feast import offline_server
 
-        offline_server.start_server(self, host, port)
+        offline_server.start_server(
+            self, host, port, tls_key_path, tls_cert_path, tls_verify_client
+        )
 
     def serve_transformations(self, port: int) -> None:
         """Start the feature transformation server locally on a given port."""
