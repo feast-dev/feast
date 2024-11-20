@@ -71,6 +71,16 @@ var _ = Describe("controller", Ordered, func() {
 			err = utils.LoadImageToKindClusterWithName(projectimage)
 			ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
+			By("building the feast image")
+			cmd = exec.Command("make", "feast-image-build")
+			_, err = utils.Run(cmd)
+			ExpectWithOffset(1, err).NotTo(HaveOccurred())
+
+			var feastImage = "example.com/feature-transformation-server:operator.v0"
+			By("loading the the feast image on Kind")
+			err = utils.LoadImageToKindClusterWithName(feastImage)
+			ExpectWithOffset(1, err).NotTo(HaveOccurred())
+
 			By("installing CRDs")
 			cmd = exec.Command("make", "install")
 			_, err = utils.Run(cmd)
