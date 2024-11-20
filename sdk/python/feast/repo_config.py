@@ -20,6 +20,7 @@ from pydantic import (
 
 from feast.errors import (
     FeastFeatureServerTypeInvalidError,
+    FeastFileRegistryPathNotAbsoluteError,
     FeastInvalidAuthConfigClass,
     FeastOfflineStoreInvalidName,
     FeastOnlineStoreInvalidName,
@@ -166,6 +167,15 @@ class RegistryConfig(FeastBaseModel):
                     "explicitely to `path`."
                 )
                 return path.replace("postgresql://", "postgresql+psycopg://")
+
+        if values.data.get("registry_type") == "file":
+            is_local_file_registry = not (
+                path.startswith("s3://") or path.startswith("gs://")
+            )
+            is_relative_path = not os.path.isabs(path)
+            if is_local_file_registry and is_relative_path:
+                raise FeastFileRegistryPathNotAbsoluteError(str(path))
+
         return path
 
 
