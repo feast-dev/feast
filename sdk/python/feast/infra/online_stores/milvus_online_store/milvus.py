@@ -31,30 +31,19 @@ from feast.utils import (
 
 
 class MilvusOnlineStoreConfig(FeastConfigBaseModel, VectorStoreConfig):
-    """Online store config for Milvus vector database"""
+    """
+    Configuration for the Milvus online store.
+    NOTE: The class *must* end with the `OnlineStoreConfig` suffix.
+    """
 
-    type: Literal["milvus", "feast.infra.online_stores.milvus.MilvusOnlineStore"] = (
-        "milvus"
-    )
-    """Online store type selector"""
+    type: Literal["milvus"] = "milvus"
 
-    host: StrictStr = "localhost"
-    """Hostname for Milvus server"""
-
-    port: int = 19530
-    """Port for Milvus server"""
-
-    index_type: str = "IVF_FLAT"
-    """Index type for Milvus collection"""
-
-    metric_type: str = "L2"
-    """Distance metric type"""
-
-    embedding_dim: int = 128
-    """Dimension of the embedding vectors"""
-
-    vector_enabled: bool = True
-    """Flag to enable vector search"""
+    host: Optional[StrictStr] = "localhost"
+    port: Optional[int] = 19530
+    index_type: Optional[str] = "IVF_FLAT"
+    metric_type: Optional[str] = "L2"
+    embedding_dim: Optional[int] = 128
+    vector_enabled: Optional[bool] = True
 
 
 class MilvusOnlineStore(OnlineStore):
@@ -69,7 +58,7 @@ class MilvusOnlineStore(OnlineStore):
 
     def _connect(self, config: RepoConfig):
         connections.connect(
-            alias="default",
+            alias="feast",
             host=config.online_store.host,
             port=str(config.online_store.port),
         )
@@ -350,7 +339,7 @@ class MilvusTable(InfraObject):
         self._connect()
 
     def _connect(self):
-        connections.connect(alias="default", host=self.host, port=str(self.port))
+        return connections.connect(alias="default", host=self.host, port=str(self.port))
 
     def to_infra_object_proto(self) -> InfraObjectProto:
         # Implement serialization if needed
