@@ -217,7 +217,6 @@ func (feast *FeastServices) getSecret(secretRef string) (*corev1.Secret, error) 
 
 // Function to check if a struct has a specific field or field tag and sets the value in the field if empty
 func hasAttrib(s interface{}, fieldName string, value interface{}) (bool, error) {
-	//t := reflect.TypeOf(s)
 	val := reflect.ValueOf(s)
 
 	// Check that the object is a pointer so we can modify it
@@ -225,13 +224,7 @@ func hasAttrib(s interface{}, fieldName string, value interface{}) (bool, error)
 		return false, fmt.Errorf("expected a pointer to struct, got %v", val.Kind())
 	}
 
-	// Check if the value is a pointer and dereference it if necessary
-	//if t.Kind() == reflect.Ptr {
-	//	t = t.Elem()
-	//}
-
 	val = val.Elem()
-	//t = t.Elem()
 
 	// Loop through the fields and check the tag
 	for i := 0; i < val.NumField(); i++ {
@@ -239,7 +232,6 @@ func hasAttrib(s interface{}, fieldName string, value interface{}) (bool, error)
 		fieldType := val.Type().Field(i)
 
 		tagVal := fieldType.Tag.Get("yaml")
-		//tagVal := field.Tag.Get("yaml")
 
 		// Remove other metadata if exists
 		commaIndex := strings.Index(tagVal, ",")
@@ -250,12 +242,6 @@ func hasAttrib(s interface{}, fieldName string, value interface{}) (bool, error)
 
 		// Check if the field name or the tag value matches the one we're looking for
 		if strings.EqualFold(fieldType.Name, fieldName) || strings.EqualFold(tagVal, fieldName) {
-			//val := reflect.ValueOf(s).Field(i)
-
-			//// Check that the object is a pointer so we can modify it
-			//if val.Kind() != reflect.Ptr || val.IsNil() {
-			//	return false, fmt.Errorf("expected a pointer to struct, got %v", val.Kind())
-			//}
 
 			// Ensure the field is settable
 			if !field.CanSet() {
