@@ -52,7 +52,7 @@ const useLoadRegistry = (url: string) => {
           // });
 
           return {
-            project: objects.projects[0].spec.name!,
+            project: objects.projects[0].spec?.name!,
             objects,
             mergedFVMap,
             mergedFVList,
