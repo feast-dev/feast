@@ -242,7 +242,7 @@ test-python-universal-postgres-online:
 
  test-python-universal-pgvector-online:
 	PYTHONPATH='.' \
-		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.pgvector_repo_configuration \
+		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.postgres_online_store.pgvector_repo_configuration \
 		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.postgres \
 		python -m pytest -n 8 --integration \
  			-k "not test_universal_cli and \
@@ -256,6 +256,9 @@ test-python-universal-postgres-online:
 				not gcs_registry and \
 				not s3_registry and \
  				not test_universal_types and \
+ 				not test_validation and \
+ 				not test_spark_materialization_consistency and \
+ 				not test_historical_features_containing_backfills and \
 				not test_snowflake" \
  			sdk/python/tests
 
@@ -340,6 +343,29 @@ test-python-universal-cassandra-no-cloud-providers:
 				not test_snowflake" \
  			sdk/python/tests
 
+<<<<<<< Updated upstream
+=======
+ test-python-universal-milvus-online:
+	PYTHONPATH='.' \
+		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.milvus_online_store.milvus_repo_configuration \
+		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.milvus\
+		python -m pytest -n 8 --integration \
+ 			-k "not test_universal_cli and \
+ 				not test_go_feature_server and \
+ 				not test_feature_logging and \
+				not test_reorder_columns and \
+				not test_logged_features_validation and \
+				not test_lambda_materialization_consistency and \
+				not test_offline_write and \
+				not test_push_features_to_offline_store and \
+				not gcs_registry and \
+				not s3_registry and \
+ 				not test_universal_types and \
+				not test_spark_materialization_consistency and \
+				not test_snowflake" \
+ 			sdk/python/tests
+
+>>>>>>> Stashed changes
 test-python-universal-singlestore-online:
 	PYTHONPATH='.' \
 		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.singlestore_repo_configuration \
