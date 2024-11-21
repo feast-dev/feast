@@ -194,7 +194,7 @@ type OnlineStoreConfig struct {
 type RegistryConfig struct {
 	Path               string                 `yaml:"path,omitempty"`
 	RegistryType       RegistryConfigType     `yaml:"registry_type,omitempty"`
-	S3AdditionalKwargs *map[string]string     `json:"s3_additional_kwargs,omitempty"`
+	S3AdditionalKwargs *map[string]string     `yaml:"s3_additional_kwargs,omitempty"`
 	DBParameters       map[string]interface{} `yaml:",inline,omitempty"`
 }
 
