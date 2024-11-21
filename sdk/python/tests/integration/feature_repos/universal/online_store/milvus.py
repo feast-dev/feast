@@ -23,11 +23,11 @@ class MilvusOnlineStoreCreator(OnlineStoreCreator):
 
         log_string_to_wait_for = "database system is ready to accept connections"
         wait_for_logs(
-            container=self.container, predicate=log_string_to_wait_for, timeout=10
+            container=self.container, predicate=log_string_to_wait_for, timeout=30
         )
         init_log_string_to_wait_for = "Milvus DB init process complete"
         wait_for_logs(
-            container=self.container, predicate=init_log_string_to_wait_for, timeout=10
+            container=self.container, predicate=init_log_string_to_wait_for, timeout=30
         )
 
         return {
