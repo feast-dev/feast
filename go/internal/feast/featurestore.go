@@ -3,9 +3,7 @@ package feast
 import (
 	"context"
 	"errors"
-	"fmt"
 	"os"
-	"strings"
 
 	"github.com/apache/arrow/go/v17/arrow/memory"
 	//"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
@@ -62,10 +60,12 @@ func NewFeatureStore(config *registry.RepoConfig, callback transformation.Transf
 	if err != nil {
 		return nil, err
 	}
-	sanitizedProjectName := strings.Replace(config.Project, "_", "-", -1)
-	productName := os.Getenv("PRODUCT")
-	endpoint := fmt.Sprintf("%s-transformations.%s.svc.cluster.local:80", sanitizedProjectName, productName)
-	transformationService, _ := transformation.NewGrpcTransformationService(config, endpoint)
+
+	// Use a scalable transformation service like Python Transformation Service as the Python version of transformation service is
+	// better for data calculation than the Go version
+	transformationServerEndpoint := os.Getenv("TRANSFORM_SERVER_ENDPOINT")
+
+	transformationService, _ := transformation.NewGrpcTransformationService(config, transformationServerEndpoint)
 
 	return &FeatureStore{
 		config:                 config,

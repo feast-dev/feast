@@ -15,10 +15,10 @@ import (
 
 var REGISTRY_SCHEMA_VERSION string = "1"
 var REGISTRY_STORE_CLASS_FOR_SCHEME map[string]string = map[string]string{
-	"gs":    "GCSRegistryStore",
-	"s3":    "S3RegistryStore",
-	"file":  "FileRegistryStore",
-	"":      "FileRegistryStore",
+	"gs":   "GCSRegistryStore",
+	"s3":   "S3RegistryStore",
+	"file": "FileRegistryStore",
+	"":     "FileRegistryStore",
 }
 
 /*

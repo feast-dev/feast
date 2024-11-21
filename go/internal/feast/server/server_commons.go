@@ -28,4 +28,4 @@ func LogWithSpanContext(span tracer.Span) zerolog.Logger {
 
 	return logger
 }
-	*/
+*/
