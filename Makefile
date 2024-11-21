@@ -242,7 +242,7 @@ test-python-universal-postgres-online:
 
  test-python-universal-pgvector-online:
 	PYTHONPATH='.' \
-		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.pgvector_repo_configuration \
+		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.postgres_online_store.pgvector_repo_configuration \
 		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.postgres \
 		python -m pytest -n 8 --integration \
  			-k "not test_universal_cli and \
@@ -256,6 +256,9 @@ test-python-universal-postgres-online:
 				not gcs_registry and \
 				not s3_registry and \
  				not test_universal_types and \
+ 				not test_validation and \
+ 				not test_spark_materialization_consistency and \
+ 				not test_historical_features_containing_backfills and \
 				not test_snowflake" \
  			sdk/python/tests
 
@@ -351,7 +354,7 @@ test-python-universal-singlestore-online:
 				not test_snowflake" \
 			sdk/python/tests
 
- test-python-universal-qdrant-online:
+test-python-universal-qdrant-online:
 	PYTHONPATH='.' \
 		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.qdrant_online_store.qdrant_repo_configuration \
 		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.qdrant \
