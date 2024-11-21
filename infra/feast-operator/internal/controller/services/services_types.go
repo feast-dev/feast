@@ -46,15 +46,20 @@ const (
 	RegistryFeastType FeastServiceType = "registry"
 	ClientFeastType   FeastServiceType = "client"
 
-	OfflineRemoteConfigType OfflineConfigType = "remote"
-	OfflineDaskConfigType   OfflineConfigType = "dask"
-	OfflineDuckDbConfigType OfflineConfigType = "duckdb"
+	OfflineRemoteConfigType                 OfflineConfigType = "remote"
+	OfflineFilePersistenceDaskConfigType    OfflineConfigType = "dask"
+	OfflineFilePersistenceDuckDbConfigType  OfflineConfigType = "duckdb"
+	OfflineDBPersistenceSnowflakeConfigType OfflineConfigType = "snowflake.offline"
 
-	OnlineRemoteConfigType OnlineConfigType = "remote"
-	OnlineSqliteConfigType OnlineConfigType = "sqlite"
+	OnlineRemoteConfigType                 OnlineConfigType = "remote"
+	OnlineSqliteConfigType                 OnlineConfigType = "sqlite"
+	OnlineDBPersistenceSnowflakeConfigType OnlineConfigType = "snowflake.online"
+	OnlineDBPersistenceCassandraConfigType OnlineConfigType = "cassandra"
 
-	RegistryRemoteConfigType RegistryConfigType = "remote"
-	RegistryFileConfigType   RegistryConfigType = "file"
+	RegistryRemoteConfigType                 RegistryConfigType = "remote"
+	RegistryFileConfigType                   RegistryConfigType = "file"
+	RegistryDBPersistenceSnowflakeConfigType RegistryConfigType = "snowflake.registry"
+	RegistryDBPersistenceSQLConfigType       RegistryConfigType = "sql"
 
 	LocalProviderType FeastProviderType = "local"
 )
@@ -172,22 +177,25 @@ type RepoConfig struct {
 
 // OfflineStoreConfig is the configuration that relates to reading from and writing to the Feast offline store.
 type OfflineStoreConfig struct {
-	Host string            `yaml:"host,omitempty"`
-	Type OfflineConfigType `yaml:"type,omitempty"`
-	Port int               `yaml:"port,omitempty"`
+	Host         string                 `yaml:"host,omitempty"`
+	Type         OfflineConfigType      `yaml:"type,omitempty"`
+	Port         int                    `yaml:"port,omitempty"`
+	DBParameters map[string]interface{} `yaml:",inline,omitempty"`
 }
 
 // OnlineStoreConfig is the configuration that relates to reading from and writing to the Feast online store.
 type OnlineStoreConfig struct {
-	Path string           `yaml:"path,omitempty"`
-	Type OnlineConfigType `yaml:"type,omitempty"`
+	Path         string                 `yaml:"path,omitempty"`
+	Type         OnlineConfigType       `yaml:"type,omitempty"`
+	DBParameters map[string]interface{} `yaml:",inline,omitempty"`
 }
 
 // RegistryConfig is the configuration that relates to reading from and writing to the Feast registry.
 type RegistryConfig struct {
-	Path               string             `yaml:"path,omitempty"`
-	RegistryType       RegistryConfigType `yaml:"registry_type,omitempty"`
-	S3AdditionalKwargs *map[string]string `json:"s3_additional_kwargs,omitempty"`
+	Path               string                 `yaml:"path,omitempty"`
+	RegistryType       RegistryConfigType     `yaml:"registry_type,omitempty"`
+	S3AdditionalKwargs *map[string]string     `json:"s3_additional_kwargs,omitempty"`
+	DBParameters       map[string]interface{} `yaml:",inline,omitempty"`
 }
 
 type deploymentSettings struct {

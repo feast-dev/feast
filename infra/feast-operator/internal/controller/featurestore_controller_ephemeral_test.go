@@ -319,7 +319,7 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 				Provider:                      services.LocalProviderType,
 				EntityKeySerializationVersion: feastdevv1alpha1.SerializationVersion,
 				OfflineStore: services.OfflineStoreConfig{
-					Type: services.OfflineDuckDbConfigType,
+					Type: services.OfflineFilePersistenceDuckDbConfigType,
 				},
 				Registry: regRemote,
 			}

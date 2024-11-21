@@ -194,8 +194,8 @@ spec:
                           settings for the offline store service
                         properties:
                           file:
-                            description: OfflineStorePersistence configures the file-based
-                              persistence for the offline store service
+                            description: OfflineStoreFilePersistence configures the
+                              file-based persistence for the offline store service
                             properties:
                               pvc:
                                 description: |-
@@ -278,7 +278,40 @@ spec:
                                 - duckdb
                                 type: string
                             type: object
+                          store:
+                            description: OfflineStoreDBStorePersistence configures
+                              the DB store persistence for the offline store service
+                            properties:
+                              secretKeyName:
+                                type: string
+                              secretRef:
+                                description: |-
+                                  LocalObjectReference contains enough information to let you locate the
+                                  referenced object inside the same namespace.
+                                properties:
+                                  name:
+                                    description: |-
+                                      Name of the referent.
+                                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                      TODO: Add other useful fields. apiVersion, kind, uid?
+                                    type: string
+                                type: object
+                                x-kubernetes-map-type: atomic
+                              type:
+                                enum:
+                                - snowflake.offline
+                                - bigquery
+                                - redshift
+                                - spark
+                                - postgres
+                                - feast_trino.trino.TrinoOfflineStore
+                                - redis
+                                type: string
+                            type: object
                         type: object
+                        x-kubernetes-validations:
+                        - message: One selection required between file or store.
+                          rule: '[has(self.file), has(self.store)].exists_one(c, c)'
                       resources:
                         description: ResourceRequirements describes the compute resource
                           requirements.
@@ -556,7 +589,44 @@ spec:
                             - message: Online store does not support S3 or GS buckets.
                               rule: has(self.path) && !self.path.startsWith('s3://')
                                 && !self.path.startsWith('gs://')
+                          store:
+                            description: OnlineStoreDBStorePersistence configures
+                              the DB store persistence for the offline store service
+                            properties:
+                              secretKeyName:
+                                type: string
+                              secretRef:
+                                description: |-
+                                  LocalObjectReference contains enough information to let you locate the
+                                  referenced object inside the same namespace.
+                                properties:
+                                  name:
+                                    description: |-
+                                      Name of the referent.
+                                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                      TODO: Add other useful fields. apiVersion, kind, uid?
+                                    type: string
+                                type: object
+                                x-kubernetes-map-type: atomic
+                              type:
+                                enum:
+                                - snowflake.online
+                                - redis
+                                - ikv
+                                - datastore
+                                - dynamodb
+                                - bigtable
+                                - postgres
+                                - cassandra
+                                - mysql
+                                - hazelcast
+                                - singlestore
+                                type: string
+                            type: object
                         type: object
+                        x-kubernetes-validations:
+                        - message: One selection required between file or store.
+                          rule: '[has(self.file), has(self.store)].exists_one(c, c)'
                       resources:
                         description: ResourceRequirements describes the compute resource
                           requirements.
@@ -851,6 +921,31 @@ spec:
                                     for S3 object store URIs.
                                   rule: '(has(self.s3_additional_kwargs) && has(self.path))
                                     ? self.path.startsWith(''s3://'') : true'
+                              store:
+                                description: RegistryDBStorePersistence configures
+                                  the DB store persistence for the registry service
+                                properties:
+                                  secretKeyName:
+                                    type: string
+                                  secretRef:
+                                    description: |-
+                                      LocalObjectReference contains enough information to let you locate the
+                                      referenced object inside the same namespace.
+                                    properties:
+                                      name:
+                                        description: |-
+                                          Name of the referent.
+                                          More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                          TODO: Add other useful fields. apiVersion, kind, uid?
+                                        type: string
+                                    type: object
+                                    x-kubernetes-map-type: atomic
+                                  type:
+                                    enum:
+                                    - sql
+                                    - snowflake.registry
+                                    type: string
+                                type: object
                             type: object
                           resources:
                             description: ResourceRequirements describes the compute
@@ -1091,8 +1186,9 @@ spec:
                               settings for the offline store service
                             properties:
                               file:
-                                description: OfflineStorePersistence configures the
-                                  file-based persistence for the offline store service
+                                description: OfflineStoreFilePersistence configures
+                                  the file-based persistence for the offline store
+                                  service
                                 properties:
                                   pvc:
                                     description: |-
@@ -1175,7 +1271,41 @@ spec:
                                     - duckdb
                                     type: string
                                 type: object
+                              store:
+                                description: OfflineStoreDBStorePersistence configures
+                                  the DB store persistence for the offline store service
+                                properties:
+                                  secretKeyName:
+                                    type: string
+                                  secretRef:
+                                    description: |-
+                                      LocalObjectReference contains enough information to let you locate the
+                                      referenced object inside the same namespace.
+                                    properties:
+                                      name:
+                                        description: |-
+                                          Name of the referent.
+                                          More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                          TODO: Add other useful fields. apiVersion, kind, uid?
+                                        type: string
+                                    type: object
+                                    x-kubernetes-map-type: atomic
+                                  type:
+                                    enum:
+                                    - snowflake.offline
+                                    - bigquery
+                                    - redshift
+                                    - spark
+                                    - postgres
+                                    - feast_trino.trino.TrinoOfflineStore
+                                    - redis
+                                    type: string
+                                type: object
                             type: object
+                            x-kubernetes-validations:
+                            - message: One selection required between file or store.
+                              rule: '[has(self.file), has(self.store)].exists_one(c,
+                                c)'
                           resources:
                             description: ResourceRequirements describes the compute
                               resource requirements.
@@ -1457,7 +1587,45 @@ spec:
                                     buckets.
                                   rule: has(self.path) && !self.path.startsWith('s3://')
                                     && !self.path.startsWith('gs://')
+                              store:
+                                description: OnlineStoreDBStorePersistence configures
+                                  the DB store persistence for the offline store service
+                                properties:
+                                  secretKeyName:
+                                    type: string
+                                  secretRef:
+                                    description: |-
+                                      LocalObjectReference contains enough information to let you locate the
+                                      referenced object inside the same namespace.
+                                    properties:
+                                      name:
+                                        description: |-
+                                          Name of the referent.
+                                          More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                          TODO: Add other useful fields. apiVersion, kind, uid?
+                                        type: string
+                                    type: object
+                                    x-kubernetes-map-type: atomic
+                                  type:
+                                    enum:
+                                    - snowflake.online
+                                    - redis
+                                    - ikv
+                                    - datastore
+                                    - dynamodb
+                                    - bigtable
+                                    - postgres
+                                    - cassandra
+                                    - mysql
+                                    - hazelcast
+                                    - singlestore
+                                    type: string
+                                type: object
                             type: object
+                            x-kubernetes-validations:
+                            - message: One selection required between file or store.
+                              rule: '[has(self.file), has(self.store)].exists_one(c,
+                                c)'
                           resources:
                             description: ResourceRequirements describes the compute
                               resource requirements.
@@ -1759,6 +1927,31 @@ spec:
                                         only for S3 object store URIs.
                                       rule: '(has(self.s3_additional_kwargs) && has(self.path))
                                         ? self.path.startsWith(''s3://'') : true'
+                                  store:
+                                    description: RegistryDBStorePersistence configures
+                                      the DB store persistence for the registry service
+                                    properties:
+                                      secretKeyName:
+                                        type: string
+                                      secretRef:
+                                        description: |-
+                                          LocalObjectReference contains enough information to let you locate the
+                                          referenced object inside the same namespace.
+                                        properties:
+                                          name:
+                                            description: |-
+                                              Name of the referent.
+                                              More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                              TODO: Add other useful fields. apiVersion, kind, uid?
+                                            type: string
+                                        type: object
+                                        x-kubernetes-map-type: atomic
+                                      type:
+                                        enum:
+                                        - sql
+                                        - snowflake.registry
+                                        type: string
+                                    type: object
                                 type: object
                               resources:
                                 description: ResourceRequirements describes the compute
@@ -2080,6 +2273,13 @@ rules:
   - list
   - update
   - watch
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+  - list
 - apiGroups:
   - feast.dev
   resources:
