@@ -144,6 +144,12 @@ run: manifests generate fmt vet ## Run a controller from your host.
 docker-build: ## Build docker image with the manager.
 	$(CONTAINER_TOOL) build -t ${IMG} .
 
+## Build feast docker image.
+.PHONY: feast-docker-build
+feast-image-build:
+	cd ./../.. && VERSION=operator.v0 REGISTRY=example.com make build-feature-transformation-server-docker
+
+
 .PHONY: docker-push
 docker-push: ## Push docker image with the manager.
 	$(CONTAINER_TOOL) push ${IMG}
