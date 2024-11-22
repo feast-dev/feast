@@ -62,7 +62,7 @@ type FeatureStoreSpec struct {
 	// FeastProject is the Feast project id. This can be any alphanumeric string with underscores, but it cannot start with an underscore. Required.
 	FeastProject string                `json:"feastProject"`
 	Services     *FeatureStoreServices `json:"services,omitempty"`
-	AuthzConfig  *AuthzConfig          `json:"authz,omitempty"`
+	AuthConfig   *AuthConfig           `json:"auth,omitempty"`
 }
 
 // FeatureStoreServices defines the desired feast service deployments. ephemeral registry is deployed by default.
@@ -279,20 +279,12 @@ type OptionalConfigs struct {
 	Resources       *corev1.ResourceRequirements `json:"resources,omitempty"`
 }
 
-// AuthzConfig defines the authorization settings for the deployed Feast services.
-type AuthzConfig struct {
-	KubernetesAuthz *KubernetesAuthz `json:"kubernetes,omitempty"`
+// AuthConfig defines the authorization settings for the deployed Feast services.
+type AuthConfig struct {
+	KubernetesAuth *KubernetesAuth `json:"kubernetes,omitempty"`
 }
 
-// KubernetesAuthz provides a way to define the authorization settings using Kubernetes RBAC resources.
-// https://kubernetes.io/docs/reference/access-authn-authz/rbac/
-type KubernetesAuthz struct {
-	// The Kubernetes RBAC roles to be deployed in the same namespace of the FeatureStore.
-	// Roles are managed by the operator and created with an empty list of rules.
-	// See the Feast permission model at https://docs.feast.dev/getting-started/concepts/permission
-	// The feature store admin is not obligated to manage roles using the Feast operator, roles can be managed independently.
-	// This configuration option is only providing a way to automate this procedure.
-	// Important note: the operator cannot ensure that these roles will match the ones used in the configured Feast permissions.
+type KubernetesAuth struct {
 	Roles []string `json:"roles,omitempty"`
 }
 
