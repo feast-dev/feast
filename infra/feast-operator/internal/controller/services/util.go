@@ -52,6 +52,14 @@ func shouldCreatePvc(featureStore *feastdevv1alpha1.FeatureStore, feastType Feas
 func ApplyDefaultsToStatus(cr *feastdevv1alpha1.FeatureStore) {
 	cr.Status.FeastVersion = feastversion.FeastVersion
 	applied := cr.Spec.DeepCopy()
+
+	if applied.AuthConfig == nil {
+		applied.AuthConfig = &feastdevv1alpha1.AuthConfig{}
+	}
+	if applied.AuthConfig.KubernetesAuth != nil && applied.AuthConfig.KubernetesAuth.Roles == nil {
+		applied.AuthConfig.KubernetesAuth.Roles = []string{}
+	}
+
 	if applied.Services == nil {
 		applied.Services = &feastdevv1alpha1.FeatureStoreServices{}
 	}

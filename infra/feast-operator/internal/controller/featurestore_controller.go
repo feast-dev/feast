@@ -23,6 +23,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -30,11 +31,13 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
+	handler "sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	feastdevv1alpha1 "github.com/feast-dev/feast/infra/feast-operator/api/v1alpha1"
+	"github.com/feast-dev/feast/infra/feast-operator/internal/controller/auth"
+	feasthandler "github.com/feast-dev/feast/infra/feast-operator/internal/controller/handler"
 	"github.com/feast-dev/feast/infra/feast-operator/internal/controller/services"
 )
 
@@ -108,13 +111,15 @@ func (r *FeatureStoreReconciler) deployFeast(ctx context.Context, cr *feastdevv1
 		Message: feastdevv1alpha1.ReadyMessage,
 	}
 
-	feast := services.FeastServices{
-		Client:       r.Client,
-		Context:      ctx,
-		FeatureStore: cr,
-		Scheme:       r.Scheme,
+	auth := auth.FeastAuth{
+		Handler: feasthandler.FeastHandler{
+			Client:       r.Client,
+			Context:      ctx,
+			FeatureStore: cr,
+			Scheme:       r.Scheme,
+		},
 	}
-	if err = feast.Deploy(); err != nil {
+	if err = auth.Deploy(); err != nil {
 		condition = metav1.Condition{
 			Type:    feastdevv1alpha1.ReadyType,
 			Status:  metav1.ConditionFalse,
@@ -122,6 +127,23 @@ func (r *FeatureStoreReconciler) deployFeast(ctx context.Context, cr *feastdevv1
 			Message: "Error: " + err.Error(),
 		}
 		result = ctrl.Result{Requeue: true, RequeueAfter: RequeueDelayError}
+	} else {
+		feast := services.FeastServices{
+			Handler: feasthandler.FeastHandler{
+				Client:       r.Client,
+				Context:      ctx,
+				FeatureStore: cr,
+				Scheme:       r.Scheme,
+			}}
+		if err = feast.Deploy(); err != nil {
+			condition = metav1.Condition{
+				Type:    feastdevv1alpha1.ReadyType,
+				Status:  metav1.ConditionFalse,
+				Reason:  feastdevv1alpha1.FailedReason,
+				Message: "Error: " + err.Error(),
+			}
+			result = ctrl.Result{Requeue: true, RequeueAfter: RequeueDelayError}
+		}
 	}
 
 	logger.Info(condition.Message)
@@ -146,6 +168,8 @@ func (r *FeatureStoreReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&corev1.Service{}).
 		Owns(&corev1.PersistentVolumeClaim{}).
 		Owns(&corev1.ServiceAccount{}).
+		Owns(&rbacv1.RoleBinding{}).
+		Owns(&rbacv1.Role{}).
 		Watches(&feastdevv1alpha1.FeatureStore{}, handler.EnqueueRequestsFromMapFunc(r.mapFeastRefsToFeastRequests)).
 		Complete(r)
 }
@@ -170,11 +194,12 @@ func (r *FeatureStoreReconciler) mapFeastRefsToFeastRequests(ctx context.Context
 		// this if statement is extra protection against any potential infinite reconcile loops
 		if feastRefNsName != objNsName {
 			feast := services.FeastServices{
-				Client:       r.Client,
-				Context:      ctx,
-				FeatureStore: &obj,
-				Scheme:       r.Scheme,
-			}
+				Handler: feasthandler.FeastHandler{
+					Client:       r.Client,
+					Context:      ctx,
+					FeatureStore: &obj,
+					Scheme:       r.Scheme,
+				}}
 			if feast.IsRemoteRefRegistry() {
 				remoteRef := obj.Status.Applied.Services.Registry.Remote.FeastRef
 				remoteRefNsName := types.NamespacedName{Name: remoteRef.Name, Namespace: remoteRef.Namespace}

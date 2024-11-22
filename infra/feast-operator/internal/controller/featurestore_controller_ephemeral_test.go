@@ -39,6 +39,7 @@ import (
 
 	"github.com/feast-dev/feast/infra/feast-operator/api/feastversion"
 	feastdevv1alpha1 "github.com/feast-dev/feast/infra/feast-operator/api/v1alpha1"
+	"github.com/feast-dev/feast/infra/feast-operator/internal/controller/handler"
 	"github.com/feast-dev/feast/infra/feast-operator/internal/controller/services"
 )
 
@@ -115,15 +116,18 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			feast := services.FeastServices{
-				Client:       controllerReconciler.Client,
-				Context:      ctx,
-				Scheme:       controllerReconciler.Scheme,
-				FeatureStore: resource,
+				Handler: handler.FeastHandler{
+					Client:       controllerReconciler.Client,
+					Context:      ctx,
+					Scheme:       controllerReconciler.Scheme,
+					FeatureStore: resource,
+				},
 			}
 			Expect(resource.Status).NotTo(BeNil())
 			Expect(resource.Status.FeastVersion).To(Equal(feastversion.FeastVersion))
 			Expect(resource.Status.ClientConfigMap).To(Equal(feast.GetFeastServiceName(services.ClientFeastType)))
 			Expect(resource.Status.Applied.FeastProject).To(Equal(resource.Spec.FeastProject))
+			Expect(resource.Status.Applied.AuthConfig).To(Equal(&feastdevv1alpha1.AuthConfig{}))
 			Expect(resource.Status.Applied.Services).NotTo(BeNil())
 			Expect(resource.Status.Applied.Services.OfflineStore).NotTo(BeNil())
 			Expect(resource.Status.Applied.Services.OfflineStore.Persistence).NotTo(BeNil())
@@ -160,6 +164,9 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			Expect(cond.Reason).To(Equal(feastdevv1alpha1.ReadyReason))
 			Expect(cond.Type).To(Equal(feastdevv1alpha1.ReadyType))
 			Expect(cond.Message).To(Equal(feastdevv1alpha1.ReadyMessage))
+
+			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.KubernetesAuthReadyType)
+			Expect(cond).To(BeNil())
 
 			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.RegistryReadyType)
 			Expect(cond).ToNot(BeNil())
@@ -249,10 +256,12 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			Expect(cmList.Items).To(HaveLen(1))
 
 			feast := services.FeastServices{
-				Client:       controllerReconciler.Client,
-				Context:      ctx,
-				Scheme:       controllerReconciler.Scheme,
-				FeatureStore: resource,
+				Handler: handler.FeastHandler{
+					Client:       controllerReconciler.Client,
+					Context:      ctx,
+					Scheme:       controllerReconciler.Scheme,
+					FeatureStore: resource,
+				},
 			}
 
 			// check registry config
@@ -412,7 +421,7 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			resource = &feastdevv1alpha1.FeatureStore{}
 			err = k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
-			feast.FeatureStore = resource
+			feast.Handler.FeatureStore = resource
 
 			// check registry config
 			deploy = &appsv1.Deployment{}

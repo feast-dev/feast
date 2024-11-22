@@ -45,7 +45,7 @@ func (feast *FeastServices) getServiceFeatureStoreYaml(feastType FeastServiceTyp
 }
 
 func (feast *FeastServices) getServiceRepoConfig(feastType FeastServiceType) (RepoConfig, error) {
-	return getServiceRepoConfig(feastType, feast.FeatureStore, feast.extractConfigFromSecret)
+	return getServiceRepoConfig(feastType, feast.Handler.FeatureStore, feast.extractConfigFromSecret)
 }
 
 func getServiceRepoConfig(feastType FeastServiceType, featureStore *feastdevv1alpha1.FeatureStore, secretExtractionFunc func(secretRef string, secretKeyName string) (map[string]interface{}, error)) (RepoConfig, error) {
@@ -203,7 +203,7 @@ func setRepoConfigOffline(services *feastdevv1alpha1.FeatureStoreServices, secre
 }
 
 func (feast *FeastServices) getClientFeatureStoreYaml() ([]byte, error) {
-	return yaml.Marshal(getClientRepoConfig(feast.FeatureStore))
+	return yaml.Marshal(getClientRepoConfig(feast.Handler.FeatureStore))
 }
 
 func getClientRepoConfig(featureStore *feastdevv1alpha1.FeatureStore) RepoConfig {
@@ -233,7 +233,7 @@ func getClientRepoConfig(featureStore *feastdevv1alpha1.FeatureStore) RepoConfig
 		}
 	}
 
-	if status.Applied.AuthConfig == nil {
+	if status.Applied.AuthConfig.KubernetesAuth == nil {
 		clientRepoConfig.AuthConfig = AuthConfig{
 			Type: NoAuthAuthType,
 		}

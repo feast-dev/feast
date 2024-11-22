@@ -17,17 +17,13 @@ limitations under the License.
 package services
 
 import (
-	"context"
-
 	"github.com/feast-dev/feast/infra/feast-operator/api/feastversion"
 	feastdevv1alpha1 "github.com/feast-dev/feast/infra/feast-operator/api/v1alpha1"
+	handler "github.com/feast-dev/feast/infra/feast-operator/internal/controller/handler"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
-	FeastPrefix                     = "feast-"
 	FeatureStoreYamlEnvVar          = "FEATURE_STORE_YAML_BASE64"
 	FeatureStoreYamlCmKey           = "feature_store.yaml"
 	DefaultRegistryEphemeralPath    = "/tmp/registry.db"
@@ -164,10 +160,7 @@ type FeastProviderType string
 
 // FeastServices is an interface for configuring and deploying feast services
 type FeastServices struct {
-	client.Client
-	Context      context.Context
-	Scheme       *runtime.Scheme
-	FeatureStore *feastdevv1alpha1.FeatureStore
+	Handler handler.FeastHandler
 }
 
 // RepoConfig is the Repo config. Typically loaded from feature_store.yaml.

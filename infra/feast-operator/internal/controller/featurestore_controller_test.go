@@ -39,6 +39,7 @@ import (
 
 	"github.com/feast-dev/feast/infra/feast-operator/api/feastversion"
 	feastdevv1alpha1 "github.com/feast-dev/feast/infra/feast-operator/api/v1alpha1"
+	"github.com/feast-dev/feast/infra/feast-operator/internal/controller/handler"
 	"github.com/feast-dev/feast/infra/feast-operator/internal/controller/services"
 )
 
@@ -118,10 +119,12 @@ var _ = Describe("FeatureStore Controller", func() {
 			Expect(cmList.Items).To(HaveLen(1))
 
 			feast := services.FeastServices{
-				Client:       controllerReconciler.Client,
-				Context:      ctx,
-				Scheme:       controllerReconciler.Scheme,
-				FeatureStore: resource,
+				Handler: handler.FeastHandler{
+					Client:       controllerReconciler.Client,
+					Context:      ctx,
+					Scheme:       controllerReconciler.Scheme,
+					FeatureStore: resource,
+				},
 			}
 			Expect(resource.Status).NotTo(BeNil())
 			Expect(resource.Status.FeastVersion).To(Equal(feastversion.FeastVersion))
@@ -130,6 +133,7 @@ var _ = Describe("FeatureStore Controller", func() {
 			Expect(resource.Status.ServiceHostnames.OnlineStore).To(BeEmpty())
 			Expect(resource.Status.ServiceHostnames.Registry).To(Equal(feast.GetFeastServiceName(services.RegistryFeastType) + "." + resource.Namespace + ".svc.cluster.local:80"))
 			Expect(resource.Status.Applied.FeastProject).To(Equal(resource.Spec.FeastProject))
+			Expect(resource.Status.Applied.AuthConfig).To(Equal(&feastdevv1alpha1.AuthConfig{}))
 			Expect(resource.Status.Applied.Services).NotTo(BeNil())
 			Expect(resource.Status.Applied.Services.OfflineStore).To(BeNil())
 			Expect(resource.Status.Applied.Services.OnlineStore).To(BeNil())
@@ -204,10 +208,12 @@ var _ = Describe("FeatureStore Controller", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			feast := services.FeastServices{
-				Client:       controllerReconciler.Client,
-				Context:      ctx,
-				Scheme:       controllerReconciler.Scheme,
-				FeatureStore: resource,
+				Handler: handler.FeastHandler{
+					Client:       controllerReconciler.Client,
+					Context:      ctx,
+					Scheme:       controllerReconciler.Scheme,
+					FeatureStore: resource,
+				},
 			}
 
 			deploy := &appsv1.Deployment{}
@@ -321,10 +327,12 @@ var _ = Describe("FeatureStore Controller", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			feast := services.FeastServices{
-				Client:       controllerReconciler.Client,
-				Context:      ctx,
-				Scheme:       controllerReconciler.Scheme,
-				FeatureStore: resource,
+				Handler: handler.FeastHandler{
+					Client:       controllerReconciler.Client,
+					Context:      ctx,
+					Scheme:       controllerReconciler.Scheme,
+					FeatureStore: resource,
+				},
 			}
 
 			deploy := &appsv1.Deployment{}
@@ -368,6 +376,9 @@ var _ = Describe("FeatureStore Controller", func() {
 			Expect(cond.Status).To(Equal(metav1.ConditionFalse))
 			Expect(cond.Reason).To(Equal(feastdevv1alpha1.FailedReason))
 			Expect(cond.Message).To(Equal("Error: Object " + resource.Namespace + "/" + name + " is already owned by another Service controller " + name))
+
+			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.KubernetesAuthReadyType)
+			Expect(cond).To(BeNil())
 
 			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.RegistryReadyType)
 			Expect(cond).ToNot(BeNil())
@@ -436,15 +447,18 @@ var _ = Describe("FeatureStore Controller", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			feast := services.FeastServices{
-				Client:       controllerReconciler.Client,
-				Context:      ctx,
-				Scheme:       controllerReconciler.Scheme,
-				FeatureStore: resource,
+				Handler: handler.FeastHandler{
+					Client:       controllerReconciler.Client,
+					Context:      ctx,
+					Scheme:       controllerReconciler.Scheme,
+					FeatureStore: resource,
+				},
 			}
 			Expect(resource.Status).NotTo(BeNil())
 			Expect(resource.Status.FeastVersion).To(Equal(feastversion.FeastVersion))
 			Expect(resource.Status.ClientConfigMap).To(Equal(feast.GetFeastServiceName(services.ClientFeastType)))
 			Expect(resource.Status.Applied.FeastProject).To(Equal(resource.Spec.FeastProject))
+			Expect(resource.Status.Applied.AuthConfig).To(Equal(&feastdevv1alpha1.AuthConfig{}))
 			Expect(resource.Status.Applied.Services).NotTo(BeNil())
 			Expect(resource.Status.Applied.Services.OfflineStore).NotTo(BeNil())
 			Expect(resource.Status.Applied.Services.OfflineStore.Persistence).NotTo(BeNil())
@@ -481,6 +495,9 @@ var _ = Describe("FeatureStore Controller", func() {
 			Expect(cond.Reason).To(Equal(feastdevv1alpha1.ReadyReason))
 			Expect(cond.Type).To(Equal(feastdevv1alpha1.ReadyType))
 			Expect(cond.Message).To(Equal(feastdevv1alpha1.ReadyMessage))
+
+			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.KubernetesAuthReadyType)
+			Expect(cond).To(BeNil())
 
 			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.RegistryReadyType)
 			Expect(cond).ToNot(BeNil())
@@ -576,10 +593,12 @@ var _ = Describe("FeatureStore Controller", func() {
 			Expect(cmList.Items).To(HaveLen(1))
 
 			feast := services.FeastServices{
-				Client:       controllerReconciler.Client,
-				Context:      ctx,
-				Scheme:       controllerReconciler.Scheme,
-				FeatureStore: resource,
+				Handler: handler.FeastHandler{
+					Client:       controllerReconciler.Client,
+					Context:      ctx,
+					Scheme:       controllerReconciler.Scheme,
+					FeatureStore: resource,
+				},
 			}
 
 			// check registry config
@@ -798,10 +817,12 @@ var _ = Describe("FeatureStore Controller", func() {
 			Expect(cmList.Items).To(HaveLen(1))
 
 			feast := services.FeastServices{
-				Client:       controllerReconciler.Client,
-				Context:      ctx,
-				Scheme:       controllerReconciler.Scheme,
-				FeatureStore: resource,
+				Handler: handler.FeastHandler{
+					Client:       controllerReconciler.Client,
+					Context:      ctx,
+					Scheme:       controllerReconciler.Scheme,
+					FeatureStore: resource,
+				},
 			}
 
 			fsYamlStr := ""
@@ -963,6 +984,7 @@ var _ = Describe("FeatureStore Controller", func() {
 			Expect(err).To(HaveOccurred())
 			err = k8sClient.Get(ctx, nsName, resource)
 			Expect(err).NotTo(HaveOccurred())
+			Expect(apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.KubernetesAuthReadyType)).To(BeNil())
 			Expect(apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.RegistryReadyType)).To(BeNil())
 			Expect(apimeta.IsStatusConditionTrue(resource.Status.Conditions, feastdevv1alpha1.ReadyType)).To(BeFalse())
 			cond := apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.ReadyType)
@@ -978,6 +1000,7 @@ var _ = Describe("FeatureStore Controller", func() {
 			Expect(err).To(HaveOccurred())
 			err = k8sClient.Get(ctx, nsName, resource)
 			Expect(err).NotTo(HaveOccurred())
+			Expect(apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.KubernetesAuthReadyType)).To(BeNil())
 			Expect(apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.RegistryReadyType)).To(BeNil())
 			Expect(apimeta.IsStatusConditionTrue(resource.Status.Conditions, feastdevv1alpha1.ReadyType)).To(BeFalse())
 			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.ReadyType)
@@ -995,6 +1018,7 @@ var _ = Describe("FeatureStore Controller", func() {
 			err = k8sClient.Get(ctx, nsName, resource)
 			Expect(err).NotTo(HaveOccurred())
 
+			Expect(apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.KubernetesAuthReadyType)).To(BeNil())
 			Expect(apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.RegistryReadyType)).To(BeNil())
 			Expect(apimeta.IsStatusConditionTrue(resource.Status.Conditions, feastdevv1alpha1.ReadyType)).To(BeTrue())
 			Expect(apimeta.IsStatusConditionTrue(resource.Status.Conditions, feastdevv1alpha1.OnlineStoreReadyType)).To(BeTrue())
@@ -1003,10 +1027,12 @@ var _ = Describe("FeatureStore Controller", func() {
 			Expect(resource.Status.ServiceHostnames.Registry).ToNot(BeEmpty())
 			Expect(resource.Status.ServiceHostnames.Registry).To(Equal(referencedRegistry.Status.ServiceHostnames.Registry))
 			feast := services.FeastServices{
-				Client:       controllerReconciler.Client,
-				Context:      ctx,
-				Scheme:       controllerReconciler.Scheme,
-				FeatureStore: resource,
+				Handler: handler.FeastHandler{
+					Client:       controllerReconciler.Client,
+					Context:      ctx,
+					Scheme:       controllerReconciler.Scheme,
+					FeatureStore: resource,
+				},
 			}
 
 			// check client config
@@ -1061,6 +1087,7 @@ var _ = Describe("FeatureStore Controller", func() {
 			err = k8sClient.Get(ctx, nsName, resource)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(resource.Status.ServiceHostnames.Registry).To(BeEmpty())
+			Expect(apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.KubernetesAuthReadyType)).To(BeNil())
 			Expect(apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.RegistryReadyType)).To(BeNil())
 			Expect(apimeta.IsStatusConditionTrue(resource.Status.Conditions, feastdevv1alpha1.ReadyType)).To(BeFalse())
 			Expect(apimeta.IsStatusConditionTrue(resource.Status.Conditions, feastdevv1alpha1.OnlineStoreReadyType)).To(BeTrue())
@@ -1088,10 +1115,12 @@ var _ = Describe("FeatureStore Controller", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			feast := services.FeastServices{
-				Client:       controllerReconciler.Client,
-				Context:      ctx,
-				Scheme:       controllerReconciler.Scheme,
-				FeatureStore: resource,
+				Handler: handler.FeastHandler{
+					Client:       controllerReconciler.Client,
+					Context:      ctx,
+					Scheme:       controllerReconciler.Scheme,
+					FeatureStore: resource,
+				},
 			}
 
 			deploy := &appsv1.Deployment{}
@@ -1135,6 +1164,9 @@ var _ = Describe("FeatureStore Controller", func() {
 			Expect(cond.Status).To(Equal(metav1.ConditionFalse))
 			Expect(cond.Reason).To(Equal(feastdevv1alpha1.FailedReason))
 			Expect(cond.Message).To(Equal("Error: Object " + resource.Namespace + "/" + name + " is already owned by another Service controller " + name))
+
+			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.KubernetesAuthReadyType)
+			Expect(cond).To(BeNil())
 
 			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.RegistryReadyType)
 			Expect(cond).ToNot(BeNil())

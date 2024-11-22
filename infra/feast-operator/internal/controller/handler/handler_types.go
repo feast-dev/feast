@@ -8,6 +8,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+const (
+	FeastPrefix = "feast-"
+)
+
 type FeastHandler struct {
 	client.Client
 	Context      context.Context

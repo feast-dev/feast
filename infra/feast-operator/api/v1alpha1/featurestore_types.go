@@ -28,26 +28,29 @@ const (
 	FailedPhase  = "Failed"
 
 	// Feast condition types:
-	ClientReadyType       = "Client"
-	OfflineStoreReadyType = "OfflineStore"
-	OnlineStoreReadyType  = "OnlineStore"
-	RegistryReadyType     = "Registry"
-	ReadyType             = "FeatureStore"
+	ClientReadyType         = "Client"
+	OfflineStoreReadyType   = "OfflineStore"
+	OnlineStoreReadyType    = "OnlineStore"
+	RegistryReadyType       = "Registry"
+	ReadyType               = "FeatureStore"
+	KubernetesAuthReadyType = "KubernetesAuth"
 
 	// Feast condition reasons:
-	ReadyReason              = "Ready"
-	FailedReason             = "FeatureStoreFailed"
-	OfflineStoreFailedReason = "OfflineStoreDeploymentFailed"
-	OnlineStoreFailedReason  = "OnlineStoreDeploymentFailed"
-	RegistryFailedReason     = "RegistryDeploymentFailed"
-	ClientFailedReason       = "ClientDeploymentFailed"
+	ReadyReason                = "Ready"
+	FailedReason               = "FeatureStoreFailed"
+	OfflineStoreFailedReason   = "OfflineStoreDeploymentFailed"
+	OnlineStoreFailedReason    = "OnlineStoreDeploymentFailed"
+	RegistryFailedReason       = "RegistryDeploymentFailed"
+	ClientFailedReason         = "ClientDeploymentFailed"
+	KubernetesAuthFailedReason = "KubernetesAuthorizationDeploymentFailed"
 
 	// Feast condition messages:
-	ReadyMessage             = "FeatureStore installation complete"
-	OfflineStoreReadyMessage = "Offline Store installation complete"
-	OnlineStoreReadyMessage  = "Online Store installation complete"
-	RegistryReadyMessage     = "Registry installation complete"
-	ClientReadyMessage       = "Client installation complete"
+	ReadyMessage               = "FeatureStore installation complete"
+	OfflineStoreReadyMessage   = "Offline Store installation complete"
+	OnlineStoreReadyMessage    = "Online Store installation complete"
+	RegistryReadyMessage       = "Registry installation complete"
+	ClientReadyMessage         = "Client installation complete"
+	KubernetesAuthReadyMessage = "Kubernetes authorization installation complete"
 
 	// entity_key_serialization_version
 	SerializationVersion = 3
