@@ -56,6 +56,18 @@ spec:
           spec:
             description: FeatureStoreSpec defines the desired state of FeatureStore
             properties:
+              auth:
+                description: AuthConfig defines the authorization settings for the
+                  deployed Feast services.
+                properties:
+                  kubernetes:
+                    properties:
+                      roles:
+                        items:
+                          type: string
+                        type: array
+                    type: object
+                type: object
               feastProject:
                 description: FeastProject is the Feast project id. This can be any
                   alphanumeric string with underscores, but it cannot start with an
@@ -1047,6 +1059,18 @@ spec:
                 description: Shows the currently applied feast configuration, including
                   any pertinent defaults
                 properties:
+                  auth:
+                    description: AuthConfig defines the authorization settings for
+                      the deployed Feast services.
+                    properties:
+                      kubernetes:
+                        properties:
+                          roles:
+                            items:
+                              type: string
+                            type: array
+                        type: object
+                    type: object
                   feastProject:
                     description: FeastProject is the Feast project id. This can be
                       any alphanumeric string with underscores, but it cannot start

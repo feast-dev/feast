@@ -1,23 +1,28 @@
 apiVersion: feast.dev/v1alpha1
 kind: FeatureStore
 metadata:
-  name: sample-ephemeral-persistence
+  name: sample-kubernetes-auth
 spec:
   feastProject: my_project
   services:
     onlineStore:
-      image: quay.io/dmartino/feature-server:0.2
+      image: quay.io/dmartino/feature-server:0.3
       persistence:
         file:
           path: /data/online_store.db
     offlineStore:
-      image: quay.io/dmartino/feature-server:0.2
+      image: quay.io/dmartino/feature-server:0.3
       persistence:
         file:
           type: dask
     registry:
       local:
-        image: quay.io/dmartino/feature-server:0.2
+        image: quay.io/dmartino/feature-server:0.3
         persistence:
           file:
             path: /data/registry.db
+  auth:
+    kubernetes:
+      roles:
+        - reader
+        - writer

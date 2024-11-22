@@ -232,6 +232,18 @@ func getClientRepoConfig(featureStore *feastdevv1alpha1.FeatureStore) RepoConfig
 			Path:         status.ServiceHostnames.Registry,
 		}
 	}
+
+	if status.Applied.AuthConfig == nil {
+		clientRepoConfig.AuthConfig = AuthConfig{
+			Type: NoAuthAuthType,
+		}
+	} else {
+		if status.Applied.AuthConfig.KubernetesAuth != nil {
+			clientRepoConfig.AuthConfig = AuthConfig{
+				Type: KubernetesAuthType,
+			}
+		}
+	}
 	return clientRepoConfig
 }
 

@@ -312,6 +312,7 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 					Path:               registryPath,
 					S3AdditionalKwargs: &s3AdditionalKwargs,
 				},
+				AuthConfig: noAuthConfig(),
 			}
 			Expect(repoConfig).To(Equal(testConfig))
 
@@ -355,6 +356,7 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 					RegistryType: services.RegistryRemoteConfigType,
 					Path:         fmt.Sprintf("feast-%s-registry.default.svc.cluster.local:80", resourceName),
 				},
+				AuthConfig: noAuthConfig(),
 			}
 			Expect(repoConfigClient).To(Equal(clientConfig))
 

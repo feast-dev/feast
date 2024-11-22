@@ -59,6 +59,7 @@ type FeatureStoreSpec struct {
 	// FeastProject is the Feast project id. This can be any alphanumeric string with underscores, but it cannot start with an underscore. Required.
 	FeastProject string                `json:"feastProject"`
 	Services     *FeatureStoreServices `json:"services,omitempty"`
+	AuthConfig   *AuthConfig           `json:"auth,omitempty"`
 }
 
 // FeatureStoreServices defines the desired feast service deployments. ephemeral registry is deployed by default.
@@ -261,6 +262,15 @@ type OptionalConfigs struct {
 	Env             *[]corev1.EnvVar             `json:"env,omitempty"`
 	ImagePullPolicy *corev1.PullPolicy           `json:"imagePullPolicy,omitempty"`
 	Resources       *corev1.ResourceRequirements `json:"resources,omitempty"`
+}
+
+// AuthConfig defines the authorization settings for the deployed Feast services.
+type AuthConfig struct {
+	KubernetesAuth *KubernetesAuth `json:"kubernetes,omitempty"`
+}
+
+type KubernetesAuth struct {
+	Roles []string `json:"roles,omitempty"`
 }
 
 // FeatureStoreStatus defines the observed state of FeatureStore

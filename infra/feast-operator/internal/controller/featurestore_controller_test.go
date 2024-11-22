@@ -240,6 +240,7 @@ var _ = Describe("FeatureStore Controller", func() {
 					RegistryType: services.RegistryFileConfigType,
 					Path:         services.DefaultRegistryEphemeralPath,
 				},
+				AuthConfig: noAuthConfig(),
 			}
 			Expect(repoConfig).To(Equal(testConfig))
 
@@ -263,6 +264,7 @@ var _ = Describe("FeatureStore Controller", func() {
 					RegistryType: services.RegistryRemoteConfigType,
 					Path:         "feast-test-resource-registry.default.svc.cluster.local:80",
 				},
+				AuthConfig: noAuthConfig(),
 			}
 			Expect(repoConfigClient).To(Equal(clientConfig))
 
@@ -611,6 +613,7 @@ var _ = Describe("FeatureStore Controller", func() {
 					RegistryType: services.RegistryFileConfigType,
 					Path:         services.DefaultRegistryEphemeralPath,
 				},
+				AuthConfig: noAuthConfig(),
 			}
 			Expect(repoConfig).To(Equal(testConfig))
 
@@ -648,7 +651,8 @@ var _ = Describe("FeatureStore Controller", func() {
 				OfflineStore: services.OfflineStoreConfig{
 					Type: services.OfflineFilePersistenceDaskConfigType,
 				},
-				Registry: regRemote,
+				Registry:   regRemote,
+				AuthConfig: noAuthConfig(),
 			}
 			Expect(repoConfigOffline).To(Equal(offlineConfig))
 
@@ -690,7 +694,8 @@ var _ = Describe("FeatureStore Controller", func() {
 					Path: services.DefaultOnlineStoreEphemeralPath,
 					Type: services.OnlineSqliteConfigType,
 				},
-				Registry: regRemote,
+				Registry:   regRemote,
+				AuthConfig: noAuthConfig(),
 			}
 			Expect(repoConfigOnline).To(Equal(onlineConfig))
 			Expect(deploy.Spec.Template.Spec.Containers[0].Env).To(HaveLen(3))
@@ -716,7 +721,8 @@ var _ = Describe("FeatureStore Controller", func() {
 					Path: "http://feast-services-online.default.svc.cluster.local:80",
 					Type: services.OnlineRemoteConfigType,
 				},
-				Registry: regRemote,
+				Registry:   regRemote,
+				AuthConfig: noAuthConfig(),
 			}
 			Expect(repoConfigClient).To(Equal(clientConfig))
 
@@ -1030,6 +1036,7 @@ var _ = Describe("FeatureStore Controller", func() {
 					RegistryType: services.RegistryRemoteConfigType,
 					Path:         "feast-" + referencedRegistry.Name + "-registry.default.svc.cluster.local:80",
 				},
+				AuthConfig: noAuthConfig(),
 			}
 			Expect(repoConfigClient).To(Equal(clientConfig))
 
@@ -1245,6 +1252,12 @@ func getFeatureStoreYamlEnvVar(envs []corev1.EnvVar) *corev1.EnvVar {
 		}
 	}
 	return nil
+}
+
+func noAuthConfig() services.AuthConfig {
+	return services.AuthConfig{
+		Type: services.NoAuthAuthType,
+	}
 }
 
 func areEnvVarArraysEqual(arr1 []corev1.EnvVar, arr2 []corev1.EnvVar) bool {

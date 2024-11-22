@@ -62,6 +62,9 @@ const (
 	RegistryDBPersistenceSQLConfigType       RegistryConfigType = "sql"
 
 	LocalProviderType FeastProviderType = "local"
+
+	NoAuthAuthType     AuthType = "no_auth"
+	KubernetesAuthType AuthType = "kubernetes"
 )
 
 var (
@@ -72,15 +75,15 @@ var (
 
 	FeastServiceConstants = map[FeastServiceType]deploymentSettings{
 		OfflineFeastType: {
-			Command:    []string{"feast", "serve_offline", "-h", "0.0.0.0"},
+			Command:    []string{"feast", "--log-level", "DEBUG", "serve_offline", "-h", "0.0.0.0"},
 			TargetPort: 8815,
 		},
 		OnlineFeastType: {
-			Command:    []string{"feast", "serve", "-h", "0.0.0.0"},
+			Command:    []string{"feast", "--log-level", "DEBUG", "serve", "-h", "0.0.0.0"},
 			TargetPort: 6566,
 		},
 		RegistryFeastType: {
-			Command:    []string{"feast", "serve_registry"},
+			Command:    []string{"feast", "--log-level", "DEBUG", "serve_registry"},
 			TargetPort: 6570,
 		},
 	}
@@ -141,6 +144,9 @@ var (
 	}
 )
 
+// AuthType defines the authorization type
+type AuthType string
+
 // FeastServiceType is the type of feast service
 type FeastServiceType string
 
@@ -172,6 +178,7 @@ type RepoConfig struct {
 	OfflineStore                  OfflineStoreConfig `yaml:"offline_store,omitempty"`
 	OnlineStore                   OnlineStoreConfig  `yaml:"online_store,omitempty"`
 	Registry                      RegistryConfig     `yaml:"registry,omitempty"`
+	AuthConfig                    AuthConfig         `yaml:"auth,omitempty"`
 	EntityKeySerializationVersion int                `yaml:"entity_key_serialization_version,omitempty"`
 }
 
@@ -196,6 +203,11 @@ type RegistryConfig struct {
 	RegistryType       RegistryConfigType     `yaml:"registry_type,omitempty"`
 	S3AdditionalKwargs *map[string]string     `yaml:"s3_additional_kwargs,omitempty"`
 	DBParameters       map[string]interface{} `yaml:",inline,omitempty"`
+}
+
+// AuthConfig is the RBAC authorization configuration.
+type AuthConfig struct {
+	Type AuthType `yaml:"type,omitempty"`
 }
 
 type deploymentSettings struct {

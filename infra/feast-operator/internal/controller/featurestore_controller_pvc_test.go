@@ -455,6 +455,7 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 					RegistryType: services.RegistryFileConfigType,
 					Path:         registryMountedPath,
 				},
+				AuthConfig: noAuthConfig(),
 			}
 			Expect(repoConfig).To(Equal(testConfig))
 
@@ -492,7 +493,8 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 				OfflineStore: services.OfflineStoreConfig{
 					Type: services.OfflineFilePersistenceDuckDbConfigType,
 				},
-				Registry: regRemote,
+				Registry:   regRemote,
+				AuthConfig: noAuthConfig(),
 			}
 			Expect(repoConfigOffline).To(Equal(offlineConfig))
 
@@ -533,7 +535,8 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 					Path: onlineStoreMountedPath,
 					Type: services.OnlineSqliteConfigType,
 				},
-				Registry: regRemote,
+				Registry:   regRemote,
+				AuthConfig: noAuthConfig(),
 			}
 			Expect(repoConfigOnline).To(Equal(onlineConfig))
 			Expect(deploy.Spec.Template.Spec.Containers[0].Env).To(HaveLen(3))
@@ -559,7 +562,8 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 					Path: fmt.Sprintf("http://feast-%s-online.default.svc.cluster.local:80", resourceName),
 					Type: services.OnlineRemoteConfigType,
 				},
-				Registry: regRemote,
+				Registry:   regRemote,
+				AuthConfig: noAuthConfig(),
 			}
 			Expect(repoConfigClient).To(Equal(clientConfig))
 
