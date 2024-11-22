@@ -6,7 +6,6 @@ spec:
   feastProject: my_project
   services:
     onlineStore:
-      image: quay.io/dmartino/feature-server:0.2
       persistence:
         file:
           path: online_store.db
@@ -15,7 +14,6 @@ spec:
               name: online-pvc
             mountPath: /data/online
     offlineStore:
-      image: quay.io/dmartino/feature-server:0.2
       persistence:
         file:
           type: duckdb
@@ -28,7 +26,6 @@ spec:
             mountPath: /data/offline
     registry:
       local:
-        image: quay.io/dmartino/feature-server:0.2
         persistence:
           file:
             path: registry.db
