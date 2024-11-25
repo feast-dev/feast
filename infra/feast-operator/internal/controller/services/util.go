@@ -56,9 +56,6 @@ func ApplyDefaultsToStatus(cr *feastdevv1alpha1.FeatureStore) {
 	if applied.AuthConfig == nil {
 		applied.AuthConfig = &feastdevv1alpha1.AuthConfig{}
 	}
-	if applied.AuthConfig.KubernetesAuth != nil && applied.AuthConfig.KubernetesAuth.Roles == nil {
-		applied.AuthConfig.KubernetesAuth.Roles = []string{}
-	}
 
 	if applied.Services == nil {
 		applied.Services = &feastdevv1alpha1.FeatureStoreServices{}
