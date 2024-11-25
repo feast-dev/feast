@@ -12,8 +12,6 @@ type FeastAuth struct {
 }
 
 var (
-	nameLabelKey = feastdevv1alpha1.GroupVersion.Group + "/name"
-
 	feastKubernetesAuthConditions = map[metav1.ConditionStatus]metav1.Condition{
 		metav1.ConditionTrue: {
 			Type:    feastdevv1alpha1.KubernetesAuthReadyType,
