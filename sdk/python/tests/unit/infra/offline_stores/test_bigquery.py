@@ -82,3 +82,29 @@ class TestBigQueryRetrievalJob:
             self.retrieval_job._execute_query.assert_called_once_with(
                 query=self.query, timeout=30
             )
+
+
+class TestBigQueryRetrievalJobWithBillingProject:
+    query = "SELECT * FROM bigquery"
+    client = Mock()
+
+    def test_project_id_exists(self):
+        with pytest.raises(ValueError):
+            retrieval_job = BigQueryRetrievalJob(
+                query=self.query,
+                client=self.client,
+                config=RepoConfig(
+                    registry="gs://ml-test/repo/registry.db",
+                    project="test",
+                    provider="gcp",
+                    online_store=SqliteOnlineStoreConfig(type="sqlite"),
+                    offline_store=BigQueryOfflineStoreConfig(
+                        type="bigquery",
+                        dataset="feast",
+                        billing_project_id="test-billing-project",
+                    ),
+                ),
+                full_feature_names=True,
+                on_demand_feature_views=[],
+            )
+            retrieval_job.to_df()
