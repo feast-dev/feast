@@ -71,15 +71,15 @@ var (
 
 	FeastServiceConstants = map[FeastServiceType]deploymentSettings{
 		OfflineFeastType: {
-			Command:    []string{"feast", "--log-level", "DEBUG", "serve_offline", "-h", "0.0.0.0"},
+			Command:    []string{"feast", "serve_offline", "-h", "0.0.0.0"},
 			TargetPort: 8815,
 		},
 		OnlineFeastType: {
-			Command:    []string{"feast", "--log-level", "DEBUG", "serve", "-h", "0.0.0.0"},
+			Command:    []string{"feast", "serve", "-h", "0.0.0.0"},
 			TargetPort: 6566,
 		},
 		RegistryFeastType: {
-			Command:    []string{"feast", "--log-level", "DEBUG", "serve_registry"},
+			Command:    []string{"feast", "serve_registry"},
 			TargetPort: 6570,
 		},
 	}
