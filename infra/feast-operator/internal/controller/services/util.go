@@ -248,10 +248,17 @@ func hasAttrib(s interface{}, fieldName string, value interface{}) (bool, error)
 				return false, fmt.Errorf("cannot set field %s", fieldName)
 			}
 
+			// Ensure the field type matches the value type
+			valType := reflect.ValueOf(value)
+
+			if field.Kind() != valType.Kind() {
+				return false, fmt.Errorf("type mismatch: field type %v and value type %v do not match", field.Kind(), valType.Kind())
+			}
+
 			// Check if the field is empty (zero value)
 			if field.IsZero() {
 				// Set the field value only if it's empty
-				field.Set(reflect.ValueOf(value))
+				field.Set(reflect.ValueOf(valType))
 			}
 
 			return true, nil
