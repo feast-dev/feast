@@ -3,8 +3,7 @@ package feast
 import (
 	"context"
 	"errors"
-	"os"
-
+	"fmt"
 	"github.com/apache/arrow/go/v17/arrow/memory"
 	//"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 
@@ -61,11 +60,16 @@ func NewFeatureStore(config *registry.RepoConfig, callback transformation.Transf
 		return nil, err
 	}
 
-	// Use a scalable transformation service like Python Transformation Service as the Python version of transformation service is
-	// better for data calculation than the Go version
-	transformationServerEndpoint := os.Getenv("TRANSFORM_SERVER_ENDPOINT")
+	// Use a scalable transformation service like Python Transformation Service.
+	// Assume the user will define the "transformation_service_endpoint" in the feature_store.yaml file
+	// under the "feature_server" section.
+	transformationServerEndpoint, ok := config.FeatureServer["transformation_service_endpoint"]
+	if !ok {
+		fmt.Println("Errors while reading transformation_service_endpoint info")
+		panic("No transformation service endpoint provided in the feature_store.yaml file.")
+	}
 
-	transformationService, _ := transformation.NewGrpcTransformationService(config, transformationServerEndpoint)
+	transformationService, _ := transformation.NewGrpcTransformationService(config, transformationServerEndpoint.(string))
 
 	return &FeatureStore{
 		config:                 config,
