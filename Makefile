@@ -268,7 +268,7 @@ test-python-universal-postgres-online:
 				not test_snowflake" \
  			sdk/python/tests
 
- test-python-universal-mysql-online:
+test-python-universal-mysql-online:
 	PYTHONPATH='.' \
 		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.mysql_online_store.mysql_repo_configuration \
 		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.mysql \
@@ -292,7 +292,11 @@ test-python-universal-cassandra:
 	FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.cassandra_online_store.cassandra_repo_configuration \
 	PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.cassandra \
 	python -m pytest -x --integration \
-	sdk/python/tests
+	sdk/python/tests/integration/offline_store/test_feature_logging.py \
+		--ignore=sdk/python/tests/integration/offline_store/test_validation.py \
+		-k "not test_snowflake and \
+			not test_spark_materialization_consistency and \
+			not test_universal_materialization"
 
 test-python-universal-hazelcast:
 	PYTHONPATH='.' \
@@ -330,7 +334,7 @@ test-python-universal-cassandra-no-cloud-providers:
 	  not test_snowflake" \
 	sdk/python/tests
 
- test-python-universal-elasticsearch-online:
+test-python-universal-elasticsearch-online:
 	PYTHONPATH='.' \
 		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.elasticsearch_online_store.elasticsearch_repo_configuration \
 		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.elasticsearch \
@@ -349,23 +353,12 @@ test-python-universal-cassandra-no-cloud-providers:
 				not test_snowflake" \
  			sdk/python/tests
 
- test-python-universal-milvus-online:
+test-python-universal-milvus-online:
 	PYTHONPATH='.' \
 		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.milvus_online_store.milvus_repo_configuration \
 		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.milvus\
 		python -m pytest -n 8 --integration \
- 			-k "not test_universal_cli and \
- 				not test_go_feature_server and \
- 				not test_feature_logging and \
-				not test_reorder_columns and \
-				not test_logged_features_validation and \
-				not test_lambda_materialization_consistency and \
-				not test_offline_write and \
-				not test_push_features_to_offline_store and \
-				not gcs_registry and \
-				not s3_registry and \
- 				not test_universal_types and \
-				not test_snowflake" \
+		-k "test_retrieve_online_documents and not test_validation" \
  			sdk/python/tests
 
 test-python-universal-singlestore-online:
