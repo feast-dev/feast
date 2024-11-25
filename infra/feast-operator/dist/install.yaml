@@ -61,8 +61,17 @@ spec:
                   deployed Feast services.
                 properties:
                   kubernetes:
+                    description: |-
+                      KubernetesAuth defines the authorization settings using Kubernetes RBAC.
+                      https://kubernetes.io/docs/reference/access-authn-authz/rbac/
                     properties:
                       roles:
+                        description: |-
+                          The Kubernetes RBAC roles to be deployed in the same namespace of the FeatureStore.
+                          See the Feast permission model https://docs.feast.dev/getting-started/concepts/permission
+                          Please note that the feature store admin is not obligated to manage roles using the Feast operator.
+                          Roles can be managed independently. This configuration is only providing a way to automate this step.
+                          Note that the operator cannot ensure that these roles will match the ones used in the configured Feast permissions.
                         items:
                           type: string
                         type: array
@@ -1220,8 +1229,17 @@ spec:
                       the deployed Feast services.
                     properties:
                       kubernetes:
+                        description: |-
+                          KubernetesAuth defines the authorization settings using Kubernetes RBAC.
+                          https://kubernetes.io/docs/reference/access-authn-authz/rbac/
                         properties:
                           roles:
+                            description: |-
+                              The Kubernetes RBAC roles to be deployed in the same namespace of the FeatureStore.
+                              See the Feast permission model https://docs.feast.dev/getting-started/concepts/permission
+                              Please note that the feature store admin is not obligated to manage roles using the Feast operator.
+                              Roles can be managed independently. This configuration is only providing a way to automate this step.
+                              Note that the operator cannot ensure that these roles will match the ones used in the configured Feast permissions.
                             items:
                               type: string
                             type: array
