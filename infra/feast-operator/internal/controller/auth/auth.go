@@ -15,7 +15,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-// Deploy the feast services
+// Deploy the feast authorization
 func (auth *FeastAuth) Deploy() error {
 	authConfig := auth.Handler.FeatureStore.Status.Applied.AuthConfig
 	if authConfig != nil {
@@ -193,7 +193,7 @@ func (auth *FeastAuth) setAuthRole(role *rbacv1.Role) error {
 
 func (auth *FeastAuth) getLabels() map[string]string {
 	return map[string]string{
-		nameLabelKey: auth.Handler.FeatureStore.Name,
+		services.NameLabelKey: auth.Handler.FeatureStore.Name,
 	}
 }
 
