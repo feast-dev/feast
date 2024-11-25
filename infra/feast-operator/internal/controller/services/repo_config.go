@@ -52,7 +52,7 @@ func getServiceRepoConfig(feastType FeastServiceType, featureStore *feastdevv1al
 	appliedSpec := featureStore.Status.Applied
 
 	repoConfig := getClientRepoConfig(featureStore)
-	isLocalReg := isLocalRegistry(featureStore)
+	isLocalRegistry := IsLocalRegistry(featureStore)
 	if appliedSpec.Services != nil {
 		services := appliedSpec.Services
 

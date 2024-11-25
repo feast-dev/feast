@@ -272,7 +272,15 @@ type AuthConfig struct {
 	KubernetesAuth *KubernetesAuth `json:"kubernetes,omitempty"`
 }
 
+// KubernetesAuth provides a way to define the authorization settings using Kubernetes RBAC resources.
+// https://kubernetes.io/docs/reference/access-authn-authz/rbac/
 type KubernetesAuth struct {
+	// The Kubernetes RBAC roles to be deployed in the same namespace of the FeatureStore.
+	// Roles are managed by the operator and created with an empty list of rules.
+	// See the Feast permission model at https://docs.feast.dev/getting-started/concepts/permission
+	// The feature store admin is not obligated to manage roles using the Feast operator, roles can be managed independently.
+	// This configuration option is only providing a way to automate this procedure.
+	// Important note: the operator cannot ensure that these roles will match the ones used in the configured Feast permissions.
 	Roles []string `json:"roles,omitempty"`
 }
 

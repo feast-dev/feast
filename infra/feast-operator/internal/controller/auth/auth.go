@@ -146,7 +146,7 @@ func (auth *FeastAuth) setFeastRoleBinding(roleBinding *rbacv1.RoleBinding) erro
 			Namespace: auth.Handler.FeatureStore.Namespace,
 		})
 	}
-	if auth.Handler.FeatureStore.Status.Applied.Services.Registry != nil {
+	if services.IsLocalRegistry(auth.Handler.FeatureStore) {
 		roleBinding.Subjects = append(roleBinding.Subjects, rbacv1.Subject{
 			Kind:      rbacv1.ServiceAccountKind,
 			Name:      services.GetFeastServiceName(auth.Handler.FeatureStore, services.RegistryFeastType),

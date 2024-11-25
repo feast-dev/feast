@@ -17,7 +17,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-func isLocalRegistry(featureStore *feastdevv1alpha1.FeatureStore) bool {
+func IsLocalRegistry(featureStore *feastdevv1alpha1.FeatureStore) bool {
 	appliedServices := featureStore.Status.Applied.Services
 	return appliedServices != nil && appliedServices.Registry != nil && appliedServices.Registry.Local != nil
 }
@@ -35,7 +35,7 @@ func hasPvcConfig(featureStore *feastdevv1alpha1.FeatureStore, feastType FeastSe
 			pvcConfig = services.OfflineStore.Persistence.FilePersistence.PvcConfig
 		}
 	case RegistryFeastType:
-		if isLocalRegistry(featureStore) && services.Registry.Local.Persistence.FilePersistence != nil {
+		if IsLocalRegistry(featureStore) && services.Registry.Local.Persistence.FilePersistence != nil {
 			pvcConfig = services.Registry.Local.Persistence.FilePersistence.PvcConfig
 		}
 	}
