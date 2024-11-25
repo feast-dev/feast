@@ -101,7 +101,7 @@ class TestBigQueryRetrievalJobWithBillingProject:
                     offline_store=BigQueryOfflineStoreConfig(
                         type="bigquery",
                         dataset="feast",
-                        billing_project_id="test-billing-project"
+                        billing_project_id="test-billing-project",
                     ),
                 ),
                 full_feature_names=True,
