@@ -20,7 +20,10 @@ def test_cli_apply_duplicate_data_source_names() -> None:
 
 
 def run_simple_apply_test(example_repo_file_name: str, expected_error: bytes):
-    with tempfile.TemporaryDirectory() as repo_dir_name, tempfile.TemporaryDirectory() as data_dir_name:
+    with (
+        tempfile.TemporaryDirectory() as repo_dir_name,
+        tempfile.TemporaryDirectory() as data_dir_name,
+    ):
         runner = CliRunner()
         # Construct an example repo in a temporary dir
         repo_path = Path(repo_dir_name)
@@ -51,7 +54,10 @@ def test_cli_apply_imported_featureview() -> None:
     """
     Tests that applying a feature view imported from a separate Python file is successful.
     """
-    with tempfile.TemporaryDirectory() as repo_dir_name, tempfile.TemporaryDirectory() as data_dir_name:
+    with (
+        tempfile.TemporaryDirectory() as repo_dir_name,
+        tempfile.TemporaryDirectory() as data_dir_name,
+    ):
         runner = CliRunner()
         # Construct an example repo in a temporary dir
         repo_path = Path(repo_dir_name)
@@ -97,7 +103,10 @@ def test_cli_apply_imported_featureview_with_duplication() -> None:
     Tests that applying feature views with duplicated names is not possible, even if one of the
     duplicated feature views is imported from another file.
     """
-    with tempfile.TemporaryDirectory() as repo_dir_name, tempfile.TemporaryDirectory() as data_dir_name:
+    with (
+        tempfile.TemporaryDirectory() as repo_dir_name,
+        tempfile.TemporaryDirectory() as data_dir_name,
+    ):
         runner = CliRunner()
         # Construct an example repo in a temporary dir
         repo_path = Path(repo_dir_name)
@@ -152,7 +161,10 @@ def test_cli_apply_duplicated_featureview_names_multiple_py_files() -> None:
     """
     Test apply feature views with duplicated names from multiple py files in a feature repo using CLI
     """
-    with tempfile.TemporaryDirectory() as repo_dir_name, tempfile.TemporaryDirectory() as data_dir_name:
+    with (
+        tempfile.TemporaryDirectory() as repo_dir_name,
+        tempfile.TemporaryDirectory() as data_dir_name,
+    ):
         runner = CliRunner()
         # Construct an example repo in a temporary dir
         repo_path = Path(repo_dir_name)
