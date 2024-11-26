@@ -220,7 +220,7 @@ var _ = Describe("Repo Config", func() {
 				},
 			}
 			ApplyDefaultsToStatus(featureStore)
-			repoConfig, err = getServiceRepoConfig(OfflineFeastType, featureStore)
+			repoConfig, err = getServiceRepoConfig(OfflineFeastType, featureStore, mockExtractConfigFromSecret)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(repoConfig.AuthzConfig.Type).To(Equal(KubernetesAuthType))
 			expectedOfflineConfig = OfflineStoreConfig{
@@ -230,7 +230,7 @@ var _ = Describe("Repo Config", func() {
 			Expect(repoConfig.OnlineStore).To(Equal(emptyOnlineStoreConfig()))
 			Expect(repoConfig.Registry).To(Equal(emptyRegistryConfig()))
 
-			repoConfig, err = getServiceRepoConfig(OnlineFeastType, featureStore)
+			repoConfig, err = getServiceRepoConfig(OnlineFeastType, featureStore, mockExtractConfigFromSecret)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(repoConfig.AuthzConfig.Type).To(Equal(KubernetesAuthType))
 			Expect(repoConfig.OfflineStore).To(Equal(emptyOfflineStoreConfig()))
@@ -241,7 +241,7 @@ var _ = Describe("Repo Config", func() {
 			Expect(repoConfig.OnlineStore).To(Equal(expectedOnlineConfig))
 			Expect(repoConfig.Registry).To(Equal(emptyRegistryConfig()))
 
-			repoConfig, err = getServiceRepoConfig(RegistryFeastType, featureStore)
+			repoConfig, err = getServiceRepoConfig(RegistryFeastType, featureStore, mockExtractConfigFromSecret)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(repoConfig.AuthzConfig.Type).To(Equal(KubernetesAuthType))
 			Expect(repoConfig.OfflineStore).To(Equal(emptyOfflineStoreConfig()))

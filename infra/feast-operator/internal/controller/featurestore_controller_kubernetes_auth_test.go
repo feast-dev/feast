@@ -117,7 +117,7 @@ var _ = Describe("FeatureStore Controller-Kubernetes authorization", func() {
 			Expect(resource.Status.Applied.Services.OfflineStore).NotTo(BeNil())
 			Expect(resource.Status.Applied.Services.OfflineStore.Persistence).NotTo(BeNil())
 			Expect(resource.Status.Applied.Services.OfflineStore.Persistence.FilePersistence).NotTo(BeNil())
-			Expect(resource.Status.Applied.Services.OfflineStore.Persistence.FilePersistence.Type).To(Equal(string(services.OfflineDaskConfigType)))
+			Expect(resource.Status.Applied.Services.OfflineStore.Persistence.FilePersistence.Type).To(Equal(string(services.OfflineFilePersistenceDaskConfigType)))
 			Expect(resource.Status.Applied.Services.OfflineStore.ImagePullPolicy).To(BeNil())
 			Expect(resource.Status.Applied.Services.OfflineStore.Resources).To(BeNil())
 			Expect(resource.Status.Applied.Services.OfflineStore.Image).To(Equal(&services.DefaultImage))
@@ -480,7 +480,7 @@ var _ = Describe("FeatureStore Controller-Kubernetes authorization", func() {
 				Provider:                      services.LocalProviderType,
 				EntityKeySerializationVersion: feastdevv1alpha1.SerializationVersion,
 				OfflineStore: services.OfflineStoreConfig{
-					Type: services.OfflineDaskConfigType,
+					Type: services.OfflineFilePersistenceDaskConfigType,
 				},
 				Registry: regRemote,
 				AuthzConfig: services.AuthzConfig{

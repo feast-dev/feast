@@ -206,11 +206,11 @@ func checkRegistryDBStorePersistenceType(value string) error {
 }
 
 func (feast *FeastServices) getSecret(secretRef string) (*corev1.Secret, error) {
-	secret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: secretRef, Namespace: feast.FeatureStore.Namespace}}
+	secret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: secretRef, Namespace: feast.Handler.FeatureStore.Namespace}}
 	objectKey := client.ObjectKeyFromObject(secret)
-	if err := feast.Client.Get(feast.Context, objectKey, secret); err != nil {
+	if err := feast.Handler.Client.Get(feast.Handler.Context, objectKey, secret); err != nil {
 		if apierrors.IsNotFound(err) || err != nil {
-			logger := log.FromContext(feast.Context)
+			logger := log.FromContext(feast.Handler.Context)
 			logger.Error(err, "invalid secret "+secretRef+" for offline store")
 
 			return nil, err

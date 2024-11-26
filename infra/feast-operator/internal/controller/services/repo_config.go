@@ -75,7 +75,7 @@ func getServiceRepoConfig(feastType FeastServiceType, featureStore *feastdevv1al
 			}
 		case RegistryFeastType:
 			// Registry server only has a `registry` section
-			if isLocalReg {
+			if isLocalRegistry {
 				err := setRepoConfigRegistry(services, secretExtractionFunc, &repoConfig)
 				if err != nil {
 					return repoConfig, err
