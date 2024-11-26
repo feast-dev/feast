@@ -34,7 +34,7 @@ REQUIRED = [
     "mmh3",
     "numpy>=1.22,<2",
     "pandas>=1.4.3,<3",
-    "pyarrow>=9.0.0",
+    "pyarrow<18.1.0",
     "pydantic>=2.0.0",
     "pygments>=2.12.0,<3",
     "PyYAML>=5.4.0,<7",
@@ -140,7 +140,7 @@ DELTA_REQUIRED = ["deltalake"]
 
 ELASTICSEARCH_REQUIRED = ["elasticsearch>=8.13.0"]
 
-SINGLESTORE_REQUIRED = ["singlestoredb"]
+SINGLESTORE_REQUIRED = ["singlestoredb<1.8.0"]
 
 COUCHBASE_REQUIRED = ["couchbase==4.3.2"]
 
@@ -179,7 +179,7 @@ CI_REQUIRED = (
         "pytest-mock==1.10.4",
         "pytest-env",
         "Sphinx>4.0.0,<7",
-        "testcontainers==4.4.0",
+        "testcontainers==4.8.2",
         "python-keycloak==4.2.2",
         "pre-commit<3.3.2",
         "assertpy==1.1",
