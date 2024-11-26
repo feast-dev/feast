@@ -281,12 +281,12 @@ type OptionalConfigs struct {
 
 // AuthzConfig defines the authorization settings for the deployed Feast services.
 type AuthzConfig struct {
-	KubernetesAuth *KubernetesAuth `json:"kubernetes,omitempty"`
+	KubernetesAuthz *KubernetesAuthz `json:"kubernetes,omitempty"`
 }
 
-// KubernetesAuth provides a way to define the authorization settings using Kubernetes RBAC resources.
+// KubernetesAuthz provides a way to define the authorization settings using Kubernetes RBAC resources.
 // https://kubernetes.io/docs/reference/access-authn-authz/rbac/
-type KubernetesAuth struct {
+type KubernetesAuthz struct {
 	// The Kubernetes RBAC roles to be deployed in the same namespace of the FeatureStore.
 	// Roles are managed by the operator and created with an empty list of rules.
 	// See the Feast permission model at https://docs.feast.dev/getting-started/concepts/permission
