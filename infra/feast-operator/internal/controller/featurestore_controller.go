@@ -54,6 +54,7 @@ type FeatureStoreReconciler struct {
 //+kubebuilder:rbac:groups=feast.dev,resources=featurestores/finalizers,verbs=update
 //+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;create;update;watch;delete
 //+kubebuilder:rbac:groups=core,resources=services;configmaps;persistentvolumeclaims;serviceaccounts,verbs=get;list;create;update;watch;delete
+//+kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.

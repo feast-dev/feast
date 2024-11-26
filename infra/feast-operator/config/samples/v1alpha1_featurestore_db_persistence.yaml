@@ -1,0 +1,15 @@
+apiVersion: feast.dev/v1alpha1
+kind: FeatureStore
+metadata:
+  name: example
+  namespace: test
+spec:
+  feastProject: my_project
+  services:
+    onlineStore:
+      persistence:
+        store:
+          type: postgres
+          secretRef:
+            name: my-secret
+          secretKeyName: mykey   # optional
