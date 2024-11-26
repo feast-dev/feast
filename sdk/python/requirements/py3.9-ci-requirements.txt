@@ -326,7 +326,7 @@ ibis-framework[duckdb]==9.0.0
     #   ibis-substrait
 ibis-substrait==4.0.1
     # via feast (setup.py)
-identify==2.6.2
+identify==2.6.3
     # via pre-commit
 idna==3.10
     # via
@@ -848,7 +848,7 @@ setuptools==75.6.0
     #   kubernetes
     #   pip-tools
     #   singlestoredb
-singlestoredb==1.8.0
+singlestoredb==1.7.2
     # via feast (setup.py)
 six==1.16.0
     # via
@@ -988,7 +988,7 @@ types-redis==4.6.0.20241004
     # via feast (setup.py)
 types-requests==2.30.0.0
     # via feast (setup.py)
-types-setuptools==75.5.0.20241122
+types-setuptools==75.6.0.20241126
     # via
     #   feast (setup.py)
     #   types-cffi

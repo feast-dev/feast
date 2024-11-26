@@ -140,7 +140,7 @@ DELTA_REQUIRED = ["deltalake"]
 
 ELASTICSEARCH_REQUIRED = ["elasticsearch>=8.13.0"]
 
-SINGLESTORE_REQUIRED = ["singlestoredb<=1.8.0"]
+SINGLESTORE_REQUIRED = ["singlestoredb<1.8.0"]
 
 COUCHBASE_REQUIRED = ["couchbase==4.3.2"]
 
