@@ -48,8 +48,8 @@ spec:
           spec:
             description: FeatureStoreSpec defines the desired state of FeatureStore
             properties:
-              auth:
-                description: AuthConfig defines the authorization settings for the
+              authz:
+                description: AuthzConfig defines the authorization settings for the
                   deployed Feast services.
                 properties:
                   kubernetes:
@@ -1217,8 +1217,8 @@ spec:
                 description: Shows the currently applied feast configuration, including
                   any pertinent defaults
                 properties:
-                  auth:
-                    description: AuthConfig defines the authorization settings for
+                  authz:
+                    description: AuthzConfig defines the authorization settings for
                       the deployed Feast services.
                     properties:
                       kubernetes:
