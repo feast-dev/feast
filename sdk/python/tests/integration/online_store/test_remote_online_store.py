@@ -23,7 +23,10 @@ logger = logging.getLogger(__name__)
 
 @pytest.mark.integration
 def test_remote_online_store_read(auth_config, tls_mode):
-    with tempfile.TemporaryDirectory() as remote_server_tmp_dir, tempfile.TemporaryDirectory() as remote_client_tmp_dir:
+    with (
+        tempfile.TemporaryDirectory() as remote_server_tmp_dir,
+        tempfile.TemporaryDirectory() as remote_client_tmp_dir,
+    ):
         permissions_list = [
             Permission(
                 name="online_list_fv_perm",
