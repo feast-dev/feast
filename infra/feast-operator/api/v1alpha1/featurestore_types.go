@@ -36,21 +36,21 @@ const (
 	AuthorizationReadyType = "AuthorizationReadyType"
 
 	// Feast condition reasons:
-	ReadyReason                = "Ready"
-	FailedReason               = "FeatureStoreFailed"
-	OfflineStoreFailedReason   = "OfflineStoreDeploymentFailed"
-	OnlineStoreFailedReason    = "OnlineStoreDeploymentFailed"
-	RegistryFailedReason       = "RegistryDeploymentFailed"
-	ClientFailedReason         = "ClientDeploymentFailed"
-	KubernetesAuthFailedReason = "KubernetesAuthorizationDeploymentFailed"
+	ReadyReason                 = "Ready"
+	FailedReason                = "FeatureStoreFailed"
+	OfflineStoreFailedReason    = "OfflineStoreDeploymentFailed"
+	OnlineStoreFailedReason     = "OnlineStoreDeploymentFailed"
+	RegistryFailedReason        = "RegistryDeploymentFailed"
+	ClientFailedReason          = "ClientDeploymentFailed"
+	KubernetesAuthzFailedReason = "KubernetesAuthorizationDeploymentFailed"
 
 	// Feast condition messages:
-	ReadyMessage               = "FeatureStore installation complete"
-	OfflineStoreReadyMessage   = "Offline Store installation complete"
-	OnlineStoreReadyMessage    = "Online Store installation complete"
-	RegistryReadyMessage       = "Registry installation complete"
-	ClientReadyMessage         = "Client installation complete"
-	KubernetesAuthReadyMessage = "Kubernetes authorization installation complete"
+	ReadyMessage                = "FeatureStore installation complete"
+	OfflineStoreReadyMessage    = "Offline Store installation complete"
+	OnlineStoreReadyMessage     = "Online Store installation complete"
+	RegistryReadyMessage        = "Registry installation complete"
+	ClientReadyMessage          = "Client installation complete"
+	KubernetesAuthzReadyMessage = "Kubernetes authorization installation complete"
 
 	// entity_key_serialization_version
 	SerializationVersion = 3
@@ -269,12 +269,12 @@ type OptionalConfigs struct {
 
 // AuthzConfig defines the authorization settings for the deployed Feast services.
 type AuthzConfig struct {
-	KubernetesAuth *KubernetesAuth `json:"kubernetes,omitempty"`
+	KubernetesAuthz *KubernetesAuthz `json:"kubernetes,omitempty"`
 }
 
-// KubernetesAuth provides a way to define the authorization settings using Kubernetes RBAC resources.
+// KubernetesAuthz provides a way to define the authorization settings using Kubernetes RBAC resources.
 // https://kubernetes.io/docs/reference/access-authn-authz/rbac/
-type KubernetesAuth struct {
+type KubernetesAuthz struct {
 	// The Kubernetes RBAC roles to be deployed in the same namespace of the FeatureStore.
 	// Roles are managed by the operator and created with an empty list of rules.
 	// See the Feast permission model at https://docs.feast.dev/getting-started/concepts/permission

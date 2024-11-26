@@ -59,8 +59,8 @@ const (
 
 	LocalProviderType FeastProviderType = "local"
 
-	NoAuthAuthType     AuthType = "no_auth"
-	KubernetesAuthType AuthType = "kubernetes"
+	NoAuthAuthType     AuthzType = "no_auth"
+	KubernetesAuthType AuthzType = "kubernetes"
 )
 
 var (
@@ -140,8 +140,8 @@ var (
 	}
 )
 
-// AuthType defines the authorization type
-type AuthType string
+// AuthzType defines the authorization type
+type AuthzType string
 
 // FeastServiceType is the type of feast service
 type FeastServiceType string
@@ -200,7 +200,7 @@ type RegistryConfig struct {
 
 // AuthzConfig is the RBAC authorization configuration.
 type AuthzConfig struct {
-	Type AuthType `yaml:"type,omitempty"`
+	Type AuthzType `yaml:"type,omitempty"`
 }
 
 type deploymentSettings struct {

@@ -19,8 +19,8 @@ import (
 func (authz *FeastAuthorization) Deploy() error {
 	authzConfig := authz.Handler.FeatureStore.Status.Applied.AuthzConfig
 	if authzConfig != nil {
-		if authzConfig.KubernetesAuth != nil {
-			if err := authz.deployKubernetesAuth(authzConfig.KubernetesAuth); err != nil {
+		if authzConfig.KubernetesAuthz != nil {
+			if err := authz.deployKubernetesAuth(authzConfig.KubernetesAuthz); err != nil {
 				return err
 			}
 		} else {
@@ -32,7 +32,7 @@ func (authz *FeastAuthorization) Deploy() error {
 	return nil
 }
 
-func (authz *FeastAuthorization) deployKubernetesAuth(kubernetesAuth *feastdevv1alpha1.KubernetesAuth) error {
+func (authz *FeastAuthorization) deployKubernetesAuth(kubernetesAuth *feastdevv1alpha1.KubernetesAuthz) error {
 	authz.removeOrphanedRoles()
 
 	if err := authz.createFeastRole(); err != nil {
@@ -61,8 +61,8 @@ func (authz *FeastAuthorization) removeOrphanedRoles() {
 	}
 
 	desiredRoles := []string{}
-	if authz.Handler.FeatureStore.Status.Applied.AuthzConfig.KubernetesAuth != nil {
-		desiredRoles = authz.Handler.FeatureStore.Status.Applied.AuthzConfig.KubernetesAuth.Roles
+	if authz.Handler.FeatureStore.Status.Applied.AuthzConfig.KubernetesAuthz != nil {
+		desiredRoles = authz.Handler.FeatureStore.Status.Applied.AuthzConfig.KubernetesAuthz.Roles
 	}
 	for _, role := range roleList.Items {
 		roleName := role.Name

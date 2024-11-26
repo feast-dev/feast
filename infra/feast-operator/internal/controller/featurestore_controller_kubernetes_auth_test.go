@@ -63,7 +63,7 @@ var _ = Describe("FeatureStore Controller-Kubernetes authorization", func() {
 			err := k8sClient.Get(ctx, typeNamespacedName, featurestore)
 			if err != nil && errors.IsNotFound(err) {
 				resource := createFeatureStoreResource(resourceName, image, pullPolicy, &[]corev1.EnvVar{})
-				resource.Spec.AuthzConfig = &feastdevv1alpha1.AuthzConfig{KubernetesAuth: &feastdevv1alpha1.KubernetesAuth{
+				resource.Spec.AuthzConfig = &feastdevv1alpha1.AuthzConfig{KubernetesAuthz: &feastdevv1alpha1.KubernetesAuthz{
 					Roles: roles,
 				}}
 
@@ -108,7 +108,7 @@ var _ = Describe("FeatureStore Controller-Kubernetes authorization", func() {
 			Expect(resource.Status.ClientConfigMap).To(Equal(feast.GetFeastServiceName(services.ClientFeastType)))
 			Expect(resource.Status.Applied.FeastProject).To(Equal(resource.Spec.FeastProject))
 			expectedAuthzConfig := &feastdevv1alpha1.AuthzConfig{
-				KubernetesAuth: &feastdevv1alpha1.KubernetesAuth{
+				KubernetesAuthz: &feastdevv1alpha1.KubernetesAuthz{
 					Roles: roles,
 				},
 			}
@@ -155,7 +155,7 @@ var _ = Describe("FeatureStore Controller-Kubernetes authorization", func() {
 			Expect(cond.Status).To(Equal(metav1.ConditionTrue))
 			Expect(cond.Reason).To(Equal(feastdevv1alpha1.ReadyReason))
 			Expect(cond.Type).To(Equal(feastdevv1alpha1.AuthorizationReadyType))
-			Expect(cond.Message).To(Equal(feastdevv1alpha1.KubernetesAuthReadyMessage))
+			Expect(cond.Message).To(Equal(feastdevv1alpha1.KubernetesAuthzReadyMessage))
 
 			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.RegistryReadyType)
 			Expect(cond).ToNot(BeNil())
@@ -297,7 +297,7 @@ var _ = Describe("FeatureStore Controller-Kubernetes authorization", func() {
 			By("Updating the user roled and reconciling")
 			resourceNew := resource.DeepCopy()
 			rolesNew := roles[1:]
-			resourceNew.Spec.AuthzConfig.KubernetesAuth.Roles = rolesNew
+			resourceNew.Spec.AuthzConfig.KubernetesAuthz.Roles = rolesNew
 			err = k8sClient.Update(ctx, resourceNew)
 			Expect(err).NotTo(HaveOccurred())
 			_, err = controllerReconciler.Reconcile(ctx, reconcile.Request{

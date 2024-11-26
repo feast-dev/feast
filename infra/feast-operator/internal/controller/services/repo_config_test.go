@@ -198,7 +198,7 @@ var _ = Describe("Repo Config", func() {
 			By("Having kubernetes authorization")
 			featureStore = minimalFeatureStore()
 			featureStore.Spec.AuthzConfig = &feastdevv1alpha1.AuthzConfig{
-				KubernetesAuth: &feastdevv1alpha1.KubernetesAuth{},
+				KubernetesAuthz: &feastdevv1alpha1.KubernetesAuthz{},
 			}
 			featureStore.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
 				OfflineStore: &feastdevv1alpha1.OfflineStore{

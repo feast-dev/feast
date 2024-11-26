@@ -17,12 +17,12 @@ var (
 			Type:    feastdevv1alpha1.AuthorizationReadyType,
 			Status:  metav1.ConditionTrue,
 			Reason:  feastdevv1alpha1.ReadyReason,
-			Message: feastdevv1alpha1.KubernetesAuthReadyMessage,
+			Message: feastdevv1alpha1.KubernetesAuthzReadyMessage,
 		},
 		metav1.ConditionFalse: {
 			Type:   feastdevv1alpha1.AuthorizationReadyType,
 			Status: metav1.ConditionFalse,
-			Reason: feastdevv1alpha1.KubernetesAuthFailedReason,
+			Reason: feastdevv1alpha1.KubernetesAuthzFailedReason,
 		},
 	}
 )
