@@ -18,7 +18,7 @@ spec:
         persistence:
           file:
             path: /data/registry.db
-  auth:
+  authz:
     kubernetes:
       roles:
         - reader

@@ -377,11 +377,11 @@ var _ = Describe("FeatureStore API", func() {
 			storage = resource.Status.Applied.Services.Registry.Local.Persistence.FilePersistence.PvcConfig.Create.Resources.Requests.Storage().String()
 			Expect(storage).To(Equal("500Mi"))
 		})
-		It("should set the default AuthConfig", func() {
+		It("should set the default AuthzConfig", func() {
 			resource := featurestore
 			services.ApplyDefaultsToStatus(resource)
-			Expect(resource.Status.Applied.AuthConfig).ToNot(BeNil())
-			Expect(resource.Status.Applied.AuthConfig).To(Equal(&feastdevv1alpha1.AuthConfig{}))
+			Expect(resource.Status.Applied.AuthzConfig).ToNot(BeNil())
+			Expect(resource.Status.Applied.AuthzConfig).To(Equal(&feastdevv1alpha1.AuthzConfig{}))
 		})
 	})
 })

@@ -39,21 +39,21 @@ var _ = Describe("Repo Config", func() {
 			var repoConfig RepoConfig
 			repoConfig, err := getServiceRepoConfig(OfflineFeastType, featureStore, emptyMockExtractConfigFromSecret)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(repoConfig.AuthConfig.Type).To(Equal(NoAuthAuthType))
+			Expect(repoConfig.AuthzConfig.Type).To(Equal(NoAuthAuthType))
 			Expect(repoConfig.OfflineStore).To(Equal(emptyOfflineStoreConfig()))
 			Expect(repoConfig.OnlineStore).To(Equal(emptyOnlineStoreConfig()))
 			Expect(repoConfig.Registry).To(Equal(emptyRegistryConfig()))
 
 			repoConfig, err = getServiceRepoConfig(OnlineFeastType, featureStore, emptyMockExtractConfigFromSecret)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(repoConfig.AuthConfig.Type).To(Equal(NoAuthAuthType))
+			Expect(repoConfig.AuthzConfig.Type).To(Equal(NoAuthAuthType))
 			Expect(repoConfig.OfflineStore).To(Equal(emptyOfflineStoreConfig()))
 			Expect(repoConfig.OnlineStore).To(Equal(emptyOnlineStoreConfig()))
 			Expect(repoConfig.Registry).To(Equal(emptyRegistryConfig()))
 
 			repoConfig, err = getServiceRepoConfig(RegistryFeastType, featureStore, emptyMockExtractConfigFromSecret)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(repoConfig.AuthConfig.Type).To(Equal(NoAuthAuthType))
+			Expect(repoConfig.AuthzConfig.Type).To(Equal(NoAuthAuthType))
 			Expect(repoConfig.OfflineStore).To(Equal(emptyOfflineStoreConfig()))
 			Expect(repoConfig.OnlineStore).To(Equal(emptyOnlineStoreConfig()))
 			expectedRegistryConfig := RegistryConfig{
@@ -78,21 +78,21 @@ var _ = Describe("Repo Config", func() {
 			ApplyDefaultsToStatus(featureStore)
 			repoConfig, err = getServiceRepoConfig(OfflineFeastType, featureStore, emptyMockExtractConfigFromSecret)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(repoConfig.AuthConfig.Type).To(Equal(NoAuthAuthType))
+			Expect(repoConfig.AuthzConfig.Type).To(Equal(NoAuthAuthType))
 			Expect(repoConfig.OfflineStore).To(Equal(emptyOfflineStoreConfig()))
 			Expect(repoConfig.OnlineStore).To(Equal(emptyOnlineStoreConfig()))
 			Expect(repoConfig.Registry).To(Equal(emptyRegistryConfig()))
 
 			repoConfig, err = getServiceRepoConfig(OnlineFeastType, featureStore, emptyMockExtractConfigFromSecret)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(repoConfig.AuthConfig.Type).To(Equal(NoAuthAuthType))
+			Expect(repoConfig.AuthzConfig.Type).To(Equal(NoAuthAuthType))
 			Expect(repoConfig.OfflineStore).To(Equal(emptyOfflineStoreConfig()))
 			Expect(repoConfig.OnlineStore).To(Equal(emptyOnlineStoreConfig()))
 			Expect(repoConfig.Registry).To(Equal(emptyRegistryConfig()))
 
 			repoConfig, err = getServiceRepoConfig(RegistryFeastType, featureStore, emptyMockExtractConfigFromSecret)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(repoConfig.AuthConfig.Type).To(Equal(NoAuthAuthType))
+			Expect(repoConfig.AuthzConfig.Type).To(Equal(NoAuthAuthType))
 			Expect(repoConfig.OfflineStore).To(Equal(emptyOfflineStoreConfig()))
 			Expect(repoConfig.OnlineStore).To(Equal(emptyOnlineStoreConfig()))
 			expectedRegistryConfig = RegistryConfig{
@@ -116,21 +116,21 @@ var _ = Describe("Repo Config", func() {
 			ApplyDefaultsToStatus(featureStore)
 			repoConfig, err = getServiceRepoConfig(OfflineFeastType, featureStore, emptyMockExtractConfigFromSecret)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(repoConfig.AuthConfig.Type).To(Equal(NoAuthAuthType))
+			Expect(repoConfig.AuthzConfig.Type).To(Equal(NoAuthAuthType))
 			Expect(repoConfig.OfflineStore).To(Equal(emptyOfflineStoreConfig()))
 			Expect(repoConfig.OnlineStore).To(Equal(emptyOnlineStoreConfig()))
 			Expect(repoConfig.Registry).To(Equal(emptyRegistryConfig()))
 
 			repoConfig, err = getServiceRepoConfig(OnlineFeastType, featureStore, emptyMockExtractConfigFromSecret)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(repoConfig.AuthConfig.Type).To(Equal(NoAuthAuthType))
+			Expect(repoConfig.AuthzConfig.Type).To(Equal(NoAuthAuthType))
 			Expect(repoConfig.OfflineStore).To(Equal(emptyOfflineStoreConfig()))
 			Expect(repoConfig.OnlineStore).To(Equal(emptyOnlineStoreConfig()))
 			Expect(repoConfig.Registry).To(Equal(emptyRegistryConfig()))
 
 			repoConfig, err = getServiceRepoConfig(RegistryFeastType, featureStore, emptyMockExtractConfigFromSecret)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(repoConfig.AuthConfig.Type).To(Equal(NoAuthAuthType))
+			Expect(repoConfig.AuthzConfig.Type).To(Equal(NoAuthAuthType))
 			Expect(repoConfig.OfflineStore).To(Equal(emptyOfflineStoreConfig()))
 			Expect(repoConfig.OnlineStore).To(Equal(emptyOnlineStoreConfig()))
 			Expect(repoConfig.Registry).To(Equal(emptyRegistryConfig()))
@@ -165,7 +165,7 @@ var _ = Describe("Repo Config", func() {
 			ApplyDefaultsToStatus(featureStore)
 			repoConfig, err = getServiceRepoConfig(OfflineFeastType, featureStore, emptyMockExtractConfigFromSecret)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(repoConfig.AuthConfig.Type).To(Equal(NoAuthAuthType))
+			Expect(repoConfig.AuthzConfig.Type).To(Equal(NoAuthAuthType))
 			expectedOfflineConfig := OfflineStoreConfig{
 				Type: "duckdb",
 			}
@@ -175,7 +175,7 @@ var _ = Describe("Repo Config", func() {
 
 			repoConfig, err = getServiceRepoConfig(OnlineFeastType, featureStore, emptyMockExtractConfigFromSecret)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(repoConfig.AuthConfig.Type).To(Equal(NoAuthAuthType))
+			Expect(repoConfig.AuthzConfig.Type).To(Equal(NoAuthAuthType))
 			Expect(repoConfig.OfflineStore).To(Equal(emptyOfflineStoreConfig()))
 			expectedOnlineConfig := OnlineStoreConfig{
 				Type: "sqlite",
@@ -186,7 +186,7 @@ var _ = Describe("Repo Config", func() {
 
 			repoConfig, err = getServiceRepoConfig(RegistryFeastType, featureStore, emptyMockExtractConfigFromSecret)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(repoConfig.AuthConfig.Type).To(Equal(NoAuthAuthType))
+			Expect(repoConfig.AuthzConfig.Type).To(Equal(NoAuthAuthType))
 			Expect(repoConfig.OfflineStore).To(Equal(emptyOfflineStoreConfig()))
 			Expect(repoConfig.OnlineStore).To(Equal(emptyOnlineStoreConfig()))
 			expectedRegistryConfig = RegistryConfig{
@@ -195,9 +195,9 @@ var _ = Describe("Repo Config", func() {
 			}
 			Expect(repoConfig.Registry).To(Equal(expectedRegistryConfig))
 
-			By("Having kubernetes auth")
+			By("Having kubernetes authorization")
 			featureStore = minimalFeatureStore()
-			featureStore.Spec.AuthConfig = &feastdevv1alpha1.AuthConfig{
+			featureStore.Spec.AuthzConfig = &feastdevv1alpha1.AuthzConfig{
 				KubernetesAuth: &feastdevv1alpha1.KubernetesAuth{},
 			}
 			featureStore.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
@@ -222,7 +222,7 @@ var _ = Describe("Repo Config", func() {
 			ApplyDefaultsToStatus(featureStore)
 			repoConfig, err = getServiceRepoConfig(OfflineFeastType, featureStore)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(repoConfig.AuthConfig.Type).To(Equal(KubernetesAuthType))
+			Expect(repoConfig.AuthzConfig.Type).To(Equal(KubernetesAuthType))
 			expectedOfflineConfig = OfflineStoreConfig{
 				Type: "dask",
 			}
@@ -232,7 +232,7 @@ var _ = Describe("Repo Config", func() {
 
 			repoConfig, err = getServiceRepoConfig(OnlineFeastType, featureStore)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(repoConfig.AuthConfig.Type).To(Equal(KubernetesAuthType))
+			Expect(repoConfig.AuthzConfig.Type).To(Equal(KubernetesAuthType))
 			Expect(repoConfig.OfflineStore).To(Equal(emptyOfflineStoreConfig()))
 			expectedOnlineConfig = OnlineStoreConfig{
 				Type: "sqlite",
@@ -243,7 +243,7 @@ var _ = Describe("Repo Config", func() {
 
 			repoConfig, err = getServiceRepoConfig(RegistryFeastType, featureStore)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(repoConfig.AuthConfig.Type).To(Equal(KubernetesAuthType))
+			Expect(repoConfig.AuthzConfig.Type).To(Equal(KubernetesAuthType))
 			Expect(repoConfig.OfflineStore).To(Equal(emptyOfflineStoreConfig()))
 			Expect(repoConfig.OnlineStore).To(Equal(emptyOnlineStoreConfig()))
 			expectedRegistryConfig = RegistryConfig{

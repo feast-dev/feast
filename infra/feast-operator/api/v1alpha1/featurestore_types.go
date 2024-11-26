@@ -28,12 +28,12 @@ const (
 	FailedPhase  = "Failed"
 
 	// Feast condition types:
-	ClientReadyType         = "Client"
-	OfflineStoreReadyType   = "OfflineStore"
-	OnlineStoreReadyType    = "OnlineStore"
-	RegistryReadyType       = "Registry"
-	ReadyType               = "FeatureStore"
-	KubernetesAuthReadyType = "KubernetesAuth"
+	ClientReadyType        = "Client"
+	OfflineStoreReadyType  = "OfflineStore"
+	OnlineStoreReadyType   = "OnlineStore"
+	RegistryReadyType      = "Registry"
+	ReadyType              = "FeatureStore"
+	AuthorizationReadyType = "AuthorizationReadyType"
 
 	// Feast condition reasons:
 	ReadyReason                = "Ready"
@@ -62,7 +62,7 @@ type FeatureStoreSpec struct {
 	// FeastProject is the Feast project id. This can be any alphanumeric string with underscores, but it cannot start with an underscore. Required.
 	FeastProject string                `json:"feastProject"`
 	Services     *FeatureStoreServices `json:"services,omitempty"`
-	AuthConfig   *AuthConfig           `json:"auth,omitempty"`
+	AuthzConfig  *AuthzConfig          `json:"authz,omitempty"`
 }
 
 // FeatureStoreServices defines the desired feast service deployments. ephemeral registry is deployed by default.
@@ -267,8 +267,8 @@ type OptionalConfigs struct {
 	Resources       *corev1.ResourceRequirements `json:"resources,omitempty"`
 }
 
-// AuthConfig defines the authorization settings for the deployed Feast services.
-type AuthConfig struct {
+// AuthzConfig defines the authorization settings for the deployed Feast services.
+type AuthzConfig struct {
 	KubernetesAuth *KubernetesAuth `json:"kubernetes,omitempty"`
 }
 

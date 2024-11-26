@@ -133,7 +133,7 @@ var _ = Describe("FeatureStore Controller", func() {
 			Expect(resource.Status.ServiceHostnames.OnlineStore).To(BeEmpty())
 			Expect(resource.Status.ServiceHostnames.Registry).To(Equal(feast.GetFeastServiceName(services.RegistryFeastType) + "." + resource.Namespace + ".svc.cluster.local:80"))
 			Expect(resource.Status.Applied.FeastProject).To(Equal(resource.Spec.FeastProject))
-			Expect(resource.Status.Applied.AuthConfig).To(Equal(&feastdevv1alpha1.AuthConfig{}))
+			Expect(resource.Status.Applied.AuthzConfig).To(Equal(&feastdevv1alpha1.AuthzConfig{}))
 			Expect(resource.Status.Applied.Services).NotTo(BeNil())
 			Expect(resource.Status.Applied.Services.OfflineStore).To(BeNil())
 			Expect(resource.Status.Applied.Services.OnlineStore).To(BeNil())
@@ -246,7 +246,7 @@ var _ = Describe("FeatureStore Controller", func() {
 					RegistryType: services.RegistryFileConfigType,
 					Path:         services.DefaultRegistryEphemeralPath,
 				},
-				AuthConfig: noAuthConfig(),
+				AuthzConfig: noAuthzConfig(),
 			}
 			Expect(repoConfig).To(Equal(testConfig))
 
@@ -270,7 +270,7 @@ var _ = Describe("FeatureStore Controller", func() {
 					RegistryType: services.RegistryRemoteConfigType,
 					Path:         "feast-test-resource-registry.default.svc.cluster.local:80",
 				},
-				AuthConfig: noAuthConfig(),
+				AuthzConfig: noAuthzConfig(),
 			}
 			Expect(repoConfigClient).To(Equal(clientConfig))
 
@@ -377,7 +377,7 @@ var _ = Describe("FeatureStore Controller", func() {
 			Expect(cond.Reason).To(Equal(feastdevv1alpha1.FailedReason))
 			Expect(cond.Message).To(Equal("Error: Object " + resource.Namespace + "/" + name + " is already owned by another Service controller " + name))
 
-			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.KubernetesAuthReadyType)
+			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.AuthorizationReadyType)
 			Expect(cond).To(BeNil())
 
 			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.RegistryReadyType)
@@ -458,7 +458,7 @@ var _ = Describe("FeatureStore Controller", func() {
 			Expect(resource.Status.FeastVersion).To(Equal(feastversion.FeastVersion))
 			Expect(resource.Status.ClientConfigMap).To(Equal(feast.GetFeastServiceName(services.ClientFeastType)))
 			Expect(resource.Status.Applied.FeastProject).To(Equal(resource.Spec.FeastProject))
-			Expect(resource.Status.Applied.AuthConfig).To(Equal(&feastdevv1alpha1.AuthConfig{}))
+			Expect(resource.Status.Applied.AuthzConfig).To(Equal(&feastdevv1alpha1.AuthzConfig{}))
 			Expect(resource.Status.Applied.Services).NotTo(BeNil())
 			Expect(resource.Status.Applied.Services.OfflineStore).NotTo(BeNil())
 			Expect(resource.Status.Applied.Services.OfflineStore.Persistence).NotTo(BeNil())
@@ -496,7 +496,7 @@ var _ = Describe("FeatureStore Controller", func() {
 			Expect(cond.Type).To(Equal(feastdevv1alpha1.ReadyType))
 			Expect(cond.Message).To(Equal(feastdevv1alpha1.ReadyMessage))
 
-			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.KubernetesAuthReadyType)
+			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.AuthorizationReadyType)
 			Expect(cond).To(BeNil())
 
 			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.RegistryReadyType)
@@ -632,7 +632,7 @@ var _ = Describe("FeatureStore Controller", func() {
 					RegistryType: services.RegistryFileConfigType,
 					Path:         services.DefaultRegistryEphemeralPath,
 				},
-				AuthConfig: noAuthConfig(),
+				AuthzConfig: noAuthzConfig(),
 			}
 			Expect(repoConfig).To(Equal(testConfig))
 
@@ -670,8 +670,8 @@ var _ = Describe("FeatureStore Controller", func() {
 				OfflineStore: services.OfflineStoreConfig{
 					Type: services.OfflineFilePersistenceDaskConfigType,
 				},
-				Registry:   regRemote,
-				AuthConfig: noAuthConfig(),
+				Registry:    regRemote,
+				AuthzConfig: noAuthzConfig(),
 			}
 			Expect(repoConfigOffline).To(Equal(offlineConfig))
 
@@ -713,8 +713,8 @@ var _ = Describe("FeatureStore Controller", func() {
 					Path: services.DefaultOnlineStoreEphemeralPath,
 					Type: services.OnlineSqliteConfigType,
 				},
-				Registry:   regRemote,
-				AuthConfig: noAuthConfig(),
+				Registry:    regRemote,
+				AuthzConfig: noAuthzConfig(),
 			}
 			Expect(repoConfigOnline).To(Equal(onlineConfig))
 			Expect(deploy.Spec.Template.Spec.Containers[0].Env).To(HaveLen(3))
@@ -740,8 +740,8 @@ var _ = Describe("FeatureStore Controller", func() {
 					Path: "http://feast-services-online.default.svc.cluster.local:80",
 					Type: services.OnlineRemoteConfigType,
 				},
-				Registry:   regRemote,
-				AuthConfig: noAuthConfig(),
+				Registry:    regRemote,
+				AuthzConfig: noAuthzConfig(),
 			}
 			Expect(repoConfigClient).To(Equal(clientConfig))
 
@@ -984,7 +984,7 @@ var _ = Describe("FeatureStore Controller", func() {
 			Expect(err).To(HaveOccurred())
 			err = k8sClient.Get(ctx, nsName, resource)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.KubernetesAuthReadyType)).To(BeNil())
+			Expect(apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.AuthorizationReadyType)).To(BeNil())
 			Expect(apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.RegistryReadyType)).To(BeNil())
 			Expect(apimeta.IsStatusConditionTrue(resource.Status.Conditions, feastdevv1alpha1.ReadyType)).To(BeFalse())
 			cond := apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.ReadyType)
@@ -1000,7 +1000,7 @@ var _ = Describe("FeatureStore Controller", func() {
 			Expect(err).To(HaveOccurred())
 			err = k8sClient.Get(ctx, nsName, resource)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.KubernetesAuthReadyType)).To(BeNil())
+			Expect(apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.AuthorizationReadyType)).To(BeNil())
 			Expect(apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.RegistryReadyType)).To(BeNil())
 			Expect(apimeta.IsStatusConditionTrue(resource.Status.Conditions, feastdevv1alpha1.ReadyType)).To(BeFalse())
 			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.ReadyType)
@@ -1018,7 +1018,7 @@ var _ = Describe("FeatureStore Controller", func() {
 			err = k8sClient.Get(ctx, nsName, resource)
 			Expect(err).NotTo(HaveOccurred())
 
-			Expect(apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.KubernetesAuthReadyType)).To(BeNil())
+			Expect(apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.AuthorizationReadyType)).To(BeNil())
 			Expect(apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.RegistryReadyType)).To(BeNil())
 			Expect(apimeta.IsStatusConditionTrue(resource.Status.Conditions, feastdevv1alpha1.ReadyType)).To(BeTrue())
 			Expect(apimeta.IsStatusConditionTrue(resource.Status.Conditions, feastdevv1alpha1.OnlineStoreReadyType)).To(BeTrue())
@@ -1062,7 +1062,7 @@ var _ = Describe("FeatureStore Controller", func() {
 					RegistryType: services.RegistryRemoteConfigType,
 					Path:         "feast-" + referencedRegistry.Name + "-registry.default.svc.cluster.local:80",
 				},
-				AuthConfig: noAuthConfig(),
+				AuthzConfig: noAuthzConfig(),
 			}
 			Expect(repoConfigClient).To(Equal(clientConfig))
 
@@ -1087,7 +1087,7 @@ var _ = Describe("FeatureStore Controller", func() {
 			err = k8sClient.Get(ctx, nsName, resource)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(resource.Status.ServiceHostnames.Registry).To(BeEmpty())
-			Expect(apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.KubernetesAuthReadyType)).To(BeNil())
+			Expect(apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.AuthorizationReadyType)).To(BeNil())
 			Expect(apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.RegistryReadyType)).To(BeNil())
 			Expect(apimeta.IsStatusConditionTrue(resource.Status.Conditions, feastdevv1alpha1.ReadyType)).To(BeFalse())
 			Expect(apimeta.IsStatusConditionTrue(resource.Status.Conditions, feastdevv1alpha1.OnlineStoreReadyType)).To(BeTrue())
@@ -1165,7 +1165,7 @@ var _ = Describe("FeatureStore Controller", func() {
 			Expect(cond.Reason).To(Equal(feastdevv1alpha1.FailedReason))
 			Expect(cond.Message).To(Equal("Error: Object " + resource.Namespace + "/" + name + " is already owned by another Service controller " + name))
 
-			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.KubernetesAuthReadyType)
+			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.AuthorizationReadyType)
 			Expect(cond).To(BeNil())
 
 			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.RegistryReadyType)
@@ -1286,8 +1286,8 @@ func getFeatureStoreYamlEnvVar(envs []corev1.EnvVar) *corev1.EnvVar {
 	return nil
 }
 
-func noAuthConfig() services.AuthConfig {
-	return services.AuthConfig{
+func noAuthzConfig() services.AuthzConfig {
+	return services.AuthzConfig{
 		Type: services.NoAuthAuthType,
 	}
 }

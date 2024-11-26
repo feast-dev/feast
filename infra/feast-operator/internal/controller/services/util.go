@@ -53,8 +53,8 @@ func ApplyDefaultsToStatus(cr *feastdevv1alpha1.FeatureStore) {
 	cr.Status.FeastVersion = feastversion.FeastVersion
 	applied := cr.Spec.DeepCopy()
 
-	if applied.AuthConfig == nil {
-		applied.AuthConfig = &feastdevv1alpha1.AuthConfig{}
+	if applied.AuthzConfig == nil {
+		applied.AuthzConfig = &feastdevv1alpha1.AuthzConfig{}
 	}
 
 	if applied.Services == nil {

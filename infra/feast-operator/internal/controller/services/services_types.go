@@ -171,7 +171,7 @@ type RepoConfig struct {
 	OfflineStore                  OfflineStoreConfig `yaml:"offline_store,omitempty"`
 	OnlineStore                   OnlineStoreConfig  `yaml:"online_store,omitempty"`
 	Registry                      RegistryConfig     `yaml:"registry,omitempty"`
-	AuthConfig                    AuthConfig         `yaml:"auth,omitempty"`
+	AuthzConfig                   AuthzConfig        `yaml:"auth,omitempty"`
 	EntityKeySerializationVersion int                `yaml:"entity_key_serialization_version,omitempty"`
 }
 
@@ -198,8 +198,8 @@ type RegistryConfig struct {
 	DBParameters       map[string]interface{} `yaml:",inline,omitempty"`
 }
 
-// AuthConfig is the RBAC authorization configuration.
-type AuthConfig struct {
+// AuthzConfig is the RBAC authorization configuration.
+type AuthzConfig struct {
 	Type AuthType `yaml:"type,omitempty"`
 }
 

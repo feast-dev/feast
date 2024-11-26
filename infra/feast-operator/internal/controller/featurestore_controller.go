@@ -36,7 +36,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	feastdevv1alpha1 "github.com/feast-dev/feast/infra/feast-operator/api/v1alpha1"
-	"github.com/feast-dev/feast/infra/feast-operator/internal/controller/auth"
+	"github.com/feast-dev/feast/infra/feast-operator/internal/controller/authz"
 	feasthandler "github.com/feast-dev/feast/infra/feast-operator/internal/controller/handler"
 	"github.com/feast-dev/feast/infra/feast-operator/internal/controller/services"
 )
@@ -111,7 +111,7 @@ func (r *FeatureStoreReconciler) deployFeast(ctx context.Context, cr *feastdevv1
 		Message: feastdevv1alpha1.ReadyMessage,
 	}
 
-	auth := auth.FeastAuth{
+	authz := authz.FeastAuthorization{
 		Handler: feasthandler.FeastHandler{
 			Client:       r.Client,
 			Context:      ctx,
@@ -119,7 +119,7 @@ func (r *FeatureStoreReconciler) deployFeast(ctx context.Context, cr *feastdevv1
 			Scheme:       r.Scheme,
 		},
 	}
-	if err = auth.Deploy(); err != nil {
+	if err = authz.Deploy(); err != nil {
 		condition = metav1.Condition{
 			Type:    feastdevv1alpha1.ReadyType,
 			Status:  metav1.ConditionFalse,

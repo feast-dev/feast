@@ -153,7 +153,7 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			Expect(resource.Status.FeastVersion).To(Equal(feastversion.FeastVersion))
 			Expect(resource.Status.ClientConfigMap).To(Equal(feast.GetFeastServiceName(services.ClientFeastType)))
 			Expect(resource.Status.Applied.FeastProject).To(Equal(resource.Spec.FeastProject))
-			Expect(resource.Status.Applied.AuthConfig).To(Equal(&feastdevv1alpha1.AuthConfig{}))
+			Expect(resource.Status.Applied.AuthzConfig).To(Equal(&feastdevv1alpha1.AuthzConfig{}))
 			Expect(resource.Status.Applied.Services).NotTo(BeNil())
 			Expect(resource.Status.Applied.Services.OfflineStore).NotTo(BeNil())
 			Expect(resource.Status.Applied.Services.OfflineStore.Persistence).NotTo(BeNil())
@@ -221,7 +221,7 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			Expect(cond.Type).To(Equal(feastdevv1alpha1.ReadyType))
 			Expect(cond.Message).To(Equal(feastdevv1alpha1.ReadyMessage))
 
-			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.KubernetesAuthReadyType)
+			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.AuthorizationReadyType)
 			Expect(cond).To(BeNil())
 
 			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.RegistryReadyType)
@@ -464,7 +464,7 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 					RegistryType: services.RegistryFileConfigType,
 					Path:         registryMountedPath,
 				},
-				AuthConfig: noAuthConfig(),
+				AuthzConfig: noAuthzConfig(),
 			}
 			Expect(repoConfig).To(Equal(testConfig))
 
@@ -502,8 +502,8 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 				OfflineStore: services.OfflineStoreConfig{
 					Type: services.OfflineFilePersistenceDuckDbConfigType,
 				},
-				Registry:   regRemote,
-				AuthConfig: noAuthConfig(),
+				Registry:    regRemote,
+				AuthzConfig: noAuthzConfig(),
 			}
 			Expect(repoConfigOffline).To(Equal(offlineConfig))
 
@@ -544,8 +544,8 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 					Path: onlineStoreMountedPath,
 					Type: services.OnlineSqliteConfigType,
 				},
-				Registry:   regRemote,
-				AuthConfig: noAuthConfig(),
+				Registry:    regRemote,
+				AuthzConfig: noAuthzConfig(),
 			}
 			Expect(repoConfigOnline).To(Equal(onlineConfig))
 			Expect(deploy.Spec.Template.Spec.Containers[0].Env).To(HaveLen(3))
@@ -571,8 +571,8 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 					Path: fmt.Sprintf("http://feast-%s-online.default.svc.cluster.local:80", resourceName),
 					Type: services.OnlineRemoteConfigType,
 				},
-				Registry:   regRemote,
-				AuthConfig: noAuthConfig(),
+				Registry:    regRemote,
+				AuthzConfig: noAuthzConfig(),
 			}
 			Expect(repoConfigClient).To(Equal(clientConfig))
 

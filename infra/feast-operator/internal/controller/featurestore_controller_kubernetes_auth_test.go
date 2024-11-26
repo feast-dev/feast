@@ -39,14 +39,14 @@ import (
 
 	"github.com/feast-dev/feast/infra/feast-operator/api/feastversion"
 	feastdevv1alpha1 "github.com/feast-dev/feast/infra/feast-operator/api/v1alpha1"
-	"github.com/feast-dev/feast/infra/feast-operator/internal/controller/auth"
+	"github.com/feast-dev/feast/infra/feast-operator/internal/controller/authz"
 	"github.com/feast-dev/feast/infra/feast-operator/internal/controller/handler"
 	"github.com/feast-dev/feast/infra/feast-operator/internal/controller/services"
 )
 
 var _ = Describe("FeatureStore Controller-Kubernetes authorization", func() {
 	Context("When deploying a resource with all ephemeral services and Kubernetes authorization", func() {
-		const resourceName = "kubernetes-auth"
+		const resourceName = "kubernetes-authorization"
 		var pullPolicy = corev1.PullAlways
 
 		ctx := context.Background()
@@ -63,7 +63,7 @@ var _ = Describe("FeatureStore Controller-Kubernetes authorization", func() {
 			err := k8sClient.Get(ctx, typeNamespacedName, featurestore)
 			if err != nil && errors.IsNotFound(err) {
 				resource := createFeatureStoreResource(resourceName, image, pullPolicy, &[]corev1.EnvVar{})
-				resource.Spec.AuthConfig = &feastdevv1alpha1.AuthConfig{KubernetesAuth: &feastdevv1alpha1.KubernetesAuth{
+				resource.Spec.AuthzConfig = &feastdevv1alpha1.AuthzConfig{KubernetesAuth: &feastdevv1alpha1.KubernetesAuth{
 					Roles: roles,
 				}}
 
@@ -107,12 +107,12 @@ var _ = Describe("FeatureStore Controller-Kubernetes authorization", func() {
 			Expect(resource.Status.FeastVersion).To(Equal(feastversion.FeastVersion))
 			Expect(resource.Status.ClientConfigMap).To(Equal(feast.GetFeastServiceName(services.ClientFeastType)))
 			Expect(resource.Status.Applied.FeastProject).To(Equal(resource.Spec.FeastProject))
-			expectedAuthConfig := &feastdevv1alpha1.AuthConfig{
+			expectedAuthzConfig := &feastdevv1alpha1.AuthzConfig{
 				KubernetesAuth: &feastdevv1alpha1.KubernetesAuth{
 					Roles: roles,
 				},
 			}
-			Expect(resource.Status.Applied.AuthConfig).To(Equal(expectedAuthConfig))
+			Expect(resource.Status.Applied.AuthzConfig).To(Equal(expectedAuthzConfig))
 			Expect(resource.Status.Applied.Services).NotTo(BeNil())
 			Expect(resource.Status.Applied.Services.OfflineStore).NotTo(BeNil())
 			Expect(resource.Status.Applied.Services.OfflineStore.Persistence).NotTo(BeNil())
@@ -150,11 +150,11 @@ var _ = Describe("FeatureStore Controller-Kubernetes authorization", func() {
 			Expect(cond.Type).To(Equal(feastdevv1alpha1.ReadyType))
 			Expect(cond.Message).To(Equal(feastdevv1alpha1.ReadyMessage))
 
-			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.KubernetesAuthReadyType)
+			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.AuthorizationReadyType)
 			Expect(cond).ToNot(BeNil())
 			Expect(cond.Status).To(Equal(metav1.ConditionTrue))
 			Expect(cond.Reason).To(Equal(feastdevv1alpha1.ReadyReason))
-			Expect(cond.Type).To(Equal(feastdevv1alpha1.KubernetesAuthReadyType))
+			Expect(cond.Type).To(Equal(feastdevv1alpha1.AuthorizationReadyType))
 			Expect(cond.Message).To(Equal(feastdevv1alpha1.KubernetesAuthReadyMessage))
 
 			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.RegistryReadyType)
@@ -244,7 +244,7 @@ var _ = Describe("FeatureStore Controller-Kubernetes authorization", func() {
 			// check Feast Role
 			feastRole := &rbacv1.Role{}
 			err = k8sClient.Get(ctx, types.NamespacedName{
-				Name:      auth.GetFeastRoleName(resource),
+				Name:      authz.GetFeastRoleName(resource),
 				Namespace: resource.Namespace,
 			},
 				feastRole)
@@ -264,7 +264,7 @@ var _ = Describe("FeatureStore Controller-Kubernetes authorization", func() {
 			// check RoleBinding
 			roleBinding := &rbacv1.RoleBinding{}
 			err = k8sClient.Get(ctx, types.NamespacedName{
-				Name:      auth.GetFeastRoleName(resource),
+				Name:      authz.GetFeastRoleName(resource),
 				Namespace: resource.Namespace,
 			},
 				roleBinding)
@@ -297,7 +297,7 @@ var _ = Describe("FeatureStore Controller-Kubernetes authorization", func() {
 			By("Updating the user roled and reconciling")
 			resourceNew := resource.DeepCopy()
 			rolesNew := roles[1:]
-			resourceNew.Spec.AuthConfig.KubernetesAuth.Roles = rolesNew
+			resourceNew.Spec.AuthzConfig.KubernetesAuth.Roles = rolesNew
 			err = k8sClient.Update(ctx, resourceNew)
 			Expect(err).NotTo(HaveOccurred())
 			_, err = controllerReconciler.Reconcile(ctx, reconcile.Request{
@@ -335,7 +335,7 @@ var _ = Describe("FeatureStore Controller-Kubernetes authorization", func() {
 
 			By("Clearing the kubernetes authorizatino and reconciling")
 			resourceNew = resource.DeepCopy()
-			resourceNew.Spec.AuthConfig = &feastdevv1alpha1.AuthConfig{}
+			resourceNew.Spec.AuthzConfig = &feastdevv1alpha1.AuthzConfig{}
 			err = k8sClient.Update(ctx, resourceNew)
 			Expect(err).NotTo(HaveOccurred())
 			_, err = controllerReconciler.Reconcile(ctx, reconcile.Request{
@@ -362,7 +362,7 @@ var _ = Describe("FeatureStore Controller-Kubernetes authorization", func() {
 			// check no RoleBinding
 			roleBinding = &rbacv1.RoleBinding{}
 			err = k8sClient.Get(ctx, types.NamespacedName{
-				Name:      auth.GetFeastRoleName(resource),
+				Name:      authz.GetFeastRoleName(resource),
 				Namespace: resource.Namespace,
 			},
 				roleBinding)
@@ -444,7 +444,7 @@ var _ = Describe("FeatureStore Controller-Kubernetes authorization", func() {
 					Path:               services.DefaultRegistryEphemeralPath,
 					S3AdditionalKwargs: nil,
 				},
-				AuthConfig: services.AuthConfig{
+				AuthzConfig: services.AuthzConfig{
 					Type: services.KubernetesAuthType,
 				},
 			}
@@ -483,7 +483,7 @@ var _ = Describe("FeatureStore Controller-Kubernetes authorization", func() {
 					Type: services.OfflineDaskConfigType,
 				},
 				Registry: regRemote,
-				AuthConfig: services.AuthConfig{
+				AuthzConfig: services.AuthzConfig{
 					Type: services.KubernetesAuthType,
 				},
 			}
@@ -525,7 +525,7 @@ var _ = Describe("FeatureStore Controller-Kubernetes authorization", func() {
 					Type: services.OnlineSqliteConfigType,
 				},
 				Registry: regRemote,
-				AuthConfig: services.AuthConfig{
+				AuthzConfig: services.AuthzConfig{
 					Type: services.KubernetesAuthType,
 				},
 			}
@@ -556,7 +556,7 @@ var _ = Describe("FeatureStore Controller-Kubernetes authorization", func() {
 					RegistryType: services.RegistryRemoteConfigType,
 					Path:         fmt.Sprintf("feast-%s-registry.default.svc.cluster.local:80", resourceName),
 				},
-				AuthConfig: services.AuthConfig{
+				AuthzConfig: services.AuthzConfig{
 					Type: services.KubernetesAuthType,
 				},
 			}
