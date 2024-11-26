@@ -91,7 +91,7 @@ protobuf==4.25.5
     # via feast (setup.py)
 psutil==6.1.0
     # via feast (setup.py)
-pyarrow==18.1.0
+pyarrow==18.0.0
     # via
     #   feast (setup.py)
     #   dask-expr
