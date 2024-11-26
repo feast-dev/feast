@@ -43,14 +43,14 @@ func (feast *FeastServices) Deploy() error {
 	services := feast.FeatureStore.Status.Applied.Services
 	if services != nil {
 		if services.OfflineStore != nil {
-			if services.OfflineStore.Persistence != nil &&
-				services.OfflineStore.Persistence.FilePersistence != nil &&
-				len(services.OfflineStore.Persistence.FilePersistence.Type) > 0 {
-				if err := checkOfflineStoreFilePersistenceType(services.OfflineStore.Persistence.FilePersistence.Type); err != nil {
-					return err
-				}
+			offlinePersistence := services.OfflineStore.Persistence
+
+			err := feast.validateOfflineStorePersistence(offlinePersistence)
+			if err != nil {
+				return err
 			}
-			if err := feast.deployFeastServiceByType(OfflineFeastType); err != nil {
+
+			if err = feast.deployFeastServiceByType(OfflineFeastType); err != nil {
 				return err
 			}
 		} else {
@@ -60,7 +60,14 @@ func (feast *FeastServices) Deploy() error {
 		}
 
 		if services.OnlineStore != nil {
-			if err := feast.deployFeastServiceByType(OnlineFeastType); err != nil {
+			onlinePersistence := services.OnlineStore.Persistence
+
+			err := feast.validateOnlineStorePersistence(onlinePersistence)
+			if err != nil {
+				return err
+			}
+
+			if err = feast.deployFeastServiceByType(OnlineFeastType); err != nil {
 				return err
 			}
 		} else {
@@ -70,7 +77,14 @@ func (feast *FeastServices) Deploy() error {
 		}
 
 		if feast.isLocalRegistry() {
-			if err := feast.deployFeastServiceByType(RegistryFeastType); err != nil {
+			registryPersistence := services.Registry.Local.Persistence
+
+			err := feast.validateRegistryPersistence(registryPersistence)
+			if err != nil {
+				return err
+			}
+
+			if err = feast.deployFeastServiceByType(RegistryFeastType); err != nil {
 				return err
 			}
 		} else {
@@ -82,6 +96,75 @@ func (feast *FeastServices) Deploy() error {
 
 	if err := feast.deployClient(); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (feast *FeastServices) validateRegistryPersistence(registryPersistence *feastdevv1alpha1.RegistryPersistence) error {
+	if registryPersistence != nil {
+		dbPersistence := registryPersistence.DBPersistence
+
+		if dbPersistence != nil && len(dbPersistence.Type) > 0 {
+			if err := checkRegistryDBStorePersistenceType(dbPersistence.Type); err != nil {
+				return err
+			}
+
+			if dbPersistence.SecretRef != nil {
+				secretRef := dbPersistence.SecretRef.Name
+				if _, err := feast.getSecret(secretRef); err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+func (feast *FeastServices) validateOnlineStorePersistence(onlinePersistence *feastdevv1alpha1.OnlineStorePersistence) error {
+	if onlinePersistence != nil {
+		dbPersistence := onlinePersistence.DBPersistence
+
+		if dbPersistence != nil && len(dbPersistence.Type) > 0 {
+			if err := checkOnlineStoreDBStorePersistenceType(dbPersistence.Type); err != nil {
+				return err
+			}
+
+			if dbPersistence.SecretRef != nil {
+				secretRef := dbPersistence.SecretRef.Name
+				if _, err := feast.getSecret(secretRef); err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+func (feast *FeastServices) validateOfflineStorePersistence(offlinePersistence *feastdevv1alpha1.OfflineStorePersistence) error {
+	if offlinePersistence != nil {
+		filePersistence := offlinePersistence.FilePersistence
+		dbPersistence := offlinePersistence.DBPersistence
+
+		if filePersistence != nil && len(filePersistence.Type) > 0 {
+			if err := checkOfflineStoreFilePersistenceType(filePersistence.Type); err != nil {
+				return err
+			}
+		} else if dbPersistence != nil &&
+			len(dbPersistence.Type) > 0 {
+			if err := checkOfflineStoreDBStorePersistenceType(dbPersistence.Type); err != nil {
+				return err
+			}
+
+			if dbPersistence.SecretRef != nil {
+				secretRef := dbPersistence.SecretRef.Name
+				if _, err := feast.getSecret(secretRef); err != nil {
+					return err
+				}
+			}
+		}
 	}
 
 	return nil

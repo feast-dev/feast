@@ -646,7 +646,7 @@ var _ = Describe("FeatureStore Controller", func() {
 				Provider:                      services.LocalProviderType,
 				EntityKeySerializationVersion: feastdevv1alpha1.SerializationVersion,
 				OfflineStore: services.OfflineStoreConfig{
-					Type: services.OfflineDaskConfigType,
+					Type: services.OfflineFilePersistenceDaskConfigType,
 				},
 				Registry: regRemote,
 			}

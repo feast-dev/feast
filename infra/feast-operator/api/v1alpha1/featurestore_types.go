@@ -75,11 +75,13 @@ type OfflineStore struct {
 }
 
 // OfflineStorePersistence configures the persistence settings for the offline store service
+// +kubebuilder:validation:XValidation:rule="[has(self.file), has(self.store)].exists_one(c, c)",message="One selection required between file or store."
 type OfflineStorePersistence struct {
-	FilePersistence *OfflineStoreFilePersistence `json:"file,omitempty"`
+	FilePersistence *OfflineStoreFilePersistence    `json:"file,omitempty"`
+	DBPersistence   *OfflineStoreDBStorePersistence `json:"store,omitempty"`
 }
 
-// OfflineStorePersistence configures the file-based persistence for the offline store service
+// OfflineStoreFilePersistence configures the file-based persistence for the offline store service
 type OfflineStoreFilePersistence struct {
 	// +kubebuilder:validation:Enum=dask;duckdb
 	Type      string     `json:"type,omitempty"`
@@ -91,6 +93,24 @@ var ValidOfflineStoreFilePersistenceTypes = []string{
 	"duckdb",
 }
 
+// OfflineStoreDBStorePersistence configures the DB store persistence for the offline store service
+type OfflineStoreDBStorePersistence struct {
+	// +kubebuilder:validation:Enum=snowflake.offline;bigquery;redshift;spark;postgres;feast_trino.trino.TrinoOfflineStore;redis
+	Type          string                       `json:"type,omitempty"`
+	SecretRef     *corev1.LocalObjectReference `json:"secretRef,omitempty"`
+	SecretKeyName string                       `json:"secretKeyName,omitempty"`
+}
+
+var ValidOfflineStoreDBStorePersistenceTypes = []string{
+	"snowflake.offline",
+	"bigquery",
+	"redshift",
+	"spark",
+	"postgres",
+	"feast_trino.trino.TrinoOfflineStore",
+	"redis",
+}
+
 // OnlineStore configures the deployed online store service
 type OnlineStore struct {
 	ServiceConfigs `json:",inline"`
@@ -98,8 +118,10 @@ type OnlineStore struct {
 }
 
 // OnlineStorePersistence configures the persistence settings for the online store service
+// +kubebuilder:validation:XValidation:rule="[has(self.file), has(self.store)].exists_one(c, c)",message="One selection required between file or store."
 type OnlineStorePersistence struct {
-	FilePersistence *OnlineStoreFilePersistence `json:"file,omitempty"`
+	FilePersistence *OnlineStoreFilePersistence    `json:"file,omitempty"`
+	DBPersistence   *OnlineStoreDBStorePersistence `json:"store,omitempty"`
 }
 
 // OnlineStoreFilePersistence configures the file-based persistence for the offline store service
@@ -111,6 +133,28 @@ type OnlineStoreFilePersistence struct {
 	PvcConfig *PvcConfig `json:"pvc,omitempty"`
 }
 
+// OnlineStoreDBStorePersistence configures the DB store persistence for the offline store service
+type OnlineStoreDBStorePersistence struct {
+	// +kubebuilder:validation:Enum=snowflake.online;redis;ikv;datastore;dynamodb;bigtable;postgres;cassandra;mysql;hazelcast;singlestore
+	Type          string                       `json:"type,omitempty"`
+	SecretRef     *corev1.LocalObjectReference `json:"secretRef,omitempty"`
+	SecretKeyName string                       `json:"secretKeyName,omitempty"`
+}
+
+var ValidOnlineStoreDBStorePersistenceTypes = []string{
+	"snowflake.online",
+	"redis",
+	"ikv",
+	"datastore",
+	"dynamodb",
+	"bigtable",
+	"postgres",
+	"cassandra",
+	"mysql",
+	"hazelcast",
+	"singlestore",
+}
+
 // LocalRegistryConfig configures the deployed registry service
 type LocalRegistryConfig struct {
 	ServiceConfigs `json:",inline"`
@@ -119,7 +163,8 @@ type LocalRegistryConfig struct {
 
 // RegistryPersistence configures the persistence settings for the registry service
 type RegistryPersistence struct {
-	FilePersistence *RegistryFilePersistence `json:"file,omitempty"`
+	FilePersistence *RegistryFilePersistence    `json:"file,omitempty"`
+	DBPersistence   *RegistryDBStorePersistence `json:"store,omitempty"`
 }
 
 // RegistryFilePersistence configures the file-based persistence for the registry service
@@ -131,6 +176,19 @@ type RegistryFilePersistence struct {
 	Path               string             `json:"path,omitempty"`
 	PvcConfig          *PvcConfig         `json:"pvc,omitempty"`
 	S3AdditionalKwargs *map[string]string `json:"s3_additional_kwargs,omitempty"`
+}
+
+// RegistryDBStorePersistence configures the DB store persistence for the registry service
+type RegistryDBStorePersistence struct {
+	// +kubebuilder:validation:Enum=sql;snowflake.registry
+	Type          string                       `json:"type,omitempty"`
+	SecretRef     *corev1.LocalObjectReference `json:"secretRef,omitempty"`
+	SecretKeyName string                       `json:"secretKeyName,omitempty"`
+}
+
+var ValidRegistryDBStorePersistenceTypes = []string{
+	"snowflake.registry",
+	"sql",
 }
 
 // PvcConfig defines the settings for a persistent file store based on PVCs.
