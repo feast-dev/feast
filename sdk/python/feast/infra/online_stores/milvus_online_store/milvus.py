@@ -54,14 +54,22 @@ class MilvusOnlineStore(OnlineStore):
         _collections: Dictionary to cache Milvus collections.
     """
 
+    _conn: Optional[connections] = None
     _collections: Dict[str, Collection] = {}
 
-    def _connect(self, config: RepoConfig):
-        connections.connect(
+    def _connect(self, config: RepoConfig) -> connections:
+        if not self._conn:
+            self._conn = connections.connect(
+                alias="default",
+                host=config.online_store.host,
+                port=str(config.online_store.port),
+            )
+        self._conn = connections.connect(
             alias="feast",
             host=config.online_store.host,
             port=str(config.online_store.port),
         )
+        return self._conn
 
     def _get_collection(self, config: RepoConfig, table: FeatureView) -> Collection:
         collection_name = _table_id(config.project, table)
