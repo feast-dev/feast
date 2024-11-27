@@ -20,16 +20,6 @@ class MilvusOnlineStoreCreator(OnlineStoreCreator):
         # Wait for Milvus server to be ready
         host = "localhost"
         port = self.container.get_exposed_port(19530)
-
-        log_string_to_wait_for = "database system is ready to accept connections"
-        wait_for_logs(
-            container=self.container, predicate=log_string_to_wait_for, timeout=30
-        )
-        init_log_string_to_wait_for = "Milvus DB init process complete"
-        wait_for_logs(
-            container=self.container, predicate=init_log_string_to_wait_for, timeout=30
-        )
-
         return {
             "type": "milvus",
             "host": host,
