@@ -358,7 +358,7 @@ test-python-universal-milvus-online:
 		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.milvus_online_store.milvus_repo_configuration \
 		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.milvus\
 		python -m pytest -n 8 --integration \
-		-k "test_retrieve_online_documents and not test_validation" \
+		-k "test_retrieve_online_documents and not test_dqm" \
  			sdk/python/tests
 
 test-python-universal-singlestore-online:
