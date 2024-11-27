@@ -190,7 +190,7 @@ var _ = Describe("Repo Config", func() {
 					Persistence: &feastdevv1alpha1.OfflineStorePersistence{
 						DBPersistence: &feastdevv1alpha1.OfflineStoreDBStorePersistence{
 							Type: string(OfflineDBPersistenceSnowflakeConfigType),
-							SecretRef: &corev1.LocalObjectReference{
+							SecretRef: corev1.LocalObjectReference{
 								Name: "offline-test-secret",
 							},
 						},
@@ -200,7 +200,7 @@ var _ = Describe("Repo Config", func() {
 					Persistence: &feastdevv1alpha1.OnlineStorePersistence{
 						DBPersistence: &feastdevv1alpha1.OnlineStoreDBStorePersistence{
 							Type: string(OnlineDBPersistenceSnowflakeConfigType),
-							SecretRef: &corev1.LocalObjectReference{
+							SecretRef: corev1.LocalObjectReference{
 								Name: "online-test-secret",
 							},
 						},
@@ -211,7 +211,7 @@ var _ = Describe("Repo Config", func() {
 						Persistence: &feastdevv1alpha1.RegistryPersistence{
 							DBPersistence: &feastdevv1alpha1.RegistryDBStorePersistence{
 								Type: string(RegistryDBPersistenceSnowflakeConfigType),
-								SecretRef: &corev1.LocalObjectReference{
+								SecretRef: corev1.LocalObjectReference{
 									Name: "registry-test-secret",
 								},
 							},

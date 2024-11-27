@@ -110,7 +110,7 @@ func (feast *FeastServices) validateRegistryPersistence(registryPersistence *fea
 				return err
 			}
 
-			if dbPersistence.SecretRef != nil {
+			if len(dbPersistence.SecretRef.Name) > 0 {
 				secretRef := dbPersistence.SecretRef.Name
 				if _, err := feast.getSecret(secretRef); err != nil {
 					return err
@@ -131,7 +131,7 @@ func (feast *FeastServices) validateOnlineStorePersistence(onlinePersistence *fe
 				return err
 			}
 
-			if dbPersistence.SecretRef != nil {
+			if len(dbPersistence.SecretRef.Name) > 0 {
 				secretRef := dbPersistence.SecretRef.Name
 				if _, err := feast.getSecret(secretRef); err != nil {
 					return err
@@ -158,7 +158,7 @@ func (feast *FeastServices) validateOfflineStorePersistence(offlinePersistence *
 				return err
 			}
 
-			if dbPersistence.SecretRef != nil {
+			if len(dbPersistence.SecretRef.Name) > 0 {
 				secretRef := dbPersistence.SecretRef.Name
 				if _, err := feast.getSecret(secretRef); err != nil {
 					return err
