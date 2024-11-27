@@ -155,7 +155,7 @@ CI_REQUIRED = (
         "build",
         "virtualenv==20.23.0",
         "cryptography>=35.0,<43",
-        "ruff>=0.3.3",
+        "ruff>=0.8.0",
         "mypy-protobuf>=3.1",
         "grpcio-tools>=1.56.2,<2",
         "grpcio-testing>=1.56.2,<2",
