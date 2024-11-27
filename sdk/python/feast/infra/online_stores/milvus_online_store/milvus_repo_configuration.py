@@ -6,5 +6,5 @@ from tests.integration.feature_repos.universal.online_store.milvus import (
 )
 
 FULL_REPO_CONFIGS = [
-    IntegrationTestRepoConfig(online_store_creator=MilvusOnlineStoreCreator),
+    IntegrationTestRepoConfig(online_store="milvus", online_store_creator=MilvusOnlineStoreCreator),
 ]
