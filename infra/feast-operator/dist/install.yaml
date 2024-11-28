@@ -329,6 +329,9 @@ spec:
                                 - feast_trino.trino.TrinoOfflineStore
                                 - redis
                                 type: string
+                            required:
+                            - secretRef
+                            - type
                             type: object
                         type: object
                         x-kubernetes-validations:
@@ -644,6 +647,9 @@ spec:
                                 - hazelcast
                                 - singlestore
                                 type: string
+                            required:
+                            - secretRef
+                            - type
                             type: object
                         type: object
                         x-kubernetes-validations:
@@ -967,6 +973,9 @@ spec:
                                     - sql
                                     - snowflake.registry
                                     type: string
+                                required:
+                                - secretRef
+                                - type
                                 type: object
                             type: object
                           resources:
@@ -1344,6 +1353,9 @@ spec:
                                     - feast_trino.trino.TrinoOfflineStore
                                     - redis
                                     type: string
+                                required:
+                                - secretRef
+                                - type
                                 type: object
                             type: object
                             x-kubernetes-validations:
@@ -1664,6 +1676,9 @@ spec:
                                     - hazelcast
                                     - singlestore
                                     type: string
+                                required:
+                                - secretRef
+                                - type
                                 type: object
                             type: object
                             x-kubernetes-validations:
@@ -1995,6 +2010,9 @@ spec:
                                         - sql
                                         - snowflake.registry
                                         type: string
+                                    required:
+                                    - secretRef
+                                    - type
                                     type: object
                                 type: object
                               resources:
