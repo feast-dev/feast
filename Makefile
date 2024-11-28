@@ -49,7 +49,7 @@ install-python-dependencies-dev:
 	uv pip install --no-deps -e .
 
 # Python SDK - system
-# the --system flag installs dependencies in the global python context 
+# the --system flag installs dependencies in the global python context
 # instead of a venv which  is useful when working in a docker container or ci.
 
 # Used in github actions/ci
