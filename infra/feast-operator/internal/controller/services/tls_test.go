@@ -102,7 +102,8 @@ var _ = Describe("TLS Config", func() {
 			err = feast.ApplyDefaults()
 			Expect(err).To(BeNil())
 
-			repoConfig := getClientRepoConfig(feast.Handler.FeatureStore)
+			repoConfig, err := getClientRepoConfig(feast.Handler.FeatureStore, emptyMockExtractConfigFromSecret)
+			Expect(err).NotTo(HaveOccurred())
 			Expect(repoConfig.OfflineStore.Port).To(Equal(HttpsPort))
 			Expect(repoConfig.OfflineStore.Scheme).To(Equal(HttpsScheme))
 			Expect(repoConfig.OfflineStore.Cert).To(ContainSubstring(string(OfflineFeastType)))
@@ -208,7 +209,8 @@ var _ = Describe("TLS Config", func() {
 			err = feast.ApplyDefaults()
 			Expect(err).To(BeNil())
 
-			repoConfig = getClientRepoConfig(feast.Handler.FeatureStore)
+			repoConfig, err = getClientRepoConfig(feast.Handler.FeatureStore, emptyMockExtractConfigFromSecret)
+			Expect(err).NotTo(HaveOccurred())
 			Expect(repoConfig.OfflineStore.Port).To(Equal(HttpsPort))
 			Expect(repoConfig.OfflineStore.Scheme).To(Equal(HttpsScheme))
 			Expect(repoConfig.OfflineStore.Cert).To(ContainSubstring(string(OfflineFeastType)))

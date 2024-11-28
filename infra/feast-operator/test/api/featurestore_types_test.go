@@ -16,7 +16,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// Function to create invalid OnlineStore resource
 func createFeatureStore() *feastdevv1alpha1.FeatureStore {
 	return &feastdevv1alpha1.FeatureStore{
 		ObjectMeta: metav1.ObjectMeta{
@@ -272,6 +271,25 @@ func pvcConfigWithResources(featureStore *feastdevv1alpha1.FeatureStore) *feastd
 	return fsCopy
 }
 
+func authzConfigWithKubernetes(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
+	fsCopy := featureStore.DeepCopy()
+	if fsCopy.Spec.AuthzConfig == nil {
+		fsCopy.Spec.AuthzConfig = &feastdevv1alpha1.AuthzConfig{}
+	}
+	fsCopy.Spec.AuthzConfig.KubernetesAuthz = &feastdevv1alpha1.KubernetesAuthz{
+		Roles: []string{},
+	}
+	return fsCopy
+}
+func authzConfigWithOidc(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
+	fsCopy := featureStore.DeepCopy()
+	if fsCopy.Spec.AuthzConfig == nil {
+		fsCopy.Spec.AuthzConfig = &feastdevv1alpha1.AuthzConfig{}
+	}
+	fsCopy.Spec.AuthzConfig.OidcAuthz = &feastdevv1alpha1.OidcAuthz{}
+	return fsCopy
+}
+
 const resourceName = "test-resource"
 const namespaceName = "default"
 
@@ -377,10 +395,19 @@ var _ = Describe("FeatureStore API", func() {
 			storage = resource.Status.Applied.Services.Registry.Local.Persistence.FilePersistence.PvcConfig.Create.Resources.Requests.Storage().String()
 			Expect(storage).To(Equal("500Mi"))
 		})
-		It("should set the default AuthzConfig", func() {
+	})
+	Context("When omitting the AuthzConfig PvcConfig", func() {
+		_, featurestore := initContext()
+		It("should keep an empty AuthzConfig", func() {
 			resource := featurestore
 			services.ApplyDefaultsToStatus(resource)
 			Expect(resource.Status.Applied.AuthzConfig).To(BeNil())
+		})
+	})
+	Context("When configuring the AuthzConfig", func() {
+		ctx, featurestore := initContext()
+		It("should fail when both kubernetes and oidc settings are given", func() {
+			attemptInvalidCreationAndAsserts(ctx, authzConfigWithOidc(authzConfigWithKubernetes(featurestore)), "One selection required between kubernetes or oidc")
 		})
 	})
 })

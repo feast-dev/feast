@@ -68,6 +68,15 @@ const (
 
 	NoAuthAuthType     AuthzType = "no_auth"
 	KubernetesAuthType AuthzType = "kubernetes"
+	OidcAuthType       AuthzType = "oidc"
+
+	OidcClientId         OidcPropertyType = "client_id"
+	OidcAuthDiscoveryUrl OidcPropertyType = "auth_discovery_url"
+	OidcClientSecret     OidcPropertyType = "client_secret"
+	OidcUsername         OidcPropertyType = "username"
+	OidcPassword         OidcPropertyType = "password"
+
+	OidcMissingSecretError string = "missing OIDC secret: %s"
 )
 
 var (
@@ -148,10 +157,16 @@ var (
 			},
 		},
 	}
+
+	OidcServerProperties = []OidcPropertyType{OidcClientId, OidcAuthDiscoveryUrl}
+	OidcClientProperties = []OidcPropertyType{OidcClientSecret, OidcUsername, OidcPassword}
 )
 
 // AuthzType defines the authorization type
 type AuthzType string
+
+// OidcPropertyType defines the OIDC property type
+type OidcPropertyType string
 
 // FeastServiceType is the type of feast service
 type FeastServiceType string
@@ -214,7 +229,8 @@ type RegistryConfig struct {
 
 // AuthzConfig is the RBAC authorization configuration.
 type AuthzConfig struct {
-	Type AuthzType `yaml:"type,omitempty"`
+	Type           AuthzType              `yaml:"type,omitempty"`
+	OidcParameters map[string]interface{} `yaml:",inline,omitempty"`
 }
 
 type deploymentSettings struct {

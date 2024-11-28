@@ -47,10 +47,34 @@ func (feast *FeastServices) getServiceRepoConfig(feastType FeastServiceType) (Re
 	return getServiceRepoConfig(feastType, feast.Handler.FeatureStore, feast.extractConfigFromSecret)
 }
 
-func getServiceRepoConfig(feastType FeastServiceType, featureStore *feastdevv1alpha1.FeatureStore, secretExtractionFunc func(secretRef string, secretKeyName string) (map[string]interface{}, error)) (RepoConfig, error) {
+func getServiceRepoConfig(
+	feastType FeastServiceType,
+	featureStore *feastdevv1alpha1.FeatureStore,
+	secretExtractionFunc func(secretRef string, secretKeyName string) (map[string]interface{}, error)) (RepoConfig, error) {
 	appliedSpec := featureStore.Status.Applied
 
-	repoConfig := getClientRepoConfig(featureStore)
+	repoConfig, err := getClientRepoConfig(featureStore, secretExtractionFunc)
+	if err != nil {
+		return repoConfig, err
+	}
+
+	if appliedSpec.AuthzConfig != nil && appliedSpec.AuthzConfig.OidcAuthz != nil {
+		propertiesMap, err := secretExtractionFunc(appliedSpec.AuthzConfig.OidcAuthz.SecretRef.Name, "")
+		if err != nil {
+			return repoConfig, err
+		}
+
+		oidcServerProperties := map[string]interface{}{}
+		for _, oidcServerProperty := range OidcServerProperties {
+			if val, exists := propertiesMap[string(oidcServerProperty)]; exists {
+				oidcServerProperties[string(oidcServerProperty)] = val
+			} else {
+				return repoConfig, missingOidcSecretProperty(oidcServerProperty)
+			}
+		}
+		repoConfig.AuthzConfig.OidcParameters = oidcServerProperties
+	}
+
 	if appliedSpec.Services != nil {
 		services := appliedSpec.Services
 
@@ -200,11 +224,17 @@ func setRepoConfigOffline(services *feastdevv1alpha1.FeatureStoreServices, secre
 	return nil
 }
 
-func (feast *FeastServices) getClientFeatureStoreYaml() ([]byte, error) {
-	return yaml.Marshal(getClientRepoConfig(feast.Handler.FeatureStore))
+func (feast *FeastServices) getClientFeatureStoreYaml(secretExtractionFunc func(secretRef string, secretKeyName string) (map[string]interface{}, error)) ([]byte, error) {
+	clientRepo, err := getClientRepoConfig(feast.Handler.FeatureStore, secretExtractionFunc)
+	if err != nil {
+		return []byte{}, err
+	}
+	return yaml.Marshal(clientRepo)
 }
 
-func getClientRepoConfig(featureStore *feastdevv1alpha1.FeatureStore) RepoConfig {
+func getClientRepoConfig(
+	featureStore *feastdevv1alpha1.FeatureStore,
+	secretExtractionFunc func(secretRef string, secretKeyName string) (map[string]interface{}, error)) (RepoConfig, error) {
 	status := featureStore.Status
 	appliedServices := status.Applied.Services
 	clientRepoConfig := RepoConfig{
@@ -248,13 +278,37 @@ func getClientRepoConfig(featureStore *feastdevv1alpha1.FeatureStore) RepoConfig
 		}
 	}
 
-	clientRepoConfig.AuthzConfig = AuthzConfig{
-		Type: NoAuthAuthType,
+	if status.Applied.AuthzConfig == nil {
+		clientRepoConfig.AuthzConfig = AuthzConfig{
+			Type: NoAuthAuthType,
+		}
+	} else {
+		if status.Applied.AuthzConfig.KubernetesAuthz != nil {
+			clientRepoConfig.AuthzConfig = AuthzConfig{
+				Type: KubernetesAuthType,
+			}
+		} else if status.Applied.AuthzConfig.OidcAuthz != nil {
+			clientRepoConfig.AuthzConfig = AuthzConfig{
+				Type: OidcAuthType,
+			}
+
+			propertiesMap, err := secretExtractionFunc(status.Applied.AuthzConfig.OidcAuthz.SecretRef.Name, "")
+			if err != nil {
+				return clientRepoConfig, err
+			}
+
+			oidcClientProperties := map[string]interface{}{}
+			for _, oidcClientProperty := range OidcClientProperties {
+				if val, exists := propertiesMap[string(oidcClientProperty)]; exists {
+					oidcClientProperties[string(oidcClientProperty)] = val
+				} else {
+					return clientRepoConfig, missingOidcSecretProperty(oidcClientProperty)
+				}
+			}
+			clientRepoConfig.AuthzConfig.OidcParameters = oidcClientProperties
+		}
 	}
-	if status.Applied.AuthzConfig != nil && status.Applied.AuthzConfig.KubernetesAuthz != nil {
-		clientRepoConfig.AuthzConfig.Type = KubernetesAuthType
-	}
-	return clientRepoConfig
+	return clientRepoConfig, nil
 }
 
 func getActualPath(filePath string, pvcConfig *feastdevv1alpha1.PvcConfig) string {
@@ -271,24 +325,33 @@ func (feast *FeastServices) extractConfigFromSecret(secretRef string, secretKeyN
 	}
 	parameters := map[string]interface{}{}
 
-	val, exists := secret.Data[secretKeyName]
-	if !exists {
-		return nil, fmt.Errorf("secret key %s doesn't exist in secret %s", secretKeyName, secretRef)
-	}
+	if secretKeyName != "" {
+		val, exists := secret.Data[secretKeyName]
+		if !exists {
+			return nil, fmt.Errorf("secret key %s doesn't exist in secret %s", secretKeyName, secretRef)
+		}
+		err = yaml.Unmarshal(val, &parameters)
+		if err != nil {
+			return nil, fmt.Errorf("secret %s contains invalid value", secretKeyName)
+		}
+		_, exists = parameters["type"]
+		if exists {
+			return nil, fmt.Errorf("secret key %s in secret %s contains invalid tag named type", secretKeyName, secretRef)
+		}
 
-	err = yaml.Unmarshal(val, &parameters)
-	if err != nil {
-		return nil, fmt.Errorf("secret %s contains invalid value", secretKeyName)
-	}
-
-	_, exists = parameters["type"]
-	if exists {
-		return nil, fmt.Errorf("secret key %s in secret %s contains invalid tag named type", secretKeyName, secretRef)
-	}
-
-	_, exists = parameters["registry_type"]
-	if exists {
-		return nil, fmt.Errorf("secret key %s in secret %s contains invalid tag named registry_type", secretKeyName, secretRef)
+		_, exists = parameters["registry_type"]
+		if exists {
+			return nil, fmt.Errorf("secret key %s in secret %s contains invalid tag named registry_type", secretKeyName, secretRef)
+		}
+	} else {
+		for k, v := range secret.Data {
+			var val interface{}
+			err := yaml.Unmarshal(v, &val)
+			if err != nil {
+				return nil, fmt.Errorf("secret %s contains invalid value %v", k, v)
+			}
+			parameters[k] = val
+		}
 	}
 
 	return parameters, nil

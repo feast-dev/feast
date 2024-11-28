@@ -333,9 +333,9 @@ var _ = Describe("FeatureStore Controller-Kubernetes authorization", func() {
 			Expect(err).To(HaveOccurred())
 			Expect(errors.IsNotFound(err)).To(BeTrue())
 
-			By("Clearing the kubernetes authorizatino and reconciling")
+			By("Clearing the kubernetes authorization and reconciling")
 			resourceNew = resource.DeepCopy()
-			resourceNew.Spec.AuthzConfig = &feastdevv1alpha1.AuthzConfig{}
+			resourceNew.Spec.AuthzConfig = nil
 			err = k8sClient.Update(ctx, resourceNew)
 			Expect(err).NotTo(HaveOccurred())
 			_, err = controllerReconciler.Reconcile(ctx, reconcile.Request{

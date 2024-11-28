@@ -77,7 +77,31 @@ spec:
                           type: string
                         type: array
                     type: object
+                  oidc:
+                    description: |-
+                      OidcAuthz defines the authorization settings for deployments using an Open ID Connect identity provider.
+                      https://auth0.com/docs/authenticate/protocols/openid-connect-protocol
+                    properties:
+                      secretRef:
+                        description: |-
+                          LocalObjectReference contains enough information to let you locate the
+                          referenced object inside the same namespace.
+                        properties:
+                          name:
+                            description: |-
+                              Name of the referent.
+                              More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                              TODO: Add other useful fields. apiVersion, kind, uid?
+                            type: string
+                        type: object
+                        x-kubernetes-map-type: atomic
+                    required:
+                    - secretRef
+                    type: object
                 type: object
+                x-kubernetes-validations:
+                - message: One selection required between kubernetes or oidc.
+                  rule: '[has(self.kubernetes), has(self.oidc)].exists_one(c, c)'
               feastProject:
                 description: FeastProject is the Feast project id. This can be any
                   alphanumeric string with underscores, but it cannot start with an
@@ -1246,7 +1270,32 @@ spec:
                               type: string
                             type: array
                         type: object
+                      oidc:
+                        description: |-
+                          OidcAuthz defines the authorization settings for deployments using an Open ID Connect identity provider.
+                          https://auth0.com/docs/authenticate/protocols/openid-connect-protocol
+                        properties:
+                          secretRef:
+                            description: |-
+                              LocalObjectReference contains enough information to let you locate the
+                              referenced object inside the same namespace.
+                            properties:
+                              name:
+                                description: |-
+                                  Name of the referent.
+                                  More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                  TODO: Add other useful fields. apiVersion, kind, uid?
+                                type: string
+                            type: object
+                            x-kubernetes-map-type: atomic
+                        required:
+                        - secretRef
+                        type: object
                     type: object
+                    x-kubernetes-validations:
+                    - message: One selection required between kubernetes or oidc.
+                      rule: '[has(self.kubernetes), has(self.oidc)].exists_one(c,
+                        c)'
                   feastProject:
                     description: FeastProject is the Feast project id. This can be
                       any alphanumeric string with underscores, but it cannot start
