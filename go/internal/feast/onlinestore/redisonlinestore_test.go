@@ -110,13 +110,13 @@ func TestBuildHsetKeys(t *testing.T) {
 	r := &RedisOnlineStore{}
 
 	t.Run("test with empty featureViewNames and featureNames", func(t *testing.T) {
-		hsetKeys, featureNames := r.buildHsetKeys([]string{}, []string{}, map[int]string{}, 0)
+		hsetKeys, featureNames := r.buildRedisHashSetKeys([]string{}, []string{}, map[int]string{}, 0)
 		assert.Equal(t, 0, len(hsetKeys))
 		assert.Equal(t, 0, len(featureNames))
 	})
 
 	t.Run("test with non-empty featureViewNames and featureNames", func(t *testing.T) {
-		hsetKeys, featureNames := r.buildHsetKeys([]string{"view1", "view2"}, []string{"feature1", "feature2"}, map[int]string{2: "view1", 3: "view2"}, 4)
+		hsetKeys, featureNames := r.buildRedisHashSetKeys([]string{"view1", "view2"}, []string{"feature1", "feature2"}, map[int]string{2: "view1", 3: "view2"}, 4)
 		assert.Equal(t, 4, len(hsetKeys))
 		assert.Equal(t, 4, len(featureNames))
 		assert.Equal(t, "_ts:view1", hsetKeys[2])
@@ -126,7 +126,7 @@ func TestBuildHsetKeys(t *testing.T) {
 	})
 
 	t.Run("test with more featureViewNames than featureNames", func(t *testing.T) {
-		hsetKeys, featureNames := r.buildHsetKeys([]string{"view1", "view2", "view3"}, []string{"feature1", "feature2", "feature3"}, map[int]string{3: "view1", 4: "view2", 5: "view3"}, 6)
+		hsetKeys, featureNames := r.buildRedisHashSetKeys([]string{"view1", "view2", "view3"}, []string{"feature1", "feature2", "feature3"}, map[int]string{3: "view1", 4: "view2", 5: "view3"}, 6)
 		assert.Equal(t, 6, len(hsetKeys))
 		assert.Equal(t, 6, len(featureNames))
 		assert.Equal(t, "_ts:view1", hsetKeys[3])

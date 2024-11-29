@@ -174,7 +174,7 @@ func (r *RedisOnlineStore) buildFeatureViewIndices(featureViewNames []string, fe
 	return featureViewIndices, indicesFeatureView, index
 }
 
-func (r *RedisOnlineStore) buildHsetKeys(featureViewNames []string, featureNames []string, indicesFeatureView map[int]string, index int) ([]string, []string) {
+func (r *RedisOnlineStore) buildRedisHashSetKeys(featureViewNames []string, featureNames []string, indicesFeatureView map[int]string, index int) ([]string, []string) {
 	featureCount := len(featureNames)
 	var hsetKeys = make([]string, index)
 	h := murmur3.New32()
@@ -217,7 +217,7 @@ func (r *RedisOnlineStore) OnlineRead(ctx context.Context, entityKeys []*types.E
 
 	featureCount := len(featureNames)
 	featureViewIndices, indicesFeatureView, index := r.buildFeatureViewIndices(featureViewNames, featureNames)
-	hsetKeys, featureNamesWithTimeStamps := r.buildHsetKeys(featureViewNames, featureNames, indicesFeatureView, index)
+	hsetKeys, featureNamesWithTimeStamps := r.buildRedisHashSetKeys(featureViewNames, featureNames, indicesFeatureView, index)
 	redisKeys, redisKeyToEntityIndex, err := r.buildRedisKeys(entityKeys)
 	if err != nil {
 		return nil, err
