@@ -1,0 +1,591 @@
+// Generated documentation. Please do not edit.
+:anchor_prefix: k8s-api
+
+[id="{p}-api-reference"]
+== API Reference
+
+.Packages
+- xref:{anchor_prefix}-feast-dev-v1alpha1[$$feast.dev/v1alpha1$$]
+
+
+[id="{anchor_prefix}-feast-dev-v1alpha1"]
+=== feast.dev/v1alpha1
+
+Package v1alpha1 contains API Schema definitions for the  v1alpha1 API group
+
+.Resource Types
+- xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-featurestore[$$FeatureStore$$]
+
+
+
+[id="{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-authzconfig"]
+==== AuthzConfig 
+
+AuthzConfig defines the authorization settings for the deployed Feast services.
+
+.Appears In:
+****
+- xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-featurestorespec[$$FeatureStoreSpec$$]
+****
+
+[cols="25a,75a", options="header"]
+|===
+| Field | Description
+| *`kubernetes`* __xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-kubernetesauthz[$$KubernetesAuthz$$]__ | 
+|===
+
+
+[id="{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-defaultconfigs"]
+==== DefaultConfigs 
+
+DefaultConfigs k8s container settings that are applied by default
+
+.Appears In:
+****
+- xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-localregistryconfig[$$LocalRegistryConfig$$]
+- xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-offlinestore[$$OfflineStore$$]
+- xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-onlinestore[$$OnlineStore$$]
+- xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-serviceconfigs[$$ServiceConfigs$$]
+****
+
+[cols="25a,75a", options="header"]
+|===
+| Field | Description
+| *`image`* __string__ | 
+|===
+
+
+[id="{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-featurestore"]
+==== FeatureStore 
+
+FeatureStore is the Schema for the featurestores API
+
+
+
+[cols="25a,75a", options="header"]
+|===
+| Field | Description
+| *`apiVersion`* __string__ | `feast.dev/v1alpha1`
+| *`kind`* __string__ | `FeatureStore`
+| *`metadata`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#objectmeta-v1-meta[$$ObjectMeta$$]__ | Refer to Kubernetes API documentation for fields of `metadata`.
+
+| *`spec`* __xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-featurestorespec[$$FeatureStoreSpec$$]__ | 
+| *`status`* __xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-featurestorestatus[$$FeatureStoreStatus$$]__ | 
+|===
+
+
+[id="{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-featurestoreref"]
+==== FeatureStoreRef 
+
+FeatureStoreRef defines which existing FeatureStore's registry should be used
+
+.Appears In:
+****
+- xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-remoteregistryconfig[$$RemoteRegistryConfig$$]
+****
+
+[cols="25a,75a", options="header"]
+|===
+| Field | Description
+| *`name`* __string__ | Name of the FeatureStore +
+| *`namespace`* __string__ | Namespace of the FeatureStore +
+|===
+
+
+[id="{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-featurestoreservices"]
+==== FeatureStoreServices 
+
+FeatureStoreServices defines the desired feast service deployments. ephemeral registry is deployed by default.
+
+.Appears In:
+****
+- xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-featurestorespec[$$FeatureStoreSpec$$]
+****
+
+[cols="25a,75a", options="header"]
+|===
+| Field | Description
+| *`offlineStore`* __xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-offlinestore[$$OfflineStore$$]__ | 
+| *`onlineStore`* __xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-onlinestore[$$OnlineStore$$]__ | 
+| *`registry`* __xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-registry[$$Registry$$]__ | 
+|===
+
+
+[id="{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-featurestorespec"]
+==== FeatureStoreSpec 
+
+FeatureStoreSpec defines the desired state of FeatureStore
+
+.Appears In:
+****
+- xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-featurestore[$$FeatureStore$$]
+- xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-featurestorestatus[$$FeatureStoreStatus$$]
+****
+
+[cols="25a,75a", options="header"]
+|===
+| Field | Description
+| *`feastProject`* __string__ | FeastProject is the Feast project id. This can be any alphanumeric string with underscores, but it cannot start with an underscore. Required. +
+| *`services`* __xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-featurestoreservices[$$FeatureStoreServices$$]__ | 
+| *`authz`* __xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-authzconfig[$$AuthzConfig$$]__ | 
+|===
+
+
+[id="{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-featurestorestatus"]
+==== FeatureStoreStatus 
+
+FeatureStoreStatus defines the observed state of FeatureStore
+
+.Appears In:
+****
+- xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-featurestore[$$FeatureStore$$]
+****
+
+[cols="25a,75a", options="header"]
+|===
+| Field | Description
+| *`applied`* __xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-featurestorespec[$$FeatureStoreSpec$$]__ | Shows the currently applied feast configuration, including any pertinent defaults +
+| *`clientConfigMap`* __string__ | ConfigMap in this namespace containing a client `feature_store.yaml` for this feast deployment +
+| *`conditions`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#condition-v1-meta[$$Condition$$] array__ | 
+| *`feastVersion`* __string__ | Version of feast that's currently deployed +
+| *`phase`* __string__ | 
+| *`serviceHostnames`* __xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-servicehostnames[$$ServiceHostnames$$]__ | 
+|===
+
+
+[id="{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-kubernetesauthz"]
+==== KubernetesAuthz 
+
+KubernetesAuthz provides a way to define the authorization settings using Kubernetes RBAC resources.
+https://kubernetes.io/docs/reference/access-authn-authz/rbac/
+
+.Appears In:
+****
+- xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-authzconfig[$$AuthzConfig$$]
+****
+
+[cols="25a,75a", options="header"]
+|===
+| Field | Description
+| *`roles`* __string array__ | The Kubernetes RBAC roles to be deployed in the same namespace of the FeatureStore. +
+Roles are managed by the operator and created with an empty list of rules. +
+See the Feast permission model at https://docs.feast.dev/getting-started/concepts/permission +
+The feature store admin is not obligated to manage roles using the Feast operator, roles can be managed independently. +
+This configuration option is only providing a way to automate this procedure. +
+Important note: the operator cannot ensure that these roles will match the ones used in the configured Feast permissions. +
+|===
+
+
+[id="{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-localregistryconfig"]
+==== LocalRegistryConfig 
+
+LocalRegistryConfig configures the deployed registry service
+
+.Appears In:
+****
+- xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-registry[$$Registry$$]
+****
+
+[cols="25a,75a", options="header"]
+|===
+| Field | Description
+| *`image`* __string__ | 
+| *`env`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#envvar-v1-core[$$EnvVar$$]__ | 
+| *`imagePullPolicy`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#pullpolicy-v1-core[$$PullPolicy$$]__ | 
+| *`resources`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core[$$ResourceRequirements$$]__ | 
+| *`persistence`* __xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-registrypersistence[$$RegistryPersistence$$]__ | 
+| *`tls`* __xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-tlsconfigs[$$TlsConfigs$$]__ | 
+|===
+
+
+[id="{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-offlinestore"]
+==== OfflineStore 
+
+OfflineStore configures the deployed offline store service
+
+.Appears In:
+****
+- xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-featurestoreservices[$$FeatureStoreServices$$]
+****
+
+[cols="25a,75a", options="header"]
+|===
+| Field | Description
+| *`image`* __string__ | 
+| *`env`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#envvar-v1-core[$$EnvVar$$]__ | 
+| *`imagePullPolicy`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#pullpolicy-v1-core[$$PullPolicy$$]__ | 
+| *`resources`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core[$$ResourceRequirements$$]__ | 
+| *`persistence`* __xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-offlinestorepersistence[$$OfflineStorePersistence$$]__ | 
+| *`tls`* __xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-offlinetlsconfigs[$$OfflineTlsConfigs$$]__ | 
+|===
+
+
+[id="{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-offlinestoredbstorepersistence"]
+==== OfflineStoreDBStorePersistence 
+
+OfflineStoreDBStorePersistence configures the DB store persistence for the offline store service
+
+.Appears In:
+****
+- xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-offlinestorepersistence[$$OfflineStorePersistence$$]
+****
+
+[cols="25a,75a", options="header"]
+|===
+| Field | Description
+| *`type`* __string__ | 
+| *`secretRef`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#localobjectreference-v1-core[$$LocalObjectReference$$]__ | 
+| *`secretKeyName`* __string__ | 
+|===
+
+
+[id="{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-offlinestorefilepersistence"]
+==== OfflineStoreFilePersistence 
+
+OfflineStoreFilePersistence configures the file-based persistence for the offline store service
+
+.Appears In:
+****
+- xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-offlinestorepersistence[$$OfflineStorePersistence$$]
+****
+
+[cols="25a,75a", options="header"]
+|===
+| Field | Description
+| *`type`* __string__ | 
+| *`pvc`* __xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-pvcconfig[$$PvcConfig$$]__ | 
+|===
+
+
+[id="{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-offlinestorepersistence"]
+==== OfflineStorePersistence 
+
+OfflineStorePersistence configures the persistence settings for the offline store service
+
+.Appears In:
+****
+- xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-offlinestore[$$OfflineStore$$]
+****
+
+[cols="25a,75a", options="header"]
+|===
+| Field | Description
+| *`file`* __xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-offlinestorefilepersistence[$$OfflineStoreFilePersistence$$]__ | 
+| *`store`* __xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-offlinestoredbstorepersistence[$$OfflineStoreDBStorePersistence$$]__ | 
+|===
+
+
+[id="{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-offlinetlsconfigs"]
+==== OfflineTlsConfigs 
+
+OfflineTlsConfigs configures server TLS for the offline feast service. in an openshift cluster, this is configured by default using service serving certificates.
+
+.Appears In:
+****
+- xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-offlinestore[$$OfflineStore$$]
+****
+
+[cols="25a,75a", options="header"]
+|===
+| Field | Description
+| *`secretRef`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#localobjectreference-v1-core[$$LocalObjectReference$$]__ | references the local k8s secret where the TLS key and cert reside +
+| *`secretKeyNames`* __xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-secretkeynames[$$SecretKeyNames$$]__ | 
+| *`disable`* __boolean__ | will disable TLS for the feast service. useful in an openshift cluster, for example, where TLS is configured by default +
+| *`verifyClient`* __boolean__ | verify the client TLS certificate. +
+|===
+
+
+[id="{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-onlinestore"]
+==== OnlineStore 
+
+OnlineStore configures the deployed online store service
+
+.Appears In:
+****
+- xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-featurestoreservices[$$FeatureStoreServices$$]
+****
+
+[cols="25a,75a", options="header"]
+|===
+| Field | Description
+| *`image`* __string__ | 
+| *`env`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#envvar-v1-core[$$EnvVar$$]__ | 
+| *`imagePullPolicy`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#pullpolicy-v1-core[$$PullPolicy$$]__ | 
+| *`resources`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core[$$ResourceRequirements$$]__ | 
+| *`persistence`* __xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-onlinestorepersistence[$$OnlineStorePersistence$$]__ | 
+| *`tls`* __xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-tlsconfigs[$$TlsConfigs$$]__ | 
+|===
+
+
+[id="{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-onlinestoredbstorepersistence"]
+==== OnlineStoreDBStorePersistence 
+
+OnlineStoreDBStorePersistence configures the DB store persistence for the offline store service
+
+.Appears In:
+****
+- xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-onlinestorepersistence[$$OnlineStorePersistence$$]
+****
+
+[cols="25a,75a", options="header"]
+|===
+| Field | Description
+| *`type`* __string__ | 
+| *`secretRef`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#localobjectreference-v1-core[$$LocalObjectReference$$]__ | 
+| *`secretKeyName`* __string__ | 
+|===
+
+
+[id="{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-onlinestorefilepersistence"]
+==== OnlineStoreFilePersistence 
+
+OnlineStoreFilePersistence configures the file-based persistence for the offline store service
+
+.Appears In:
+****
+- xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-onlinestorepersistence[$$OnlineStorePersistence$$]
+****
+
+[cols="25a,75a", options="header"]
+|===
+| Field | Description
+| *`path`* __string__ | 
+| *`pvc`* __xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-pvcconfig[$$PvcConfig$$]__ | 
+|===
+
+
+[id="{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-onlinestorepersistence"]
+==== OnlineStorePersistence 
+
+OnlineStorePersistence configures the persistence settings for the online store service
+
+.Appears In:
+****
+- xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-onlinestore[$$OnlineStore$$]
+****
+
+[cols="25a,75a", options="header"]
+|===
+| Field | Description
+| *`file`* __xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-onlinestorefilepersistence[$$OnlineStoreFilePersistence$$]__ | 
+| *`store`* __xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-onlinestoredbstorepersistence[$$OnlineStoreDBStorePersistence$$]__ | 
+|===
+
+
+[id="{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-optionalconfigs"]
+==== OptionalConfigs 
+
+OptionalConfigs k8s container settings that are optional
+
+.Appears In:
+****
+- xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-localregistryconfig[$$LocalRegistryConfig$$]
+- xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-offlinestore[$$OfflineStore$$]
+- xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-onlinestore[$$OnlineStore$$]
+- xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-serviceconfigs[$$ServiceConfigs$$]
+****
+
+[cols="25a,75a", options="header"]
+|===
+| Field | Description
+| *`env`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#envvar-v1-core[$$EnvVar$$]__ | 
+| *`imagePullPolicy`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#pullpolicy-v1-core[$$PullPolicy$$]__ | 
+| *`resources`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core[$$ResourceRequirements$$]__ | 
+|===
+
+
+[id="{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-pvcconfig"]
+==== PvcConfig (xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-struct-ref -k8s-io-api-core-v1-localobjectreference -json-ref-omitempty- create -pvccreate -json-create-omitempty- mountpath string -json-mountpath-omitempty-[$$struct{Ref *k8s.io/api/core/v1.LocalObjectReference "json:\"ref,omitempty\""; Create *PvcCreate "json:\"create,omitempty\""; MountPath string "json:\"mountPath,omitempty\""}$$]) 
+
+PvcConfig defines the settings for a persistent file store based on PVCs.
+We can refer to an existing PVC using the `Ref` field, or create a new one using the `Create` field.
+
+.Appears In:
+****
+- xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-offlinestorefilepersistence[$$OfflineStoreFilePersistence$$]
+- xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-onlinestorefilepersistence[$$OnlineStoreFilePersistence$$]
+****
+
+
+
+
+
+[id="{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-registry"]
+==== Registry 
+
+Registry configures the registry service. One selection is required. Local is the default setting.
+
+.Appears In:
+****
+- xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-featurestoreservices[$$FeatureStoreServices$$]
+****
+
+[cols="25a,75a", options="header"]
+|===
+| Field | Description
+| *`local`* __xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-localregistryconfig[$$LocalRegistryConfig$$]__ | 
+| *`remote`* __xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-remoteregistryconfig[$$RemoteRegistryConfig$$]__ | 
+|===
+
+
+[id="{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-registrydbstorepersistence"]
+==== RegistryDBStorePersistence (xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-struct-type string -json-type- secretref k8s-io-api-core-v1-localobjectreference -json-secretref- secretkeyname string -json-secretkeyname-omitempty-[$$struct{Type string "json:\"type\""; SecretRef k8s.io/api/core/v1.LocalObjectReference "json:\"secretRef\""; SecretKeyName string "json:\"secretKeyName,omitempty\""}$$]) 
+
+RegistryDBStorePersistence configures the DB store persistence for the registry service
+
+.Appears In:
+****
+- xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-registrypersistence[$$RegistryPersistence$$]
+****
+
+
+
+[id="{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-registryfilepersistence"]
+==== RegistryFilePersistence (xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-struct-path string -json-path-omitempty- pvcconfig -pvcconfig -json-pvc-omitempty- s3additionalkwargs -map-string-string -json-s3-additional-kwargs-omitempty-[$$struct{Path string "json:\"path,omitempty\""; PvcConfig *PvcConfig "json:\"pvc,omitempty\""; S3AdditionalKwargs *map[string]string "json:\"s3_additional_kwargs,omitempty\""}$$]) 
+
+RegistryFilePersistence configures the file-based persistence for the registry service
+
+.Appears In:
+****
+- xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-registrypersistence[$$RegistryPersistence$$]
+****
+
+
+
+[id="{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-registrypersistence"]
+==== RegistryPersistence 
+
+RegistryPersistence configures the persistence settings for the registry service
+
+.Appears In:
+****
+- xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-localregistryconfig[$$LocalRegistryConfig$$]
+****
+
+[cols="25a,75a", options="header"]
+|===
+| Field | Description
+| *`file`* __xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-registryfilepersistence[$$RegistryFilePersistence$$]__ | 
+| *`store`* __xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-registrydbstorepersistence[$$RegistryDBStorePersistence$$]__ | 
+|===
+
+
+[id="{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-remoteregistryconfig"]
+==== RemoteRegistryConfig 
+
+RemoteRegistryConfig points to a remote feast registry server. When set, the operator will not deploy a registry for this FeatureStore CR.
+Instead, this FeatureStore CR's online/offline services will use a remote registry. One selection is required.
+
+.Appears In:
+****
+- xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-registry[$$Registry$$]
+****
+
+[cols="25a,75a", options="header"]
+|===
+| Field | Description
+| *`hostname`* __string__ | Host address of the remote registry service - <domain>:<port>, e.g. `registry.<namespace>.svc.cluster.local:80` +
+| *`feastRef`* __xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-featurestoreref[$$FeatureStoreRef$$]__ | Reference to an existing `FeatureStore` CR in the same k8s cluster. +
+| *`tls`* __xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-tlsremoteregistryconfigs[$$TlsRemoteRegistryConfigs$$]__ | 
+|===
+
+
+[id="{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-secretkeynames"]
+==== SecretKeyNames 
+
+SecretKeyNames defines the secret key names for the TLS key and cert.
+
+.Appears In:
+****
+- xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-offlinetlsconfigs[$$OfflineTlsConfigs$$]
+- xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-tlsconfigs[$$TlsConfigs$$]
+****
+
+[cols="25a,75a", options="header"]
+|===
+| Field | Description
+| *`tlsCrt`* __string__ | defaults to "tls.crt" +
+| *`tlsKey`* __string__ | defaults to "tls.key" +
+|===
+
+
+[id="{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-serviceconfigs"]
+==== ServiceConfigs 
+
+ServiceConfigs k8s container settings
+
+.Appears In:
+****
+- xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-localregistryconfig[$$LocalRegistryConfig$$]
+- xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-offlinestore[$$OfflineStore$$]
+- xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-onlinestore[$$OnlineStore$$]
+****
+
+[cols="25a,75a", options="header"]
+|===
+| Field | Description
+| *`image`* __string__ | 
+| *`env`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#envvar-v1-core[$$EnvVar$$]__ | 
+| *`imagePullPolicy`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#pullpolicy-v1-core[$$PullPolicy$$]__ | 
+| *`resources`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core[$$ResourceRequirements$$]__ | 
+|===
+
+
+[id="{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-servicehostnames"]
+==== ServiceHostnames 
+
+ServiceHostnames defines the service hostnames in the format of <domain>:<port>, e.g. example.svc.cluster.local:80
+
+.Appears In:
+****
+- xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-featurestorestatus[$$FeatureStoreStatus$$]
+****
+
+[cols="25a,75a", options="header"]
+|===
+| Field | Description
+| *`offlineStore`* __string__ | 
+| *`onlineStore`* __string__ | 
+| *`registry`* __string__ | 
+|===
+
+
+[id="{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-tlsconfigs"]
+==== TlsConfigs 
+
+TlsConfigs configures server TLS for a feast service. in an openshift cluster, this is configured by default using service serving certificates.
+
+.Appears In:
+****
+- xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-localregistryconfig[$$LocalRegistryConfig$$]
+- xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-offlinetlsconfigs[$$OfflineTlsConfigs$$]
+- xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-onlinestore[$$OnlineStore$$]
+****
+
+[cols="25a,75a", options="header"]
+|===
+| Field | Description
+| *`secretRef`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#localobjectreference-v1-core[$$LocalObjectReference$$]__ | references the local k8s secret where the TLS key and cert reside +
+| *`secretKeyNames`* __xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-secretkeynames[$$SecretKeyNames$$]__ | 
+| *`disable`* __boolean__ | will disable TLS for the feast service. useful in an openshift cluster, for example, where TLS is configured by default +
+|===
+
+
+[id="{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-tlsremoteregistryconfigs"]
+==== TlsRemoteRegistryConfigs 
+
+TlsRemoteRegistryConfigs configures client TLS for a remote feast registry. in an openshift cluster, this is configured by default when the remote feast registry is using service serving certificates.
+
+.Appears In:
+****
+- xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-remoteregistryconfig[$$RemoteRegistryConfig$$]
+****
+
+[cols="25a,75a", options="header"]
+|===
+| Field | Description
+| *`configMapRef`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#localobjectreference-v1-core[$$LocalObjectReference$$]__ | references the local k8s configmap where the TLS cert resides +
+| *`certName`* __string__ | defines the configmap key name for the client TLS cert. +
+|===
+
+
