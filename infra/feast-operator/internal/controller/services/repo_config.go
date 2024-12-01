@@ -45,14 +45,14 @@ func (feast *FeastServices) getServiceFeatureStoreYaml(feastType FeastServiceTyp
 }
 
 func (feast *FeastServices) getServiceRepoConfig(feastType FeastServiceType) (RepoConfig, error) {
-	return getServiceRepoConfig(feastType, feast.FeatureStore, feast.extractConfigFromSecret)
+	return getServiceRepoConfig(feastType, feast.Handler.FeatureStore, feast.extractConfigFromSecret)
 }
 
 func getServiceRepoConfig(feastType FeastServiceType, featureStore *feastdevv1alpha1.FeatureStore, secretExtractionFunc func(secretRef string, secretKeyName string) (map[string]interface{}, error)) (RepoConfig, error) {
 	appliedSpec := featureStore.Status.Applied
 
 	repoConfig := getClientRepoConfig(featureStore)
-	isLocalReg := isLocalRegistry(featureStore)
+	isLocalRegistry := IsLocalRegistry(featureStore)
 	if appliedSpec.Services != nil {
 		services := appliedSpec.Services
 
@@ -75,7 +75,7 @@ func getServiceRepoConfig(feastType FeastServiceType, featureStore *feastdevv1al
 			}
 		case RegistryFeastType:
 			// Registry server only has a `registry` section
-			if isLocalReg {
+			if isLocalRegistry {
 				err := setRepoConfigRegistry(services, secretExtractionFunc, &repoConfig)
 				if err != nil {
 					return repoConfig, err
@@ -203,7 +203,7 @@ func setRepoConfigOffline(services *feastdevv1alpha1.FeatureStoreServices, secre
 }
 
 func (feast *FeastServices) getClientFeatureStoreYaml() ([]byte, error) {
-	return yaml.Marshal(getClientRepoConfig(feast.FeatureStore))
+	return yaml.Marshal(getClientRepoConfig(feast.Handler.FeatureStore))
 }
 
 func getClientRepoConfig(featureStore *feastdevv1alpha1.FeatureStore) RepoConfig {
@@ -230,6 +230,18 @@ func getClientRepoConfig(featureStore *feastdevv1alpha1.FeatureStore) RepoConfig
 		clientRepoConfig.Registry = RegistryConfig{
 			RegistryType: RegistryRemoteConfigType,
 			Path:         status.ServiceHostnames.Registry,
+		}
+	}
+
+	if status.Applied.AuthzConfig.KubernetesAuthz == nil {
+		clientRepoConfig.AuthzConfig = AuthzConfig{
+			Type: NoAuthAuthType,
+		}
+	} else {
+		if status.Applied.AuthzConfig.KubernetesAuthz != nil {
+			clientRepoConfig.AuthzConfig = AuthzConfig{
+				Type: KubernetesAuthType,
+			}
 		}
 	}
 	return clientRepoConfig
