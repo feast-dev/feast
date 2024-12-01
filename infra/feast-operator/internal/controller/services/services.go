@@ -41,12 +41,14 @@ func (feast *FeastServices) Deploy() error {
 	if err := feast.ApplyDefaults(); err != nil {
 		return err
 	}
-	if openshiftTls, err := feast.checkOpenshiftTls(); openshiftTls {
+	openshiftTls, err := feast.checkOpenshiftTls()
+	if err != nil {
+		return err
+	}
+	if openshiftTls {
 		if err := feast.createCaConfigMap(); err != nil {
 			return err
 		}
-	} else if err != nil {
-		return err
 	} else {
 		_ = feast.Handler.DeleteOwnedFeastObj(feast.initCaConfigMap())
 	}
