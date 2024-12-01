@@ -395,6 +395,12 @@ var _ = Describe("FeatureStore API", func() {
 			storage = resource.Status.Applied.Services.Registry.Local.Persistence.FilePersistence.PvcConfig.Create.Resources.Requests.Storage().String()
 			Expect(storage).To(Equal("500Mi"))
 		})
+		It("should set the default AuthzConfig", func() {
+			resource := featurestore
+			services.ApplyDefaultsToStatus(resource)
+			Expect(resource.Status.Applied.AuthzConfig).ToNot(BeNil())
+			Expect(resource.Status.Applied.AuthzConfig).To(Equal(&feastdevv1alpha1.AuthzConfig{}))
+		})
 	})
 	Context("When omitting the AuthzConfig PvcConfig", func() {
 		_, featurestore := initContext()
