@@ -111,7 +111,7 @@ vet: ## Run go vet against code.
 	go vet ./...
 
 .PHONY: test
-test: build-installer fmt vet lint envtest ## Run tests.
+test: build-installer vet lint envtest ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $$(go list ./... | grep -v /e2e) -coverprofile cover.out
 
 # Utilize Kind or modify the e2e tests to load the image locally, enabling compatibility with other vendors.
@@ -172,7 +172,7 @@ docker-buildx: ## Build and push docker image for the manager for cross-platform
 	rm Dockerfile.cross
 
 .PHONY: build-installer
-build-installer: manifests generate kustomize ## Generate a consolidated YAML with CRDs and deployment.
+build-installer: manifests generate-ref kustomize ## Generate a consolidated YAML with CRDs and deployment.
 	mkdir -p dist
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build config/default > dist/install.yaml
@@ -203,7 +203,8 @@ undeploy: kustomize ## Undeploy controller from the K8s cluster specified in ~/.
 ##@ Dependencies
 
 ## Location to install dependencies to
-LOCALBIN ?= $(shell pwd)/bin
+LOCALDIR ?= $(shell pwd)
+LOCALBIN ?= $(LOCALDIR)/bin
 $(LOCALBIN):
 	mkdir -p $(LOCALBIN)
 
@@ -211,12 +212,14 @@ $(LOCALBIN):
 KUBECTL ?= kubectl
 KUSTOMIZE ?= $(LOCALBIN)/kustomize-$(KUSTOMIZE_VERSION)
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen-$(CONTROLLER_TOOLS_VERSION)
+CRD_REF_DOCS ?= $(LOCALBIN)/crd-ref-docs-$(CRD_REF_DOCS_VERSION)
 ENVTEST ?= $(LOCALBIN)/setup-envtest-$(ENVTEST_VERSION)
 GOLANGCI_LINT = $(LOCALBIN)/golangci-lint-$(GOLANGCI_LINT_VERSION)
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v5.3.0
 CONTROLLER_TOOLS_VERSION ?= v0.14.0
+CRD_REF_DOCS_VERSION ?= v0.1.0
 ENVTEST_VERSION ?= release-0.17
 GOLANGCI_LINT_VERSION ?= v1.57.2
 
@@ -270,6 +273,16 @@ else
 OPERATOR_SDK = $(shell which operator-sdk)
 endif
 endif
+
+.PHONY: crd-ref-docs
+crd-ref-docs: $(CRD_REF_DOCS) ## Download crd-ref-docs locally if necessary.
+$(CRD_REF_DOCS): $(LOCALBIN)
+	$(call go-install-tool,$(CRD_REF_DOCS),github.com/elastic/crd-ref-docs,$(CRD_REF_DOCS_VERSION))
+
+.PHONY: generate-ref
+generate-ref: generate fmt crd-ref-docs
+	$(CRD_REF_DOCS) --log-level=WARN --config=$(LOCALDIR)/docs/crd-ref-templates/config.yaml --source-path=$(LOCALDIR)/api/v1alpha1 --renderer=asciidoctor --templates-dir=$(LOCALDIR)/docs/crd-ref-templates/asciidoctor --output-path=$(LOCALDIR)/docs/api/asciidoc/ref.adoc
+	$(CRD_REF_DOCS) --log-level=WARN --config=$(LOCALDIR)/docs/crd-ref-templates/config.yaml --source-path=$(LOCALDIR)/api/v1alpha1 --renderer=markdown --templates-dir=$(LOCALDIR)/docs/crd-ref-templates/markdown --output-path=$(LOCALDIR)/docs/api/markdown/ref.md
 
 .PHONY: bundle
 bundle: manifests kustomize operator-sdk ## Generate bundle manifests and metadata, then validate generated files.
