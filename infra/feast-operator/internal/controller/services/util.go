@@ -17,7 +17,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-func isLocalRegistry(featureStore *feastdevv1alpha1.FeatureStore) bool {
+func IsLocalRegistry(featureStore *feastdevv1alpha1.FeatureStore) bool {
 	appliedServices := featureStore.Status.Applied.Services
 	return appliedServices != nil && appliedServices.Registry != nil && appliedServices.Registry.Local != nil
 }
@@ -35,7 +35,7 @@ func hasPvcConfig(featureStore *feastdevv1alpha1.FeatureStore, feastType FeastSe
 			pvcConfig = services.OfflineStore.Persistence.FilePersistence.PvcConfig
 		}
 	case RegistryFeastType:
-		if isLocalRegistry(featureStore) && services.Registry.Local.Persistence.FilePersistence != nil {
+		if IsLocalRegistry(featureStore) && services.Registry.Local.Persistence.FilePersistence != nil {
 			pvcConfig = services.Registry.Local.Persistence.FilePersistence.PvcConfig
 		}
 	}
@@ -52,6 +52,11 @@ func shouldCreatePvc(featureStore *feastdevv1alpha1.FeatureStore, feastType Feas
 func ApplyDefaultsToStatus(cr *feastdevv1alpha1.FeatureStore) {
 	cr.Status.FeastVersion = feastversion.FeastVersion
 	applied := cr.Spec.DeepCopy()
+
+	if applied.AuthzConfig == nil {
+		applied.AuthzConfig = &feastdevv1alpha1.AuthzConfig{}
+	}
+
 	if applied.Services == nil {
 		applied.Services = &feastdevv1alpha1.FeatureStoreServices{}
 	}
@@ -201,11 +206,11 @@ func checkRegistryDBStorePersistenceType(value string) error {
 }
 
 func (feast *FeastServices) getSecret(secretRef string) (*corev1.Secret, error) {
-	secret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: secretRef, Namespace: feast.FeatureStore.Namespace}}
+	secret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: secretRef, Namespace: feast.Handler.FeatureStore.Namespace}}
 	objectKey := client.ObjectKeyFromObject(secret)
-	if err := feast.Client.Get(feast.Context, objectKey, secret); err != nil {
+	if err := feast.Handler.Client.Get(feast.Handler.Context, objectKey, secret); err != nil {
 		if apierrors.IsNotFound(err) || err != nil {
-			logger := log.FromContext(feast.Context)
+			logger := log.FromContext(feast.Handler.Context)
 			logger.Error(err, "invalid secret "+secretRef+" for offline store")
 
 			return nil, err
