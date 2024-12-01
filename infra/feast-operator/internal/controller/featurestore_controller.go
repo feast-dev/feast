@@ -108,8 +108,7 @@ func (r *FeatureStoreReconciler) deployFeast(ctx context.Context, cr *feastdevv1
 		Reason:  feastdevv1alpha1.ReadyReason,
 		Message: feastdevv1alpha1.ReadyMessage,
 	}
-
-	authz := authz.FeastAuthorization{
+	feast := services.FeastServices{
 		Handler: feasthandler.FeastHandler{
 			Client:       r.Client,
 			Context:      ctx,
@@ -117,30 +116,25 @@ func (r *FeatureStoreReconciler) deployFeast(ctx context.Context, cr *feastdevv1
 			Scheme:       r.Scheme,
 		},
 	}
-	if err = authz.Deploy(); err != nil {
+	authz := authz.FeastAuthorization{
+		Handler: feast.Handler,
+	}
+
+	// status defaults must be applied before deployments
+	errResult := ctrl.Result{Requeue: true, RequeueAfter: RequeueDelayError}
+	if err = feast.ApplyDefaults(); err != nil {
+		result = errResult
+	} else if err = authz.Deploy(); err != nil {
+		result = errResult
+	} else if err = feast.Deploy(); err != nil {
+		result = errResult
+	}
+	if err != nil {
 		condition = metav1.Condition{
 			Type:    feastdevv1alpha1.ReadyType,
 			Status:  metav1.ConditionFalse,
 			Reason:  feastdevv1alpha1.FailedReason,
 			Message: "Error: " + err.Error(),
-		}
-		result = ctrl.Result{Requeue: true, RequeueAfter: RequeueDelayError}
-	} else {
-		feast := services.FeastServices{
-			Handler: feasthandler.FeastHandler{
-				Client:       r.Client,
-				Context:      ctx,
-				FeatureStore: cr,
-				Scheme:       r.Scheme,
-			}}
-		if err = feast.Deploy(); err != nil {
-			condition = metav1.Condition{
-				Type:    feastdevv1alpha1.ReadyType,
-				Status:  metav1.ConditionFalse,
-				Reason:  feastdevv1alpha1.FailedReason,
-				Message: "Error: " + err.Error(),
-			}
-			result = ctrl.Result{Requeue: true, RequeueAfter: RequeueDelayError}
 		}
 	}
 

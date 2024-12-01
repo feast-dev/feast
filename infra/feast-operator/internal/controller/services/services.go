@@ -35,12 +35,20 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-// Deploy the feast services
-func (feast *FeastServices) Deploy() error {
-	// initial status defaults must be applied before feast deployment
-	if err := feast.ApplyDefaults(); err != nil {
+// Apply defaults and set service hostnames in FeatureStore status
+func (feast *FeastServices) ApplyDefaults() error {
+	ApplyDefaultsToStatus(feast.Handler.FeatureStore)
+	if err := feast.setTlsDefaults(); err != nil {
 		return err
 	}
+	if err := feast.setServiceHostnames(); err != nil {
+		return err
+	}
+	return nil
+}
+
+// Deploy the feast services
+func (feast *FeastServices) Deploy() error {
 	openshiftTls, err := feast.checkOpenshiftTls()
 	if err != nil {
 		return err
@@ -209,17 +217,6 @@ func (feast *FeastServices) removeFeastServiceByType(feastType FeastServiceType)
 		return err
 	}
 	apimeta.RemoveStatusCondition(&feast.Handler.FeatureStore.Status.Conditions, FeastServiceConditions[feastType][metav1.ConditionTrue].Type)
-	return nil
-}
-
-func (feast *FeastServices) ApplyDefaults() error {
-	ApplyDefaultsToStatus(feast.Handler.FeatureStore)
-	if err := feast.setTlsDefaults(); err != nil {
-		return err
-	}
-	if err := feast.setServiceHostnames(); err != nil {
-		return err
-	}
 	return nil
 }
 

@@ -21,6 +21,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	feastdevv1alpha1 "github.com/feast-dev/feast/infra/feast-operator/api/v1alpha1"
+	"github.com/feast-dev/feast/infra/feast-operator/internal/controller/handler"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -44,8 +45,10 @@ var _ = Describe("TLS Config", func() {
 
 			// registry service w/o tls
 			feast := FeastServices{
-				FeatureStore: minimalFeatureStore(),
-				Scheme:       scheme,
+				Handler: handler.FeastHandler{
+					FeatureStore: minimalFeatureStore(),
+					Scheme:       scheme,
+				},
 			}
 			err := feast.ApplyDefaults()
 			Expect(err).To(BeNil())
@@ -67,7 +70,7 @@ var _ = Describe("TLS Config", func() {
 
 			// registry service w/ openshift tls
 			testSetIsOpenShift()
-			feast.FeatureStore = minimalFeatureStore()
+			feast.Handler.FeatureStore = minimalFeatureStore()
 			err = feast.ApplyDefaults()
 			Expect(err).To(BeNil())
 
@@ -95,11 +98,11 @@ var _ = Describe("TLS Config", func() {
 			Expect(openshiftTls).To(BeTrue())
 
 			// all services w/ openshift tls
-			feast.FeatureStore = minimalFeatureStoreWithAllServices()
+			feast.Handler.FeatureStore = minimalFeatureStoreWithAllServices()
 			err = feast.ApplyDefaults()
 			Expect(err).To(BeNil())
 
-			repoConfig := getClientRepoConfig(feast.FeatureStore)
+			repoConfig := getClientRepoConfig(feast.Handler.FeatureStore)
 			Expect(repoConfig.OfflineStore.Port).To(Equal(HttpsPort))
 			Expect(repoConfig.OfflineStore.Scheme).To(Equal(HttpsScheme))
 			Expect(repoConfig.OfflineStore.Cert).To(ContainSubstring(string(OfflineFeastType)))
@@ -147,8 +150,8 @@ var _ = Describe("TLS Config", func() {
 			Expect(onlineDeploy.Spec.Template.Spec.Volumes).To(HaveLen(3))
 
 			// registry service w/ tls and in an openshift cluster
-			feast.FeatureStore = minimalFeatureStore()
-			feast.FeatureStore.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
+			feast.Handler.FeatureStore = minimalFeatureStore()
+			feast.Handler.FeatureStore.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
 				OnlineStore: &feastdevv1alpha1.OnlineStore{
 					TLS: &feastdevv1alpha1.TlsConfigs{},
 				},
@@ -190,12 +193,12 @@ var _ = Describe("TLS Config", func() {
 			Expect(openshiftTls).To(BeFalse())
 
 			// all services w/ tls and in an openshift cluster
-			feast.FeatureStore = minimalFeatureStoreWithAllServices()
+			feast.Handler.FeatureStore = minimalFeatureStoreWithAllServices()
 			disable := true
-			feast.FeatureStore.Spec.Services.OnlineStore.TLS = &feastdevv1alpha1.TlsConfigs{
+			feast.Handler.FeatureStore.Spec.Services.OnlineStore.TLS = &feastdevv1alpha1.TlsConfigs{
 				Disable: &disable,
 			}
-			feast.FeatureStore.Spec.Services.Registry = &feastdevv1alpha1.Registry{
+			feast.Handler.FeatureStore.Spec.Services.Registry = &feastdevv1alpha1.Registry{
 				Local: &feastdevv1alpha1.LocalRegistryConfig{
 					TLS: &feastdevv1alpha1.TlsConfigs{
 						Disable: &disable,
@@ -205,7 +208,7 @@ var _ = Describe("TLS Config", func() {
 			err = feast.ApplyDefaults()
 			Expect(err).To(BeNil())
 
-			repoConfig = getClientRepoConfig(feast.FeatureStore)
+			repoConfig = getClientRepoConfig(feast.Handler.FeatureStore)
 			Expect(repoConfig.OfflineStore.Port).To(Equal(HttpsPort))
 			Expect(repoConfig.OfflineStore.Scheme).To(Equal(HttpsScheme))
 			Expect(repoConfig.OfflineStore.Cert).To(ContainSubstring(string(OfflineFeastType)))

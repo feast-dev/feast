@@ -27,7 +27,7 @@ func (feast *FeastServices) setTlsDefaults() error {
 	if err := feast.setOpenshiftTls(); err != nil {
 		return err
 	}
-	appliedServices := feast.FeatureStore.Status.Applied.Services
+	appliedServices := feast.Handler.FeatureStore.Status.Applied.Services
 	if feast.isOfflinStore() && appliedServices.OfflineStore.TLS != nil {
 		tlsDefaults(&appliedServices.OfflineStore.TLS.TlsConfigs)
 	}
@@ -41,7 +41,7 @@ func (feast *FeastServices) setTlsDefaults() error {
 }
 
 func (feast *FeastServices) setOpenshiftTls() error {
-	appliedServices := feast.FeatureStore.Status.Applied.Services
+	appliedServices := feast.Handler.FeatureStore.Status.Applied.Services
 	tlsConfigs := &feastdevv1alpha1.TlsConfigs{
 		SecretRef: &corev1.LocalObjectReference{},
 	}
@@ -94,7 +94,7 @@ func (feast *FeastServices) isOpenShiftTls(feastType FeastServiceType) (isOpenSh
 }
 
 func (feast *FeastServices) getTlsConfigs(feastType FeastServiceType) (tls *feastdevv1alpha1.TlsConfigs) {
-	appliedServices := feast.FeatureStore.Status.Applied.Services
+	appliedServices := feast.Handler.FeatureStore.Status.Applied.Services
 	switch feastType {
 	case OfflineFeastType:
 		if feast.isOfflinStore() && appliedServices.OfflineStore.TLS != nil {
@@ -115,23 +115,23 @@ func (feast *FeastServices) getTlsConfigs(feastType FeastServiceType) (tls *feas
 // True if running in an openshift cluster and Tls not configured in the service Spec
 func (feast *FeastServices) offlineOpenshiftTls() bool {
 	return isOpenShift &&
-		feast.isOfflinStore() && feast.FeatureStore.Spec.Services.OfflineStore.TLS == nil
+		feast.isOfflinStore() && feast.Handler.FeatureStore.Spec.Services.OfflineStore.TLS == nil
 }
 
 // True if running in an openshift cluster and Tls not configured in the service Spec
 func (feast *FeastServices) onlineOpenshiftTls() bool {
 	return isOpenShift &&
-		feast.isOnlinStore() && feast.FeatureStore.Spec.Services.OnlineStore.TLS == nil
+		feast.isOnlinStore() && feast.Handler.FeatureStore.Spec.Services.OnlineStore.TLS == nil
 }
 
 // True if running in an openshift cluster and Tls not configured in the service Spec
 func (feast *FeastServices) localRegistryOpenshiftTls() bool {
 	return isOpenShift &&
 		feast.isLocalRegistry() &&
-		(feast.FeatureStore.Spec.Services == nil ||
-			feast.FeatureStore.Spec.Services.Registry == nil ||
-			feast.FeatureStore.Spec.Services.Registry.Local == nil ||
-			feast.FeatureStore.Spec.Services.Registry.Local.TLS == nil)
+		(feast.Handler.FeatureStore.Spec.Services == nil ||
+			feast.Handler.FeatureStore.Spec.Services.Registry == nil ||
+			feast.Handler.FeatureStore.Spec.Services.Registry.Local == nil ||
+			feast.Handler.FeatureStore.Spec.Services.Registry.Local.TLS == nil)
 }
 
 // True if running in an openshift cluster, and using a remote registry in the same cluster, with no remote Tls set in the service Spec
@@ -142,7 +142,7 @@ func (feast *FeastServices) remoteRegistryOpenshiftTls() (bool, error) {
 			return false, err
 		}
 		return (remoteFeast != nil && remoteFeast.localRegistryOpenshiftTls() &&
-				feast.FeatureStore.Spec.Services.Registry.Remote.TLS == nil),
+				feast.Handler.FeatureStore.Spec.Services.Registry.Remote.TLS == nil),
 			nil
 	}
 	return false, nil
@@ -150,16 +150,16 @@ func (feast *FeastServices) remoteRegistryOpenshiftTls() (bool, error) {
 
 func (feast *FeastServices) offlineTls() bool {
 	return feast.isOfflinStore() &&
-		feast.FeatureStore.Status.Applied.Services.OfflineStore.TLS != nil &&
-		(&feast.FeatureStore.Status.Applied.Services.OfflineStore.TLS.TlsConfigs).IsTLS()
+		feast.Handler.FeatureStore.Status.Applied.Services.OfflineStore.TLS != nil &&
+		(&feast.Handler.FeatureStore.Status.Applied.Services.OfflineStore.TLS.TlsConfigs).IsTLS()
 }
 
 func (feast *FeastServices) localRegistryTls() bool {
-	return localRegistryTls(feast.FeatureStore)
+	return localRegistryTls(feast.Handler.FeatureStore)
 }
 
 func (feast *FeastServices) remoteRegistryTls() bool {
-	return remoteRegistryTls(feast.FeatureStore)
+	return remoteRegistryTls(feast.Handler.FeatureStore)
 }
 
 func (feast *FeastServices) mountRegistryClientTls(podSpec *corev1.PodSpec) {
@@ -168,7 +168,7 @@ func (feast *FeastServices) mountRegistryClientTls(podSpec *corev1.PodSpec) {
 			feast.mountTlsConfig(RegistryFeastType, podSpec)
 		} else if feast.remoteRegistryTls() {
 			mountTlsRemoteRegistryConfig(RegistryFeastType, podSpec,
-				feast.FeatureStore.Status.Applied.Services.Registry.Remote.TLS)
+				feast.Handler.FeatureStore.Status.Applied.Services.Registry.Remote.TLS)
 		}
 	}
 }
@@ -233,7 +233,7 @@ func tlsDefaults(tls *feastdevv1alpha1.TlsConfigs) {
 }
 
 func localRegistryTls(featureStore *feastdevv1alpha1.FeatureStore) bool {
-	return isLocalRegistry(featureStore) && featureStore.Status.Applied.Services.Registry.Local.TLS.IsTLS()
+	return IsLocalRegistry(featureStore) && featureStore.Status.Applied.Services.Registry.Local.TLS.IsTLS()
 }
 
 func remoteRegistryTls(featureStore *feastdevv1alpha1.FeatureStore) bool {
