@@ -134,7 +134,7 @@ var _ = Describe("FeatureStore Controller", func() {
 			Expect(resource.Status.ServiceHostnames.OnlineStore).To(BeEmpty())
 			Expect(resource.Status.ServiceHostnames.Registry).To(Equal(feast.GetFeastServiceName(services.RegistryFeastType) + "." + resource.Namespace + ".svc.cluster.local:80"))
 			Expect(resource.Status.Applied.FeastProject).To(Equal(resource.Spec.FeastProject))
-			Expect(resource.Status.Applied.AuthzConfig).To(Equal(&feastdevv1alpha1.AuthzConfig{}))
+			Expect(resource.Status.Applied.AuthzConfig).To(BeNil())
 			Expect(resource.Status.Applied.Services).NotTo(BeNil())
 			Expect(resource.Status.Applied.Services.OfflineStore).To(BeNil())
 			Expect(resource.Status.Applied.Services.OnlineStore).To(BeNil())
@@ -152,6 +152,8 @@ var _ = Describe("FeatureStore Controller", func() {
 			Expect(cond.Reason).To(Equal(feastdevv1alpha1.ReadyReason))
 			Expect(cond.Type).To(Equal(feastdevv1alpha1.ReadyType))
 			Expect(cond.Message).To(Equal(feastdevv1alpha1.ReadyMessage))
+			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.AuthorizationReadyType)
+			Expect(cond).To(BeNil())
 
 			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.RegistryReadyType)
 			Expect(cond).ToNot(BeNil())
@@ -459,7 +461,7 @@ var _ = Describe("FeatureStore Controller", func() {
 			Expect(resource.Status.FeastVersion).To(Equal(feastversion.FeastVersion))
 			Expect(resource.Status.ClientConfigMap).To(Equal(feast.GetFeastServiceName(services.ClientFeastType)))
 			Expect(resource.Status.Applied.FeastProject).To(Equal(resource.Spec.FeastProject))
-			Expect(resource.Status.Applied.AuthzConfig).To(Equal(&feastdevv1alpha1.AuthzConfig{}))
+			Expect(resource.Status.Applied.AuthzConfig).To(BeNil())
 			Expect(resource.Status.Applied.Services).NotTo(BeNil())
 			Expect(resource.Status.Applied.Services.OfflineStore).NotTo(BeNil())
 			Expect(resource.Status.Applied.Services.OfflineStore.Persistence).NotTo(BeNil())
@@ -962,6 +964,7 @@ var _ = Describe("FeatureStore Controller", func() {
 				},
 				Spec: feastdevv1alpha1.FeatureStoreSpec{
 					FeastProject: referencedRegistry.Spec.FeastProject,
+					AuthzConfig:  &feastdevv1alpha1.AuthzConfig{},
 					Services: &feastdevv1alpha1.FeatureStoreServices{
 						OnlineStore:  &feastdevv1alpha1.OnlineStore{},
 						OfflineStore: &feastdevv1alpha1.OfflineStore{},

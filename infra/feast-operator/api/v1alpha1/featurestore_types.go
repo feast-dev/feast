@@ -33,7 +33,7 @@ const (
 	OnlineStoreReadyType   = "OnlineStore"
 	RegistryReadyType      = "Registry"
 	ReadyType              = "FeatureStore"
-	AuthorizationReadyType = "AuthorizationReadyType"
+	AuthorizationReadyType = "Authorization"
 
 	// Feast condition reasons:
 	ReadyReason                 = "Ready"

@@ -248,16 +248,11 @@ func getClientRepoConfig(featureStore *feastdevv1alpha1.FeatureStore) RepoConfig
 		}
 	}
 
-	if status.Applied.AuthzConfig.KubernetesAuthz == nil {
-		clientRepoConfig.AuthzConfig = AuthzConfig{
-			Type: NoAuthAuthType,
-		}
-	} else {
-		if status.Applied.AuthzConfig.KubernetesAuthz != nil {
-			clientRepoConfig.AuthzConfig = AuthzConfig{
-				Type: KubernetesAuthType,
-			}
-		}
+	clientRepoConfig.AuthzConfig = AuthzConfig{
+		Type: NoAuthAuthType,
+	}
+	if status.Applied.AuthzConfig != nil && status.Applied.AuthzConfig.KubernetesAuthz != nil {
+		clientRepoConfig.AuthzConfig.Type = KubernetesAuthType
 	}
 	return clientRepoConfig
 }
