@@ -17,34 +17,39 @@ import (
 
 // Deploy the feast authorization
 func (authz *FeastAuthorization) Deploy() error {
-	authzConfig := authz.Handler.FeatureStore.Status.Applied.AuthzConfig
-	if authzConfig != nil {
-		if authzConfig.KubernetesAuthz != nil {
-			if err := authz.deployKubernetesAuth(authzConfig.KubernetesAuthz); err != nil {
-				return err
-			}
-		} else {
-			authz.removeOrphanedRoles()
-			_ = authz.Handler.DeleteOwnedFeastObj(authz.initFeastRole())
-			_ = authz.Handler.DeleteOwnedFeastObj(authz.initFeastRoleBinding())
+	if authz.isKubernetesAuth() {
+		if err := authz.deployKubernetesAuth(); err != nil {
+			return err
 		}
+	} else {
+		authz.removeOrphanedRoles()
+		_ = authz.Handler.DeleteOwnedFeastObj(authz.initFeastRole())
+		_ = authz.Handler.DeleteOwnedFeastObj(authz.initFeastRoleBinding())
+		apimeta.RemoveStatusCondition(&authz.Handler.FeatureStore.Status.Conditions, feastKubernetesAuthConditions[metav1.ConditionTrue].Type)
 	}
 	return nil
 }
 
-func (authz *FeastAuthorization) deployKubernetesAuth(kubernetesAuth *feastdevv1alpha1.KubernetesAuthz) error {
-	authz.removeOrphanedRoles()
+func (authz *FeastAuthorization) isKubernetesAuth() bool {
+	authzConfig := authz.Handler.FeatureStore.Status.Applied.AuthzConfig
+	return authzConfig != nil && authzConfig.KubernetesAuthz != nil
+}
 
-	if err := authz.createFeastRole(); err != nil {
-		return authz.setFeastKubernetesAuthCondition(err)
-	}
-	if err := authz.createFeastRoleBinding(); err != nil {
-		return authz.setFeastKubernetesAuthCondition(err)
-	}
+func (authz *FeastAuthorization) deployKubernetesAuth() error {
+	if authz.isKubernetesAuth() {
+		authz.removeOrphanedRoles()
 
-	for _, roleName := range kubernetesAuth.Roles {
-		if err := authz.createAuthRole(roleName); err != nil {
+		if err := authz.createFeastRole(); err != nil {
 			return authz.setFeastKubernetesAuthCondition(err)
+		}
+		if err := authz.createFeastRoleBinding(); err != nil {
+			return authz.setFeastKubernetesAuthCondition(err)
+		}
+
+		for _, roleName := range authz.Handler.FeatureStore.Status.Applied.AuthzConfig.KubernetesAuthz.Roles {
+			if err := authz.createAuthRole(roleName); err != nil {
+				return authz.setFeastKubernetesAuthCondition(err)
+			}
 		}
 	}
 	return authz.setFeastKubernetesAuthCondition(nil)
@@ -61,7 +66,7 @@ func (authz *FeastAuthorization) removeOrphanedRoles() {
 	}
 
 	desiredRoles := []string{}
-	if authz.Handler.FeatureStore.Status.Applied.AuthzConfig.KubernetesAuthz != nil {
+	if authz.isKubernetesAuth() {
 		desiredRoles = authz.Handler.FeatureStore.Status.Applied.AuthzConfig.KubernetesAuthz.Roles
 	}
 	for _, role := range roleList.Items {

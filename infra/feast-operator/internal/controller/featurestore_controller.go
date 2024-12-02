@@ -57,7 +57,7 @@ type FeatureStoreReconciler struct {
 //+kubebuilder:rbac:groups=feast.dev,resources=featurestores/finalizers,verbs=update
 //+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;create;update;watch;delete
 //+kubebuilder:rbac:groups=core,resources=services;configmaps;persistentvolumeclaims;serviceaccounts,verbs=get;list;create;update;watch;delete
-//+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles,verbs=get;list;create;update;watch;delete
+//+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles;rolebindings,verbs=get;list;create;update;watch;delete
 //+kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
@@ -81,8 +81,6 @@ func (r *FeatureStoreReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 	currentStatus := cr.Status.DeepCopy()
 
-	// initial status defaults must occur before feast deployment
-	services.ApplyDefaultsToStatus(cr)
 	result, recErr = r.deployFeast(ctx, cr)
 	if cr.DeletionTimestamp == nil && !reflect.DeepEqual(currentStatus, cr.Status) {
 		if err = r.Client.Status().Update(ctx, cr); err != nil {
@@ -110,8 +108,7 @@ func (r *FeatureStoreReconciler) deployFeast(ctx context.Context, cr *feastdevv1
 		Reason:  feastdevv1alpha1.ReadyReason,
 		Message: feastdevv1alpha1.ReadyMessage,
 	}
-
-	authz := authz.FeastAuthorization{
+	feast := services.FeastServices{
 		Handler: feasthandler.FeastHandler{
 			Client:       r.Client,
 			Context:      ctx,
@@ -119,30 +116,25 @@ func (r *FeatureStoreReconciler) deployFeast(ctx context.Context, cr *feastdevv1
 			Scheme:       r.Scheme,
 		},
 	}
-	if err = authz.Deploy(); err != nil {
+	authz := authz.FeastAuthorization{
+		Handler: feast.Handler,
+	}
+
+	// status defaults must be applied before deployments
+	errResult := ctrl.Result{Requeue: true, RequeueAfter: RequeueDelayError}
+	if err = feast.ApplyDefaults(); err != nil {
+		result = errResult
+	} else if err = authz.Deploy(); err != nil {
+		result = errResult
+	} else if err = feast.Deploy(); err != nil {
+		result = errResult
+	}
+	if err != nil {
 		condition = metav1.Condition{
 			Type:    feastdevv1alpha1.ReadyType,
 			Status:  metav1.ConditionFalse,
 			Reason:  feastdevv1alpha1.FailedReason,
 			Message: "Error: " + err.Error(),
-		}
-		result = ctrl.Result{Requeue: true, RequeueAfter: RequeueDelayError}
-	} else {
-		feast := services.FeastServices{
-			Handler: feasthandler.FeastHandler{
-				Client:       r.Client,
-				Context:      ctx,
-				FeatureStore: cr,
-				Scheme:       r.Scheme,
-			}}
-		if err = feast.Deploy(); err != nil {
-			condition = metav1.Condition{
-				Type:    feastdevv1alpha1.ReadyType,
-				Status:  metav1.ConditionFalse,
-				Reason:  feastdevv1alpha1.FailedReason,
-				Message: "Error: " + err.Error(),
-			}
-			result = ctrl.Result{Requeue: true, RequeueAfter: RequeueDelayError}
 		}
 	}
 
