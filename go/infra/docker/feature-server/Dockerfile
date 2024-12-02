@@ -22,7 +22,6 @@ RUN find ./protos -name "*.proto" \
 
 # Build the Go application
 RUN go build -o feast ./go/main.go
-
 # Expose ports
 EXPOSE 8080
 

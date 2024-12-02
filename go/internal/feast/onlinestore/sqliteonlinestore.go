@@ -1,10 +1,9 @@
 package onlinestore
 
 import (
-	"crypto/sha1"
 	"database/sql"
-	"encoding/hex"
 	"errors"
+	"github.com/feast-dev/feast/go/internal/feast/utils"
 	"strings"
 	"sync"
 	"time"
@@ -71,12 +70,12 @@ func (s *SqliteOnlineStore) OnlineRead(ctx context.Context, entityKeys []*types.
 	in_query := make([]string, len(entityKeys))
 	serialized_entities := make([]interface{}, len(entityKeys))
 	for i := 0; i < len(entityKeys); i++ {
-		serKey, err := serializeEntityKey(entityKeys[i], s.repoConfig.EntityKeySerializationVersion)
+		serKey, err := utils.SerializeEntityKey(entityKeys[i], s.repoConfig.EntityKeySerializationVersion)
 		if err != nil {
 			return nil, err
 		}
 		// TODO: fix this, string conversion is not safe
-		entityNameToEntityIndex[hashSerializedEntityKey(serKey)] = i
+		entityNameToEntityIndex[utils.HashSerializedEntityKey(serKey)] = i
 		// for IN clause in read query
 		in_query[i] = "?"
 		serialized_entities[i] = *serKey
@@ -109,7 +108,7 @@ func (s *SqliteOnlineStore) OnlineRead(ctx context.Context, entityKeys []*types.
 			if err := proto.Unmarshal(valueString, &value); err != nil {
 				return nil, errors.New("error converting parsed value to types.Value")
 			}
-			rowIdx := entityNameToEntityIndex[hashSerializedEntityKey(&entity_key)]
+			rowIdx := entityNameToEntityIndex[utils.HashSerializedEntityKey(&entity_key)]
 			if results[rowIdx] == nil {
 				results[rowIdx] = make([]FeatureData, featureCount)
 			}
@@ -151,14 +150,4 @@ func initializeConnection(db_path string) (*sql.DB, error) {
 		return nil, err
 	}
 	return db, nil
-}
-
-func hashSerializedEntityKey(serializedEntityKey *[]byte) string {
-	if serializedEntityKey == nil {
-		return ""
-	}
-	h := sha1.New()
-	h.Write(*serializedEntityKey)
-	sha1_hash := hex.EncodeToString(h.Sum(nil))
-	return sha1_hash
 }
