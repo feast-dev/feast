@@ -20,8 +20,8 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"github.com/feast-dev/feast/infra/feast-operator/internal/controller/handler"
 
+	"github.com/feast-dev/feast/infra/feast-operator/internal/controller/handler"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"gopkg.in/yaml.v3"
@@ -78,8 +78,26 @@ sqlalchemy_config_kwargs:
   pool_pre_ping: true
 `
 
-var invalidSecretTypeYamlString = `
+var invalidSecretContainingTypeYamlString = `
 type: cassandra
+hosts:
+  - 192.168.1.1
+  - 192.168.1.2
+  - 192.168.1.3
+keyspace: KeyspaceName
+port: 9042                                                              
+username: user                                                          
+password: secret                                                        
+protocol_version: 5                                                     
+load_balancing:                                                         
+  local_dc: datacenter1                                             
+  load_balancing_policy: TokenAwarePolicy(DCAwareRoundRobinPolicy)
+read_concurrency: 100                                                   
+write_concurrency: 100
+`
+
+var invalidSecretTypeYamlString = `
+type: wrong
 hosts:
   - 192.168.1.1
   - 192.168.1.2
@@ -293,6 +311,31 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			secret := &corev1.Secret{}
+			err = k8sClient.Get(ctx, onlineSecretNamespacedName, secret)
+			Expect(err).NotTo(HaveOccurred())
+			secret.Data[string(services.OnlineDBPersistenceCassandraConfigType)] = []byte(invalidSecretContainingTypeYamlString)
+			Expect(k8sClient.Update(ctx, secret)).To(Succeed())
+
+			resource.Spec.Services.OnlineStore.Persistence.DBPersistence.SecretRef = corev1.LocalObjectReference{Name: "online-store-secret"}
+			resource.Spec.Services.OnlineStore.Persistence.DBPersistence.SecretKeyName = ""
+			Expect(k8sClient.Update(ctx, resource)).To(Succeed())
+			resource = &feastdevv1alpha1.FeatureStore{}
+			err = k8sClient.Get(ctx, typeNamespacedName, resource)
+			Expect(err).NotTo(HaveOccurred())
+
+			_, err = controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: typeNamespacedName,
+			})
+			Expect(err).To(HaveOccurred())
+
+			Expect(err.Error()).To(Equal("secret key cassandra in secret online-store-secret contains invalid tag named type"))
+
+			By("Referring to a secret that contains parameter named type with invalid value")
+			resource = &feastdevv1alpha1.FeatureStore{}
+			err = k8sClient.Get(ctx, typeNamespacedName, resource)
+			Expect(err).NotTo(HaveOccurred())
+
+			secret = &corev1.Secret{}
 			err = k8sClient.Get(ctx, onlineSecretNamespacedName, secret)
 			Expect(err).NotTo(HaveOccurred())
 			secret.Data[string(services.OnlineDBPersistenceCassandraConfigType)] = []byte(invalidSecretTypeYamlString)

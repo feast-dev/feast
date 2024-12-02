@@ -329,6 +329,9 @@ spec:
                               the DB store persistence for the offline store service
                             properties:
                               secretKeyName:
+                                description: |-
+                                  By default, the DB parameters should be placed as-is from the feature_store.yaml under the `type` key, if
+                                  SecretKeyName is specified the DB parameters should be placed as-is from the feature_store.yaml under the specified key
                                 type: string
                               secretRef:
                                 description: |-
@@ -684,6 +687,9 @@ spec:
                               the DB store persistence for the offline store service
                             properties:
                               secretKeyName:
+                                description: |-
+                                  By default, the DB parameters should be placed as-is from the feature_store.yaml under the `type` key, if
+                                  SecretKeyName is specified the DB parameters should be placed as-is from the feature_store.yaml under the specified key
                                 type: string
                               secretRef:
                                 description: |-
@@ -1057,6 +1063,9 @@ spec:
                                   the DB store persistence for the registry service
                                 properties:
                                   secretKeyName:
+                                    description: |-
+                                      By default, the DB parameters should be placed as-is from the feature_store.yaml under the `type` key, if
+                                      SecretKeyName is specified the DB parameters should be placed as-is from the feature_store.yaml under the specified key
                                     type: string
                                   secretRef:
                                     description: |-
@@ -1525,6 +1534,9 @@ spec:
                                   the DB store persistence for the offline store service
                                 properties:
                                   secretKeyName:
+                                    description: |-
+                                      By default, the DB parameters should be placed as-is from the feature_store.yaml under the `type` key, if
+                                      SecretKeyName is specified the DB parameters should be placed as-is from the feature_store.yaml under the specified key
                                     type: string
                                   secretRef:
                                     description: |-
@@ -1886,6 +1898,9 @@ spec:
                                   the DB store persistence for the offline store service
                                 properties:
                                   secretKeyName:
+                                    description: |-
+                                      By default, the DB parameters should be placed as-is from the feature_store.yaml under the `type` key, if
+                                      SecretKeyName is specified the DB parameters should be placed as-is from the feature_store.yaml under the specified key
                                     type: string
                                   secretRef:
                                     description: |-
@@ -2267,6 +2282,9 @@ spec:
                                       the DB store persistence for the registry service
                                     properties:
                                       secretKeyName:
+                                        description: |-
+                                          By default, the DB parameters should be placed as-is from the feature_store.yaml under the `type` key, if
+                                          SecretKeyName is specified the DB parameters should be placed as-is from the feature_store.yaml under the specified key
                                         type: string
                                       secretRef:
                                         description: |-
