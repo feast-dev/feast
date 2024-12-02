@@ -398,8 +398,7 @@ var _ = Describe("FeatureStore API", func() {
 		It("should set the default AuthzConfig", func() {
 			resource := featurestore
 			services.ApplyDefaultsToStatus(resource)
-			Expect(resource.Status.Applied.AuthzConfig).ToNot(BeNil())
-			Expect(resource.Status.Applied.AuthzConfig).To(Equal(&feastdevv1alpha1.AuthzConfig{}))
+			Expect(resource.Status.Applied.AuthzConfig).To(BeNil())
 		})
 	})
 	Context("When omitting the AuthzConfig PvcConfig", func() {
