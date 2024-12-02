@@ -393,6 +393,47 @@ spec:
                               More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                             type: object
                         type: object
+                      tls:
+                        description: OfflineTlsConfigs configures server TLS for the
+                          offline feast service. in an openshift cluster, this is
+                          configured by default using service serving certificates.
+                        properties:
+                          disable:
+                            description: will disable TLS for the feast service. useful
+                              in an openshift cluster, for example, where TLS is configured
+                              by default
+                            type: boolean
+                          secretKeyNames:
+                            description: SecretKeyNames defines the secret key names
+                              for the TLS key and cert.
+                            properties:
+                              tlsCrt:
+                                description: defaults to "tls.crt"
+                                type: string
+                              tlsKey:
+                                description: defaults to "tls.key"
+                                type: string
+                            type: object
+                          secretRef:
+                            description: references the local k8s secret where the
+                              TLS key and cert reside
+                            properties:
+                              name:
+                                description: |-
+                                  Name of the referent.
+                                  More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                  TODO: Add other useful fields. apiVersion, kind, uid?
+                                type: string
+                            type: object
+                            x-kubernetes-map-type: atomic
+                          verifyClient:
+                            description: verify the client TLS certificate.
+                            type: boolean
+                        type: object
+                        x-kubernetes-validations:
+                        - message: '`secretRef` required if `disable` is false.'
+                          rule: '(!has(self.disable) || !self.disable) ? has(self.secretRef)
+                            : true'
                     type: object
                   onlineStore:
                     description: OnlineStore configures the deployed online store
@@ -711,6 +752,44 @@ spec:
                               More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                             type: object
                         type: object
+                      tls:
+                        description: TlsConfigs configures server TLS for a feast
+                          service. in an openshift cluster, this is configured by
+                          default using service serving certificates.
+                        properties:
+                          disable:
+                            description: will disable TLS for the feast service. useful
+                              in an openshift cluster, for example, where TLS is configured
+                              by default
+                            type: boolean
+                          secretKeyNames:
+                            description: SecretKeyNames defines the secret key names
+                              for the TLS key and cert.
+                            properties:
+                              tlsCrt:
+                                description: defaults to "tls.crt"
+                                type: string
+                              tlsKey:
+                                description: defaults to "tls.key"
+                                type: string
+                            type: object
+                          secretRef:
+                            description: references the local k8s secret where the
+                              TLS key and cert reside
+                            properties:
+                              name:
+                                description: |-
+                                  Name of the referent.
+                                  More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                  TODO: Add other useful fields. apiVersion, kind, uid?
+                                type: string
+                            type: object
+                            x-kubernetes-map-type: atomic
+                        type: object
+                        x-kubernetes-validations:
+                        - message: '`secretRef` required if `disable` is false.'
+                          rule: '(!has(self.disable) || !self.disable) ? has(self.secretRef)
+                            : true'
                     type: object
                   registry:
                     description: Registry configures the registry service. One selection
@@ -978,6 +1057,10 @@ spec:
                                 - type
                                 type: object
                             type: object
+                            x-kubernetes-validations:
+                            - message: One selection required between file or store.
+                              rule: '[has(self.file), has(self.store)].exists_one(c,
+                                c)'
                           resources:
                             description: ResourceRequirements describes the compute
                               resource requirements.
@@ -1035,6 +1118,44 @@ spec:
                                   More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                                 type: object
                             type: object
+                          tls:
+                            description: TlsConfigs configures server TLS for a feast
+                              service. in an openshift cluster, this is configured
+                              by default using service serving certificates.
+                            properties:
+                              disable:
+                                description: will disable TLS for the feast service.
+                                  useful in an openshift cluster, for example, where
+                                  TLS is configured by default
+                                type: boolean
+                              secretKeyNames:
+                                description: SecretKeyNames defines the secret key
+                                  names for the TLS key and cert.
+                                properties:
+                                  tlsCrt:
+                                    description: defaults to "tls.crt"
+                                    type: string
+                                  tlsKey:
+                                    description: defaults to "tls.key"
+                                    type: string
+                                type: object
+                              secretRef:
+                                description: references the local k8s secret where
+                                  the TLS key and cert reside
+                                properties:
+                                  name:
+                                    description: |-
+                                      Name of the referent.
+                                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                      TODO: Add other useful fields. apiVersion, kind, uid?
+                                    type: string
+                                type: object
+                                x-kubernetes-map-type: atomic
+                            type: object
+                            x-kubernetes-validations:
+                            - message: '`secretRef` required if `disable` is false.'
+                              rule: '(!has(self.disable) || !self.disable) ? has(self.secretRef)
+                                : true'
                         type: object
                       remote:
                         description: |-
@@ -1058,6 +1179,32 @@ spec:
                             description: Host address of the remote registry service
                               - <domain>:<port>, e.g. `registry.<namespace>.svc.cluster.local:80`
                             type: string
+                          tls:
+                            description: TlsRemoteRegistryConfigs configures client
+                              TLS for a remote feast registry. in an openshift cluster,
+                              this is configured by default when the remote feast
+                              registry is using service serving certificates.
+                            properties:
+                              certName:
+                                description: defines the configmap key name for the
+                                  client TLS cert.
+                                type: string
+                              configMapRef:
+                                description: references the local k8s configmap where
+                                  the TLS cert resides
+                                properties:
+                                  name:
+                                    description: |-
+                                      Name of the referent.
+                                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                      TODO: Add other useful fields. apiVersion, kind, uid?
+                                    type: string
+                                type: object
+                                x-kubernetes-map-type: atomic
+                            required:
+                            - certName
+                            - configMapRef
+                            type: object
                         type: object
                         x-kubernetes-validations:
                         - message: One selection required.
@@ -1419,6 +1566,48 @@ spec:
                                   More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                                 type: object
                             type: object
+                          tls:
+                            description: OfflineTlsConfigs configures server TLS for
+                              the offline feast service. in an openshift cluster,
+                              this is configured by default using service serving
+                              certificates.
+                            properties:
+                              disable:
+                                description: will disable TLS for the feast service.
+                                  useful in an openshift cluster, for example, where
+                                  TLS is configured by default
+                                type: boolean
+                              secretKeyNames:
+                                description: SecretKeyNames defines the secret key
+                                  names for the TLS key and cert.
+                                properties:
+                                  tlsCrt:
+                                    description: defaults to "tls.crt"
+                                    type: string
+                                  tlsKey:
+                                    description: defaults to "tls.key"
+                                    type: string
+                                type: object
+                              secretRef:
+                                description: references the local k8s secret where
+                                  the TLS key and cert reside
+                                properties:
+                                  name:
+                                    description: |-
+                                      Name of the referent.
+                                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                      TODO: Add other useful fields. apiVersion, kind, uid?
+                                    type: string
+                                type: object
+                                x-kubernetes-map-type: atomic
+                              verifyClient:
+                                description: verify the client TLS certificate.
+                                type: boolean
+                            type: object
+                            x-kubernetes-validations:
+                            - message: '`secretRef` required if `disable` is false.'
+                              rule: '(!has(self.disable) || !self.disable) ? has(self.secretRef)
+                                : true'
                         type: object
                       onlineStore:
                         description: OnlineStore configures the deployed online store
@@ -1742,6 +1931,44 @@ spec:
                                   More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                                 type: object
                             type: object
+                          tls:
+                            description: TlsConfigs configures server TLS for a feast
+                              service. in an openshift cluster, this is configured
+                              by default using service serving certificates.
+                            properties:
+                              disable:
+                                description: will disable TLS for the feast service.
+                                  useful in an openshift cluster, for example, where
+                                  TLS is configured by default
+                                type: boolean
+                              secretKeyNames:
+                                description: SecretKeyNames defines the secret key
+                                  names for the TLS key and cert.
+                                properties:
+                                  tlsCrt:
+                                    description: defaults to "tls.crt"
+                                    type: string
+                                  tlsKey:
+                                    description: defaults to "tls.key"
+                                    type: string
+                                type: object
+                              secretRef:
+                                description: references the local k8s secret where
+                                  the TLS key and cert reside
+                                properties:
+                                  name:
+                                    description: |-
+                                      Name of the referent.
+                                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                      TODO: Add other useful fields. apiVersion, kind, uid?
+                                    type: string
+                                type: object
+                                x-kubernetes-map-type: atomic
+                            type: object
+                            x-kubernetes-validations:
+                            - message: '`secretRef` required if `disable` is false.'
+                              rule: '(!has(self.disable) || !self.disable) ? has(self.secretRef)
+                                : true'
                         type: object
                       registry:
                         description: Registry configures the registry service. One
@@ -2015,6 +2242,11 @@ spec:
                                     - type
                                     type: object
                                 type: object
+                                x-kubernetes-validations:
+                                - message: One selection required between file or
+                                    store.
+                                  rule: '[has(self.file), has(self.store)].exists_one(c,
+                                    c)'
                               resources:
                                 description: ResourceRequirements describes the compute
                                   resource requirements.
@@ -2072,6 +2304,44 @@ spec:
                                       More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                                     type: object
                                 type: object
+                              tls:
+                                description: TlsConfigs configures server TLS for
+                                  a feast service. in an openshift cluster, this is
+                                  configured by default using service serving certificates.
+                                properties:
+                                  disable:
+                                    description: will disable TLS for the feast service.
+                                      useful in an openshift cluster, for example,
+                                      where TLS is configured by default
+                                    type: boolean
+                                  secretKeyNames:
+                                    description: SecretKeyNames defines the secret
+                                      key names for the TLS key and cert.
+                                    properties:
+                                      tlsCrt:
+                                        description: defaults to "tls.crt"
+                                        type: string
+                                      tlsKey:
+                                        description: defaults to "tls.key"
+                                        type: string
+                                    type: object
+                                  secretRef:
+                                    description: references the local k8s secret where
+                                      the TLS key and cert reside
+                                    properties:
+                                      name:
+                                        description: |-
+                                          Name of the referent.
+                                          More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                          TODO: Add other useful fields. apiVersion, kind, uid?
+                                        type: string
+                                    type: object
+                                    x-kubernetes-map-type: atomic
+                                type: object
+                                x-kubernetes-validations:
+                                - message: '`secretRef` required if `disable` is false.'
+                                  rule: '(!has(self.disable) || !self.disable) ? has(self.secretRef)
+                                    : true'
                             type: object
                           remote:
                             description: |-
@@ -2095,6 +2365,32 @@ spec:
                                 description: Host address of the remote registry service
                                   - <domain>:<port>, e.g. `registry.<namespace>.svc.cluster.local:80`
                                 type: string
+                              tls:
+                                description: TlsRemoteRegistryConfigs configures client
+                                  TLS for a remote feast registry. in an openshift
+                                  cluster, this is configured by default when the
+                                  remote feast registry is using service serving certificates.
+                                properties:
+                                  certName:
+                                    description: defines the configmap key name for
+                                      the client TLS cert.
+                                    type: string
+                                  configMapRef:
+                                    description: references the local k8s configmap
+                                      where the TLS cert resides
+                                    properties:
+                                      name:
+                                        description: |-
+                                          Name of the referent.
+                                          More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                          TODO: Add other useful fields. apiVersion, kind, uid?
+                                        type: string
+                                    type: object
+                                    x-kubernetes-map-type: atomic
+                                required:
+                                - certName
+                                - configMapRef
+                                type: object
                             type: object
                             x-kubernetes-validations:
                             - message: One selection required.
@@ -2371,6 +2667,7 @@ rules:
 - apiGroups:
   - rbac.authorization.k8s.io
   resources:
+  - rolebindings
   - roles
   verbs:
   - create

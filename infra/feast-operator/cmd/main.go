@@ -38,6 +38,7 @@ import (
 
 	feastdevv1alpha1 "github.com/feast-dev/feast/infra/feast-operator/api/v1alpha1"
 	"github.com/feast-dev/feast/infra/feast-operator/internal/controller"
+	"github.com/feast-dev/feast/infra/feast-operator/internal/controller/services"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -131,6 +132,8 @@ func main() {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
+
+	services.SetIsOpenShift(mgr.GetConfig())
 
 	if err = (&controller.FeatureStoreReconciler{
 		Client: mgr.GetClient(),

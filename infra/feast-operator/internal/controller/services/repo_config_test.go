@@ -351,6 +351,16 @@ func minimalFeatureStore() *feastdevv1alpha1.FeatureStore {
 	}
 }
 
+func minimalFeatureStoreWithAllServices() *feastdevv1alpha1.FeatureStore {
+	feast := minimalFeatureStore()
+	feast.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
+		OfflineStore: &feastdevv1alpha1.OfflineStore{},
+		OnlineStore:  &feastdevv1alpha1.OnlineStore{},
+		Registry:     &feastdevv1alpha1.Registry{},
+	}
+	return feast
+}
+
 func emptyMockExtractConfigFromSecret(secretRef string, secretKeyName string) (map[string]interface{}, error) {
 	return map[string]interface{}{}, nil
 }
