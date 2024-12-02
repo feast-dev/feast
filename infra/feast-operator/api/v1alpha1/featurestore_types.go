@@ -108,9 +108,11 @@ var ValidOfflineStoreFilePersistenceTypes = []string{
 // OfflineStoreDBStorePersistence configures the DB store persistence for the offline store service
 type OfflineStoreDBStorePersistence struct {
 	// +kubebuilder:validation:Enum=snowflake.offline;bigquery;redshift;spark;postgres;feast_trino.trino.TrinoOfflineStore;redis
-	Type          string                      `json:"type"`
-	SecretRef     corev1.LocalObjectReference `json:"secretRef"`
-	SecretKeyName string                      `json:"secretKeyName,omitempty"`
+	Type      string                      `json:"type"`
+	SecretRef corev1.LocalObjectReference `json:"secretRef"`
+	// By default, the DB parameters should be placed as-is from the feature_store.yaml under the `type` key, if
+	// SecretKeyName is specified the DB parameters should be placed as-is from the feature_store.yaml under the specified key
+	SecretKeyName string `json:"secretKeyName,omitempty"`
 }
 
 var ValidOfflineStoreDBStorePersistenceTypes = []string{
@@ -149,9 +151,11 @@ type OnlineStoreFilePersistence struct {
 // OnlineStoreDBStorePersistence configures the DB store persistence for the offline store service
 type OnlineStoreDBStorePersistence struct {
 	// +kubebuilder:validation:Enum=snowflake.online;redis;ikv;datastore;dynamodb;bigtable;postgres;cassandra;mysql;hazelcast;singlestore
-	Type          string                      `json:"type"`
-	SecretRef     corev1.LocalObjectReference `json:"secretRef"`
-	SecretKeyName string                      `json:"secretKeyName,omitempty"`
+	Type      string                      `json:"type"`
+	SecretRef corev1.LocalObjectReference `json:"secretRef"`
+	// By default, the DB parameters should be placed as-is from the feature_store.yaml under the `type` key, if
+	// SecretKeyName is specified the DB parameters should be placed as-is from the feature_store.yaml under the specified key
+	SecretKeyName string `json:"secretKeyName,omitempty"`
 }
 
 var ValidOnlineStoreDBStorePersistenceTypes = []string{
@@ -196,9 +200,11 @@ type RegistryFilePersistence struct {
 // RegistryDBStorePersistence configures the DB store persistence for the registry service
 type RegistryDBStorePersistence struct {
 	// +kubebuilder:validation:Enum=sql;snowflake.registry
-	Type          string                      `json:"type"`
-	SecretRef     corev1.LocalObjectReference `json:"secretRef"`
-	SecretKeyName string                      `json:"secretKeyName,omitempty"`
+	Type      string                      `json:"type"`
+	SecretRef corev1.LocalObjectReference `json:"secretRef"`
+	// By default, the DB parameters should be placed as-is from the feature_store.yaml under the `type` key, if
+	// SecretKeyName is specified the DB parameters should be placed as-is from the feature_store.yaml under the specified key
+	SecretKeyName string `json:"secretKeyName,omitempty"`
 }
 
 var ValidRegistryDBStorePersistenceTypes = []string{
