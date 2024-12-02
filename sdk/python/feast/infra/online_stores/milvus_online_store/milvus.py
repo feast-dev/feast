@@ -77,14 +77,11 @@ class MilvusOnlineStore(OnlineStore):
             self._connect(config)
 
             fields = [
-                FieldSchema(
-                    name="pk", dtype=DataType.INT64, is_primary=True, auto_id=True
-                ),
-                FieldSchema(name="entity_key", dtype=DataType.VARCHAR, max_length=512),
+                FieldSchema(name="entity_key", dtype=DataType.VARCHAR, max_length=512, is_primary=True),
                 FieldSchema(
                     name="feature_name", dtype=DataType.VARCHAR, max_length=256
                 ),
-                FieldSchema(name="value", dtype=DataType.BINARY_VECTOR, dim=8 * 1024),
+                # FieldSchema(name="value", dtype=DataType.BINARY_VECTOR, dim=8 * 1024),
                 FieldSchema(
                     name="vector_value",
                     dtype=DataType.FLOAT_VECTOR,
@@ -256,7 +253,7 @@ class MilvusOnlineStore(OnlineStore):
         for table in tables:
             collection_name = _table_id(config.project, table)
             collection = Collection(name=collection_name)
-            if collection.exists():
+            if collection:
                 collection.drop()
                 self._collections.pop(collection_name, None)
 
