@@ -17,7 +17,7 @@ spec:
           command:
             - sh
             - '-c'
-            - 'until grpcurl -insecure -d '''' -format text feast-example-registry.feast.svc.cluster.local:443 grpc.health.v1.Health/Check; do echo waiting for registry; sleep 2; done'
+            - 'until grpcurl -plaintext -d '''' -format text feast-example-registry.feast.svc.cluster.local:80 grpc.health.v1.Health/Check; do echo waiting for registry; sleep 2; done'
           image: 'fullstorydev/grpcurl:v1.9.1-alpine'
         - name: feast-apply
           image: 'quay.io/tchughesiv/feature-server:0.41.0-dev'
@@ -74,23 +74,11 @@ spec:
             - name: client-feature-store-config
               mountPath: /feast-client
               readOnly: true
-            - name: online-tls
-              readOnly: true
-              mountPath: /tls/online/
-            - name: registry-tls
-              readOnly: true
-              mountPath: /tls/registry/
             - name: shared-data
               mountPath: /feast-init
       volumes:
         - name: client-feature-store-config
           configMap:
             name: feast-example-client
-        - name: online-tls
-          secret:
-            secretName: feast-example-online-tls
-        - name: registry-tls
-          secret:
-            secretName: feast-example-registry-tls
         - name: shared-data
           emptyDir: {}
