@@ -358,6 +358,11 @@ func (feast *FeastServices) getContainerCommand(feastType FeastServiceType) []st
 	deploySettings := FeastServiceConstants[feastType]
 	targetPort := deploySettings.TargetHttpPort
 	tls := feast.getTlsConfigs(feastType)
+	logLevel := feast.getLogLevelForType(feastType)
+	if logLevel != nil {
+		deploySettings.Command = append(deploySettings.Command, "--log-level="+strings.ToUpper(*logLevel))
+	}
+
 	if tls.IsTLS() {
 		targetPort = deploySettings.TargetHttpsPort
 		feastTlsPath := GetTlsPath(feastType)
@@ -472,6 +477,25 @@ func (feast *FeastServices) getServiceConfigs(feastType FeastServiceType) feastd
 		}
 	}
 	return feastdevv1alpha1.ServiceConfigs{}
+}
+
+func (feast *FeastServices) getLogLevelForType(feastType FeastServiceType) *string {
+	services := feast.Handler.FeatureStore.Status.Applied.Services
+	switch feastType {
+	case OfflineFeastType:
+		if services.OfflineStore != nil && services.OfflineStore.LogLevel != "" {
+			return &services.OfflineStore.LogLevel
+		}
+	case OnlineFeastType:
+		if services.OnlineStore != nil && services.OnlineStore.LogLevel != "" {
+			return &services.OnlineStore.LogLevel
+		}
+	case RegistryFeastType:
+		if services.Registry != nil && services.Registry.LogLevel != "" {
+			return &services.Registry.LogLevel
+		}
+	}
+	return nil
 }
 
 // GetObjectMeta returns the feast k8s object metadata

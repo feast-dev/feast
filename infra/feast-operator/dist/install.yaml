@@ -235,6 +235,17 @@ spec:
                         description: PullPolicy describes a policy for if/when to
                           pull a container image
                         type: string
+                      logLevel:
+                        description: |-
+                          LogLevel sets the logging level for the offline store service
+                          Allowed values: "debug", "info", "warning", "error", "critical".
+                        enum:
+                        - debug
+                        - info
+                        - warning
+                        - error
+                        - critical
+                        type: string
                       persistence:
                         description: OfflineStorePersistence configures the persistence
                           settings for the offline store service
@@ -583,6 +594,17 @@ spec:
                       imagePullPolicy:
                         description: PullPolicy describes a policy for if/when to
                           pull a container image
+                        type: string
+                      logLevel:
+                        description: |-
+                          LogLevel sets the logging level for the online store service
+                          Allowed values: "debug", "info", "warning", "error", "critical".
+                        enum:
+                        - debug
+                        - info
+                        - warning
+                        - error
+                        - critical
                         type: string
                       persistence:
                         description: OnlineStorePersistence configures the persistence
@@ -1188,6 +1210,17 @@ spec:
                               rule: '(!has(self.disable) || !self.disable) ? has(self.secretRef)
                                 : true'
                         type: object
+                      logLevel:
+                        description: |-
+                          LogLevel sets the logging level for the registry service
+                          Allowed values: "debug", "info", "warning", "error", "critical".
+                        enum:
+                        - debug
+                        - info
+                        - warning
+                        - error
+                        - critical
+                        type: string
                       remote:
                         description: |-
                           RemoteRegistryConfig points to a remote feast registry server. When set, the operator will not deploy a registry for this FeatureStore CR.
@@ -1436,6 +1469,17 @@ spec:
                           imagePullPolicy:
                             description: PullPolicy describes a policy for if/when
                               to pull a container image
+                            type: string
+                          logLevel:
+                            description: |-
+                              LogLevel sets the logging level for the offline store service
+                              Allowed values: "debug", "info", "warning", "error", "critical".
+                            enum:
+                            - debug
+                            - info
+                            - warning
+                            - error
+                            - critical
                             type: string
                           persistence:
                             description: OfflineStorePersistence configures the persistence
@@ -1791,6 +1835,17 @@ spec:
                           imagePullPolicy:
                             description: PullPolicy describes a policy for if/when
                               to pull a container image
+                            type: string
+                          logLevel:
+                            description: |-
+                              LogLevel sets the logging level for the online store service
+                              Allowed values: "debug", "info", "warning", "error", "critical".
+                            enum:
+                            - debug
+                            - info
+                            - warning
+                            - error
+                            - critical
                             type: string
                           persistence:
                             description: OnlineStorePersistence configures the persistence
@@ -2408,6 +2463,17 @@ spec:
                                   rule: '(!has(self.disable) || !self.disable) ? has(self.secretRef)
                                     : true'
                             type: object
+                          logLevel:
+                            description: |-
+                              LogLevel sets the logging level for the registry service
+                              Allowed values: "debug", "info", "warning", "error", "critical".
+                            enum:
+                            - debug
+                            - info
+                            - warning
+                            - error
+                            - critical
+                            type: string
                           remote:
                             description: |-
                               RemoteRegistryConfig points to a remote feast registry server. When set, the operator will not deploy a registry for this FeatureStore CR.

@@ -77,6 +77,10 @@ type OfflineStore struct {
 	ServiceConfigs `json:",inline"`
 	Persistence    *OfflineStorePersistence `json:"persistence,omitempty"`
 	TLS            *OfflineTlsConfigs       `json:"tls,omitempty"`
+	// LogLevel sets the logging level for the offline store service
+	// Allowed values: "debug", "info", "warning", "error", "critical".
+	// +kubebuilder:validation:Enum=debug;info;warning;error;critical
+	LogLevel string `json:"logLevel,omitempty"`
 }
 
 // OfflineTlsConfigs configures server TLS for the offline feast service. in an openshift cluster, this is configured by default using service serving certificates.
@@ -130,6 +134,10 @@ type OnlineStore struct {
 	ServiceConfigs `json:",inline"`
 	Persistence    *OnlineStorePersistence `json:"persistence,omitempty"`
 	TLS            *TlsConfigs             `json:"tls,omitempty"`
+	// LogLevel sets the logging level for the online store service
+	// Allowed values: "debug", "info", "warning", "error", "critical".
+	// +kubebuilder:validation:Enum=debug;info;warning;error;critical
+	LogLevel string `json:"logLevel,omitempty"`
 }
 
 // OnlineStorePersistence configures the persistence settings for the online store service
@@ -246,6 +254,10 @@ type PvcCreate struct {
 type Registry struct {
 	Local  *LocalRegistryConfig  `json:"local,omitempty"`
 	Remote *RemoteRegistryConfig `json:"remote,omitempty"`
+	// LogLevel sets the logging level for the registry service
+	// Allowed values: "debug", "info", "warning", "error", "critical".
+	// +kubebuilder:validation:Enum=debug;info;warning;error;critical
+	LogLevel string `json:"logLevel,omitempty"`
 }
 
 // RemoteRegistryConfig points to a remote feast registry server. When set, the operator will not deploy a registry for this FeatureStore CR.
