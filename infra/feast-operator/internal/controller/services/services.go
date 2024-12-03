@@ -659,7 +659,7 @@ func (feast *FeastServices) initPVC(feastType FeastServiceType) *corev1.Persiste
 
 func applyOptionalContainerConfigs(container *corev1.Container, optionalConfigs feastdevv1alpha1.OptionalConfigs) {
 	if optionalConfigs.Env != nil {
-		container.Env = mergeEnvVarsArrays(container.Env, optionalConfigs.Env)
+		container.Env = envOverride(container.Env, *optionalConfigs.Env)
 	}
 	if optionalConfigs.ImagePullPolicy != nil {
 		container.ImagePullPolicy = *optionalConfigs.ImagePullPolicy
@@ -667,28 +667,6 @@ func applyOptionalContainerConfigs(container *corev1.Container, optionalConfigs 
 	if optionalConfigs.Resources != nil {
 		container.Resources = *optionalConfigs.Resources
 	}
-}
-
-func mergeEnvVarsArrays(envVars1 []corev1.EnvVar, envVars2 *[]corev1.EnvVar) []corev1.EnvVar {
-	merged := make(map[string]corev1.EnvVar)
-
-	// Add all env vars from the first array
-	for _, envVar := range envVars1 {
-		merged[envVar.Name] = envVar
-	}
-
-	// Add all env vars from the second array, overriding duplicates
-	for _, envVar := range *envVars2 {
-		merged[envVar.Name] = envVar
-	}
-
-	// Convert the map back to an array
-	result := make([]corev1.EnvVar, 0, len(merged))
-	for _, envVar := range merged {
-		result = append(result, envVar)
-	}
-
-	return result
 }
 
 func mountPvcConfig(podSpec *corev1.PodSpec, pvcConfig *feastdevv1alpha1.PvcConfig, deployName string) {

@@ -315,3 +315,26 @@ func SetIsOpenShift(cfg *rest.Config) {
 func missingOidcSecretProperty(property OidcPropertyType) error {
 	return fmt.Errorf(OidcMissingSecretError, property)
 }
+
+// getEnvVar returns the position of the EnvVar found by name
+func getEnvVar(envName string, env []corev1.EnvVar) int {
+	for pos, v := range env {
+		if v.Name == envName {
+			return pos
+		}
+	}
+	return -1
+}
+
+// envOverride replaces or appends the provided EnvVar to the collection
+func envOverride(dst, src []corev1.EnvVar) []corev1.EnvVar {
+	for _, cre := range src {
+		pos := getEnvVar(cre.Name, dst)
+		if pos != -1 {
+			dst[pos] = cre
+		} else {
+			dst = append(dst, cre)
+		}
+	}
+	return dst
+}
