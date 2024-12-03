@@ -23,6 +23,7 @@ import (
 	. "github.com/onsi/gomega"
 	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	feastdevv1alpha1 "github.com/feast-dev/feast/infra/feast-operator/api/v1alpha1"
 )
@@ -468,6 +469,7 @@ func emptyRegistryConfig() RegistryConfig {
 
 func minimalFeatureStore() *feastdevv1alpha1.FeatureStore {
 	return &feastdevv1alpha1.FeatureStore{
+		ObjectMeta: metav1.ObjectMeta{Name: "test"},
 		Spec: feastdevv1alpha1.FeatureStoreSpec{
 			FeastProject: projectName,
 		},
