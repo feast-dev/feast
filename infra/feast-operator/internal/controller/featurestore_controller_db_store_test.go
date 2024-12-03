@@ -505,7 +505,7 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 				svc)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(controllerutil.HasControllerReference(svc)).To(BeTrue())
-			Expect(svc.Spec.Ports[0].TargetPort).To(Equal(intstr.FromInt(int(services.FeastServiceConstants[services.RegistryFeastType].TargetPort))))
+			Expect(svc.Spec.Ports[0].TargetPort).To(Equal(intstr.FromInt(int(services.FeastServiceConstants[services.RegistryFeastType].TargetHttpPort))))
 		})
 
 		It("should properly encode a feature_store.yaml config", func() {
