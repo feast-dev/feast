@@ -297,14 +297,13 @@ spec:
                               the DB store persistence for the offline store service
                             properties:
                               secretKeyName:
-                                description: |-
-                                  By default, the DB parameters should be placed as-is from the feature_store.yaml under the `type` key, if
-                                  SecretKeyName is specified the DB parameters should be placed as-is from the feature_store.yaml under the specified key
+                                description: By default, the selected store "type"
+                                  is used as the SecretKeyName
                                 type: string
                               secretRef:
-                                description: |-
-                                  LocalObjectReference contains enough information to let you locate the
-                                  referenced object inside the same namespace.
+                                description: Data store parameters should be placed
+                                  as-is from the "feature_store.yaml" under the secret
+                                  key. "registry_type" & "type" fields should be removed.
                                 properties:
                                   name:
                                     description: |-
@@ -655,14 +654,13 @@ spec:
                               the DB store persistence for the offline store service
                             properties:
                               secretKeyName:
-                                description: |-
-                                  By default, the DB parameters should be placed as-is from the feature_store.yaml under the `type` key, if
-                                  SecretKeyName is specified the DB parameters should be placed as-is from the feature_store.yaml under the specified key
+                                description: By default, the selected store "type"
+                                  is used as the SecretKeyName
                                 type: string
                               secretRef:
-                                description: |-
-                                  LocalObjectReference contains enough information to let you locate the
-                                  referenced object inside the same namespace.
+                                description: Data store parameters should be placed
+                                  as-is from the "feature_store.yaml" under the secret
+                                  key. "registry_type" & "type" fields should be removed.
                                 properties:
                                   name:
                                     description: |-
@@ -1031,14 +1029,14 @@ spec:
                                   the DB store persistence for the registry service
                                 properties:
                                   secretKeyName:
-                                    description: |-
-                                      By default, the DB parameters should be placed as-is from the feature_store.yaml under the `type` key, if
-                                      SecretKeyName is specified the DB parameters should be placed as-is from the feature_store.yaml under the specified key
+                                    description: By default, the selected store "type"
+                                      is used as the SecretKeyName
                                     type: string
                                   secretRef:
-                                    description: |-
-                                      LocalObjectReference contains enough information to let you locate the
-                                      referenced object inside the same namespace.
+                                    description: Data store parameters should be placed
+                                      as-is from the "feature_store.yaml" under the
+                                      secret key. "registry_type" & "type" fields
+                                      should be removed.
                                     properties:
                                       name:
                                         description: |-
@@ -1477,14 +1475,14 @@ spec:
                                   the DB store persistence for the offline store service
                                 properties:
                                   secretKeyName:
-                                    description: |-
-                                      By default, the DB parameters should be placed as-is from the feature_store.yaml under the `type` key, if
-                                      SecretKeyName is specified the DB parameters should be placed as-is from the feature_store.yaml under the specified key
+                                    description: By default, the selected store "type"
+                                      is used as the SecretKeyName
                                     type: string
                                   secretRef:
-                                    description: |-
-                                      LocalObjectReference contains enough information to let you locate the
-                                      referenced object inside the same namespace.
+                                    description: Data store parameters should be placed
+                                      as-is from the "feature_store.yaml" under the
+                                      secret key. "registry_type" & "type" fields
+                                      should be removed.
                                     properties:
                                       name:
                                         description: |-
@@ -1841,14 +1839,14 @@ spec:
                                   the DB store persistence for the offline store service
                                 properties:
                                   secretKeyName:
-                                    description: |-
-                                      By default, the DB parameters should be placed as-is from the feature_store.yaml under the `type` key, if
-                                      SecretKeyName is specified the DB parameters should be placed as-is from the feature_store.yaml under the specified key
+                                    description: By default, the selected store "type"
+                                      is used as the SecretKeyName
                                     type: string
                                   secretRef:
-                                    description: |-
-                                      LocalObjectReference contains enough information to let you locate the
-                                      referenced object inside the same namespace.
+                                    description: Data store parameters should be placed
+                                      as-is from the "feature_store.yaml" under the
+                                      secret key. "registry_type" & "type" fields
+                                      should be removed.
                                     properties:
                                       name:
                                         description: |-
@@ -2225,14 +2223,14 @@ spec:
                                       the DB store persistence for the registry service
                                     properties:
                                       secretKeyName:
-                                        description: |-
-                                          By default, the DB parameters should be placed as-is from the feature_store.yaml under the `type` key, if
-                                          SecretKeyName is specified the DB parameters should be placed as-is from the feature_store.yaml under the specified key
+                                        description: By default, the selected store
+                                          "type" is used as the SecretKeyName
                                         type: string
                                       secretRef:
-                                        description: |-
-                                          LocalObjectReference contains enough information to let you locate the
-                                          referenced object inside the same namespace.
+                                        description: Data store parameters should
+                                          be placed as-is from the "feature_store.yaml"
+                                          under the secret key. "registry_type" &
+                                          "type" fields should be removed.
                                         properties:
                                           name:
                                             description: |-
