@@ -44,27 +44,40 @@ import (
 	"github.com/feast-dev/feast/infra/feast-operator/internal/controller/services"
 )
 
-var _ = Describe("FeatureStore Controller-Kubernetes authorization", func() {
-	Context("When deploying a resource with all ephemeral services and Kubernetes authorization", func() {
-		const resourceName = "kubernetes-authorization"
+var _ = Describe("FeatureStore Controller-OIDC authorization", func() {
+	Context("When deploying a resource with all ephemeral services and OIDC authorization", func() {
+		const resourceName = "oidc-authorization"
+		const oidcSecretName = "oidc-secret"
 		var pullPolicy = corev1.PullAlways
 
 		ctx := context.Background()
 
+		typeNamespacedSecretName := types.NamespacedName{
+			Name:      oidcSecretName,
+			Namespace: "default",
+		}
 		typeNamespacedName := types.NamespacedName{
 			Name:      resourceName,
 			Namespace: "default",
 		}
 		featurestore := &feastdevv1alpha1.FeatureStore{}
-		roles := []string{"reader", "writer"}
 
 		BeforeEach(func() {
+			By("creating the OIDC secret")
+			oidcSecret := createValidOidcSecret(oidcSecretName)
+			err := k8sClient.Get(ctx, typeNamespacedSecretName, oidcSecret)
+			if err != nil && errors.IsNotFound(err) {
+				Expect(k8sClient.Create(ctx, oidcSecret)).To(Succeed())
+			}
+
 			By("creating the custom resource for the Kind FeatureStore")
-			err := k8sClient.Get(ctx, typeNamespacedName, featurestore)
+			err = k8sClient.Get(ctx, typeNamespacedName, featurestore)
 			if err != nil && errors.IsNotFound(err) {
 				resource := createFeatureStoreResource(resourceName, image, pullPolicy, &[]corev1.EnvVar{})
-				resource.Spec.AuthzConfig = &feastdevv1alpha1.AuthzConfig{KubernetesAuthz: &feastdevv1alpha1.KubernetesAuthz{
-					Roles: roles,
+				resource.Spec.AuthzConfig = &feastdevv1alpha1.AuthzConfig{OidcAuthz: &feastdevv1alpha1.OidcAuthz{
+					SecretRef: corev1.LocalObjectReference{
+						Name: oidcSecretName,
+					},
 				}}
 
 				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
@@ -74,6 +87,13 @@ var _ = Describe("FeatureStore Controller-Kubernetes authorization", func() {
 			resource := &feastdevv1alpha1.FeatureStore{}
 			err := k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
+
+			oidcSecret := createValidOidcSecret(oidcSecretName)
+			err = k8sClient.Get(ctx, typeNamespacedSecretName, oidcSecret)
+			if err != nil && errors.IsNotFound(err) {
+				By("Cleanup the OIDC secret")
+				Expect(k8sClient.Delete(ctx, oidcSecret)).To(Succeed())
+			}
 
 			By("Cleanup the specific resource instance FeatureStore")
 			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
@@ -108,8 +128,10 @@ var _ = Describe("FeatureStore Controller-Kubernetes authorization", func() {
 			Expect(resource.Status.ClientConfigMap).To(Equal(feast.GetFeastServiceName(services.ClientFeastType)))
 			Expect(resource.Status.Applied.FeastProject).To(Equal(resource.Spec.FeastProject))
 			expectedAuthzConfig := &feastdevv1alpha1.AuthzConfig{
-				KubernetesAuthz: &feastdevv1alpha1.KubernetesAuthz{
-					Roles: roles,
+				OidcAuthz: &feastdevv1alpha1.OidcAuthz{
+					SecretRef: corev1.LocalObjectReference{
+						Name: oidcSecretName,
+					},
 				},
 			}
 			Expect(resource.Status.Applied.AuthzConfig).To(Equal(expectedAuthzConfig))
@@ -151,11 +173,7 @@ var _ = Describe("FeatureStore Controller-Kubernetes authorization", func() {
 			Expect(cond.Message).To(Equal(feastdevv1alpha1.ReadyMessage))
 
 			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.AuthorizationReadyType)
-			Expect(cond).ToNot(BeNil())
-			Expect(cond.Status).To(Equal(metav1.ConditionTrue))
-			Expect(cond.Reason).To(Equal(feastdevv1alpha1.ReadyReason))
-			Expect(cond.Type).To(Equal(feastdevv1alpha1.AuthorizationReadyType))
-			Expect(cond.Message).To(Equal(feastdevv1alpha1.KubernetesAuthzReadyMessage))
+			Expect(cond).To(BeNil())
 
 			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.RegistryReadyType)
 			Expect(cond).ToNot(BeNil())
@@ -229,18 +247,6 @@ var _ = Describe("FeatureStore Controller-Kubernetes authorization", func() {
 			Expect(deploy.Spec.Template.Spec.Volumes).To(HaveLen(0))
 			Expect(deploy.Spec.Template.Spec.Containers[0].VolumeMounts).To(HaveLen(0))
 
-			// check configured Roles
-			for _, roleName := range roles {
-				role := &rbacv1.Role{}
-				err = k8sClient.Get(ctx, types.NamespacedName{
-					Name:      roleName,
-					Namespace: resource.Namespace,
-				},
-					role)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(role.Rules).To(BeEmpty())
-			}
-
 			// check Feast Role
 			feastRole := &rbacv1.Role{}
 			err = k8sClient.Get(ctx, types.NamespacedName{
@@ -248,18 +254,8 @@ var _ = Describe("FeatureStore Controller-Kubernetes authorization", func() {
 				Namespace: resource.Namespace,
 			},
 				feastRole)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(feastRole.Rules).ToNot(BeEmpty())
-			Expect(feastRole.Rules).To(HaveLen(1))
-			Expect(feastRole.Rules[0].APIGroups).To(HaveLen(1))
-			Expect(feastRole.Rules[0].APIGroups[0]).To(Equal(rbacv1.GroupName))
-			Expect(feastRole.Rules[0].Resources).To(HaveLen(2))
-			Expect(feastRole.Rules[0].Resources).To(ContainElement("roles"))
-			Expect(feastRole.Rules[0].Resources).To(ContainElement("rolebindings"))
-			Expect(feastRole.Rules[0].Verbs).To(HaveLen(3))
-			Expect(feastRole.Rules[0].Verbs).To(ContainElement("get"))
-			Expect(feastRole.Rules[0].Verbs).To(ContainElement("list"))
-			Expect(feastRole.Rules[0].Verbs).To(ContainElement("watch"))
+			Expect(err).To(HaveOccurred())
+			Expect(errors.IsNotFound(err)).To(BeTrue())
 
 			// check RoleBinding
 			roleBinding := &rbacv1.RoleBinding{}
@@ -268,14 +264,10 @@ var _ = Describe("FeatureStore Controller-Kubernetes authorization", func() {
 				Namespace: resource.Namespace,
 			},
 				roleBinding)
-			Expect(err).NotTo(HaveOccurred())
+			Expect(err).To(HaveOccurred())
+			Expect(errors.IsNotFound(err)).To(BeTrue())
 
 			// check ServiceAccounts
-			expectedRoleRef := rbacv1.RoleRef{
-				APIGroup: rbacv1.GroupName,
-				Kind:     "Role",
-				Name:     feastRole.Name,
-			}
 			for _, serviceType := range []services.FeastServiceType{services.RegistryFeastType, services.OnlineFeastType, services.OfflineFeastType} {
 				sa := &corev1.ServiceAccount{}
 				err = k8sClient.Get(ctx, types.NamespacedName{
@@ -284,57 +276,10 @@ var _ = Describe("FeatureStore Controller-Kubernetes authorization", func() {
 				},
 					sa)
 				Expect(err).NotTo(HaveOccurred())
-
-				expectedSubject := rbacv1.Subject{
-					Kind:      rbacv1.ServiceAccountKind,
-					Name:      sa.Name,
-					Namespace: sa.Namespace,
-				}
-				Expect(roleBinding.Subjects).To(ContainElement(expectedSubject))
-				Expect(roleBinding.RoleRef).To(Equal(expectedRoleRef))
 			}
 
-			By("Updating the user roled and reconciling")
+			By("Clearing the OIDC authorization and reconciling")
 			resourceNew := resource.DeepCopy()
-			rolesNew := roles[1:]
-			resourceNew.Spec.AuthzConfig.KubernetesAuthz.Roles = rolesNew
-			err = k8sClient.Update(ctx, resourceNew)
-			Expect(err).NotTo(HaveOccurred())
-			_, err = controllerReconciler.Reconcile(ctx, reconcile.Request{
-				NamespacedName: typeNamespacedName,
-			})
-			Expect(err).NotTo(HaveOccurred())
-
-			resource = &feastdevv1alpha1.FeatureStore{}
-			err = k8sClient.Get(ctx, typeNamespacedName, resource)
-			Expect(err).NotTo(HaveOccurred())
-			feast.Handler.FeatureStore = resource
-
-			// check new Roles
-			for _, roleName := range rolesNew {
-				role := &rbacv1.Role{}
-				err = k8sClient.Get(ctx, types.NamespacedName{
-					Name:      roleName,
-					Namespace: resource.Namespace,
-				},
-					role)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(role.Rules).To(BeEmpty())
-			}
-
-			// check deleted Role
-			role := &rbacv1.Role{}
-			deletedRole := roles[0]
-			err = k8sClient.Get(ctx, types.NamespacedName{
-				Name:      deletedRole,
-				Namespace: resource.Namespace,
-			},
-				role)
-			Expect(err).To(HaveOccurred())
-			Expect(errors.IsNotFound(err)).To(BeTrue())
-
-			By("Clearing the kubernetes authorization and reconciling")
-			resourceNew = resource.DeepCopy()
 			resourceNew.Spec.AuthzConfig = nil
 			err = k8sClient.Update(ctx, resourceNew)
 			Expect(err).NotTo(HaveOccurred())
@@ -348,17 +293,6 @@ var _ = Describe("FeatureStore Controller-Kubernetes authorization", func() {
 			Expect(err).NotTo(HaveOccurred())
 			feast.Handler.FeatureStore = resource
 
-			// check no Roles
-			for _, roleName := range roles {
-				role := &rbacv1.Role{}
-				err = k8sClient.Get(ctx, types.NamespacedName{
-					Name:      roleName,
-					Namespace: resource.Namespace,
-				},
-					role)
-				Expect(err).To(HaveOccurred())
-				Expect(errors.IsNotFound(err)).To(BeTrue())
-			}
 			// check no RoleBinding
 			roleBinding = &rbacv1.RoleBinding{}
 			err = k8sClient.Get(ctx, types.NamespacedName{
@@ -444,9 +378,7 @@ var _ = Describe("FeatureStore Controller-Kubernetes authorization", func() {
 					Path:               services.DefaultRegistryEphemeralPath,
 					S3AdditionalKwargs: nil,
 				},
-				AuthzConfig: services.AuthzConfig{
-					Type: services.KubernetesAuthType,
-				},
+				AuthzConfig: expectedServerOidcAuthorizConfig(),
 			}
 			Expect(repoConfig).To(Equal(testConfig))
 
@@ -482,10 +414,8 @@ var _ = Describe("FeatureStore Controller-Kubernetes authorization", func() {
 				OfflineStore: services.OfflineStoreConfig{
 					Type: services.OfflineFilePersistenceDaskConfigType,
 				},
-				Registry: regRemote,
-				AuthzConfig: services.AuthzConfig{
-					Type: services.KubernetesAuthType,
-				},
+				Registry:    regRemote,
+				AuthzConfig: expectedServerOidcAuthorizConfig(),
 			}
 			Expect(repoConfig).To(Equal(testConfig))
 
@@ -524,10 +454,8 @@ var _ = Describe("FeatureStore Controller-Kubernetes authorization", func() {
 					Path: services.DefaultOnlineStoreEphemeralPath,
 					Type: services.OnlineSqliteConfigType,
 				},
-				Registry: regRemote,
-				AuthzConfig: services.AuthzConfig{
-					Type: services.KubernetesAuthType,
-				},
+				Registry:    regRemote,
+				AuthzConfig: expectedServerOidcAuthorizConfig(),
 			}
 			Expect(repoConfig).To(Equal(testConfig))
 
@@ -556,11 +484,106 @@ var _ = Describe("FeatureStore Controller-Kubernetes authorization", func() {
 					RegistryType: services.RegistryRemoteConfigType,
 					Path:         fmt.Sprintf("feast-%s-registry.default.svc.cluster.local:80", resourceName),
 				},
-				AuthzConfig: services.AuthzConfig{
-					Type: services.KubernetesAuthType,
-				},
+				AuthzConfig: expectedClientOidcAuthorizConfig(),
 			}
 			Expect(repoConfigClient).To(Equal(clientConfig))
 		})
+
+		It("should fail to reconcile the resource", func() {
+			By("Reconciling an invalid OIDC set of properties")
+			controllerReconciler := &FeatureStoreReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+			}
+
+			newOidcSecretName := "invalid-secret"
+			newTypeNamespaceSecretdName := types.NamespacedName{
+				Name:      newOidcSecretName,
+				Namespace: "default",
+			}
+			newOidcSecret := createInvalidOidcSecret(newOidcSecretName)
+			err := k8sClient.Get(ctx, newTypeNamespaceSecretdName, newOidcSecret)
+			if err != nil && errors.IsNotFound(err) {
+				Expect(k8sClient.Create(ctx, newOidcSecret)).To(Succeed())
+			}
+
+			resource := &feastdevv1alpha1.FeatureStore{}
+			err = k8sClient.Get(ctx, typeNamespacedName, resource)
+			Expect(err).NotTo(HaveOccurred())
+
+			resource.Spec.AuthzConfig.OidcAuthz.SecretRef.Name = newOidcSecretName
+			err = k8sClient.Update(ctx, resource)
+			Expect(err).NotTo(HaveOccurred())
+			_, err = controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: typeNamespacedName,
+			})
+			Expect(err).To(HaveOccurred())
+
+			resource = &feastdevv1alpha1.FeatureStore{}
+			err = k8sClient.Get(ctx, typeNamespacedName, resource)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(resource.Status.Conditions).NotTo(BeEmpty())
+			cond := apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.ReadyType)
+			Expect(cond).ToNot(BeNil())
+			Expect(cond.Status).To(Equal(metav1.ConditionFalse))
+			Expect(cond.Reason).To(Equal(feastdevv1alpha1.FailedReason))
+			Expect(cond.Type).To(Equal(feastdevv1alpha1.ReadyType))
+			Expect(cond.Message).To(ContainSubstring("missing OIDC"))
+		})
 	})
 })
+
+func expectedServerOidcAuthorizConfig() services.AuthzConfig {
+	return services.AuthzConfig{
+		Type: services.OidcAuthType,
+		OidcParameters: map[string]interface{}{
+			string(services.OidcAuthDiscoveryUrl): "auth-discovery-url",
+			string(services.OidcClientId):         "client-id",
+		},
+	}
+}
+func expectedClientOidcAuthorizConfig() services.AuthzConfig {
+	return services.AuthzConfig{
+		Type: services.OidcAuthType,
+		OidcParameters: map[string]interface{}{
+			string(services.OidcClientSecret): "client-secret",
+			string(services.OidcUsername):     "username",
+			string(services.OidcPassword):     "password"},
+	}
+}
+
+func validOidcSecretMap() map[string]string {
+	return map[string]string{
+		string(services.OidcClientId):         "client-id",
+		string(services.OidcAuthDiscoveryUrl): "auth-discovery-url",
+		string(services.OidcClientSecret):     "client-secret",
+		string(services.OidcUsername):         "username",
+		string(services.OidcPassword):         "password",
+	}
+}
+
+func createValidOidcSecret(secretName string) *corev1.Secret {
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      secretName,
+			Namespace: "default",
+		},
+		StringData: validOidcSecretMap(),
+	}
+
+	return secret
+}
+
+func createInvalidOidcSecret(secretName string) *corev1.Secret {
+	oidcProperties := validOidcSecretMap()
+	delete(oidcProperties, string(services.OidcClientId))
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      secretName,
+			Namespace: "default",
+		},
+		StringData: oidcProperties,
+	}
+
+	return secret
+}

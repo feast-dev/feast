@@ -18,15 +18,13 @@ import (
 // Deploy the feast authorization
 func (authz *FeastAuthorization) Deploy() error {
 	if authz.isKubernetesAuth() {
-		if err := authz.deployKubernetesAuth(); err != nil {
-			return err
-		}
-	} else {
-		authz.removeOrphanedRoles()
-		_ = authz.Handler.DeleteOwnedFeastObj(authz.initFeastRole())
-		_ = authz.Handler.DeleteOwnedFeastObj(authz.initFeastRoleBinding())
-		apimeta.RemoveStatusCondition(&authz.Handler.FeatureStore.Status.Conditions, feastKubernetesAuthConditions[metav1.ConditionTrue].Type)
+		return authz.deployKubernetesAuth()
 	}
+
+	authz.removeOrphanedRoles()
+	_ = authz.Handler.DeleteOwnedFeastObj(authz.initFeastRole())
+	_ = authz.Handler.DeleteOwnedFeastObj(authz.initFeastRoleBinding())
+	apimeta.RemoveStatusCondition(&authz.Handler.FeatureStore.Status.Conditions, feastKubernetesAuthConditions[metav1.ConditionTrue].Type)
 	return nil
 }
 

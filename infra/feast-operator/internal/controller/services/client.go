@@ -47,7 +47,7 @@ func (feast *FeastServices) createClientConfigMap() error {
 
 func (feast *FeastServices) setClientConfigMap(cm *corev1.ConfigMap) error {
 	cm.Labels = feast.getLabels(ClientFeastType)
-	clientYaml, err := feast.getClientFeatureStoreYaml()
+	clientYaml, err := feast.getClientFeatureStoreYaml(feast.extractConfigFromSecret)
 	if err != nil {
 		return err
 	}

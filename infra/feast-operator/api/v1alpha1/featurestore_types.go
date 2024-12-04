@@ -280,8 +280,10 @@ type OptionalConfigs struct {
 }
 
 // AuthzConfig defines the authorization settings for the deployed Feast services.
+// +kubebuilder:validation:XValidation:rule="[has(self.kubernetes), has(self.oidc)].exists_one(c, c)",message="One selection required between kubernetes or oidc."
 type AuthzConfig struct {
 	KubernetesAuthz *KubernetesAuthz `json:"kubernetes,omitempty"`
+	OidcAuthz       *OidcAuthz       `json:"oidc,omitempty"`
 }
 
 // KubernetesAuthz provides a way to define the authorization settings using Kubernetes RBAC resources.
@@ -294,6 +296,12 @@ type KubernetesAuthz struct {
 	// This configuration option is only providing a way to automate this procedure.
 	// Important note: the operator cannot ensure that these roles will match the ones used in the configured Feast permissions.
 	Roles []string `json:"roles,omitempty"`
+}
+
+// OidcAuthz defines the authorization settings for deployments using an Open ID Connect identity provider.
+// https://auth0.com/docs/authenticate/protocols/openid-connect-protocol
+type OidcAuthz struct {
+	SecretRef corev1.LocalObjectReference `json:"secretRef"`
 }
 
 // TlsConfigs configures server TLS for a feast service. in an openshift cluster, this is configured by default using service serving certificates.
