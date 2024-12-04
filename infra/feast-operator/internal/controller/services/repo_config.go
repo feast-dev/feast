@@ -49,7 +49,8 @@ func (feast *FeastServices) getServiceRepoConfig(feastType FeastServiceType) (Re
 
 func getServiceRepoConfig(
 	feastType FeastServiceType,
-	featureStore *feastdevv1alpha1.FeatureStore, secretExtractionFunc func(secretRef string, secretKeyName string) (map[string]interface{}, error)) (RepoConfig, error) {
+	featureStore *feastdevv1alpha1.FeatureStore,
+	secretExtractionFunc func(secretRef string, secretKeyName string) (map[string]interface{}, error)) (RepoConfig, error) {
 	appliedSpec := featureStore.Status.Applied
 
 	repoConfig, err := getClientRepoConfig(featureStore, secretExtractionFunc)

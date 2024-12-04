@@ -964,7 +964,6 @@ var _ = Describe("FeatureStore Controller", func() {
 				},
 				Spec: feastdevv1alpha1.FeatureStoreSpec{
 					FeastProject: referencedRegistry.Spec.FeastProject,
-					AuthzConfig:  &feastdevv1alpha1.AuthzConfig{},
 					Services: &feastdevv1alpha1.FeatureStoreServices{
 						OnlineStore:  &feastdevv1alpha1.OnlineStore{},
 						OfflineStore: &feastdevv1alpha1.OfflineStore{},
