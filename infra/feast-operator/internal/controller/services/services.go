@@ -359,7 +359,7 @@ func (feast *FeastServices) getContainerCommand(feastType FeastServiceType) []st
 	targetPort := deploySettings.TargetHttpPort
 	logLevel := feast.getLogLevelForType(feastType)
 	if logLevel != nil {
-		deploySettings.Command = append(deploySettings.Command, "--log-level="+strings.ToUpper(*logLevel))
+		deploySettings.Command = append(deploySettings.Command, []string{"--log-level", strings.ToUpper(*logLevel)}...)
 	}
 	tls := feast.getTlsConfigs(feastType)
 	if tls.IsTLS() {
