@@ -377,3 +377,51 @@ def get_fixtures(request, environment):
     )
 
     return config, data_source, fv
+
+@pytest.mark.integration
+@pytest.mark.universal_offline_stores(only=["sqlite"])
+def test_get_historical_features_sqlite(offline_types_test_fixtures, environment):
+    config, data_source, fv = offline_types_test_fixtures
+    fs = environment.feature_store
+    entity = driver()
+    fv = driver_feature_view(
+        data_source=data_source,
+        name="get_historical_features_sqlite",
+        dtype=_get_feast_type(config.feature_dtype, config.feature_is_list),
+    )
+    fs.apply([fv, entity])
+
+    entity_df = pd.DataFrame()
+    entity_df["driver_id"] = [1, 3]
+    ts = pd.Timestamp(_utc_now()).round("ms")
+    entity_df["ts"] = [
+        ts - timedelta(hours=4),
+        ts - timedelta(hours=2),
+    ]
+    features = [f"{fv.name}:value"]
+
+    historical_features = fs.get_historical_features(
+        entity_df=entity_df,
+        features=features,
+    )
+    historical_features_df = historical_features.to_df()
+
+    assert not historical_features_df.empty, "Historical features DataFrame should not be empty"
+    assert "value" in historical_features_df.columns, "Value column should be present in the result"
+
+    if config.feature_is_list:
+        assert_feature_list_types(
+            environment.provider,
+            config.feature_dtype,
+            historical_features_df,
+        )
+    else:
+        assert_expected_historical_feature_types(
+            config.feature_dtype, historical_features_df
+        )
+    assert_expected_arrow_types(
+        environment.provider,
+        config.feature_dtype,
+        config.feature_is_list,
+        historical_features,
+    )
