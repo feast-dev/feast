@@ -291,26 +291,6 @@ func authzConfigWithOidc(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv
 	return fsCopy
 }
 
-
-func authzConfigWithKubernetes(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
-	fsCopy := featureStore.DeepCopy()
-	if fsCopy.Spec.AuthzConfig == nil {
-		fsCopy.Spec.AuthzConfig = &feastdevv1alpha1.AuthzConfig{}
-	}
-	fsCopy.Spec.AuthzConfig.KubernetesAuthz = &feastdevv1alpha1.KubernetesAuthz{
-		Roles: []string{},
-	}
-	return fsCopy
-}
-func authzConfigWithOidc(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
-	fsCopy := featureStore.DeepCopy()
-	if fsCopy.Spec.AuthzConfig == nil {
-		fsCopy.Spec.AuthzConfig = &feastdevv1alpha1.AuthzConfig{}
-	}
-	fsCopy.Spec.AuthzConfig.OidcAuthz = &feastdevv1alpha1.OidcAuthz{}
-	return fsCopy
-}
-
 func onlineStoreWithDBPersistenceType(dbPersistenceType string, featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
 	fsCopy := featureStore.DeepCopy()
 	fsCopy.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
