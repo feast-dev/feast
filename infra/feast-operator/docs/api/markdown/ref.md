@@ -25,6 +25,7 @@ _Appears in:_
 | Field | Description |
 | --- | --- |
 | `kubernetes` _[KubernetesAuthz](#kubernetesauthz)_ |  |
+| `oidc` _[OidcAuthz](#oidcauthz)_ |  |
 
 
 #### DefaultConfigs
@@ -247,6 +248,21 @@ _Appears in:_
 | `secretKeyNames` _[SecretKeyNames](#secretkeynames)_ |  |
 | `disable` _boolean_ | will disable TLS for the feast service. useful in an openshift cluster, for example, where TLS is configured by default |
 | `verifyClient` _boolean_ | verify the client TLS certificate. |
+
+
+#### OidcAuthz
+
+
+
+OidcAuthz defines the authorization settings for deployments using an Open ID Connect identity provider.
+https://auth0.com/docs/authenticate/protocols/openid-connect-protocol
+
+_Appears in:_
+- [AuthzConfig](#authzconfig)
+
+| Field | Description |
+| --- | --- |
+| `secretRef` _[LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#localobjectreference-v1-core)_ |  |
 
 
 #### OnlineStore

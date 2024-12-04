@@ -32,6 +32,7 @@ AuthzConfig defines the authorization settings for the deployed Feast services.
 |===
 | Field | Description
 | *`kubernetes`* __xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-kubernetesauthz[$$KubernetesAuthz$$]__ | 
+| *`oidc`* __xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-oidcauthz[$$OidcAuthz$$]__ | 
 |===
 
 
@@ -292,6 +293,24 @@ OfflineTlsConfigs configures server TLS for the offline feast service. in an ope
 | *`secretKeyNames`* __xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-secretkeynames[$$SecretKeyNames$$]__ | 
 | *`disable`* __boolean__ | will disable TLS for the feast service. useful in an openshift cluster, for example, where TLS is configured by default +
 | *`verifyClient`* __boolean__ | verify the client TLS certificate. +
+|===
+
+
+[id="{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-oidcauthz"]
+==== OidcAuthz 
+
+OidcAuthz defines the authorization settings for deployments using an Open ID Connect identity provider.
+https://auth0.com/docs/authenticate/protocols/openid-connect-protocol
+
+.Appears In:
+****
+- xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-authzconfig[$$AuthzConfig$$]
+****
+
+[cols="25a,75a", options="header"]
+|===
+| Field | Description
+| *`secretRef`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#localobjectreference-v1-core[$$LocalObjectReference$$]__ | 
 |===
 
 
