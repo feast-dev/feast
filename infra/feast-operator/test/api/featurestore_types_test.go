@@ -16,6 +16,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// Function to create invalid OnlineStore resource
 func createFeatureStore() *feastdevv1alpha1.FeatureStore {
 	return &feastdevv1alpha1.FeatureStore{
 		ObjectMeta: metav1.ObjectMeta{
@@ -270,6 +271,26 @@ func pvcConfigWithResources(featureStore *feastdevv1alpha1.FeatureStore) *feastd
 	}
 	return fsCopy
 }
+
+func authzConfigWithKubernetes(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
+	fsCopy := featureStore.DeepCopy()
+	if fsCopy.Spec.AuthzConfig == nil {
+		fsCopy.Spec.AuthzConfig = &feastdevv1alpha1.AuthzConfig{}
+	}
+	fsCopy.Spec.AuthzConfig.KubernetesAuthz = &feastdevv1alpha1.KubernetesAuthz{
+		Roles: []string{},
+	}
+	return fsCopy
+}
+func authzConfigWithOidc(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
+	fsCopy := featureStore.DeepCopy()
+	if fsCopy.Spec.AuthzConfig == nil {
+		fsCopy.Spec.AuthzConfig = &feastdevv1alpha1.AuthzConfig{}
+	}
+	fsCopy.Spec.AuthzConfig.OidcAuthz = &feastdevv1alpha1.OidcAuthz{}
+	return fsCopy
+}
+
 
 func authzConfigWithKubernetes(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
 	fsCopy := featureStore.DeepCopy()
