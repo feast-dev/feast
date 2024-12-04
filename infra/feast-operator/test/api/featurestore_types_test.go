@@ -290,6 +290,50 @@ func authzConfigWithOidc(featureStore *feastdevv1alpha1.FeatureStore) *feastdevv
 	return fsCopy
 }
 
+func onlineStoreWithDBPersistenceType(dbPersistenceType string, featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
+	fsCopy := featureStore.DeepCopy()
+	fsCopy.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
+		OnlineStore: &feastdevv1alpha1.OnlineStore{
+			Persistence: &feastdevv1alpha1.OnlineStorePersistence{
+				DBPersistence: &feastdevv1alpha1.OnlineStoreDBStorePersistence{
+					Type: dbPersistenceType,
+				},
+			},
+		},
+	}
+	return fsCopy
+}
+
+func offlineStoreWithDBPersistenceType(dbPersistenceType string, featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
+	fsCopy := featureStore.DeepCopy()
+	fsCopy.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
+		OfflineStore: &feastdevv1alpha1.OfflineStore{
+			Persistence: &feastdevv1alpha1.OfflineStorePersistence{
+				DBPersistence: &feastdevv1alpha1.OfflineStoreDBStorePersistence{
+					Type: dbPersistenceType,
+				},
+			},
+		},
+	}
+	return fsCopy
+}
+
+func registryStoreWithDBPersistenceType(dbPersistenceType string, featureStore *feastdevv1alpha1.FeatureStore) *feastdevv1alpha1.FeatureStore {
+	fsCopy := featureStore.DeepCopy()
+	fsCopy.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
+		Registry: &feastdevv1alpha1.Registry{
+			Local: &feastdevv1alpha1.LocalRegistryConfig{
+				Persistence: &feastdevv1alpha1.RegistryPersistence{
+					DBPersistence: &feastdevv1alpha1.RegistryDBStorePersistence{
+						Type: dbPersistenceType,
+					},
+				},
+			},
+		},
+	}
+	return fsCopy
+}
+
 const resourceName = "test-resource"
 const namespaceName = "default"
 
@@ -331,6 +375,10 @@ var _ = Describe("FeatureStore API", func() {
 			attemptInvalidCreationAndAsserts(ctx, onlineStoreWithObjectStoreBucketForPvc("s3://bucket/online_store.db", featurestore), "Online store does not support S3 or GS")
 			attemptInvalidCreationAndAsserts(ctx, onlineStoreWithObjectStoreBucketForPvc("gs://bucket/online_store.db", featurestore), "Online store does not support S3 or GS")
 		})
+
+		It("should fail when db persistence type is invalid", func() {
+			attemptInvalidCreationAndAsserts(ctx, onlineStoreWithDBPersistenceType("invalid", featurestore), "Unsupported value: \"invalid\": supported values: \"snowflake.online\", \"redis\", \"ikv\", \"datastore\", \"dynamodb\", \"bigtable\", \"postgres\", \"cassandra\", \"mysql\", \"hazelcast\", \"singlestore\"")
+		})
 	})
 
 	Context("When creating an invalid Offline Store", func() {
@@ -338,6 +386,9 @@ var _ = Describe("FeatureStore API", func() {
 
 		It("should fail when PVC persistence has absolute path", func() {
 			attemptInvalidCreationAndAsserts(ctx, offlineStoreWithUnmanagedFileType(featurestore), "Unsupported value")
+		})
+		It("should fail when db persistence type is invalid", func() {
+			attemptInvalidCreationAndAsserts(ctx, offlineStoreWithDBPersistenceType("invalid", featurestore), "Unsupported value: \"invalid\": supported values: \"snowflake.offline\", \"bigquery\", \"redshift\", \"spark\", \"postgres\", \"feast_trino.trino.TrinoOfflineStore\", \"redis\"")
 		})
 	})
 
@@ -357,6 +408,9 @@ var _ = Describe("FeatureStore API", func() {
 		It("should fail when additional S3 settings are provided to non S3 bucket", func() {
 			attemptInvalidCreationAndAsserts(ctx, registryWithS3AdditionalKeywordsForFile(featurestore), "Additional S3 settings are available only for S3 object store URIs")
 			attemptInvalidCreationAndAsserts(ctx, registryWithS3AdditionalKeywordsForGsBucket(featurestore), "Additional S3 settings are available only for S3 object store URIs")
+		})
+		It("should fail when db persistence type is invalid", func() {
+			attemptInvalidCreationAndAsserts(ctx, registryStoreWithDBPersistenceType("invalid", featurestore), "Unsupported value: \"invalid\": supported values: \"sql\", \"snowflake.registry\"")
 		})
 	})
 
