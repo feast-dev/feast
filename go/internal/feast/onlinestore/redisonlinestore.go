@@ -6,18 +6,23 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"github.com/feast-dev/feast/go/internal/feast/registry"
+	//"os"
 	"sort"
 	"strconv"
 	"strings"
 
-	"github.com/go-redis/redis/v8"
-	"github.com/golang/protobuf/proto"
+	"github.com/feast-dev/feast/go/internal/feast/registry"
+	//"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
+
+	"github.com/redis/go-redis/v9"
 	"github.com/spaolacci/murmur3"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/feast-dev/feast/go/protos/feast/types"
+	"github.com/rs/zerolog/log"
+	//redistrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/redis/go-redis.v9"
 )
 
 type redisType int
@@ -39,6 +44,9 @@ type RedisOnlineStore struct {
 	// Redis client connector
 	client *redis.Client
 
+	// Redis cluster client connector
+	clusterClient *redis.ClusterClient
+
 	config *registry.RepoConfig
 }
 
@@ -53,11 +61,12 @@ func NewRedisOnlineStore(project string, config *registry.RepoConfig, onlineStor
 	var tlsConfig *tls.Config
 	var db int // Default to 0
 
-	// Parse redis_type and write it into conf.t
-	t, err := getRedisType(onlineStoreConfig)
+	// Parse redis_type and write it into conf.redisStoreType
+	redisStoreType, err := getRedisType(onlineStoreConfig)
 	if err != nil {
 		return nil, err
 	}
+	store.t = redisStoreType
 
 	// Parse connection_string and write it into conf.address, conf.password, and conf.ssl
 	redisConnJson, ok := onlineStoreConfig["connection_string"]
@@ -66,7 +75,7 @@ func NewRedisOnlineStore(project string, config *registry.RepoConfig, onlineStor
 		redisConnJson = "localhost:6379"
 	}
 	if redisConnStr, ok := redisConnJson.(string); !ok {
-		return nil, errors.New(fmt.Sprintf("failed to convert connection_string to string: %+v", redisConnJson))
+		return nil, fmt.Errorf("failed to convert connection_string to string: %+v", redisConnJson)
 	} else {
 		parts := strings.Split(redisConnStr, ",")
 		for _, part := range parts {
@@ -89,23 +98,42 @@ func NewRedisOnlineStore(project string, config *registry.RepoConfig, onlineStor
 						return nil, err
 					}
 				} else {
-					return nil, errors.New(fmt.Sprintf("unrecognized option in connection_string: %s. Must be one of 'password', 'ssl'", kv[0]))
+					return nil, fmt.Errorf("unrecognized option in connection_string: %s. Must be one of 'password', 'ssl'", kv[0])
 				}
 			} else {
-				return nil, errors.New(fmt.Sprintf("unable to parse a part of connection_string: %s. Must contain either ':' (addresses) or '=' (options", part))
+				return nil, fmt.Errorf("unable to parse a part of connection_string: %s. Must contain either ':' (addresses) or '=' (options", part)
 			}
 		}
 	}
 
-	if t == redisNode {
+	// Metrics are not showing up when the service name is set to DD_SERVICE
+	//redisTraceServiceName := os.Getenv("DD_SERVICE") + "-redis"
+	//if redisTraceServiceName == "" {
+	//	redisTraceServiceName = "redis.client" // default service name if DD_SERVICE is not set
+	//}
+
+	if redisStoreType == redisNode {
+		log.Info().Msgf("Using Redis: %s", address[0])
 		store.client = redis.NewClient(&redis.Options{
 			Addr:      address[0],
-			Password:  password, // No password set
+			Password:  password,
 			DB:        db,
 			TLSConfig: tlsConfig,
 		})
-	} else {
-		return nil, errors.New("only single node Redis is supported at this time")
+		//if strings.ToLower(os.Getenv("ENABLE_DATADOG_REDIS_TRACING")) == "true" {
+		//	redistrace.WrapClient(store.client, redistrace.WithServiceName(redisTraceServiceName))
+		//}
+	} else if redisStoreType == redisCluster {
+		log.Info().Msgf("Using Redis Cluster: %s", address)
+		store.clusterClient = redis.NewClusterClient(&redis.ClusterOptions{
+			Addrs:     address,
+			Password:  password,
+			TLSConfig: tlsConfig,
+			ReadOnly:  true,
+		})
+		//if strings.ToLower(os.Getenv("ENABLE_DATADOG_REDIS_TRACING")) == "true" {
+		//	redistrace.WrapClient(store.clusterClient, redistrace.WithServiceName(redisTraceServiceName))
+		//}
 	}
 
 	return &store, nil
@@ -119,24 +147,23 @@ func getRedisType(onlineStoreConfig map[string]interface{}) (redisType, error) {
 		// Default to "redis"
 		redisTypeJson = "redis"
 	} else if redisTypeStr, ok := redisTypeJson.(string); !ok {
-		return -1, errors.New(fmt.Sprintf("failed to convert redis_type to string: %+v", redisTypeJson))
+		return -1, fmt.Errorf("failed to convert redis_type to string: %+v", redisTypeJson)
 	} else {
 		if redisTypeStr == "redis" {
 			t = redisNode
 		} else if redisTypeStr == "redis_cluster" {
 			t = redisCluster
 		} else {
-			return -1, errors.New(fmt.Sprintf("failed to convert redis_type to enum: %s. Must be one of 'redis', 'redis_cluster'", redisTypeStr))
+			return -1, fmt.Errorf("failed to convert redis_type to enum: %s. Must be one of 'redis', 'redis_cluster'", redisTypeStr)
 		}
 	}
 	return t, nil
 }
 
-func (r *RedisOnlineStore) OnlineRead(ctx context.Context, entityKeys []*types.EntityKey, featureViewNames []string, featureNames []string) ([][]FeatureData, error) {
-	featureCount := len(featureNames)
-	index := featureCount
+func (r *RedisOnlineStore) buildFeatureViewIndices(featureViewNames []string, featureNames []string) (map[string]int, map[int]string, int) {
 	featureViewIndices := make(map[string]int)
 	indicesFeatureView := make(map[int]string)
+	index := len(featureNames)
 	for _, featureViewName := range featureViewNames {
 		if _, ok := featureViewIndices[featureViewName]; !ok {
 			featureViewIndices[featureViewName] = index
@@ -144,6 +171,11 @@ func (r *RedisOnlineStore) OnlineRead(ctx context.Context, entityKeys []*types.E
 			index += 1
 		}
 	}
+	return featureViewIndices, indicesFeatureView, index
+}
+
+func (r *RedisOnlineStore) buildRedisHashSetKeys(featureViewNames []string, featureNames []string, indicesFeatureView map[int]string, index int) ([]string, []string) {
+	featureCount := len(featureNames)
 	var hsetKeys = make([]string, index)
 	h := murmur3.New32()
 	intBuffer := h.Sum32()
@@ -162,36 +194,59 @@ func (r *RedisOnlineStore) OnlineRead(ctx context.Context, entityKeys []*types.E
 		hsetKeys[i] = tsKey
 		featureNames = append(featureNames, tsKey)
 	}
+	return hsetKeys, featureNames
+}
 
+func (r *RedisOnlineStore) buildRedisKeys(entityKeys []*types.EntityKey) ([]*[]byte, map[string]int, error) {
 	redisKeys := make([]*[]byte, len(entityKeys))
 	redisKeyToEntityIndex := make(map[string]int)
 	for i := 0; i < len(entityKeys); i++ {
-
 		var key, err = buildRedisKey(r.project, entityKeys[i], r.config.EntityKeySerializationVersion)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		redisKeys[i] = key
 		redisKeyToEntityIndex[string(*key)] = i
 	}
+	return redisKeys, redisKeyToEntityIndex, nil
+}
 
-	// Retrieve features from Redis
-	// TODO: Move context object out
+func (r *RedisOnlineStore) OnlineRead(ctx context.Context, entityKeys []*types.EntityKey, featureViewNames []string, featureNames []string) ([][]FeatureData, error) {
+	//span, _ := tracer.StartSpanFromContext(ctx, "redis.OnlineRead")
+	//defer span.Finish()
 
-	results := make([][]FeatureData, len(entityKeys))
-	pipe := r.client.Pipeline()
-	commands := map[string]*redis.SliceCmd{}
-
-	for _, redisKey := range redisKeys {
-		keyString := string(*redisKey)
-		commands[keyString] = pipe.HMGet(ctx, keyString, hsetKeys...)
-	}
-
-	_, err := pipe.Exec(ctx)
+	featureCount := len(featureNames)
+	featureViewIndices, indicesFeatureView, index := r.buildFeatureViewIndices(featureViewNames, featureNames)
+	hsetKeys, featureNamesWithTimeStamps := r.buildRedisHashSetKeys(featureViewNames, featureNames, indicesFeatureView, index)
+	redisKeys, redisKeyToEntityIndex, err := r.buildRedisKeys(entityKeys)
 	if err != nil {
 		return nil, err
 	}
 
+	results := make([][]FeatureData, len(entityKeys))
+	commands := map[string]*redis.SliceCmd{}
+
+	if r.t == redisNode {
+		pipe := r.client.Pipeline()
+		for _, redisKey := range redisKeys {
+			keyString := string(*redisKey)
+			commands[keyString] = pipe.HMGet(ctx, keyString, hsetKeys...)
+		}
+		_, err = pipe.Exec(ctx)
+		if err != nil {
+			return nil, err
+		}
+	} else if r.t == redisCluster {
+		pipe := r.clusterClient.Pipeline()
+		for _, redisKey := range redisKeys {
+			keyString := string(*redisKey)
+			commands[keyString] = pipe.HMGet(ctx, keyString, hsetKeys...)
+		}
+		_, err = pipe.Exec(ctx)
+		if err != nil {
+			return nil, err
+		}
+	}
 	var entityIndex int
 	var resContainsNonNil bool
 	for redisKey, values := range commands {
@@ -214,7 +269,7 @@ func (r *RedisOnlineStore) OnlineRead(ctx context.Context, entityKeys []*types.E
 
 			if resString == nil {
 				// TODO (Ly): Can there be nil result within each feature or they will all be returned as string proto of types.Value_NullVal proto?
-				featureName := featureNames[featureIndex]
+				featureName := featureNamesWithTimeStamps[featureIndex]
 				featureViewName := featureViewNames[featureIndex]
 				timeStampIndex := featureViewIndices[featureViewName]
 				timeStampInterface := res[timeStampIndex]
@@ -241,7 +296,7 @@ func (r *RedisOnlineStore) OnlineRead(ctx context.Context, entityKeys []*types.E
 				if err := proto.Unmarshal([]byte(valueString), &value); err != nil {
 					return nil, errors.New("error converting parsed redis Value to types.Value")
 				} else {
-					featureName := featureNames[featureIndex]
+					featureName := featureNamesWithTimeStamps[featureIndex]
 					featureViewName := featureViewNames[featureIndex]
 					timeStampIndex := featureViewIndices[featureViewName]
 					timeStampInterface := res[timeStampIndex]
@@ -290,7 +345,7 @@ func serializeEntityKey(entityKey *types.EntityKey, entityKeySerializationVersio
 
 	// Ensure that we have the right amount of join keys and entity values
 	if len(entityKey.JoinKeys) != len(entityKey.EntityValues) {
-		return nil, errors.New(fmt.Sprintf("the amount of join key names and entity values don't match: %s vs %s", entityKey.JoinKeys, entityKey.EntityValues))
+		return nil, fmt.Errorf("the amount of join key names and entity values don't match: %s vs %s", entityKey.JoinKeys, entityKey.EntityValues)
 	}
 
 	// Make sure that join keys are sorted so that we have consistent key building

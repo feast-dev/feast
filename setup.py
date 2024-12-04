@@ -11,12 +11,17 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import glob
 import os
 import pathlib
 import re
 import shutil
+import subprocess
+from subprocess import CalledProcessError
+import sys
+from pathlib import Path
 
-from setuptools import find_packages, setup
+from setuptools import find_packages, setup, Command
 
 NAME = "feast"
 DESCRIPTION = "Python SDK for Feast"
@@ -147,8 +152,9 @@ COUCHBASE_REQUIRED = ["couchbase==4.3.2"]
 MSSQL_REQUIRED = ["ibis-framework[mssql]>=9.0.0,<10"]
 
 FAISS_REQUIRED = ["faiss-cpu>=1.7.0,<2"]
-
 QDRANT_REQUIRED = ["qdrant-client>=1.12.0"]
+
+GO_REQUIRED = ["cffi~=1.15.0"]
 
 CI_REQUIRED = (
     [
@@ -248,6 +254,62 @@ else:
 
 PYTHON_CODE_PREFIX = "sdk/python"
 
+def _generate_path_with_gopath():
+    go_path = subprocess.check_output(["go", "env", "GOPATH"]).decode("utf-8")
+    go_path = go_path.strip()
+    path_val = os.getenv("PATH")
+    path_val = f"{path_val}:{go_path}/bin"
+
+    return path_val
+
+class BuildGoProtosCommand(Command):
+    description = "Builds the proto files into Go files."
+    user_options = []
+
+    def initialize_options(self):
+        self.go_protoc = [
+            sys.executable,
+            "-m",
+            "grpc_tools.protoc",
+        ]  # find_executable("protoc")
+        self.proto_folder = os.path.join(repo_root, "protos")
+        self.go_folder = os.path.join(repo_root, "go/protos")
+        self.sub_folders = ["core", "registry", "serving", "types", "storage"]
+        self.path_val = _generate_path_with_gopath()
+
+    def finalize_options(self):
+        pass
+
+    def _generate_go_protos(self, path: str):
+        proto_files = glob.glob(os.path.join(self.proto_folder, path))
+
+        try:
+            subprocess.check_call(
+                self.go_protoc
+                + [
+                    "-I",
+                    self.proto_folder,
+                    "--go_out",
+                    self.go_folder,
+                    "--go_opt=module=github.com/feast-dev/feast/go/protos",
+                    "--go-grpc_out",
+                    self.go_folder,
+                    "--go-grpc_opt=module=github.com/feast-dev/feast/go/protos",
+                ]
+                + proto_files,
+                env={"PATH": self.path_val},
+            )
+        except CalledProcessError as e:
+            print(f"Stderr: {e.stderr}")
+            print(f"Stdout: {e.stdout}")
+
+    def run(self):
+        go_dir = Path(repo_root) / "go" / "protos"
+        go_dir.mkdir(exist_ok=True)
+        for sub_folder in self.sub_folders:
+            self._generate_go_protos(f"feast/{sub_folder}/*.proto")
+
+
 setup(
     name=NAME,
     author=AUTHOR,
@@ -291,7 +353,8 @@ setup(
         "couchbase": COUCHBASE_REQUIRED,
         "opentelemetry": OPENTELEMETRY,
         "faiss": FAISS_REQUIRED,
-        "qdrant": QDRANT_REQUIRED
+        "qdrant": QDRANT_REQUIRED,
+        "go": GO_REQUIRED,
     },
     include_package_data=True,
     license="Apache",
@@ -309,4 +372,7 @@ setup(
         "pybindgen==0.22.0",  # TODO do we need this?
         "setuptools_scm>=6.2",  # TODO do we need this?
     ],
+    cmdclass={
+        "build_go_protos": BuildGoProtosCommand
+    },
 )

@@ -545,3 +545,47 @@ build-helm-docs:
 # Note: requires node and yarn to be installed
 build-ui:
 	cd $(ROOT_DIR)/sdk/python/feast/ui && yarn upgrade @feast-dev/feast-ui --latest && yarn install && npm run build --omit=dev
+
+
+
+# Go SDK & embedded
+install-protoc-dependencies:
+	pip install "protobuf>=4.24.0,<5.0.0" "grpcio-tools>=1.56.2,<2" "mypy-protobuf>=3.1"
+
+install-go-proto-dependencies:
+	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.31.0
+	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.3.0
+
+#install-go-ci-dependencies:
+	# go install golang.org/x/tools/cmd/goimports
+	# python -m pip install "pybindgen==0.22.1" "grpcio-tools>=1.56.2,<2" "mypy-protobuf>=3.1"
+
+build-go: 
+	compile-protos-go 
+	go build -o feast ./go/main.go
+
+install-feast-ci-locally:
+	pip install -e ".[ci]"
+
+test-go: 
+	compile-protos-go 
+	compile-protos-python 
+	install-feast-ci-locally
+	CGO_ENABLED=1 go test -coverprofile=coverage.out ./... && go tool cover -html=coverage.out -o coverage.html
+
+format-go:
+	gofmt -s -w go/
+
+lint-go: 
+	compile-protos-go
+	go vet ./go/internal/feast
+
+build-go-docker-dev:
+	docker buildx build --build-arg VERSION=dev \
+		-t feastdev/feature-server-go:dev \
+		-f go/infra/docker/feature-server/Dockerfile --load .
+
+compile-protos-go: 
+	install-go-proto-dependencies 
+	install-protoc-dependencies
+	python setup.py build_go_protos
