@@ -357,12 +357,11 @@ func (feast *FeastServices) setDeployment(deploy *appsv1.Deployment, feastType F
 func (feast *FeastServices) getContainerCommand(feastType FeastServiceType) []string {
 	deploySettings := FeastServiceConstants[feastType]
 	targetPort := deploySettings.TargetHttpPort
-	tls := feast.getTlsConfigs(feastType)
 	logLevel := feast.getLogLevelForType(feastType)
 	if logLevel != nil {
 		deploySettings.Command = append(deploySettings.Command, "--log-level="+strings.ToUpper(*logLevel))
 	}
-
+	tls := feast.getTlsConfigs(feastType)
 	if tls.IsTLS() {
 		targetPort = deploySettings.TargetHttpsPort
 		feastTlsPath := GetTlsPath(feastType)
