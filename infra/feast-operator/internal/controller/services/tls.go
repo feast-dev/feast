@@ -42,22 +42,28 @@ func (feast *FeastServices) setTlsDefaults() error {
 
 func (feast *FeastServices) setOpenshiftTls() error {
 	appliedServices := feast.Handler.FeatureStore.Status.Applied.Services
-	tlsConfigs := &feastdevv1alpha1.TlsConfigs{
-		SecretRef: &corev1.LocalObjectReference{},
-	}
 	if feast.offlineOpenshiftTls() {
 		appliedServices.OfflineStore.TLS = &feastdevv1alpha1.OfflineTlsConfigs{
-			TlsConfigs: *tlsConfigs,
+			TlsConfigs: feastdevv1alpha1.TlsConfigs{
+				SecretRef: &corev1.LocalObjectReference{
+					Name: feast.initFeastSvc(OfflineFeastType).Name + tlsNameSuffix,
+				},
+			},
 		}
-		appliedServices.OfflineStore.TLS.TlsConfigs.SecretRef.Name = feast.initFeastSvc(OfflineFeastType).Name + tlsNameSuffix
 	}
 	if feast.onlineOpenshiftTls() {
-		appliedServices.OnlineStore.TLS = tlsConfigs
-		appliedServices.OnlineStore.TLS.SecretRef.Name = feast.initFeastSvc(OnlineFeastType).Name + tlsNameSuffix
+		appliedServices.OnlineStore.TLS = &feastdevv1alpha1.TlsConfigs{
+			SecretRef: &corev1.LocalObjectReference{
+				Name: feast.initFeastSvc(OnlineFeastType).Name + tlsNameSuffix,
+			},
+		}
 	}
 	if feast.localRegistryOpenshiftTls() {
-		appliedServices.Registry.Local.TLS = tlsConfigs
-		appliedServices.Registry.Local.TLS.SecretRef.Name = feast.initFeastSvc(RegistryFeastType).Name + tlsNameSuffix
+		appliedServices.Registry.Local.TLS = &feastdevv1alpha1.TlsConfigs{
+			SecretRef: &corev1.LocalObjectReference{
+				Name: feast.initFeastSvc(RegistryFeastType).Name + tlsNameSuffix,
+			},
+		}
 	} else if remote, err := feast.remoteRegistryOpenshiftTls(); remote {
 		// if the remote registry reference is using openshift's service serving certificates, we can use the injected service CA bundle configMap
 		if appliedServices.Registry.Remote.TLS == nil {
