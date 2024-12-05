@@ -10,8 +10,6 @@ spec:
     offlineStore:
       logLevel: debug
     registry:
-      logLevel: info
       local:
-        persistence:
-          file:
-            path: /data/registry.db
+       logLevel: info
+

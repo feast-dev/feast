@@ -961,6 +961,17 @@ spec:
                             description: PullPolicy describes a policy for if/when
                               to pull a container image
                             type: string
+                          logLevel:
+                            description: |-
+                              LogLevel sets the logging level for the registry service
+                              Allowed values: "debug", "info", "warning", "error", "critical".
+                            enum:
+                            - debug
+                            - info
+                            - warning
+                            - error
+                            - critical
+                            type: string
                           persistence:
                             description: RegistryPersistence configures the persistence
                               settings for the registry service
@@ -1202,17 +1213,6 @@ spec:
                               rule: '(!has(self.disable) || !self.disable) ? has(self.secretRef)
                                 : true'
                         type: object
-                      logLevel:
-                        description: |-
-                          LogLevel sets the logging level for the registry service
-                          Allowed values: "debug", "info", "warning", "error", "critical".
-                        enum:
-                        - debug
-                        - info
-                        - warning
-                        - error
-                        - critical
-                        type: string
                       remote:
                         description: |-
                           RemoteRegistryConfig points to a remote feast registry server. When set, the operator will not deploy a registry for this FeatureStore CR.
@@ -2210,6 +2210,17 @@ spec:
                                 description: PullPolicy describes a policy for if/when
                                   to pull a container image
                                 type: string
+                              logLevel:
+                                description: |-
+                                  LogLevel sets the logging level for the registry service
+                                  Allowed values: "debug", "info", "warning", "error", "critical".
+                                enum:
+                                - debug
+                                - info
+                                - warning
+                                - error
+                                - critical
+                                type: string
                               persistence:
                                 description: RegistryPersistence configures the persistence
                                   settings for the registry service
@@ -2455,17 +2466,6 @@ spec:
                                   rule: '(!has(self.disable) || !self.disable) ? has(self.secretRef)
                                     : true'
                             type: object
-                          logLevel:
-                            description: |-
-                              LogLevel sets the logging level for the registry service
-                              Allowed values: "debug", "info", "warning", "error", "critical".
-                            enum:
-                            - debug
-                            - info
-                            - warning
-                            - error
-                            - critical
-                            type: string
                           remote:
                             description: |-
                               RemoteRegistryConfig points to a remote feast registry server. When set, the operator will not deploy a registry for this FeatureStore CR.

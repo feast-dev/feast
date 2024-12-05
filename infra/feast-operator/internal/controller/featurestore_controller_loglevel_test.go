@@ -60,7 +60,9 @@ var _ = Describe("FeatureStore Controller - Feast service LogLevel", func() {
 						FeastProject: feastProject,
 						Services: &feastdevv1alpha1.FeatureStoreServices{
 							Registry: &feastdevv1alpha1.Registry{
-								Local: &feastdevv1alpha1.LocalRegistryConfig{},
+								Local: &feastdevv1alpha1.LocalRegistryConfig{
+									LogLevel: "error",
+								},
 							},
 							OnlineStore: &feastdevv1alpha1.OnlineStore{
 								LogLevel: "debug",
@@ -83,7 +85,7 @@ var _ = Describe("FeatureStore Controller - Feast service LogLevel", func() {
 			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
 		})
 
-		It("should successfully reconcile the resource", func() {
+		It("should successfully reconcile the resource with logLevel", func() {
 			By("Reconciling the created resource")
 			controllerReconciler := &FeatureStoreReconciler{
 				Client: k8sClient,
@@ -163,7 +165,8 @@ var _ = Describe("FeatureStore Controller - Feast service LogLevel", func() {
 			Expect(controllerutil.HasControllerReference(deploy)).To(BeTrue())
 			Expect(deploy.Spec.Template.Spec.Containers).To(HaveLen(1))
 			command := deploy.Spec.Template.Spec.Containers[0].Command
-			Expect(command).NotTo(ContainElement("--log-level"))
+			Expect(command).To(ContainElement("--log-level"))
+			Expect(command).To(ContainElement("ERROR"))
 
 			err = k8sClient.Get(ctx, types.NamespacedName{
 				Name:      feast.GetFeastServiceName(services.OfflineFeastType),
@@ -190,6 +193,69 @@ var _ = Describe("FeatureStore Controller - Feast service LogLevel", func() {
 			command = deploy.Spec.Template.Spec.Containers[0].Command
 			Expect(command).To(ContainElement("--log-level"))
 			Expect(command).To(ContainElement("DEBUG"))
+		})
+
+		It("should not include --log-level parameter when logLevel is not specified for any service", func() {
+			By("Updating the FeatureStore resource without specifying logLevel for any service")
+			resource := &feastdevv1alpha1.FeatureStore{}
+			err := k8sClient.Get(ctx, typeNamespacedName, resource)
+			Expect(err).NotTo(HaveOccurred())
+
+			resource.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
+				Registry: &feastdevv1alpha1.Registry{
+					Local: &feastdevv1alpha1.LocalRegistryConfig{},
+				},
+				OnlineStore:  &feastdevv1alpha1.OnlineStore{},
+				OfflineStore: &feastdevv1alpha1.OfflineStore{},
+			}
+			Expect(k8sClient.Update(ctx, resource)).To(Succeed())
+
+			controllerReconciler := &FeatureStoreReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+			}
+
+			_, err = controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: typeNamespacedName,
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			feast := services.FeastServices{
+				Handler: handler.FeastHandler{
+					Client:       controllerReconciler.Client,
+					Context:      ctx,
+					Scheme:       controllerReconciler.Scheme,
+					FeatureStore: resource,
+				},
+			}
+
+			deploy := &appsv1.Deployment{}
+			err = k8sClient.Get(ctx, types.NamespacedName{
+				Name:      feast.GetFeastServiceName(services.RegistryFeastType),
+				Namespace: resource.Namespace,
+			}, deploy)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(deploy.Spec.Template.Spec.Containers).To(HaveLen(1))
+			command := deploy.Spec.Template.Spec.Containers[0].Command
+			Expect(command).NotTo(ContainElement("--log-level"))
+
+			err = k8sClient.Get(ctx, types.NamespacedName{
+				Name:      feast.GetFeastServiceName(services.OfflineFeastType),
+				Namespace: resource.Namespace,
+			}, deploy)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(deploy.Spec.Template.Spec.Containers).To(HaveLen(1))
+			command = deploy.Spec.Template.Spec.Containers[0].Command
+			Expect(command).NotTo(ContainElement("--log-level"))
+
+			err = k8sClient.Get(ctx, types.NamespacedName{
+				Name:      feast.GetFeastServiceName(services.OnlineFeastType),
+				Namespace: resource.Namespace,
+			}, deploy)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(deploy.Spec.Template.Spec.Containers).To(HaveLen(1))
+			command = deploy.Spec.Template.Spec.Containers[0].Command
+			Expect(command).NotTo(ContainElement("--log-level"))
 		})
 
 	})

@@ -185,6 +185,10 @@ type LocalRegistryConfig struct {
 	ServiceConfigs `json:",inline"`
 	Persistence    *RegistryPersistence `json:"persistence,omitempty"`
 	TLS            *TlsConfigs          `json:"tls,omitempty"`
+	// LogLevel sets the logging level for the registry service
+	// Allowed values: "debug", "info", "warning", "error", "critical".
+	// +kubebuilder:validation:Enum=debug;info;warning;error;critical
+	LogLevel string `json:"logLevel,omitempty"`
 }
 
 // RegistryPersistence configures the persistence settings for the registry service
@@ -254,10 +258,6 @@ type PvcCreate struct {
 type Registry struct {
 	Local  *LocalRegistryConfig  `json:"local,omitempty"`
 	Remote *RemoteRegistryConfig `json:"remote,omitempty"`
-	// LogLevel sets the logging level for the registry service
-	// Allowed values: "debug", "info", "warning", "error", "critical".
-	// +kubebuilder:validation:Enum=debug;info;warning;error;critical
-	LogLevel string `json:"logLevel,omitempty"`
 }
 
 // RemoteRegistryConfig points to a remote feast registry server. When set, the operator will not deploy a registry for this FeatureStore CR.

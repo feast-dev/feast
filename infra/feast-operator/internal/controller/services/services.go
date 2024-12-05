@@ -497,8 +497,8 @@ func (feast *FeastServices) getLogLevelForType(feastType FeastServiceType) *stri
 			return &services.OnlineStore.LogLevel
 		}
 	case RegistryFeastType:
-		if services.Registry != nil && services.Registry.LogLevel != "" {
-			return &services.Registry.LogLevel
+		if services.Registry != nil && services.Registry.Local.LogLevel != "" {
+			return &services.Registry.Local.LogLevel
 		}
 	}
 	return nil
