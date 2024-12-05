@@ -97,8 +97,7 @@ func ApplyDefaultsToStatus(cr *feastdevv1alpha1.FeatureStore) {
 				}
 			}
 		}
-
-		setServiceDefaultConfigs(&services.Registry.Local.ServiceConfigs.DefaultConfigs)
+		setServiceDefaultConfigs(&services.Registry.Local.RegistryServiceConfigs.DefaultConfigs)
 	}
 	if services.OfflineStore != nil {
 		if services.OfflineStore.Persistence == nil {
@@ -122,7 +121,7 @@ func ApplyDefaultsToStatus(cr *feastdevv1alpha1.FeatureStore) {
 			}
 		}
 
-		setServiceDefaultConfigs(&services.OfflineStore.ServiceConfigs.DefaultConfigs)
+		setServiceDefaultConfigs(&services.OfflineStore.StoreServiceConfigs.DefaultConfigs)
 	}
 
 	if services.OnlineStore != nil {
@@ -147,7 +146,7 @@ func ApplyDefaultsToStatus(cr *feastdevv1alpha1.FeatureStore) {
 			}
 		}
 
-		setServiceDefaultConfigs(&services.OnlineStore.ServiceConfigs.DefaultConfigs)
+		setServiceDefaultConfigs(&services.OnlineStore.StoreServiceConfigs.DefaultConfigs)
 	}
 	// overwrite status.applied with every reconcile
 	applied.DeepCopyInto(&cr.Status.Applied)

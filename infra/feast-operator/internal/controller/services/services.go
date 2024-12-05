@@ -288,8 +288,7 @@ func (feast *FeastServices) setDeployment(deploy *appsv1.Deployment, feastType F
 	deploy.Labels = feast.getLabels(feastType)
 	sa := feast.initFeastSA(feastType)
 	tls := feast.getTlsConfigs(feastType)
-	serviceConfigs := feast.getServiceConfigs(feastType)
-	defaultServiceConfigs := serviceConfigs.DefaultConfigs
+	defaultServiceConfigs := feast.getDefaultServiceConfigs(feastType)
 	probeHandler := getProbeHandler(feastType, tls)
 
 	deploy.Spec = appsv1.DeploymentSpec{
@@ -336,8 +335,18 @@ func (feast *FeastServices) setDeployment(deploy *appsv1.Deployment, feastType F
 	}
 
 	// configs are applied here
+	switch feastType {
+	case OfflineFeastType:
+		storeConfigs := feast.getStoreServiceConfigs(OfflineFeastType)
+		applyOptionalStoreConfigs(deploy, storeConfigs.StoreOptionalConfigs)
+	case OnlineFeastType:
+		storeConfigs := feast.getStoreServiceConfigs(OnlineFeastType)
+		applyOptionalStoreConfigs(deploy, storeConfigs.StoreOptionalConfigs)
+	case RegistryFeastType:
+		registryConfigs := feast.getRegistryServiceConfigs()
+		applyOptionalRegistryConfigs(deploy, registryConfigs.RegistryOptionalConfigs)
+	}
 	podSpec := &deploy.Spec.Template.Spec
-	applyOptionalContainerConfigs(&podSpec.Containers[0], serviceConfigs.OptionalConfigs)
 	feast.mountTlsConfig(feastType, podSpec)
 	if pvcConfig, hasPvcConfig := hasPvcConfig(feast.Handler.FeatureStore, feastType); hasPvcConfig {
 		mountPvcConfig(podSpec, pvcConfig, deploy.Name)
@@ -455,23 +464,46 @@ func (feast *FeastServices) createNewPVC(pvcCreate *feastdevv1alpha1.PvcCreate, 
 	return pvc, controllerutil.SetControllerReference(feast.Handler.FeatureStore, pvc, feast.Handler.Scheme)
 }
 
-func (feast *FeastServices) getServiceConfigs(feastType FeastServiceType) feastdevv1alpha1.ServiceConfigs {
+func (feast *FeastServices) getStoreServiceConfigs(feastType FeastServiceType) feastdevv1alpha1.StoreServiceConfigs {
 	appliedServices := feast.Handler.FeatureStore.Status.Applied.Services
 	switch feastType {
 	case OfflineFeastType:
 		if feast.isOfflinStore() {
-			return appliedServices.OfflineStore.ServiceConfigs
+			return appliedServices.OfflineStore.StoreServiceConfigs
 		}
 	case OnlineFeastType:
 		if feast.isOnlinStore() {
-			return appliedServices.OnlineStore.ServiceConfigs
+			return appliedServices.OnlineStore.StoreServiceConfigs
+		}
+	}
+	return feastdevv1alpha1.StoreServiceConfigs{}
+}
+
+func (feast *FeastServices) getRegistryServiceConfigs() feastdevv1alpha1.RegistryServiceConfigs {
+	appliedServices := feast.Handler.FeatureStore.Status.Applied.Services
+	if feast.isLocalRegistry() {
+		return appliedServices.Registry.Local.RegistryServiceConfigs
+	}
+	return feastdevv1alpha1.RegistryServiceConfigs{}
+}
+
+func (feast *FeastServices) getDefaultServiceConfigs(feastType FeastServiceType) feastdevv1alpha1.DefaultConfigs {
+	appliedServices := feast.Handler.FeatureStore.Status.Applied.Services
+	switch feastType {
+	case OfflineFeastType:
+		if feast.isOfflinStore() {
+			return appliedServices.OfflineStore.StoreServiceConfigs.DefaultConfigs
+		}
+	case OnlineFeastType:
+		if feast.isOnlinStore() {
+			return appliedServices.OnlineStore.StoreServiceConfigs.DefaultConfigs
 		}
 	case RegistryFeastType:
 		if feast.isLocalRegistry() {
-			return appliedServices.Registry.Local.ServiceConfigs
+			return appliedServices.Registry.Local.RegistryServiceConfigs.DefaultConfigs
 		}
 	}
-	return feastdevv1alpha1.ServiceConfigs{}
+	return feastdevv1alpha1.DefaultConfigs{}
 }
 
 // GetObjectMeta returns the feast k8s object metadata
@@ -657,15 +689,36 @@ func (feast *FeastServices) initPVC(feastType FeastServiceType) *corev1.Persiste
 	return pvc
 }
 
-func applyOptionalContainerConfigs(container *corev1.Container, optionalConfigs feastdevv1alpha1.OptionalConfigs) {
-	if optionalConfigs.Env != nil {
-		container.Env = envOverride(container.Env, *optionalConfigs.Env)
+func applyOptionalStoreConfigs(deployment *appsv1.Deployment, optionalConfigs feastdevv1alpha1.StoreOptionalConfigs) {
+	if optionalConfigs.Replicas != nil {
+		deployment.Spec.Replicas = optionalConfigs.Replicas
 	}
-	if optionalConfigs.ImagePullPolicy != nil {
-		container.ImagePullPolicy = *optionalConfigs.ImagePullPolicy
+	for i := range deployment.Spec.Template.Spec.Containers {
+		container := &deployment.Spec.Template.Spec.Containers[i]
+		if optionalConfigs.Env != nil {
+			container.Env = envOverride(container.Env, *optionalConfigs.Env)
+		}
+		if optionalConfigs.ImagePullPolicy != nil {
+			container.ImagePullPolicy = *optionalConfigs.ImagePullPolicy
+		}
+		if optionalConfigs.Resources != nil {
+			container.Resources = *optionalConfigs.Resources
+		}
 	}
-	if optionalConfigs.Resources != nil {
-		container.Resources = *optionalConfigs.Resources
+}
+
+func applyOptionalRegistryConfigs(deployment *appsv1.Deployment, optionalConfigs feastdevv1alpha1.RegistryOptionalConfigs) {
+	for i := range deployment.Spec.Template.Spec.Containers {
+		container := &deployment.Spec.Template.Spec.Containers[i]
+		if optionalConfigs.Env != nil {
+			container.Env = envOverride(container.Env, *optionalConfigs.Env)
+		}
+		if optionalConfigs.ImagePullPolicy != nil {
+			container.ImagePullPolicy = *optionalConfigs.ImagePullPolicy
+		}
+		if optionalConfigs.Resources != nil {
+			container.Resources = *optionalConfigs.Resources
+		}
 	}
 }
 

@@ -74,9 +74,9 @@ type FeatureStoreServices struct {
 
 // OfflineStore configures the deployed offline store service
 type OfflineStore struct {
-	ServiceConfigs `json:",inline"`
-	Persistence    *OfflineStorePersistence `json:"persistence,omitempty"`
-	TLS            *OfflineTlsConfigs       `json:"tls,omitempty"`
+	StoreServiceConfigs `json:",inline"`
+	Persistence         *OfflineStorePersistence `json:"persistence,omitempty"`
+	TLS                 *OfflineTlsConfigs       `json:"tls,omitempty"`
 }
 
 // OfflineTlsConfigs configures server TLS for the offline feast service. in an openshift cluster, this is configured by default using service serving certificates.
@@ -127,9 +127,9 @@ var ValidOfflineStoreDBStorePersistenceTypes = []string{
 
 // OnlineStore configures the deployed online store service
 type OnlineStore struct {
-	ServiceConfigs `json:",inline"`
-	Persistence    *OnlineStorePersistence `json:"persistence,omitempty"`
-	TLS            *TlsConfigs             `json:"tls,omitempty"`
+	StoreServiceConfigs `json:",inline"`
+	Persistence         *OnlineStorePersistence `json:"persistence,omitempty"`
+	TLS                 *TlsConfigs             `json:"tls,omitempty"`
 }
 
 // OnlineStorePersistence configures the persistence settings for the online store service
@@ -174,9 +174,9 @@ var ValidOnlineStoreDBStorePersistenceTypes = []string{
 
 // LocalRegistryConfig configures the deployed registry service
 type LocalRegistryConfig struct {
-	ServiceConfigs `json:",inline"`
-	Persistence    *RegistryPersistence `json:"persistence,omitempty"`
-	TLS            *TlsConfigs          `json:"tls,omitempty"`
+	RegistryServiceConfigs `json:",inline"`
+	Persistence            *RegistryPersistence `json:"persistence,omitempty"`
+	TLS                    *TlsConfigs          `json:"tls,omitempty"`
 }
 
 // RegistryPersistence configures the persistence settings for the registry service
@@ -267,10 +267,15 @@ type FeatureStoreRef struct {
 	Namespace string `json:"namespace,omitempty"`
 }
 
-// ServiceConfigs k8s container settings
-type ServiceConfigs struct {
-	DefaultConfigs  `json:",inline"`
-	OptionalConfigs `json:",inline"`
+// ServiceConfigs k8s settings
+type StoreServiceConfigs struct {
+	DefaultConfigs       `json:",inline"`
+	StoreOptionalConfigs `json:",inline"`
+}
+
+type RegistryServiceConfigs struct {
+	DefaultConfigs          `json:",inline"`
+	RegistryOptionalConfigs `json:",inline"`
 }
 
 // DefaultConfigs k8s container settings that are applied by default
@@ -279,7 +284,14 @@ type DefaultConfigs struct {
 }
 
 // OptionalConfigs k8s container settings that are optional
-type OptionalConfigs struct {
+type RegistryOptionalConfigs struct {
+	Env             *[]corev1.EnvVar             `json:"env,omitempty"`
+	ImagePullPolicy *corev1.PullPolicy           `json:"imagePullPolicy,omitempty"`
+	Resources       *corev1.ResourceRequirements `json:"resources,omitempty"`
+}
+
+type StoreOptionalConfigs struct {
+	Replicas        *int32                       `json:"replicas,omitempty"`
 	Env             *[]corev1.EnvVar             `json:"env,omitempty"`
 	ImagePullPolicy *corev1.PullPolicy           `json:"imagePullPolicy,omitempty"`
 	Resources       *corev1.ResourceRequirements `json:"resources,omitempty"`
