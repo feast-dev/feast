@@ -102,7 +102,8 @@ var _ = Describe("controller", Ordered, func() {
 
 			namespace := "default"
 
-			deploymentNames := [3]string{"feast-simple-feast-setup-registry", "feast-simple-feast-setup-online", "feast-simple-feast-setup-offline"}
+			deploymentNames := [3]string{"feast-simple-feast-setup-registry", "feast-simple-feast-setup-online",
+				"feast-simple-feast-setup-offline"}
 			for _, deploymentName := range deploymentNames {
 				By(fmt.Sprintf("validate the feast deployment: %s is up and in availability state.", deploymentName))
 				err = checkIfDeploymentExistsAndAvailable(namespace, deploymentName, timeout)
@@ -122,7 +123,8 @@ var _ = Describe("controller", Ordered, func() {
 			))
 			fmt.Printf("Feast Deployment %s is available\n", configMapName)
 
-			serviceAccountNames := [3]string{"feast-simple-feast-setup-registry", "feast-simple-feast-setup-online", "feast-simple-feast-setup-offline"}
+			serviceAccountNames := [3]string{"feast-simple-feast-setup-registry", "feast-simple-feast-setup-online",
+				"feast-simple-feast-setup-offline"}
 			for _, serviceAccountName := range serviceAccountNames {
 				By(fmt.Sprintf("validate the feast service account: %s is available.", serviceAccountName))
 				err = checkIfServiceAccountExists(namespace, serviceAccountName)
@@ -133,7 +135,8 @@ var _ = Describe("controller", Ordered, func() {
 				fmt.Printf("Service account %s exists in namespace %s\n", serviceAccountName, namespace)
 			}
 
-			serviceNames := [3]string{"feast-simple-feast-setup-registry", "feast-simple-feast-setup-online", "feast-simple-feast-setup-offline"}
+			serviceNames := [3]string{"feast-simple-feast-setup-registry", "feast-simple-feast-setup-online",
+				"feast-simple-feast-setup-offline"}
 			for _, serviceName := range serviceNames {
 				By(fmt.Sprintf("validate the kubernetes service name: %s is available.", serviceName))
 				err = checkIfKubernetesServiceExists(namespace, serviceName)

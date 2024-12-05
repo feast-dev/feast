@@ -19,7 +19,8 @@ func checkIfFeatureStoreCustomResourceConditionsInReady(featureStoreName, namesp
 	cmd.Stderr = &stderr
 
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("failed to get resource %s in namespace %s. Error: %v. Stderr: %s", featureStoreName, namespace, err, stderr.String())
+		return fmt.Errorf("failed to get resource %s in namespace %s. Error: %v. Stderr: %s",
+			featureStoreName, namespace, err, stderr.String())
 	}
 
 	// Parse the JSON into a generic map
@@ -50,7 +51,8 @@ func checkIfFeatureStoreCustomResourceConditionsInReady(featureStoreName, namesp
 		conditionStatus := conditionMap["status"].(string)
 
 		if conditionStatus != "True" {
-			return fmt.Errorf(" FeatureStore=%s condition '%s' is not in 'Ready' state. Status: %s", featureStoreName, conditionType, conditionStatus)
+			return fmt.Errorf(" FeatureStore=%s condition '%s' is not in 'Ready' state. Status: %s",
+				featureStoreName, conditionType, conditionStatus)
 		}
 	}
 
@@ -127,7 +129,8 @@ func checkIfServiceAccountExists(namespace, saName string) error {
 	cmd.Stderr = &stderr
 
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("failed to find service account %s in namespace %s. Error: %v. Stderr: %s", saName, namespace, err, stderr.String())
+		return fmt.Errorf("failed to find service account %s in namespace %s. Error: %v. Stderr: %s",
+			saName, namespace, err, stderr.String())
 	}
 
 	// Check the output to confirm presence
@@ -148,7 +151,8 @@ func checkIfConfigMapExists(namespace, configMapName string) error {
 	cmd.Stderr = &stderr
 
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("failed to find config map %s in namespace %s. Error: %v. Stderr: %s", configMapName, namespace, err, stderr.String())
+		return fmt.Errorf("failed to find config map %s in namespace %s. Error: %v. Stderr: %s",
+			configMapName, namespace, err, stderr.String())
 	}
 
 	// Check the output to confirm presence
@@ -169,7 +173,8 @@ func checkIfKubernetesServiceExists(namespace, serviceName string) error {
 	cmd.Stderr = &stderr
 
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("failed to find kubernetes service %s in namespace %s. Error: %v. Stderr: %s", serviceName, namespace, err, stderr.String())
+		return fmt.Errorf("failed to find kubernetes service %s in namespace %s. Error: %v. Stderr: %s",
+			serviceName, namespace, err, stderr.String())
 	}
 
 	// Check the output to confirm presence
