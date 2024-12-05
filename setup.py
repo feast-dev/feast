@@ -33,7 +33,7 @@ REQUIRED = [
     "click>=7.0.0,<9.0.0",
     "colorama>=0.3.9,<1",
     "dill~=0.3.0",
-    "protobuf>=4.24.0,<5.0.0",
+    "protobuf>=4.24.0",
     "Jinja2>=2,<4",
     "jsonschema",
     "mmh3",
