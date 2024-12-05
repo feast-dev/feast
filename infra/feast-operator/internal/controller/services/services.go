@@ -355,25 +355,36 @@ func (feast *FeastServices) setDeployment(deploy *appsv1.Deployment, feastType F
 }
 
 func (feast *FeastServices) getContainerCommand(feastType FeastServiceType) []string {
+	baseCommand := "feast"
+	options := []string{}
+	logLevel := feast.getLogLevelForType(feastType)
+	if logLevel != nil {
+		options = append(options, "--log-level", strings.ToUpper(*logLevel))
+	}
+
 	deploySettings := FeastServiceConstants[feastType]
 	targetPort := deploySettings.TargetHttpPort
 	tls := feast.getTlsConfigs(feastType)
 	if tls.IsTLS() {
 		targetPort = deploySettings.TargetHttpsPort
 		feastTlsPath := GetTlsPath(feastType)
-		deploySettings.Command = append(deploySettings.Command, []string{"--key", feastTlsPath + tls.SecretKeyNames.TlsKey,
+		deploySettings.Args = append(deploySettings.Args, []string{"--key", feastTlsPath + tls.SecretKeyNames.TlsKey,
 			"--cert", feastTlsPath + tls.SecretKeyNames.TlsCrt}...)
 	}
-	deploySettings.Command = append(deploySettings.Command, []string{"-p", strconv.Itoa(int(targetPort))}...)
+	deploySettings.Args = append(deploySettings.Args, []string{"-p", strconv.Itoa(int(targetPort))}...)
 
 	if feastType == OfflineFeastType {
 		if tls.IsTLS() && feast.Handler.FeatureStore.Status.Applied.Services.OfflineStore.TLS.VerifyClient != nil {
-			deploySettings.Command = append(deploySettings.Command,
+			deploySettings.Args = append(deploySettings.Args,
 				[]string{"--verify_client", strconv.FormatBool(*feast.Handler.FeatureStore.Status.Applied.Services.OfflineStore.TLS.VerifyClient)}...)
 		}
 	}
 
-	return deploySettings.Command
+	// Combine base command, options, and arguments
+	feastCommand := append([]string{baseCommand}, options...)
+	feastCommand = append(feastCommand, deploySettings.Args...)
+
+	return feastCommand
 }
 
 func (feast *FeastServices) offlineClientPodConfigs(podSpec *corev1.PodSpec) {
@@ -472,6 +483,25 @@ func (feast *FeastServices) getServiceConfigs(feastType FeastServiceType) feastd
 		}
 	}
 	return feastdevv1alpha1.ServiceConfigs{}
+}
+
+func (feast *FeastServices) getLogLevelForType(feastType FeastServiceType) *string {
+	services := feast.Handler.FeatureStore.Status.Applied.Services
+	switch feastType {
+	case OfflineFeastType:
+		if services.OfflineStore != nil && services.OfflineStore.LogLevel != "" {
+			return &services.OfflineStore.LogLevel
+		}
+	case OnlineFeastType:
+		if services.OnlineStore != nil && services.OnlineStore.LogLevel != "" {
+			return &services.OnlineStore.LogLevel
+		}
+	case RegistryFeastType:
+		if services.Registry != nil && services.Registry.Local.LogLevel != "" {
+			return &services.Registry.Local.LogLevel
+		}
+	}
+	return nil
 }
 
 // GetObjectMeta returns the feast k8s object metadata

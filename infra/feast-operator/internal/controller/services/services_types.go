@@ -87,17 +87,17 @@ var (
 
 	FeastServiceConstants = map[FeastServiceType]deploymentSettings{
 		OfflineFeastType: {
-			Command:         []string{"feast", "serve_offline", "-h", "0.0.0.0"},
+			Args:            []string{"serve_offline", "-h", "0.0.0.0"},
 			TargetHttpPort:  8815,
 			TargetHttpsPort: 8816,
 		},
 		OnlineFeastType: {
-			Command:         []string{"feast", "serve", "-h", "0.0.0.0"},
+			Args:            []string{"serve", "-h", "0.0.0.0"},
 			TargetHttpPort:  6566,
 			TargetHttpsPort: 6567,
 		},
 		RegistryFeastType: {
-			Command:         []string{"feast", "serve_registry"},
+			Args:            []string{"serve_registry"},
 			TargetHttpPort:  6570,
 			TargetHttpsPort: 6571,
 		},
@@ -234,7 +234,7 @@ type AuthzConfig struct {
 }
 
 type deploymentSettings struct {
-	Command         []string
+	Args            []string
 	TargetHttpPort  int32
 	TargetHttpsPort int32
 }
