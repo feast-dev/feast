@@ -2,11 +2,19 @@ name: show semantic release versions
 
 on:
   workflow_dispatch:
+    inputs:
+      token:
+        description: 'Personal Access Token'
+        required: true
+        default: ""
+        type: string
 
 jobs:
 
   get_dry_release_versions:
     runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ github.event.inputs.token }}
     outputs:
       current_version: ${{ steps.get_versions.outputs.current_version }}
       next_version: ${{ steps.get_versions.outputs.next_version }}
