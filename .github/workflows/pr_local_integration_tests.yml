@@ -48,7 +48,7 @@ jobs:
           path: ${{ steps.uv-cache.outputs.dir }}
           key: ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-uv-${{ hashFiles(format('**/py{0}-ci-requirements.txt', env.PYTHON)) }}
       - name: Install dependencies
-        run: make install-python-ci-dependencies-uv
+        run: make install-python-dependencies-ci
       - name: Test local integration tests
         if: ${{ always() }}  # this will guarantee that step won't be canceled and resources won't leak
         run: make test-python-integration-local

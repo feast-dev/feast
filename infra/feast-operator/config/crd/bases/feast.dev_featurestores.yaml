@@ -48,6 +48,52 @@ spec:
           spec:
             description: FeatureStoreSpec defines the desired state of FeatureStore
             properties:
+              authz:
+                description: AuthzConfig defines the authorization settings for the
+                  deployed Feast services.
+                properties:
+                  kubernetes:
+                    description: |-
+                      KubernetesAuthz provides a way to define the authorization settings using Kubernetes RBAC resources.
+                      https://kubernetes.io/docs/reference/access-authn-authz/rbac/
+                    properties:
+                      roles:
+                        description: |-
+                          The Kubernetes RBAC roles to be deployed in the same namespace of the FeatureStore.
+                          Roles are managed by the operator and created with an empty list of rules.
+                          See the Feast permission model at https://docs.feast.dev/getting-started/concepts/permission
+                          The feature store admin is not obligated to manage roles using the Feast operator, roles can be managed independently.
+                          This configuration option is only providing a way to automate this procedure.
+                          Important note: the operator cannot ensure that these roles will match the ones used in the configured Feast permissions.
+                        items:
+                          type: string
+                        type: array
+                    type: object
+                  oidc:
+                    description: |-
+                      OidcAuthz defines the authorization settings for deployments using an Open ID Connect identity provider.
+                      https://auth0.com/docs/authenticate/protocols/openid-connect-protocol
+                    properties:
+                      secretRef:
+                        description: |-
+                          LocalObjectReference contains enough information to let you locate the
+                          referenced object inside the same namespace.
+                        properties:
+                          name:
+                            description: |-
+                              Name of the referent.
+                              More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                              TODO: Add other useful fields. apiVersion, kind, uid?
+                            type: string
+                        type: object
+                        x-kubernetes-map-type: atomic
+                    required:
+                    - secretRef
+                    type: object
+                type: object
+                x-kubernetes-validations:
+                - message: One selection required between kubernetes or oidc.
+                  rule: '[has(self.kubernetes), has(self.oidc)].exists_one(c, c)'
               feastProject:
                 description: FeastProject is the Feast project id. This can be any
                   alphanumeric string with underscores, but it cannot start with an
@@ -275,11 +321,13 @@ spec:
                               the DB store persistence for the offline store service
                             properties:
                               secretKeyName:
+                                description: By default, the selected store "type"
+                                  is used as the SecretKeyName
                                 type: string
                               secretRef:
-                                description: |-
-                                  LocalObjectReference contains enough information to let you locate the
-                                  referenced object inside the same namespace.
+                                description: Data store parameters should be placed
+                                  as-is from the "feature_store.yaml" under the secret
+                                  key. "registry_type" & "type" fields should be removed.
                                 properties:
                                   name:
                                     description: |-
@@ -299,6 +347,9 @@ spec:
                                 - feast_trino.trino.TrinoOfflineStore
                                 - redis
                                 type: string
+                            required:
+                            - secretRef
+                            - type
                             type: object
                         type: object
                         x-kubernetes-validations:
@@ -360,6 +411,47 @@ spec:
                               More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                             type: object
                         type: object
+                      tls:
+                        description: OfflineTlsConfigs configures server TLS for the
+                          offline feast service. in an openshift cluster, this is
+                          configured by default using service serving certificates.
+                        properties:
+                          disable:
+                            description: will disable TLS for the feast service. useful
+                              in an openshift cluster, for example, where TLS is configured
+                              by default
+                            type: boolean
+                          secretKeyNames:
+                            description: SecretKeyNames defines the secret key names
+                              for the TLS key and cert.
+                            properties:
+                              tlsCrt:
+                                description: defaults to "tls.crt"
+                                type: string
+                              tlsKey:
+                                description: defaults to "tls.key"
+                                type: string
+                            type: object
+                          secretRef:
+                            description: references the local k8s secret where the
+                              TLS key and cert reside
+                            properties:
+                              name:
+                                description: |-
+                                  Name of the referent.
+                                  More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                  TODO: Add other useful fields. apiVersion, kind, uid?
+                                type: string
+                            type: object
+                            x-kubernetes-map-type: atomic
+                          verifyClient:
+                            description: verify the client TLS certificate.
+                            type: boolean
+                        type: object
+                        x-kubernetes-validations:
+                        - message: '`secretRef` required if `disable` is false.'
+                          rule: '(!has(self.disable) || !self.disable) ? has(self.secretRef)
+                            : true'
                     type: object
                   onlineStore:
                     description: OnlineStore configures the deployed online store
@@ -586,11 +678,13 @@ spec:
                               the DB store persistence for the offline store service
                             properties:
                               secretKeyName:
+                                description: By default, the selected store "type"
+                                  is used as the SecretKeyName
                                 type: string
                               secretRef:
-                                description: |-
-                                  LocalObjectReference contains enough information to let you locate the
-                                  referenced object inside the same namespace.
+                                description: Data store parameters should be placed
+                                  as-is from the "feature_store.yaml" under the secret
+                                  key. "registry_type" & "type" fields should be removed.
                                 properties:
                                   name:
                                     description: |-
@@ -614,6 +708,9 @@ spec:
                                 - hazelcast
                                 - singlestore
                                 type: string
+                            required:
+                            - secretRef
+                            - type
                             type: object
                         type: object
                         x-kubernetes-validations:
@@ -675,6 +772,44 @@ spec:
                               More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                             type: object
                         type: object
+                      tls:
+                        description: TlsConfigs configures server TLS for a feast
+                          service. in an openshift cluster, this is configured by
+                          default using service serving certificates.
+                        properties:
+                          disable:
+                            description: will disable TLS for the feast service. useful
+                              in an openshift cluster, for example, where TLS is configured
+                              by default
+                            type: boolean
+                          secretKeyNames:
+                            description: SecretKeyNames defines the secret key names
+                              for the TLS key and cert.
+                            properties:
+                              tlsCrt:
+                                description: defaults to "tls.crt"
+                                type: string
+                              tlsKey:
+                                description: defaults to "tls.key"
+                                type: string
+                            type: object
+                          secretRef:
+                            description: references the local k8s secret where the
+                              TLS key and cert reside
+                            properties:
+                              name:
+                                description: |-
+                                  Name of the referent.
+                                  More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                  TODO: Add other useful fields. apiVersion, kind, uid?
+                                type: string
+                            type: object
+                            x-kubernetes-map-type: atomic
+                        type: object
+                        x-kubernetes-validations:
+                        - message: '`secretRef` required if `disable` is false.'
+                          rule: '(!has(self.disable) || !self.disable) ? has(self.secretRef)
+                            : true'
                     type: object
                   registry:
                     description: Registry configures the registry service. One selection
@@ -918,11 +1053,14 @@ spec:
                                   the DB store persistence for the registry service
                                 properties:
                                   secretKeyName:
+                                    description: By default, the selected store "type"
+                                      is used as the SecretKeyName
                                     type: string
                                   secretRef:
-                                    description: |-
-                                      LocalObjectReference contains enough information to let you locate the
-                                      referenced object inside the same namespace.
+                                    description: Data store parameters should be placed
+                                      as-is from the "feature_store.yaml" under the
+                                      secret key. "registry_type" & "type" fields
+                                      should be removed.
                                     properties:
                                       name:
                                         description: |-
@@ -937,8 +1075,15 @@ spec:
                                     - sql
                                     - snowflake.registry
                                     type: string
+                                required:
+                                - secretRef
+                                - type
                                 type: object
                             type: object
+                            x-kubernetes-validations:
+                            - message: One selection required between file or store.
+                              rule: '[has(self.file), has(self.store)].exists_one(c,
+                                c)'
                           resources:
                             description: ResourceRequirements describes the compute
                               resource requirements.
@@ -996,6 +1141,44 @@ spec:
                                   More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                                 type: object
                             type: object
+                          tls:
+                            description: TlsConfigs configures server TLS for a feast
+                              service. in an openshift cluster, this is configured
+                              by default using service serving certificates.
+                            properties:
+                              disable:
+                                description: will disable TLS for the feast service.
+                                  useful in an openshift cluster, for example, where
+                                  TLS is configured by default
+                                type: boolean
+                              secretKeyNames:
+                                description: SecretKeyNames defines the secret key
+                                  names for the TLS key and cert.
+                                properties:
+                                  tlsCrt:
+                                    description: defaults to "tls.crt"
+                                    type: string
+                                  tlsKey:
+                                    description: defaults to "tls.key"
+                                    type: string
+                                type: object
+                              secretRef:
+                                description: references the local k8s secret where
+                                  the TLS key and cert reside
+                                properties:
+                                  name:
+                                    description: |-
+                                      Name of the referent.
+                                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                      TODO: Add other useful fields. apiVersion, kind, uid?
+                                    type: string
+                                type: object
+                                x-kubernetes-map-type: atomic
+                            type: object
+                            x-kubernetes-validations:
+                            - message: '`secretRef` required if `disable` is false.'
+                              rule: '(!has(self.disable) || !self.disable) ? has(self.secretRef)
+                                : true'
                         type: object
                       remote:
                         description: |-
@@ -1019,6 +1202,32 @@ spec:
                             description: Host address of the remote registry service
                               - <domain>:<port>, e.g. `registry.<namespace>.svc.cluster.local:80`
                             type: string
+                          tls:
+                            description: TlsRemoteRegistryConfigs configures client
+                              TLS for a remote feast registry. in an openshift cluster,
+                              this is configured by default when the remote feast
+                              registry is using service serving certificates.
+                            properties:
+                              certName:
+                                description: defines the configmap key name for the
+                                  client TLS cert.
+                                type: string
+                              configMapRef:
+                                description: references the local k8s configmap where
+                                  the TLS cert resides
+                                properties:
+                                  name:
+                                    description: |-
+                                      Name of the referent.
+                                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                      TODO: Add other useful fields. apiVersion, kind, uid?
+                                    type: string
+                                type: object
+                                x-kubernetes-map-type: atomic
+                            required:
+                            - certName
+                            - configMapRef
+                            type: object
                         type: object
                         x-kubernetes-validations:
                         - message: One selection required.
@@ -1039,6 +1248,53 @@ spec:
                 description: Shows the currently applied feast configuration, including
                   any pertinent defaults
                 properties:
+                  authz:
+                    description: AuthzConfig defines the authorization settings for
+                      the deployed Feast services.
+                    properties:
+                      kubernetes:
+                        description: |-
+                          KubernetesAuthz provides a way to define the authorization settings using Kubernetes RBAC resources.
+                          https://kubernetes.io/docs/reference/access-authn-authz/rbac/
+                        properties:
+                          roles:
+                            description: |-
+                              The Kubernetes RBAC roles to be deployed in the same namespace of the FeatureStore.
+                              Roles are managed by the operator and created with an empty list of rules.
+                              See the Feast permission model at https://docs.feast.dev/getting-started/concepts/permission
+                              The feature store admin is not obligated to manage roles using the Feast operator, roles can be managed independently.
+                              This configuration option is only providing a way to automate this procedure.
+                              Important note: the operator cannot ensure that these roles will match the ones used in the configured Feast permissions.
+                            items:
+                              type: string
+                            type: array
+                        type: object
+                      oidc:
+                        description: |-
+                          OidcAuthz defines the authorization settings for deployments using an Open ID Connect identity provider.
+                          https://auth0.com/docs/authenticate/protocols/openid-connect-protocol
+                        properties:
+                          secretRef:
+                            description: |-
+                              LocalObjectReference contains enough information to let you locate the
+                              referenced object inside the same namespace.
+                            properties:
+                              name:
+                                description: |-
+                                  Name of the referent.
+                                  More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                  TODO: Add other useful fields. apiVersion, kind, uid?
+                                type: string
+                            type: object
+                            x-kubernetes-map-type: atomic
+                        required:
+                        - secretRef
+                        type: object
+                    type: object
+                    x-kubernetes-validations:
+                    - message: One selection required between kubernetes or oidc.
+                      rule: '[has(self.kubernetes), has(self.oidc)].exists_one(c,
+                        c)'
                   feastProject:
                     description: FeastProject is the Feast project id. This can be
                       any alphanumeric string with underscores, but it cannot start
@@ -1268,11 +1524,14 @@ spec:
                                   the DB store persistence for the offline store service
                                 properties:
                                   secretKeyName:
+                                    description: By default, the selected store "type"
+                                      is used as the SecretKeyName
                                     type: string
                                   secretRef:
-                                    description: |-
-                                      LocalObjectReference contains enough information to let you locate the
-                                      referenced object inside the same namespace.
+                                    description: Data store parameters should be placed
+                                      as-is from the "feature_store.yaml" under the
+                                      secret key. "registry_type" & "type" fields
+                                      should be removed.
                                     properties:
                                       name:
                                         description: |-
@@ -1292,6 +1551,9 @@ spec:
                                     - feast_trino.trino.TrinoOfflineStore
                                     - redis
                                     type: string
+                                required:
+                                - secretRef
+                                - type
                                 type: object
                             type: object
                             x-kubernetes-validations:
@@ -1355,6 +1617,48 @@ spec:
                                   More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                                 type: object
                             type: object
+                          tls:
+                            description: OfflineTlsConfigs configures server TLS for
+                              the offline feast service. in an openshift cluster,
+                              this is configured by default using service serving
+                              certificates.
+                            properties:
+                              disable:
+                                description: will disable TLS for the feast service.
+                                  useful in an openshift cluster, for example, where
+                                  TLS is configured by default
+                                type: boolean
+                              secretKeyNames:
+                                description: SecretKeyNames defines the secret key
+                                  names for the TLS key and cert.
+                                properties:
+                                  tlsCrt:
+                                    description: defaults to "tls.crt"
+                                    type: string
+                                  tlsKey:
+                                    description: defaults to "tls.key"
+                                    type: string
+                                type: object
+                              secretRef:
+                                description: references the local k8s secret where
+                                  the TLS key and cert reside
+                                properties:
+                                  name:
+                                    description: |-
+                                      Name of the referent.
+                                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                      TODO: Add other useful fields. apiVersion, kind, uid?
+                                    type: string
+                                type: object
+                                x-kubernetes-map-type: atomic
+                              verifyClient:
+                                description: verify the client TLS certificate.
+                                type: boolean
+                            type: object
+                            x-kubernetes-validations:
+                            - message: '`secretRef` required if `disable` is false.'
+                              rule: '(!has(self.disable) || !self.disable) ? has(self.secretRef)
+                                : true'
                         type: object
                       onlineStore:
                         description: OnlineStore configures the deployed online store
@@ -1584,11 +1888,14 @@ spec:
                                   the DB store persistence for the offline store service
                                 properties:
                                   secretKeyName:
+                                    description: By default, the selected store "type"
+                                      is used as the SecretKeyName
                                     type: string
                                   secretRef:
-                                    description: |-
-                                      LocalObjectReference contains enough information to let you locate the
-                                      referenced object inside the same namespace.
+                                    description: Data store parameters should be placed
+                                      as-is from the "feature_store.yaml" under the
+                                      secret key. "registry_type" & "type" fields
+                                      should be removed.
                                     properties:
                                       name:
                                         description: |-
@@ -1612,6 +1919,9 @@ spec:
                                     - hazelcast
                                     - singlestore
                                     type: string
+                                required:
+                                - secretRef
+                                - type
                                 type: object
                             type: object
                             x-kubernetes-validations:
@@ -1675,6 +1985,44 @@ spec:
                                   More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                                 type: object
                             type: object
+                          tls:
+                            description: TlsConfigs configures server TLS for a feast
+                              service. in an openshift cluster, this is configured
+                              by default using service serving certificates.
+                            properties:
+                              disable:
+                                description: will disable TLS for the feast service.
+                                  useful in an openshift cluster, for example, where
+                                  TLS is configured by default
+                                type: boolean
+                              secretKeyNames:
+                                description: SecretKeyNames defines the secret key
+                                  names for the TLS key and cert.
+                                properties:
+                                  tlsCrt:
+                                    description: defaults to "tls.crt"
+                                    type: string
+                                  tlsKey:
+                                    description: defaults to "tls.key"
+                                    type: string
+                                type: object
+                              secretRef:
+                                description: references the local k8s secret where
+                                  the TLS key and cert reside
+                                properties:
+                                  name:
+                                    description: |-
+                                      Name of the referent.
+                                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                      TODO: Add other useful fields. apiVersion, kind, uid?
+                                    type: string
+                                type: object
+                                x-kubernetes-map-type: atomic
+                            type: object
+                            x-kubernetes-validations:
+                            - message: '`secretRef` required if `disable` is false.'
+                              rule: '(!has(self.disable) || !self.disable) ? has(self.secretRef)
+                                : true'
                         type: object
                       registry:
                         description: Registry configures the registry service. One
@@ -1924,11 +2272,14 @@ spec:
                                       the DB store persistence for the registry service
                                     properties:
                                       secretKeyName:
+                                        description: By default, the selected store
+                                          "type" is used as the SecretKeyName
                                         type: string
                                       secretRef:
-                                        description: |-
-                                          LocalObjectReference contains enough information to let you locate the
-                                          referenced object inside the same namespace.
+                                        description: Data store parameters should
+                                          be placed as-is from the "feature_store.yaml"
+                                          under the secret key. "registry_type" &
+                                          "type" fields should be removed.
                                         properties:
                                           name:
                                             description: |-
@@ -1943,8 +2294,16 @@ spec:
                                         - sql
                                         - snowflake.registry
                                         type: string
+                                    required:
+                                    - secretRef
+                                    - type
                                     type: object
                                 type: object
+                                x-kubernetes-validations:
+                                - message: One selection required between file or
+                                    store.
+                                  rule: '[has(self.file), has(self.store)].exists_one(c,
+                                    c)'
                               resources:
                                 description: ResourceRequirements describes the compute
                                   resource requirements.
@@ -2002,6 +2361,44 @@ spec:
                                       More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                                     type: object
                                 type: object
+                              tls:
+                                description: TlsConfigs configures server TLS for
+                                  a feast service. in an openshift cluster, this is
+                                  configured by default using service serving certificates.
+                                properties:
+                                  disable:
+                                    description: will disable TLS for the feast service.
+                                      useful in an openshift cluster, for example,
+                                      where TLS is configured by default
+                                    type: boolean
+                                  secretKeyNames:
+                                    description: SecretKeyNames defines the secret
+                                      key names for the TLS key and cert.
+                                    properties:
+                                      tlsCrt:
+                                        description: defaults to "tls.crt"
+                                        type: string
+                                      tlsKey:
+                                        description: defaults to "tls.key"
+                                        type: string
+                                    type: object
+                                  secretRef:
+                                    description: references the local k8s secret where
+                                      the TLS key and cert reside
+                                    properties:
+                                      name:
+                                        description: |-
+                                          Name of the referent.
+                                          More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                          TODO: Add other useful fields. apiVersion, kind, uid?
+                                        type: string
+                                    type: object
+                                    x-kubernetes-map-type: atomic
+                                type: object
+                                x-kubernetes-validations:
+                                - message: '`secretRef` required if `disable` is false.'
+                                  rule: '(!has(self.disable) || !self.disable) ? has(self.secretRef)
+                                    : true'
                             type: object
                           remote:
                             description: |-
@@ -2025,6 +2422,32 @@ spec:
                                 description: Host address of the remote registry service
                                   - <domain>:<port>, e.g. `registry.<namespace>.svc.cluster.local:80`
                                 type: string
+                              tls:
+                                description: TlsRemoteRegistryConfigs configures client
+                                  TLS for a remote feast registry. in an openshift
+                                  cluster, this is configured by default when the
+                                  remote feast registry is using service serving certificates.
+                                properties:
+                                  certName:
+                                    description: defines the configmap key name for
+                                      the client TLS cert.
+                                    type: string
+                                  configMapRef:
+                                    description: references the local k8s configmap
+                                      where the TLS cert resides
+                                    properties:
+                                      name:
+                                        description: |-
+                                          Name of the referent.
+                                          More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                          TODO: Add other useful fields. apiVersion, kind, uid?
+                                        type: string
+                                    type: object
+                                    x-kubernetes-map-type: atomic
+                                required:
+                                - certName
+                                - configMapRef
+                                type: object
                             type: object
                             x-kubernetes-validations:
                             - message: One selection required.

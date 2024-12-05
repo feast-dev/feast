@@ -6,7 +6,7 @@ select = ["E","F","W","I"]
 ignore = ["E203", "E266", "E501", "E721"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["feast", "feast", "feast_serving_server", "feast_core_server"]
+known-first-party = ["feast", "feast_serving_server", "feast_core_server"]
 default-section = "third-party"
 
 [tool.mypy]

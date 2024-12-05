@@ -13,13 +13,22 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-func isLocalRegistry(featureStore *feastdevv1alpha1.FeatureStore) bool {
+var isOpenShift = false
+
+func IsLocalRegistry(featureStore *feastdevv1alpha1.FeatureStore) bool {
 	appliedServices := featureStore.Status.Applied.Services
 	return appliedServices != nil && appliedServices.Registry != nil && appliedServices.Registry.Local != nil
+}
+
+func isRemoteRegistry(featureStore *feastdevv1alpha1.FeatureStore) bool {
+	appliedServices := featureStore.Status.Applied.Services
+	return appliedServices != nil && appliedServices.Registry != nil && appliedServices.Registry.Remote != nil
 }
 
 func hasPvcConfig(featureStore *feastdevv1alpha1.FeatureStore, feastType FeastServiceType) (*feastdevv1alpha1.PvcConfig, bool) {
@@ -35,7 +44,7 @@ func hasPvcConfig(featureStore *feastdevv1alpha1.FeatureStore, feastType FeastSe
 			pvcConfig = services.OfflineStore.Persistence.FilePersistence.PvcConfig
 		}
 	case RegistryFeastType:
-		if isLocalRegistry(featureStore) && services.Registry.Local.Persistence.FilePersistence != nil {
+		if IsLocalRegistry(featureStore) && services.Registry.Local.Persistence.FilePersistence != nil {
 			pvcConfig = services.Registry.Local.Persistence.FilePersistence.PvcConfig
 		}
 	}
@@ -52,6 +61,7 @@ func shouldCreatePvc(featureStore *feastdevv1alpha1.FeatureStore, feastType Feas
 func ApplyDefaultsToStatus(cr *feastdevv1alpha1.FeatureStore) {
 	cr.Status.FeastVersion = feastversion.FeastVersion
 	applied := cr.Spec.DeepCopy()
+
 	if applied.Services == nil {
 		applied.Services = &feastdevv1alpha1.FeatureStoreServices{}
 	}
@@ -201,11 +211,11 @@ func checkRegistryDBStorePersistenceType(value string) error {
 }
 
 func (feast *FeastServices) getSecret(secretRef string) (*corev1.Secret, error) {
-	secret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: secretRef, Namespace: feast.FeatureStore.Namespace}}
+	secret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: secretRef, Namespace: feast.Handler.FeatureStore.Namespace}}
 	objectKey := client.ObjectKeyFromObject(secret)
-	if err := feast.Client.Get(feast.Context, objectKey, secret); err != nil {
+	if err := feast.Handler.Client.Get(feast.Handler.Context, objectKey, secret); err != nil {
 		if apierrors.IsNotFound(err) || err != nil {
-			logger := log.FromContext(feast.Context)
+			logger := log.FromContext(feast.Handler.Context)
 			logger.Error(err, "invalid secret "+secretRef+" for offline store")
 
 			return nil, err
@@ -271,4 +281,60 @@ func CopyMap(original map[string]interface{}) map[string]interface{} {
 	}
 
 	return newCopy
+}
+
+// IsOpenShift is a global flag that can be safely called across reconciliation cycles, defined at the controller manager start.
+func IsOpenShift() bool {
+	return isOpenShift
+}
+
+// SetIsOpenShift sets the global flag isOpenShift by the controller manager.
+// We don't need to keep fetching the API every reconciliation cycle that we need to know about the platform.
+func SetIsOpenShift(cfg *rest.Config) {
+	if cfg == nil {
+		panic("Rest Config struct is nil, impossible to get cluster information")
+	}
+	// adapted from https://github.com/RHsyseng/operator-utils/blob/a226fabb2226a313dd3a16591c5579ebcd8a74b0/internal/platform/platform_versioner.go#L95
+	client, err := discovery.NewDiscoveryClientForConfig(cfg)
+	if err != nil {
+		panic(fmt.Sprintf("Impossible to get new client for config when fetching cluster information: %s", err))
+	}
+	apiList, err := client.ServerGroups()
+	if err != nil {
+		panic(fmt.Sprintf("issue occurred while fetching ServerGroups: %s", err))
+	}
+
+	for _, v := range apiList.Groups {
+		if v.Name == "route.openshift.io" {
+			isOpenShift = true
+			break
+		}
+	}
+}
+
+func missingOidcSecretProperty(property OidcPropertyType) error {
+	return fmt.Errorf(OidcMissingSecretError, property)
+}
+
+// getEnvVar returns the position of the EnvVar found by name
+func getEnvVar(envName string, env []corev1.EnvVar) int {
+	for pos, v := range env {
+		if v.Name == envName {
+			return pos
+		}
+	}
+	return -1
+}
+
+// envOverride replaces or appends the provided EnvVar to the collection
+func envOverride(dst, src []corev1.EnvVar) []corev1.EnvVar {
+	for _, cre := range src {
+		pos := getEnvVar(cre.Name, dst)
+		if pos != -1 {
+			dst[pos] = cre
+		} else {
+			dst = append(dst, cre)
+		}
+	}
+	return dst
 }

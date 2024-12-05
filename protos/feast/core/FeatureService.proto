@@ -96,3 +96,7 @@ message LoggingConfig {
     map<string, string> config = 2;
   }
 }
+
+message FeatureServiceList {
+    repeated FeatureService featureservices = 1;
+}

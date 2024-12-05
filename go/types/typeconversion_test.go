@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/apache/arrow/go/v8/arrow/memory"
+	"github.com/apache/arrow/go/v17/arrow/memory"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/proto"
 
@@ -47,8 +47,8 @@ var (
 			{Val: &types.Value_Int32ListVal{&types.Int32List{Val: []int32{3, 4, 5}}}},
 		},
 		{
-			{Val: &types.Value_Int64ListVal{&types.Int64List{Val: []int64{0, 1, 2}}}},
-			{Val: &types.Value_Int64ListVal{&types.Int64List{Val: []int64{3, 4, 5}}}},
+			{Val: &types.Value_Int64ListVal{&types.Int64List{Val: []int64{0, 1, 2, 553248634761893728}}}},
+			{Val: &types.Value_Int64ListVal{&types.Int64List{Val: []int64{3, 4, 5, 553248634761893729}}}},
 		},
 		{
 			{Val: &types.Value_FloatListVal{&types.FloatList{Val: []float32{0.5, 1.5, 2}}}},

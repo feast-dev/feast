@@ -24,7 +24,6 @@ import (
 
 	feastdevv1alpha1 "github.com/feast-dev/feast/infra/feast-operator/api/v1alpha1"
 	"gopkg.in/yaml.v3"
-	corev1 "k8s.io/api/core/v1"
 )
 
 // GetServiceFeatureStoreYamlBase64 returns a base64 encoded feature_store.yaml config for the feast service
@@ -45,14 +44,37 @@ func (feast *FeastServices) getServiceFeatureStoreYaml(feastType FeastServiceTyp
 }
 
 func (feast *FeastServices) getServiceRepoConfig(feastType FeastServiceType) (RepoConfig, error) {
-	return getServiceRepoConfig(feastType, feast.FeatureStore, feast.extractConfigFromSecret)
+	return getServiceRepoConfig(feastType, feast.Handler.FeatureStore, feast.extractConfigFromSecret)
 }
 
-func getServiceRepoConfig(feastType FeastServiceType, featureStore *feastdevv1alpha1.FeatureStore, secretExtractionFunc func(secretRef string, secretKeyName string) (map[string]interface{}, error)) (RepoConfig, error) {
+func getServiceRepoConfig(
+	feastType FeastServiceType,
+	featureStore *feastdevv1alpha1.FeatureStore,
+	secretExtractionFunc func(secretRef string, secretKeyName string) (map[string]interface{}, error)) (RepoConfig, error) {
 	appliedSpec := featureStore.Status.Applied
 
-	repoConfig := getClientRepoConfig(featureStore)
-	isLocalReg := isLocalRegistry(featureStore)
+	repoConfig, err := getClientRepoConfig(featureStore, secretExtractionFunc)
+	if err != nil {
+		return repoConfig, err
+	}
+
+	if appliedSpec.AuthzConfig != nil && appliedSpec.AuthzConfig.OidcAuthz != nil {
+		propertiesMap, err := secretExtractionFunc(appliedSpec.AuthzConfig.OidcAuthz.SecretRef.Name, "")
+		if err != nil {
+			return repoConfig, err
+		}
+
+		oidcServerProperties := map[string]interface{}{}
+		for _, oidcServerProperty := range OidcServerProperties {
+			if val, exists := propertiesMap[string(oidcServerProperty)]; exists {
+				oidcServerProperties[string(oidcServerProperty)] = val
+			} else {
+				return repoConfig, missingOidcSecretProperty(oidcServerProperty)
+			}
+		}
+		repoConfig.AuthzConfig.OidcParameters = oidcServerProperties
+	}
+
 	if appliedSpec.Services != nil {
 		services := appliedSpec.Services
 
@@ -75,7 +97,7 @@ func getServiceRepoConfig(feastType FeastServiceType, featureStore *feastdevv1al
 			}
 		case RegistryFeastType:
 			// Registry server only has a `registry` section
-			if isLocalReg {
+			if IsLocalRegistry(featureStore) {
 				err := setRepoConfigRegistry(services, secretExtractionFunc, &repoConfig)
 				if err != nil {
 					return repoConfig, err
@@ -202,12 +224,19 @@ func setRepoConfigOffline(services *feastdevv1alpha1.FeatureStoreServices, secre
 	return nil
 }
 
-func (feast *FeastServices) getClientFeatureStoreYaml() ([]byte, error) {
-	return yaml.Marshal(getClientRepoConfig(feast.FeatureStore))
+func (feast *FeastServices) getClientFeatureStoreYaml(secretExtractionFunc func(secretRef string, secretKeyName string) (map[string]interface{}, error)) ([]byte, error) {
+	clientRepo, err := getClientRepoConfig(feast.Handler.FeatureStore, secretExtractionFunc)
+	if err != nil {
+		return []byte{}, err
+	}
+	return yaml.Marshal(clientRepo)
 }
 
-func getClientRepoConfig(featureStore *feastdevv1alpha1.FeatureStore) RepoConfig {
+func getClientRepoConfig(
+	featureStore *feastdevv1alpha1.FeatureStore,
+	secretExtractionFunc func(secretRef string, secretKeyName string) (map[string]interface{}, error)) (RepoConfig, error) {
 	status := featureStore.Status
+	appliedServices := status.Applied.Services
 	clientRepoConfig := RepoConfig{
 		Project:                       status.Applied.FeastProject,
 		Provider:                      LocalProviderType,
@@ -219,11 +248,22 @@ func getClientRepoConfig(featureStore *feastdevv1alpha1.FeatureStore) RepoConfig
 			Host: strings.Split(status.ServiceHostnames.OfflineStore, ":")[0],
 			Port: HttpPort,
 		}
+		if appliedServices.OfflineStore != nil && appliedServices.OfflineStore.TLS != nil &&
+			(&appliedServices.OfflineStore.TLS.TlsConfigs).IsTLS() {
+			clientRepoConfig.OfflineStore.Cert = GetTlsPath(OfflineFeastType) + appliedServices.OfflineStore.TLS.TlsConfigs.SecretKeyNames.TlsCrt
+			clientRepoConfig.OfflineStore.Port = HttpsPort
+			clientRepoConfig.OfflineStore.Scheme = HttpsScheme
+		}
 	}
 	if len(status.ServiceHostnames.OnlineStore) > 0 {
+		onlinePath := "://" + status.ServiceHostnames.OnlineStore
 		clientRepoConfig.OnlineStore = OnlineStoreConfig{
 			Type: OnlineRemoteConfigType,
-			Path: strings.ToLower(string(corev1.URISchemeHTTP)) + "://" + status.ServiceHostnames.OnlineStore,
+			Path: HttpScheme + onlinePath,
+		}
+		if appliedServices.OnlineStore != nil && appliedServices.OnlineStore.TLS.IsTLS() {
+			clientRepoConfig.OnlineStore.Cert = GetTlsPath(OnlineFeastType) + appliedServices.OnlineStore.TLS.SecretKeyNames.TlsCrt
+			clientRepoConfig.OnlineStore.Path = HttpsScheme + onlinePath
 		}
 	}
 	if len(status.ServiceHostnames.Registry) > 0 {
@@ -231,8 +271,44 @@ func getClientRepoConfig(featureStore *feastdevv1alpha1.FeatureStore) RepoConfig
 			RegistryType: RegistryRemoteConfigType,
 			Path:         status.ServiceHostnames.Registry,
 		}
+		if localRegistryTls(featureStore) {
+			clientRepoConfig.Registry.Cert = GetTlsPath(RegistryFeastType) + appliedServices.Registry.Local.TLS.SecretKeyNames.TlsCrt
+		} else if remoteRegistryTls(featureStore) {
+			clientRepoConfig.Registry.Cert = GetTlsPath(RegistryFeastType) + appliedServices.Registry.Remote.TLS.CertName
+		}
 	}
-	return clientRepoConfig
+
+	if status.Applied.AuthzConfig == nil {
+		clientRepoConfig.AuthzConfig = AuthzConfig{
+			Type: NoAuthAuthType,
+		}
+	} else {
+		if status.Applied.AuthzConfig.KubernetesAuthz != nil {
+			clientRepoConfig.AuthzConfig = AuthzConfig{
+				Type: KubernetesAuthType,
+			}
+		} else if status.Applied.AuthzConfig.OidcAuthz != nil {
+			clientRepoConfig.AuthzConfig = AuthzConfig{
+				Type: OidcAuthType,
+			}
+
+			propertiesMap, err := secretExtractionFunc(status.Applied.AuthzConfig.OidcAuthz.SecretRef.Name, "")
+			if err != nil {
+				return clientRepoConfig, err
+			}
+
+			oidcClientProperties := map[string]interface{}{}
+			for _, oidcClientProperty := range OidcClientProperties {
+				if val, exists := propertiesMap[string(oidcClientProperty)]; exists {
+					oidcClientProperties[string(oidcClientProperty)] = val
+				} else {
+					return clientRepoConfig, missingOidcSecretProperty(oidcClientProperty)
+				}
+			}
+			clientRepoConfig.AuthzConfig.OidcParameters = oidcClientProperties
+		}
+	}
+	return clientRepoConfig, nil
 }
 
 func getActualPath(filePath string, pvcConfig *feastdevv1alpha1.PvcConfig) string {
@@ -249,24 +325,33 @@ func (feast *FeastServices) extractConfigFromSecret(secretRef string, secretKeyN
 	}
 	parameters := map[string]interface{}{}
 
-	val, exists := secret.Data[secretKeyName]
-	if !exists {
-		return nil, fmt.Errorf("secret key %s doesn't exist in secret %s", secretKeyName, secretRef)
-	}
+	if secretKeyName != "" {
+		val, exists := secret.Data[secretKeyName]
+		if !exists {
+			return nil, fmt.Errorf("secret key %s doesn't exist in secret %s", secretKeyName, secretRef)
+		}
+		err = yaml.Unmarshal(val, &parameters)
+		if err != nil {
+			return nil, fmt.Errorf("secret %s contains invalid value", secretKeyName)
+		}
+		_, exists = parameters["type"]
+		if exists {
+			return nil, fmt.Errorf("secret key %s in secret %s contains invalid tag named type", secretKeyName, secretRef)
+		}
 
-	err = yaml.Unmarshal(val, &parameters)
-	if err != nil {
-		return nil, fmt.Errorf("secret %s contains invalid value", secretKeyName)
-	}
-
-	_, exists = parameters["type"]
-	if exists {
-		return nil, fmt.Errorf("secret key %s in secret %s contains invalid tag named type", secretKeyName, secretRef)
-	}
-
-	_, exists = parameters["registry_type"]
-	if exists {
-		return nil, fmt.Errorf("secret key %s in secret %s contains invalid tag named registry_type", secretKeyName, secretRef)
+		_, exists = parameters["registry_type"]
+		if exists {
+			return nil, fmt.Errorf("secret key %s in secret %s contains invalid tag named registry_type", secretKeyName, secretRef)
+		}
+	} else {
+		for k, v := range secret.Data {
+			var val interface{}
+			err := yaml.Unmarshal(v, &val)
+			if err != nil {
+				return nil, fmt.Errorf("secret %s contains invalid value %v", k, v)
+			}
+			parameters[k] = val
+		}
 	}
 
 	return parameters, nil
