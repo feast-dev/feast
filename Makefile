@@ -23,7 +23,7 @@ endif
 TRINO_VERSION ?= 376
 PYTHON_VERSION = ${shell python --version | grep -Eo '[0-9]\.[0-9]+'}
 
-PYTHON_VERSIONS := 3.9 3.10 3.11
+PYTHON_VERSIONS := 3.9 3.10 3.11 3.12
 define get_env_name
 $(subst .,,py$(1))
 endef
@@ -560,23 +560,23 @@ install-go-proto-dependencies:
 	# go install golang.org/x/tools/cmd/goimports
 	# python -m pip install "pybindgen==0.22.1" "grpcio-tools>=1.56.2,<2" "mypy-protobuf>=3.1"
 
-build-go: 
-	compile-protos-go 
+build-go:
+	compile-protos-go
 	go build -o feast ./go/main.go
 
 install-feast-ci-locally:
 	pip install -e ".[ci]"
 
-test-go: 
-	compile-protos-go 
-	compile-protos-python 
+test-go:
+	compile-protos-go
+	compile-protos-python
 	install-feast-ci-locally
 	CGO_ENABLED=1 go test -coverprofile=coverage.out ./... && go tool cover -html=coverage.out -o coverage.html
 
 format-go:
 	gofmt -s -w go/
 
-lint-go: 
+lint-go:
 	compile-protos-go
 	go vet ./go/internal/feast
 
@@ -585,7 +585,7 @@ build-go-docker-dev:
 		-t feastdev/feature-server-go:dev \
 		-f go/infra/docker/feature-server/Dockerfile --load .
 
-compile-protos-go: 
-	install-go-proto-dependencies 
+compile-protos-go:
+	install-go-proto-dependencies
 	install-protoc-dependencies
 	python setup.py build_go_protos

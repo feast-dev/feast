@@ -7,7 +7,6 @@ on:
 
 jobs:
   get-version:
-    if: github.repository == 'feast-dev/feast'
     runs-on:  ubuntu-latest
     outputs:
       release_version: ${{ steps.get_release_version.outputs.release_version }}
@@ -130,18 +129,36 @@ jobs:
     uses: ./.github/workflows/build_wheels.yml
 
   publish-python-sdk:
-    if: github.repository == 'feast-dev/feast'
     runs-on: ubuntu-latest
     needs: [build_wheels]
     steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install setuptools wheel twine
+      - uses: aws-actions/setup-sam@v2
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-west-1
       - uses: actions/download-artifact@v4.1.7
         with:
           name: wheels
           path: dist
-      - uses: pypa/gh-action-pypi-publish@v1.4.2
-        with:
-          user: __token__
-          password: ${{ secrets.PYPI_PASSWORD }}
+      - name: Publish to CodeArtifact
+        env:
+          CODEARTIFACT_DOMAIN: zing-python
+          CODEARTIFACT_DOMAIN_OWNER: 127385700001
+          CODEARTIFACT_REPOSITORY: zing-python
+        run: |
+          export TWINE_USERNAME=aws
+          export TWINE_PASSWORD=$(aws codeartifact get-authorization-token --domain $CODEARTIFACT_DOMAIN --domain-owner $CODEARTIFACT_DOMAIN_OWNER --query authorizationToken --output text)
+          export TWINE_REPOSITORY_URL=$(aws codeartifact get-repository-endpoint --domain $CODEARTIFACT_DOMAIN --domain-owner $CODEARTIFACT_DOMAIN_OWNER --repository $CODEARTIFACT_REPOSITORY --format pypi --query repositoryEndpoint --output text)
+          python -m twine upload dist/*
 
   publish-java-sdk:
     if: github.repository == 'feast-dev/feast'

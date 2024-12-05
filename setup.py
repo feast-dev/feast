@@ -23,7 +23,8 @@ from pathlib import Path
 
 from setuptools import find_packages, setup, Command
 
-NAME = "feast"
+NAME = "zing_feast"
+VERSION = "0.1.0"
 DESCRIPTION = "Python SDK for Feast"
 URL = "https://github.com/feast-dev/feast"
 AUTHOR = "Feast"
@@ -33,7 +34,7 @@ REQUIRED = [
     "click>=7.0.0,<9.0.0",
     "colorama>=0.3.9,<1",
     "dill~=0.3.0",
-    "protobuf>=4.24.0,<5.0.0",
+    "protobuf>=4.24.0",
     "Jinja2>=2,<4",
     "jsonschema",
     "mmh3",
@@ -73,8 +74,8 @@ GCP_REQUIRED = [
 ]
 
 REDIS_REQUIRED = [
-    "redis>=4.2.2,<5",
-    "hiredis>=2.0.0,<3",
+    "redis>=4.2.2,<6",
+    "hiredis>=2.0.0,<4",
 ]
 
 AWS_REQUIRED = ["boto3>=1.17.0,<2", "fsspec<=2024.9.0", "aiobotocore>2,<3"]
@@ -312,6 +313,7 @@ class BuildGoProtosCommand(Command):
 
 setup(
     name=NAME,
+    version=VERSION,
     author=AUTHOR,
     description=DESCRIPTION,
     long_description=LONG_DESCRIPTION,
