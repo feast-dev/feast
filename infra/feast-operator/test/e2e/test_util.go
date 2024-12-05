@@ -9,6 +9,54 @@ import (
 	"time"
 )
 
+// dynamically checks if all conditions of custom resource featurestore are in "Ready" state.
+func checkIfFeatureStoreCustomResourceConditionsInReady(featureStoreName, namespace string) error {
+	cmd := exec.Command("kubectl", "get", "featurestore", featureStoreName, "-n", namespace, "-o", "json")
+
+	var out bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to get resource %s in namespace %s. Error: %v. Stderr: %s", featureStoreName, namespace, err, stderr.String())
+	}
+
+	// Parse the JSON into a generic map
+	var resource map[string]interface{}
+	if err := json.Unmarshal(out.Bytes(), &resource); err != nil {
+		return fmt.Errorf("failed to parse the resource JSON. Error: %v", err)
+	}
+
+	// Traverse the JSON structure to extract conditions
+	status, ok := resource["status"].(map[string]interface{})
+	if !ok {
+		return fmt.Errorf("status field is missing or invalid in the resource JSON")
+	}
+
+	conditions, ok := status["conditions"].([]interface{})
+	if !ok {
+		return fmt.Errorf("conditions field is missing or invalid in the status section")
+	}
+
+	// Validate all conditions
+	for _, condition := range conditions {
+		conditionMap, ok := condition.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("invalid condition format")
+		}
+
+		conditionType := conditionMap["type"].(string)
+		conditionStatus := conditionMap["status"].(string)
+
+		if conditionStatus != "True" {
+			return fmt.Errorf(" FeatureStore=%s condition '%s' is not in 'Ready' state. Status: %s", featureStoreName, conditionType, conditionStatus)
+		}
+	}
+
+	return nil
+}
+
 // validates if a deployment exists and also in the availability state as True.
 func checkIfDeploymentExistsAndAvailable(namespace string, deploymentName string, timeout time.Duration) error {
 	var output, errOutput bytes.Buffer

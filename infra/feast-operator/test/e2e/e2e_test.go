@@ -144,6 +144,14 @@ var _ = Describe("controller", Ordered, func() {
 				fmt.Printf("kubernetes service %s is available\n", serviceName)
 			}
 
+			By(fmt.Sprintf("Checking FeatureStore customer resource: %s is in Ready Status.", "simple-feast-setup"))
+			err = checkIfFeatureStoreCustomResourceConditionsInReady("simple-feast-setup", namespace)
+			Expect(err).To(BeNil(), fmt.Sprintf(
+				"FeatureStore custom resource %s all conditions are not in ready state. \nError: %v\n",
+				"simple-feast-setup", err,
+			))
+			fmt.Printf("FeatureStore customer resource %s conditions are in Ready State\n", "simple-feast-setup")
+
 			By("deleting the feast deployment")
 			cmd = exec.Command("kubectl", "delete", "-f",
 				"test/testdata/feast_integration_test_crs/v1alpha1_default_featurestore.yaml")
