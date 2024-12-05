@@ -31,21 +31,40 @@ jobs:
       highest_semver_tag: ${{ steps.get_highest_semver.outputs.highest_semver_tag }}
     steps:
       - uses: actions/checkout@v4
+      - name: Validate custom version input
+        id: validate_custom_version
+        run: |
+          if [[ -n "${{ github.event.inputs.custom_version }}" ]]; then
+            VERSION_REGEX="^v[0-9]+\.[0-9]+\.[0-9]+$"
+            if [[ ! "${{ github.event.inputs.custom_version }}" =~ $VERSION_REGEX ]]; then
+              echo "Error: custom_version must match semantic versioning (e.g., v1.2.3)."
+              exit 1
+            fi
+            echo "Validated custom version: ${{ github.event.inputs.custom_version }}"
+          fi
       - name: Get release version
         id: get_release_version
         run: |
           if [[ -n "${{ github.event.inputs.custom_version }}" ]]; then
             echo "Using custom version: ${{ github.event.inputs.custom_version }}"
             echo "::set-output name=release_version::${{ github.event.inputs.custom_version }}"
+          elif [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            echo "Using tag reference: ${GITHUB_REF#refs/tags/}"
+            echo "::set-output name=release_version::${GITHUB_REF#refs/tags/}"
           else
-            echo ::set-output name=release_version::${GITHUB_REF#refs/*/}
+            echo "Defaulting to branch name: ${GITHUB_REF#refs/heads/}"
+            echo "::set-output name=release_version::${GITHUB_REF#refs/heads/}"
           fi
       - name: Get release version without prefix
         id: get_release_version_without_prefix
         env:
           RELEASE_VERSION: ${{ steps.get_release_version.outputs.release_version }}
         run: |
-          echo ::set-output name=version_without_prefix::${RELEASE_VERSION:1}
+          if [[ "${RELEASE_VERSION}" == v* ]]; then
+            echo "::set-output name=version_without_prefix::${RELEASE_VERSION:1}"
+          else
+            echo "::set-output name=version_without_prefix::${RELEASE_VERSION}"
+          fi
       - name: Get highest semver
         id: get_highest_semver
         env:
