@@ -4,6 +4,11 @@ on:
   push:
     tags:
       - 'v*.*.*'
+  workflow_dispatch: # Allows manual trigger of the workflow
+    inputs:
+      custom_version: # Optional input for a custom version
+        description: 'Custom version to publish (e.g., v1.2.3) -- only edit if you know what you are doing'
+        required: false
 
 jobs:
   get-version:
@@ -17,7 +22,13 @@ jobs:
       - uses: actions/checkout@v4
       - name: Get release version
         id: get_release_version
-        run: echo ::set-output name=release_version::${GITHUB_REF#refs/*/}
+        run: |
+          if [[ -n "${{ github.event.inputs.custom_version }}" ]]; then
+            echo "Using custom version: ${{ github.event.inputs.custom_version }}"
+            echo "::set-output name=release_version::${{ github.event.inputs.custom_version }}"
+          else
+            echo ::set-output name=release_version::${GITHUB_REF#refs/*/}
+          fi
       - name: Get release version without prefix
         id: get_release_version_without_prefix
         env:
