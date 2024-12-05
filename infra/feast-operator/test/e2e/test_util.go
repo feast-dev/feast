@@ -30,7 +30,7 @@ func checkIfDeploymentExistsAndAvailable(namespace string, deploymentName string
 
 			if err := cmd.Run(); err != nil {
 				// Log error and retry
-				fmt.Printf("Error running command: %s\n", errOutput.String())
+				fmt.Printf("Deployment not yet found, we may try again to find the updated status: %s\n", errOutput.String())
 				continue
 			}
 
