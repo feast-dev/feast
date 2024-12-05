@@ -74,7 +74,7 @@ jobs:
           python -m build --wheel --outdir wheelhouse/
       - uses: actions/upload-artifact@v4
         with:
-          name: wheels
+          name: python-wheels
           path: ./wheelhouse/*.whl
 
   build-source-distribution:
@@ -106,7 +106,7 @@ jobs:
           python3 setup.py sdist
       - uses: actions/upload-artifact@v4
         with:
-          name: wheels
+          name: source-distribution
           path: dist/*
 
   # We add this step so the docker images can be built as part of the pre-release verification steps.
@@ -161,7 +161,11 @@ jobs:
           architecture: x64
       - uses: actions/download-artifact@v4.1.7
         with:
-          name: wheels
+          name: python-wheels
+          path: dist
+      - uses: actions/download-artifact@v4.1.7
+        with:
+          name: source-distribution
           path: dist
       - name: Install OS X dependencies
         if: matrix.os == 'macos-13'
