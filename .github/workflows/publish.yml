@@ -16,6 +16,10 @@ on:
         type: string
 
 jobs:
+  prepare-versions:
+    runs-on: ubuntu-latest
+    outputs:
+      highest_semver_tag: ${{ steps.strip_prefix.outputs.highest_semver_tag }}
   get-version:
     if: github.repository == 'feast-dev/feast'
     runs-on:  ubuntu-latest
@@ -42,6 +46,13 @@ jobs:
             fi
             echo "Validated custom version: ${{ github.event.inputs.custom_version }}"
           fi
+      - name: Strip 'v' Prefix for Highest SemVer Tag
+        id: strip_prefix
+        run: |
+          HIGHEST_SEMVER_TAG="${{ github.event.inputs.custom_version#v }}"
+          echo "::set-output name=highest_semver_tag::$HIGHEST_SEMVER_TAG"
+          echo "Highest SemVer Tag: $HIGHEST_SEMVER_TAG"
+          
 
       - name: Get release version
         id: get_release_version
@@ -172,6 +183,7 @@ jobs:
     uses: ./.github/workflows/build_wheels.yml
     with:
       release_version: ${{ github.event.inputs.custom_version }}
+      highest_semver_tag: ${{ needs.prepare-versions.outputs.highest_semver_tag }}
 
   publish-python-sdk:
     if: github.repository == 'feast-dev/feast'
