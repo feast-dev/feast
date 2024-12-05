@@ -42,6 +42,7 @@ jobs:
             fi
             echo "Validated custom version: ${{ github.event.inputs.custom_version }}"
           fi
+
       - name: Get release version
         id: get_release_version
         run: |
@@ -169,6 +170,8 @@ jobs:
 
   build_wheels:
     uses: ./.github/workflows/build_wheels.yml
+    with:
+      release_version: ${{ github.event.inputs.custom_version }}
 
   publish-python-sdk:
     if: github.repository == 'feast-dev/feast'
