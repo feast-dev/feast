@@ -355,29 +355,36 @@ func (feast *FeastServices) setDeployment(deploy *appsv1.Deployment, feastType F
 }
 
 func (feast *FeastServices) getContainerCommand(feastType FeastServiceType) []string {
-	deploySettings := FeastServiceConstants[feastType]
-	targetPort := deploySettings.TargetHttpPort
+	baseCommand := "feast"
+	options := []string{}
 	logLevel := feast.getLogLevelForType(feastType)
 	if logLevel != nil {
-		deploySettings.Command = append(deploySettings.Command, []string{"--log-level", strings.ToUpper(*logLevel)}...)
+		options = append(options, "--log-level", strings.ToUpper(*logLevel))
 	}
+
+	deploySettings := FeastServiceConstants[feastType]
+	targetPort := deploySettings.TargetHttpPort
 	tls := feast.getTlsConfigs(feastType)
 	if tls.IsTLS() {
 		targetPort = deploySettings.TargetHttpsPort
 		feastTlsPath := GetTlsPath(feastType)
-		deploySettings.Command = append(deploySettings.Command, []string{"--key", feastTlsPath + tls.SecretKeyNames.TlsKey,
+		deploySettings.Args = append(deploySettings.Args, []string{"--key", feastTlsPath + tls.SecretKeyNames.TlsKey,
 			"--cert", feastTlsPath + tls.SecretKeyNames.TlsCrt}...)
 	}
-	deploySettings.Command = append(deploySettings.Command, []string{"-p", strconv.Itoa(int(targetPort))}...)
+	deploySettings.Args = append(deploySettings.Args, []string{"-p", strconv.Itoa(int(targetPort))}...)
 
 	if feastType == OfflineFeastType {
 		if tls.IsTLS() && feast.Handler.FeatureStore.Status.Applied.Services.OfflineStore.TLS.VerifyClient != nil {
-			deploySettings.Command = append(deploySettings.Command,
+			deploySettings.Args = append(deploySettings.Args,
 				[]string{"--verify_client", strconv.FormatBool(*feast.Handler.FeatureStore.Status.Applied.Services.OfflineStore.TLS.VerifyClient)}...)
 		}
 	}
 
-	return deploySettings.Command
+	// Combine base command, options, and arguments
+	feastCommand := append([]string{baseCommand}, options...)
+	feastCommand = append(feastCommand, deploySettings.Args...)
+
+	return feastCommand
 }
 
 func (feast *FeastServices) offlineClientPodConfigs(podSpec *corev1.PodSpec) {
