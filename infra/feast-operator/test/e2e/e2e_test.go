@@ -46,7 +46,7 @@ var _ = Describe("controller", Ordered, func() {
 			var err error
 
 			// projectimage stores the name of the image used in the example
-			var projectimage = "example.com/feast-operator:v0.0.1"
+			var projectimage = "localhost/feast-operator:v0.0.1"
 
 			By("building the manager(Operator) image")
 			cmd := exec.Command("make", "docker-build", fmt.Sprintf("IMG=%s", projectimage))
@@ -61,6 +61,7 @@ var _ = Describe("controller", Ordered, func() {
 			cmd = exec.Command("make", "feast-ci-dev-docker-img")
 			_, err = utils.Run(cmd)
 			ExpectWithOffset(1, err).NotTo(HaveOccurred())
+			// this image will be built in above make target.
 			var feastImage = "feastdev/feature-server:dev"
 			var feastLocalImage = "localhost/feastdev/feature-server:dev"
 
