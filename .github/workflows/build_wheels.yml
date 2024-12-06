@@ -96,7 +96,7 @@ jobs:
           python -m build --wheel --outdir wheelhouse/
       - uses: actions/upload-artifact@v4
         with:
-          name: wheels
+          name: python-wheels
           path: ./wheelhouse/*.whl
 
   build-source-distribution:
