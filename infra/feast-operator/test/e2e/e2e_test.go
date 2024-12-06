@@ -135,7 +135,7 @@ var _ = Describe("controller", Ordered, func() {
 
 			remoteFeatureStoreName := "simple-feast-remote-setup"
 
-			validateTheFeatureStoreCustomResource(remoteRegistryNs, remoteFeatureStoreName, 5*time.Minute)
+			validateTheFeatureStoreCustomResource(remoteRegistryNs, remoteFeatureStoreName, timeout)
 
 			By("deleting the feast remote registry deployment")
 			cmd = exec.Command("kubectl", "delete", "-f",
