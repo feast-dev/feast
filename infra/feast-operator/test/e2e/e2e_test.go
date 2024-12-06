@@ -49,10 +49,10 @@ var _ = Describe("controller", Ordered, func() {
 		err = utils.LoadImageToKindClusterWithName(projectimage)
 		ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
-		//By("building the feast image")
-		//cmd = exec.Command("make", "feast-ci-dev-docker-img")
-		//_, err = utils.Run(cmd)
-		//ExpectWithOffset(1, err).NotTo(HaveOccurred())
+		By("building the feast image")
+		cmd = exec.Command("make", "feast-ci-dev-docker-img")
+		_, err = utils.Run(cmd)
+		ExpectWithOffset(1, err).NotTo(HaveOccurred())
 		// this image will be built in above make target.
 		var feastImage = "feastdev/feature-server:dev"
 		var feastLocalImage = "localhost/feastdev/feature-server:dev"
