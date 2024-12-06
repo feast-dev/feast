@@ -206,6 +206,7 @@ jobs:
       # Validate that the feast version installed is not development and is the correct version of the tag we ran it off of.
       - name: Validate Feast Version
         run: |
+          feast version
           if ! VERSION_OUTPUT=$(feast version); then
             echo "Error: Failed to get Feast version."
             exit 1
