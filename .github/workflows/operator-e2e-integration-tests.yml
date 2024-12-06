@@ -52,14 +52,16 @@ jobs:
           cd infra/feast-operator/
           make test-e2e
 
+      - name: Debug KIND Cluster when there is a failure
+        if: failure()
+        run: |
+          kubectl get pods --all-namespaces
+          kubectl describe nodes
+
       - name: Clean up
         if: always()
         run: |
           # Delete the KIND cluster after tests
           kind delete cluster --name kind-$KIND_CLUSTER
 
-      - name: Debug KIND Cluster when there is a failure
-        if: failure()
-        run: |
-          kubectl get pods --all-namespaces
-          kubectl describe nodes
+      
