@@ -182,7 +182,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4.1.7
         with:
-          name: wheels
+          name: python-wheels
           path: dist
       - uses: pypa/gh-action-pypi-publish@v1.4.2
         with:
