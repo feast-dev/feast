@@ -20,6 +20,17 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       highest_semver_tag: ${{ steps.strip_prefix.outputs.highest_semver_tag }}
+    steps:
+      - name: Strip 'v' Prefix for Highest SemVer Tag
+        id: strip_prefix
+        run: |
+          if [[ -z "${{ github.event.inputs.custom_version }}" ]]; then
+            echo "Error: custom_version input is required."
+            exit 1
+          fi
+          HIGHEST_SEMVER_TAG="${{ github.event.inputs.custom_version#v }}"
+          echo "::set-output name=highest_semver_tag::$HIGHEST_SEMVER_TAG"
+          echo "Highest SemVer Tag: $HIGHEST_SEMVER_TAG"
   get-version:
     if: github.repository == 'feast-dev/feast'
     runs-on:  ubuntu-latest
