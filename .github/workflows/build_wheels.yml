@@ -92,6 +92,8 @@ jobs:
         run: make build-ui
       - name: Build wheels
         run: |
+          git fetch --tags
+          git checkout v0.42.0
           python -m pip install build
           python -m build --wheel --outdir wheelhouse/
       - uses: actions/upload-artifact@v4
