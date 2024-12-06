@@ -16,21 +16,6 @@ on:
         type: string
 
 jobs:
-  prepare-versions:
-    runs-on: ubuntu-latest
-    outputs:
-      highest_semver_tag: ${{ steps.strip_prefix.outputs.highest_semver_tag }}
-    steps:
-      - name: Strip 'v' Prefix for Highest SemVer Tag
-        id: strip_prefix
-        run: |
-          if [[ -z "${{ github.event.inputs.custom_version }}" ]]; then
-            echo "Error: custom_version input is required."
-            exit 1
-          fi
-          HIGHEST_SEMVER_TAG="${{ github.event.inputs.custom_version#v }}"
-          echo "::set-output name=highest_semver_tag::$HIGHEST_SEMVER_TAG"
-          echo "Highest SemVer Tag: $HIGHEST_SEMVER_TAG"
   get-version:
     if: github.repository == 'feast-dev/feast'
     runs-on:  ubuntu-latest
@@ -93,10 +78,17 @@ jobs:
         env:
           RELEASE_VERSION: ${{ steps.get_release_version.outputs.release_version }}
         run: |
-          source infra/scripts/setup-common-functions.sh
-          SEMVER_REGEX='^v[0-9]+\.[0-9]+\.[0-9]+(-([0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*))?$'
-          if echo "${RELEASE_VERSION}" | grep -P "$SEMVER_REGEX" &>/dev/null ; then
-            echo ::set-output name=highest_semver_tag::$(get_tag_release -m)
+          if [[ -n "${{ github.event.inputs.custom_version }}" ]]; then
+            HIGHEST_SEMVER_TAG="${{ github.event.inputs.custom_version }}"
+            echo "::set-output name=highest_semver_tag::$HIGHEST_SEMVER_TAG"
+            echo "Using custom version as highest semantic version: $HIGHEST_SEMVER_TAG"
+          else 
+            source infra/scripts/setup-common-functions.sh
+            SEMVER_REGEX='^v[0-9]+\.[0-9]+\.[0-9]+(-([0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*))?$'
+            if echo "${RELEASE_VERSION}" | grep -P "$SEMVER_REGEX" &>/dev/null ; then
+              echo ::set-output name=highest_semver_tag::$(get_tag_release -m)
+              echo "Using infra/scripts/setup-common-functions.sh to generate highest semantic version: $HIGHEST_SEMVER_TAG"
+            fi
           fi
       - name: Check output
         env:
@@ -194,7 +186,7 @@ jobs:
     uses: ./.github/workflows/build_wheels.yml
     with:
       release_version: ${{ github.event.inputs.custom_version }}
-      highest_semver_tag: ${{ needs.prepare-versions.outputs.highest_semver_tag }}
+      highest_semver_tag: ${{ steps.get_highest_semver.outputs.highest_semver_tag }}
 
   publish-python-sdk:
     if: github.repository == 'feast-dev/feast'
