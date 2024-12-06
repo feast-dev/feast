@@ -28,161 +28,100 @@ import (
 )
 
 const feastControllerNamespace = "feast-operator-system"
+const timeout = 2 * time.Minute
+const controllerDeploymentName = "feast-operator-controller-manager"
 
 var _ = Describe("controller", Ordered, func() {
 	BeforeAll(func() {
 		By("creating manager namespace")
 		cmd := exec.Command("kubectl", "create", "ns", feastControllerNamespace)
 		_, _ = utils.Run(cmd)
+		var err error
+		// projectimage stores the name of the image used in the example
+		var projectimage = "localhost/feast-operator:v0.0.1"
+
+		By("building the manager(Operator) image")
+		cmd = exec.Command("make", "docker-build", fmt.Sprintf("IMG=%s", projectimage))
+		_, err = utils.Run(cmd)
+		ExpectWithOffset(1, err).NotTo(HaveOccurred())
+
+		By("loading the the manager(Operator) image on Kind")
+		err = utils.LoadImageToKindClusterWithName(projectimage)
+		ExpectWithOffset(1, err).NotTo(HaveOccurred())
+
+		//By("building the feast image")
+		//cmd = exec.Command("make", "feast-ci-dev-docker-img")
+		//_, err = utils.Run(cmd)
+		//ExpectWithOffset(1, err).NotTo(HaveOccurred())
+		// this image will be built in above make target.
+		var feastImage = "feastdev/feature-server:dev"
+		var feastLocalImage = "localhost/feastdev/feature-server:dev"
+
+		By("Tag the local feast image for the integration tests")
+		cmd = exec.Command("docker", "image", "tag", feastImage, feastLocalImage)
+		_, err = utils.Run(cmd)
+		ExpectWithOffset(1, err).NotTo(HaveOccurred())
+
+		By("loading the the feast image on Kind cluster")
+		err = utils.LoadImageToKindClusterWithName(feastLocalImage)
+		ExpectWithOffset(1, err).NotTo(HaveOccurred())
+
+		By("installing CRDs")
+		cmd = exec.Command("make", "install")
+		_, err = utils.Run(cmd)
+		ExpectWithOffset(1, err).NotTo(HaveOccurred())
+
+		By("deploying the controller-manager")
+		cmd = exec.Command("make", "deploy", fmt.Sprintf("IMG=%s", projectimage))
+		_, err = utils.Run(cmd)
+		ExpectWithOffset(1, err).NotTo(HaveOccurred())
+
+		By("Validating that the controller-manager deployment is in available state")
+		err = checkIfDeploymentExistsAndAvailable(feastControllerNamespace, controllerDeploymentName, timeout)
+		Expect(err).To(BeNil(), fmt.Sprintf(
+			"Deployment %s is not available but expected to be available. \nError: %v\n",
+			controllerDeploymentName, err,
+		))
+		fmt.Printf("Feast Control Manager Deployment %s is available\n", controllerDeploymentName)
 	})
 
 	AfterAll(func() {
 		//Add any post clean up code here.
+		By("Uninstalling the feast CRD")
+		cmd := exec.Command("kubectl", "delete", "deployment", controllerDeploymentName, "-n", feastControllerNamespace)
+		_, err := utils.Run(cmd)
+		ExpectWithOffset(1, err).NotTo(HaveOccurred())
 	})
 
-	Context("Operator", func() {
+	Context("Operator E2E Tests", func() {
 		It("Should be able to deploy and run a default feature store CR successfully", func() {
-			//var controllerPodName string
-			var err error
-
-			// projectimage stores the name of the image used in the example
-			var projectimage = "localhost/feast-operator:v0.0.1"
-
-			By("building the manager(Operator) image")
-			cmd := exec.Command("make", "docker-build", fmt.Sprintf("IMG=%s", projectimage))
-			_, err = utils.Run(cmd)
-			ExpectWithOffset(1, err).NotTo(HaveOccurred())
-
-			By("loading the the manager(Operator) image on Kind")
-			err = utils.LoadImageToKindClusterWithName(projectimage)
-			ExpectWithOffset(1, err).NotTo(HaveOccurred())
-
-			//By("building the feast image")
-			//cmd = exec.Command("make", "feast-ci-dev-docker-img")
-			//_, err = utils.Run(cmd)
-			//ExpectWithOffset(1, err).NotTo(HaveOccurred())
-			// this image will be built in above make target.
-			var feastImage = "feastdev/feature-server:dev"
-			var feastLocalImage = "localhost/feastdev/feature-server:dev"
-
-			By("Tag the local feast image for the integration tests")
-			cmd = exec.Command("docker", "image", "tag", feastImage, feastLocalImage)
-			_, err = utils.Run(cmd)
-			ExpectWithOffset(1, err).NotTo(HaveOccurred())
-
-			By("loading the the feast image on Kind cluster")
-			err = utils.LoadImageToKindClusterWithName(feastLocalImage)
-			ExpectWithOffset(1, err).NotTo(HaveOccurred())
-
-			By("installing CRDs")
-			cmd = exec.Command("make", "install")
-			_, err = utils.Run(cmd)
-			ExpectWithOffset(1, err).NotTo(HaveOccurred())
-
-			By("deploying the controller-manager")
-			cmd = exec.Command("make", "deploy", fmt.Sprintf("IMG=%s", projectimage))
-			_, err = utils.Run(cmd)
-			ExpectWithOffset(1, err).NotTo(HaveOccurred())
-
-			timeout := 2 * time.Minute
-
-			controllerDeploymentName := "feast-operator-controller-manager"
-			By("Validating that the controller-manager deployment is in available state")
-			err = checkIfDeploymentExistsAndAvailable(feastControllerNamespace, controllerDeploymentName, timeout)
-			Expect(err).To(BeNil(), fmt.Sprintf(
-				"Deployment %s is not available but expected to be available. \nError: %v\n",
-				controllerDeploymentName, err,
-			))
-			fmt.Printf("Feast Control Manager Deployment %s is available\n", controllerDeploymentName)
-
 			By("deploying the Simple Feast Custom Resource to Kubernetes")
-			cmd = exec.Command("kubectl", "apply", "-f",
-				"test/testdata/feast_integration_test_crs/v1alpha1_default_featurestore.yaml")
+			namespace := "default"
+			cmd := exec.Command("kubectl", "apply", "-f",
+				"test/testdata/feast_integration_test_crs/v1alpha1_default_featurestore.yaml", "-n", namespace)
 			_, cmdOutputerr := utils.Run(cmd)
 			ExpectWithOffset(1, cmdOutputerr).NotTo(HaveOccurred())
 
-			namespace := "default"
 			featureStoreName := "simple-feast-setup"
-
-			validateTheFeatureStore(namespace, featureStoreName, timeout)
+			validateTheFeatureStoreCustomResource(namespace, featureStoreName, timeout)
 
 			By("deleting the feast deployment")
 			cmd = exec.Command("kubectl", "delete", "-f",
 				"test/testdata/feast_integration_test_crs/v1alpha1_default_featurestore.yaml")
 			_, cmdOutputerr = utils.Run(cmd)
 			ExpectWithOffset(1, cmdOutputerr).NotTo(HaveOccurred())
-
-			By("Uninstalling the feast CRD")
-			cmd = exec.Command("kubectl", "delete", "deployment", controllerDeploymentName, "-n", feastControllerNamespace)
-			_, err = utils.Run(cmd)
-			ExpectWithOffset(1, err).NotTo(HaveOccurred())
-
 		})
 
-		It("Should be able to deploy and run a remote feature store CR successfully", func() {
-			//var controllerPodName string
-			var err error
-
-			// projectimage stores the name of the image used in the example
-			var projectimage = "localhost/feast-operator:v0.0.1"
-
-			By("building the manager(Operator) image")
-			cmd := exec.Command("make", "docker-build", fmt.Sprintf("IMG=%s", projectimage))
-			_, err = utils.Run(cmd)
-			ExpectWithOffset(1, err).NotTo(HaveOccurred())
-
-			By("loading the the manager(Operator) image on Kind")
-			err = utils.LoadImageToKindClusterWithName(projectimage)
-			ExpectWithOffset(1, err).NotTo(HaveOccurred())
-
-			//By("building the feast image")
-			//cmd = exec.Command("make", "feast-ci-dev-docker-img")
-			//_, err = utils.Run(cmd)
-			//ExpectWithOffset(1, err).NotTo(HaveOccurred())
-			// this image will be built in above make target.
-			var feastImage = "feastdev/feature-server:dev"
-			var feastLocalImage = "localhost/feastdev/feature-server:dev"
-
-			By("Tag the local feast image for the integration tests")
-			cmd = exec.Command("docker", "image", "tag", feastImage, feastLocalImage)
-			_, err = utils.Run(cmd)
-			ExpectWithOffset(1, err).NotTo(HaveOccurred())
-
-			By("loading the the feast image on Kind cluster")
-			err = utils.LoadImageToKindClusterWithName(feastLocalImage)
-			ExpectWithOffset(1, err).NotTo(HaveOccurred())
-
-			By("installing CRDs")
-			cmd = exec.Command("make", "install")
-			_, err = utils.Run(cmd)
-			ExpectWithOffset(1, err).NotTo(HaveOccurred())
-
-			By("deploying the controller-manager")
-			cmd = exec.Command("make", "deploy", fmt.Sprintf("IMG=%s", projectimage))
-			_, err = utils.Run(cmd)
-			ExpectWithOffset(1, err).NotTo(HaveOccurred())
-
-			timeout := 2 * time.Minute
-
-			controllerDeploymentName := "feast-operator-controller-manager"
-			By("Validating that the controller-manager deployment is in available state")
-			err = checkIfDeploymentExistsAndAvailable(feastControllerNamespace, controllerDeploymentName, timeout)
-			Expect(err).To(BeNil(), fmt.Sprintf(
-				"Deployment %s is not available but expected to be available. \nError: %v\n",
-				controllerDeploymentName, err,
-			))
-			fmt.Printf("Feast Control Manager Deployment %s is available\n", controllerDeploymentName)
-
+		It("Should be able to deploy and run a feature store with remote registry CR successfully", func() {
 			By("deploying the Simple Feast Custom Resource to Kubernetes")
-			cmd = exec.Command("kubectl", "apply", "-f",
-				"test/testdata/feast_integration_test_crs/v1alpha1_default_featurestore.yaml")
+			namespace := "default"
+			cmd := exec.Command("kubectl", "apply", "-f",
+				"test/testdata/feast_integration_test_crs/v1alpha1_default_featurestore.yaml", "-n", namespace)
 			_, cmdOutputerr := utils.Run(cmd)
 			ExpectWithOffset(1, cmdOutputerr).NotTo(HaveOccurred())
 
-			namespace := "default"
 			featureStoreName := "simple-feast-setup"
-
-			validateTheFeatureStore(namespace, featureStoreName, timeout)
+			validateTheFeatureStoreCustomResource(namespace, featureStoreName, timeout)
 
 			var remoteRegistryNs = "remote-registry"
 			cmd = exec.Command("kubectl", "create", "ns", remoteRegistryNs)
@@ -196,13 +135,7 @@ var _ = Describe("controller", Ordered, func() {
 
 			remoteFeatureStoreName := "simple-feast-remote-setup"
 
-			validateTheFeatureStore(remoteRegistryNs, remoteFeatureStoreName, timeout)
-
-			By("deleting the feast deployment")
-			cmd = exec.Command("kubectl", "delete", "-f",
-				"test/testdata/feast_integration_test_crs/v1alpha1_default_featurestore.yaml")
-			_, cmdOutputerr = utils.Run(cmd)
-			ExpectWithOffset(1, cmdOutputerr).NotTo(HaveOccurred())
+			validateTheFeatureStoreCustomResource(remoteRegistryNs, remoteFeatureStoreName, timeout)
 
 			By("deleting the feast remote registry deployment")
 			cmd = exec.Command("kubectl", "delete", "-f",
@@ -210,19 +143,19 @@ var _ = Describe("controller", Ordered, func() {
 			_, cmdOutputerr = utils.Run(cmd)
 			ExpectWithOffset(1, cmdOutputerr).NotTo(HaveOccurred())
 
-			By("Uninstalling the feast CRD")
-			cmd = exec.Command("kubectl", "delete", "deployment", controllerDeploymentName, "-n", feastControllerNamespace)
-			_, err = utils.Run(cmd)
-			ExpectWithOffset(1, err).NotTo(HaveOccurred())
-
+			By("deleting the feast deployment")
+			cmd = exec.Command("kubectl", "delete", "-f",
+				"test/testdata/feast_integration_test_crs/v1alpha1_default_featurestore.yaml", "-n", namespace)
+			_, cmdOutputerr = utils.Run(cmd)
+			ExpectWithOffset(1, cmdOutputerr).NotTo(HaveOccurred())
 		})
 	})
 })
 
-func validateTheFeatureStore(namespace string, featureStoreName string, timeout time.Duration) {
+func validateTheFeatureStoreCustomResource(namespace string, featureStoreName string, timeout time.Duration) {
 	hasRemoteRegistry, err := isFeatureStoreHavingRemoteRegistry(namespace, featureStoreName)
 	Expect(err).To(BeNil(), fmt.Sprintf(
-		"Error occurred while FeatureStore %s is having remote registry or not. \nError: %v\n",
+		"Error occurred while checking FeatureStore %s is having remote registry or not. \nError: %v\n",
 		featureStoreName, err))
 
 	k8ResourceNames := []string{fmt.Sprintf("feast-%s-online", featureStoreName),
@@ -278,5 +211,5 @@ func validateTheFeatureStore(namespace string, featureStoreName string, timeout 
 		"FeatureStore custom resource %s all conditions are not in ready state. \nError: %v\n",
 		featureStoreName, err,
 	))
-	fmt.Printf("FeatureStore customer resource %s conditions are in Ready State\n", featureStoreName)
+	fmt.Printf("FeatureStore custom resource %s conditions are in Ready State\n", featureStoreName)
 }
