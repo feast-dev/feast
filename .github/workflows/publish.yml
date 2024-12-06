@@ -170,9 +170,10 @@ jobs:
 
   build_wheels:
     uses: ./.github/workflows/build_wheels.yml
+    needs: get-version
     with:
-      release_version: ${{ github.event.inputs.custom_version }}
-      highest_semver_tag: ${{ steps.get_highest_semver.outputs.highest_semver_tag }}
+        release_version: ${{ needs.get-version.outputs.release_version }}
+        highest_semver_tag: ${{ needs.get-version.outputs.highest_semver_tag }}
 
   publish-python-sdk:
     if: github.repository == 'feast-dev/feast'

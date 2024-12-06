@@ -51,10 +51,16 @@ jobs:
         env:
           RELEASE_VERSION: ${{ steps.get_release_version.outputs.release_version }}
         run: |
-          source infra/scripts/setup-common-functions.sh
-          SEMVER_REGEX='^v[0-9]+\.[0-9]+\.[0-9]+(-([0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*))?$'
-          if echo "${RELEASE_VERSION}" | grep -P "$SEMVER_REGEX" &>/dev/null ; then
-            echo ::set-output name=highest_semver_tag::$(get_tag_release -m)
+          if [[ -n "${{ inputs.highest_semver_tag }}" ]]; then
+            echo "Using provided highest semver version: ${{ inputs.highest_semver_tag }}"
+            echo "::set-output name=highest_semver_tag::${{ inputs.highest_semver_tag }}"
+          else
+            echo "No release version provided. Falling back to infra/scripts/setup-common-functions.sh."
+            source infra/scripts/setup-common-functions.sh
+            SEMVER_REGEX='^v[0-9]+\.[0-9]+\.[0-9]+(-([0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*))?$'
+            if echo "${RELEASE_VERSION}" | grep -P "$SEMVER_REGEX" &>/dev/null ; then
+              echo ::set-output name=highest_semver_tag::$(get_tag_release -m)
+            fi
           fi
       - name: Check output
         id: check_output
