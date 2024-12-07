@@ -3,6 +3,7 @@ package e2e
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -183,4 +184,46 @@ func checkIfKubernetesServiceExists(namespace, serviceName string) error {
 	}
 
 	return nil
+}
+
+func isFeatureStoreHavingRemoteRegistry(namespace, featureStoreName string) (bool, error) {
+	cmd := exec.Command("kubectl", "get", "featurestore", featureStoreName, "-n", namespace,
+		"-o=jsonpath='{.spec.services.registry}'")
+
+	// Capture the output
+	output, err := cmd.Output()
+	if err != nil {
+		return false, err // Return false on command execution failure
+	}
+
+	// Convert output to string and trim any extra spaces
+	result := strings.TrimSpace(string(output))
+
+	// Remove single quotes if present
+	if strings.HasPrefix(result, "'") && strings.HasSuffix(result, "'") {
+		result = strings.Trim(result, "'")
+	}
+
+	if result == "" {
+		return false, errors.New("kubectl get featurestore command returned empty output")
+	}
+
+	// Parse the JSON into a map
+	var registryData map[string]interface{}
+	if err := json.Unmarshal([]byte(result), &registryData); err != nil {
+		return false, err // Return false on JSON parsing failure
+	}
+
+	// Navigate the map to check for the "remote.hostname" field
+	remote, ok := registryData["remote"].(map[string]interface{})
+	if !ok {
+		return false, nil // Return false if "remote" is not present
+	}
+
+	hostname, ok := remote["hostname"].(string)
+	if !ok || hostname == "" {
+		return false, nil // Return false if "hostname" is missing or empty
+	}
+
+	return true, nil // Return true if "remote.hostname" exists and has a value
 }
