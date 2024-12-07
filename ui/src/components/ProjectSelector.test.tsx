@@ -40,7 +40,7 @@ test("in a full App render, it shows the right initial project", async () => {
     name: "Top Level",
   });
 
-  within(topLevelNavigation).getByDisplayValue("Credit Score Project");
+  await within(topLevelNavigation).findByDisplayValue("Credit Score Project");
 
   expect(options.length).toBe(1);
 
