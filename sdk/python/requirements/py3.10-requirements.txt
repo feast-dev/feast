@@ -95,7 +95,7 @@ pyarrow==18.0.0
     # via
     #   feast (setup.py)
     #   dask-expr
-pydantic==2.10.1
+pydantic==2.10.2
     # via
     #   feast (setup.py)
     #   fastapi
