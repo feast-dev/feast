@@ -1,9 +1,6 @@
 name: publish python sdk
 
 on:
-  push:
-    tags:
-      - 'v*.*.*'
   workflow_dispatch: # Allows manual trigger of the workflow
     inputs:
       custom_version: # Optional input for a custom version
