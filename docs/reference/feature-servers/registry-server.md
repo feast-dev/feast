@@ -16,7 +16,7 @@ To start the Registry Server in TLS mode, you need to provide the private and pu
 
 Please see the detail how to configure Remote Registry client [remote.md](../registries/remote.md)
 
-# Offline Feature Server Permissions and Access Control
+# Registry Server Permissions and Access Control
 
 Please refer the [page](./../registry/registry-permissions.md) for more details on API Endpoints and Permissions.
 
