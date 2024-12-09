@@ -757,6 +757,18 @@ class HttpRegistry(BaseRegistry):
         project: Project,
         commit: bool = True,
     ):  # type: ignore[return]
+        """
+        We were not applying projects before the addition of the line below this comment.
+        When either validating features or trying to register them, the feature-store-feast-sdk would fail.
+        cli.py --> validate.py --> instantiating FeatureStore obj --> instantiating HttpRegistry obj --> apply_project()
+        No project was applied.
+        We then query the feature store registry and get back a 404 for the project.
+        Using apply_project_metadata(project.name) restores functionality.
+
+
+        Update this with correct implimentation for Project Objects later.
+        """
+        self.apply_project_metadata(project.name)
         return None
 
     def delete_project(
