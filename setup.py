@@ -156,6 +156,8 @@ QDRANT_REQUIRED = ["qdrant-client>=1.12.0"]
 
 GO_REQUIRED = ["cffi~=1.15.0"]
 
+MILVUS_REQUIRED = ["pymilvus"]
+
 CI_REQUIRED = (
     [
         "build",
@@ -226,6 +228,7 @@ CI_REQUIRED = (
     + OPENTELEMETRY
     + FAISS_REQUIRED
     + QDRANT_REQUIRED
+    + MILVUS_REQUIRED
 )
 
 DOCS_REQUIRED = CI_REQUIRED
@@ -355,6 +358,7 @@ setup(
         "faiss": FAISS_REQUIRED,
         "qdrant": QDRANT_REQUIRED,
         "go": GO_REQUIRED,
+        "milvus": MILVUS_REQUIRED,
     },
     include_package_data=True,
     license="Apache",

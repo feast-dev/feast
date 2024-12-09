@@ -178,6 +178,8 @@ elasticsearch==8.16.0
     # via feast (setup.py)
 entrypoints==0.4
     # via altair
+environs==9.5.0
+    # via pymilvus
 execnet==2.1.1
     # via pytest-xdist
 executing==2.1.0
@@ -268,6 +270,7 @@ grpcio==1.68.0
     #   grpcio-status
     #   grpcio-testing
     #   grpcio-tools
+    #   pymilvus
     #   qdrant-client
 grpcio-health-checking==1.62.3
     # via feast (setup.py)
@@ -434,13 +437,17 @@ markupsafe==3.0.2
     #   nbconvert
     #   werkzeug
 marshmallow==3.23.1
-    # via great-expectations
+    # via
+    #   environs
+    #   great-expectations
 matplotlib-inline==0.1.7
     # via
     #   ipykernel
     #   ipython
 mdurl==0.1.2
     # via markdown-it-py
+milvus-lite==2.4.10
+    # via pymilvus
 minio==7.1.0
     # via feast (setup.py)
 mistune==3.0.2
@@ -539,6 +546,7 @@ pandas==2.2.3
     #   google-cloud-bigquery
     #   great-expectations
     #   ibis-framework
+    #   pymilvus
     #   snowflake-connector-python
 pandocfilters==1.5.1
     # via nbconvert
@@ -605,6 +613,7 @@ protobuf==4.25.5
     #   grpcio-tools
     #   mypy-protobuf
     #   proto-plus
+    #   pymilvus
     #   substrait
 psutil==5.9.0
     # via
@@ -649,7 +658,7 @@ pybindgen==0.22.1
     # via feast (setup.py)
 pycparser==2.22
     # via cffi
-pydantic==2.10.1
+pydantic==2.10.2
     # via
     #   feast (setup.py)
     #   fastapi
@@ -670,6 +679,8 @@ pyjwt[crypto]==2.10.0
     #   msal
     #   singlestoredb
     #   snowflake-connector-python
+pymilvus==2.4.9
+    # via feast (setup.py)
 pymssql==2.3.2
     # via feast (setup.py)
 pymysql==1.1.1
@@ -729,7 +740,9 @@ python-dateutil==2.9.0.post0
     #   pandas
     #   trino
 python-dotenv==1.0.1
-    # via uvicorn
+    # via
+    #   environs
+    #   uvicorn
 python-json-logger==2.0.7
     # via jupyter-events
 python-keycloak==4.2.2
@@ -830,6 +843,7 @@ setuptools==75.6.0
     #   jupyterlab
     #   kubernetes
     #   pip-tools
+    #   pymilvus
     #   singlestoredb
 singlestoredb==1.7.2
     # via feast (setup.py)
@@ -920,6 +934,7 @@ tqdm==4.67.1
     # via
     #   feast (setup.py)
     #   great-expectations
+    #   milvus-lite
 traitlets==5.14.3
     # via
     #   comm
@@ -994,6 +1009,8 @@ tzlocal==5.2
     # via
     #   great-expectations
     #   trino
+ujson==5.10.0
+    # via pymilvus
 uri-template==1.3.0
     # via jsonschema
 urllib3==2.2.3
