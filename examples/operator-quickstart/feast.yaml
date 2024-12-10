@@ -24,6 +24,8 @@ metadata:
   name: example
 spec:
   feastProject: sample
+  authz:
+    kubernetes: {}
   services:
     offlineStore:
       env:
