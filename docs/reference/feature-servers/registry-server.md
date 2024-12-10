@@ -11,6 +11,7 @@ This enables users to communicate with the server using any programming language
 
 There is a CLI command that starts the Registry server: `feast serve_registry`. By default, remote Registry Server uses port 6570, the port can be overridden with a `--port` flag.
 To start the Registry Server in TLS mode, you need to provide the private and public keys using the `--key` and `--cert` arguments.
+More info about TLS mode can be found in [feast-client-connecting-to-remote-registry-sever-started-in-tls-mode](../../how-to-guides/starting-feast-servers-tls-mode.md#starting-feast-registry-server-in-tls-mode)
 
 ## How to configure the client
 
