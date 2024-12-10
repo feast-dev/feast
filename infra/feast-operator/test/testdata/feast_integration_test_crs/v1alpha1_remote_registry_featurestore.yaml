@@ -13,4 +13,4 @@ spec:
       remote:
         feastRef:
           name: simple-feast-setup
-          namespace: remote-registry
+          namespace: default

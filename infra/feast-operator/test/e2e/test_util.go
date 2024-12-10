@@ -220,9 +220,13 @@ func isFeatureStoreHavingRemoteRegistry(namespace, featureStoreName string) (boo
 		return false, nil // Return false if "remote" is not present
 	}
 
+	// either remote hostname or feastRef should be available for remote config.
 	hostname, ok := remote["hostname"].(string)
 	if !ok || hostname == "" {
-		return false, nil // Return false if "hostname" is missing or empty
+		_, feastRefOk := remote["feastRef"].(map[string]interface{})
+		if !feastRefOk {
+			return false, nil
+		}
 	}
 
 	return true, nil // Return true if "remote.hostname" exists and has a value
