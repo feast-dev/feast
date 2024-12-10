@@ -5,10 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/feast-dev/feast/infra/feast-operator/api/v1alpha1"
 	"os/exec"
 	"strings"
 	"time"
+
+	"github.com/feast-dev/feast/infra/feast-operator/api/v1alpha1"
 )
 
 // dynamically checks if all conditions of custom resource featurestore are in "Ready" state.
