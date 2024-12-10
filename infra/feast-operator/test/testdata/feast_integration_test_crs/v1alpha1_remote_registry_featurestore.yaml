@@ -11,5 +11,6 @@ spec:
       image: 'localhost/feastdev/feature-server:dev'
     registry:
       remote:
-        hostname: 'feast-simple-feast-setup-registry.default.svc.cluster.local:80'
-
+        feastRef:
+          name: simple-feast-setup
+          namespace: remote-registry
