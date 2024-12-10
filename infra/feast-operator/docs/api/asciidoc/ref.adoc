@@ -196,6 +196,8 @@ LocalRegistryConfig configures the deployed registry service
 | *`resources`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core[$$ResourceRequirements$$]__ | 
 | *`persistence`* __xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-registrypersistence[$$RegistryPersistence$$]__ | 
 | *`tls`* __xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-tlsconfigs[$$TlsConfigs$$]__ | 
+| *`logLevel`* __string__ | LogLevel sets the logging level for the registry service +
+Allowed values: "debug", "info", "warning", "error", "critical". +
 |===
 
 
@@ -218,6 +220,8 @@ OfflineStore configures the deployed offline store service
 | *`resources`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core[$$ResourceRequirements$$]__ | 
 | *`persistence`* __xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-offlinestorepersistence[$$OfflineStorePersistence$$]__ | 
 | *`tls`* __xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-offlinetlsconfigs[$$OfflineTlsConfigs$$]__ | 
+| *`logLevel`* __string__ | LogLevel sets the logging level for the offline store service +
+Allowed values: "debug", "info", "warning", "error", "critical". +
 |===
 
 
@@ -235,8 +239,8 @@ OfflineStoreDBStorePersistence configures the DB store persistence for the offli
 |===
 | Field | Description
 | *`type`* __string__ | 
-| *`secretRef`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#localobjectreference-v1-core[$$LocalObjectReference$$]__ | 
-| *`secretKeyName`* __string__ | 
+| *`secretRef`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#localobjectreference-v1-core[$$LocalObjectReference$$]__ | Data store parameters should be placed as-is from the "feature_store.yaml" under the secret key. "registry_type" & "type" fields should be removed. +
+| *`secretKeyName`* __string__ | By default, the selected store "type" is used as the SecretKeyName +
 |===
 
 
@@ -333,6 +337,8 @@ OnlineStore configures the deployed online store service
 | *`resources`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core[$$ResourceRequirements$$]__ | 
 | *`persistence`* __xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-onlinestorepersistence[$$OnlineStorePersistence$$]__ | 
 | *`tls`* __xref:{anchor_prefix}-github-com-feast-dev-feast-infra-feast-operator-api-v1alpha1-tlsconfigs[$$TlsConfigs$$]__ | 
+| *`logLevel`* __string__ | LogLevel sets the logging level for the online store service +
+Allowed values: "debug", "info", "warning", "error", "critical". +
 |===
 
 
@@ -350,8 +356,8 @@ OnlineStoreDBStorePersistence configures the DB store persistence for the offlin
 |===
 | Field | Description
 | *`type`* __string__ | 
-| *`secretRef`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#localobjectreference-v1-core[$$LocalObjectReference$$]__ | 
-| *`secretKeyName`* __string__ | 
+| *`secretRef`* __link:https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#localobjectreference-v1-core[$$LocalObjectReference$$]__ | Data store parameters should be placed as-is from the "feature_store.yaml" under the secret key. "registry_type" & "type" fields should be removed. +
+| *`secretKeyName`* __string__ | By default, the selected store "type" is used as the SecretKeyName +
 |===
 
 

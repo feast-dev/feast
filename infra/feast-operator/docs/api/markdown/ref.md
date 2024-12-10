@@ -166,6 +166,8 @@ _Appears in:_
 | `resources` _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core)_ |  |
 | `persistence` _[RegistryPersistence](#registrypersistence)_ |  |
 | `tls` _[TlsConfigs](#tlsconfigs)_ |  |
+| `logLevel` _string_ | LogLevel sets the logging level for the registry service
+Allowed values: "debug", "info", "warning", "error", "critical". |
 
 
 #### OfflineStore
@@ -185,6 +187,8 @@ _Appears in:_
 | `resources` _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core)_ |  |
 | `persistence` _[OfflineStorePersistence](#offlinestorepersistence)_ |  |
 | `tls` _[OfflineTlsConfigs](#offlinetlsconfigs)_ |  |
+| `logLevel` _string_ | LogLevel sets the logging level for the offline store service
+Allowed values: "debug", "info", "warning", "error", "critical". |
 
 
 #### OfflineStoreDBStorePersistence
@@ -199,8 +203,8 @@ _Appears in:_
 | Field | Description |
 | --- | --- |
 | `type` _string_ |  |
-| `secretRef` _[LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#localobjectreference-v1-core)_ |  |
-| `secretKeyName` _string_ |  |
+| `secretRef` _[LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#localobjectreference-v1-core)_ | Data store parameters should be placed as-is from the "feature_store.yaml" under the secret key. "registry_type" & "type" fields should be removed. |
+| `secretKeyName` _string_ | By default, the selected store "type" is used as the SecretKeyName |
 
 
 #### OfflineStoreFilePersistence
@@ -282,6 +286,8 @@ _Appears in:_
 | `resources` _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core)_ |  |
 | `persistence` _[OnlineStorePersistence](#onlinestorepersistence)_ |  |
 | `tls` _[TlsConfigs](#tlsconfigs)_ |  |
+| `logLevel` _string_ | LogLevel sets the logging level for the online store service
+Allowed values: "debug", "info", "warning", "error", "critical". |
 
 
 #### OnlineStoreDBStorePersistence
@@ -296,8 +302,8 @@ _Appears in:_
 | Field | Description |
 | --- | --- |
 | `type` _string_ |  |
-| `secretRef` _[LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#localobjectreference-v1-core)_ |  |
-| `secretKeyName` _string_ |  |
+| `secretRef` _[LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#localobjectreference-v1-core)_ | Data store parameters should be placed as-is from the "feature_store.yaml" under the secret key. "registry_type" & "type" fields should be removed. |
+| `secretKeyName` _string_ | By default, the selected store "type" is used as the SecretKeyName |
 
 
 #### OnlineStoreFilePersistence
