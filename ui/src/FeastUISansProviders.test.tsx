@@ -55,7 +55,7 @@ test("full app rendering", async () => {
   expect(screen.getByText(/Explore this Project/i)).toBeInTheDocument();
 
   const projectNameRegExp = new RegExp(
-    parsedRegistry.projectMetadata[0].project!,
+    parsedRegistry.projects[0].spec?.name!,
     "i"
   );
 
