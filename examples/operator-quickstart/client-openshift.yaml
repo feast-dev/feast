@@ -67,7 +67,7 @@ spec:
               mountPath: /feast-init
       containers:
         - name: client
-          image: 'quay.io/tchughesiv/feature-server:0.41.0-dev'
+          image: 'feastdev/feature-server:0.42.0'
           imagePullPolicy: Always
           workingDir: /feast-init/sample/feature_repo
           command: ["sleep", "infinity"]
