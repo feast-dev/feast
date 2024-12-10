@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/feast-dev/feast/infra/feast-operator/api/v1alpha1"
 	"os/exec"
 	"strings"
 	"time"
@@ -209,25 +210,22 @@ func isFeatureStoreHavingRemoteRegistry(namespace, featureStoreName string) (boo
 	}
 
 	// Parse the JSON into a map
-	var registryData map[string]interface{}
-	if err := json.Unmarshal([]byte(result), &registryData); err != nil {
+	var registryConfig v1alpha1.Registry
+	if err := json.Unmarshal([]byte(result), &registryConfig); err != nil {
 		return false, err // Return false on JSON parsing failure
 	}
 
-	// Navigate the map to check for the "remote.hostname" field
-	remote, ok := registryData["remote"].(map[string]interface{})
-	if !ok {
-		return false, nil // Return false if "remote" is not present
+	if registryConfig.Remote == nil {
+		return false, nil
 	}
 
-	// either remote hostname or feastRef should be available for remote config.
-	hostname, ok := remote["hostname"].(string)
-	if !ok || hostname == "" {
-		_, feastRefOk := remote["feastRef"].(map[string]interface{})
-		if !feastRefOk {
-			return false, nil
-		}
+	hasHostname := registryConfig.Remote.Hostname != nil
+	hasValidFeastRef := registryConfig.Remote.FeastRef != nil &&
+		registryConfig.Remote.FeastRef.Name != ""
+
+	if hasHostname || hasValidFeastRef {
+		return true, nil
 	}
 
-	return true, nil // Return true if "remote.hostname" exists and has a value
+	return false, nil
 }
