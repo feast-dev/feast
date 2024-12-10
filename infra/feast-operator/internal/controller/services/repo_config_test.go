@@ -486,17 +486,17 @@ func minimalFeatureStoreWithAllServices() *feastdevv1alpha1.FeatureStore {
 	return feast
 }
 
-func emptyMockExtractConfigFromSecret(secretRef string, secretKeyName string) (map[string]interface{}, error) {
+func emptyMockExtractConfigFromSecret(storeType string, secretRef string, secretKeyName string) (map[string]interface{}, error) {
 	return map[string]interface{}{}, nil
 }
 
-func mockExtractConfigFromSecret(secretRef string, secretKeyName string) (map[string]interface{}, error) {
+func mockExtractConfigFromSecret(storeType string, secretRef string, secretKeyName string) (map[string]interface{}, error) {
 	return createParameterMap(), nil
 }
 
 func mockOidcConfigFromSecret(
-	oidcProperties map[string]interface{}) func(secretRef string, secretKeyName string) (map[string]interface{}, error) {
-	return func(secretRef string, secretKeyName string) (map[string]interface{}, error) {
+	oidcProperties map[string]interface{}) func(storeType string, secretRef string, secretKeyName string) (map[string]interface{}, error) {
+	return func(storeType string, secretRef string, secretKeyName string) (map[string]interface{}, error) {
 		return oidcProperties, nil
 	}
 }

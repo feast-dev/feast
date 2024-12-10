@@ -99,7 +99,7 @@ type OfflineStorePersistence struct {
 
 // OfflineStoreFilePersistence configures the file-based persistence for the offline store service
 type OfflineStoreFilePersistence struct {
-	// +kubebuilder:validation:Enum=dask;duckdb
+	// +kubebuilder:validation:Enum=file;dask;duckdb
 	Type      string     `json:"type,omitempty"`
 	PvcConfig *PvcConfig `json:"pvc,omitempty"`
 }
@@ -107,11 +107,12 @@ type OfflineStoreFilePersistence struct {
 var ValidOfflineStoreFilePersistenceTypes = []string{
 	"dask",
 	"duckdb",
+	"file",
 }
 
 // OfflineStoreDBStorePersistence configures the DB store persistence for the offline store service
 type OfflineStoreDBStorePersistence struct {
-	// +kubebuilder:validation:Enum=snowflake.offline;bigquery;redshift;spark;postgres;feast_trino.trino.TrinoOfflineStore;redis
+	// +kubebuilder:validation:Enum=snowflake.offline;bigquery;redshift;spark;postgres;trino;redis;athena;mssql
 	Type string `json:"type"`
 	// Data store parameters should be placed as-is from the "feature_store.yaml" under the secret key. "registry_type" & "type" fields should be removed.
 	SecretRef corev1.LocalObjectReference `json:"secretRef"`
@@ -125,8 +126,10 @@ var ValidOfflineStoreDBStorePersistenceTypes = []string{
 	"redshift",
 	"spark",
 	"postgres",
-	"feast_trino.trino.TrinoOfflineStore",
+	"trino",
 	"redis",
+	"athena",
+	"mssql",
 }
 
 // OnlineStore configures the deployed online store service
@@ -158,7 +161,7 @@ type OnlineStoreFilePersistence struct {
 
 // OnlineStoreDBStorePersistence configures the DB store persistence for the offline store service
 type OnlineStoreDBStorePersistence struct {
-	// +kubebuilder:validation:Enum=snowflake.online;redis;ikv;datastore;dynamodb;bigtable;postgres;cassandra;mysql;hazelcast;singlestore
+	// +kubebuilder:validation:Enum=snowflake.online;redis;ikv;datastore;dynamodb;bigtable;postgres;cassandra;mysql;hazelcast;singlestore;hbase;elasticsearch;qdrant;couchbase
 	Type string `json:"type"`
 	// Data store parameters should be placed as-is from the "feature_store.yaml" under the secret key. "registry_type" & "type" fields should be removed.
 	SecretRef corev1.LocalObjectReference `json:"secretRef"`
@@ -178,6 +181,10 @@ var ValidOnlineStoreDBStorePersistenceTypes = []string{
 	"mysql",
 	"hazelcast",
 	"singlestore",
+	"hbase",
+	"elasticsearch",
+	"qdrant",
+	"couchbase",
 }
 
 // LocalRegistryConfig configures the deployed registry service
