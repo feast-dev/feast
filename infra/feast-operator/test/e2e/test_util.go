@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	appsv1 "k8s.io/api/apps/v1"
+
 	"github.com/feast-dev/feast/infra/feast-operator/api/v1alpha1"
 )
 
@@ -26,36 +28,17 @@ func checkIfFeatureStoreCustomResourceConditionsInReady(featureStoreName, namesp
 			featureStoreName, namespace, err, stderr.String())
 	}
 
-	// Parse the JSON into a generic map
-	var resource map[string]interface{}
+	// Parse the JSON into FeatureStore
+	var resource v1alpha1.FeatureStore
 	if err := json.Unmarshal(out.Bytes(), &resource); err != nil {
 		return fmt.Errorf("failed to parse the resource JSON. Error: %v", err)
 	}
 
-	// Traverse the JSON structure to extract conditions
-	status, ok := resource["status"].(map[string]interface{})
-	if !ok {
-		return fmt.Errorf("status field is missing or invalid in the resource JSON")
-	}
-
-	conditions, ok := status["conditions"].([]interface{})
-	if !ok {
-		return fmt.Errorf("conditions field is missing or invalid in the status section")
-	}
-
 	// Validate all conditions
-	for _, condition := range conditions {
-		conditionMap, ok := condition.(map[string]interface{})
-		if !ok {
-			return fmt.Errorf("invalid condition format")
-		}
-
-		conditionType := conditionMap["type"].(string)
-		conditionStatus := conditionMap["status"].(string)
-
-		if conditionStatus != "True" {
+	for _, condition := range resource.Status.Conditions {
+		if condition.Status != "True" {
 			return fmt.Errorf(" FeatureStore=%s condition '%s' is not in 'Ready' state. Status: %s",
-				featureStoreName, conditionType, conditionStatus)
+				featureStoreName, condition.Type, condition.Status)
 		}
 	}
 
@@ -87,30 +70,15 @@ func checkIfDeploymentExistsAndAvailable(namespace string, deploymentName string
 				continue
 			}
 
-			// Parse the JSON output into a map
-			var result map[string]interface{}
+			// Parse the JSON output into Deployment
+			var result appsv1.Deployment
 			if err := json.Unmarshal(output.Bytes(), &result); err != nil {
 				return fmt.Errorf("failed to parse deployment JSON: %v", err)
 			}
 
-			// Navigate to status.conditions
-			status, ok := result["status"].(map[string]interface{})
-			if !ok {
-				return fmt.Errorf("failed to get status field from deployment JSON")
-			}
-
-			conditions, ok := status["conditions"].([]interface{})
-			if !ok {
-				return fmt.Errorf("failed to get conditions field from deployment JSON")
-			}
-
 			// Check for Available condition
-			for _, condition := range conditions {
-				cond, ok := condition.(map[string]interface{})
-				if !ok {
-					continue
-				}
-				if cond["type"] == "Available" && cond["status"] == "True" {
+			for _, condition := range result.Status.Conditions {
+				if condition.Type == "Available" && condition.Status == "True" {
 					return nil // Deployment is available
 				}
 			}
