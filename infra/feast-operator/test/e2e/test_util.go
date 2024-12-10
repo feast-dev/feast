@@ -3,10 +3,13 @@ package e2e
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os/exec"
 	"strings"
 	"time"
+
+	"github.com/feast-dev/feast/infra/feast-operator/api/v1alpha1"
 )
 
 // dynamically checks if all conditions of custom resource featurestore are in "Ready" state.
@@ -183,4 +186,47 @@ func checkIfKubernetesServiceExists(namespace, serviceName string) error {
 	}
 
 	return nil
+}
+
+func isFeatureStoreHavingRemoteRegistry(namespace, featureStoreName string) (bool, error) {
+	cmd := exec.Command("kubectl", "get", "featurestore", featureStoreName, "-n", namespace,
+		"-o=jsonpath='{.spec.services.registry}'")
+
+	// Capture the output
+	output, err := cmd.Output()
+	if err != nil {
+		return false, err // Return false on command execution failure
+	}
+
+	// Convert output to string and trim any extra spaces
+	result := strings.TrimSpace(string(output))
+
+	// Remove single quotes if present
+	if strings.HasPrefix(result, "'") && strings.HasSuffix(result, "'") {
+		result = strings.Trim(result, "'")
+	}
+
+	if result == "" {
+		return false, errors.New("kubectl get featurestore command returned empty output")
+	}
+
+	// Parse the JSON into a map
+	var registryConfig v1alpha1.Registry
+	if err := json.Unmarshal([]byte(result), &registryConfig); err != nil {
+		return false, err // Return false on JSON parsing failure
+	}
+
+	if registryConfig.Remote == nil {
+		return false, nil
+	}
+
+	hasHostname := registryConfig.Remote.Hostname != nil
+	hasValidFeastRef := registryConfig.Remote.FeastRef != nil &&
+		registryConfig.Remote.FeastRef.Name != ""
+
+	if hasHostname || hasValidFeastRef {
+		return true, nil
+	}
+
+	return false, nil
 }
