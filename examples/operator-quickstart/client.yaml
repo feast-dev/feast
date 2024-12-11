@@ -74,9 +74,9 @@ spec:
               mountPath: /feast-init
       containers:
         - name: client
-          image: 'feastdev/feature-server:0.42.0'
+          image: 'quay.io/jupyter/scipy-notebook:python-3.11'
           workingDir: /feast-init/sample/feature_repo
-          command: ["sleep", "infinity"]
+          #command: ["sleep", "infinity"]
           volumeMounts:
             - name: client-feature-store-config
               mountPath: /feast-client
