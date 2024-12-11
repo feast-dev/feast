@@ -1,10 +1,8 @@
 FROM registry.access.redhat.com/ubi9/python-311:9.5 AS builder
 
-COPY --chown=default Makefile ${APP_ROOT}/src
-COPY --chown=default sdk ${APP_ROOT}/src/sdk
-COPY --chown=default ui ${APP_ROOT}/src/ui
+COPY --chown=default . ${APP_ROOT}/src
 
-RUN ls -la
+RUN ls -la ${APP_ROOT}/bin
 
 RUN pip install --no-cache-dir pip-tools
 RUN make install-python-ci-dependencies
@@ -12,6 +10,11 @@ RUN make install-python-ci-dependencies
 RUN npm install -S yarn
 ENV PATH ${PATH}:${APP_ROOT}/src/node_modules/yarn/bin
 RUN make build-ui
+
+RUN ls -la ${APP_ROOT}/bin
+RUN ls -la ${APP_ROOT}/src/node_modules/yarn/bin
+ENV UIPATH $(python -c "import feast.ui as ui; print(ui.__path__)" | tr -d "[']")
+RUN ls -la ${UIPATH}
 
 # modify permissions to support running with a random uid
 RUN chmod g+w $(python -c "import feast.ui as ui; print(ui.__path__)" | tr -d "[']")/build/projects-list.json
