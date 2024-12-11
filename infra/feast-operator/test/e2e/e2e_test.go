@@ -124,10 +124,11 @@ var _ = Describe("controller", Ordered, func() {
 			validateTheFeatureStoreCustomResource(namespace, featureStoreName, timeout)
 
 			var remoteRegistryNs = "remote-registry"
+			By(fmt.Sprintf("Creating the remote registry namespace=%s", remoteRegistryNs))
 			cmd = exec.Command("kubectl", "create", "ns", remoteRegistryNs)
 			_, _ = utils.Run(cmd)
 
-			By("deploying the Simple Feast remote registry Custom Resource to Kubernetes")
+			By("deploying the Simple Feast remote registry Custom Resource on Kubernetes")
 			cmd = exec.Command("kubectl", "apply", "-f",
 				"test/testdata/feast_integration_test_crs/v1alpha1_remote_registry_featurestore.yaml", "-n", remoteRegistryNs)
 			_, cmdOutputerr = utils.Run(cmd)
