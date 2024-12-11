@@ -1,6 +1,8 @@
 # Feast Operator
 This is a K8s Operator that can be used to deploy and manage **Feast**, an open source feature store for machine learning.
 
+### **[FeatureStore CR API Reference](docs/api/markdown/ref.md)**
+
 ## Getting Started
 
 ### Prerequisites
@@ -153,6 +155,3 @@ make test-e2e
 # delete cluster once you are done.
 kind delete cluster
 ```
-
-
-
