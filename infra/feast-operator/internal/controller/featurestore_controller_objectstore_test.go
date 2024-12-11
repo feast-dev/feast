@@ -46,6 +46,7 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 	Context("When deploying a resource with all ephemeral services", func() {
 		const resourceName = "services-object-store"
 		var pullPolicy = corev1.PullAlways
+		var replicas = int32(1)
 		var testEnvVarName = "testEnvVarName"
 		var testEnvVarValue = "testEnvVarValue"
 
@@ -67,7 +68,7 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			By("creating the custom resource for the Kind FeatureStore")
 			err := k8sClient.Get(ctx, typeNamespacedName, featurestore)
 			if err != nil && errors.IsNotFound(err) {
-				resource := createFeatureStoreResource(resourceName, image, pullPolicy, &[]corev1.EnvVar{{Name: testEnvVarName, Value: testEnvVarValue},
+				resource := createFeatureStoreResource(resourceName, image, pullPolicy, replicas, &[]corev1.EnvVar{{Name: testEnvVarName, Value: testEnvVarValue},
 					{Name: "fieldRefName", ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "metadata.namespace"}}}})
 				resource.Spec.Services.OnlineStore = nil
 				resource.Spec.Services.OfflineStore = nil
