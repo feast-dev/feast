@@ -1,8 +1,8 @@
 FROM registry.access.redhat.com/ubi9/python-311:9.5 AS builder
 
 COPY --chown=default Makefile ${APP_ROOT}/src
-COPY --chown=default sdk ${APP_ROOT}/src
-COPY --chown=default ui ${APP_ROOT}/src
+COPY --chown=default sdk/ ${APP_ROOT}/src
+COPY --chown=default ui/ ${APP_ROOT}/src
 
 RUN pip install --no-cache-dir pip-tools
 RUN make install-python-ci-dependencies
