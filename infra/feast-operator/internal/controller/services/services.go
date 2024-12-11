@@ -496,6 +496,7 @@ func (feast *FeastServices) getServiceReplicas(feastType FeastServiceType) *int3
 		if feast.isOnlinStore() {
 			return appliedServices.OnlineStore.Replicas
 		}
+	}
 	return &DefaultReplicas
 }
 
