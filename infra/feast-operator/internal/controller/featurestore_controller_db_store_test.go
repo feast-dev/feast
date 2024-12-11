@@ -78,7 +78,7 @@ sqlalchemy_config_kwargs:
   pool_pre_ping: true
 `
 
-var invalidSecretContainingTypeYamlString = `
+var secretContainingValidTypeYamlString = `
 type: cassandra
 hosts:
   - 192.168.1.1
@@ -305,37 +305,12 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 
 			Expect(err.Error()).To(Equal("secret key invalid.secret.key doesn't exist in secret online-store-secret"))
 
-			By("Referring to a secret that contains parameter named type")
-			resource = &feastdevv1alpha1.FeatureStore{}
-			err = k8sClient.Get(ctx, typeNamespacedName, resource)
-			Expect(err).NotTo(HaveOccurred())
-
-			secret := &corev1.Secret{}
-			err = k8sClient.Get(ctx, onlineSecretNamespacedName, secret)
-			Expect(err).NotTo(HaveOccurred())
-			secret.Data[string(services.OnlineDBPersistenceCassandraConfigType)] = []byte(invalidSecretContainingTypeYamlString)
-			Expect(k8sClient.Update(ctx, secret)).To(Succeed())
-
-			resource.Spec.Services.OnlineStore.Persistence.DBPersistence.SecretRef = corev1.LocalObjectReference{Name: "online-store-secret"}
-			resource.Spec.Services.OnlineStore.Persistence.DBPersistence.SecretKeyName = ""
-			Expect(k8sClient.Update(ctx, resource)).To(Succeed())
-			resource = &feastdevv1alpha1.FeatureStore{}
-			err = k8sClient.Get(ctx, typeNamespacedName, resource)
-			Expect(err).NotTo(HaveOccurred())
-
-			_, err = controllerReconciler.Reconcile(ctx, reconcile.Request{
-				NamespacedName: typeNamespacedName,
-			})
-			Expect(err).To(HaveOccurred())
-
-			Expect(err.Error()).To(Equal("secret key cassandra in secret online-store-secret contains invalid tag named type"))
-
 			By("Referring to a secret that contains parameter named type with invalid value")
 			resource = &feastdevv1alpha1.FeatureStore{}
 			err = k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 
-			secret = &corev1.Secret{}
+			secret := &corev1.Secret{}
 			err = k8sClient.Get(ctx, onlineSecretNamespacedName, secret)
 			Expect(err).NotTo(HaveOccurred())
 			secret.Data[string(services.OnlineDBPersistenceCassandraConfigType)] = []byte(invalidSecretTypeYamlString)
@@ -353,39 +328,7 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 			})
 			Expect(err).To(HaveOccurred())
 
-			Expect(err.Error()).To(Equal("secret key cassandra in secret online-store-secret contains invalid tag named type"))
-
-			By("Referring to a secret that contains parameter named registry_type")
-			resource = &feastdevv1alpha1.FeatureStore{}
-			err = k8sClient.Get(ctx, typeNamespacedName, resource)
-			Expect(err).NotTo(HaveOccurred())
-
-			secret = &corev1.Secret{}
-			err = k8sClient.Get(ctx, onlineSecretNamespacedName, secret)
-			Expect(err).NotTo(HaveOccurred())
-			secret.Data[string(services.OnlineDBPersistenceCassandraConfigType)] = []byte(cassandraYamlString)
-			Expect(k8sClient.Update(ctx, secret)).To(Succeed())
-
-			secret = &corev1.Secret{}
-			err = k8sClient.Get(ctx, registrySecretNamespacedName, secret)
-			Expect(err).NotTo(HaveOccurred())
-			secret.Data["sql_custom_registry_key"] = nil
-			secret.Data[string(services.RegistryDBPersistenceSQLConfigType)] = []byte(invalidSecretRegistryTypeYamlString)
-			Expect(k8sClient.Update(ctx, secret)).To(Succeed())
-
-			resource.Spec.Services.Registry.Local.Persistence.DBPersistence.SecretRef = corev1.LocalObjectReference{Name: "registry-store-secret"}
-			resource.Spec.Services.Registry.Local.Persistence.DBPersistence.SecretKeyName = ""
-			Expect(k8sClient.Update(ctx, resource)).To(Succeed())
-			resource = &feastdevv1alpha1.FeatureStore{}
-			err = k8sClient.Get(ctx, typeNamespacedName, resource)
-			Expect(err).NotTo(HaveOccurred())
-
-			_, err = controllerReconciler.Reconcile(ctx, reconcile.Request{
-				NamespacedName: typeNamespacedName,
-			})
-			Expect(err).To(HaveOccurred())
-
-			Expect(err.Error()).To(Equal("secret key sql in secret registry-store-secret contains invalid tag named registry_type"))
+			Expect(err.Error()).To(Equal("secret key cassandra in secret online-store-secret contains tag named type with value wrong"))
 		})
 
 		It("should successfully reconcile the resource", func() {
@@ -506,6 +449,60 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(controllerutil.HasControllerReference(svc)).To(BeTrue())
 			Expect(svc.Spec.Ports[0].TargetPort).To(Equal(intstr.FromInt(int(services.FeastServiceConstants[services.RegistryFeastType].TargetHttpPort))))
+
+			By("Referring to a secret that contains parameter named type")
+			resource = &feastdevv1alpha1.FeatureStore{}
+			err = k8sClient.Get(ctx, typeNamespacedName, resource)
+			Expect(err).NotTo(HaveOccurred())
+
+			secret := &corev1.Secret{}
+			err = k8sClient.Get(ctx, onlineSecretNamespacedName, secret)
+			Expect(err).NotTo(HaveOccurred())
+			secret.Data[string(services.OnlineDBPersistenceCassandraConfigType)] = []byte(secretContainingValidTypeYamlString)
+			Expect(k8sClient.Update(ctx, secret)).To(Succeed())
+
+			resource.Spec.Services.OnlineStore.Persistence.DBPersistence.SecretRef = corev1.LocalObjectReference{Name: "online-store-secret"}
+			resource.Spec.Services.OnlineStore.Persistence.DBPersistence.SecretKeyName = ""
+			Expect(k8sClient.Update(ctx, resource)).To(Succeed())
+			resource = &feastdevv1alpha1.FeatureStore{}
+			err = k8sClient.Get(ctx, typeNamespacedName, resource)
+			Expect(err).NotTo(HaveOccurred())
+
+			_, err = controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: typeNamespacedName,
+			})
+
+			Expect(err).To(Not(HaveOccurred()))
+
+			By("Referring to a secret that contains parameter named registry_type")
+			resource = &feastdevv1alpha1.FeatureStore{}
+			err = k8sClient.Get(ctx, typeNamespacedName, resource)
+			Expect(err).NotTo(HaveOccurred())
+
+			secret = &corev1.Secret{}
+			err = k8sClient.Get(ctx, onlineSecretNamespacedName, secret)
+			Expect(err).NotTo(HaveOccurred())
+			secret.Data[string(services.OnlineDBPersistenceCassandraConfigType)] = []byte(cassandraYamlString)
+			Expect(k8sClient.Update(ctx, secret)).To(Succeed())
+
+			secret = &corev1.Secret{}
+			err = k8sClient.Get(ctx, registrySecretNamespacedName, secret)
+			Expect(err).NotTo(HaveOccurred())
+			secret.Data["sql_custom_registry_key"] = nil
+			secret.Data[string(services.RegistryDBPersistenceSQLConfigType)] = []byte(invalidSecretRegistryTypeYamlString)
+			Expect(k8sClient.Update(ctx, secret)).To(Succeed())
+
+			resource.Spec.Services.Registry.Local.Persistence.DBPersistence.SecretRef = corev1.LocalObjectReference{Name: "registry-store-secret"}
+			resource.Spec.Services.Registry.Local.Persistence.DBPersistence.SecretKeyName = ""
+			Expect(k8sClient.Update(ctx, resource)).To(Succeed())
+			resource = &feastdevv1alpha1.FeatureStore{}
+			err = k8sClient.Get(ctx, typeNamespacedName, resource)
+			Expect(err).NotTo(HaveOccurred())
+
+			_, err = controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: typeNamespacedName,
+			})
+			Expect(err).To(Not(HaveOccurred()))
 		})
 
 		It("should properly encode a feature_store.yaml config", func() {
