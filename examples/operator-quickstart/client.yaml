@@ -58,7 +58,6 @@ spec:
               sed -i 's/store.materialize_incremental/# store.materialize_incremental/' test_workflow.py;
               sed -i 's/store.push/# store.push/' test_workflow.py;
 
-              # cat feature_store.yaml;
               echo "";
               echo "Executing feast apply...";
               feast apply;
@@ -66,6 +65,9 @@ spec:
               feast materialize-incremental $CURRENT_TIME;
 
               cp -f /feast-client/feature_store.yaml .;
+
+              #cd /feast-init;
+              #curl -O https://raw.githubusercontent.com/feast-dev/feast/refs/tags/v0.42.0/examples/quickstart/quickstart.ipynb;
           volumeMounts:
             - name: client-feature-store-config
               mountPath: /feast-client
@@ -74,15 +76,15 @@ spec:
               mountPath: /feast-init
       containers:
         - name: client
-          image: 'quay.io/jupyter/scipy-notebook:python-3.11'
-          workingDir: /feast-init/sample/feature_repo
+          image: 'quay.io/tchughesiv/scipy-notebook:python-3.11-uid'
+          #workingDir: /feast-init/sample/feature_repo
           #command: ["sleep", "infinity"]
           volumeMounts:
             - name: client-feature-store-config
               mountPath: /feast-client
               readOnly: true
             - name: shared-data
-              mountPath: /feast-init
+              mountPath: /home/jovyan/work
       volumes:
         - name: client-feature-store-config
           configMap:

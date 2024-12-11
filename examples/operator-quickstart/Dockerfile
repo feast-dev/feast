@@ -6,3 +6,5 @@ RUN chgrp -R 0 /home/jovyan && \
     chmod -R g=u /home/jovyan
 
 USER jovyan
+
+RUN pip install --no-cache-dir feast==0.42.0
