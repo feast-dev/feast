@@ -50,7 +50,7 @@ func (feast *FeastServices) getServiceRepoConfig(feastType FeastServiceType) (Re
 func getServiceRepoConfig(
 	feastType FeastServiceType,
 	featureStore *feastdevv1alpha1.FeatureStore,
-	secretExtractionFunc func(secretRef string, secretKeyName string) (map[string]interface{}, error)) (RepoConfig, error) {
+	secretExtractionFunc func(storeType string, secretRef string, secretKeyName string) (map[string]interface{}, error)) (RepoConfig, error) {
 	appliedSpec := featureStore.Status.Applied
 
 	repoConfig, err := getClientRepoConfig(featureStore, secretExtractionFunc)
@@ -59,9 +59,9 @@ func getServiceRepoConfig(
 	}
 
 	if appliedSpec.AuthzConfig != nil && appliedSpec.AuthzConfig.OidcAuthz != nil {
-		propertiesMap, err := secretExtractionFunc(appliedSpec.AuthzConfig.OidcAuthz.SecretRef.Name, "")
-		if err != nil {
-			return repoConfig, err
+		propertiesMap, authSecretErr := secretExtractionFunc("", appliedSpec.AuthzConfig.OidcAuthz.SecretRef.Name, "")
+		if authSecretErr != nil {
+			return repoConfig, authSecretErr
 		}
 
 		oidcServerProperties := map[string]interface{}{}
@@ -109,7 +109,7 @@ func getServiceRepoConfig(
 	return repoConfig, nil
 }
 
-func setRepoConfigRegistry(services *feastdevv1alpha1.FeatureStoreServices, secretExtractionFunc func(secretRef string, secretKeyName string) (map[string]interface{}, error), repoConfig *RepoConfig) error {
+func setRepoConfigRegistry(services *feastdevv1alpha1.FeatureStoreServices, secretExtractionFunc func(storeType string, secretRef string, secretKeyName string) (map[string]interface{}, error), repoConfig *RepoConfig) error {
 	repoConfig.Registry = RegistryConfig{}
 	repoConfig.Registry.Path = DefaultRegistryEphemeralPath
 	registryPersistence := services.Registry.Local.Persistence
@@ -129,7 +129,7 @@ func setRepoConfigRegistry(services *feastdevv1alpha1.FeatureStoreServices, secr
 			if len(secretKeyName) == 0 {
 				secretKeyName = string(repoConfig.Registry.RegistryType)
 			}
-			parametersMap, err := secretExtractionFunc(dbPersistence.SecretRef.Name, secretKeyName)
+			parametersMap, err := secretExtractionFunc(dbPersistence.Type, dbPersistence.SecretRef.Name, secretKeyName)
 			if err != nil {
 				return err
 			}
@@ -149,7 +149,7 @@ func setRepoConfigRegistry(services *feastdevv1alpha1.FeatureStoreServices, secr
 	return nil
 }
 
-func setRepoConfigOnline(services *feastdevv1alpha1.FeatureStoreServices, secretExtractionFunc func(secretRef string, secretKeyName string) (map[string]interface{}, error), repoConfig *RepoConfig) error {
+func setRepoConfigOnline(services *feastdevv1alpha1.FeatureStoreServices, secretExtractionFunc func(storeType string, secretRef string, secretKeyName string) (map[string]interface{}, error), repoConfig *RepoConfig) error {
 	repoConfig.OnlineStore = OnlineStoreConfig{}
 
 	repoConfig.OnlineStore.Path = DefaultOnlineStoreEphemeralPath
@@ -170,7 +170,7 @@ func setRepoConfigOnline(services *feastdevv1alpha1.FeatureStoreServices, secret
 				secretKeyName = string(repoConfig.OnlineStore.Type)
 			}
 
-			parametersMap, err := secretExtractionFunc(dbPersistence.SecretRef.Name, secretKeyName)
+			parametersMap, err := secretExtractionFunc(dbPersistence.Type, dbPersistence.SecretRef.Name, secretKeyName)
 			if err != nil {
 				return err
 			}
@@ -187,7 +187,7 @@ func setRepoConfigOnline(services *feastdevv1alpha1.FeatureStoreServices, secret
 	return nil
 }
 
-func setRepoConfigOffline(services *feastdevv1alpha1.FeatureStoreServices, secretExtractionFunc func(secretRef string, secretKeyName string) (map[string]interface{}, error), repoConfig *RepoConfig) error {
+func setRepoConfigOffline(services *feastdevv1alpha1.FeatureStoreServices, secretExtractionFunc func(storeType string, secretRef string, secretKeyName string) (map[string]interface{}, error), repoConfig *RepoConfig) error {
 	repoConfig.OfflineStore = OfflineStoreConfig{}
 	repoConfig.OfflineStore.Type = OfflineFilePersistenceDaskConfigType
 	offlineStorePersistence := services.OfflineStore.Persistence
@@ -205,7 +205,7 @@ func setRepoConfigOffline(services *feastdevv1alpha1.FeatureStoreServices, secre
 				secretKeyName = string(repoConfig.OfflineStore.Type)
 			}
 
-			parametersMap, err := secretExtractionFunc(dbPersistence.SecretRef.Name, secretKeyName)
+			parametersMap, err := secretExtractionFunc(dbPersistence.Type, dbPersistence.SecretRef.Name, secretKeyName)
 			if err != nil {
 				return err
 			}
@@ -224,7 +224,7 @@ func setRepoConfigOffline(services *feastdevv1alpha1.FeatureStoreServices, secre
 	return nil
 }
 
-func (feast *FeastServices) getClientFeatureStoreYaml(secretExtractionFunc func(secretRef string, secretKeyName string) (map[string]interface{}, error)) ([]byte, error) {
+func (feast *FeastServices) getClientFeatureStoreYaml(secretExtractionFunc func(storeType string, secretRef string, secretKeyName string) (map[string]interface{}, error)) ([]byte, error) {
 	clientRepo, err := getClientRepoConfig(feast.Handler.FeatureStore, secretExtractionFunc)
 	if err != nil {
 		return []byte{}, err
@@ -234,7 +234,7 @@ func (feast *FeastServices) getClientFeatureStoreYaml(secretExtractionFunc func(
 
 func getClientRepoConfig(
 	featureStore *feastdevv1alpha1.FeatureStore,
-	secretExtractionFunc func(secretRef string, secretKeyName string) (map[string]interface{}, error)) (RepoConfig, error) {
+	secretExtractionFunc func(storeType string, secretRef string, secretKeyName string) (map[string]interface{}, error)) (RepoConfig, error) {
 	status := featureStore.Status
 	appliedServices := status.Applied.Services
 	clientRepoConfig := RepoConfig{
@@ -292,7 +292,7 @@ func getClientRepoConfig(
 				Type: OidcAuthType,
 			}
 
-			propertiesMap, err := secretExtractionFunc(status.Applied.AuthzConfig.OidcAuthz.SecretRef.Name, "")
+			propertiesMap, err := secretExtractionFunc("", status.Applied.AuthzConfig.OidcAuthz.SecretRef.Name, "")
 			if err != nil {
 				return clientRepoConfig, err
 			}
@@ -318,7 +318,7 @@ func getActualPath(filePath string, pvcConfig *feastdevv1alpha1.PvcConfig) strin
 	return path.Join(pvcConfig.MountPath, filePath)
 }
 
-func (feast *FeastServices) extractConfigFromSecret(secretRef string, secretKeyName string) (map[string]interface{}, error) {
+func (feast *FeastServices) extractConfigFromSecret(storeType string, secretRef string, secretKeyName string) (map[string]interface{}, error) {
 	secret, err := feast.getSecret(secretRef)
 	if err != nil {
 		return nil, err
@@ -330,18 +330,20 @@ func (feast *FeastServices) extractConfigFromSecret(secretRef string, secretKeyN
 		if !exists {
 			return nil, fmt.Errorf("secret key %s doesn't exist in secret %s", secretKeyName, secretRef)
 		}
+
 		err = yaml.Unmarshal(val, &parameters)
 		if err != nil {
 			return nil, fmt.Errorf("secret %s contains invalid value", secretKeyName)
 		}
-		_, exists = parameters["type"]
-		if exists {
-			return nil, fmt.Errorf("secret key %s in secret %s contains invalid tag named type", secretKeyName, secretRef)
+
+		typeVal, typeExists := parameters["type"]
+		if typeExists && storeType != typeVal {
+			return nil, fmt.Errorf("secret key %s in secret %s contains tag named type with value %s", secretKeyName, secretRef, typeVal)
 		}
 
-		_, exists = parameters["registry_type"]
-		if exists {
-			return nil, fmt.Errorf("secret key %s in secret %s contains invalid tag named registry_type", secretKeyName, secretRef)
+		typeVal, typeExists = parameters["registry_type"]
+		if typeExists && storeType != typeVal {
+			return nil, fmt.Errorf("secret key %s in secret %s contains tag named registry_type with value %s", secretKeyName, secretRef, typeVal)
 		}
 	} else {
 		for k, v := range secret.Data {

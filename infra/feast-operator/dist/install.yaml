@@ -331,6 +331,7 @@ spec:
                                   rule: self.mountPath.matches('^/[^:]*$')
                               type:
                                 enum:
+                                - file
                                 - dask
                                 - duckdb
                                 type: string
@@ -363,8 +364,10 @@ spec:
                                 - redshift
                                 - spark
                                 - postgres
-                                - feast_trino.trino.TrinoOfflineStore
+                                - trino
                                 - redis
+                                - athena
+                                - mssql
                                 type: string
                             required:
                             - secretRef
@@ -737,6 +740,10 @@ spec:
                                 - mysql
                                 - hazelcast
                                 - singlestore
+                                - hbase
+                                - elasticsearch
+                                - qdrant
+                                - couchbase
                                 type: string
                             required:
                             - secretRef
@@ -1567,6 +1574,7 @@ spec:
                                       rule: self.mountPath.matches('^/[^:]*$')
                                   type:
                                     enum:
+                                    - file
                                     - dask
                                     - duckdb
                                     type: string
@@ -1600,8 +1608,10 @@ spec:
                                     - redshift
                                     - spark
                                     - postgres
-                                    - feast_trino.trino.TrinoOfflineStore
+                                    - trino
                                     - redis
+                                    - athena
+                                    - mssql
                                     type: string
                                 required:
                                 - secretRef
@@ -1981,6 +1991,10 @@ spec:
                                     - mysql
                                     - hazelcast
                                     - singlestore
+                                    - hbase
+                                    - elasticsearch
+                                    - qdrant
+                                    - couchbase
                                     type: string
                                 required:
                                 - secretRef
