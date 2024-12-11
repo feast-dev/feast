@@ -13,6 +13,7 @@
 # limitations under the License.
 from datetime import datetime
 from typing import Dict, List, Optional
+import warnings
 
 from google.protobuf.json_format import MessageToJson
 from typeguard import typechecked
@@ -79,6 +80,13 @@ class Entity:
             ValueError: Parameters are specified incorrectly.
         """
         self.name = name
+        if value_type is None:
+            warnings.warn(
+                "Entity value_type will be mandatory in the next release. "
+                "Please specify a value_type for entity '%s'." % name,
+                DeprecationWarning,
+                stacklevel=2,
+            )
         self.value_type = value_type or ValueType.UNKNOWN
 
         if join_keys and len(join_keys) > 1:
