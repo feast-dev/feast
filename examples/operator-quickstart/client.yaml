@@ -28,7 +28,8 @@ spec:
             - 'until grpcurl -H "authorization: Bearer $(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" -plaintext -d '''' -format text feast-example-registry.feast.svc.cluster.local:80 grpc.health.v1.Health/Check; do echo waiting for registry; sleep 2; done'
           image: 'fullstorydev/grpcurl:v1.9.1-alpine'
         - name: feast-apply
-          image: 'feastdev/feature-server:0.42.0'
+          image: 'quay.io/tchughesiv/scipy-notebook:python-3.11-uid'
+          imagePullPolicy: Always
           command: ["/bin/sh", "-c"]
           args:
             - |
@@ -77,6 +78,7 @@ spec:
       containers:
         - name: client
           image: 'quay.io/tchughesiv/scipy-notebook:python-3.11-uid'
+          imagePullPolicy: Always
           #workingDir: /feast-init/sample/feature_repo
           #command: ["sleep", "infinity"]
           volumeMounts:
