@@ -300,7 +300,7 @@ type DefaultConfigs struct {
 // StoreServiceConfigs k8s deployment settings
 type StoreServiceConfigs struct {
 	// Replicas determines the number of pods for the feast service.
-	// When Replicas > 1, persistence should be configured to provide central storage
+	// When Replicas > 1, persistence is recommended.
 	Replicas       *int32 `json:"replicas,omitempty"`
 	ServiceConfigs `json:",inline"`
 }

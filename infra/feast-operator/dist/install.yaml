@@ -380,7 +380,7 @@ spec:
                       replicas:
                         description: |-
                           Replicas determines the number of pods for the feast service.
-                          When Replicas > 1, persistence should be configured to provide central storage
+                          When Replicas > 1, persistence is recommended.
                         format: int32
                         type: integer
                       resources:
@@ -762,7 +762,7 @@ spec:
                       replicas:
                         description: |-
                           Replicas determines the number of pods for the feast service.
-                          When Replicas > 1, persistence should be configured to provide central storage
+                          When Replicas > 1, persistence is recommended.
                         format: int32
                         type: integer
                       resources:
@@ -1637,7 +1637,7 @@ spec:
                           replicas:
                             description: |-
                               Replicas determines the number of pods for the feast service.
-                              When Replicas > 1, persistence should be configured to provide central storage
+                              When Replicas > 1, persistence is recommended.
                             format: int32
                             type: integer
                           resources:
@@ -2026,7 +2026,7 @@ spec:
                           replicas:
                             description: |-
                               Replicas determines the number of pods for the feast service.
-                              When Replicas > 1, persistence should be configured to provide central storage
+                              When Replicas > 1, persistence is recommended.
                             format: int32
                             type: integer
                           resources:
