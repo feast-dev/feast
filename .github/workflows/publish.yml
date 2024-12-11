@@ -30,6 +30,7 @@ jobs:
 
   build-publish-docker-images:
     uses: ./.github/workflows/publish_images.yaml
+    needs: [ get-version, publish-python-sdk ]
     with:
       custom_version: ${{ github.event.inputs.custom_version }}
       token: ${{ github.event.inputs.token }}
