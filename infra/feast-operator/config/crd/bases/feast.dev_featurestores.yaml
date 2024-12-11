@@ -369,6 +369,9 @@ spec:
                         x-kubernetes-validations:
                         - message: One selection required between file or store.
                           rule: '[has(self.file), has(self.store)].exists_one(c, c)'
+                      replicas:
+                        format: int32
+                        type: integer
                       resources:
                         description: ResourceRequirements describes the compute resource
                           requirements.
@@ -745,6 +748,9 @@ spec:
                         x-kubernetes-validations:
                         - message: One selection required between file or store.
                           rule: '[has(self.file), has(self.store)].exists_one(c, c)'
+                      replicas:
+                        format: int32
+                        type: integer
                       resources:
                         description: ResourceRequirements describes the compute resource
                           requirements.
@@ -1614,6 +1620,9 @@ spec:
                             - message: One selection required between file or store.
                               rule: '[has(self.file), has(self.store)].exists_one(c,
                                 c)'
+                          replicas:
+                            format: int32
+                            type: integer
                           resources:
                             description: ResourceRequirements describes the compute
                               resource requirements.
@@ -1997,6 +2006,9 @@ spec:
                             - message: One selection required between file or store.
                               rule: '[has(self.file), has(self.store)].exists_one(c,
                                 c)'
+                          replicas:
+                            format: int32
+                            type: integer
                           resources:
                             description: ResourceRequirements describes the compute
                               resource requirements.

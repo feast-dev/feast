@@ -49,6 +49,7 @@ var _ = Describe("FeatureStore Controller-OIDC authorization", func() {
 		const resourceName = "oidc-authorization"
 		const oidcSecretName = "oidc-secret"
 		var pullPolicy = corev1.PullAlways
+		var replicas = int32(1)
 
 		ctx := context.Background()
 
@@ -73,7 +74,7 @@ var _ = Describe("FeatureStore Controller-OIDC authorization", func() {
 			By("creating the custom resource for the Kind FeatureStore")
 			err = k8sClient.Get(ctx, typeNamespacedName, featurestore)
 			if err != nil && errors.IsNotFound(err) {
-				resource := createFeatureStoreResource(resourceName, image, pullPolicy, &[]corev1.EnvVar{})
+				resource := createFeatureStoreResource(resourceName, image, pullPolicy, replicas, &[]corev1.EnvVar{})
 				resource.Spec.AuthzConfig = &feastdevv1alpha1.AuthzConfig{OidcAuthz: &feastdevv1alpha1.OidcAuthz{
 					SecretRef: corev1.LocalObjectReference{
 						Name: oidcSecretName,
