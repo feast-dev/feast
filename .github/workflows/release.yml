@@ -20,7 +20,6 @@ on:
         type: boolean
 
 jobs:
-
   get_dry_release_versions:
     runs-on: ubuntu-latest
     env:

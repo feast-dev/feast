@@ -20,58 +20,10 @@ on:
 
 jobs:
   get-version:
-    runs-on:  ubuntu-latest
-    outputs:
-      release_version: ${{ steps.get_release_version.outputs.release_version }}
-      version_without_prefix: ${{ steps.get_release_version_without_prefix.outputs.version_without_prefix }}
-      highest_semver_tag: ${{ steps.get_highest_semver.outputs.highest_semver_tag }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - name: Get release version
-        id: get_release_version
-        run: |
-          if [[ -n "${{ inputs.release_version }}" ]]; then
-            echo "Using provided release version: ${{ inputs.release_version }}"
-            echo "::set-output name=release_version::${{ inputs.release_version }}"
-          else
-            echo "No release version provided. Falling back to GITHUB_REF."
-            echo "::set-output name=release_version::${GITHUB_REF#refs/tags/}"
-          fi
-      - name: Get release version without prefix
-        id: get_release_version_without_prefix
-        env:
-          RELEASE_VERSION: ${{ steps.get_release_version.outputs.release_version }}
-        run: |
-          echo ::set-output name=version_without_prefix::${RELEASE_VERSION:1}
-      - name: Get highest semver
-        id: get_highest_semver
-        env:
-          RELEASE_VERSION: ${{ steps.get_release_version.outputs.release_version }}
-        run: |
-          if [[ -n "${{ inputs.highest_semver_tag }}" ]]; then
-            echo "Using provided highest semver version: ${{ inputs.highest_semver_tag }}"
-            echo "::set-output name=highest_semver_tag::${{ inputs.highest_semver_tag }}"
-          else
-            echo "No release version provided. Falling back to infra/scripts/setup-common-functions.sh."
-            source infra/scripts/setup-common-functions.sh
-            SEMVER_REGEX='^v[0-9]+\.[0-9]+\.[0-9]+(-([0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*))?$'
-            if echo "${RELEASE_VERSION}" | grep -P "$SEMVER_REGEX" &>/dev/null ; then
-              echo ::set-output name=highest_semver_tag::$(get_tag_release -m)
-            fi
-          fi
-      - name: Check output
-        id: check_output
-        env:
-          RELEASE_VERSION: ${{ steps.get_release_version.outputs.release_version }}
-          VERSION_WITHOUT_PREFIX: ${{ steps.get_release_version_without_prefix.outputs.version_without_prefix }}
-          HIGHEST_SEMVER_TAG: ${{ steps.get_highest_semver.outputs.highest_semver_tag }}
-        run: |
-          echo $RELEASE_VERSION
-          echo $VERSION_WITHOUT_PREFIX
-          echo $HIGHEST_SEMVER_TAG
+    uses: ./.github/workflows/get_semantic_release_version.yaml
+    with:
+      custom_version: ${{ github.event.inputs.custom_version }}
+      token: ${{ github.event.inputs.token }}
 
   build-python-wheel:
     name: Build wheels
