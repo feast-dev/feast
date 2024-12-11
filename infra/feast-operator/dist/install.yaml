@@ -378,6 +378,9 @@ spec:
                         - message: One selection required between file or store.
                           rule: '[has(self.file), has(self.store)].exists_one(c, c)'
                       replicas:
+                        description: |-
+                          Replicas determines the number of pods for the feast service.
+                          When Replicas > 1, persistence should be configured to provide central storage
                         format: int32
                         type: integer
                       resources:
@@ -757,6 +760,9 @@ spec:
                         - message: One selection required between file or store.
                           rule: '[has(self.file), has(self.store)].exists_one(c, c)'
                       replicas:
+                        description: |-
+                          Replicas determines the number of pods for the feast service.
+                          When Replicas > 1, persistence should be configured to provide central storage
                         format: int32
                         type: integer
                       resources:
@@ -1629,6 +1635,9 @@ spec:
                               rule: '[has(self.file), has(self.store)].exists_one(c,
                                 c)'
                           replicas:
+                            description: |-
+                              Replicas determines the number of pods for the feast service.
+                              When Replicas > 1, persistence should be configured to provide central storage
                             format: int32
                             type: integer
                           resources:
@@ -2015,6 +2024,9 @@ spec:
                               rule: '[has(self.file), has(self.store)].exists_one(c,
                                 c)'
                           replicas:
+                            description: |-
+                              Replicas determines the number of pods for the feast service.
+                              When Replicas > 1, persistence should be configured to provide central storage
                             format: int32
                             type: integer
                           resources:

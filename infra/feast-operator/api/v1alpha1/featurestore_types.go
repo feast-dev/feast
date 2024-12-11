@@ -297,7 +297,10 @@ type DefaultConfigs struct {
 	Image *string `json:"image,omitempty"`
 }
 
+// StoreServiceConfigs k8s deployment settings
 type StoreServiceConfigs struct {
+	// Replicas determines the number of pods for the feast service.
+	// When Replicas > 1, persistence should be configured to provide central storage
 	Replicas       *int32 `json:"replicas,omitempty"`
 	ServiceConfigs `json:",inline"`
 }
