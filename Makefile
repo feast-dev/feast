@@ -493,7 +493,7 @@ build-feast-operator-docker:
 # Dev images
 
 build-feature-server-dev:
-	docker buildx build --build-arg VERSION=dev \
+	docker buildx build \
 		-t feastdev/feature-server:dev \
 		-f sdk/python/feast/infra/feature_servers/multicloud/Dockerfile.dev --load .
 
