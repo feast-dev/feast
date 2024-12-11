@@ -18,7 +18,7 @@
 # # modify permissions to support running with a random uid
 # RUN chmod g+w $(python -c "import feast.ui as ui; print(ui.__path__)" | tr -d "[']")/build/projects-list.json
 
-FROM 0c54632a2b21 AS builder
+FROM localhost/feastdev/feature-server:dev AS builder
 
 COPY --from=builder ${APP_ROOT}/bin ${APP_ROOT}/bin
 COPY --from=builder ${APP_ROOT}/src/sdk ${APP_ROOT}/src/sdk
