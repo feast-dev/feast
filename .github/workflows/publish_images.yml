@@ -21,10 +21,10 @@ jobs:
 
   build-publish-docker-images:
     runs-on: ubuntu-latest
-    needs: [get-version]
+    needs: [ get-version ]
     strategy:
       matrix:
-        component: [feature-server, feature-server-java, feature-transformation-server, feast-helm-operator, feast-operator]
+        component: [ feature-server, feature-server-java, feature-transformation-server, feast-helm-operator, feast-operator ]
     env:
       MAVEN_CACHE: gs://feast-templocation-kf-feast/.m2.2020-08-19.tar
       REGISTRY: feastdev

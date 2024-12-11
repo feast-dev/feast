@@ -21,7 +21,7 @@ jobs:
 
   publish-helm-charts:
     if: github.repository == 'feast-dev/feast'
-    runs-on:  ubuntu-latest
+    runs-on: ubuntu-latest
     needs: get-version
     env:
       HELM_VERSION: v3.8.0

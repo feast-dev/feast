@@ -23,13 +23,13 @@ jobs:
     uses: ./.github/workflows/build_wheels.yml
     needs: get-version
     with:
-        release_version: ${{ needs.get-version.outputs.release_version }}
-        highest_semver_tag: ${{ needs.get-version.outputs.highest_semver_tag }}
+      release_version: ${{ needs.get-version.outputs.release_version }}
+      highest_semver_tag: ${{ needs.get-version.outputs.highest_semver_tag }}
 
   publish-python-sdk:
     if: github.repository == 'feast-dev/feast'
     runs-on: ubuntu-latest
-    needs: [get-version, build_wheels]
+    needs: [ get-version, build_wheels ]
     steps:
       - uses: actions/download-artifact@v4.1.7
         with:
