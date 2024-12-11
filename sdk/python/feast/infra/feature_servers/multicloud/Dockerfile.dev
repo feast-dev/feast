@@ -13,7 +13,7 @@ RUN make build-ui
 
 RUN ls -la ${APP_ROOT}/bin
 RUN ls -la ${APP_ROOT}/src/node_modules/yarn/bin
-ENV UIPATH $(python -c "import feast.ui as ui; print(ui.__path__)" | tr -d "[']")
+ENV UIPATH python -c "import feast.ui as ui; print(ui.__path__)" | tr -d "[']"
 RUN ls -la ${UIPATH}
 
 # modify permissions to support running with a random uid
