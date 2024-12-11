@@ -1,6 +1,11 @@
 name: unit-tests
 
-on: [pull_request]
+on:
+  pull_request:
+    paths-ignore:
+      - 'community/**'
+      - 'docs/**'
+      - 'examples/**'
 jobs:
   unit-test-python:
     runs-on: ${{ matrix.os }}

@@ -7,6 +7,10 @@ on:
       - opened
       - synchronize
       - labeled
+    paths-ignore:
+      - 'community/**'
+      - 'docs/**'
+      - 'examples/**'
 
 jobs:
   integration-test-python-local:
