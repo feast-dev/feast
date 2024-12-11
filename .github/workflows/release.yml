@@ -20,6 +20,7 @@ on:
         type: boolean
 
 jobs:
+  if: github.repository == 'feast-dev/feast'
   get_dry_release_versions:
     runs-on: ubuntu-latest
     env:
