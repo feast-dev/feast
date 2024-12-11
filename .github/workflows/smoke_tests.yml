@@ -1,6 +1,13 @@
 name: smoke-tests
 
-on: [pull_request]
+on:
+pull_request_target:
+    paths-ignore:
+      paths-ignore:
+        - 'community/**'
+        - 'docs/**'
+        - 'examples/**'
+
 jobs:
   unit-test-python:
     runs-on: ${{ matrix.os }}
