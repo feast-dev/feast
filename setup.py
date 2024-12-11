@@ -73,8 +73,8 @@ GCP_REQUIRED = [
 ]
 
 REDIS_REQUIRED = [
-    "redis>=4.2.2,<5",
-    "hiredis>=2.0.0,<3",
+    "redis>=4.2.2,<6",
+    "hiredis>=2.0.0,<4",
 ]
 
 AWS_REQUIRED = ["boto3>=1.17.0,<2", "fsspec<=2024.9.0", "aiobotocore>2,<3"]
