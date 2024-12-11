@@ -319,15 +319,19 @@ func (feast *FeastServices) setDeployment(deploy *appsv1.Deployment, feastType F
 								Value: fsYamlB64,
 							},
 						},
+						StartupProbe: &corev1.Probe{
+							ProbeHandler:     probeHandler,
+							PeriodSeconds:    3,
+							FailureThreshold: 40,
+						},
 						LivenessProbe: &corev1.Probe{
-							ProbeHandler:        probeHandler,
-							InitialDelaySeconds: 30,
-							PeriodSeconds:       30,
+							ProbeHandler:     probeHandler,
+							PeriodSeconds:    20,
+							FailureThreshold: 6,
 						},
 						ReadinessProbe: &corev1.Probe{
-							ProbeHandler:        probeHandler,
-							InitialDelaySeconds: 20,
-							PeriodSeconds:       30,
+							ProbeHandler:  probeHandler,
+							PeriodSeconds: 10,
 						},
 					},
 				},
@@ -398,7 +402,8 @@ func (feast *FeastServices) registryClientPodConfigs(podSpec *corev1.PodSpec) {
 
 func (feast *FeastServices) setRegistryClientInitContainer(podSpec *corev1.PodSpec) {
 	hostname := feast.Handler.FeatureStore.Status.ServiceHostnames.Registry
-	if len(hostname) > 0 {
+	// add grpc init container if registry is not configured via 'remote.hostname'
+	if len(hostname) > 0 && !feast.isRemoteHostnameRegistry() {
 		grpcurlFlag := "-plaintext"
 		hostSplit := strings.Split(hostname, ":")
 		if len(hostSplit) > 1 && hostSplit[1] == "443" {
@@ -410,7 +415,8 @@ func (feast *FeastServices) setRegistryClientInitContainer(podSpec *corev1.PodSp
 				Image: "fullstorydev/grpcurl:v1.9.1-alpine",
 				Command: []string{
 					"sh", "-c",
-					"until grpcurl " + grpcurlFlag + " -d '' -format text " + hostname + " grpc.health.v1.Health/Check; do echo waiting for registry; sleep 2; done",
+					"until grpcurl -H \"authorization: Bearer $(cat /var/run/secrets/kubernetes.io/serviceaccount/token)\" " +
+						grpcurlFlag + " -d '' -format text " + hostname + " grpc.health.v1.Health/Check; do echo waiting for registry; sleep 2; done",
 				},
 			},
 		}
@@ -630,19 +636,13 @@ func (feast *FeastServices) isRemoteRegistry() bool {
 }
 
 func (feast *FeastServices) IsRemoteRefRegistry() bool {
-	if feast.isRemoteRegistry() {
-		remote := feast.Handler.FeatureStore.Status.Applied.Services.Registry.Remote
-		return remote != nil && remote.FeastRef != nil
-	}
-	return false
+	return feast.isRemoteRegistry() &&
+		feast.Handler.FeatureStore.Status.Applied.Services.Registry.Remote.FeastRef != nil
 }
 
 func (feast *FeastServices) isRemoteHostnameRegistry() bool {
-	if feast.isRemoteRegistry() {
-		remote := feast.Handler.FeatureStore.Status.Applied.Services.Registry.Remote
-		return remote != nil && remote.Hostname != nil
-	}
-	return false
+	return feast.isRemoteRegistry() &&
+		feast.Handler.FeatureStore.Status.Applied.Services.Registry.Remote.Hostname != nil
 }
 
 func (feast *FeastServices) isOfflinStore() bool {
