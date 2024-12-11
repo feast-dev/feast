@@ -78,7 +78,7 @@ sqlalchemy_config_kwargs:
   pool_pre_ping: true
 `
 
-var invalidSecretContainingTypeYamlString = `
+var secretContainingValidTypeYamlString = `
 type: cassandra
 hosts:
   - 192.168.1.1
@@ -458,7 +458,7 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 			secret := &corev1.Secret{}
 			err = k8sClient.Get(ctx, onlineSecretNamespacedName, secret)
 			Expect(err).NotTo(HaveOccurred())
-			secret.Data[string(services.OnlineDBPersistenceCassandraConfigType)] = []byte(invalidSecretContainingTypeYamlString)
+			secret.Data[string(services.OnlineDBPersistenceCassandraConfigType)] = []byte(secretContainingValidTypeYamlString)
 			Expect(k8sClient.Update(ctx, secret)).To(Succeed())
 
 			resource.Spec.Services.OnlineStore.Persistence.DBPersistence.SecretRef = corev1.LocalObjectReference{Name: "online-store-secret"}
