@@ -67,8 +67,8 @@ spec:
 
               cp -f /feast-client/feature_store.yaml .;
 
-              #cd /feast-init;
-              #curl -O https://raw.githubusercontent.com/feast-dev/feast/refs/tags/v0.42.0/examples/quickstart/quickstart.ipynb;
+              cd /feast-init;
+              wget https://raw.githubusercontent.com/feast-dev/feast/refs/tags/v0.42.0/examples/quickstart/quickstart.ipynb;
           volumeMounts:
             - name: client-feature-store-config
               mountPath: /feast-client
@@ -81,6 +81,10 @@ spec:
           imagePullPolicy: Always
           #workingDir: /feast-init/sample/feature_repo
           #command: ["sleep", "infinity"]
+          resources:
+            requests:
+              memory: 1Gi
+              cpu: 200m
           volumeMounts:
             - name: client-feature-store-config
               mountPath: /feast-client
