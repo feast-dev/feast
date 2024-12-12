@@ -8,7 +8,7 @@ RUN mkdir -p ~/miniconda3 && \
     rm ~/miniconda3/miniconda.sh
 
 RUN source ~/miniconda3/bin/activate && \
-    conda install -n base libarchive -c main --force-reinstall && \
+    conda install -n base libarchive -c main --force-reinstall --solver classic && \
     conda install -c conda-forge pyarrow=18.1 libarrow-flight && \
     conda clean
 
