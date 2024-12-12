@@ -76,12 +76,10 @@ spec:
         - name: client
           image: 'quay.io/tchughesiv/scipy-notebook:python-3.11-uid'
           imagePullPolicy: Always
-          #workingDir: /feast-init/sample/feature_repo
-          #command: ["sleep", "infinity"]
           resources:
             requests:
-              memory: 1Gi
-              cpu: 200m
+              memory: 512Mi
+              cpu: 100m
           volumeMounts:
             - name: client-feature-store-config
               mountPath: /feast-client
