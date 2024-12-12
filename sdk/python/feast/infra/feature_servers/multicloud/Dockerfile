@@ -1,6 +1,7 @@
 FROM registry.access.redhat.com/ubi9/python-311:9.5
 
 ARG VERSION
+
 RUN conda install -c conda-forge pyarrow libarrow-flight
 RUN pip install --no-cache-dir "feast[aws,gcp,snowflake,redis,go,mysql,postgres,opentelemetry,grpcio,k8s]"==${VERSION}
 
