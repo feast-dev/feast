@@ -7,5 +7,7 @@ RUN chgrp -R 0 /home/jovyan && \
 
 USER jovyan
 
+COPY quickstart.ipynb .
+
 RUN conda install -y -c conda-forge pyarrow libarrow-flight
 RUN pip install --no-cache-dir "feast[aws,gcp,snowflake,redis,go,mysql,postgres,opentelemetry,grpcio,k8s]"==0.42.0
