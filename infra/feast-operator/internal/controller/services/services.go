@@ -373,13 +373,6 @@ func (feast *FeastServices) getContainerCommand(feastType FeastServiceType) []st
 	}
 	deploySettings.Args = append(deploySettings.Args, []string{"-p", strconv.Itoa(int(targetPort))}...)
 
-	if feastType == OfflineFeastType {
-		if tls.IsTLS() && feast.Handler.FeatureStore.Status.Applied.Services.OfflineStore.TLS.VerifyClient != nil {
-			deploySettings.Args = append(deploySettings.Args,
-				[]string{"--verify_client", strconv.FormatBool(*feast.Handler.FeatureStore.Status.Applied.Services.OfflineStore.TLS.VerifyClient)}...)
-		}
-	}
-
 	// Combine base command, options, and arguments
 	feastCommand := append([]string{baseCommand}, options...)
 	feastCommand = append(feastCommand, deploySettings.Args...)
@@ -549,11 +542,8 @@ func (feast *FeastServices) setServiceHostnames() error {
 	domain := svcDomain + ":"
 	if feast.isOfflinStore() {
 		objMeta := feast.GetObjectMeta(OfflineFeastType)
-		port := strconv.Itoa(HttpPort)
-		if feast.offlineTls() {
-			port = strconv.Itoa(HttpsPort)
-		}
-		feast.Handler.FeatureStore.Status.ServiceHostnames.OfflineStore = objMeta.Name + "." + objMeta.Namespace + domain + port
+		feast.Handler.FeatureStore.Status.ServiceHostnames.OfflineStore = objMeta.Name + "." + objMeta.Namespace + domain +
+			getPortStr(feast.Handler.FeatureStore.Status.Applied.Services.OfflineStore.TLS)
 	}
 	if feast.isOnlinStore() {
 		objMeta := feast.GetObjectMeta(OnlineFeastType)

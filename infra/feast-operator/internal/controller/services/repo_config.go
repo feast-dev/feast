@@ -248,9 +248,8 @@ func getClientRepoConfig(
 			Host: strings.Split(status.ServiceHostnames.OfflineStore, ":")[0],
 			Port: HttpPort,
 		}
-		if appliedServices.OfflineStore != nil && appliedServices.OfflineStore.TLS != nil &&
-			(&appliedServices.OfflineStore.TLS.TlsConfigs).IsTLS() {
-			clientRepoConfig.OfflineStore.Cert = GetTlsPath(OfflineFeastType) + appliedServices.OfflineStore.TLS.TlsConfigs.SecretKeyNames.TlsCrt
+		if appliedServices.OfflineStore != nil && appliedServices.OfflineStore.TLS.IsTLS() {
+			clientRepoConfig.OfflineStore.Cert = GetTlsPath(OfflineFeastType) + appliedServices.OfflineStore.TLS.SecretKeyNames.TlsCrt
 			clientRepoConfig.OfflineStore.Port = HttpsPort
 			clientRepoConfig.OfflineStore.Scheme = HttpsScheme
 		}

@@ -29,7 +29,7 @@ func (feast *FeastServices) setTlsDefaults() error {
 	}
 	appliedServices := feast.Handler.FeatureStore.Status.Applied.Services
 	if feast.isOfflinStore() && appliedServices.OfflineStore.TLS != nil {
-		tlsDefaults(&appliedServices.OfflineStore.TLS.TlsConfigs)
+		tlsDefaults(appliedServices.OfflineStore.TLS)
 	}
 	if feast.isOnlinStore() {
 		tlsDefaults(appliedServices.OnlineStore.TLS)
@@ -43,11 +43,9 @@ func (feast *FeastServices) setTlsDefaults() error {
 func (feast *FeastServices) setOpenshiftTls() error {
 	appliedServices := feast.Handler.FeatureStore.Status.Applied.Services
 	if feast.offlineOpenshiftTls() {
-		appliedServices.OfflineStore.TLS = &feastdevv1alpha1.OfflineTlsConfigs{
-			TlsConfigs: feastdevv1alpha1.TlsConfigs{
-				SecretRef: &corev1.LocalObjectReference{
-					Name: feast.initFeastSvc(OfflineFeastType).Name + tlsNameSuffix,
-				},
+		appliedServices.OfflineStore.TLS = &feastdevv1alpha1.TlsConfigs{
+			SecretRef: &corev1.LocalObjectReference{
+				Name: feast.initFeastSvc(OfflineFeastType).Name + tlsNameSuffix,
 			},
 		}
 	}
@@ -103,8 +101,8 @@ func (feast *FeastServices) getTlsConfigs(feastType FeastServiceType) (tls *feas
 	appliedServices := feast.Handler.FeatureStore.Status.Applied.Services
 	switch feastType {
 	case OfflineFeastType:
-		if feast.isOfflinStore() && appliedServices.OfflineStore.TLS != nil {
-			tls = &appliedServices.OfflineStore.TLS.TlsConfigs
+		if feast.isOfflinStore() {
+			tls = appliedServices.OfflineStore.TLS
 		}
 	case OnlineFeastType:
 		if feast.isOnlinStore() {
@@ -152,12 +150,6 @@ func (feast *FeastServices) remoteRegistryOpenshiftTls() (bool, error) {
 			nil
 	}
 	return false, nil
-}
-
-func (feast *FeastServices) offlineTls() bool {
-	return feast.isOfflinStore() &&
-		feast.Handler.FeatureStore.Status.Applied.Services.OfflineStore.TLS != nil &&
-		(&feast.Handler.FeatureStore.Status.Applied.Services.OfflineStore.TLS.TlsConfigs).IsTLS()
 }
 
 func (feast *FeastServices) localRegistryTls() bool {
