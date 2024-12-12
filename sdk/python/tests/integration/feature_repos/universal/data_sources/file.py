@@ -451,10 +451,7 @@ class RemoteOfflineTlsStoreDataSourceCreator(FileDataSourceCreator):
             "--key",
             str(tls_key_path),
             "--cert",
-            str(self.tls_cert_path),
-            # This is needed for the self-signed certificate, disabled verify_client for integration tests.
-            "--verify_client",
-            str(False),
+            str(self.tls_cert_path)
         ]
         self.proc = subprocess.Popen(
             cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL

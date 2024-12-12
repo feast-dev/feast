@@ -45,7 +45,6 @@ class OfflineServer(fl.FlightServerBase):
         location: str,
         host: str = "localhost",
         tls_certificates: List = [],
-        verify_client=False,
         **kwargs,
     ):
         super(OfflineServer, self).__init__(
@@ -54,7 +53,7 @@ class OfflineServer(fl.FlightServerBase):
                 str_to_auth_manager_type(store.config.auth_config.type)
             ),
             tls_certificates=tls_certificates,
-            verify_client=verify_client,
+            verify_client=False, # this is needed for when we don't need mTLS
             **kwargs,
         )
         self._location = location
@@ -568,7 +567,6 @@ def start_server(
     port: int,
     tls_key_path: str = "",
     tls_cert_path: str = "",
-    tls_verify_client: bool = True,
 ):
     _init_auth_manager(store)
 
@@ -591,7 +589,6 @@ def start_server(
         location=location,
         host=host,
         tls_certificates=tls_certificates,
-        verify_client=tls_verify_client,
     )
     try:
         logger.info(f"Offline store server serving at: {location}")
