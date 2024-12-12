@@ -1,16 +1,14 @@
 FROM registry.access.redhat.com/ubi9/python-311:9.5
 
+COPY --chown=default . ${APP_ROOT}/src
+
 RUN mkdir -p ~/miniconda3 && \
     wget https://repo.anaconda.com/miniconda/Miniconda3-py311_24.9.2-0-Linux-x86_64.sh -O ~/miniconda3/miniconda.sh && \
     bash ~/miniconda3/miniconda.sh -b -u -p ~/miniconda3 && \
     rm ~/miniconda3/miniconda.sh
 
-COPY --chown=default . ${APP_ROOT}/src
-
 RUN source ~/miniconda3/bin/activate && \
-    # make sure conda-forge is the only channel
-    #conda config --add channels conda-forge && \
-    #conda config --remove channels defaults && \
+    conda config --add channels conda-forge && \
     # update all packages to make sure they're from conda-forge, not defaults
     conda update --all && \
     conda install -c conda-forge pyarrow=18.1 libarrow-flight && \
