@@ -561,3 +561,106 @@ def test_sqlite_vec_import() -> None:
     """).fetchall()
     result = [(rowid, round(distance, 2)) for rowid, distance in result]
     assert result == [(2, 2.39), (1, 2.39)]
+
+
+@pytest.mark.integration
+def test_milvus_get_online_documents() -> None:
+    n = 10
+    vector_length = 8
+    runner = CliRunner()
+    with runner.local_repo(
+        get_example_repo("example_feature_repo_1.py"), "file"
+    ) as store:
+        store.config.online_store = {
+            "type": "milvus",
+            "host": "localhost",
+            "port": 19530,
+            "vector_len": vector_length,
+            "similarity": "l2",
+        }
+
+        document_embeddings_fv = store.get_feature_view(name="document_embeddings")
+        provider = store._get_provider()
+
+        item_keys = [
+            EntityKeyProto(
+                join_keys=["item_id"], entity_values=[ValueProto(int64_val=i)]
+            )
+            for i in range(n)
+        ]
+        data = []
+        for item_key in item_keys:
+            data.append(
+                (
+                    item_key,
+                    {
+                        "Embeddings": ValueProto(
+                            float_list_val=FloatListProto(
+                                val=np.random.random(vector_length)
+                            )
+                        )
+                    },
+                    _utc_now(),
+                    _utc_now(),
+                )
+            )
+
+        provider.online_write_batch(
+            config=store.config,
+            table=document_embeddings_fv,
+            data=data,
+            progress=None,
+        )
+
+        query_embedding = np.random.random(vector_length)
+        result = store.retrieve_online_documents(
+            feature="document_embeddings:Embeddings",
+            query=query_embedding,
+            top_k=3,
+            distance_metric="l2",
+        ).to_dict()
+
+        assert "Embeddings" in result
+        assert "distance" in result
+        assert len(result["distance"]) == 3
+        assert len(result["item_id"]) == 3
+
+        result = store.retrieve_online_documents(
+            feature="document_embeddings:Embeddings",
+            query=query_embedding,
+            top_k=3,
+            distance_metric="dot",
+        ).to_dict()
+
+        assert "Embeddings" in result
+        assert "distance" in result
+        assert len(result["distance"]) == 3
+        assert len(result["item_id"]) == 3
+
+        result = store.retrieve_online_documents(
+            feature="document_embeddings:Embeddings",
+            query=query_embedding,
+            top_k=3,
+            distance_metric="cosine",
+        ).to_dict()
+
+        assert "Embeddings" in result
+        assert "distance" in result
+        assert len(result["distance"]) == 3
+        assert len(result["item_id"]) == 3
+
+        with pytest.raises(ValueError):
+            store.retrieve_online_documents(
+                feature="document_embeddings:Embeddings",
+                query=query_embedding,
+                top_k=3,
+                distance_metric="wrong",
+            ).to_dict()
+
+        with pytest.raises(ValueError):
+            store.retrieve_online_documents(
+                feature="document_embeddings:Embeddings",
+                query=np.random.random(vector_length + 1),
+                top_k=3,
+                distance_metric="l2",
+            ).to_dict()
