@@ -20,8 +20,8 @@ on:
         type: boolean
 
 jobs:
-  if: github.repository == 'feast-dev/feast'
   get_dry_release_versions:
+    if: github.repository == 'feast-dev/feast'
     runs-on: ubuntu-latest
     env:
       GITHUB_TOKEN: ${{ github.event.inputs.token }}
