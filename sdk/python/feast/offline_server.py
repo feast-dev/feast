@@ -53,7 +53,7 @@ class OfflineServer(fl.FlightServerBase):
                 str_to_auth_manager_type(store.config.auth_config.type)
             ),
             tls_certificates=tls_certificates,
-            verify_client=False, # this is needed for when we don't need mTLS
+            verify_client=False,  # this is needed for when we don't need mTLS
             **kwargs,
         )
         self._location = location

@@ -451,7 +451,7 @@ class RemoteOfflineTlsStoreDataSourceCreator(FileDataSourceCreator):
             "--key",
             str(tls_key_path),
             "--cert",
-            str(self.tls_cert_path)
+            str(self.tls_cert_path),
         ]
         self.proc = subprocess.Popen(
             cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL
