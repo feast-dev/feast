@@ -65,6 +65,8 @@ class SparkSource(DataSource):
                 maintainer.
             timestamp_field: Event timestamp field used for point-in-time joins of
                 feature values.
+            date_partition_column: The column to partition the data on for faster
+                retrieval. This is useful for large tables and will limit the number ofi
         """
         # If no name, use the table as the default name.
         if name is None and table is None:
