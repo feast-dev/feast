@@ -2,6 +2,7 @@ FROM registry.access.redhat.com/ubi9/python-311:9.5
 
 COPY --chown=default . ${APP_ROOT}/src
 
+RUN conda install -c conda-forge pyarrow libarrow-flight
 RUN pip install --no-cache-dir pip-tools
 RUN make install-python-ci-dependencies
 
