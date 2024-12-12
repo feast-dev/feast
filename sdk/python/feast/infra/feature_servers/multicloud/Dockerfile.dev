@@ -8,7 +8,11 @@ RUN mkdir -p ~/miniconda3 && \
     rm ~/miniconda3/miniconda.sh
 
 RUN source ~/miniconda3/bin/activate && \
-    conda install -n base libarchive -c main --force-reinstall --solver classic && \
+    # make sure conda-forge is the only channel
+    conda config --remove channels defaults && \
+    conda config --add channels conda-forge && \
+    # update all packages to make sure they're from conda-forge, not defaults
+    conda update --all && \
     conda install -c conda-forge pyarrow=18.1 libarrow-flight && \
     conda clean
 
