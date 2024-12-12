@@ -66,9 +66,6 @@ spec:
               feast materialize-incremental $CURRENT_TIME;
 
               cp -f /feast-client/feature_store.yaml .;
-
-              cd /feast-init;
-              wget https://raw.githubusercontent.com/feast-dev/feast/refs/tags/v0.42.0/examples/quickstart/quickstart.ipynb;
           volumeMounts:
             - name: client-feature-store-config
               mountPath: /feast-client
