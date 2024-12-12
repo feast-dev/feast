@@ -39,6 +39,7 @@ _Appears in:_
 - [OfflineStore](#offlinestore)
 - [OnlineStore](#onlinestore)
 - [ServiceConfigs](#serviceconfigs)
+- [StoreServiceConfigs](#storeserviceconfigs)
 
 | Field | Description |
 | --- | --- |
@@ -181,6 +182,8 @@ _Appears in:_
 
 | Field | Description |
 | --- | --- |
+| `replicas` _integer_ | Replicas determines the number of pods for the feast service.
+When Replicas > 1, persistence is recommended. |
 | `image` _string_ |  |
 | `env` _[EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#envvar-v1-core)_ |  |
 | `imagePullPolicy` _[PullPolicy](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#pullpolicy-v1-core)_ |  |
@@ -280,6 +283,8 @@ _Appears in:_
 
 | Field | Description |
 | --- | --- |
+| `replicas` _integer_ | Replicas determines the number of pods for the feast service.
+When Replicas > 1, persistence is recommended. |
 | `image` _string_ |  |
 | `env` _[EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#envvar-v1-core)_ |  |
 | `imagePullPolicy` _[PullPolicy](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#pullpolicy-v1-core)_ |  |
@@ -347,6 +352,7 @@ _Appears in:_
 - [OfflineStore](#offlinestore)
 - [OnlineStore](#onlinestore)
 - [ServiceConfigs](#serviceconfigs)
+- [StoreServiceConfigs](#storeserviceconfigs)
 
 | Field | Description |
 | --- | --- |
@@ -465,6 +471,7 @@ _Appears in:_
 - [LocalRegistryConfig](#localregistryconfig)
 - [OfflineStore](#offlinestore)
 - [OnlineStore](#onlinestore)
+- [StoreServiceConfigs](#storeserviceconfigs)
 
 | Field | Description |
 | --- | --- |
@@ -488,6 +495,26 @@ _Appears in:_
 | `offlineStore` _string_ |  |
 | `onlineStore` _string_ |  |
 | `registry` _string_ |  |
+
+
+#### StoreServiceConfigs
+
+
+
+StoreServiceConfigs k8s deployment settings
+
+_Appears in:_
+- [OfflineStore](#offlinestore)
+- [OnlineStore](#onlinestore)
+
+| Field | Description |
+| --- | --- |
+| `replicas` _integer_ | Replicas determines the number of pods for the feast service.
+When Replicas > 1, persistence is recommended. |
+| `image` _string_ |  |
+| `env` _[EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#envvar-v1-core)_ |  |
+| `imagePullPolicy` _[PullPolicy](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#pullpolicy-v1-core)_ |  |
+| `resources` _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core)_ |  |
 
 
 #### TlsConfigs
