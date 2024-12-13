@@ -20,6 +20,7 @@ import (
 	"github.com/feast-dev/feast/infra/feast-operator/api/feastversion"
 	feastdevv1alpha1 "github.com/feast-dev/feast/infra/feast-operator/api/v1alpha1"
 	handler "github.com/feast-dev/feast/infra/feast-operator/internal/controller/handler"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -80,10 +81,11 @@ const (
 )
 
 var (
-	DefaultImage        = "feastdev/feature-server:" + feastversion.FeastVersion
-	DefaultReplicas     = int32(1)
-	NameLabelKey        = feastdevv1alpha1.GroupVersion.Group + "/name"
-	ServiceTypeLabelKey = feastdevv1alpha1.GroupVersion.Group + "/service-type"
+	DefaultImage          = "feastdev/feature-server:" + feastversion.FeastVersion
+	DefaultReplicas       = int32(1)
+	DefaultPVCAccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}
+	NameLabelKey          = feastdevv1alpha1.GroupVersion.Group + "/name"
+	ServiceTypeLabelKey   = feastdevv1alpha1.GroupVersion.Group + "/service-type"
 
 	FeastServiceConstants = map[FeastServiceType]deploymentSettings{
 		OfflineFeastType: {
