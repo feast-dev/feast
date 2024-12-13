@@ -119,10 +119,10 @@ def feast_value_type_to_pandas_type(value_type: ValueType) -> Any:
 
 
 def python_type_to_feast_value_type(
-    name: str,
-    value: Optional[Any] = None,
-    recurse: bool = True,
-    type_name: Optional[str] = None,
+        name: str,
+        value: Optional[Any] = None,
+        recurse: bool = True,
+        type_name: Optional[str] = None,
 ) -> ValueType:
     """
     Finds the equivalent Feast Value Type for a Python value. Both native
@@ -197,8 +197,8 @@ def python_type_to_feast_value_type(
                 )
             # Validate whether the type stays consistent
             if (
-                common_item_value_type
-                and not common_item_value_type == current_item_value_type
+                    common_item_value_type
+                    and not common_item_value_type == current_item_value_type
             ):
                 raise ValueError(
                     f"List value type for field {name} is inconsistent. "
@@ -217,7 +217,7 @@ def python_type_to_feast_value_type(
 
 
 def python_values_to_feast_value_type(
-    name: str, values: Any, recurse: bool = True
+        name: str, values: Any, recurse: bool = True
 ) -> ValueType:
     inferred_dtype = ValueType.UNKNOWN
     for row in values:
@@ -229,8 +229,8 @@ def python_values_to_feast_value_type(
             inferred_dtype = current_dtype
         else:
             if current_dtype != inferred_dtype and current_dtype not in (
-                ValueType.UNKNOWN,
-                ValueType.NULL,
+                    ValueType.UNKNOWN,
+                    ValueType.NULL,
             ):
                 raise TypeError(
                     f"Input entity {name} has mixed types, {current_dtype} and {inferred_dtype}. That is not allowed. "
@@ -318,7 +318,7 @@ PYTHON_SCALAR_VALUE_TYPE_TO_PROTO_VALUE: Dict[
 
 
 def _python_datetime_to_int_timestamp(
-    values: Sequence[Any],
+        values: Sequence[Any],
 ) -> Sequence[Union[int, np.int_]]:
     # Fast path for Numpy array.
     if isinstance(values, np.ndarray) and isinstance(values.dtype, np.datetime64):
@@ -342,7 +342,7 @@ def _python_datetime_to_int_timestamp(
 
 
 def _python_value_to_proto_value(
-    feast_value_type: ValueType, values: List[Any]
+        feast_value_type: ValueType, values: List[Any]
 ) -> List[ProtoValue]:
     """
     Converts a Python (native, pandas) value to a Feast Proto Value based
@@ -387,7 +387,7 @@ def _python_value_to_proto_value(
                 raise _type_err(sample, valid_types[0])
 
             if sample is not None and not all(
-                type(item) in valid_types for item in sample
+                    type(item) in valid_types for item in sample
             ):
                 # to_numpy() in utils._convert_arrow_to_proto() upcasts values of type Array of INT32 or INT64 with NULL values to Float64 automatically.
                 for item in sample:
@@ -459,11 +459,11 @@ def _python_value_to_proto_value(
                 # So, if value is 0, type validation must pass if scalar_types are either int or float.
                 allowed_types = {np.int64, int, np.float64, float}
                 assert (
-                    type(sample) in allowed_types
+                        type(sample) in allowed_types
                 ), f"Type `{type(sample)}` not in {allowed_types}"
             else:
                 assert (
-                    type(sample) in valid_scalar_types
+                        type(sample) in valid_scalar_types
                 ), f"Type `{type(sample)}` not in {valid_scalar_types}"
         if feast_value_type == ValueType.BOOL:
             # ProtoValue does not support conversion of np.bool_ so we need to convert it to support np.bool_.
@@ -496,7 +496,7 @@ def _python_value_to_proto_value(
 
 
 def python_values_to_proto_values(
-    values: List[Any], feature_type: ValueType = ValueType.UNKNOWN
+        values: List[Any], feature_type: ValueType = ValueType.UNKNOWN
 ) -> List[ProtoValue]:
     value_type = feature_type
     sample = next(filter(_non_empty_value, values), None)  # first not empty value
@@ -523,6 +523,25 @@ def python_values_to_proto_values(
     return proto_values
 
 
+PROTO_VALUE_TO_VALUE_TYPE_MAP: Dict[str, ValueType] = {
+    "int32_val": ValueType.INT32,
+    "int64_val": ValueType.INT64,
+    "double_val": ValueType.DOUBLE,
+    "float_val": ValueType.FLOAT,
+    "string_val": ValueType.STRING,
+    "bytes_val": ValueType.BYTES,
+    "bool_val": ValueType.BOOL,
+    "int32_list_val": ValueType.INT32_LIST,
+    "int64_list_val": ValueType.INT64_LIST,
+    "double_list_val": ValueType.DOUBLE_LIST,
+    "float_list_val": ValueType.FLOAT_LIST,
+    "string_list_val": ValueType.STRING_LIST,
+    "bytes_list_val": ValueType.BYTES_LIST,
+    "bool_list_val": ValueType.BOOL_LIST,
+    None: ValueType.NULL,
+}
+
+
 def _proto_value_to_value_type(proto_value: ProtoValue) -> ValueType:
     """
     Returns Feast ValueType given Feast ValueType string.
@@ -534,25 +553,7 @@ def _proto_value_to_value_type(proto_value: ProtoValue) -> ValueType:
         A variant of ValueType.
     """
     proto_str = proto_value.WhichOneof("val")
-    type_map = {
-        "int32_val": ValueType.INT32,
-        "int64_val": ValueType.INT64,
-        "double_val": ValueType.DOUBLE,
-        "float_val": ValueType.FLOAT,
-        "string_val": ValueType.STRING,
-        "bytes_val": ValueType.BYTES,
-        "bool_val": ValueType.BOOL,
-        "int32_list_val": ValueType.INT32_LIST,
-        "int64_list_val": ValueType.INT64_LIST,
-        "double_list_val": ValueType.DOUBLE_LIST,
-        "float_list_val": ValueType.FLOAT_LIST,
-        "string_list_val": ValueType.STRING_LIST,
-        "bytes_list_val": ValueType.BYTES_LIST,
-        "bool_list_val": ValueType.BOOL_LIST,
-        None: ValueType.NULL,
-    }
-
-    return type_map[proto_str]
+    return PROTO_VALUE_TO_VALUE_TYPE_MAP[proto_str]
 
 
 def pa_to_feast_value_type(pa_type_as_str: str) -> ValueType:
@@ -793,7 +794,7 @@ def _non_empty_value(value: Any) -> bool:
     String is special case: "" - empty string is considered non empty
     """
     return value is not None and (
-        not isinstance(value, Sized) or len(value) > 0 or isinstance(value, str)
+            not isinstance(value, Sized) or len(value) > 0 or isinstance(value, str)
     )
 
 
@@ -929,7 +930,7 @@ def pg_type_to_feast_value_type(type_str: str) -> ValueType:
 
 
 def feast_value_type_to_pa(
-    feast_type: ValueType, timestamp_unit: str = "us"
+        feast_type: ValueType, timestamp_unit: str = "us"
 ) -> "pyarrow.DataType":
     import pyarrow
 

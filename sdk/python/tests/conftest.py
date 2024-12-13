@@ -209,19 +209,20 @@ from tests.integration.feature_repos.integration_test_repo_config import (
     IntegrationTestRepoConfig,
 )
 from tests.integration.feature_repos.universal.online_store.milvus import MilvusOnlineStoreCreator
+from tests.integration.feature_repos.universal.data_sources.file import FileDataSourceCreator
+
 
 @pytest.fixture
 def vectordb_environment(request, worker_id):
     milvus_config = IntegrationTestRepoConfig(
-        provider="milvus",
+        provider="local",
         online_store_creator=MilvusOnlineStoreCreator,
-        offline_store_creator='',
-        batch_engine={})
+        offline_store_creator=FileDataSourceCreator,
+    )
     e = construct_test_environment(
         milvus_config,
-        request.param,
-        worker_id=worker_id,
         fixture_request=request,
+        worker_id=worker_id,
         entity_key_serialization_version=3,
     )
 
@@ -233,7 +234,7 @@ def vectordb_environment(request, worker_id):
     else:
         yield e
 
-    e.teardown()
+    # e.teardown()
 
 
 _config_cache: Any = {}
