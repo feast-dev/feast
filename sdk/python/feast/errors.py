@@ -170,6 +170,11 @@ class S3RegistryBucketForbiddenAccess(FeastObjectNotFoundException):
         super().__init__(f"S3 bucket {bucket} for the Feast registry can't be accessed")
 
 
+class S3RegistryPathInvalid(FeastObjectNotFoundException):
+    def __init__(self, path):
+        super().__init__(f"Invalid S3 path: {path}")
+
+
 class SavedDatasetNotFound(FeastObjectNotFoundException):
     def __init__(self, name: str, project: str):
         super().__init__(f"Saved dataset {name} does not exist in project {project}")

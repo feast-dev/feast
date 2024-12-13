@@ -33,7 +33,7 @@ REQUIRED = [
     "click>=7.0.0,<9.0.0",
     "colorama>=0.3.9,<1",
     "dill~=0.3.0",
-    "protobuf>=4.24.0,<5.0.0",
+    "protobuf>=4.24.0",
     "Jinja2>=2,<4",
     "jsonschema",
     "mmh3",
@@ -46,7 +46,7 @@ REQUIRED = [
     "requests",
     "SQLAlchemy[mypy]>1",
     "tabulate>=0.8.0,<1",
-    "tenacity>=7,<9",
+    "tenacity>=7",
     "toml>=0.10.0,<1",
     "tqdm>=4,<5",
     "typeguard>=4.0.0",
@@ -73,8 +73,8 @@ GCP_REQUIRED = [
 ]
 
 REDIS_REQUIRED = [
-    "redis>=4.2.2,<5",
-    "hiredis>=2.0.0,<3",
+    "redis>=4.2.2,<6",
+    "hiredis>=2.0.0,<4",
 ]
 
 AWS_REQUIRED = ["boto3>=1.17.0,<2", "fsspec<=2024.9.0", "aiobotocore>2,<3"]
@@ -159,6 +159,7 @@ GO_REQUIRED = ["cffi~=1.15.0"]
 CI_REQUIRED = (
     [
         "build",
+        "boto3-stubs[essential,s3]",
         "virtualenv==20.23.0",
         "cryptography>=35.0,<43",
         "ruff>=0.8.0",
@@ -242,13 +243,19 @@ with open(README_FILE, "r", encoding="utf8") as f:
 # Add Support for parsing tags that have a prefix containing '/' (ie 'sdk/go') to setuptools_scm.
 # Regex modified from default tag regex in:
 # https://github.com/pypa/setuptools_scm/blob/2a1b46d38fb2b8aeac09853e660bcd0d7c1bc7be/src/setuptools_scm/config.py#L9
+# we have also added a strict zing suffix requirement to the tag version
 TAG_REGEX = re.compile(
-    r"^(?:[\/\w-]+)?(?P<version>[vV]?\d+(?:\.\d+){0,2}[^\+]*)(?:\+.*)?$"
+    r"^(?:[\/\w-]+)?(?P<version>[vV]?\d+(?:\.\d+){0,2}\+zing\.\d+)$"
 )
 
 # Only set use_scm_version if git executable exists (setting this variable causes pip to use git under the hood)
 if shutil.which("git"):
-    use_scm_version = {"root": ".", "relative_to": __file__, "tag_regex": TAG_REGEX}
+    use_scm_version = {
+        "root": ".",
+        "relative_to": __file__,
+        "tag_regex": TAG_REGEX,
+        "local_scheme": "no-local-version",
+    }
 else:
     use_scm_version = None
 
