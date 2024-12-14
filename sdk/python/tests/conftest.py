@@ -205,11 +205,9 @@ def environment(request, worker_id):
     e.teardown()
 
 
-from tests.integration.feature_repos.integration_test_repo_config import (
-    IntegrationTestRepoConfig,
+from tests.integration.feature_repos.universal.online_store.milvus import (
+    MilvusOnlineStoreCreator,
 )
-from tests.integration.feature_repos.universal.online_store.milvus import MilvusOnlineStoreCreator
-from tests.integration.feature_repos.universal.data_sources.file import FileDataSourceCreator
 
 
 @pytest.fixture
