@@ -13,7 +13,6 @@ from feast.errors import (
 )
 from feast.permissions.permission import Permission
 from feast.registry_server import start_server
-from feast.ssl_ca_setup import configure_ssl_ca
 from feast.wait import wait_retry_backoff  # noqa: E402
 from tests.unit.permissions.auth.server import mock_utils
 from tests.unit.permissions.auth.server.test_utils import (
@@ -45,9 +44,9 @@ def start_registry_server(
 
     assertpy.assert_that(server_port).is_not_equal_to(0)
 
-    is_tls_mode, tls_key_path, tls_cert_path, tls_ca_file_path= tls_mode
+    is_tls_mode, tls_key_path, tls_cert_path, tls_ca_file_path = tls_mode
     if is_tls_mode:
-        #configure_ssl_ca(ca_file_path=tls_ca_file_path)
+        # configure_ssl_ca(ca_file_path=tls_ca_file_path)
         # Setting the ca_trust_store_path environment variables.
         print(f"Starting Registry in TLS mode at {server_port}")
         server = start_server(
@@ -77,11 +76,9 @@ def start_registry_server(
     server.stop(grace=None)  # Teardown server
 
 
-@pytest.mark.parametrize("tls_mode", [
-    ("True", "True"),
-    ("True", "False"),
-    ("False", "")
-], indirect=True)
+@pytest.mark.parametrize(
+    "tls_mode", [("True", "True"), ("True", "False"), ("False", "")], indirect=True
+)
 def test_registry_apis(
     auth_config,
     tls_mode,

@@ -22,11 +22,9 @@ logger = logging.getLogger(__name__)
 
 
 @pytest.mark.integration
-@pytest.mark.parametrize("tls_mode", [
-    ("True", "True"),
-    ("True", "False"),
-    ("False", "")
-], indirect=True)
+@pytest.mark.parametrize(
+    "tls_mode", [("True", "True"), ("True", "False"), ("False", "")], indirect=True
+)
 def test_remote_online_store_read(auth_config, tls_mode):
     with (
         tempfile.TemporaryDirectory() as remote_server_tmp_dir,
@@ -208,7 +206,7 @@ def _create_remote_client_feature_store(
     server_registry_path: str,
     feature_server_url: str,
     auth_config: str,
-    tls_mode
+    tls_mode,
 ) -> FeatureStore:
     project_name = "REMOTE_ONLINE_CLIENT_PROJECT"
     runner = CliRunner()
@@ -221,7 +219,7 @@ def _create_remote_client_feature_store(
             repo_path=str(repo_path),
             registry_path=server_registry_path,
             feature_server_url=feature_server_url,
-            auth_config=auth_config
+            auth_config=auth_config,
         )
     else:
         _overwrite_remote_client_feature_store_yaml(

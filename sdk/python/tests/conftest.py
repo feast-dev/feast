@@ -59,7 +59,10 @@ from tests.integration.feature_repos.universal.entities import (  # noqa: E402
 )
 from tests.utils.auth_permissions_util import default_store
 from tests.utils.http_server import check_port_open, free_port  # noqa: E402
-from tests.utils.ssl_certifcates_util import create_ca_trust_store, generate_self_signed_cert
+from tests.utils.ssl_certifcates_util import (
+    create_ca_trust_store,
+    generate_self_signed_cert,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -529,7 +532,11 @@ def tls_mode(request):
         is_ca_trust_store_set = request.param[1]
         if is_ca_trust_store_set:
             ca_trust_store_path = os.path.join(certificates_path, "ca_trust_store.pem")
-            create_ca_trust_store(public_key_path=tls_cert_path, private_key_path=tls_key_path, output_trust_store_path=ca_trust_store_path)
+            create_ca_trust_store(
+                public_key_path=tls_cert_path,
+                private_key_path=tls_key_path,
+                output_trust_store_path=ca_trust_store_path,
+            )
             configure_ssl_ca(ca_file_path=ca_trust_store_path)
     else:
         tls_key_path = ""

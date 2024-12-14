@@ -6,12 +6,8 @@ from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.x509.oid import NameOID
-
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509 import load_pem_x509_certificate
-from cryptography.hazmat.backends import default_backend
+from cryptography.x509.oid import NameOID
 
 logger = logging.getLogger(__name__)
 
@@ -84,7 +80,9 @@ def generate_self_signed_cert(
     )
 
 
-def create_ca_trust_store(public_key_path:str, private_key_path:str, output_trust_store_path:str):
+def create_ca_trust_store(
+    public_key_path: str, private_key_path: str, output_trust_store_path: str
+):
     """
     Create a CA trust store file and add the public certificate to it.
 
@@ -96,7 +94,9 @@ def create_ca_trust_store(public_key_path:str, private_key_path:str, output_trus
         # Read and load the public certificate
         with open(public_key_path, "rb") as pub_file:
             public_cert_data = pub_file.read()
-            public_cert = load_pem_x509_certificate(public_cert_data, backend=default_backend())
+            public_cert = load_pem_x509_certificate(
+                public_cert_data, backend=default_backend()
+            )
 
         # Verify the private key matches (optional, adds validation)
         if private_key_path:
@@ -106,8 +106,13 @@ def create_ca_trust_store(public_key_path:str, private_key_path:str, output_trus
                     private_key_data, password=None, backend=default_backend()
                 )
                 # Check the public/private key match
-                if private_key.public_key().public_numbers() != public_cert.public_key().public_numbers():
-                    raise ValueError("Public certificate does not match the private key.")
+                if (
+                    private_key.public_key().public_numbers()
+                    != public_cert.public_key().public_numbers()
+                ):
+                    raise ValueError(
+                        "Public certificate does not match the private key."
+                    )
 
         # Create or append to the trust store
         with open(output_trust_store_path, "ab") as trust_store_file:
