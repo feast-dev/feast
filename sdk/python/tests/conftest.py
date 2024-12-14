@@ -29,6 +29,7 @@ from _pytest.nodes import Item
 
 from feast.data_source import DataSource
 from feast.feature_store import FeatureStore  # noqa: E402
+from feast.ssl_ca_setup import configure_ssl_ca
 from feast.utils import _utc_now
 from feast.wait import wait_retry_backoff  # noqa: E402
 from tests.data.data_creator import (
@@ -57,8 +58,8 @@ from tests.integration.feature_repos.universal.entities import (  # noqa: E402
     location,
 )
 from tests.utils.auth_permissions_util import default_store
-from tests.utils.generate_self_signed_certifcate_util import generate_self_signed_cert
 from tests.utils.http_server import check_port_open, free_port  # noqa: E402
+from tests.utils.ssl_certifcates_util import create_ca_trust_store, generate_self_signed_cert
 
 logger = logging.getLogger(__name__)
 
@@ -514,17 +515,24 @@ def auth_config(request, is_integration_test):
     return auth_configuration
 
 
-@pytest.fixture(params=[True, False], scope="module")
+@pytest.fixture(scope="module")
 def tls_mode(request):
-    is_tls_mode = request.param
+    is_tls_mode = request.param[0]
+    ca_trust_store_path = ""
 
     if is_tls_mode:
         certificates_path = tempfile.mkdtemp()
         tls_key_path = os.path.join(certificates_path, "key.pem")
         tls_cert_path = os.path.join(certificates_path, "cert.pem")
+
         generate_self_signed_cert(cert_path=tls_cert_path, key_path=tls_key_path)
+        is_ca_trust_store_set = request.param[1]
+        if is_ca_trust_store_set:
+            ca_trust_store_path = os.path.join(certificates_path, "ca_trust_store.pem")
+            create_ca_trust_store(public_key_path=tls_cert_path, private_key_path=tls_key_path, output_trust_store_path=ca_trust_store_path)
+            configure_ssl_ca(ca_file_path=ca_trust_store_path)
     else:
         tls_key_path = ""
         tls_cert_path = ""
 
-    return is_tls_mode, tls_key_path, tls_cert_path
+    return is_tls_mode, tls_key_path, tls_cert_path, ca_trust_store_path

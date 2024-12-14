@@ -8,6 +8,11 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import NameOID
 
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.x509 import load_pem_x509_certificate
+from cryptography.hazmat.backends import default_backend
+
 logger = logging.getLogger(__name__)
 
 
@@ -77,3 +82,38 @@ def generate_self_signed_cert(
     logger.info(
         f"Self-signed certificate and private key have been generated at {cert_path} and {key_path}."
     )
+
+
+def create_ca_trust_store(public_key_path:str, private_key_path:str, output_trust_store_path:str):
+    """
+    Create a CA trust store file and add the public certificate to it.
+
+    :param public_key_path: Path to the public certificate (e.g., PEM file).
+    :param private_key_path: Path to the private key (optional, to verify signing authority).
+    :param output_trust_store_path: Path to save the trust store.
+    """
+    try:
+        # Read and load the public certificate
+        with open(public_key_path, "rb") as pub_file:
+            public_cert_data = pub_file.read()
+            public_cert = load_pem_x509_certificate(public_cert_data, backend=default_backend())
+
+        # Verify the private key matches (optional, adds validation)
+        if private_key_path:
+            with open(private_key_path, "rb") as priv_file:
+                private_key_data = priv_file.read()
+                private_key = serialization.load_pem_private_key(
+                    private_key_data, password=None, backend=default_backend()
+                )
+                # Check the public/private key match
+                if private_key.public_key().public_numbers() != public_cert.public_key().public_numbers():
+                    raise ValueError("Public certificate does not match the private key.")
+
+        # Create or append to the trust store
+        with open(output_trust_store_path, "ab") as trust_store_file:
+            trust_store_file.write(public_cert.public_bytes(serialization.Encoding.PEM))
+
+        print(f"Trust store created/updated successfully at: {output_trust_store_path}")
+
+    except Exception as e:
+        print(f"Error creating CA trust store: {e}")

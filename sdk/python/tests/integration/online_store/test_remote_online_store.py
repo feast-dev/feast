@@ -22,6 +22,11 @@ logger = logging.getLogger(__name__)
 
 
 @pytest.mark.integration
+@pytest.mark.parametrize("tls_mode", [
+    ("True", "True"),
+    ("True", "False"),
+    ("False", "")
+], indirect=True)
 def test_remote_online_store_read(auth_config, tls_mode):
     with (
         tempfile.TemporaryDirectory() as remote_server_tmp_dir,
@@ -56,13 +61,13 @@ def test_remote_online_store_read(auth_config, tls_mode):
             )
         )
         assert None not in (server_store, server_url, registry_path)
-        _, _, tls_cert_path = tls_mode
+
         client_store = _create_remote_client_feature_store(
             temp_dir=remote_client_tmp_dir,
             server_registry_path=str(registry_path),
             feature_server_url=server_url,
             auth_config=auth_config,
-            tls_cert_path=tls_cert_path,
+            tls_mode=tls_mode,
         )
         assert client_store is not None
         _assert_non_existing_entity_feature_views_entity(
@@ -172,7 +177,7 @@ def _create_server_store_spin_feature_server(
 ):
     store = default_store(str(temp_dir), auth_config, permissions_list)
     feast_server_port = free_port()
-    is_tls_mode, tls_key_path, tls_cert_path = tls_mode
+    is_tls_mode, tls_key_path, tls_cert_path, _ = tls_mode
 
     server_url = next(
         start_feature_server(
@@ -203,20 +208,29 @@ def _create_remote_client_feature_store(
     server_registry_path: str,
     feature_server_url: str,
     auth_config: str,
-    tls_cert_path: str = "",
+    tls_mode
 ) -> FeatureStore:
     project_name = "REMOTE_ONLINE_CLIENT_PROJECT"
     runner = CliRunner()
     result = runner.run(["init", project_name], cwd=temp_dir)
     assert result.returncode == 0
     repo_path = os.path.join(temp_dir, project_name, "feature_repo")
-    _overwrite_remote_client_feature_store_yaml(
-        repo_path=str(repo_path),
-        registry_path=server_registry_path,
-        feature_server_url=feature_server_url,
-        auth_config=auth_config,
-        tls_cert_path=tls_cert_path,
-    )
+    _, _, tls_cert_path, ca_trust_store_path = tls_mode
+    if ca_trust_store_path:
+        _overwrite_remote_client_feature_store_yaml(
+            repo_path=str(repo_path),
+            registry_path=server_registry_path,
+            feature_server_url=feature_server_url,
+            auth_config=auth_config
+        )
+    else:
+        _overwrite_remote_client_feature_store_yaml(
+            repo_path=str(repo_path),
+            registry_path=server_registry_path,
+            feature_server_url=feature_server_url,
+            auth_config=auth_config,
+            tls_cert_path=tls_cert_path,
+        )
 
     return FeatureStore(repo_path=repo_path)
 

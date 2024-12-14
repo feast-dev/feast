@@ -10,6 +10,7 @@ from feast import (
 )
 from feast.infra.registry.remote import RemoteRegistryConfig
 from feast.permissions.permission import Permission
+from feast.ssl_ca_setup import configure_ssl_ca
 from feast.wait import wait_retry_backoff
 from tests.utils.cli_repo_creator import CliRunner
 from tests.utils.http_server import check_port_open
@@ -127,13 +128,21 @@ def start_feature_server(
 
 
 def get_remote_registry_store(server_port, feature_store, tls_mode):
-    is_tls_mode, _, tls_cert_path = tls_mode
+    is_tls_mode, _, tls_cert_path,  ca_trust_store_path = tls_mode
     if is_tls_mode:
-        registry_config = RemoteRegistryConfig(
-            registry_type="remote",
-            path=f"localhost:{server_port}",
-            cert=tls_cert_path,
-        )
+        if ca_trust_store_path:
+            registry_config = RemoteRegistryConfig(
+                registry_type="remote",
+                path=f"localhost:{server_port}",
+                is_tls_mode=True,
+            )
+        else:
+            registry_config = RemoteRegistryConfig(
+                registry_type="remote",
+                path=f"localhost:{server_port}",
+                is_tls_mode=True,
+                cert=tls_cert_path,
+            )
     else:
         registry_config = RemoteRegistryConfig(
             registry_type="remote", path=f"localhost:{server_port}"
