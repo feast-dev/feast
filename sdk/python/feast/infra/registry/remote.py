@@ -77,7 +77,7 @@ class RemoteRegistry(BaseRegistry):
         assert isinstance(registry_config, RemoteRegistryConfig)
         # self.channel = create_tls_channel(registry_config)
 
-        self._create_grpc_channel(registry_config)
+        self.channel =   self._create_grpc_channel(registry_config)
 
         auth_header_interceptor = GrpcClientAuthHeaderInterceptor(auth_config)
         self.channel = grpc.intercept_channel(self.channel, auth_header_interceptor)
@@ -99,10 +99,10 @@ class RemoteRegistry(BaseRegistry):
             tls_credentials = grpc.ssl_channel_credentials(
                 root_certificates=trusted_certs
             )
-            self.channel = grpc.secure_channel(registry_config.path, tls_credentials)
+            return grpc.secure_channel(registry_config.path, tls_credentials)
         else:
             # Create an insecure gRPC channel
-            self.channel = grpc.insecure_channel(registry_config.path)
+            return grpc.insecure_channel(registry_config.path)
 
     def close(self):
         if self.channel:
