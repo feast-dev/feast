@@ -96,11 +96,6 @@ class MilvusOnlineStore(OnlineStore):
                 host=config.online_store.host,
                 port=str(config.online_store.port),
             )
-        self._conn = connections.connect(
-            alias="feast",
-            host=config.online_store.host,
-            port=str(config.online_store.port),
-        )
         return self._conn
 
     def _get_collection(self, config: RepoConfig, table: FeatureView) -> Collection:
