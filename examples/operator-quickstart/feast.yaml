@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: Secret
 metadata:
-  name: feast-postgresql
+  name: feast-data-stores
 stringData:
   postgres: |
     host: postgres.feast.svc.cluster.local
@@ -11,6 +11,8 @@ stringData:
     db_schema: public
     user: ${POSTGRES_USER}
     password: ${POSTGRES_PASSWORD}
+  redis: |
+    connection_string: redis.feast.svc.cluster.local:6379
   sql: |
     path: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres.feast.svc.cluster.local:5432/${POSTGRES_DB}
     cache_ttl_seconds: 60
@@ -24,54 +26,14 @@ kind: FeatureStore
 metadata:
   name: example
 spec:
-  feastProject: sample
+  feastProject: credit_scoring_local
   services:
-    offlineStore:
-      env:
-      - name: POSTGRES_DB
-        valueFrom:
-          secretKeyRef:
-            name: postgres-secret
-            key: POSTGRES_DB
-      - name: POSTGRES_USER
-        valueFrom:
-          secretKeyRef:
-            name: postgres-secret
-            key: POSTGRES_USER
-      - name: POSTGRES_PASSWORD
-        valueFrom:
-          secretKeyRef:
-            name: postgres-secret
-            key: POSTGRES_PASSWORD
-      persistence:
-        store:
-          type: postgres
-          secretRef:
-            name: feast-postgresql
-      tls:
-        disable: true
     onlineStore:
-      env:
-      - name: POSTGRES_DB
-        valueFrom:
-          secretKeyRef:
-            name: postgres-secret
-            key: POSTGRES_DB
-      - name: POSTGRES_USER
-        valueFrom:
-          secretKeyRef:
-            name: postgres-secret
-            key: POSTGRES_USER
-      - name: POSTGRES_PASSWORD
-        valueFrom:
-          secretKeyRef:
-            name: postgres-secret
-            key: POSTGRES_PASSWORD
       persistence:
         store:
-          type: postgres
+          type: redis
           secretRef:
-            name: feast-postgresql
+            name: feast-data-stores
       tls:
         disable: true
     registry:
@@ -96,6 +58,6 @@ spec:
           store:
             type: sql
             secretRef:
-              name: feast-postgresql
+              name: feast-data-stores
         tls:
           disable: true

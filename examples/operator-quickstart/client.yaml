@@ -8,16 +8,16 @@ metadata:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: client
+  name: feast-example-client
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: client
+      app: feast-example-client
   template:
     metadata:
       labels:
-        app: client
+        app: feast-example-client
     spec:
       serviceAccountName: feast-example-client
       initContainers:
@@ -27,61 +27,21 @@ spec:
             - '-c'
             - 'until grpcurl -H "authorization: Bearer $(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" -plaintext -d '''' -format text feast-example-registry.feast.svc.cluster.local:80 grpc.health.v1.Health/Check; do echo waiting for registry; sleep 2; done'
           image: 'fullstorydev/grpcurl:v1.9.1-alpine'
-        - name: feast-apply
-          image: 'feastdev/feature-server:0.42.0'
-          imagePullPolicy: Always
-          command: ["/bin/sh", "-c"]
-          args:
-            - |
-              echo "Starting feast initialization job...";
-
-              cd /feast-init;
-              echo 'from feast.repo_operations import init_repo
-              from unittest import mock
-              from feast.templates.postgres.bootstrap import bootstrap
-
-              project_directory = "sample"
-              template = "postgres"
-
-              with mock.patch("click.prompt", side_effect=["postgres.feast.svc.cluster.local", "5432", "feast", "public", "feast", "feast"]):
-               with mock.patch("click.confirm", side_effect=[True]):
-                init_repo(project_directory, template)' > postgres-apply.py;
-
-              python3 postgres-apply.py;
-              rm postgres-apply.py;
-              cd /feast-init/sample/feature_repo;
-              sed -i 's/postgresql:\/\/postgres:mysecretpassword@127.0.0.1:55001/postgresql+psycopg:\/\/feast:feast@postgres.feast.svc.cluster.local:5432/' feature_store.yaml;
-              sed -i 's/entity_key_serialization_version: 2/entity_key_serialization_version: 3/' feature_store.yaml;
-
-              sed -i 's/subprocess.run/# subprocess.run/' test_workflow.py;
-              sed -i 's/print("\\n--- Run feast/# print("\\n--- Run feast/' test_workflow.py;
-              sed -i 's/print("\\n--- Load features/# print("\\n--- Load features/' test_workflow.py;
-              sed -i 's/store.materialize_incremental/# store.materialize_incremental/' test_workflow.py;
-              sed -i 's/store.push/# store.push/' test_workflow.py;
-
-              echo "";
-              echo "Executing feast apply...";
-              feast apply;
-              CURRENT_TIME=$(date -u +"%Y-%m-%dT%H:%M:%S");
-              feast materialize-incremental $CURRENT_TIME;
-
-              cp -f /feast-client/feature_store.yaml .;
-          volumeMounts:
-            - name: client-feature-store-config
-              mountPath: /feast-client
-              readOnly: true
-            - name: shared-data
-              mountPath: /feast-init
       containers:
         - name: client
           image: 'feastdev/feature-server:0.42.0'
           imagePullPolicy: Always
-          workingDir: /feast-init/sample/feature_repo
+          workingDir: /feast-init
           command: ["sleep", "infinity"]
           resources:
             requests:
               memory: 1Gi
               cpu: 200m
+          envFrom:
+            - secretRef:
+                name: postgres-secret
+          ports:
+            - containerPort: 8501
           volumeMounts:
             - name: client-feature-store-config
               mountPath: /feast-client
