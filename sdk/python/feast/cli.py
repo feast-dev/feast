@@ -1133,15 +1133,6 @@ def serve_registry_command(
     show_default=False,
     help="path to TLS certificate public key. You need to pass --key as well to start server in TLS mode",
 )
-@click.option(
-    "--verify_client",
-    "-v",
-    "tls_verify_client",
-    type=click.BOOL,
-    default="True",
-    show_default=True,
-    help="Verify the client or not for the TLS client certificate.",
-)
 @click.pass_context
 def serve_offline_command(
     ctx: click.Context,
@@ -1149,7 +1140,6 @@ def serve_offline_command(
     port: int,
     tls_key_path: str,
     tls_cert_path: str,
-    tls_verify_client: bool,
 ):
     """Start a remote server locally on a given host, port."""
     if (tls_key_path and not tls_cert_path) or (not tls_key_path and tls_cert_path):
@@ -1158,7 +1148,7 @@ def serve_offline_command(
         )
     store = create_feature_store(ctx)
 
-    store.serve_offline(host, port, tls_key_path, tls_cert_path, tls_verify_client)
+    store.serve_offline(host, port, tls_key_path, tls_cert_path)
 
 
 @cli.command("validate")
