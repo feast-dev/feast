@@ -37,6 +37,9 @@ spec:
             requests:
               memory: 1Gi
               cpu: 200m
+          env:
+            - name: MPLCONFIGDIR
+              value: /feast-init/matplotlib
           envFrom:
             - secretRef:
                 name: postgres-secret
