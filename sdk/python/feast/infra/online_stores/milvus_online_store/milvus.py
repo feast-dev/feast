@@ -249,23 +249,10 @@ class MilvusOnlineStore(OnlineStore):
                 collection.drop()
                 self._collections.pop(collection_name, None)
 
-    def plan(
-        self, config: RepoConfig, desired_registry_proto: RegistryProto
-    ) -> List[InfraObject]:
-        project = config.project
-
-        infra_objects: List[InfraObject] = [
-            MilvusTable(
-                host=config.online_store.host,
-                port=config.online_store.port,
-                name=_table_id(project, FeatureView.from_proto(view)),
-            )
-            for view in [
-                *desired_registry_proto.feature_views,
-                *desired_registry_proto.stream_feature_views,
-            ]
-        ]
-        return infra_objects
+    # def plan(
+    #     self, config: RepoConfig, desired_registry_proto: RegistryProto
+    # ) -> List[InfraObject]:
+    #     raise NotImplementedError
 
     def teardown(
         self,

@@ -214,6 +214,7 @@ from tests.integration.feature_repos.universal.online_store.milvus import (
 def vectordb_environment(request, worker_id):
     milvus_config = IntegrationTestRepoConfig(
         provider="local",
+        online_store="milvus",
         online_store_creator=MilvusOnlineStoreCreator,
         offline_store_creator=FileDataSourceCreator,
     )
@@ -232,7 +233,7 @@ def vectordb_environment(request, worker_id):
     else:
         yield e
 
-    # e.teardown()
+    e.teardown()
 
 
 _config_cache: Any = {}
