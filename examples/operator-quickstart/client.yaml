@@ -21,22 +21,32 @@ spec:
     spec:
       serviceAccountName: feast-example-client
       initContainers:
-        - name: init-registry
-          command:
-            - sh
-            - '-c'
-            - 'until grpcurl -H "authorization: Bearer $(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" -plaintext -d '''' -format text feast-example-registry.feast.svc.cluster.local:80 grpc.health.v1.Health/Check; do echo waiting for registry; sleep 2; done'
-          image: 'fullstorydev/grpcurl:v1.9.1-alpine'
+        - name: init-feature-store
+          image: 'quay.io/tchughesiv/feature-server:0.42.0-duckdb'
+          imagePullPolicy: Always
+          workingDir: /feast-init
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              echo "Starting feast initialization job...";
+              mkdir feast-credit-score-local-tutorial;
+              tar vfx /f43b44b.tar.gz -C feast-credit-score-local-tutorial --strip-components 1;
+              cp -f /feature_store.yaml /feast-init/feast-credit-score-local-tutorial/feature_repo/;
+              cd /feast-init/feast-credit-score-local-tutorial/feature_repo;
+              cat feature_store.yaml;
+          volumeMounts:
+            - name: shared-data
+              mountPath: /feast-init
       containers:
         - name: client
           image: 'quay.io/tchughesiv/feature-server:0.42.0-duckdb'
           imagePullPolicy: Always
-          workingDir: /feast-init
+          workingDir: /feast-init/feast-credit-score-local-tutorial/feature_repo
           command: ["sleep", "infinity"]
           resources:
             requests:
-              memory: 1Gi
-              cpu: 200m
+              memory: 512Mi
+              cpu: 100m
           env:
             - name: MPLCONFIGDIR
               value: /feast-init/matplotlib
@@ -45,6 +55,102 @@ spec:
                 name: postgres-secret
           ports:
             - containerPort: 8501
+          volumeMounts:
+            - name: client-feature-store-config
+              mountPath: /feast-client
+              readOnly: true
+            - name: shared-data
+              mountPath: /feast-init
+        - name: online
+          image: 'quay.io/tchughesiv/feature-server:0.42.0-duckdb'
+          imagePullPolicy: Always
+          workingDir: /feast-init/feast-credit-score-local-tutorial/feature_repo
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 6566
+              scheme: HTTP
+            initialDelaySeconds: 20
+            timeoutSeconds: 1
+            periodSeconds: 30
+            successThreshold: 1
+            failureThreshold: 3
+          command:
+            - feast
+            - serve
+            - '-h'
+            - 0.0.0.0
+            - '-p'
+            - '6566'
+          resources:
+            requests:
+              memory: 512Mi
+              cpu: 100m
+          env:
+            - name: MPLCONFIGDIR
+              value: /feast-init/matplotlib
+          envFrom:
+            - secretRef:
+                name: postgres-secret
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 6566
+              scheme: HTTP
+            initialDelaySeconds: 30
+            timeoutSeconds: 1
+            periodSeconds: 30
+            successThreshold: 1
+            failureThreshold: 3
+          ports:
+            - name: online
+              containerPort: 6566
+              protocol: TCP
+          volumeMounts:
+            - name: client-feature-store-config
+              mountPath: /feast-client
+              readOnly: true
+            - name: shared-data
+              mountPath: /feast-init
+        - name: registry
+          image: 'quay.io/tchughesiv/feature-server:0.42.0-duckdb'
+          imagePullPolicy: Always
+          workingDir: /feast-init/feast-credit-score-local-tutorial/feature_repo
+          readinessProbe:
+            tcpSocket:
+              port: 6570
+            initialDelaySeconds: 20
+            timeoutSeconds: 1
+            periodSeconds: 30
+            successThreshold: 1
+            failureThreshold: 3
+          command:
+            - feast
+            - serve_registry
+            - '-p'
+            - '6570'
+          resources:
+            requests:
+              memory: 512Mi
+              cpu: 100m
+          env:
+            - name: MPLCONFIGDIR
+              value: /feast-init/matplotlib
+          envFrom:
+            - secretRef:
+                name: postgres-secret
+          livenessProbe:
+            tcpSocket:
+              port: 6570
+            initialDelaySeconds: 30
+            timeoutSeconds: 1
+            periodSeconds: 30
+            successThreshold: 1
+            failureThreshold: 3
+          ports:
+            - name: registry
+              containerPort: 6570
+              protocol: TCP
           volumeMounts:
             - name: client-feature-store-config
               mountPath: /feast-client
