@@ -25,6 +25,12 @@ spec:
           image: 'quay.io/tchughesiv/feature-server:0.42.0-duckdb'
           imagePullPolicy: Always
           workingDir: /feast-init
+          env:
+            - name: MPLCONFIGDIR
+              value: /feast-init/matplotlib
+          envFrom:
+            - secretRef:
+                name: postgres-secret
           command: ["/bin/sh", "-c"]
           args:
             - |
@@ -56,9 +62,6 @@ spec:
           ports:
             - containerPort: 8501
           volumeMounts:
-            - name: client-feature-store-config
-              mountPath: /feast-client
-              readOnly: true
             - name: shared-data
               mountPath: /feast-init
         - name: online
@@ -107,9 +110,6 @@ spec:
               containerPort: 6566
               protocol: TCP
           volumeMounts:
-            - name: client-feature-store-config
-              mountPath: /feast-client
-              readOnly: true
             - name: shared-data
               mountPath: /feast-init
         - name: registry
@@ -152,14 +152,8 @@ spec:
               containerPort: 6570
               protocol: TCP
           volumeMounts:
-            - name: client-feature-store-config
-              mountPath: /feast-client
-              readOnly: true
             - name: shared-data
               mountPath: /feast-init
       volumes:
-        - name: client-feature-store-config
-          configMap:
-            name: feast-example-client
         - name: shared-data
           emptyDir: {}
