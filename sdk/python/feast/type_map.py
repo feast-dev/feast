@@ -538,7 +538,6 @@ PROTO_VALUE_TO_VALUE_TYPE_MAP: Dict[str, ValueType] = {
     "string_list_val": ValueType.STRING_LIST,
     "bytes_list_val": ValueType.BYTES_LIST,
     "bool_list_val": ValueType.BOOL_LIST,
-    None: ValueType.NULL,
 }
 
 
@@ -553,6 +552,8 @@ def _proto_value_to_value_type(proto_value: ProtoValue) -> ValueType:
         A variant of ValueType.
     """
     proto_str = proto_value.WhichOneof("val")
+    if proto_str is None:
+        return ValueType.UNKNOWN
     return PROTO_VALUE_TO_VALUE_TYPE_MAP[proto_str]
 
 

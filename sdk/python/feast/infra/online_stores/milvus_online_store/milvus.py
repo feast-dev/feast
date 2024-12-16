@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union
 
 from pydantic import StrictStr
 from pymilvus import (
@@ -24,13 +24,13 @@ from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.type_map import PROTO_VALUE_TO_VALUE_TYPE_MAP
-from feast.types import VALUE_TYPES_TO_FEAST_TYPES, Array, PrimitiveFeastType, ValueType
+from feast.types import VALUE_TYPES_TO_FEAST_TYPES, Array, PrimitiveFeastType, ComplexFeastType, ValueType
 from feast.utils import (
     _build_retrieve_online_document_record,
     to_naive_utc,
 )
 
-PROTO_TO_MILVUS_TYPE_MAPPING = {
+PROTO_TO_MILVUS_TYPE_MAPPING: Dict[ValueType, DataType] = {
     PROTO_VALUE_TO_VALUE_TYPE_MAP["bytes_val"]: DataType.STRING,
     PROTO_VALUE_TO_VALUE_TYPE_MAP["bool_val"]: DataType.BOOL,
     PROTO_VALUE_TO_VALUE_TYPE_MAP["string_val"]: DataType.STRING,
@@ -45,7 +45,7 @@ PROTO_TO_MILVUS_TYPE_MAPPING = {
     PROTO_VALUE_TO_VALUE_TYPE_MAP["bool_list_val"]: DataType.BINARY_VECTOR,
 }
 
-FEAST_PRIMITIVE_TO_MILVUS_TYPE_MAPPING = {}
+FEAST_PRIMITIVE_TO_MILVUS_TYPE_MAPPING: Dict[Union[PrimitiveFeastType, Array, ComplexFeastType], DataType] = {}
 
 for value_type, feast_type in VALUE_TYPES_TO_FEAST_TYPES.items():
     if isinstance(feast_type, PrimitiveFeastType):
@@ -288,10 +288,10 @@ class MilvusOnlineStore(OnlineStore):
                 collection.drop()
                 self._collections.pop(collection_name, None)
 
-    # def plan(
-    #     self, config: RepoConfig, desired_registry_proto: RegistryProto
-    # ) -> List[InfraObject]:
-    #     raise NotImplementedError
+    def plan(
+        self, config: RepoConfig, desired_registry_proto: RegistryProto
+    ) -> List[InfraObject]:
+        raise NotImplementedError
 
     def teardown(
         self,
@@ -397,11 +397,11 @@ class MilvusTable(InfraObject):
 
     def to_infra_object_proto(self) -> InfraObjectProto:
         # Implement serialization if needed
-        pass
+        raise NotImplementedError
 
     def update(self):
         # Implement update logic if needed
-        pass
+        raise NotImplementedError
 
     def teardown(self):
         collection = Collection(name=self.name)
