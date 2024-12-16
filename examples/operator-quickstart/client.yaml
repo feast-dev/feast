@@ -29,7 +29,7 @@ spec:
           image: 'fullstorydev/grpcurl:v1.9.1-alpine'
       containers:
         - name: client
-          image: 'feastdev/feature-server:0.42.0'
+          image: 'quay.io/tchughesiv/feature-server:0.42.0-duckdb'
           imagePullPolicy: Always
           workingDir: /feast-init
           command: ["sleep", "infinity"]
