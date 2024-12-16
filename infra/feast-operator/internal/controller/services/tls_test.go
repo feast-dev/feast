@@ -58,7 +58,6 @@ var _ = Describe("TLS Config", func() {
 			Expect(tls.IsTLS()).To(BeFalse())
 			Expect(getPortStr(tls)).To(Equal("80"))
 
-			Expect(feast.offlineTls()).To(BeFalse())
 			Expect(feast.remoteRegistryTls()).To(BeFalse())
 			Expect(feast.localRegistryTls()).To(BeFalse())
 			Expect(feast.isOpenShiftTls(OfflineFeastType)).To(BeFalse())
@@ -87,7 +86,6 @@ var _ = Describe("TLS Config", func() {
 			Expect(getPortStr(tls)).To(Equal("443"))
 			Expect(GetTlsPath(RegistryFeastType)).To(Equal("/tls/registry/"))
 
-			Expect(feast.offlineTls()).To(BeFalse())
 			Expect(feast.remoteRegistryTls()).To(BeFalse())
 			Expect(feast.localRegistryTls()).To(BeTrue())
 			Expect(feast.isOpenShiftTls(OfflineFeastType)).To(BeFalse())
@@ -127,7 +125,6 @@ var _ = Describe("TLS Config", func() {
 			Expect(tls.SecretKeyNames).To(Equal(secretKeyNames))
 			Expect(tls.IsTLS()).To(BeTrue())
 
-			Expect(feast.offlineTls()).To(BeTrue())
 			Expect(feast.remoteRegistryTls()).To(BeFalse())
 			Expect(feast.localRegistryTls()).To(BeTrue())
 			Expect(feast.isOpenShiftTls(OfflineFeastType)).To(BeTrue())
@@ -189,7 +186,6 @@ var _ = Describe("TLS Config", func() {
 			Expect(getPortStr(tls)).To(Equal("443"))
 			Expect(GetTlsPath(RegistryFeastType)).To(Equal("/tls/registry/"))
 
-			Expect(feast.offlineTls()).To(BeFalse())
 			Expect(feast.remoteRegistryTls()).To(BeFalse())
 			Expect(feast.localRegistryTls()).To(BeTrue())
 			Expect(feast.isOpenShiftTls(OfflineFeastType)).To(BeFalse())
@@ -238,7 +234,6 @@ var _ = Describe("TLS Config", func() {
 			Expect(getPortStr(tls)).To(Equal("80"))
 			Expect(GetTlsPath(RegistryFeastType)).To(Equal("/tls/registry/"))
 
-			Expect(feast.offlineTls()).To(BeTrue())
 			Expect(feast.remoteRegistryTls()).To(BeFalse())
 			Expect(feast.localRegistryTls()).To(BeFalse())
 			Expect(feast.isOpenShiftTls(OfflineFeastType)).To(BeTrue())

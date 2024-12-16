@@ -56,7 +56,7 @@ var _ = Describe("FeatureStore Controller - Feast service TLS", func() {
 		}
 		featurestore := &feastdevv1alpha1.FeatureStore{}
 		localRef := corev1.LocalObjectReference{Name: "test"}
-		tlsConfigs := feastdevv1alpha1.TlsConfigs{
+		tlsConfigs := &feastdevv1alpha1.TlsConfigs{
 			SecretRef: &localRef,
 		}
 		BeforeEach(func() {
@@ -72,16 +72,14 @@ var _ = Describe("FeatureStore Controller - Feast service TLS", func() {
 						FeastProject: feastProject,
 						Services: &feastdevv1alpha1.FeatureStoreServices{
 							OnlineStore: &feastdevv1alpha1.OnlineStore{
-								TLS: &tlsConfigs,
+								TLS: tlsConfigs,
 							},
 							OfflineStore: &feastdevv1alpha1.OfflineStore{
-								TLS: &feastdevv1alpha1.OfflineTlsConfigs{
-									TlsConfigs: tlsConfigs,
-								},
+								TLS: tlsConfigs,
 							},
 							Registry: &feastdevv1alpha1.Registry{
 								Local: &feastdevv1alpha1.LocalRegistryConfig{
-									TLS: &tlsConfigs,
+									TLS: tlsConfigs,
 								},
 							},
 						},
@@ -396,9 +394,7 @@ var _ = Describe("FeatureStore Controller - Feast service TLS", func() {
 						},
 					},
 					OfflineStore: &feastdevv1alpha1.OfflineStore{
-						TLS: &feastdevv1alpha1.OfflineTlsConfigs{
-							TlsConfigs: tlsConfigs,
-						},
+						TLS: tlsConfigs,
 					},
 					Registry: &feastdevv1alpha1.Registry{
 						Remote: &feastdevv1alpha1.RemoteRegistryConfig{
