@@ -256,7 +256,7 @@ spec:
                                     properties:
                                       accessModes:
                                         description: AccessModes k8s persistent volume
-                                          access modes. Default []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}.
+                                          access modes. Defaults to ["ReadWriteOnce"].
                                         items:
                                           type: string
                                         type: array
@@ -633,7 +633,7 @@ spec:
                                     properties:
                                       accessModes:
                                         description: AccessModes k8s persistent volume
-                                          access modes. Default []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}.
+                                          access modes. Defaults to ["ReadWriteOnce"].
                                         items:
                                           type: string
                                         type: array
@@ -1023,7 +1023,7 @@ spec:
                                         properties:
                                           accessModes:
                                             description: AccessModes k8s persistent
-                                              volume access modes. Default []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}.
+                                              volume access modes. Defaults to ["ReadWriteOnce"].
                                             items:
                                               type: string
                                             type: array
@@ -1529,7 +1529,7 @@ spec:
                                         properties:
                                           accessModes:
                                             description: AccessModes k8s persistent
-                                              volume access modes. Default []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}.
+                                              volume access modes. Defaults to ["ReadWriteOnce"].
                                             items:
                                               type: string
                                             type: array
@@ -1912,7 +1912,7 @@ spec:
                                         properties:
                                           accessModes:
                                             description: AccessModes k8s persistent
-                                              volume access modes. Default []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}.
+                                              volume access modes. Defaults to ["ReadWriteOnce"].
                                             items:
                                               type: string
                                             type: array
@@ -2311,7 +2311,8 @@ spec:
                                             properties:
                                               accessModes:
                                                 description: AccessModes k8s persistent
-                                                  volume access modes. Default []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}.
+                                                  volume access modes. Defaults to
+                                                  ["ReadWriteOnce"].
                                                 items:
                                                   type: string
                                                 type: array

@@ -69,7 +69,7 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 		onlineStoreMountPath := "/online"
 		registryMountPath := "/registry"
 
-		accessModes := []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany}
+		accessModes := []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce, corev1.ReadWriteMany}
 		storageClassName := "test"
 
 		onlineStoreMountedPath := path.Join(onlineStoreMountPath, onlineStorePath)
