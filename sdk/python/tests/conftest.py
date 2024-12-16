@@ -56,6 +56,9 @@ from tests.integration.feature_repos.universal.entities import (  # noqa: E402
     driver,
     location,
 )
+from tests.integration.feature_repos.universal.online_store.milvus import (
+    MilvusOnlineStoreCreator,
+)
 from tests.utils.auth_permissions_util import default_store
 from tests.utils.http_server import check_port_open, free_port  # noqa: E402
 from tests.utils.ssl_certifcates_util import (
@@ -203,11 +206,6 @@ def environment(request, worker_id):
         yield e
 
     e.teardown()
-
-
-from tests.integration.feature_repos.universal.online_store.milvus import (
-    MilvusOnlineStoreCreator,
-)
 
 
 @pytest.fixture

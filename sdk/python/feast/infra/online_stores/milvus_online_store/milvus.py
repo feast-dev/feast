@@ -20,7 +20,6 @@ from feast.infra.key_encoding_utils import (
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.online_stores.vector_store import VectorStoreConfig
 from feast.protos.feast.core.InfraObject_pb2 import InfraObject as InfraObjectProto
-from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
@@ -32,18 +31,18 @@ from feast.utils import (
 )
 
 PROTO_TO_MILVUS_TYPE_MAPPING = {
-    PROTO_VALUE_TO_VALUE_TYPE_MAP['bytes_val']: DataType.STRING,
-    PROTO_VALUE_TO_VALUE_TYPE_MAP['bool_val']: DataType.BOOL,
-    PROTO_VALUE_TO_VALUE_TYPE_MAP['string_val']: DataType.STRING,
-    PROTO_VALUE_TO_VALUE_TYPE_MAP['float_val']: DataType.FLOAT,
-    PROTO_VALUE_TO_VALUE_TYPE_MAP['double_val']: DataType.DOUBLE,
-    PROTO_VALUE_TO_VALUE_TYPE_MAP['int32_val']: DataType.INT32,
-    PROTO_VALUE_TO_VALUE_TYPE_MAP['int64_val']: DataType.INT64,
-    PROTO_VALUE_TO_VALUE_TYPE_MAP['float_list_val']: DataType.FLOAT_VECTOR,
-    PROTO_VALUE_TO_VALUE_TYPE_MAP['int32_list_val']: DataType.FLOAT_VECTOR,
-    PROTO_VALUE_TO_VALUE_TYPE_MAP['int64_list_val']: DataType.FLOAT_VECTOR,
-    PROTO_VALUE_TO_VALUE_TYPE_MAP['double_list_val']: DataType.FLOAT_VECTOR,
-    PROTO_VALUE_TO_VALUE_TYPE_MAP['bool_list_val']: DataType.BINARY_VECTOR,
+    PROTO_VALUE_TO_VALUE_TYPE_MAP["bytes_val"]: DataType.STRING,
+    PROTO_VALUE_TO_VALUE_TYPE_MAP["bool_val"]: DataType.BOOL,
+    PROTO_VALUE_TO_VALUE_TYPE_MAP["string_val"]: DataType.STRING,
+    PROTO_VALUE_TO_VALUE_TYPE_MAP["float_val"]: DataType.FLOAT,
+    PROTO_VALUE_TO_VALUE_TYPE_MAP["double_val"]: DataType.DOUBLE,
+    PROTO_VALUE_TO_VALUE_TYPE_MAP["int32_val"]: DataType.INT32,
+    PROTO_VALUE_TO_VALUE_TYPE_MAP["int64_val"]: DataType.INT64,
+    PROTO_VALUE_TO_VALUE_TYPE_MAP["float_list_val"]: DataType.FLOAT_VECTOR,
+    PROTO_VALUE_TO_VALUE_TYPE_MAP["int32_list_val"]: DataType.FLOAT_VECTOR,
+    PROTO_VALUE_TO_VALUE_TYPE_MAP["int64_list_val"]: DataType.FLOAT_VECTOR,
+    PROTO_VALUE_TO_VALUE_TYPE_MAP["double_list_val"]: DataType.FLOAT_VECTOR,
+    PROTO_VALUE_TO_VALUE_TYPE_MAP["bool_list_val"]: DataType.BINARY_VECTOR,
 }
 
 FEAST_PRIMITIVE_TO_MILVUS_TYPE_MAPPING = {}
@@ -56,10 +55,16 @@ for value_type, feast_type in VALUE_TYPES_TO_FEAST_TYPES.items():
     elif isinstance(feast_type, Array):
         base_type = feast_type.base_type
         base_value_type = base_type.to_value_type()
-        if base_value_type in [ValueType.INT32, ValueType.INT64, ValueType.FLOAT, ValueType.DOUBLE]:
+        if base_value_type in [
+            ValueType.INT32,
+            ValueType.INT64,
+            ValueType.FLOAT,
+            ValueType.DOUBLE,
+        ]:
             FEAST_PRIMITIVE_TO_MILVUS_TYPE_MAPPING[feast_type] = DataType.FLOAT_VECTOR
         elif base_value_type == ValueType.BOOL:
             FEAST_PRIMITIVE_TO_MILVUS_TYPE_MAPPING[feast_type] = DataType.BINARY_VECTOR
+
 
 class MilvusOnlineStoreConfig(FeastConfigBaseModel, VectorStoreConfig):
     """
@@ -91,11 +96,12 @@ class MilvusOnlineStore(OnlineStore):
 
     def _connect(self, config: RepoConfig) -> connections:
         if not self._conn:
-            self._conn = connections.connect(
-                alias="feast",
-                host=config.online_store.host,
-                port=str(config.online_store.port),
-            )
+            if not connections.has_connection("feast"):
+                self._conn = connections.connect(
+                    alias="feast",
+                    host=config.online_store.host,
+                    port=str(config.online_store.port),
+                )
         return self._conn
 
     def _get_collection(self, config: RepoConfig, table: FeatureView) -> Collection:
@@ -104,25 +110,43 @@ class MilvusOnlineStore(OnlineStore):
             self._connect(config)
 
             # Create a composite key by combining entity fields
-            composite_key_name = '_'.join([field.name for field in table.entity_columns]) + "_pk"
+            composite_key_name = (
+                "_".join([field.name for field in table.entity_columns]) + "_pk"
+            )
 
             fields = [
-                FieldSchema(name=composite_key_name, dtype=DataType.VARCHAR, max_length=512, is_primary=True),
+                FieldSchema(
+                    name=composite_key_name,
+                    dtype=DataType.VARCHAR,
+                    max_length=512,
+                    is_primary=True,
+                ),
                 FieldSchema(name="event_ts", dtype=DataType.INT64),
                 FieldSchema(name="created_ts", dtype=DataType.INT64),
             ]
-            fields_to_exclude = [field.name for field in table.entity_columns] + ['event_ts', 'created_ts']
+            fields_to_exclude = [field.name for field in table.entity_columns] + [
+                "event_ts",
+                "created_ts",
+            ]
             fields_to_add = [f for f in table.schema if f.name not in fields_to_exclude]
             for field in fields_to_add:
                 dtype = FEAST_PRIMITIVE_TO_MILVUS_TYPE_MAPPING.get(field.dtype)
                 if dtype:
                     if dtype == DataType.FLOAT_VECTOR:
-                        fields.append(FieldSchema(name=field.name, dtype=dtype, dim=config.online_store.embedding_dim))
+                        fields.append(
+                            FieldSchema(
+                                name=field.name,
+                                dtype=dtype,
+                                dim=config.online_store.embedding_dim,
+                            )
+                        )
 
                     else:
                         fields.append(FieldSchema(name=field.name, dtype=dtype))
 
-            schema = CollectionSchema(fields=fields, description="Feast feature view data")
+            schema = CollectionSchema(
+                fields=fields, description="Feast feature view data"
+            )
             collection = Collection(name=collection_name, schema=schema, using="feast")
             if not collection.has_index():
                 index_params = {
@@ -131,8 +155,13 @@ class MilvusOnlineStore(OnlineStore):
                     "params": {"nlist": config.online_store.nlist},
                 }
             for vector_field in schema.fields:
-                if vector_field.dtype in [DataType.FLOAT_VECTOR, DataType.BINARY_VECTOR]:
-                    collection.create_index(field_name=vector_field.name, index_params=index_params)
+                if vector_field.dtype in [
+                    DataType.FLOAT_VECTOR,
+                    DataType.BINARY_VECTOR,
+                ]:
+                    collection.create_index(
+                        field_name=vector_field.name, index_params=index_params
+                    )
             collection.load()
             self._collections[collection_name] = collection
         return self._collections[collection_name]
@@ -152,7 +181,11 @@ class MilvusOnlineStore(OnlineStore):
         progress: Optional[Callable[[int], Any]],
     ) -> None:
         collection = self._get_collection(config, table)
-        numeric_vector_list_types = [k for k in PROTO_VALUE_TO_VALUE_TYPE_MAP.keys() if k is not None and 'list' in k and 'string' not in k]
+        numeric_vector_list_types = [
+            k
+            for k in PROTO_VALUE_TO_VALUE_TYPE_MAP.keys()
+            if k is not None and "list" in k and "string" not in k
+        ]
 
         entity_batch_to_insert = []
         for entity_key, values_dict, timestamp, created_ts in data:
@@ -161,16 +194,22 @@ class MilvusOnlineStore(OnlineStore):
                 entity_key,
                 entity_key_serialization_version=config.entity_key_serialization_version,
             ).hex()
-            composite_key_name = '_'.join([str(value) for value in entity_key.join_keys]) + "_pk"
+            composite_key_name = (
+                "_".join([str(value) for value in entity_key.join_keys]) + "_pk"
+            )
             timestamp_int = int(to_naive_utc(timestamp).timestamp() * 1e6)
             created_ts_int = (
                 int(to_naive_utc(created_ts).timestamp() * 1e6) if created_ts else 0
             )
             for feature_name in values_dict:
                 for vector_list_type_name in numeric_vector_list_types:
-                    vector_list = getattr(values_dict[feature_name], vector_list_type_name, None)
+                    vector_list = getattr(
+                        values_dict[feature_name], vector_list_type_name, None
+                    )
                     if vector_list:
-                        vector_values = getattr(values_dict[feature_name], vector_list_type_name).val
+                        vector_values = getattr(
+                            values_dict[feature_name], vector_list_type_name
+                        ).val
                         if vector_values != []:
                             # Note here we are over-writing the feature and collapsing the list into a single value
                             values_dict[feature_name] = vector_values
@@ -262,11 +301,10 @@ class MilvusOnlineStore(OnlineStore):
     ):
         self._connect(config)
         for table in tables:
-            collection_name = _table_id(config.project, table)
-            collection = Collection(name=collection_name)
+            collection = self._get_collection(config, table)
             if collection:
                 collection.drop()
-                self._collections.pop(collection_name, None)
+                self._collections.pop(collection.name, None)
 
     def retrieve_online_documents(
         self,
