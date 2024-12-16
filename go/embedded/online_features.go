@@ -7,13 +7,16 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	//"strings"
 	"syscall"
 	"time"
 
-	"github.com/apache/arrow/go/v8/arrow"
-	"github.com/apache/arrow/go/v8/arrow/array"
-	"github.com/apache/arrow/go/v8/arrow/cdata"
-	"github.com/apache/arrow/go/v8/arrow/memory"
+	//"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
+
+	"github.com/apache/arrow/go/v17/arrow"
+	"github.com/apache/arrow/go/v17/arrow/array"
+	"github.com/apache/arrow/go/v17/arrow/cdata"
+	"github.com/apache/arrow/go/v17/arrow/memory"
 	"google.golang.org/grpc"
 
 	"github.com/feast-dev/feast/go/internal/feast"
@@ -26,6 +29,10 @@ import (
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	prototypes "github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/feast-dev/feast/go/types"
+	jsonlog "github.com/rs/zerolog/log"
+	"google.golang.org/grpc/health"
+	"google.golang.org/grpc/health/grpc_health_v1"
+	//grpctrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/google.golang.org/grpc"
 )
 
 type OnlineFeatureService struct {
@@ -63,6 +70,7 @@ type LoggingOptions struct {
 func NewOnlineFeatureService(conf *OnlineFeatureServiceConfig, transformationCallback transformation.TransformationCallback) *OnlineFeatureService {
 	repoConfig, err := registry.NewRepoConfigFromJSON(conf.RepoPath, conf.RepoConfig)
 	if err != nil {
+		jsonlog.Error().Stack().Err(err).Msg("Failed to convert to RepoConfig")
 		return &OnlineFeatureService{
 			err: err,
 		}
@@ -70,6 +78,7 @@ func NewOnlineFeatureService(conf *OnlineFeatureServiceConfig, transformationCal
 
 	fs, err := feast.NewFeatureStore(repoConfig, transformationCallback)
 	if err != nil {
+		jsonlog.Error().Stack().Err(err).Msg("Failed to create NewFeatureStore")
 		return &OnlineFeatureService{
 			err: err,
 		}
@@ -205,7 +214,7 @@ func (s *OnlineFeatureService) GetOnlineFeatures(
 
 	outputFields := make([]arrow.Field, 0)
 	outputColumns := make([]arrow.Array, 0)
-	pool := memory.NewCgoArrowAllocator()
+	pool := memory.NewGoAllocator()
 	for _, featureVector := range resp {
 		outputFields = append(outputFields,
 			arrow.Field{
@@ -254,7 +263,7 @@ func (s *OnlineFeatureService) GetOnlineFeatures(
 
 // StartGprcServer starts gRPC server with disabled feature logging and blocks the thread
 func (s *OnlineFeatureService) StartGprcServer(host string, port int) error {
-	return s.StartGprcServerWithLogging(host, port, nil, LoggingOptions{})
+	return s.StartGrpcServerWithLogging(host, port, nil, LoggingOptions{})
 }
 
 // StartGprcServerWithLoggingDefaultOpts starts gRPC server with enabled feature logging but default configuration for logging
@@ -266,7 +275,7 @@ func (s *OnlineFeatureService) StartGprcServerWithLoggingDefaultOpts(host string
 		WriteInterval:   logging.DefaultOptions.WriteInterval,
 		FlushInterval:   logging.DefaultOptions.FlushInterval,
 	}
-	return s.StartGprcServerWithLogging(host, port, writeLoggedFeaturesCallback, defaultOpts)
+	return s.StartGrpcServerWithLogging(host, port, writeLoggedFeaturesCallback, defaultOpts)
 }
 
 func (s *OnlineFeatureService) constructLoggingService(writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts LoggingOptions) (*logging.LoggingService, error) {
@@ -290,9 +299,14 @@ func (s *OnlineFeatureService) constructLoggingService(writeLoggedFeaturesCallba
 	return loggingService, nil
 }
 
-// StartGprcServerWithLogging starts gRPC server with enabled feature logging
+// StartGrpcServerWithLogging starts gRPC server with enabled feature logging
 // Caller of this function must provide Python callback to flush buffered logs as well as logging configuration (loggingOpts)
-func (s *OnlineFeatureService) StartGprcServerWithLogging(host string, port int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts LoggingOptions) error {
+func (s *OnlineFeatureService) StartGrpcServerWithLogging(host string, port int, writeLoggedFeaturesCallback logging.OfflineStoreWriteCallback, loggingOpts LoggingOptions) error {
+	//if strings.ToLower(os.Getenv("ENABLE_DATADOG_TRACING")) == "true" {
+	//	tracer.Start(tracer.WithRuntimeMetrics())
+	//	defer tracer.Stop()
+	//}
+
 	loggingService, err := s.constructLoggingService(writeLoggedFeaturesCallback, loggingOpts)
 	if err != nil {
 		return err
@@ -304,8 +318,12 @@ func (s *OnlineFeatureService) StartGprcServerWithLogging(host string, port int,
 		return err
 	}
 
+	//grpcServer := grpc.NewServer(grpc.UnaryInterceptor(grpctrace.UnaryServerInterceptor()))
 	grpcServer := grpc.NewServer()
+
 	serving.RegisterServingServiceServer(grpcServer, ser)
+	healthService := health.NewServer()
+	grpc_health_v1.RegisterHealthServer(grpcServer, healthService)
 
 	go func() {
 		// As soon as these signals are received from OS, try to gracefully stop the gRPC server

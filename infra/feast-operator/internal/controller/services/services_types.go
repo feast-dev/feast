@@ -17,17 +17,13 @@ limitations under the License.
 package services
 
 import (
-	"context"
-
 	"github.com/feast-dev/feast/infra/feast-operator/api/feastversion"
 	feastdevv1alpha1 "github.com/feast-dev/feast/infra/feast-operator/api/v1alpha1"
+	handler "github.com/feast-dev/feast/infra/feast-operator/internal/controller/handler"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
-	FeastPrefix                     = "feast-"
 	FeatureStoreYamlEnvVar          = "FEATURE_STORE_YAML_BASE64"
 	FeatureStoreYamlCmKey           = "feature_store.yaml"
 	DefaultRegistryEphemeralPath    = "/tmp/registry.db"
@@ -35,7 +31,13 @@ const (
 	DefaultOnlineStoreEphemeralPath = "/tmp/online_store.db"
 	DefaultOnlineStorePvcPath       = "online_store.db"
 	svcDomain                       = ".svc.cluster.local"
-	HttpPort                        = 80
+
+	HttpPort      = 80
+	HttpsPort     = 443
+	HttpScheme    = "http"
+	HttpsScheme   = "https"
+	tlsPath       = "/tls/"
+	tlsNameSuffix = "-tls"
 
 	DefaultOfflineStorageRequest  = "20Gi"
 	DefaultOnlineStorageRequest   = "5Gi"
@@ -45,18 +47,36 @@ const (
 	OnlineFeastType   FeastServiceType = "online"
 	RegistryFeastType FeastServiceType = "registry"
 	ClientFeastType   FeastServiceType = "client"
+	ClientCaFeastType FeastServiceType = "client-ca"
 
-	OfflineRemoteConfigType OfflineConfigType = "remote"
-	OfflineDaskConfigType   OfflineConfigType = "dask"
-	OfflineDuckDbConfigType OfflineConfigType = "duckdb"
+	OfflineRemoteConfigType                 OfflineConfigType = "remote"
+	OfflineFilePersistenceDaskConfigType    OfflineConfigType = "dask"
+	OfflineFilePersistenceDuckDbConfigType  OfflineConfigType = "duckdb"
+	OfflineDBPersistenceSnowflakeConfigType OfflineConfigType = "snowflake.offline"
 
-	OnlineRemoteConfigType OnlineConfigType = "remote"
-	OnlineSqliteConfigType OnlineConfigType = "sqlite"
+	OnlineRemoteConfigType                 OnlineConfigType = "remote"
+	OnlineSqliteConfigType                 OnlineConfigType = "sqlite"
+	OnlineDBPersistenceSnowflakeConfigType OnlineConfigType = "snowflake.online"
+	OnlineDBPersistenceCassandraConfigType OnlineConfigType = "cassandra"
 
-	RegistryRemoteConfigType RegistryConfigType = "remote"
-	RegistryFileConfigType   RegistryConfigType = "file"
+	RegistryRemoteConfigType                 RegistryConfigType = "remote"
+	RegistryFileConfigType                   RegistryConfigType = "file"
+	RegistryDBPersistenceSnowflakeConfigType RegistryConfigType = "snowflake.registry"
+	RegistryDBPersistenceSQLConfigType       RegistryConfigType = "sql"
 
 	LocalProviderType FeastProviderType = "local"
+
+	NoAuthAuthType     AuthzType = "no_auth"
+	KubernetesAuthType AuthzType = "kubernetes"
+	OidcAuthType       AuthzType = "oidc"
+
+	OidcClientId         OidcPropertyType = "client_id"
+	OidcAuthDiscoveryUrl OidcPropertyType = "auth_discovery_url"
+	OidcClientSecret     OidcPropertyType = "client_secret"
+	OidcUsername         OidcPropertyType = "username"
+	OidcPassword         OidcPropertyType = "password"
+
+	OidcMissingSecretError string = "missing OIDC secret: %s"
 )
 
 var (
@@ -67,16 +87,19 @@ var (
 
 	FeastServiceConstants = map[FeastServiceType]deploymentSettings{
 		OfflineFeastType: {
-			Command:    []string{"feast", "serve_offline", "-h", "0.0.0.0"},
-			TargetPort: 8815,
+			Args:            []string{"serve_offline", "-h", "0.0.0.0"},
+			TargetHttpPort:  8815,
+			TargetHttpsPort: 8816,
 		},
 		OnlineFeastType: {
-			Command:    []string{"feast", "serve", "-h", "0.0.0.0"},
-			TargetPort: 6566,
+			Args:            []string{"serve", "-h", "0.0.0.0"},
+			TargetHttpPort:  6566,
+			TargetHttpsPort: 6567,
 		},
 		RegistryFeastType: {
-			Command:    []string{"feast", "serve_registry"},
-			TargetPort: 6570,
+			Args:            []string{"serve_registry"},
+			TargetHttpPort:  6570,
+			TargetHttpsPort: 6571,
 		},
 	}
 
@@ -134,7 +157,16 @@ var (
 			},
 		},
 	}
+
+	OidcServerProperties = []OidcPropertyType{OidcClientId, OidcAuthDiscoveryUrl}
+	OidcClientProperties = []OidcPropertyType{OidcClientSecret, OidcUsername, OidcPassword}
 )
+
+// AuthzType defines the authorization type
+type AuthzType string
+
+// OidcPropertyType defines the OIDC property type
+type OidcPropertyType string
 
 // FeastServiceType is the type of feast service
 type FeastServiceType string
@@ -153,10 +185,7 @@ type FeastProviderType string
 
 // FeastServices is an interface for configuring and deploying feast services
 type FeastServices struct {
-	client.Client
-	Context      context.Context
-	Scheme       *runtime.Scheme
-	FeatureStore *feastdevv1alpha1.FeatureStore
+	Handler handler.FeastHandler
 }
 
 // RepoConfig is the Repo config. Typically loaded from feature_store.yaml.
@@ -167,29 +196,45 @@ type RepoConfig struct {
 	OfflineStore                  OfflineStoreConfig `yaml:"offline_store,omitempty"`
 	OnlineStore                   OnlineStoreConfig  `yaml:"online_store,omitempty"`
 	Registry                      RegistryConfig     `yaml:"registry,omitempty"`
+	AuthzConfig                   AuthzConfig        `yaml:"auth,omitempty"`
 	EntityKeySerializationVersion int                `yaml:"entity_key_serialization_version,omitempty"`
 }
 
 // OfflineStoreConfig is the configuration that relates to reading from and writing to the Feast offline store.
 type OfflineStoreConfig struct {
-	Host string            `yaml:"host,omitempty"`
-	Type OfflineConfigType `yaml:"type,omitempty"`
-	Port int               `yaml:"port,omitempty"`
+	Host         string                 `yaml:"host,omitempty"`
+	Type         OfflineConfigType      `yaml:"type,omitempty"`
+	Port         int                    `yaml:"port,omitempty"`
+	Scheme       string                 `yaml:"scheme,omitempty"`
+	Cert         string                 `yaml:"cert,omitempty"`
+	DBParameters map[string]interface{} `yaml:",inline,omitempty"`
 }
 
 // OnlineStoreConfig is the configuration that relates to reading from and writing to the Feast online store.
 type OnlineStoreConfig struct {
-	Path string           `yaml:"path,omitempty"`
-	Type OnlineConfigType `yaml:"type,omitempty"`
+	Path         string                 `yaml:"path,omitempty"`
+	Type         OnlineConfigType       `yaml:"type,omitempty"`
+	Cert         string                 `yaml:"cert,omitempty"`
+	DBParameters map[string]interface{} `yaml:",inline,omitempty"`
 }
 
 // RegistryConfig is the configuration that relates to reading from and writing to the Feast registry.
 type RegistryConfig struct {
-	Path         string             `yaml:"path,omitempty"`
-	RegistryType RegistryConfigType `yaml:"registry_type,omitempty"`
+	Path               string                 `yaml:"path,omitempty"`
+	RegistryType       RegistryConfigType     `yaml:"registry_type,omitempty"`
+	Cert               string                 `yaml:"cert,omitempty"`
+	S3AdditionalKwargs *map[string]string     `yaml:"s3_additional_kwargs,omitempty"`
+	DBParameters       map[string]interface{} `yaml:",inline,omitempty"`
+}
+
+// AuthzConfig is the RBAC authorization configuration.
+type AuthzConfig struct {
+	Type           AuthzType              `yaml:"type,omitempty"`
+	OidcParameters map[string]interface{} `yaml:",inline,omitempty"`
 }
 
 type deploymentSettings struct {
-	Command    []string
-	TargetPort int32
+	Args            []string
+	TargetHttpPort  int32
+	TargetHttpsPort int32
 }

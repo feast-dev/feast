@@ -39,6 +39,59 @@ func TestNewFeatureStore(t *testing.T) {
 	fs, err := NewFeatureStore(&config, nil)
 	assert.Nil(t, err)
 	assert.IsType(t, &onlinestore.RedisOnlineStore{}, fs.onlineStore)
+
+	t.Run("valid config", func(t *testing.T) {
+		config := &registry.RepoConfig{
+			Project:  "feature_repo",
+			Registry: getRegistryPath(),
+			Provider: "local",
+			OnlineStore: map[string]interface{}{
+				"type": "redis",
+			},
+			FeatureServer: map[string]interface{}{
+				"transformation_service_endpoint": "localhost:50051",
+			},
+		}
+		fs, err := NewFeatureStore(config, nil)
+		assert.Nil(t, err)
+		assert.NotNil(t, fs)
+		assert.IsType(t, &onlinestore.RedisOnlineStore{}, fs.onlineStore)
+		assert.NotNil(t, fs.transformationService)
+	})
+
+	t.Run("missing transformation service endpoint", func(t *testing.T) {
+		config := &registry.RepoConfig{
+			Project:  "feature_repo",
+			Registry: getRegistryPath(),
+			Provider: "local",
+			OnlineStore: map[string]interface{}{
+				"type": "redis",
+			},
+		}
+		defer func() {
+			if r := recover(); r == nil {
+				t.Errorf("The code did not panic")
+			}
+		}()
+		NewFeatureStore(config, nil)
+	})
+
+	t.Run("invalid online store config", func(t *testing.T) {
+		config := &registry.RepoConfig{
+			Project:  "feature_repo",
+			Registry: getRegistryPath(),
+			Provider: "local",
+			OnlineStore: map[string]interface{}{
+				"type": "invalid_store",
+			},
+			FeatureServer: map[string]interface{}{
+				"transformation_service_endpoint": "localhost:50051",
+			},
+		}
+		fs, err := NewFeatureStore(config, nil)
+		assert.NotNil(t, err)
+		assert.Nil(t, fs)
+	})
 }
 
 func TestGetOnlineFeaturesRedis(t *testing.T) {

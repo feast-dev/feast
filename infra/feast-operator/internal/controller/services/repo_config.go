@@ -18,12 +18,12 @@ package services
 
 import (
 	"encoding/base64"
+	"fmt"
 	"path"
 	"strings"
 
 	feastdevv1alpha1 "github.com/feast-dev/feast/infra/feast-operator/api/v1alpha1"
 	"gopkg.in/yaml.v3"
-	corev1 "k8s.io/api/core/v1"
 )
 
 // GetServiceFeatureStoreYamlBase64 returns a base64 encoded feature_store.yaml config for the feast service
@@ -44,61 +44,64 @@ func (feast *FeastServices) getServiceFeatureStoreYaml(feastType FeastServiceTyp
 }
 
 func (feast *FeastServices) getServiceRepoConfig(feastType FeastServiceType) (RepoConfig, error) {
-	return getServiceRepoConfig(feastType, feast.FeatureStore)
+	return getServiceRepoConfig(feastType, feast.Handler.FeatureStore, feast.extractConfigFromSecret)
 }
 
-func getServiceRepoConfig(feastType FeastServiceType, featureStore *feastdevv1alpha1.FeatureStore) (RepoConfig, error) {
+func getServiceRepoConfig(
+	feastType FeastServiceType,
+	featureStore *feastdevv1alpha1.FeatureStore,
+	secretExtractionFunc func(storeType string, secretRef string, secretKeyName string) (map[string]interface{}, error)) (RepoConfig, error) {
 	appliedSpec := featureStore.Status.Applied
 
-	repoConfig := getClientRepoConfig(featureStore)
-	isLocalRegistry := isLocalRegistry(featureStore)
+	repoConfig, err := getClientRepoConfig(featureStore, secretExtractionFunc)
+	if err != nil {
+		return repoConfig, err
+	}
+
+	if appliedSpec.AuthzConfig != nil && appliedSpec.AuthzConfig.OidcAuthz != nil {
+		propertiesMap, authSecretErr := secretExtractionFunc("", appliedSpec.AuthzConfig.OidcAuthz.SecretRef.Name, "")
+		if authSecretErr != nil {
+			return repoConfig, authSecretErr
+		}
+
+		oidcServerProperties := map[string]interface{}{}
+		for _, oidcServerProperty := range OidcServerProperties {
+			if val, exists := propertiesMap[string(oidcServerProperty)]; exists {
+				oidcServerProperties[string(oidcServerProperty)] = val
+			} else {
+				return repoConfig, missingOidcSecretProperty(oidcServerProperty)
+			}
+		}
+		repoConfig.AuthzConfig.OidcParameters = oidcServerProperties
+	}
+
 	if appliedSpec.Services != nil {
 		services := appliedSpec.Services
+
 		switch feastType {
 		case OfflineFeastType:
 			// Offline server has an `offline_store` section and a remote `registry`
 			if services.OfflineStore != nil {
-				fileType := string(OfflineDaskConfigType)
-				if services.OfflineStore.Persistence != nil &&
-					services.OfflineStore.Persistence.FilePersistence != nil &&
-					len(services.OfflineStore.Persistence.FilePersistence.Type) > 0 {
-					fileType = services.OfflineStore.Persistence.FilePersistence.Type
+				err := setRepoConfigOffline(services, secretExtractionFunc, &repoConfig)
+				if err != nil {
+					return repoConfig, err
 				}
-
-				repoConfig.OfflineStore = OfflineStoreConfig{
-					Type: OfflineConfigType(fileType),
-				}
-				repoConfig.OnlineStore = OnlineStoreConfig{}
 			}
 		case OnlineFeastType:
 			// Online server has an `online_store` section, a remote `registry` and a remote `offline_store`
 			if services.OnlineStore != nil {
-				path := DefaultOnlineStoreEphemeralPath
-				if services.OnlineStore.Persistence != nil && services.OnlineStore.Persistence.FilePersistence != nil {
-					filePersistence := services.OnlineStore.Persistence.FilePersistence
-					path = getActualPath(filePersistence.Path, filePersistence.PvcConfig)
-				}
-
-				repoConfig.OnlineStore = OnlineStoreConfig{
-					Type: OnlineSqliteConfigType,
-					Path: path,
+				err := setRepoConfigOnline(services, secretExtractionFunc, &repoConfig)
+				if err != nil {
+					return repoConfig, err
 				}
 			}
 		case RegistryFeastType:
 			// Registry server only has a `registry` section
-			if isLocalRegistry {
-				path := DefaultRegistryEphemeralPath
-				if services != nil && services.Registry != nil && services.Registry.Local != nil &&
-					services.Registry.Local.Persistence != nil && services.Registry.Local.Persistence.FilePersistence != nil {
-					filePersistence := services.Registry.Local.Persistence.FilePersistence
-					path = getActualPath(filePersistence.Path, filePersistence.PvcConfig)
+			if IsLocalRegistry(featureStore) {
+				err := setRepoConfigRegistry(services, secretExtractionFunc, &repoConfig)
+				if err != nil {
+					return repoConfig, err
 				}
-				repoConfig.Registry = RegistryConfig{
-					RegistryType: RegistryFileConfigType,
-					Path:         path,
-				}
-				repoConfig.OfflineStore = OfflineStoreConfig{}
-				repoConfig.OnlineStore = OnlineStoreConfig{}
 			}
 		}
 	}
@@ -106,12 +109,134 @@ func getServiceRepoConfig(feastType FeastServiceType, featureStore *feastdevv1al
 	return repoConfig, nil
 }
 
-func (feast *FeastServices) getClientFeatureStoreYaml() ([]byte, error) {
-	return yaml.Marshal(getClientRepoConfig(feast.FeatureStore))
+func setRepoConfigRegistry(services *feastdevv1alpha1.FeatureStoreServices, secretExtractionFunc func(storeType string, secretRef string, secretKeyName string) (map[string]interface{}, error), repoConfig *RepoConfig) error {
+	repoConfig.Registry = RegistryConfig{}
+	repoConfig.Registry.Path = DefaultRegistryEphemeralPath
+	registryPersistence := services.Registry.Local.Persistence
+
+	if registryPersistence != nil {
+		filePersistence := registryPersistence.FilePersistence
+		dbPersistence := registryPersistence.DBPersistence
+
+		if filePersistence != nil {
+			repoConfig.Registry.RegistryType = RegistryFileConfigType
+			repoConfig.Registry.Path = getActualPath(filePersistence.Path, filePersistence.PvcConfig)
+			repoConfig.Registry.S3AdditionalKwargs = filePersistence.S3AdditionalKwargs
+		} else if dbPersistence != nil && len(dbPersistence.Type) > 0 {
+			repoConfig.Registry.Path = ""
+			repoConfig.Registry.RegistryType = RegistryConfigType(dbPersistence.Type)
+			secretKeyName := dbPersistence.SecretKeyName
+			if len(secretKeyName) == 0 {
+				secretKeyName = string(repoConfig.Registry.RegistryType)
+			}
+			parametersMap, err := secretExtractionFunc(dbPersistence.Type, dbPersistence.SecretRef.Name, secretKeyName)
+			if err != nil {
+				return err
+			}
+
+			err = mergeStructWithDBParametersMap(&parametersMap, &repoConfig.Registry)
+			if err != nil {
+				return err
+			}
+
+			repoConfig.Registry.DBParameters = parametersMap
+		}
+	}
+
+	repoConfig.OfflineStore = OfflineStoreConfig{}
+	repoConfig.OnlineStore = OnlineStoreConfig{}
+
+	return nil
 }
 
-func getClientRepoConfig(featureStore *feastdevv1alpha1.FeatureStore) RepoConfig {
+func setRepoConfigOnline(services *feastdevv1alpha1.FeatureStoreServices, secretExtractionFunc func(storeType string, secretRef string, secretKeyName string) (map[string]interface{}, error), repoConfig *RepoConfig) error {
+	repoConfig.OnlineStore = OnlineStoreConfig{}
+
+	repoConfig.OnlineStore.Path = DefaultOnlineStoreEphemeralPath
+	repoConfig.OnlineStore.Type = OnlineSqliteConfigType
+	onlineStorePersistence := services.OnlineStore.Persistence
+
+	if onlineStorePersistence != nil {
+		filePersistence := onlineStorePersistence.FilePersistence
+		dbPersistence := onlineStorePersistence.DBPersistence
+
+		if filePersistence != nil {
+			repoConfig.OnlineStore.Path = getActualPath(filePersistence.Path, filePersistence.PvcConfig)
+		} else if dbPersistence != nil && len(dbPersistence.Type) > 0 {
+			repoConfig.OnlineStore.Path = ""
+			repoConfig.OnlineStore.Type = OnlineConfigType(dbPersistence.Type)
+			secretKeyName := dbPersistence.SecretKeyName
+			if len(secretKeyName) == 0 {
+				secretKeyName = string(repoConfig.OnlineStore.Type)
+			}
+
+			parametersMap, err := secretExtractionFunc(dbPersistence.Type, dbPersistence.SecretRef.Name, secretKeyName)
+			if err != nil {
+				return err
+			}
+
+			err = mergeStructWithDBParametersMap(&parametersMap, &repoConfig.OnlineStore)
+			if err != nil {
+				return err
+			}
+
+			repoConfig.OnlineStore.DBParameters = parametersMap
+		}
+	}
+
+	return nil
+}
+
+func setRepoConfigOffline(services *feastdevv1alpha1.FeatureStoreServices, secretExtractionFunc func(storeType string, secretRef string, secretKeyName string) (map[string]interface{}, error), repoConfig *RepoConfig) error {
+	repoConfig.OfflineStore = OfflineStoreConfig{}
+	repoConfig.OfflineStore.Type = OfflineFilePersistenceDaskConfigType
+	offlineStorePersistence := services.OfflineStore.Persistence
+
+	if offlineStorePersistence != nil {
+		dbPersistence := offlineStorePersistence.DBPersistence
+		filePersistence := offlineStorePersistence.FilePersistence
+
+		if filePersistence != nil && len(filePersistence.Type) > 0 {
+			repoConfig.OfflineStore.Type = OfflineConfigType(filePersistence.Type)
+		} else if offlineStorePersistence.DBPersistence != nil && len(dbPersistence.Type) > 0 {
+			repoConfig.OfflineStore.Type = OfflineConfigType(dbPersistence.Type)
+			secretKeyName := dbPersistence.SecretKeyName
+			if len(secretKeyName) == 0 {
+				secretKeyName = string(repoConfig.OfflineStore.Type)
+			}
+
+			parametersMap, err := secretExtractionFunc(dbPersistence.Type, dbPersistence.SecretRef.Name, secretKeyName)
+			if err != nil {
+				return err
+			}
+
+			err = mergeStructWithDBParametersMap(&parametersMap, &repoConfig.OfflineStore)
+			if err != nil {
+				return err
+			}
+
+			repoConfig.OfflineStore.DBParameters = parametersMap
+		}
+	}
+
+	repoConfig.OnlineStore = OnlineStoreConfig{}
+
+	return nil
+}
+
+func (feast *FeastServices) getClientFeatureStoreYaml(secretExtractionFunc func(storeType string, secretRef string, secretKeyName string) (map[string]interface{}, error)) ([]byte, error) {
+	clientRepo, err := getClientRepoConfig(feast.Handler.FeatureStore, secretExtractionFunc)
+	if err != nil {
+		return []byte{}, err
+	}
+	return yaml.Marshal(clientRepo)
+}
+
+func getClientRepoConfig(
+	featureStore *feastdevv1alpha1.FeatureStore,
+	secretExtractionFunc func(storeType string, secretRef string, secretKeyName string) (map[string]interface{}, error)) (RepoConfig, error) {
 	status := featureStore.Status
+	appliedServices := status.Applied.Services
 	clientRepoConfig := RepoConfig{
 		Project:                       status.Applied.FeastProject,
 		Provider:                      LocalProviderType,
@@ -123,11 +248,21 @@ func getClientRepoConfig(featureStore *feastdevv1alpha1.FeatureStore) RepoConfig
 			Host: strings.Split(status.ServiceHostnames.OfflineStore, ":")[0],
 			Port: HttpPort,
 		}
+		if appliedServices.OfflineStore != nil && appliedServices.OfflineStore.TLS.IsTLS() {
+			clientRepoConfig.OfflineStore.Cert = GetTlsPath(OfflineFeastType) + appliedServices.OfflineStore.TLS.SecretKeyNames.TlsCrt
+			clientRepoConfig.OfflineStore.Port = HttpsPort
+			clientRepoConfig.OfflineStore.Scheme = HttpsScheme
+		}
 	}
 	if len(status.ServiceHostnames.OnlineStore) > 0 {
+		onlinePath := "://" + status.ServiceHostnames.OnlineStore
 		clientRepoConfig.OnlineStore = OnlineStoreConfig{
 			Type: OnlineRemoteConfigType,
-			Path: strings.ToLower(string(corev1.URISchemeHTTP)) + "://" + status.ServiceHostnames.OnlineStore,
+			Path: HttpScheme + onlinePath,
+		}
+		if appliedServices.OnlineStore != nil && appliedServices.OnlineStore.TLS.IsTLS() {
+			clientRepoConfig.OnlineStore.Cert = GetTlsPath(OnlineFeastType) + appliedServices.OnlineStore.TLS.SecretKeyNames.TlsCrt
+			clientRepoConfig.OnlineStore.Path = HttpsScheme + onlinePath
 		}
 	}
 	if len(status.ServiceHostnames.Registry) > 0 {
@@ -135,8 +270,44 @@ func getClientRepoConfig(featureStore *feastdevv1alpha1.FeatureStore) RepoConfig
 			RegistryType: RegistryRemoteConfigType,
 			Path:         status.ServiceHostnames.Registry,
 		}
+		if localRegistryTls(featureStore) {
+			clientRepoConfig.Registry.Cert = GetTlsPath(RegistryFeastType) + appliedServices.Registry.Local.TLS.SecretKeyNames.TlsCrt
+		} else if remoteRegistryTls(featureStore) {
+			clientRepoConfig.Registry.Cert = GetTlsPath(RegistryFeastType) + appliedServices.Registry.Remote.TLS.CertName
+		}
 	}
-	return clientRepoConfig
+
+	if status.Applied.AuthzConfig == nil {
+		clientRepoConfig.AuthzConfig = AuthzConfig{
+			Type: NoAuthAuthType,
+		}
+	} else {
+		if status.Applied.AuthzConfig.KubernetesAuthz != nil {
+			clientRepoConfig.AuthzConfig = AuthzConfig{
+				Type: KubernetesAuthType,
+			}
+		} else if status.Applied.AuthzConfig.OidcAuthz != nil {
+			clientRepoConfig.AuthzConfig = AuthzConfig{
+				Type: OidcAuthType,
+			}
+
+			propertiesMap, err := secretExtractionFunc("", status.Applied.AuthzConfig.OidcAuthz.SecretRef.Name, "")
+			if err != nil {
+				return clientRepoConfig, err
+			}
+
+			oidcClientProperties := map[string]interface{}{}
+			for _, oidcClientProperty := range OidcClientProperties {
+				if val, exists := propertiesMap[string(oidcClientProperty)]; exists {
+					oidcClientProperties[string(oidcClientProperty)] = val
+				} else {
+					return clientRepoConfig, missingOidcSecretProperty(oidcClientProperty)
+				}
+			}
+			clientRepoConfig.AuthzConfig.OidcParameters = oidcClientProperties
+		}
+	}
+	return clientRepoConfig, nil
 }
 
 func getActualPath(filePath string, pvcConfig *feastdevv1alpha1.PvcConfig) string {
@@ -144,4 +315,60 @@ func getActualPath(filePath string, pvcConfig *feastdevv1alpha1.PvcConfig) strin
 		return filePath
 	}
 	return path.Join(pvcConfig.MountPath, filePath)
+}
+
+func (feast *FeastServices) extractConfigFromSecret(storeType string, secretRef string, secretKeyName string) (map[string]interface{}, error) {
+	secret, err := feast.getSecret(secretRef)
+	if err != nil {
+		return nil, err
+	}
+	parameters := map[string]interface{}{}
+
+	if secretKeyName != "" {
+		val, exists := secret.Data[secretKeyName]
+		if !exists {
+			return nil, fmt.Errorf("secret key %s doesn't exist in secret %s", secretKeyName, secretRef)
+		}
+
+		err = yaml.Unmarshal(val, &parameters)
+		if err != nil {
+			return nil, fmt.Errorf("secret %s contains invalid value", secretKeyName)
+		}
+
+		typeVal, typeExists := parameters["type"]
+		if typeExists && storeType != typeVal {
+			return nil, fmt.Errorf("secret key %s in secret %s contains tag named type with value %s", secretKeyName, secretRef, typeVal)
+		}
+
+		typeVal, typeExists = parameters["registry_type"]
+		if typeExists && storeType != typeVal {
+			return nil, fmt.Errorf("secret key %s in secret %s contains tag named registry_type with value %s", secretKeyName, secretRef, typeVal)
+		}
+	} else {
+		for k, v := range secret.Data {
+			var val interface{}
+			err := yaml.Unmarshal(v, &val)
+			if err != nil {
+				return nil, fmt.Errorf("secret %s contains invalid value %v", k, v)
+			}
+			parameters[k] = val
+		}
+	}
+
+	return parameters, nil
+}
+
+func mergeStructWithDBParametersMap(parametersMap *map[string]interface{}, s interface{}) error {
+	for key, val := range *parametersMap {
+		hasAttribute, err := hasAttrib(s, key, val)
+		if err != nil {
+			return err
+		}
+
+		if hasAttribute {
+			delete(*parametersMap, key)
+		}
+	}
+
+	return nil
 }

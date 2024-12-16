@@ -1,0 +1,15 @@
+apiVersion: feast.dev/v1alpha1
+kind: FeatureStore
+metadata:
+  name: sample-services-loglevel
+spec:
+  feastProject: my_project
+  services:
+    onlineStore:
+      logLevel: debug
+    offlineStore:
+      logLevel: debug
+    registry:
+      local:
+       logLevel: info
+

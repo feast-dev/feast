@@ -1,6 +1,11 @@
 name: unit-tests
 
-on: [pull_request]
+on:
+  pull_request:
+    paths-ignore:
+      - 'community/**'
+      - 'docs/**'
+      - 'examples/**'
 jobs:
   unit-test-python:
     runs-on: ${{ matrix.os }}
@@ -36,7 +41,7 @@ jobs:
           path: ${{ steps.uv-cache.outputs.dir }}
           key: ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-uv-${{ hashFiles(format('**/py{0}-ci-requirements.txt', env.PYTHON)) }}
       - name: Install dependencies
-        run: make install-python-ci-dependencies-uv
+        run: make install-python-dependencies-ci
       - name: Test Python
         run: make test-python-unit
 

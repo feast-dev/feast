@@ -1570,23 +1570,24 @@
     minimatch "^3.1.2"
     strip-json-comments "^3.1.1"
 
-"@feast-dev/feast-ui@0.41.0":
-  version "0.41.0"
-  resolved "https://registry.yarnpkg.com/@feast-dev/feast-ui/-/feast-ui-0.41.0.tgz#67eca6328131ee524ee6a6f286cfc4386f698053"
-  integrity sha512-BkVb4zfR+j95IX9FBzeXFyCimG5Za1a3jyLqjmETRO3hpp5OJanpc2N35AaOn8ZPqka00Be/b8NZ8TjbsRWyVg==
+"@feast-dev/feast-ui@0.42.0":
+  version "0.42.0"
+  resolved "https://registry.yarnpkg.com/@feast-dev/feast-ui/-/feast-ui-0.42.0.tgz#b186142d6b5176c8d5784c425fa22724b16dda6f"
+  integrity sha512-onHkZznObLCy5kpeWv+8Z6O51WMqF7xxNfnn3SNSOj6sPJn+FpfMq5DmJG2ESRvB3lw/SrBJB1aPr+pOtMYQjQ==
   dependencies:
     "@elastic/datemath" "^5.0.3"
     "@elastic/eui" "^95.12.0"
     "@emotion/css" "^11.13.0"
     "@emotion/react" "^11.13.3"
     inter-ui "^3.19.3"
+    long "^5.2.3"
     moment "^2.29.1"
     protobufjs "^7.1.1"
     query-string "^7.1.1"
+    react-app-polyfill "^3.0.0"
     react-code-blocks "^0.1.6"
     react-query "^3.39.3"
     react-router-dom "<6.4.0"
-    react-scripts "^5.0.1"
     tslib "^2.3.1"
     use-query-params "^1.2.3"
     zod "^3.11.6"
@@ -7506,6 +7507,11 @@ long@^5.0.0:
   resolved "https://registry.yarnpkg.com/long/-/long-5.2.0.tgz#2696dadf4b4da2ce3f6f6b89186085d94d52fd61"
   integrity sha512-9RTUNjK60eJbx3uz+TEGF7fUr29ZDxR5QzXcyDpeSfeH28S9ycINflOgOlppit5U+4kNTe83KQnMEerw7GmE8w==
 
+long@^5.2.3:
+  version "5.2.3"
+  resolved "https://registry.yarnpkg.com/long/-/long-5.2.3.tgz#a3ba97f3877cf1d778eccbcb048525ebb77499e1"
+  integrity sha512-lcHwpNoggQTObv5apGNCTdJrO69eHOZMi4BNC+rTLER8iHAqGrUVeLh/irVIM7zTw2bOXA8T6uNPeujwOLg/2Q==
+
 loose-envify@^1.0.0, loose-envify@^1.1.0, loose-envify@^1.4.0:
   version "1.4.0"
   resolved "https://registry.yarnpkg.com/loose-envify/-/loose-envify-1.4.0.tgz#71ee51fa7be4caec1a63839f7e682d8132d30caf"
@@ -9256,7 +9262,7 @@ react-router@6.3.0:
   dependencies:
     history "^5.2.0"
 
-react-scripts@^5.0.0, react-scripts@^5.0.1:
+react-scripts@^5.0.0:
   version "5.0.1"
   resolved "https://registry.yarnpkg.com/react-scripts/-/react-scripts-5.0.1.tgz#6285dbd65a8ba6e49ca8d651ce30645a6d980003"
   integrity sha512-8VAmEm/ZAwQzJ+GOMLbBsTdDKOpuZh7RPs0UymvBR2vRk4iZWCskjbFnxqjrzoIvlNNRZ3QJFx6/qDSi6zSnaQ==

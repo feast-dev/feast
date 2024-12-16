@@ -1,20 +1,18 @@
 package transformation
 
 import (
-	"errors"
+	"context"
 	"fmt"
+	"runtime"
 	"strings"
-	"unsafe"
 
-	"github.com/apache/arrow/go/v8/arrow"
-	"github.com/apache/arrow/go/v8/arrow/array"
-	"github.com/apache/arrow/go/v8/arrow/cdata"
-	"github.com/apache/arrow/go/v8/arrow/memory"
-	"google.golang.org/protobuf/types/known/timestamppb"
+	"github.com/apache/arrow/go/v17/arrow"
+	"github.com/apache/arrow/go/v17/arrow/memory"
+	"github.com/rs/zerolog/log"
+	//"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 
 	"github.com/feast-dev/feast/go/internal/feast/model"
 	"github.com/feast-dev/feast/go/internal/feast/onlineserving"
-	"github.com/feast-dev/feast/go/protos/feast/serving"
 	prototypes "github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/feast-dev/feast/go/types"
 )
@@ -24,20 +22,27 @@ TransformationCallback is a Python callback function's expected signature.
 The function should accept name of the on demand feature view and pointers to input & output record batches.
 Each record batch is being passed as two pointers: pointer to array (data) and pointer to schema.
 Python function is expected to return number of rows added to the output record batch.
+
+[11-20-2024] Use a Transformation GRPC service, like the Python version one, for better scalability.
 */
 type TransformationCallback func(ODFVName string, inputArrPtr, inputSchemaPtr, outArrPtr, outSchemaPtr uintptr, fullFeatureNames bool) int
 
 func AugmentResponseWithOnDemandTransforms(
+	ctx context.Context,
 	onDemandFeatureViews []*model.OnDemandFeatureView,
 	requestData map[string]*prototypes.RepeatedValue,
 	entityRows map[string]*prototypes.RepeatedValue,
 	features []*onlineserving.FeatureVector,
 	transformationCallback TransformationCallback,
+	transformationService *GrpcTransformationService,
 	arrowMemory memory.Allocator,
 	numRows int,
 	fullFeatureNames bool,
 
 ) ([]*onlineserving.FeatureVector, error) {
+	//span, _ := tracer.StartSpanFromContext(ctx, "transformation.AugmentResponseWithOnDemandTransforms")
+	//defer span.Finish()
+
 	result := make([]*onlineserving.FeatureVector, 0)
 	var err error
 
@@ -64,17 +69,20 @@ func AugmentResponseWithOnDemandTransforms(
 			retrievedFeatures[vector.Name] = vector.Values
 		}
 
-		onDemandFeatures, err := CallTransformations(
-			odfv,
-			retrievedFeatures,
-			requestContextArrow,
-			transformationCallback,
-			numRows,
-			fullFeatureNames,
-		)
-		if err != nil {
-			ReleaseArrowContext(requestContextArrow)
-			return nil, err
+		var onDemandFeatures []*onlineserving.FeatureVector
+		if transformationService != nil {
+			onDemandFeatures, err = transformationService.GetTransformation(
+				ctx,
+				odfv,
+				retrievedFeatures,
+				requestContextArrow,
+				numRows,
+				fullFeatureNames,
+			)
+			if err != nil {
+				ReleaseArrowContext(requestContextArrow)
+				return nil, err
+			}
 		}
 		result = append(result, onDemandFeatures...)
 
@@ -89,103 +97,6 @@ func ReleaseArrowContext(requestContextArrow map[string]arrow.Array) {
 	for _, arrowArray := range requestContextArrow {
 		arrowArray.Release()
 	}
-}
-
-func CallTransformations(
-	featureView *model.OnDemandFeatureView,
-	retrievedFeatures map[string]arrow.Array,
-	requestContext map[string]arrow.Array,
-	callback TransformationCallback,
-	numRows int,
-	fullFeatureNames bool,
-) ([]*onlineserving.FeatureVector, error) {
-
-	inputArr := cdata.CArrowArray{}
-	inputSchema := cdata.CArrowSchema{}
-
-	outArr := cdata.CArrowArray{}
-	outSchema := cdata.CArrowSchema{}
-
-	defer cdata.ReleaseCArrowArray(&inputArr)
-	defer cdata.ReleaseCArrowArray(&outArr)
-	defer cdata.ReleaseCArrowSchema(&inputSchema)
-	defer cdata.ReleaseCArrowSchema(&outSchema)
-
-	inputArrPtr := uintptr(unsafe.Pointer(&inputArr))
-	inputSchemaPtr := uintptr(unsafe.Pointer(&inputSchema))
-
-	outArrPtr := uintptr(unsafe.Pointer(&outArr))
-	outSchemaPtr := uintptr(unsafe.Pointer(&outSchema))
-
-	inputFields := make([]arrow.Field, 0)
-	inputColumns := make([]arrow.Array, 0)
-	for name, arr := range retrievedFeatures {
-		inputFields = append(inputFields, arrow.Field{Name: name, Type: arr.DataType()})
-		inputColumns = append(inputColumns, arr)
-	}
-	for name, arr := range requestContext {
-		inputFields = append(inputFields, arrow.Field{Name: name, Type: arr.DataType()})
-		inputColumns = append(inputColumns, arr)
-	}
-
-	inputRecord := array.NewRecord(arrow.NewSchema(inputFields, nil), inputColumns, int64(numRows))
-	defer inputRecord.Release()
-
-	cdata.ExportArrowRecordBatch(inputRecord, &inputArr, &inputSchema)
-
-	ret := callback(featureView.Base.Name, inputArrPtr, inputSchemaPtr, outArrPtr, outSchemaPtr, fullFeatureNames)
-
-	if ret != numRows {
-		return nil, errors.New("python transformation callback failed")
-	}
-
-	outRecord, err := cdata.ImportCRecordBatch(&outArr, &outSchema)
-	if err != nil {
-		return nil, err
-	}
-
-	result := make([]*onlineserving.FeatureVector, 0)
-	for idx, field := range outRecord.Schema().Fields() {
-		dropFeature := true
-
-		if featureView.Base.Projection != nil {
-			var featureName string
-			if fullFeatureNames {
-				featureName = strings.Split(field.Name, "__")[1]
-			} else {
-				featureName = field.Name
-			}
-
-			for _, feature := range featureView.Base.Projection.Features {
-				if featureName == feature.Name {
-					dropFeature = false
-				}
-			}
-		} else {
-			dropFeature = false
-		}
-
-		if dropFeature {
-			continue
-		}
-
-		statuses := make([]serving.FieldStatus, numRows)
-		timestamps := make([]*timestamppb.Timestamp, numRows)
-
-		for idx := 0; idx < numRows; idx++ {
-			statuses[idx] = serving.FieldStatus_PRESENT
-			timestamps[idx] = timestamppb.Now()
-		}
-
-		result = append(result, &onlineserving.FeatureVector{
-			Name:       field.Name,
-			Values:     outRecord.Column(idx),
-			Statuses:   statuses,
-			Timestamps: timestamps,
-		})
-	}
-
-	return result, nil
 }
 
 func EnsureRequestedDataExist(requestedOnDemandFeatureViews []*model.OnDemandFeatureView,
@@ -219,4 +130,16 @@ func getNeededRequestData(requestedOnDemandFeatureViews []*model.OnDemandFeature
 	}
 
 	return neededRequestData, nil
+}
+
+func logStackTrace() {
+	// Create a buffer for storing the stack trace
+	const size = 4096
+	buf := make([]byte, size)
+
+	// Retrieve the stack trace and write it to the buffer
+	stackSize := runtime.Stack(buf, false)
+
+	// Log the stack trace using zerolog
+	log.Error().Str("stack_trace", string(buf[:stackSize])).Msg("")
 }

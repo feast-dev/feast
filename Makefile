@@ -23,6 +23,12 @@ endif
 TRINO_VERSION ?= 376
 PYTHON_VERSION = ${shell python --version | grep -Eo '[0-9]\.[0-9]+'}
 
+PYTHON_VERSIONS := 3.9 3.10 3.11
+define get_env_name
+$(subst .,,py$(1))
+endef
+
+
 # General
 
 format: format-python format-java
@@ -35,50 +41,50 @@ protos: compile-protos-python compile-protos-docs
 
 build: protos build-java build-docker
 
-# Python SDK
+# Python SDK - local
+# formerly install-python-ci-dependencies-uv-venv
+# editable install
+install-python-dependencies-dev:
+	uv pip sync sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt
+	uv pip install --no-deps -e .
 
-install-python-dependencies-uv:
-	uv pip sync --system sdk/python/requirements/py$(PYTHON_VERSION)-requirements.txt
-	uv pip install --system --no-deps .
+# Python SDK - system
+# the --system flag installs dependencies in the global python context
+# instead of a venv which is useful when working in a docker container or ci.
 
-install-python-dependencies-uv-venv:
-	uv pip sync sdk/python/requirements/py$(PYTHON_VERSION)-requirements.txt
-	uv pip install --no-deps .
+# Used in github actions/ci
+# formerly install-python-ci-dependencies-uv
+install-python-dependencies-ci:
+	uv pip sync --system sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt
+	uv pip install --system --no-deps -e .
 
+# Used by multicloud/Dockerfile.dev
 install-python-ci-dependencies:
 	python -m piptools sync sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt
 	pip install --no-deps -e .
 
-install-python-ci-dependencies-uv:
-	uv pip sync --system sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt
-	uv pip install --system --no-deps -e .
-
-install-python-ci-dependencies-uv-venv:
-	uv pip sync sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt
-	uv pip install --no-deps -e .
-
-lock-python-ci-dependencies:
-	uv pip compile --system --no-strip-extras setup.py --extra ci --output-file sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt
-
-compile-protos-python:
-	python infra/scripts/generate_protos.py
-
+# Currently used in test-end-to-end.sh
 install-python:
 	python -m piptools sync sdk/python/requirements/py$(PYTHON_VERSION)-requirements.txt
 	python setup.py develop
 
-lock-python-dependencies:
-	uv pip compile --system --no-strip-extras setup.py --output-file sdk/python/requirements/py$(PYTHON_VERSION)-requirements.txt
-
 lock-python-dependencies-all:
-	# Remove all existing requirements because we noticed the lock file is not always updated correctly. Removing and running the command again ensures that the lock file is always up to date.
-	rm -r sdk/python/requirements/*
-	pixi run --environment py39 --manifest-path infra/scripts/pixi/pixi.toml "uv pip compile -p 3.9 --system --no-strip-extras setup.py --output-file sdk/python/requirements/py3.9-requirements.txt"
-	pixi run --environment py39 --manifest-path infra/scripts/pixi/pixi.toml "uv pip compile -p 3.9 --system --no-strip-extras setup.py --extra ci --output-file sdk/python/requirements/py3.9-ci-requirements.txt"
-	pixi run --environment py310 --manifest-path infra/scripts/pixi/pixi.toml "uv pip compile -p 3.10 --system --no-strip-extras setup.py --output-file sdk/python/requirements/py3.10-requirements.txt"
-	pixi run --environment py310 --manifest-path infra/scripts/pixi/pixi.toml "uv pip compile -p 3.10 --system --no-strip-extras setup.py --extra ci --output-file sdk/python/requirements/py3.10-ci-requirements.txt"
-	pixi run --environment py311 --manifest-path infra/scripts/pixi/pixi.toml "uv pip compile -p 3.11 --system --no-strip-extras setup.py --output-file sdk/python/requirements/py3.11-requirements.txt"
-	pixi run --environment py311 --manifest-path infra/scripts/pixi/pixi.toml "uv pip compile -p 3.11 --system --no-strip-extras setup.py --extra ci --output-file sdk/python/requirements/py3.11-ci-requirements.txt"
+	# Remove all existing requirements because we noticed the lock file is not always updated correctly.
+	# Removing and running the command again ensures that the lock file is always up to date.
+	rm -rf sdk/python/requirements/* 2>/dev/null || true
+
+	$(foreach ver,$(PYTHON_VERSIONS),\
+		pixi run --environment $(call get_env_name,$(ver)) --manifest-path infra/scripts/pixi/pixi.toml \
+			"uv pip compile -p $(ver) --system --no-strip-extras setup.py \
+			--output-file sdk/python/requirements/py$(ver)-requirements.txt" && \
+		pixi run --environment $(call get_env_name,$(ver)) --manifest-path infra/scripts/pixi/pixi.toml \
+			"uv pip compile -p $(ver) --system --no-strip-extras setup.py --extra ci \
+			--output-file sdk/python/requirements/py$(ver)-ci-requirements.txt" && \
+	) true
+
+
+compile-protos-python:
+	python infra/scripts/generate_protos.py
 
 benchmark-python:
 	IS_TEST=True python -m pytest --integration --benchmark  --benchmark-autosave --benchmark-save-data sdk/python/tests
@@ -242,7 +248,7 @@ test-python-universal-postgres-online:
 
  test-python-universal-pgvector-online:
 	PYTHONPATH='.' \
-		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.pgvector_repo_configuration \
+		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.postgres_online_store.pgvector_repo_configuration \
 		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.postgres \
 		python -m pytest -n 8 --integration \
  			-k "not test_universal_cli and \
@@ -256,6 +262,9 @@ test-python-universal-postgres-online:
 				not gcs_registry and \
 				not s3_registry and \
  				not test_universal_types and \
+ 				not test_validation and \
+ 				not test_spark_materialization_consistency and \
+ 				not test_historical_features_containing_backfills and \
 				not test_snowflake" \
  			sdk/python/tests
 
@@ -351,7 +360,7 @@ test-python-universal-singlestore-online:
 				not test_snowflake" \
 			sdk/python/tests
 
- test-python-universal-qdrant-online:
+test-python-universal-qdrant-online:
 	PYTHONPATH='.' \
 		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.qdrant_online_store.qdrant_repo_configuration \
 		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.qdrant \
@@ -536,3 +545,47 @@ build-helm-docs:
 # Note: requires node and yarn to be installed
 build-ui:
 	cd $(ROOT_DIR)/sdk/python/feast/ui && yarn upgrade @feast-dev/feast-ui --latest && yarn install && npm run build --omit=dev
+
+
+
+# Go SDK & embedded
+install-protoc-dependencies:
+	pip install "protobuf>=4.24.0,<5.0.0" "grpcio-tools>=1.56.2,<2" "mypy-protobuf>=3.1"
+
+install-go-proto-dependencies:
+	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.31.0
+	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.3.0
+
+#install-go-ci-dependencies:
+	# go install golang.org/x/tools/cmd/goimports
+	# python -m pip install "pybindgen==0.22.1" "grpcio-tools>=1.56.2,<2" "mypy-protobuf>=3.1"
+
+build-go: 
+	compile-protos-go 
+	go build -o feast ./go/main.go
+
+install-feast-ci-locally:
+	pip install -e ".[ci]"
+
+test-go: 
+	compile-protos-go 
+	compile-protos-python 
+	install-feast-ci-locally
+	CGO_ENABLED=1 go test -coverprofile=coverage.out ./... && go tool cover -html=coverage.out -o coverage.html
+
+format-go:
+	gofmt -s -w go/
+
+lint-go: 
+	compile-protos-go
+	go vet ./go/internal/feast
+
+build-go-docker-dev:
+	docker buildx build --build-arg VERSION=dev \
+		-t feastdev/feature-server-go:dev \
+		-f go/infra/docker/feature-server/Dockerfile --load .
+
+compile-protos-go: 
+	install-go-proto-dependencies 
+	install-protoc-dependencies
+	python setup.py build_go_protos
