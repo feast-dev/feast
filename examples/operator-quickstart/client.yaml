@@ -2,24 +2,24 @@
 kind: ServiceAccount
 apiVersion: v1
 metadata:
-  name: feast-example-client
+  name: feast-example
 
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: feast-example-client
+  name: feast-example
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: feast-example-client
+      app: feast-example
   template:
     metadata:
       labels:
-        app: feast-example-client
+        app: feast-example
     spec:
-      serviceAccountName: feast-example-client
+      serviceAccountName: feast-example
       initContainers:
         - name: init-feature-store
           image: 'quay.io/tchughesiv/feature-server:0.42.0-duckdb'
@@ -36,23 +36,29 @@ spec:
             - |
               echo "Starting feast initialization job...";
               mkdir feast-credit-score-local-tutorial;
-              tar vfx /f43b44b.tar.gz -C feast-credit-score-local-tutorial --strip-components 1;
+              tar vfxz /f43b44b.tar.gz -C feast-credit-score-local-tutorial --strip-components 1;
               cp -f /feature_store.yaml /feast-init/feast-credit-score-local-tutorial/feature_repo/;
               cd /feast-init/feast-credit-score-local-tutorial/feature_repo;
-              cat feature_store.yaml;
           volumeMounts:
             - name: shared-data
               mountPath: /feast-init
       containers:
         - name: client
+          image: 'feastdev/feature-server:0.42.0'
+          imagePullPolicy: Always
+          command: ["sleep", "infinity"]
+          env:
+            - name: FEATURE_STORE_YAML_BASE64
+              value: "cHJvamVjdDogY3JlZGl0X3Njb3JpbmdfbG9jYWwKcHJvdmlkZXI6IGxvY2FsCm9mZmxpbmVfc3RvcmU6CiAgICBob3N0OiBmZWFzdC1leGFtcGxlLW9mZmxpbmUuZmVhc3Quc3ZjLmNsdXN0ZXIubG9jYWwKICAgIHR5cGU6IHJlbW90ZQogICAgcG9ydDogODAKb25saW5lX3N0b3JlOgogICAgcGF0aDogaHR0cDovL2ZlYXN0LWV4YW1wbGUtb25saW5lLmZlYXN0LnN2Yy5jbHVzdGVyLmxvY2FsOjgwCiAgICB0eXBlOiByZW1vdGUKcmVnaXN0cnk6CiAgICBwYXRoOiBmZWFzdC1leGFtcGxlLXJlZ2lzdHJ5LmZlYXN0LnN2Yy5jbHVzdGVyLmxvY2FsOjgwCiAgICByZWdpc3RyeV90eXBlOiByZW1vdGUKYXV0aDoKICAgIHR5cGU6IG5vX2F1dGgKZW50aXR5X2tleV9zZXJpYWxpemF0aW9uX3ZlcnNpb246IDM="
+        - name: admin
           image: 'quay.io/tchughesiv/feature-server:0.42.0-duckdb'
           imagePullPolicy: Always
           workingDir: /feast-init/feast-credit-score-local-tutorial/feature_repo
           command: ["sleep", "infinity"]
           resources:
             requests:
-              memory: 512Mi
-              cpu: 100m
+              memory: 256Mi
+              cpu: 50m
           env:
             - name: MPLCONFIGDIR
               value: /feast-init/matplotlib
@@ -154,6 +160,48 @@ spec:
           volumeMounts:
             - name: shared-data
               mountPath: /feast-init
+        - name: offline
+          image: 'quay.io/tchughesiv/feature-server:0.42.0-duckdb'
+          imagePullPolicy: Always
+          workingDir: /feast-init/feast-credit-score-local-tutorial/feature_repo
+          readinessProbe:
+            tcpSocket:
+              port: 8815
+            initialDelaySeconds: 20
+            timeoutSeconds: 1
+            periodSeconds: 30
+            successThreshold: 1
+            failureThreshold: 3
+          command:
+            - feast
+            - serve_offline
+            - '-h'
+            - 0.0.0.0
+            - '-p'
+            - '8815'
+          env:
+            - name: MPLCONFIGDIR
+              value: /feast-init/matplotlib
+          envFrom:
+            - secretRef:
+                name: postgres-secret
+          livenessProbe:
+            tcpSocket:
+              port: 8815
+            initialDelaySeconds: 30
+            timeoutSeconds: 1
+            periodSeconds: 30
+            successThreshold: 1
+            failureThreshold: 3
+          ports:
+            - name: offline
+              containerPort: 8815
+              protocol: TCP
+          volumeMounts:
+            - name: shared-data
+              mountPath: /feast-init
+      serviceAccount: feast-example-offline
+      dnsPolicy: ClusterFirst
       volumes:
         - name: shared-data
           emptyDir: {}

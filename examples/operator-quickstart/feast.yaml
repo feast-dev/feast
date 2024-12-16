@@ -28,6 +28,9 @@ metadata:
 spec:
   feastProject: credit_scoring_local
   services:
+    offlineStore:
+      tls:
+        disable: true
     onlineStore:
       persistence:
         store:

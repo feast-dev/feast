@@ -12,3 +12,7 @@ ADD https://github.com/feast-dev/feast-credit-score-local-tutorial/archive/f43b4
 COPY feature_store.yaml /
 RUN chgrp 0 /f43b44b.tar.gz /feature_store.yaml && chmod g=u /f43b44b.tar.gz /feature_store.yaml
 RUN ls -la /
+
+# kubectl expose deploy/feast-example --port 80 --target-port 6566 --name feast-example-online
+# kubectl expose deploy/feast-example --port 80 --target-port 6570 --name feast-example-registry
+# kubectl expose deploy/feast-example --port 80 --target-port 8815 --name feast-example-offline 

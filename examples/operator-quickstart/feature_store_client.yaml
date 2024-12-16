@@ -1,0 +1,15 @@
+project: credit_scoring_local
+provider: local
+offline_store:
+    host: feast-example-offline.feast.svc.cluster.local
+    type: remote
+    port: 80
+online_store:
+    path: http://feast-example-online.feast.svc.cluster.local:80
+    type: remote
+registry:
+    path: feast-example-registry.feast.svc.cluster.local:80
+    registry_type: remote
+auth:
+    type: no_auth
+entity_key_serialization_version: 3
