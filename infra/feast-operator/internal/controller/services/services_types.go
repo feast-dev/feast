@@ -25,13 +25,12 @@ import (
 )
 
 const (
-	FeatureStoreYamlEnvVar          = "FEATURE_STORE_YAML_BASE64"
-	FeatureStoreYamlCmKey           = "feature_store.yaml"
-	DefaultRegistryEphemeralPath    = "/tmp/registry.db"
-	DefaultRegistryPvcPath          = "registry.db"
-	DefaultOnlineStoreEphemeralPath = "/tmp/online_store.db"
-	DefaultOnlineStorePvcPath       = "online_store.db"
-	svcDomain                       = ".svc.cluster.local"
+	TmpFeatureStoreYamlEnvVar = "TMP_FEATURE_STORE_YAML_BASE64"
+	FeatureStoreYamlCmKey     = "feature_store.yaml"
+	EphemeralPath             = "/feast-data"
+	DefaultRegistryPath       = "registry.db"
+	DefaultOnlineStorePath    = "online_store.db"
+	svcDomain                 = ".svc.cluster.local"
 
 	HttpPort      = 80
 	HttpsPort     = 443
@@ -163,6 +162,13 @@ var (
 	OidcServerProperties = []OidcPropertyType{OidcClientId, OidcAuthDiscoveryUrl}
 	OidcClientProperties = []OidcPropertyType{OidcClientSecret, OidcUsername, OidcPassword}
 )
+
+// feast server types, not the client types
+var feastServerTypes = []FeastServiceType{
+	RegistryFeastType,
+	OfflineFeastType,
+	OnlineFeastType,
+}
 
 // AuthzType defines the authorization type
 type AuthzType string
