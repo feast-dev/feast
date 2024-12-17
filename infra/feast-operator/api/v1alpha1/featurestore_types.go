@@ -65,7 +65,7 @@ type FeatureStoreSpec struct {
 	AuthzConfig  *AuthzConfig          `json:"authz,omitempty"`
 }
 
-// FeatureStoreServices defines the desired feast service deployments. ephemeral registry is deployed by default.
+// FeatureStoreServices defines the desired feast services. An ephemeral registry is deployed by default.
 type FeatureStoreServices struct {
 	OfflineStore *OfflineStore `json:"offlineStore,omitempty"`
 	OnlineStore  *OnlineStore  `json:"onlineStore,omitempty"`
@@ -74,9 +74,9 @@ type FeatureStoreServices struct {
 
 // OfflineStore configures the deployed offline store service
 type OfflineStore struct {
-	StoreServiceConfigs `json:",inline"`
-	Persistence         *OfflineStorePersistence `json:"persistence,omitempty"`
-	TLS                 *TlsConfigs              `json:"tls,omitempty"`
+	ServiceConfigs `json:",inline"`
+	Persistence    *OfflineStorePersistence `json:"persistence,omitempty"`
+	TLS            *TlsConfigs              `json:"tls,omitempty"`
 	// LogLevel sets the logging level for the offline store service
 	// Allowed values: "debug", "info", "warning", "error", "critical".
 	// +kubebuilder:validation:Enum=debug;info;warning;error;critical
@@ -127,9 +127,9 @@ var ValidOfflineStoreDBStorePersistenceTypes = []string{
 
 // OnlineStore configures the deployed online store service
 type OnlineStore struct {
-	StoreServiceConfigs `json:",inline"`
-	Persistence         *OnlineStorePersistence `json:"persistence,omitempty"`
-	TLS                 *TlsConfigs             `json:"tls,omitempty"`
+	ServiceConfigs `json:",inline"`
+	Persistence    *OnlineStorePersistence `json:"persistence,omitempty"`
+	TLS            *TlsConfigs             `json:"tls,omitempty"`
 	// LogLevel sets the logging level for the online store service
 	// Allowed values: "debug", "info", "warning", "error", "critical".
 	// +kubebuilder:validation:Enum=debug;info;warning;error;critical
@@ -235,11 +235,11 @@ type PvcConfig struct {
 	Create *PvcCreate `json:"create,omitempty"`
 	// MountPath within the container at which the volume should be mounted.
 	// Must start by "/" and cannot contain ':'.
-	MountPath string `json:"mountPath,omitempty"`
+	MountPath string `json:"mountPath"`
 }
 
 // PvcCreate defines the immutable settings to create a new PVC mounted at the given path.
-// The PVC name is the same as the associated deployment name.
+// The PVC name is the same as the associated deployment & feast service name.
 // +kubebuilder:validation:XValidation:rule="self == oldSelf",message="PvcCreate is immutable"
 type PvcCreate struct {
 	// AccessModes k8s persistent volume access modes. Defaults to ["ReadWriteOnce"].
@@ -290,14 +290,6 @@ type ServiceConfigs struct {
 // DefaultConfigs k8s container settings that are applied by default
 type DefaultConfigs struct {
 	Image *string `json:"image,omitempty"`
-}
-
-// StoreServiceConfigs k8s deployment settings
-type StoreServiceConfigs struct {
-	// Replicas determines the number of pods for the feast service.
-	// When Replicas > 1, persistence is recommended.
-	Replicas       *int32 `json:"replicas,omitempty"`
-	ServiceConfigs `json:",inline"`
 }
 
 // OptionalConfigs k8s container settings that are optional

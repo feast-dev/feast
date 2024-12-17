@@ -25,13 +25,17 @@ import (
 )
 
 const (
-	FeatureStoreYamlEnvVar          = "FEATURE_STORE_YAML_BASE64"
+	TmpFeatureStoreYamlEnvVar       = "TMP_FEATURE_STORE_YAML_BASE64"
 	FeatureStoreYamlCmKey           = "feature_store.yaml"
-	DefaultRegistryEphemeralPath    = "/tmp/registry.db"
-	DefaultRegistryPvcPath          = "registry.db"
-	DefaultOnlineStoreEphemeralPath = "/tmp/online_store.db"
-	DefaultOnlineStorePvcPath       = "online_store.db"
+	EphemeralPath                   = "/feast-data"
+	DefaultRegistryPath             = "registry.db"
+	DefaultOnlineStorePath          = "online_store.db"
+	DefaultRegistryEphemeralPath    = EphemeralPath + "/" + DefaultRegistryPath
+	DefaultOnlineStoreEphemeralPath = EphemeralPath + "/" + DefaultOnlineStorePath
 	svcDomain                       = ".svc.cluster.local"
+	mlpConfigVar                    = "MPLCONFIGDIR"
+	mlpConfigDir                    = "matplotlib"
+	DefaultMlpConfigPath            = EphemeralPath + "/" + mlpConfigDir
 
 	HttpPort      = 80
 	HttpsPort     = 443
@@ -163,6 +167,13 @@ var (
 	OidcServerProperties = []OidcPropertyType{OidcClientId, OidcAuthDiscoveryUrl}
 	OidcClientProperties = []OidcPropertyType{OidcClientSecret, OidcUsername, OidcPassword}
 )
+
+// feast server types, not the client types
+var feastServerTypes = []FeastServiceType{
+	RegistryFeastType,
+	OfflineFeastType,
+	OnlineFeastType,
+}
 
 // AuthzType defines the authorization type
 type AuthzType string

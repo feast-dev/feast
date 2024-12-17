@@ -32,7 +32,7 @@ func (feast *FeastServices) deployClient() error {
 func (feast *FeastServices) createClientConfigMap() error {
 	logger := log.FromContext(feast.Handler.Context)
 	cm := &corev1.ConfigMap{
-		ObjectMeta: feast.GetObjectMeta(ClientFeastType),
+		ObjectMeta: feast.GetObjectMetaType(ClientFeastType),
 	}
 	cm.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("ConfigMap"))
 	if op, err := controllerutil.CreateOrUpdate(feast.Handler.Context, feast.Handler.Client, cm, controllerutil.MutateFn(func() error {
@@ -46,7 +46,7 @@ func (feast *FeastServices) createClientConfigMap() error {
 }
 
 func (feast *FeastServices) setClientConfigMap(cm *corev1.ConfigMap) error {
-	cm.Labels = feast.getLabels(ClientFeastType)
+	cm.Labels = feast.getFeastTypeLabels(ClientFeastType)
 	clientYaml, err := feast.getClientFeatureStoreYaml(feast.extractConfigFromSecret)
 	if err != nil {
 		return err
@@ -81,7 +81,7 @@ func (feast *FeastServices) setCaConfigMap(cm *corev1.ConfigMap) error {
 
 func (feast *FeastServices) initCaConfigMap() *corev1.ConfigMap {
 	cm := &corev1.ConfigMap{
-		ObjectMeta: feast.GetObjectMeta(ClientCaFeastType),
+		ObjectMeta: feast.GetObjectMetaType(ClientCaFeastType),
 	}
 	cm.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("ConfigMap"))
 	return cm
