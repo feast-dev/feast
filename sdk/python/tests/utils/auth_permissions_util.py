@@ -60,7 +60,7 @@ def start_feature_server(
     metrics: bool = False,
     tls_key_path: str = "",
     tls_cert_path: str = "",
-    ca_trust_store_path: str = ""
+    ca_trust_store_path: str = "",
 ):
     host = "0.0.0.0"
     cmd = [

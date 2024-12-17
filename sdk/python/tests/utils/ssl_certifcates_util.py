@@ -118,7 +118,9 @@ def create_ca_trust_store(
         with open(output_trust_store_path, "ab") as trust_store_file:
             trust_store_file.write(public_cert.public_bytes(serialization.Encoding.PEM))
 
-        logger.info(f"Trust store created/updated successfully at: {output_trust_store_path}")
+        logger.info(
+            f"Trust store created/updated successfully at: {output_trust_store_path}"
+        )
 
     except Exception as e:
         logger.error(f"Error creating CA trust store: {e}")

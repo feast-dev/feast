@@ -29,7 +29,6 @@ from _pytest.nodes import Item
 
 from feast.data_source import DataSource
 from feast.feature_store import FeatureStore  # noqa: E402
-from feast.ssl_ca_setup import configure_ssl_ca
 from feast.utils import _utc_now
 from feast.wait import wait_retry_backoff  # noqa: E402
 from tests.data.data_creator import (

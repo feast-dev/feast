@@ -183,7 +183,7 @@ def _create_server_store_spin_feature_server(
             server_port=feast_server_port,
             tls_key_path=tls_key_path,
             tls_cert_path=tls_cert_path,
-            ca_trust_store_path=ca_trust_store_path
+            ca_trust_store_path=ca_trust_store_path,
         )
     )
     if is_tls_mode:

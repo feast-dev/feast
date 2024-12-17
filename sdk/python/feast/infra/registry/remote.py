@@ -77,7 +77,7 @@ class RemoteRegistry(BaseRegistry):
         assert isinstance(registry_config, RemoteRegistryConfig)
         # self.channel = create_tls_channel(registry_config)
 
-        self.channel =   self._create_grpc_channel(registry_config)
+        self.channel = self._create_grpc_channel(registry_config)
 
         auth_header_interceptor = GrpcClientAuthHeaderInterceptor(auth_config)
         self.channel = grpc.intercept_channel(self.channel, auth_header_interceptor)
