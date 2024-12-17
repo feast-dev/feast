@@ -110,13 +110,14 @@ class Field:
     def to_proto(self) -> FieldProto:
         """Converts a Field object to its protobuf representation."""
         value_type = self.dtype.to_value_type()
+        vector_search_metric = self.vector_search_metric or ""
         return FieldProto(
             name=self.name,
             value_type=value_type.value,
             description=self.description,
             tags=self.tags,
             vector_index=self.vector_index,
-            vector_search_metric=self.vector_search_metric
+            vector_search_metric=vector_search_metric,
         )
 
     @classmethod
@@ -128,8 +129,14 @@ class Field:
             field_proto: FieldProto protobuf object
         """
         value_type = ValueType(field_proto.value_type)
-        vector_search_metric = field_proto.vector_search_metric if field_proto.HasField("vector_search_metric") else None
-        vector_index = field_proto.vector_index if field_proto.HasField("vector_index") else False
+        vector_search_metric = (
+            field_proto.vector_search_metric
+            if field_proto.HasField("vector_search_metric")
+            else None
+        )
+        vector_index = (
+            field_proto.vector_index if field_proto.HasField("vector_index") else False
+        )
         return cls(
             name=field_proto.name,
             dtype=from_value_type(value_type=value_type),
