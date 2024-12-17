@@ -18,7 +18,6 @@ import random
 import tempfile
 from datetime import timedelta
 from multiprocessing import Process
-from pathlib import Path
 from sys import platform
 from textwrap import dedent
 from typing import Any, Dict, List, Tuple, no_type_check
@@ -62,7 +61,7 @@ from tests.utils.http_server import check_port_open, free_port  # noqa: E402
 from tests.utils.ssl_certifcates_util import (
     clear_previous_cert_env_vars,
     create_ca_trust_store,
-    generate_self_signed_cert, save_certificates_to_persistent_dir, clear_previous_cert_env_vars,
+    generate_self_signed_cert,
 )
 
 logger = logging.getLogger(__name__)
