@@ -80,8 +80,8 @@ class Field:
             or self.dtype != other.dtype
             or self.description != other.description
             or self.tags != other.tags
-            or self.vector_index != other.vector_index
-            or self.vector_search_metric != other.vector_search_metric
+            # or self.vector_index != other.vector_index
+            # or self.vector_search_metric != other.vector_search_metric
         ):
             return False
         return True
@@ -129,14 +129,8 @@ class Field:
             field_proto: FieldProto protobuf object
         """
         value_type = ValueType(field_proto.value_type)
-        vector_search_metric = (
-            field_proto.vector_search_metric
-            if field_proto.HasField("vector_search_metric")
-            else None
-        )
-        vector_index = (
-            field_proto.vector_index if field_proto.HasField("vector_index") else False
-        )
+        vector_search_metric = getattr(field_proto, 'vector_search_metric', '')
+        vector_index = getattr(field_proto, 'vector_index', False)
         return cls(
             name=field_proto.name,
             dtype=from_value_type(value_type=value_type),
