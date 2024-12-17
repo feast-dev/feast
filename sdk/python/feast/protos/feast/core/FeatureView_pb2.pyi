@@ -192,3 +192,18 @@ class MaterializationInterval(google.protobuf.message.Message):
     def ClearField(self, field_name: typing_extensions.Literal["end_time", b"end_time", "start_time", b"start_time"]) -> None: ...
 
 global___MaterializationInterval = MaterializationInterval
+
+class FeatureViewList(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    FEATUREVIEWS_FIELD_NUMBER: builtins.int
+    @property
+    def featureviews(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___FeatureView]: ...
+    def __init__(
+        self,
+        *,
+        featureviews: collections.abc.Iterable[global___FeatureView] | None = ...,
+    ) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["featureviews", b"featureviews"]) -> None: ...
+
+global___FeatureViewList = FeatureViewList

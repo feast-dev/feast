@@ -128,3 +128,18 @@ class EntityMeta(google.protobuf.message.Message):
     def ClearField(self, field_name: typing_extensions.Literal["created_timestamp", b"created_timestamp", "last_updated_timestamp", b"last_updated_timestamp"]) -> None: ...
 
 global___EntityMeta = EntityMeta
+
+class EntityList(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    ENTITIES_FIELD_NUMBER: builtins.int
+    @property
+    def entities(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___Entity]: ...
+    def __init__(
+        self,
+        *,
+        entities: collections.abc.Iterable[global___Entity] | None = ...,
+    ) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["entities", b"entities"]) -> None: ...
+
+global___EntityList = EntityList
