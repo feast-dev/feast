@@ -18,6 +18,7 @@ import random
 import tempfile
 from datetime import timedelta
 from multiprocessing import Process
+from pathlib import Path
 from sys import platform
 from textwrap import dedent
 from typing import Any, Dict, List, Tuple, no_type_check
@@ -60,7 +61,7 @@ from tests.utils.auth_permissions_util import default_store
 from tests.utils.http_server import check_port_open, free_port  # noqa: E402
 from tests.utils.ssl_certifcates_util import (
     create_ca_trust_store,
-    generate_self_signed_cert,
+    generate_self_signed_cert, save_certificates_to_persistent_dir, clear_previous_cert_env_vars,
 )
 
 logger = logging.getLogger(__name__)
@@ -520,6 +521,8 @@ def auth_config(request, is_integration_test):
 @pytest.fixture(scope="module")
 def tls_mode(request):
     is_tls_mode = request.param[0]
+    # remove any existing environment variables if there are any
+    clear_previous_cert_env_vars()
     ca_trust_store_path = ""
 
     if is_tls_mode:

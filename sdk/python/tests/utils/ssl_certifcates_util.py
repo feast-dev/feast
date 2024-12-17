@@ -82,6 +82,30 @@ def generate_self_signed_cert(
     )
 
 
+def clear_previous_cert_env_vars():
+    """
+    Clear SSL_CERT_FILE and REQUESTS_CA_BUNDLE environment variables if they match FEAST_CA_CERT_FILE_PATH.
+    """
+    # Fetch FEAST_CA_CERT_FILE_PATH value
+    feast_ca_cert_file_path = os.environ.get("FEAST_CA_CERT_FILE_PATH")
+
+    if not feast_ca_cert_file_path:
+        print("FEAST_CA_CERT_FILE_PATH is not set. Skipping cleanup.")
+        return
+
+    print(f"FEAST_CA_CERT_FILE_PATH: {feast_ca_cert_file_path}")
+    env_vars_to_check = ["SSL_CERT_FILE", "REQUESTS_CA_BUNDLE"]
+
+    # Compare and clear the environment variables
+    for var in env_vars_to_check:
+        env_value = os.environ.get(var)
+        if env_value and env_value == feast_ca_cert_file_path:
+            del os.environ[var]
+            print(f"Cleared environment variable: {var}")
+        else:
+            print(f"Skipped clearing {var}. Current value: {env_value}")
+
+
 def create_ca_trust_store(
     public_key_path: str, private_key_path: str, output_trust_store_path: str
 ):
