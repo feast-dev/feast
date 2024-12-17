@@ -25,7 +25,13 @@ from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.type_map import PROTO_VALUE_TO_VALUE_TYPE_MAP
-from feast.types import VALUE_TYPES_TO_FEAST_TYPES, Array, PrimitiveFeastType, ComplexFeastType, ValueType
+from feast.types import (
+    VALUE_TYPES_TO_FEAST_TYPES,
+    Array,
+    ComplexFeastType,
+    PrimitiveFeastType,
+    ValueType,
+)
 from feast.utils import (
     _build_retrieve_online_document_record,
     to_naive_utc,
@@ -46,7 +52,9 @@ PROTO_TO_MILVUS_TYPE_MAPPING: Dict[ValueType, DataType] = {
     PROTO_VALUE_TO_VALUE_TYPE_MAP["bool_list_val"]: DataType.BINARY_VECTOR,
 }
 
-FEAST_PRIMITIVE_TO_MILVUS_TYPE_MAPPING: Dict[Union[PrimitiveFeastType, Array, ComplexFeastType], DataType] = {}
+FEAST_PRIMITIVE_TO_MILVUS_TYPE_MAPPING: Dict[
+    Union[PrimitiveFeastType, Array, ComplexFeastType], DataType
+] = {}
 
 for value_type, feast_type in VALUE_TYPES_TO_FEAST_TYPES.items():
     if isinstance(feast_type, PrimitiveFeastType):
@@ -267,6 +275,7 @@ class MilvusOnlineStore(OnlineStore):
                 results.append((None, None))
             else:
                 results.append((res_ts, res_dict))
+
         return results
 
     def update(
