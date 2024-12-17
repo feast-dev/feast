@@ -1112,14 +1112,13 @@ def serve_registry_command(
     tls_ca_file_path: str,
 ):
     """Start a registry server locally on a given port."""
-    configure_ssl_ca(ca_file_path=tls_ca_file_path)
     if (tls_key_path and not tls_cert_path) or (not tls_key_path and tls_cert_path):
         raise click.BadParameter(
             "Please pass --cert and --key args to start the registry server in TLS mode."
         )
     store = create_feature_store(ctx)
 
-    store.serve_registry(port, tls_key_path, tls_cert_path)
+    store.serve_registry(port, tls_key_path, tls_cert_path, tls_ca_file_path)
 
 
 @cli.command("serve_offline")

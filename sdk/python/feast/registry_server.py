@@ -37,6 +37,7 @@ from feast.permissions.server.utils import (
 from feast.project import Project
 from feast.protos.feast.registry import RegistryServer_pb2, RegistryServer_pb2_grpc
 from feast.saved_dataset import SavedDataset, ValidationReference
+from feast.ssl_ca_setup import configure_ssl_ca
 from feast.stream_feature_view import StreamFeatureView
 
 logger = logging.getLogger(__name__)
@@ -763,7 +764,9 @@ def start_server(
     wait_for_termination: bool = True,
     tls_key_path: str = "",
     tls_cert_path: str = "",
+    tls_ca_file_path: str = "",
 ):
+    configure_ssl_ca(ca_file_path=tls_ca_file_path)
     auth_manager_type = str_to_auth_manager_type(store.config.auth_config.type)
     init_security_manager(auth_type=auth_manager_type, fs=store)
     init_auth_manager(
