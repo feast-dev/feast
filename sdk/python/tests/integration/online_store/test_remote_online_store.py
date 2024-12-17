@@ -175,7 +175,7 @@ def _create_server_store_spin_feature_server(
 ):
     store = default_store(str(temp_dir), auth_config, permissions_list)
     feast_server_port = free_port()
-    is_tls_mode, tls_key_path, tls_cert_path, _ = tls_mode
+    is_tls_mode, tls_key_path, tls_cert_path, ca_trust_store_path = tls_mode
 
     server_url = next(
         start_feature_server(
@@ -183,6 +183,7 @@ def _create_server_store_spin_feature_server(
             server_port=feast_server_port,
             tls_key_path=tls_key_path,
             tls_cert_path=tls_cert_path,
+            ca_trust_store_path=ca_trust_store_path
         )
     )
     if is_tls_mode:
@@ -213,13 +214,14 @@ def _create_remote_client_feature_store(
     result = runner.run(["init", project_name], cwd=temp_dir)
     assert result.returncode == 0
     repo_path = os.path.join(temp_dir, project_name, "feature_repo")
-    _, _, tls_cert_path, ca_trust_store_path = tls_mode
-    if ca_trust_store_path:
+    is_tls_mode, _, tls_cert_path, ca_trust_store_path = tls_mode
+    if is_tls_mode and not ca_trust_store_path:
         _overwrite_remote_client_feature_store_yaml(
             repo_path=str(repo_path),
             registry_path=server_registry_path,
             feature_server_url=feature_server_url,
             auth_config=auth_config,
+            tls_cert_path=tls_cert_path,
         )
     else:
         _overwrite_remote_client_feature_store_yaml(
@@ -227,7 +229,6 @@ def _create_remote_client_feature_store(
             registry_path=server_registry_path,
             feature_server_url=feature_server_url,
             auth_config=auth_config,
-            tls_cert_path=tls_cert_path,
         )
 
     return FeatureStore(repo_path=repo_path)

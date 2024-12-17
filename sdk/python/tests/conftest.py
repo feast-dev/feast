@@ -537,7 +537,6 @@ def tls_mode(request):
                 private_key_path=tls_key_path,
                 output_trust_store_path=ca_trust_store_path,
             )
-            configure_ssl_ca(ca_file_path=ca_trust_store_path)
     else:
         tls_key_path = ""
         tls_cert_path = ""

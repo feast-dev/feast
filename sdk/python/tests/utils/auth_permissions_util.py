@@ -60,6 +60,7 @@ def start_feature_server(
     metrics: bool = False,
     tls_key_path: str = "",
     tls_cert_path: str = "",
+    ca_trust_store_path: str = ""
 ):
     host = "0.0.0.0"
     cmd = [
@@ -77,6 +78,10 @@ def start_feature_server(
         cmd.append(tls_key_path)
         cmd.append("--cert")
         cmd.append(tls_cert_path)
+
+    if ca_trust_store_path:
+        cmd.append("--tls_ca_file_path")
+        cmd.append(ca_trust_store_path)
 
     feast_server_process = subprocess.Popen(
         cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE
