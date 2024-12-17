@@ -49,7 +49,6 @@ from feast.repo_operations import (
     teardown,
 )
 from feast.saved_dataset import SavedDataset, ValidationReference
-from feast.ssl_ca_setup import configure_ssl_ca
 from feast.utils import maybe_local_tz
 
 _logger = logging.getLogger(__name__)
@@ -957,15 +956,6 @@ def init_command(project_directory, minimal: bool, template: str):
     help="path to TLS certificate public key. You need to pass --key as well to start server in TLS mode",
 )
 @click.option(
-    "--ca",
-    "-ca",
-    "tls_ca_file_path",
-    type=click.STRING,
-    default="",
-    show_default=False,
-    help="path to ca trust store file. This will override the global path set as part of the environment variable FEAST_CA_CERT_FILE_PATH",
-)
-@click.option(
     "--metrics",
     "-m",
     is_flag=True,
@@ -984,7 +974,6 @@ def serve_command(
     keep_alive_timeout: int,
     tls_key_path: str,
     tls_cert_path: str,
-    tls_ca_file_path: str,
     registry_ttl_sec: int = 5,
 ):
     """Start a feature server locally on a given port."""
@@ -992,9 +981,6 @@ def serve_command(
         raise click.BadParameter(
             "Please pass --cert and --key args to start the feature server in TLS mode."
         )
-
-    configure_ssl_ca(ca_file_path=tls_ca_file_path)
-
     store = create_feature_store(ctx)
 
     store.serve(
@@ -1094,22 +1080,12 @@ def serve_transformations_command(ctx: click.Context, port: int):
     show_default=False,
     help="path to TLS certificate public key. You need to pass --key as well to start server in TLS mode",
 )
-@click.option(
-    "--ca",
-    "-ca",
-    "tls_ca_file_path",
-    type=click.STRING,
-    default="",
-    show_default=False,
-    help="path to ca trust store file. This will override the global path set as part of the environment variable FEAST_CA_CERT_FILE_PATH",
-)
 @click.pass_context
 def serve_registry_command(
     ctx: click.Context,
     port: int,
     tls_key_path: str,
     tls_cert_path: str,
-    tls_ca_file_path: str,
 ):
     """Start a registry server locally on a given port."""
     if (tls_key_path and not tls_cert_path) or (not tls_key_path and tls_cert_path):
@@ -1118,7 +1094,7 @@ def serve_registry_command(
         )
     store = create_feature_store(ctx)
 
-    store.serve_registry(port, tls_key_path, tls_cert_path, tls_ca_file_path)
+    store.serve_registry(port, tls_key_path, tls_cert_path)
 
 
 @cli.command("serve_offline")

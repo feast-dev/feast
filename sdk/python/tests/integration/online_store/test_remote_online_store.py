@@ -231,6 +231,10 @@ def _create_remote_client_feature_store(
             auth_config=auth_config,
         )
 
+    if is_tls_mode and ca_trust_store_path:
+        # configure trust store path only when is_tls_mode and ca_trust_store_path exists.
+        os.environ["FEAST_CA_CERT_FILE_PATH"] = ca_trust_store_path
+
     return FeatureStore(repo_path=repo_path)
 
 

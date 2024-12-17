@@ -86,6 +86,7 @@ from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RepoConfig, load_repo_config
 from feast.repo_contents import RepoContents
 from feast.saved_dataset import SavedDataset, SavedDatasetStorage, ValidationReference
+from feast.ssl_ca_trust_store_setup import configure_ca_trust_store_env_variables
 from feast.stream_feature_view import StreamFeatureView
 from feast.utils import _utc_now
 
@@ -128,6 +129,8 @@ class FeatureStore:
         """
         if fs_yaml_file is not None and config is not None:
             raise ValueError("You cannot specify both fs_yaml_file and config.")
+
+        configure_ca_trust_store_env_variables()
 
         if repo_path:
             self.repo_path = Path(repo_path)
@@ -1953,7 +1956,6 @@ class FeatureStore:
         port: int,
         tls_key_path: str = "",
         tls_cert_path: str = "",
-        tls_ca_file_path: str = "",
     ) -> None:
         """Start registry server locally on a given port."""
         from feast import registry_server
@@ -1963,7 +1965,6 @@ class FeatureStore:
             port=port,
             tls_key_path=tls_key_path,
             tls_cert_path=tls_cert_path,
-            tls_ca_file_path=tls_ca_file_path,
         )
 
     def serve_offline(

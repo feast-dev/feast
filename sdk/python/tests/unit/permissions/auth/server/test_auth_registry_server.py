@@ -55,7 +55,6 @@ def start_registry_server(
             wait_for_termination=False,
             tls_key_path=tls_key_path,
             tls_cert_path=tls_cert_path,
-            tls_ca_file_path=tls_ca_file_path,
         )
     else:
         print(f"Starting Registry in Non-TLS mode at {server_port}")

@@ -79,10 +79,6 @@ def start_feature_server(
         cmd.append("--cert")
         cmd.append(tls_cert_path)
 
-    if ca_trust_store_path:
-        cmd.append("--tls_ca_file_path")
-        cmd.append(ca_trust_store_path)
-
     feast_server_process = subprocess.Popen(
         cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE
     )
@@ -151,6 +147,10 @@ def get_remote_registry_store(server_port, feature_store, tls_mode):
         registry_config = RemoteRegistryConfig(
             registry_type="remote", path=f"localhost:{server_port}"
         )
+
+    if is_tls_mode and ca_trust_store_path:
+        # configure trust store path only when is_tls_mode and ca_trust_store_path exists.
+        os.environ["FEAST_CA_CERT_FILE_PATH"] = ca_trust_store_path
 
     store = FeatureStore(
         config=RepoConfig(
