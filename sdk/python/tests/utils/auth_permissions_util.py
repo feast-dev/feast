@@ -134,13 +134,13 @@ def get_remote_registry_store(server_port, feature_store, tls_mode):
             registry_config = RemoteRegistryConfig(
                 registry_type="remote",
                 path=f"localhost:{server_port}",
-                is_tls_mode=True,
+                is_tls=True,
             )
         else:
             registry_config = RemoteRegistryConfig(
                 registry_type="remote",
                 path=f"localhost:{server_port}",
-                is_tls_mode=True,
+                is_tls=True,
                 cert=tls_cert_path,
             )
     else:

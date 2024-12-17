@@ -60,7 +60,7 @@ class RemoteRegistryConfig(RegistryConfig):
     """ str: Path to the public certificate when the registry server starts in TLS(SSL) mode. This may be needed if the registry server started with a self-signed certificate, typically this file ends with `*.crt`, `*.cer`, or `*.pem`.
     If registry_type is 'remote', then this configuration is needed to connect to remote registry server in TLS mode. If the remote registry started in non-tls mode then this configuration is not needed."""
 
-    is_tls_mode: bool = False
+    is_tls: bool = False
     """ str: Path to the public certificate when the registry server starts in TLS(SSL) mode. This may be needed if the registry server started with a self-signed certificate, typically this file ends with `*.crt`, `*.cer`, or `*.pem`.
     If registry_type is 'remote', then this configuration is needed to connect to remote registry server in TLS mode. If the remote registry started in non-tls mode then this configuration is not needed."""
 
@@ -85,13 +85,12 @@ class RemoteRegistry(BaseRegistry):
 
     def _create_grpc_channel(self, registry_config):
         assert isinstance(registry_config, RemoteRegistryConfig)
-        if registry_config.cert or registry_config.is_tls_mode:
+        if registry_config.cert or registry_config.is_tls:
             cafile = os.getenv("SSL_CERT_FILE") or os.getenv("REQUESTS_CA_BUNDLE")
             if not cafile and not registry_config.cert:
                 raise EnvironmentError(
                     "SSL_CERT_FILE or REQUESTS_CA_BUNDLE environment variable must be set to use secure TLS or set the cert parameter in feature_Store.yaml file under remote registry configuration."
                 )
-
             with open(
                 registry_config.cert if registry_config.cert else cafile, "rb"
             ) as cert_file:
