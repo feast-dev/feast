@@ -105,7 +105,7 @@ pydantic-core==2.27.1
     # via pydantic
 pygments==2.18.0
     # via feast (setup.py)
-pyjwt==2.10.0
+pyjwt==2.10.1
     # via feast (setup.py)
 python-dateutil==2.9.0.post0
     # via pandas
