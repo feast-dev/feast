@@ -1,5 +1,7 @@
 import ipaddress
 import logging
+import os
+import shutil
 from datetime import datetime, timedelta
 
 from cryptography import x509
@@ -84,14 +86,33 @@ def create_ca_trust_store(
     public_key_path: str, private_key_path: str, output_trust_store_path: str
 ):
     """
-    Create a CA trust store file and add the public certificate to it.
+    Create a new CA trust store as a copy of the existing one (if available),
+    and add the provided public certificate to it.
 
     :param public_key_path: Path to the public certificate (e.g., PEM file).
     :param private_key_path: Path to the private key (optional, to verify signing authority).
-    :param output_trust_store_path: Path to save the trust store.
+    :param output_trust_store_path: Path to save the new trust store.
     """
     try:
-        # Read and load the public certificate
+        # Step 1: Identify the existing trust store (if available via environment variables)
+        existing_trust_store = os.environ.get("SSL_CERT_FILE") or os.environ.get(
+            "REQUESTS_CA_BUNDLE"
+        )
+
+        # Step 2: Copy the existing trust store to the new location (if it exists)
+        # Step 2: Copy the existing trust store to the new location (if it exists)
+        if existing_trust_store and os.path.exists(existing_trust_store):
+            shutil.copy(existing_trust_store, output_trust_store_path)
+            logger.info(
+                f"Copied existing trust store from {existing_trust_store} to {output_trust_store_path}"
+            )
+        else:
+            # Log the creation of a new trust store (without opening a file unnecessarily)
+            logger.info(
+                f"No existing trust store found. Creating a new trust store at {output_trust_store_path}"
+            )
+
+        # Step 3: Load and validate the public certificate
         with open(public_key_path, "rb") as pub_file:
             public_cert_data = pub_file.read()
             public_cert = load_pem_x509_certificate(
@@ -114,7 +135,7 @@ def create_ca_trust_store(
                         "Public certificate does not match the private key."
                     )
 
-        # Create or append to the trust store
+        # Step 4: Add the public certificate to the new trust store
         with open(output_trust_store_path, "ab") as trust_store_file:
             trust_store_file.write(public_cert.public_bytes(serialization.Encoding.PEM))
 
