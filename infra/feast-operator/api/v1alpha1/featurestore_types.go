@@ -76,18 +76,11 @@ type FeatureStoreServices struct {
 type OfflineStore struct {
 	StoreServiceConfigs `json:",inline"`
 	Persistence         *OfflineStorePersistence `json:"persistence,omitempty"`
-	TLS                 *OfflineTlsConfigs       `json:"tls,omitempty"`
+	TLS                 *TlsConfigs              `json:"tls,omitempty"`
 	// LogLevel sets the logging level for the offline store service
 	// Allowed values: "debug", "info", "warning", "error", "critical".
 	// +kubebuilder:validation:Enum=debug;info;warning;error;critical
 	LogLevel string `json:"logLevel,omitempty"`
-}
-
-// OfflineTlsConfigs configures server TLS for the offline feast service. in an openshift cluster, this is configured by default using service serving certificates.
-type OfflineTlsConfigs struct {
-	TlsConfigs `json:",inline"`
-	// verify the client TLS certificate.
-	VerifyClient *bool `json:"verifyClient,omitempty"`
 }
 
 // OfflineStorePersistence configures the persistence settings for the offline store service

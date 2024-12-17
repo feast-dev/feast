@@ -1156,15 +1156,6 @@ def serve_registry_command(
     show_default=False,
     help="path to TLS certificate public key. You need to pass --key as well to start server in TLS mode",
 )
-@click.option(
-    "--ca",
-    "-ca",
-    "tls_ca_file_path",
-    type=click.STRING,
-    default="",
-    show_default=False,
-    help="path to ca trust store file. This will override the global path set as part of the environment variable FEAST_CA_CERT_FILE_PATH",
-)
 @click.pass_context
 def serve_offline_command(
     ctx: click.Context,
@@ -1172,10 +1163,8 @@ def serve_offline_command(
     port: int,
     tls_key_path: str,
     tls_cert_path: str,
-    tls_ca_file_path: str,
 ):
     """Start a remote server locally on a given host, port."""
-    configure_ssl_ca(ca_file_path=tls_ca_file_path)
     if (tls_key_path and not tls_cert_path) or (not tls_key_path and tls_cert_path):
         raise click.BadParameter(
             "Please pass --cert and --key args to start the offline server in TLS mode."

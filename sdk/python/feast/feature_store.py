@@ -1964,14 +1964,11 @@ class FeatureStore:
         port: int,
         tls_key_path: str = "",
         tls_cert_path: str = "",
-        tls_verify_client: bool = True,
     ) -> None:
         """Start offline server locally on a given port."""
         from feast import offline_server
 
-        offline_server.start_server(
-            self, host, port, tls_key_path, tls_cert_path, tls_verify_client
-        )
+        offline_server.start_server(self, host, port, tls_key_path, tls_cert_path)
 
     def serve_transformations(self, port: int) -> None:
         """Start the feature transformation server locally on a given port."""
