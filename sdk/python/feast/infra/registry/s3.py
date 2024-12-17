@@ -28,7 +28,6 @@ class S3RegistryConfig(RegistryConfig):
     registry_type: StrictStr = "s3"
     s3_resource: typing.Any
 
-
     @field_validator("s3_resource")
     @classmethod
     def validate_s3_resource(cls, value: typing.Any) -> typing.Any:

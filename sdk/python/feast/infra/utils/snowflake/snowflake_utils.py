@@ -47,7 +47,7 @@ class GetSnowflakeConnection:
         self.config = config
         self.autocommit = autocommit
 
-    def __enter__(self):
+    def __enter__(self) -> SnowflakeConnection:
         assert self.config.type in [
             "snowflake.registry",
             "snowflake.offline",
@@ -55,58 +55,7 @@ class GetSnowflakeConnection:
             "snowflake.online",
         ]
 
-        if self.config.type not in _cache:
-            if self.config.type == "snowflake.registry":
-                config_header = "connections.feast_registry"
-            elif self.config.type == "snowflake.offline":
-                config_header = "connections.feast_offline_store"
-            if self.config.type == "snowflake.engine":
-                config_header = "connections.feast_batch_engine"
-            elif self.config.type == "snowflake.online":
-                config_header = "connections.feast_online_store"
-
-            config_dict = dict(self.config)
-
-            # read config file
-            config_reader = configparser.ConfigParser()
-            config_reader.read([config_dict["config_path"]])
-            kwargs: Dict[str, Any] = {}
-            if config_reader.has_section(config_header):
-                kwargs = dict(config_reader[config_header])
-
-            kwargs.update((k, v) for k, v in config_dict.items() if v is not None)
-
-            for k, v in kwargs.items():
-                if k in ["role", "warehouse", "database", "schema_"]:
-                    kwargs[k] = f'"{v}"'
-
-            kwargs["schema"] = kwargs.pop("schema_")
-
-            # https://docs.snowflake.com/en/user-guide/python-connector-example.html#using-key-pair-authentication-key-pair-rotation
-            # https://docs.snowflake.com/en/user-guide/key-pair-auth.html#configuring-key-pair-authentication
-            if "private_key" in kwargs or "private_key_content" in kwargs:
-                kwargs["private_key"] = parse_private_key_path(
-                    kwargs.get("private_key_passphrase"),
-                    kwargs.get("private_key"),
-                    kwargs.get("private_key_content"),
-                )
-
-            try:
-                _cache[self.config.type] = snowflake.connector.connect(
-                    application="feast",
-                    client_session_keep_alive=True,
-                    autocommit=self.autocommit,
-                    **kwargs,
-                )
-                _cache[self.config.type].cursor().execute(
-                    "ALTER SESSION SET TIMEZONE = 'UTC'", _is_internal=True
-                )
-
-            except KeyError as e:
-                raise SnowflakeIncompleteConfig(e)
-
-        self.client = _cache[self.config.type]
-        return self.client
+        return self.config.snowflake_connection
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         pass

@@ -4,6 +4,8 @@ from typing import Dict, List, Optional
 
 import pandas as pd
 
+from snowflake.connector import SnowflakeConnection
+
 from feast import SnowflakeSource
 from feast.data_source import DataSource
 from feast.feature_logging import LoggingDestination
@@ -28,8 +30,7 @@ class SnowflakeDataSourceCreator(DataSourceCreator):
 
     def __init__(self, project_name: str, *args, **kwargs):
         super().__init__(project_name)
-        self.offline_store_config = SnowflakeOfflineStoreConfig(
-            type="snowflake.offline",
+        snowflake_connection = SnowflakeConnection(
             account=os.environ["SNOWFLAKE_CI_DEPLOYMENT"],
             user=os.environ["SNOWFLAKE_CI_USER"],
             password=os.environ["SNOWFLAKE_CI_PASSWORD"],
@@ -37,6 +38,12 @@ class SnowflakeDataSourceCreator(DataSourceCreator):
             warehouse=os.environ["SNOWFLAKE_CI_WAREHOUSE"],
             database=os.environ.get("SNOWFLAKE_CI_DATABASE", "FEAST"),
             schema=os.environ.get("SNOWFLAKE_CI_SCHEMA_OFFLINE", "OFFLINE"),
+        )
+
+        self.offline_store_config = SnowflakeOfflineStoreConfig(
+            type="snowflake.offline",
+            snowflake_connection=snowflake_connection,
+            temp_intermediate_schema=os.environ.get("SNOWFLAKE_CI_SCHEMA_OFFLINE", "OFFLINE"),
             storage_integration_name=os.getenv("BLOB_EXPORT_STORAGE_NAME", "FEAST_S3"),
             blob_export_location=os.getenv(
                 "BLOB_EXPORT_URI", "s3://feast-snowflake-offload/export"

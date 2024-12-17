@@ -7,7 +7,7 @@ from enum import Enum
 from threading import Lock
 from typing import Any, Callable, List, Literal, Optional, Union, cast
 
-from pydantic import ConfigDict, Field, StrictStr
+from pydantic import ConfigDict, field_validator
 
 import feast
 from feast.base_feature_view import BaseFeatureView
@@ -79,45 +79,21 @@ class SnowflakeRegistryConfig(RegistryConfig):
     type: Literal["snowflake.registry"] = "snowflake.registry"
     """ Registry type selector """
 
-    config_path: Optional[str] = os.path.expanduser("~/.snowsql/config")
-    """ Snowflake snowsql config path -- absolute path required (Cant use ~)"""
+    snowflake_connection: Any
 
-    connection_name: Optional[str] = None
-    """ Snowflake connector connection name -- typically defined in ~/.snowflake/connections.toml """
+    temp_intermediate_schema: str
+    """ Target schema of temporary intermediate tables for historical requests """
 
-    account: Optional[str] = None
-    """ Snowflake deployment identifier -- drop .snowflakecomputing.com """
-
-    user: Optional[str] = None
-    """ Snowflake user name """
-
-    password: Optional[str] = None
-    """ Snowflake password """
-
-    role: Optional[str] = None
-    """ Snowflake role name """
-
-    warehouse: Optional[str] = None
-    """ Snowflake warehouse name """
-
-    authenticator: Optional[str] = None
-    """ Snowflake authenticator name """
-
-    private_key: Optional[str] = None
-    """ Snowflake private key file path"""
-
-    private_key_content: Optional[bytes] = None
-    """ Snowflake private key stored as bytes"""
-
-    private_key_passphrase: Optional[str] = None
-    """ Snowflake private key file passphrase"""
-
-    database: StrictStr
-    """ Snowflake database name """
-
-    schema_: Optional[str] = Field("PUBLIC", alias="schema")
-    """ Snowflake schema name """
     model_config = ConfigDict(populate_by_name=True)
+
+    @field_validator("snowflake_connection")
+    @classmethod
+    def validate_snowflake_connection(cls, value: Any) -> Any:
+        from snowflake.connector import SnowflakeConnection
+
+        if not isinstance(value, SnowflakeConnection):
+            raise ValueError("s3_resource must be an instance of boto3.resources.base.ServiceResource")
+        return value
 
 
 class SnowflakeRegistry(BaseRegistry):

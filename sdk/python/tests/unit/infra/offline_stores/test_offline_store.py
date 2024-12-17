@@ -5,6 +5,8 @@ import pandas as pd
 import pyarrow
 import pytest
 
+from snowflake.connector import SnowflakeConnection
+
 from feast.infra.offline_stores.contrib.athena_offline_store.athena import (
     AthenaOfflineStoreConfig,
     AthenaRetrievalJob,
@@ -131,8 +133,7 @@ def retrieval_job(request, environment):
             full_feature_names=False,
         )
     elif request.param is SnowflakeRetrievalJob:
-        offline_store_config = SnowflakeOfflineStoreConfig(
-            type="snowflake.offline",
+        snowflake_connection = SnowflakeConnection(
             account="snow",
             user="snow",
             password="snow",
@@ -140,6 +141,11 @@ def retrieval_job(request, environment):
             warehouse="snow",
             database="FEAST",
             schema="OFFLINE",
+        )
+        offline_store_config = SnowflakeOfflineStoreConfig(
+            type="snowflake.offline",
+            snowflake_connection=snowflake_connection,
+            temp_intermediate_schema="OFFLINE",
             storage_integration_name="FEAST_S3",
             blob_export_location="s3://feast-snowflake-offload/export",
         )

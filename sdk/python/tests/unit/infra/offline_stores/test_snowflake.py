@@ -5,6 +5,8 @@ import pandas as pd
 import pytest
 from pytest_mock import MockFixture
 
+from snowflake.connector import SnowflakeConnection
+
 from feast import FeatureView, Field, FileSource
 from feast.infra.offline_stores.snowflake import (
     SnowflakeOfflineStoreConfig,
@@ -17,8 +19,7 @@ from feast.types import Array, String
 
 @pytest.fixture(params=["s3", "s3gov"])
 def retrieval_job(request):
-    offline_store_config = SnowflakeOfflineStoreConfig(
-        type="snowflake.offline",
+    snowflake_connection = SnowflakeConnection(
         account="snow",
         user="snow",
         password="snow",
@@ -26,6 +27,10 @@ def retrieval_job(request):
         warehouse="snow",
         database="FEAST",
         schema="OFFLINE",
+    )
+    offline_store_config = SnowflakeOfflineStoreConfig(
+        type="snowflake.offline",
+        snowflake_connection=snowflake_connection,
         storage_integration_name="FEAST_S3",
         blob_export_location=f"{request.param}://feast-snowflake-offload/export",
     )

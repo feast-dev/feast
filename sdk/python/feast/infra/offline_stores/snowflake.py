@@ -82,44 +82,10 @@ class SnowflakeOfflineStoreConfig(FeastConfigBaseModel):
     type: Literal["snowflake.offline"] = "snowflake.offline"
     """ Offline store type selector """
 
-    config_path: Optional[str] = os.path.expanduser("~/.snowsql/config")
-    """ Snowflake snowsql config path -- absolute path required (Cant use ~)"""
+    snowflake_connection: Any
 
-    connection_name: Optional[str] = None
-    """ Snowflake connector connection name -- typically defined in ~/.snowflake/connections.toml """
-
-    account: Optional[str] = None
-    """ Snowflake deployment identifier -- drop .snowflakecomputing.com """
-
-    user: Optional[str] = None
-    """ Snowflake user name """
-
-    password: Optional[str] = None
-    """ Snowflake password """
-
-    role: Optional[str] = None
-    """ Snowflake role name """
-
-    warehouse: Optional[str] = None
-    """ Snowflake warehouse name """
-
-    authenticator: Optional[str] = None
-    """ Snowflake authenticator name """
-
-    private_key: Optional[str] = None
-    """ Snowflake private key file path"""
-
-    private_key_content: Optional[bytes] = None
-    """ Snowflake private key stored as bytes"""
-
-    private_key_passphrase: Optional[str] = None
-    """ Snowflake private key file passphrase"""
-
-    database: StrictStr
-    """ Snowflake database name """
-
-    schema_: Optional[str] = Field("PUBLIC", alias="schema")
-    """ Snowflake schema name """
+    temp_intermediate_schema: str
+    """ Target schema of temporary intermediate tables for historical requests """
 
     storage_integration_name: Optional[str] = None
     """ Storage integration name in snowflake """
@@ -279,6 +245,7 @@ class SnowflakeOfflineStore(OfflineStore):
         assert isinstance(config.offline_store, SnowflakeOfflineStoreConfig)
         for fv in feature_views:
             assert isinstance(fv.batch_source, SnowflakeSource)
+        temp_intermediate_schema = config.offline_config.temp_intermediate_schema
 
         with GetSnowflakeConnection(config.offline_store) as conn:
             snowflake_conn = conn
@@ -299,7 +266,12 @@ class SnowflakeOfflineStore(OfflineStore):
         def query_generator() -> Iterator[str]:
             table_name = offline_utils.get_temp_entity_table_name()
 
-            _upload_entity_df(entity_df, snowflake_conn, config, table_name)
+            _upload_entity_df(
+                entity_df=entity_df,
+                snowflake_conn=snowflake_conn,
+                schema=temp_intermediate_schema,
+                table_name=table_name,
+            )
 
             expected_join_keys = offline_utils.get_expected_join_keys(
                 project, feature_views, registry
@@ -323,7 +295,7 @@ class SnowflakeOfflineStore(OfflineStore):
             # Generate the Snowflake SQL query from the query context
             query = offline_utils.build_point_in_time_query(
                 query_context,
-                left_table_query_string=table_name,
+                left_table_query_string=f"{temp_intermediate_schema}.{table_name}",
                 entity_df_event_timestamp_col=entity_df_event_timestamp_col,
                 entity_df_columns=entity_schema.keys(),
                 query_template=MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
@@ -646,16 +618,17 @@ def _get_entity_schema(
 def _upload_entity_df(
     entity_df: Union[pd.DataFrame, str],
     snowflake_conn: SnowflakeConnection,
-    config: RepoConfig,
+    schema: str,
     table_name: str,
 ) -> None:
     if isinstance(entity_df, pd.DataFrame):
         # Write the data from the DataFrame to the table
         # Known issues with following entity data types: BINARY
         write_pandas(
-            snowflake_conn,
-            entity_df,
-            table_name,
+            conn=snowflake_conn,
+            df=entity_df,
+            schema=schema,
+            table_name=table_name,
             auto_create_table=True,
             create_temp_table=True,
         )
@@ -663,7 +636,7 @@ def _upload_entity_df(
         return None
     elif isinstance(entity_df, str):
         # If the entity_df is a string (SQL query), create a Snowflake table out of it,
-        query = f'CREATE TEMPORARY TABLE "{table_name}" AS ({entity_df})'
+        query = f'CREATE TEMPORARY TABLE {schema}.{table_name} AS ({entity_df})'
         execute_snowflake_statement(snowflake_conn, query)
 
         return None
@@ -714,6 +687,7 @@ def _get_entity_df_event_timestamp_range(
     return entity_df_event_timestamp_range
 
 
+
 MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN = """
 /*
  Compute a deterministic hash for the `left_table_query_string` that will be used throughout
@@ -728,13 +702,14 @@ WITH "entity_dataframe" AS (
                 {% for entity in featureview.entities %}
                     CAST("{{entity}}" AS VARCHAR) ||
                 {% endfor %}
-                CAST("{{entity_df_event_timestamp_col}}" AS VARCHAR)
+                CAST("{{entity_df_event_timestamp_col}}" AS VARCHAR) ||
+                UUID_STRING()
             ) AS "{{featureview.name}}__entity_row_unique_id"
             {% else %}
             ,CAST("{{entity_df_event_timestamp_col}}" AS VARCHAR) AS "{{featureview.name}}__entity_row_unique_id"
             {% endif %}
         {% endfor %}
-    FROM "{{ left_table_query_string }}"
+    FROM {{ left_table_query_string }}
 ),
 
 {% for featureview in featureviews %}
@@ -871,7 +846,7 @@ WITH "entity_dataframe" AS (
 SELECT "{{ final_output_feature_names | join('", "')}}"
 FROM "entity_dataframe"
 {% for featureview in featureviews %}
-LEFT JOIN (
+INNER JOIN (
     SELECT
         "{{featureview.name}}__entity_row_unique_id"
         {% for feature in featureview.features %}
