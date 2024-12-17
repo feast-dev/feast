@@ -208,16 +208,18 @@ def environment(request, worker_id):
     e.teardown()
 
 
+
 @pytest.fixture
 def vectordb_environment(request, worker_id):
-    milvus_config = IntegrationTestRepoConfig(
+    db_config = IntegrationTestRepoConfig(
         provider="local",
-        online_store="milvus",
-        online_store_creator=MilvusOnlineStoreCreator,
-        offline_store_creator=FileDataSourceCreator,
+        # online_store="milvus",
+        # online_store_creator=MilvusOnlineStoreCreator,
+        # offline_store_creator=FileDataSourceCreator,
     )
+    print(request)
     e = construct_test_environment(
-        milvus_config,
+        db_config,
         fixture_request=request,
         worker_id=worker_id,
         entity_key_serialization_version=3,
@@ -232,7 +234,6 @@ def vectordb_environment(request, worker_id):
         yield e
 
     e.teardown()
-
 
 _config_cache: Any = {}
 

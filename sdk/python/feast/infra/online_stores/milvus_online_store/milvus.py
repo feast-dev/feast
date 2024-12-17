@@ -187,7 +187,6 @@ class MilvusOnlineStore(OnlineStore):
             for k in PROTO_VALUE_TO_VALUE_TYPE_MAP.keys()
             if k is not None and "list" in k and "string" not in k
         ]
-
         entity_batch_to_insert = []
         for entity_key, values_dict, timestamp, created_ts in data:
             # need to construct the composite primary key also need to handle the fact that entities are a list
