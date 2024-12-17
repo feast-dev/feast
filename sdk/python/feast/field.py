@@ -129,8 +129,8 @@ class Field:
             field_proto: FieldProto protobuf object
         """
         value_type = ValueType(field_proto.value_type)
-        vector_search_metric = getattr(field_proto, 'vector_search_metric', '')
-        vector_index = getattr(field_proto, 'vector_index', False)
+        vector_search_metric = getattr(field_proto, "vector_search_metric", "")
+        vector_index = getattr(field_proto, "vector_index", False)
         return cls(
             name=field_proto.name,
             dtype=from_value_type(value_type=value_type),
