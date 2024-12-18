@@ -4,6 +4,7 @@ import os
 import shutil
 from datetime import datetime, timedelta
 
+import certifi
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes, serialization
@@ -169,3 +170,29 @@ def create_ca_trust_store(
 
     except Exception as e:
         logger.error(f"Error creating CA trust store: {e}")
+
+
+def combine_trust_stores(custom_cert_path: str, output_combined_path: str):
+    """
+    Combine the default certifi CA bundle with a custom certificate file.
+
+    :param custom_cert_path: Path to the custom certificate PEM file.
+    :param output_combined_path: Path where the combined CA bundle will be saved.
+    """
+    try:
+        # Get the default certifi CA bundle
+        certifi_ca_bundle = certifi.where()
+
+        with open(output_combined_path, "wb") as combined_file:
+            # Write the default CA bundle
+            with open(certifi_ca_bundle, "rb") as default_file:
+                combined_file.write(default_file.read())
+
+            # Append the custom certificates
+            with open(custom_cert_path, "rb") as custom_file:
+                combined_file.write(custom_file.read())
+
+        print(f"Combined trust store created at: {output_combined_path}")
+
+    except Exception as e:
+        print(f"Error combining trust stores: {e}")

@@ -59,7 +59,7 @@ from tests.integration.feature_repos.universal.entities import (  # noqa: E402
 from tests.utils.auth_permissions_util import default_store
 from tests.utils.http_server import check_port_open, free_port  # noqa: E402
 from tests.utils.ssl_certifcates_util import (
-    clear_previous_cert_env_vars,
+    combine_trust_stores,
     create_ca_trust_store,
     generate_self_signed_cert,
 )
@@ -522,8 +522,8 @@ def auth_config(request, is_integration_test):
 def tls_mode(request):
     is_tls_mode = request.param[0]
     # remove any existing environment variables if there are any
-    clear_previous_cert_env_vars()
-    ca_trust_store_path = ""
+    # clear_previous_cert_env_vars()
+    output_combined_truststore_path = ""
 
     if is_tls_mode:
         certificates_path = tempfile.mkdtemp()
@@ -533,14 +533,23 @@ def tls_mode(request):
         generate_self_signed_cert(cert_path=tls_cert_path, key_path=tls_key_path)
         is_ca_trust_store_set = request.param[1]
         if is_ca_trust_store_set:
-            ca_trust_store_path = os.path.join(certificates_path, "ca_trust_store.pem")
+            # Paths
+            feast_ca_trust_store_path = os.path.join(
+                certificates_path, "feast_trust_store.pem"
+            )
             create_ca_trust_store(
                 public_key_path=tls_cert_path,
                 private_key_path=tls_key_path,
-                output_trust_store_path=ca_trust_store_path,
+                output_trust_store_path=feast_ca_trust_store_path,
             )
+
+            # Combine trust stores
+            output_combined_path = os.path.join(
+                certificates_path, "combined_trust_store.pem"
+            )
+            combine_trust_stores(feast_ca_trust_store_path, output_combined_path)
     else:
         tls_key_path = ""
         tls_cert_path = ""
 
-    return is_tls_mode, tls_key_path, tls_cert_path, ca_trust_store_path
+    return is_tls_mode, tls_key_path, tls_cert_path, output_combined_truststore_path
