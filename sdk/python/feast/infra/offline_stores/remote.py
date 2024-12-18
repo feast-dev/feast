@@ -74,7 +74,7 @@ def build_arrow_flight_client(
     scheme: str, host: str, port, auth_config: AuthConfig, cert: str = ""
 ):
     arrow_scheme = "grpc+tcp"
-    if cert:
+    if scheme == "https":
         logger.info(
             "Scheme is https so going to connect offline server in SSL(TLS) mode."
         )
