@@ -982,7 +982,6 @@ def serve_command(
         raise click.BadParameter(
             "Please pass --cert and --key args to start the feature server in TLS mode."
         )
-
     store = create_feature_store(ctx)
 
     store.serve(

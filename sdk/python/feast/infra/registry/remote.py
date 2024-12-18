@@ -1,3 +1,4 @@
+import os
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional, Union
@@ -59,6 +60,12 @@ class RemoteRegistryConfig(RegistryConfig):
     """ str: Path to the public certificate when the registry server starts in TLS(SSL) mode. This may be needed if the registry server started with a self-signed certificate, typically this file ends with `*.crt`, `*.cer`, or `*.pem`.
     If registry_type is 'remote', then this configuration is needed to connect to remote registry server in TLS mode. If the remote registry started in non-tls mode then this configuration is not needed."""
 
+    is_tls: bool = False
+    """     bool: Set to `True` if you plan to connect to a registry server running in TLS (SSL) mode.
+    If you intend to add the public certificate to the trust store instead of passing it via the `cert` parameter, this field must be set to `True`.
+    If you are planning to add the public certificate as part of the trust store instead of passing it as a `cert` parameters then setting this field to `true` is mandatory.
+    """
+
 
 class RemoteRegistry(BaseRegistry):
     def __init__(
@@ -70,19 +77,31 @@ class RemoteRegistry(BaseRegistry):
     ):
         self.auth_config = auth_config
         assert isinstance(registry_config, RemoteRegistryConfig)
-        if registry_config.cert:
-            with open(registry_config.cert, "rb") as cert_file:
-                trusted_certs = cert_file.read()
-                tls_credentials = grpc.ssl_channel_credentials(
-                    root_certificates=trusted_certs
-                )
-            self.channel = grpc.secure_channel(registry_config.path, tls_credentials)
-        else:
-            self.channel = grpc.insecure_channel(registry_config.path)
+        self.channel = self._create_grpc_channel(registry_config)
 
         auth_header_interceptor = GrpcClientAuthHeaderInterceptor(auth_config)
         self.channel = grpc.intercept_channel(self.channel, auth_header_interceptor)
         self.stub = RegistryServer_pb2_grpc.RegistryServerStub(self.channel)
+
+    def _create_grpc_channel(self, registry_config):
+        assert isinstance(registry_config, RemoteRegistryConfig)
+        if registry_config.cert or registry_config.is_tls:
+            cafile = os.getenv("SSL_CERT_FILE") or os.getenv("REQUESTS_CA_BUNDLE")
+            if not cafile and not registry_config.cert:
+                raise EnvironmentError(
+                    "SSL_CERT_FILE or REQUESTS_CA_BUNDLE environment variable must be set to use secure TLS or set the cert parameter in feature_Store.yaml file under remote registry configuration."
+                )
+            with open(
+                registry_config.cert if registry_config.cert else cafile, "rb"
+            ) as cert_file:
+                trusted_certs = cert_file.read()
+            tls_credentials = grpc.ssl_channel_credentials(
+                root_certificates=trusted_certs
+            )
+            return grpc.secure_channel(registry_config.path, tls_credentials)
+        else:
+            # Create an insecure gRPC channel
+            return grpc.insecure_channel(registry_config.path)
 
     def close(self):
         if self.channel:
