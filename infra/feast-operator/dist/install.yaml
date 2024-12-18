@@ -2894,7 +2894,7 @@ spec:
         - --leader-elect
         command:
         - /manager
-        image: feastdev/feast-operator:0.41.0
+        image: feastdev/feast-operator:0.42.0
         livenessProbe:
           httpGet:
             path: /healthz
