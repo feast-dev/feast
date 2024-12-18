@@ -192,5 +192,5 @@ INFO:     Uvicorn running on https://0.0.0.0:8888 (Press CTRL+C to quit)
 
 
 ## Adding public key to CA trust store and configuring the feast to use the trust store.
-You can pass the public key for SSL verification using `cert` parameter, however, it is sometimes a hassle to maintain individual certificate and pass the public certificate individually. 
-The alternate recommendation is to add the public certificate to CA trust store and set the path as environment variable `FEAST_CA_CERT_FILE_PATH`. Feast will refer the trust store path set as environment variable as `FEAST_CA_CERT_FILE_PATH`
+You can pass the public key for SSL verification using the `cert` parameter, however, it is sometimes difficult to maintain individual certificates and pass them individually.
+The alternative recommendation is to add the public certificate to CA trust store and set the path as an environment variable (e.g., `FEAST_CA_CERT_FILE_PATH`). Feast will use the trust store path in the  `FEAST_CA_CERT_FILE_PATH` environment variable.
