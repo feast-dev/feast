@@ -8,7 +8,7 @@ aiohttp==3.11.10
     # via aiobotocore
 aioitertools==0.12.0
     # via aiobotocore
-aiosignal==1.3.1
+aiosignal==1.3.2
     # via aiohttp
 alabaster==0.7.16
     # via sphinx
@@ -46,7 +46,7 @@ async-timeout==5.0.1
     #   redis
 atpublic==5.0
     # via ibis-framework
-attrs==24.2.0
+attrs==24.3.0
     # via
     #   aiohttp
     #   jsonschema
@@ -73,7 +73,7 @@ boto3==1.35.36
     # via
     #   feast (setup.py)
     #   moto
-boto3-stubs[essential, s3]==1.35.76
+boto3-stubs[essential, s3]==1.35.82
     # via feast (setup.py)
 botocore==1.35.36
     # via
@@ -81,7 +81,7 @@ botocore==1.35.36
     #   boto3
     #   moto
     #   s3transfer
-botocore-stubs==1.35.76
+botocore-stubs==1.35.82
     # via boto3-stubs
 build==1.2.2.post1
     # via
@@ -92,7 +92,7 @@ cachetools==5.5.0
     # via google-auth
 cassandra-driver==3.29.2
     # via feast (setup.py)
-certifi==2024.8.30
+certifi==2024.12.14
     # via
     #   elastic-transport
     #   httpcore
@@ -158,7 +158,7 @@ dask-expr==1.1.20
     # via dask
 db-dtypes==1.3.1
     # via google-cloud-bigquery
-debugpy==1.8.9
+debugpy==1.8.11
     # via ipykernel
 decorator==5.1.1
     # via ipython
@@ -180,7 +180,7 @@ duckdb==1.1.3
     # via ibis-framework
 elastic-transport==8.15.1
     # via elasticsearch
-elasticsearch==8.16.0
+elasticsearch==8.17.0
     # via feast (setup.py)
 entrypoints==0.4
     # via altair
@@ -215,7 +215,7 @@ fsspec==2024.9.0
     #   dask
 geomet==0.2.1.post1
     # via cassandra-driver
-google-api-core[grpc]==2.23.0
+google-api-core[grpc]==2.24.0
     # via
     #   feast (setup.py)
     #   google-cloud-bigquery
@@ -224,7 +224,7 @@ google-api-core[grpc]==2.23.0
     #   google-cloud-core
     #   google-cloud-datastore
     #   google-cloud-storage
-google-auth==2.36.0
+google-auth==2.37.0
     # via
     #   google-api-core
     #   google-cloud-bigquery
@@ -246,7 +246,7 @@ google-cloud-core==2.4.1
     #   google-cloud-bigtable
     #   google-cloud-datastore
     #   google-cloud-storage
-google-cloud-datastore==2.20.1
+google-cloud-datastore==2.20.2
     # via feast (setup.py)
 google-cloud-storage==2.19.0
     # via feast (setup.py)
@@ -421,7 +421,7 @@ jupyter-server==2.14.2
     #   notebook-shim
 jupyter-server-terminals==0.5.3
     # via jupyter-server
-jupyterlab==4.3.2
+jupyterlab==4.3.3
     # via notebook
 jupyterlab-pygments==0.3.0
     # via nbconvert
@@ -484,13 +484,13 @@ mypy-boto3-cloudformation==1.35.64
     # via boto3-stubs
 mypy-boto3-dynamodb==1.35.74
     # via boto3-stubs
-mypy-boto3-ec2==1.35.72
+mypy-boto3-ec2==1.35.82
     # via boto3-stubs
 mypy-boto3-lambda==1.35.68
     # via boto3-stubs
-mypy-boto3-rds==1.35.72
+mypy-boto3-rds==1.35.82
     # via boto3-stubs
-mypy-boto3-s3==1.35.76
+mypy-boto3-s3==1.35.76.post1
     # via boto3-stubs
 mypy-boto3-sqs==1.35.0
     # via boto3-stubs
@@ -757,7 +757,7 @@ python-dateutil==2.9.0.post0
     #   trino
 python-dotenv==1.0.1
     # via uvicorn
-python-json-logger==2.0.7
+python-json-logger==3.2.1
     # via jupyter-events
 python-keycloak==4.2.2
     # via feast (setup.py)
@@ -843,7 +843,7 @@ ruamel-yaml==0.17.40
     # via great-expectations
 ruamel-yaml-clib==0.2.12
     # via ruamel-yaml
-ruff==0.8.2
+ruff==0.8.3
     # via feast (setup.py)
 s3transfer==0.10.4
     # via boto3
@@ -969,11 +969,11 @@ traitlets==5.14.3
     #   nbclient
     #   nbconvert
     #   nbformat
-trino==0.330.0
+trino==0.331.0
     # via feast (setup.py)
 typeguard==4.4.1
     # via feast (setup.py)
-types-awscrt==0.23.3
+types-awscrt==0.23.5
     # via botocore-stubs
 types-cffi==1.16.0.20240331
     # via types-pyopenssl
@@ -1060,7 +1060,7 @@ urllib3==2.2.3
     #   requests
     #   responses
     #   testcontainers
-uvicorn[standard]==0.32.1
+uvicorn[standard]==0.34.0
     # via
     #   feast (setup.py)
     #   uvicorn-worker
@@ -1072,7 +1072,7 @@ virtualenv==20.23.0
     # via
     #   feast (setup.py)
     #   pre-commit
-watchfiles==1.0.0
+watchfiles==1.0.3
     # via uvicorn
 wcwidth==0.2.13
     # via prompt-toolkit

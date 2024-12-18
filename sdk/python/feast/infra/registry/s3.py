@@ -1,11 +1,11 @@
 import importlib.util
+import typing
 import uuid
 from pathlib import Path
 from tempfile import TemporaryFile
 from urllib.parse import urlparse
 
-from mypy_boto3_s3 import S3ServiceResource
-from pydantic import StrictStr
+from pydantic import StrictStr, field_validator
 
 from feast.errors import (
     FeastExtrasDependencyImportError,
@@ -26,7 +26,17 @@ if importlib.util.find_spec("boto3") is None:
 
 class S3RegistryConfig(RegistryConfig):
     registry_type: StrictStr = "s3"
-    s3_client: S3ServiceResource
+    s3_resource: typing.Any
+
+
+    @field_validator("s3_resource")
+    @classmethod
+    def validate_s3_resource(cls, value: typing.Any) -> typing.Any:
+        from boto3.resources.base import ServiceResource
+
+        if not isinstance(value, ServiceResource):
+            raise ValueError("s3_resource must be an instance of boto3.resources.base.ServiceResource")
+        return value
 
 
 class S3RegistryStore(RegistryStore):
@@ -40,7 +50,7 @@ class S3RegistryStore(RegistryStore):
         if self._bucket == "" or self._key == "":
             raise S3RegistryPathInvalid(uri)
 
-        self.s3_client = registry_config.s3_client
+        self.s3_client = registry_config.s3_resource
 
     def get_registry_proto(self):
         file_obj = TemporaryFile()

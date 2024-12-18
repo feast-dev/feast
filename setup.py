@@ -31,27 +31,27 @@ REQUIRES_PYTHON = ">=3.9.0"
 
 REQUIRED = [
     "click>=7.0.0,<9.0.0",
-    "colorama>=0.3.9,<1",
+    "colorama>=0.3.9,<3",
     "dill~=0.3.0",
-    "protobuf>=4.24.0",
+    "protobuf>=4.0.0",
     "Jinja2>=2,<4",
     "jsonschema",
     "mmh3",
     "numpy>=1.22,<2",
     "pandas>=1.4.3,<3",
-    "pyarrow<18.1.0",
+    "pyarrow<19.1.0",
     "pydantic>=2.0.0",
-    "pygments>=2.12.0,<3",
-    "PyYAML>=5.4.0,<7",
+    "pygments>=2.12.0,<4",
+    "PyYAML>=5.4.0,<8",
     "requests",
     "SQLAlchemy[mypy]>1",
     "tabulate>=0.8.0,<1",
     "tenacity>=7",
     "toml>=0.10.0,<1",
-    "tqdm>=4,<5",
+    "tqdm>=4,<6",
     "typeguard>=4.0.0",
     "fastapi>=0.68.0",
-    "uvicorn[standard]>=0.14.0,<1",
+    "uvicorn[standard]>=0.14.0,<2",
     "uvicorn-worker",
     "gunicorn; platform_system != 'Windows'",
     "dask[dataframe]>=2024.2.1",
@@ -77,7 +77,7 @@ REDIS_REQUIRED = [
     "hiredis>=2.0.0,<4",
 ]
 
-AWS_REQUIRED = ["boto3>=1.17.0,<2", "fsspec<=2024.9.0", "aiobotocore>2,<3"]
+AWS_REQUIRED = ["boto3>=1.17.0,<3", "fsspec<=2024.9.0", "aiobotocore>2,<3"]
 
 KUBERNETES_REQUIRED = ["kubernetes<=20.13.0"]
 

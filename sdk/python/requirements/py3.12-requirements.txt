@@ -6,13 +6,13 @@ anyio==4.7.0
     # via
     #   starlette
     #   watchfiles
-attrs==24.2.0
+attrs==24.3.0
     # via
     #   jsonschema
     #   referencing
 bigtree==0.22.3
     # via feast (setup.py)
-certifi==2024.8.30
+certifi==2024.12.14
     # via requests
 charset-normalizer==3.4.0
     # via requests
@@ -87,7 +87,7 @@ protobuf==5.29.1
     # via feast (setup.py)
 psutil==6.1.0
     # via feast (setup.py)
-pyarrow==18.0.0
+pyarrow==18.1.0
     # via
     #   feast (setup.py)
     #   dask-expr
@@ -157,7 +157,7 @@ tzdata==2024.2
     # via pandas
 urllib3==2.2.3
     # via requests
-uvicorn[standard]==0.32.1
+uvicorn[standard]==0.34.0
     # via
     #   feast (setup.py)
     #   uvicorn-worker
@@ -165,7 +165,7 @@ uvicorn-worker==0.2.0
     # via feast (setup.py)
 uvloop==0.21.0
     # via uvicorn
-watchfiles==1.0.0
+watchfiles==1.0.3
     # via uvicorn
 websockets==14.1
     # via uvicorn

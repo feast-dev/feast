@@ -129,6 +129,7 @@ jobs:
           git restore sdk/python/feast/ui/yarn.lock
       - name: Build
         run: |
+          python -m pip install build
           python -m build --sdist --outdir dist/
           make build-ui
       - uses: actions/upload-artifact@v4

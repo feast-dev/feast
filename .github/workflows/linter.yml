@@ -6,7 +6,7 @@ jobs:
   lint-python:
     runs-on: [ubuntu-latest]
     env:
-      PYTHON: 3.11
+      PYTHON: 3.12
     steps:
       - uses: actions/checkout@v4
       - name: Setup Python
