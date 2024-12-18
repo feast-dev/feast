@@ -150,6 +150,7 @@ class FooProvider(Provider):
         config: RepoConfig,
         table: FeatureView,
         requested_feature: str,
+        requested_features: Optional[List[str]],
         query: List[float],
         top_k: int,
         distance_metric: Optional[str] = None,

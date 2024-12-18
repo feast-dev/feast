@@ -38,9 +38,9 @@ from feast.utils import (
 )
 
 PROTO_TO_MILVUS_TYPE_MAPPING: Dict[ValueType, DataType] = {
-    PROTO_VALUE_TO_VALUE_TYPE_MAP["bytes_val"]: DataType.STRING,
+    PROTO_VALUE_TO_VALUE_TYPE_MAP["bytes_val"]: DataType.VARCHAR,
     PROTO_VALUE_TO_VALUE_TYPE_MAP["bool_val"]: DataType.BOOL,
-    PROTO_VALUE_TO_VALUE_TYPE_MAP["string_val"]: DataType.STRING,
+    PROTO_VALUE_TO_VALUE_TYPE_MAP["string_val"]: DataType.VARCHAR,
     PROTO_VALUE_TO_VALUE_TYPE_MAP["float_val"]: DataType.FLOAT,
     PROTO_VALUE_TO_VALUE_TYPE_MAP["double_val"]: DataType.DOUBLE,
     PROTO_VALUE_TO_VALUE_TYPE_MAP["int32_val"]: DataType.INT32,
@@ -71,6 +71,8 @@ for value_type, feast_type in VALUE_TYPES_TO_FEAST_TYPES.items():
             ValueType.DOUBLE,
         ]:
             FEAST_PRIMITIVE_TO_MILVUS_TYPE_MAPPING[feast_type] = DataType.FLOAT_VECTOR
+        elif base_value_type == ValueType.STRING:
+            FEAST_PRIMITIVE_TO_MILVUS_TYPE_MAPPING[feast_type] = DataType.VARCHAR
         elif base_value_type == ValueType.BOOL:
             FEAST_PRIMITIVE_TO_MILVUS_TYPE_MAPPING[feast_type] = DataType.BINARY_VECTOR
 
@@ -149,7 +151,14 @@ class MilvusOnlineStore(OnlineStore):
                                 dim=config.online_store.embedding_dim,
                             )
                         )
-
+                    elif dtype == DataType.VARCHAR:
+                        fields.append(
+                            FieldSchema(
+                                name=field.name,
+                                dtype=dtype,
+                                max_length=512,
+                            )
+                        )
                     else:
                         fields.append(FieldSchema(name=field.name, dtype=dtype))
 
@@ -210,17 +219,14 @@ class MilvusOnlineStore(OnlineStore):
                 int(to_naive_utc(created_ts).timestamp() * 1e6) if created_ts else 0
             )
             for feature_name in values_dict:
-                for vector_list_type_name in numeric_vector_list_types:
-                    vector_list = getattr(
-                        values_dict[feature_name], vector_list_type_name, None
-                    )
-                    if vector_list:
-                        vector_values = getattr(
-                            values_dict[feature_name], vector_list_type_name
-                        ).val
-                        if vector_values != []:
-                            # Note here we are over-writing the feature and collapsing the list into a single value
-                            values_dict[feature_name] = vector_values
+                feature_values = values_dict[feature_name]
+                for proto_val_type in PROTO_VALUE_TO_VALUE_TYPE_MAP:
+                    if feature_values.HasField(proto_val_type):
+                        if proto_val_type in numeric_vector_list_types:
+                            vector_values = getattr(feature_values, proto_val_type).val
+                        else:
+                            vector_values = getattr(feature_values, proto_val_type)
+                        values_dict[feature_name] = vector_values
 
             single_entity_record = {
                 composite_key_name: entity_key_str,
@@ -243,40 +249,7 @@ class MilvusOnlineStore(OnlineStore):
         entity_keys: List[EntityKeyProto],
         requested_features: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
-        collection = self._get_collection(config, table)
-        results = []
-
-        for entity_key in entity_keys:
-            entity_key_str = serialize_entity_key(
-                entity_key,
-                entity_key_serialization_version=config.entity_key_serialization_version,
-            ).hex()
-            expr = f"entity_key == '{entity_key_str}'"
-            if requested_features:
-                features_str = ", ".join([f"'{f}'" for f in requested_features])
-                expr += f" && feature_name in [{features_str}]"
-
-            res = collection.query(
-                expr,
-                output_fields=["feature_name", "value", "event_ts"],
-                consistency_level="Strong",
-            )
-
-            res_dict = {}
-            res_ts = None
-            for r in res:
-                feature_name = r["feature_name"]
-                val_bin = r["value"]
-                val = ValueProto()
-                val.ParseFromString(val_bin)
-                res_dict[feature_name] = val
-                res_ts = datetime.fromtimestamp(r["event_ts"] / 1e6)
-            if not res_dict:
-                results.append((None, None))
-            else:
-                results.append((res_ts, res_dict))
-
-        return results
+        raise NotImplementedError
 
     def update(
         self,
@@ -320,6 +293,7 @@ class MilvusOnlineStore(OnlineStore):
         config: RepoConfig,
         table: FeatureView,
         requested_feature: str,
+        requested_features: List[str],
         embedding: List[float],
         top_k: int,
         distance_metric: Optional[str] = None,
@@ -342,13 +316,22 @@ class MilvusOnlineStore(OnlineStore):
         }
         expr = f"feature_name == '{requested_feature}'"
 
+        composite_key_name = (
+            "_".join([str(value) for value in table.entity_columns]) + "_pk"
+        )
+        if requested_features:
+            features_str = ", ".join([f"'{f}'" for f in requested_features])
+            expr += f" && feature_name in [{features_str}]"
+
         results = collection.search(
             data=[embedding],
             anns_field="vector_value",
             param=search_params,
             limit=top_k,
             expr=expr,
-            output_fields=["entity_key", "value", "event_ts"],
+            output_fields=[composite_key_name]
+            + requested_features
+            + ["created_ts", "event_ts"],
             consistency_level="Strong",
         )
 

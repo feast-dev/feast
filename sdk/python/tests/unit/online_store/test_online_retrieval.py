@@ -12,8 +12,6 @@ from pandas.testing import assert_frame_equal
 
 from feast import FeatureStore, RepoConfig
 from feast.errors import FeatureViewNotFoundException
-from feast.infra.online_stores.milvus_online_store.milvus import MilvusOnlineStoreConfig
-from feast.infra.provider import Provider
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import FloatList as FloatListProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
@@ -563,4 +561,3 @@ def test_sqlite_vec_import() -> None:
     """).fetchall()
     result = [(rowid, round(distance, 2)) for rowid, distance in result]
     assert result == [(2, 2.39), (1, 2.39)]
-
