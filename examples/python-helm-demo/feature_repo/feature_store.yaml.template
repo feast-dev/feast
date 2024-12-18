@@ -1,0 +1,9 @@
+registry: s3://feast-demo/registry.db
+project: feast_python_demo
+provider: local
+online_store:
+  type: redis
+  connection_string: localhost:6379,password=_REDIS_PASSWORD_
+offline_store:
+  type: file
+entity_key_serialization_version: 2
