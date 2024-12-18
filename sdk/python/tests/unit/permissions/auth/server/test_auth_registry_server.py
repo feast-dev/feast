@@ -46,8 +46,6 @@ def start_registry_server(
 
     is_tls_mode, tls_key_path, tls_cert_path, tls_ca_file_path = tls_mode
     if is_tls_mode:
-        # configure_ssl_ca(ca_file_path=tls_ca_file_path)
-        # Setting the ca_trust_store_path environment variables.
         print(f"Starting Registry in TLS mode at {server_port}")
         server = start_server(
             store=feature_store,

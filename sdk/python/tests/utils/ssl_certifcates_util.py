@@ -83,30 +83,6 @@ def generate_self_signed_cert(
     )
 
 
-def clear_previous_cert_env_vars():
-    """
-    Clear SSL_CERT_FILE and REQUESTS_CA_BUNDLE environment variables if they match FEAST_CA_CERT_FILE_PATH.
-    """
-    # Fetch FEAST_CA_CERT_FILE_PATH value
-    feast_ca_cert_file_path = os.environ.get("FEAST_CA_CERT_FILE_PATH")
-
-    if not feast_ca_cert_file_path:
-        print("FEAST_CA_CERT_FILE_PATH is not set. Skipping cleanup.")
-        return
-
-    print(f"FEAST_CA_CERT_FILE_PATH: {feast_ca_cert_file_path}")
-    env_vars_to_check = ["SSL_CERT_FILE", "REQUESTS_CA_BUNDLE"]
-
-    # Compare and clear the environment variables
-    for var in env_vars_to_check:
-        env_value = os.environ.get(var)
-        if env_value and env_value == feast_ca_cert_file_path:
-            del os.environ[var]
-            print(f"Cleared environment variable: {var}")
-        else:
-            print(f"Skipped clearing {var}. Current value: {env_value}")
-
-
 def create_ca_trust_store(
     public_key_path: str, private_key_path: str, output_trust_store_path: str
 ):
@@ -124,7 +100,6 @@ def create_ca_trust_store(
             "REQUESTS_CA_BUNDLE"
         )
 
-        # Step 2: Copy the existing trust store to the new location (if it exists)
         # Step 2: Copy the existing trust store to the new location (if it exists)
         if existing_trust_store and os.path.exists(existing_trust_store):
             shutil.copy(existing_trust_store, output_trust_store_path)
@@ -192,7 +167,8 @@ def combine_trust_stores(custom_cert_path: str, output_combined_path: str):
             with open(custom_cert_path, "rb") as custom_file:
                 combined_file.write(custom_file.read())
 
-        print(f"Combined trust store created at: {output_combined_path}")
+        logger.info(f"Combined trust store created at: {output_combined_path}")
 
     except Exception as e:
-        print(f"Error combining trust stores: {e}")
+        logger.error(f"Error combining trust stores: {e}")
+        raise e

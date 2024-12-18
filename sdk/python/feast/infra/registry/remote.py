@@ -61,8 +61,9 @@ class RemoteRegistryConfig(RegistryConfig):
     If registry_type is 'remote', then this configuration is needed to connect to remote registry server in TLS mode. If the remote registry started in non-tls mode then this configuration is not needed."""
 
     is_tls: bool = False
-    """ str: Path to the public certificate when the registry server starts in TLS(SSL) mode. This may be needed if the registry server started with a self-signed certificate, typically this file ends with `*.crt`, `*.cer`, or `*.pem`.
-    If registry_type is 'remote', then this configuration is needed to connect to remote registry server in TLS mode. If the remote registry started in non-tls mode then this configuration is not needed."""
+    """ bool: if you are planning to connect the registry server which started in TLS(SSL) mode then this should be true.
+    If you are planning to add the public certificate as part of the trust store instead of passing it as a `cert` parameters then setting this field to `true` is a mandatory.
+    """
 
 
 class RemoteRegistry(BaseRegistry):
@@ -75,8 +76,6 @@ class RemoteRegistry(BaseRegistry):
     ):
         self.auth_config = auth_config
         assert isinstance(registry_config, RemoteRegistryConfig)
-        # self.channel = create_tls_channel(registry_config)
-
         self.channel = self._create_grpc_channel(registry_config)
 
         auth_header_interceptor = GrpcClientAuthHeaderInterceptor(auth_config)

@@ -521,8 +521,6 @@ def auth_config(request, is_integration_test):
 @pytest.fixture(scope="module")
 def tls_mode(request):
     is_tls_mode = request.param[0]
-    # remove any existing environment variables if there are any
-    # clear_previous_cert_env_vars()
     output_combined_truststore_path = ""
 
     if is_tls_mode:
