@@ -1843,6 +1843,7 @@ class FeatureStore:
         document_feature_vals = [feature[4] for feature in document_features]
         document_feature_distance_vals = [feature[5] for feature in document_features]
         online_features_response = GetOnlineFeaturesResponse(results=[])
+        requested_feature = requested_feature or requested_features[0]
         utils._populate_result_rows_from_columnar(
             online_features_response=online_features_response,
             data={
