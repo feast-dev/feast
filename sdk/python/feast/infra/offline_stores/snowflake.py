@@ -766,11 +766,11 @@ WITH "entity_dataframe" AS (
 {% if featureview.created_timestamp_column %}
 "{{ featureview.name }}__dedup" AS (
     SELECT
-        {{ featureview.entities | map('tojson') | join(', ')}}{% if featureview.entities %},{% else %}{% endif %},
+        {{ featureview.entities | map('tojson') | join(', ')}}{% if featureview.entities %},{% else %}{% endif %}
         "event_timestamp",
         MAX("created_timestamp") AS "created_timestamp"
     FROM "{{ featureview.table_subquery }}"
-    GROUP BY {{ featureview.entities | map('tojson') | join(', ')}}{% if featureview.entities %},{% else %}{% endif %}, "event_timestamp"
+    GROUP BY {{ featureview.entities | map('tojson') | join(', ')}}{% if featureview.entities %},{% else %}{% endif %} "event_timestamp"
 ),
 {% endif %}
 
@@ -788,7 +788,9 @@ WITH "entity_dataframe" AS (
     FROM "{{ featureview.name }}__entity_dataframe" e
     ASOF JOIN {% if featureview.created_timestamp_column %}"{{ featureview.name }}__dedup"{% else %}{{ featureview.table_subquery }}{% endif %} v
     MATCH_CONDITION (e."entity_timestamp" >= v."{{ featureview.timestamp_field }}")
+    {% if featureview.entities %}
     USING({% for entity in featureview.entities %}{% if not loop.first %},{% endif %}"{{ entity }}"{% endfor %})
+    {% endif %}
 ),
 
 /*
