@@ -42,12 +42,15 @@ serving system must make a request to the feature store to retrieve feature valu
 
 ## Who is Feast for?
 
-Feast helps ML platform/MLOps teams with DevOps experience productionize real-time models. Feast also helps these teams 
-build a feature platform that improves collaboration between data engineers, software engineers, machine learning 
-engineers, and data scientists.
+Feast helps ML platform/MLOps teams with DevOps experience productionize real-time models. Feast also helps these teams build a feature platform that improves collaboration between data engineers, software engineers, machine learning engineers, and data scientists.
 
-Feast is likely **not** the right tool if you
-* are in an organization that’s just getting started with ML and is not yet sure what the business impact of ML is
+* *For Data Scientists*: Feast is a a tool where you can easily define, store, and retrieve your features for both model development and model deployment. By using Feast, you can focus on what you do best: build features that power your AI/ML models and maximize the value of your data.
+	
+* *For MLOps Engineers*: Feast is a library that allows you to connect your existing infrastructure (e.g., online database, application server, microservice, analytical database, and orchestration tooling) that enables your Data Scientists to ship features for their models to production using a friendly SDK without having to be concerned with software engineering challenges that occur from serving real-time production systems. By using Feast, you can focus on maintaining a resilient system, instead of implementing features for Data Scientists.
+	
+* *For Data Engineers*: Feast provides a centralized catalog for storing feature definitions allowing one to maintain a single source of truth for feature data. It provides the abstraction for reading and writing to many different types of offline and online data stores. Using either the provided python SDK or the feature server service, users can write data to the online and/or offline stores and then read that data out again in either low-latency online scenarios for model inference, or in batch scenarios for model training.
+
+* *For AI Engineers*: Feast provides a platform designed to scale your AI applications by enabling seamless integration of richer data and facilitating fine-tuning. With Feast, you can optimize the performance of your AI models while ensuring a scalable and efficient data pipeline.
 
 ## What Feast is not?
 
