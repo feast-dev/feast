@@ -254,6 +254,12 @@ spec:
                                   create:
                                     description: Settings for creating a new PVC
                                     properties:
+                                      accessModes:
+                                        description: AccessModes k8s persistent volume
+                                          access modes. Defaults to ["ReadWriteOnce"].
+                                        items:
+                                          type: string
+                                        type: array
                                       resources:
                                         description: |-
                                           Resources describes the storage resource requirements for a volume.
@@ -622,6 +628,12 @@ spec:
                                   create:
                                     description: Settings for creating a new PVC
                                     properties:
+                                      accessModes:
+                                        description: AccessModes k8s persistent volume
+                                          access modes. Defaults to ["ReadWriteOnce"].
+                                        items:
+                                          type: string
+                                        type: array
                                       resources:
                                         description: |-
                                           Resources describes the storage resource requirements for a volume.
@@ -1006,6 +1018,12 @@ spec:
                                       create:
                                         description: Settings for creating a new PVC
                                         properties:
+                                          accessModes:
+                                            description: AccessModes k8s persistent
+                                              volume access modes. Defaults to ["ReadWriteOnce"].
+                                            items:
+                                              type: string
+                                            type: array
                                           resources:
                                             description: |-
                                               Resources describes the storage resource requirements for a volume.
@@ -1506,6 +1524,12 @@ spec:
                                       create:
                                         description: Settings for creating a new PVC
                                         properties:
+                                          accessModes:
+                                            description: AccessModes k8s persistent
+                                              volume access modes. Defaults to ["ReadWriteOnce"].
+                                            items:
+                                              type: string
+                                            type: array
                                           resources:
                                             description: |-
                                               Resources describes the storage resource requirements for a volume.
@@ -1879,6 +1903,12 @@ spec:
                                       create:
                                         description: Settings for creating a new PVC
                                         properties:
+                                          accessModes:
+                                            description: AccessModes k8s persistent
+                                              volume access modes. Defaults to ["ReadWriteOnce"].
+                                            items:
+                                              type: string
+                                            type: array
                                           resources:
                                             description: |-
                                               Resources describes the storage resource requirements for a volume.
@@ -2272,6 +2302,13 @@ spec:
                                             description: Settings for creating a new
                                               PVC
                                             properties:
+                                              accessModes:
+                                                description: AccessModes k8s persistent
+                                                  volume access modes. Defaults to
+                                                  ["ReadWriteOnce"].
+                                                items:
+                                                  type: string
+                                                type: array
                                               resources:
                                                 description: |-
                                                   Resources describes the storage resource requirements for a volume.

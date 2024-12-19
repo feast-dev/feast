@@ -450,7 +450,7 @@ func (feast *FeastServices) createNewPVC(pvcCreate *feastdevv1alpha1.PvcCreate, 
 	pvc := feast.initPVC(feastType)
 
 	pvc.Spec = corev1.PersistentVolumeClaimSpec{
-		AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany},
+		AccessModes: pvcCreate.AccessModes,
 		Resources:   pvcCreate.Resources,
 	}
 	if pvcCreate.StorageClassName != nil {

@@ -94,6 +94,9 @@ func ApplyDefaultsToStatus(cr *feastdevv1alpha1.FeatureStore) {
 				pvc := services.Registry.Local.Persistence.FilePersistence.PvcConfig
 				if pvc.Create != nil {
 					ensureRequestedStorage(&pvc.Create.Resources, DefaultRegistryStorageRequest)
+					if pvc.Create.AccessModes == nil {
+						pvc.Create.AccessModes = DefaultPVCAccessModes
+					}
 				}
 			}
 		}
@@ -118,6 +121,9 @@ func ApplyDefaultsToStatus(cr *feastdevv1alpha1.FeatureStore) {
 				pvc := services.OfflineStore.Persistence.FilePersistence.PvcConfig
 				if pvc.Create != nil {
 					ensureRequestedStorage(&pvc.Create.Resources, DefaultOfflineStorageRequest)
+					if pvc.Create.AccessModes == nil {
+						pvc.Create.AccessModes = DefaultPVCAccessModes
+					}
 				}
 			}
 		}
@@ -143,6 +149,9 @@ func ApplyDefaultsToStatus(cr *feastdevv1alpha1.FeatureStore) {
 				pvc := services.OnlineStore.Persistence.FilePersistence.PvcConfig
 				if pvc.Create != nil {
 					ensureRequestedStorage(&pvc.Create.Resources, DefaultOnlineStorageRequest)
+					if pvc.Create.AccessModes == nil {
+						pvc.Create.AccessModes = DefaultPVCAccessModes
+					}
 				}
 			}
 		}

@@ -69,6 +69,7 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 		onlineStoreMountPath := "/online"
 		registryMountPath := "/registry"
 
+		accessModes := []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce, corev1.ReadWriteMany}
 		storageClassName := "test"
 
 		onlineStoreMountedPath := path.Join(onlineStoreMountPath, onlineStorePath)
@@ -85,6 +86,7 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 						Type: offlineType,
 						PvcConfig: &feastdevv1alpha1.PvcConfig{
 							Create: &feastdevv1alpha1.PvcCreate{
+								AccessModes:      accessModes,
 								StorageClassName: &storageClassName,
 							},
 							MountPath: offlineStoreMountPath,
@@ -162,6 +164,7 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			Expect(resource.Status.Applied.Services.OfflineStore.Persistence.FilePersistence.Type).To(Equal(offlineType))
 			Expect(resource.Status.Applied.Services.OfflineStore.Persistence.FilePersistence.PvcConfig).NotTo(BeNil())
 			Expect(resource.Status.Applied.Services.OfflineStore.Persistence.FilePersistence.PvcConfig.Create).NotTo(BeNil())
+			Expect(resource.Status.Applied.Services.OfflineStore.Persistence.FilePersistence.PvcConfig.Create.AccessModes).To(Equal(accessModes))
 			Expect(resource.Status.Applied.Services.OfflineStore.Persistence.FilePersistence.PvcConfig.Create.StorageClassName).To(Equal(&storageClassName))
 			expectedResources := corev1.VolumeResourceRequirements{
 				Requests: corev1.ResourceList{
@@ -179,6 +182,7 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			Expect(resource.Status.Applied.Services.OnlineStore.Persistence.FilePersistence.Path).To(Equal(onlineStorePath))
 			Expect(resource.Status.Applied.Services.OnlineStore.Persistence.FilePersistence.PvcConfig).NotTo(BeNil())
 			Expect(resource.Status.Applied.Services.OnlineStore.Persistence.FilePersistence.PvcConfig.Create).NotTo(BeNil())
+			Expect(resource.Status.Applied.Services.OnlineStore.Persistence.FilePersistence.PvcConfig.Create.AccessModes).To(Equal(services.DefaultPVCAccessModes))
 			Expect(resource.Status.Applied.Services.OnlineStore.Persistence.FilePersistence.PvcConfig.Create.StorageClassName).To(BeNil())
 			expectedResources = corev1.VolumeResourceRequirements{
 				Requests: corev1.ResourceList{
@@ -198,6 +202,7 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			Expect(resource.Status.Applied.Services.Registry.Local.Persistence.FilePersistence.Path).To(Equal(registryPath))
 			Expect(resource.Status.Applied.Services.Registry.Local.Persistence.FilePersistence.PvcConfig).NotTo(BeNil())
 			Expect(resource.Status.Applied.Services.Registry.Local.Persistence.FilePersistence.PvcConfig.Create).NotTo(BeNil())
+			Expect(resource.Status.Applied.Services.Registry.Local.Persistence.FilePersistence.PvcConfig.Create.AccessModes).To(Equal(services.DefaultPVCAccessModes))
 			Expect(resource.Status.Applied.Services.Registry.Local.Persistence.FilePersistence.PvcConfig.Create.StorageClassName).To(BeNil())
 			expectedResources = corev1.VolumeResourceRequirements{
 				Requests: corev1.ResourceList{
@@ -283,6 +288,7 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(pvc.Name).To(Equal(deploy.Name))
 			Expect(pvc.Spec.StorageClassName).To(Equal(&storageClassName))
+			Expect(pvc.Spec.AccessModes).To(Equal(accessModes))
 			Expect(pvc.Spec.Resources.Requests.Storage().String()).To(Equal(services.DefaultOfflineStorageRequest))
 			Expect(pvc.DeletionTimestamp).To(BeNil())
 
@@ -313,6 +319,7 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 				pvc)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(pvc.Name).To(Equal(deploy.Name))
+			Expect(pvc.Spec.AccessModes).To(Equal(services.DefaultPVCAccessModes))
 			Expect(pvc.Spec.Resources.Requests.Storage().String()).To(Equal(services.DefaultOnlineStorageRequest))
 			Expect(pvc.DeletionTimestamp).To(BeNil())
 
@@ -343,6 +350,7 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 				pvc)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(pvc.Name).To(Equal(deploy.Name))
+			Expect(pvc.Spec.AccessModes).To(Equal(services.DefaultPVCAccessModes))
 			Expect(pvc.Spec.Resources.Requests.Storage().String()).To(Equal(services.DefaultRegistryStorageRequest))
 			Expect(pvc.DeletionTimestamp).To(BeNil())
 
