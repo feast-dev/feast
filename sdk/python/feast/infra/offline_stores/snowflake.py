@@ -816,7 +816,7 @@ https://docs.snowflake.com/en/sql-reference/constructs/asof-join#expected-behavi
     SELECT *
     FROM "{{ featureview.name }}__asof_join"
     {% if featureview.ttl == 0 %}{% else %}
-    WHERE "{{ featureview.timestamp_field }}" >= TIMESTAMPADD(second,-{{ featureview.ttl }},"entity_timestamp")
+    WHERE "event_timestamp" >= TIMESTAMPADD(second,-{{ featureview.ttl }},"entity_timestamp")
     {% endif %}
 ){% if loop.last %}{% else %}, {% endif %}
 
