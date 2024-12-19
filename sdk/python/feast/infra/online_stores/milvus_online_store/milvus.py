@@ -135,7 +135,7 @@ class MilvusOnlineStore(OnlineStore):
                 FieldSchema(name="event_ts", dtype=DataType.INT64),
                 FieldSchema(name="created_ts", dtype=DataType.INT64),
             ]
-            fields_to_exclude = [field.name for field in table.entity_columns] + [
+            fields_to_exclude = [
                 "event_ts",
                 "created_ts",
             ]
@@ -199,11 +199,6 @@ class MilvusOnlineStore(OnlineStore):
         progress: Optional[Callable[[int], Any]],
     ) -> None:
         collection = self._get_collection(config, table)
-        numeric_vector_list_types = [
-            k
-            for k in PROTO_VALUE_TO_VALUE_TYPE_MAP.keys()
-            if k is not None and "list" in k and "string" not in k
-        ]
         entity_batch_to_insert = []
         for entity_key, values_dict, timestamp, created_ts in data:
             # need to construct the composite primary key also need to handle the fact that entities are a list
@@ -218,15 +213,11 @@ class MilvusOnlineStore(OnlineStore):
             created_ts_int = (
                 int(to_naive_utc(created_ts).timestamp() * 1e6) if created_ts else 0
             )
-            for feature_name in values_dict:
-                feature_values = values_dict[feature_name]
-                for proto_val_type in PROTO_VALUE_TO_VALUE_TYPE_MAP:
-                    if feature_values.HasField(proto_val_type):
-                        if proto_val_type in numeric_vector_list_types:
-                            vector_values = getattr(feature_values, proto_val_type).val
-                        else:
-                            vector_values = getattr(feature_values, proto_val_type)
-                        values_dict[feature_name] = vector_values
+            values_dict = _extract_proto_values_to_dict(values_dict)
+            entity_dict = _extract_proto_values_to_dict(
+                dict(zip(entity_key.join_keys, entity_key.entity_values))
+            )
+            values_dict.update(entity_dict)
 
             single_entity_record = {
                 composite_key_name: entity_key_str,
@@ -317,28 +308,51 @@ class MilvusOnlineStore(OnlineStore):
         expr = f"feature_name == '{requested_feature}'"
 
         composite_key_name = (
-            "_".join([str(value) for value in table.entity_columns]) + "_pk"
+            "_".join([str(field.name) for field in table.entity_columns]) + "_pk"
         )
         if requested_features:
             features_str = ", ".join([f"'{f}'" for f in requested_features])
             expr += f" && feature_name in [{features_str}]"
 
+        output_fields = (
+            [composite_key_name] + requested_features + ["created_ts", "event_ts"]
+        )
+        assert all(field for field in output_fields if field in [f.name for f in collection.schema.fields]), \
+            f"field(s) [{[field for field in output_fields if field not in [f.name for f in collection.schema.fields]]}'] not found in collection schema"
+
+        # Note we choose the first vector field as the field to search on. Not ideal but it's something.
+        ann_search_field = None
+        for field in collection.schema.fields:
+            if field.dtype in [DataType.FLOAT_VECTOR, DataType.BINARY_VECTOR]:
+                ann_search_field = field.name
+                break
+
         results = collection.search(
             data=[embedding],
-            anns_field="vector_value",
+            anns_field=ann_search_field,
             param=search_params,
             limit=top_k,
-            expr=expr,
-            output_fields=[composite_key_name]
-            + requested_features
-            + ["created_ts", "event_ts"],
+            # expr=expr,
+            output_fields=output_fields,
             consistency_level="Strong",
         )
 
         result_list = []
         for hits in results:
             for hit in hits:
-                entity_key_str = hit.entity.get("entity_key")
+                single_record = {}
+                for field in output_fields:
+                    val = hit.entity.get(field)
+                    if field == composite_key_name:
+                        val = deserialize_entity_key(
+                            bytes.fromhex(val),
+                            config.entity_key_serialization_version,
+                        )
+                        entity_key_proto = val
+                    single_record[field] = val
+
+
+                entity_key_str = hit.entity.get(composite_key_name)
                 val_bin = hit.entity.get("value")
                 val = ValueProto()
                 val.ParseFromString(val_bin)
@@ -350,7 +364,7 @@ class MilvusOnlineStore(OnlineStore):
                 )
                 result_list.append(
                     _build_retrieve_online_document_record(
-                        entity_key,
+                        entity_key_proto,
                         val.SerializeToString(),
                         embedding,
                         distance,
@@ -363,6 +377,24 @@ class MilvusOnlineStore(OnlineStore):
 
 def _table_id(project: str, table: FeatureView) -> str:
     return f"{project}_{table.name}"
+
+
+def _extract_proto_values_to_dict(input_dict: Dict[str, Any]) -> Dict[str, Any]:
+    numeric_vector_list_types = [
+        k
+        for k in PROTO_VALUE_TO_VALUE_TYPE_MAP.keys()
+        if k is not None and "list" in k and "string" not in k
+    ]
+    output_dict = {}
+    for feature_name, feature_values in input_dict.items():
+        for proto_val_type in PROTO_VALUE_TO_VALUE_TYPE_MAP:
+            if feature_values.HasField(proto_val_type):
+                if proto_val_type in numeric_vector_list_types:
+                    vector_values = getattr(feature_values, proto_val_type).val
+                else:
+                    vector_values = getattr(feature_values, proto_val_type)
+                output_dict[feature_name] = vector_values
+    return output_dict
 
 
 class MilvusTable(InfraObject):
