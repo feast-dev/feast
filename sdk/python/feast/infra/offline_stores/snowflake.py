@@ -771,20 +771,26 @@ WITH "entity_dataframe" AS (
 ),
 
 /*
- 3. If the `created_timestamp_column` has been set, we need to
- deduplicate the data first. This is done by calculating the
- `MAX(created_at_timestamp)` for each event_timestamp.
- Otherwise, the ASOF JOIN can have unstable side effects
- https://docs.snowflake.com/en/sql-reference/constructs/asof-join#expected-behavior-when-ties-exist-in-the-right-table
+3. If the `created_timestamp_column` has been set, we need to
+deduplicate the data first. This is done by calculating the
+`MAX(created_at_timestamp)` for each event_timestamp and joining back on the subquery.
+Otherwise, the ASOF JOIN can have unstable side effects
+https://docs.snowflake.com/en/sql-reference/constructs/asof-join#expected-behavior-when-ties-exist-in-the-right-table
 */
 
 {% if featureview.created_timestamp_column %}
 "{{ featureview.name }}__dedup" AS (
-    SELECT
-        *,
-        MAX("created_timestamp") AS "created_timestamp"
+    SELECT *
     FROM "{{ featureview.name }}__subquery"
-    GROUP BY {{ featureview.entities | map('tojson') | join(', ')}}{% if featureview.entities %},{% else %}{% endif %} "event_timestamp"
+    INNER JOIN (
+        SELECT
+            {{ featureview.entities | map('tojson') | join(', ')}}{% if featureview.entities %},{% else %}{% endif %}
+            "event_timestamp",
+            MAX("created_timestamp") AS "created_timestamp"
+        FROM "{{ featureview.name }}__subquery"
+        GROUP BY {{ featureview.entities | map('tojson') | join(', ')}}{% if featureview.entities %},{% else %}{% endif %} "event_timestamp"
+        )
+    USING({{ featureview.entities | map('tojson') | join(', ')}}{% if featureview.entities %},{% else %}{% endif %} "event_timestamp", "created_timestamp")
 ),
 {% endif %}
 
