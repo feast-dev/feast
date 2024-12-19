@@ -895,7 +895,7 @@ def test_retrieve_online_documents(vectordb_environment, fake_document_data):
 
 @pytest.mark.integration
 @pytest.mark.universal_online_stores(only=["milvus"])
-def test_retrieve_online_documents2(environment, fake_document_data):
+def test_retrieve_online_milvus_ocuments(environment, fake_document_data):
     print(environment.online_store)
     fs = environment.feature_store
     df, data_source = fake_document_data
@@ -914,22 +914,6 @@ def test_retrieve_online_documents2(environment, fake_document_data):
         distance_metric="L2",
     ).to_dict()
     assert len(documents["embedding_float"]) == 2
-    #
-    # # assert returned the entity_id
-    # assert len(documents["item_id"]) == 2
-    #
-    # documents = fs.retrieve_online_documents(
-    #     feature="item_embeddings:embedding_float",
-    #     query=[1.0, 2.0],
-    #     top_k=2,
-    #     distance_metric="L1",
-    # ).to_dict()
-    # assert len(documents["embedding_float"]) == 2
-    #
-    # with pytest.raises(ValueError):
-    #     fs.retrieve_online_documents(
-    #         feature="item_embeddings:embedding_float",
-    #         query=[1.0, 2.0],
-    #         top_k=2,
-    #         distance_metric="wrong",
-    #     ).to_dict()
+
+    assert len(documents["item_id"]) == 2
+    assert documents["item_id"] == [2, 3]

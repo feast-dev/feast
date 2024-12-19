@@ -14,7 +14,6 @@ from feast import Entity
 from feast.feature_view import FeatureView
 from feast.infra.infra_object import InfraObject
 from feast.infra.key_encoding_utils import (
-    deserialize_entity_key,
     serialize_entity_key,
 )
 from feast.infra.online_stores.online_store import OnlineStore
@@ -34,6 +33,7 @@ from feast.types import (
 )
 from feast.utils import (
     _build_retrieve_online_document_record,
+    _serialize_vector_to_float_list,
     to_naive_utc,
 )
 
@@ -317,13 +317,19 @@ class MilvusOnlineStore(OnlineStore):
         output_fields = (
             [composite_key_name] + requested_features + ["created_ts", "event_ts"]
         )
-        assert all(field for field in output_fields if field in [f.name for f in collection.schema.fields]), \
-            f"field(s) [{[field for field in output_fields if field not in [f.name for f in collection.schema.fields]]}'] not found in collection schema"
+        assert all(
+            field
+            for field in output_fields
+            if field in [f.name for f in collection.schema.fields]
+        ), f"field(s) [{[field for field in output_fields if field not in [f.name for f in collection.schema.fields]]}'] not found in collection schema"
 
         # Note we choose the first vector field as the field to search on. Not ideal but it's something.
         ann_search_field = None
         for field in collection.schema.fields:
-            if field.dtype in [DataType.FLOAT_VECTOR, DataType.BINARY_VECTOR]:
+            if (
+                field.dtype in [DataType.FLOAT_VECTOR, DataType.BINARY_VECTOR]
+                and field.name in output_fields
+            ):
                 ann_search_field = field.name
                 break
 
@@ -342,36 +348,23 @@ class MilvusOnlineStore(OnlineStore):
             for hit in hits:
                 single_record = {}
                 for field in output_fields:
-                    val = hit.entity.get(field)
-                    if field == composite_key_name:
-                        val = deserialize_entity_key(
-                            bytes.fromhex(val),
-                            config.entity_key_serialization_version,
-                        )
-                        entity_key_proto = val
-                    single_record[field] = val
+                    single_record[field] = hit.entity.get(field)
 
-
-                entity_key_str = hit.entity.get(composite_key_name)
-                val_bin = hit.entity.get("value")
-                val = ValueProto()
-                val.ParseFromString(val_bin)
+                entity_key_bytes = bytes.fromhex(hit.entity.get(composite_key_name))
+                embedding = hit.entity.get(ann_search_field)
+                serialized_embedding = _serialize_vector_to_float_list(embedding)
                 distance = hit.distance
                 event_ts = datetime.fromtimestamp(hit.entity.get("event_ts") / 1e6)
-                entity_key = deserialize_entity_key(
-                    bytes.fromhex(entity_key_str),
+                prepared_result = _build_retrieve_online_document_record(
+                    entity_key_bytes,
+                    # This may have a bug
+                    serialized_embedding.SerializeToString(),
+                    embedding,
+                    distance,
+                    event_ts,
                     config.entity_key_serialization_version,
                 )
-                result_list.append(
-                    _build_retrieve_online_document_record(
-                        entity_key_proto,
-                        val.SerializeToString(),
-                        embedding,
-                        distance,
-                        event_ts,
-                        config.entity_key_serialization_version,
-                    )
-                )
+                result_list.append(prepared_result)
         return result_list
 
 
