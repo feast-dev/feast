@@ -3,6 +3,7 @@ scratch*
 
 ### Local Environment ###
 *local*.env
+tools
 
 ### Secret ###
 **/service_account.json
@@ -101,6 +102,7 @@ htmlcov/
 .cache
 nosetests.xml
 coverage.xml
+coverage.out
 *.cover
 .hypothesis/
 .pytest_cache/
