@@ -191,6 +191,7 @@ def environment(request, worker_id):
         request.param,
         worker_id=worker_id,
         fixture_request=request,
+        entity_key_serialization_version=3,
     )
 
     e.setup()
@@ -206,10 +207,17 @@ def environment(request, worker_id):
 
 @pytest.fixture
 def vectordb_environment(request, worker_id):
+    db_config = IntegrationTestRepoConfig(
+        provider="local",
+        # online_store="milvus",
+        # online_store_creator=MilvusOnlineStoreCreator,
+        # offline_store_creator=FileDataSourceCreator,
+    )
+    print(request)
     e = construct_test_environment(
-        request.param,
-        worker_id=worker_id,
+        db_config,
         fixture_request=request,
+        worker_id=worker_id,
         entity_key_serialization_version=3,
     )
 

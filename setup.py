@@ -158,6 +158,8 @@ GO_REQUIRED = ["cffi~=1.15.0"]
 
 MILVUS_REQUIRED = ["pymilvus"]
 
+MILVUS_REQUIRED = ["pymilvus"]
+
 CI_REQUIRED = (
     [
         "build",

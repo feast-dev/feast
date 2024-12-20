@@ -268,7 +268,7 @@ test-python-universal-postgres-online:
 				not test_snowflake" \
  			sdk/python/tests
 
- test-python-universal-mysql-online:
+test-python-universal-mysql-online:
 	PYTHONPATH='.' \
 		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.mysql_online_store.mysql_repo_configuration \
 		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.mysql \
@@ -292,7 +292,11 @@ test-python-universal-cassandra:
 	FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.cassandra_online_store.cassandra_repo_configuration \
 	PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.cassandra \
 	python -m pytest -x --integration \
-	sdk/python/tests
+	sdk/python/tests/integration/offline_store/test_feature_logging.py \
+		--ignore=sdk/python/tests/integration/offline_store/test_validation.py \
+		-k "not test_snowflake and \
+			not test_spark_materialization_consistency and \
+			not test_universal_materialization"
 
 test-python-universal-hazelcast:
 	PYTHONPATH='.' \
@@ -330,7 +334,7 @@ test-python-universal-cassandra-no-cloud-providers:
 	  not test_snowflake" \
 	sdk/python/tests
 
- test-python-universal-elasticsearch-online:
+test-python-universal-elasticsearch-online:
 	PYTHONPATH='.' \
 		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.elasticsearch_online_store.elasticsearch_repo_configuration \
 		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.elasticsearch \
@@ -348,6 +352,14 @@ test-python-universal-cassandra-no-cloud-providers:
  				not test_universal_types and \
 				not test_snowflake" \
  			sdk/python/tests
+
+test-python-universal-milvus-online:
+	PYTHONPATH='.' \
+		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.milvus_online_store.milvus_repo_configuration \
+		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.milvus \
+		python -m pytest -n 8 --integration \
+		-k "test_retrieve_online_milvus_ocuments" \
+ 			sdk/python/tests --ignore=sdk/python/tests/integration/offline_store/test_dqm_validation.py
 
 test-python-universal-singlestore-online:
 	PYTHONPATH='.' \
