@@ -9,6 +9,7 @@ from pymilvus import (
     FieldSchema,
     connections,
 )
+from pymilvus.orm.connections import Connections
 
 from feast import Entity
 from feast.feature_view import FeatureView
@@ -102,7 +103,7 @@ class MilvusOnlineStore(OnlineStore):
         _collections: Dictionary to cache Milvus collections.
     """
 
-    _conn: Optional[connections] = None
+    _conn: Optional[Connections] = None
     _collections: Dict[str, Collection] = {}
 
     def _connect(self, config: RepoConfig) -> connections:
