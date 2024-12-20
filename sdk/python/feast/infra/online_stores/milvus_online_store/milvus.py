@@ -283,8 +283,8 @@ class MilvusOnlineStore(OnlineStore):
         self,
         config: RepoConfig,
         table: FeatureView,
-        requested_feature: str,
-        requested_features: List[str],
+        requested_feature: Optional[str],
+        requested_features: Optional[List[str]],
         embedding: List[float],
         top_k: int,
         distance_metric: Optional[str] = None,
@@ -315,7 +315,7 @@ class MilvusOnlineStore(OnlineStore):
             expr += f" && feature_name in [{features_str}]"
 
         output_fields = (
-            [composite_key_name] + requested_features + ["created_ts", "event_ts"]
+            [composite_key_name] + (requested_features if requested_features else []) + ["created_ts", "event_ts"]
         )
         assert all(
             field
