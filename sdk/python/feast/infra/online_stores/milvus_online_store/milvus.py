@@ -315,7 +315,9 @@ class MilvusOnlineStore(OnlineStore):
             expr += f" && feature_name in [{features_str}]"
 
         output_fields = (
-            [composite_key_name] + (requested_features if requested_features else []) + ["created_ts", "event_ts"]
+            [composite_key_name]
+            + (requested_features if requested_features else [])
+            + ["created_ts", "event_ts"]
         )
         assert all(
             field
