@@ -1772,7 +1772,8 @@ class FeatureStore:
             raise ValueError(
                 "Using embedding functionality is not supported for document retrieval. Please embed the query before calling retrieve_online_documents."
             )
-        feature_list = features or [feature]
+        feature_list: List[str] = features if features is not None else ([feature] if feature is not None else [])
+
         (
             available_feature_views,
             _,
@@ -1801,7 +1802,7 @@ class FeatureStore:
             requested_feature = (
                 feature.split(":")[1] if isinstance(feature, str) else feature
             )
-            requested_features = [requested_feature]
+            requested_features = [requested_feature] if requested_feature else []
 
         requested_feature_view_name = (
             feature.split(":")[0] if feature else list(feature_view_set)[0]

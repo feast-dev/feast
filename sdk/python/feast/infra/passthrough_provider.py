@@ -294,7 +294,7 @@ class PassthroughProvider(Provider):
         self,
         config: RepoConfig,
         table: FeatureView,
-        requested_feature: str,
+        requested_feature: Optional[str],
         requested_features: Optional[List[str]],
         query: List[float],
         top_k: int,

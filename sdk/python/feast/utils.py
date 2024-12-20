@@ -1192,7 +1192,7 @@ def _utc_now() -> datetime:
     return datetime.now(tz=timezone.utc)
 
 
-def _serialize_vector_to_float_list(vector: List[float]) -> FloatListProto:
+def _serialize_vector_to_float_list(vector: List[float]) -> ValueProto:
     return ValueProto(float_list_val=FloatListProto(val=vector))
 
 
