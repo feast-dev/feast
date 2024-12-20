@@ -25,7 +25,9 @@ anyio==4.7.0
 appnope==0.1.4
     # via ipykernel
 argon2-cffi==23.1.0
-    # via jupyter-server
+    # via
+    #   jupyter-server
+    #   minio
 argon2-cffi-bindings==21.2.0
     # via argon2-cffi
 arrow==1.3.0
@@ -130,7 +132,7 @@ couchbase==4.3.2
     # via feast (setup.py)
 coverage[toml]==7.6.9
     # via pytest-cov
-cryptography==42.0.8
+cryptography==43.0.3
     # via
     #   feast (setup.py)
     #   azure-identity
@@ -457,7 +459,7 @@ mdurl==0.1.2
     # via markdown-it-py
 milvus-lite==2.4.10
     # via pymilvus
-minio==7.1.0
+minio==7.2.11
     # via feast (setup.py)
 mistune==3.0.2
     # via
@@ -667,6 +669,8 @@ pybindgen==0.22.1
     # via feast (setup.py)
 pycparser==2.22
     # via cffi
+pycryptodome==3.21.0
+    # via minio
 pydantic==2.10.4
     # via
     #   feast (setup.py)
@@ -1014,6 +1018,7 @@ typing-extensions==4.12.2
     #   ibis-framework
     #   ipython
     #   jwcrypto
+    #   minio
     #   multidict
     #   mypy
     #   psycopg
