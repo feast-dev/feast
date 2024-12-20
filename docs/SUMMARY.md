@@ -32,6 +32,7 @@
   * [Registry](getting-started/components/registry.md)
   * [Offline store](getting-started/components/offline-store.md)
   * [Online store](getting-started/components/online-store.md)
+  * [Feature server](getting-started/components/feature-server.md)
   * [Batch Materialization Engine](getting-started/components/batch-materialization-engine.md)
   * [Provider](getting-started/components/provider.md)
   * [Authorization Manager](getting-started/components/authz_manager.md)
