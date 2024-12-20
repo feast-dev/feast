@@ -32,5 +32,4 @@ class MilvusOnlineStoreCreator(OnlineStoreCreator):
         }
 
     def teardown(self):
-        # assert 1 == 4
         self.container.stop()

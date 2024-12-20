@@ -341,7 +341,6 @@ class MilvusOnlineStore(OnlineStore):
             anns_field=ann_search_field,
             param=search_params,
             limit=top_k,
-            # expr=expr,
             output_fields=output_fields,
             consistency_level="Strong",
         )
