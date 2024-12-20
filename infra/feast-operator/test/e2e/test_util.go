@@ -192,9 +192,5 @@ func isFeatureStoreHavingRemoteRegistry(namespace, featureStoreName string) (boo
 	hasValidFeastRef := registryConfig.Remote.FeastRef != nil &&
 		registryConfig.Remote.FeastRef.Name != ""
 
-	if hasHostname || hasValidFeastRef {
-		return true, nil
-	}
-
-	return false, nil
+	return hasHostname || hasValidFeastRef, nil
 }

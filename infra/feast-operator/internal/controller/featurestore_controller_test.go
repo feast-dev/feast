@@ -172,15 +172,16 @@ var _ = Describe("FeatureStore Controller", func() {
 			Expect(resource.Status.Phase).To(Equal(feastdevv1alpha1.ReadyPhase))
 
 			deploy := &appsv1.Deployment{}
+			objMeta := feast.GetObjectMeta()
 			err = k8sClient.Get(ctx, types.NamespacedName{
-				Name:      feast.GetFeastServiceName(services.RegistryFeastType),
-				Namespace: resource.Namespace,
-			},
-				deploy)
+				Name:      objMeta.Name,
+				Namespace: objMeta.Namespace,
+			}, deploy)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(deploy.Spec.Replicas).To(Equal(&services.DefaultReplicas))
 			Expect(controllerutil.HasControllerReference(deploy)).To(BeTrue())
 			Expect(deploy.Spec.Template.Spec.ServiceAccountName).To(Equal(deploy.Name))
+			Expect(deploy.Spec.Template.Spec.InitContainers).To(HaveLen(1))
 			Expect(deploy.Spec.Template.Spec.Containers).To(HaveLen(1))
 
 			svc := &corev1.Service{}
@@ -220,11 +221,11 @@ var _ = Describe("FeatureStore Controller", func() {
 			}
 
 			deploy := &appsv1.Deployment{}
+			objMeta := feast.GetObjectMeta()
 			err = k8sClient.Get(ctx, types.NamespacedName{
-				Name:      feast.GetFeastServiceName(services.RegistryFeastType),
-				Namespace: resource.Namespace,
-			},
-				deploy)
+				Name:      objMeta.Name,
+				Namespace: objMeta.Namespace,
+			}, deploy)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(deploy.Spec.Template.Spec.ServiceAccountName).To(Equal(deploy.Name))
 			Expect(deploy.Spec.Template.Spec.Containers).To(HaveLen(1))
@@ -232,7 +233,7 @@ var _ = Describe("FeatureStore Controller", func() {
 			env := getFeatureStoreYamlEnvVar(deploy.Spec.Template.Spec.Containers[0].Env)
 			Expect(env).NotTo(BeNil())
 
-			fsYamlStr, err := feast.GetServiceFeatureStoreYamlBase64(services.RegistryFeastType)
+			fsYamlStr, err := feast.GetServiceFeatureStoreYamlBase64()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(fsYamlStr).To(Equal(env.Value))
 
@@ -241,17 +242,8 @@ var _ = Describe("FeatureStore Controller", func() {
 			repoConfig := &services.RepoConfig{}
 			err = yaml.Unmarshal(envByte, repoConfig)
 			Expect(err).NotTo(HaveOccurred())
-			testConfig := &services.RepoConfig{
-				Project:                       feastProject,
-				Provider:                      services.LocalProviderType,
-				EntityKeySerializationVersion: feastdevv1alpha1.SerializationVersion,
-				Registry: services.RegistryConfig{
-					RegistryType: services.RegistryFileConfigType,
-					Path:         services.DefaultRegistryEphemeralPath,
-				},
-				AuthzConfig: noAuthzConfig(),
-			}
-			Expect(repoConfig).To(Equal(testConfig))
+			testConfig := feast.GetDefaultRepoConfig()
+			Expect(repoConfig).To(Equal(&testConfig))
 
 			// check client config
 			cm := &corev1.ConfigMap{}
@@ -265,17 +257,12 @@ var _ = Describe("FeatureStore Controller", func() {
 			repoConfigClient := &services.RepoConfig{}
 			err = yaml.Unmarshal([]byte(cm.Data[services.FeatureStoreYamlCmKey]), repoConfigClient)
 			Expect(err).NotTo(HaveOccurred())
-			clientConfig := &services.RepoConfig{
-				Project:                       feastProject,
-				Provider:                      services.LocalProviderType,
-				EntityKeySerializationVersion: feastdevv1alpha1.SerializationVersion,
-				Registry: services.RegistryConfig{
-					RegistryType: services.RegistryRemoteConfigType,
-					Path:         "feast-test-resource-registry.default.svc.cluster.local:80",
-				},
-				AuthzConfig: noAuthzConfig(),
+			clientConfig := feast.GetInitRepoConfig()
+			clientConfig.Registry = services.RegistryConfig{
+				RegistryType: services.RegistryRemoteConfigType,
+				Path:         "feast-test-resource-registry.default.svc.cluster.local:80",
 			}
-			Expect(repoConfigClient).To(Equal(clientConfig))
+			Expect(repoConfigClient).To(Equal(&clientConfig))
 
 			// change feast project and reconcile
 			resourceNew := resource.DeepCopy()
@@ -291,8 +278,8 @@ var _ = Describe("FeatureStore Controller", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(resource.Spec.FeastProject).To(Equal(resourceNew.Spec.FeastProject))
 			err = k8sClient.Get(ctx, types.NamespacedName{
-				Name:      feast.GetFeastServiceName(services.RegistryFeastType),
-				Namespace: resource.Namespace,
+				Name:      objMeta.Name,
+				Namespace: objMeta.Namespace,
 			},
 				deploy)
 			Expect(err).NotTo(HaveOccurred())
@@ -302,7 +289,7 @@ var _ = Describe("FeatureStore Controller", func() {
 			env = getFeatureStoreYamlEnvVar(deploy.Spec.Template.Spec.Containers[0].Env)
 			Expect(env).NotTo(BeNil())
 
-			fsYamlStr, err = feast.GetServiceFeatureStoreYamlBase64(services.RegistryFeastType)
+			fsYamlStr, err = feast.GetServiceFeatureStoreYamlBase64()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(fsYamlStr).To(Equal(env.Value))
 
@@ -310,7 +297,7 @@ var _ = Describe("FeatureStore Controller", func() {
 			Expect(err).NotTo(HaveOccurred())
 			err = yaml.Unmarshal(envByte, repoConfig)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(repoConfig).To(Equal(testConfig))
+			Expect(repoConfig).To(Equal(&testConfig))
 		})
 
 		It("should error on reconcile", func() {
@@ -339,11 +326,11 @@ var _ = Describe("FeatureStore Controller", func() {
 			}
 
 			deploy := &appsv1.Deployment{}
+			objMeta := feast.GetObjectMeta()
 			err = k8sClient.Get(ctx, types.NamespacedName{
-				Name:      feast.GetFeastServiceName(services.RegistryFeastType),
-				Namespace: resource.Namespace,
-			},
-				deploy)
+				Name:      objMeta.Name,
+				Namespace: objMeta.Namespace,
+			}, deploy)
 			Expect(err).NotTo(HaveOccurred())
 
 			err = controllerutil.RemoveControllerReference(resource, deploy, controllerReconciler.Scheme)
@@ -378,17 +365,16 @@ var _ = Describe("FeatureStore Controller", func() {
 			Expect(cond.Type).To(Equal(feastdevv1alpha1.ReadyType))
 			Expect(cond.Status).To(Equal(metav1.ConditionFalse))
 			Expect(cond.Reason).To(Equal(feastdevv1alpha1.FailedReason))
-			Expect(cond.Message).To(Equal("Error: Object " + resource.Namespace + "/" + name + " is already owned by another Service controller " + name))
+			Expect(cond.Message).To(Equal("Error: Object " + resource.Namespace + "/" + deploy.Name + " is already owned by another Service controller " + name))
 
 			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.AuthorizationReadyType)
 			Expect(cond).To(BeNil())
 
 			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.RegistryReadyType)
 			Expect(cond).ToNot(BeNil())
-			Expect(cond.Status).To(Equal(metav1.ConditionFalse))
-			Expect(cond.Reason).To(Equal(feastdevv1alpha1.RegistryFailedReason))
+			Expect(cond.Status).To(Equal(metav1.ConditionTrue))
+			Expect(cond.Reason).To(Equal(feastdevv1alpha1.ReadyReason))
 			Expect(cond.Type).To(Equal(feastdevv1alpha1.RegistryReadyType))
-			Expect(cond.Message).To(Equal("Error: Object " + resource.Namespace + "/" + name + " is already owned by another Service controller " + name))
 
 			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.ClientReadyType)
 			Expect(cond).ToNot(BeNil())
@@ -404,7 +390,6 @@ var _ = Describe("FeatureStore Controller", func() {
 	Context("When reconciling a resource with all services enabled", func() {
 		const resourceName = "services"
 		var pullPolicy = corev1.PullAlways
-		var replicas = int32(1)
 		var testEnvVarName = "testEnvVarName"
 		var testEnvVarValue = "testEnvVarValue"
 
@@ -420,7 +405,7 @@ var _ = Describe("FeatureStore Controller", func() {
 			By("creating the custom resource for the Kind FeatureStore")
 			err := k8sClient.Get(ctx, typeNamespacedName, featurestore)
 			if err != nil && errors.IsNotFound(err) {
-				resource := createFeatureStoreResource(resourceName, image, pullPolicy, replicas, &[]corev1.EnvVar{{Name: testEnvVarName, Value: testEnvVarValue},
+				resource := createFeatureStoreResource(resourceName, image, pullPolicy, &[]corev1.EnvVar{{Name: testEnvVarName, Value: testEnvVarValue},
 					{Name: "fieldRefName", ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "metadata.namespace"}}}})
 				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
 			}
@@ -474,7 +459,7 @@ var _ = Describe("FeatureStore Controller", func() {
 			Expect(resource.Status.Applied.Services.OnlineStore).NotTo(BeNil())
 			Expect(resource.Status.Applied.Services.OnlineStore.Persistence).NotTo(BeNil())
 			Expect(resource.Status.Applied.Services.OnlineStore.Persistence.FilePersistence).NotTo(BeNil())
-			Expect(resource.Status.Applied.Services.OnlineStore.Persistence.FilePersistence.Path).To(Equal(services.DefaultOnlineStoreEphemeralPath))
+			Expect(resource.Status.Applied.Services.OnlineStore.Persistence.FilePersistence.Path).To(Equal(services.EphemeralPath + "/" + services.DefaultOnlineStorePath))
 			Expect(resource.Status.Applied.Services.OnlineStore.Env).To(Equal(&[]corev1.EnvVar{{Name: testEnvVarName, Value: testEnvVarValue}, {Name: "fieldRefName", ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "metadata.namespace"}}}}))
 			Expect(resource.Status.Applied.Services.OnlineStore.ImagePullPolicy).To(Equal(&pullPolicy))
 			Expect(resource.Status.Applied.Services.OnlineStore.Resources).NotTo(BeNil())
@@ -483,7 +468,7 @@ var _ = Describe("FeatureStore Controller", func() {
 			Expect(resource.Status.Applied.Services.Registry.Local).NotTo(BeNil())
 			Expect(resource.Status.Applied.Services.Registry.Local.Persistence).NotTo(BeNil())
 			Expect(resource.Status.Applied.Services.Registry.Local.Persistence.FilePersistence).NotTo(BeNil())
-			Expect(resource.Status.Applied.Services.Registry.Local.Persistence.FilePersistence.Path).To(Equal(services.DefaultRegistryEphemeralPath))
+			Expect(resource.Status.Applied.Services.Registry.Local.Persistence.FilePersistence.Path).To(Equal(services.EphemeralPath + "/" + services.DefaultRegistryPath))
 			Expect(resource.Status.Applied.Services.Registry.Local.ImagePullPolicy).To(BeNil())
 			Expect(resource.Status.Applied.Services.Registry.Local.Resources).To(BeNil())
 			Expect(resource.Status.Applied.Services.Registry.Local.Image).To(Equal(&services.DefaultImage))
@@ -534,16 +519,16 @@ var _ = Describe("FeatureStore Controller", func() {
 			Expect(resource.Status.Phase).To(Equal(feastdevv1alpha1.ReadyPhase))
 
 			deploy := &appsv1.Deployment{}
+			objMeta := feast.GetObjectMeta()
 			err = k8sClient.Get(ctx, types.NamespacedName{
-				Name:      feast.GetFeastServiceName(services.RegistryFeastType),
-				Namespace: resource.Namespace,
-			},
-				deploy)
+				Name:      objMeta.Name,
+				Namespace: objMeta.Namespace,
+			}, deploy)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(deploy.Spec.Replicas).To(Equal(&services.DefaultReplicas))
 			Expect(controllerutil.HasControllerReference(deploy)).To(BeTrue())
 			Expect(deploy.Spec.Template.Spec.ServiceAccountName).To(Equal(deploy.Name))
-			Expect(deploy.Spec.Template.Spec.Containers).To(HaveLen(1))
+			Expect(deploy.Spec.Template.Spec.Containers).To(HaveLen(3))
 
 			svc := &corev1.Service{}
 			err = k8sClient.Get(ctx, types.NamespacedName{
@@ -579,12 +564,12 @@ var _ = Describe("FeatureStore Controller", func() {
 			deployList := appsv1.DeploymentList{}
 			err = k8sClient.List(ctx, &deployList, listOpts)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(deployList.Items).To(HaveLen(3))
+			Expect(deployList.Items).To(HaveLen(1))
 
 			saList := corev1.ServiceAccountList{}
 			err = k8sClient.List(ctx, &saList, listOpts)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(saList.Items).To(HaveLen(3))
+			Expect(saList.Items).To(HaveLen(1))
 
 			svcList := corev1.ServiceList{}
 			err = k8sClient.List(ctx, &svcList, listOpts)
@@ -607,19 +592,20 @@ var _ = Describe("FeatureStore Controller", func() {
 
 			// check registry config
 			deploy := &appsv1.Deployment{}
+			objMeta := feast.GetObjectMeta()
 			err = k8sClient.Get(ctx, types.NamespacedName{
-				Name:      feast.GetFeastServiceName(services.RegistryFeastType),
-				Namespace: resource.Namespace,
-			},
-				deploy)
+				Name:      objMeta.Name,
+				Namespace: objMeta.Namespace,
+			}, deploy)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(deploy.Spec.Template.Spec.ServiceAccountName).To(Equal(deploy.Name))
-			Expect(deploy.Spec.Template.Spec.Containers).To(HaveLen(1))
-			Expect(deploy.Spec.Template.Spec.Containers[0].Env).To(HaveLen(1))
-			env := getFeatureStoreYamlEnvVar(deploy.Spec.Template.Spec.Containers[0].Env)
+			Expect(deploy.Spec.Template.Spec.Containers).To(HaveLen(3))
+			registryContainer := services.GetRegistryContainer(deploy.Spec.Template.Spec.Containers)
+			Expect(registryContainer.Env).To(HaveLen(1))
+			env := getFeatureStoreYamlEnvVar(registryContainer.Env)
 			Expect(env).NotTo(BeNil())
 
-			fsYamlStr, err := feast.GetServiceFeatureStoreYamlBase64(services.RegistryFeastType)
+			fsYamlStr, err := feast.GetServiceFeatureStoreYamlBase64()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(fsYamlStr).To(Equal(env.Value))
 
@@ -628,33 +614,20 @@ var _ = Describe("FeatureStore Controller", func() {
 			repoConfig := &services.RepoConfig{}
 			err = yaml.Unmarshal(envByte, repoConfig)
 			Expect(err).NotTo(HaveOccurred())
-			testConfig := &services.RepoConfig{
-				Project:                       feastProject,
-				Provider:                      services.LocalProviderType,
-				EntityKeySerializationVersion: feastdevv1alpha1.SerializationVersion,
-				Registry: services.RegistryConfig{
-					RegistryType: services.RegistryFileConfigType,
-					Path:         services.DefaultRegistryEphemeralPath,
-				},
-				AuthzConfig: noAuthzConfig(),
+			testConfig := feast.GetDefaultRepoConfig()
+			testConfig.OfflineStore = services.OfflineStoreConfig{
+				Type: services.OfflineFilePersistenceDaskConfigType,
 			}
-			Expect(repoConfig).To(Equal(testConfig))
+			Expect(repoConfig).To(Equal(&testConfig))
 
 			// check offline config
-			deploy = &appsv1.Deployment{}
-			err = k8sClient.Get(ctx, types.NamespacedName{
-				Name:      feast.GetFeastServiceName(services.OfflineFeastType),
-				Namespace: resource.Namespace,
-			},
-				deploy)
-			Expect(err).NotTo(HaveOccurred())
 			Expect(deploy.Spec.Template.Spec.ServiceAccountName).To(Equal(deploy.Name))
-			Expect(deploy.Spec.Template.Spec.Containers).To(HaveLen(1))
-			Expect(deploy.Spec.Template.Spec.Containers[0].Env).To(HaveLen(1))
-			env = getFeatureStoreYamlEnvVar(deploy.Spec.Template.Spec.Containers[0].Env)
+			offlineContainer := services.GetOfflineContainer(deploy.Spec.Template.Spec.Containers)
+			Expect(offlineContainer.Env).To(HaveLen(1))
+			env = getFeatureStoreYamlEnvVar(offlineContainer.Env)
 			Expect(env).NotTo(BeNil())
 
-			fsYamlStr, err = feast.GetServiceFeatureStoreYamlBase64(services.OfflineFeastType)
+			fsYamlStr, err = feast.GetServiceFeatureStoreYamlBase64()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(fsYamlStr).To(Equal(env.Value))
 
@@ -663,38 +636,16 @@ var _ = Describe("FeatureStore Controller", func() {
 			repoConfigOffline := &services.RepoConfig{}
 			err = yaml.Unmarshal(envByte, repoConfigOffline)
 			Expect(err).NotTo(HaveOccurred())
-			regRemote := services.RegistryConfig{
-				RegistryType: services.RegistryRemoteConfigType,
-				Path:         "feast-services-registry.default.svc.cluster.local:80",
-			}
-			offlineConfig := &services.RepoConfig{
-				Project:                       feastProject,
-				Provider:                      services.LocalProviderType,
-				EntityKeySerializationVersion: feastdevv1alpha1.SerializationVersion,
-				OfflineStore: services.OfflineStoreConfig{
-					Type: services.OfflineFilePersistenceDaskConfigType,
-				},
-				Registry:    regRemote,
-				AuthzConfig: noAuthzConfig(),
-			}
-			Expect(repoConfigOffline).To(Equal(offlineConfig))
+			Expect(repoConfigOffline).To(Equal(&testConfig))
 
 			// check online config
-			deploy = &appsv1.Deployment{}
-			err = k8sClient.Get(ctx, types.NamespacedName{
-				Name:      feast.GetFeastServiceName(services.OnlineFeastType),
-				Namespace: resource.Namespace,
-			},
-				deploy)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(deploy.Spec.Template.Spec.ServiceAccountName).To(Equal(deploy.Name))
-			Expect(deploy.Spec.Template.Spec.Containers).To(HaveLen(1))
-			Expect(deploy.Spec.Template.Spec.Containers[0].Env).To(HaveLen(3))
-			Expect(deploy.Spec.Template.Spec.Containers[0].ImagePullPolicy).To(Equal(corev1.PullAlways))
-			env = getFeatureStoreYamlEnvVar(deploy.Spec.Template.Spec.Containers[0].Env)
+			onlineContainer := services.GetOnlineContainer(deploy.Spec.Template.Spec.Containers)
+			Expect(onlineContainer.Env).To(HaveLen(3))
+			Expect(onlineContainer.ImagePullPolicy).To(Equal(corev1.PullAlways))
+			env = getFeatureStoreYamlEnvVar(onlineContainer.Env)
 			Expect(env).NotTo(BeNil())
 
-			fsYamlStr, err = feast.GetServiceFeatureStoreYamlBase64(services.OnlineFeastType)
+			fsYamlStr, err = feast.GetServiceFeatureStoreYamlBase64()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(fsYamlStr).To(Equal(env.Value))
 
@@ -703,25 +654,7 @@ var _ = Describe("FeatureStore Controller", func() {
 			repoConfigOnline := &services.RepoConfig{}
 			err = yaml.Unmarshal(envByte, repoConfigOnline)
 			Expect(err).NotTo(HaveOccurred())
-			offlineRemote := services.OfflineStoreConfig{
-				Host: "feast-services-offline.default.svc.cluster.local",
-				Type: services.OfflineRemoteConfigType,
-				Port: services.HttpPort,
-			}
-			onlineConfig := &services.RepoConfig{
-				Project:                       feastProject,
-				Provider:                      services.LocalProviderType,
-				EntityKeySerializationVersion: feastdevv1alpha1.SerializationVersion,
-				OfflineStore:                  offlineRemote,
-				OnlineStore: services.OnlineStoreConfig{
-					Path: services.DefaultOnlineStoreEphemeralPath,
-					Type: services.OnlineSqliteConfigType,
-				},
-				Registry:    regRemote,
-				AuthzConfig: noAuthzConfig(),
-			}
-			Expect(repoConfigOnline).To(Equal(onlineConfig))
-			Expect(deploy.Spec.Template.Spec.Containers[0].Env).To(HaveLen(3))
+			Expect(repoConfigOnline).To(Equal(&testConfig))
 
 			// check client config
 			cm := &corev1.ConfigMap{}
@@ -735,6 +668,15 @@ var _ = Describe("FeatureStore Controller", func() {
 			repoConfigClient := &services.RepoConfig{}
 			err = yaml.Unmarshal([]byte(cm.Data[services.FeatureStoreYamlCmKey]), repoConfigClient)
 			Expect(err).NotTo(HaveOccurred())
+			offlineRemote := services.OfflineStoreConfig{
+				Host: "feast-services-offline.default.svc.cluster.local",
+				Type: services.OfflineRemoteConfigType,
+				Port: services.HttpPort,
+			}
+			regRemote := services.RegistryConfig{
+				RegistryType: services.RegistryRemoteConfigType,
+				Path:         "feast-services-registry.default.svc.cluster.local:80",
+			}
 			clientConfig := &services.RepoConfig{
 				Project:                       feastProject,
 				Provider:                      services.LocalProviderType,
@@ -763,8 +705,8 @@ var _ = Describe("FeatureStore Controller", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(resource.Spec.FeastProject).To(Equal(resourceNew.Spec.FeastProject))
 			err = k8sClient.Get(ctx, types.NamespacedName{
-				Name:      feast.GetFeastServiceName(services.RegistryFeastType),
-				Namespace: resource.Namespace,
+				Name:      objMeta.Name,
+				Namespace: objMeta.Namespace,
 			},
 				deploy)
 			Expect(err).NotTo(HaveOccurred())
@@ -774,7 +716,7 @@ var _ = Describe("FeatureStore Controller", func() {
 			env = getFeatureStoreYamlEnvVar(deploy.Spec.Template.Spec.Containers[0].Env)
 			Expect(env).NotTo(BeNil())
 
-			fsYamlStr, err = feast.GetServiceFeatureStoreYamlBase64(services.RegistryFeastType)
+			fsYamlStr, err = feast.GetServiceFeatureStoreYamlBase64()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(fsYamlStr).To(Equal(env.Value))
 
@@ -782,7 +724,7 @@ var _ = Describe("FeatureStore Controller", func() {
 			Expect(err).NotTo(HaveOccurred())
 			err = yaml.Unmarshal(envByte, repoConfig)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(repoConfig).To(Equal(testConfig))
+			Expect(repoConfig).To(Equal(&testConfig))
 		})
 
 		It("should properly set container env variables", func() {
@@ -808,7 +750,7 @@ var _ = Describe("FeatureStore Controller", func() {
 			deployList := appsv1.DeploymentList{}
 			err = k8sClient.List(ctx, &deployList, listOpts)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(deployList.Items).To(HaveLen(3))
+			Expect(deployList.Items).To(HaveLen(1))
 
 			svcList := corev1.ServiceList{}
 			err = k8sClient.List(ctx, &svcList, listOpts)
@@ -830,26 +772,27 @@ var _ = Describe("FeatureStore Controller", func() {
 			}
 
 			fsYamlStr := ""
-			fsYamlStr, err = feast.GetServiceFeatureStoreYamlBase64(services.OnlineFeastType)
+			fsYamlStr, err = feast.GetServiceFeatureStoreYamlBase64()
 			Expect(err).NotTo(HaveOccurred())
 
 			// check online config
 			deploy := &appsv1.Deployment{}
+			objMeta := feast.GetObjectMeta()
 			err = k8sClient.Get(ctx, types.NamespacedName{
-				Name:      feast.GetFeastServiceName(services.OnlineFeastType),
-				Namespace: resource.Namespace,
-			},
-				deploy)
+				Name:      objMeta.Name,
+				Namespace: objMeta.Namespace,
+			}, deploy)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(deploy.Spec.Template.Spec.ServiceAccountName).To(Equal(deploy.Name))
-			Expect(deploy.Spec.Template.Spec.Containers).To(HaveLen(1))
-			Expect(deploy.Spec.Template.Spec.Containers[0].Env).To(HaveLen(3))
-			Expect(areEnvVarArraysEqual(deploy.Spec.Template.Spec.Containers[0].Env, []corev1.EnvVar{{Name: testEnvVarName, Value: testEnvVarValue}, {Name: services.FeatureStoreYamlEnvVar, Value: fsYamlStr}, {Name: "fieldRefName", ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "metadata.namespace"}}}})).To(BeTrue())
-			Expect(deploy.Spec.Template.Spec.Containers[0].ImagePullPolicy).To(Equal(corev1.PullAlways))
+			Expect(deploy.Spec.Template.Spec.Containers).To(HaveLen(3))
+			onlineContainer := services.GetOnlineContainer(deploy.Spec.Template.Spec.Containers)
+			Expect(onlineContainer.Env).To(HaveLen(3))
+			Expect(areEnvVarArraysEqual(onlineContainer.Env, []corev1.EnvVar{{Name: testEnvVarName, Value: testEnvVarValue}, {Name: services.TmpFeatureStoreYamlEnvVar, Value: fsYamlStr}, {Name: "fieldRefName", ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "metadata.namespace"}}}})).To(BeTrue())
+			Expect(onlineContainer.ImagePullPolicy).To(Equal(corev1.PullAlways))
 
 			// change feast project and reconcile
 			resourceNew := resource.DeepCopy()
-			resourceNew.Spec.Services.OnlineStore.Env = &[]corev1.EnvVar{{Name: testEnvVarName, Value: testEnvVarValue + "1"}, {Name: services.FeatureStoreYamlEnvVar, Value: fsYamlStr}, {Name: "fieldRefName", ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{FieldPath: "metadata.name"}}}}
+			resourceNew.Spec.Services.OnlineStore.Env = &[]corev1.EnvVar{{Name: testEnvVarName, Value: testEnvVarValue + "1"}, {Name: services.TmpFeatureStoreYamlEnvVar, Value: fsYamlStr}, {Name: "fieldRefName", ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{FieldPath: "metadata.name"}}}}
 			err = k8sClient.Update(ctx, resourceNew)
 			Expect(err).NotTo(HaveOccurred())
 			_, err = controllerReconciler.Reconcile(ctx, reconcile.Request{
@@ -859,124 +802,16 @@ var _ = Describe("FeatureStore Controller", func() {
 
 			err = k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(areEnvVarArraysEqual(*resource.Status.Applied.Services.OnlineStore.Env, []corev1.EnvVar{{Name: testEnvVarName, Value: testEnvVarValue + "1"}, {Name: services.FeatureStoreYamlEnvVar, Value: fsYamlStr}, {Name: "fieldRefName", ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{FieldPath: "metadata.name"}}}})).To(BeTrue())
+			Expect(areEnvVarArraysEqual(*resource.Status.Applied.Services.OnlineStore.Env, []corev1.EnvVar{{Name: testEnvVarName, Value: testEnvVarValue + "1"}, {Name: services.TmpFeatureStoreYamlEnvVar, Value: fsYamlStr}, {Name: "fieldRefName", ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{FieldPath: "metadata.name"}}}})).To(BeTrue())
 			err = k8sClient.Get(ctx, types.NamespacedName{
-				Name:      feast.GetFeastServiceName(services.OnlineFeastType),
-				Namespace: resource.Namespace,
-			},
-				deploy)
+				Name:      objMeta.Name,
+				Namespace: objMeta.Namespace,
+			}, deploy)
 			Expect(err).NotTo(HaveOccurred())
 
-			Expect(deploy.Spec.Template.Spec.Containers[0].Env).To(HaveLen(3))
-			Expect(areEnvVarArraysEqual(deploy.Spec.Template.Spec.Containers[0].Env, []corev1.EnvVar{{Name: testEnvVarName, Value: testEnvVarValue + "1"}, {Name: services.FeatureStoreYamlEnvVar, Value: fsYamlStr}, {Name: "fieldRefName", ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "metadata.name"}}}})).To(BeTrue())
-		})
-
-		It("Should scale online/offline store service", func() {
-			By("Reconciling the created resource")
-			controllerReconciler := &FeatureStoreReconciler{
-				Client: k8sClient,
-				Scheme: k8sClient.Scheme(),
-			}
-
-			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
-				NamespacedName: typeNamespacedName,
-			})
-			Expect(err).NotTo(HaveOccurred())
-
-			resource := &feastdevv1alpha1.FeatureStore{}
-			err = k8sClient.Get(ctx, typeNamespacedName, resource)
-			Expect(err).NotTo(HaveOccurred())
-
-			req, err := labels.NewRequirement(services.NameLabelKey, selection.Equals, []string{resource.Name})
-			Expect(err).NotTo(HaveOccurred())
-			labelSelector := labels.NewSelector().Add(*req)
-			listOpts := &client.ListOptions{Namespace: resource.Namespace, LabelSelector: labelSelector}
-			deployList := appsv1.DeploymentList{}
-			err = k8sClient.List(ctx, &deployList, listOpts)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(deployList.Items).To(HaveLen(3))
-
-			svcList := corev1.ServiceList{}
-			err = k8sClient.List(ctx, &svcList, listOpts)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(svcList.Items).To(HaveLen(3))
-
-			cmList := corev1.ConfigMapList{}
-			err = k8sClient.List(ctx, &cmList, listOpts)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(cmList.Items).To(HaveLen(1))
-
-			feast := services.FeastServices{
-				Handler: handler.FeastHandler{
-					Client:       controllerReconciler.Client,
-					Context:      ctx,
-					Scheme:       controllerReconciler.Scheme,
-					FeatureStore: resource,
-				},
-			}
-
-			fsYamlStr := ""
-			fsYamlStr, err = feast.GetServiceFeatureStoreYamlBase64(services.OnlineFeastType)
-			Expect(err).NotTo(HaveOccurred())
-
-			// check online config
-			deploy_online := &appsv1.Deployment{}
-			err = k8sClient.Get(ctx, types.NamespacedName{
-				Name:      feast.GetFeastServiceName(services.OnlineFeastType),
-				Namespace: resource.Namespace,
-			},
-				deploy_online)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(deploy_online.Spec.Template.Spec.ServiceAccountName).To(Equal(deploy_online.Name))
-			Expect(deploy_online.Spec.Template.Spec.Containers).To(HaveLen(1))
-			Expect(deploy_online.Spec.Template.Spec.Containers[0].Env).To(HaveLen(3))
-			Expect(areEnvVarArraysEqual(deploy_online.Spec.Template.Spec.Containers[0].Env, []corev1.EnvVar{{Name: testEnvVarName, Value: testEnvVarValue}, {Name: services.FeatureStoreYamlEnvVar, Value: fsYamlStr}, {Name: "fieldRefName", ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "metadata.namespace"}}}})).To(BeTrue())
-			Expect(deploy_online.Spec.Template.Spec.Containers[0].ImagePullPolicy).To(Equal(corev1.PullAlways))
-
-			// check offline config
-			deploy_offline := &appsv1.Deployment{}
-			err = k8sClient.Get(ctx, types.NamespacedName{
-				Name:      feast.GetFeastServiceName(services.OfflineFeastType),
-				Namespace: resource.Namespace,
-			},
-				deploy_offline)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(deploy_offline.Spec.Template.Spec.ServiceAccountName).To(Equal(deploy_offline.Name))
-			Expect(deploy_offline.Spec.Template.Spec.Containers).To(HaveLen(1))
-			Expect(deploy_offline.Spec.Template.Spec.Containers[0].Env).To(HaveLen(1))
-			Expect(deploy_offline.Spec.Template.Spec.Containers[0].ImagePullPolicy).To(Equal(corev1.PullIfNotPresent))
-
-			// change feast project and reconcile
-			// scale online replicas to 2
-			resourceNew := resource.DeepCopy()
-			new_replicas := int32(2)
-			resourceNew.Spec.Services.OnlineStore.Replicas = &new_replicas
-			resourceNew.Spec.Services.OfflineStore.Replicas = &new_replicas
-
-			err = k8sClient.Update(ctx, resourceNew)
-			Expect(err).NotTo(HaveOccurred())
-			_, err = controllerReconciler.Reconcile(ctx, reconcile.Request{
-				NamespacedName: typeNamespacedName,
-			})
-			Expect(err).NotTo(HaveOccurred())
-
-			err = k8sClient.Get(ctx, typeNamespacedName, resource)
-			Expect(err).NotTo(HaveOccurred())
-			err = k8sClient.Get(ctx, types.NamespacedName{
-				Name:      feast.GetFeastServiceName(services.OnlineFeastType),
-				Namespace: resource.Namespace,
-			},
-				deploy_online)
-			Expect(err).NotTo(HaveOccurred())
-			err = k8sClient.Get(ctx, types.NamespacedName{
-				Name:      feast.GetFeastServiceName(services.OfflineFeastType),
-				Namespace: resource.Namespace,
-			},
-				deploy_offline)
-			Expect(err).NotTo(HaveOccurred())
-
-			Expect(deploy_online.Spec.Replicas).To(Equal(&new_replicas))
-			Expect(deploy_offline.Spec.Replicas).To(Equal(&new_replicas))
+			onlineContainer = services.GetOnlineContainer(deploy.Spec.Template.Spec.Containers)
+			Expect(onlineContainer.Env).To(HaveLen(3))
+			Expect(areEnvVarArraysEqual(onlineContainer.Env, []corev1.EnvVar{{Name: testEnvVarName, Value: testEnvVarValue + "1"}, {Name: services.TmpFeatureStoreYamlEnvVar, Value: fsYamlStr}, {Name: "fieldRefName", ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "metadata.name"}}}})).To(BeTrue())
 		})
 
 		It("Should delete k8s objects owned by the FeatureStore CR", func() {
@@ -1002,7 +837,7 @@ var _ = Describe("FeatureStore Controller", func() {
 			deployList := appsv1.DeploymentList{}
 			err = k8sClient.List(ctx, &deployList, listOpts)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(deployList.Items).To(HaveLen(3))
+			Expect(deployList.Items).To(HaveLen(1))
 
 			svcList := corev1.ServiceList{}
 			err = k8sClient.List(ctx, &svcList, listOpts)
@@ -1021,7 +856,7 @@ var _ = Describe("FeatureStore Controller", func() {
 
 			err = k8sClient.List(ctx, &deployList, listOpts)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(deployList.Items).To(HaveLen(2))
+			Expect(deployList.Items).To(HaveLen(1))
 
 			err = k8sClient.List(ctx, &svcList, listOpts)
 			Expect(err).NotTo(HaveOccurred())
@@ -1096,6 +931,7 @@ var _ = Describe("FeatureStore Controller", func() {
 			Expect(err).To(HaveOccurred())
 			err = k8sClient.Get(ctx, nsName, resource)
 			Expect(err).NotTo(HaveOccurred())
+			Expect(resource.Status.Applied.Services.Registry.Remote.FeastRef.Namespace).NotTo(BeEmpty())
 			Expect(apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.AuthorizationReadyType)).To(BeNil())
 			Expect(apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.RegistryReadyType)).To(BeNil())
 			Expect(apimeta.IsStatusConditionTrue(resource.Status.Conditions, feastdevv1alpha1.ReadyType)).To(BeFalse())
@@ -1135,7 +971,6 @@ var _ = Describe("FeatureStore Controller", func() {
 			Expect(apimeta.IsStatusConditionTrue(resource.Status.Conditions, feastdevv1alpha1.ReadyType)).To(BeTrue())
 			Expect(apimeta.IsStatusConditionTrue(resource.Status.Conditions, feastdevv1alpha1.OnlineStoreReadyType)).To(BeTrue())
 			Expect(apimeta.IsStatusConditionTrue(resource.Status.Conditions, feastdevv1alpha1.OfflineStoreReadyType)).To(BeTrue())
-			Expect(resource.Status.Applied.Services.Registry.Remote.FeastRef.Namespace).To(Equal(resource.Namespace))
 			Expect(resource.Status.ServiceHostnames.Registry).ToNot(BeEmpty())
 			Expect(resource.Status.ServiceHostnames.Registry).To(Equal(referencedRegistry.Status.ServiceHostnames.Registry))
 			feast := services.FeastServices{
@@ -1146,6 +981,16 @@ var _ = Describe("FeatureStore Controller", func() {
 					FeatureStore: resource,
 				},
 			}
+
+			// check deployment
+			deploy := &appsv1.Deployment{}
+			objMeta := feast.GetObjectMeta()
+			err = k8sClient.Get(ctx, types.NamespacedName{
+				Name:      objMeta.Name,
+				Namespace: objMeta.Namespace,
+			}, deploy)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(deploy.Spec.Template.Spec.InitContainers).To(HaveLen(2))
 
 			// check client config
 			cm := &corev1.ConfigMap{}
@@ -1235,12 +1080,13 @@ var _ = Describe("FeatureStore Controller", func() {
 				},
 			}
 
+			// check deployment
 			deploy := &appsv1.Deployment{}
+			objMeta := feast.GetObjectMeta()
 			err = k8sClient.Get(ctx, types.NamespacedName{
-				Name:      feast.GetFeastServiceName(services.OfflineFeastType),
-				Namespace: resource.Namespace,
-			},
-				deploy)
+				Name:      objMeta.Name,
+				Namespace: objMeta.Namespace,
+			}, deploy)
 			Expect(err).NotTo(HaveOccurred())
 
 			err = controllerutil.RemoveControllerReference(resource, deploy, controllerReconciler.Scheme)
@@ -1275,7 +1121,7 @@ var _ = Describe("FeatureStore Controller", func() {
 			Expect(cond.Type).To(Equal(feastdevv1alpha1.ReadyType))
 			Expect(cond.Status).To(Equal(metav1.ConditionFalse))
 			Expect(cond.Reason).To(Equal(feastdevv1alpha1.FailedReason))
-			Expect(cond.Message).To(Equal("Error: Object " + resource.Namespace + "/" + name + " is already owned by another Service controller " + name))
+			Expect(cond.Message).To(Equal("Error: Object " + resource.Namespace + "/" + deploy.Name + " is already owned by another Service controller " + name))
 
 			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.AuthorizationReadyType)
 			Expect(cond).To(BeNil())
@@ -1296,10 +1142,9 @@ var _ = Describe("FeatureStore Controller", func() {
 
 			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.OfflineStoreReadyType)
 			Expect(cond).ToNot(BeNil())
-			Expect(cond.Status).To(Equal(metav1.ConditionFalse))
-			Expect(cond.Reason).To(Equal(feastdevv1alpha1.OfflineStoreFailedReason))
+			Expect(cond.Status).To(Equal(metav1.ConditionTrue))
+			Expect(cond.Reason).To(Equal(feastdevv1alpha1.ReadyReason))
 			Expect(cond.Type).To(Equal(feastdevv1alpha1.OfflineStoreReadyType))
-			Expect(cond.Message).To(Equal("Error: Object " + resource.Namespace + "/" + name + " is already owned by another Service controller " + name))
 
 			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.OnlineStoreReadyType)
 			Expect(cond).ToNot(BeNil())
@@ -1362,7 +1207,7 @@ var _ = Describe("FeatureStore Controller", func() {
 	})
 })
 
-func createFeatureStoreResource(resourceName string, image string, pullPolicy corev1.PullPolicy, replicas int32, envVars *[]corev1.EnvVar) *feastdevv1alpha1.FeatureStore {
+func createFeatureStoreResource(resourceName string, image string, pullPolicy corev1.PullPolicy, envVars *[]corev1.EnvVar) *feastdevv1alpha1.FeatureStore {
 	return &feastdevv1alpha1.FeatureStore{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      resourceName,
@@ -1373,17 +1218,14 @@ func createFeatureStoreResource(resourceName string, image string, pullPolicy co
 			Services: &feastdevv1alpha1.FeatureStoreServices{
 				OfflineStore: &feastdevv1alpha1.OfflineStore{},
 				OnlineStore: &feastdevv1alpha1.OnlineStore{
-					StoreServiceConfigs: feastdevv1alpha1.StoreServiceConfigs{
-						Replicas: &replicas,
-						ServiceConfigs: feastdevv1alpha1.ServiceConfigs{
-							DefaultConfigs: feastdevv1alpha1.DefaultConfigs{
-								Image: &image,
-							},
-							OptionalConfigs: feastdevv1alpha1.OptionalConfigs{
-								Env:             envVars,
-								ImagePullPolicy: &pullPolicy,
-								Resources:       &corev1.ResourceRequirements{},
-							},
+					ServiceConfigs: feastdevv1alpha1.ServiceConfigs{
+						DefaultConfigs: feastdevv1alpha1.DefaultConfigs{
+							Image: &image,
+						},
+						OptionalConfigs: feastdevv1alpha1.OptionalConfigs{
+							Env:             envVars,
+							ImagePullPolicy: &pullPolicy,
+							Resources:       &corev1.ResourceRequirements{},
 						},
 					},
 				},
@@ -1394,7 +1236,7 @@ func createFeatureStoreResource(resourceName string, image string, pullPolicy co
 
 func getFeatureStoreYamlEnvVar(envs []corev1.EnvVar) *corev1.EnvVar {
 	for _, e := range envs {
-		if e.Name == services.FeatureStoreYamlEnvVar {
+		if e.Name == services.TmpFeatureStoreYamlEnvVar {
 			return &e
 		}
 	}

@@ -109,8 +109,8 @@ spec:
                 pattern: ^[A-Za-z0-9][A-Za-z0-9_]*$
                 type: string
               services:
-                description: FeatureStoreServices defines the desired feast service
-                  deployments. ephemeral registry is deployed by default.
+                description: FeatureStoreServices defines the desired feast services.
+                  An ephemeral registry is deployed by default.
                 properties:
                   offlineStore:
                     description: OfflineStore configures the deployed offline store
@@ -326,6 +326,8 @@ spec:
                                         type: string
                                     type: object
                                     x-kubernetes-map-type: atomic
+                                required:
+                                - mountPath
                                 type: object
                                 x-kubernetes-validations:
                                 - message: One selection is required between ref and
@@ -383,12 +385,6 @@ spec:
                         x-kubernetes-validations:
                         - message: One selection required between file or store.
                           rule: '[has(self.file), has(self.store)].exists_one(c, c)'
-                      replicas:
-                        description: |-
-                          Replicas determines the number of pods for the feast service.
-                          When Replicas > 1, persistence is recommended.
-                        format: int32
-                        type: integer
                       resources:
                         description: ResourceRequirements describes the compute resource
                           requirements.
@@ -700,6 +696,8 @@ spec:
                                         type: string
                                     type: object
                                     x-kubernetes-map-type: atomic
+                                required:
+                                - mountPath
                                 type: object
                                 x-kubernetes-validations:
                                 - message: One selection is required between ref and
@@ -719,8 +717,8 @@ spec:
                               rule: '(has(self.pvc) && has(self.path)) ? !self.path.startsWith(''/'')
                                 : true'
                             - message: Online store does not support S3 or GS buckets.
-                              rule: has(self.path) && !self.path.startsWith('s3://')
-                                && !self.path.startsWith('gs://')
+                              rule: 'has(self.path) ? !(self.path.startsWith(''s3://'')
+                                || self.path.startsWith(''gs://'')) : true'
                           store:
                             description: OnlineStoreDBStorePersistence configures
                               the DB store persistence for the offline store service
@@ -768,12 +766,6 @@ spec:
                         x-kubernetes-validations:
                         - message: One selection required between file or store.
                           rule: '[has(self.file), has(self.store)].exists_one(c, c)'
-                      replicas:
-                        description: |-
-                          Replicas determines the number of pods for the feast service.
-                          When Replicas > 1, persistence is recommended.
-                        format: int32
-                        type: integer
                       resources:
                         description: ResourceRequirements describes the compute resource
                           requirements.
@@ -1090,6 +1082,8 @@ spec:
                                             type: string
                                         type: object
                                         x-kubernetes-map-type: atomic
+                                    required:
+                                    - mountPath
                                     type: object
                                     x-kubernetes-validations:
                                     - message: One selection is required between ref
@@ -1377,8 +1371,8 @@ spec:
                     pattern: ^[A-Za-z0-9][A-Za-z0-9_]*$
                     type: string
                   services:
-                    description: FeatureStoreServices defines the desired feast service
-                      deployments. ephemeral registry is deployed by default.
+                    description: FeatureStoreServices defines the desired feast services.
+                      An ephemeral registry is deployed by default.
                     properties:
                       offlineStore:
                         description: OfflineStore configures the deployed offline
@@ -1596,6 +1590,8 @@ spec:
                                             type: string
                                         type: object
                                         x-kubernetes-map-type: atomic
+                                    required:
+                                    - mountPath
                                     type: object
                                     x-kubernetes-validations:
                                     - message: One selection is required between ref
@@ -1655,12 +1651,6 @@ spec:
                             - message: One selection required between file or store.
                               rule: '[has(self.file), has(self.store)].exists_one(c,
                                 c)'
-                          replicas:
-                            description: |-
-                              Replicas determines the number of pods for the feast service.
-                              When Replicas > 1, persistence is recommended.
-                            format: int32
-                            type: integer
                           resources:
                             description: ResourceRequirements describes the compute
                               resource requirements.
@@ -1975,6 +1965,8 @@ spec:
                                             type: string
                                         type: object
                                         x-kubernetes-map-type: atomic
+                                    required:
+                                    - mountPath
                                     type: object
                                     x-kubernetes-validations:
                                     - message: One selection is required between ref
@@ -1995,8 +1987,8 @@ spec:
                                     : true'
                                 - message: Online store does not support S3 or GS
                                     buckets.
-                                  rule: has(self.path) && !self.path.startsWith('s3://')
-                                    && !self.path.startsWith('gs://')
+                                  rule: 'has(self.path) ? !(self.path.startsWith(''s3://'')
+                                    || self.path.startsWith(''gs://'')) : true'
                               store:
                                 description: OnlineStoreDBStorePersistence configures
                                   the DB store persistence for the offline store service
@@ -2046,12 +2038,6 @@ spec:
                             - message: One selection required between file or store.
                               rule: '[has(self.file), has(self.store)].exists_one(c,
                                 c)'
-                          replicas:
-                            description: |-
-                              Replicas determines the number of pods for the feast service.
-                              When Replicas > 1, persistence is recommended.
-                            format: int32
-                            type: integer
                           resources:
                             description: ResourceRequirements describes the compute
                               resource requirements.
@@ -2376,6 +2362,8 @@ spec:
                                                 type: string
                                             type: object
                                             x-kubernetes-map-type: atomic
+                                        required:
+                                        - mountPath
                                         type: object
                                         x-kubernetes-validations:
                                         - message: One selection is required between
