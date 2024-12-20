@@ -86,7 +86,6 @@ from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RepoConfig, load_repo_config
 from feast.repo_contents import RepoContents
 from feast.saved_dataset import SavedDataset, SavedDatasetStorage, ValidationReference
-from feast.ssl_ca_trust_store_setup import configure_ca_trust_store_env_variables
 from feast.stream_feature_view import StreamFeatureView
 from feast.utils import _utc_now
 
@@ -129,8 +128,6 @@ class FeatureStore:
         """
         if fs_yaml_file is not None and config is not None:
             raise ValueError("You cannot specify both fs_yaml_file and config.")
-
-        configure_ca_trust_store_env_variables()
 
         if repo_path:
             self.repo_path = Path(repo_path)
@@ -1753,9 +1750,10 @@ class FeatureStore:
 
     def retrieve_online_documents(
         self,
-        feature: str,
+        feature: Optional[str],
         query: Union[str, List[float]],
         top_k: int,
+        features: Optional[List[str]] = None,
         distance_metric: Optional[str] = None,
     ) -> OnlineResponse:
         """
@@ -1765,6 +1763,7 @@ class FeatureStore:
             feature: The list of document features that should be retrieved from the online document store. These features can be
                 specified either as a list of string document feature references or as a feature service. String feature
                 references must have format "feature_view:feature", e.g, "document_fv:document_embeddings".
+            features: The list of features that should be retrieved from the online store.
             query: The query to retrieve the closest document features for.
             top_k: The number of closest document features to retrieve.
             distance_metric: The distance metric to use for retrieval.
@@ -1773,18 +1772,44 @@ class FeatureStore:
             raise ValueError(
                 "Using embedding functionality is not supported for document retrieval. Please embed the query before calling retrieve_online_documents."
             )
+        feature_list: List[str] = (
+            features
+            if features is not None
+            else ([feature] if feature is not None else [])
+        )
+
         (
             available_feature_views,
             _,
         ) = utils._get_feature_views_to_use(
             registry=self._registry,
             project=self.project,
-            features=[feature],
+            features=feature_list,
             allow_cache=True,
             hide_dummy_entity=False,
         )
+        if features:
+            feature_view_set = set()
+            for feature in features:
+                feature_view_name = feature.split(":")[0]
+                feature_view = self.get_feature_view(feature_view_name)
+                feature_view_set.add(feature_view.name)
+            if len(feature_view_set) > 1:
+                raise ValueError(
+                    "Document retrieval only supports a single feature view."
+                )
+            requested_feature = None
+            requested_features = [
+                f.split(":")[1] for f in features if isinstance(f, str) and ":" in f
+            ]
+        else:
+            requested_feature = (
+                feature.split(":")[1] if isinstance(feature, str) else feature
+            )
+            requested_features = [requested_feature] if requested_feature else []
+
         requested_feature_view_name = (
-            feature.split(":")[0] if isinstance(feature, str) else feature
+            feature.split(":")[0] if feature else list(feature_view_set)[0]
         )
         for feature_view in available_feature_views:
             if feature_view.name == requested_feature_view_name:
@@ -1793,14 +1818,15 @@ class FeatureStore:
             raise ValueError(
                 f"Feature view {requested_feature_view} not found in the registry."
             )
-        requested_feature = (
-            feature.split(":")[1] if isinstance(feature, str) else feature
-        )
+
+        requested_feature_view = available_feature_views[0]
+
         provider = self._get_provider()
         document_features = self._retrieve_from_online_store(
             provider,
             requested_feature_view,
             requested_feature,
+            requested_features,
             query,
             top_k,
             distance_metric,
@@ -1822,6 +1848,7 @@ class FeatureStore:
         document_feature_vals = [feature[4] for feature in document_features]
         document_feature_distance_vals = [feature[5] for feature in document_features]
         online_features_response = GetOnlineFeaturesResponse(results=[])
+        requested_feature = requested_feature or requested_features[0]
         utils._populate_result_rows_from_columnar(
             online_features_response=online_features_response,
             data={
@@ -1836,7 +1863,8 @@ class FeatureStore:
         self,
         provider: Provider,
         table: FeatureView,
-        requested_feature: str,
+        requested_feature: Optional[str],
+        requested_features: Optional[List[str]],
         query: List[float],
         top_k: int,
         distance_metric: Optional[str],
@@ -1852,6 +1880,7 @@ class FeatureStore:
             config=self.config,
             table=table,
             requested_feature=requested_feature,
+            requested_features=requested_features,
             query=query,
             top_k=top_k,
             distance_metric=distance_metric,
@@ -1952,19 +1981,13 @@ class FeatureStore:
         )
 
     def serve_registry(
-        self,
-        port: int,
-        tls_key_path: str = "",
-        tls_cert_path: str = "",
+        self, port: int, tls_key_path: str = "", tls_cert_path: str = ""
     ) -> None:
         """Start registry server locally on a given port."""
         from feast import registry_server
 
         registry_server.start_server(
-            self,
-            port=port,
-            tls_key_path=tls_key_path,
-            tls_cert_path=tls_cert_path,
+            self, port=port, tls_key_path=tls_key_path, tls_cert_path=tls_cert_path
         )
 
     def serve_offline(
