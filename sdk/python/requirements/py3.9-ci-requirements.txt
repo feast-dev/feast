@@ -905,7 +905,7 @@ sqlalchemy[mypy]==2.0.36
     # via feast (setup.py)
 sqlglot==23.12.2
     # via ibis-framework
-sqlite-vec==0.1.1
+sqlite-vec==0.1.3
     # via feast (setup.py)
 sqlparams==6.1.0
     # via singlestoredb
