@@ -27,36 +27,72 @@ import (
 )
 
 // GetServiceFeatureStoreYamlBase64 returns a base64 encoded feature_store.yaml config for the feast service
-func (feast *FeastServices) GetServiceFeatureStoreYamlBase64(feastType FeastServiceType) (string, error) {
-	fsYaml, err := feast.getServiceFeatureStoreYaml(feastType)
+func (feast *FeastServices) GetServiceFeatureStoreYamlBase64() (string, error) {
+	fsYaml, err := feast.getServiceFeatureStoreYaml()
 	if err != nil {
 		return "", err
 	}
 	return base64.StdEncoding.EncodeToString(fsYaml), nil
 }
 
-func (feast *FeastServices) getServiceFeatureStoreYaml(feastType FeastServiceType) ([]byte, error) {
-	repoConfig, err := feast.getServiceRepoConfig(feastType)
+func (feast *FeastServices) getServiceFeatureStoreYaml() ([]byte, error) {
+	repoConfig, err := feast.getServiceRepoConfig()
 	if err != nil {
 		return nil, err
 	}
 	return yaml.Marshal(repoConfig)
 }
 
-func (feast *FeastServices) getServiceRepoConfig(feastType FeastServiceType) (RepoConfig, error) {
-	return getServiceRepoConfig(feastType, feast.Handler.FeatureStore, feast.extractConfigFromSecret)
+func (feast *FeastServices) getServiceRepoConfig() (RepoConfig, error) {
+	return getServiceRepoConfig(feast.Handler.FeatureStore, feast.extractConfigFromSecret)
 }
 
 func getServiceRepoConfig(
-	feastType FeastServiceType,
 	featureStore *feastdevv1alpha1.FeatureStore,
 	secretExtractionFunc func(storeType string, secretRef string, secretKeyName string) (map[string]interface{}, error)) (RepoConfig, error) {
-	appliedSpec := featureStore.Status.Applied
-
-	repoConfig, err := getClientRepoConfig(featureStore, secretExtractionFunc)
+	repoConfig, err := getBaseServiceRepoConfig(featureStore, secretExtractionFunc)
 	if err != nil {
 		return repoConfig, err
 	}
+
+	appliedSpec := featureStore.Status.Applied
+	if appliedSpec.Services != nil {
+		services := appliedSpec.Services
+		if services.OfflineStore != nil {
+			err := setRepoConfigOffline(services, secretExtractionFunc, &repoConfig)
+			if err != nil {
+				return repoConfig, err
+			}
+		}
+		if services.OnlineStore != nil {
+			err := setRepoConfigOnline(services, secretExtractionFunc, &repoConfig)
+			if err != nil {
+				return repoConfig, err
+			}
+		}
+		if IsLocalRegistry(featureStore) {
+			err := setRepoConfigRegistry(services, secretExtractionFunc, &repoConfig)
+			if err != nil {
+				return repoConfig, err
+			}
+		}
+	}
+
+	return repoConfig, nil
+}
+
+func getBaseServiceRepoConfig(
+	featureStore *feastdevv1alpha1.FeatureStore,
+	secretExtractionFunc func(storeType string, secretRef string, secretKeyName string) (map[string]interface{}, error)) (RepoConfig, error) {
+
+	appliedSpec := featureStore.Status.Applied
+	repoConfig := defaultRepoConfig(appliedSpec.FeastProject)
+	clientRepoConfig, err := getClientRepoConfig(featureStore, secretExtractionFunc)
+	if err != nil {
+		return repoConfig, err
+	}
+	repoConfig.Registry = clientRepoConfig.Registry
+	repoConfig.AuthzConfig = clientRepoConfig.AuthzConfig
 
 	if appliedSpec.AuthzConfig != nil && appliedSpec.AuthzConfig.OidcAuthz != nil {
 		propertiesMap, authSecretErr := secretExtractionFunc("", appliedSpec.AuthzConfig.OidcAuthz.SecretRef.Name, "")
@@ -75,43 +111,11 @@ func getServiceRepoConfig(
 		repoConfig.AuthzConfig.OidcParameters = oidcServerProperties
 	}
 
-	if appliedSpec.Services != nil {
-		services := appliedSpec.Services
-
-		switch feastType {
-		case OfflineFeastType:
-			// Offline server has an `offline_store` section and a remote `registry`
-			if services.OfflineStore != nil {
-				err := setRepoConfigOffline(services, secretExtractionFunc, &repoConfig)
-				if err != nil {
-					return repoConfig, err
-				}
-			}
-		case OnlineFeastType:
-			// Online server has an `online_store` section, a remote `registry` and a remote `offline_store`
-			if services.OnlineStore != nil {
-				err := setRepoConfigOnline(services, secretExtractionFunc, &repoConfig)
-				if err != nil {
-					return repoConfig, err
-				}
-			}
-		case RegistryFeastType:
-			// Registry server only has a `registry` section
-			if IsLocalRegistry(featureStore) {
-				err := setRepoConfigRegistry(services, secretExtractionFunc, &repoConfig)
-				if err != nil {
-					return repoConfig, err
-				}
-			}
-		}
-	}
-
 	return repoConfig, nil
 }
 
 func setRepoConfigRegistry(services *feastdevv1alpha1.FeatureStoreServices, secretExtractionFunc func(storeType string, secretRef string, secretKeyName string) (map[string]interface{}, error), repoConfig *RepoConfig) error {
-	repoConfig.Registry = RegistryConfig{}
-	repoConfig.Registry.Path = DefaultRegistryEphemeralPath
+	repoConfig.Registry = defaultRegistryConfig
 	registryPersistence := services.Registry.Local.Persistence
 
 	if registryPersistence != nil {
@@ -142,18 +146,10 @@ func setRepoConfigRegistry(services *feastdevv1alpha1.FeatureStoreServices, secr
 			repoConfig.Registry.DBParameters = parametersMap
 		}
 	}
-
-	repoConfig.OfflineStore = OfflineStoreConfig{}
-	repoConfig.OnlineStore = OnlineStoreConfig{}
-
 	return nil
 }
 
 func setRepoConfigOnline(services *feastdevv1alpha1.FeatureStoreServices, secretExtractionFunc func(storeType string, secretRef string, secretKeyName string) (map[string]interface{}, error), repoConfig *RepoConfig) error {
-	repoConfig.OnlineStore = OnlineStoreConfig{}
-
-	repoConfig.OnlineStore.Path = DefaultOnlineStoreEphemeralPath
-	repoConfig.OnlineStore.Type = OnlineSqliteConfigType
 	onlineStorePersistence := services.OnlineStore.Persistence
 
 	if onlineStorePersistence != nil {
@@ -183,13 +179,11 @@ func setRepoConfigOnline(services *feastdevv1alpha1.FeatureStoreServices, secret
 			repoConfig.OnlineStore.DBParameters = parametersMap
 		}
 	}
-
 	return nil
 }
 
 func setRepoConfigOffline(services *feastdevv1alpha1.FeatureStoreServices, secretExtractionFunc func(storeType string, secretRef string, secretKeyName string) (map[string]interface{}, error), repoConfig *RepoConfig) error {
-	repoConfig.OfflineStore = OfflineStoreConfig{}
-	repoConfig.OfflineStore.Type = OfflineFilePersistenceDaskConfigType
+	repoConfig.OfflineStore = defaultOfflineStoreConfig
 	offlineStorePersistence := services.OfflineStore.Persistence
 
 	if offlineStorePersistence != nil {
@@ -218,9 +212,6 @@ func setRepoConfigOffline(services *feastdevv1alpha1.FeatureStoreServices, secre
 			repoConfig.OfflineStore.DBParameters = parametersMap
 		}
 	}
-
-	repoConfig.OnlineStore = OnlineStoreConfig{}
-
 	return nil
 }
 
@@ -237,10 +228,9 @@ func getClientRepoConfig(
 	secretExtractionFunc func(storeType string, secretRef string, secretKeyName string) (map[string]interface{}, error)) (RepoConfig, error) {
 	status := featureStore.Status
 	appliedServices := status.Applied.Services
-	clientRepoConfig := RepoConfig{
-		Project:                       status.Applied.FeastProject,
-		Provider:                      LocalProviderType,
-		EntityKeySerializationVersion: feastdevv1alpha1.SerializationVersion,
+	clientRepoConfig, err := getRepoConfig(featureStore, secretExtractionFunc)
+	if err != nil {
+		return clientRepoConfig, err
 	}
 	if len(status.ServiceHostnames.OfflineStore) > 0 {
 		clientRepoConfig.OfflineStore = OfflineStoreConfig{
@@ -277,23 +267,27 @@ func getClientRepoConfig(
 		}
 	}
 
-	if status.Applied.AuthzConfig == nil {
-		clientRepoConfig.AuthzConfig = AuthzConfig{
-			Type: NoAuthAuthType,
-		}
-	} else {
+	return clientRepoConfig, nil
+}
+
+func getRepoConfig(
+	featureStore *feastdevv1alpha1.FeatureStore,
+	secretExtractionFunc func(storeType string, secretRef string, secretKeyName string) (map[string]interface{}, error)) (RepoConfig, error) {
+	status := featureStore.Status
+	repoConfig := initRepoConfig(status.Applied.FeastProject)
+	if status.Applied.AuthzConfig != nil {
 		if status.Applied.AuthzConfig.KubernetesAuthz != nil {
-			clientRepoConfig.AuthzConfig = AuthzConfig{
+			repoConfig.AuthzConfig = AuthzConfig{
 				Type: KubernetesAuthType,
 			}
 		} else if status.Applied.AuthzConfig.OidcAuthz != nil {
-			clientRepoConfig.AuthzConfig = AuthzConfig{
+			repoConfig.AuthzConfig = AuthzConfig{
 				Type: OidcAuthType,
 			}
 
 			propertiesMap, err := secretExtractionFunc("", status.Applied.AuthzConfig.OidcAuthz.SecretRef.Name, "")
 			if err != nil {
-				return clientRepoConfig, err
+				return repoConfig, err
 			}
 
 			oidcClientProperties := map[string]interface{}{}
@@ -301,13 +295,13 @@ func getClientRepoConfig(
 				if val, exists := propertiesMap[string(oidcClientProperty)]; exists {
 					oidcClientProperties[string(oidcClientProperty)] = val
 				} else {
-					return clientRepoConfig, missingOidcSecretProperty(oidcClientProperty)
+					return repoConfig, missingOidcSecretProperty(oidcClientProperty)
 				}
 			}
-			clientRepoConfig.AuthzConfig.OidcParameters = oidcClientProperties
+			repoConfig.AuthzConfig.OidcParameters = oidcClientProperties
 		}
 	}
-	return clientRepoConfig, nil
+	return repoConfig, nil
 }
 
 func getActualPath(filePath string, pvcConfig *feastdevv1alpha1.PvcConfig) string {
@@ -371,4 +365,46 @@ func mergeStructWithDBParametersMap(parametersMap *map[string]interface{}, s int
 	}
 
 	return nil
+}
+
+func (feast *FeastServices) GetDefaultRepoConfig() RepoConfig {
+	return defaultRepoConfig(feast.Handler.FeatureStore.Status.Applied.FeastProject)
+}
+
+func defaultRepoConfig(feastProject string) RepoConfig {
+	repoConfig := initRepoConfig(feastProject)
+	repoConfig.OnlineStore = defaultOnlineStoreConfig
+	repoConfig.Registry = defaultRegistryConfig
+	return repoConfig
+}
+
+func (feast *FeastServices) GetInitRepoConfig() RepoConfig {
+	return initRepoConfig(feast.Handler.FeatureStore.Status.Applied.FeastProject)
+}
+
+func initRepoConfig(feastProject string) RepoConfig {
+	return RepoConfig{
+		Project:                       feastProject,
+		Provider:                      LocalProviderType,
+		EntityKeySerializationVersion: feastdevv1alpha1.SerializationVersion,
+		AuthzConfig:                   defaultAuthzConfig,
+	}
+}
+
+var defaultOnlineStoreConfig = OnlineStoreConfig{
+	Type: OnlineSqliteConfigType,
+	Path: DefaultOnlineStoreEphemeralPath,
+}
+
+var defaultOfflineStoreConfig = OfflineStoreConfig{
+	Type: OfflineFilePersistenceDaskConfigType,
+}
+
+var defaultRegistryConfig = RegistryConfig{
+	RegistryType: RegistryFileConfigType,
+	Path:         DefaultRegistryEphemeralPath,
+}
+
+var defaultAuthzConfig = AuthzConfig{
+	Type: NoAuthAuthType,
 }
