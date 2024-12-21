@@ -154,7 +154,7 @@ type OnlineStoreFilePersistence struct {
 
 // OnlineStoreDBStorePersistence configures the DB store persistence for the offline store service
 type OnlineStoreDBStorePersistence struct {
-	// +kubebuilder:validation:Enum=snowflake.online;redis;ikv;datastore;dynamodb;bigtable;postgres;cassandra;mysql;hazelcast;singlestore;hbase;elasticsearch;qdrant;couchbase
+	// +kubebuilder:validation:Enum=snowflake.online;redis;ikv;datastore;dynamodb;bigtable;postgres;cassandra;mysql;hazelcast;singlestore;hbase;elasticsearch;qdrant;couchbase;milvus
 	Type string `json:"type"`
 	// Data store parameters should be placed as-is from the "feature_store.yaml" under the secret key. "registry_type" & "type" fields should be removed.
 	SecretRef corev1.LocalObjectReference `json:"secretRef"`
@@ -178,6 +178,7 @@ var ValidOnlineStoreDBStorePersistenceTypes = []string{
 	"elasticsearch",
 	"qdrant",
 	"couchbase",
+	"milvus",
 }
 
 // LocalRegistryConfig configures the deployed registry service
