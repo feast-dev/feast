@@ -85,17 +85,17 @@ func getBaseServiceRepoConfig(
 	featureStore *feastdevv1alpha1.FeatureStore,
 	secretExtractionFunc func(storeType string, secretRef string, secretKeyName string) (map[string]interface{}, error)) (RepoConfig, error) {
 
-	appliedSpec := featureStore.Status.Applied
 	repoConfig := defaultRepoConfig(featureStore)
 	clientRepoConfig, err := getClientRepoConfig(featureStore, secretExtractionFunc)
 	if err != nil {
 		return repoConfig, err
 	}
-	repoConfig.AuthzConfig = clientRepoConfig.AuthzConfig
 	if isRemoteRegistry(featureStore) {
 		repoConfig.Registry = clientRepoConfig.Registry
 	}
+	repoConfig.AuthzConfig = clientRepoConfig.AuthzConfig
 
+	appliedSpec := featureStore.Status.Applied
 	if appliedSpec.AuthzConfig != nil && appliedSpec.AuthzConfig.OidcAuthz != nil {
 		propertiesMap, authSecretErr := secretExtractionFunc("", appliedSpec.AuthzConfig.OidcAuthz.SecretRef.Name, "")
 		if authSecretErr != nil {

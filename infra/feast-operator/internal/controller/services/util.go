@@ -37,15 +37,18 @@ func hasPvcConfig(featureStore *feastdevv1alpha1.FeatureStore, feastType FeastSe
 	if services != nil {
 		switch feastType {
 		case OnlineFeastType:
-			if services.OnlineStore != nil && services.OnlineStore.Persistence.FilePersistence != nil {
+			if services.OnlineStore != nil && services.OnlineStore.Persistence != nil &&
+				services.OnlineStore.Persistence.FilePersistence != nil {
 				pvcConfig = services.OnlineStore.Persistence.FilePersistence.PvcConfig
 			}
 		case OfflineFeastType:
-			if services.OfflineStore != nil && services.OfflineStore.Persistence.FilePersistence != nil {
+			if services.OfflineStore != nil && services.OfflineStore.Persistence != nil &&
+				services.OfflineStore.Persistence.FilePersistence != nil {
 				pvcConfig = services.OfflineStore.Persistence.FilePersistence.PvcConfig
 			}
 		case RegistryFeastType:
-			if IsLocalRegistry(featureStore) && services.Registry.Local.Persistence.FilePersistence != nil {
+			if IsLocalRegistry(featureStore) && services.Registry.Local.Persistence != nil &&
+				services.Registry.Local.Persistence.FilePersistence != nil {
 				pvcConfig = services.Registry.Local.Persistence.FilePersistence.PvcConfig
 			}
 		}
@@ -66,18 +69,18 @@ func shouldMountEmptyDir(featureStore *feastdevv1alpha1.FeatureStore) bool {
 }
 
 func getOfflineMountPath(featureStore *feastdevv1alpha1.FeatureStore) string {
-	if featureStore.Status.Applied.Services != nil {
-		if pvcConfig, ok := hasPvcConfig(featureStore, OfflineFeastType); ok {
-			return pvcConfig.MountPath
-		}
+	if pvcConfig, ok := hasPvcConfig(featureStore, OfflineFeastType); ok {
+		return pvcConfig.MountPath
 	}
 	return EphemeralPath
 }
 
 func ApplyDefaultsToStatus(cr *feastdevv1alpha1.FeatureStore) {
+	// overwrite status.applied with every reconcile
+	cr.Spec.DeepCopyInto(&cr.Status.Applied)
 	cr.Status.FeastVersion = feastversion.FeastVersion
-	applied := cr.Spec.DeepCopy()
 
+	applied := &cr.Status.Applied
 	if applied.Services == nil {
 		applied.Services = &feastdevv1alpha1.FeatureStoreServices{}
 	}
@@ -106,10 +109,7 @@ func ApplyDefaultsToStatus(cr *feastdevv1alpha1.FeatureStore) {
 				services.Registry.Local.Persistence.FilePersistence.Path = defaultRegistryPath(cr)
 			}
 
-			if services.Registry.Local.Persistence.FilePersistence.PvcConfig != nil {
-				pvc := services.Registry.Local.Persistence.FilePersistence.PvcConfig
-				ensurePVCDefaults(pvc, RegistryFeastType)
-			}
+			ensurePVCDefaults(services.Registry.Local.Persistence.FilePersistence.PvcConfig, RegistryFeastType)
 		}
 
 		setServiceDefaultConfigs(&services.Registry.Local.ServiceConfigs.DefaultConfigs)
@@ -131,10 +131,7 @@ func ApplyDefaultsToStatus(cr *feastdevv1alpha1.FeatureStore) {
 				services.OfflineStore.Persistence.FilePersistence.Type = string(OfflineFilePersistenceDaskConfigType)
 			}
 
-			if services.OfflineStore.Persistence.FilePersistence.PvcConfig != nil {
-				pvc := services.OfflineStore.Persistence.FilePersistence.PvcConfig
-				ensurePVCDefaults(pvc, OfflineFeastType)
-			}
+			ensurePVCDefaults(services.OfflineStore.Persistence.FilePersistence.PvcConfig, OfflineFeastType)
 		}
 
 		setServiceDefaultConfigs(&services.OfflineStore.ServiceConfigs.DefaultConfigs)
@@ -154,16 +151,11 @@ func ApplyDefaultsToStatus(cr *feastdevv1alpha1.FeatureStore) {
 				services.OnlineStore.Persistence.FilePersistence.Path = defaultOnlineStorePath(cr)
 			}
 
-			if services.OnlineStore.Persistence.FilePersistence.PvcConfig != nil {
-				pvc := services.OnlineStore.Persistence.FilePersistence.PvcConfig
-				ensurePVCDefaults(pvc, OnlineFeastType)
-			}
+			ensurePVCDefaults(services.OnlineStore.Persistence.FilePersistence.PvcConfig, OnlineFeastType)
 		}
 
 		setServiceDefaultConfigs(&services.OnlineStore.ServiceConfigs.DefaultConfigs)
 	}
-	// overwrite status.applied with every reconcile
-	applied.DeepCopyInto(&cr.Status.Applied)
 }
 
 func setServiceDefaultConfigs(defaultConfigs *feastdevv1alpha1.DefaultConfigs) {
@@ -189,19 +181,21 @@ func ensureRequestedStorage(resources *v1.VolumeResourceRequirements, requestedS
 }
 
 func ensurePVCDefaults(pvc *feastdevv1alpha1.PvcConfig, feastType FeastServiceType) {
-	var storageRequest string
-	switch feastType {
-	case OnlineFeastType:
-		storageRequest = DefaultOnlineStorageRequest
-	case OfflineFeastType:
-		storageRequest = DefaultOfflineStorageRequest
-	case RegistryFeastType:
-		storageRequest = DefaultRegistryStorageRequest
-	}
-	if pvc.Create != nil {
-		ensureRequestedStorage(&pvc.Create.Resources, storageRequest)
-		if pvc.Create.AccessModes == nil {
-			pvc.Create.AccessModes = DefaultPVCAccessModes
+	if pvc != nil {
+		var storageRequest string
+		switch feastType {
+		case OnlineFeastType:
+			storageRequest = DefaultOnlineStorageRequest
+		case OfflineFeastType:
+			storageRequest = DefaultOfflineStorageRequest
+		case RegistryFeastType:
+			storageRequest = DefaultRegistryStorageRequest
+		}
+		if pvc.Create != nil {
+			ensureRequestedStorage(&pvc.Create.Resources, storageRequest)
+			if pvc.Create.AccessModes == nil {
+				pvc.Create.AccessModes = DefaultPVCAccessModes
+			}
 		}
 	}
 }
