@@ -17,7 +17,7 @@ from feast import (
 from feast.data_source import DataSource, RequestSource
 from feast.feature_view_projection import FeatureViewProjection
 from feast.on_demand_feature_view import PandasTransformation, SubstraitTransformation
-from feast.types import Array, FeastType, Float32, Float64, Int32, Int64
+from feast.types import Array, FeastType, Float32, Float64, Int32, Int64, String
 from tests.integration.feature_repos.universal.entities import (
     customer,
     driver,
@@ -160,8 +160,20 @@ def create_item_embeddings_feature_view(source, infer_features: bool = False):
         schema=None
         if infer_features
         else [
-            Field(name="embedding_double", dtype=Array(Float64)),
-            Field(name="embedding_float", dtype=Array(Float32)),
+            Field(
+                name="embedding_double",
+                dtype=Array(Float64),
+                vector_index=True,
+                vector_search_metric="L2",
+            ),
+            Field(
+                name="embedding_float",
+                dtype=Array(Float32),
+                vector_index=True,
+                vector_search_metric="L2",
+            ),
+            Field(name="string_feature", dtype=String),
+            Field(name="float_feature", dtype=Float32),
         ],
         source=source,
         ttl=timedelta(hours=2),
