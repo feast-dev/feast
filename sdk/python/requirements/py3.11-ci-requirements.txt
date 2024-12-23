@@ -934,7 +934,7 @@ toolz==0.12.1
     #   dask
     #   ibis-framework
     #   partd
-torch==2.4.0
+torch==2.3.0
     # via feast (setup.py)
 tornado==6.4.2
     # via
