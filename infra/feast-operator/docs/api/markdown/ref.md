@@ -39,7 +39,6 @@ _Appears in:_
 - [OfflineStore](#offlinestore)
 - [OnlineStore](#onlinestore)
 - [ServiceConfigs](#serviceconfigs)
-- [StoreServiceConfigs](#storeserviceconfigs)
 
 | Field | Description |
 | --- | --- |
@@ -82,7 +81,7 @@ _Appears in:_
 
 
 
-FeatureStoreServices defines the desired feast service deployments. ephemeral registry is deployed by default.
+FeatureStoreServices defines the desired feast services. An ephemeral registry is deployed by default.
 
 _Appears in:_
 - [FeatureStoreSpec](#featurestorespec)
@@ -182,14 +181,12 @@ _Appears in:_
 
 | Field | Description |
 | --- | --- |
-| `replicas` _integer_ | Replicas determines the number of pods for the feast service.
-When Replicas > 1, persistence is recommended. |
 | `image` _string_ |  |
 | `env` _[EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#envvar-v1-core)_ |  |
 | `imagePullPolicy` _[PullPolicy](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#pullpolicy-v1-core)_ |  |
 | `resources` _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core)_ |  |
 | `persistence` _[OfflineStorePersistence](#offlinestorepersistence)_ |  |
-| `tls` _[OfflineTlsConfigs](#offlinetlsconfigs)_ |  |
+| `tls` _[TlsConfigs](#tlsconfigs)_ |  |
 | `logLevel` _string_ | LogLevel sets the logging level for the offline store service
 Allowed values: "debug", "info", "warning", "error", "critical". |
 
@@ -240,23 +237,6 @@ _Appears in:_
 | `store` _[OfflineStoreDBStorePersistence](#offlinestoredbstorepersistence)_ |  |
 
 
-#### OfflineTlsConfigs
-
-
-
-OfflineTlsConfigs configures server TLS for the offline feast service. in an openshift cluster, this is configured by default using service serving certificates.
-
-_Appears in:_
-- [OfflineStore](#offlinestore)
-
-| Field | Description |
-| --- | --- |
-| `secretRef` _[LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#localobjectreference-v1-core)_ | references the local k8s secret where the TLS key and cert reside |
-| `secretKeyNames` _[SecretKeyNames](#secretkeynames)_ |  |
-| `disable` _boolean_ | will disable TLS for the feast service. useful in an openshift cluster, for example, where TLS is configured by default |
-| `verifyClient` _boolean_ | verify the client TLS certificate. |
-
-
 #### OidcAuthz
 
 
@@ -283,8 +263,6 @@ _Appears in:_
 
 | Field | Description |
 | --- | --- |
-| `replicas` _integer_ | Replicas determines the number of pods for the feast service.
-When Replicas > 1, persistence is recommended. |
 | `image` _string_ |  |
 | `env` _[EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#envvar-v1-core)_ |  |
 | `imagePullPolicy` _[PullPolicy](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#pullpolicy-v1-core)_ |  |
@@ -352,7 +330,6 @@ _Appears in:_
 - [OfflineStore](#offlinestore)
 - [OnlineStore](#onlinestore)
 - [ServiceConfigs](#serviceconfigs)
-- [StoreServiceConfigs](#storeserviceconfigs)
 
 | Field | Description |
 | --- | --- |
@@ -363,7 +340,7 @@ _Appears in:_
 
 #### PvcConfig
 
-_Underlying type:_ `[struct{Ref *k8s.io/api/core/v1.LocalObjectReference "json:\"ref,omitempty\""; Create *PvcCreate "json:\"create,omitempty\""; MountPath string "json:\"mountPath,omitempty\""}](#struct{ref-*k8sioapicorev1localobjectreference-"json:\"ref,omitempty\"";-create-*pvccreate-"json:\"create,omitempty\"";-mountpath-string-"json:\"mountpath,omitempty\""})`
+_Underlying type:_ `[struct{Ref *k8s.io/api/core/v1.LocalObjectReference "json:\"ref,omitempty\""; Create *PvcCreate "json:\"create,omitempty\""; MountPath string "json:\"mountPath\""}](#struct{ref-*k8sioapicorev1localobjectreference-"json:\"ref,omitempty\"";-create-*pvccreate-"json:\"create,omitempty\"";-mountpath-string-"json:\"mountpath\""})`
 
 PvcConfig defines the settings for a persistent file store based on PVCs.
 We can refer to an existing PVC using the `Ref` field, or create a new one using the `Create` field.
@@ -452,7 +429,6 @@ _Appears in:_
 SecretKeyNames defines the secret key names for the TLS key and cert.
 
 _Appears in:_
-- [OfflineTlsConfigs](#offlinetlsconfigs)
 - [TlsConfigs](#tlsconfigs)
 
 | Field | Description |
@@ -471,7 +447,6 @@ _Appears in:_
 - [LocalRegistryConfig](#localregistryconfig)
 - [OfflineStore](#offlinestore)
 - [OnlineStore](#onlinestore)
-- [StoreServiceConfigs](#storeserviceconfigs)
 
 | Field | Description |
 | --- | --- |
@@ -497,26 +472,6 @@ _Appears in:_
 | `registry` _string_ |  |
 
 
-#### StoreServiceConfigs
-
-
-
-StoreServiceConfigs k8s deployment settings
-
-_Appears in:_
-- [OfflineStore](#offlinestore)
-- [OnlineStore](#onlinestore)
-
-| Field | Description |
-| --- | --- |
-| `replicas` _integer_ | Replicas determines the number of pods for the feast service.
-When Replicas > 1, persistence is recommended. |
-| `image` _string_ |  |
-| `env` _[EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#envvar-v1-core)_ |  |
-| `imagePullPolicy` _[PullPolicy](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#pullpolicy-v1-core)_ |  |
-| `resources` _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core)_ |  |
-
-
 #### TlsConfigs
 
 
@@ -525,7 +480,7 @@ TlsConfigs configures server TLS for a feast service. in an openshift cluster, t
 
 _Appears in:_
 - [LocalRegistryConfig](#localregistryconfig)
-- [OfflineTlsConfigs](#offlinetlsconfigs)
+- [OfflineStore](#offlinestore)
 - [OnlineStore](#onlinestore)
 
 | Field | Description |
