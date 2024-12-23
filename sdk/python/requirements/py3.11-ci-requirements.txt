@@ -908,7 +908,7 @@ starlette==0.41.3
     # via fastapi
 substrait==0.23.0
     # via ibis-substrait
-sympy==1.13.1
+sympy==1.13.3
     # via torch
 tabulate==0.9.0
     # via feast (setup.py)
@@ -934,7 +934,7 @@ toolz==0.12.1
     #   dask
     #   ibis-framework
     #   partd
-torch==2.5.1
+torch==2.4.1
     # via feast (setup.py)
 tornado==6.4.2
     # via
