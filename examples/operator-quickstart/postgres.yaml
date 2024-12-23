@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: 'postgres:16-alpine'
+          ports:
+            - containerPort: 5432
+          env:
+          - name: POSTGRES_DB
+            value: feast
+          - name: POSTGRES_HOST_AUTH_METHOD
+            value: trust
+          volumeMounts:
+            - mountPath: /var/lib/postgresql
+              name: postgresdata
+      volumes:
+        - name: postgresdata
+          emptyDir: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  labels:
+    app: postgres
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5432
+      targetPort: 5432
+      protocol: TCP
+  selector:
+    app: postgres
