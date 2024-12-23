@@ -191,7 +191,6 @@ def environment(request, worker_id):
         request.param,
         worker_id=worker_id,
         fixture_request=request,
-        entity_key_serialization_version=3,
     )
 
     e.setup()
