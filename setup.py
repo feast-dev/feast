@@ -158,6 +158,8 @@ GO_REQUIRED = ["cffi~=1.15.0"]
 
 MILVUS_REQUIRED = ["pymilvus"]
 
+PYTORCH_REQUIRED = ["torch>=2.5.0"]
+
 CI_REQUIRED = (
     [
         "build",
@@ -229,6 +231,7 @@ CI_REQUIRED = (
     + FAISS_REQUIRED
     + QDRANT_REQUIRED
     + MILVUS_REQUIRED
+    + PYTORCH_REQUIRED
 )
 
 DOCS_REQUIRED = CI_REQUIRED
@@ -359,6 +362,7 @@ setup(
         "qdrant": QDRANT_REQUIRED,
         "go": GO_REQUIRED,
         "milvus": MILVUS_REQUIRED,
+        "pytorch": PYTORCH_REQUIRED,
     },
     include_package_data=True,
     license="Apache",
