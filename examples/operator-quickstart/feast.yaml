@@ -4,13 +4,6 @@ kind: Secret
 metadata:
   name: feast-data-stores
 stringData:
-  postgres: |
-    host: postgres.feast.svc.cluster.local
-    port: 5432
-    database: ${POSTGRES_DB}
-    db_schema: public
-    user: ${POSTGRES_USER}
-    password: ${POSTGRES_PASSWORD}
   redis: |
     connection_string: redis.feast.svc.cluster.local:6379
   sql: |
@@ -29,18 +22,58 @@ spec:
   feastProject: credit_scoring_local
   services:
     offlineStore:
-      tls:
-        disable: true
+      persistence:
+        file:
+          type: duckdb
+      env:
+      - name: POSTGRES_DB
+        valueFrom:
+          secretKeyRef:
+            name: postgres-secret
+            key: POSTGRES_DB
+      - name: POSTGRES_USER
+        valueFrom:
+          secretKeyRef:
+            name: postgres-secret
+            key: POSTGRES_USER
+      - name: POSTGRES_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: postgres-secret
+            key: POSTGRES_PASSWORD
+      image: quay.io/tchughesiv/feature-server:0.42.0
+      imagePullPolicy: Always
     onlineStore:
       persistence:
         store:
           type: redis
           secretRef:
             name: feast-data-stores
-      tls:
-        disable: true
+      env:
+      - name: POSTGRES_DB
+        valueFrom:
+          secretKeyRef:
+            name: postgres-secret
+            key: POSTGRES_DB
+      - name: POSTGRES_USER
+        valueFrom:
+          secretKeyRef:
+            name: postgres-secret
+            key: POSTGRES_USER
+      - name: POSTGRES_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: postgres-secret
+            key: POSTGRES_PASSWORD
+      image: quay.io/tchughesiv/feature-server:0.42.0
+      imagePullPolicy: Always
     registry:
       local:
+        persistence:
+          store:
+            type: sql
+            secretRef:
+              name: feast-data-stores
         env:
         - name: POSTGRES_DB
           valueFrom:
@@ -57,10 +90,5 @@ spec:
             secretKeyRef:
               name: postgres-secret
               key: POSTGRES_PASSWORD
-        persistence:
-          store:
-            type: sql
-            secretRef:
-              name: feast-data-stores
-        tls:
-          disable: true
+        image: quay.io/tchughesiv/feature-server:0.42.0
+        imagePullPolicy: Always
