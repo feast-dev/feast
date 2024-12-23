@@ -112,7 +112,7 @@ charset-normalizer==3.4.0
     # via
     #   requests
     #   snowflake-connector-python
-click==8.1.7
+click==8.1.8
     # via
     #   feast (setup.py)
     #   dask
@@ -373,7 +373,7 @@ isoduration==20.11.0
     # via jsonschema
 jedi==0.19.2
     # via ipython
-jinja2==3.1.4
+jinja2==3.1.5
     # via
     #   feast (setup.py)
     #   altair
@@ -425,7 +425,7 @@ jupyter-events==0.11.0
     # via jupyter-server
 jupyter-lsp==2.2.5
     # via jupyterlab
-jupyter-server==2.14.2
+jupyter-server==2.15.0
     # via
     #   jupyter-lsp
     #   jupyterlab
@@ -519,7 +519,7 @@ networkx==3.2.1
     # via torch
 nodeenv==1.9.1
     # via pre-commit
-notebook==7.3.1
+notebook==7.3.2
     # via great-expectations
 notebook-shim==0.2.4
     # via
@@ -723,7 +723,7 @@ pyproject-hooks==1.2.0
     # via
     #   build
     #   pip-tools
-pyspark==3.5.3
+pyspark==3.5.4
     # via feast (setup.py)
 pytest==7.4.4
     # via
@@ -995,7 +995,7 @@ trino==0.331.0
     # via feast (setup.py)
 typeguard==4.4.1
     # via feast (setup.py)
-types-cffi==1.16.0.20240331
+types-cffi==1.16.0.20241221
     # via types-pyopenssl
 types-protobuf==3.19.22
     # via
@@ -1009,15 +1009,15 @@ types-python-dateutil==2.9.0.20241206
     # via
     #   feast (setup.py)
     #   arrow
-types-pytz==2024.2.0.20241003
+types-pytz==2024.2.0.20241221
     # via feast (setup.py)
-types-pyyaml==6.0.12.20240917
+types-pyyaml==6.0.12.20241221
     # via feast (setup.py)
 types-redis==4.6.0.20241004
     # via feast (setup.py)
 types-requests==2.30.0.0
     # via feast (setup.py)
-types-setuptools==75.6.0.20241126
+types-setuptools==75.6.0.20241223
     # via
     #   feast (setup.py)
     #   types-cffi
