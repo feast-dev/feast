@@ -614,6 +614,10 @@ def test_online_store_cleanup(environment, universal_data_sources):
     online_features = fs.get_online_features(
         features=features, entity_rows=entity_rows
     ).to_dict()
+
+    # Debugging print statement
+    print("Online features values:", online_features["value"])
+
     assert all(v is None for v in online_features["value"])
 
 
