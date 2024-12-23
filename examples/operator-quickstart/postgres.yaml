@@ -1,30 +1,3 @@
-#https://www.digitalocean.com/community/tutorials/how-to-deploy-postgres-to-kubernetes-cluster
-apiVersion: v1
-kind: Secret
-metadata:
-  name: postgres-secret
-  labels:
-    app: postgres
-stringData:
-  POSTGRES_DB: feast
-  POSTGRES_USER: feast
-  POSTGRES_PASSWORD: feast
-
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: postgres-volume-claim
-  labels:
-    app: postgres
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 1Gi
-
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -44,16 +17,17 @@ spec:
           image: 'postgres:16-alpine'
           ports:
             - containerPort: 5432
-          envFrom:
-            - secretRef:
-                name: postgres-secret
+          env:
+          - name: POSTGRES_DB
+            value: feast
+          - name: POSTGRES_HOST_AUTH_METHOD
+            value: trust
           volumeMounts:
             - mountPath: /var/lib/postgresql
               name: postgresdata
       volumes:
         - name: postgresdata
-          persistentVolumeClaim:
-            claimName: postgres-volume-claim
+          emptyDir: {}
 
 ---
 apiVersion: v1

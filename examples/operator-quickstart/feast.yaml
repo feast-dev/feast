@@ -7,7 +7,7 @@ stringData:
   redis: |
     connection_string: redis.feast.svc.cluster.local:6379
   sql: |
-    path: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres.feast.svc.cluster.local:5432/${POSTGRES_DB}
+    path: postgresql+psycopg://postgres@postgres.feast.svc.cluster.local:5432/feast
     cache_ttl_seconds: 60
     sqlalchemy_config_kwargs:
         echo: false
@@ -25,22 +25,6 @@ spec:
       persistence:
         file:
           type: duckdb
-      env:
-      - name: POSTGRES_DB
-        valueFrom:
-          secretKeyRef:
-            name: postgres-secret
-            key: POSTGRES_DB
-      - name: POSTGRES_USER
-        valueFrom:
-          secretKeyRef:
-            name: postgres-secret
-            key: POSTGRES_USER
-      - name: POSTGRES_PASSWORD
-        valueFrom:
-          secretKeyRef:
-            name: postgres-secret
-            key: POSTGRES_PASSWORD
       image: quay.io/tchughesiv/feature-server:0.42.0
       imagePullPolicy: Always
     onlineStore:
@@ -49,22 +33,6 @@ spec:
           type: redis
           secretRef:
             name: feast-data-stores
-      env:
-      - name: POSTGRES_DB
-        valueFrom:
-          secretKeyRef:
-            name: postgres-secret
-            key: POSTGRES_DB
-      - name: POSTGRES_USER
-        valueFrom:
-          secretKeyRef:
-            name: postgres-secret
-            key: POSTGRES_USER
-      - name: POSTGRES_PASSWORD
-        valueFrom:
-          secretKeyRef:
-            name: postgres-secret
-            key: POSTGRES_PASSWORD
       image: quay.io/tchughesiv/feature-server:0.42.0
       imagePullPolicy: Always
     registry:
@@ -74,21 +42,5 @@ spec:
             type: sql
             secretRef:
               name: feast-data-stores
-        env:
-        - name: POSTGRES_DB
-          valueFrom:
-            secretKeyRef:
-              name: postgres-secret
-              key: POSTGRES_DB
-        - name: POSTGRES_USER
-          valueFrom:
-            secretKeyRef:
-              name: postgres-secret
-              key: POSTGRES_USER
-        - name: POSTGRES_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: postgres-secret
-              key: POSTGRES_PASSWORD
         image: quay.io/tchughesiv/feature-server:0.42.0
         imagePullPolicy: Always

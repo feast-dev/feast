@@ -1,4 +1,3 @@
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -16,11 +15,11 @@ spec:
       containers:
         - name: redis
           image: 'bitnami/redis:latest'
+          ports:
+            - containerPort: 6379
           env:
           - name: ALLOW_EMPTY_PASSWORD
             value: "yes"
-          ports:
-            - containerPort: 6379
 
 ---
 apiVersion: v1
