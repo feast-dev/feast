@@ -561,7 +561,7 @@ def construct_test_environment(
             cache_ttl_seconds=1,
         )
 
-    if test_repo_config.online_store in ['milvus', 'pgvector', 'qdrant']:
+    if test_repo_config.online_store in ["milvus", "pgvector", "qdrant"]:
         entity_key_serialization_version = 3
 
     environment_params = {
