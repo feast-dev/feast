@@ -78,6 +78,7 @@ from tests.integration.feature_repos.universal.online_store.datastore import (
 from tests.integration.feature_repos.universal.online_store.dynamodb import (
     DynamoDBOnlineStoreCreator,
 )
+from tests.integration.feature_repos.universal.online_store.milvus import MilvusOnlineStoreCreator
 from tests.integration.feature_repos.universal.online_store.redis import (
     RedisOnlineStoreCreator,
 )
@@ -86,7 +87,7 @@ from tests.integration.feature_repos.universal.online_store_creator import (
 )
 
 DYNAMO_CONFIG = {"type": "dynamodb", "region": "us-west-2"}
-MILVUS_CONFIG = {"type": "milvus"}
+MILVUS_CONFIG = {"type": "milvus", "connection_string": "localhost:19530"}
 REDIS_CONFIG = {"type": "redis", "connection_string": "localhost:6379,db=0"}
 REDIS_CLUSTER_CONFIG = {
     "type": "redis",
@@ -211,6 +212,7 @@ if os.getenv("FEAST_LOCAL_ONLINE_CONTAINER", "False").lower() == "true":
         str, Tuple[Union[str, Dict[str, str]], Optional[Type[OnlineStoreCreator]]]
     ] = {
         "redis": (REDIS_CONFIG, RedisOnlineStoreCreator),
+        "milvus": (MILVUS_CONFIG, MilvusOnlineStoreCreator),
         "dynamodb": (DYNAMO_CONFIG, DynamoDBOnlineStoreCreator),
         "datastore": ("datastore", DatastoreOnlineStoreCreator),
         "bigtable": ("bigtable", BigtableOnlineStoreCreator),
