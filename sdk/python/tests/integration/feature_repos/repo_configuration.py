@@ -78,7 +78,9 @@ from tests.integration.feature_repos.universal.online_store.datastore import (
 from tests.integration.feature_repos.universal.online_store.dynamodb import (
     DynamoDBOnlineStoreCreator,
 )
-from tests.integration.feature_repos.universal.online_store.milvus import MilvusOnlineStoreCreator
+from tests.integration.feature_repos.universal.online_store.milvus import (
+    MilvusOnlineStoreCreator,
+)
 from tests.integration.feature_repos.universal.online_store.redis import (
     RedisOnlineStoreCreator,
 )
