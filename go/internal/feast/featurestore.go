@@ -110,6 +110,10 @@ func (fs *FeatureStore) GetOnlineFeatures(
 		return nil, err
 	}
 
+	if len(requestedOnDemandFeatureViews) > 0 && fs.transformationService == nil {
+		return nil, FeastTransformationServiceNotConfigured{}
+	}
+
 	entityNameToJoinKeyMap, expectedJoinKeysSet, err := onlineserving.GetEntityMaps(requestedFeatureViews, entities)
 	if err != nil {
 		return nil, err
