@@ -458,7 +458,7 @@ kill-trino-locally:
 
 # Docker
 
-build-docker: build-feature-server-python-aws-docker build-feature-transformation-server-docker build-feature-server-java-docker
+build-docker: build-feature-server-docker build-feature-transformation-server-docker build-feature-server-java-docker build-feast-operator-docker
 
 push-ci-docker:
 	docker push $(REGISTRY)/feast-ci:$(VERSION)
