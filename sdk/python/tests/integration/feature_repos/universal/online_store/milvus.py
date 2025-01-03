@@ -1,6 +1,7 @@
 from typing import Any, Dict
 
-from testcontainers.milvus import MilvusContainer
+from testcontainers.core.container import DockerContainer
+from testcontainers.core.waiting_utils import wait_for_logs
 
 from tests.integration.feature_repos.universal.online_store_creator import (
     OnlineStoreCreator,
@@ -11,7 +12,7 @@ class MilvusOnlineStoreCreator(OnlineStoreCreator):
     def __init__(self, project_name: str, **kwargs):
         super().__init__(project_name)
         self.fixed_port = 19530
-        self.container = MilvusContainer("milvusdb/milvus:v2.4.4").with_exposed_ports(
+        self.container = DockerContainer("milvusdb/milvus:latest").with_exposed_ports(
             self.fixed_port
         )
 
@@ -20,6 +21,11 @@ class MilvusOnlineStoreCreator(OnlineStoreCreator):
         # Wait for Milvus server to be ready
         host = "localhost"
         port = self.container.get_exposed_port(self.fixed_port)
+        # log_string_to_wait_for = "Ready to accept connections"
+        log_string_to_wait_for = ""
+        wait_for_logs(
+            container=self.container, predicate=log_string_to_wait_for, timeout=30
+        )
         return {
             "type": "milvus",
             "host": host,

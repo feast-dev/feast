@@ -78,6 +78,7 @@ from tests.integration.feature_repos.universal.online_store.datastore import (
 from tests.integration.feature_repos.universal.online_store.dynamodb import (
     DynamoDBOnlineStoreCreator,
 )
+from tests.integration.feature_repos.universal.online_store.milvus import MilvusOnlineStoreCreator
 from tests.integration.feature_repos.universal.online_store.redis import (
     RedisOnlineStoreCreator,
 )
@@ -214,6 +215,7 @@ if os.getenv("FEAST_LOCAL_ONLINE_CONTAINER", "False").lower() == "true":
         "dynamodb": (DYNAMO_CONFIG, DynamoDBOnlineStoreCreator),
         "datastore": ("datastore", DatastoreOnlineStoreCreator),
         "bigtable": ("bigtable", BigtableOnlineStoreCreator),
+        "milvus": ("milvus", MilvusOnlineStoreCreator),
     }
 
     for key, replacement in replacements.items():
