@@ -17,7 +17,7 @@ from prometheus_client import Gauge, start_http_server
 from pydantic import BaseModel
 
 import feast
-from feast import proto_json, utils, FeatureService
+from feast import proto_json, utils
 from feast.constants import DEFAULT_FEATURE_SERVER_REGISTRY_TTL
 from feast.data_source import PushMode
 from feast.errors import (
@@ -77,7 +77,7 @@ class GetOnlineFeaturesRequest(BaseModel):
 
 def _get_features(
     request: GetOnlineFeaturesRequest, store: "feast.FeatureStore"
-) -> list[str] | FeatureService:
+) -> list[str] | "feast.FeatureService":
     if request.feature_service:
         feature_service = store.get_feature_service(
             request.feature_service, allow_cache=True
