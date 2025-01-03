@@ -78,7 +78,6 @@ class GetOnlineFeaturesRequest(BaseModel):
 def _get_features(
     request: GetOnlineFeaturesRequest, store: "feast.FeatureStore"
 ) -> list[str] | FeatureService:
-    # Initialize parameters for FeatureStore.get_online_features(...) call
     if request.feature_service:
         feature_service = store.get_feature_service(
             request.feature_service, allow_cache=True
@@ -154,6 +153,7 @@ def get_app(
         dependencies=[Depends(inject_user_details)],
     )
     async def get_online_features(request: GetOnlineFeaturesRequest) -> Dict[str, Any]:
+        # Initialize parameters for FeatureStore.get_online_features(...) call
         features = await run_in_threadpool(_get_features, request, store)
 
         read_params = dict(
