@@ -3,8 +3,9 @@ package feast
 import (
 	"context"
 	"errors"
-	"fmt"
+
 	"github.com/apache/arrow/go/v17/arrow/memory"
+
 	//"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 
 	"github.com/feast-dev/feast/go/internal/feast/model"
@@ -60,16 +61,13 @@ func NewFeatureStore(config *registry.RepoConfig, callback transformation.Transf
 		return nil, err
 	}
 
-	// Use a scalable transformation service like Python Transformation Service.
-	// Assume the user will define the "transformation_service_endpoint" in the feature_store.yaml file
-	// under the "feature_server" section.
-	transformationServerEndpoint, ok := config.FeatureServer["transformation_service_endpoint"]
-	if !ok {
-		fmt.Println("Errors while reading transformation_service_endpoint info")
-		panic("No transformation service endpoint provided in the feature_store.yaml file.")
+	var transformationService *transformation.GrpcTransformationService
+	if transformationServerEndpoint, ok := config.FeatureServer["transformation_service_endpoint"]; ok {
+		// Use a scalable transformation service like Python Transformation Service.
+		// Assume the user will define the "transformation_service_endpoint" in the feature_store.yaml file
+		// under the "feature_server" section.
+		transformationService, _ = transformation.NewGrpcTransformationService(config, transformationServerEndpoint.(string))
 	}
-
-	transformationService, _ := transformation.NewGrpcTransformationService(config, transformationServerEndpoint.(string))
 
 	return &FeatureStore{
 		config:                 config,
@@ -110,6 +108,10 @@ func (fs *FeatureStore) GetOnlineFeatures(
 	}
 	if err != nil {
 		return nil, err
+	}
+
+	if len(requestedOnDemandFeatureViews) > 0 && fs.transformationService == nil {
+		return nil, FeastTransformationServiceNotConfigured{}
 	}
 
 	entityNameToJoinKeyMap, expectedJoinKeysSet, err := onlineserving.GetEntityMaps(requestedFeatureViews, entities)
