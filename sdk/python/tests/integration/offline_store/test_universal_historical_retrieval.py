@@ -701,7 +701,7 @@ def test_historical_features_field_mapping(
         timestamp_field="event_timestamp",
         created_timestamp_column="created",
         # Map original "id" column to "driver_id" join key
-        field_mapping={"id": "driver_id"}
+        field_mapping={"id": "driver_id"},
     )
 
     driver = Entity(name="driver", join_keys=["driver_id"])
@@ -710,7 +710,7 @@ def test_historical_features_field_mapping(
         entities=[driver],
         schema=[
             Field(name="driver_id", dtype=String),
-            Field(name="avg_daily_trips", dtype=Int32)
+            Field(name="avg_daily_trips", dtype=Int32),
         ],
         source=driver_stats_data_source,
     )
