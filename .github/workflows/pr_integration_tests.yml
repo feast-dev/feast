@@ -45,6 +45,10 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+      milvus:
+        image: milvus
+        ports:
+          - 19530:19530
     steps:
       - uses: actions/checkout@v4
         with:
