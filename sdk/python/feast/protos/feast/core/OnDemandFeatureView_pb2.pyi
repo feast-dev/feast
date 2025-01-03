@@ -107,6 +107,7 @@ class OnDemandFeatureViewSpec(google.protobuf.message.Message):
     WRITE_TO_ONLINE_STORE_FIELD_NUMBER: builtins.int
     ENTITIES_FIELD_NUMBER: builtins.int
     ENTITY_COLUMNS_FIELD_NUMBER: builtins.int
+    SINGLETON_FIELD_NUMBER: builtins.int
     name: builtins.str
     """Name of the feature view. Must be unique. Not updated."""
     project: builtins.str
@@ -137,6 +138,7 @@ class OnDemandFeatureViewSpec(google.protobuf.message.Message):
     @property
     def entity_columns(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.core.Feature_pb2.FeatureSpecV2]:
         """List of specifications for each entity defined as part of this feature view."""
+    singleton: builtins.bool
     def __init__(
         self,
         *,
@@ -153,9 +155,10 @@ class OnDemandFeatureViewSpec(google.protobuf.message.Message):
         write_to_online_store: builtins.bool = ...,
         entities: collections.abc.Iterable[builtins.str] | None = ...,
         entity_columns: collections.abc.Iterable[feast.core.Feature_pb2.FeatureSpecV2] | None = ...,
+        singleton: builtins.bool = ...,
     ) -> None: ...
     def HasField(self, field_name: typing_extensions.Literal["feature_transformation", b"feature_transformation", "user_defined_function", b"user_defined_function"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["description", b"description", "entities", b"entities", "entity_columns", b"entity_columns", "feature_transformation", b"feature_transformation", "features", b"features", "mode", b"mode", "name", b"name", "owner", b"owner", "project", b"project", "sources", b"sources", "tags", b"tags", "user_defined_function", b"user_defined_function", "write_to_online_store", b"write_to_online_store"]) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["description", b"description", "entities", b"entities", "entity_columns", b"entity_columns", "feature_transformation", b"feature_transformation", "features", b"features", "mode", b"mode", "name", b"name", "owner", b"owner", "project", b"project", "singleton", b"singleton", "sources", b"sources", "tags", b"tags", "user_defined_function", b"user_defined_function", "write_to_online_store", b"write_to_online_store"]) -> None: ...
 
 global___OnDemandFeatureViewSpec = OnDemandFeatureViewSpec
 
@@ -230,3 +233,18 @@ class UserDefinedFunction(google.protobuf.message.Message):
     def ClearField(self, field_name: typing_extensions.Literal["body", b"body", "body_text", b"body_text", "name", b"name"]) -> None: ...
 
 global___UserDefinedFunction = UserDefinedFunction
+
+class OnDemandFeatureViewList(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    ONDEMANDFEATUREVIEWS_FIELD_NUMBER: builtins.int
+    @property
+    def ondemandfeatureviews(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___OnDemandFeatureView]: ...
+    def __init__(
+        self,
+        *,
+        ondemandfeatureviews: collections.abc.Iterable[global___OnDemandFeatureView] | None = ...,
+    ) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["ondemandfeatureviews", b"ondemandfeatureviews"]) -> None: ...
+
+global___OnDemandFeatureViewList = OnDemandFeatureViewList

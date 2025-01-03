@@ -39,12 +39,21 @@ logger.setLevel(logging.INFO)
 
 
 class OfflineServer(fl.FlightServerBase):
-    def __init__(self, store: FeatureStore, location: str, **kwargs):
+    def __init__(
+        self,
+        store: FeatureStore,
+        location: str,
+        host: str = "localhost",
+        tls_certificates: List = [],
+        **kwargs,
+    ):
         super(OfflineServer, self).__init__(
-            location,
+            location=location,
             middleware=self.arrow_flight_auth_middleware(
                 str_to_auth_manager_type(store.config.auth_config.type)
             ),
+            tls_certificates=tls_certificates,
+            verify_client=False,  # this is needed for when we don't need mTLS
             **kwargs,
         )
         self._location = location
@@ -52,6 +61,8 @@ class OfflineServer(fl.FlightServerBase):
         self.flights: Dict[str, Any] = {}
         self.store = store
         self.offline_store = get_offline_store_from_config(store.config.offline_store)
+        self.host = host
+        self.tls_certificates = tls_certificates
 
     def arrow_flight_auth_middleware(
         self,
@@ -81,8 +92,13 @@ class OfflineServer(fl.FlightServerBase):
         )
 
     def _make_flight_info(self, key: Any, descriptor: fl.FlightDescriptor):
-        endpoints = [fl.FlightEndpoint(repr(key), [self._location])]
-        # TODO calculate actual schema from the given features
+        if len(self.tls_certificates) != 0:
+            location = fl.Location.for_grpc_tls(self.host, self.port)
+        else:
+            location = fl.Location.for_grpc_tcp(self.host, self.port)
+        endpoints = [
+            fl.FlightEndpoint(repr(key), [location]),
+        ]
         schema = pa.schema([])
 
         return fl.FlightInfo(schema, descriptor, endpoints, -1, -1)
@@ -549,11 +565,31 @@ def start_server(
     store: FeatureStore,
     host: str,
     port: int,
+    tls_key_path: str = "",
+    tls_cert_path: str = "",
 ):
     _init_auth_manager(store)
 
-    location = "grpc+tcp://{}:{}".format(host, port)
-    server = OfflineServer(store, location)
+    tls_certificates = []
+    scheme = "grpc+tcp"
+    if tls_key_path and tls_cert_path:
+        logger.info(
+            "Found SSL certificates in the args so going to start offline server in TLS(SSL) mode."
+        )
+        scheme = "grpc+tls"
+        with open(tls_cert_path, "rb") as cert_file:
+            tls_cert_chain = cert_file.read()
+        with open(tls_key_path, "rb") as key_file:
+            tls_private_key = key_file.read()
+        tls_certificates.append((tls_cert_chain, tls_private_key))
+
+    location = "{}://{}:{}".format(scheme, host, port)
+    server = OfflineServer(
+        store,
+        location=location,
+        host=host,
+        tls_certificates=tls_certificates,
+    )
     try:
         logger.info(f"Offline store server serving at: {location}")
         server.serve()

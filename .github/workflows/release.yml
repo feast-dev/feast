@@ -20,8 +20,8 @@ on:
         type: boolean
 
 jobs:
-
   get_dry_release_versions:
+    if: github.repository == 'feast-dev/feast'
     runs-on: ubuntu-latest
     env:
       GITHUB_TOKEN: ${{ github.event.inputs.token }}
@@ -36,7 +36,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version-file: './ui/.nvmrc'
+          node-version: "lts/*"
       - name: Release (Dry Run)
         id: get_versions
         run: |
@@ -62,7 +62,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version-file: './ui/.nvmrc'
+          node-version: "lts/*"
       - name: Bump file versions
         run: python ./infra/scripts/release/bump_file_versions.py ${CURRENT_VERSION} ${NEXT_VERSION}
       - name: Install yarn dependencies
@@ -98,7 +98,7 @@ jobs:
           make build-installer bundle
 
   publish-web-ui-npm:
-    needs: [validate_version_bumps, get_dry_release_versions]
+    needs: [ validate_version_bumps, get_dry_release_versions ]
     runs-on: ubuntu-latest
     env:
       # This publish is working using an NPM automation token to bypass 2FA
@@ -121,7 +121,7 @@ jobs:
         run: yarn build:lib
       - name: Publish UI package
         working-directory: ./ui
-        if: github.event.inputs.dry_run == 'false' && github.event.inputs.publish_ui == 'true' 
+        if: github.event.inputs.dry_run == 'false' && github.event.inputs.publish_ui == 'true'
         run: npm publish
         env:
           # This publish is working using an NPM automation token to bypass 2FA
@@ -138,25 +138,25 @@ jobs:
       GIT_COMMITTER_NAME: feast-ci-bot
       GIT_COMMITTER_EMAIL: feast-ci-bot@willem.co
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-      with:
-        persist-credentials: false
-    - name: Setup Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version-file: './ui/.nvmrc'
-    - name: Set up Homebrew
-      id: set-up-homebrew
-      uses: Homebrew/actions/setup-homebrew@master
-    - name: Setup Helm-docs
-      run: |
-        brew install norwoodj/tap/helm-docs
-    - name: Release (Dry Run)
-      if: github.event.inputs.dry_run == 'true'
-      run: |
-        npx -p @semantic-release/changelog -p @semantic-release/git -p @semantic-release/exec -p semantic-release semantic-release --dry-run
-    - name: Release
-      if: github.event.inputs.dry_run == 'false'
-      run: |
-        npx -p @semantic-release/changelog -p @semantic-release/git -p @semantic-release/exec -p semantic-release semantic-release
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version-file: './ui/.nvmrc'
+      - name: Set up Homebrew
+        id: set-up-homebrew
+        uses: Homebrew/actions/setup-homebrew@master
+      - name: Setup Helm-docs
+        run: |
+          brew install norwoodj/tap/helm-docs
+      - name: Release (Dry Run)
+        if: github.event.inputs.dry_run == 'true'
+        run: |
+          npx -p @semantic-release/changelog -p @semantic-release/git -p @semantic-release/exec -p semantic-release semantic-release --dry-run
+      - name: Release
+        if: github.event.inputs.dry_run == 'false'
+        run: |
+          npx -p @semantic-release/changelog -p @semantic-release/git -p @semantic-release/exec -p semantic-release semantic-release

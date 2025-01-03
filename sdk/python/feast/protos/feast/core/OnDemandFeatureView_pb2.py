@@ -20,7 +20,7 @@ from feast.protos.feast.core import DataSource_pb2 as feast_dot_core_dot_DataSou
 from feast.protos.feast.core import Transformation_pb2 as feast_dot_core_dot_Transformation__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n$feast/core/OnDemandFeatureView.proto\x12\nfeast.core\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1c\x66\x65\x61st/core/FeatureView.proto\x1a&feast/core/FeatureViewProjection.proto\x1a\x18\x66\x65\x61st/core/Feature.proto\x1a\x1b\x66\x65\x61st/core/DataSource.proto\x1a\x1f\x66\x65\x61st/core/Transformation.proto\"{\n\x13OnDemandFeatureView\x12\x31\n\x04spec\x18\x01 \x01(\x0b\x32#.feast.core.OnDemandFeatureViewSpec\x12\x31\n\x04meta\x18\x02 \x01(\x0b\x32#.feast.core.OnDemandFeatureViewMeta\"\xfd\x04\n\x17OnDemandFeatureViewSpec\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x0f\n\x07project\x18\x02 \x01(\t\x12+\n\x08\x66\x65\x61tures\x18\x03 \x03(\x0b\x32\x19.feast.core.FeatureSpecV2\x12\x41\n\x07sources\x18\x04 \x03(\x0b\x32\x30.feast.core.OnDemandFeatureViewSpec.SourcesEntry\x12\x42\n\x15user_defined_function\x18\x05 \x01(\x0b\x32\x1f.feast.core.UserDefinedFunctionB\x02\x18\x01\x12\x43\n\x16\x66\x65\x61ture_transformation\x18\n \x01(\x0b\x32#.feast.core.FeatureTransformationV2\x12\x13\n\x0b\x64\x65scription\x18\x06 \x01(\t\x12;\n\x04tags\x18\x07 \x03(\x0b\x32-.feast.core.OnDemandFeatureViewSpec.TagsEntry\x12\r\n\x05owner\x18\x08 \x01(\t\x12\x0c\n\x04mode\x18\x0b \x01(\t\x12\x1d\n\x15write_to_online_store\x18\x0c \x01(\x08\x12\x10\n\x08\x65ntities\x18\r \x03(\t\x12\x31\n\x0e\x65ntity_columns\x18\x0e \x03(\x0b\x32\x19.feast.core.FeatureSpecV2\x1aJ\n\x0cSourcesEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12)\n\x05value\x18\x02 \x01(\x0b\x32\x1a.feast.core.OnDemandSource:\x02\x38\x01\x1a+\n\tTagsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\"\x8c\x01\n\x17OnDemandFeatureViewMeta\x12\x35\n\x11\x63reated_timestamp\x18\x01 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12:\n\x16last_updated_timestamp\x18\x02 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\"\xc8\x01\n\x0eOnDemandSource\x12/\n\x0c\x66\x65\x61ture_view\x18\x01 \x01(\x0b\x32\x17.feast.core.FeatureViewH\x00\x12\x44\n\x17\x66\x65\x61ture_view_projection\x18\x03 \x01(\x0b\x32!.feast.core.FeatureViewProjectionH\x00\x12\x35\n\x13request_data_source\x18\x02 \x01(\x0b\x32\x16.feast.core.DataSourceH\x00\x42\x08\n\x06source\"H\n\x13UserDefinedFunction\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x0c\n\x04\x62ody\x18\x02 \x01(\x0c\x12\x11\n\tbody_text\x18\x03 \x01(\t:\x02\x18\x01\x42]\n\x10\x66\x65\x61st.proto.coreB\x18OnDemandFeatureViewProtoZ/github.com/feast-dev/feast/go/protos/feast/coreb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n$feast/core/OnDemandFeatureView.proto\x12\nfeast.core\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1c\x66\x65\x61st/core/FeatureView.proto\x1a&feast/core/FeatureViewProjection.proto\x1a\x18\x66\x65\x61st/core/Feature.proto\x1a\x1b\x66\x65\x61st/core/DataSource.proto\x1a\x1f\x66\x65\x61st/core/Transformation.proto\"{\n\x13OnDemandFeatureView\x12\x31\n\x04spec\x18\x01 \x01(\x0b\x32#.feast.core.OnDemandFeatureViewSpec\x12\x31\n\x04meta\x18\x02 \x01(\x0b\x32#.feast.core.OnDemandFeatureViewMeta\"\x90\x05\n\x17OnDemandFeatureViewSpec\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x0f\n\x07project\x18\x02 \x01(\t\x12+\n\x08\x66\x65\x61tures\x18\x03 \x03(\x0b\x32\x19.feast.core.FeatureSpecV2\x12\x41\n\x07sources\x18\x04 \x03(\x0b\x32\x30.feast.core.OnDemandFeatureViewSpec.SourcesEntry\x12\x42\n\x15user_defined_function\x18\x05 \x01(\x0b\x32\x1f.feast.core.UserDefinedFunctionB\x02\x18\x01\x12\x43\n\x16\x66\x65\x61ture_transformation\x18\n \x01(\x0b\x32#.feast.core.FeatureTransformationV2\x12\x13\n\x0b\x64\x65scription\x18\x06 \x01(\t\x12;\n\x04tags\x18\x07 \x03(\x0b\x32-.feast.core.OnDemandFeatureViewSpec.TagsEntry\x12\r\n\x05owner\x18\x08 \x01(\t\x12\x0c\n\x04mode\x18\x0b \x01(\t\x12\x1d\n\x15write_to_online_store\x18\x0c \x01(\x08\x12\x10\n\x08\x65ntities\x18\r \x03(\t\x12\x31\n\x0e\x65ntity_columns\x18\x0e \x03(\x0b\x32\x19.feast.core.FeatureSpecV2\x12\x11\n\tsingleton\x18\x0f \x01(\x08\x1aJ\n\x0cSourcesEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12)\n\x05value\x18\x02 \x01(\x0b\x32\x1a.feast.core.OnDemandSource:\x02\x38\x01\x1a+\n\tTagsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\"\x8c\x01\n\x17OnDemandFeatureViewMeta\x12\x35\n\x11\x63reated_timestamp\x18\x01 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12:\n\x16last_updated_timestamp\x18\x02 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\"\xc8\x01\n\x0eOnDemandSource\x12/\n\x0c\x66\x65\x61ture_view\x18\x01 \x01(\x0b\x32\x17.feast.core.FeatureViewH\x00\x12\x44\n\x17\x66\x65\x61ture_view_projection\x18\x03 \x01(\x0b\x32!.feast.core.FeatureViewProjectionH\x00\x12\x35\n\x13request_data_source\x18\x02 \x01(\x0b\x32\x16.feast.core.DataSourceH\x00\x42\x08\n\x06source\"H\n\x13UserDefinedFunction\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x0c\n\x04\x62ody\x18\x02 \x01(\x0c\x12\x11\n\tbody_text\x18\x03 \x01(\t:\x02\x18\x01\"X\n\x17OnDemandFeatureViewList\x12=\n\x14ondemandfeatureviews\x18\x01 \x03(\x0b\x32\x1f.feast.core.OnDemandFeatureViewB]\n\x10\x66\x65\x61st.proto.coreB\x18OnDemandFeatureViewProtoZ/github.com/feast-dev/feast/go/protos/feast/coreb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -39,15 +39,17 @@ if _descriptor._USE_C_DESCRIPTORS == False:
   _globals['_ONDEMANDFEATUREVIEW']._serialized_start=243
   _globals['_ONDEMANDFEATUREVIEW']._serialized_end=366
   _globals['_ONDEMANDFEATUREVIEWSPEC']._serialized_start=369
-  _globals['_ONDEMANDFEATUREVIEWSPEC']._serialized_end=1006
-  _globals['_ONDEMANDFEATUREVIEWSPEC_SOURCESENTRY']._serialized_start=887
-  _globals['_ONDEMANDFEATUREVIEWSPEC_SOURCESENTRY']._serialized_end=961
-  _globals['_ONDEMANDFEATUREVIEWSPEC_TAGSENTRY']._serialized_start=963
-  _globals['_ONDEMANDFEATUREVIEWSPEC_TAGSENTRY']._serialized_end=1006
-  _globals['_ONDEMANDFEATUREVIEWMETA']._serialized_start=1009
-  _globals['_ONDEMANDFEATUREVIEWMETA']._serialized_end=1149
-  _globals['_ONDEMANDSOURCE']._serialized_start=1152
-  _globals['_ONDEMANDSOURCE']._serialized_end=1352
-  _globals['_USERDEFINEDFUNCTION']._serialized_start=1354
-  _globals['_USERDEFINEDFUNCTION']._serialized_end=1426
+  _globals['_ONDEMANDFEATUREVIEWSPEC']._serialized_end=1025
+  _globals['_ONDEMANDFEATUREVIEWSPEC_SOURCESENTRY']._serialized_start=906
+  _globals['_ONDEMANDFEATUREVIEWSPEC_SOURCESENTRY']._serialized_end=980
+  _globals['_ONDEMANDFEATUREVIEWSPEC_TAGSENTRY']._serialized_start=982
+  _globals['_ONDEMANDFEATUREVIEWSPEC_TAGSENTRY']._serialized_end=1025
+  _globals['_ONDEMANDFEATUREVIEWMETA']._serialized_start=1028
+  _globals['_ONDEMANDFEATUREVIEWMETA']._serialized_end=1168
+  _globals['_ONDEMANDSOURCE']._serialized_start=1171
+  _globals['_ONDEMANDSOURCE']._serialized_end=1371
+  _globals['_USERDEFINEDFUNCTION']._serialized_start=1373
+  _globals['_USERDEFINEDFUNCTION']._serialized_end=1445
+  _globals['_ONDEMANDFEATUREVIEWLIST']._serialized_start=1447
+  _globals['_ONDEMANDFEATUREVIEWLIST']._serialized_end=1535
 # @@protoc_insertion_point(module_scope)

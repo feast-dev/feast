@@ -59,7 +59,10 @@ class CliRunner:
             random.choice(string.ascii_lowercase + string.digits) for _ in range(10)
         )
 
-        with tempfile.TemporaryDirectory() as repo_dir_name, tempfile.TemporaryDirectory() as data_dir_name:
+        with (
+            tempfile.TemporaryDirectory() as repo_dir_name,
+            tempfile.TemporaryDirectory() as data_dir_name,
+        ):
             repo_path = Path(repo_dir_name)
             data_path = Path(data_dir_name)
 

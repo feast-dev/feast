@@ -1,5 +1,7 @@
 import struct
-from typing import List, Tuple
+from typing import List, Tuple, Union
+
+from google.protobuf.internal.containers import RepeatedScalarFieldContainer
 
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
@@ -163,3 +165,16 @@ def get_list_val_str(val):
         if val.HasField(accept_type):
             return str(getattr(val, accept_type).val)
     return None
+
+
+def serialize_f32(
+    vector: Union[RepeatedScalarFieldContainer[float], List[float]], vector_length: int
+) -> bytes:
+    """serializes a list of floats into a compact "raw bytes" format"""
+    return struct.pack(f"{vector_length}f", *vector)
+
+
+def deserialize_f32(byte_vector: bytes, vector_length: int) -> List[float]:
+    """deserializes a list of floats from a compact "raw bytes" format"""
+    num_floats = vector_length // 4  # 4 bytes per float
+    return list(struct.unpack(f"{num_floats}f", byte_vector))

@@ -176,7 +176,7 @@ class DataSource(ABC):
             was created, used for deduplicating rows.
         field_mapping (optional): A dictionary mapping of column names in this data
             source to feature names in a feature table or view. Only used for feature
-            columns, not entity or timestamp columns.
+            columns and timestamp columns, not entity columns.
         description (optional) A human-readable description.
         tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
         owner (optional): The owner of the data source, typically the email of the primary
@@ -463,9 +463,11 @@ class KafkaSource(DataSource):
             description=data_source.description,
             tags=dict(data_source.tags),
             owner=data_source.owner,
-            batch_source=DataSource.from_proto(data_source.batch_source)
-            if data_source.batch_source
-            else None,
+            batch_source=(
+                DataSource.from_proto(data_source.batch_source)
+                if data_source.batch_source
+                else None
+            ),
         )
 
     def to_proto(self) -> DataSourceProto:
@@ -643,9 +645,11 @@ class KinesisSource(DataSource):
             description=data_source.description,
             tags=dict(data_source.tags),
             owner=data_source.owner,
-            batch_source=DataSource.from_proto(data_source.batch_source)
-            if data_source.batch_source
-            else None,
+            batch_source=(
+                DataSource.from_proto(data_source.batch_source)
+                if data_source.batch_source
+                else None
+            ),
         )
 
     @staticmethod

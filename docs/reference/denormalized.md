@@ -6,8 +6,8 @@ Denormalized makes it easy to compute real-time features and write them directly
 
 ## Prerequisites
 
-- Python 3.8+
-- Kafka cluster (local or remote)
+- Python 3.12+
+- Kafka cluster (local or remote) OR docker installed
 
 For a full working demo, check out the [feast-example](https://github.com/probably-nothing-labs/feast-example) repo.
 
@@ -38,6 +38,13 @@ my-feature-project/
 ├── stream_job.py             # Denormalized pipeline
 └── main.py                   # Pipeline runner
 ```
+
+3. Run a test Kafka instance in docker
+
+`docker run --rm -p 9092:9092 emgeee/kafka_emit_measurements:latest`
+
+This will spin up a docker container that runs a kafka instance and run a simple script to emit fake data to two topics.
+
 
 ## Define Your Features
 
@@ -85,7 +92,7 @@ sample_event = {
 }
 
 # Create a stream from your Kafka topic
-ds = FeastDataStream(Context().from_topic("temperature", json.dumps(sample_event), "localhost:9092"))
+ds = FeastDataStream(Context().from_topic("temperature", json.dumps(sample_event), "localhost:9092", "occurred_at_ms"))
 
 # Define your feature computations
 ds = ds.window(
@@ -106,7 +113,9 @@ feature_store = FeatureStore(repo_path="feature_repo/")
 ds.write_feast_feature(feature_store, "push_sensor_statistics")
 ```
 
+
+
 ## Need Help?
 
 - Email us at hello@denormalized.io
-- Check out more examples on our [GitHub](https://github.com/probably-nothing-labs/denormalized)
+- Check out more examples on our [GitHub](https://github.com/probably-nothing-labs/denormalized/tree/main/py-denormalized/python/examples)

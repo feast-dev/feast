@@ -5,51 +5,25 @@ name: build_wheels
 # Devs should check out their fork, add a tag to the last master commit on their fork, and run the release off of their fork on the added tag to ensure wheels will be built correctly.
 on:
   workflow_dispatch:
-      tags:
-        - 'v*.*.*'
+    tags:
+      - 'v*.*.*'
   workflow_call:
+    inputs:
+      release_version:
+        description: 'The release version to use (e.g., v1.2.3)'
+        required: true
+        type: string
+      highest_semver_tag:
+        description: 'The highest semantic version tag without the "v" prefix (e.g., 1.2.3)'
+        required: true
+        type: string
 
 jobs:
   get-version:
-    runs-on:  ubuntu-latest
-    outputs:
-      release_version: ${{ steps.get_release_version.outputs.release_version }}
-      version_without_prefix: ${{ steps.get_release_version_without_prefix.outputs.version_without_prefix }}
-      highest_semver_tag: ${{ steps.get_highest_semver.outputs.highest_semver_tag }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - name: Get release version
-        id: get_release_version
-        run: echo ::set-output name=release_version::${GITHUB_REF#refs/*/}
-      - name: Get release version without prefix
-        id: get_release_version_without_prefix
-        env:
-          RELEASE_VERSION: ${{ steps.get_release_version.outputs.release_version }}
-        run: |
-          echo ::set-output name=version_without_prefix::${RELEASE_VERSION:1}
-      - name: Get highest semver
-        id: get_highest_semver
-        env:
-          RELEASE_VERSION: ${{ steps.get_release_version.outputs.release_version }}
-        run: |
-          source infra/scripts/setup-common-functions.sh
-          SEMVER_REGEX='^v[0-9]+\.[0-9]+\.[0-9]+(-([0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*))?$'
-          if echo "${RELEASE_VERSION}" | grep -P "$SEMVER_REGEX" &>/dev/null ; then
-            echo ::set-output name=highest_semver_tag::$(get_tag_release -m)
-          fi
-      - name: Check output
-        id: check_output
-        env:
-          RELEASE_VERSION: ${{ steps.get_release_version.outputs.release_version }}
-          VERSION_WITHOUT_PREFIX: ${{ steps.get_release_version_without_prefix.outputs.version_without_prefix }}
-          HIGHEST_SEMVER_TAG: ${{ steps.get_highest_semver.outputs.highest_semver_tag }}
-        run: |
-          echo $RELEASE_VERSION
-          echo $VERSION_WITHOUT_PREFIX
-          echo $HIGHEST_SEMVER_TAG
+    uses: ./.github/workflows/get_semantic_release_version.yaml
+    with:
+      custom_version: ${{ github.event.inputs.custom_version }}
+      token: ${{ github.event.inputs.token }}
 
   build-python-wheel:
     name: Build wheels
@@ -70,11 +44,13 @@ jobs:
         run: make build-ui
       - name: Build wheels
         run: |
+          git fetch --tags
+          git checkout v0.42.0
           python -m pip install build
           python -m build --wheel --outdir wheelhouse/
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
-          name: wheels
+          name: python-wheels
           path: ./wheelhouse/*.whl
 
   build-source-distribution:
@@ -96,6 +72,8 @@ jobs:
       - name: Build and install dependencies
         # There's a `git restore` in here because `make install-go-ci-dependencies` is actually messing up go.mod & go.sum.
         run: |
+          git fetch --tags
+          git checkout v0.42.0
           pip install -U pip setuptools wheel twine
           make build-ui
           git status
@@ -104,9 +82,9 @@ jobs:
       - name: Build
         run: |
           python3 setup.py sdist
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
-          name: wheels
+          name: source-distribution
           path: dist/*
 
   # We add this step so the docker images can be built as part of the pre-release verification steps.
@@ -115,7 +93,7 @@ jobs:
     needs: get-version
     strategy:
       matrix:
-        component: [feature-server, feature-server-java, feature-transformation-server]
+        component: [ feature-server, feature-server-java, feature-transformation-server ]
     env:
       REGISTRY: feastdev
     steps:
@@ -132,11 +110,11 @@ jobs:
 
   verify-python-wheels:
     runs-on: ${{ matrix.os }}
-    needs: [build-python-wheel, build-source-distribution, get-version]
+    needs: [ build-python-wheel, build-source-distribution, get-version ]
     strategy:
       matrix:
-        os: [ubuntu-latest,  macos-13 ]
-        python-version: ["3.9", "3.10", "3.11"]
+        os: [ ubuntu-latest,  macos-13 ]
+        python-version: [ "3.9", "3.10", "3.11" ]
         from-source: [ True, False ]
     env:
       # this script is for testing servers
@@ -161,7 +139,11 @@ jobs:
           architecture: x64
       - uses: actions/download-artifact@v4.1.7
         with:
-          name: wheels
+          name: python-wheels
+          path: dist
+      - uses: actions/download-artifact@v4.1.7
+        with:
+          name: source-distribution
           path: dist
       - name: Install OS X dependencies
         if: matrix.os == 'macos-13'
@@ -180,11 +162,16 @@ jobs:
       # Validate that the feast version installed is not development and is the correct version of the tag we ran it off of.
       - name: Validate Feast Version
         run: |
+          feast version
+          if ! VERSION_OUTPUT=$(feast version); then
+            echo "Error: Failed to get Feast version."
+            exit 1
+          fi
           VERSION_REGEX='[0-9]+\.[0-9]+\.[0-9]+'
           OUTPUT_REGEX='^Feast SDK Version: "$VERSION_REGEX"$'
-          VERSION_OUTPUT=$(feast version)
           VERSION=$(echo $VERSION_OUTPUT | grep -oE "$VERSION_REGEX")
           OUTPUT=$(echo $VERSION_OUTPUT | grep -E "$REGEX")
+          echo "Installed Feast Version: $VERSION and using Feast Version: $VERSION_WITHOUT_PREFIX"
           if  [ -n "$OUTPUT" ] && [ "$VERSION" = "$VERSION_WITHOUT_PREFIX" ]; then
             echo "Correct Feast Version Installed"
           else

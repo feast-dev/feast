@@ -1,4 +1,4 @@
-# Feature servers
+# Feast servers
 
 Feast users can choose to retrieve features from a feature server, as opposed to through the Python SDK.
 
@@ -12,4 +12,8 @@ Feast users can choose to retrieve features from a feature server, as opposed to
 
 {% content-ref url="offline-feature-server.md" %}
 [offline-feature-server.md](offline-feature-server.md)
+{% endcontent-ref %}
+
+{% content-ref url="registry-server.md" %}
+[registry-server.md](registry-server.md)
 {% endcontent-ref %}

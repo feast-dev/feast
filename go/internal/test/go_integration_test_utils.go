@@ -5,20 +5,20 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/apache/arrow/go/v8/arrow/memory"
+	"github.com/apache/arrow/go/v17/arrow/memory"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/apache/arrow/go/v8/arrow"
-	"github.com/apache/arrow/go/v8/parquet/file"
-	"github.com/apache/arrow/go/v8/parquet/pqarrow"
+	"github.com/apache/arrow/go/v17/arrow"
+	"github.com/apache/arrow/go/v17/parquet/file"
+	"github.com/apache/arrow/go/v17/parquet/pqarrow"
 
 	"os"
 	"os/exec"
 	"path/filepath"
 	"time"
 
-	"github.com/apache/arrow/go/v8/arrow/array"
+	"github.com/apache/arrow/go/v17/arrow/array"
 
 	"github.com/feast-dev/feast/go/internal/feast/model"
 	"github.com/feast-dev/feast/go/protos/feast/types"
@@ -107,7 +107,10 @@ func SetupCleanFeatureRepo(basePath string) error {
 		return err
 	}
 	applyCommand.Dir = featureRepoPath
-	applyCommand.Run()
+	err = applyCommand.Run()
+	if err != nil {
+		return err
+	}
 	t := time.Now()
 
 	formattedTime := fmt.Sprintf("%d-%02d-%02dT%02d:%02d:%02d",
@@ -120,7 +123,6 @@ func SetupCleanFeatureRepo(basePath string) error {
 	if err != nil {
 		return err
 	}
-
 	return nil
 }
 

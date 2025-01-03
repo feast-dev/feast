@@ -6,6 +6,10 @@ on:
       - opened
       - synchronize
       - labeled
+    paths-ignore:
+      - 'community/**'
+      - 'docs/**'
+      - 'examples/**'
 
 # concurrency is currently broken, see details https://github.com/actions/runner/issues/1532
 #concurrency:
@@ -86,11 +90,15 @@ jobs:
           path: ${{ steps.uv-cache.outputs.dir }}
           key: ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-uv-${{ hashFiles(format('**/py{0}-ci-requirements.txt', env.PYTHON)) }}
       - name: Install dependencies
-        run: make install-python-ci-dependencies-uv
+        run: make install-python-dependencies-ci
       - name: Setup Redis Cluster
         run: |
           docker pull vishnunair/docker-redis-cluster:latest
           docker run -d -p 6001:6379 -p 6002:6380 -p 6003:6381 -p 6004:6382 -p 6005:6383 -p 6006:6384 --name redis-cluster vishnunair/docker-redis-cluster
+      - name: Setup Milvus Cluster
+        run: |
+          wget https://github.com/milvus-io/milvus/releases/download/v2.5.1/milvus-standalone-docker-compose.yml -O docker-compose.yml
+          docker compose up -d
       - name: Test python
         if: ${{ always() }}  # this will guarantee that step won't be canceled and resources won't leak
         env:

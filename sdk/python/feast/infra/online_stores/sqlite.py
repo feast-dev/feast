@@ -15,19 +15,20 @@ import itertools
 import logging
 import os
 import sqlite3
-import struct
 import sys
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
 
-from google.protobuf.internal.containers import RepeatedScalarFieldContainer
 from pydantic import StrictStr
 
 from feast import Entity
 from feast.feature_view import FeatureView
 from feast.infra.infra_object import SQLITE_INFRA_OBJECT_CLASS_TYPE, InfraObject
-from feast.infra.key_encoding_utils import serialize_entity_key
+from feast.infra.key_encoding_utils import (
+    serialize_entity_key,
+    serialize_f32,
+)
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.online_stores.vector_store import VectorStoreConfig
 from feast.protos.feast.core.InfraObject_pb2 import InfraObject as InfraObjectProto
@@ -37,6 +38,46 @@ from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.utils import _build_retrieve_online_document_record, to_naive_utc
+
+
+def adapt_date_iso(val: date):
+    """Adapt datetime.date to ISO 8601 date."""
+    return val.isoformat()
+
+
+def adapt_datetime_iso(val: datetime):
+    """Adapt datetime.datetime to timezone-naive ISO 8601 date."""
+    return val.isoformat()
+
+
+def adapt_datetime_epoch(val: datetime):
+    """Adapt datetime.datetime to Unix timestamp."""
+    return int(val.timestamp())
+
+
+sqlite3.register_adapter(date, adapt_date_iso)
+sqlite3.register_adapter(datetime, adapt_datetime_iso)
+sqlite3.register_adapter(datetime, adapt_datetime_epoch)
+
+
+def convert_date(val: bytes):
+    """Convert ISO 8601 date to datetime.date object."""
+    return date.fromisoformat(val.decode())
+
+
+def convert_datetime(val: bytes):
+    """Convert ISO 8601 datetime to datetime.datetime object."""
+    return datetime.fromisoformat(val.decode())
+
+
+def convert_timestamp(val: bytes):
+    """Convert Unix epoch timestamp to datetime.datetime object."""
+    return datetime.fromtimestamp(int(val))
+
+
+sqlite3.register_converter("date", convert_date)
+sqlite3.register_converter("datetime", convert_datetime)
+sqlite3.register_converter("timestamp", convert_timestamp)
 
 
 class SqliteOnlineStoreConfig(FeastConfigBaseModel, VectorStoreConfig):
@@ -290,7 +331,8 @@ class SqliteOnlineStore(OnlineStore):
         self,
         config: RepoConfig,
         table: FeatureView,
-        requested_feature: str,
+        requested_feature: Optional[str],
+        requested_featuers: Optional[List[str]],
         embedding: List[float],
         top_k: int,
         distance_metric: Optional[str] = None,
@@ -392,6 +434,7 @@ class SqliteOnlineStore(OnlineStore):
                 _build_retrieve_online_document_record(
                     entity_key,
                     string_value if string_value else b"",
+                    # This may be a bug
                     embedding,
                     distance,
                     event_ts,
@@ -417,19 +460,6 @@ def _initialize_conn(db_path: str):
 
 def _table_id(project: str, table: FeatureView) -> str:
     return f"{project}_{table.name}"
-
-
-def serialize_f32(
-    vector: Union[RepeatedScalarFieldContainer[float], List[float]], vector_length: int
-) -> bytes:
-    """serializes a list of floats into a compact "raw bytes" format"""
-    return struct.pack(f"{vector_length}f", *vector)
-
-
-def deserialize_f32(byte_vector: bytes, vector_length: int) -> List[float]:
-    """deserializes a list of floats from a compact "raw bytes" format"""
-    num_floats = vector_length // 4  # 4 bytes per float
-    return list(struct.unpack(f"{num_floats}f", byte_vector))
 
 
 class SqliteTable(InfraObject):

@@ -1,0 +1,7 @@
+project: feast_python_demo
+provider: local
+registry: s3://feast-demo/registry.db
+online_store:
+  type: redis
+  connection_string: my-redis-master:6379,password=_REDIS_PASSWORD_
+entity_key_serialization_version: 2

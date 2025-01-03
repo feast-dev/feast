@@ -7,7 +7,7 @@ Submodules
 feast.infra.online\_stores.contrib.ikv\_online\_store.ikv module
 ----------------------------------------------------------------
 
-.. automodule:: feast.infra.online_stores.contrib.ikv_online_store.ikv
+.. automodule:: feast.infra.online_stores.ikv_online_store.ikv
    :members:
    :undoc-members:
    :show-inheritance:
@@ -15,7 +15,7 @@ feast.infra.online\_stores.contrib.ikv\_online\_store.ikv module
 Module contents
 ---------------
 
-.. automodule:: feast.infra.online_stores.contrib.ikv_online_store
+.. automodule:: feast.infra.online_stores.ikv_online_store
    :members:
    :undoc-members:
    :show-inheritance:

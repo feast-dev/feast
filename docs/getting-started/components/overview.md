@@ -13,6 +13,7 @@
 * **Deploy Model:** The trained model binary (and list of features) are deployed into a model serving system. This step is not executed by Feast.
 * **Prediction:** A backend system makes a request for a prediction from the model serving service.
 * **Get Online Features:** The model serving service makes a request to the Feast Online Serving service for online features using a Feast SDK.
+* **Feature Retrieval:** The online serving service retrieves the latest feature values from the online store and returns them to the model serving service.
 
 ## Components
 
@@ -24,6 +25,7 @@ A complete Feast deployment contains the following components:
   * Materialize (load) feature values into the online store.
   * Build and retrieve training datasets from the offline store.
   * Retrieve online features.
+* **Feature Server:** The Feature Server is a REST API server that serves feature values for a given entity key and feature reference. The Feature Server is designed to be horizontally scalable and can be deployed in a distributed manner.
 * **Stream Processor:** The Stream Processor can be used to ingest feature data from streams and write it into the online or offline stores. Currently, there's an experimental Spark processor that's able to consume data from Kafka.
 * **Batch Materialization Engine:** The [Batch Materialization Engine](batch-materialization-engine.md) component launches a process which loads data into the online store from the offline store. By default, Feast uses a local in-process engine implementation to materialize data. However, additional infrastructure can be used for a more scalable materialization process.
 * **Online Store:** The online store is a database that stores only the latest feature values for each entity. The online store is either populated through materialization jobs or through [stream ingestion](../../reference/data-sources/push.md).

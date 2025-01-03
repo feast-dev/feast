@@ -101,6 +101,8 @@ def start_server(
     project_id: str,
     registry_ttl_sec: int,
     root_path: str = "",
+    tls_key_path: str = "",
+    tls_cert_path: str = "",
 ):
     app = get_app(
         store,
@@ -108,4 +110,13 @@ def start_server(
         registry_ttl_sec,
         root_path,
     )
-    uvicorn.run(app, host=host, port=port)
+    if tls_key_path and tls_cert_path:
+        uvicorn.run(
+            app,
+            host=host,
+            port=port,
+            ssl_keyfile=tls_key_path,
+            ssl_certfile=tls_cert_path,
+        )
+    else:
+        uvicorn.run(app, host=host, port=port)

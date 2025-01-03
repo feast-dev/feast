@@ -30,12 +30,12 @@ func (feast *FeastServices) deployClient() error {
 }
 
 func (feast *FeastServices) createClientConfigMap() error {
-	logger := log.FromContext(feast.Context)
+	logger := log.FromContext(feast.Handler.Context)
 	cm := &corev1.ConfigMap{
-		ObjectMeta: feast.GetObjectMeta(ClientFeastType),
+		ObjectMeta: feast.GetObjectMetaType(ClientFeastType),
 	}
 	cm.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("ConfigMap"))
-	if op, err := controllerutil.CreateOrUpdate(feast.Context, feast.Client, cm, controllerutil.MutateFn(func() error {
+	if op, err := controllerutil.CreateOrUpdate(feast.Handler.Context, feast.Handler.Client, cm, controllerutil.MutateFn(func() error {
 		return feast.setClientConfigMap(cm)
 	})); err != nil {
 		return err
@@ -46,12 +46,43 @@ func (feast *FeastServices) createClientConfigMap() error {
 }
 
 func (feast *FeastServices) setClientConfigMap(cm *corev1.ConfigMap) error {
-	cm.Labels = feast.getLabels(ClientFeastType)
-	clientYaml, err := feast.getClientFeatureStoreYaml()
+	cm.Labels = feast.getFeastTypeLabels(ClientFeastType)
+	clientYaml, err := feast.getClientFeatureStoreYaml(feast.extractConfigFromSecret)
 	if err != nil {
 		return err
 	}
 	cm.Data = map[string]string{FeatureStoreYamlCmKey: string(clientYaml)}
-	feast.FeatureStore.Status.ClientConfigMap = cm.Name
-	return controllerutil.SetControllerReference(feast.FeatureStore, cm, feast.Scheme)
+	feast.Handler.FeatureStore.Status.ClientConfigMap = cm.Name
+	return controllerutil.SetControllerReference(feast.Handler.FeatureStore, cm, feast.Handler.Scheme)
+}
+
+func (feast *FeastServices) createCaConfigMap() error {
+	logger := log.FromContext(feast.Handler.Context)
+	cm := feast.initCaConfigMap()
+	if op, err := controllerutil.CreateOrUpdate(feast.Handler.Context, feast.Handler.Client, cm, controllerutil.MutateFn(func() error {
+		return feast.setCaConfigMap(cm)
+	})); err != nil {
+		return err
+	} else if op == controllerutil.OperationResultCreated || op == controllerutil.OperationResultUpdated {
+		logger.Info("Successfully reconciled", "ConfigMap", cm.Name, "operation", op)
+	}
+	return nil
+}
+
+func (feast *FeastServices) setCaConfigMap(cm *corev1.ConfigMap) error {
+	cm.Labels = map[string]string{
+		NameLabelKey: feast.Handler.FeatureStore.Name,
+	}
+	cm.Annotations = map[string]string{
+		"service.beta.openshift.io/inject-cabundle": "true",
+	}
+	return controllerutil.SetControllerReference(feast.Handler.FeatureStore, cm, feast.Handler.Scheme)
+}
+
+func (feast *FeastServices) initCaConfigMap() *corev1.ConfigMap {
+	cm := &corev1.ConfigMap{
+		ObjectMeta: feast.GetObjectMetaType(ClientCaFeastType),
+	}
+	cm.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("ConfigMap"))
+	return cm
 }
