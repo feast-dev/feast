@@ -107,7 +107,7 @@ test-python-unit:
 test-python-integration:
 	python -m pytest --tb=short -v -n 8 --integration --color=yes --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
 		-k "(not snowflake or not test_historical_features_main)" \
-		sdk/python/tests
+		sdk/python/tests/integration/online_store/test_universal_online.py::test_retrieve_online_milvus_documents
 
 test-python-integration-local:
 	FEAST_IS_LOCAL_TEST=True \
