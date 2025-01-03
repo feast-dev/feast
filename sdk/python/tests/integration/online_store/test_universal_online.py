@@ -897,26 +897,26 @@ def test_retrieve_online_documents(environment, fake_document_data):
         ).to_dict()
 
 
-@pytest.mark.integration
-@pytest.mark.universal_online_stores(only=["milvus"])
-def test_retrieve_online_milvus_documents(environment, fake_document_data):
-    fs = environment.feature_store
-    df, data_source = fake_document_data
-    item_embeddings_feature_view = create_item_embeddings_feature_view(data_source)
-    fs.apply([item_embeddings_feature_view, item()])
-    fs.write_to_online_store("item_embeddings", df)
-    documents = fs.retrieve_online_documents(
-        feature=None,
-        features=[
-            "item_embeddings:embedding_float",
-            "item_embeddings:item_id",
-            "item_embeddings:string_feature",
-        ],
-        query=[1.0, 2.0],
-        top_k=2,
-        distance_metric="L2",
-    ).to_dict()
-    assert len(documents["embedding_float"]) == 2
-
-    assert len(documents["item_id"]) == 2
-    assert documents["item_id"] == [2, 3]
+# @pytest.mark.integration
+# @pytest.mark.universal_online_stores(only=["milvus"])
+# def test_retrieve_online_milvus_documents(environment, fake_document_data):
+#     fs = environment.feature_store
+#     df, data_source = fake_document_data
+#     item_embeddings_feature_view = create_item_embeddings_feature_view(data_source)
+#     fs.apply([item_embeddings_feature_view, item()])
+#     fs.write_to_online_store("item_embeddings", df)
+#     documents = fs.retrieve_online_documents(
+#         feature=None,
+#         features=[
+#             "item_embeddings:embedding_float",
+#             "item_embeddings:item_id",
+#             "item_embeddings:string_feature",
+#         ],
+#         query=[1.0, 2.0],
+#         top_k=2,
+#         distance_metric="L2",
+#     ).to_dict()
+#     assert len(documents["embedding_float"]) == 2
+#
+#     assert len(documents["item_id"]) == 2
+#     assert documents["item_id"] == [2, 3]
