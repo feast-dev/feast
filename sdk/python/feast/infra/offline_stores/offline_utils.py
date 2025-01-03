@@ -118,6 +118,10 @@ def get_feature_view_query_context(
 
     query_context = []
     for feature_view, features in feature_views_to_feature_map.items():
+        reverse_field_mapping = {
+            v: k for k, v in feature_view.batch_source.field_mapping.items()
+        }
+
         join_keys: List[str] = []
         entity_selections: List[str] = []
         for entity_column in feature_view.entity_columns:
@@ -125,16 +129,16 @@ def get_feature_view_query_context(
                 entity_column.name, entity_column.name
             )
             join_keys.append(join_key)
-            entity_selections.append(f"{entity_column.name} AS {join_key}")
+            entity_selections.append(
+                f"{reverse_field_mapping.get(entity_column.name, entity_column.name)} "
+                f"AS {join_key}"
+            )
 
         if isinstance(feature_view.ttl, timedelta):
             ttl_seconds = int(feature_view.ttl.total_seconds())
         else:
             ttl_seconds = 0
 
-        reverse_field_mapping = {
-            v: k for k, v in feature_view.batch_source.field_mapping.items()
-        }
         features = [reverse_field_mapping.get(feature, feature) for feature in features]
         timestamp_field = reverse_field_mapping.get(
             feature_view.batch_source.timestamp_field,
