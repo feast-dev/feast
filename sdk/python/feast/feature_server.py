@@ -75,9 +75,7 @@ class GetOnlineFeaturesRequest(BaseModel):
     full_feature_names: bool = False
 
 
-def _get_features(
-    request: GetOnlineFeaturesRequest, store: "feast.FeatureStore"
-) -> list[str] | "feast.FeatureService":
+def _get_features(request: GetOnlineFeaturesRequest, store: "feast.FeatureStore"):
     if request.feature_service:
         feature_service = store.get_feature_service(
             request.feature_service, allow_cache=True
