@@ -214,6 +214,8 @@ The list below contains the functionality that contributors are planning to deve
   * [ ] Feast Lineage Explorer
 * **Natural Language Processing**
   * [x] Vector Search (Alpha release. See [RFC](https://docs.google.com/document/d/18IWzLEA9i2lDWnbfbwXnMCg3StlqaLVI-uRpQjr_Vos/edit#heading=h.9gaqqtox9jg6))
+  * [ ] Support for PyTorch for serving torch.Tensors
+  * [ ] Support for Docling for different embedding options
 
 
 ## 🎓 Important Resources
