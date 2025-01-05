@@ -26,7 +26,6 @@ from feast.on_demand_feature_view import (
     PythonTransformation,
 )
 from feast.types import Float32
-from sdk.python.feast.infra.offline_stores import file_source
 from feast.value_type import ValueType
 
 
