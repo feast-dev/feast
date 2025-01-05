@@ -26,6 +26,8 @@ from feast.on_demand_feature_view import (
     PythonTransformation,
 )
 from feast.types import Float32
+from sdk.python.feast.infra.offline_stores import file_source
+from feast.value_type import ValueType
 
 
 def udf1(features_df: pd.DataFrame) -> pd.DataFrame:
@@ -356,3 +358,55 @@ def test_on_demand_feature_view_stored_writes():
     assert transformed_output["output3"] is not None and isinstance(
         transformed_output["output3"], datetime.datetime
     )
+
+    
+def test_on_demand_feature_view_string_json():
+    file_source = FileSource(name="my-file-source", path="test.parquet")
+    feature_view = FeatureView(
+        name="driver_hourly_stats_view",
+        entities=[],
+        schema=[Field(name="feature1", dtype=ValueType.STRING_JSON)],
+        source=file_source
+        )
+    
+    sources = [feature_view]
+    
+    def udf_string_json(inputs: pd.DataFrame) -> pd.DataFrame:
+        df = pd.DataFrame()
+        
+        df['output1'] = 0.0
+        for index, row in inputs.iterrows():
+            value_array = eval(row["feature1"])
+            x1 = value_array.get("1", 0.0) 
+            x1 = x1 if x1 is not None else 0.0
+            x2 = value_array.get("2", 0.0)
+            x2 = x2 if x2 is not None else 0.0
+            df.at[index, 'output1'] = x1 + x2
+        return df
+    
+    
+    on_demand_feature_view = OnDemandFeatureView(
+        name="my-on-demand-feature-view",
+        sources=sources,
+        schema=[
+            Field(name="output1", dtype=Float32),
+        ],
+        feature_transformation=PandasTransformation(
+            udf=udf_string_json, udf_string="udf_string_json source code"
+        ),
+    )
+
+    transformed_output = on_demand_feature_view.transform_dict(
+        {
+            "feature1": '{"1": 1.0, "2": 2.0, "3": 3.0}'
+        }
+    )
+    expected_output = {"feature1": '{"1": 1.0, "2": 2.0, "3": 3.0}', "output1": 3.0}
+    keys_to_validate = [
+        "feature1",
+        "output1",
+    ]
+    for k in keys_to_validate:
+        assert transformed_output[k] == expected_output[k]
+
+    
