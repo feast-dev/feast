@@ -680,6 +680,7 @@ class OnDemandFeatureView(BaseFeatureView):
             ValueType.FLOAT_LIST: [[1.0]],
             ValueType.BOOL_LIST: [[True]],
             ValueType.UNIX_TIMESTAMP_LIST: [[_utc_now()]],
+            ValueType.STRING_JSON: [{"0": "hello world"}],
         }
         if singleton:
             rand_dict_value = {k: rand_dict_value[k][0] for k in rand_dict_value}
