@@ -183,6 +183,7 @@ VALUE_TYPES_TO_FEAST_TYPES: Dict["ValueType", FeastType] = {
     ValueType.FLOAT_LIST: Array(Float32),
     ValueType.BOOL_LIST: Array(Bool),
     ValueType.UNIX_TIMESTAMP_LIST: Array(UnixTimestamp),
+    ValueType.STRING_JSON: String
 }
 
 FEAST_TYPES_TO_PYARROW_TYPES = {
