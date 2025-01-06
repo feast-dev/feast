@@ -264,3 +264,18 @@ class LoggingConfig(google.protobuf.message.Message):
     def WhichOneof(self, oneof_group: typing_extensions.Literal["destination", b"destination"]) -> typing_extensions.Literal["file_destination", "bigquery_destination", "redshift_destination", "snowflake_destination", "custom_destination", "athena_destination"] | None: ...
 
 global___LoggingConfig = LoggingConfig
+
+class FeatureServiceList(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    FEATURESERVICES_FIELD_NUMBER: builtins.int
+    @property
+    def featureservices(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___FeatureService]: ...
+    def __init__(
+        self,
+        *,
+        featureservices: collections.abc.Iterable[global___FeatureService] | None = ...,
+    ) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["featureservices", b"featureservices"]) -> None: ...
+
+global___FeatureServiceList = FeatureServiceList
