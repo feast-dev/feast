@@ -1,7 +1,7 @@
 FROM python:3.11-slim-bullseye
 
 RUN pip install --no-cache-dir pip --upgrade
-RUN pip install --no-cache-dir "feast[aws,gcp,snowflake,redis,go,mysql,postgres,opentelemetry,grpcio,k8s]"
+RUN pip install --no-cache-dir "feast[aws,gcp,snowflake,redis,go,mysql,postgres,opentelemetry,grpcio,k8s,duckdb,milvus]"
 
 
 RUN apt update && apt install -y -V ca-certificates lsb-release wget && \

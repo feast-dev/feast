@@ -34,8 +34,8 @@ from tests.integration.feature_repos.universal.data_source_creator import (
     DataSourceCreator,
 )
 from tests.utils.auth_permissions_util import include_auth_config
-from tests.utils.generate_self_signed_certifcate_util import generate_self_signed_cert
 from tests.utils.http_server import check_port_open, free_port  # noqa: E402
+from tests.utils.ssl_certifcates_util import generate_self_signed_cert
 
 logger = logging.getLogger(__name__)
 
@@ -452,9 +452,6 @@ class RemoteOfflineTlsStoreDataSourceCreator(FileDataSourceCreator):
             str(tls_key_path),
             "--cert",
             str(self.tls_cert_path),
-            # This is needed for the self-signed certificate, disabled verify_client for integration tests.
-            "--verify_client",
-            str(False),
         ]
         self.proc = subprocess.Popen(
             cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL

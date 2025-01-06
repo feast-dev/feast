@@ -523,6 +523,24 @@ def python_values_to_proto_values(
     return proto_values
 
 
+PROTO_VALUE_TO_VALUE_TYPE_MAP: Dict[str, ValueType] = {
+    "int32_val": ValueType.INT32,
+    "int64_val": ValueType.INT64,
+    "double_val": ValueType.DOUBLE,
+    "float_val": ValueType.FLOAT,
+    "string_val": ValueType.STRING,
+    "bytes_val": ValueType.BYTES,
+    "bool_val": ValueType.BOOL,
+    "int32_list_val": ValueType.INT32_LIST,
+    "int64_list_val": ValueType.INT64_LIST,
+    "double_list_val": ValueType.DOUBLE_LIST,
+    "float_list_val": ValueType.FLOAT_LIST,
+    "string_list_val": ValueType.STRING_LIST,
+    "bytes_list_val": ValueType.BYTES_LIST,
+    "bool_list_val": ValueType.BOOL_LIST,
+}
+
+
 def _proto_value_to_value_type(proto_value: ProtoValue) -> ValueType:
     """
     Returns Feast ValueType given Feast ValueType string.
@@ -534,25 +552,9 @@ def _proto_value_to_value_type(proto_value: ProtoValue) -> ValueType:
         A variant of ValueType.
     """
     proto_str = proto_value.WhichOneof("val")
-    type_map = {
-        "int32_val": ValueType.INT32,
-        "int64_val": ValueType.INT64,
-        "double_val": ValueType.DOUBLE,
-        "float_val": ValueType.FLOAT,
-        "string_val": ValueType.STRING,
-        "bytes_val": ValueType.BYTES,
-        "bool_val": ValueType.BOOL,
-        "int32_list_val": ValueType.INT32_LIST,
-        "int64_list_val": ValueType.INT64_LIST,
-        "double_list_val": ValueType.DOUBLE_LIST,
-        "float_list_val": ValueType.FLOAT_LIST,
-        "string_list_val": ValueType.STRING_LIST,
-        "bytes_list_val": ValueType.BYTES_LIST,
-        "bool_list_val": ValueType.BOOL_LIST,
-        None: ValueType.NULL,
-    }
-
-    return type_map[proto_str]
+    if proto_str is None:
+        return ValueType.UNKNOWN
+    return PROTO_VALUE_TO_VALUE_TYPE_MAP[proto_str]
 
 
 def pa_to_feast_value_type(pa_type_as_str: str) -> ValueType:

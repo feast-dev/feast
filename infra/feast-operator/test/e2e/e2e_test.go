@@ -27,9 +27,12 @@ import (
 	"github.com/feast-dev/feast/infra/feast-operator/test/utils"
 )
 
-const feastControllerNamespace = "feast-operator-system"
-const timeout = 2 * time.Minute
-const controllerDeploymentName = "feast-operator-controller-manager"
+const (
+	feastControllerNamespace = "feast-operator-system"
+	timeout                  = 2 * time.Minute
+	controllerDeploymentName = "feast-operator-controller-manager"
+	feastPrefix              = "feast-"
+)
 
 var _ = Describe("controller", Ordered, func() {
 	BeforeAll(func() {
@@ -159,15 +162,18 @@ func validateTheFeatureStoreCustomResource(namespace string, featureStoreName st
 		"Error occurred while checking FeatureStore %s is having remote registry or not. \nError: %v\n",
 		featureStoreName, err))
 
-	k8ResourceNames := []string{fmt.Sprintf("feast-%s-online", featureStoreName),
-		fmt.Sprintf("feast-%s-offline", featureStoreName),
+	feastResourceName := feastPrefix + featureStoreName
+	k8sResourceNames := []string{feastResourceName}
+	feastK8sResourceNames := []string{
+		feastResourceName + "-online",
+		feastResourceName + "-offline",
 	}
 
 	if !hasRemoteRegistry {
-		k8ResourceNames = append(k8ResourceNames, fmt.Sprintf("feast-%s-registry", featureStoreName))
+		feastK8sResourceNames = append(feastK8sResourceNames, feastResourceName+"-registry")
 	}
 
-	for _, deploymentName := range k8ResourceNames {
+	for _, deploymentName := range k8sResourceNames {
 		By(fmt.Sprintf("validate the feast deployment: %s is up and in availability state.", deploymentName))
 		err = checkIfDeploymentExistsAndAvailable(namespace, deploymentName, timeout)
 		Expect(err).To(BeNil(), fmt.Sprintf(
@@ -178,7 +184,7 @@ func validateTheFeatureStoreCustomResource(namespace string, featureStoreName st
 	}
 
 	By("Check if the feast client - kubernetes config map exists.")
-	configMapName := fmt.Sprintf("feast-%s-client", featureStoreName)
+	configMapName := feastResourceName + "-client"
 	err = checkIfConfigMapExists(namespace, configMapName)
 	Expect(err).To(BeNil(), fmt.Sprintf(
 		"config map %s is not available but expected to be available. \nError: %v\n",
@@ -186,7 +192,7 @@ func validateTheFeatureStoreCustomResource(namespace string, featureStoreName st
 	))
 	fmt.Printf("Feast Deployment client config map %s is available\n", configMapName)
 
-	for _, serviceAccountName := range k8ResourceNames {
+	for _, serviceAccountName := range k8sResourceNames {
 		By(fmt.Sprintf("validate the feast service account: %s is available.", serviceAccountName))
 		err = checkIfServiceAccountExists(namespace, serviceAccountName)
 		Expect(err).To(BeNil(), fmt.Sprintf(
@@ -196,7 +202,7 @@ func validateTheFeatureStoreCustomResource(namespace string, featureStoreName st
 		fmt.Printf("Service account %s exists in namespace %s\n", serviceAccountName, namespace)
 	}
 
-	for _, serviceName := range k8ResourceNames {
+	for _, serviceName := range feastK8sResourceNames {
 		By(fmt.Sprintf("validate the kubernetes service name: %s is available.", serviceName))
 		err = checkIfKubernetesServiceExists(namespace, serviceName)
 		Expect(err).To(BeNil(), fmt.Sprintf(

@@ -1192,6 +1192,10 @@ def _utc_now() -> datetime:
     return datetime.now(tz=timezone.utc)
 
 
+def _serialize_vector_to_float_list(vector: List[float]) -> ValueProto:
+    return ValueProto(float_list_val=FloatListProto(val=vector))
+
+
 def _build_retrieve_online_document_record(
     entity_key: Union[str, bytes],
     feature_value: Union[str, bytes],

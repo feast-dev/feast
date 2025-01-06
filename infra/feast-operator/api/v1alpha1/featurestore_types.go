@@ -65,7 +65,7 @@ type FeatureStoreSpec struct {
 	AuthzConfig  *AuthzConfig          `json:"authz,omitempty"`
 }
 
-// FeatureStoreServices defines the desired feast service deployments. ephemeral registry is deployed by default.
+// FeatureStoreServices defines the desired feast services. An ephemeral registry is deployed by default.
 type FeatureStoreServices struct {
 	OfflineStore *OfflineStore `json:"offlineStore,omitempty"`
 	OnlineStore  *OnlineStore  `json:"onlineStore,omitempty"`
@@ -74,20 +74,13 @@ type FeatureStoreServices struct {
 
 // OfflineStore configures the deployed offline store service
 type OfflineStore struct {
-	StoreServiceConfigs `json:",inline"`
-	Persistence         *OfflineStorePersistence `json:"persistence,omitempty"`
-	TLS                 *OfflineTlsConfigs       `json:"tls,omitempty"`
+	ServiceConfigs `json:",inline"`
+	Persistence    *OfflineStorePersistence `json:"persistence,omitempty"`
+	TLS            *TlsConfigs              `json:"tls,omitempty"`
 	// LogLevel sets the logging level for the offline store service
 	// Allowed values: "debug", "info", "warning", "error", "critical".
 	// +kubebuilder:validation:Enum=debug;info;warning;error;critical
 	LogLevel string `json:"logLevel,omitempty"`
-}
-
-// OfflineTlsConfigs configures server TLS for the offline feast service. in an openshift cluster, this is configured by default using service serving certificates.
-type OfflineTlsConfigs struct {
-	TlsConfigs `json:",inline"`
-	// verify the client TLS certificate.
-	VerifyClient *bool `json:"verifyClient,omitempty"`
 }
 
 // OfflineStorePersistence configures the persistence settings for the offline store service
@@ -134,9 +127,9 @@ var ValidOfflineStoreDBStorePersistenceTypes = []string{
 
 // OnlineStore configures the deployed online store service
 type OnlineStore struct {
-	StoreServiceConfigs `json:",inline"`
-	Persistence         *OnlineStorePersistence `json:"persistence,omitempty"`
-	TLS                 *TlsConfigs             `json:"tls,omitempty"`
+	ServiceConfigs `json:",inline"`
+	Persistence    *OnlineStorePersistence `json:"persistence,omitempty"`
+	TLS            *TlsConfigs             `json:"tls,omitempty"`
 	// LogLevel sets the logging level for the online store service
 	// Allowed values: "debug", "info", "warning", "error", "critical".
 	// +kubebuilder:validation:Enum=debug;info;warning;error;critical
@@ -153,7 +146,7 @@ type OnlineStorePersistence struct {
 // OnlineStoreFilePersistence configures the file-based persistence for the offline store service
 // +kubebuilder:validation:XValidation:rule="(!has(self.pvc) && has(self.path)) ? self.path.startsWith('/') : true",message="Ephemeral stores must have absolute paths."
 // +kubebuilder:validation:XValidation:rule="(has(self.pvc) && has(self.path)) ? !self.path.startsWith('/') : true",message="PVC path must be a file name only, with no slashes."
-// +kubebuilder:validation:XValidation:rule="has(self.path) && !self.path.startsWith('s3://') && !self.path.startsWith('gs://')",message="Online store does not support S3 or GS buckets."
+// +kubebuilder:validation:XValidation:rule="has(self.path) ? !(self.path.startsWith('s3://') || self.path.startsWith('gs://')) : true",message="Online store does not support S3 or GS buckets."
 type OnlineStoreFilePersistence struct {
 	Path      string     `json:"path,omitempty"`
 	PvcConfig *PvcConfig `json:"pvc,omitempty"`
@@ -161,7 +154,7 @@ type OnlineStoreFilePersistence struct {
 
 // OnlineStoreDBStorePersistence configures the DB store persistence for the offline store service
 type OnlineStoreDBStorePersistence struct {
-	// +kubebuilder:validation:Enum=snowflake.online;redis;ikv;datastore;dynamodb;bigtable;postgres;cassandra;mysql;hazelcast;singlestore;hbase;elasticsearch;qdrant;couchbase
+	// +kubebuilder:validation:Enum=snowflake.online;redis;ikv;datastore;dynamodb;bigtable;postgres;cassandra;mysql;hazelcast;singlestore;hbase;elasticsearch;qdrant;couchbase;milvus
 	Type string `json:"type"`
 	// Data store parameters should be placed as-is from the "feature_store.yaml" under the secret key. "registry_type" & "type" fields should be removed.
 	SecretRef corev1.LocalObjectReference `json:"secretRef"`
@@ -185,6 +178,7 @@ var ValidOnlineStoreDBStorePersistenceTypes = []string{
 	"elasticsearch",
 	"qdrant",
 	"couchbase",
+	"milvus",
 }
 
 // LocalRegistryConfig configures the deployed registry service
@@ -242,13 +236,15 @@ type PvcConfig struct {
 	Create *PvcCreate `json:"create,omitempty"`
 	// MountPath within the container at which the volume should be mounted.
 	// Must start by "/" and cannot contain ':'.
-	MountPath string `json:"mountPath,omitempty"`
+	MountPath string `json:"mountPath"`
 }
 
 // PvcCreate defines the immutable settings to create a new PVC mounted at the given path.
-// The PVC name is the same as the associated deployment name.
+// The PVC name is the same as the associated deployment & feast service name.
 // +kubebuilder:validation:XValidation:rule="self == oldSelf",message="PvcCreate is immutable"
 type PvcCreate struct {
+	// AccessModes k8s persistent volume access modes. Defaults to ["ReadWriteOnce"].
+	AccessModes []corev1.PersistentVolumeAccessMode `json:"accessModes,omitempty"`
 	// StorageClassName is the name of an existing StorageClass to which this persistent volume belongs. Empty value
 	// means that this volume does not belong to any StorageClass and the cluster default will be used.
 	StorageClassName *string `json:"storageClassName,omitempty"`
@@ -295,14 +291,6 @@ type ServiceConfigs struct {
 // DefaultConfigs k8s container settings that are applied by default
 type DefaultConfigs struct {
 	Image *string `json:"image,omitempty"`
-}
-
-// StoreServiceConfigs k8s deployment settings
-type StoreServiceConfigs struct {
-	// Replicas determines the number of pods for the feast service.
-	// When Replicas > 1, persistence is recommended.
-	Replicas       *int32 `json:"replicas,omitempty"`
-	ServiceConfigs `json:",inline"`
 }
 
 // OptionalConfigs k8s container settings that are optional
