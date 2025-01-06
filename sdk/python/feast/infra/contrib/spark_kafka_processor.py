@@ -91,8 +91,8 @@ class SparkKafkaProcessor(StreamProcessor):
         )
 
         if self.data_source.kafka_options.kafka_settings is not None:
-            for k,v in self.data_source.kafka_options.kafka_settings.items():
-                stream_df = stream_df.option(k,v)
+            for k, v in self.data_source.kafka_options.kafka_settings.items():
+                stream_df = stream_df.option(k, v)
 
         stream_df = stream_df.load().selectExpr("CAST(value AS STRING)")
 

@@ -92,7 +92,7 @@ class KafkaOptions:
         if self.watermark_delay_threshold is not None:
             watermark_delay_threshold = Duration()
             watermark_delay_threshold.FromTimedelta(self.watermark_delay_threshold)
-            
+
         kafka_settings = None
         if self.kafka_settings is not None:
             kafka_settings = self.kafka_settings
