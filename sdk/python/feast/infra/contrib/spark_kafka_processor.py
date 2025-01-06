@@ -90,8 +90,9 @@ class SparkKafkaProcessor(StreamProcessor):
             .option("startingOffsets", "latest")  # Query start
         )
 
-        # for k,v in self.data_source.kafka_options.kafka_settings.items():
-        #     stream_df = stream_df.option(k,v)
+        if self.data_source.kafka_options.kafka_settings is not None:
+            for k,v in self.data_source.kafka_options.kafka_settings.items():
+                stream_df = stream_df.option(k,v)
 
         stream_df = stream_df.load().selectExpr("CAST(value AS STRING)")
 
@@ -99,7 +100,7 @@ class SparkKafkaProcessor(StreamProcessor):
             if not isinstance(
                 self.data_source.kafka_options.message_format, JsonFormat
             ):
-                raise ValueError("kafka source message format is not jsonformat")
+                raise ValueError("kafka source message format is not json format")
             stream_df = stream_df.select(
                 from_json(
                     col("value"),
