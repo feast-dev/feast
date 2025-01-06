@@ -67,16 +67,15 @@ class KafkaOptions:
                 if kafka_options_proto.watermark_delay_threshold.ToNanoseconds() == 0
                 else kafka_options_proto.watermark_delay_threshold.ToTimedelta()
             )
-        kafka_settings = None
-        if kafka_options_proto.HasField("kafka_settings"):
-            kafka_settings = kafka_options_proto.kafka_settings
 
         kafka_options = cls(
             kafka_bootstrap_servers=kafka_options_proto.kafka_bootstrap_servers,
             message_format=StreamFormat.from_proto(kafka_options_proto.message_format),
             topic=kafka_options_proto.topic,
             watermark_delay_threshold=watermark_delay_threshold,
-            kafka_settings=kafka_settings,
+            kafka_settings=kafka_options_proto.kafka_settings
+            if kafka_options_proto.HasField("kafka_settings")
+            else None,
         )
 
         return kafka_options
@@ -93,16 +92,12 @@ class KafkaOptions:
             watermark_delay_threshold = Duration()
             watermark_delay_threshold.FromTimedelta(self.watermark_delay_threshold)
 
-        kafka_settings = None
-        if self.kafka_settings is not None:
-            kafka_settings = self.kafka_settings
-
         kafka_options_proto = DataSourceProto.KafkaOptions(
             kafka_bootstrap_servers=self.kafka_bootstrap_servers,
             message_format=self.message_format.to_proto(),
             topic=self.topic,
             watermark_delay_threshold=watermark_delay_threshold,
-            kafka_settings=kafka_settings,
+            kafka_settings=self.kafka_settings,
         )
 
         return kafka_options_proto
@@ -373,6 +368,7 @@ class KafkaSource(DataSource):
         owner: Optional[str] = "",
         batch_source: Optional[DataSource] = None,
         watermark_delay_threshold: Optional[timedelta] = None,
+        kafka_settings: Optional[Dict[str, str]] = None
     ):
         """
         Creates a KafkaSource object.
@@ -396,6 +392,7 @@ class KafkaSource(DataSource):
             batch_source (optional): The datasource that acts as a batch source.
             watermark_delay_threshold (optional): The watermark delay threshold for stream data.
                 Specifically how late stream data can arrive without being discarded.
+            kafka_settings (optional): Optional kafka settings
         """
         if bootstrap_servers:
             warnings.warn(
@@ -425,6 +422,7 @@ class KafkaSource(DataSource):
             message_format=message_format,
             topic=topic,
             watermark_delay_threshold=watermark_delay_threshold,
+            kafka_settings=kafka_settings
         )
 
     def __eq__(self, other):
@@ -480,6 +478,8 @@ class KafkaSource(DataSource):
                 if data_source.batch_source
                 else None
             ),
+            kafka_settings=(DataSource.from_proto(data_source.kafka_options.kafka_settings) 
+                            if data_source.kafka_options.kafka_settings else None )
         )
 
     def to_proto(self) -> DataSourceProto:
