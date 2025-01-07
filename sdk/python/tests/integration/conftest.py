@@ -1,4 +1,5 @@
 import logging
+from multiprocessing import Manager
 
 import pytest
 from testcontainers.keycloak import KeycloakContainer
@@ -12,14 +13,24 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 logger.propagate = True
 
+shared_state = Manager().dict()
+
 @pytest.fixture(scope="session")
 def start_keycloak_server():
+    # If the Keycloak instance is already started (in any worker), reuse it
+    if shared_state.get("keycloak_started", False):
+        return shared_state["keycloak_url"]
     logger.info("Starting keycloak instance")
     print("Starting keycloak instance print")
     with KeycloakContainer("quay.io/keycloak/keycloak:24.0.1") as keycloak_container:
         setup_permissions_on_keycloak(keycloak_container.get_client())
-        yield keycloak_container.get_url()
+        shared_state["keycloak_started"] = True
+        shared_state["keycloak_url"] = keycloak_container.get_url()
+        yield shared_state["keycloak_url"]
 
+    # After the fixture is done, cleanup the shared state
+    del shared_state["keycloak_started"]
+    del shared_state["keycloak_url"]
 
 @pytest.fixture(scope="session")
 def mysql_server():
