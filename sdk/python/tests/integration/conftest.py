@@ -19,15 +19,14 @@ shared_state = Manager().dict()
 
 @pytest.fixture(scope="session")
 def start_keycloak_server():
-    # Add random sleep before checking the state to avoid concurrency issues
-    random_sleep_time = random.uniform(0, 2)  # Random sleep time between 0 and 2 seconds
+    # Add random sleep between 0 and 2 before checking the state to avoid concurrency issues.
+    random_sleep_time = random.uniform(0, 2)
     time.sleep(random_sleep_time)
 
     # If the Keycloak instance is already started (in any worker), reuse it
     if shared_state.get("keycloak_started", False):
         return shared_state["keycloak_url"]
     logger.info("Starting keycloak instance")
-    print("Starting keycloak instance print")
     with KeycloakContainer("quay.io/keycloak/keycloak:24.0.1") as keycloak_container:
         setup_permissions_on_keycloak(keycloak_container.get_client())
         shared_state["keycloak_started"] = True
