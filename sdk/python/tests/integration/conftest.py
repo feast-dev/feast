@@ -1,4 +1,6 @@
 import logging
+import random
+import time
 from multiprocessing import Manager
 
 import pytest
@@ -17,6 +19,10 @@ shared_state = Manager().dict()
 
 @pytest.fixture(scope="session")
 def start_keycloak_server():
+    # Add random sleep before checking the state to avoid concurrency issues
+    random_sleep_time = random.uniform(0, 2)  # Random sleep time between 0 and 2 seconds
+    time.sleep(random_sleep_time)
+
     # If the Keycloak instance is already started (in any worker), reuse it
     if shared_state.get("keycloak_started", False):
         return shared_state["keycloak_url"]
