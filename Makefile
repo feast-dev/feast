@@ -107,6 +107,7 @@ test-python-unit:
 test-python-integration:
 	python -m pytest --tb=short -v -n 8 --integration --color=yes --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
 		-k "(not snowflake or not test_historical_features_main)" \
+		--log-cli-level=INFO \
 		sdk/python/tests
 
 test-python-integration-local:
@@ -114,6 +115,7 @@ test-python-integration-local:
 	FEAST_LOCAL_ONLINE_CONTAINER=True \
 	python -m pytest --tb=short -v -n 8 --color=yes --integration --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
 		-k "not test_lambda_materialization and not test_snowflake_materialization" \
+		--log-cli-level=INFO \
 		sdk/python/tests
 
 test-python-integration-container:
