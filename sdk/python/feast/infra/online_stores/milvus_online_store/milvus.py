@@ -174,6 +174,7 @@ class MilvusOnlineStore(OnlineStore):
             )
             print(f"Collection {collection_name} exists: {collection_exists}")
             if not collection_exists:
+                print("Creating collection")
                 self.client.create_collection(
                     collection_name=collection_name,
                     dimension=config.online_store.embedding_dim,
@@ -185,16 +186,20 @@ class MilvusOnlineStore(OnlineStore):
                         DataType.FLOAT_VECTOR,
                         DataType.BINARY_VECTOR,
                     ]:
-                        self.client.create_index(
+                        index_params.add_index(
                             collection_name=collection_name,
                             field_name=vector_field.name,
-                            index_params=index_params,
                             metric_type=config.online_store.metric_type,
                             index_type=config.online_store.index_type,
                             index_name=f"vector_index_{vector_field.name}",
                             params={"nlist": config.online_store.nlist},
                         )
+                self.client.create_index(
+                    collection_name=collection_name,
+                    index_params=index_params,
+                )
             else:
+                print(f"Loading collection {collection_name}")
                 self.client.load_collection(collection_name)
             self._collections[collection_name] = self.client.describe_collection(
                 collection_name
@@ -215,6 +220,7 @@ class MilvusOnlineStore(OnlineStore):
         ],
         progress: Optional[Callable[[int], Any]],
     ) -> None:
+        self.client = self._connect(config)
         collection = self._get_collection(config, table)
         entity_batch_to_insert = []
         for entity_key, values_dict, timestamp, created_ts in data:
@@ -247,8 +253,9 @@ class MilvusOnlineStore(OnlineStore):
             if progress:
                 progress(1)
 
-        collection.insert(entity_batch_to_insert)
-        collection.flush()
+        self.client.insert(
+            collection_name=collection["collection_name"], data=entity_batch_to_insert
+        )
 
     def online_read(
         self,
@@ -274,8 +281,8 @@ class MilvusOnlineStore(OnlineStore):
 
         for table in tables_to_delete:
             collection_name = _table_id(config.project, table)
-            if self.collections.get(collection_name, None):
-                self.client.delete(collection_name)
+            if self._collections.get(collection_name, None):
+                self.client.drop_collection(collection_name)
                 self._collections.pop(collection_name, None)
 
     def plan(
@@ -289,11 +296,11 @@ class MilvusOnlineStore(OnlineStore):
         tables: Sequence[FeatureView],
         entities: Sequence[Entity],
     ):
-        self._connect(config)
+        self.client = self._connect(config)
         for table in tables:
-            collection_name = self._get_collection(config, table)
-            if self.collections.get(collection_name, None):
-                self.client.delete(collection_name)
+            collection_name = _table_id(config.project, table)
+            if self._collections.get(collection_name, None):
+                self.client.drop_collection(collection_name)
                 self._collections.pop(collection_name, None)
 
     def retrieve_online_documents(
@@ -314,6 +321,7 @@ class MilvusOnlineStore(OnlineStore):
             Optional[ValueProto],
         ]
     ]:
+        self.client = self._connect(config)
         collection_name = _table_id(config.project, table)
         collection = self._get_collection(config, table)
         if not config.online_store.vector_enabled:
@@ -352,6 +360,8 @@ class MilvusOnlineStore(OnlineStore):
                 ann_search_field = field["name"]
                 break
 
+        # print("\n****\n", collection, collection_name, ann_search_field, search_params, top_k)
+        self.client.load_collection(collection_name)
         results = self.client.search(
             collection_name=collection_name,
             data=[embedding],
@@ -366,13 +376,17 @@ class MilvusOnlineStore(OnlineStore):
             for hit in hits:
                 single_record = {}
                 for field in output_fields:
-                    single_record[field] = hit.entity.get(field)
+                    single_record[field] = hit.get("entity", {}).get(field, None)
 
-                entity_key_bytes = bytes.fromhex(hit.entity.get(composite_key_name))
-                embedding = hit.entity.get(ann_search_field)
+                entity_key_bytes = bytes.fromhex(
+                    hit.get("entity", {}).get(composite_key_name, None)
+                )
+                embedding = hit.get("entity", {}).get(ann_search_field)
                 serialized_embedding = _serialize_vector_to_float_list(embedding)
-                distance = hit.distance
-                event_ts = datetime.fromtimestamp(hit.entity.get("event_ts") / 1e6)
+                distance = hit.get("distance", None)
+                event_ts = datetime.fromtimestamp(
+                    hit.get("entity", {}).get("event_ts") / 1e6
+                )
                 prepared_result = _build_retrieve_online_document_record(
                     entity_key_bytes,
                     # This may have a bug
