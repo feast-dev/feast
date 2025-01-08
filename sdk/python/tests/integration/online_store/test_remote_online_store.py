@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 
 
 @pytest.mark.integration
+@pytest.mark.rbac_remote_integration_test
 @pytest.mark.parametrize(
     "tls_mode", [("True", "True"), ("True", "False"), ("False", "")], indirect=True
 )

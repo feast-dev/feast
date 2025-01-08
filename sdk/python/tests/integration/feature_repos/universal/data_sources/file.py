@@ -11,7 +11,9 @@ from typing import Any, Dict, List, Optional
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
+import pytest
 import yaml
+from _pytest.mark import MarkDecorator
 from minio import Minio
 from testcontainers.core.generic import DockerContainer
 from testcontainers.core.waiting_utils import wait_for_logs
@@ -372,6 +374,10 @@ class RemoteOfflineStoreDataSourceCreator(FileDataSourceCreator):
         self.server_port: int = 0
         self.proc: Optional[Popen[bytes]] = None
 
+    @staticmethod
+    def test_markers() -> list[MarkDecorator]:
+        return [pytest.mark.rbac_remote_integration_test]
+
     def setup(self, registry: RegistryConfig):
         parent_offline_config = super().create_offline_store_config()
         config = RepoConfig(
@@ -417,6 +423,10 @@ class RemoteOfflineTlsStoreDataSourceCreator(FileDataSourceCreator):
         super().__init__(project_name)
         self.server_port: int = 0
         self.proc: Optional[Popen[bytes]] = None
+
+    @staticmethod
+    def test_markers() -> list[MarkDecorator]:
+        return [pytest.mark.rbac_remote_integration_test]
 
     def setup(self, registry: RegistryConfig):
         parent_offline_config = super().create_offline_store_config()
@@ -514,6 +524,10 @@ auth:
     @staticmethod
     def xdist_groups() -> list[str]:
         return ["keycloak"]
+
+    @staticmethod
+    def test_markers() -> list[MarkDecorator]:
+        return [pytest.mark.rbac_remote_integration_test]
 
     def setup(self, registry: RegistryConfig):
         parent_offline_config = super().create_offline_store_config()
