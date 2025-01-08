@@ -114,9 +114,6 @@ class MilvusOnlineStore(OnlineStore):
                 if config.online_store.username and config.online_store.password
                 else "",
             )
-            print(
-                f"Connected to Milvus at {config.online_store.host}:{config.online_store.port}"
-            )
         return self.client
 
     def _get_collection(self, config: RepoConfig, table: FeatureView) -> Dict[str, Any]:
@@ -168,13 +165,10 @@ class MilvusOnlineStore(OnlineStore):
             schema = CollectionSchema(
                 fields=fields, description="Feast feature view data"
             )
-            self.client.drop_collection(collection_name)
             collection_exists = self.client.has_collection(
                 collection_name=collection_name
             )
-            print(f"Collection {collection_name} exists: {collection_exists}")
             if not collection_exists:
-                print("Creating collection")
                 self.client.create_collection(
                     collection_name=collection_name,
                     dimension=config.online_store.embedding_dim,
@@ -199,7 +193,6 @@ class MilvusOnlineStore(OnlineStore):
                     index_params=index_params,
                 )
             else:
-                print(f"Loading collection {collection_name}")
                 self.client.load_collection(collection_name)
             self._collections[collection_name] = self.client.describe_collection(
                 collection_name
@@ -345,7 +338,6 @@ class MilvusOnlineStore(OnlineStore):
             + (requested_features if requested_features else [])
             + ["created_ts", "event_ts"]
         )
-        print(output_fields, collection)
         assert all(
             field in [f["name"] for f in collection["fields"]]
             for field in output_fields
@@ -360,7 +352,6 @@ class MilvusOnlineStore(OnlineStore):
                 ann_search_field = field["name"]
                 break
 
-        # print("\n****\n", collection, collection_name, ann_search_field, search_params, top_k)
         self.client.load_collection(collection_name)
         results = self.client.search(
             collection_name=collection_name,
