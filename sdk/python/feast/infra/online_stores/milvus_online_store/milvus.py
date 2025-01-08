@@ -7,9 +7,8 @@ from pymilvus import (
     CollectionSchema,
     DataType,
     FieldSchema,
-    connections,
+    MilvusClient,
 )
-from pymilvus.orm.connections import Connections
 
 from feast import Entity
 from feast.feature_view import FeatureView
@@ -85,7 +84,6 @@ class MilvusOnlineStoreConfig(FeastConfigBaseModel, VectorStoreConfig):
     """
 
     type: Literal["milvus"] = "milvus"
-
     host: Optional[StrictStr] = "localhost"
     port: Optional[int] = 19530
     index_type: Optional[str] = "IVF_FLAT"
@@ -93,6 +91,8 @@ class MilvusOnlineStoreConfig(FeastConfigBaseModel, VectorStoreConfig):
     embedding_dim: Optional[int] = 128
     vector_enabled: Optional[bool] = True
     nlist: Optional[int] = 128
+    username: Optional[StrictStr] = ""
+    password: Optional[StrictStr] = ""
 
 
 class MilvusOnlineStore(OnlineStore):
@@ -103,24 +103,26 @@ class MilvusOnlineStore(OnlineStore):
         _collections: Dictionary to cache Milvus collections.
     """
 
-    _conn: Optional[Connections] = None
-    _collections: Dict[str, Collection] = {}
+    client: Optional[MilvusClient] = None
+    _collections: Dict[str, Any] = {}
 
-    def _connect(self, config: RepoConfig) -> connections:
-        if not self._conn:
-            if not connections.has_connection("feast"):
-                self._conn = connections.connect(
-                    alias="feast",
-                    host=config.online_store.host,
-                    port=str(config.online_store.port),
-                )
-        return self._conn
+    def _connect(self, config: RepoConfig) -> MilvusClient:
+        if not self.client:
+            self.client = MilvusClient(
+                url=f"{config.online_store.host}:{config.online_store.port}",
+                token=f"{config.online_store.username}:{config.online_store.password}"
+                if config.online_store.username and config.online_store.password
+                else "",
+            )
+            print(
+                f"Connected to Milvus at {config.online_store.host}:{config.online_store.port}"
+            )
+        return self.client
 
-    def _get_collection(self, config: RepoConfig, table: FeatureView) -> Collection:
+    def _get_collection(self, config: RepoConfig, table: FeatureView) -> Dict[str, Any]:
+        self.client = self._connect(config)
         collection_name = _table_id(config.project, table)
         if collection_name not in self._collections:
-            self._connect(config)
-
             # Create a composite key by combining entity fields
             composite_key_name = (
                 "_".join([field.name for field in table.entity_columns]) + "_pk"
@@ -166,23 +168,37 @@ class MilvusOnlineStore(OnlineStore):
             schema = CollectionSchema(
                 fields=fields, description="Feast feature view data"
             )
-            collection = Collection(name=collection_name, schema=schema, using="feast")
-            if not collection.has_index():
-                index_params = {
-                    "index_type": config.online_store.index_type,
-                    "metric_type": config.online_store.metric_type,
-                    "params": {"nlist": config.online_store.nlist},
-                }
-            for vector_field in schema.fields:
-                if vector_field.dtype in [
-                    DataType.FLOAT_VECTOR,
-                    DataType.BINARY_VECTOR,
-                ]:
-                    collection.create_index(
-                        field_name=vector_field.name, index_params=index_params
-                    )
-            collection.load()
-            self._collections[collection_name] = collection
+            self.client.drop_collection(collection_name)
+            collection_exists = self.client.has_collection(
+                collection_name=collection_name
+            )
+            print(f"Collection {collection_name} exists: {collection_exists}")
+            if not collection_exists:
+                self.client.create_collection(
+                    collection_name=collection_name,
+                    dimension=config.online_store.embedding_dim,
+                    schema=schema,
+                )
+                index_params = self.client.prepare_index_params()
+                for vector_field in schema.fields:
+                    if vector_field.dtype in [
+                        DataType.FLOAT_VECTOR,
+                        DataType.BINARY_VECTOR,
+                    ]:
+                        self.client.create_index(
+                            collection_name=collection_name,
+                            field_name=vector_field.name,
+                            index_params=index_params,
+                            metric_type=config.online_store.metric_type,
+                            index_type=config.online_store.index_type,
+                            index_name=f"vector_index_{vector_field.name}",
+                            params={"nlist": config.online_store.nlist},
+                        )
+            else:
+                self.client.load_collection(collection_name)
+            self._collections[collection_name] = self.client.describe_collection(
+                collection_name
+            )
         return self._collections[collection_name]
 
     def online_write_batch(
@@ -252,14 +268,14 @@ class MilvusOnlineStore(OnlineStore):
         entities_to_keep: Sequence[Entity],
         partial: bool,
     ):
-        self._connect(config)
+        self.client = self._connect(config)
         for table in tables_to_keep:
-            self._get_collection(config, table)
+            self._collections = self._get_collection(config, table)
+
         for table in tables_to_delete:
             collection_name = _table_id(config.project, table)
-            collection = Collection(name=collection_name)
-            if collection.exists():
-                collection.drop()
+            if self.collections.get(collection_name, None):
+                self.client.delete(collection_name)
                 self._collections.pop(collection_name, None)
 
     def plan(
@@ -275,10 +291,10 @@ class MilvusOnlineStore(OnlineStore):
     ):
         self._connect(config)
         for table in tables:
-            collection = self._get_collection(config, table)
-            if collection:
-                collection.drop()
-                self._collections.pop(collection.name, None)
+            collection_name = self._get_collection(config, table)
+            if self.collections.get(collection_name, None):
+                self.client.delete(collection_name)
+                self._collections.pop(collection_name, None)
 
     def retrieve_online_documents(
         self,
@@ -298,6 +314,7 @@ class MilvusOnlineStore(OnlineStore):
             Optional[ValueProto],
         ]
     ]:
+        collection_name = _table_id(config.project, table)
         collection = self._get_collection(config, table)
         if not config.online_store.vector_enabled:
             raise ValueError("Vector search is not enabled in the online store config")
@@ -320,29 +337,28 @@ class MilvusOnlineStore(OnlineStore):
             + (requested_features if requested_features else [])
             + ["created_ts", "event_ts"]
         )
+        print(output_fields, collection)
         assert all(
-            field
+            field in [f["name"] for f in collection["fields"]]
             for field in output_fields
-            if field in [f.name for f in collection.schema.fields]
-        ), f"field(s) [{[field for field in output_fields if field not in [f.name for f in collection.schema.fields]]}'] not found in collection schema"
-
+        ), f"field(s) [{[field for field in output_fields if field not in [f['name'] for f in collection['fields']]]}] not found in collection schema"
         # Note we choose the first vector field as the field to search on. Not ideal but it's something.
         ann_search_field = None
-        for field in collection.schema.fields:
+        for field in collection["fields"]:
             if (
-                field.dtype in [DataType.FLOAT_VECTOR, DataType.BINARY_VECTOR]
-                and field.name in output_fields
+                field["type"] in [DataType.FLOAT_VECTOR, DataType.BINARY_VECTOR]
+                and field["name"] in output_fields
             ):
-                ann_search_field = field.name
+                ann_search_field = field["name"]
                 break
 
-        results = collection.search(
+        results = self.client.search(
+            collection_name=collection_name,
             data=[embedding],
             anns_field=ann_search_field,
-            param=search_params,
+            search_params=search_params,
             limit=top_k,
             output_fields=output_fields,
-            consistency_level="Strong",
         )
 
         result_list = []
@@ -412,7 +428,7 @@ class MilvusTable(InfraObject):
         self._connect()
 
     def _connect(self):
-        return connections.connect(alias="default", host=self.host, port=str(self.port))
+        raise NotImplementedError
 
     def to_infra_object_proto(self) -> InfraObjectProto:
         # Implement serialization if needed
