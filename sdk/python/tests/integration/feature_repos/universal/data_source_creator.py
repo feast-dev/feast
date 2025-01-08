@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Dict, Optional
 
 import pandas as pd
+from _pytest.mark import MarkDecorator
 
 from feast.data_source import DataSource
 from feast.feature_logging import LoggingDestination
@@ -63,4 +64,12 @@ class DataSourceCreator(ABC):
 
     @staticmethod
     def xdist_groups() -> list[str]:
+        return []
+
+    @staticmethod
+    def test_markers() -> list[MarkDecorator]:
+        """
+        return the array of test markers to add dynamically to the tests created by this creator method. override this method in your implementations. By default, it will not add any markers.
+        :return:
+        """
         return []

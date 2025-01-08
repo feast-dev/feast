@@ -310,6 +310,10 @@ def pytest_generate_tests(metafunc: pytest.Metafunc):
                                 pytest.mark.xdist_group(name=m)
                                 for m in c.offline_store_creator.xdist_groups()
                             ]
+                            # Check if there are any test markers associated with the creator and add them.
+                            if c.offline_store_creator.test_markers():
+                                marks.extend(c.offline_store_creator.test_markers())
+
                             _config_cache[c] = pytest.param(c, marks=marks)
 
                         configs.append(_config_cache[c])
