@@ -6,23 +6,21 @@ feast:
     - name: online_cluster
       type: REDIS_CLUSTER
       config: # Store specific configuration.
-        # Connection string specifies the host:port of Redis instances in the redis cluster.
         connection_string: "marketplace-fs-mo-v1.slkos6.clustercfg.aps1.cache.amazonaws.com:6379"
         read_from: MASTER
-        # Redis operation timeout in ISO-8601 format
         timeout: PT2S
 logging:
-  # Audit logging provides a machine readable structured JSON log that can give better
-  # insight into what is happening in Feast.
   audit:
-    # Whether audit logging is enabled.
     enabled: true
-    # Whether to enable message level (ie request/response) audit logging
-    messageLogging:
-      enabled: false
-      # Logging forwarder currently provides a machine readable structured JSON log to an
-      # external fluentd service that can give better insight into what is happening in Feast.
-      # Accepts console / fluentd as destination
-      destination: console
-      fluentdHost: localhost
-      fluentdPort: 24224
+    # Log level configuration for different components
+    logLevel:
+      root: INFO
+      feast.serving: DEBUG  # Detailed logs for serving component
+      feast.stores: TRACE  # Trace logs for store interaction, for more granular tracking
+      feast.utils: WARN  # Log warnings for utils-related components
+    logFile:
+      enabled: true
+      path: "/var/log/blackbuck/feast_serving.log"
+      maxSize: 10MB  # Size of the log file before it's rotated
+      maxFiles: 5  # Keep up to 5 rotated log files
+      rollingPolicy: DAILY  # Log rotation based on the day
