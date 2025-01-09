@@ -898,8 +898,7 @@ CREATE TEMP TABLE {{ featureview.name }}__cleaned AS (
     {{ featureview.name }}__subquery AS (
         SELECT
             {{ featureview.timestamp_field }} as event_timestamp,
-            {{ featureview.created_timestamp_column ~ ' as created_timestamp,' if featureview.created_timestamp_column 
-            else '' }}
+            {{ featureview.created_timestamp_column ~ ' as created_timestamp,' if featureview.created_timestamp_column else '' }}
             {{ featureview.entity_selections | join(', ')}}{% if featureview.entity_selections %},{% else %}{% endif %}
             {% for feature in featureview.features %}
                 {{ feature | backticks }} as {% if full_feature_names %}

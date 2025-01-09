@@ -187,7 +187,7 @@ def build_point_in_time_query(
 ) -> str:
     """Build point-in-time query between each feature view table and the entity dataframe for Bigquery and Redshift"""
     env = Environment(loader=BaseLoader())
-    env.filters['backticks'] = enclose_in_backticks
+    env.filters["backticks"] = enclose_in_backticks
     template = env.from_string(source=query_template)
 
     final_output_feature_names = list(entity_df_columns)
@@ -259,6 +259,6 @@ def get_pyarrow_schema_from_batch_source(
 def enclose_in_backticks(value):
     # Check if the input is a list
     if isinstance(value, list):
-        return [f'`{v}`' for v in value]
+        return [f"`{v}`" for v in value]
     else:
-        return f'`{value}`'
+        return f"`{value}`"
