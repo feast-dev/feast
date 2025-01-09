@@ -296,6 +296,7 @@ type DefaultConfigs struct {
 // OptionalConfigs k8s container settings that are optional
 type OptionalConfigs struct {
 	Env             *[]corev1.EnvVar             `json:"env,omitempty"`
+	EnvFrom         *[]corev1.EnvFromSource      `json:"envFrom,omitempty"`
 	ImagePullPolicy *corev1.PullPolicy           `json:"imagePullPolicy,omitempty"`
 	Resources       *corev1.ResourceRequirements `json:"resources,omitempty"`
 }

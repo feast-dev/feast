@@ -229,6 +229,47 @@ spec:
                           - name
                           type: object
                         type: array
+                      envFrom:
+                        items:
+                          description: EnvFromSource represents the source of a set
+                            of ConfigMaps
+                          properties:
+                            configMapRef:
+                              description: The ConfigMap to select from
+                              properties:
+                                name:
+                                  description: |-
+                                    Name of the referent.
+                                    More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                    TODO: Add other useful fields. apiVersion, kind, uid?
+                                  type: string
+                                optional:
+                                  description: Specify whether the ConfigMap must
+                                    be defined
+                                  type: boolean
+                              type: object
+                              x-kubernetes-map-type: atomic
+                            prefix:
+                              description: An optional identifier to prepend to each
+                                key in the ConfigMap. Must be a C_IDENTIFIER.
+                              type: string
+                            secretRef:
+                              description: The Secret to select from
+                              properties:
+                                name:
+                                  description: |-
+                                    Name of the referent.
+                                    More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                    TODO: Add other useful fields. apiVersion, kind, uid?
+                                  type: string
+                                optional:
+                                  description: Specify whether the Secret must be
+                                    defined
+                                  type: boolean
+                              type: object
+                              x-kubernetes-map-type: atomic
+                          type: object
+                        type: array
                       image:
                         type: string
                       imagePullPolicy:
@@ -595,6 +636,47 @@ spec:
                               type: object
                           required:
                           - name
+                          type: object
+                        type: array
+                      envFrom:
+                        items:
+                          description: EnvFromSource represents the source of a set
+                            of ConfigMaps
+                          properties:
+                            configMapRef:
+                              description: The ConfigMap to select from
+                              properties:
+                                name:
+                                  description: |-
+                                    Name of the referent.
+                                    More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                    TODO: Add other useful fields. apiVersion, kind, uid?
+                                  type: string
+                                optional:
+                                  description: Specify whether the ConfigMap must
+                                    be defined
+                                  type: boolean
+                              type: object
+                              x-kubernetes-map-type: atomic
+                            prefix:
+                              description: An optional identifier to prepend to each
+                                key in the ConfigMap. Must be a C_IDENTIFIER.
+                              type: string
+                            secretRef:
+                              description: The Secret to select from
+                              properties:
+                                name:
+                                  description: |-
+                                    Name of the referent.
+                                    More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                    TODO: Add other useful fields. apiVersion, kind, uid?
+                                  type: string
+                                optional:
+                                  description: Specify whether the Secret must be
+                                    defined
+                                  type: boolean
+                              type: object
+                              x-kubernetes-map-type: atomic
                           type: object
                         type: array
                       image:
@@ -982,6 +1064,47 @@ spec:
                                   type: object
                               required:
                               - name
+                              type: object
+                            type: array
+                          envFrom:
+                            items:
+                              description: EnvFromSource represents the source of
+                                a set of ConfigMaps
+                              properties:
+                                configMapRef:
+                                  description: The ConfigMap to select from
+                                  properties:
+                                    name:
+                                      description: |-
+                                        Name of the referent.
+                                        More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                        TODO: Add other useful fields. apiVersion, kind, uid?
+                                      type: string
+                                    optional:
+                                      description: Specify whether the ConfigMap must
+                                        be defined
+                                      type: boolean
+                                  type: object
+                                  x-kubernetes-map-type: atomic
+                                prefix:
+                                  description: An optional identifier to prepend to
+                                    each key in the ConfigMap. Must be a C_IDENTIFIER.
+                                  type: string
+                                secretRef:
+                                  description: The Secret to select from
+                                  properties:
+                                    name:
+                                      description: |-
+                                        Name of the referent.
+                                        More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                        TODO: Add other useful fields. apiVersion, kind, uid?
+                                      type: string
+                                    optional:
+                                      description: Specify whether the Secret must
+                                        be defined
+                                      type: boolean
+                                  type: object
+                                  x-kubernetes-map-type: atomic
                               type: object
                             type: array
                           image:
@@ -1493,6 +1616,47 @@ spec:
                               - name
                               type: object
                             type: array
+                          envFrom:
+                            items:
+                              description: EnvFromSource represents the source of
+                                a set of ConfigMaps
+                              properties:
+                                configMapRef:
+                                  description: The ConfigMap to select from
+                                  properties:
+                                    name:
+                                      description: |-
+                                        Name of the referent.
+                                        More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                        TODO: Add other useful fields. apiVersion, kind, uid?
+                                      type: string
+                                    optional:
+                                      description: Specify whether the ConfigMap must
+                                        be defined
+                                      type: boolean
+                                  type: object
+                                  x-kubernetes-map-type: atomic
+                                prefix:
+                                  description: An optional identifier to prepend to
+                                    each key in the ConfigMap. Must be a C_IDENTIFIER.
+                                  type: string
+                                secretRef:
+                                  description: The Secret to select from
+                                  properties:
+                                    name:
+                                      description: |-
+                                        Name of the referent.
+                                        More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                        TODO: Add other useful fields. apiVersion, kind, uid?
+                                      type: string
+                                    optional:
+                                      description: Specify whether the Secret must
+                                        be defined
+                                      type: boolean
+                                  type: object
+                                  x-kubernetes-map-type: atomic
+                              type: object
+                            type: array
                           image:
                             type: string
                           imagePullPolicy:
@@ -1864,6 +2028,47 @@ spec:
                                   type: object
                               required:
                               - name
+                              type: object
+                            type: array
+                          envFrom:
+                            items:
+                              description: EnvFromSource represents the source of
+                                a set of ConfigMaps
+                              properties:
+                                configMapRef:
+                                  description: The ConfigMap to select from
+                                  properties:
+                                    name:
+                                      description: |-
+                                        Name of the referent.
+                                        More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                        TODO: Add other useful fields. apiVersion, kind, uid?
+                                      type: string
+                                    optional:
+                                      description: Specify whether the ConfigMap must
+                                        be defined
+                                      type: boolean
+                                  type: object
+                                  x-kubernetes-map-type: atomic
+                                prefix:
+                                  description: An optional identifier to prepend to
+                                    each key in the ConfigMap. Must be a C_IDENTIFIER.
+                                  type: string
+                                secretRef:
+                                  description: The Secret to select from
+                                  properties:
+                                    name:
+                                      description: |-
+                                        Name of the referent.
+                                        More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                        TODO: Add other useful fields. apiVersion, kind, uid?
+                                      type: string
+                                    optional:
+                                      description: Specify whether the Secret must
+                                        be defined
+                                      type: boolean
+                                  type: object
+                                  x-kubernetes-map-type: atomic
                               type: object
                             type: array
                           image:
@@ -2259,6 +2464,47 @@ spec:
                                       type: object
                                   required:
                                   - name
+                                  type: object
+                                type: array
+                              envFrom:
+                                items:
+                                  description: EnvFromSource represents the source
+                                    of a set of ConfigMaps
+                                  properties:
+                                    configMapRef:
+                                      description: The ConfigMap to select from
+                                      properties:
+                                        name:
+                                          description: |-
+                                            Name of the referent.
+                                            More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                            TODO: Add other useful fields. apiVersion, kind, uid?
+                                          type: string
+                                        optional:
+                                          description: Specify whether the ConfigMap
+                                            must be defined
+                                          type: boolean
+                                      type: object
+                                      x-kubernetes-map-type: atomic
+                                    prefix:
+                                      description: An optional identifier to prepend
+                                        to each key in the ConfigMap. Must be a C_IDENTIFIER.
+                                      type: string
+                                    secretRef:
+                                      description: The Secret to select from
+                                      properties:
+                                        name:
+                                          description: |-
+                                            Name of the referent.
+                                            More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                            TODO: Add other useful fields. apiVersion, kind, uid?
+                                          type: string
+                                        optional:
+                                          description: Specify whether the Secret
+                                            must be defined
+                                          type: boolean
+                                      type: object
+                                      x-kubernetes-map-type: atomic
                                   type: object
                                 type: array
                               image:

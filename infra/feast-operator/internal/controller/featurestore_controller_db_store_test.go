@@ -202,10 +202,31 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 				Expect(k8sClient.Create(ctx, secret)).To(Succeed())
 			}
 
+			By("creating the config map and secret for envFrom")
+			envFromConfigMap := &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "example-configmap",
+					Namespace: "default",
+				},
+				Data: map[string]string{"example-key": "example-value"},
+			}
+			err = k8sClient.Create(context.TODO(), envFromConfigMap)
+			Expect(err).ToNot(HaveOccurred())
+
+			envFromSecret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "example-secret",
+					Namespace: "default",
+				},
+				StringData: map[string]string{"secret-key": "secret-value"},
+			}
+			err = k8sClient.Create(context.TODO(), envFromSecret)
+			Expect(err).ToNot(HaveOccurred())
+
 			By("creating the custom resource for the Kind FeatureStore")
 			err = k8sClient.Get(ctx, typeNamespacedName, featurestore)
 			if err != nil && errors.IsNotFound(err) {
-				resource := createFeatureStoreResource(resourceName, image, pullPolicy, &[]corev1.EnvVar{})
+				resource := createFeatureStoreResource(resourceName, image, pullPolicy, &[]corev1.EnvVar{}, withEnvFrom())
 				resource.Spec.Services.OfflineStore.Persistence = &feastdevv1alpha1.OfflineStorePersistence{
 					DBPersistence: &feastdevv1alpha1.OfflineStoreDBStorePersistence{
 						Type: string(offlineType),
@@ -255,6 +276,26 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 			resource := &feastdevv1alpha1.FeatureStore{}
 			err = k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
+
+			By("Deleting the configmap and secret for envFrom")
+			configMap := &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "example-configmap",
+					Namespace: "default",
+				},
+			}
+			err = k8sClient.Delete(context.TODO(), configMap)
+			Expect(err).ToNot(HaveOccurred())
+
+			// Delete Secret
+			secret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "example-secret",
+					Namespace: "default",
+				},
+			}
+			err = k8sClient.Delete(context.TODO(), secret)
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Cleanup the secrets")
 			Expect(k8sClient.Delete(ctx, onlineSecret)).To(Succeed())
