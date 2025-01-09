@@ -898,10 +898,14 @@ CREATE TEMP TABLE {{ featureview.name }}__cleaned AS (
     {{ featureview.name }}__subquery AS (
         SELECT
             {{ featureview.timestamp_field }} as event_timestamp,
-            {{ featureview.created_timestamp_column ~ ' as created_timestamp,' if featureview.created_timestamp_column else '' }}
+            {{ featureview.created_timestamp_column ~ ' as created_timestamp,' if featureview.created_timestamp_column 
+            else '' }}
             {{ featureview.entity_selections | join(', ')}}{% if featureview.entity_selections %},{% else %}{% endif %}
             {% for feature in featureview.features %}
-                {{ feature | backticks }} as {% if full_feature_names %}{{ featureview.name }}__{{featureview.field_mapping.get(feature, feature)}}{% else %}{{ featureview.field_mapping.get(feature, feature) | backticks }}{% endif %}{% if loop.last %}{% else %}, {% endif %}
+                {{ feature | backticks }} as {% if full_feature_names %}
+                {{ featureview.name }}__{{featureview.field_mapping.get(feature, feature)}}{% else %}
+                {{ featureview.field_mapping.get(feature, feature) | backticks }}{% endif %}
+                {% if loop.last %}{% else %}, {% endif %}
             {% endfor %}
         FROM {{ featureview.table_subquery }}
         WHERE {{ featureview.timestamp_field }} <= '{{ featureview.max_event_timestamp }}'
