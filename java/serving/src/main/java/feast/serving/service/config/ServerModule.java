@@ -44,7 +44,7 @@ public class ServerModule extends AbstractModule {
       TracingServerInterceptor tracingServerInterceptor,
       HealthGrpc.HealthImplBase healthImplBase) {
     ServerBuilder<?> serverBuilder =
-        ServerBuilder.forPort(applicationProperties.getGrpc().getServer().getPort()).executor(Executors.newFixedThreadPool(100));
+        ServerBuilder.forPort(applicationProperties.getGrpc().getServer().getPort()).executor(Executors.newFixedThreadPool(200));
     serverBuilder
         .addService(ProtoReflectionService.newInstance())
         .addService(tracingServerInterceptor.intercept(onlineServingGrpcServiceV2))
