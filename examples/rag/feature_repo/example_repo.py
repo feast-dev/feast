@@ -29,6 +29,7 @@ city_embeddings_feature_view = FeatureView(
             vector_index=True,
             vector_search_metric="L2",
         ),
+        Field(name="state", dtype=String),
         Field(name="sentence_chunks", dtype=String),
         Field(name="wiki_summary", dtype=String),
     ],

@@ -3,8 +3,10 @@ provider: local
 registry: data/registry.db
 online_store:
   type: milvus
+  path: data/online_store.db
   vector_enabled: true
   embedding_dim: 384
+  index_type: "IVF_FLAT"
 
 
 offline_store:
