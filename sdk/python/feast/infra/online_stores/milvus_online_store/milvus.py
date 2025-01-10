@@ -1,4 +1,5 @@
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union
 
 from pydantic import StrictStr
@@ -84,6 +85,7 @@ class MilvusOnlineStoreConfig(FeastConfigBaseModel, VectorStoreConfig):
     """
 
     type: Literal["milvus"] = "milvus"
+    path: Optional[StrictStr] = "data/online_store.db"
     host: Optional[StrictStr] = "localhost"
     port: Optional[int] = 19530
     index_type: Optional[str] = "IVF_FLAT"
@@ -106,11 +108,24 @@ class MilvusOnlineStore(OnlineStore):
     client: Optional[MilvusClient] = None
     _collections: Dict[str, Any] = {}
 
+    def _get_db_path(self, config: RepoConfig) -> str:
+        assert (
+            config.online_store.type == "milvus"
+            or config.online_store.type.endswith("MilvusOnlineStore")
+        )
+
+        if config.repo_path and not Path(config.online_store.path).is_absolute():
+            db_path = str(config.repo_path / config.online_store.path)
+        else:
+            db_path = config.online_store.path
+        return db_path
+
     def _connect(self, config: RepoConfig) -> MilvusClient:
         if not self.client:
             if config.provider == "local":
-                print("Connecting to Milvus in local mode using ./milvus_demo.db")
-                self.client = MilvusClient("./milvus_demo.db")
+                db_path = self._get_db_path(config)
+                print(f"Connecting to Milvus in local mode using {db_path}")
+                self.client = MilvusClient(db_path)
             else:
                 self.client = MilvusClient(
                     url=f"{config.online_store.host}:{config.online_store.port}",
