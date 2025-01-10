@@ -1,5 +1,6 @@
 import os
 import platform
+import random
 import sqlite3
 import sys
 import time
@@ -561,3 +562,182 @@ def test_sqlite_vec_import() -> None:
     """).fetchall()
     result = [(rowid, round(distance, 2)) for rowid, distance in result]
     assert result == [(2, 2.39), (1, 2.39)]
+
+
+def test_local_milvus() -> None:
+    import random
+
+    from pymilvus import MilvusClient
+
+    random.seed(42)
+    VECTOR_LENGTH: int = 768
+    COLLECTION_NAME: str = "test_demo_collection"
+
+    client = MilvusClient("./milvus_demo.db")
+
+    for collection in client.list_collections():
+        client.drop_collection(collection_name=collection)
+    client.create_collection(
+        collection_name=COLLECTION_NAME,
+        dimension=VECTOR_LENGTH,
+    )
+    assert client.list_collections() == [COLLECTION_NAME]
+
+    docs = [
+        "Artificial intelligence was founded as an academic discipline in 1956.",
+        "Alan Turing was the first person to conduct substantial research in AI.",
+        "Born in Maida Vale, London, Turing was raised in southern England.",
+    ]
+    # Use fake representation with random vectors (vector_length dimension).
+    vectors = [[random.uniform(-1, 1) for _ in range(VECTOR_LENGTH)] for _ in docs]
+    data = [
+        {"id": i, "vector": vectors[i], "text": docs[i], "subject": "history"}
+        for i in range(len(vectors))
+    ]
+
+    print("Data has", len(data), "entities, each with fields: ", data[0].keys())
+    print("Vector dim:", len(data[0]["vector"]))
+
+    insert_res = client.insert(collection_name=COLLECTION_NAME, data=data)
+    assert insert_res == {"insert_count": 3, "ids": [0, 1, 2], "cost": 0}
+
+    query_vectors = [[random.uniform(-1, 1) for _ in range(VECTOR_LENGTH)]]
+
+    search_res = client.search(
+        collection_name=COLLECTION_NAME,  # target collection
+        data=query_vectors,  # query vectors
+        limit=2,  # number of returned entities
+        output_fields=["text", "subject"],  # specifies fields to be returned
+    )
+    assert [j["id"] for j in search_res[0]] == [0, 1]
+    query_result = client.query(
+        collection_name=COLLECTION_NAME,
+        filter="id == 0",
+    )
+    assert list(query_result[0].keys()) == ["id", "text", "subject", "vector"]
+
+    client.drop_collection(collection_name=COLLECTION_NAME)
+
+
+def test_milvus_lite_get_online_documents() -> None:
+    """
+    Test retrieving documents from the online store in local mode.
+    """
+
+    random.seed(42)
+    n = 10  # number of samples - note: we'll actually double it
+    vector_length = 10
+    runner = CliRunner()
+    with runner.local_repo(
+        example_repo_py=get_example_repo("example_rag_feature_repo.py"),
+        offline_store="file",
+        online_store="milvus",
+        apply=False,
+        teardown=False,
+    ) as store:
+        from datetime import timedelta
+
+        from feast import Entity, FeatureView, Field, FileSource
+        from feast.types import Array, Float32, Int64, UnixTimestamp
+
+        # This is for Milvus
+        # Note that file source paths are not validated, so there doesn't actually need to be any data
+        # at the paths for these file sources. Since these paths are effectively fake, this example
+        # feature repo should not be used for historical retrieval.
+
+        rag_documents_source = FileSource(
+            path="data/embedded_documents.parquet",
+            timestamp_field="event_timestamp",
+            created_timestamp_column="created_timestamp",
+        )
+
+        item = Entity(
+            name="item_id",  # The name is derived from this argument, not object name.
+            join_keys=["item_id"],
+        )
+
+        document_embeddings = FeatureView(
+            name="embedded_documents",
+            entities=[item],
+            schema=[
+                Field(
+                    name="vector",
+                    dtype=Array(Float32),
+                    vector_index=True,
+                    vector_search_metric="L2",
+                ),
+                Field(name="item_id", dtype=Int64),
+                Field(name="created_timestamp", dtype=UnixTimestamp),
+                Field(name="event_timestamp", dtype=UnixTimestamp),
+            ],
+            source=rag_documents_source,
+            ttl=timedelta(hours=24),
+        )
+
+        store.apply([rag_documents_source, item, document_embeddings])
+
+        # Write some data to two tables
+        document_embeddings_fv = store.get_feature_view(name="embedded_documents")
+
+        provider = store._get_provider()
+
+        item_keys = [
+            EntityKeyProto(
+                join_keys=["item_id"], entity_values=[ValueProto(int64_val=i)]
+            )
+            for i in range(n)
+        ]
+        data = []
+        for item_key in item_keys:
+            data.append(
+                (
+                    item_key,
+                    {
+                        "vector": ValueProto(
+                            float_list_val=FloatListProto(
+                                val=np.random.random(
+                                    vector_length,
+                                )
+                            )
+                        )
+                    },
+                    _utc_now(),
+                    _utc_now(),
+                )
+            )
+
+        provider.online_write_batch(
+            config=store.config,
+            table=document_embeddings_fv,
+            data=data,
+            progress=None,
+        )
+        documents_df = pd.DataFrame(
+            {
+                "item_id": [str(i) for i in range(n)],
+                "vector": [
+                    np.random.random(
+                        vector_length,
+                    )
+                    for i in range(n)
+                ],
+                "event_timestamp": [_utc_now() for _ in range(n)],
+                "created_timestamp": [_utc_now() for _ in range(n)],
+            }
+        )
+
+        store.write_to_online_store(
+            feature_view_name="embedded_documents",
+            df=documents_df,
+        )
+
+        query_embedding = np.random.random(
+            vector_length,
+        )
+        result = store.retrieve_online_documents(
+            feature="embedded_documents:vector", query=query_embedding, top_k=3
+        ).to_dict()
+
+        assert "vector" in result
+        assert "distance" in result
+        assert len(result["distance"]) == 3
