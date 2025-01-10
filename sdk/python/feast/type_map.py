@@ -815,6 +815,7 @@ def spark_to_feast_value_type(spark_type_as_str: str) -> ValueType:
         "float": ValueType.FLOAT,
         "boolean": ValueType.BOOL,
         "timestamp": ValueType.UNIX_TIMESTAMP,
+        "date": ValueType.UNIX_TIMESTAMP,
         "array<byte>": ValueType.BYTES_LIST,
         "array<string>": ValueType.STRING_LIST,
         "array<int>": ValueType.INT32_LIST,
@@ -824,6 +825,7 @@ def spark_to_feast_value_type(spark_type_as_str: str) -> ValueType:
         "array<float>": ValueType.FLOAT_LIST,
         "array<boolean>": ValueType.BOOL_LIST,
         "array<timestamp>": ValueType.UNIX_TIMESTAMP_LIST,
+        "array<date>": ValueType.UNIX_TIMESTAMP_LIST,
     }
     if spark_type_as_str.startswith("decimal"):
         spark_type_as_str = "decimal"
