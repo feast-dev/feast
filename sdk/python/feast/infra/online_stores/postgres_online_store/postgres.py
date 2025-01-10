@@ -403,26 +403,6 @@ class PostgreSQLOnlineStore(OnlineStore):
 
             # Search query template to find the top k items that are closest to the given embedding
             # SELECT * FROM items ORDER BY embedding <-> '[3,1,2]' LIMIT 5;
-            query = sql.SQL(
-                """
-                    SELECT
-                        entity_key,
-                        feature_name,
-                        value,
-                        vector_value,
-                        vector_value {distance_metric_sql} %s::vector as distance,
-                        event_ts FROM {table_name}
-                    WHERE feature_name = {feature_name}
-                    ORDER BY distance
-                    LIMIT {top_k};
-                    """
-            ).format(
-                distance_metric_sql=sql.SQL(distance_metric_sql),
-                table_name=sql.Identifier(table_name),
-                feature_name=sql.Literal(requested_feature),
-                top_k=sql.Literal(top_k),
-            )
-            print(query)
             cur.execute(
                 sql.SQL(
                     """
