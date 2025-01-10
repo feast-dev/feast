@@ -6,7 +6,7 @@ from feast import (
     FileSource,
 )
 from feast.data_format import ParquetFormat
-from feast.types import Float32, Array
+from feast.types import Float32, Array, String
 from feast import Entity
 
 item = Entity(name="item_id")
@@ -23,7 +23,14 @@ city_embeddings_feature_view = FeatureView(
     name="city_embeddings",
     entities=[item],
     schema=[
-        Field(name="Embeddings", dtype=Array(Float32)),
+        Field(
+            name="vector",
+            dtype=Array(Float32),
+            vector_index=True,
+            vector_search_metric="L2",
+        ),
+        Field(name="sentence_chunks", dtype=String),
+        Field(name="wiki_summary", dtype=String),
     ],
     source=source,
     ttl=timedelta(hours=2),

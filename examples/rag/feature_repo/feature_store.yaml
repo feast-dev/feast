@@ -4,12 +4,7 @@ registry: data/registry.db
 online_store:
   type: milvus
   vector_enabled: true
-  vector_len: 384
-  host: 127.0.0.1
-#  port: 5432
-  port: 19530
-  username: "username"
-  password: "password"
+  embedding_dim: 384
 
 
 offline_store:

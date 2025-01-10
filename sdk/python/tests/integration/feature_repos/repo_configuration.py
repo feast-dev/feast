@@ -214,6 +214,7 @@ if os.getenv("FEAST_LOCAL_ONLINE_CONTAINER", "False").lower() == "true":
         "dynamodb": (DYNAMO_CONFIG, DynamoDBOnlineStoreCreator),
         "datastore": ("datastore", DatastoreOnlineStoreCreator),
         "bigtable": ("bigtable", BigtableOnlineStoreCreator),
+        # "milvus:": (MILVUS_CONFIG, MilvusOnlineStoreCreator),
     }
 
     for key, replacement in replacements.items():

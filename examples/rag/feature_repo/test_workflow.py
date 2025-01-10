@@ -2,6 +2,7 @@ import pandas as pd
 import torch
 import torch.nn.functional as F
 from feast import FeatureStore
+from pymilvus import MilvusClient
 from transformers import AutoTokenizer, AutoModel
 from example_repo import city_embeddings_feature_view, item
 TOKENIZER = "sentence-transformers/all-MiniLM-L6-v2"
@@ -37,8 +38,11 @@ def run_demo():
     df = pd.read_parquet("./data/city_wikipedia_summaries_with_embeddings.parquet")
     store.apply([city_embeddings_feature_view, item])
     store.write_to_online_store_async("city_embeddings", df)
-    question = "the most populous city in the U.S. state of Texas?"
 
+    client = MilvusClient(alias="feast", host="localhost", port="19530", token="username:password")
+    print(client.list_collections())
+
+    question = "the most populous city in the U.S. state of Texas?"
     tokenizer = AutoTokenizer.from_pretrained(TOKENIZER)
     model = AutoModel.from_pretrained(MODEL)
     query_embedding = run_model(question, tokenizer, model)
