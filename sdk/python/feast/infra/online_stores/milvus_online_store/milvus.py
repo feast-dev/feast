@@ -88,7 +88,7 @@ class MilvusOnlineStoreConfig(FeastConfigBaseModel, VectorStoreConfig):
     path: Optional[StrictStr] = "data/online_store.db"
     host: Optional[StrictStr] = "localhost"
     port: Optional[int] = 19530
-    index_type: Optional[str] = "IVF_FLAT"
+    index_type: Optional[str] = "FLAT"
     metric_type: Optional[str] = "L2"
     embedding_dim: Optional[int] = 128
     vector_enabled: Optional[bool] = True
