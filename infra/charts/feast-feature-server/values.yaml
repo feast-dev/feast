@@ -74,3 +74,7 @@ livenessProbe:
 readinessProbe:
   initialDelaySeconds: 20
   periodSeconds: 10
+
+# to create OpenShift Route object for UI
+route:
+  enabled: false

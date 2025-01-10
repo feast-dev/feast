@@ -61,3 +61,4 @@ See [here](https://github.com/feast-dev/feast/tree/master/examples/python-helm-d
 | service.type | string | `"ClusterIP"` |  |
 | serviceAccount.name | string | `""` |  |
 | tolerations | list | `[]` |  |
+| route.enabled | bool | `false` |  |
