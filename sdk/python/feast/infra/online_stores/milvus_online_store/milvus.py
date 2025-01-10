@@ -108,12 +108,16 @@ class MilvusOnlineStore(OnlineStore):
 
     def _connect(self, config: RepoConfig) -> MilvusClient:
         if not self.client:
-            self.client = MilvusClient(
-                url=f"{config.online_store.host}:{config.online_store.port}",
-                token=f"{config.online_store.username}:{config.online_store.password}"
-                if config.online_store.username and config.online_store.password
-                else "",
-            )
+            if config.provider == "local":
+                print("Connecting to Milvus in local mode using ./milvus_demo.db")
+                self.client = MilvusClient("./milvus_demo.db")
+            else:
+                self.client = MilvusClient(
+                    url=f"{config.online_store.host}:{config.online_store.port}",
+                    token=f"{config.online_store.username}:{config.online_store.password}"
+                    if config.online_store.username and config.online_store.password
+                    else "",
+                )
         return self.client
 
     def _get_collection(self, config: RepoConfig, table: FeatureView) -> Dict[str, Any]:
@@ -247,7 +251,8 @@ class MilvusOnlineStore(OnlineStore):
                 progress(1)
 
         self.client.insert(
-            collection_name=collection["collection_name"], data=entity_batch_to_insert
+            collection_name=collection["collection_name"],
+            data=entity_batch_to_insert,
         )
 
     def online_read(
