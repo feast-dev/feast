@@ -1,5 +1,6 @@
 import os
 import platform
+import random
 import sqlite3
 import sys
 import time
@@ -569,13 +570,13 @@ def test_local_milvus() -> None:
     from pymilvus import MilvusClient
 
     random.seed(42)
-    VECTOR_LENGTH = 768
-    COLLECTION_NAME = "test_demo_collection"
+    VECTOR_LENGTH: int = 768
+    COLLECTION_NAME: str = "test_demo_collection"
 
     client = MilvusClient("./milvus_demo.db")
 
-    if client.has_collection(collection_name=COLLECTION_NAME):
-        client.drop_collection(collection_name=COLLECTION_NAME)
+    for collection in client.list_collections():
+        client.drop_collection(collection_name=collection)
     client.create_collection(
         collection_name=COLLECTION_NAME,
         dimension=VECTOR_LENGTH,
@@ -615,11 +616,15 @@ def test_local_milvus() -> None:
     )
     assert list(query_result[0].keys()) == ["id", "text", "subject", "vector"]
 
+    client.drop_collection(collection_name=COLLECTION_NAME)
+
 
 def test_milvus_lite_get_online_documents() -> None:
     """
     Test retrieving documents from the online store in local mode.
     """
+
+    random.seed(42)
     n = 10  # number of samples - note: we'll actually double it
     vector_length = 10
     runner = CliRunner()
