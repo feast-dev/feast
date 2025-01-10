@@ -108,12 +108,16 @@ class MilvusOnlineStore(OnlineStore):
 
     def _connect(self, config: RepoConfig) -> MilvusClient:
         if not self.client:
-            self.client = MilvusClient(
-                url=f"{config.online_store.host}:{config.online_store.port}",
-                token=f"{config.online_store.username}:{config.online_store.password}"
-                if config.online_store.username and config.online_store.password
-                else "",
-            )
+            if config.provider == "local":
+                print("Connecting to Milvus in local mode using ./milvus_demo.db")
+                self.client = MilvusClient("./milvus_demo.db")
+            else:
+                self.client = MilvusClient(
+                    url=f"{config.online_store.host}:{config.online_store.port}",
+                    token=f"{config.online_store.username}:{config.online_store.password}"
+                    if config.online_store.username and config.online_store.password
+                    else "",
+                )
         return self.client
 
     def _get_collection(self, config: RepoConfig, table: FeatureView) -> Dict[str, Any]:
@@ -192,7 +196,9 @@ class MilvusOnlineStore(OnlineStore):
                     collection_name=collection_name,
                     index_params=index_params,
                 )
+                print(f"created collection {collection_name} in Milvus with config = {config.online_store}")
             else:
+                print(f"loaded collection {collection_name} in Milvus with config = {config.online_store}")
                 self.client.load_collection(collection_name)
             self._collections[collection_name] = self.client.describe_collection(
                 collection_name
@@ -246,8 +252,10 @@ class MilvusOnlineStore(OnlineStore):
             if progress:
                 progress(1)
 
+        print(f"Inserting {len(entity_batch_to_insert)} records into Milvus")
         self.client.insert(
-            collection_name=collection["collection_name"], data=entity_batch_to_insert
+            collection_name=collection["collection_name"],
+            data=entity_batch_to_insert,
         )
 
     def online_read(
@@ -292,8 +300,10 @@ class MilvusOnlineStore(OnlineStore):
         self.client = self._connect(config)
         for table in tables:
             collection_name = _table_id(config.project, table)
+            print('deleting collection', collection_name)
             if self._collections.get(collection_name, None):
                 self.client.drop_collection(collection_name)
+                print('deleted collection', collection_name)
                 self._collections.pop(collection_name, None)
 
     def retrieve_online_documents(
