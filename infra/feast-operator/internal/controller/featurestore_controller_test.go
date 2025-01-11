@@ -402,29 +402,10 @@ var _ = Describe("FeatureStore Controller", func() {
 		featurestore := &feastdevv1alpha1.FeatureStore{}
 
 		BeforeEach(func() {
-			By("creating the config map and secret for envFrom")
-			envFromConfigMap := &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "example-configmap",
-					Namespace: "default",
-				},
-				Data: map[string]string{"example-key": "example-value"},
-			}
-			err := k8sClient.Create(context.TODO(), envFromConfigMap)
-			Expect(err).ToNot(HaveOccurred())
-
-			envFromSecret := &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "example-secret",
-					Namespace: "default",
-				},
-				StringData: map[string]string{"secret-key": "secret-value"},
-			}
-			err = k8sClient.Create(context.TODO(), envFromSecret)
-			Expect(err).ToNot(HaveOccurred())
+			createEnvFromSecretAndConfigMap()
 
 			By("creating the custom resource for the Kind FeatureStore")
-			err = k8sClient.Get(ctx, typeNamespacedName, featurestore)
+			err := k8sClient.Get(ctx, typeNamespacedName, featurestore)
 			if err != nil && errors.IsNotFound(err) {
 				resource := createFeatureStoreResource(resourceName, image, pullPolicy, &[]corev1.EnvVar{{Name: testEnvVarName, Value: testEnvVarValue},
 					{Name: "fieldRefName", ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "metadata.namespace"}}}}, withEnvFrom())
@@ -440,25 +421,7 @@ var _ = Describe("FeatureStore Controller", func() {
 			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
 
 			// Delete ConfigMap
-			By("Deleting the configmap and secret for envFrom")
-			configMap := &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "example-configmap",
-					Namespace: "default",
-				},
-			}
-			err = k8sClient.Delete(context.TODO(), configMap)
-			Expect(err).ToNot(HaveOccurred())
-
-			// Delete Secret
-			secret := &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "example-secret",
-					Namespace: "default",
-				},
-			}
-			err = k8sClient.Delete(context.TODO(), secret)
-			Expect(err).ToNot(HaveOccurred())
+			deleteEnvFromSecretAndConfigMap()
 		})
 
 		It("should successfully reconcile the resource", func() {
@@ -503,18 +466,7 @@ var _ = Describe("FeatureStore Controller", func() {
 			Expect(resource.Status.Applied.Services.OnlineStore.Persistence.FilePersistence).NotTo(BeNil())
 			Expect(resource.Status.Applied.Services.OnlineStore.Persistence.FilePersistence.Path).To(Equal(services.EphemeralPath + "/" + services.DefaultOnlineStorePath))
 			Expect(resource.Status.Applied.Services.OnlineStore.Env).To(Equal(&[]corev1.EnvVar{{Name: testEnvVarName, Value: testEnvVarValue}, {Name: "fieldRefName", ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "metadata.namespace"}}}}))
-			Expect(resource.Status.Applied.Services.OnlineStore.EnvFrom).To(Equal(&[]corev1.EnvFromSource{
-				{
-					ConfigMapRef: &corev1.ConfigMapEnvSource{
-						LocalObjectReference: corev1.LocalObjectReference{Name: "example-configmap"},
-					},
-				},
-				{
-					SecretRef: &corev1.SecretEnvSource{
-						LocalObjectReference: corev1.LocalObjectReference{Name: "example-secret"},
-					},
-				},
-			}))
+			Expect(resource.Status.Applied.Services.OnlineStore.EnvFrom).To(Equal(withEnvFrom()))
 			Expect(resource.Status.Applied.Services.OnlineStore.ImagePullPolicy).To(Equal(&pullPolicy))
 			Expect(resource.Status.Applied.Services.OnlineStore.Resources).NotTo(BeNil())
 			Expect(resource.Status.Applied.Services.OnlineStore.Image).To(Equal(&image))
@@ -681,6 +633,8 @@ var _ = Describe("FeatureStore Controller", func() {
 			env = getFeatureStoreYamlEnvVar(offlineContainer.Env)
 			Expect(env).NotTo(BeNil())
 
+			assertEnvFrom(*offlineContainer)
+
 			fsYamlStr, err = feast.GetServiceFeatureStoreYamlBase64()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(fsYamlStr).To(Equal(env.Value))
@@ -698,6 +652,8 @@ var _ = Describe("FeatureStore Controller", func() {
 			Expect(onlineContainer.ImagePullPolicy).To(Equal(corev1.PullAlways))
 			env = getFeatureStoreYamlEnvVar(onlineContainer.Env)
 			Expect(env).NotTo(BeNil())
+
+			assertEnvFrom(*onlineContainer)
 
 			fsYamlStr, err = feast.GetServiceFeatureStoreYamlBase64()
 			Expect(err).NotTo(HaveOccurred())
@@ -1260,51 +1216,6 @@ var _ = Describe("FeatureStore Controller", func() {
 		})
 	})
 })
-
-func withEnvFrom() *[]corev1.EnvFromSource {
-
-	return &[]corev1.EnvFromSource{
-		{
-			ConfigMapRef: &corev1.ConfigMapEnvSource{
-				LocalObjectReference: corev1.LocalObjectReference{Name: "example-configmap"},
-			},
-		},
-		{
-			SecretRef: &corev1.SecretEnvSource{
-				LocalObjectReference: corev1.LocalObjectReference{Name: "example-secret"},
-			},
-		},
-	}
-
-}
-
-func createFeatureStoreResource(resourceName string, image string, pullPolicy corev1.PullPolicy, envVars *[]corev1.EnvVar, envFromVar *[]corev1.EnvFromSource) *feastdevv1alpha1.FeatureStore {
-	return &feastdevv1alpha1.FeatureStore{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      resourceName,
-			Namespace: "default",
-		},
-		Spec: feastdevv1alpha1.FeatureStoreSpec{
-			FeastProject: feastProject,
-			Services: &feastdevv1alpha1.FeatureStoreServices{
-				OfflineStore: &feastdevv1alpha1.OfflineStore{},
-				OnlineStore: &feastdevv1alpha1.OnlineStore{
-					ServiceConfigs: feastdevv1alpha1.ServiceConfigs{
-						DefaultConfigs: feastdevv1alpha1.DefaultConfigs{
-							Image: &image,
-						},
-						OptionalConfigs: feastdevv1alpha1.OptionalConfigs{
-							Env:             envVars,
-							EnvFrom:         envFromVar,
-							ImagePullPolicy: &pullPolicy,
-							Resources:       &corev1.ResourceRequirements{},
-						},
-					},
-				},
-			},
-		},
-	}
-}
 
 func getFeatureStoreYamlEnvVar(envs []corev1.EnvVar) *corev1.EnvVar {
 	for _, e := range envs {

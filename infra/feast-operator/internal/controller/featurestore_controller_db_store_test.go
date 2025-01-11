@@ -202,26 +202,7 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 				Expect(k8sClient.Create(ctx, secret)).To(Succeed())
 			}
 
-			By("creating the config map and secret for envFrom")
-			envFromConfigMap := &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "example-configmap",
-					Namespace: "default",
-				},
-				Data: map[string]string{"example-key": "example-value"},
-			}
-			err = k8sClient.Create(context.TODO(), envFromConfigMap)
-			Expect(err).ToNot(HaveOccurred())
-
-			envFromSecret := &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "example-secret",
-					Namespace: "default",
-				},
-				StringData: map[string]string{"secret-key": "secret-value"},
-			}
-			err = k8sClient.Create(context.TODO(), envFromSecret)
-			Expect(err).ToNot(HaveOccurred())
+			createEnvFromSecretAndConfigMap()
 
 			By("creating the custom resource for the Kind FeatureStore")
 			err = k8sClient.Get(ctx, typeNamespacedName, featurestore)
@@ -277,25 +258,7 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 			err = k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 
-			By("Deleting the configmap and secret for envFrom")
-			configMap := &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "example-configmap",
-					Namespace: "default",
-				},
-			}
-			err = k8sClient.Delete(context.TODO(), configMap)
-			Expect(err).ToNot(HaveOccurred())
-
-			// Delete Secret
-			secret := &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "example-secret",
-					Namespace: "default",
-				},
-			}
-			err = k8sClient.Delete(context.TODO(), secret)
-			Expect(err).ToNot(HaveOccurred())
+			deleteEnvFromSecretAndConfigMap()
 
 			By("Cleanup the secrets")
 			Expect(k8sClient.Delete(ctx, onlineSecret)).To(Succeed())
@@ -639,6 +602,7 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 
 			offlineContainer := services.GetOfflineContainer(deploy.Spec.Template.Spec.Containers)
 			Expect(offlineContainer.Env).To(HaveLen(1))
+			assertEnvFrom(*offlineContainer)
 			env = getFeatureStoreYamlEnvVar(offlineContainer.Env)
 			Expect(env).NotTo(BeNil())
 
@@ -656,6 +620,7 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 			onlineContainer := services.GetOnlineContainer(deploy.Spec.Template.Spec.Containers)
 			Expect(onlineContainer.VolumeMounts).To(HaveLen(1))
 			Expect(onlineContainer.Env).To(HaveLen(1))
+			assertEnvFrom(*onlineContainer)
 			Expect(onlineContainer.ImagePullPolicy).To(Equal(corev1.PullAlways))
 			env = getFeatureStoreYamlEnvVar(onlineContainer.Env)
 			Expect(env).NotTo(BeNil())
