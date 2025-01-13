@@ -70,10 +70,12 @@ var _ = Describe("FeatureStore Controller-OIDC authorization", func() {
 				Expect(k8sClient.Create(ctx, oidcSecret)).To(Succeed())
 			}
 
+			createEnvFromSecretAndConfigMap()
+
 			By("creating the custom resource for the Kind FeatureStore")
 			err = k8sClient.Get(ctx, typeNamespacedName, featurestore)
 			if err != nil && errors.IsNotFound(err) {
-				resource := createFeatureStoreResource(resourceName, image, pullPolicy, &[]corev1.EnvVar{})
+				resource := createFeatureStoreResource(resourceName, image, pullPolicy, &[]corev1.EnvVar{}, withEnvFrom())
 				resource.Spec.AuthzConfig = &feastdevv1alpha1.AuthzConfig{OidcAuthz: &feastdevv1alpha1.OidcAuthz{
 					SecretRef: corev1.LocalObjectReference{
 						Name: oidcSecretName,
@@ -82,6 +84,7 @@ var _ = Describe("FeatureStore Controller-OIDC authorization", func() {
 
 				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
 			}
+
 		})
 		AfterEach(func() {
 			resource := &feastdevv1alpha1.FeatureStore{}
@@ -97,6 +100,8 @@ var _ = Describe("FeatureStore Controller-OIDC authorization", func() {
 
 			By("Cleanup the specific resource instance FeatureStore")
 			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
+
+			deleteEnvFromSecretAndConfigMap()
 		})
 
 		It("should successfully reconcile the resource", func() {
@@ -148,6 +153,7 @@ var _ = Describe("FeatureStore Controller-OIDC authorization", func() {
 			Expect(resource.Status.Applied.Services.OnlineStore.Persistence.FilePersistence).NotTo(BeNil())
 			Expect(resource.Status.Applied.Services.OnlineStore.Persistence.FilePersistence.Path).To(Equal(services.EphemeralPath + "/" + services.DefaultOnlineStorePath))
 			Expect(resource.Status.Applied.Services.OnlineStore.Env).To(Equal(&[]corev1.EnvVar{}))
+			Expect(resource.Status.Applied.Services.OnlineStore.EnvFrom).To(Equal(withEnvFrom()))
 			Expect(resource.Status.Applied.Services.OnlineStore.ImagePullPolicy).To(Equal(&pullPolicy))
 			Expect(resource.Status.Applied.Services.OnlineStore.Resources).NotTo(BeNil())
 			Expect(resource.Status.Applied.Services.OnlineStore.Image).To(Equal(&image))
@@ -221,6 +227,9 @@ var _ = Describe("FeatureStore Controller-OIDC authorization", func() {
 			Expect(services.GetOfflineContainer(deploy.Spec.Template.Spec.Containers).VolumeMounts).To(HaveLen(1))
 			Expect(services.GetOnlineContainer(deploy.Spec.Template.Spec.Containers).VolumeMounts).To(HaveLen(1))
 			Expect(services.GetRegistryContainer(deploy.Spec.Template.Spec.Containers).VolumeMounts).To(HaveLen(1))
+
+			assertEnvFrom(*services.GetOnlineContainer(deploy.Spec.Template.Spec.Containers))
+			assertEnvFrom(*services.GetOfflineContainer(deploy.Spec.Template.Spec.Containers))
 
 			// check Feast Role
 			feastRole := &rbacv1.Role{}

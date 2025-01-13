@@ -474,6 +474,17 @@ func (in *OptionalConfigs) DeepCopyInto(out *OptionalConfigs) {
 			}
 		}
 	}
+	if in.EnvFrom != nil {
+		in, out := &in.EnvFrom, &out.EnvFrom
+		*out = new([]v1.EnvFromSource)
+		if **in != nil {
+			in, out := *in, *out
+			*out = make([]v1.EnvFromSource, len(*in))
+			for i := range *in {
+				(*in)[i].DeepCopyInto(&(*out)[i])
+			}
+		}
+	}
 	if in.ImagePullPolicy != nil {
 		in, out := &in.ImagePullPolicy, &out.ImagePullPolicy
 		*out = new(v1.PullPolicy)

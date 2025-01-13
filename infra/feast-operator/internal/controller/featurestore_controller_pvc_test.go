@@ -75,11 +75,13 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 		registryMountedPath := path.Join(registryMountPath, registryPath)
 
 		BeforeEach(func() {
+			createEnvFromSecretAndConfigMap()
+
 			By("creating the custom resource for the Kind FeatureStore")
 			err := k8sClient.Get(ctx, typeNamespacedName, featurestore)
 			if err != nil && errors.IsNotFound(err) {
 				resource := createFeatureStoreResource(resourceName, image, pullPolicy, &[]corev1.EnvVar{{Name: testEnvVarName, Value: testEnvVarValue},
-					{Name: "fieldRefName", ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "metadata.namespace"}}}})
+					{Name: "fieldRefName", ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "metadata.namespace"}}}}, withEnvFrom())
 				resource.Spec.Services.OfflineStore.Persistence = &feastdevv1alpha1.OfflineStorePersistence{
 					FilePersistence: &feastdevv1alpha1.OfflineStoreFilePersistence{
 						Type: offlineType,
@@ -125,6 +127,8 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 
 			By("Cleanup the specific resource instance FeatureStore")
 			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
+
+			deleteEnvFromSecretAndConfigMap()
 		})
 
 		It("should successfully reconcile the resource", func() {
@@ -191,6 +195,7 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			Expect(resource.Status.Applied.Services.OnlineStore.Persistence.FilePersistence.PvcConfig.Create.Resources).NotTo(BeNil())
 			Expect(resource.Status.Applied.Services.OnlineStore.Persistence.FilePersistence.PvcConfig.Create.Resources).To(Equal(expectedResources))
 			Expect(resource.Status.Applied.Services.OnlineStore.Env).To(Equal(&[]corev1.EnvVar{{Name: testEnvVarName, Value: testEnvVarValue}, {Name: "fieldRefName", ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "metadata.namespace"}}}}))
+			Expect(resource.Status.Applied.Services.OnlineStore.EnvFrom).To(Equal(withEnvFrom()))
 			Expect(resource.Status.Applied.Services.OnlineStore.ImagePullPolicy).To(Equal(&pullPolicy))
 			Expect(resource.Status.Applied.Services.OnlineStore.Resources).NotTo(BeNil())
 			Expect(resource.Status.Applied.Services.OnlineStore.Image).To(Equal(&image))
@@ -283,6 +288,8 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			offlinePvcName := feast.GetFeastServiceName(services.OfflineFeastType)
 			Expect(offlineVolMount.Name).To(Equal(offlinePvcName))
 
+			assertEnvFrom(*offlineContainer)
+
 			// check offline pvc
 			pvc := &corev1.PersistentVolumeClaim{}
 			err = k8sClient.Get(ctx, types.NamespacedName{
@@ -306,6 +313,8 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			onlineVolMount := services.GetOnlineVolumeMount(feast.Handler.FeatureStore, onlineContainer.VolumeMounts)
 			Expect(onlineVolMount.MountPath).To(Equal(onlineStoreMountPath))
 			Expect(onlineVolMount.Name).To(Equal(onlinePvcName))
+
+			assertEnvFrom(*onlineContainer)
 
 			// check online pvc
 			pvc = &corev1.PersistentVolumeClaim{}

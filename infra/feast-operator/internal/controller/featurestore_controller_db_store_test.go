@@ -202,10 +202,12 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 				Expect(k8sClient.Create(ctx, secret)).To(Succeed())
 			}
 
+			createEnvFromSecretAndConfigMap()
+
 			By("creating the custom resource for the Kind FeatureStore")
 			err = k8sClient.Get(ctx, typeNamespacedName, featurestore)
 			if err != nil && errors.IsNotFound(err) {
-				resource := createFeatureStoreResource(resourceName, image, pullPolicy, &[]corev1.EnvVar{})
+				resource := createFeatureStoreResource(resourceName, image, pullPolicy, &[]corev1.EnvVar{}, withEnvFrom())
 				resource.Spec.Services.OfflineStore.Persistence = &feastdevv1alpha1.OfflineStorePersistence{
 					DBPersistence: &feastdevv1alpha1.OfflineStoreDBStorePersistence{
 						Type: string(offlineType),
@@ -255,6 +257,8 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 			resource := &feastdevv1alpha1.FeatureStore{}
 			err = k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
+
+			deleteEnvFromSecretAndConfigMap()
 
 			By("Cleanup the secrets")
 			Expect(k8sClient.Delete(ctx, onlineSecret)).To(Succeed())
@@ -598,6 +602,7 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 
 			offlineContainer := services.GetOfflineContainer(deploy.Spec.Template.Spec.Containers)
 			Expect(offlineContainer.Env).To(HaveLen(1))
+			assertEnvFrom(*offlineContainer)
 			env = getFeatureStoreYamlEnvVar(offlineContainer.Env)
 			Expect(env).NotTo(BeNil())
 
@@ -615,6 +620,7 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 			onlineContainer := services.GetOnlineContainer(deploy.Spec.Template.Spec.Containers)
 			Expect(onlineContainer.VolumeMounts).To(HaveLen(1))
 			Expect(onlineContainer.Env).To(HaveLen(1))
+			assertEnvFrom(*onlineContainer)
 			Expect(onlineContainer.ImagePullPolicy).To(Equal(corev1.PullAlways))
 			env = getFeatureStoreYamlEnvVar(onlineContainer.Env)
 			Expect(env).NotTo(BeNil())

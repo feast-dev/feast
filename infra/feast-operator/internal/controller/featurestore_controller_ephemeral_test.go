@@ -62,11 +62,12 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 		registryPath := "/data/registry.db"
 
 		BeforeEach(func() {
+			createEnvFromSecretAndConfigMap()
 			By("creating the custom resource for the Kind FeatureStore")
 			err := k8sClient.Get(ctx, typeNamespacedName, featurestore)
 			if err != nil && errors.IsNotFound(err) {
 				resource := createFeatureStoreResource(resourceName, image, pullPolicy, &[]corev1.EnvVar{{Name: testEnvVarName, Value: testEnvVarValue},
-					{Name: "fieldRefName", ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "metadata.namespace"}}}})
+					{Name: "fieldRefName", ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "metadata.namespace"}}}}, withEnvFrom())
 				resource.Spec.Services.OfflineStore.Persistence = &feastdevv1alpha1.OfflineStorePersistence{
 					FilePersistence: &feastdevv1alpha1.OfflineStoreFilePersistence{
 						Type: offlineType,
@@ -97,6 +98,8 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 
 			By("Cleanup the specific resource instance FeatureStore")
 			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
+
+			deleteEnvFromSecretAndConfigMap()
 		})
 
 		It("should successfully reconcile the resource", func() {
@@ -141,6 +144,7 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			Expect(resource.Status.Applied.Services.OnlineStore.Persistence.FilePersistence).NotTo(BeNil())
 			Expect(resource.Status.Applied.Services.OnlineStore.Persistence.FilePersistence.Path).To(Equal(onlineStorePath))
 			Expect(resource.Status.Applied.Services.OnlineStore.Env).To(Equal(&[]corev1.EnvVar{{Name: testEnvVarName, Value: testEnvVarValue}, {Name: "fieldRefName", ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "metadata.namespace"}}}}))
+			Expect(resource.Status.Applied.Services.OnlineStore.EnvFrom).To(Equal(withEnvFrom()))
 			Expect(resource.Status.Applied.Services.OnlineStore.ImagePullPolicy).To(Equal(&pullPolicy))
 			Expect(resource.Status.Applied.Services.OnlineStore.Resources).NotTo(BeNil())
 			Expect(resource.Status.Applied.Services.OnlineStore.Image).To(Equal(&image))
@@ -309,8 +313,12 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 
 			offlineContainer := services.GetOfflineContainer(deploy.Spec.Template.Spec.Containers)
 			Expect(offlineContainer.Env).To(HaveLen(1))
+			assertEnvFrom(*offlineContainer)
 			env = getFeatureStoreYamlEnvVar(offlineContainer.Env)
 			Expect(env).NotTo(BeNil())
+
+			//check envFrom for offlineContainer
+			assertEnvFrom(*offlineContainer)
 
 			fsYamlStr, err = feast.GetServiceFeatureStoreYamlBase64()
 			Expect(err).NotTo(HaveOccurred())
@@ -433,6 +441,10 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			onlineContainer = services.GetOnlineContainer(deploy.Spec.Template.Spec.Containers)
 			env = getFeatureStoreYamlEnvVar(onlineContainer.Env)
 			Expect(env).NotTo(BeNil())
+
+			//check envFrom
+			// Validate `envFrom` for ConfigMap and Secret
+			assertEnvFrom(*onlineContainer)
 
 			fsYamlStr, err = feast.GetServiceFeatureStoreYamlBase64()
 			Expect(err).NotTo(HaveOccurred())

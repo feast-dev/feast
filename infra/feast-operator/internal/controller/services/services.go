@@ -708,6 +708,9 @@ func applyOptionalContainerConfigs(container *corev1.Container, optionalConfigs 
 	if optionalConfigs.Env != nil {
 		container.Env = envOverride(container.Env, *optionalConfigs.Env)
 	}
+	if optionalConfigs.EnvFrom != nil {
+		container.EnvFrom = *optionalConfigs.EnvFrom
+	}
 	if optionalConfigs.ImagePullPolicy != nil {
 		container.ImagePullPolicy = *optionalConfigs.ImagePullPolicy
 	}

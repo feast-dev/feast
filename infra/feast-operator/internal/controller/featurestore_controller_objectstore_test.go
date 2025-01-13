@@ -64,11 +64,13 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 		}
 
 		BeforeEach(func() {
+			createEnvFromSecretAndConfigMap()
+
 			By("creating the custom resource for the Kind FeatureStore")
 			err := k8sClient.Get(ctx, typeNamespacedName, featurestore)
 			if err != nil && errors.IsNotFound(err) {
 				resource := createFeatureStoreResource(resourceName, image, pullPolicy, &[]corev1.EnvVar{{Name: testEnvVarName, Value: testEnvVarValue},
-					{Name: "fieldRefName", ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "metadata.namespace"}}}})
+					{Name: "fieldRefName", ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "metadata.namespace"}}}}, withEnvFrom())
 				resource.Spec.Services.OnlineStore = nil
 				resource.Spec.Services.OfflineStore = nil
 				resource.Spec.Services.Registry = &feastdevv1alpha1.Registry{
@@ -81,7 +83,6 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 						},
 					},
 				}
-
 				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
 			}
 		})
@@ -89,6 +90,8 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			resource := &feastdevv1alpha1.FeatureStore{}
 			err := k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
+
+			deleteEnvFromSecretAndConfigMap()
 
 			By("Cleanup the specific resource instance FeatureStore")
 			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
