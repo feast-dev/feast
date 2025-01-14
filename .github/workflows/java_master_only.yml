@@ -16,7 +16,7 @@ jobs:
         component: [feature-server-java]
     env:
       MAVEN_CACHE: gs://feast-templocation-kf-feast/.m2.2020-08-19.tar
-      REGISTRY: gcr.io/kf-feast
+      REGISTRY: quay.io/feastdev-ci
     steps:
       - uses: actions/checkout@v4
         with:
