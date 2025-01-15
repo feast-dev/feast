@@ -317,7 +317,7 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			env = getFeatureStoreYamlEnvVar(offlineContainer.Env)
 			Expect(env).NotTo(BeNil())
 
-			//check envFrom for offlineContainer
+			// check envFrom for offlineContainer
 			assertEnvFrom(*offlineContainer)
 
 			fsYamlStr, err = feast.GetServiceFeatureStoreYamlBase64()
@@ -442,7 +442,7 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			env = getFeatureStoreYamlEnvVar(onlineContainer.Env)
 			Expect(env).NotTo(BeNil())
 
-			//check envFrom
+			// check envFrom
 			// Validate `envFrom` for ConfigMap and Secret
 			assertEnvFrom(*onlineContainer)
 
