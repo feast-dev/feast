@@ -477,11 +477,11 @@ push-ci-docker:
 	docker push $(REGISTRY)/feast-ci:$(VERSION)
 
 push-feature-server-docker:
-	docker push $(REGISTRY)/feature-server:$$VERSION
+	docker push $(REGISTRY)/feature-server:$(VERSION)
 
 build-feature-server-docker:
-	docker buildx build --build-arg VERSION=$$VERSION \
-		-t $(REGISTRY)/feature-server:$$VERSION \
+	docker buildx build --build-arg VERSION=$(VERSION) \
+		-t $(REGISTRY)/feature-server:$(VERSION) \
 		-f sdk/python/feast/infra/feature_servers/multicloud/Dockerfile --load .
 
 push-feature-transformation-server-docker:
@@ -530,6 +530,14 @@ build-feature-server-dev:
 	docker buildx build \
 		-t feastdev/feature-server:dev \
 		-f sdk/python/feast/infra/feature_servers/multicloud/Dockerfile.dev --load .
+
+build-feature-server-dev-docker:
+	docker buildx build \
+		-t $(REGISTRY)/feature-server:$(VERSION) \
+		-f sdk/python/feast/infra/feature_servers/multicloud/Dockerfile.dev --load .
+
+push-feature-server-dev-docker:
+	docker push $(REGISTRY)/feature-server:$(VERSION)
 
 build-java-docker-dev:
 	make build-java-no-tests REVISION=dev
