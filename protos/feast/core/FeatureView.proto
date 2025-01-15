@@ -75,6 +75,9 @@ message FeatureViewSpec {
 
     // Whether these features should be served online or not
     bool online = 8;
+    int32 vector_search_top_k = 13;
+    string search_algorithm = 14;
+    string vector_search_feature_name = 15;
 }
 
 message FeatureViewMeta {

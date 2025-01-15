@@ -90,6 +90,9 @@ class FeatureViewSpec(google.protobuf.message.Message):
     BATCH_SOURCE_FIELD_NUMBER: builtins.int
     STREAM_SOURCE_FIELD_NUMBER: builtins.int
     ONLINE_FIELD_NUMBER: builtins.int
+    VECTOR_SEARCH_TOP_K_FIELD_NUMBER: builtins.int
+    SEARCH_ALGORITHM_FIELD_NUMBER: builtins.int
+    VECTOR_SEARCH_FEATURE_NAME_FIELD_NUMBER: builtins.int
     name: builtins.str
     """Name of the feature view. Must be unique. Not updated."""
     project: builtins.str
@@ -125,6 +128,9 @@ class FeatureViewSpec(google.protobuf.message.Message):
         """Streaming DataSource from where this view can consume "online" feature data."""
     online: builtins.bool
     """Whether these features should be served online or not"""
+    vector_search_top_k: builtins.int
+    search_algorithm: builtins.str
+    vector_search_feature_name: builtins.str
     def __init__(
         self,
         *,
@@ -140,9 +146,12 @@ class FeatureViewSpec(google.protobuf.message.Message):
         batch_source: feast.core.DataSource_pb2.DataSource | None = ...,
         stream_source: feast.core.DataSource_pb2.DataSource | None = ...,
         online: builtins.bool = ...,
+        vector_search_top_k: builtins.int = ...,
+        search_algorithm: builtins.str = ...,
+        vector_search_feature_name: builtins.str = ...,
     ) -> None: ...
     def HasField(self, field_name: typing_extensions.Literal["batch_source", b"batch_source", "stream_source", b"stream_source", "ttl", b"ttl"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["batch_source", b"batch_source", "description", b"description", "entities", b"entities", "entity_columns", b"entity_columns", "features", b"features", "name", b"name", "online", b"online", "owner", b"owner", "project", b"project", "stream_source", b"stream_source", "tags", b"tags", "ttl", b"ttl"]) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["batch_source", b"batch_source", "description", b"description", "entities", b"entities", "entity_columns", b"entity_columns", "features", b"features", "name", b"name", "online", b"online", "owner", b"owner", "project", b"project", "search_algorithm", b"search_algorithm", "stream_source", b"stream_source", "tags", b"tags", "ttl", b"ttl", "vector_search_feature_name", b"vector_search_feature_name", "vector_search_top_k", b"vector_search_top_k"]) -> None: ...
 
 global___FeatureViewSpec = FeatureViewSpec
 

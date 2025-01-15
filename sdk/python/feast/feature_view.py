@@ -82,6 +82,9 @@ class FeatureView(BaseFeatureView):
         tags: A dictionary of key-value pairs to store arbitrary metadata.
         owner: The owner of the feature view, typically the email of the primary
             maintainer.
+        vector_search_top_k: The number of nearest neighbors to retrieve in a vector search.
+        search_alogrithm: The algorithm to use for vector search.
+
     """
 
     name: str
@@ -96,6 +99,9 @@ class FeatureView(BaseFeatureView):
     tags: Dict[str, str]
     owner: str
     materialization_intervals: List[Tuple[datetime, datetime]]
+    vector_search_top_k: Optional[int]
+    search_algorithm: Optional[str]
+
 
     def __init__(
         self,
@@ -109,6 +115,8 @@ class FeatureView(BaseFeatureView):
         description: str = "",
         tags: Optional[Dict[str, str]] = None,
         owner: str = "",
+        vector_search_top_k: Optional[int] = None,
+        search_algorithm: Optional[str] = "",
     ):
         """
         Creates a FeatureView object.
@@ -130,6 +138,8 @@ class FeatureView(BaseFeatureView):
             tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
             owner (optional): The owner of the feature view, typically the email of the
                 primary maintainer.
+            vector_search_top_k: (optional): The number of nearest neighbors to retrieve in a vector search.
+            search_algorithm: (optional): The algorithm to use for vector search.
 
         Raises:
             ValueError: A field mapping conflicts with an Entity or a Feature.
@@ -137,6 +147,8 @@ class FeatureView(BaseFeatureView):
         self.name = name
         self.entities = [e.name for e in entities] if entities else [DUMMY_ENTITY_NAME]
         self.ttl = ttl
+        self.vector_search_top_k = vector_search_top_k
+        self.search_algorithm = search_algorithm
         schema = schema or []
 
         # Initialize data sources.
@@ -214,6 +226,8 @@ class FeatureView(BaseFeatureView):
         )
         self.online = online
         self.materialization_intervals = []
+        self.vector_search_top_k = vector_search_top_k
+        self.search_algorithm = search_algorithm
 
     def __hash__(self):
         return super().__hash__()
@@ -226,6 +240,8 @@ class FeatureView(BaseFeatureView):
             schema=self.schema,
             tags=self.tags,
             online=self.online,
+            vector_search_top_k=self.vector_search_top_k,
+            search_algorithm=self.search_algorithm,
         )
 
         # This is deliberately set outside of the FV initialization as we do not have the Entity objects.
@@ -356,6 +372,8 @@ class FeatureView(BaseFeatureView):
             online=self.online,
             batch_source=batch_source_proto,
             stream_source=stream_source_proto,
+            vector_search_top_k=self.vector_search_top_k if self.vector_search_top_k is not None else 0,
+            search_algorithm=self.search_algorithm,
         )
 
         return FeatureViewProto(spec=spec, meta=meta)
@@ -409,6 +427,8 @@ class FeatureView(BaseFeatureView):
                 else feature_view_proto.spec.ttl.ToTimedelta()
             ),
             source=batch_source,
+            vector_search_top_k=feature_view_proto.spec.vector_search_top_k,
+            search_algorithm=feature_view_proto.spec.search_algorithm,
         )
         if stream_source:
             feature_view.stream_source = stream_source
