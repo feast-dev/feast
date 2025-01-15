@@ -62,6 +62,7 @@ spec:
         - /manager
         args:
         - --leader-elect
+        - --health-probe-bind-address=:8081
         image: controller:latest
         name: manager
         securityContext:

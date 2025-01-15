@@ -51,7 +51,7 @@ var _ = Describe("TLS Config", func() {
 				},
 			}
 			err := feast.ApplyDefaults()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			tls := feast.getTlsConfigs(RegistryFeastType)
 			Expect(tls).To(BeNil())
@@ -64,14 +64,14 @@ var _ = Describe("TLS Config", func() {
 			Expect(feast.isOpenShiftTls(OnlineFeastType)).To(BeFalse())
 			Expect(feast.isOpenShiftTls(RegistryFeastType)).To(BeFalse())
 			openshiftTls, err := feast.checkOpenshiftTls()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(openshiftTls).To(BeFalse())
 
 			// registry service w/ openshift tls
 			testSetIsOpenShift()
 			feast.Handler.FeatureStore = minimalFeatureStore()
 			err = feast.ApplyDefaults()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			tls = feast.getTlsConfigs(OfflineFeastType)
 			Expect(tls).To(BeNil())
@@ -92,13 +92,13 @@ var _ = Describe("TLS Config", func() {
 			Expect(feast.isOpenShiftTls(OnlineFeastType)).To(BeFalse())
 			Expect(feast.isOpenShiftTls(RegistryFeastType)).To(BeTrue())
 			openshiftTls, err = feast.checkOpenshiftTls()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(openshiftTls).To(BeTrue())
 
 			// all services w/ openshift tls
 			feast.Handler.FeatureStore = minimalFeatureStoreWithAllServices()
 			err = feast.ApplyDefaults()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			repoConfig, err := getClientRepoConfig(feast.Handler.FeatureStore, emptyMockExtractConfigFromSecret)
 			Expect(err).NotTo(HaveOccurred())
@@ -131,13 +131,13 @@ var _ = Describe("TLS Config", func() {
 			Expect(feast.isOpenShiftTls(OnlineFeastType)).To(BeTrue())
 			Expect(feast.isOpenShiftTls(RegistryFeastType)).To(BeTrue())
 			openshiftTls, err = feast.checkOpenshiftTls()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(openshiftTls).To(BeTrue())
 
 			// check k8s deployment objects
 			feastDeploy := feast.initFeastDeploy()
 			err = feast.setDeployment(feastDeploy)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(feastDeploy.Spec.Template.Spec.InitContainers).To(HaveLen(1))
 			Expect(feastDeploy.Spec.Template.Spec.Containers).To(HaveLen(3))
 			Expect(feastDeploy.Spec.Template.Spec.Containers[0].Command).To(ContainElements(ContainSubstring("--key")))
@@ -163,7 +163,7 @@ var _ = Describe("TLS Config", func() {
 				},
 			}
 			err = feast.ApplyDefaults()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			tls = feast.getTlsConfigs(OfflineFeastType)
 			Expect(tls).To(BeNil())
@@ -184,7 +184,7 @@ var _ = Describe("TLS Config", func() {
 			Expect(feast.isOpenShiftTls(OnlineFeastType)).To(BeFalse())
 			Expect(feast.isOpenShiftTls(RegistryFeastType)).To(BeFalse())
 			openshiftTls, err = feast.checkOpenshiftTls()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(openshiftTls).To(BeFalse())
 
 			// all services w/ tls and in an openshift cluster
@@ -201,7 +201,7 @@ var _ = Describe("TLS Config", func() {
 				},
 			}
 			err = feast.ApplyDefaults()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			repoConfig, err = getClientRepoConfig(feast.Handler.FeatureStore, emptyMockExtractConfigFromSecret)
 			Expect(err).NotTo(HaveOccurred())
@@ -232,27 +232,27 @@ var _ = Describe("TLS Config", func() {
 			Expect(feast.isOpenShiftTls(OnlineFeastType)).To(BeFalse())
 			Expect(feast.isOpenShiftTls(RegistryFeastType)).To(BeFalse())
 			openshiftTls, err = feast.checkOpenshiftTls()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(openshiftTls).To(BeTrue())
 
 			// check k8s service objects
 			offlineSvc := feast.initFeastSvc(OfflineFeastType)
 			Expect(offlineSvc.Annotations).To(BeEmpty())
 			err = feast.setService(offlineSvc, OfflineFeastType)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(offlineSvc.Annotations).NotTo(BeEmpty())
 			Expect(offlineSvc.Spec.Ports[0].Name).To(Equal(HttpsScheme))
 
 			onlineSvc := feast.initFeastSvc(OnlineFeastType)
 			err = feast.setService(onlineSvc, OnlineFeastType)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(onlineSvc.Annotations).To(BeEmpty())
 			Expect(onlineSvc.Spec.Ports[0].Name).To(Equal(HttpScheme))
 
 			// check k8s deployment objects
 			feastDeploy = feast.initFeastDeploy()
 			err = feast.setDeployment(feastDeploy)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(feastDeploy.Spec.Template.Spec.Containers).To(HaveLen(3))
 			Expect(GetOfflineContainer(feastDeploy.Spec.Template.Spec.Containers)).NotTo(BeNil())
 			Expect(feastDeploy.Spec.Template.Spec.Volumes).To(HaveLen(2))

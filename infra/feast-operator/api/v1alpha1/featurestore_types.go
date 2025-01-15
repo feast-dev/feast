@@ -385,11 +385,11 @@ type ServiceHostnames struct {
 	Registry     string `json:"registry,omitempty"`
 }
 
-//+kubebuilder:object:root=true
-//+kubebuilder:subresource:status
-//+kubebuilder:resource:shortName=feast
-//+kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.phase`
-//+kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+// +kubebuilder:resource:shortName=feast
+// +kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.phase`
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 
 // FeatureStore is the Schema for the featurestores API
 type FeatureStore struct {
@@ -400,7 +400,7 @@ type FeatureStore struct {
 	Status FeatureStoreStatus `json:"status,omitempty"`
 }
 
-//+kubebuilder:object:root=true
+// +kubebuilder:object:root=true
 
 // FeatureStoreList contains a list of FeatureStore
 type FeatureStoreList struct {
