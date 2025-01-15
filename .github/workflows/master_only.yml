@@ -97,7 +97,6 @@ jobs:
         component: [ feature-server-dev, feature-transformation-server, feast-operator ]
     env:
       REGISTRY: quay.io/feastdev-ci
-      IMAGE: ${{ matrix.component }}
     steps:
       - uses: actions/checkout@v4
       - name: Set up QEMU
@@ -117,10 +116,10 @@ jobs:
           make build-${{ matrix.component }}-docker REGISTRY=${REGISTRY} VERSION=${GITHUB_SHA}
       - name: Push image
         run: |
-          make push-${{ matrix.component }}-docker REGISTRY=${REGISTRY} VERSION=${GITHUB_SHA}
-
-          if [[ ${{ matrix.component }} == "feature-server-dev" ]]; then
-            echo "IMAGE=feature-server" >> $GITHUB_ENV
+          if [[ "${{ matrix.component }}" == "feature-server-dev" ]]; then
+            docker tag ${REGISTRY}/feature-server:${GITHUB_SHA} ${REGISTRY}/feature-server:develop
+            docker push ${REGISTRY}/feature-server --all-tags
+          else
+            docker tag ${REGISTRY}/${{ matrix.component }}:${GITHUB_SHA} ${REGISTRY}/${{ matrix.component }}:develop
+            docker push ${REGISTRY}/${{ matrix.component }} --all-tags
           fi
-          docker tag ${REGISTRY}/${IMAGE}:${GITHUB_SHA} ${REGISTRY}/${IMAGE}:develop
-          docker push ${REGISTRY}/${IMAGE}:develop
