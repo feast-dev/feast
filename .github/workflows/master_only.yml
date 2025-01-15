@@ -120,7 +120,7 @@ jobs:
           make push-${{ matrix.component }}-docker REGISTRY=${REGISTRY} VERSION=${GITHUB_SHA}
 
           if [[ ${{ matrix.component }} == "feature-server-dev" ]]; then
-            export IMAGE="feature-server"
+            echo "IMAGE=feature-server" >> $GITHUB_ENV
           fi
           docker tag ${REGISTRY}/${IMAGE}:${GITHUB_SHA} ${REGISTRY}/${IMAGE}:develop
           docker push ${REGISTRY}/${IMAGE}:develop
