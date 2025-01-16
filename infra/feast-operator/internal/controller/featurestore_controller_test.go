@@ -228,6 +228,7 @@ var _ = Describe("FeatureStore Controller", func() {
 			}, deploy)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(deploy.Spec.Template.Spec.ServiceAccountName).To(Equal(deploy.Name))
+			Expect(deploy.Spec.Strategy.Type).To(Equal(appsv1.RecreateDeploymentStrategyType))
 			Expect(deploy.Spec.Template.Spec.Containers).To(HaveLen(1))
 			Expect(deploy.Spec.Template.Spec.Containers[0].Env).To(HaveLen(1))
 			env := getFeatureStoreYamlEnvVar(deploy.Spec.Template.Spec.Containers[0].Env)
@@ -267,6 +268,11 @@ var _ = Describe("FeatureStore Controller", func() {
 			// change feast project and reconcile
 			resourceNew := resource.DeepCopy()
 			resourceNew.Spec.FeastProject = "changed"
+			resourceNew.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
+				DeploymentStrategy: &appsv1.DeploymentStrategy{
+					Type: appsv1.RollingUpdateDeploymentStrategyType,
+				},
+			}
 			err = k8sClient.Update(ctx, resourceNew)
 			Expect(err).NotTo(HaveOccurred())
 			_, err = controllerReconciler.Reconcile(ctx, reconcile.Request{
@@ -285,6 +291,7 @@ var _ = Describe("FeatureStore Controller", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			testConfig.Project = resourceNew.Spec.FeastProject
+			Expect(deploy.Spec.Strategy.Type).To(Equal(appsv1.RollingUpdateDeploymentStrategyType))
 			Expect(deploy.Spec.Template.Spec.Containers[0].Env).To(HaveLen(1))
 			env = getFeatureStoreYamlEnvVar(deploy.Spec.Template.Spec.Containers[0].Env)
 			Expect(env).NotTo(BeNil())
@@ -606,7 +613,7 @@ var _ = Describe("FeatureStore Controller", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(deploy.Spec.Template.Spec.ServiceAccountName).To(Equal(deploy.Name))
 			Expect(deploy.Spec.Template.Spec.Containers).To(HaveLen(3))
-			registryContainer := services.GetRegistryContainer(deploy.Spec.Template.Spec.Containers)
+			registryContainer := services.GetRegistryContainer(*deploy)
 			Expect(registryContainer.Env).To(HaveLen(1))
 			env := getFeatureStoreYamlEnvVar(registryContainer.Env)
 			Expect(env).NotTo(BeNil())
@@ -628,7 +635,7 @@ var _ = Describe("FeatureStore Controller", func() {
 
 			// check offline config
 			Expect(deploy.Spec.Template.Spec.ServiceAccountName).To(Equal(deploy.Name))
-			offlineContainer := services.GetOfflineContainer(deploy.Spec.Template.Spec.Containers)
+			offlineContainer := services.GetOfflineContainer(*deploy)
 			Expect(offlineContainer.Env).To(HaveLen(1))
 			env = getFeatureStoreYamlEnvVar(offlineContainer.Env)
 			Expect(env).NotTo(BeNil())
@@ -647,7 +654,7 @@ var _ = Describe("FeatureStore Controller", func() {
 			Expect(repoConfigOffline).To(Equal(&testConfig))
 
 			// check online config
-			onlineContainer := services.GetOnlineContainer(deploy.Spec.Template.Spec.Containers)
+			onlineContainer := services.GetOnlineContainer(*deploy)
 			Expect(onlineContainer.Env).To(HaveLen(3))
 			Expect(onlineContainer.ImagePullPolicy).To(Equal(corev1.PullAlways))
 			env = getFeatureStoreYamlEnvVar(onlineContainer.Env)
@@ -795,7 +802,7 @@ var _ = Describe("FeatureStore Controller", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(deploy.Spec.Template.Spec.ServiceAccountName).To(Equal(deploy.Name))
 			Expect(deploy.Spec.Template.Spec.Containers).To(HaveLen(3))
-			onlineContainer := services.GetOnlineContainer(deploy.Spec.Template.Spec.Containers)
+			onlineContainer := services.GetOnlineContainer(*deploy)
 			Expect(onlineContainer.Env).To(HaveLen(3))
 			Expect(areEnvVarArraysEqual(onlineContainer.Env, []corev1.EnvVar{{Name: testEnvVarName, Value: testEnvVarValue}, {Name: services.TmpFeatureStoreYamlEnvVar, Value: fsYamlStr}, {Name: "fieldRefName", ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "metadata.namespace"}}}})).To(BeTrue())
 			Expect(onlineContainer.ImagePullPolicy).To(Equal(corev1.PullAlways))
@@ -819,7 +826,7 @@ var _ = Describe("FeatureStore Controller", func() {
 			}, deploy)
 			Expect(err).NotTo(HaveOccurred())
 
-			onlineContainer = services.GetOnlineContainer(deploy.Spec.Template.Spec.Containers)
+			onlineContainer = services.GetOnlineContainer(*deploy)
 			Expect(onlineContainer.Env).To(HaveLen(3))
 			Expect(areEnvVarArraysEqual(onlineContainer.Env, []corev1.EnvVar{{Name: testEnvVarName, Value: testEnvVarValue + "1"}, {Name: services.TmpFeatureStoreYamlEnvVar, Value: fsYamlStr}, {Name: "fieldRefName", ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "metadata.name"}}}})).To(BeTrue())
 		})
@@ -1033,6 +1040,26 @@ var _ = Describe("FeatureStore Controller", func() {
 			}
 			Expect(repoConfigClient).To(Equal(clientConfig))
 
+			// disable init containers
+			resource.Spec.Services.DisableInitContainers = true
+			err = k8sClient.Update(ctx, resource)
+			Expect(err).NotTo(HaveOccurred())
+
+			_, err = controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: nsName,
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			deploy = &appsv1.Deployment{}
+			objMeta = feast.GetObjectMeta()
+			err = k8sClient.Get(ctx, types.NamespacedName{
+				Name:      objMeta.Name,
+				Namespace: objMeta.Namespace,
+			}, deploy)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(deploy.Spec.Template.Spec.InitContainers).To(BeEmpty())
+
+			// break remote reference
 			hostname := "test:80"
 			referencedRegistry.Spec.Services.Registry = &feastdevv1alpha1.Registry{
 				Remote: &feastdevv1alpha1.RemoteRegistryConfig{

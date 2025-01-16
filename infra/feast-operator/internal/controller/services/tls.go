@@ -190,7 +190,7 @@ func (feast *FeastServices) mountTlsConfig(feastType FeastServiceType, podSpec *
 				},
 			},
 		})
-		if i, container := getContainerByType(feastType, podSpec.Containers); container != nil {
+		if i, container := getContainerByType(feastType, *podSpec); container != nil {
 			podSpec.Containers[i].VolumeMounts = append(podSpec.Containers[i].VolumeMounts, corev1.VolumeMount{
 				Name:      volName,
 				MountPath: GetTlsPath(feastType),

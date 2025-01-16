@@ -224,12 +224,12 @@ var _ = Describe("FeatureStore Controller-OIDC authorization", func() {
 			Expect(deploy.Spec.Template.Spec.InitContainers).To(HaveLen(1))
 			Expect(deploy.Spec.Template.Spec.Containers).To(HaveLen(3))
 			Expect(deploy.Spec.Template.Spec.Volumes).To(HaveLen(1))
-			Expect(services.GetOfflineContainer(deploy.Spec.Template.Spec.Containers).VolumeMounts).To(HaveLen(1))
-			Expect(services.GetOnlineContainer(deploy.Spec.Template.Spec.Containers).VolumeMounts).To(HaveLen(1))
-			Expect(services.GetRegistryContainer(deploy.Spec.Template.Spec.Containers).VolumeMounts).To(HaveLen(1))
+			Expect(services.GetOfflineContainer(*deploy).VolumeMounts).To(HaveLen(1))
+			Expect(services.GetOnlineContainer(*deploy).VolumeMounts).To(HaveLen(1))
+			Expect(services.GetRegistryContainer(*deploy).VolumeMounts).To(HaveLen(1))
 
-			assertEnvFrom(*services.GetOnlineContainer(deploy.Spec.Template.Spec.Containers))
-			assertEnvFrom(*services.GetOfflineContainer(deploy.Spec.Template.Spec.Containers))
+			assertEnvFrom(*services.GetOnlineContainer(*deploy))
+			assertEnvFrom(*services.GetOfflineContainer(*deploy))
 
 			// check Feast Role
 			feastRole := &rbacv1.Role{}
@@ -338,7 +338,7 @@ var _ = Describe("FeatureStore Controller-OIDC authorization", func() {
 				Namespace: objMeta.Namespace,
 			}, deploy)
 			Expect(err).NotTo(HaveOccurred())
-			env := getFeatureStoreYamlEnvVar(services.GetRegistryContainer(deploy.Spec.Template.Spec.Containers).Env)
+			env := getFeatureStoreYamlEnvVar(services.GetRegistryContainer(*deploy).Env)
 			Expect(env).NotTo(BeNil())
 
 			// check registry config
@@ -371,7 +371,7 @@ var _ = Describe("FeatureStore Controller-OIDC authorization", func() {
 			Expect(repoConfig).To(Equal(testConfig))
 
 			// check offline
-			env = getFeatureStoreYamlEnvVar(services.GetOfflineContainer(deploy.Spec.Template.Spec.Containers).Env)
+			env = getFeatureStoreYamlEnvVar(services.GetOfflineContainer(*deploy).Env)
 			Expect(env).NotTo(BeNil())
 
 			// check offline config
@@ -387,7 +387,7 @@ var _ = Describe("FeatureStore Controller-OIDC authorization", func() {
 			Expect(repoConfig).To(Equal(testConfig))
 
 			// check online
-			env = getFeatureStoreYamlEnvVar(services.GetOnlineContainer(deploy.Spec.Template.Spec.Containers).Env)
+			env = getFeatureStoreYamlEnvVar(services.GetOnlineContainer(*deploy).Env)
 			Expect(env).NotTo(BeNil())
 
 			// check online config

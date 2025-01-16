@@ -2,12 +2,14 @@ package services
 
 import (
 	"fmt"
+	"os"
 	"reflect"
 	"slices"
 	"strings"
 
 	"github.com/feast-dev/feast/infra/feast-operator/api/feastversion"
 	feastdevv1alpha1 "github.com/feast-dev/feast/infra/feast-operator/api/v1alpha1"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -64,8 +66,12 @@ func shouldCreatePvc(featureStore *feastdevv1alpha1.FeatureStore, feastType Feas
 }
 
 func shouldMountEmptyDir(featureStore *feastdevv1alpha1.FeatureStore) bool {
-	_, ok := hasPvcConfig(featureStore, OfflineFeastType)
-	return !ok
+	for _, feastType := range feastServerTypes {
+		if _, ok := hasPvcConfig(featureStore, feastType); !ok {
+			return true
+		}
+	}
+	return false
 }
 
 func getOfflineMountPath(featureStore *feastdevv1alpha1.FeatureStore) string {
@@ -160,8 +166,23 @@ func ApplyDefaultsToStatus(cr *feastdevv1alpha1.FeatureStore) {
 
 func setServiceDefaultConfigs(defaultConfigs *feastdevv1alpha1.DefaultConfigs) {
 	if defaultConfigs.Image == nil {
-		defaultConfigs.Image = &DefaultImage
+		img := getFeatureServerImage()
+		defaultConfigs.Image = &img
 	}
+}
+
+func getFeatureServerImage() string {
+	if img, exists := os.LookupEnv("RELATED_IMAGE_FEATURE_SERVER"); exists {
+		return img
+	}
+	return DefaultImage
+}
+
+func getGrpcCurlImage() string {
+	if img, exists := os.LookupEnv("RELATED_IMAGE_GRPC_CURL"); exists {
+		return img
+	}
+	return "fullstorydev/grpcurl:v1.9.1-alpine"
 }
 
 func checkOfflineStoreFilePersistenceType(value string) error {
@@ -204,16 +225,16 @@ func defaultOnlineStorePath(featureStore *feastdevv1alpha1.FeatureStore) string 
 	if _, ok := hasPvcConfig(featureStore, OnlineFeastType); ok {
 		return DefaultOnlineStorePath
 	}
-	// if online pvc not set, use offline's mount path.
-	return getOfflineMountPath(featureStore) + "/" + DefaultOnlineStorePath
+	// if pvc not set, use the ephemeral mount path.
+	return EphemeralPath + "/" + DefaultOnlineStorePath
 }
 
 func defaultRegistryPath(featureStore *feastdevv1alpha1.FeatureStore) string {
 	if _, ok := hasPvcConfig(featureStore, RegistryFeastType); ok {
 		return DefaultRegistryPath
 	}
-	// if registry pvc not set, use offline's mount path.
-	return getOfflineMountPath(featureStore) + "/" + DefaultRegistryPath
+	// if pvc not set, use the ephemeral mount path.
+	return EphemeralPath + "/" + DefaultRegistryPath
 }
 
 func checkOfflineStoreDBStorePersistenceType(value string) error {
@@ -238,15 +259,14 @@ func checkRegistryDBStorePersistenceType(value string) error {
 }
 
 func (feast *FeastServices) getSecret(secretRef string) (*corev1.Secret, error) {
+	logger := log.FromContext(feast.Handler.Context)
 	secret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: secretRef, Namespace: feast.Handler.FeatureStore.Namespace}}
 	objectKey := client.ObjectKeyFromObject(secret)
 	if err := feast.Handler.Client.Get(feast.Handler.Context, objectKey, secret); err != nil {
-		if apierrors.IsNotFound(err) || err != nil {
-			logger := log.FromContext(feast.Handler.Context)
+		if apierrors.IsNotFound(err) {
 			logger.Error(err, "invalid secret "+secretRef+" for offline store")
-
-			return nil, err
 		}
+		return nil, err
 	}
 
 	return secret, nil
@@ -366,23 +386,23 @@ func envOverride(dst, src []corev1.EnvVar) []corev1.EnvVar {
 	return dst
 }
 
-func GetRegistryContainer(containers []corev1.Container) *corev1.Container {
-	_, container := getContainerByType(RegistryFeastType, containers)
+func GetRegistryContainer(deployment appsv1.Deployment) *corev1.Container {
+	_, container := getContainerByType(RegistryFeastType, deployment.Spec.Template.Spec)
 	return container
 }
 
-func GetOfflineContainer(containers []corev1.Container) *corev1.Container {
-	_, container := getContainerByType(OfflineFeastType, containers)
+func GetOfflineContainer(deployment appsv1.Deployment) *corev1.Container {
+	_, container := getContainerByType(OfflineFeastType, deployment.Spec.Template.Spec)
 	return container
 }
 
-func GetOnlineContainer(containers []corev1.Container) *corev1.Container {
-	_, container := getContainerByType(OnlineFeastType, containers)
+func GetOnlineContainer(deployment appsv1.Deployment) *corev1.Container {
+	_, container := getContainerByType(OnlineFeastType, deployment.Spec.Template.Spec)
 	return container
 }
 
-func getContainerByType(feastType FeastServiceType, containers []corev1.Container) (int, *corev1.Container) {
-	for i, c := range containers {
+func getContainerByType(feastType FeastServiceType, podSpec corev1.PodSpec) (int, *corev1.Container) {
+	for i, c := range podSpec.Containers {
 		if c.Name == string(feastType) {
 			return i, &c
 		}

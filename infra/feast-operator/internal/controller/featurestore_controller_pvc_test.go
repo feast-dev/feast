@@ -264,6 +264,18 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 
 			Expect(resource.Status.Phase).To(Equal(feastdevv1alpha1.ReadyPhase))
 
+			ephemeralName := "feast-data"
+			ephemeralVolume := corev1.Volume{
+				Name: ephemeralName,
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
+				},
+			}
+			ephemeralVolMount := corev1.VolumeMount{
+				Name:      ephemeralName,
+				MountPath: "/" + ephemeralName,
+			}
+
 			// check deployment
 			deploy := &appsv1.Deployment{}
 			objMeta := feast.GetObjectMeta()
@@ -276,13 +288,15 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			Expect(controllerutil.HasControllerReference(deploy)).To(BeTrue())
 			Expect(deploy.Spec.Template.Spec.Containers).To(HaveLen(3))
 			Expect(deploy.Spec.Template.Spec.Volumes).To(HaveLen(3))
+			Expect(deploy.Spec.Template.Spec.Volumes).NotTo(ContainElement(ephemeralVolume))
 			name := feast.GetFeastServiceName(services.RegistryFeastType)
 			regVol := services.GetRegistryVolume(feast.Handler.FeatureStore, deploy.Spec.Template.Spec.Volumes)
 			Expect(regVol.Name).To(Equal(name))
 			Expect(regVol.PersistentVolumeClaim.ClaimName).To(Equal(name))
 
-			offlineContainer := services.GetOfflineContainer(deploy.Spec.Template.Spec.Containers)
+			offlineContainer := services.GetOfflineContainer(*deploy)
 			Expect(offlineContainer.VolumeMounts).To(HaveLen(3))
+			Expect(offlineContainer.VolumeMounts).NotTo(ContainElement(ephemeralVolMount))
 			offlineVolMount := services.GetOfflineVolumeMount(feast.Handler.FeatureStore, offlineContainer.VolumeMounts)
 			Expect(offlineVolMount.MountPath).To(Equal(offlineStoreMountPath))
 			offlinePvcName := feast.GetFeastServiceName(services.OfflineFeastType)
@@ -308,8 +322,9 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			onlineVol := services.GetOnlineVolume(feast.Handler.FeatureStore, deploy.Spec.Template.Spec.Volumes)
 			Expect(onlineVol.Name).To(Equal(onlinePvcName))
 			Expect(onlineVol.PersistentVolumeClaim.ClaimName).To(Equal(onlinePvcName))
-			onlineContainer := services.GetOnlineContainer(deploy.Spec.Template.Spec.Containers)
+			onlineContainer := services.GetOnlineContainer(*deploy)
 			Expect(onlineContainer.VolumeMounts).To(HaveLen(3))
+			Expect(onlineContainer.VolumeMounts).NotTo(ContainElement(ephemeralVolMount))
 			onlineVolMount := services.GetOnlineVolumeMount(feast.Handler.FeatureStore, onlineContainer.VolumeMounts)
 			Expect(onlineVolMount.MountPath).To(Equal(onlineStoreMountPath))
 			Expect(onlineVolMount.Name).To(Equal(onlinePvcName))
@@ -334,8 +349,9 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			registryVol := services.GetRegistryVolume(feast.Handler.FeatureStore, deploy.Spec.Template.Spec.Volumes)
 			Expect(registryVol.Name).To(Equal(registryPvcName))
 			Expect(registryVol.PersistentVolumeClaim.ClaimName).To(Equal(registryPvcName))
-			registryContainer := services.GetRegistryContainer(deploy.Spec.Template.Spec.Containers)
+			registryContainer := services.GetRegistryContainer(*deploy)
 			Expect(registryContainer.VolumeMounts).To(HaveLen(3))
+			Expect(registryContainer.VolumeMounts).NotTo(ContainElement(ephemeralVolMount))
 			registryVolMount := services.GetRegistryVolumeMount(feast.Handler.FeatureStore, registryContainer.VolumeMounts)
 			Expect(registryVolMount.MountPath).To(Equal(registryMountPath))
 			Expect(registryVolMount.Name).To(Equal(registryPvcName))
@@ -371,15 +387,19 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			feast.Handler.FeatureStore = resource
 			Expect(resource.Status.Applied.Services.OnlineStore.Persistence.FilePersistence.PvcConfig).To(BeNil())
 
-			// check online deployment
+			// check online deployment/container
 			deploy = &appsv1.Deployment{}
 			err = k8sClient.Get(ctx, types.NamespacedName{
 				Name:      objMeta.Name,
 				Namespace: objMeta.Namespace,
 			}, deploy)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(deploy.Spec.Template.Spec.Volumes).To(HaveLen(2))
-			Expect(services.GetOnlineContainer(deploy.Spec.Template.Spec.Containers).VolumeMounts).To(HaveLen(2))
+			Expect(deploy.Spec.Template.Spec.Volumes).To(HaveLen(3))
+			Expect(deploy.Spec.Template.Spec.Volumes).To(ContainElement(ephemeralVolume))
+			Expect(services.GetOnlineContainer(*deploy).VolumeMounts).To(HaveLen(3))
+			Expect(services.GetOnlineContainer(*deploy).VolumeMounts).To(ContainElement(ephemeralVolMount))
+			Expect(services.GetRegistryContainer(*deploy).VolumeMounts).To(ContainElement(ephemeralVolMount))
+			Expect(services.GetOfflineContainer(*deploy).VolumeMounts).To(ContainElement(ephemeralVolMount))
 
 			// check online pvc is deleted
 			log.FromContext(feast.Handler.Context).Info("Checking deletion of", "PersistentVolumeClaim", deploy.Name)
@@ -449,7 +469,7 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			}, deploy)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(deploy.Spec.Template.Spec.Containers).To(HaveLen(3))
-			registryContainer := services.GetRegistryContainer(deploy.Spec.Template.Spec.Containers)
+			registryContainer := services.GetRegistryContainer(*deploy)
 			Expect(registryContainer.Env).To(HaveLen(1))
 			env := getFeatureStoreYamlEnvVar(registryContainer.Env)
 			Expect(env).NotTo(BeNil())
@@ -483,7 +503,7 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			}
 			Expect(repoConfig).To(Equal(testConfig))
 
-			offlineContainer := services.GetOfflineContainer(deploy.Spec.Template.Spec.Containers)
+			offlineContainer := services.GetOfflineContainer(*deploy)
 			Expect(offlineContainer.Env).To(HaveLen(1))
 			env = getFeatureStoreYamlEnvVar(offlineContainer.Env)
 			Expect(env).NotTo(BeNil())
@@ -501,7 +521,7 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			Expect(repoConfigOffline).To(Equal(testConfig))
 
 			// check online config
-			onlineContainer := services.GetOnlineContainer(deploy.Spec.Template.Spec.Containers)
+			onlineContainer := services.GetOnlineContainer(*deploy)
 			Expect(onlineContainer.Env).To(HaveLen(3))
 			Expect(onlineContainer.ImagePullPolicy).To(Equal(corev1.PullAlways))
 			env = getFeatureStoreYamlEnvVar(onlineContainer.Env)
@@ -582,7 +602,7 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 				Namespace: objMeta.Namespace,
 			}, deploy)
 			Expect(err).NotTo(HaveOccurred())
-			registryContainer = services.GetRegistryContainer(deploy.Spec.Template.Spec.Containers)
+			registryContainer = services.GetRegistryContainer(*deploy)
 			env = getFeatureStoreYamlEnvVar(registryContainer.Env)
 			Expect(env).NotTo(BeNil())
 			fsYamlStr, err = feast.GetServiceFeatureStoreYamlBase64()
@@ -599,7 +619,7 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			Expect(repoConfig).To(Equal(testConfig))
 
 			// check offline config
-			offlineContainer = services.GetOfflineContainer(deploy.Spec.Template.Spec.Containers)
+			offlineContainer = services.GetOfflineContainer(*deploy)
 			env = getFeatureStoreYamlEnvVar(offlineContainer.Env)
 			Expect(env).NotTo(BeNil())
 
@@ -615,7 +635,7 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			Expect(repoConfigOffline).To(Equal(testConfig))
 
 			// check online config
-			onlineContainer = services.GetOfflineContainer(deploy.Spec.Template.Spec.Containers)
+			onlineContainer = services.GetOfflineContainer(*deploy)
 			env = getFeatureStoreYamlEnvVar(onlineContainer.Env)
 			Expect(env).NotTo(BeNil())
 

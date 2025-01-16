@@ -28,6 +28,7 @@ const (
 	TmpFeatureStoreYamlEnvVar = "TMP_FEATURE_STORE_YAML_BASE64"
 	FeatureStoreYamlCmKey     = "feature_store.yaml"
 	EphemeralPath             = "/feast-data"
+	FeatureRepoDir            = "/feature_repo"
 	DefaultRegistryPath       = "registry.db"
 	DefaultOnlineStorePath    = "online_store.db"
 	svcDomain                 = ".svc.cluster.local"
