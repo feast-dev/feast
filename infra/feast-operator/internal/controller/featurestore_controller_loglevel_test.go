@@ -165,15 +165,15 @@ var _ = Describe("FeatureStore Controller - Feast service LogLevel", func() {
 			Expect(deploy.Spec.Replicas).To(Equal(&services.DefaultReplicas))
 			Expect(controllerutil.HasControllerReference(deploy)).To(BeTrue())
 			Expect(deploy.Spec.Template.Spec.Containers).To(HaveLen(3))
-			command := services.GetRegistryContainer(deploy.Spec.Template.Spec.Containers).Command
+			command := services.GetRegistryContainer(*deploy).Command
 			Expect(command).To(ContainElement("--log-level"))
 			Expect(command).To(ContainElement("ERROR"))
 
-			command = services.GetOfflineContainer(deploy.Spec.Template.Spec.Containers).Command
+			command = services.GetOfflineContainer(*deploy).Command
 			Expect(command).To(ContainElement("--log-level"))
 			Expect(command).To(ContainElement("INFO"))
 
-			command = services.GetOnlineContainer(deploy.Spec.Template.Spec.Containers).Command
+			command = services.GetOnlineContainer(*deploy).Command
 			Expect(command).To(ContainElement("--log-level"))
 			Expect(command).To(ContainElement("DEBUG"))
 		})
@@ -221,13 +221,13 @@ var _ = Describe("FeatureStore Controller - Feast service LogLevel", func() {
 			}, deploy)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(deploy.Spec.Template.Spec.Containers).To(HaveLen(3))
-			command := services.GetRegistryContainer(deploy.Spec.Template.Spec.Containers).Command
+			command := services.GetRegistryContainer(*deploy).Command
 			Expect(command).NotTo(ContainElement("--log-level"))
 
-			command = services.GetOfflineContainer(deploy.Spec.Template.Spec.Containers).Command
+			command = services.GetOfflineContainer(*deploy).Command
 			Expect(command).NotTo(ContainElement("--log-level"))
 
-			command = services.GetOnlineContainer(deploy.Spec.Template.Spec.Containers).Command
+			command = services.GetOnlineContainer(*deploy).Command
 			Expect(command).NotTo(ContainElement("--log-level"))
 		})
 

@@ -55,12 +55,13 @@ var _ = Describe("Repo Config", func() {
 
 			By("Having the local registry resource")
 			featureStore = minimalFeatureStore()
+			testPath := "/test/file.db"
 			featureStore.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
 				Registry: &feastdevv1alpha1.Registry{
 					Local: &feastdevv1alpha1.LocalRegistryConfig{
 						Persistence: &feastdevv1alpha1.RegistryPersistence{
 							FilePersistence: &feastdevv1alpha1.RegistryFilePersistence{
-								Path: "file.db",
+								Path: testPath,
 							},
 						},
 					},
@@ -70,7 +71,7 @@ var _ = Describe("Repo Config", func() {
 
 			expectedRegistryConfig = RegistryConfig{
 				RegistryType: "file",
-				Path:         "file.db",
+				Path:         testPath,
 			}
 
 			repoConfig, err = getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret)
@@ -79,6 +80,28 @@ var _ = Describe("Repo Config", func() {
 			Expect(repoConfig.OfflineStore).To(Equal(emptyOfflineStoreConfig))
 			Expect(repoConfig.OnlineStore).To(Equal(expectedOnlineConfig))
 			Expect(repoConfig.Registry).To(Equal(expectedRegistryConfig))
+
+			By("Adding an offlineStore with PVC")
+			featureStore.Spec.Services.OfflineStore = &feastdevv1alpha1.OfflineStore{
+				Persistence: &feastdevv1alpha1.OfflineStorePersistence{
+					FilePersistence: &feastdevv1alpha1.OfflineStoreFilePersistence{
+						PvcConfig: &feastdevv1alpha1.PvcConfig{
+							MountPath: "/testing",
+						},
+					},
+				},
+			}
+			ApplyDefaultsToStatus(featureStore)
+			appliedServices := featureStore.Status.Applied.Services
+			Expect(appliedServices.OnlineStore).To(BeNil())
+			Expect(appliedServices.OnlineStore).To(BeNil())
+
+			repoConfig, err = getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(repoConfig.OfflineStore).To(Equal(defaultOfflineStoreConfig))
+			Expect(repoConfig.AuthzConfig.Type).To(Equal(NoAuthAuthType))
+			Expect(repoConfig.Registry).To(Equal(expectedRegistryConfig))
+			Expect(repoConfig.OnlineStore).To(Equal(expectedOnlineConfig))
 
 			By("Having the remote registry resource")
 			featureStore = minimalFeatureStore()
@@ -98,35 +121,6 @@ var _ = Describe("Repo Config", func() {
 			Expect(repoConfig.OfflineStore).To(Equal(emptyOfflineStoreConfig))
 			Expect(repoConfig.OnlineStore).To(Equal(expectedOnlineConfig))
 			Expect(repoConfig.Registry).To(Equal(emptyRegistryConfig))
-
-			By("Having an offlineStore with PVC")
-			mountPath := "/testing"
-			expectedOnlineConfig.Path = mountPath + "/" + DefaultOnlineStorePath
-			expectedRegistryConfig.Path = mountPath + "/" + DefaultRegistryPath
-
-			featureStore = minimalFeatureStore()
-			featureStore.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
-				OfflineStore: &feastdevv1alpha1.OfflineStore{
-					Persistence: &feastdevv1alpha1.OfflineStorePersistence{
-						FilePersistence: &feastdevv1alpha1.OfflineStoreFilePersistence{
-							PvcConfig: &feastdevv1alpha1.PvcConfig{
-								MountPath: mountPath,
-							},
-						},
-					},
-				},
-			}
-			ApplyDefaultsToStatus(featureStore)
-			appliedServices := featureStore.Status.Applied.Services
-			Expect(appliedServices.OnlineStore).To(BeNil())
-			Expect(appliedServices.Registry.Local.Persistence.FilePersistence.Path).To(Equal(expectedRegistryConfig.Path))
-
-			repoConfig, err = getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(repoConfig.OfflineStore).To(Equal(defaultOfflineStoreConfig))
-			Expect(repoConfig.AuthzConfig.Type).To(Equal(NoAuthAuthType))
-			Expect(repoConfig.Registry).To(Equal(expectedRegistryConfig))
-			Expect(repoConfig.OnlineStore).To(Equal(expectedOnlineConfig))
 
 			By("Having the all the file services")
 			featureStore = minimalFeatureStore()

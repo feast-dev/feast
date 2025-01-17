@@ -21,7 +21,8 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"k8s.io/api/core/v1"
+	"k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
@@ -161,6 +162,11 @@ func (in *FeatureStoreServices) DeepCopyInto(out *FeatureStoreServices) {
 	if in.Registry != nil {
 		in, out := &in.Registry, &out.Registry
 		*out = new(Registry)
+		(*in).DeepCopyInto(*out)
+	}
+	if in.DeploymentStrategy != nil {
+		in, out := &in.DeploymentStrategy, &out.DeploymentStrategy
+		*out = new(v1.DeploymentStrategy)
 		(*in).DeepCopyInto(*out)
 	}
 }
@@ -465,10 +471,10 @@ func (in *OptionalConfigs) DeepCopyInto(out *OptionalConfigs) {
 	*out = *in
 	if in.Env != nil {
 		in, out := &in.Env, &out.Env
-		*out = new([]v1.EnvVar)
+		*out = new([]corev1.EnvVar)
 		if **in != nil {
 			in, out := *in, *out
-			*out = make([]v1.EnvVar, len(*in))
+			*out = make([]corev1.EnvVar, len(*in))
 			for i := range *in {
 				(*in)[i].DeepCopyInto(&(*out)[i])
 			}
@@ -476,10 +482,10 @@ func (in *OptionalConfigs) DeepCopyInto(out *OptionalConfigs) {
 	}
 	if in.EnvFrom != nil {
 		in, out := &in.EnvFrom, &out.EnvFrom
-		*out = new([]v1.EnvFromSource)
+		*out = new([]corev1.EnvFromSource)
 		if **in != nil {
 			in, out := *in, *out
-			*out = make([]v1.EnvFromSource, len(*in))
+			*out = make([]corev1.EnvFromSource, len(*in))
 			for i := range *in {
 				(*in)[i].DeepCopyInto(&(*out)[i])
 			}
@@ -487,12 +493,12 @@ func (in *OptionalConfigs) DeepCopyInto(out *OptionalConfigs) {
 	}
 	if in.ImagePullPolicy != nil {
 		in, out := &in.ImagePullPolicy, &out.ImagePullPolicy
-		*out = new(v1.PullPolicy)
+		*out = new(corev1.PullPolicy)
 		**out = **in
 	}
 	if in.Resources != nil {
 		in, out := &in.Resources, &out.Resources
-		*out = new(v1.ResourceRequirements)
+		*out = new(corev1.ResourceRequirements)
 		(*in).DeepCopyInto(*out)
 	}
 }
@@ -512,7 +518,7 @@ func (in *PvcConfig) DeepCopyInto(out *PvcConfig) {
 	*out = *in
 	if in.Ref != nil {
 		in, out := &in.Ref, &out.Ref
-		*out = new(v1.LocalObjectReference)
+		*out = new(corev1.LocalObjectReference)
 		**out = **in
 	}
 	if in.Create != nil {
@@ -537,7 +543,7 @@ func (in *PvcCreate) DeepCopyInto(out *PvcCreate) {
 	*out = *in
 	if in.AccessModes != nil {
 		in, out := &in.AccessModes, &out.AccessModes
-		*out = make([]v1.PersistentVolumeAccessMode, len(*in))
+		*out = make([]corev1.PersistentVolumeAccessMode, len(*in))
 		copy(*out, *in)
 	}
 	if in.StorageClassName != nil {
@@ -737,7 +743,7 @@ func (in *TlsConfigs) DeepCopyInto(out *TlsConfigs) {
 	*out = *in
 	if in.SecretRef != nil {
 		in, out := &in.SecretRef, &out.SecretRef
-		*out = new(v1.LocalObjectReference)
+		*out = new(corev1.LocalObjectReference)
 		**out = **in
 	}
 	out.SecretKeyNames = in.SecretKeyNames

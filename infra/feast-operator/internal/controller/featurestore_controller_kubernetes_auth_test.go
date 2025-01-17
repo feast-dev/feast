@@ -397,7 +397,7 @@ var _ = Describe("FeatureStore Controller-Kubernetes authorization", func() {
 				Namespace: objMeta.Namespace,
 			}, deploy)
 			Expect(err).NotTo(HaveOccurred())
-			env := getFeatureStoreYamlEnvVar(services.GetRegistryContainer(deploy.Spec.Template.Spec.Containers).Env)
+			env := getFeatureStoreYamlEnvVar(services.GetRegistryContainer(*deploy).Env)
 			Expect(env).NotTo(BeNil())
 
 			// check registry config
@@ -421,7 +421,7 @@ var _ = Describe("FeatureStore Controller-Kubernetes authorization", func() {
 			Expect(repoConfig).To(Equal(&testConfig))
 
 			// check offline
-			offlineContainer := services.GetOfflineContainer(deploy.Spec.Template.Spec.Containers)
+			offlineContainer := services.GetOfflineContainer(*deploy)
 			env = getFeatureStoreYamlEnvVar(offlineContainer.Env)
 			Expect(env).NotTo(BeNil())
 
@@ -440,7 +440,7 @@ var _ = Describe("FeatureStore Controller-Kubernetes authorization", func() {
 			Expect(repoConfig).To(Equal(&testConfig))
 
 			// check online
-			onlineContainer := services.GetOnlineContainer(deploy.Spec.Template.Spec.Containers)
+			onlineContainer := services.GetOnlineContainer(*deploy)
 			env = getFeatureStoreYamlEnvVar(onlineContainer.Env)
 			Expect(env).NotTo(BeNil())
 

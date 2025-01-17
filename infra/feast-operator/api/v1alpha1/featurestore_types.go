@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -67,9 +68,12 @@ type FeatureStoreSpec struct {
 
 // FeatureStoreServices defines the desired feast services. An ephemeral registry is deployed by default.
 type FeatureStoreServices struct {
-	OfflineStore *OfflineStore `json:"offlineStore,omitempty"`
-	OnlineStore  *OnlineStore  `json:"onlineStore,omitempty"`
-	Registry     *Registry     `json:"registry,omitempty"`
+	OfflineStore       *OfflineStore              `json:"offlineStore,omitempty"`
+	OnlineStore        *OnlineStore               `json:"onlineStore,omitempty"`
+	Registry           *Registry                  `json:"registry,omitempty"`
+	DeploymentStrategy *appsv1.DeploymentStrategy `json:"deploymentStrategy,omitempty"`
+	// Disable the 'feast repo initialization' initContainer
+	DisableInitContainers bool `json:"disableInitContainers,omitempty"`
 }
 
 // OfflineStore configures the deployed offline store service
@@ -370,12 +374,11 @@ type FeatureStoreStatus struct {
 	// Shows the currently applied feast configuration, including any pertinent defaults
 	Applied FeatureStoreSpec `json:"applied,omitempty"`
 	// ConfigMap in this namespace containing a client `feature_store.yaml` for this feast deployment
-	ClientConfigMap string             `json:"clientConfigMap,omitempty"`
-	Conditions      []metav1.Condition `json:"conditions,omitempty"`
-	// Version of feast that's currently deployed
-	FeastVersion     string           `json:"feastVersion,omitempty"`
-	Phase            string           `json:"phase,omitempty"`
-	ServiceHostnames ServiceHostnames `json:"serviceHostnames,omitempty"`
+	ClientConfigMap  string             `json:"clientConfigMap,omitempty"`
+	Conditions       []metav1.Condition `json:"conditions,omitempty"`
+	FeastVersion     string             `json:"feastVersion,omitempty"`
+	Phase            string             `json:"phase,omitempty"`
+	ServiceHostnames ServiceHostnames   `json:"serviceHostnames,omitempty"`
 }
 
 // ServiceHostnames defines the service hostnames in the format of <domain>:<port>, e.g. example.svc.cluster.local:80

@@ -562,7 +562,7 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 				Namespace: objMeta.Namespace,
 			}, deploy)
 			Expect(err).NotTo(HaveOccurred())
-			registryContainer := services.GetRegistryContainer(deploy.Spec.Template.Spec.Containers)
+			registryContainer := services.GetRegistryContainer(*deploy)
 			Expect(registryContainer.Env).To(HaveLen(1))
 			env := getFeatureStoreYamlEnvVar(registryContainer.Env)
 			Expect(env).NotTo(BeNil())
@@ -600,7 +600,7 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 			}
 			Expect(repoConfig).To(Equal(testConfig))
 
-			offlineContainer := services.GetOfflineContainer(deploy.Spec.Template.Spec.Containers)
+			offlineContainer := services.GetOfflineContainer(*deploy)
 			Expect(offlineContainer.Env).To(HaveLen(1))
 			assertEnvFrom(*offlineContainer)
 			env = getFeatureStoreYamlEnvVar(offlineContainer.Env)
@@ -617,7 +617,7 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(repoConfigOffline).To(Equal(testConfig))
 
-			onlineContainer := services.GetOnlineContainer(deploy.Spec.Template.Spec.Containers)
+			onlineContainer := services.GetOnlineContainer(*deploy)
 			Expect(onlineContainer.VolumeMounts).To(HaveLen(1))
 			Expect(onlineContainer.Env).To(HaveLen(1))
 			assertEnvFrom(*onlineContainer)
@@ -635,7 +635,7 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 			err = yaml.Unmarshal(envByte, repoConfigOnline)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(repoConfigOnline).To(Equal(testConfig))
-			onlineContainer = services.GetOnlineContainer(deploy.Spec.Template.Spec.Containers)
+			onlineContainer = services.GetOnlineContainer(*deploy)
 			Expect(onlineContainer.Env).To(HaveLen(1))
 
 			// check client config
@@ -698,7 +698,7 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 				Namespace: objMeta.Namespace,
 			}, deploy)
 			Expect(err).NotTo(HaveOccurred())
-			onlineContainer = services.GetOnlineContainer(deploy.Spec.Template.Spec.Containers)
+			onlineContainer = services.GetOnlineContainer(*deploy)
 			env = getFeatureStoreYamlEnvVar(onlineContainer.Env)
 			Expect(env).NotTo(BeNil())
 
