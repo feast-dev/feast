@@ -124,6 +124,19 @@ func createFeatureStoreResource(resourceName string, image string, pullPolicy co
 						},
 					},
 				},
+				UI: &feastdevv1alpha1.UIService{
+					ServiceConfigs: feastdevv1alpha1.ServiceConfigs{
+						DefaultConfigs: feastdevv1alpha1.DefaultConfigs{
+							Image: &image,
+						},
+						OptionalConfigs: feastdevv1alpha1.OptionalConfigs{
+							Env:             envVars,
+							EnvFrom:         envFromVar,
+							ImagePullPolicy: &pullPolicy,
+							Resources:       &corev1.ResourceRequirements{},
+						},
+					},
+				},
 			},
 		},
 	}

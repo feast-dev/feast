@@ -162,6 +162,10 @@ func ApplyDefaultsToStatus(cr *feastdevv1alpha1.FeatureStore) {
 
 		setServiceDefaultConfigs(&services.OnlineStore.ServiceConfigs.DefaultConfigs)
 	}
+	if services.UI != nil {
+
+		setServiceDefaultConfigs(&services.UI.ServiceConfigs.DefaultConfigs)
+	}
 }
 
 func setServiceDefaultConfigs(defaultConfigs *feastdevv1alpha1.DefaultConfigs) {
@@ -393,6 +397,11 @@ func GetRegistryContainer(deployment appsv1.Deployment) *corev1.Container {
 
 func GetOfflineContainer(deployment appsv1.Deployment) *corev1.Container {
 	_, container := getContainerByType(OfflineFeastType, deployment.Spec.Template.Spec)
+	return container
+}
+
+func GetUIContainer(deployment appsv1.Deployment) *corev1.Container {
+	_, container := getContainerByType(UIFeastType, deployment.Spec.Template.Spec)
 	return container
 }
 

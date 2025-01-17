@@ -9,6 +9,8 @@ spec:
       logLevel: debug
     offlineStore:
       logLevel: debug
+    ui:
+      logLevel: debug
     registry:
       local:
        logLevel: info

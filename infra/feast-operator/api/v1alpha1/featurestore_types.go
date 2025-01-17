@@ -33,6 +33,7 @@ const (
 	OfflineStoreReadyType  = "OfflineStore"
 	OnlineStoreReadyType   = "OnlineStore"
 	RegistryReadyType      = "Registry"
+	UIReadyType            = "UI"
 	ReadyType              = "FeatureStore"
 	AuthorizationReadyType = "Authorization"
 
@@ -42,6 +43,7 @@ const (
 	OfflineStoreFailedReason    = "OfflineStoreDeploymentFailed"
 	OnlineStoreFailedReason     = "OnlineStoreDeploymentFailed"
 	RegistryFailedReason        = "RegistryDeploymentFailed"
+	UIFailedReason              = "UIDeploymentFailed"
 	ClientFailedReason          = "ClientDeploymentFailed"
 	KubernetesAuthzFailedReason = "KubernetesAuthorizationDeploymentFailed"
 
@@ -50,6 +52,7 @@ const (
 	OfflineStoreReadyMessage    = "Offline Store installation complete"
 	OnlineStoreReadyMessage     = "Online Store installation complete"
 	RegistryReadyMessage        = "Registry installation complete"
+	UIReadyMessage              = "UI installation complete"
 	ClientReadyMessage          = "Client installation complete"
 	KubernetesAuthzReadyMessage = "Kubernetes authorization installation complete"
 
@@ -71,6 +74,7 @@ type FeatureStoreServices struct {
 	OfflineStore       *OfflineStore              `json:"offlineStore,omitempty"`
 	OnlineStore        *OnlineStore               `json:"onlineStore,omitempty"`
 	Registry           *Registry                  `json:"registry,omitempty"`
+	UI                 *UIService                 `json:"ui,omitempty"`
 	DeploymentStrategy *appsv1.DeploymentStrategy `json:"deploymentStrategy,omitempty"`
 	// Disable the 'feast repo initialization' initContainer
 	DisableInitContainers bool `json:"disableInitContainers,omitempty"`
@@ -278,6 +282,16 @@ type RemoteRegistryConfig struct {
 	TLS      *TlsRemoteRegistryConfigs `json:"tls,omitempty"`
 }
 
+// UIService configures the deployed Feast UI service
+type UIService struct {
+	ServiceConfigs `json:",inline"`
+	TLS            *TlsConfigs `json:"tls,omitempty"`
+	// LogLevel sets the logging level for the UI service
+	// Allowed values: "debug", "info", "warning", "error", "critical".
+	// +kubebuilder:validation:Enum=debug;info;warning;error;critical
+	LogLevel string `json:"logLevel,omitempty"`
+}
+
 // FeatureStoreRef defines which existing FeatureStore's registry should be used
 type FeatureStoreRef struct {
 	// Name of the FeatureStore
@@ -386,6 +400,7 @@ type ServiceHostnames struct {
 	OfflineStore string `json:"offlineStore,omitempty"`
 	OnlineStore  string `json:"onlineStore,omitempty"`
 	Registry     string `json:"registry,omitempty"`
+	UI           string `json:"ui,omitempty"`
 }
 
 // +kubebuilder:object:root=true

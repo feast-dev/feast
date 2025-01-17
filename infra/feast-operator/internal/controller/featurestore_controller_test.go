@@ -132,12 +132,14 @@ var _ = Describe("FeatureStore Controller", func() {
 			Expect(resource.Status.ClientConfigMap).To(Equal(feast.GetFeastServiceName(services.ClientFeastType)))
 			Expect(resource.Status.ServiceHostnames.OfflineStore).To(BeEmpty())
 			Expect(resource.Status.ServiceHostnames.OnlineStore).To(BeEmpty())
+			Expect(resource.Status.ServiceHostnames.UI).To(BeEmpty())
 			Expect(resource.Status.ServiceHostnames.Registry).To(Equal(feast.GetFeastServiceName(services.RegistryFeastType) + "." + resource.Namespace + ".svc.cluster.local:80"))
 			Expect(resource.Status.Applied.FeastProject).To(Equal(resource.Spec.FeastProject))
 			Expect(resource.Status.Applied.AuthzConfig).To(BeNil())
 			Expect(resource.Status.Applied.Services).NotTo(BeNil())
 			Expect(resource.Status.Applied.Services.OfflineStore).To(BeNil())
 			Expect(resource.Status.Applied.Services.OnlineStore).To(BeNil())
+			Expect(resource.Status.Applied.Services.UI).To(BeNil())
 			Expect(resource.Status.Applied.Services.Registry).NotTo(BeNil())
 			Expect(resource.Status.Applied.Services.OnlineStore).To(BeNil())
 			Expect(resource.Status.Applied.Services.Registry.Remote).To(BeNil())
@@ -485,10 +487,16 @@ var _ = Describe("FeatureStore Controller", func() {
 			Expect(resource.Status.Applied.Services.Registry.Local.ImagePullPolicy).To(BeNil())
 			Expect(resource.Status.Applied.Services.Registry.Local.Resources).To(BeNil())
 			Expect(resource.Status.Applied.Services.Registry.Local.Image).To(Equal(&services.DefaultImage))
-
+			Expect(resource.Status.Applied.Services.UI).NotTo(BeNil())
+			Expect(resource.Status.Applied.Services.UI.Env).To(Equal(&[]corev1.EnvVar{{Name: testEnvVarName, Value: testEnvVarValue}, {Name: "fieldRefName", ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "metadata.namespace"}}}}))
+			Expect(resource.Status.Applied.Services.UI.EnvFrom).To(Equal(withEnvFrom()))
+			Expect(resource.Status.Applied.Services.UI.ImagePullPolicy).To(Equal(&pullPolicy))
+			Expect(resource.Status.Applied.Services.UI.Resources).NotTo(BeNil())
+			Expect(resource.Status.Applied.Services.UI.Image).To(Equal(&image))
 			Expect(resource.Status.ServiceHostnames.OfflineStore).To(Equal(feast.GetFeastServiceName(services.OfflineFeastType) + "." + resource.Namespace + domain))
 			Expect(resource.Status.ServiceHostnames.OnlineStore).To(Equal(feast.GetFeastServiceName(services.OnlineFeastType) + "." + resource.Namespace + domain))
 			Expect(resource.Status.ServiceHostnames.Registry).To(Equal(feast.GetFeastServiceName(services.RegistryFeastType) + "." + resource.Namespace + domain))
+			Expect(resource.Status.ServiceHostnames.UI).To(Equal(feast.GetFeastServiceName(services.UIFeastType) + "." + resource.Namespace + domain))
 
 			Expect(resource.Status.Conditions).NotTo(BeEmpty())
 			cond := apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.ReadyType)
@@ -529,6 +537,13 @@ var _ = Describe("FeatureStore Controller", func() {
 			Expect(cond.Type).To(Equal(feastdevv1alpha1.OnlineStoreReadyType))
 			Expect(cond.Message).To(Equal(feastdevv1alpha1.OnlineStoreReadyMessage))
 
+			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.UIReadyType)
+			Expect(cond).ToNot(BeNil())
+			Expect(cond.Status).To(Equal(metav1.ConditionTrue))
+			Expect(cond.Reason).To(Equal(feastdevv1alpha1.ReadyReason))
+			Expect(cond.Type).To(Equal(feastdevv1alpha1.UIReadyType))
+			Expect(cond.Message).To(Equal(feastdevv1alpha1.UIReadyMessage))
+
 			Expect(resource.Status.Phase).To(Equal(feastdevv1alpha1.ReadyPhase))
 
 			deploy := &appsv1.Deployment{}
@@ -541,8 +556,7 @@ var _ = Describe("FeatureStore Controller", func() {
 			Expect(deploy.Spec.Replicas).To(Equal(&services.DefaultReplicas))
 			Expect(controllerutil.HasControllerReference(deploy)).To(BeTrue())
 			Expect(deploy.Spec.Template.Spec.ServiceAccountName).To(Equal(deploy.Name))
-			Expect(deploy.Spec.Template.Spec.Containers).To(HaveLen(3))
-
+			Expect(deploy.Spec.Template.Spec.Containers).To(HaveLen(4))
 			svc := &corev1.Service{}
 			err = k8sClient.Get(ctx, types.NamespacedName{
 				Name:      feast.GetFeastServiceName(services.RegistryFeastType),
@@ -587,7 +601,7 @@ var _ = Describe("FeatureStore Controller", func() {
 			svcList := corev1.ServiceList{}
 			err = k8sClient.List(ctx, &svcList, listOpts)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(svcList.Items).To(HaveLen(3))
+			Expect(svcList.Items).To(HaveLen(4))
 
 			cmList := corev1.ConfigMapList{}
 			err = k8sClient.List(ctx, &cmList, listOpts)
@@ -612,7 +626,7 @@ var _ = Describe("FeatureStore Controller", func() {
 			}, deploy)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(deploy.Spec.Template.Spec.ServiceAccountName).To(Equal(deploy.Name))
-			Expect(deploy.Spec.Template.Spec.Containers).To(HaveLen(3))
+			Expect(deploy.Spec.Template.Spec.Containers).To(HaveLen(4))
 			registryContainer := services.GetRegistryContainer(*deploy)
 			Expect(registryContainer.Env).To(HaveLen(1))
 			env := getFeatureStoreYamlEnvVar(registryContainer.Env)
@@ -772,7 +786,7 @@ var _ = Describe("FeatureStore Controller", func() {
 			svcList := corev1.ServiceList{}
 			err = k8sClient.List(ctx, &svcList, listOpts)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(svcList.Items).To(HaveLen(3))
+			Expect(svcList.Items).To(HaveLen(4))
 
 			cmList := corev1.ConfigMapList{}
 			err = k8sClient.List(ctx, &cmList, listOpts)
@@ -801,7 +815,7 @@ var _ = Describe("FeatureStore Controller", func() {
 			}, deploy)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(deploy.Spec.Template.Spec.ServiceAccountName).To(Equal(deploy.Name))
-			Expect(deploy.Spec.Template.Spec.Containers).To(HaveLen(3))
+			Expect(deploy.Spec.Template.Spec.Containers).To(HaveLen(4))
 			onlineContainer := services.GetOnlineContainer(*deploy)
 			Expect(onlineContainer.Env).To(HaveLen(3))
 			Expect(areEnvVarArraysEqual(onlineContainer.Env, []corev1.EnvVar{{Name: testEnvVarName, Value: testEnvVarValue}, {Name: services.TmpFeatureStoreYamlEnvVar, Value: fsYamlStr}, {Name: "fieldRefName", ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "metadata.namespace"}}}})).To(BeTrue())
@@ -859,7 +873,7 @@ var _ = Describe("FeatureStore Controller", func() {
 			svcList := corev1.ServiceList{}
 			err = k8sClient.List(ctx, &svcList, listOpts)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(svcList.Items).To(HaveLen(3))
+			Expect(svcList.Items).To(HaveLen(4))
 
 			// disable the Online Store service
 			resource.Spec.Services.OnlineStore = nil
@@ -877,7 +891,7 @@ var _ = Describe("FeatureStore Controller", func() {
 
 			err = k8sClient.List(ctx, &svcList, listOpts)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(svcList.Items).To(HaveLen(2))
+			Expect(svcList.Items).To(HaveLen(3))
 
 			err = k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
@@ -898,7 +912,7 @@ var _ = Describe("FeatureStore Controller", func() {
 
 			err = k8sClient.List(ctx, &svcList, listOpts)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(svcList.Items).To(HaveLen(1))
+			Expect(svcList.Items).To(HaveLen(2))
 		})
 
 		It("should handle remote registry references", func() {
@@ -1151,7 +1165,7 @@ var _ = Describe("FeatureStore Controller", func() {
 
 			err = k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(resource.Status.Conditions).To(HaveLen(5))
+			Expect(resource.Status.Conditions).To(HaveLen(6))
 
 			cond := apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.ReadyType)
 			Expect(cond).ToNot(BeNil())

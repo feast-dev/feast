@@ -112,6 +112,10 @@ func (feast *FeastServices) getTlsConfigs(feastType FeastServiceType) (tls *feas
 		if feast.isLocalRegistry() {
 			tls = appliedServices.Registry.Local.TLS
 		}
+	case UIFeastType:
+		if feast.isUI() {
+			tls = appliedServices.UI.TLS
+		}
 	}
 	return
 }

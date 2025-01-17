@@ -22,6 +22,8 @@ import (
 	"strings"
 
 	feastdevv1alpha1 "github.com/feast-dev/feast/infra/feast-operator/api/v1alpha1"
+	routev1 "github.com/openshift/api/route/v1"
+
 	"github.com/feast-dev/feast/infra/feast-operator/internal/controller/handler"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -109,6 +111,23 @@ func (feast *FeastServices) Deploy() error {
 			return err
 		}
 	}
+	if feast.isUI() {
+		if err = feast.deployFeastServiceByType(UIFeastType); err != nil {
+			return err
+		}
+		if err = feast.createRoute(UIFeastType); err != nil {
+			return err
+		}
+	} else {
+		if err := feast.removeFeastServiceByType(UIFeastType); err != nil {
+			return err
+		}
+		if err := feast.removeRoute(UIFeastType); err != nil {
+			return err
+		}
+
+	}
+
 	if err := feast.createServiceAccount(); err != nil {
 		return err
 	}
@@ -216,6 +235,17 @@ func (feast *FeastServices) removeFeastServiceByType(feastType FeastServiceType)
 	return nil
 }
 
+func (feast *FeastServices) removeRoute(feastType FeastServiceType) error {
+	if !isOpenShift {
+		return nil
+	}
+	route := feast.initRoute(feastType)
+	if err := feast.Handler.DeleteOwnedFeastObj(route); err != nil && !apierrors.IsNotFound(err) {
+		return err
+	}
+	return nil
+}
+
 func (feast *FeastServices) createService(feastType FeastServiceType) error {
 	logger := log.FromContext(feast.Handler.Context)
 	svc := feast.initFeastSvc(feastType)
@@ -251,6 +281,24 @@ func (feast *FeastServices) createDeployment() error {
 		return err
 	} else if op == controllerutil.OperationResultCreated || op == controllerutil.OperationResultUpdated {
 		logger.Info("Successfully reconciled", "Deployment", deploy.Name, "operation", op)
+	}
+
+	return nil
+}
+
+func (feast *FeastServices) createRoute(feastType FeastServiceType) error {
+	logger := log.FromContext(feast.Handler.Context)
+	if !isOpenShift {
+		return nil
+	}
+	logger.Info("Reconciling route for Feast service", "ServiceType", feastType)
+	route := feast.initRoute(feastType)
+	if op, err := controllerutil.CreateOrUpdate(feast.Handler.Context, feast.Handler.Client, route, controllerutil.MutateFn(func() error {
+		return feast.setRoute(route, feastType)
+	})); err != nil {
+		return err
+	} else if op == controllerutil.OperationResultCreated || op == controllerutil.OperationResultUpdated {
+		logger.Info("Successfully reconciled", "Route", route.Name, "operation", op)
 	}
 
 	return nil
@@ -326,6 +374,9 @@ func (feast *FeastServices) setContainers(podSpec *corev1.PodSpec) error {
 	if feast.isOnlinStore() {
 		feast.setContainer(&podSpec.Containers, OnlineFeastType, fsYamlB64)
 	}
+	if feast.isUI() {
+		feast.setContainer(&podSpec.Containers, UIFeastType, fsYamlB64)
+	}
 	return nil
 }
 
@@ -369,6 +420,32 @@ func (feast *FeastServices) setContainer(containers *[]corev1.Container, feastTy
 	}
 	applyOptionalContainerConfigs(container, serviceConfigs.OptionalConfigs)
 	*containers = append(*containers, *container)
+}
+
+func (feast *FeastServices) setRoute(route *routev1.Route, feastType FeastServiceType) error {
+	svcName := feast.GetFeastServiceName(feastType)
+	route.Labels = feast.getFeastTypeLabels(feastType)
+
+	tls := feast.getTlsConfigs(feastType)
+	/*	scheme := HttpScheme
+		if tls.IsTLS() {
+			scheme = HttpsScheme
+		}*/
+
+	route.Spec = routev1.RouteSpec{
+		To: routev1.RouteTargetReference{
+			Kind: "Service",
+			Name: svcName,
+		},
+		Port: &routev1.RoutePort{
+			TargetPort: intstr.FromInt(int(getTargetPort(feastType, tls))),
+		},
+		TLS: &routev1.TLSConfig{
+			Termination: routev1.TLSTerminationEdge,
+		},
+	}
+
+	return controllerutil.SetControllerReference(feast.Handler.FeatureStore, route, feast.Handler.Scheme)
 }
 
 func (feast *FeastServices) getContainerCommand(feastType FeastServiceType) []string {
@@ -517,6 +594,10 @@ func (feast *FeastServices) getServiceConfigs(feastType FeastServiceType) feastd
 		if feast.isLocalRegistry() {
 			return appliedServices.Registry.Local.ServiceConfigs
 		}
+	case UIFeastType:
+		if feast.isUI() {
+			return appliedServices.UI.ServiceConfigs
+		}
 	}
 	return feastdevv1alpha1.ServiceConfigs{}
 }
@@ -533,8 +614,12 @@ func (feast *FeastServices) getLogLevelForType(feastType FeastServiceType) *stri
 			return &services.OnlineStore.LogLevel
 		}
 	case RegistryFeastType:
-		if services.Registry != nil && services.Registry.Local.LogLevel != "" {
+		if feast.isLocalRegistry() && services.Registry.Local.LogLevel != "" {
 			return &services.Registry.Local.LogLevel
+		}
+	case UIFeastType:
+		if services.UI != nil && services.UI.LogLevel != "" {
+			return &services.UI.LogLevel
 		}
 	}
 	return nil
@@ -594,6 +679,11 @@ func (feast *FeastServices) setServiceHostnames() error {
 			getPortStr(feast.Handler.FeatureStore.Status.Applied.Services.Registry.Local.TLS)
 	} else if feast.isRemoteRegistry() {
 		return feast.setRemoteRegistryURL()
+	}
+	if feast.isUI() {
+		objMeta := feast.initFeastSvc(UIFeastType)
+		feast.Handler.FeatureStore.Status.ServiceHostnames.UI = objMeta.Name + "." + objMeta.Namespace + domain +
+			getPortStr(feast.Handler.FeatureStore.Status.Applied.Services.UI.TLS)
 	}
 	return nil
 }
@@ -695,6 +785,11 @@ func (feast *FeastServices) noLocalServiceConfigured() bool {
 	return !(feast.isLocalRegistry() || feast.isOnlinStore() || feast.isOfflinStore())
 }
 
+func (feast *FeastServices) isUI() bool {
+	appliedServices := feast.Handler.FeatureStore.Status.Applied.Services
+	return appliedServices != nil && appliedServices.UI != nil
+}
+
 func (feast *FeastServices) initFeastDeploy() *appsv1.Deployment {
 	deploy := &appsv1.Deployment{
 		ObjectMeta: feast.GetObjectMeta(),
@@ -725,6 +820,14 @@ func (feast *FeastServices) initPVC(feastType FeastServiceType) *corev1.Persiste
 	}
 	pvc.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("PersistentVolumeClaim"))
 	return pvc
+}
+
+func (feast *FeastServices) initRoute(feastType FeastServiceType) *routev1.Route {
+	route := &routev1.Route{
+		ObjectMeta: feast.GetObjectMetaType(feastType),
+	}
+	route.SetGroupVersionKind(routev1.SchemeGroupVersion.WithKind("Route"))
+	return route
 }
 
 func applyOptionalContainerConfigs(container *corev1.Container, optionalConfigs feastdevv1alpha1.OptionalConfigs) {
