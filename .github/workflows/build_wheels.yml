@@ -20,7 +20,7 @@ on:
 
 jobs:
   get-version:
-    uses: ./.github/workflows/get_semantic_release_version.yaml
+    uses: ./.github/workflows/get_semantic_release_version.yml
     with:
       custom_version: ${{ github.event.inputs.custom_version }}
       token: ${{ github.event.inputs.token }}
