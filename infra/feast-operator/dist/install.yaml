@@ -3580,10 +3580,10 @@ spec:
         - /manager
         env:
         - name: RELATED_IMAGE_FEATURE_SERVER
-          value: docker.io/feastdev/feature-server:0.42.0
+          value: docker.io/feastdev/feature-server:0.43.0
         - name: RELATED_IMAGE_GRPC_CURL
           value: docker.io/fullstorydev/grpcurl:v1.9.1-alpine
-        image: feastdev/feast-operator:0.42.0
+        image: feastdev/feast-operator:0.43.0
         livenessProbe:
           httpGet:
             path: /healthz
