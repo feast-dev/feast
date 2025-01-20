@@ -44,11 +44,6 @@ jobs:
     with:
       custom_version: ${{ github.event.inputs.release_version }}
       token: ${{ github.event.inputs.token }}
-    outputs:
-      release_version: ${{ steps.get-release.outputs.release_version }}
-      version_without_prefix: ${{ steps.get-release.outputs.version_without_prefix }}
-      highest_semver_tag: ${{ steps.get-release.outputs.highest_semver_tag }}
-
 
   build-python-wheel:
     name: Build wheels
@@ -133,6 +128,7 @@ jobs:
           VERSION_WITHOUT_PREFIX=${{ needs.get-version.outputs.version_without_prefix }}
           RELEASE_VERSION=${{ needs.get-version.outputs.release_version }}
           HIGHEST_SEMVER_TAG=${{ needs.get-version.outputs.highest_semver_tag }}
+          echo "Building docker image for ${{ matrix.component }} with version $VERSION_WITHOUT_PREFIX and release version $RELEASE_VERSION"
           make build-${{ matrix.component }}-docker REGISTRY=${REGISTRY} VERSION=${VERSION_WITHOUT_PREFIX}
 
   verify-python-wheels:
