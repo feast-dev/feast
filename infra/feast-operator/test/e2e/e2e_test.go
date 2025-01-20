@@ -167,6 +167,7 @@ func validateTheFeatureStoreCustomResource(namespace string, featureStoreName st
 	feastK8sResourceNames := []string{
 		feastResourceName + "-online",
 		feastResourceName + "-offline",
+		feastResourceName + "-ui",
 	}
 
 	if !hasRemoteRegistry {

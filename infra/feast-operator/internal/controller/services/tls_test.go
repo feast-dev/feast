@@ -63,6 +63,8 @@ var _ = Describe("TLS Config", func() {
 			Expect(feast.isOpenShiftTls(OfflineFeastType)).To(BeFalse())
 			Expect(feast.isOpenShiftTls(OnlineFeastType)).To(BeFalse())
 			Expect(feast.isOpenShiftTls(RegistryFeastType)).To(BeFalse())
+			Expect(feast.isOpenShiftTls(UIFeastType)).To(BeFalse())
+
 			openshiftTls, err := feast.checkOpenshiftTls()
 			Expect(err).ToNot(HaveOccurred())
 			Expect(openshiftTls).To(BeFalse())
@@ -79,6 +81,9 @@ var _ = Describe("TLS Config", func() {
 			tls = feast.getTlsConfigs(OnlineFeastType)
 			Expect(tls).To(BeNil())
 			Expect(tls.IsTLS()).To(BeFalse())
+			tls = feast.getTlsConfigs(UIFeastType)
+			Expect(tls).To(BeNil())
+			Expect(tls.IsTLS()).To(BeFalse())
 			tls = feast.getTlsConfigs(RegistryFeastType)
 			Expect(tls).NotTo(BeNil())
 			Expect(tls.IsTLS()).To(BeTrue())
@@ -90,7 +95,9 @@ var _ = Describe("TLS Config", func() {
 			Expect(feast.localRegistryTls()).To(BeTrue())
 			Expect(feast.isOpenShiftTls(OfflineFeastType)).To(BeFalse())
 			Expect(feast.isOpenShiftTls(OnlineFeastType)).To(BeFalse())
+			Expect(feast.isOpenShiftTls(UIFeastType)).To(BeFalse())
 			Expect(feast.isOpenShiftTls(RegistryFeastType)).To(BeTrue())
+
 			openshiftTls, err = feast.checkOpenshiftTls()
 			Expect(err).ToNot(HaveOccurred())
 			Expect(openshiftTls).To(BeTrue())
@@ -124,12 +131,19 @@ var _ = Describe("TLS Config", func() {
 			Expect(tls.SecretRef.Name).To(Equal("feast-test-registry-tls"))
 			Expect(tls.SecretKeyNames).To(Equal(secretKeyNames))
 			Expect(tls.IsTLS()).To(BeTrue())
+			tls = feast.getTlsConfigs(UIFeastType)
+			Expect(tls).NotTo(BeNil())
+			Expect(tls.SecretRef).NotTo(BeNil())
+			Expect(tls.SecretRef.Name).To(Equal("feast-test-ui-tls"))
+			Expect(tls.SecretKeyNames).To(Equal(secretKeyNames))
+			Expect(tls.IsTLS()).To(BeTrue())
 
 			Expect(feast.remoteRegistryTls()).To(BeFalse())
 			Expect(feast.localRegistryTls()).To(BeTrue())
 			Expect(feast.isOpenShiftTls(OfflineFeastType)).To(BeTrue())
 			Expect(feast.isOpenShiftTls(OnlineFeastType)).To(BeTrue())
 			Expect(feast.isOpenShiftTls(RegistryFeastType)).To(BeTrue())
+			Expect(feast.isOpenShiftTls(UIFeastType)).To(BeTrue())
 			openshiftTls, err = feast.checkOpenshiftTls()
 			Expect(err).ToNot(HaveOccurred())
 			Expect(openshiftTls).To(BeTrue())
@@ -139,16 +153,20 @@ var _ = Describe("TLS Config", func() {
 			err = feast.setDeployment(feastDeploy)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(feastDeploy.Spec.Template.Spec.InitContainers).To(HaveLen(1))
-			Expect(feastDeploy.Spec.Template.Spec.Containers).To(HaveLen(3))
+			Expect(feastDeploy.Spec.Template.Spec.Containers).To(HaveLen(4))
 			Expect(feastDeploy.Spec.Template.Spec.Containers[0].Command).To(ContainElements(ContainSubstring("--key")))
 			Expect(feastDeploy.Spec.Template.Spec.Containers[1].Command).To(ContainElements(ContainSubstring("--key")))
 			Expect(feastDeploy.Spec.Template.Spec.Containers[2].Command).To(ContainElements(ContainSubstring("--key")))
-			Expect(feastDeploy.Spec.Template.Spec.Volumes).To(HaveLen(4))
+			Expect(feastDeploy.Spec.Template.Spec.Containers[3].Command).To(ContainElements(ContainSubstring("--key")))
+			Expect(feastDeploy.Spec.Template.Spec.Volumes).To(HaveLen(5))
 
 			// registry service w/ tls and in an openshift cluster
 			feast.Handler.FeatureStore = minimalFeatureStore()
 			feast.Handler.FeatureStore.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
 				OnlineStore: &feastdevv1alpha1.OnlineStore{
+					TLS: &feastdevv1alpha1.TlsConfigs{},
+				},
+				UI: &feastdevv1alpha1.UIService{
 					TLS: &feastdevv1alpha1.TlsConfigs{},
 				},
 				Registry: &feastdevv1alpha1.Registry{
@@ -171,17 +189,20 @@ var _ = Describe("TLS Config", func() {
 			tls = feast.getTlsConfigs(OnlineFeastType)
 			Expect(tls).NotTo(BeNil())
 			Expect(tls.IsTLS()).To(BeFalse())
+			tls = feast.getTlsConfigs(UIFeastType)
+			Expect(tls).NotTo(BeNil())
+			Expect(tls.IsTLS()).To(BeFalse())
 			tls = feast.getTlsConfigs(RegistryFeastType)
 			Expect(tls).NotTo(BeNil())
 			Expect(tls.IsTLS()).To(BeTrue())
 			Expect(tls.SecretKeyNames).NotTo(Equal(secretKeyNames))
 			Expect(getPortStr(tls)).To(Equal("443"))
 			Expect(GetTlsPath(RegistryFeastType)).To(Equal("/tls/registry/"))
-
 			Expect(feast.remoteRegistryTls()).To(BeFalse())
 			Expect(feast.localRegistryTls()).To(BeTrue())
 			Expect(feast.isOpenShiftTls(OfflineFeastType)).To(BeFalse())
 			Expect(feast.isOpenShiftTls(OnlineFeastType)).To(BeFalse())
+			Expect(feast.isOpenShiftTls(UIFeastType)).To(BeFalse())
 			Expect(feast.isOpenShiftTls(RegistryFeastType)).To(BeFalse())
 			openshiftTls, err = feast.checkOpenshiftTls()
 			Expect(err).ToNot(HaveOccurred())
@@ -191,6 +212,9 @@ var _ = Describe("TLS Config", func() {
 			feast.Handler.FeatureStore = minimalFeatureStoreWithAllServices()
 			disable := true
 			feast.Handler.FeatureStore.Spec.Services.OnlineStore.TLS = &feastdevv1alpha1.TlsConfigs{
+				Disable: &disable,
+			}
+			feast.Handler.FeatureStore.Spec.Services.UI.TLS = &feastdevv1alpha1.TlsConfigs{
 				Disable: &disable,
 			}
 			feast.Handler.FeatureStore.Spec.Services.Registry = &feastdevv1alpha1.Registry{
@@ -219,6 +243,10 @@ var _ = Describe("TLS Config", func() {
 			Expect(tls).NotTo(BeNil())
 			Expect(tls.IsTLS()).To(BeFalse())
 			Expect(tls.SecretKeyNames).NotTo(Equal(secretKeyNames))
+			tls = feast.getTlsConfigs(UIFeastType)
+			Expect(tls).NotTo(BeNil())
+			Expect(tls.IsTLS()).To(BeFalse())
+			Expect(tls.SecretKeyNames).NotTo(Equal(secretKeyNames))
 			tls = feast.getTlsConfigs(RegistryFeastType)
 			Expect(tls).NotTo(BeNil())
 			Expect(tls.IsTLS()).To(BeFalse())
@@ -230,6 +258,7 @@ var _ = Describe("TLS Config", func() {
 			Expect(feast.localRegistryTls()).To(BeFalse())
 			Expect(feast.isOpenShiftTls(OfflineFeastType)).To(BeTrue())
 			Expect(feast.isOpenShiftTls(OnlineFeastType)).To(BeFalse())
+			Expect(feast.isOpenShiftTls(UIFeastType)).To(BeFalse())
 			Expect(feast.isOpenShiftTls(RegistryFeastType)).To(BeFalse())
 			openshiftTls, err = feast.checkOpenshiftTls()
 			Expect(err).ToNot(HaveOccurred())
@@ -249,11 +278,17 @@ var _ = Describe("TLS Config", func() {
 			Expect(onlineSvc.Annotations).To(BeEmpty())
 			Expect(onlineSvc.Spec.Ports[0].Name).To(Equal(HttpScheme))
 
+			uiSvc := feast.initFeastSvc(UIFeastType)
+			err = feast.setService(uiSvc, UIFeastType)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(uiSvc.Annotations).To(BeEmpty())
+			Expect(uiSvc.Spec.Ports[0].Name).To(Equal(HttpScheme))
+
 			// check k8s deployment objects
 			feastDeploy = feast.initFeastDeploy()
 			err = feast.setDeployment(feastDeploy)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(feastDeploy.Spec.Template.Spec.Containers).To(HaveLen(3))
+			Expect(feastDeploy.Spec.Template.Spec.Containers).To(HaveLen(4))
 			Expect(GetOfflineContainer(*feastDeploy)).NotTo(BeNil())
 			Expect(feastDeploy.Spec.Template.Spec.Volumes).To(HaveLen(2))
 
@@ -263,6 +298,9 @@ var _ = Describe("TLS Config", func() {
 			Expect(GetOfflineContainer(*feastDeploy).VolumeMounts).To(HaveLen(2))
 			Expect(GetOnlineContainer(*feastDeploy).Command).NotTo(ContainElements(ContainSubstring("--key")))
 			Expect(GetOnlineContainer(*feastDeploy).VolumeMounts).To(HaveLen(1))
+			Expect(GetUIContainer(*feastDeploy).Command).NotTo(ContainElements(ContainSubstring("--key")))
+			Expect(GetUIContainer(*feastDeploy).VolumeMounts).To(HaveLen(1))
+
 		})
 	})
 })

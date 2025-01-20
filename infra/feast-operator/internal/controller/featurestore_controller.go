@@ -155,7 +155,7 @@ func (r *FeatureStoreReconciler) deployFeast(ctx context.Context, cr *feastdevv1
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *FeatureStoreReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
+	bldr := ctrl.NewControllerManagedBy(mgr).
 		For(&feastdevv1alpha1.FeatureStore{}).
 		Owns(&corev1.ConfigMap{}).
 		Owns(&appsv1.Deployment{}).
@@ -164,9 +164,13 @@ func (r *FeatureStoreReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&corev1.ServiceAccount{}).
 		Owns(&rbacv1.RoleBinding{}).
 		Owns(&rbacv1.Role{}).
-		Owns(&routev1.Route{}).
-		Watches(&feastdevv1alpha1.FeatureStore{}, handler.EnqueueRequestsFromMapFunc(r.mapFeastRefsToFeastRequests)).
-		Complete(r)
+		Watches(&feastdevv1alpha1.FeatureStore{}, handler.EnqueueRequestsFromMapFunc(r.mapFeastRefsToFeastRequests))
+	if services.IsOpenShift() {
+		bldr = bldr.Owns(&routev1.Route{})
+	}
+
+	return bldr.Complete(r)
+
 }
 
 // if a remotely referenced FeatureStore is changed, reconcile any FeatureStores that reference it.

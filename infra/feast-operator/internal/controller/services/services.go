@@ -240,7 +240,7 @@ func (feast *FeastServices) removeRoute(feastType FeastServiceType) error {
 		return nil
 	}
 	route := feast.initRoute(feastType)
-	if err := feast.Handler.DeleteOwnedFeastObj(route); err != nil && !apierrors.IsNotFound(err) {
+	if err := feast.Handler.DeleteOwnedFeastObj(route); err != nil {
 		return err
 	}
 	return nil
@@ -423,15 +423,11 @@ func (feast *FeastServices) setContainer(containers *[]corev1.Container, feastTy
 }
 
 func (feast *FeastServices) setRoute(route *routev1.Route, feastType FeastServiceType) error {
+
 	svcName := feast.GetFeastServiceName(feastType)
 	route.Labels = feast.getFeastTypeLabels(feastType)
 
 	tls := feast.getTlsConfigs(feastType)
-	/*	scheme := HttpScheme
-		if tls.IsTLS() {
-			scheme = HttpsScheme
-		}*/
-
 	route.Spec = routev1.RouteSpec{
 		To: routev1.RouteTargetReference{
 			Kind: "Service",
@@ -440,9 +436,12 @@ func (feast *FeastServices) setRoute(route *routev1.Route, feastType FeastServic
 		Port: &routev1.RoutePort{
 			TargetPort: intstr.FromInt(int(getTargetPort(feastType, tls))),
 		},
-		TLS: &routev1.TLSConfig{
-			Termination: routev1.TLSTerminationEdge,
-		},
+	}
+	if tls.IsTLS() {
+		route.Spec.TLS = &routev1.TLSConfig{
+			Termination:                   routev1.TLSTerminationPassthrough,
+			InsecureEdgeTerminationPolicy: routev1.InsecureEdgeTerminationPolicyRedirect,
+		}
 	}
 
 	return controllerutil.SetControllerReference(feast.Handler.FeatureStore, route, feast.Handler.Scheme)

@@ -371,6 +371,7 @@ func minimalFeatureStoreWithAllServices() *feastdevv1alpha1.FeatureStore {
 		OfflineStore: &feastdevv1alpha1.OfflineStore{},
 		OnlineStore:  &feastdevv1alpha1.OnlineStore{},
 		Registry:     &feastdevv1alpha1.Registry{},
+		UI:           &feastdevv1alpha1.UIService{},
 	}
 	return feast
 }
