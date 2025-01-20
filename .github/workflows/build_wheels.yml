@@ -44,6 +44,11 @@ jobs:
     with:
       custom_version: ${{ github.event.inputs.release_version }}
       token: ${{ github.event.inputs.token }}
+    outputs:
+      release_version: ${{ steps.get-release.outputs.release_version }}
+      version_without_prefix: ${{ steps.get-release.outputs.version_without_prefix }}
+      highest_semver_tag: ${{ steps.get-release.outputs.highest_semver_tag }}
+
 
   build-python-wheel:
     name: Build wheels
