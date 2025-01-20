@@ -1,0 +1,5 @@
+- op: replace
+  path: "/spec/template/spec/containers/0/env/1"
+  value:
+    name: RELATED_IMAGE_GRPC_CURL
+    value: docker.io/fullstorydev/grpcurl:v1.9.1-alpine
