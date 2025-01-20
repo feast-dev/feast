@@ -8,15 +8,14 @@ on:
     tags:
       - 'v*.*.*'
     inputs:
-      inputs:
-        release_version:
-          description: 'The release version to use (e.g., v1.2.3)'
-          required: true
-          type: string
-        highest_semver_tag:
-          description: 'The highest semantic version tag without the "v" prefix (e.g., 1.2.3)'
-          required: true
-          type: string
+      release_version:
+        description: 'The release version to use (e.g., v1.2.3)'
+        required: true
+        type: string
+      highest_semver_tag:
+        description: 'The highest semantic version tag without the "v" prefix (e.g., 1.2.3)'
+        required: true
+        type: string
   workflow_call:
     inputs:
       release_version:
