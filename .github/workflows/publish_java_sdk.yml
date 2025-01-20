@@ -14,7 +14,7 @@ on:
 
 jobs:
   get-version:
-    uses: ./.github/workflows/get_semantic_release_version.yaml
+    uses: ./.github/workflows/get_semantic_release_version.yml
     with:
       custom_version: ${{ github.event.inputs.custom_version }}
       token: ${{ github.event.inputs.token }}
@@ -23,7 +23,7 @@ jobs:
     if: github.repository == 'feast-dev/feast'
     container: maven:3.6-jdk-11
     runs-on: ubuntu-latest
-    needs: [ get-version, publish-python-sdk ]
+    needs: [ get-version ]
     steps:
       - uses: actions/checkout@v4
         with:
