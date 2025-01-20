@@ -16,6 +16,12 @@ on:
         description: 'The highest semantic version tag without the "v" prefix (e.g., 1.2.3)'
         required: true
         type: string
+      token:
+        description: 'Personal Access Token'
+        required: true
+        default: ""
+        type: string
+
   workflow_call:
     inputs:
       release_version:
@@ -26,12 +32,17 @@ on:
         description: 'The highest semantic version tag without the "v" prefix (e.g., 1.2.3)'
         required: true
         type: string
+      token:
+        description: 'Personal Access Token'
+        required: true
+        default: ""
+        type: string
 
 jobs:
   get-version:
     uses: ./.github/workflows/get_semantic_release_version.yml
     with:
-      custom_version: ${{ github.event.inputs.custom_version }}
+      custom_version: ${{ github.event.inputs.release_version }}
       token: ${{ github.event.inputs.token }}
 
   build-python-wheel:
