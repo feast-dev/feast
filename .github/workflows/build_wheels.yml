@@ -104,9 +104,10 @@ jobs:
         uses: docker/setup-buildx-action@v1
       - name: Build image
         run: |
+          VERSION_WITHOUT_PREFIX=${{ needs.get-version.outputs.version_without_prefix }}
+          RELEASE_VERSION=${{ needs.get-version.outputs.release_version }}
+          HIGHEST_SEMVER_TAG=${{ needs.get-version.outputs.highest_semver_tag }}
           make build-${{ matrix.component }}-docker REGISTRY=${REGISTRY} VERSION=${VERSION_WITHOUT_PREFIX}
-        env:
-          VERSION_WITHOUT_PREFIX: ${{ needs.get-version.outputs.version_without_prefix }}
 
   verify-python-wheels:
     runs-on: ${{ matrix.os }}
