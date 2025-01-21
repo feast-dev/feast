@@ -29,6 +29,9 @@ jobs:
     if: github.repository == 'feast-dev/feast'
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: 'true'
       - id: get-version
         uses: ./.github/workflows/get_semantic_release_version.yml
         with:
