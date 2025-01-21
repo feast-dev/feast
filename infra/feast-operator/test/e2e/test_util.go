@@ -158,7 +158,7 @@ func checkIfKubernetesServiceExists(namespace, serviceName string) error {
 
 func isFeatureStoreHavingRemoteRegistry(namespace, featureStoreName string) (bool, error) {
 	cmd := exec.Command("kubectl", "get", "featurestore", featureStoreName, "-n", namespace,
-		"-o=jsonpath='{.spec.services.registry}'")
+		"-o=jsonpath='{.status.applied.services.registry}'")
 
 	// Capture the output
 	output, err := cmd.Output()
