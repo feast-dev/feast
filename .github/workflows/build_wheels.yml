@@ -128,10 +128,10 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
       - name: Build image
-        run: |
+        env:
           VERSION_WITHOUT_PREFIX: ${{ github.event.inputs.version_without_prefix }}
-          HIGHEST_SEMVER_TAG: ${{ github.event.inputs.highest_semver_tag }}
-          RELEASE_VERSION=${{ github.event.inputs.release_version }}
+          RELEASE_VERSION: ${{ github.event.inputs.release_version }}
+        run: |
           echo "Building docker image for ${{ matrix.component }} with version $VERSION_WITHOUT_PREFIX and release version $RELEASE_VERSION"
           make build-${{ matrix.component }}-docker REGISTRY=${REGISTRY} VERSION=${VERSION_WITHOUT_PREFIX}
 
