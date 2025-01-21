@@ -35,8 +35,10 @@ jobs:
       REGISTRY: feastdev
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: 'true'
       - id: get-version
-        uses: ./.github/workflows/get_semantic_release_version.yml
+        uses: ./.github/actions/get-semantic-release-version
         with:
           custom_version: ${{ github.event.inputs.custom_version }}
           token: ${{ github.event.inputs.token }}
