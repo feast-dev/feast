@@ -78,4 +78,3 @@ jobs:
             docker tag feastdev/${{ matrix.component }}:${VERSION_WITHOUT_PREFIX} feastdev/${{ matrix.component }}:latest
             docker push feastdev/${{ matrix.component }}:latest
           fi
-
