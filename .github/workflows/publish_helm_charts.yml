@@ -31,12 +31,12 @@ jobs:
     env:
       HELM_VERSION: v3.8.0
     steps:
+      - uses: actions/checkout@v4
       - id: get-version
         uses: ./.github/workflows/get_semantic_release_version.yml
         with:
           custom_version: ${{ github.event.inputs.custom_version }}
           token: ${{ github.event.inputs.token }}
-      - uses: actions/checkout@v4
       - name: Authenticate to Google Cloud
         uses: 'google-github-actions/auth@v1'
         with:

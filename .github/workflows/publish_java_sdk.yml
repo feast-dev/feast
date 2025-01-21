@@ -31,14 +31,14 @@ jobs:
     container: maven:3.6-jdk-11
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: 'true'
       - id: get-version
         uses: ./.github/workflows/get_semantic_release_version.yml
         with:
           custom_version: ${{ github.event.inputs.custom_version }}
           token: ${{ github.event.inputs.token }}
-      - uses: actions/checkout@v4
-        with:
-          submodules: 'true'
       - name: Set up JDK 11
         uses: actions/setup-java@v1
         with:
