@@ -17,12 +17,6 @@ on:
         type: string
 
 jobs:
-  get-version:
-    uses: ./.github/workflows/get_semantic_release_version.yml
-    with:
-      custom_version: ${{ github.event.inputs.custom_version }}
-      token: ${{ github.event.inputs.token }}
-
   publish-python-sdk:
     uses: ./.github/workflows/publish_python_sdk.yml
     with:
@@ -31,21 +25,21 @@ jobs:
 
   build-publish-docker-images:
     uses: ./.github/workflows/publish_images.yml
-    needs: [ get-version, publish-python-sdk ]
+    needs: [ publish-python-sdk ]
     with:
       custom_version: ${{ github.event.inputs.custom_version }}
       token: ${{ github.event.inputs.token }}
 
   publish-helm-charts:
     uses: ./.github/workflows/publish_helm_charts.yml
-    needs: [ get-version, publish-python-sdk ]
+    needs: [ publish-python-sdk ]
     with:
       custom_version: ${{ github.event.inputs.custom_version }}
       token: ${{ github.event.inputs.token }}
 
   publish-java-sdk:
     uses: ./.github/workflows/publish_java_sdk.yml
-    needs: [ get-version, publish-python-sdk ]
+    needs: [ publish-python-sdk ]
     with:
       custom_version: ${{ github.event.inputs.custom_version }}
       token: ${{ github.event.inputs.token }}

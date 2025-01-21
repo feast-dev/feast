@@ -25,20 +25,17 @@ on:
         type: string
 
 jobs:
-  get-version:
-    uses: ./.github/workflows/get_semantic_release_version.yml
-    with:
-      custom_version: ${{ github.event.inputs.custom_version }}
-      token: ${{ github.event.inputs.token }}
-
   publish-helm-charts:
     if: github.repository == 'feast-dev/feast'
     runs-on: ubuntu-latest
-    needs: get-version
     env:
       HELM_VERSION: v3.8.0
-      VERSION_WITHOUT_PREFIX: ${{ needs.get-version.outputs.version_without_prefix }}
     steps:
+      - id: get-version
+        uses: ./.github/workflows/get_semantic_release_version.yml
+        with:
+          custom_version: ${{ github.event.inputs.custom_version }}
+          token: ${{ github.event.inputs.token }}
       - uses: actions/checkout@v4
       - name: Authenticate to Google Cloud
         uses: 'google-github-actions/auth@v1'
@@ -56,7 +53,11 @@ jobs:
       - name: Validate Helm chart prior to publishing
         run: ./infra/scripts/helm/validate-helm-chart-publish.sh
       - name: Validate all version consistency
+        env:
+          VERSION_WITHOUT_PREFIX: ${{ steps.get-version.outputs.version_without_prefix }}
         run: ./infra/scripts/helm/validate-helm-chart-versions.sh $VERSION_WITHOUT_PREFIX
       - name: Publish Helm charts
+        env:
+          VERSION_WITHOUT_PREFIX: ${{ steps.get-version.outputs.version_without_prefix }}
         run: ./infra/scripts/helm/push-helm-charts.sh $VERSION_WITHOUT_PREFIX
 
