@@ -38,6 +38,7 @@ jobs:
         with:
           release_version: ${{ steps.get-version.outputs.release_version }}
           highest_semver_tag: ${{ steps.get-version.outputs.highest_semver_tag }}
+          version_without_prefix: ${{ steps.get-version.outputs.version_without_prefix }}
       - uses: actions/download-artifact@v4.1.7
         with:
           name: python-wheels
