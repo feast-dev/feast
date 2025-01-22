@@ -111,7 +111,7 @@ jobs:
     needs: [ build-python-wheel, build-source-distribution ]
     strategy:
       matrix:
-        component: [ feature-server, feature-server-java, feature-transformation-server, feast-operator ]
+        component: [ feature-server-dev, feature-server-java, feature-transformation-server, feast-operator ]
     env:
       REGISTRY: feastdev
     steps:
