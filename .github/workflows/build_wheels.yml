@@ -156,6 +156,7 @@ jobs:
            echo "Succeeded!"
         fi
     steps:
+      - uses: actions/checkout@v4
       - name: Setup Python
         id: setup-python
         uses: actions/setup-python@v5
