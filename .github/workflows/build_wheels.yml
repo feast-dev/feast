@@ -130,8 +130,8 @@ jobs:
           VERSION_WITHOUT_PREFIX: ${{ steps.get-version.outputs.version_without_prefix }}
           RELEASE_VERSION: ${{ steps.get-version.outputs.release_version }}
         run: |
-          echo "Building docker image for ${{ matrix.component }} with version $VERSION_WITHOUT_PREFIX and release version $RELEASE_VERSION"
-          make build-${{ matrix.component }}-docker REGISTRY=${REGISTRY} VERSION=${VERSION_WITHOUT_PREFIX}
+          echo "Building dev docker image for ${{ matrix.component }}"
+          make build-${{ matrix.component }}-docker-dev 
 
   verify-python-wheels:
     name: Verify Python wheels
