@@ -1,4 +1,4 @@
-# Feast Operator
+# Feast Operator ... tmp
 This is a K8s Operator that can be used to deploy and manage **Feast**, an open source feature store for machine learning.
 
 ## Getting Started
