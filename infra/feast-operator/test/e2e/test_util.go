@@ -157,40 +157,53 @@ func checkIfKubernetesServiceExists(namespace, serviceName string) error {
 }
 
 func isFeatureStoreHavingRemoteRegistry(namespace, featureStoreName string) (bool, error) {
-	cmd := exec.Command("kubectl", "get", "featurestore", featureStoreName, "-n", namespace,
-		"-o=jsonpath='{.status.applied.services.registry}'")
+	timeout := time.Second * 30
+	interval := time.Second * 2 // Poll every 2 seconds
+	startTime := time.Now()
 
-	// Capture the output
-	output, err := cmd.Output()
-	if err != nil {
-		return false, err // Return false on command execution failure
+	for time.Since(startTime) < timeout {
+		cmd := exec.Command("kubectl", "get", "featurestore", featureStoreName, "-n", namespace,
+			"-o=jsonpath='{.status.applied.services.registry}'")
+
+		output, err := cmd.Output()
+		if err != nil {
+			// Retry only on transient errors
+			if _, ok := err.(*exec.ExitError); ok {
+				time.Sleep(interval)
+				continue
+			}
+			return false, err // Return immediately on non-transient errors
+		}
+
+		// Convert output to string and trim any extra spaces
+		result := strings.TrimSpace(string(output))
+
+		// Remove single quotes if present
+		if strings.HasPrefix(result, "'") && strings.HasSuffix(result, "'") {
+			result = strings.Trim(result, "'")
+		}
+
+		if result == "" {
+			time.Sleep(interval) // Retry if result is empty
+			continue
+		}
+
+		// Parse the JSON into a map
+		var registryConfig v1alpha1.Registry
+		if err := json.Unmarshal([]byte(result), &registryConfig); err != nil {
+			return false, err // Return false on JSON parsing failure
+		}
+
+		if registryConfig.Remote == nil {
+			return false, nil
+		}
+
+		hasHostname := registryConfig.Remote.Hostname != nil
+		hasValidFeastRef := registryConfig.Remote.FeastRef != nil &&
+			registryConfig.Remote.FeastRef.Name != ""
+
+		return hasHostname || hasValidFeastRef, nil
 	}
 
-	// Convert output to string and trim any extra spaces
-	result := strings.TrimSpace(string(output))
-
-	// Remove single quotes if present
-	if strings.HasPrefix(result, "'") && strings.HasSuffix(result, "'") {
-		result = strings.Trim(result, "'")
-	}
-
-	if result == "" {
-		return false, errors.New("kubectl get featurestore command returned empty output")
-	}
-
-	// Parse the JSON into a map
-	var registryConfig v1alpha1.Registry
-	if err := json.Unmarshal([]byte(result), &registryConfig); err != nil {
-		return false, err // Return false on JSON parsing failure
-	}
-
-	if registryConfig.Remote == nil {
-		return false, nil
-	}
-
-	hasHostname := registryConfig.Remote.Hostname != nil
-	hasValidFeastRef := registryConfig.Remote.FeastRef != nil &&
-		registryConfig.Remote.FeastRef.Name != ""
-
-	return hasHostname || hasValidFeastRef, nil
+	return false, errors.New("timeout waiting for featurestore registry status to be ready")
 }
