@@ -21,7 +21,6 @@ outputs:
 runs:
   using: composite
   steps:
-    - uses: actions/checkout@v4
     - name: Get release version
       id: get_release_version
       shell: bash
