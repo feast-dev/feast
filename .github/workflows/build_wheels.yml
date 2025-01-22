@@ -9,6 +9,18 @@ on:
       custom_version: # Optional input for a custom version
         description: 'Custom version to publish (e.g., v1.2.3) -- only edit if you know what you are doing'
         required: false
+        type: string
+      token:
+        description: 'Personal Access Token'
+        required: true
+        default: ""
+        type: string
+  workflow_call:
+    inputs:
+      custom_version: # Optional input for a custom version
+        description: 'Custom version to publish (e.g., v1.2.3) -- only edit if you know what you are doing'
+        required: false
+        type: string
       token:
         description: 'Personal Access Token'
         required: true
