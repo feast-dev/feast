@@ -43,8 +43,8 @@ jobs:
         with:
           name: python-wheels
           path: dist
-      - uses: pypa/gh-action-pypi-publish@v1.4.2
+      - name: Publish package to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          repository_url: https://upload.pypi.org/legacy/
-          user: __token__
           password: ${{ secrets.PYPI_PASSWORD }}
+          repository_url: https://upload.pypi.org/legacy/
