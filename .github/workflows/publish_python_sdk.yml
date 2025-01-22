@@ -36,16 +36,12 @@ jobs:
     runs-on: ubuntu-latest
     needs: [ build-wheels ]
     steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: 'true'
       - uses: actions/download-artifact@v4.1.7
         with:
           name: python-wheels
           path: dist
       - name: Publish package to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@v1.4.2
         with:
-          attestations: false
           password: ${{ secrets.PYPI_PASSWORD }}
-          repository-url: https://upload.pypi.org/legacy/
+          repository_url: https://upload.pypi.org/legacy/
