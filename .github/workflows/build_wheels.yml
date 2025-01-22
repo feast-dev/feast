@@ -4,40 +4,11 @@ name: build wheels
 # Developers who are starting a new release should use this workflow to ensure wheels will be built correctly.
 # Devs should check out their fork, add a tag to the last master commit on their fork, and run the release off of their fork on the added tag to ensure wheels will be built correctly.
 on:
-  workflow_dispatch:
+  workflow_dispatch: # Allows manual trigger of the workflow
     inputs:
-      release_version:
-        description: 'The release version to use (e.g., v1.2.3)'
-        required: true
-        type: string
-      highest_semver_tag:
-        description: 'The highest semantic version tag without the "v" prefix (e.g., 1.2.3)'
-        required: true
-        type: string
-      version_without_prefix:
-        description: 'The release version to use without "v" (e.g., 1.2.3)'
-        required: true
-        type: string
-      token:
-        description: 'Personal Access Token'
-        required: true
-        default: ""
-        type: string
-
-  workflow_call:
-    inputs:
-      release_version:
-        description: 'The release version to use (e.g., v1.2.3)'
-        required: true
-        type: string
-      highest_semver_tag:
-        description: 'The highest semantic version tag without the "v" prefix (e.g., 1.2.3)'
-        required: true
-        type: string
-      version_without_prefix:
-        description: 'The release version to use without "v" (e.g., 1.2.3)'
-        required: true
-        type: string
+      custom_version: # Optional input for a custom version
+        description: 'Custom version to publish (e.g., v1.2.3) -- only edit if you know what you are doing'
+        required: false
       token:
         description: 'Personal Access Token'
         required: true
@@ -62,9 +33,14 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
       - name: Build UI
         run: make build-ui
+      - id: get-version
+        uses: ./.github/actions/get-semantic-release-version
+        with:
+          custom_version: ${{ github.event.inputs.custom_version }}
+          token: ${{ github.event.inputs.token }}
       - name: Build wheels
         env:
-          VERSION: ${{ github.event.inputs.release_version }}
+          VERSION: ${{ steps.get-version.outputs.release_version }}
         run: |
           git fetch --tags
           git checkout ${VERSION}
@@ -91,9 +67,14 @@ jobs:
         with:
           node-version-file: './ui/.nvmrc'
           registry-url: 'https://registry.npmjs.org'
+      - id: get-version
+        uses: ./.github/actions/get-semantic-release-version
+        with:
+          custom_version: ${{ github.event.inputs.custom_version }}
+          token: ${{ github.event.inputs.token }}
       - name: Build and install dependencies
         env:
-          VERSION: ${{ github.event.inputs.release_version }}
+          VERSION: ${{ steps.get-version.outputs.release_version }}
         # There's a `git restore` in here because `make install-go-ci-dependencies` is actually messing up go.mod & go.sum.
         run: |
           git fetch --tags
@@ -127,10 +108,15 @@ jobs:
         uses: docker/setup-qemu-action@v1
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
+      - id: get-version
+        uses: ./.github/actions/get-semantic-release-version
+        with:
+          custom_version: ${{ github.event.inputs.custom_version }}
+          token: ${{ github.event.inputs.token }}
       - name: Build image
         env:
-          VERSION_WITHOUT_PREFIX: ${{ github.event.inputs.version_without_prefix }}
-          RELEASE_VERSION: ${{ github.event.inputs.release_version }}
+          VERSION_WITHOUT_PREFIX: ${{ steps.get-version.outputs.version_without_prefix }}
+          RELEASE_VERSION: ${{ steps.get-version.outputs.release_version }}
         run: |
           echo "Building docker image for ${{ matrix.component }} with version $VERSION_WITHOUT_PREFIX and release version $RELEASE_VERSION"
           make build-${{ matrix.component }}-docker REGISTRY=${REGISTRY} VERSION=${VERSION_WITHOUT_PREFIX}
@@ -187,9 +173,14 @@ jobs:
         if: ${{ matrix.from-source }}
         run: pip install dist/*tar.gz
       # Validate that the feast version installed is not development and is the correct version of the tag we ran it off of.
+      - id: get-version
+        uses: ./.github/actions/get-semantic-release-version
+        with:
+          custom_version: ${{ github.event.inputs.custom_version }}
+          token: ${{ github.event.inputs.token }}
       - name: Validate Feast Version
         env:
-          VERSION_WITHOUT_PREFIX: ${{ github.event.inputs.version_without_prefix }}
+          VERSION_WITHOUT_PREFIX: ${{ steps.get-version.outputs.version_without_prefix }}
         run: |
           feast version
           if ! VERSION_OUTPUT=$(feast version); then
