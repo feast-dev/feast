@@ -16,10 +16,10 @@ metadata:
         }
       ]
     capabilities: Basic Install
-    createdAt: "2025-01-20T18:09:06Z"
+    createdAt: "2025-01-16T22:15:56Z"
     operators.operatorframework.io/builder: operator-sdk-v1.38.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
-  name: feast-operator.v0.43.0
+  name: feast-operator.v0.42.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -150,10 +150,10 @@ spec:
                 - /manager
                 env:
                 - name: RELATED_IMAGE_FEATURE_SERVER
-                  value: docker.io/feastdev/feature-server:0.43.0
+                  value: docker.io/feastdev/feature-server:0.42.0
                 - name: RELATED_IMAGE_GRPC_CURL
                   value: docker.io/fullstorydev/grpcurl:v1.9.1-alpine
-                image: feastdev/feast-operator:0.43.0
+                image: feastdev/feast-operator:0.42.0
                 livenessProbe:
                   httpGet:
                     path: /healthz
@@ -243,8 +243,8 @@ spec:
     name: Feast Community
     url: https://lf-aidata.atlassian.net/wiki/spaces/FEAST/
   relatedImages:
-  - image: docker.io/feastdev/feature-server:0.43.0
+  - image: docker.io/feastdev/feature-server:0.42.0
     name: feature-server
   - image: docker.io/fullstorydev/grpcurl:v1.9.1-alpine
     name: grpc-curl
-  version: 0.43.0
+  version: 0.42.0
