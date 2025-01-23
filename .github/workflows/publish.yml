@@ -30,7 +30,6 @@ on:
 jobs:
   debug-secrets:
     runs-on: ubuntu-latest
-    secrets: inherit
     steps:
       - name: Debug environment variables length
         run: |
