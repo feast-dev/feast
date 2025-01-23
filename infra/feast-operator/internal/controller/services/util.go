@@ -172,17 +172,17 @@ func setServiceDefaultConfigs(defaultConfigs *feastdevv1alpha1.DefaultConfigs) {
 }
 
 func getFeatureServerImage() string {
-	if img, exists := os.LookupEnv(feastServerImageVar); exists {
+	if img, exists := os.LookupEnv("RELATED_IMAGE_FEATURE_SERVER"); exists {
 		return img
 	}
 	return DefaultImage
 }
 
 func getGrpcCurlImage() string {
-	if img, exists := os.LookupEnv(grpcCurlImageVar); exists {
+	if img, exists := os.LookupEnv("RELATED_IMAGE_GRPC_CURL"); exists {
 		return img
 	}
-	return grpcCurlImage
+	return "fullstorydev/grpcurl:v1.9.1-alpine"
 }
 
 func checkOfflineStoreFilePersistenceType(value string) error {

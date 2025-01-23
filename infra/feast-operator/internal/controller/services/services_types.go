@@ -25,10 +25,6 @@ import (
 )
 
 const (
-	feastServerImageVar = "RELATED_IMAGE_FEATURE_SERVER"
-	grpcCurlImageVar    = "RELATED_IMAGE_GRPC_CURL"
-	grpcCurlImage       = "fullstorydev/grpcurl:v1.9.1-alpine"
-
 	TmpFeatureStoreYamlEnvVar = "TMP_FEATURE_STORE_YAML_BASE64"
 	FeatureStoreYamlCmKey     = "feature_store.yaml"
 	EphemeralPath             = "/feast-data"
