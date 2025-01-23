@@ -40,8 +40,12 @@ jobs:
         with:
           name: python-wheels
           path: dist
+      - name: Logging secret length
+        env:
+          PYPI_TOKEN: ${{ secrets.PYPI_PASSWORD }}
+        run: echo "The length of the secret is ${#PYPI_TOKEN}"
       - name: Publish package to PyPI
         uses: pypa/gh-action-pypi-publish@v1.4.2
         with:
           user: __token__
-          password: ${{ secrets.PYPI_PASSWORD }}
+          password: '${{ secrets.PYPI_PASSWORD }}'
