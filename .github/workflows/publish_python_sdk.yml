@@ -30,6 +30,8 @@ jobs:
     with:
       custom_version: ${{ github.event.inputs.custom_version }}
       token: ${{ github.event.inputs.token }}
+    secrets:
+        PYPI_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
 
   publish-python-sdk:
     if: github.repository == 'feast-dev/feast'
@@ -42,8 +44,8 @@ jobs:
           path: dist
       - name: Logging secret length
         env:
-          PYPI_TOKEN: ${{ secrets.PYPI_PASSWORD }}
-        run: echo "The length of the secret is ${#PYPI_TOKEN}"
+          PYPI_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+        run: echo "The length of the secret is ${#PYPI_PASSWORD}"
       - name: Publish package to PyPI
         uses: pypa/gh-action-pypi-publish@v1.4.2
         with:
