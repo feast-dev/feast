@@ -55,6 +55,30 @@ jobs:
           key: ${{ runner.os }}-it-maven-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
             ${{ runner.os }}-it-maven-
+
+      - name: Debug environment variables
+        run: |
+          echo "VERSION_WITHOUT_PREFIX=$VERSION_WITHOUT_PREFIX"
+          if [ -n "$GPG_PUBLIC_KEY" ]; then
+            echo "GPG_PUBLIC_KEY is set."
+          else
+            echo "GPG_PUBLIC_KEY is not set."
+          fi
+          if [ -n "$GPG_PRIVATE_KEY" ]; then
+            echo "GPG_PRIVATE_KEY is set."
+          else
+            echo "GPG_PRIVATE_KEY is not set."
+          fi
+          if [ -n "$MAVEN_SETTINGS" ]; then
+            echo "MAVEN_SETTINGS is set."
+          else
+            echo "MAVEN_SETTINGS is not set."
+          fi
+        env:
+          VERSION_WITHOUT_PREFIX: ${{ steps.get-version.outputs.version_without_prefix }}
+          GPG_PUBLIC_KEY: ${{ secrets.GPG_PUBLIC_KEY }}
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          MAVEN_SETTINGS: ${{ secrets.MAVEN_SETTINGS }}
       - name: Publish java sdk
         env:
           VERSION_WITHOUT_PREFIX: ${{ steps.get-version.outputs.version_without_prefix }}
@@ -67,3 +91,4 @@ jobs:
           mkdir -p /root/.m2/
           echo -n "$MAVEN_SETTINGS" > /root/.m2/settings.xml
           infra/scripts/publish-java-sdk.sh --revision ${VERSION_WITHOUT_PREFIX} --gpg-key-import-dir /root
+      
