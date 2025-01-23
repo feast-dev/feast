@@ -42,9 +42,6 @@ jobs:
         with:
           name: python-wheels
           path: dist
-      - name: Logging secret length
-        env:
-          PYPI_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
       - name: Publish package to PyPI
         uses: pypa/gh-action-pypi-publish@v1.4.2
         with:
