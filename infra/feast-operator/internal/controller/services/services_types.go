@@ -51,6 +51,7 @@ const (
 	OfflineFeastType  FeastServiceType = "offline"
 	OnlineFeastType   FeastServiceType = "online"
 	RegistryFeastType FeastServiceType = "registry"
+	UIFeastType       FeastServiceType = "ui"
 	ClientFeastType   FeastServiceType = "client"
 	ClientCaFeastType FeastServiceType = "client-ca"
 
@@ -107,6 +108,11 @@ var (
 			TargetHttpPort:  6570,
 			TargetHttpsPort: 6571,
 		},
+		UIFeastType: {
+			Args:            []string{"ui", "-h", "0.0.0.0"},
+			TargetHttpPort:  8888,
+			TargetHttpsPort: 8443,
+		},
 	}
 
 	FeastServiceConditions = map[FeastServiceType]map[metav1.ConditionStatus]metav1.Condition{
@@ -149,6 +155,20 @@ var (
 				Reason: feastdevv1alpha1.RegistryFailedReason,
 			},
 		},
+		UIFeastType: {
+			metav1.ConditionTrue: {
+				Type:    feastdevv1alpha1.UIReadyType,
+				Status:  metav1.ConditionTrue,
+				Reason:  feastdevv1alpha1.ReadyReason,
+				Message: feastdevv1alpha1.UIReadyMessage,
+			},
+			metav1.ConditionFalse: {
+				Type:   feastdevv1alpha1.UIReadyType,
+				Status: metav1.ConditionFalse,
+				Reason: feastdevv1alpha1.UIFailedReason,
+			},
+		},
+
 		ClientFeastType: {
 			metav1.ConditionTrue: {
 				Type:    feastdevv1alpha1.ClientReadyType,
@@ -168,7 +188,7 @@ var (
 	OidcClientProperties = []OidcPropertyType{OidcClientSecret, OidcUsername, OidcPassword}
 )
 
-// feast server types, not the client types
+// Feast server types: Reserved only for server types like Online, Offline, and Registry servers. Should not be used for client types like the UI, etc.
 var feastServerTypes = []FeastServiceType{
 	RegistryFeastType,
 	OfflineFeastType,

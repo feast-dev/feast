@@ -5,10 +5,9 @@ metadata:
 spec:
   feastProject: my_project
   services:
-    onlineStore:
-      image: 'feastdev/feature-server:0.40.0'
-    offlineStore:
-      image: 'feastdev/feature-server:0.40.0'
+    onlineStore: {}
+    offlineStore: {}
+    ui: {}
     registry:
-      local:
-        image: 'feastdev/feature-server:0.40.0'
+      local: {}
+

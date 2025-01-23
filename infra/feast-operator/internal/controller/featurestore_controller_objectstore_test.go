@@ -189,7 +189,7 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			Expect(deploy.Spec.Replicas).To(Equal(&services.DefaultReplicas))
 			Expect(controllerutil.HasControllerReference(deploy)).To(BeTrue())
 			Expect(deploy.Spec.Template.Spec.InitContainers).To(HaveLen(1))
-			Expect(deploy.Spec.Template.Spec.Containers).To(HaveLen(1))
+			Expect(deploy.Spec.Template.Spec.Containers).To(HaveLen(2))
 			Expect(services.GetRegistryContainer(*deploy)).NotTo(BeNil())
 			Expect(services.GetOnlineContainer(*deploy)).To(BeNil())
 			Expect(services.GetOfflineContainer(*deploy)).To(BeNil())
@@ -258,7 +258,7 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			svcList := corev1.ServiceList{}
 			err = k8sClient.List(ctx, &svcList, listOpts)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(svcList.Items).To(HaveLen(1))
+			Expect(svcList.Items).To(HaveLen(2))
 
 			cmList := corev1.ConfigMapList{}
 			err = k8sClient.List(ctx, &cmList, listOpts)
@@ -284,7 +284,7 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(deploy.Spec.Replicas).To(Equal(&services.DefaultReplicas))
 			Expect(controllerutil.HasControllerReference(deploy)).To(BeTrue())
-			Expect(deploy.Spec.Template.Spec.Containers).To(HaveLen(1))
+			Expect(deploy.Spec.Template.Spec.Containers).To(HaveLen(2))
 			Expect(services.GetRegistryContainer(*deploy)).NotTo(BeNil())
 			Expect(services.GetOnlineContainer(*deploy)).To(BeNil())
 			Expect(services.GetOfflineContainer(*deploy)).To(BeNil())
