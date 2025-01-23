@@ -37,7 +37,7 @@ jobs:
 
   build-publish-docker-images:
     uses: ./.github/workflows/publish_images.yml
-    needs: [ publish-python-sdk ]
+#    needs: [ publish-python-sdk ]
     secrets: inherit
     with:
       custom_version: ${{ github.event.inputs.custom_version }}
@@ -45,7 +45,7 @@ jobs:
 
   publish-helm-charts:
     uses: ./.github/workflows/publish_helm_charts.yml
-    needs: [ publish-python-sdk ]
+#    needs: [ publish-python-sdk ]
     secrets: inherit
     with:
       custom_version: ${{ github.event.inputs.custom_version }}
@@ -53,7 +53,7 @@ jobs:
 
   publish-java-sdk:
     uses: ./.github/workflows/publish_java_sdk.yml
-    needs: [ publish-python-sdk ]
+#    needs: [ publish-python-sdk ]
     secrets: inherit
     with:
       custom_version: ${{ github.event.inputs.custom_version }}
