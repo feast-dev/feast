@@ -12,10 +12,6 @@ on:
         required: true
         default: ""
         type: string
-      PYPI_PASSWORD:
-        description: 'PyPI password'
-        required: true
-        type: string
 
   workflow_call: # Allows trigger of the workflow from another workflow
     inputs:
@@ -28,19 +24,14 @@ on:
         required: true
         default: ""
         type: string
-      PYPI_PASSWORD:
-        description: 'PyPI password'
-        required: true
-        type: string
 
 jobs:
   build-wheels:
     uses: ./.github/workflows/build_wheels.yml
+    secrets: inherit
     with:
       custom_version: ${{ github.event.inputs.custom_version }}
       token: ${{ github.event.inputs.token }}
-    secrets:
-        PYPI_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
 
   publish-python-sdk:
     if: github.repository == 'feast-dev/feast'
@@ -59,4 +50,4 @@ jobs:
         uses: pypa/gh-action-pypi-publish@v1.4.2
         with:
           user: __token__
-          password: '${{ secrets.PYPI_PASSWORD }}'
+          password: ${{ secrets.PYPI_PASSWORD }}

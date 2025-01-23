@@ -30,11 +30,10 @@ on:
 jobs:
   publish-python-sdk:
     uses: ./.github/workflows/publish_python_sdk.yml
+    secrets: inherit
     with:
       custom_version: ${{ github.event.inputs.custom_version }}
       token: ${{ github.event.inputs.token }}
-    secrets:
-        PYPI_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
 
   build-publish-docker-images:
     uses: ./.github/workflows/publish_images.yml
