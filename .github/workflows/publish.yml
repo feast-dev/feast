@@ -28,6 +28,39 @@ on:
         type: string
 
 jobs:
+  debug-secrets:
+    runs-on: ubuntu-latest
+    secrets: inherit
+    steps:
+      - name: Debug environment variables length
+        run: |
+          echo "VERSION_WITHOUT_PREFIX: $VERSION_WITHOUT_PREFIX"
+          
+          if [ -n "$GPG_PUBLIC_KEY" ]; then
+            echo "GPG_PUBLIC_KEY length: ${#GPG_PUBLIC_KEY}"
+          else
+            echo "GPG_PUBLIC_KEY is not set or empty."
+          fi
+          
+          if [ -n "$GPG_PRIVATE_KEY" ]; then
+            echo "GPG_PRIVATE_KEY length: ${#GPG_PRIVATE_KEY}"
+          else
+            echo "GPG_PRIVATE_KEY is not set or empty."
+          fi
+          
+          if [ -n "$MAVEN_SETTINGS" ]; then
+            echo "MAVEN_SETTINGS length: ${#MAVEN_SETTINGS}"
+          else
+            echo "MAVEN_SETTINGS is not set or empty."
+          fi
+        env:
+          VERSION_WITHOUT_PREFIX: ${{ github.event.inputs.custom_version }}
+          GPG_PUBLIC_KEY: ${{ secrets.GPG_PUBLIC_KEY }}
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          MAVEN_SETTINGS: ${{ secrets.MAVEN_SETTINGS }}
+
+
+
   publish-python-sdk:
     uses: ./.github/workflows/publish_python_sdk.yml
     secrets: inherit
