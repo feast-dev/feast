@@ -9,6 +9,18 @@ on:
       custom_version: # Optional input for a custom version
         description: 'Custom version to publish (e.g., v1.2.3) -- only edit if you know what you are doing'
         required: false
+        type: string
+      token:
+        description: 'Personal Access Token'
+        required: true
+        default: ""
+        type: string
+  workflow_call: # Allows trigger the workflow from other workflow
+    inputs:
+      custom_version: # Optional input for a custom version
+        description: 'Custom version to publish (e.g., v1.2.3) -- only edit if you know what you are doing'
+        required: false
+        type: string
       token:
         description: 'Personal Access Token'
         required: true
@@ -16,35 +28,33 @@ on:
         type: string
 
 jobs:
-  get-version:
-    uses: ./.github/workflows/get_semantic_release_version.yml
-    with:
-      custom_version: ${{ github.event.inputs.custom_version }}
-      token: ${{ github.event.inputs.token }}
-
   publish-python-sdk:
     uses: ./.github/workflows/publish_python_sdk.yml
+    secrets: inherit
     with:
       custom_version: ${{ github.event.inputs.custom_version }}
       token: ${{ github.event.inputs.token }}
 
   build-publish-docker-images:
     uses: ./.github/workflows/publish_images.yml
-    needs: [ get-version, publish-python-sdk ]
+    needs: [ publish-python-sdk ]
+    secrets: inherit
     with:
       custom_version: ${{ github.event.inputs.custom_version }}
       token: ${{ github.event.inputs.token }}
 
   publish-helm-charts:
     uses: ./.github/workflows/publish_helm_charts.yml
-    needs: [ get-version, publish-python-sdk ]
+    needs: [ publish-python-sdk ]
+    secrets: inherit
     with:
       custom_version: ${{ github.event.inputs.custom_version }}
       token: ${{ github.event.inputs.token }}
 
   publish-java-sdk:
     uses: ./.github/workflows/publish_java_sdk.yml
-    needs: [ get-version, publish-python-sdk ]
+    needs: [ publish-python-sdk ]
+    secrets: inherit
     with:
       custom_version: ${{ github.event.inputs.custom_version }}
       token: ${{ github.event.inputs.token }}

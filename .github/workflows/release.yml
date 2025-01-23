@@ -18,6 +18,23 @@ on:
         required: true
         default: true
         type: boolean
+  workflow_call:
+    inputs:
+      dry_run:
+        description: 'Dry Run'
+        required: true
+        default: true
+        type: boolean
+      token:
+        description: 'Personal Access Token'
+        required: true
+        default: ""
+        type: string
+      publish_ui:
+        description: 'Publish to NPM?'
+        required: true
+        default: true
+        type: boolean
 
 jobs:
   get_dry_release_versions:

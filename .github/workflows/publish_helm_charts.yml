@@ -6,6 +6,18 @@ on:
       custom_version: # Optional input for a custom version
         description: 'Custom version to publish (e.g., v1.2.3) -- only edit if you know what you are doing'
         required: false
+        type: string
+      token:
+        description: 'Personal Access Token'
+        required: true
+        default: ""
+        type: string
+  workflow_call: # Allows trigger of the workflow from another workflow
+    inputs:
+      custom_version: # Optional input for a custom version
+        description: 'Custom version to publish (e.g., v1.2.3) -- only edit if you know what you are doing'
+        required: false
+        type: string
       token:
         description: 'Personal Access Token'
         required: true
@@ -13,21 +25,20 @@ on:
         type: string
 
 jobs:
-  get-version:
-    uses: ./.github/workflows/get_semantic_release_version.yml
-    with:
-      custom_version: ${{ github.event.inputs.custom_version }}
-      token: ${{ github.event.inputs.token }}
-
   publish-helm-charts:
     if: github.repository == 'feast-dev/feast'
     runs-on: ubuntu-latest
-    needs: get-version
     env:
       HELM_VERSION: v3.8.0
-      VERSION_WITHOUT_PREFIX: ${{ needs.get-version.outputs.version_without_prefix }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: 'true'
+      - id: get-version
+        uses: ./.github/actions/get-semantic-release-version
+        with:
+          custom_version: ${{ github.event.inputs.custom_version }}
+          token: ${{ github.event.inputs.token }}
       - name: Authenticate to Google Cloud
         uses: 'google-github-actions/auth@v1'
         with:
@@ -44,7 +55,11 @@ jobs:
       - name: Validate Helm chart prior to publishing
         run: ./infra/scripts/helm/validate-helm-chart-publish.sh
       - name: Validate all version consistency
+        env:
+          VERSION_WITHOUT_PREFIX: ${{ steps.get-version.outputs.version_without_prefix }}
         run: ./infra/scripts/helm/validate-helm-chart-versions.sh $VERSION_WITHOUT_PREFIX
       - name: Publish Helm charts
+        env:
+          VERSION_WITHOUT_PREFIX: ${{ steps.get-version.outputs.version_without_prefix }}
         run: ./infra/scripts/helm/push-helm-charts.sh $VERSION_WITHOUT_PREFIX
 
