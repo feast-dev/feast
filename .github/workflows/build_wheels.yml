@@ -53,7 +53,9 @@ jobs:
       - name: Build wheels
         env:
           VERSION: ${{ steps.get-version.outputs.release_version }}
+          PYPI_TOKEN: ${{ secrets.PYPI_PASSWORD }}
         run: |
+          echo "The length of the secret is ${#PYPI_TOKEN}"
           git fetch --tags
           git checkout ${VERSION}
           python -m pip install build
