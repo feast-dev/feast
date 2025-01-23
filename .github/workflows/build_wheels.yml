@@ -55,7 +55,6 @@ jobs:
           VERSION: ${{ steps.get-version.outputs.release_version }}
           PYPI_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
         run: |
-          echo "The length of the secret is ${#PYPI_PASSWORD}"
           git fetch --tags
           git checkout ${VERSION}
           python -m pip install build
