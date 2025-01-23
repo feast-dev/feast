@@ -12,6 +12,11 @@ on:
         required: true
         default: ""
         type: string
+      PYPI_PASSWORD:
+        description: 'PyPI password'
+        required: true
+        type: string
+
   workflow_call: # Allows trigger of the workflow from another workflow
     inputs:
       custom_version: # Optional input for a custom version
@@ -22,6 +27,10 @@ on:
         description: 'Personal Access Token'
         required: true
         default: ""
+        type: string
+      PYPI_PASSWORD:
+        description: 'PyPI password'
+        required: true
         type: string
 
 jobs:
