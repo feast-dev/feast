@@ -28,16 +28,17 @@ on:
         type: string
 
 jobs:
-  publish-python-sdk:
-    uses: ./.github/workflows/publish_python_sdk.yml
-    secrets: inherit
-    with:
-      custom_version: ${{ github.event.inputs.custom_version }}
-      token: ${{ github.event.inputs.token }}
+#  publish-python-sdk:
+#    uses: ./.github/workflows/publish_python_sdk.yml
+#    secrets: inherit
+#    with:
+#      custom_version: ${{ github.event.inputs.custom_version }}
+#      token: ${{ github.event.inputs.token }}
 
   build-publish-docker-images:
     uses: ./.github/workflows/publish_images.yml
     needs: [ publish-python-sdk ]
+    secrets: inherit
     with:
       custom_version: ${{ github.event.inputs.custom_version }}
       token: ${{ github.event.inputs.token }}
@@ -45,6 +46,7 @@ jobs:
   publish-helm-charts:
     uses: ./.github/workflows/publish_helm_charts.yml
     needs: [ publish-python-sdk ]
+    secrets: inherit
     with:
       custom_version: ${{ github.event.inputs.custom_version }}
       token: ${{ github.event.inputs.token }}
@@ -52,6 +54,7 @@ jobs:
   publish-java-sdk:
     uses: ./.github/workflows/publish_java_sdk.yml
     needs: [ publish-python-sdk ]
+    secrets: inherit
     with:
       custom_version: ${{ github.event.inputs.custom_version }}
       token: ${{ github.event.inputs.token }}
