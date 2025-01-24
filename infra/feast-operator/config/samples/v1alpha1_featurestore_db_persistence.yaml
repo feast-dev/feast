@@ -3,20 +3,32 @@ kind: Secret
 metadata:
   name: postgres-secret
   namespace: test
+  labels:
+    app: postgres
+stringData:
+  POSTGRES_DB: feast
+  POSTGRES_USER: feast
+  POSTGRES_PASSWORD: feast
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: feast-data-stores
+  namespace: test
 stringData:
   postgres-secret-parameters: |
-    path: postgresql+psycopg://postgres:mysecretpassword@127.0.0.1:55001/feast
+    path: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres.test.svc.cluster.local:5432/${POSTGRES_DB}
     cache_ttl_seconds: 60
     sqlalchemy_config_kwargs:
-      echo: false
-      pool_pre_ping: true
+        echo: false
+        pool_pre_ping: true
   postgres: |
-    host: 127.0.0.1
-    port: 55001
-    database: feast
+    host: postgres.test.svc.cluster.local
+    port: 5432
+    database: ${POSTGRES_DB}
     db_schema: public
-    user: postgres
-    password: mysecretpassword
+    user: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
 ---
 apiVersion: feast.dev/v1alpha1
 kind: FeatureStore
@@ -31,12 +43,18 @@ spec:
         store:
           type: postgres
           secretRef:
-            name: postgres-secret
+            name: feast-data-stores
+      envFrom:
+      - secretRef:
+          name: postgres-secret
     registry:
       local:
         persistence:
           store:
             type: sql
             secretRef:
-              name: postgres-secret
+              name: feast-data-stores
             secretKeyName: postgres-secret-parameters   # optional, will use store.type by default as the SecretKeyName if none is specified, in this case that's "sql"
+        envFrom:
+        - secretRef:
+            name: postgres-secret

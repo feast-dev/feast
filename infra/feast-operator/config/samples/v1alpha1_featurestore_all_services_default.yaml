@@ -1,7 +1,7 @@
 apiVersion: feast.dev/v1alpha1
 kind: FeatureStore
 metadata:
-  name: sample-all-default
+  name: sample-all-services
 spec:
   feastProject: my_project
   services:
@@ -10,4 +10,3 @@ spec:
     ui: {}
     registry:
       local: {}
-
