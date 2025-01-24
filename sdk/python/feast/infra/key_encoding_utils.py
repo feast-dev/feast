@@ -83,6 +83,8 @@ def serialize_entity_key(
     )
 
     output: List[bytes] = []
+    if entity_key_serialization_version > 2:
+        output.append(struct.pack("<I", len(sorted_keys)))
     for k in sorted_keys:
         output.append(struct.pack("<I", ValueType.STRING))
         if entity_key_serialization_version > 2:
@@ -122,7 +124,11 @@ def deserialize_entity_key(
     offset = 0
     keys = []
     values = []
-    while offset < len(serialized_entity_key):
+
+    num_keys = struct.unpack_from("<I", serialized_entity_key, offset)[0]
+    offset += 4
+
+    for _ in  range(num_keys):
         key_type = struct.unpack_from("<I", serialized_entity_key, offset)[0]
         offset += 4
 
@@ -139,6 +145,7 @@ def deserialize_entity_key(
         else:
             raise ValueError(f"Unsupported key type: {key_type}")
 
+    while offset < len(serialized_entity_key):
         (value_type,) = struct.unpack_from("<I", serialized_entity_key, offset)
         offset += 4
 
