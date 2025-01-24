@@ -128,7 +128,7 @@ def deserialize_entity_key(
     num_keys = struct.unpack_from("<I", serialized_entity_key, offset)[0]
     offset += 4
 
-    for _ in  range(num_keys):
+    for _ in range(num_keys):
         key_type = struct.unpack_from("<I", serialized_entity_key, offset)[0]
         offset += 4
 
