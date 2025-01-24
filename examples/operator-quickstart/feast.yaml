@@ -2,6 +2,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: feast-data-stores
+  namespace: feast
 stringData:
   redis: |
     connection_string: redis.feast.svc.cluster.local:6379
@@ -16,6 +17,7 @@ apiVersion: feast.dev/v1alpha1
 kind: FeatureStore
 metadata:
   name: example
+  namespace: feast
 spec:
   feastProject: credit_scoring_local
   services:

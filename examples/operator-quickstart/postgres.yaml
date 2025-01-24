@@ -2,6 +2,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: postgres-secret
+  namespace: feast
 stringData:
   POSTGRES_DB: feast
   POSTGRES_USER: feast
@@ -11,6 +12,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: postgres
+  namespace: feast
 spec:
   replicas: 1
   selector:
@@ -40,6 +42,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: postgres
+  namespace: feast
   labels:
     app: postgres
 spec:
