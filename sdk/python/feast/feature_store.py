@@ -89,6 +89,7 @@ from feast.saved_dataset import SavedDataset, SavedDatasetStorage, ValidationRef
 from feast.ssl_ca_trust_store_setup import configure_ca_trust_store_env_variables
 from feast.stream_feature_view import StreamFeatureView
 from feast.utils import _utc_now
+from feast.type_map import feast_value_type_to_python_type
 
 warnings.simplefilter("once", DeprecationWarning)
 
@@ -1825,42 +1826,52 @@ class FeatureStore:
         requested_feature_view = available_feature_views[0]
 
         provider = self._get_provider()
-        document_features = self._retrieve_from_online_store(
-            provider,
-            requested_feature_view,
-            requested_feature,
-            requested_features,
-            query,
-            top_k,
-            distance_metric,
-        )
+        if self.config.online_store.type != 'milvus':
+            document_features = self._retrieve_from_online_store(
+                provider,
+                requested_feature_view,
+                requested_feature,
+                requested_features,
+                query,
+                top_k,
+                distance_metric,
+            )
+            # TODO currently not return the vector value since it is same as feature value, if embedding is supported,
+            # the feature value can be raw text before embedded
+            entity_key_vals = [feature[1] for feature in document_features]
+            join_key_values: Dict[str, List[ValueProto]] = {}
+            for entity_key_val in entity_key_vals:
+                if entity_key_val is not None:
+                    for join_key, entity_value in zip(
+                        entity_key_val.join_keys, entity_key_val.entity_values
+                    ):
+                        if join_key not in join_key_values:
+                            join_key_values[join_key] = []
+                        join_key_values[join_key].append(entity_value)
 
-        # TODO currently not return the vector value since it is same as feature value, if embedding is supported,
-        # the feature value can be raw text before embedded
-        entity_key_vals = [feature[1] for feature in document_features]
-        join_key_values: Dict[str, List[ValueProto]] = {}
-        for entity_key_val in entity_key_vals:
-            if entity_key_val is not None:
-                for join_key, entity_value in zip(
-                    entity_key_val.join_keys, entity_key_val.entity_values
-                ):
-                    if join_key not in join_key_values:
-                        join_key_values[join_key] = []
-                    join_key_values[join_key].append(entity_value)
-
-        document_feature_vals = [feature[4] for feature in document_features]
-        document_feature_distance_vals = [feature[5] for feature in document_features]
-        online_features_response = GetOnlineFeaturesResponse(results=[])
-        requested_feature = requested_feature or requested_features[0]
-        utils._populate_result_rows_from_columnar(
-            online_features_response=online_features_response,
-            data={
-                **join_key_values,
-                requested_feature: document_feature_vals,
-                "distance": document_feature_distance_vals,
-            },
-        )
-        return OnlineResponse(online_features_response)
+            document_feature_vals = [feature[4] for feature in document_features]
+            document_feature_distance_vals = [feature[5] for feature in document_features]
+            online_features_response = GetOnlineFeaturesResponse(results=[])
+            requested_feature = requested_feature or requested_features[0]
+            utils._populate_result_rows_from_columnar(
+                online_features_response=online_features_response,
+                data={
+                    **join_key_values,
+                    requested_feature: document_feature_vals,
+                    "distance": document_feature_distance_vals,
+                },
+            )
+            return OnlineResponse(online_features_response)
+        else:
+            return self._retrieve_from_online_store_v2(
+                provider,
+                requested_feature_view,
+                requested_feature,
+                requested_features,
+                query,
+                top_k,
+                distance_metric,
+            )
 
     def _retrieve_from_online_store(
         self,
@@ -1916,6 +1927,76 @@ class FeatureStore:
                 )
             )
         return read_row_protos
+
+
+    def _retrieve_from_online_store_v2(
+        self,
+        provider: Provider,
+        table: FeatureView,
+        requested_feature: Optional[str],
+        requested_features: Optional[List[str]],
+        query: List[float],
+        top_k: int,
+        distance_metric: Optional[str],
+    ) -> OnlineResponse:
+        """
+        Search and return document features from the online document store.
+        """
+        documents = provider.retrieve_online_documents(
+            config=self.config,
+            table=table,
+            requested_feature=requested_feature,
+            requested_features=requested_features,
+            query=query,
+            top_k=top_k,
+            distance_metric=distance_metric,
+        )
+
+        read_row_protos = []
+        entity_key_dict = {}
+        table_entity_values = []
+        for row_ts, entity_key, feature_dict in documents:
+            read_row_protos.append((
+                row_ts,
+                entity_key,
+                feature_dict,
+            ))
+            if entity_key:
+                for key, value in zip(entity_key.join_keys, entity_key.entity_values):
+                    python_value = value
+                    if key not in entity_key_dict:
+                        entity_key_dict[key] = []
+                    entity_key_dict[key].append(python_value)
+
+            table_entity_values.append(
+                tuple(feast_value_type_to_python_type(e) for e in entity_key.entity_values)
+            )
+        table_entity_values, idxs = utils._get_unique_entities_from_values(
+            entity_key_dict,
+        )
+
+        datevals, entityvals, feature_dicts = [], [], []
+        for d, e, f in documents:
+            datevals.append(d)
+            entityvals.append(e)
+            feature_dicts.append(f)
+
+        feature_data = utils._convert_rows_to_protobuf(
+            requested_features=[requested_feature, 'distance'] if requested_feature else requested_features + ['distance'],
+            read_rows=list(zip(datevals, feature_dicts)),
+        )
+
+        online_features_response = GetOnlineFeaturesResponse(results=[])
+        utils._populate_response_from_feature_data(
+            feature_data=feature_data,
+            indexes=idxs,
+            online_features_response=online_features_response,
+            full_feature_names=False,
+            requested_features=requested_features + ['distance'],
+            table=table,
+        )
+
+        return OnlineResponse(online_features_response)
 
     def serve(
         self,

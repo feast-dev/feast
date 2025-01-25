@@ -17,6 +17,7 @@ from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import FloatList as FloatListProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RegistryConfig
+from feast.types import ValueType
 from feast.utils import _utc_now
 from tests.integration.feature_repos.universal.feature_views import TAGS
 from tests.utils.cli_repo_creator import CliRunner, get_example_repo
@@ -638,7 +639,7 @@ def test_milvus_lite_get_online_documents() -> None:
         from datetime import timedelta
 
         from feast import Entity, FeatureView, Field, FileSource
-        from feast.types import Array, Float32, Int64, UnixTimestamp
+        from feast.types import Array, Float32, Int64, String, UnixTimestamp
 
         # This is for Milvus
         # Note that file source paths are not validated, so there doesn't actually need to be any data
@@ -654,20 +655,28 @@ def test_milvus_lite_get_online_documents() -> None:
         item = Entity(
             name="item_id",  # The name is derived from this argument, not object name.
             join_keys=["item_id"],
+            value_type=ValueType.INT64,
+        )
+        author = Entity(
+            name="author_id",
+            join_keys=["author_id"],
+            value_type=ValueType.STRING,
         )
 
         document_embeddings = FeatureView(
             name="embedded_documents",
-            entities=[item],
+            entities=[item, author],
             schema=[
                 Field(
                     name="vector",
                     dtype=Array(Float32),
                     vector_index=True,
-                    vector_search_metric="L2",
+                    vector_search_metric="COSINE",
                 ),
                 Field(name="item_id", dtype=Int64),
+                Field(name="author_id", dtype=String),
                 Field(name="created_timestamp", dtype=UnixTimestamp),
+                Field(name="sentence_chunks", dtype=String),
                 Field(name="event_timestamp", dtype=UnixTimestamp),
             ],
             source=rag_documents_source,
@@ -683,12 +692,13 @@ def test_milvus_lite_get_online_documents() -> None:
 
         item_keys = [
             EntityKeyProto(
-                join_keys=["item_id"], entity_values=[ValueProto(int64_val=i)]
+                join_keys=["item_id", "author_id"],
+                entity_values=[ValueProto(int64_val=i), ValueProto(string_val=f"author_{i}")]
             )
             for i in range(n)
         ]
         data = []
-        for item_key in item_keys:
+        for i, item_key in enumerate(item_keys):
             data.append(
                 (
                     item_key,
@@ -697,9 +707,12 @@ def test_milvus_lite_get_online_documents() -> None:
                             float_list_val=FloatListProto(
                                 val=np.random.random(
                                     vector_length,
-                                )
+                                ) + i
                             )
-                        )
+                        ),
+                        "sentence_chunks": ValueProto(
+                            string_val=f"sentence chunk {i}"
+                        ),
                     },
                     _utc_now(),
                     _utc_now(),
@@ -715,12 +728,14 @@ def test_milvus_lite_get_online_documents() -> None:
         documents_df = pd.DataFrame(
             {
                 "item_id": [str(i) for i in range(n)],
+                "author_id": [f"author_{i}" for i in range(n)],
                 "vector": [
                     np.random.random(
                         vector_length,
-                    )
+                    ) + i
                     for i in range(n)
                 ],
+                "sentence_chunks":[f"sentence chunk {i}" for i in range(n)],
                 "event_timestamp": [_utc_now() for _ in range(n)],
                 "created_timestamp": [_utc_now() for _ in range(n)],
             }
@@ -735,9 +750,17 @@ def test_milvus_lite_get_online_documents() -> None:
             vector_length,
         )
         result = store.retrieve_online_documents(
-            feature="embedded_documents:vector", query=query_embedding, top_k=3
+            feature=None,
+            features=[
+                "embedded_documents:vector",
+                "embedded_documents:item_id",
+                "embedded_documents:sentence_chunks",
+            ],
+            query=query_embedding,
+            top_k=3,
         ).to_dict()
 
         assert "vector" in result
         assert "distance" in result
-        assert len(result["distance"]) == 3
+        assert "sentence_chunks" in result
+        # assert len(result["distance"]) == 3

@@ -100,7 +100,6 @@ class OnlineStore(ABC):
         config: RepoConfig,
         table: FeatureView,
         entity_keys: List[EntityKeyProto],
-        requested_features: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         """
         Reads features values for the given entity keys.
@@ -395,15 +394,7 @@ class OnlineStore(ABC):
         embedding: List[float],
         top_k: int,
         distance_metric: Optional[str] = None,
-    ) -> List[
-        Tuple[
-            Optional[datetime],
-            Optional[EntityKeyProto],
-            Optional[ValueProto],
-            Optional[ValueProto],
-            Optional[ValueProto],
-        ]
-    ]:
+    ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         """
         Retrieves online feature values for the specified embeddings.
 
