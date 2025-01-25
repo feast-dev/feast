@@ -90,6 +90,7 @@ from feast.saved_dataset import SavedDataset, SavedDatasetStorage, ValidationRef
 from feast.ssl_ca_trust_store_setup import configure_ca_trust_store_env_variables
 from feast.stream_feature_view import StreamFeatureView
 from feast.utils import _utc_now
+from feast.type_map import feast_value_type_to_python_type
 
 warnings.simplefilter("once", DeprecationWarning)
 
@@ -1847,19 +1848,29 @@ class FeatureStore:
                         join_key_values[join_key] = []
                     join_key_values[join_key].append(entity_value)
 
-        document_feature_vals = [feature[4] for feature in document_features]
-        document_feature_distance_vals = [feature[5] for feature in document_features]
-        online_features_response = GetOnlineFeaturesResponse(results=[])
-        requested_feature = requested_feature or requested_features[0]
-        utils._populate_result_rows_from_columnar(
-            online_features_response=online_features_response,
-            data={
-                **join_key_values,
-                requested_feature: document_feature_vals,
-                "distance": document_feature_distance_vals,
-            },
-        )
-        return OnlineResponse(online_features_response)
+            document_feature_vals = [feature[4] for feature in document_features]
+            document_feature_distance_vals = [feature[5] for feature in document_features]
+            online_features_response = GetOnlineFeaturesResponse(results=[])
+            requested_feature = requested_feature or requested_features[0]
+            utils._populate_result_rows_from_columnar(
+                online_features_response=online_features_response,
+                data={
+                    **join_key_values,
+                    requested_feature: document_feature_vals,
+                    "distance": document_feature_distance_vals,
+                },
+            )
+            return OnlineResponse(online_features_response)
+        else:
+            return self._retrieve_from_online_store_v2(
+                provider,
+                requested_feature_view,
+                requested_feature,
+                requested_features,
+                query,
+                top_k,
+                distance_metric,
+            )
 
     def retrieve_online_documents_v2(
         self,

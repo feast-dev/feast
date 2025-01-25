@@ -394,6 +394,7 @@ class MilvusOnlineStore(OnlineStore):
         )
 
         result_list = []
+        c = 0
         for hits in results:
             for hit in hits:
                 res = {}
