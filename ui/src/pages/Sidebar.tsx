@@ -55,12 +55,14 @@ const SideNav = () => {
       : ""
   }`;
 
+  const baseUrl = `${process.env.PUBLIC_URL || ""}/p/${projectName}`;
+
   const sideNav = [
     {
       name: "Home",
       id: htmlIdGenerator("basicExample")(),
       onClick: () => {
-        navigate(`${process.env.PUBLIC_URL || ""}/p/${projectName}/`);
+        navigate(`${baseUrl}/`);
       },
       items: [
         {
@@ -68,45 +70,45 @@ const SideNav = () => {
           id: htmlIdGenerator("dataSources")(),
           icon: <EuiIcon type={DataSourceIcon} />,
           onClick: () => {
-            navigate(`${process.env.PUBLIC_URL || ""}/p/${projectName}/data-source`);
+            navigate(`${baseUrl}/data-source`);
           },
-          isSelected: useMatchSubpath("data-source"),
+          isSelected: useMatchSubpath(`${baseUrl}/data-source`),
         },
         {
           name: entitiesLabel,
           id: htmlIdGenerator("entities")(),
           icon: <EuiIcon type={EntityIcon} />,
           onClick: () => {
-            navigate(`${process.env.PUBLIC_URL || ""}/p/${projectName}/entity`);
+            navigate(`${baseUrl}/entity`);
           },
-          isSelected: useMatchSubpath("entity"),
+          isSelected: useMatchSubpath(`${baseUrl}/entity`),
         },
         {
           name: featureViewsLabel,
           id: htmlIdGenerator("featureView")(),
           icon: <EuiIcon type={FeatureViewIcon} />,
           onClick: () => {
-            navigate(`${process.env.PUBLIC_URL || ""}/p/${projectName}/feature-view`);
+            navigate(`${baseUrl}/feature-view`);
           },
-          isSelected: useMatchSubpath("feature-view"),
+          isSelected: useMatchSubpath(`${baseUrl}/feature-view`),
         },
         {
           name: featureServicesLabel,
           id: htmlIdGenerator("featureService")(),
           icon: <EuiIcon type={FeatureServiceIcon} />,
           onClick: () => {
-            navigate(`${process.env.PUBLIC_URL || ""}/p/${projectName}/feature-service`);
+            navigate(`${baseUrl}/feature-service`);
           },
-          isSelected: useMatchSubpath("feature-service"),
+          isSelected: useMatchSubpath(`${baseUrl}/feature-service`),
         },
         {
           name: savedDatasetsLabel,
           id: htmlIdGenerator("savedDatasets")(),
           icon: <EuiIcon type={DatasetIcon} />,
           onClick: () => {
-            navigate(`${process.env.PUBLIC_URL || ""}/p/${projectName}/data-set`);
+            navigate(`${baseUrl}/data-set`);
           },
-          isSelected: useMatchSubpath("data-set"),
+          isSelected: useMatchSubpath(`${baseUrl}/data-set`),
         },
       ],
     },
