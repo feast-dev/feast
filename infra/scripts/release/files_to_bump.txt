@@ -15,6 +15,7 @@ infra/feast-helm-operator/config/manager/kustomization.yaml 8
 infra/feast-operator/Makefile 6
 infra/feast-operator/config/manager/kustomization.yaml 8
 infra/feast-operator/config/overlays/odh/params.env 1
+infra/feast-operator/config/overlays/odh/params.env 2
 infra/feast-operator/api/feastversion/version.go 20
 java/pom.xml 38
 ui/package.json 3
