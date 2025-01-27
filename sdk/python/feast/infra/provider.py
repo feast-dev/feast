@@ -424,22 +424,13 @@ class Provider(ABC):
         query: List[float],
         top_k: int,
         distance_metric: Optional[str] = None,
-    ) -> Union[
-        List[
-            Tuple[
-                Optional[datetime],
-                Optional[EntityKeyProto],
-                Optional[ValueProto],
-                Optional[ValueProto],
-                Optional[ValueProto],
-            ],
-        ],
-        List[
-            Tuple[
-                Optional[datetime],
-                Optional[EntityKeyProto],
-                Optional[Dict[str, ValueProto]],
-            ]
+    ) -> List[
+        Tuple[
+            Optional[datetime],
+            Optional[EntityKeyProto],
+            Optional[ValueProto],
+            Optional[ValueProto],
+            Optional[ValueProto],
         ],
     ]:
         """
