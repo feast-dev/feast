@@ -394,7 +394,15 @@ class OnlineStore(ABC):
         embedding: List[float],
         top_k: int,
         distance_metric: Optional[str] = None,
-    ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
+    ) -> List[
+        Tuple[
+            Optional[datetime],
+            Optional[EntityKeyProto],
+            Optional[ValueProto],
+            Optional[ValueProto],
+            Optional[ValueProto],
+        ]
+    ]:
         """
         Retrieves online feature values for the specified embeddings.
 

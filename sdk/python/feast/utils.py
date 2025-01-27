@@ -708,6 +708,7 @@ def _get_unique_entities(
     )
     return unique_entities, indexes
 
+
 def _get_unique_entities_from_values(
     table_entity_values: Dict[str, List[ValueProto]],
 ) -> Tuple[Tuple[Dict[str, ValueProto], ...], Tuple[List[int], ...]]:
@@ -886,6 +887,7 @@ def _populate_response_from_feature_data(
             )
         )
 
+
 def _populate_response_from_feature_data_v2(
     feature_data: Iterable[
         Tuple[
@@ -914,12 +916,7 @@ def _populate_response_from_feature_data_v2(
             data in `feature_data`.
     """
     # Add the feature names to the response.
-    requested_feature_refs = [
-        (
-            feature_name
-        )
-        for feature_name in requested_features
-    ]
+    requested_feature_refs = [(feature_name) for feature_name in requested_features]
     online_features_response.metadata.feature_names.val.extend(requested_feature_refs)
 
     timestamps, statuses, values = zip(*feature_data)
@@ -938,6 +935,7 @@ def _populate_response_from_feature_data_v2(
             )
         )
 
+
 def _convert_entity_key_to_proto_to_dict(
     entity_key_vals: List[EntityKeyProto],
 ) -> Dict[str, List[ValueProto]]:
@@ -945,7 +943,7 @@ def _convert_entity_key_to_proto_to_dict(
     for entity_key_val in entity_key_vals:
         if entity_key_val is not None:
             for join_key, entity_value in zip(
-                    entity_key_val.join_keys, entity_key_val.entity_values
+                entity_key_val.join_keys, entity_key_val.entity_values
             ):
                 if join_key not in entity_dict:
                     entity_dict[join_key] = []

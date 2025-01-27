@@ -90,7 +90,6 @@ from feast.saved_dataset import SavedDataset, SavedDatasetStorage, ValidationRef
 from feast.ssl_ca_trust_store_setup import configure_ca_trust_store_env_variables
 from feast.stream_feature_view import StreamFeatureView
 from feast.utils import _utc_now
-from feast.type_map import feast_value_type_to_python_type
 
 warnings.simplefilter("once", DeprecationWarning)
 
