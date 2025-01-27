@@ -52,7 +52,7 @@ func (feast *FeastServices) ApplyDefaults() error {
 // Deploy the feast services
 func (feast *FeastServices) Deploy() error {
 	if feast.noLocalServiceConfigured() {
-		return errors.New("At least one local service must be configured. e.g. registry / online / offline.")
+		return errors.New("at least one local service must be configured. e.g. registry / online / offline")
 	}
 	openshiftTls, err := feast.checkOpenshiftTls()
 	if err != nil {
@@ -349,7 +349,6 @@ func (feast *FeastServices) setPod(podSpec *corev1.PodSpec) error {
 	if err := feast.setContainers(podSpec); err != nil {
 		return err
 	}
-	feast.setRegistryClientInitContainer(podSpec)
 	feast.mountTlsConfigs(podSpec)
 	feast.mountPvcConfigs(podSpec)
 	feast.mountEmptyDirVolumes(podSpec)
@@ -503,29 +502,6 @@ func (feast *FeastServices) setInitContainer(podSpec *corev1.PodSpec, fsYamlB64 
 				"/feature_store.yaml;\necho \"Feast initialization complete\";\n"},
 			WorkingDir: workingDir,
 		})
-	}
-}
-
-// add grpc init container if remote registry reference (feastRef) is configured
-func (feast *FeastServices) setRegistryClientInitContainer(podSpec *corev1.PodSpec) {
-	if !feast.Handler.FeatureStore.Status.Applied.Services.DisableInitContainers {
-		hostname := feast.Handler.FeatureStore.Status.ServiceHostnames.Registry
-		if len(hostname) > 0 && feast.IsRemoteRefRegistry() {
-			grpcurlFlag := "-plaintext"
-			hostSplit := strings.Split(hostname, ":")
-			if len(hostSplit) > 1 && hostSplit[1] == "443" {
-				grpcurlFlag = "-insecure"
-			}
-			podSpec.InitContainers = append(podSpec.InitContainers, corev1.Container{
-				Name:  "init-registry",
-				Image: getGrpcCurlImage(),
-				Command: []string{
-					"sh", "-c",
-					"until grpcurl -H \"authorization: Bearer $(cat /var/run/secrets/kubernetes.io/serviceaccount/token)\" " +
-						grpcurlFlag + " -d '' -format text " + hostname + " grpc.health.v1.Health/Check; do echo waiting for registry; sleep 2; done",
-				},
-			})
-		}
 	}
 }
 

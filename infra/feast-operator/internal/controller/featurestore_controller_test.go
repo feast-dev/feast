@@ -1021,7 +1021,7 @@ var _ = Describe("FeatureStore Controller", func() {
 				Namespace: objMeta.Namespace,
 			}, deploy)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(deploy.Spec.Template.Spec.InitContainers).To(HaveLen(2))
+			Expect(deploy.Spec.Template.Spec.InitContainers).To(HaveLen(1))
 
 			// check client config
 			cm := &corev1.ConfigMap{}
