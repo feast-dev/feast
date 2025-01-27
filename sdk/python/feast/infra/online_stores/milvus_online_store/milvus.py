@@ -92,7 +92,7 @@ class MilvusOnlineStoreConfig(FeastConfigBaseModel, VectorStoreConfig):
     host: Optional[StrictStr] = "localhost"
     port: Optional[int] = 19530
     index_type: Optional[str] = "FLAT"
-    metric_type: Optional[str] = "L2"
+    metric_type: Optional[str] = "COSINE"
     embedding_dim: Optional[int] = 128
     vector_enabled: Optional[bool] = True
     nlist: Optional[int] = 128
@@ -327,12 +327,11 @@ class MilvusOnlineStore(OnlineStore):
                 self.client.drop_collection(collection_name)
                 self._collections.pop(collection_name, None)
 
-    def retrieve_online_documents(
+    def retrieve_online_documents_v2(
         self,
         config: RepoConfig,
         table: FeatureView,
-        requested_feature: Optional[str],
-        requested_features: Optional[List[str]],
+        requested_features: List[str],
         embedding: List[float],
         top_k: int,
         distance_metric: Optional[str] = None,
@@ -356,14 +355,12 @@ class MilvusOnlineStore(OnlineStore):
             "metric_type": distance_metric or config.online_store.metric_type,
             "params": {"nprobe": 10},
         }
-        expr = f"feature_name == '{requested_feature}'"
 
         composite_key_name = (
             "_".join([str(field.name) for field in table.entity_columns]) + "_pk"
         )
-        if requested_features:
-            features_str = ", ".join([f"'{f}'" for f in requested_features])
-            expr += f" && feature_name in [{features_str}]"
+        # features_str = ", ".join([f"'{f}'" for f in requested_features])
+        # expr = f" && feature_name in [{features_str}]"
 
         output_fields = (
             [composite_key_name]
@@ -395,14 +392,17 @@ class MilvusOnlineStore(OnlineStore):
         )
 
         result_list = []
-        c = 0
         for hits in results:
             for hit in hits:
-                c+=1
                 res = {}
                 res_ts = None
+                entity_key_bytes = bytes.fromhex(
+                    hit.get("entity", {}).get(composite_key_name, None)
+                )
+                entity_key_proto = deserialize_entity_key(entity_key_bytes) if entity_key_bytes else None
                 for field in output_fields:
                     val = ValueProto()
+                    # entity_key_proto = None
                     if field in ["created_ts", "event_ts"]:
                         res_ts = datetime.fromtimestamp(
                             hit.get("entity", {}).get(field) / 1e6
@@ -412,13 +412,6 @@ class MilvusOnlineStore(OnlineStore):
                             embedding
                         )
                         res[ann_search_field] = serialized_embedding
-                    elif field == composite_key_name:
-                        # In other approaches the entity keys are joined later
-                        entity_key_bytes = bytes.fromhex(
-                            hit.get("entity", {}).get(composite_key_name, None)
-                        )
-                        entity_key_proto = deserialize_entity_key(entity_key_bytes)
-                        # res[field] = entity_key_proto
                     elif entity_name_feast_primitive_type_map.get(
                         field, PrimitiveFeastType.INVALID
                     ) in [
@@ -430,6 +423,8 @@ class MilvusOnlineStore(OnlineStore):
                         res[field] = ValueProto(
                             string_val=hit.get("entity", {}).get(field, "")
                         )
+                    elif field == composite_key_name:
+                        pass
                     else:
                         val.ParseFromString(
                             bytes(hit.get("entity", {}).get(field, b"").encode())
@@ -439,11 +434,7 @@ class MilvusOnlineStore(OnlineStore):
                 res["distance"] = (
                     ValueProto(float_val=distance) if distance else ValueProto()
                 )
-                if not res:
-                    result_list.append((None, None, None))
-                else:
-                    result_list.append((res_ts, entity_key_proto, res))
-        print(f"{c} results found with k = {top_k}")
+                result_list.append((res_ts, entity_key_proto, res if res else None))
         return result_list
 
 

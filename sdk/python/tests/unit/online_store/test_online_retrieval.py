@@ -693,7 +693,10 @@ def test_milvus_lite_get_online_documents() -> None:
         item_keys = [
             EntityKeyProto(
                 join_keys=["item_id", "author_id"],
-                entity_values=[ValueProto(int64_val=i), ValueProto(string_val=f"author_{i}")]
+                entity_values=[
+                    ValueProto(int64_val=i),
+                    ValueProto(string_val=f"author_{i}"),
+                ],
             )
             for i in range(n)
         ]
@@ -707,12 +710,11 @@ def test_milvus_lite_get_online_documents() -> None:
                             float_list_val=FloatListProto(
                                 val=np.random.random(
                                     vector_length,
-                                ) + i
+                                )
+                                + i
                             )
                         ),
-                        "sentence_chunks": ValueProto(
-                            string_val=f"sentence chunk {i}"
-                        ),
+                        "sentence_chunks": ValueProto(string_val=f"sentence chunk {i}"),
                     },
                     _utc_now(),
                     _utc_now(),
@@ -732,10 +734,11 @@ def test_milvus_lite_get_online_documents() -> None:
                 "vector": [
                     np.random.random(
                         vector_length,
-                    ) + i
+                    )
+                    + i
                     for i in range(n)
                 ],
-                "sentence_chunks":[f"sentence chunk {i}" for i in range(n)],
+                "sentence_chunks": [f"sentence chunk {i}" for i in range(n)],
                 "event_timestamp": [_utc_now() for _ in range(n)],
                 "created_timestamp": [_utc_now() for _ in range(n)],
             }
@@ -749,18 +752,103 @@ def test_milvus_lite_get_online_documents() -> None:
         query_embedding = np.random.random(
             vector_length,
         )
-        result = store.retrieve_online_documents(
-            feature=None,
+
+        client = store._provider._online_store.client
+        collection_name = client.list_collections()[0]
+        search_params = {
+            "metric_type": "COSINE",
+            "params": {"nprobe": 10},
+        }
+
+        results = client.search(
+            collection_name=collection_name,
+            data=[query_embedding],
+            anns_field="vector",
+            search_params=search_params,
+            limit=3,
+            output_fields=[
+                "item_id",
+                "author_id",
+                "sentence_chunks",
+                "created_ts",
+                "event_ts",
+            ],
+        )
+        result = store.retrieve_online_documents_v2(
             features=[
                 "embedded_documents:vector",
                 "embedded_documents:item_id",
+                "embedded_documents:author_id",
                 "embedded_documents:sentence_chunks",
             ],
             query=query_embedding,
             top_k=3,
         ).to_dict()
 
-        assert "vector" in result
-        assert "distance" in result
-        assert "sentence_chunks" in result
-        # assert len(result["distance"]) == 3
+        for k in ["vector", "item_id", "author_id", "sentence_chunks", "distance"]:
+            assert k in result, f"Missing {k} in retrieve_online_documents response"
+        assert len(result["distance"]) == len(results[0])
+
+
+def test_milvus_native_from_feast_data() -> None:
+    import random
+    from datetime import datetime
+
+    import numpy as np
+    from pymilvus import MilvusClient
+
+    random.seed(42)
+    VECTOR_LENGTH = 10  # Matches vector_length from the Feast example
+    COLLECTION_NAME = "embedded_documents"
+
+    # Initialize Milvus client with local setup
+    client = MilvusClient("./milvus_demo.db")
+
+    # Clear and recreate collection
+    for collection in client.list_collections():
+        client.drop_collection(collection_name=collection)
+    client.create_collection(
+        collection_name=COLLECTION_NAME,
+        dimension=VECTOR_LENGTH,
+        metric_type="COSINE",  # Matches Feast's vector_search_metric
+    )
+    assert client.list_collections() == [COLLECTION_NAME]
+
+    # Prepare data for insertion, similar to the Feast example
+    n = 10  # Number of items
+    data = []
+    for i in range(n):
+        vector = (np.random.random(VECTOR_LENGTH) + i).tolist()
+        data.append(
+            {
+                "id": i,
+                "vector": vector,
+                "item_id": i,
+                "author_id": f"author_{i}",
+                "sentence_chunks": f"sentence chunk {i}",
+                "event_timestamp": datetime.utcnow().isoformat(),
+                "created_timestamp": datetime.utcnow().isoformat(),
+            }
+        )
+
+    print("Data has", len(data), "entities, each with fields:", data[0].keys())
+
+    # Insert data into Milvus
+    insert_res = client.insert(collection_name=COLLECTION_NAME, data=data)
+    assert insert_res == {"insert_count": n, "ids": list(range(n)), "cost": 0}
+
+    # Perform a vector search using a random query embedding
+    query_embedding = (np.random.random(VECTOR_LENGTH)).tolist()
+    search_res = client.search(
+        collection_name=COLLECTION_NAME,
+        data=[query_embedding],
+        limit=3,  # Top 3 results
+        output_fields=["item_id", "author_id", "sentence_chunks"],
+    )
+
+    # Validate the search results
+    assert len(search_res[0]) == 3
+    print("Search Results:", search_res[0])
+
+    # Clean up the collection
+    client.drop_collection(collection_name=COLLECTION_NAME)

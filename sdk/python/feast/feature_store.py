@@ -62,6 +62,7 @@ from feast.errors import (
 from feast.feast_object import FeastObject
 from feast.feature_service import FeatureService
 from feast.feature_view import DUMMY_ENTITY, DUMMY_ENTITY_NAME, FeatureView
+from feast.field import Field
 from feast.inference import (
     update_data_sources_with_inferred_event_timestamp_col,
     update_feature_views_with_inferred_features_and_entities,
@@ -89,7 +90,6 @@ from feast.saved_dataset import SavedDataset, SavedDatasetStorage, ValidationRef
 from feast.ssl_ca_trust_store_setup import configure_ca_trust_store_env_variables
 from feast.stream_feature_view import StreamFeatureView
 from feast.utils import _utc_now
-from feast.type_map import feast_value_type_to_python_type
 
 warnings.simplefilter("once", DeprecationWarning)
 
@@ -1826,52 +1826,101 @@ class FeatureStore:
         requested_feature_view = available_feature_views[0]
 
         provider = self._get_provider()
-        if self.config.online_store.type != 'milvus':
-            document_features = self._retrieve_from_online_store(
-                provider,
-                requested_feature_view,
-                requested_feature,
-                requested_features,
-                query,
-                top_k,
-                distance_metric,
-            )
-            # TODO currently not return the vector value since it is same as feature value, if embedding is supported,
-            # the feature value can be raw text before embedded
-            entity_key_vals = [feature[1] for feature in document_features]
-            join_key_values: Dict[str, List[ValueProto]] = {}
-            for entity_key_val in entity_key_vals:
-                if entity_key_val is not None:
-                    for join_key, entity_value in zip(
-                        entity_key_val.join_keys, entity_key_val.entity_values
-                    ):
-                        if join_key not in join_key_values:
-                            join_key_values[join_key] = []
-                        join_key_values[join_key].append(entity_value)
+        document_features = self._retrieve_from_online_store(
+            provider,
+            requested_feature_view,
+            requested_feature,
+            requested_features,
+            query,
+            top_k,
+            distance_metric,
+        )
+        # TODO currently not return the vector value since it is same as feature value, if embedding is supported,
+        # the feature value can be raw text before embedded
+        entity_key_vals = [feature[1] for feature in document_features]
+        join_key_values: Dict[str, List[ValueProto]] = {}
+        for entity_key_val in entity_key_vals:
+            if entity_key_val is not None:
+                for join_key, entity_value in zip(
+                    entity_key_val.join_keys, entity_key_val.entity_values
+                ):
+                    if join_key not in join_key_values:
+                        join_key_values[join_key] = []
+                    join_key_values[join_key].append(entity_value)
 
-            document_feature_vals = [feature[4] for feature in document_features]
-            document_feature_distance_vals = [feature[5] for feature in document_features]
-            online_features_response = GetOnlineFeaturesResponse(results=[])
-            requested_feature = requested_feature or requested_features[0]
-            utils._populate_result_rows_from_columnar(
-                online_features_response=online_features_response,
-                data={
-                    **join_key_values,
-                    requested_feature: document_feature_vals,
-                    "distance": document_feature_distance_vals,
-                },
+        document_feature_vals = [feature[4] for feature in document_features]
+        document_feature_distance_vals = [feature[5] for feature in document_features]
+        online_features_response = GetOnlineFeaturesResponse(results=[])
+        requested_feature = requested_feature or requested_features[0]
+        utils._populate_result_rows_from_columnar(
+            online_features_response=online_features_response,
+            data={
+                **join_key_values,
+                requested_feature: document_feature_vals,
+                "distance": document_feature_distance_vals,
+            },
+        )
+        return OnlineResponse(online_features_response)
+
+    def retrieve_online_documents_v2(
+        self,
+        query: Union[str, List[float]],
+        top_k: int,
+        features: List[str],
+        distance_metric: Optional[str] = "L2",
+    ) -> OnlineResponse:
+        """
+        Retrieves the top k closest document features. Note, embeddings are a subset of features.
+
+        Args:
+            features: The list of features that should be retrieved from the online document store. These features can be
+                specified either as a list of string document feature references or as a feature service. String feature
+                references must have format "feature_view:feature", e.g, "document_fv:document_embeddings".
+            query: The query to retrieve the closest document features for.
+            top_k: The number of closest document features to retrieve.
+            distance_metric: The distance metric to use for retrieval.
+        """
+        if isinstance(query, str):
+            raise ValueError(
+                "Using embedding functionality is not supported for document retrieval. Please embed the query before calling retrieve_online_documents."
             )
-            return OnlineResponse(online_features_response)
-        else:
-            return self._retrieve_from_online_store_v2(
-                provider,
-                requested_feature_view,
-                requested_feature,
-                requested_features,
-                query,
-                top_k,
-                distance_metric,
+
+        (
+            available_feature_views,
+            _,
+        ) = utils._get_feature_views_to_use(
+            registry=self._registry,
+            project=self.project,
+            features=features,
+            allow_cache=True,
+            hide_dummy_entity=False,
+        )
+        feature_view_set = set()
+        for feature in features:
+            feature_view_name = feature.split(":")[0]
+            feature_view = self.get_feature_view(feature_view_name)
+            feature_view_set.add(feature_view.name)
+        if len(feature_view_set) > 1:
+            raise ValueError("Document retrieval only supports a single feature view.")
+        requested_features = [
+            f.split(":")[1] for f in features if isinstance(f, str) and ":" in f
+        ]
+
+        requested_feature_view = available_feature_views[0]
+        if not requested_feature_view:
+            raise ValueError(
+                f"Feature view {requested_feature_view} not found in the registry."
             )
+
+        provider = self._get_provider()
+        return self._retrieve_from_online_store_v2(
+            provider,
+            requested_feature_view,
+            requested_features,
+            query,
+            top_k,
+            distance_metric,
+        )
 
     def _retrieve_from_online_store(
         self,
@@ -1890,6 +1939,10 @@ class FeatureStore:
         """
         Search and return document features from the online document store.
         """
+        vector_field_metadata = _get_feature_view_vector_field_metadata(table)
+        if vector_field_metadata:
+            distance_metric = vector_field_metadata.vector_search_metric
+
         documents = provider.retrieve_online_documents(
             config=self.config,
             table=table,
@@ -1903,7 +1956,7 @@ class FeatureStore:
         read_row_protos = []
         row_ts_proto = Timestamp()
 
-        for row_ts, entity_key, feature_val, vector_value, distance_val in documents:
+        for row_ts, entity_key, feature_val, vector_value, distance_val in documents:  # type: ignore[misc]
             # Reset timestamp to default or update if row_ts is not None
             if row_ts is not None:
                 row_ts_proto.FromDatetime(row_ts)
@@ -1928,13 +1981,11 @@ class FeatureStore:
             )
         return read_row_protos
 
-
     def _retrieve_from_online_store_v2(
         self,
         provider: Provider,
         table: FeatureView,
-        requested_feature: Optional[str],
-        requested_features: Optional[List[str]],
+        requested_features: List[str],
         query: List[float],
         top_k: int,
         distance_metric: Optional[str],
@@ -1942,25 +1993,25 @@ class FeatureStore:
         """
         Search and return document features from the online document store.
         """
-        documents = provider.retrieve_online_documents(
+        vector_field_metadata = _get_feature_view_vector_field_metadata(table)
+        if vector_field_metadata:
+            distance_metric = vector_field_metadata.vector_search_metric
+
+        documents = provider.retrieve_online_documents_v2(
             config=self.config,
             table=table,
-            requested_feature=requested_feature,
             requested_features=requested_features,
             query=query,
             top_k=top_k,
             distance_metric=distance_metric,
         )
 
-        read_row_protos = []
-        entity_key_dict = {}
-        table_entity_values = []
-        for row_ts, entity_key, feature_dict in documents:
-            read_row_protos.append((
-                row_ts,
-                entity_key,
-                feature_dict,
-            ))
+        entity_key_dict: Dict[str, List[ValueProto]] = {}
+        datevals, entityvals, list_of_feature_dicts = [], [], []
+        for row_ts, entity_key, feature_dict in documents:  # type: ignore[misc]
+            datevals.append(row_ts)
+            entityvals.append(entity_key)
+            list_of_feature_dicts.append(feature_dict)
             if entity_key:
                 for key, value in zip(entity_key.join_keys, entity_key.entity_values):
                     python_value = value
@@ -1968,22 +2019,18 @@ class FeatureStore:
                         entity_key_dict[key] = []
                     entity_key_dict[key].append(python_value)
 
-            table_entity_values.append(
-                tuple(feast_value_type_to_python_type(e) for e in entity_key.entity_values)
-            )
         table_entity_values, idxs = utils._get_unique_entities_from_values(
             entity_key_dict,
         )
 
-        datevals, entityvals, feature_dicts = [], [], []
-        for d, e, f in documents:
-            datevals.append(d)
-            entityvals.append(e)
-            feature_dicts.append(f)
-
+        features_to_request: List[str] = []
+        if requested_features:
+            features_to_request = requested_features + ["distance"]
+        else:
+            features_to_request = ["distance"]
         feature_data = utils._convert_rows_to_protobuf(
-            requested_features=[requested_feature, 'distance'] if requested_feature else requested_features + ['distance'],
-            read_rows=list(zip(datevals, feature_dicts)),
+            requested_features=features_to_request,
+            read_rows=list(zip(datevals, list_of_feature_dicts)),
         )
 
         online_features_response = GetOnlineFeaturesResponse(results=[])
@@ -1992,7 +2039,7 @@ class FeatureStore:
             indexes=idxs,
             online_features_response=online_features_response,
             full_feature_names=False,
-            requested_features=requested_features + ['distance'],
+            requested_features=features_to_request,
             table=table,
         )
 
@@ -2347,3 +2394,16 @@ def _validate_data_sources(data_sources: List[DataSource]):
             raise DataSourceRepeatNamesException(case_insensitive_ds_name)
         else:
             ds_names.add(case_insensitive_ds_name)
+
+
+def _get_feature_view_vector_field_metadata(
+    feature_view: FeatureView,
+) -> Optional[Field]:
+    vector_fields = [field for field in feature_view.schema if field.vector_index]
+    if len(vector_fields) > 1:
+        raise ValueError(
+            f"Feature view {feature_view.name} has multiple vector fields. Only one vector field per feature view is supported."
+        )
+    if not vector_fields:
+        return None
+    return vector_fields[0]

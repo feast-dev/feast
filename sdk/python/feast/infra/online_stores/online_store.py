@@ -394,7 +394,15 @@ class OnlineStore(ABC):
         embedding: List[float],
         top_k: int,
         distance_metric: Optional[str] = None,
-    ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
+    ) -> List[
+        Tuple[
+            Optional[datetime],
+            Optional[EntityKeyProto],
+            Optional[ValueProto],
+            Optional[ValueProto],
+            Optional[ValueProto],
+        ]
+    ]:
         """
         Retrieves online feature values for the specified embeddings.
 
@@ -416,6 +424,41 @@ class OnlineStore(ABC):
             raise ValueError(
                 "Either requested_feature or requested_features must be specified"
             )
+        raise NotImplementedError(
+            f"Online store {self.__class__.__name__} does not support online retrieval"
+        )
+
+    def retrieve_online_documents_v2(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        requested_features: List[str],
+        embedding: List[float],
+        top_k: int,
+        distance_metric: Optional[str] = None,
+    ) -> List[
+        Tuple[
+            Optional[datetime],
+            Optional[EntityKeyProto],
+            Optional[Dict[str, ValueProto]],
+        ]
+    ]:
+        """
+        Retrieves online feature values for the specified embeddings.
+
+        Args:
+            distance_metric: distance metric to use for retrieval.
+            config: The config for the current feature store.
+            table: The feature view whose feature values should be read.
+            requested_features: The list of features whose embeddings should be used for retrieval.
+            embedding: The embeddings to use for retrieval.
+            top_k: The number of documents to retrieve.
+
+        Returns:
+            object: A list of top k closest documents to the specified embedding. Each item in the list is a tuple
+            where the first item is the event timestamp for the row, and the second item is a dict of feature
+            name to embeddings.
+        """
         raise NotImplementedError(
             f"Online store {self.__class__.__name__} does not support online retrieval"
         )

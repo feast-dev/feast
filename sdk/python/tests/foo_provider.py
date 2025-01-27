@@ -164,6 +164,23 @@ class FooProvider(Provider):
     ]:
         return []
 
+    def retrieve_online_documents_v2(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        requested_features: List[str],
+        query: List[float],
+        top_k: int,
+        distance_metric: Optional[str] = None,
+    ) -> List[
+        Tuple[
+            Optional[datetime],
+            Optional[EntityKeyProto],
+            Optional[Dict[str, ValueProto]],
+        ]
+    ]:
+        return []
+
     def validate_data_source(
         self,
         config: RepoConfig,

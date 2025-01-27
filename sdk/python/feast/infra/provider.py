@@ -424,14 +424,23 @@ class Provider(ABC):
         query: List[float],
         top_k: int,
         distance_metric: Optional[str] = None,
-    ) -> List[
-        Tuple[
-            Optional[datetime],
-            Optional[EntityKeyProto],
-            Optional[ValueProto],
-            Optional[ValueProto],
-            Optional[ValueProto],
-        ]
+    ) -> Union[
+        List[
+            Tuple[
+                Optional[datetime],
+                Optional[EntityKeyProto],
+                Optional[ValueProto],
+                Optional[ValueProto],
+                Optional[ValueProto],
+            ],
+        ],
+        List[
+            Tuple[
+                Optional[datetime],
+                Optional[EntityKeyProto],
+                Optional[Dict[str, ValueProto]],
+            ]
+        ],
     ]:
         """
         Searches for the top-k most similar documents in the online document store.
@@ -447,6 +456,39 @@ class Provider(ABC):
 
         Returns:
             A list of dictionaries, where each dictionary contains the document feature.
+        """
+        pass
+
+    @abstractmethod
+    def retrieve_online_documents_v2(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        requested_features: List[str],
+        query: List[float],
+        top_k: int,
+        distance_metric: Optional[str] = None,
+    ) -> List[
+        Tuple[
+            Optional[datetime],
+            Optional[EntityKeyProto],
+            Optional[Dict[str, ValueProto]],
+        ]
+    ]:
+        """
+        Searches for the top-k most similar documents in the online document store.
+
+        Args:
+            distance_metric: distance metric to use for the search.
+            config: The config for the current feature store.
+            table: The feature view whose embeddings should be searched.
+            requested_features: the requested document feature names.
+            query: The query embedding to search for.
+            top_k: The number of documents to return.
+
+        Returns:
+            A list of dictionaries, where each dictionary contains the datetime, entitykey, and a dictionary
+            of feature key value pairs
         """
         pass
 
