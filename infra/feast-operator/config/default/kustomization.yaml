@@ -33,9 +33,6 @@ patches:
 - path: related_image_fs_patch.yaml
   target:
     kind: Deployment
-- path: related_image_grpc_patch.yaml
-  target:
-    kind: Deployment
 # Uncomment the patches line if you enable Metrics, and/or are using webhooks and cert-manager
 # [METRICS] The following patch will enable the metrics endpoint using HTTPS and the port :8443.
 # More info: https://book.kubebuilder.io/reference/metrics
