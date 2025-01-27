@@ -399,7 +399,11 @@ class MilvusOnlineStore(OnlineStore):
                 entity_key_bytes = bytes.fromhex(
                     hit.get("entity", {}).get(composite_key_name, None)
                 )
-                entity_key_proto = deserialize_entity_key(entity_key_bytes) if entity_key_bytes else None
+                entity_key_proto = (
+                    deserialize_entity_key(entity_key_bytes)
+                    if entity_key_bytes
+                    else None
+                )
                 for field in output_fields:
                     val = ValueProto()
                     # entity_key_proto = None
