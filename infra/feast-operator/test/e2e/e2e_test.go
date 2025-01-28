@@ -37,8 +37,8 @@ const (
 
 var _ = Describe("controller", Ordered, func() {
 	BeforeAll(func() {
-		isRunOnOpenShiftCI := os.Getenv("RUN_ON_OPENSHIFT_CI")
-		if isRunOnOpenShiftCI == "" {
+		_, isRunOnOpenShiftCI := os.LookupEnv("RUN_ON_OPENSHIFT_CI")
+		if !isRunOnOpenShiftCI {
 			By("creating manager namespace")
 			cmd := exec.Command("kubectl", "create", "ns", feastControllerNamespace)
 			_, _ = utils.Run(cmd)
@@ -96,8 +96,8 @@ var _ = Describe("controller", Ordered, func() {
 
 	AfterAll(func() {
 		// Add any post clean up code here.
-		isRunOnOpenShiftCI := os.Getenv("RUN_ON_OPENSHIFT_CI")
-		if isRunOnOpenShiftCI == "" {
+		_, isRunOnOpenShiftCI := os.LookupEnv("RUN_ON_OPENSHIFT_CI")
+		if !isRunOnOpenShiftCI {
 			By("Uninstalling the feast CRD")
 			cmd := exec.Command("kubectl", "delete", "deployment", controllerDeploymentName, "-n", feastControllerNamespace)
 			_, err := utils.Run(cmd)
