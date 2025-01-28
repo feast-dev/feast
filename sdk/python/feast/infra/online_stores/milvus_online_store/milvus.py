@@ -127,7 +127,6 @@ class MilvusOnlineStore(OnlineStore):
         if not self.client:
             if config.provider == "local":
                 db_path = self._get_db_path(config)
-                print(f"Connecting to Milvus in local mode using {db_path}")
                 self.client = MilvusClient(db_path)
             else:
                 self.client = MilvusClient(
@@ -138,8 +137,11 @@ class MilvusOnlineStore(OnlineStore):
                 )
         return self.client
 
-    def _get_collection(self, config: RepoConfig, table: FeatureView) -> Dict[str, Any]:
+    def _get_or_create_collection(
+        self, config: RepoConfig, table: FeatureView
+    ) -> Dict[str, Any]:
         self.client = self._connect(config)
+        vector_field_dict = {k.name: k for k in table.schema if k.vector_index}
         collection_name = _table_id(config.project, table)
         if collection_name not in self._collections:
             # Create a composite key by combining entity fields
@@ -200,10 +202,13 @@ class MilvusOnlineStore(OnlineStore):
                         DataType.FLOAT_VECTOR,
                         DataType.BINARY_VECTOR,
                     ]:
+                        metric = vector_field_dict[
+                            vector_field.name
+                        ].vector_search_metric
                         index_params.add_index(
                             collection_name=collection_name,
                             field_name=vector_field.name,
-                            metric_type=config.online_store.metric_type,
+                            metric_type=metric or config.online_store.metric_type,
                             index_type=config.online_store.index_type,
                             index_name=f"vector_index_{vector_field.name}",
                             params={"nlist": config.online_store.nlist},
@@ -234,7 +239,7 @@ class MilvusOnlineStore(OnlineStore):
         progress: Optional[Callable[[int], Any]],
     ) -> None:
         self.client = self._connect(config)
-        collection = self._get_collection(config, table)
+        collection = self._get_or_create_collection(config, table)
         vector_cols = [f.name for f in table.features if f.vector_index]
         entity_batch_to_insert = []
         for entity_key, values_dict, timestamp, created_ts in data:
@@ -301,7 +306,7 @@ class MilvusOnlineStore(OnlineStore):
     ):
         self.client = self._connect(config)
         for table in tables_to_keep:
-            self._collections = self._get_collection(config, table)
+            self._collections = self._get_or_create_collection(config, table)
 
         for table in tables_to_delete:
             collection_name = _table_id(config.project, table)
@@ -347,7 +352,7 @@ class MilvusOnlineStore(OnlineStore):
         }
         self.client = self._connect(config)
         collection_name = _table_id(config.project, table)
-        collection = self._get_collection(config, table)
+        collection = self._get_or_create_collection(config, table)
         if not config.online_store.vector_enabled:
             raise ValueError("Vector search is not enabled in the online store config")
 
@@ -408,11 +413,10 @@ class MilvusOnlineStore(OnlineStore):
                 )
                 for field in output_fields:
                     val = ValueProto()
+                    field_value = hit.get("entity", {}).get(field, None)
                     # entity_key_proto = None
                     if field in ["created_ts", "event_ts"]:
-                        res_ts = datetime.fromtimestamp(
-                            hit.get("entity", {}).get(field) / 1e6
-                        )
+                        res_ts = datetime.fromtimestamp(field_value / 1e6)
                     elif field == ann_search_field:
                         serialized_embedding = _serialize_vector_to_float_list(
                             embedding
@@ -426,15 +430,14 @@ class MilvusOnlineStore(OnlineStore):
                         PrimitiveFeastType.INT32,
                         PrimitiveFeastType.BYTES,
                     ]:
-                        res[field] = ValueProto(
-                            string_val=hit.get("entity", {}).get(field, "")
-                        )
+                        res[field] = ValueProto(string_val=field_value)
                     elif field == composite_key_name:
                         pass
+                    elif isinstance(field_value, bytes):
+                        val.ParseFromString(field_value)
+                        res[field] = val
                     else:
-                        val.ParseFromString(
-                            bytes(hit.get("entity", {}).get(field, b"").encode())
-                        )
+                        val.string_val = field_value
                         res[field] = val
                 distance = hit.get("distance", None)
                 res["distance"] = (
@@ -471,7 +474,7 @@ def _extract_proto_values_to_dict(
                         else:
                             vector_values = getattr(feature_values, proto_val_type).val
                     else:
-                        if serialize_to_string:
+                        if serialize_to_string and proto_val_type != "string_val":
                             vector_values = feature_values.SerializeToString().decode()
                         else:
                             vector_values = getattr(feature_values, proto_val_type)

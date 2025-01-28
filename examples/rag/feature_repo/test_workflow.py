@@ -55,8 +55,7 @@ def run_demo():
     query = query_embedding.detach().cpu().numpy().tolist()[0]
 
     # Retrieve top k documents
-    features = store.retrieve_online_documents(
-        feature=None,
+    features = store.retrieve_online_documents_v2(
         features=[
             "city_embeddings:vector",
             "city_embeddings:item_id",
