@@ -313,6 +313,27 @@ class PassthroughProvider(Provider):
             )
         return result
 
+    def retrieve_online_documents_v2(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        requested_features: Optional[List[str]],
+        query: List[float],
+        top_k: int,
+        distance_metric: Optional[str] = None,
+    ) -> List:
+        result = []
+        if self.online_store:
+            result = self.online_store.retrieve_online_documents_v2(
+                config,
+                table,
+                requested_features,
+                query,
+                top_k,
+                distance_metric,
+            )
+        return result
+
     @staticmethod
     def _prep_rows_to_write_for_ingestion(
         feature_view: Union[BaseFeatureView, FeatureView, OnDemandFeatureView],

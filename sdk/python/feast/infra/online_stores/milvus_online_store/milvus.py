@@ -15,6 +15,7 @@ from feast import Entity
 from feast.feature_view import FeatureView
 from feast.infra.infra_object import InfraObject
 from feast.infra.key_encoding_utils import (
+    deserialize_entity_key,
     serialize_entity_key,
 )
 from feast.infra.online_stores.online_store import OnlineStore
@@ -24,7 +25,10 @@ from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
-from feast.type_map import PROTO_VALUE_TO_VALUE_TYPE_MAP
+from feast.type_map import (
+    PROTO_VALUE_TO_VALUE_TYPE_MAP,
+    feast_value_type_to_python_type,
+)
 from feast.types import (
     VALUE_TYPES_TO_FEAST_TYPES,
     Array,
@@ -33,7 +37,6 @@ from feast.types import (
     ValueType,
 )
 from feast.utils import (
-    _build_retrieve_online_document_record,
     _serialize_vector_to_float_list,
     to_naive_utc,
 )
@@ -89,7 +92,7 @@ class MilvusOnlineStoreConfig(FeastConfigBaseModel, VectorStoreConfig):
     host: Optional[StrictStr] = "localhost"
     port: Optional[int] = 19530
     index_type: Optional[str] = "FLAT"
-    metric_type: Optional[str] = "L2"
+    metric_type: Optional[str] = "COSINE"
     embedding_dim: Optional[int] = 128
     vector_enabled: Optional[bool] = True
     nlist: Optional[int] = 128
@@ -170,16 +173,14 @@ class MilvusOnlineStore(OnlineStore):
                                 dim=config.online_store.embedding_dim,
                             )
                         )
-                    elif dtype == DataType.VARCHAR:
+                    else:
                         fields.append(
                             FieldSchema(
                                 name=field.name,
-                                dtype=dtype,
+                                dtype=DataType.VARCHAR,
                                 max_length=512,
                             )
                         )
-                    else:
-                        fields.append(FieldSchema(name=field.name, dtype=dtype))
 
             schema = CollectionSchema(
                 fields=fields, description="Feast feature view data"
@@ -234,6 +235,7 @@ class MilvusOnlineStore(OnlineStore):
     ) -> None:
         self.client = self._connect(config)
         collection = self._get_collection(config, table)
+        vector_cols = [f.name for f in table.features if f.vector_index]
         entity_batch_to_insert = []
         for entity_key, values_dict, timestamp, created_ts in data:
             # need to construct the composite primary key also need to handle the fact that entities are a list
@@ -241,6 +243,8 @@ class MilvusOnlineStore(OnlineStore):
                 entity_key,
                 entity_key_serialization_version=config.entity_key_serialization_version,
             ).hex()
+            # to recover the entity key just run:
+            # deserialize_entity_key(bytes.fromhex(entity_key_str), entity_key_serialization_version=3)
             composite_key_name = (
                 "_".join([str(value) for value in entity_key.join_keys]) + "_pk"
             )
@@ -248,11 +252,18 @@ class MilvusOnlineStore(OnlineStore):
             created_ts_int = (
                 int(to_naive_utc(created_ts).timestamp() * 1e6) if created_ts else 0
             )
-            values_dict = _extract_proto_values_to_dict(values_dict)
-            entity_dict = _extract_proto_values_to_dict(
-                dict(zip(entity_key.join_keys, entity_key.entity_values))
-            )
+            entity_dict = {
+                join_key: feast_value_type_to_python_type(value)
+                for join_key, value in zip(
+                    entity_key.join_keys, entity_key.entity_values
+                )
+            }
             values_dict.update(entity_dict)
+            values_dict = _extract_proto_values_to_dict(
+                values_dict,
+                vector_cols=vector_cols,
+                serialize_to_string=True,
+            )
 
             single_entity_record = {
                 composite_key_name: entity_key_str,
@@ -316,12 +327,11 @@ class MilvusOnlineStore(OnlineStore):
                 self.client.drop_collection(collection_name)
                 self._collections.pop(collection_name, None)
 
-    def retrieve_online_documents(
+    def retrieve_online_documents_v2(
         self,
         config: RepoConfig,
         table: FeatureView,
-        requested_feature: Optional[str],
-        requested_features: Optional[List[str]],
+        requested_features: List[str],
         embedding: List[float],
         top_k: int,
         distance_metric: Optional[str] = None,
@@ -329,11 +339,12 @@ class MilvusOnlineStore(OnlineStore):
         Tuple[
             Optional[datetime],
             Optional[EntityKeyProto],
-            Optional[ValueProto],
-            Optional[ValueProto],
-            Optional[ValueProto],
+            Optional[Dict[str, ValueProto]],
         ]
     ]:
+        entity_name_feast_primitive_type_map = {
+            k.name: k.dtype for k in table.entity_columns
+        }
         self.client = self._connect(config)
         collection_name = _table_id(config.project, table)
         collection = self._get_collection(config, table)
@@ -344,14 +355,12 @@ class MilvusOnlineStore(OnlineStore):
             "metric_type": distance_metric or config.online_store.metric_type,
             "params": {"nprobe": 10},
         }
-        expr = f"feature_name == '{requested_feature}'"
 
         composite_key_name = (
             "_".join([str(field.name) for field in table.entity_columns]) + "_pk"
         )
-        if requested_features:
-            features_str = ", ".join([f"'{f}'" for f in requested_features])
-            expr += f" && feature_name in [{features_str}]"
+        # features_str = ", ".join([f"'{f}'" for f in requested_features])
+        # expr = f" && feature_name in [{features_str}]"
 
         output_fields = (
             [composite_key_name]
@@ -387,29 +396,51 @@ class MilvusOnlineStore(OnlineStore):
         result_list = []
         for hits in results:
             for hit in hits:
-                single_record = {}
-                for field in output_fields:
-                    single_record[field] = hit.get("entity", {}).get(field, None)
-
+                res = {}
+                res_ts = None
                 entity_key_bytes = bytes.fromhex(
                     hit.get("entity", {}).get(composite_key_name, None)
                 )
-                embedding = hit.get("entity", {}).get(ann_search_field)
-                serialized_embedding = _serialize_vector_to_float_list(embedding)
+                entity_key_proto = (
+                    deserialize_entity_key(entity_key_bytes)
+                    if entity_key_bytes
+                    else None
+                )
+                for field in output_fields:
+                    val = ValueProto()
+                    # entity_key_proto = None
+                    if field in ["created_ts", "event_ts"]:
+                        res_ts = datetime.fromtimestamp(
+                            hit.get("entity", {}).get(field) / 1e6
+                        )
+                    elif field == ann_search_field:
+                        serialized_embedding = _serialize_vector_to_float_list(
+                            embedding
+                        )
+                        res[ann_search_field] = serialized_embedding
+                    elif entity_name_feast_primitive_type_map.get(
+                        field, PrimitiveFeastType.INVALID
+                    ) in [
+                        PrimitiveFeastType.STRING,
+                        PrimitiveFeastType.INT64,
+                        PrimitiveFeastType.INT32,
+                        PrimitiveFeastType.BYTES,
+                    ]:
+                        res[field] = ValueProto(
+                            string_val=hit.get("entity", {}).get(field, "")
+                        )
+                    elif field == composite_key_name:
+                        pass
+                    else:
+                        val.ParseFromString(
+                            bytes(hit.get("entity", {}).get(field, b"").encode())
+                        )
+                        res[field] = val
                 distance = hit.get("distance", None)
-                event_ts = datetime.fromtimestamp(
-                    hit.get("entity", {}).get("event_ts") / 1e6
+                res["distance"] = (
+                    ValueProto(float_val=distance) if distance else ValueProto()
                 )
-                prepared_result = _build_retrieve_online_document_record(
-                    entity_key_bytes,
-                    # This may have a bug
-                    serialized_embedding.SerializeToString(),
-                    embedding,
-                    distance,
-                    event_ts,
-                    config.entity_key_serialization_version,
-                )
-                result_list.append(prepared_result)
+                result_list.append((res_ts, entity_key_proto, res if res else None))
         return result_list
 
 
@@ -417,7 +448,11 @@ def _table_id(project: str, table: FeatureView) -> str:
     return f"{project}_{table.name}"
 
 
-def _extract_proto_values_to_dict(input_dict: Dict[str, Any]) -> Dict[str, Any]:
+def _extract_proto_values_to_dict(
+    input_dict: Dict[str, Any],
+    vector_cols: List[str],
+    serialize_to_string=False,
+) -> Dict[str, Any]:
     numeric_vector_list_types = [
         k
         for k in PROTO_VALUE_TO_VALUE_TYPE_MAP.keys()
@@ -426,12 +461,27 @@ def _extract_proto_values_to_dict(input_dict: Dict[str, Any]) -> Dict[str, Any]:
     output_dict = {}
     for feature_name, feature_values in input_dict.items():
         for proto_val_type in PROTO_VALUE_TO_VALUE_TYPE_MAP:
-            if feature_values.HasField(proto_val_type):
-                if proto_val_type in numeric_vector_list_types:
-                    vector_values = getattr(feature_values, proto_val_type).val
-                else:
-                    vector_values = getattr(feature_values, proto_val_type)
-                output_dict[feature_name] = vector_values
+            if not isinstance(feature_values, (int, float, str)):
+                if feature_values.HasField(proto_val_type):
+                    if proto_val_type in numeric_vector_list_types:
+                        if serialize_to_string and feature_name not in vector_cols:
+                            vector_values = getattr(
+                                feature_values, proto_val_type
+                            ).SerializeToString()
+                        else:
+                            vector_values = getattr(feature_values, proto_val_type).val
+                    else:
+                        if serialize_to_string:
+                            vector_values = feature_values.SerializeToString().decode()
+                        else:
+                            vector_values = getattr(feature_values, proto_val_type)
+                    output_dict[feature_name] = vector_values
+            else:
+                if serialize_to_string:
+                    if not isinstance(feature_values, str):
+                        feature_values = str(feature_values)
+                    output_dict[feature_name] = feature_values
+
     return output_dict
 
 
