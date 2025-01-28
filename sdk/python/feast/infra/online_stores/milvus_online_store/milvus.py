@@ -361,7 +361,9 @@ class MilvusOnlineStore(OnlineStore):
         assert all(
             field in [f["name"] for f in collection["fields"]]
             for field in output_fields
-        ), f"field(s) [{[field for field in output_fields if field not in [f['name'] for f in collection['fields']]]}] not found in collection schema"
+        ), (
+            f"field(s) [{[field for field in output_fields if field not in [f['name'] for f in collection['fields']]]}] not found in collection schema"
+        )
         # Note we choose the first vector field as the field to search on. Not ideal but it's something.
         ann_search_field = None
         for field in collection["fields"]:
