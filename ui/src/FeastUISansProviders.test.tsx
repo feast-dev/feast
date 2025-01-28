@@ -89,7 +89,7 @@ test("routes are reachable", async () => {
 
     const routeRegExp = new RegExp(routeName, "i");
 
-    await user.click(screen.getByRole("button", { name: routeRegExp }));
+    await user.click(screen.getByRole("link", { name: routeRegExp }));
 
     // Should land on a page with the heading
     screen.getByRole("heading", {
@@ -112,7 +112,7 @@ test("features are reachable", async () => {
   await screen.findByText(/Explore this Project/i);
   const routeRegExp = new RegExp("Feature Views", "i");
 
-  await user.click(screen.getByRole("button", { name: routeRegExp }));
+  await user.click(screen.getByRole("link", { name: routeRegExp }));
 
   screen.getByRole("heading", {
     name: "Feature Views",
