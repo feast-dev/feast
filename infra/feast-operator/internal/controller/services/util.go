@@ -11,7 +11,6 @@ import (
 	feastdevv1alpha1 "github.com/feast-dev/feast/infra/feast-operator/api/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -178,13 +177,6 @@ func getFeatureServerImage() string {
 	return DefaultImage
 }
 
-func getGrpcCurlImage() string {
-	if img, exists := os.LookupEnv(grpcCurlImageVar); exists {
-		return img
-	}
-	return grpcCurlImage
-}
-
 func checkOfflineStoreFilePersistenceType(value string) error {
 	if slices.Contains(feastdevv1alpha1.ValidOfflineStoreFilePersistenceTypes, value) {
 		return nil
@@ -192,12 +184,12 @@ func checkOfflineStoreFilePersistenceType(value string) error {
 	return fmt.Errorf("invalid file type %s for offline store", value)
 }
 
-func ensureRequestedStorage(resources *v1.VolumeResourceRequirements, requestedStorage string) {
+func ensureRequestedStorage(resources *corev1.VolumeResourceRequirements, requestedStorage string) {
 	if resources.Requests == nil {
-		resources.Requests = v1.ResourceList{}
+		resources.Requests = corev1.ResourceList{}
 	}
-	if _, ok := resources.Requests[v1.ResourceStorage]; !ok {
-		resources.Requests[v1.ResourceStorage] = resource.MustParse(requestedStorage)
+	if _, ok := resources.Requests[corev1.ResourceStorage]; !ok {
+		resources.Requests[corev1.ResourceStorage] = resource.MustParse(requestedStorage)
 	}
 }
 

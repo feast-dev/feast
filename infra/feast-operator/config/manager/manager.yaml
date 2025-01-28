@@ -73,8 +73,6 @@ spec:
         env:
         - name: RELATED_IMAGE_FEATURE_SERVER
           value: feast:latest
-        - name: RELATED_IMAGE_GRPC_CURL
-          value: grpc:latest
         livenessProbe:
           httpGet:
             path: /healthz
