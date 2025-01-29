@@ -90,9 +90,10 @@
     "fs-extra": "^10.0.0",
     "html-webpack-plugin": "^5.5.0",
     "identity-obj-proxy": "^3.0.0",
-    "jest": "^27.4.3",
-    "jest-resolve": "^27.4.2",
-    "jest-watch-typeahead": "^1.0.0",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0",
+    "jest-resolve": "^29.7.0",
+    "jest-watch-typeahead": "^2.2.2",
     "mini-css-extract-plugin": "^2.4.5",
     "msw": "^0.36.8",
     "postcss": "^8.4.4",
@@ -125,6 +126,9 @@
     "webpack-dev-server": "^4.6.0",
     "webpack-manifest-plugin": "^4.0.2",
     "workbox-webpack-plugin": "^6.4.1"
+  },
+  "resolutions": {
+    "nwsapi": "2.2.13"
   },
   "description": "Web UI for the [Feast Feature Store](https://feast.dev/)",
   "repository": {
