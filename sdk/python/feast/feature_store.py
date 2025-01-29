@@ -866,8 +866,7 @@ class FeatureStore:
         views_to_update = [
             ob
             for ob in objects
-            if
-            (
+            if (
                 # BFVs are not handled separately from FVs right now.
                 (isinstance(ob, FeatureView) or isinstance(ob, BatchFeatureView))
                 and not isinstance(ob, StreamFeatureView)
@@ -2170,9 +2169,9 @@ class FeatureStore:
         if not isinstance(source, FeatureService):
             raise ValueError("Only feature service is currently supported as a source")
 
-        assert (
-            source.logging_config is not None
-        ), "Feature service must be configured with logging config in order to use this functionality"
+        assert source.logging_config is not None, (
+            "Feature service must be configured with logging config in order to use this functionality"
+        )
 
         assert isinstance(logs, (pa.Table, Path))
 
