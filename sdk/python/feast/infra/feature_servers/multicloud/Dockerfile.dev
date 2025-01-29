@@ -1,4 +1,4 @@
-FROM registry.access.redhat.com/ubi9/python-311:9.5
+FROM registry.access.redhat.com/ubi8/python-311:1
 
 COPY --chown=default . ${APP_ROOT}/src
 RUN pip install --no-cache-dir pip-tools && \
