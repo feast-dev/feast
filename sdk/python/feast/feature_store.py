@@ -866,7 +866,8 @@ class FeatureStore:
         views_to_update = [
             ob
             for ob in objects
-            if (
+            if
+            (
                 # BFVs are not handled separately from FVs right now.
                 (isinstance(ob, FeatureView) or isinstance(ob, BatchFeatureView))
                 and not isinstance(ob, StreamFeatureView)
@@ -1848,7 +1849,9 @@ class FeatureStore:
                     join_key_values[join_key].append(entity_value)
 
             document_feature_vals = [feature[4] for feature in document_features]
-            document_feature_distance_vals = [feature[5] for feature in document_features]
+            document_feature_distance_vals = [
+                feature[5] for feature in document_features
+            ]
             online_features_response = GetOnlineFeaturesResponse(results=[])
             requested_feature = requested_feature or requested_features[0]
             utils._populate_result_rows_from_columnar(
@@ -1864,7 +1867,6 @@ class FeatureStore:
             return self._retrieve_from_online_store_v2(
                 provider,
                 requested_feature_view,
-                requested_feature,
                 requested_features,
                 query,
                 top_k,
@@ -2168,9 +2170,9 @@ class FeatureStore:
         if not isinstance(source, FeatureService):
             raise ValueError("Only feature service is currently supported as a source")
 
-        assert source.logging_config is not None, (
-            "Feature service must be configured with logging config in order to use this functionality"
-        )
+        assert (
+            source.logging_config is not None
+        ), "Feature service must be configured with logging config in order to use this functionality"
 
         assert isinstance(logs, (pa.Table, Path))
 
