@@ -1,3 +1,5 @@
+const transformNodeModules = ['@elastic/eui', 'uuid'];
+
 module.exports = {
   roots: ["<rootDir>/src"],
   collectCoverageFrom: ["src/**/*.{js,jsx,ts,tsx}", "!src/**/*.d.ts"],
@@ -15,7 +17,7 @@ module.exports = {
       "<rootDir>/config/jest/fileTransform.js",
   },
   transformIgnorePatterns: [
-    "[/\\\\]node_modules[/\\\\].+\\.(js|jsx|mjs|cjs|ts|tsx)$",
+    `[/\\\\]node_modules[/\\\\](?!(${transformNodeModules.map(name => name.replaceAll('/', '[/\\\\]')).join('|')})[/\\\\])`,
     "^.+\\.module\\.(css|sass|scss)$",
   ],
   modulePaths: [],
