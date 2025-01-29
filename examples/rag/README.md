@@ -1,29 +1,84 @@
-# Feast Quickstart
-If you haven't already, check out the quickstart guide on Feast's website (http://docs.feast.dev/quickstart), which 
-uses this repo. A quick view of what's in this repository's `feature_repo/` directory:
+# 🚀 Quickstart: Retrieval-Augmented Generation (RAG) using Feast and Large Language Models (LLMs)
 
-* `data/` contains raw demo parquet data
-* `feature_repo/example_repo.py` contains demo feature definitions
-* `feature_repo/feature_store.yaml` contains a demo setup configuring where data sources are
-* `feature_repo/test_workflow.py` showcases how to run all key Feast commands, including defining, retrieving, and pushing features. 
+This project demonstrates how to use **Feast** to power a **Retrieval-Augmented Generation (RAG)** application. 
+The RAG architecture combines retrieval of documents (using vector search) with contextual reasoning through a 
+**Large Language Model (LLM)** to answer user questions accurately using structured and unstructured data.
 
-You can run the overall workflow with `python test_workflow.py`.
+## 💡 Why Use Feast for RAG?
 
-## To move from this into a more production ready workflow:
-> See more details in [Running Feast in production](https://docs.feast.dev/how-to-guides/running-feast-in-production)
+- **Online retrieval of features:** Ensure real-time access to precomputed document embeddings and other structured data.
+- **Vector search:** Leverage Feast’s integration with vector databases like **Milvus** to find relevant documents based on similarity.
+- **Structured and unstructured context:** Retrieve both embeddings and traditional features, injecting richer context into LLM prompts.
+- **Versioning and reusability:** Collaborate across teams with discoverable, versioned data pipelines.
 
-1. First: you should start with a different Feast template, which delegates to a more scalable offline store. 
-   - For example, running `feast init -t gcp`
-   or `feast init -t aws` or `feast init -t snowflake`. 
-   - You can see your options if you run `feast init --help`.
-2. `feature_store.yaml` points to a local file as a registry. You'll want to setup a remote file (e.g. in S3/GCS) or a 
-SQL registry. See [registry docs](https://docs.feast.dev/getting-started/concepts/registry) for more details. 
-3. This example uses a file [offline store](https://docs.feast.dev/getting-started/components/offline-store) 
-   to generate training data. It does not scale. We recommend instead using a data warehouse such as BigQuery, 
-   Snowflake, Redshift. There is experimental support for Spark as well.
-4. Setup CI/CD + dev vs staging vs prod environments to automatically update the registry as you change Feast feature definitions. See [docs](https://docs.feast.dev/how-to-guides/running-feast-in-production#1.-automatically-deploying-changes-to-your-feature-definitions).
-5. (optional) Regularly scheduled materialization to power low latency feature retrieval (e.g. via Airflow). See [Batch data ingestion](https://docs.feast.dev/getting-started/concepts/data-ingestion#batch-data-ingestion)
-for more details.
-6. (optional) Deploy feature server instances with `feast serve` to expose endpoints to retrieve online features.
-   - See [Python feature server](https://docs.feast.dev/reference/feature-servers/python-feature-server) for details.
-   - Use cases can also directly call the Feast client to fetch features as per [Feature retrieval](https://docs.feast.dev/getting-started/concepts/feature-retrieval)
+---
+
+## 📂 Project Structure
+
+- **`data/`**: Contains the demo data, including Wikipedia summaries of cities with sentence embeddings stored in a Parquet file.
+- **`example_repo.py`**: Defines the feature views and entity configurations for Feast.
+- **`feature_store.yaml`**: Configures the offline and online stores (using local files and Milvus Lite in this demo).
+- **`test_workflow.py`**: Demonstrates key Feast commands to define, retrieve, and push features.
+
+---
+
+## 🛠️ Setup
+
+1. **Install the necessary packages**:
+   ```bash
+   pip install feast torch transformers openai
+   ```
+2. Initialize and inspect the feature store:
+
+   ```bash
+     feast apply
+   ```
+
+3. Materialize features into the online store:
+
+   ```bash
+   python -c "from datetime import datetime; from feast import FeatureStore; store = FeatureStore(repo_path='.')"
+   python -c "store.materialize_incremental(datetime.utcnow())"
+   ``` 
+4. Run a query:
+
+- Prepare your question:
+`question = "Which city has the largest population in New York?"`
+- Embed the question using sentence-transformers/all-MiniLM-L6-v2.
+- Retrieve the top K most relevant documents using Milvus vector search.
+- Pass the retrieved context to the OpenAI model for conversational output.
+
+## 🛠️ Key Commands for Data Scientists
+- Apply feature definitions:
+
+```bash 
+feast apply 
+```
+
+- Materialize features to the online store:
+```python
+store.write_to_online_store(feature_view_name='city_embeddings', df=df)
+```
+
+-Inspect retrieved features using Python:
+```python
+context_data = store.retrieve_online_documents_v2(
+    features=[
+        "city_embeddings:vector",
+        "city_embeddings:item_id",
+        "city_embeddings:state",
+        "city_embeddings:sentence_chunks",
+        "city_embeddings:wiki_summary",
+    ],
+    query=query,
+    top_k=3,
+    distance_metric='COSINE',
+).to_df()
+display(context_data)
+```
+
+## 🔑 Explanation of Core Concepts
+Feature View: Defines the schema of features and how they are retrieved from the offline store.
+Entity: Represents primary keys like item_id for indexing and lookup.
+Vector Search: Uses Milvus Lite to retrieve document embeddings based on cosine similarity.
+LLM Context Injection: Retrieved documents are formatted and injected into the LLM prompt to provide grounded responses.
