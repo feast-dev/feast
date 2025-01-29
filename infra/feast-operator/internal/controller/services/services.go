@@ -91,8 +91,14 @@ func (feast *FeastServices) Deploy() error {
 		if err = feast.deployFeastServiceByType(OnlineFeastType); err != nil {
 			return err
 		}
+		if err = feast.createRoute(OnlineFeastType); err != nil {
+			return err
+		}
 	} else {
 		if err := feast.removeFeastServiceByType(OnlineFeastType); err != nil {
+			return err
+		}
+		if err := feast.removeRoute(OnlineFeastType); err != nil {
 			return err
 		}
 	}
