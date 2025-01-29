@@ -127,6 +127,7 @@ class MilvusOnlineStore(OnlineStore):
         if not self.client:
             if config.provider == "local":
                 db_path = self._get_db_path(config)
+                print(f"Connecting to Milvus in local mode using {db_path}")
                 self.client = MilvusClient(db_path)
             else:
                 self.client = MilvusClient(
