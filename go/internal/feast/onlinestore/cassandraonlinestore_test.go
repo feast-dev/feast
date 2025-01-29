@@ -60,13 +60,24 @@ func TestGetFqTableName(t *testing.T) {
 	assert.Equal(t, `"scylladb"."dummy_project_dummy_fv"`, fqTableName)
 }
 
-func TestGetCQLStatement(t *testing.T) {
+func TestGetSingleKeyCQLStatement(t *testing.T) {
 	store := CassandraOnlineStore{}
 	fqTableName := `"scylladb"."dummy_project_dummy_fv"`
 
-	cqlStatement := store.getCQLStatement(fqTableName, []string{"feat1", "feat2"})
+	cqlStatement := store.getSingleKeyCQLStatement(fqTableName, []string{"feat1", "feat2"})
 	assert.Equal(t,
 		`SELECT "entity_key", "feature_name", "event_ts", "value" FROM "scylladb"."dummy_project_dummy_fv" WHERE "entity_key" = ? AND "feature_name" IN ('feat1','feat2')`,
+		cqlStatement,
+	)
+}
+
+func TestGetMultiKeyCQLStatement(t *testing.T) {
+	store := CassandraOnlineStore{}
+	fqTableName := `"scylladb"."dummy_project_dummy_fv"`
+
+	cqlStatement := store.getMultiKeyCQLStatement(fqTableName, []string{"feat1", "feat2"}, 5)
+	assert.Equal(t,
+		`SELECT "entity_key", "feature_name", "event_ts", "value" FROM "scylladb"."dummy_project_dummy_fv" WHERE "entity_key" IN (?,?,?,?,?) AND "feature_name" IN ('feat1','feat2')`,
 		cqlStatement,
 	)
 }

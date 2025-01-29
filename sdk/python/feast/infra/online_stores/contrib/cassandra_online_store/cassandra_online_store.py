@@ -162,6 +162,9 @@ class CassandraOnlineStoreConfig(FeastConfigBaseModel):
     key_ttl_seconds: Optional[StrictInt] = None
     """Default TTL (in seconds) to apply to all tables if not specified in FeatureView. Value 0 or None means No TTL."""
 
+    key_batch_size: Optional[StrictInt] = 10
+    """In Go Feature Server, this configuration is used to query tables with multiple keys at a time using IN clause based on the size specified. Value 1 means key batching is disabled. Valid values are 1 to 100."""
+
     class CassandraLoadBalancingPolicy(FeastConfigBaseModel):
         """
         Configuration block related to the Cluster's load-balancing policy.
