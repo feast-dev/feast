@@ -325,6 +325,13 @@ func (feast *FeastServices) createPVC(pvcCreate *feastdevv1alpha1.PvcCreate, fea
 }
 
 func (feast *FeastServices) setDeployment(deploy *appsv1.Deployment) error {
+	var volumes []corev1.Volume
+	if feast.Handler.FeatureStore.Spec.Services != nil {
+		volumes = feast.Handler.FeatureStore.Spec.Services.Volumes
+	}
+	if volumes == nil {
+		volumes = []corev1.Volume{} // Ensure it's an empty slice instead of nil
+	}
 	deploy.Labels = feast.getLabels()
 	deploy.Spec = appsv1.DeploymentSpec{
 		Replicas: &DefaultReplicas,
@@ -336,6 +343,7 @@ func (feast *FeastServices) setDeployment(deploy *appsv1.Deployment) error {
 			},
 			Spec: corev1.PodSpec{
 				ServiceAccountName: feast.initFeastSA().Name,
+				Volumes:            volumes,
 			},
 		},
 	}
@@ -379,7 +387,8 @@ func (feast *FeastServices) setContainers(podSpec *corev1.PodSpec) error {
 	return nil
 }
 
-func (feast *FeastServices) setContainer(containers *[]corev1.Container, feastType FeastServiceType, fsYamlB64 string) {
+func (feast *FeastServices) setContainer(containers *[]corev1.Container, feastType FeastServiceType,
+	fsYamlB64 string) {
 	tls := feast.getTlsConfigs(feastType)
 	serviceConfigs := feast.getServiceConfigs(feastType)
 	defaultServiceConfigs := serviceConfigs.DefaultConfigs
@@ -416,9 +425,38 @@ func (feast *FeastServices) setContainer(containers *[]corev1.Container, feastTy
 			ProbeHandler:  probeHandler,
 			PeriodSeconds: 10,
 		},
+		VolumeMounts: feast.getVolumeMounts(feastType),
 	}
 	applyOptionalContainerConfigs(container, serviceConfigs.OptionalConfigs)
 	*containers = append(*containers, *container)
+}
+
+func (feast *FeastServices) getVolumeMounts(feastType FeastServiceType) (volumeMounts []corev1.VolumeMount) {
+	appliedServices := feast.Handler.FeatureStore.Status.Applied.Services
+	if appliedServices == nil {
+		return []corev1.VolumeMount{} // Return an empty slice to avoid nil issues
+	}
+
+	switch feastType {
+	case OfflineFeastType:
+		if feast.isOfflinStore() {
+			return appliedServices.OfflineStore.VolumeMounts
+		}
+	case OnlineFeastType:
+		if feast.isOnlinStore() {
+			return appliedServices.OnlineStore.VolumeMounts
+		}
+	case RegistryFeastType:
+		if feast.isLocalRegistry() {
+			return appliedServices.Registry.Local.VolumeMounts
+		}
+	case UIFeastType:
+		if feast.isUI() {
+			return appliedServices.UI.VolumeMounts
+		}
+	}
+
+	return []corev1.VolumeMount{} // Default empty slice
 }
 
 func (feast *FeastServices) setRoute(route *routev1.Route, feastType FeastServiceType) error {

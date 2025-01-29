@@ -95,6 +95,7 @@ _Appears in:_
 | `ui` _[UIService](#uiservice)_ |  |
 | `deploymentStrategy` _[DeploymentStrategy](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#deploymentstrategy-v1-apps)_ |  |
 | `disableInitContainers` _boolean_ | Disable the 'feast repo initialization' initContainer |
+| `volumes` _[Volume](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#volume-v1-core) array_ | Volumes specifies the list of volumes to mount in the FeatureStore deployment. |
 
 
 #### FeatureStoreSpec
@@ -195,6 +196,7 @@ _Appears in:_
 | `tls` _[TlsConfigs](#tlsconfigs)_ |  |
 | `logLevel` _string_ | LogLevel sets the logging level for the offline store service
 Allowed values: "debug", "info", "warning", "error", "critical". |
+| `volumeMounts` _[VolumeMount](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#volumemount-v1-core) array_ |  |
 
 
 #### OfflineStoreDBStorePersistence
@@ -278,13 +280,14 @@ _Appears in:_
 | `tls` _[TlsConfigs](#tlsconfigs)_ |  |
 | `logLevel` _string_ | LogLevel sets the logging level for the online store service
 Allowed values: "debug", "info", "warning", "error", "critical". |
+| `volumeMounts` _[VolumeMount](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#volumemount-v1-core) array_ |  |
 
 
 #### OnlineStoreDBStorePersistence
 
 
 
-OnlineStoreDBStorePersistence configures the DB store persistence for the offline store service
+OnlineStoreDBStorePersistence configures the DB store persistence for the online store service
 
 _Appears in:_
 - [OnlineStorePersistence](#onlinestorepersistence)
@@ -300,7 +303,7 @@ _Appears in:_
 
 
 
-OnlineStoreFilePersistence configures the file-based persistence for the offline store service
+OnlineStoreFilePersistence configures the file-based persistence for the online store service
 
 _Appears in:_
 - [OnlineStorePersistence](#onlinestorepersistence)
@@ -375,6 +378,7 @@ _Appears in:_
 | --- | --- |
 | `local` _[LocalRegistryConfig](#localregistryconfig)_ |  |
 | `remote` _[RemoteRegistryConfig](#remoteregistryconfig)_ |  |
+| `volumeMounts` _[VolumeMount](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#volumemount-v1-core) array_ |  |
 
 
 #### RegistryDBStorePersistence
@@ -537,5 +541,6 @@ _Appears in:_
 | `tls` _[TlsConfigs](#tlsconfigs)_ |  |
 | `logLevel` _string_ | LogLevel sets the logging level for the UI service
 Allowed values: "debug", "info", "warning", "error", "critical". |
+| `volumeMounts` _[VolumeMount](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#volumemount-v1-core) array_ |  |
 
 
