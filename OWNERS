@@ -1,3 +1,5 @@
+# This file is being used by RedHat for running e2e CI
+
 approvers:
 - redhathameed
 - tmihalac
