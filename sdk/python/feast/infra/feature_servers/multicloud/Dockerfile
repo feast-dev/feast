@@ -1,4 +1,4 @@
-FROM registry.access.redhat.com/ubi9/python-311:9.5
+FROM registry.access.redhat.com/ubi8/python-311:1
 
 ARG VERSION
 RUN pip install "feast[aws,gcp,snowflake,redis,go,mysql,postgres,opentelemetry,grpcio,k8s,duckdb,milvus]"==${VERSION}
