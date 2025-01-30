@@ -1,13 +1,14 @@
 # 🚀 Quickstart: Retrieval-Augmented Generation (RAG) using Feast and Large Language Models (LLMs)
 
 This project demonstrates how to use **Feast** to power a **Retrieval-Augmented Generation (RAG)** application. 
-The RAG architecture combines retrieval of documents (using vector search) with contextual reasoning through a 
+The RAG architecture combines retrieval of documents (using vector search) with In-Context-Learning (ICL) through a 
 **Large Language Model (LLM)** to answer user questions accurately using structured and unstructured data.
 
 ## 💡 Why Use Feast for RAG?
 
 - **Online retrieval of features:** Ensure real-time access to precomputed document embeddings and other structured data.
-- **Vector search:** Leverage Feast’s integration with vector databases like **Milvus** to find relevant documents based on similarity.
+- **Declarative feature definitions:** Define feature views and entities in a Python file and empower Data Scientists to easily ship scalabe RAG applications with all of the existing benefits of Feast.
+- **Vector search:** Leverage Feast’s integration with vector databases like **Milvus** to find relevant documents based on a similarity metric (e.g., cosine).
 - **Structured and unstructured context:** Retrieve both embeddings and traditional features, injecting richer context into LLM prompts.
 - **Versioning and reusability:** Collaborate across teams with discoverable, versioned data pipelines.
 
@@ -77,8 +78,11 @@ context_data = store.retrieve_online_documents_v2(
 display(context_data)
 ```
 
-## 🔑 Explanation of Core Concepts
-Feature View: Defines the schema of features and how they are retrieved from the offline store.
-Entity: Represents primary keys like item_id for indexing and lookup.
-Vector Search: Uses Milvus Lite to retrieve document embeddings based on cosine similarity.
-LLM Context Injection: Retrieved documents are formatted and injected into the LLM prompt to provide grounded responses.
+📊 Example Output
+When querying: Which city has the largest population in New York?
+
+The model provides:
+
+```
+The largest city in New York is New York City, often referred to as NYC. It is the most populous city in the United States, with an estimated population of 8,335,897 in 2022.
+```
