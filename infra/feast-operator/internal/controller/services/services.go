@@ -421,8 +421,6 @@ func (feast *FeastServices) setContainer(containers *[]corev1.Container, feastTy
 	}
 	volumeMounts := feast.getVolumeMounts(feastType)
 	if len(volumeMounts) > 0 {
-		logger := log.FromContext(feast.Handler.Context)
-		logger.Info("Getting the volumeMounts - Lokesh Test", "feastType", feastType, "volumeMounts", volumeMounts)
 		container.VolumeMounts = append(container.VolumeMounts, volumeMounts...)
 	}
 	applyOptionalContainerConfigs(container, serviceConfigs.OptionalConfigs)
@@ -901,8 +899,6 @@ func (feast *FeastServices) mountPodVolumes(podSpec *corev1.PodSpec) {
 		volumes = feast.Handler.FeatureStore.Spec.Services.Volumes
 	}
 	if len(volumes) > 0 {
-		logger := log.FromContext(feast.Handler.Context)
-		logger.Info("Getting the volumes - Lokesh Test 1", "volumes", volumes)
 		podSpec.Volumes = append(podSpec.Volumes, volumes...)
 	}
 }
