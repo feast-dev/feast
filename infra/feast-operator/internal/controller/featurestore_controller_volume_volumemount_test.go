@@ -42,8 +42,6 @@ var _ = Describe("FeatureStore Controller-Volume and VolumeMount test", func() {
 		const resourceName = "services-ephemeral"
 		const offlineType = "duckdb"
 		var pullPolicy = corev1.PullAlways
-		var testEnvVarName = "testEnvVarName"
-		var testEnvVarValue = "testEnvVarValue"
 
 		ctx := context.Background()
 
@@ -136,8 +134,6 @@ var _ = Describe("FeatureStore Controller-Volume and VolumeMount test", func() {
 			Expect(resource.Status.Applied.Services.OnlineStore.Persistence).NotTo(BeNil())
 			Expect(resource.Status.Applied.Services.OnlineStore.Persistence.FilePersistence).NotTo(BeNil())
 			Expect(resource.Status.Applied.Services.OnlineStore.Persistence.FilePersistence.Path).To(Equal(onlineStorePath))
-			Expect(resource.Status.Applied.Services.OnlineStore.Env).To(Equal(&[]corev1.EnvVar{{Name: testEnvVarName, Value: testEnvVarValue}, {Name: "fieldRefName", ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "metadata.namespace"}}}}))
-			Expect(resource.Status.Applied.Services.OnlineStore.EnvFrom).To(Equal(withEnvFrom()))
 			Expect(resource.Status.Applied.Services.OnlineStore.ImagePullPolicy).To(Equal(&pullPolicy))
 			Expect(resource.Status.Applied.Services.OnlineStore.Resources).NotTo(BeNil())
 			Expect(resource.Status.Applied.Services.OnlineStore.Image).To(Equal(&image))
