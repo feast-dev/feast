@@ -352,7 +352,7 @@ func (feast *FeastServices) setPod(podSpec *corev1.PodSpec) error {
 	feast.mountTlsConfigs(podSpec)
 	feast.mountPvcConfigs(podSpec)
 	feast.mountEmptyDirVolumes(podSpec)
-	feast.mountPodVolumes(podSpec)
+	feast.mountUserDefinedVolumes(podSpec)
 
 	return nil
 }
@@ -380,8 +380,7 @@ func (feast *FeastServices) setContainers(podSpec *corev1.PodSpec) error {
 	return nil
 }
 
-func (feast *FeastServices) setContainer(containers *[]corev1.Container, feastType FeastServiceType,
-	fsYamlB64 string) {
+func (feast *FeastServices) setContainer(containers *[]corev1.Container, feastType FeastServiceType, fsYamlB64 string) {
 	tls := feast.getTlsConfigs(feastType)
 	serviceConfigs := feast.getServiceConfigs(feastType)
 	defaultServiceConfigs := serviceConfigs.DefaultConfigs
@@ -893,7 +892,7 @@ func (feast *FeastServices) mountPvcConfig(podSpec *corev1.PodSpec, pvcConfig *f
 	}
 }
 
-func (feast *FeastServices) mountPodVolumes(podSpec *corev1.PodSpec) {
+func (feast *FeastServices) mountUserDefinedVolumes(podSpec *corev1.PodSpec) {
 	var volumes []corev1.Volume
 	if feast.Handler.FeatureStore.Spec.Services != nil {
 		volumes = feast.Handler.FeatureStore.Spec.Services.Volumes
