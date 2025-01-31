@@ -158,3 +158,57 @@ func withEnvFrom() *[]corev1.EnvFromSource {
 	}
 
 }
+
+func createFeatureStoreVolumeResource(resourceName string, image string, pullPolicy corev1.PullPolicy) *feastdevv1alpha1.FeatureStore {
+	volume := corev1.Volume{
+		Name: "test-volume",
+		VolumeSource: corev1.VolumeSource{
+			EmptyDir: &corev1.EmptyDirVolumeSource{},
+		},
+	}
+	volumeMount := corev1.VolumeMount{
+		Name:      "test-volume",
+		MountPath: "/data",
+	}
+
+	return &feastdevv1alpha1.FeatureStore{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      resourceName,
+			Namespace: "default",
+		},
+		Spec: feastdevv1alpha1.FeatureStoreSpec{
+			FeastProject: feastProject,
+			Services: &feastdevv1alpha1.FeatureStoreServices{
+				Volumes: []corev1.Volume{volume},
+				OfflineStore: &feastdevv1alpha1.OfflineStore{
+					ServiceConfigs: feastdevv1alpha1.ServiceConfigs{
+						OptionalConfigs: feastdevv1alpha1.OptionalConfigs{},
+					},
+				},
+				OnlineStore: &feastdevv1alpha1.OnlineStore{
+					VolumeMounts: []corev1.VolumeMount{volumeMount},
+					ServiceConfigs: feastdevv1alpha1.ServiceConfigs{
+						DefaultConfigs: feastdevv1alpha1.DefaultConfigs{
+							Image: &image,
+						},
+						OptionalConfigs: feastdevv1alpha1.OptionalConfigs{
+							ImagePullPolicy: &pullPolicy,
+							Resources:       &corev1.ResourceRequirements{},
+						},
+					},
+				},
+				UI: &feastdevv1alpha1.UIService{
+					ServiceConfigs: feastdevv1alpha1.ServiceConfigs{
+						DefaultConfigs: feastdevv1alpha1.DefaultConfigs{
+							Image: &image,
+						},
+						OptionalConfigs: feastdevv1alpha1.OptionalConfigs{
+							ImagePullPolicy: &pullPolicy,
+							Resources:       &corev1.ResourceRequirements{},
+						},
+					},
+				},
+			},
+		},
+	}
+}
