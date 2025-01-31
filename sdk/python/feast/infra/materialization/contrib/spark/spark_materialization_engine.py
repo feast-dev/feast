@@ -241,7 +241,7 @@ def _map_by_partition(
         # convert to pyarrow table
         if pdf_row_count == 0:
             print("INFO!!! Dataframe has 0 records to process")
-            continue
+            return
 
         table = pyarrow.Table.from_pandas(pdf)
 
