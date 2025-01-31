@@ -236,3 +236,23 @@ def from_value_type(
         return VALUE_TYPES_TO_FEAST_TYPES[value_type]
 
     raise ValueError(f"Could not convert value type {value_type} to FeastType.")
+
+
+def from_feast_type(
+    feast_type: FeastType,
+) -> ValueType:
+    """
+    Converts a Feast type to a ValueType enum.
+
+    Args:
+        feast_type: The Feast type to be converted.
+
+    Raises:
+        ValueError: The conversion could not be performed.
+    """
+    if feast_type in VALUE_TYPES_TO_FEAST_TYPES.values():
+        return list(VALUE_TYPES_TO_FEAST_TYPES.keys())[
+            list(VALUE_TYPES_TO_FEAST_TYPES.values()).index(feast_type)
+        ]
+
+    raise ValueError(f"Could not convert feast type {feast_type} to ValueType.")

@@ -37,9 +37,8 @@ The RAG architecture combines retrieval of documents (using vector search) with 
 
 3. Materialize features into the online store:
 
-   ```bash
-   python -c "from datetime import datetime; from feast import FeatureStore; store = FeatureStore(repo_path='.')"
-   python -c "store.materialize_incremental(datetime.utcnow())"
+   ```python
+   store.write_to_online_store(feature_view_name='city_embeddings', df=df)
    ``` 
 4. Run a query:
 
@@ -61,7 +60,7 @@ feast apply
 store.write_to_online_store(feature_view_name='city_embeddings', df=df)
 ```
 
--Inspect retrieved features using Python:
+- Inspect retrieved features using Python:
 ```python
 context_data = store.retrieve_online_documents_v2(
     features=[

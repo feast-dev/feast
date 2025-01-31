@@ -29,8 +29,299 @@ def test_get_online_features() -> None:
     """
     runner = CliRunner()
     with runner.local_repo(
-        get_example_repo("example_feature_repo_1.py"), "file"
+        get_example_repo("example_feature_repo_1.py"),
+        "file",
     ) as store:
+        # Write some data to two tables
+        driver_locations_fv = store.get_feature_view(name="driver_locations")
+        customer_profile_fv = store.get_feature_view(name="customer_profile")
+        customer_driver_combined_fv = store.get_feature_view(
+            name="customer_driver_combined"
+        )
+
+        provider = store._get_provider()
+
+        driver_key = EntityKeyProto(
+            join_keys=["driver_id"], entity_values=[ValueProto(int64_val=1)]
+        )
+        provider.online_write_batch(
+            config=store.config,
+            table=driver_locations_fv,
+            data=[
+                (
+                    driver_key,
+                    {
+                        "lat": ValueProto(double_val=0.1),
+                        "lon": ValueProto(string_val="1.0"),
+                    },
+                    _utc_now(),
+                    _utc_now(),
+                )
+            ],
+            progress=None,
+        )
+
+        customer_key = EntityKeyProto(
+            join_keys=["customer_id"], entity_values=[ValueProto(string_val="5")]
+        )
+        provider.online_write_batch(
+            config=store.config,
+            table=customer_profile_fv,
+            data=[
+                (
+                    customer_key,
+                    {
+                        "avg_orders_day": ValueProto(float_val=1.0),
+                        "name": ValueProto(string_val="John"),
+                        "age": ValueProto(int64_val=3),
+                    },
+                    _utc_now(),
+                    _utc_now(),
+                )
+            ],
+            progress=None,
+        )
+
+        customer_key = EntityKeyProto(
+            join_keys=["customer_id", "driver_id"],
+            entity_values=[ValueProto(string_val="5"), ValueProto(int64_val=1)],
+        )
+        provider.online_write_batch(
+            config=store.config,
+            table=customer_driver_combined_fv,
+            data=[
+                (
+                    customer_key,
+                    {"trips": ValueProto(int64_val=7)},
+                    _utc_now(),
+                    _utc_now(),
+                )
+            ],
+            progress=None,
+        )
+
+        assert len(store.list_entities()) == 3
+        assert len(store.list_entities(tags=TAGS)) == 2
+
+        # Retrieve two features using two keys, one valid one non-existing
+        result = store.get_online_features(
+            features=[
+                "driver_locations:lon",
+                "customer_profile:avg_orders_day",
+                "customer_profile:name",
+                "customer_driver_combined:trips",
+            ],
+            entity_rows=[
+                {"driver_id": 1, "customer_id": "5"},
+                {"driver_id": 1, "customer_id": 5},
+            ],
+            full_feature_names=False,
+        ).to_dict()
+
+        assert "lon" in result
+        assert "avg_orders_day" in result
+        assert "name" in result
+        assert result["driver_id"] == [1, 1]
+        assert result["customer_id"] == ["5", "5"]
+        assert result["lon"] == ["1.0", "1.0"]
+        assert result["avg_orders_day"] == [1.0, 1.0]
+        assert result["name"] == ["John", "John"]
+        assert result["trips"] == [7, 7]
+
+        # Ensure features are still in result when keys not found
+        result = store.get_online_features(
+            features=["customer_driver_combined:trips"],
+            entity_rows=[{"driver_id": 0, "customer_id": 0}],
+            full_feature_names=False,
+        ).to_dict()
+
+        assert "trips" in result
+
+        result = store.get_online_features(
+            features=["customer_profile_pandas_odfv:on_demand_age"],
+            entity_rows=[{"driver_id": 1, "customer_id": "5"}],
+            full_feature_names=False,
+        ).to_dict()
+
+        assert "on_demand_age" in result
+        assert result["driver_id"] == [1]
+        assert result["customer_id"] == ["5"]
+        assert result["on_demand_age"] == [4]
+
+        # invalid table reference
+        with pytest.raises(FeatureViewNotFoundException):
+            store.get_online_features(
+                features=["driver_locations_bad:lon"],
+                entity_rows=[{"driver_id": 1}],
+                full_feature_names=False,
+            )
+
+        # Create new FeatureStore object with fast cache invalidation
+        cache_ttl = 1
+        fs_fast_ttl = FeatureStore(
+            config=RepoConfig(
+                registry=RegistryConfig(
+                    path=store.config.registry.path, cache_ttl_seconds=cache_ttl
+                ),
+                online_store=store.config.online_store,
+                project=store.project,
+                provider=store.config.provider,
+                entity_key_serialization_version=2,
+            )
+        )
+
+        # Should download the registry and cache it permanently (or until manually refreshed)
+        result = fs_fast_ttl.get_online_features(
+            features=[
+                "driver_locations:lon",
+                "customer_profile:avg_orders_day",
+                "customer_profile:name",
+                "customer_driver_combined:trips",
+            ],
+            entity_rows=[{"driver_id": 1, "customer_id": 5}],
+            full_feature_names=False,
+        ).to_dict()
+        assert result["lon"] == ["1.0"]
+        assert result["trips"] == [7]
+
+        # Rename the registry.db so that it cant be used for refreshes
+        os.rename(store.config.registry.path, store.config.registry.path + "_fake")
+
+        # Wait for registry to expire
+        time.sleep(cache_ttl)
+
+        # Will try to reload registry because it has expired (it will fail because we deleted the actual registry file)
+        with pytest.raises(FileNotFoundError):
+            fs_fast_ttl.get_online_features(
+                features=[
+                    "driver_locations:lon",
+                    "customer_profile:avg_orders_day",
+                    "customer_profile:name",
+                    "customer_driver_combined:trips",
+                ],
+                entity_rows=[{"driver_id": 1, "customer_id": 5}],
+                full_feature_names=False,
+            ).to_dict()
+
+        # Restore registry.db so that we can see if it actually reloads registry
+        os.rename(store.config.registry.path + "_fake", store.config.registry.path)
+
+        # Test if registry is actually reloaded and whether results return
+        result = fs_fast_ttl.get_online_features(
+            features=[
+                "driver_locations:lon",
+                "customer_profile:avg_orders_day",
+                "customer_profile:name",
+                "customer_driver_combined:trips",
+            ],
+            entity_rows=[{"driver_id": 1, "customer_id": 5}],
+            full_feature_names=False,
+        ).to_dict()
+        assert result["lon"] == ["1.0"]
+        assert result["trips"] == [7]
+
+        # Create a registry with infinite cache (for users that want to manually refresh the registry)
+        fs_infinite_ttl = FeatureStore(
+            config=RepoConfig(
+                registry=RegistryConfig(
+                    path=store.config.registry.path, cache_ttl_seconds=0
+                ),
+                online_store=store.config.online_store,
+                project=store.project,
+                provider=store.config.provider,
+                entity_key_serialization_version=2,
+            )
+        )
+
+        # Should return results (and fill the registry cache)
+        result = fs_infinite_ttl.get_online_features(
+            features=[
+                "driver_locations:lon",
+                "customer_profile:avg_orders_day",
+                "customer_profile:name",
+                "customer_driver_combined:trips",
+            ],
+            entity_rows=[{"driver_id": 1, "customer_id": 5}],
+            full_feature_names=False,
+        ).to_dict()
+        assert result["lon"] == ["1.0"]
+        assert result["trips"] == [7]
+
+        # Wait a bit so that an arbitrary TTL would take effect
+        time.sleep(2)
+
+        # Rename the registry.db so that it cant be used for refreshes
+        os.rename(store.config.registry.path, store.config.registry.path + "_fake")
+
+        # TTL is infinite so this method should use registry cache
+        result = fs_infinite_ttl.get_online_features(
+            features=[
+                "driver_locations:lon",
+                "customer_profile:avg_orders_day",
+                "customer_profile:name",
+                "customer_driver_combined:trips",
+            ],
+            entity_rows=[{"driver_id": 1, "customer_id": 5}],
+            full_feature_names=False,
+        ).to_dict()
+        assert result["lon"] == ["1.0"]
+        assert result["trips"] == [7]
+
+        # Force registry reload (should fail because file is missing)
+        with pytest.raises(FileNotFoundError):
+            fs_infinite_ttl.refresh_registry()
+
+        # Restore registry.db so that teardown works
+        os.rename(store.config.registry.path + "_fake", store.config.registry.path)
+
+
+def test_get_online_features_milvus() -> None:
+    """
+    Test reading from the online store in local mode.
+    """
+    runner = CliRunner()
+    with runner.local_repo(
+        get_example_repo("example_feature_repo_1.py"),
+        offline_store="file",
+        online_store="milvus",
+        apply=False,
+        teardown=False,
+    ) as store:
+        from tests.example_repos.example_feature_repo_1 import (
+            all_drivers_feature_service,
+            customer,
+            customer_driver_combined,
+            customer_driver_combined_source,
+            customer_profile,
+            customer_profile_pandas_odfv,
+            customer_profile_source,
+            driver,
+            driver_locations,
+            driver_locations_source,
+            item,
+            pushed_driver_locations,
+            rag_documents_source,
+        )
+
+        store.apply(
+            [
+                driver_locations_source,
+                customer_profile_source,
+                customer_driver_combined_source,
+                rag_documents_source,
+                driver,
+                customer,
+                item,
+                driver_locations,
+                pushed_driver_locations,
+                customer_profile,
+                customer_driver_combined,
+                # document_embeddings,
+                customer_profile_pandas_odfv,
+                all_drivers_feature_service,
+            ]
+        )
+
         # Write some data to two tables
         driver_locations_fv = store.get_feature_view(name="driver_locations")
         customer_profile_fv = store.get_feature_view(name="customer_profile")
