@@ -233,6 +233,7 @@ def _map_by_partition(
     iterator,
     spark_serialized_artifacts: _SparkSerializedArtifacts,
 ):
+    feature_view, online_store, repo_config = spark_serialized_artifacts.unserialize()
     """Load pandas df to online store"""
     for pdf in iterator:
         pdf_row_count = pdf.shape[0]
@@ -243,13 +244,6 @@ def _map_by_partition(
             return
 
         table = pyarrow.Table.from_pandas(pdf)
-
-        # unserialize artifacts
-        (
-            feature_view,
-            online_store,
-            repo_config,
-        ) = spark_serialized_artifacts.unserialize()
 
         if feature_view.batch_source.field_mapping is not None:
             # Spark offline store does the field mapping during pull_latest_from_table_or_query
