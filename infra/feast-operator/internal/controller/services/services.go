@@ -325,13 +325,6 @@ func (feast *FeastServices) createPVC(pvcCreate *feastdevv1alpha1.PvcCreate, fea
 }
 
 func (feast *FeastServices) setDeployment(deploy *appsv1.Deployment) error {
-	var volumes []corev1.Volume
-	if feast.Handler.FeatureStore.Spec.Services != nil {
-		volumes = feast.Handler.FeatureStore.Spec.Services.Volumes
-	}
-	if volumes == nil {
-		volumes = []corev1.Volume{} // Ensure it's an empty slice instead of nil
-	}
 	deploy.Labels = feast.getLabels()
 	deploy.Spec = appsv1.DeploymentSpec{
 		Replicas: &DefaultReplicas,
@@ -343,7 +336,6 @@ func (feast *FeastServices) setDeployment(deploy *appsv1.Deployment) error {
 			},
 			Spec: corev1.PodSpec{
 				ServiceAccountName: feast.initFeastSA().Name,
-				Volumes:            volumes,
 			},
 		},
 	}
@@ -360,6 +352,7 @@ func (feast *FeastServices) setPod(podSpec *corev1.PodSpec) error {
 	feast.mountTlsConfigs(podSpec)
 	feast.mountPvcConfigs(podSpec)
 	feast.mountEmptyDirVolumes(podSpec)
+	feast.mountPodVolumes(podSpec)
 
 	return nil
 }
@@ -425,7 +418,12 @@ func (feast *FeastServices) setContainer(containers *[]corev1.Container, feastTy
 			ProbeHandler:  probeHandler,
 			PeriodSeconds: 10,
 		},
-		VolumeMounts: feast.getVolumeMounts(feastType),
+	}
+	volumeMounts := feast.getVolumeMounts(feastType)
+	if len(volumeMounts) > 0 {
+		logger := log.FromContext(feast.Handler.Context)
+		logger.Info("Getting the volumeMounts - Lokesh Test", "feastType", feastType, "volumeMounts", volumeMounts)
+		container.VolumeMounts = append(container.VolumeMounts, volumeMounts...)
 	}
 	applyOptionalContainerConfigs(container, serviceConfigs.OptionalConfigs)
 	*containers = append(*containers, *container)
@@ -455,7 +453,6 @@ func (feast *FeastServices) getVolumeMounts(feastType FeastServiceType) (volumeM
 			return appliedServices.UI.VolumeMounts
 		}
 	}
-
 	return []corev1.VolumeMount{} // Default empty slice
 }
 
@@ -895,6 +892,18 @@ func (feast *FeastServices) mountPvcConfig(podSpec *corev1.PodSpec, pvcConfig *f
 				MountPath: pvcConfig.MountPath,
 			})
 		}
+	}
+}
+
+func (feast *FeastServices) mountPodVolumes(podSpec *corev1.PodSpec) {
+	var volumes []corev1.Volume
+	if feast.Handler.FeatureStore.Spec.Services != nil {
+		volumes = feast.Handler.FeatureStore.Spec.Services.Volumes
+	}
+	if len(volumes) > 0 {
+		logger := log.FromContext(feast.Handler.Context)
+		logger.Info("Getting the volumes - Lokesh Test 1", "volumes", volumes)
+		podSpec.Volumes = append(podSpec.Volumes, volumes...)
 	}
 }
 

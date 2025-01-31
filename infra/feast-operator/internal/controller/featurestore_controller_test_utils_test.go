@@ -104,25 +104,7 @@ func createFeatureStoreResource(resourceName string, image string, pullPolicy co
 		Spec: feastdevv1alpha1.FeatureStoreSpec{
 			FeastProject: feastProject,
 			Services: &feastdevv1alpha1.FeatureStoreServices{
-				Volumes: []corev1.Volume{
-					{
-						Name: "config-volume",
-						VolumeSource: corev1.VolumeSource{
-							ConfigMap: &corev1.ConfigMapVolumeSource{
-								LocalObjectReference: corev1.LocalObjectReference{
-									Name: "my-config",
-								},
-							},
-						},
-					},
-				},
 				OfflineStore: &feastdevv1alpha1.OfflineStore{
-					VolumeMounts: []corev1.VolumeMount{
-						{
-							Name:      "config-volume",
-							MountPath: "/etc/service-config",
-						},
-					},
 					ServiceConfigs: feastdevv1alpha1.ServiceConfigs{
 						OptionalConfigs: feastdevv1alpha1.OptionalConfigs{
 							EnvFrom: envFromVar,
@@ -130,12 +112,6 @@ func createFeatureStoreResource(resourceName string, image string, pullPolicy co
 					},
 				},
 				OnlineStore: &feastdevv1alpha1.OnlineStore{
-					VolumeMounts: []corev1.VolumeMount{
-						{
-							Name:      "config-volume",
-							MountPath: "/etc/service-config",
-						},
-					},
 					ServiceConfigs: feastdevv1alpha1.ServiceConfigs{
 						DefaultConfigs: feastdevv1alpha1.DefaultConfigs{
 							Image: &image,
