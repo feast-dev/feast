@@ -290,6 +290,7 @@ class MilvusOnlineStore(OnlineStore):
         table: FeatureView,
         entity_keys: List[EntityKeyProto],
         requested_features: Optional[List[str]] = None,
+        full_feature_names: bool = False,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         self.client = self._connect(config)
         collection_name = _table_id(config.project, table)
@@ -327,69 +328,94 @@ class MilvusOnlineStore(OnlineStore):
             filter=query_filter_for_entities,
             output_fields=output_fields,
         )
+        # Group hits by composite key.
+        grouped_hits: Dict[str, Any] = {}
+        for hit in results:
+            key = hit.get(composite_key_name)
+            grouped_hits.setdefault(key, []).append(hit)
 
+        # Map the features to their Feast types.
         feature_name_feast_primitive_type_map = {
             f.name: f.dtype for f in table.features
         }
+        # Build a dictionary mapping composite key -> (res_ts, res)
+        results_dict: Dict[
+            str, Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]
+        ] = {}
+
         # here we need to map the data stored as characters back into the protobuf value
-        result_list = []
         for hit in results:
-            res = {}
-            res_ts = None
-            for field in output_fields:
-                val = ValueProto()
-                field_value = hit.get(field, None)
-                if field in ["created_ts", "event_ts"]:
-                    res_ts = datetime.fromtimestamp(field_value / 1e6)
-                elif field == composite_key_name:
-                    # We do not return the composite key value
-                    pass
-                else:
-                    feature_feast_primitive_type = (
-                        feature_name_feast_primitive_type_map.get(
-                            field, PrimitiveFeastType.INVALID
-                        )
-                    )
-                    feature_fv_dtype = from_feast_type(feature_feast_primitive_type)
-                    proto_attr = VALUE_TYPE_TO_PROTO_VALUE_MAP.get(feature_fv_dtype)
-                    if proto_attr:
-                        if proto_attr == "bytes_val":
-                            setattr(val, proto_attr, field_value.encode())
-                        elif proto_attr in [
-                            "int32_val",
-                            "int64_val",
-                            "float_val",
-                            "double_val",
-                        ]:
-                            setattr(
-                                val,
-                                proto_attr,
-                                type(getattr(val, proto_attr))(field_value),
-                            )
-                        elif proto_attr in [
-                            "int32_list_val",
-                            "int64_list_val",
-                            "float_list_val",
-                            "double_list_val",
-                        ]:
-                            setattr(
-                                val,
-                                proto_attr,
-                                list(
-                                    map(
-                                        type(getattr(val, proto_attr)).__args__[0],
-                                        field_value,
-                                    )
-                                ),
-                            )
-                        else:
-                            setattr(val, proto_attr, field_value)
+            key = hit.get(composite_key_name)
+            # Only take one hit per composite key (adjust if you need aggregation)
+            if key not in results_dict:
+                res = {}
+                res_ts = None
+                for field in output_fields:
+                    val = ValueProto()
+                    field_value = hit.get(field, None)
+                    if field_value is None and ":" in field:
+                        _, field_short = field.split(":", 1)
+                        field_value = hit.get(field_short)
+
+                    if field in ["created_ts", "event_ts"]:
+                        res_ts = datetime.fromtimestamp(field_value / 1e6)
+                    elif field == composite_key_name:
+                        # We do not return the composite key value
+                        pass
                     else:
-                        raise ValueError(
-                            f"Unsupported ValueType: {feature_feast_primitive_type} with feature view value {field_value} for feature {field} with value {field_value}"
+                        feature_feast_primitive_type = (
+                            feature_name_feast_primitive_type_map.get(
+                                field, PrimitiveFeastType.INVALID
+                            )
                         )
-                    res[field] = val
-            result_list.append((res_ts, res if res else None))
+                        feature_fv_dtype = from_feast_type(feature_feast_primitive_type)
+                        proto_attr = VALUE_TYPE_TO_PROTO_VALUE_MAP.get(feature_fv_dtype)
+                        if proto_attr:
+                            if proto_attr == "bytes_val":
+                                setattr(val, proto_attr, field_value.encode())
+                            elif proto_attr in [
+                                "int32_val",
+                                "int64_val",
+                                "float_val",
+                                "double_val",
+                            ]:
+                                setattr(
+                                    val,
+                                    proto_attr,
+                                    type(getattr(val, proto_attr))(field_value),
+                                )
+                            elif proto_attr in [
+                                "int32_list_val",
+                                "int64_list_val",
+                                "float_list_val",
+                                "double_list_val",
+                            ]:
+                                setattr(
+                                    val,
+                                    proto_attr,
+                                    list(
+                                        map(
+                                            type(getattr(val, proto_attr)).__args__[0],
+                                            field_value,
+                                        )
+                                    ),
+                                )
+                            else:
+                                setattr(val, proto_attr, field_value)
+                        else:
+                            raise ValueError(
+                                f"Unsupported ValueType: {feature_feast_primitive_type} with feature view value {field_value} for feature {field} with value {field_value}"
+                            )
+                        # res[field] = val
+                        key_to_use = field.split(":", 1)[-1] if ":" in field else field
+                        res[key_to_use] = val
+                results_dict[key] = (res_ts, res if res else None)
+
+        # Map the results back into a list matching the original order of composite_keys.
+        result_list = [
+            results_dict.get(key, (None, None)) for key in composite_entities
+        ]
+
         return result_list
 
     def update(
@@ -594,9 +620,6 @@ def _extract_proto_values_to_dict(
             else:
                 if serialize_to_string:
                     if not isinstance(feature_values, str):
-                        print(
-                            f"converting {feature_name} with value = {feature_values} to string"
-                        )
                         feature_values = str(feature_values)
                     output_dict[feature_name] = feature_values
 
