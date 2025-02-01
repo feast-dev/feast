@@ -9,7 +9,13 @@ module.exports = {
     "<rootDir>/src/**/__tests__/**/*.{js,jsx,ts,tsx}",
     "<rootDir>/src/**/*.{spec,test}.{js,jsx,ts,tsx}",
   ],
-  testEnvironment: "jsdom",
+  // Couldn't get tests working with msw 2 in jsdom or jest-fixed-jsdom,
+  // happy-dom finally worked with added globals
+  testEnvironment: "@happy-dom/jest-environment",
+  // https://mswjs.io/docs/migrations/1.x-to-2.x#cannot-find-module-mswnode-jsdom
+  testEnvironmentOptions: {
+    customExportConditions: [''],
+  },
   transform: {
     "^.+\\.(js|jsx|mjs|cjs|ts|tsx)$": "<rootDir>/config/jest/babelTransform.js",
     "^.+\\.css$": "<rootDir>/config/jest/cssTransform.js",

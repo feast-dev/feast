@@ -3,3 +3,7 @@
 // expect(element).toHaveTextContent(/react/i)
 // learn more: https://github.com/testing-library/jest-dom
 import '@testing-library/jest-dom';
+import { BroadcastChannel } from 'worker_threads';
+
+// BroadcastChannel is missing from @happy-dom/jest-environment globals
+Object.assign(global, { BroadcastChannel });
