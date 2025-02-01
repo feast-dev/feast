@@ -11,6 +11,7 @@ Subpackages
    feast.infra.offline_stores.contrib.mssql_offline_store
    feast.infra.offline_stores.contrib.postgres_offline_store
    feast.infra.offline_stores.contrib.spark_offline_store
+   feast.infra.offline_stores.contrib.sqlite_offline_store
    feast.infra.offline_stores.contrib.trino_offline_store
 
 Submodules
