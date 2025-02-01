@@ -20,9 +20,7 @@ const EntitiesListingTable = ({ entities }: EntitiesListingTableProps) => {
       sortable: true,
       render: (name: string) => {
         return (
-          <EuiCustomLink
-            to={`${process.env.PUBLIC_URL || ""}/p/${projectName}/entity/${name}`}
-          >
+          <EuiCustomLink to={`/p/${projectName}/entity/${name}`}>
             {name}
           </EuiCustomLink>
         );

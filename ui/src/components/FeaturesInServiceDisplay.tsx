@@ -28,9 +28,7 @@ const FeaturesInServiceList = ({ featureViews }: FeatureViewsListInterace) => {
       field: "featureViewName",
       render: (name: string) => {
         return (
-          <EuiCustomLink
-            to={`${process.env.PUBLIC_URL || ""}/p/${projectName}/feature-view/${name}`}
-          >
+          <EuiCustomLink to={`/p/${projectName}/feature-view/${name}`}>
             {name}
           </EuiCustomLink>
         );
