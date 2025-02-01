@@ -446,126 +446,6 @@ def test_get_online_features_milvus() -> None:
                 full_feature_names=False,
             )
 
-        # TODO: Need to fix these tests to actually run corecctly.
-        # Create new FeatureStore object with fast cache invalidation
-        # cache_ttl = 1
-        # fs_fast_ttl = FeatureStore(
-        #     config=RepoConfig(
-        #         registry=RegistryConfig(
-        #             path=store.config.registry.path,
-        #             cache_ttl_seconds=cache_ttl,
-        #         ),
-        #         online_store=store.config.online_store,
-        #         project=store.project,
-        #         provider=store.config.provider,
-        #         entity_key_serialization_version=2,
-        #     ),
-        #     repo_path=store.repo_path,
-        # )
-        #
-        # # Should download the registry and cache it permanently (or until manually refreshed)
-        # result = fs_fast_ttl.get_online_features(
-        #     features=[
-        #         "driver_locations:lon",
-        #         "customer_profile:avg_orders_day",
-        #         "customer_profile:name",
-        #         "customer_driver_combined:trips",
-        #     ],
-        #     entity_rows=[{"driver_id": 1, "customer_id": 5}],
-        #     full_feature_names=False,
-        # ).to_dict()
-        # assert result["lon"] == ["1.0"]
-        # assert result["trips"] == [7]
-        #
-        # # Rename the registry.db so that it cant be used for refreshes
-        # os.rename(store.config.registry.path, store.config.registry.path + "_fake")
-        #
-        # # Wait for registry to expire
-        # time.sleep(cache_ttl)
-        #
-        # # Will try to reload registry because it has expired (it will fail because we deleted the actual registry file)
-        # with pytest.raises(FileNotFoundError):
-        #     fs_fast_ttl.get_online_features(
-        #         features=[
-        #             "driver_locations:lon",
-        #             "customer_profile:avg_orders_day",
-        #             "customer_profile:name",
-        #             "customer_driver_combined:trips",
-        #         ],
-        #         entity_rows=[{"driver_id": 1, "customer_id": 5}],
-        #         full_feature_names=False,
-        #     ).to_dict()
-        #
-        # # Restore registry.db so that we can see if it actually reloads registry
-        # os.rename(store.config.registry.path + "_fake", store.config.registry.path)
-        #
-        # # Test if registry is actually reloaded and whether results return
-        # result = fs_fast_ttl.get_online_features(
-        #     features=[
-        #         "driver_locations:lon",
-        #         "customer_profile:avg_orders_day",
-        #         "customer_profile:name",
-        #         "customer_driver_combined:trips",
-        #     ],
-        #     entity_rows=[{"driver_id": 1, "customer_id": 5}],
-        #     full_feature_names=False,
-        # ).to_dict()
-        # assert result["lon"] == ["1.0"]
-        # assert result["trips"] == [7]
-        #
-        # # Create a registry with infinite cache (for users that want to manually refresh the registry)
-        # fs_infinite_ttl = FeatureStore(
-        #     config=RepoConfig(
-        #         registry=RegistryConfig(
-        #             path=store.config.registry.path, cache_ttl_seconds=0
-        #         ),
-        #         online_store=store.config.online_store,
-        #         project=store.project,
-        #         provider=store.config.provider,
-        #         entity_key_serialization_version=2,
-        #     )
-        # )
-        #
-        # # Should return results (and fill the registry cache)
-        # result = fs_infinite_ttl.get_online_features(
-        #     features=[
-        #         "driver_locations:lon",
-        #         "customer_profile:avg_orders_day",
-        #         "customer_profile:name",
-        #         "customer_driver_combined:trips",
-        #     ],
-        #     entity_rows=[{"driver_id": 1, "customer_id": 5}],
-        #     full_feature_names=False,
-        # ).to_dict()
-        # assert result["lon"] == ["1.0"]
-        # assert result["trips"] == [7]
-        #
-        # # Wait a bit so that an arbitrary TTL would take effect
-        # time.sleep(2)
-        #
-        # # Rename the registry.db so that it cant be used for refreshes
-        # os.rename(store.config.registry.path, store.config.registry.path + "_fake")
-        #
-        # # TTL is infinite so this method should use registry cache
-        # result = fs_infinite_ttl.get_online_features(
-        #     features=[
-        #         "driver_locations:lon",
-        #         "customer_profile:avg_orders_day",
-        #         "customer_profile:name",
-        #         "customer_driver_combined:trips",
-        #     ],
-        #     entity_rows=[{"driver_id": 1, "customer_id": 5}],
-        #     full_feature_names=False,
-        # ).to_dict()
-        # assert result["lon"] == ["1.0"]
-        # assert result["trips"] == [7]
-        #
-        # # Force registry reload (should fail because file is missing)
-        # with pytest.raises(FileNotFoundError):
-        #     fs_infinite_ttl.refresh_registry()
-        #
-        # # Restore registry.db so that teardown works
-        # os.rename(store.config.registry.path + "_fake", store.config.registry.path)
 
 
 def test_online_to_df():
@@ -915,7 +795,7 @@ def test_local_milvus() -> None:
     client.drop_collection(collection_name=COLLECTION_NAME)
 
 
-def test_milvus_lite_get_online_documents() -> None:
+def test_milvus_lite_get_online_documents_v2() -> None:
     """
     Test retrieving documents from the online store in local mode.
     """

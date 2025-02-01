@@ -247,6 +247,9 @@ def from_feast_type(
     Args:
         feast_type: The Feast type to be converted.
 
+    Returns:
+        The corresponding ValueType enum.
+
     Raises:
         ValueError: The conversion could not be performed.
     """
