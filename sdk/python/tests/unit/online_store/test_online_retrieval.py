@@ -447,7 +447,6 @@ def test_get_online_features_milvus() -> None:
             )
 
 
-
 def test_online_to_df():
     """
     Test dataframe conversion. Make sure the response columns and rows are
