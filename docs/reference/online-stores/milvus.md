@@ -7,7 +7,7 @@ The [Milvus](https://milvus.io/) online store provides support for materializing
 * The data model used to store feature values in Milvus is described in more detail [here](../../specs/online\_store\_format.md).
 
 ## Getting started
-In order to use this online store, you'll need to install the redis extra (along with the dependency needed for the offline store of choice). E.g.
+In order to use this online store, you'll need to install the Milvus extra (along with the dependency needed for the offline store of choice). E.g.
 
 `pip install 'feast[milvus]'`
 
@@ -35,7 +35,7 @@ online_store:
 {% endcode %}
 
 
-The full set of configuration options is available in [RedisOnlineStoreConfig](https://rtd.feast.dev/en/latest/#feast.infra.online_stores.redis.RedisOnlineStoreConfig).
+The full set of configuration options is available in [MilvusOnlineStoreConfig](https://rtd.feast.dev/en/latest/#feast.infra.online_stores.milvus.MilvusOnlineStoreConfig).
 
 ## Functionality Matrix
 
