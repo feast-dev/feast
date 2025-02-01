@@ -4,7 +4,6 @@ from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
 
 from pydantic import StrictStr
 from pymilvus import (
-    Collection,
     CollectionSchema,
     DataType,
     FieldSchema,
@@ -20,13 +19,13 @@ from feast.infra.key_encoding_utils import (
 )
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.online_stores.vector_store import VectorStoreConfig
-from feast.protos.feast.core.InfraObject_pb2 import InfraObject as InfraObjectProto
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.type_map import (
     PROTO_VALUE_TO_VALUE_TYPE_MAP,
+    VALUE_TYPE_TO_PROTO_VALUE_MAP,
     feast_value_type_to_python_type,
 )
 from feast.types import (
@@ -35,6 +34,7 @@ from feast.types import (
     ComplexFeastType,
     PrimitiveFeastType,
     ValueType,
+    from_feast_type,
 )
 from feast.utils import (
     _serialize_vector_to_float_list,
@@ -146,9 +146,7 @@ class MilvusOnlineStore(OnlineStore):
         collection_name = _table_id(config.project, table)
         if collection_name not in self._collections:
             # Create a composite key by combining entity fields
-            composite_key_name = (
-                "_".join([field.name for field in table.entity_columns]) + "_pk"
-            )
+            composite_key_name = _get_composite_key_name(table)
 
             fields = [
                 FieldSchema(
@@ -251,9 +249,8 @@ class MilvusOnlineStore(OnlineStore):
             ).hex()
             # to recover the entity key just run:
             # deserialize_entity_key(bytes.fromhex(entity_key_str), entity_key_serialization_version=3)
-            composite_key_name = (
-                "_".join([str(value) for value in entity_key.join_keys]) + "_pk"
-            )
+            composite_key_name = _get_composite_key_name(table)
+
             timestamp_int = int(to_naive_utc(timestamp).timestamp() * 1e6)
             created_ts_int = (
                 int(to_naive_utc(created_ts).timestamp() * 1e6) if created_ts else 0
@@ -293,8 +290,133 @@ class MilvusOnlineStore(OnlineStore):
         table: FeatureView,
         entity_keys: List[EntityKeyProto],
         requested_features: Optional[List[str]] = None,
+        full_feature_names: bool = False,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
-        raise NotImplementedError
+        self.client = self._connect(config)
+        collection_name = _table_id(config.project, table)
+        collection = self._get_or_create_collection(config, table)
+
+        composite_key_name = _get_composite_key_name(table)
+
+        output_fields = (
+            [composite_key_name]
+            + (requested_features if requested_features else [])
+            + ["created_ts", "event_ts"]
+        )
+        assert all(
+            field in [f["name"] for f in collection["fields"]]
+            for field in output_fields
+        ), (
+            f"field(s) [{[field for field in output_fields if field not in [f['name'] for f in collection['fields']]]}] not found in collection schema"
+        )
+        composite_entities = []
+        for entity_key in entity_keys:
+            entity_key_str = serialize_entity_key(
+                entity_key,
+                entity_key_serialization_version=config.entity_key_serialization_version,
+            ).hex()
+            composite_entities.append(entity_key_str)
+
+        query_filter_for_entities = (
+            f"{composite_key_name} in ["
+            + ", ".join([f"'{e}'" for e in composite_entities])
+            + "]"
+        )
+        self.client.load_collection(collection_name)
+        results = self.client.query(
+            collection_name=collection_name,
+            filter=query_filter_for_entities,
+            output_fields=output_fields,
+        )
+        # Group hits by composite key.
+        grouped_hits: Dict[str, Any] = {}
+        for hit in results:
+            key = hit.get(composite_key_name)
+            grouped_hits.setdefault(key, []).append(hit)
+
+        # Map the features to their Feast types.
+        feature_name_feast_primitive_type_map = {
+            f.name: f.dtype for f in table.features
+        }
+        # Build a dictionary mapping composite key -> (res_ts, res)
+        results_dict: Dict[
+            str, Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]
+        ] = {}
+
+        # here we need to map the data stored as characters back into the protobuf value
+        for hit in results:
+            key = hit.get(composite_key_name)
+            # Only take one hit per composite key (adjust if you need aggregation)
+            if key not in results_dict:
+                res = {}
+                res_ts = None
+                for field in output_fields:
+                    val = ValueProto()
+                    field_value = hit.get(field, None)
+                    if field_value is None and ":" in field:
+                        _, field_short = field.split(":", 1)
+                        field_value = hit.get(field_short)
+
+                    if field in ["created_ts", "event_ts"]:
+                        res_ts = datetime.fromtimestamp(field_value / 1e6)
+                    elif field == composite_key_name:
+                        # We do not return the composite key value
+                        pass
+                    else:
+                        feature_feast_primitive_type = (
+                            feature_name_feast_primitive_type_map.get(
+                                field, PrimitiveFeastType.INVALID
+                            )
+                        )
+                        feature_fv_dtype = from_feast_type(feature_feast_primitive_type)
+                        proto_attr = VALUE_TYPE_TO_PROTO_VALUE_MAP.get(feature_fv_dtype)
+                        if proto_attr:
+                            if proto_attr == "bytes_val":
+                                setattr(val, proto_attr, field_value.encode())
+                            elif proto_attr in [
+                                "int32_val",
+                                "int64_val",
+                                "float_val",
+                                "double_val",
+                            ]:
+                                setattr(
+                                    val,
+                                    proto_attr,
+                                    type(getattr(val, proto_attr))(field_value),
+                                )
+                            elif proto_attr in [
+                                "int32_list_val",
+                                "int64_list_val",
+                                "float_list_val",
+                                "double_list_val",
+                            ]:
+                                setattr(
+                                    val,
+                                    proto_attr,
+                                    list(
+                                        map(
+                                            type(getattr(val, proto_attr)).__args__[0],
+                                            field_value,
+                                        )
+                                    ),
+                                )
+                            else:
+                                setattr(val, proto_attr, field_value)
+                        else:
+                            raise ValueError(
+                                f"Unsupported ValueType: {feature_feast_primitive_type} with feature view value {field_value} for feature {field} with value {field_value}"
+                            )
+                        # res[field] = val
+                        key_to_use = field.split(":", 1)[-1] if ":" in field else field
+                        res[key_to_use] = val
+                results_dict[key] = (res_ts, res if res else None)
+
+        # Map the results back into a list matching the original order of composite_keys.
+        result_list = [
+            results_dict.get(key, (None, None)) for key in composite_entities
+        ]
+
+        return result_list
 
     def update(
         self,
@@ -362,11 +484,7 @@ class MilvusOnlineStore(OnlineStore):
             "params": {"nprobe": 10},
         }
 
-        composite_key_name = (
-            "_".join([str(field.name) for field in table.entity_columns]) + "_pk"
-        )
-        # features_str = ", ".join([f"'{f}'" for f in requested_features])
-        # expr = f" && feature_name in [{features_str}]"
+        composite_key_name = _get_composite_key_name(table)
 
         output_fields = (
             [composite_key_name]
@@ -452,6 +570,10 @@ def _table_id(project: str, table: FeatureView) -> str:
     return f"{project}_{table.name}"
 
 
+def _get_composite_key_name(table: FeatureView) -> str:
+    return "_".join([field.name for field in table.entity_columns]) + "_pk"
+
+
 def _extract_proto_values_to_dict(
     input_dict: Dict[str, Any],
     vector_cols: List[str],
@@ -461,6 +583,13 @@ def _extract_proto_values_to_dict(
         k
         for k in PROTO_VALUE_TO_VALUE_TYPE_MAP.keys()
         if k is not None and "list" in k and "string" not in k
+    ]
+    numeric_types = [
+        "double_val",
+        "float_val",
+        "int32_val",
+        "int64_val",
+        "bool_val",
     ]
     output_dict = {}
     for feature_name, feature_values in input_dict.items():
@@ -475,10 +604,18 @@ def _extract_proto_values_to_dict(
                         else:
                             vector_values = getattr(feature_values, proto_val_type).val
                     else:
-                        if serialize_to_string and proto_val_type != "string_val":
+                        if (
+                            serialize_to_string
+                            and proto_val_type not in ["string_val"] + numeric_types
+                        ):
                             vector_values = feature_values.SerializeToString().decode()
                         else:
-                            vector_values = getattr(feature_values, proto_val_type)
+                            if not isinstance(feature_values, str):
+                                vector_values = str(
+                                    getattr(feature_values, proto_val_type)
+                                )
+                            else:
+                                vector_values = getattr(feature_values, proto_val_type)
                     output_dict[feature_name] = vector_values
             else:
                 if serialize_to_string:
@@ -487,39 +624,3 @@ def _extract_proto_values_to_dict(
                     output_dict[feature_name] = feature_values
 
     return output_dict
-
-
-class MilvusTable(InfraObject):
-    """
-    A Milvus collection managed by Feast.
-
-    Attributes:
-        host: The host of the Milvus server.
-        port: The port of the Milvus server.
-        name: The name of the collection.
-    """
-
-    host: str
-    port: int
-
-    def __init__(self, host: str, port: int, name: str):
-        super().__init__(name)
-        self.host = host
-        self.port = port
-        self._connect()
-
-    def _connect(self):
-        raise NotImplementedError
-
-    def to_infra_object_proto(self) -> InfraObjectProto:
-        # Implement serialization if needed
-        raise NotImplementedError
-
-    def update(self):
-        # Implement update logic if needed
-        raise NotImplementedError
-
-    def teardown(self):
-        collection = Collection(name=self.name)
-        if collection.exists():
-            collection.drop()

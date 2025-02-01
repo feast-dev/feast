@@ -540,6 +540,10 @@ PROTO_VALUE_TO_VALUE_TYPE_MAP: Dict[str, ValueType] = {
     "bool_list_val": ValueType.BOOL_LIST,
 }
 
+VALUE_TYPE_TO_PROTO_VALUE_MAP: Dict[ValueType, str] = {
+    v: k for k, v in PROTO_VALUE_TO_VALUE_TYPE_MAP.items()
+}
+
 
 def _proto_value_to_value_type(proto_value: ProtoValue) -> ValueType:
     """
