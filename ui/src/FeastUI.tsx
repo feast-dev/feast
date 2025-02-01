@@ -9,16 +9,23 @@ import FeastUISansProviders, { FeastUIConfigs } from "./FeastUISansProviders";
 interface FeastUIProps {
   reactQueryClient?: QueryClient;
   feastUIConfigs?: FeastUIConfigs;
+  /**
+   * Set to run underneath a specific basename in the URL; passed to React Router.
+   */
+  basename?: string;
 }
 
 const defaultQueryClient = new QueryClient();
 
-const FeastUI = ({ reactQueryClient, feastUIConfigs }: FeastUIProps) => {
+const FeastUI = ({ reactQueryClient, feastUIConfigs, basename }: FeastUIProps) => {
   const queryClient = reactQueryClient || defaultQueryClient;
 
   return (
     // Disable v7_relativeSplatPath: custom tab routes don't currently work with it
-    <BrowserRouter future={{ v7_relativeSplatPath: false, v7_startTransition: true }}>
+    <BrowserRouter
+      basename={basename}
+      future={{ v7_relativeSplatPath: false, v7_startTransition: true }}
+    >
       <QueryClientProvider client={queryClient}>
         <QueryParamProvider adapter={ReactRouter6Adapter}>
           <FeastUISansProviders feastUIConfigs={feastUIConfigs} />

@@ -91,14 +91,17 @@ const tabsRegistry = {
   ],
 };
 
+const basename = process.env.PUBLIC_URL ?? '';
+
 const root = createRoot(document.getElementById("root")!);
 root.render(
   <React.StrictMode>
     <FeastUI
+      basename={basename}
       reactQueryClient={queryClient}
       feastUIConfigs={{
         tabsRegistry: tabsRegistry,
-        projectListPromise: fetch((process.env.PUBLIC_URL || "") + "/projects-list.json", {
+        projectListPromise: fetch(`${basename}/projects-list.json`, {
             headers: {
               "Content-Type": "application/json",
             },
