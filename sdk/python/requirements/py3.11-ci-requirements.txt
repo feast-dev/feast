@@ -1041,7 +1041,7 @@ uvicorn-worker==0.3.0
     # via feast (setup.py)
 uvloop==0.21.0
     # via uvicorn
-virtualenv==20.23.0
+virtualenv==20.26.6
     # via
     #   feast (setup.py)
     #   pre-commit
