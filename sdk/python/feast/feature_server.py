@@ -74,6 +74,7 @@ class GetOnlineFeaturesRequest(BaseModel):
     feature_service: Optional[str] = None
     features: Optional[List[str]] = None
     full_feature_names: bool = False
+    query_embedding: Optional[List[float]] = None
 
 
 def _get_features(request: GetOnlineFeaturesRequest, store: "feast.FeatureStore"):
@@ -104,7 +105,6 @@ def _get_features(request: GetOnlineFeaturesRequest, store: "feast.FeatureStore"
                 resource=od_feature_view, actions=[AuthzedAction.READ_ONLINE]
             )
         features = request.features  # type: ignore
-
     return features
 
 
@@ -167,6 +167,39 @@ def get_app(
             response = await run_in_threadpool(
                 lambda: store.get_online_features(**read_params)  # type: ignore
             )
+
+        # Convert the Protobuf object to JSON and return it
+        response_dict = await run_in_threadpool(
+            MessageToDict,
+            response.proto,
+            preserving_proto_field_name=True,
+            float_precision=18,
+        )
+        return response_dict
+
+    @app.post(
+        "/retrieve-online-documents",
+        dependencies=[Depends(inject_user_details)],
+    )
+    async def retrieve_online_documents(
+        request: GetOnlineFeaturesRequest,
+    ) -> Dict[str, Any]:
+        logger.warn(
+            "This endpoint is in alpha and will be moved to /get-online-features when stable."
+        )
+        # Initialize parameters for FeatureStore.retrieve_online_documents_v2(...) call
+        features = await run_in_threadpool(_get_features, request, store)
+
+        read_params = dict(
+            features=features,
+            entity_rows=request.entities,
+            full_feature_names=request.full_feature_names,
+            query=request.query_embedding,
+        )
+
+        response = await run_in_threadpool(
+            lambda: store.retrieve_online_documents_v2(**read_params)  # type: ignore
+        )
 
         # Convert the Protobuf object to JSON and return it
         response_dict = await run_in_threadpool(
