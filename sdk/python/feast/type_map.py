@@ -1077,3 +1077,32 @@ def pa_to_athena_value_type(pa_type: "pyarrow.DataType") -> str:
     }
 
     return type_map[pa_type_as_str]
+
+
+def cb_columnar_type_to_feast_value_type(type_str: str) -> ValueType:
+    """
+    Convert a Couchbase Columnar type string to a Feast ValueType
+    """
+    type_map: Dict[str, ValueType] = {
+        # primitive types
+        "boolean": ValueType.BOOL,
+        "string": ValueType.STRING,
+        "bigint": ValueType.INT64,
+        "double": ValueType.DOUBLE,
+        # special types
+        "null": ValueType.NULL,
+        "missing": ValueType.UNKNOWN,
+        # composite types
+        "object": ValueType.UNKNOWN,
+        "array": ValueType.UNKNOWN,
+        "multiset": ValueType.UNKNOWN,
+        "uuid": ValueType.STRING,
+    }
+    value = (
+        type_map[type_str.lower()]
+        if type_str.lower() in type_map
+        else ValueType.UNKNOWN
+    )
+    if value == ValueType.UNKNOWN:
+        print("unknown type:", type_str)
+    return value
