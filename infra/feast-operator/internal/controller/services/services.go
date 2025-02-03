@@ -381,12 +381,12 @@ func (feast *FeastServices) setContainers(podSpec *corev1.PodSpec) error {
 
 func (feast *FeastServices) setContainer(containers *[]corev1.Container, feastType FeastServiceType, fsYamlB64 string) {
 	tls := feast.getTlsConfigs(feastType)
-	serviceConfigs := feast.getServiceConfigs(feastType)
-	defaultServiceConfigs := serviceConfigs.DefaultConfigs
+	containerConfigs := feast.getContainerConfigs(feastType)
+	defaultCtrConfigs := containerConfigs.DefaultCtrConfigs
 	probeHandler := getProbeHandler(feastType, tls)
 	container := &corev1.Container{
 		Name:       string(feastType),
-		Image:      *defaultServiceConfigs.Image,
+		Image:      *defaultCtrConfigs.Image,
 		WorkingDir: getOfflineMountPath(feast.Handler.FeatureStore) + "/" + feast.Handler.FeatureStore.Status.Applied.FeastProject + FeatureRepoDir,
 		Command:    feast.getContainerCommand(feastType),
 		Ports: []corev1.ContainerPort{
@@ -417,7 +417,7 @@ func (feast *FeastServices) setContainer(containers *[]corev1.Container, feastTy
 			PeriodSeconds: 10,
 		},
 	}
-	applyOptionalContainerConfigs(container, serviceConfigs.OptionalConfigs)
+	applyOptionalCtrConfigs(container, containerConfigs.OptionalCtrConfigs)
 	*containers = append(*containers, *container)
 }
 
@@ -554,27 +554,27 @@ func (feast *FeastServices) createNewPVC(pvcCreate *feastdevv1alpha1.PvcCreate, 
 	return pvc, controllerutil.SetControllerReference(feast.Handler.FeatureStore, pvc, feast.Handler.Scheme)
 }
 
-func (feast *FeastServices) getServiceConfigs(feastType FeastServiceType) feastdevv1alpha1.ServiceConfigs {
+func (feast *FeastServices) getContainerConfigs(feastType FeastServiceType) feastdevv1alpha1.ContainerConfigs {
 	appliedServices := feast.Handler.FeatureStore.Status.Applied.Services
 	switch feastType {
 	case OfflineFeastType:
 		if feast.isOfflinStore() {
-			return appliedServices.OfflineStore.ServiceConfigs
+			return appliedServices.OfflineStore.ServerConfigs.ContainerConfigs
 		}
 	case OnlineFeastType:
 		if feast.isOnlinStore() {
-			return appliedServices.OnlineStore.ServiceConfigs
+			return appliedServices.OnlineStore.ServerConfigs.ContainerConfigs
 		}
 	case RegistryFeastType:
 		if feast.isLocalRegistry() {
-			return appliedServices.Registry.Local.ServiceConfigs
+			return appliedServices.Registry.Local.ServerConfigs.ContainerConfigs
 		}
 	case UIFeastType:
 		if feast.isUI() {
-			return appliedServices.UI.ServiceConfigs
+			return appliedServices.UI.ContainerConfigs
 		}
 	}
-	return feastdevv1alpha1.ServiceConfigs{}
+	return feastdevv1alpha1.ContainerConfigs{}
 }
 
 func (feast *FeastServices) getLogLevelForType(feastType FeastServiceType) *string {
@@ -805,7 +805,7 @@ func (feast *FeastServices) initRoute(feastType FeastServiceType) *routev1.Route
 	return route
 }
 
-func applyOptionalContainerConfigs(container *corev1.Container, optionalConfigs feastdevv1alpha1.OptionalConfigs) {
+func applyOptionalCtrConfigs(container *corev1.Container, optionalConfigs feastdevv1alpha1.OptionalCtrConfigs) {
 	if optionalConfigs.Env != nil {
 		container.Env = envOverride(container.Env, *optionalConfigs.Env)
 	}

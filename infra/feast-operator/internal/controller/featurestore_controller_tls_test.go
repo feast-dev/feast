@@ -71,17 +71,23 @@ var _ = Describe("FeatureStore Controller - Feast service TLS", func() {
 						FeastProject: feastProject,
 						Services: &feastdevv1alpha1.FeatureStoreServices{
 							OnlineStore: &feastdevv1alpha1.OnlineStore{
-								TLS: tlsConfigs,
-							},
-							OfflineStore: &feastdevv1alpha1.OfflineStore{
-								TLS: tlsConfigs,
-							},
-							Registry: &feastdevv1alpha1.Registry{
-								Local: &feastdevv1alpha1.LocalRegistryConfig{
+								ServerConfigs: feastdevv1alpha1.ServerConfigs{
 									TLS: tlsConfigs,
 								},
 							},
-							UI: &feastdevv1alpha1.UIService{
+							OfflineStore: &feastdevv1alpha1.OfflineStore{
+								ServerConfigs: feastdevv1alpha1.ServerConfigs{
+									TLS: tlsConfigs,
+								},
+							},
+							Registry: &feastdevv1alpha1.Registry{
+								Local: &feastdevv1alpha1.LocalRegistryConfig{
+									ServerConfigs: feastdevv1alpha1.ServerConfigs{
+										TLS: tlsConfigs,
+									},
+								},
+							},
+							UI: &feastdevv1alpha1.ServerConfigs{
 								TLS: tlsConfigs,
 							},
 						},
@@ -350,12 +356,16 @@ var _ = Describe("FeatureStore Controller - Feast service TLS", func() {
 				FeastProject: feastProject,
 				Services: &feastdevv1alpha1.FeatureStoreServices{
 					OnlineStore: &feastdevv1alpha1.OnlineStore{
-						TLS: &feastdevv1alpha1.TlsConfigs{
-							Disable: &disable,
+						ServerConfigs: feastdevv1alpha1.ServerConfigs{
+							TLS: &feastdevv1alpha1.TlsConfigs{
+								Disable: &disable,
+							},
 						},
 					},
 					OfflineStore: &feastdevv1alpha1.OfflineStore{
-						TLS: tlsConfigs,
+						ServerConfigs: feastdevv1alpha1.ServerConfigs{
+							TLS: tlsConfigs,
+						},
 					},
 					Registry: &feastdevv1alpha1.Registry{
 						Remote: &feastdevv1alpha1.RemoteRegistryConfig{

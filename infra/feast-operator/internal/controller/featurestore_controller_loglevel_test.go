@@ -61,16 +61,22 @@ var _ = Describe("FeatureStore Controller - Feast service LogLevel", func() {
 						Services: &feastdevv1alpha1.FeatureStoreServices{
 							Registry: &feastdevv1alpha1.Registry{
 								Local: &feastdevv1alpha1.LocalRegistryConfig{
-									LogLevel: "error",
+									ServerConfigs: feastdevv1alpha1.ServerConfigs{
+										LogLevel: "error",
+									},
 								},
 							},
 							OnlineStore: &feastdevv1alpha1.OnlineStore{
-								LogLevel: "debug",
+								ServerConfigs: feastdevv1alpha1.ServerConfigs{
+									LogLevel: "debug",
+								},
 							},
 							OfflineStore: &feastdevv1alpha1.OfflineStore{
-								LogLevel: "info",
+								ServerConfigs: feastdevv1alpha1.ServerConfigs{
+									LogLevel: "info",
+								},
 							},
-							UI: &feastdevv1alpha1.UIService{
+							UI: &feastdevv1alpha1.ServerConfigs{
 								LogLevel: "info",
 							},
 						},
@@ -193,7 +199,7 @@ var _ = Describe("FeatureStore Controller - Feast service LogLevel", func() {
 				},
 				OnlineStore:  &feastdevv1alpha1.OnlineStore{},
 				OfflineStore: &feastdevv1alpha1.OfflineStore{},
-				UI:           &feastdevv1alpha1.UIService{},
+				UI:           &feastdevv1alpha1.ServerConfigs{},
 			}
 			Expect(k8sClient.Update(ctx, resource)).To(Succeed())
 
