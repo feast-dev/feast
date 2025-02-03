@@ -43,7 +43,7 @@ The set of functionality supported by online stores is described in detail [here
 Below is a matrix indicating which functionality is supported by the Milvus online store.
 
 |                                                           | Milvus |
-| :-------------------------------------------------------- |:-------|
+|:----------------------------------------------------------|:-------|
 | write feature values to the online store                  | yes    |
 | read feature values from the online store                 | yes    |
 | update infrastructure (e.g. tables) in the online store   | yes    |
@@ -59,6 +59,7 @@ Below is a matrix indicating which functionality is supported by the Milvus onli
 | support for deleting expired data                         | yes    |
 | collocated by feature view                                | no     |
 | collocated by feature service                             | no     |
-| collocated by entity key                                  | yes    |
+| collocated by entity key                                  | no     |
+| vector similarity search                                  | yes    |
 
 To compare this set of functionality against other online stores, please see the full [functionality matrix](overview.md#functionality-matrix).
