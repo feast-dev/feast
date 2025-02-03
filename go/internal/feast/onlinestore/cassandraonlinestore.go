@@ -257,7 +257,6 @@ func (c *CassandraOnlineStore) getMultiKeyCQLStatement(tableName string, feature
 	for i := 0; i < nkeys; i++ {
 		keyPlaceholders[i] = "?"
 	}
-
 	return fmt.Sprintf(
 		`SELECT "entity_key", "feature_name", "event_ts", "value" FROM %s WHERE "entity_key" IN (%s) AND "feature_name" IN (%s)`,
 		tableName,
@@ -424,7 +423,6 @@ func (c *CassandraOnlineStore) BatchedKeysOnlineRead(ctx context.Context, entity
 	if len(uniqueNames) != 1 {
 		return nil, fmt.Errorf("rejecting OnlineRead as more than 1 feature view was tried to be read at once")
 	}
-
 	serializedEntityKeys, serializedEntityKeyToIndex, err := c.buildCassandraEntityKeys(entityKeys)
 
 	if err != nil {
@@ -449,7 +447,6 @@ func (c *CassandraOnlineStore) BatchedKeysOnlineRead(ctx context.Context, entity
 	nKeys := len(serializedEntityKeys)
 	batchSize := c.keyBatchSize
 	nBatches := int(math.Ceil(float64(nKeys) / float64(batchSize)))
-
 	batches := make([][]any, nBatches)
 	nAssigned := 0
 	for i := 0; i < nBatches; i++ {
@@ -465,18 +462,18 @@ func (c *CassandraOnlineStore) BatchedKeysOnlineRead(ctx context.Context, entity
 	waitGroup.Add(nBatches)
 
 	errorsChannel := make(chan error, nBatches)
+	var currentBatchLength int
 	var prevBatchLength int
 	var cqlStatement string
 	for _, batch := range batches {
-		go func(keyBatch []any) {
+		currentBatchLength = len(batch)
+		if currentBatchLength != prevBatchLength {
+			cqlStatement = c.getMultiKeyCQLStatement(tableName, featureNames, currentBatchLength)
+			prevBatchLength = currentBatchLength
+		}
+		go func(keyBatch []any, statement string) {
 			defer waitGroup.Done()
-
-			// this caches the previous batch query if it had the same number of keys
-			if len(keyBatch) != prevBatchLength {
-				cqlStatement = c.getMultiKeyCQLStatement(tableName, featureNames, len(keyBatch))
-			}
-
-			iter := c.session.Query(cqlStatement, keyBatch...).WithContext(ctx).Iter()
+			iter := c.session.Query(statement, keyBatch...).WithContext(ctx).Iter()
 
 			scanner := iter.Scanner()
 			var entityKey string
@@ -539,7 +536,7 @@ func (c *CassandraOnlineStore) BatchedKeysOnlineRead(ctx context.Context, entity
 					results[serializedEntityKeyToIndex[keyString]][featureNamesToIdx[featName]] = featureData
 				}
 			}
-		}(batch)
+		}(batch, cqlStatement)
 	}
 	// wait until all concurrent single-key queries are done
 	waitGroup.Wait()
