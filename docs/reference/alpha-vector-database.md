@@ -7,14 +7,16 @@ Vector database allows user to store and retrieve embeddings. Feast provides gen
 ## Integration
 Below are supported vector databases and implemented features:
 
-| Vector Database | Retrieval | Indexing |
-|-----------------|-----------|----------|
-| Pgvector        | [x]       | [ ]      |
-| Elasticsearch   | [x]       | [x]      |
-| Milvus          | [x]       | [x]      |
-| Faiss           | [ ]       | [ ]      |
-| SQLite          | [x]       | [ ]      |
-| Qdrant          | [x]       | [x]      |
+| Vector Database | Retrieval | Indexing | V2 Support* | 
+|-----------------|-----------|----------|-------------|
+| Pgvector        | [x]       | [ ]      | []          |
+| Elasticsearch   | [x]       | [x]      | []          |
+| Milvus          | [x]       | [x]      | [x]         |
+| Faiss           | [ ]       | [ ]      | []          |
+| SQLite          | [x]       | [ ]      | []          |
+| Qdrant          | [x]       | [x]      | []          |
+
+*Note: V2 Support means the SDK supports retrieval of features along with vector embeddings from vector similarity search.
 
 Note: SQLite is in limited access and only working on Python 3.10. It will be updated as [sqlite_vec](https://github.com/asg017/sqlite-vec/) progresses.
 
