@@ -74,13 +74,8 @@ class GetOnlineFeaturesRequest(BaseModel):
     feature_service: Optional[str] = None
     features: Optional[List[str]] = None
     full_feature_names: bool = False
-
-class RetrieveOnlineDocumentsRequest(BaseModel):
-    entities: Dict[str, List[Any]]
-    feature_service: Optional[str] = None
-    features: Optional[List[str]] = None
-    full_feature_names: bool = False
     query_embedding: Optional[List[float]] = None
+
 
 def _get_features(request: GetOnlineFeaturesRequest, store: "feast.FeatureStore"):
     if request.feature_service:
@@ -110,7 +105,6 @@ def _get_features(request: GetOnlineFeaturesRequest, store: "feast.FeatureStore"
                 resource=od_feature_view, actions=[AuthzedAction.READ_ONLINE]
             )
         features = request.features  # type: ignore
-
     return features
 
 
@@ -187,8 +181,12 @@ def get_app(
         "/retrieve-online-documents",
         dependencies=[Depends(inject_user_details)],
     )
-    async def retrieve_online_documents(request: RetrieveOnlineDocumentsRequest) -> Dict[str, Any]:
-        logger.warn("This endpoint is in alpha and will be moved to /get-online-features when stable.")
+    async def retrieve_online_documents(
+        request: GetOnlineFeaturesRequest,
+    ) -> Dict[str, Any]:
+        logger.warn(
+            "This endpoint is in alpha and will be moved to /get-online-features when stable."
+        )
         # Initialize parameters for FeatureStore.retrieve_online_documents_v2(...) call
         features = await run_in_threadpool(_get_features, request, store)
 
