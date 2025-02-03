@@ -164,17 +164,21 @@ var _ = Describe("TLS Config", func() {
 			feast.Handler.FeatureStore = minimalFeatureStore()
 			feast.Handler.FeatureStore.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
 				OnlineStore: &feastdevv1alpha1.OnlineStore{
-					TLS: &feastdevv1alpha1.TlsConfigs{},
+					ServerConfigs: feastdevv1alpha1.ServerConfigs{
+						TLS: &feastdevv1alpha1.TlsConfigs{},
+					},
 				},
-				UI: &feastdevv1alpha1.UIService{
+				UI: &feastdevv1alpha1.ServerConfigs{
 					TLS: &feastdevv1alpha1.TlsConfigs{},
 				},
 				Registry: &feastdevv1alpha1.Registry{
 					Local: &feastdevv1alpha1.LocalRegistryConfig{
-						TLS: &feastdevv1alpha1.TlsConfigs{
-							SecretRef: &corev1.LocalObjectReference{},
-							SecretKeyNames: feastdevv1alpha1.SecretKeyNames{
-								TlsCrt: "test.crt",
+						ServerConfigs: feastdevv1alpha1.ServerConfigs{
+							TLS: &feastdevv1alpha1.TlsConfigs{
+								SecretRef: &corev1.LocalObjectReference{},
+								SecretKeyNames: feastdevv1alpha1.SecretKeyNames{
+									TlsCrt: "test.crt",
+								},
 							},
 						},
 					},
@@ -219,8 +223,10 @@ var _ = Describe("TLS Config", func() {
 			}
 			feast.Handler.FeatureStore.Spec.Services.Registry = &feastdevv1alpha1.Registry{
 				Local: &feastdevv1alpha1.LocalRegistryConfig{
-					TLS: &feastdevv1alpha1.TlsConfigs{
-						Disable: &disable,
+					ServerConfigs: feastdevv1alpha1.ServerConfigs{
+						TLS: &feastdevv1alpha1.TlsConfigs{
+							Disable: &disable,
+						},
 					},
 				},
 			}

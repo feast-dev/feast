@@ -105,31 +105,35 @@ func createFeatureStoreResource(resourceName string, image string, pullPolicy co
 			FeastProject: feastProject,
 			Services: &feastdevv1alpha1.FeatureStoreServices{
 				OfflineStore: &feastdevv1alpha1.OfflineStore{
-					ServiceConfigs: feastdevv1alpha1.ServiceConfigs{
-						OptionalConfigs: feastdevv1alpha1.OptionalConfigs{
-							EnvFrom: envFromVar,
+					ServerConfigs: feastdevv1alpha1.ServerConfigs{
+						ContainerConfigs: feastdevv1alpha1.ContainerConfigs{
+							OptionalCtrConfigs: feastdevv1alpha1.OptionalCtrConfigs{
+								EnvFrom: envFromVar,
+							},
 						},
 					},
 				},
 				OnlineStore: &feastdevv1alpha1.OnlineStore{
-					ServiceConfigs: feastdevv1alpha1.ServiceConfigs{
-						DefaultConfigs: feastdevv1alpha1.DefaultConfigs{
-							Image: &image,
-						},
-						OptionalConfigs: feastdevv1alpha1.OptionalConfigs{
-							Env:             envVars,
-							EnvFrom:         envFromVar,
-							ImagePullPolicy: &pullPolicy,
-							Resources:       &corev1.ResourceRequirements{},
+					ServerConfigs: feastdevv1alpha1.ServerConfigs{
+						ContainerConfigs: feastdevv1alpha1.ContainerConfigs{
+							DefaultCtrConfigs: feastdevv1alpha1.DefaultCtrConfigs{
+								Image: &image,
+							},
+							OptionalCtrConfigs: feastdevv1alpha1.OptionalCtrConfigs{
+								Env:             envVars,
+								EnvFrom:         envFromVar,
+								ImagePullPolicy: &pullPolicy,
+								Resources:       &corev1.ResourceRequirements{},
+							},
 						},
 					},
 				},
-				UI: &feastdevv1alpha1.UIService{
-					ServiceConfigs: feastdevv1alpha1.ServiceConfigs{
-						DefaultConfigs: feastdevv1alpha1.DefaultConfigs{
+				UI: &feastdevv1alpha1.ServerConfigs{
+					ContainerConfigs: feastdevv1alpha1.ContainerConfigs{
+						DefaultCtrConfigs: feastdevv1alpha1.DefaultCtrConfigs{
 							Image: &image,
 						},
-						OptionalConfigs: feastdevv1alpha1.OptionalConfigs{
+						OptionalCtrConfigs: feastdevv1alpha1.OptionalCtrConfigs{
 							Env:             envVars,
 							EnvFrom:         envFromVar,
 							ImagePullPolicy: &pullPolicy,

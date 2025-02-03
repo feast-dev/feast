@@ -117,7 +117,7 @@ func ApplyDefaultsToStatus(cr *feastdevv1alpha1.FeatureStore) {
 			ensurePVCDefaults(services.Registry.Local.Persistence.FilePersistence.PvcConfig, RegistryFeastType)
 		}
 
-		setServiceDefaultConfigs(&services.Registry.Local.ServiceConfigs.DefaultConfigs)
+		setDefaultCtrConfigs(&services.Registry.Local.ServerConfigs.ContainerConfigs.DefaultCtrConfigs)
 	} else if services.Registry.Remote.FeastRef != nil && len(services.Registry.Remote.FeastRef.Namespace) == 0 {
 		services.Registry.Remote.FeastRef.Namespace = cr.Namespace
 	}
@@ -139,7 +139,7 @@ func ApplyDefaultsToStatus(cr *feastdevv1alpha1.FeatureStore) {
 			ensurePVCDefaults(services.OfflineStore.Persistence.FilePersistence.PvcConfig, OfflineFeastType)
 		}
 
-		setServiceDefaultConfigs(&services.OfflineStore.ServiceConfigs.DefaultConfigs)
+		setDefaultCtrConfigs(&services.OfflineStore.ServerConfigs.ContainerConfigs.DefaultCtrConfigs)
 	}
 
 	if services.OnlineStore != nil {
@@ -159,15 +159,15 @@ func ApplyDefaultsToStatus(cr *feastdevv1alpha1.FeatureStore) {
 			ensurePVCDefaults(services.OnlineStore.Persistence.FilePersistence.PvcConfig, OnlineFeastType)
 		}
 
-		setServiceDefaultConfigs(&services.OnlineStore.ServiceConfigs.DefaultConfigs)
+		setDefaultCtrConfigs(&services.OnlineStore.ServerConfigs.ContainerConfigs.DefaultCtrConfigs)
 	}
 	if services.UI != nil {
 
-		setServiceDefaultConfigs(&services.UI.ServiceConfigs.DefaultConfigs)
+		setDefaultCtrConfigs(&services.UI.ContainerConfigs.DefaultCtrConfigs)
 	}
 }
 
-func setServiceDefaultConfigs(defaultConfigs *feastdevv1alpha1.DefaultConfigs) {
+func setDefaultCtrConfigs(defaultConfigs *feastdevv1alpha1.DefaultCtrConfigs) {
 	if defaultConfigs.Image == nil {
 		img := getFeatureServerImage()
 		defaultConfigs.Image = &img

@@ -74,7 +74,7 @@ type FeatureStoreServices struct {
 	OfflineStore       *OfflineStore              `json:"offlineStore,omitempty"`
 	OnlineStore        *OnlineStore               `json:"onlineStore,omitempty"`
 	Registry           *Registry                  `json:"registry,omitempty"`
-	UI                 *UIService                 `json:"ui,omitempty"`
+	UI                 *ServerConfigs             `json:"ui,omitempty"`
 	DeploymentStrategy *appsv1.DeploymentStrategy `json:"deploymentStrategy,omitempty"`
 	// Disable the 'feast repo initialization' initContainer
 	DisableInitContainers bool `json:"disableInitContainers,omitempty"`
@@ -82,13 +82,8 @@ type FeatureStoreServices struct {
 
 // OfflineStore configures the deployed offline store service
 type OfflineStore struct {
-	ServiceConfigs `json:",inline"`
-	Persistence    *OfflineStorePersistence `json:"persistence,omitempty"`
-	TLS            *TlsConfigs              `json:"tls,omitempty"`
-	// LogLevel sets the logging level for the offline store service
-	// Allowed values: "debug", "info", "warning", "error", "critical".
-	// +kubebuilder:validation:Enum=debug;info;warning;error;critical
-	LogLevel string `json:"logLevel,omitempty"`
+	ServerConfigs `json:",inline"`
+	Persistence   *OfflineStorePersistence `json:"persistence,omitempty"`
 }
 
 // OfflineStorePersistence configures the persistence settings for the offline store service
@@ -135,13 +130,8 @@ var ValidOfflineStoreDBStorePersistenceTypes = []string{
 
 // OnlineStore configures the deployed online store service
 type OnlineStore struct {
-	ServiceConfigs `json:",inline"`
-	Persistence    *OnlineStorePersistence `json:"persistence,omitempty"`
-	TLS            *TlsConfigs             `json:"tls,omitempty"`
-	// LogLevel sets the logging level for the online store service
-	// Allowed values: "debug", "info", "warning", "error", "critical".
-	// +kubebuilder:validation:Enum=debug;info;warning;error;critical
-	LogLevel string `json:"logLevel,omitempty"`
+	ServerConfigs `json:",inline"`
+	Persistence   *OnlineStorePersistence `json:"persistence,omitempty"`
 }
 
 // OnlineStorePersistence configures the persistence settings for the online store service
@@ -191,13 +181,8 @@ var ValidOnlineStoreDBStorePersistenceTypes = []string{
 
 // LocalRegistryConfig configures the deployed registry service
 type LocalRegistryConfig struct {
-	ServiceConfigs `json:",inline"`
-	Persistence    *RegistryPersistence `json:"persistence,omitempty"`
-	TLS            *TlsConfigs          `json:"tls,omitempty"`
-	// LogLevel sets the logging level for the registry service
-	// Allowed values: "debug", "info", "warning", "error", "critical".
-	// +kubebuilder:validation:Enum=debug;info;warning;error;critical
-	LogLevel string `json:"logLevel,omitempty"`
+	ServerConfigs `json:",inline"`
+	Persistence   *RegistryPersistence `json:"persistence,omitempty"`
 }
 
 // RegistryPersistence configures the persistence settings for the registry service
@@ -282,16 +267,6 @@ type RemoteRegistryConfig struct {
 	TLS      *TlsRemoteRegistryConfigs `json:"tls,omitempty"`
 }
 
-// UIService configures the deployed Feast UI service
-type UIService struct {
-	ServiceConfigs `json:",inline"`
-	TLS            *TlsConfigs `json:"tls,omitempty"`
-	// LogLevel sets the logging level for the UI service
-	// Allowed values: "debug", "info", "warning", "error", "critical".
-	// +kubebuilder:validation:Enum=debug;info;warning;error;critical
-	LogLevel string `json:"logLevel,omitempty"`
-}
-
 // FeatureStoreRef defines which existing FeatureStore's registry should be used
 type FeatureStoreRef struct {
 	// Name of the FeatureStore
@@ -300,19 +275,29 @@ type FeatureStoreRef struct {
 	Namespace string `json:"namespace,omitempty"`
 }
 
-// ServiceConfigs k8s container settings
-type ServiceConfigs struct {
-	DefaultConfigs  `json:",inline"`
-	OptionalConfigs `json:",inline"`
+// ServerConfigs server-related configurations for a feast service
+type ServerConfigs struct {
+	ContainerConfigs `json:",inline"`
+	TLS              *TlsConfigs `json:"tls,omitempty"`
+	// LogLevel sets the logging level for the server
+	// Allowed values: "debug", "info", "warning", "error", "critical".
+	// +kubebuilder:validation:Enum=debug;info;warning;error;critical
+	LogLevel string `json:"logLevel,omitempty"`
 }
 
-// DefaultConfigs k8s container settings that are applied by default
-type DefaultConfigs struct {
+// ContainerConfigs k8s container settings for the server
+type ContainerConfigs struct {
+	DefaultCtrConfigs  `json:",inline"`
+	OptionalCtrConfigs `json:",inline"`
+}
+
+// DefaultCtrConfigs k8s container settings that are applied by default
+type DefaultCtrConfigs struct {
 	Image *string `json:"image,omitempty"`
 }
 
-// OptionalConfigs k8s container settings that are optional
-type OptionalConfigs struct {
+// OptionalCtrConfigs k8s container settings that are optional
+type OptionalCtrConfigs struct {
 	Env             *[]corev1.EnvVar             `json:"env,omitempty"`
 	EnvFrom         *[]corev1.EnvFromSource      `json:"envFrom,omitempty"`
 	ImagePullPolicy *corev1.PullPolicy           `json:"imagePullPolicy,omitempty"`
