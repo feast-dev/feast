@@ -196,6 +196,26 @@ class LoggingConfig(google.protobuf.message.Message):
             table_name: builtins.str = ...,
         ) -> None: ...
         def ClearField(self, field_name: typing_extensions.Literal["table_name", b"table_name"]) -> None: ...
+    class CouchbaseColumnarDestination(google.protobuf.message.Message):
+        DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+        DATABASE_FIELD_NUMBER: builtins.int
+        SCOPE_FIELD_NUMBER: builtins.int
+        COLLECTION_FIELD_NUMBER: builtins.int
+        database: builtins.str
+        """Destination database name"""
+        scope: builtins.str
+        """Destination scope name"""
+        collection: builtins.str
+        """Destination collection name"""
+        def __init__(
+            self,
+            *,
+            database: builtins.str = ...,
+            scope: builtins.str = ...,
+            collection: builtins.str = ...,
+        ) -> None: ...
+        def ClearField(self, field_name: typing_extensions.Literal["database", b"database", "scope", b"scope", "collection", b"collection"]) -> None: ...
 
     class CustomDestination(google.protobuf.message.Message):
         DESCRIPTOR: google.protobuf.descriptor.Descriptor
@@ -258,6 +278,7 @@ class LoggingConfig(google.protobuf.message.Message):
         snowflake_destination: global___LoggingConfig.SnowflakeDestination | None = ...,
         custom_destination: global___LoggingConfig.CustomDestination | None = ...,
         athena_destination: global___LoggingConfig.AthenaDestination | None = ...,
+        couchbase_columnar_destination: global___LoggingConfig.CouchbaseColumnarDestination | None = ...,
     ) -> None: ...
     def HasField(self, field_name: typing_extensions.Literal["athena_destination", b"athena_destination", "bigquery_destination", b"bigquery_destination", "custom_destination", b"custom_destination", "destination", b"destination", "file_destination", b"file_destination", "redshift_destination", b"redshift_destination", "snowflake_destination", b"snowflake_destination"]) -> builtins.bool: ...
     def ClearField(self, field_name: typing_extensions.Literal["athena_destination", b"athena_destination", "bigquery_destination", b"bigquery_destination", "custom_destination", b"custom_destination", "destination", b"destination", "file_destination", b"file_destination", "redshift_destination", b"redshift_destination", "sample_rate", b"sample_rate", "snowflake_destination", b"snowflake_destination"]) -> None: ...
