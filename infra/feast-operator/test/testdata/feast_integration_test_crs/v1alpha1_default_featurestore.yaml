@@ -5,6 +5,8 @@ metadata:
 spec:
   feastProject: my_project
   services:
-    onlineStore: {}
-    offlineStore: {}
+    onlineStore:
+      server: {}
+    offlineStore:
+      server: {}
     ui: {}

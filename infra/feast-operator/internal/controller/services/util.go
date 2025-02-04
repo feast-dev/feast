@@ -22,6 +22,10 @@ import (
 
 var isOpenShift = false
 
+func IsRegistryServer(featureStore *feastdevv1alpha1.FeatureStore) bool {
+	return IsLocalRegistry(featureStore) && featureStore.Status.Applied.Services.Registry.Local.Server != nil
+}
+
 func IsLocalRegistry(featureStore *feastdevv1alpha1.FeatureStore) bool {
 	appliedServices := featureStore.Status.Applied.Services
 	return appliedServices != nil && appliedServices.Registry != nil && appliedServices.Registry.Local != nil
@@ -117,7 +121,10 @@ func ApplyDefaultsToStatus(cr *feastdevv1alpha1.FeatureStore) {
 			ensurePVCDefaults(services.Registry.Local.Persistence.FilePersistence.PvcConfig, RegistryFeastType)
 		}
 
-		setDefaultCtrConfigs(&services.Registry.Local.ServerConfigs.ContainerConfigs.DefaultCtrConfigs)
+		if services.Registry.Local.Server == nil {
+			services.Registry.Local.Server = &feastdevv1alpha1.ServerConfigs{}
+		}
+		setDefaultCtrConfigs(&services.Registry.Local.Server.ContainerConfigs.DefaultCtrConfigs)
 	} else if services.Registry.Remote.FeastRef != nil && len(services.Registry.Remote.FeastRef.Namespace) == 0 {
 		services.Registry.Remote.FeastRef.Namespace = cr.Namespace
 	}
@@ -139,7 +146,9 @@ func ApplyDefaultsToStatus(cr *feastdevv1alpha1.FeatureStore) {
 			ensurePVCDefaults(services.OfflineStore.Persistence.FilePersistence.PvcConfig, OfflineFeastType)
 		}
 
-		setDefaultCtrConfigs(&services.OfflineStore.ServerConfigs.ContainerConfigs.DefaultCtrConfigs)
+		if services.OfflineStore.Server != nil {
+			setDefaultCtrConfigs(&services.OfflineStore.Server.ContainerConfigs.DefaultCtrConfigs)
+		}
 	}
 
 	if services.OnlineStore != nil {
@@ -159,10 +168,11 @@ func ApplyDefaultsToStatus(cr *feastdevv1alpha1.FeatureStore) {
 			ensurePVCDefaults(services.OnlineStore.Persistence.FilePersistence.PvcConfig, OnlineFeastType)
 		}
 
-		setDefaultCtrConfigs(&services.OnlineStore.ServerConfigs.ContainerConfigs.DefaultCtrConfigs)
+		if services.OnlineStore.Server != nil {
+			setDefaultCtrConfigs(&services.OnlineStore.Server.ContainerConfigs.DefaultCtrConfigs)
+		}
 	}
 	if services.UI != nil {
-
 		setDefaultCtrConfigs(&services.UI.ContainerConfigs.DefaultCtrConfigs)
 	}
 }

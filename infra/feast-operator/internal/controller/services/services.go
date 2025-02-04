@@ -51,8 +51,8 @@ func (feast *FeastServices) ApplyDefaults() error {
 
 // Deploy the feast services
 func (feast *FeastServices) Deploy() error {
-	if feast.noLocalServiceConfigured() {
-		return errors.New("at least one local service must be configured. e.g. registry / online / offline")
+	if feast.noLocalCoreServerConfigured() {
+		return errors.New("at least one local server must be configured. e.g. registry / online / offline")
 	}
 	openshiftTls, err := feast.checkOpenshiftTls()
 	if err != nil {
@@ -67,7 +67,7 @@ func (feast *FeastServices) Deploy() error {
 	}
 
 	services := feast.Handler.FeatureStore.Status.Applied.Services
-	if feast.isOfflinStore() {
+	if feast.isOfflineStore() {
 		err := feast.validateOfflineStorePersistence(services.OfflineStore.Persistence)
 		if err != nil {
 			return err
@@ -82,7 +82,7 @@ func (feast *FeastServices) Deploy() error {
 		}
 	}
 
-	if feast.isOnlinStore() {
+	if feast.isOnlineStore() {
 		err := feast.validateOnlineStorePersistence(services.OnlineStore.Persistence)
 		if err != nil {
 			return err
@@ -111,7 +111,7 @@ func (feast *FeastServices) Deploy() error {
 			return err
 		}
 	}
-	if feast.isUI() {
+	if feast.isUiServer() {
 		if err = feast.deployFeastServiceByType(UIFeastType); err != nil {
 			return err
 		}
@@ -125,7 +125,6 @@ func (feast *FeastServices) Deploy() error {
 		if err := feast.removeRoute(UIFeastType); err != nil {
 			return err
 		}
-
 	}
 
 	if err := feast.createServiceAccount(); err != nil {
@@ -218,8 +217,12 @@ func (feast *FeastServices) deployFeastServiceByType(feastType FeastServiceType)
 	} else {
 		_ = feast.Handler.DeleteOwnedFeastObj(feast.initPVC(feastType))
 	}
-	if err := feast.createService(feastType); err != nil {
-		return feast.setFeastServiceCondition(err, feastType)
+	if serviceConfig := feast.getServerConfigs(feastType); serviceConfig != nil {
+		if err := feast.createService(feastType); err != nil {
+			return feast.setFeastServiceCondition(err, feastType)
+		}
+	} else {
+		_ = feast.Handler.DeleteOwnedFeastObj(feast.initFeastSvc(feastType))
 	}
 	return feast.setFeastServiceCondition(nil, feastType)
 }
@@ -363,62 +366,62 @@ func (feast *FeastServices) setContainers(podSpec *corev1.PodSpec) error {
 	}
 
 	feast.setInitContainer(podSpec, fsYamlB64)
-
-	if feast.isLocalRegistry() {
+	if feast.isRegistryServer() {
 		feast.setContainer(&podSpec.Containers, RegistryFeastType, fsYamlB64)
 	}
-	if feast.isOfflinStore() {
-		feast.setContainer(&podSpec.Containers, OfflineFeastType, fsYamlB64)
-	}
-	if feast.isOnlinStore() {
+	if feast.isOnlineServer() {
 		feast.setContainer(&podSpec.Containers, OnlineFeastType, fsYamlB64)
 	}
-	if feast.isUI() {
+	if feast.isOfflineServer() {
+		feast.setContainer(&podSpec.Containers, OfflineFeastType, fsYamlB64)
+	}
+	if feast.isUiServer() {
 		feast.setContainer(&podSpec.Containers, UIFeastType, fsYamlB64)
 	}
 	return nil
 }
 
 func (feast *FeastServices) setContainer(containers *[]corev1.Container, feastType FeastServiceType, fsYamlB64 string) {
-	tls := feast.getTlsConfigs(feastType)
-	containerConfigs := feast.getContainerConfigs(feastType)
-	defaultCtrConfigs := containerConfigs.DefaultCtrConfigs
-	probeHandler := getProbeHandler(feastType, tls)
-	container := &corev1.Container{
-		Name:       string(feastType),
-		Image:      *defaultCtrConfigs.Image,
-		WorkingDir: getOfflineMountPath(feast.Handler.FeatureStore) + "/" + feast.Handler.FeatureStore.Status.Applied.FeastProject + FeatureRepoDir,
-		Command:    feast.getContainerCommand(feastType),
-		Ports: []corev1.ContainerPort{
-			{
-				Name:          string(feastType),
-				ContainerPort: getTargetPort(feastType, tls),
-				Protocol:      corev1.ProtocolTCP,
+	if serverConfigs := feast.getServerConfigs(feastType); serverConfigs != nil {
+		defaultCtrConfigs := serverConfigs.ContainerConfigs.DefaultCtrConfigs
+		tls := feast.getTlsConfigs(feastType)
+		probeHandler := getProbeHandler(feastType, tls)
+		container := &corev1.Container{
+			Name:       string(feastType),
+			Image:      *defaultCtrConfigs.Image,
+			WorkingDir: getOfflineMountPath(feast.Handler.FeatureStore) + "/" + feast.Handler.FeatureStore.Status.Applied.FeastProject + FeatureRepoDir,
+			Command:    feast.getContainerCommand(feastType),
+			Ports: []corev1.ContainerPort{
+				{
+					Name:          string(feastType),
+					ContainerPort: getTargetPort(feastType, tls),
+					Protocol:      corev1.ProtocolTCP,
+				},
 			},
-		},
-		Env: []corev1.EnvVar{
-			{
-				Name:  TmpFeatureStoreYamlEnvVar,
-				Value: fsYamlB64,
+			Env: []corev1.EnvVar{
+				{
+					Name:  TmpFeatureStoreYamlEnvVar,
+					Value: fsYamlB64,
+				},
 			},
-		},
-		StartupProbe: &corev1.Probe{
-			ProbeHandler:     probeHandler,
-			PeriodSeconds:    3,
-			FailureThreshold: 40,
-		},
-		LivenessProbe: &corev1.Probe{
-			ProbeHandler:     probeHandler,
-			PeriodSeconds:    20,
-			FailureThreshold: 6,
-		},
-		ReadinessProbe: &corev1.Probe{
-			ProbeHandler:  probeHandler,
-			PeriodSeconds: 10,
-		},
+			StartupProbe: &corev1.Probe{
+				ProbeHandler:     probeHandler,
+				PeriodSeconds:    3,
+				FailureThreshold: 40,
+			},
+			LivenessProbe: &corev1.Probe{
+				ProbeHandler:     probeHandler,
+				PeriodSeconds:    20,
+				FailureThreshold: 6,
+			},
+			ReadinessProbe: &corev1.Probe{
+				ProbeHandler:  probeHandler,
+				PeriodSeconds: 10,
+			},
+		}
+		applyOptionalCtrConfigs(container, serverConfigs.ContainerConfigs.OptionalCtrConfigs)
+		*containers = append(*containers, *container)
 	}
-	applyOptionalCtrConfigs(container, containerConfigs.OptionalCtrConfigs)
-	*containers = append(*containers, *container)
 }
 
 func (feast *FeastServices) setRoute(route *routev1.Route, feastType FeastServiceType) error {
@@ -554,48 +557,30 @@ func (feast *FeastServices) createNewPVC(pvcCreate *feastdevv1alpha1.PvcCreate, 
 	return pvc, controllerutil.SetControllerReference(feast.Handler.FeatureStore, pvc, feast.Handler.Scheme)
 }
 
-func (feast *FeastServices) getContainerConfigs(feastType FeastServiceType) feastdevv1alpha1.ContainerConfigs {
+func (feast *FeastServices) getServerConfigs(feastType FeastServiceType) *feastdevv1alpha1.ServerConfigs {
 	appliedServices := feast.Handler.FeatureStore.Status.Applied.Services
 	switch feastType {
 	case OfflineFeastType:
-		if feast.isOfflinStore() {
-			return appliedServices.OfflineStore.ServerConfigs.ContainerConfigs
+		if feast.isOfflineStore() {
+			return appliedServices.OfflineStore.Server
 		}
 	case OnlineFeastType:
-		if feast.isOnlinStore() {
-			return appliedServices.OnlineStore.ServerConfigs.ContainerConfigs
+		if feast.isOnlineStore() {
+			return appliedServices.OnlineStore.Server
 		}
 	case RegistryFeastType:
 		if feast.isLocalRegistry() {
-			return appliedServices.Registry.Local.ServerConfigs.ContainerConfigs
+			return appliedServices.Registry.Local.Server
 		}
 	case UIFeastType:
-		if feast.isUI() {
-			return appliedServices.UI.ContainerConfigs
-		}
+		return appliedServices.UI
 	}
-	return feastdevv1alpha1.ContainerConfigs{}
+	return nil
 }
 
 func (feast *FeastServices) getLogLevelForType(feastType FeastServiceType) *string {
-	services := feast.Handler.FeatureStore.Status.Applied.Services
-	switch feastType {
-	case OfflineFeastType:
-		if services.OfflineStore != nil && services.OfflineStore.LogLevel != "" {
-			return &services.OfflineStore.LogLevel
-		}
-	case OnlineFeastType:
-		if services.OnlineStore != nil && services.OnlineStore.LogLevel != "" {
-			return &services.OnlineStore.LogLevel
-		}
-	case RegistryFeastType:
-		if feast.isLocalRegistry() && services.Registry.Local.LogLevel != "" {
-			return &services.Registry.Local.LogLevel
-		}
-	case UIFeastType:
-		if services.UI != nil && services.UI.LogLevel != "" {
-			return &services.UI.LogLevel
-		}
+	if serviceConfigs := feast.getServerConfigs(feastType); serviceConfigs != nil {
+		return serviceConfigs.LogLevel
 	}
 	return nil
 }
@@ -645,24 +630,24 @@ func (feast *FeastServices) getLabels() map[string]string {
 func (feast *FeastServices) setServiceHostnames() error {
 	feast.Handler.FeatureStore.Status.ServiceHostnames = feastdevv1alpha1.ServiceHostnames{}
 	domain := svcDomain + ":"
-	if feast.isOfflinStore() {
+	if feast.isOfflineServer() {
 		objMeta := feast.initFeastSvc(OfflineFeastType)
 		feast.Handler.FeatureStore.Status.ServiceHostnames.OfflineStore = objMeta.Name + "." + objMeta.Namespace + domain +
-			getPortStr(feast.Handler.FeatureStore.Status.Applied.Services.OfflineStore.TLS)
+			getPortStr(feast.Handler.FeatureStore.Status.Applied.Services.OfflineStore.Server.TLS)
 	}
-	if feast.isOnlinStore() {
+	if feast.isOnlineServer() {
 		objMeta := feast.initFeastSvc(OnlineFeastType)
 		feast.Handler.FeatureStore.Status.ServiceHostnames.OnlineStore = objMeta.Name + "." + objMeta.Namespace + domain +
-			getPortStr(feast.Handler.FeatureStore.Status.Applied.Services.OnlineStore.TLS)
+			getPortStr(feast.Handler.FeatureStore.Status.Applied.Services.OnlineStore.Server.TLS)
 	}
-	if feast.isLocalRegistry() {
+	if feast.isRegistryServer() {
 		objMeta := feast.initFeastSvc(RegistryFeastType)
 		feast.Handler.FeatureStore.Status.ServiceHostnames.Registry = objMeta.Name + "." + objMeta.Namespace + domain +
-			getPortStr(feast.Handler.FeatureStore.Status.Applied.Services.Registry.Local.TLS)
+			getPortStr(feast.Handler.FeatureStore.Status.Applied.Services.Registry.Local.Server.TLS)
 	} else if feast.isRemoteRegistry() {
 		return feast.setRemoteRegistryURL()
 	}
-	if feast.isUI() {
+	if feast.isUiServer() {
 		objMeta := feast.initFeastSvc(UIFeastType)
 		feast.Handler.FeatureStore.Status.ServiceHostnames.UI = objMeta.Name + "." + objMeta.Namespace + domain +
 			getPortStr(feast.Handler.FeatureStore.Status.Applied.Services.UI.TLS)
@@ -693,10 +678,11 @@ func (feast *FeastServices) setRemoteRegistryURL() error {
 		if err != nil {
 			return err
 		}
-		// referenced/remote registry must use the local install option and be in a 'Ready' state.
+		// referenced/remote registry must use the local registry server option and be in a 'Ready' state.
 		if remoteFeast != nil &&
-			remoteFeast.isLocalRegistry() &&
-			apimeta.IsStatusConditionTrue(remoteFeast.Handler.FeatureStore.Status.Conditions, feastdevv1alpha1.RegistryReadyType) {
+			remoteFeast.isRegistryServer() &&
+			apimeta.IsStatusConditionTrue(remoteFeast.Handler.FeatureStore.Status.Conditions, feastdevv1alpha1.RegistryReadyType) &&
+			len(remoteFeast.Handler.FeatureStore.Status.ServiceHostnames.Registry) > 0 {
 			feast.Handler.FeatureStore.Status.ServiceHostnames.Registry = remoteFeast.Handler.FeatureStore.Status.ServiceHostnames.Registry
 		} else {
 			return errors.New("Remote feast registry of referenced FeatureStore '" + remoteFeast.Handler.FeatureStore.Name + "' is not ready")
@@ -739,6 +725,10 @@ func (feast *FeastServices) isLocalRegistry() bool {
 	return IsLocalRegistry(feast.Handler.FeatureStore)
 }
 
+func (feast *FeastServices) isRegistryServer() bool {
+	return IsRegistryServer(feast.Handler.FeatureStore)
+}
+
 func (feast *FeastServices) isRemoteRegistry() bool {
 	return isRemoteRegistry(feast.Handler.FeatureStore)
 }
@@ -753,21 +743,31 @@ func (feast *FeastServices) isRemoteHostnameRegistry() bool {
 		feast.Handler.FeatureStore.Status.Applied.Services.Registry.Remote.Hostname != nil
 }
 
-func (feast *FeastServices) isOfflinStore() bool {
+func (feast *FeastServices) isOfflineServer() bool {
+	return feast.isOfflineStore() &&
+		feast.Handler.FeatureStore.Spec.Services.OfflineStore.Server != nil
+}
+
+func (feast *FeastServices) isOfflineStore() bool {
 	appliedServices := feast.Handler.FeatureStore.Status.Applied.Services
 	return appliedServices != nil && appliedServices.OfflineStore != nil
 }
 
-func (feast *FeastServices) isOnlinStore() bool {
+func (feast *FeastServices) isOnlineServer() bool {
+	return feast.isOnlineStore() &&
+		feast.Handler.FeatureStore.Spec.Services.OnlineStore.Server != nil
+}
+
+func (feast *FeastServices) isOnlineStore() bool {
 	appliedServices := feast.Handler.FeatureStore.Status.Applied.Services
 	return appliedServices != nil && appliedServices.OnlineStore != nil
 }
 
-func (feast *FeastServices) noLocalServiceConfigured() bool {
-	return !(feast.isLocalRegistry() || feast.isOnlinStore() || feast.isOfflinStore())
+func (feast *FeastServices) noLocalCoreServerConfigured() bool {
+	return !(feast.isRegistryServer() || feast.isOnlineServer() || feast.isOfflineServer())
 }
 
-func (feast *FeastServices) isUI() bool {
+func (feast *FeastServices) isUiServer() bool {
 	appliedServices := feast.Handler.FeatureStore.Status.Applied.Services
 	return appliedServices != nil && appliedServices.UI != nil
 }
