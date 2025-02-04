@@ -1,5 +1,38 @@
 # Changelog
 
+# [0.44.0](https://github.com/feast-dev/feast/compare/v0.43.0...v0.44.0) (2025-02-04)
+
+
+### Bug Fixes
+
+* Adding periodic check to fix the sporadic failures of the operator e2e tests.  ([#4952](https://github.com/feast-dev/feast/issues/4952)) ([1d086be](https://github.com/feast-dev/feast/commit/1d086beb9f9726f68ababace87c58c2cc6412ca3))
+* Adding the feast-operator/bin to the .gitignore directory. Somehow it… ([#5005](https://github.com/feast-dev/feast/issues/5005)) ([1a027ee](https://github.com/feast-dev/feast/commit/1a027eec3dc38ce8a949aca842c91742b0f68b47))
+* Changed Env Vars for e2e tests ([#4975](https://github.com/feast-dev/feast/issues/4975)) ([fa0084f](https://github.com/feast-dev/feast/commit/fa0084f2ed0e9d41ff813538ee63dd4ee7371e6c))
+* Fix GitHub Actions to pass authentication ([#4963](https://github.com/feast-dev/feast/issues/4963)) ([22b9138](https://github.com/feast-dev/feast/commit/22b9138a3c0040f5779f7218522f2d96e750fbbf)), closes [#4937](https://github.com/feast-dev/feast/issues/4937) [#4939](https://github.com/feast-dev/feast/issues/4939) [#4941](https://github.com/feast-dev/feast/issues/4941) [#4940](https://github.com/feast-dev/feast/issues/4940) [#4943](https://github.com/feast-dev/feast/issues/4943) [#4944](https://github.com/feast-dev/feast/issues/4944) [#4945](https://github.com/feast-dev/feast/issues/4945) [#4946](https://github.com/feast-dev/feast/issues/4946) [#4947](https://github.com/feast-dev/feast/issues/4947) [#4948](https://github.com/feast-dev/feast/issues/4948) [#4951](https://github.com/feast-dev/feast/issues/4951) [#4954](https://github.com/feast-dev/feast/issues/4954) [#4957](https://github.com/feast-dev/feast/issues/4957) [#4958](https://github.com/feast-dev/feast/issues/4958) [#4959](https://github.com/feast-dev/feast/issues/4959) [#4960](https://github.com/feast-dev/feast/issues/4960) [#4962](https://github.com/feast-dev/feast/issues/4962)
+* Fix showing selected navigation item in UI sidebar ([#4969](https://github.com/feast-dev/feast/issues/4969)) ([8ac6a85](https://github.com/feast-dev/feast/commit/8ac6a8547361708fec00a11a33c48ca3ae25f311))
+* Invalid column names in get_historical_features when there are field mappings on join keys ([#4886](https://github.com/feast-dev/feast/issues/4886)) ([c9aca2d](https://github.com/feast-dev/feast/commit/c9aca2d42254d1c4dfcc778b0d90303329901bd0))
+* Read project data from the 'projects' key while loading the registry state in the Feast UI ([#4772](https://github.com/feast-dev/feast/issues/4772)) ([cb81939](https://github.com/feast-dev/feast/commit/cb8193945932b98d5b8f750ac07d58c034870565))
+* Remove grpcurl dependency from Operator ([#4972](https://github.com/feast-dev/feast/issues/4972)) ([439e0b9](https://github.com/feast-dev/feast/commit/439e0b98819ef222b35617dfd6c97f04ca049f2f))
+* Removed the dry-run flag to test and we will add it back later. ([#5007](https://github.com/feast-dev/feast/issues/5007)) ([d112b52](https://github.com/feast-dev/feast/commit/d112b529d618f19a5602039b6d347915d7e75b88))
+* Render UI navigation items as links instead of buttons ([#4970](https://github.com/feast-dev/feast/issues/4970)) ([1267703](https://github.com/feast-dev/feast/commit/1267703d099491393ca212c38f1a63a36fe6c443))
+* Resolve Operator CRD bloat due to long field descriptions ([#4985](https://github.com/feast-dev/feast/issues/4985)) ([7593bb3](https://github.com/feast-dev/feast/commit/7593bb3ec8871dbb83403461e0b6f6863d64abc6))
+* Update manifest to add feature server image for odh ([#4973](https://github.com/feast-dev/feast/issues/4973)) ([6a1c102](https://github.com/feast-dev/feast/commit/6a1c1029b5462aaa42c82fdad421176ad1692f81))
+* Updating release workflows to refer to yml instead of yaml ([#4935](https://github.com/feast-dev/feast/issues/4935)) ([02b0a68](https://github.com/feast-dev/feast/commit/02b0a68a435ab01f26b20824f3f8a4dd4e21da8d))
+* Use locally built feast-ui package in dev feature-server image ([#4998](https://github.com/feast-dev/feast/issues/4998)) ([0145e55](https://github.com/feast-dev/feast/commit/0145e5501e2c7854628d204cb515270fac3bee7d))
+
+
+### Features
+
+* Added OWNERS file for OpenshiftCI ([#4991](https://github.com/feast-dev/feast/issues/4991)) ([86a2ee8](https://github.com/feast-dev/feast/commit/86a2ee8e3ce1cd4432749928fda7a4386dc7ce0f))
+* Adding Milvus demo to examples ([#4910](https://github.com/feast-dev/feast/issues/4910)) ([2daf852](https://github.com/feast-dev/feast/commit/2daf8527c4539a007d639ac6e3061767a9c45110))
+* Adding retrieve_online_documents endpoint ([#5002](https://github.com/feast-dev/feast/issues/5002)) ([6607d3d](https://github.com/feast-dev/feast/commit/6607d3dfa1041638d3896b25cb98677412889724))
+* Adding support to return additional features from vector retrieval for Milvus db ([#4971](https://github.com/feast-dev/feast/issues/4971)) ([6ce08d3](https://github.com/feast-dev/feast/commit/6ce08d31863b12a7a92bf5207172a05f8da077d1))
+* Creating/updating the stable branch after the release. ([#5003](https://github.com/feast-dev/feast/issues/5003)) ([e9b53cc](https://github.com/feast-dev/feast/commit/e9b53cc83ee51b906423ec2e1fac36e159d55db2))
+* Implementing online_read for MilvusOnlineStore ([#4996](https://github.com/feast-dev/feast/issues/4996)) ([92dde13](https://github.com/feast-dev/feast/commit/92dde1311c419dc3d8cbb534ed2e706fdeae1e26))
+* Improve exception message for unsupported Snowflake data types ([#4779](https://github.com/feast-dev/feast/issues/4779)) ([5992364](https://github.com/feast-dev/feast/commit/59923645e4f6a64a49bcecb7da503528af850d0f))
+* Operator add feast ui deployment ([#4930](https://github.com/feast-dev/feast/issues/4930)) ([b026d0c](https://github.com/feast-dev/feast/commit/b026d0ce30d7ce9b621679fbb33f2a9c0edaad84))
+* Updating documents to highlight v2 api for Vector Similarity Se… ([#5000](https://github.com/feast-dev/feast/issues/5000)) ([32b82a4](https://github.com/feast-dev/feast/commit/32b82a4b59bceaf9eb6662f35e77d0cae0d36550))
+
 # [0.43.0](https://github.com/feast-dev/feast/compare/v0.42.0...v0.43.0) (2025-01-20)
 
 

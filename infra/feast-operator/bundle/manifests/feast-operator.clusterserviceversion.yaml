@@ -13,13 +13,31 @@ metadata:
           "spec": {
             "feastProject": "my_project"
           }
+        },
+        {
+          "apiVersion": "feast.dev/v1alpha1",
+          "kind": "FeatureStore",
+          "metadata": {
+            "name": "sample-all-services"
+          },
+          "spec": {
+            "feastProject": "my_project",
+            "services": {
+              "offlineStore": {},
+              "onlineStore": {},
+              "registry": {
+                "local": {}
+              },
+              "ui": {}
+            }
+          }
         }
       ]
     capabilities: Basic Install
-    createdAt: "2025-01-20T22:18:19Z"
+    createdAt: "2025-02-04T19:13:23Z"
     operators.operatorframework.io/builder: operator-sdk-v1.38.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
-  name: feast-operator.v0.43.0
+  name: feast-operator.v0.44.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -110,6 +128,17 @@ spec:
           - update
           - watch
         - apiGroups:
+          - route.openshift.io
+          resources:
+          - routes
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - update
+          - watch
+        - apiGroups:
           - authentication.k8s.io
           resources:
           - tokenreviews
@@ -150,10 +179,8 @@ spec:
                 - /manager
                 env:
                 - name: RELATED_IMAGE_FEATURE_SERVER
-                  value: docker.io/feastdev/feature-server:0.43.0
-                - name: RELATED_IMAGE_GRPC_CURL
-                  value: docker.io/fullstorydev/grpcurl:v1.9.1-alpine
-                image: feastdev/feast-operator:0.43.0
+                  value: docker.io/feastdev/feature-server:0.44.0
+                image: feastdev/feast-operator:0.44.0
                 livenessProbe:
                   httpGet:
                     path: /healthz
@@ -243,8 +270,6 @@ spec:
     name: Feast Community
     url: https://lf-aidata.atlassian.net/wiki/spaces/FEAST/
   relatedImages:
-  - image: docker.io/feastdev/feature-server:0.43.0
+  - image: docker.io/feastdev/feature-server:0.44.0
     name: feature-server
-  - image: docker.io/fullstorydev/grpcurl:v1.9.1-alpine
-    name: grpc-curl
-  version: 0.43.0
+  version: 0.44.0
