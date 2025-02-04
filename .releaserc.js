@@ -68,6 +68,7 @@ module.exports = {
                     "infra/charts/**/*.*",
                     "infra/feast-helm-operator/**/*",
                     "infra/feast-operator/**/*",
+                    "!infra/feast-operator/bin/",
                     "ui/package.json",
                     "sdk/python/feast/ui/package.json",
                     "sdk/python/feast/ui/yarn.lock"
