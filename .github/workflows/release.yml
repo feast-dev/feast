@@ -156,7 +156,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          persist-credentials: true
+          persist-credentials: false
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
@@ -181,7 +181,6 @@ jobs:
           npx -p @semantic-release/changelog -p @semantic-release/git -p @semantic-release/exec -p semantic-release semantic-release
 
       - name: Updating `stable` branch after release.
-        if: github.event.inputs.dry_run == 'false'
         run: |
           git fetch origin
           # note that this checkout creates a branch called `stable` if it does not exist
