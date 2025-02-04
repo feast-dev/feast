@@ -225,3 +225,6 @@ ui/.vercel
 
 # Go subprocess binaries (built during feast pip package building)
 sdk/python/feast/binaries/
+
+# ignore the bin directory under feast operator.
+infra/feast-operator/bin
