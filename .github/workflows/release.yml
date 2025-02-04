@@ -180,7 +180,7 @@ jobs:
         run: |
           npx -p @semantic-release/changelog -p @semantic-release/git -p @semantic-release/exec -p semantic-release semantic-release
 
-      - name: Create or update stable branch after release.
+      - name: Updating `stable` branch after release.
         if: github.event.inputs.dry_run == 'false'
         run: |
           git fetch origin
