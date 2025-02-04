@@ -184,6 +184,7 @@ jobs:
         if: github.event.inputs.dry_run == 'false'
         run: |
           git fetch origin
+          # note that this checkout creates a branch called `stable` if it does not exist
           git checkout -B stable
           git reset --hard origin/${GITHUB_REF##*/}
           git push -f origin stable
