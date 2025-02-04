@@ -156,7 +156,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          persist-credentials: true
+          persist-credentials: false
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
