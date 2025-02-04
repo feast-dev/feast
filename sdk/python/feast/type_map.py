@@ -164,6 +164,7 @@ def python_type_to_feast_value_type(
         "datetime64[ns]": ValueType.UNIX_TIMESTAMP,
         "datetime64[ns, tz]": ValueType.UNIX_TIMESTAMP,  # special dtype of pandas
         "datetime64[ns, utc]": ValueType.UNIX_TIMESTAMP,
+        "date": ValueType.UNIX_TIMESTAMP,
         "category": ValueType.STRING,
     }
 
@@ -211,8 +212,7 @@ def python_type_to_feast_value_type(
         return ValueType[common_item_value_type.name + "_LIST"]
 
     raise ValueError(
-        f"Value with native type {type_name} "
-        f"cannot be converted into Feast value type"
+        f"Value with native type {type_name} cannot be converted into Feast value type"
     )
 
 
@@ -458,13 +458,13 @@ def _python_value_to_proto_value(
                 # Numpy convert 0 to int. However, in the feature view definition, the type of column may be a float.
                 # So, if value is 0, type validation must pass if scalar_types are either int or float.
                 allowed_types = {np.int64, int, np.float64, float}
-                assert (
-                    type(sample) in allowed_types
-                ), f"Type `{type(sample)}` not in {allowed_types}"
+                assert type(sample) in allowed_types, (
+                    f"Type `{type(sample)}` not in {allowed_types}"
+                )
             else:
-                assert (
-                    type(sample) in valid_scalar_types
-                ), f"Type `{type(sample)}` not in {valid_scalar_types}"
+                assert type(sample) in valid_scalar_types, (
+                    f"Type `{type(sample)}` not in {valid_scalar_types}"
+                )
         if feast_value_type == ValueType.BOOL:
             # ProtoValue does not support conversion of np.bool_ so we need to convert it to support np.bool_.
             return [
@@ -538,6 +538,10 @@ PROTO_VALUE_TO_VALUE_TYPE_MAP: Dict[str, ValueType] = {
     "string_list_val": ValueType.STRING_LIST,
     "bytes_list_val": ValueType.BYTES_LIST,
     "bool_list_val": ValueType.BOOL_LIST,
+}
+
+VALUE_TYPE_TO_PROTO_VALUE_MAP: Dict[ValueType, str] = {
+    v: k for k, v in PROTO_VALUE_TO_VALUE_TYPE_MAP.items()
 }
 
 
@@ -815,6 +819,7 @@ def spark_to_feast_value_type(spark_type_as_str: str) -> ValueType:
         "float": ValueType.FLOAT,
         "boolean": ValueType.BOOL,
         "timestamp": ValueType.UNIX_TIMESTAMP,
+        "date": ValueType.UNIX_TIMESTAMP,
         "array<byte>": ValueType.BYTES_LIST,
         "array<string>": ValueType.STRING_LIST,
         "array<int>": ValueType.INT32_LIST,
@@ -824,6 +829,7 @@ def spark_to_feast_value_type(spark_type_as_str: str) -> ValueType:
         "array<float>": ValueType.FLOAT_LIST,
         "array<boolean>": ValueType.BOOL_LIST,
         "array<timestamp>": ValueType.UNIX_TIMESTAMP_LIST,
+        "array<date>": ValueType.UNIX_TIMESTAMP_LIST,
     }
     if spark_type_as_str.startswith("decimal"):
         spark_type_as_str = "decimal"

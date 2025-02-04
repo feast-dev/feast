@@ -107,6 +107,8 @@ test-python-unit:
 test-python-integration:
 	python -m pytest --tb=short -v -n 8 --integration --color=yes --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
 		-k "(not snowflake or not test_historical_features_main)" \
+		-m "not rbac_remote_integration_test" \
+		--log-cli-level=INFO -s \
 		sdk/python/tests
 
 test-python-integration-local:
@@ -114,6 +116,17 @@ test-python-integration-local:
 	FEAST_LOCAL_ONLINE_CONTAINER=True \
 	python -m pytest --tb=short -v -n 8 --color=yes --integration --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
 		-k "not test_lambda_materialization and not test_snowflake_materialization" \
+		-m "not rbac_remote_integration_test" \
+		--log-cli-level=INFO -s \
+		sdk/python/tests
+
+test-python-integration-rbac-remote:
+	FEAST_IS_LOCAL_TEST=True \
+	FEAST_LOCAL_ONLINE_CONTAINER=True \
+	python -m pytest --tb=short -v -n 8 --color=yes --integration --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
+		-k "not test_lambda_materialization and not test_snowflake_materialization" \
+		-m "rbac_remote_integration_test" \
+		--log-cli-level=INFO -s \
 		sdk/python/tests
 
 test-python-integration-container:
@@ -458,17 +471,17 @@ kill-trino-locally:
 
 # Docker
 
-build-docker: build-feature-server-python-aws-docker build-feature-transformation-server-docker build-feature-server-java-docker
+build-docker: build-feature-server-docker build-feature-transformation-server-docker build-feature-server-java-docker build-feast-operator-docker
 
 push-ci-docker:
 	docker push $(REGISTRY)/feast-ci:$(VERSION)
 
 push-feature-server-docker:
-	docker push $(REGISTRY)/feature-server:$$VERSION
+	docker push $(REGISTRY)/feature-server:$(VERSION)
 
 build-feature-server-docker:
-	docker buildx build --build-arg VERSION=$$VERSION \
-		-t $(REGISTRY)/feature-server:$$VERSION \
+	docker buildx build --build-arg VERSION=$(VERSION) \
+		-t $(REGISTRY)/feature-server:$(VERSION) \
 		-f sdk/python/feast/infra/feature_servers/multicloud/Dockerfile --load .
 
 push-feature-transformation-server-docker:
@@ -514,9 +527,17 @@ build-feast-operator-docker:
 # Dev images
 
 build-feature-server-dev:
-	docker buildx build --build-arg VERSION=dev \
+	docker buildx build \
 		-t feastdev/feature-server:dev \
 		-f sdk/python/feast/infra/feature_servers/multicloud/Dockerfile.dev --load .
+
+build-feature-server-dev-docker:
+	docker buildx build \
+		-t $(REGISTRY)/feature-server:$(VERSION) \
+		-f sdk/python/feast/infra/feature_servers/multicloud/Dockerfile.dev --load .
+
+push-feature-server-dev-docker:
+	docker push $(REGISTRY)/feature-server:$(VERSION)
 
 build-java-docker-dev:
 	make build-java-no-tests REVISION=dev

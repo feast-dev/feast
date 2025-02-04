@@ -11,18 +11,22 @@ on:
         required: true
         default: ""
         type: string
+  workflow_call: # Allows trigger of the workflow from another workflow
+    inputs:
+      custom_version: # Optional input for a custom version
+        description: 'Custom version to publish (e.g., v1.2.3) -- only edit if you know what you are doing'
+        required: false
+        type: string
+      token:
+        description: 'Personal Access Token'
+        required: true
+        default: ""
+        type: string
 
 jobs:
-  get-version:
-    uses: ./.github/workflows/get_semantic_release_version.yaml
-    with:
-      custom_version: ${{ github.event.inputs.custom_version }}
-      token: ${{ github.event.inputs.token }}
-
   build-publish-docker-images:
     if: github.repository == 'feast-dev/feast'
     runs-on: ubuntu-latest
-    needs: [ get-version ]
     strategy:
       matrix:
         component: [ feature-server, feature-server-java, feature-transformation-server, feast-helm-operator, feast-operator ]
@@ -31,6 +35,13 @@ jobs:
       REGISTRY: feastdev
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: 'true'
+      - id: get-version
+        uses: ./.github/actions/get-semantic-release-version
+        with:
+          custom_version: ${{ github.event.inputs.custom_version }}
+          token: ${{ github.event.inputs.token }}
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v1
       - name: Set up Docker Buildx
@@ -52,17 +63,14 @@ jobs:
         run: gcloud info
       - run: gcloud auth configure-docker --quiet
       - name: Build image
+        env:
+          VERSION_WITHOUT_PREFIX: ${{ steps.get-version.outputs.version_without_prefix }}
         run: |
           make build-${{ matrix.component }}-docker REGISTRY=${REGISTRY} VERSION=${VERSION_WITHOUT_PREFIX}
-        env:
-          RELEASE_VERSION: ${{ needs.get-version.outputs.release_version }}
-          VERSION_WITHOUT_PREFIX: ${{ needs.get-version.outputs.version_without_prefix }}
-          HIGHEST_SEMVER_TAG: ${{ needs.get-version.outputs.highest_semver_tag }}
       - name: Push versioned images
         env:
-          RELEASE_VERSION: ${{ needs.get-version.outputs.release_version }}
-          VERSION_WITHOUT_PREFIX: ${{ needs.get-version.outputs.version_without_prefix }}
-          HIGHEST_SEMVER_TAG: ${{ needs.get-version.outputs.highest_semver_tag }}
+          VERSION_WITHOUT_PREFIX: ${{ steps.get-version.outputs.version_without_prefix }}
+          HIGHEST_SEMVER_TAG: ${{ steps.get-version.outputs.highest_semver_tag }}
         run: |
           make push-${{ matrix.component }}-docker REGISTRY=${REGISTRY} VERSION=${VERSION_WITHOUT_PREFIX}
 
@@ -72,4 +80,3 @@ jobs:
             docker tag feastdev/${{ matrix.component }}:${VERSION_WITHOUT_PREFIX} feastdev/${{ matrix.component }}:latest
             docker push feastdev/${{ matrix.component }}:latest
           fi
-

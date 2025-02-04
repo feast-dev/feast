@@ -34,7 +34,7 @@ func attemptInvalidCreationAndAsserts(ctx context.Context, featurestore *feastde
 	logger.Info("Creating", "FeatureStore", featurestore)
 	err := k8sClient.Create(ctx, featurestore)
 	logger.Info("Got", "err", err)
-	Expect(err).ToNot(BeNil())
+	Expect(err).To(HaveOccurred())
 	Expect(err.Error()).Should(ContainSubstring(matcher))
 }
 
@@ -350,12 +350,12 @@ func initContext() (context.Context, *feastdevv1alpha1.FeatureStore) {
 	BeforeEach(func() {
 		By("verifying the custom resource FeatureStore is not there")
 		err := k8sClient.Get(ctx, typeNamespacedName, featurestore)
-		Expect(err != nil && errors.IsNotFound(err))
+		Expect(err != nil && errors.IsNotFound(err)).To(BeTrue())
 	})
 	AfterEach(func() {
 		By("verifying the custom resource FeatureStore is not there")
 		err := k8sClient.Get(ctx, typeNamespacedName, featurestore)
-		Expect(err != nil && errors.IsNotFound(err))
+		Expect(err != nil && errors.IsNotFound(err)).To(BeTrue())
 	})
 
 	return ctx, featurestore

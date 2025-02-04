@@ -1,7 +1,7 @@
 import React, { useContext, useState } from "react";
 
 import { EuiIcon, EuiSideNav, htmlIdGenerator } from "@elastic/eui";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { useMatchSubpath } from "../hooks/useMatchSubpath";
 import useLoadRegistry from "../queries/useLoadRegistry";
 import RegistryPathContext from "../contexts/RegistryPathContext";
@@ -18,8 +18,6 @@ const SideNav = () => {
   const { projectName } = useParams();
 
   const [isSideNavOpenOnMobile, setisSideNavOpenOnMobile] = useState(false);
-
-  const navigate = useNavigate();
 
   const toggleOpenOnMobile = () => {
     setisSideNavOpenOnMobile(!isSideNavOpenOnMobile);
@@ -55,58 +53,48 @@ const SideNav = () => {
       : ""
   }`;
 
-  const sideNav = [
+  const baseUrl = `${process.env.PUBLIC_URL || ""}/p/${projectName}`;
+
+  const sideNav: React.ComponentProps<typeof EuiSideNav>['items'] = [
     {
       name: "Home",
       id: htmlIdGenerator("basicExample")(),
-      onClick: () => {
-        navigate(`${process.env.PUBLIC_URL || ""}/p/${projectName}/`);
-      },
+      renderItem: props => <Link {...props} to={`${baseUrl}/`} />,
       items: [
         {
           name: dataSourcesLabel,
           id: htmlIdGenerator("dataSources")(),
           icon: <EuiIcon type={DataSourceIcon} />,
-          onClick: () => {
-            navigate(`${process.env.PUBLIC_URL || ""}/p/${projectName}/data-source`);
-          },
-          isSelected: useMatchSubpath("data-source"),
+          renderItem: props => <Link {...props} to={`${baseUrl}/data-source`} />,
+          isSelected: useMatchSubpath(`${baseUrl}/data-source`),
         },
         {
           name: entitiesLabel,
           id: htmlIdGenerator("entities")(),
           icon: <EuiIcon type={EntityIcon} />,
-          onClick: () => {
-            navigate(`${process.env.PUBLIC_URL || ""}/p/${projectName}/entity`);
-          },
-          isSelected: useMatchSubpath("entity"),
+          renderItem: props => <Link {...props} to={`${baseUrl}/entity`} />,
+          isSelected: useMatchSubpath(`${baseUrl}/entity`),
         },
         {
           name: featureViewsLabel,
           id: htmlIdGenerator("featureView")(),
           icon: <EuiIcon type={FeatureViewIcon} />,
-          onClick: () => {
-            navigate(`${process.env.PUBLIC_URL || ""}/p/${projectName}/feature-view`);
-          },
-          isSelected: useMatchSubpath("feature-view"),
+          renderItem: props => <Link {...props} to={`${baseUrl}/feature-view`} />,
+          isSelected: useMatchSubpath(`${baseUrl}/feature-view`),
         },
         {
           name: featureServicesLabel,
           id: htmlIdGenerator("featureService")(),
           icon: <EuiIcon type={FeatureServiceIcon} />,
-          onClick: () => {
-            navigate(`${process.env.PUBLIC_URL || ""}/p/${projectName}/feature-service`);
-          },
-          isSelected: useMatchSubpath("feature-service"),
+          renderItem: props => <Link {...props} to={`${baseUrl}/feature-service`} />,
+          isSelected: useMatchSubpath(`${baseUrl}/feature-service`),
         },
         {
           name: savedDatasetsLabel,
           id: htmlIdGenerator("savedDatasets")(),
           icon: <EuiIcon type={DatasetIcon} />,
-          onClick: () => {
-            navigate(`${process.env.PUBLIC_URL || ""}/p/${projectName}/data-set`);
-          },
-          isSelected: useMatchSubpath("data-set"),
+          renderItem: props => <Link {...props} to={`${baseUrl}/data-set`} />,
+          isSelected: useMatchSubpath(`${baseUrl}/data-set`),
         },
       ],
     },

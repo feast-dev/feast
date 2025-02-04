@@ -18,6 +18,23 @@ on:
         required: true
         default: true
         type: boolean
+  workflow_call:
+    inputs:
+      dry_run:
+        description: 'Dry Run'
+        required: true
+        default: true
+        type: boolean
+      token:
+        description: 'Personal Access Token'
+        required: true
+        default: ""
+        type: string
+      publish_ui:
+        description: 'Publish to NPM?'
+        required: true
+        default: true
+        type: boolean
 
 jobs:
   get_dry_release_versions:
@@ -91,11 +108,9 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.21.x
+          go-version: 1.22.9
       - name: Build & version operator-specific release files
-        run: |
-          cd infra/feast-operator/
-          make build-installer bundle
+        run: make -C infra/feast-operator build-installer bundle
 
   publish-web-ui-npm:
     needs: [ validate_version_bumps, get_dry_release_versions ]
@@ -152,6 +167,10 @@ jobs:
       - name: Setup Helm-docs
         run: |
           brew install norwoodj/tap/helm-docs
+      - name: Install Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.22.9
       - name: Release (Dry Run)
         if: github.event.inputs.dry_run == 'true'
         run: |

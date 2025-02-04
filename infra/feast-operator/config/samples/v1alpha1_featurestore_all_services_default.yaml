@@ -1,14 +1,12 @@
 apiVersion: feast.dev/v1alpha1
 kind: FeatureStore
 metadata:
-  name: sample-all-default
+  name: sample-all-services
 spec:
   feastProject: my_project
   services:
-    onlineStore:
-      image: 'feastdev/feature-server:0.40.0'
-    offlineStore:
-      image: 'feastdev/feature-server:0.40.0'
+    onlineStore: {}
+    offlineStore: {}
+    ui: {}
     registry:
-      local:
-        image: 'feastdev/feature-server:0.40.0'
+      local: {}
