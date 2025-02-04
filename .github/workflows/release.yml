@@ -110,9 +110,7 @@ jobs:
         with:
           go-version: 1.22.9
       - name: Build & version operator-specific release files
-        run: |
-          make -C infra/feast-operator build-installer bundle
-          rm -rf infra/feast-operator/bin
+        run: make -C infra/feast-operator build-installer bundle
 
   publish-web-ui-npm:
     needs: [ validate_version_bumps, get_dry_release_versions ]
