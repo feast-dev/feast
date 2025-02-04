@@ -97,7 +97,7 @@ You can use `projectListPromise` to provide a promise that overrides where the F
 
 You can add custom tabs for any of the core Feast objects through the `tabsRegistry`.
 
-```
+```jsx
 const tabsRegistry = {
   RegularFeatureViewCustomTabs: [
     {
