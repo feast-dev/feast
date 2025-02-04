@@ -181,7 +181,6 @@ jobs:
           npx -p @semantic-release/changelog -p @semantic-release/git -p @semantic-release/exec -p semantic-release semantic-release
 
       - name: Updating `stable` branch after release.
-        if: github.event.inputs.dry_run == 'false'
         run: |
           git fetch origin
           # note that this checkout creates a branch called `stable` if it does not exist
