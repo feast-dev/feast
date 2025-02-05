@@ -141,5 +141,8 @@ class CouchbaseColumnarDataSourceCreator(DataSourceCreator):
                     ),
                 )
                 print(f"Successfully dropped collection: {collection}")
+            except TimeoutError:
+                # FIXME: temp workaround, timeouts occur in Columnar SDK even when the drop was successful
+                pass
             except Exception as e:
                 print(f"Error dropping collection {collection}: {e}")
