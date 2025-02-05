@@ -13,6 +13,8 @@ In alphabetical order
 | Hao Xu   | `HaoXuAI`       | sduxuhao@gmail.com          | JPMorgan          |
 | Shuchu Han  | `shuchu`       | shuchu.han@gmail.com          | Independent          |
 | Willem Pienaar | `woop`           | will.pienaar@gmail.com      | Cleric             |
+| Zhiling Chen        | `zhilingc`     | chnzhlng@gmail.com        | GetGround         |
+| Tornike Gurgenidze  | `tokoko`       | togurgenidze@gmail.com    | Bank of Georgia   |
 
 ## Emeritus Maintainers
 
@@ -20,8 +22,6 @@ In alphabetical order
 |---------------------|----------------|---------------------------|-------------------|
 | Edson Tirelli       | `etirelli`       | ed.tirelli@gmail.com      | Red Hat          |
 | Jeremy Ary          | `jeremyary`       | jeremy.ary@gmail.com      | Red Hat          |
-| Zhiling Chen        | `zhilingc`     | chnzhlng@gmail.com        | GetGround         |
-| Tornike Gurgenidze  | `tokoko`       | togurgenidze@gmail.com    | Bank of Georgia   |
 | Oleg Avdeev         | oavdeev        | oleg.v.avdeev@gmail.com   | Tecton            |
 | Oleksii Moskalenko  | pyalex         | moskalenko.alexey@gmail.com | Tecton            |
 | Jay Parthasarthy    | jparthasarthy  | jparthasarthy@gmail.com   | Tecton            |
