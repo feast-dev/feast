@@ -230,8 +230,10 @@ class CouchbaseColumnarSource(DataSource):
             field_types_list = rows[0].get("field_types", [])
             for field in field_types_list:
                 field_name = field.get("field-name", "unknown")
-                # if field_name == "pk":
-                #     continue
+                field_type = field.get("field-type", "unknown")
+                # drop uuid fields to ensure schema matches dataframe
+                if field_type == "uuid":
+                    continue
                 field_type = self._infer_composite_type(field)
                 field_type_pairs.append((field_name, field_type))
         return field_type_pairs
