@@ -614,6 +614,13 @@ func (feast *FeastServices) GetFeastServiceName(feastType FeastServiceType) stri
 	return GetFeastServiceName(feast.Handler.FeatureStore, feastType)
 }
 
+func (feast *FeastServices) GetDeployment() (appsv1.Deployment, error) {
+	deployment := appsv1.Deployment{}
+	obj := feast.GetObjectMeta()
+	err := feast.Handler.Get(feast.Handler.Context, client.ObjectKey{Namespace: obj.GetNamespace(), Name: obj.GetName()}, &deployment)
+	return deployment, err
+}
+
 // GetFeastServiceName returns the feast service object name based on service type
 func GetFeastServiceName(featureStore *feastdevv1alpha1.FeatureStore, feastType FeastServiceType) string {
 	return GetFeastName(featureStore) + "-" + string(feastType)
@@ -916,4 +923,14 @@ func getProbeHandler(feastType FeastServiceType, tls *feastdevv1alpha1.TlsConfig
 			Port: intstr.FromInt(int(targetPort)),
 		},
 	}
+}
+
+func IsDeploymentAvailable(conditions []appsv1.DeploymentCondition) bool {
+	for _, condition := range conditions {
+		if condition.Type == appsv1.DeploymentAvailable {
+			return condition.Status == corev1.ConditionTrue
+		}
+	}
+
+	return false
 }

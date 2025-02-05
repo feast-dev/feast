@@ -148,10 +148,10 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			Expect(resource.Status.Conditions).NotTo(BeEmpty())
 			cond := apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.ReadyType)
 			Expect(cond).ToNot(BeNil())
-			Expect(cond.Status).To(Equal(metav1.ConditionTrue))
-			Expect(cond.Reason).To(Equal(feastdevv1alpha1.ReadyReason))
+			Expect(cond.Status).To(Equal(metav1.ConditionUnknown))
+			Expect(cond.Reason).To(Equal(feastdevv1alpha1.DeploymentNotAvailableReason))
 			Expect(cond.Type).To(Equal(feastdevv1alpha1.ReadyType))
-			Expect(cond.Message).To(Equal(feastdevv1alpha1.ReadyMessage))
+			Expect(cond.Message).To(Equal(feastdevv1alpha1.DeploymentNotAvailableMessage))
 
 			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.AuthorizationReadyType)
 			Expect(cond).To(BeNil())
@@ -176,7 +176,7 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.OnlineStoreReadyType)
 			Expect(cond).To(BeNil())
 
-			Expect(resource.Status.Phase).To(Equal(feastdevv1alpha1.ReadyPhase))
+			Expect(resource.Status.Phase).To(Equal(feastdevv1alpha1.PendingPhase))
 
 			// check deployment
 			deploy := &appsv1.Deployment{}
