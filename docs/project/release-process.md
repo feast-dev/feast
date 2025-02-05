@@ -37,11 +37,6 @@ graph TD
         direction LR
         D1[Checkout code] --> D2[Set up Helm] --> D3[Package Helm charts] --> D4[Publish Helm charts]
     end
-
-    subgraph E[publish_java_sdk.yml]
-        direction LR
-        E1[Checkout code] --> E2[Set up Java] --> E3[Build Java SDK] --> E4[Publish to Maven]
-    end
 ```
 
 ## Release process
