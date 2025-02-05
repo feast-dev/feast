@@ -365,7 +365,11 @@ def _execute_query(
     )
 
 
-def df_to_columnar(df: pd.DataFrame, table_name: str, offline_store: CouchbaseColumnarOfflineStoreConfig):
+def df_to_columnar(
+    df: pd.DataFrame,
+    table_name: str,
+    offline_store: CouchbaseColumnarOfflineStoreConfig,
+):
     df_copy = df.copy()
     insert_values = df_copy.apply(
         lambda row: {
