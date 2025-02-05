@@ -1,4 +1,5 @@
 import contextlib
+import warnings
 from dataclasses import asdict
 from datetime import datetime, timedelta
 from typing import (
@@ -47,6 +48,9 @@ from .couchbase_source import (
     SavedDatasetCouchbaseColumnarStorage,
 )
 
+# Only prints out runtime warnings once.
+warnings.simplefilter("once", RuntimeWarning)
+
 
 class CouchbaseColumnarOfflineStoreConfig(FeastConfigBaseModel):
     """Offline store config for Couchbase Columnar"""
@@ -74,6 +78,11 @@ class CouchbaseColumnarOfflineStore(OfflineStore):
         """
         Fetch the latest rows for each join key.
         """
+        warnings.warn(
+            "This offline store is an experimental feature in alpha development. "
+            "Some functionality may still be unstable so functionality can change in the future.",
+            RuntimeWarning,
+        )
         assert isinstance(config.offline_store, CouchbaseColumnarOfflineStoreConfig)
         assert isinstance(data_source, CouchbaseColumnarSource)
         from_expression = data_source.get_table_query_string()
@@ -131,6 +140,11 @@ class CouchbaseColumnarOfflineStore(OfflineStore):
         """
         Retrieve historical features using point-in-time joins.
         """
+        warnings.warn(
+            "This offline store is an experimental feature in alpha development. "
+            "Some functionality may still be unstable so functionality can change in the future.",
+            RuntimeWarning,
+        )
         assert isinstance(config.offline_store, CouchbaseColumnarOfflineStoreConfig)
         for fv in feature_views:
             assert isinstance(fv.batch_source, CouchbaseColumnarSource)
@@ -221,6 +235,11 @@ class CouchbaseColumnarOfflineStore(OfflineStore):
         """
         Fetch all rows from the specified table or query within the time range.
         """
+        warnings.warn(
+            "This offline store is an experimental feature in alpha development. "
+            "Some functionality may still be unstable so functionality can change in the future.",
+            RuntimeWarning,
+        )
         assert isinstance(config.offline_store, CouchbaseColumnarOfflineStoreConfig)
         assert isinstance(data_source, CouchbaseColumnarSource)
         from_expression = data_source.get_table_query_string()
