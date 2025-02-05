@@ -1,6 +1,6 @@
 # Release process
 
-The release process is automated through a [GitHub Action]().
+The release process is automated through a GitHub Action called [release.yml](https://github.com/feast-dev/feast/blob/master/.github/workflows/release.yml).
 Here's a diagram of the workflows:
 
 ```mermaid
