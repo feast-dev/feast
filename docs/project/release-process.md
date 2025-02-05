@@ -21,7 +21,6 @@ graph TD
     A[publish.yml] -->|triggers| B[publish_python_sdk.yml]
     B -->|needs| C[publish_images.yml]
     B -->|needs| D[publish_helm_charts.yml]
-    B -->|needs| E[publish_java_sdk.yml]
 
     subgraph B[publish_python_sdk.yml]
         direction LR
