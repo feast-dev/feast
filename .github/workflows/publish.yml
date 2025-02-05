@@ -50,11 +50,3 @@ jobs:
     with:
       custom_version: ${{ github.event.inputs.custom_version }}
       token: ${{ github.event.inputs.token }}
-
-  publish-java-sdk:
-    uses: ./.github/workflows/publish_java_sdk.yml
-    needs: [ publish-python-sdk ]
-    secrets: inherit
-    with:
-      custom_version: ${{ github.event.inputs.custom_version }}
-      token: ${{ github.event.inputs.token }}
