@@ -1093,6 +1093,7 @@ def cb_columnar_type_to_feast_value_type(type_str: str) -> ValueType:
         "null": ValueType.NULL,
         "missing": ValueType.UNKNOWN,
         # composite types
+        # todo: support for arrays of primitives
         "object": ValueType.UNKNOWN,
         "array": ValueType.UNKNOWN,
         "multiset": ValueType.UNKNOWN,
