@@ -352,6 +352,7 @@ func (feast *FeastServices) setPod(podSpec *corev1.PodSpec) error {
 	feast.mountTlsConfigs(podSpec)
 	feast.mountPvcConfigs(podSpec)
 	feast.mountEmptyDirVolumes(podSpec)
+	feast.mountUserDefinedVolumes(podSpec)
 
 	return nil
 }
@@ -418,7 +419,38 @@ func (feast *FeastServices) setContainer(containers *[]corev1.Container, feastTy
 		},
 	}
 	applyOptionalCtrConfigs(container, containerConfigs.OptionalCtrConfigs)
+	volumeMounts := feast.getVolumeMounts(feastType)
+	if len(volumeMounts) > 0 {
+		container.VolumeMounts = append(container.VolumeMounts, volumeMounts...)
+	}
 	*containers = append(*containers, *container)
+}
+
+func (feast *FeastServices) getVolumeMounts(feastType FeastServiceType) (volumeMounts []corev1.VolumeMount) {
+	appliedServices := feast.Handler.FeatureStore.Status.Applied.Services
+	if appliedServices == nil {
+		return []corev1.VolumeMount{} // Return an empty slice to avoid nil issues
+	}
+
+	switch feastType {
+	case OfflineFeastType:
+		if feast.isOfflinStore() {
+			return appliedServices.OfflineStore.VolumeMounts
+		}
+	case OnlineFeastType:
+		if feast.isOnlinStore() {
+			return appliedServices.OnlineStore.VolumeMounts
+		}
+	case RegistryFeastType:
+		if feast.isLocalRegistry() {
+			return appliedServices.Registry.Local.VolumeMounts
+		}
+	case UIFeastType:
+		if feast.isUI() {
+			return appliedServices.UI.VolumeMounts
+		}
+	}
+	return []corev1.VolumeMount{} // Default empty slice
 }
 
 func (feast *FeastServices) setRoute(route *routev1.Route, feastType FeastServiceType) error {
@@ -857,6 +889,16 @@ func (feast *FeastServices) mountPvcConfig(podSpec *corev1.PodSpec, pvcConfig *f
 				MountPath: pvcConfig.MountPath,
 			})
 		}
+	}
+}
+
+func (feast *FeastServices) mountUserDefinedVolumes(podSpec *corev1.PodSpec) {
+	var volumes []corev1.Volume
+	if feast.Handler.FeatureStore.Spec.Services != nil {
+		volumes = feast.Handler.FeatureStore.Spec.Services.Volumes
+	}
+	if len(volumes) > 0 {
+		podSpec.Volumes = append(podSpec.Volumes, volumes...)
 	}
 }
 
