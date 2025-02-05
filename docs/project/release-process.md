@@ -42,7 +42,7 @@ graph TD
         direction LR
         E1[Checkout code] --> E2[Set up Java] --> E3[Build Java SDK] --> E4[Publish to Maven]
     end
-    ```
+```
 
 ## Release process
 
