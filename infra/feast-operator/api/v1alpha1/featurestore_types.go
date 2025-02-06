@@ -38,23 +38,25 @@ const (
 	AuthorizationReadyType = "Authorization"
 
 	// Feast condition reasons:
-	ReadyReason                 = "Ready"
-	FailedReason                = "FeatureStoreFailed"
-	OfflineStoreFailedReason    = "OfflineStoreDeploymentFailed"
-	OnlineStoreFailedReason     = "OnlineStoreDeploymentFailed"
-	RegistryFailedReason        = "RegistryDeploymentFailed"
-	UIFailedReason              = "UIDeploymentFailed"
-	ClientFailedReason          = "ClientDeploymentFailed"
-	KubernetesAuthzFailedReason = "KubernetesAuthorizationDeploymentFailed"
+	ReadyReason                  = "Ready"
+	FailedReason                 = "FeatureStoreFailed"
+	DeploymentNotAvailableReason = "DeploymentNotAvailable"
+	OfflineStoreFailedReason     = "OfflineStoreDeploymentFailed"
+	OnlineStoreFailedReason      = "OnlineStoreDeploymentFailed"
+	RegistryFailedReason         = "RegistryDeploymentFailed"
+	UIFailedReason               = "UIDeploymentFailed"
+	ClientFailedReason           = "ClientDeploymentFailed"
+	KubernetesAuthzFailedReason  = "KubernetesAuthorizationDeploymentFailed"
 
 	// Feast condition messages:
-	ReadyMessage                = "FeatureStore installation complete"
-	OfflineStoreReadyMessage    = "Offline Store installation complete"
-	OnlineStoreReadyMessage     = "Online Store installation complete"
-	RegistryReadyMessage        = "Registry installation complete"
-	UIReadyMessage              = "UI installation complete"
-	ClientReadyMessage          = "Client installation complete"
-	KubernetesAuthzReadyMessage = "Kubernetes authorization installation complete"
+	ReadyMessage                  = "FeatureStore installation complete"
+	OfflineStoreReadyMessage      = "Offline Store installation complete"
+	OnlineStoreReadyMessage       = "Online Store installation complete"
+	RegistryReadyMessage          = "Registry installation complete"
+	UIReadyMessage                = "UI installation complete"
+	ClientReadyMessage            = "Client installation complete"
+	KubernetesAuthzReadyMessage   = "Kubernetes authorization installation complete"
+	DeploymentNotAvailableMessage = "Deployment is not available"
 
 	// entity_key_serialization_version
 	SerializationVersion = 3

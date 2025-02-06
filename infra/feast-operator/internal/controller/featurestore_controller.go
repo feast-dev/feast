@@ -138,6 +138,30 @@ func (r *FeatureStoreReconciler) deployFeast(ctx context.Context, cr *feastdevv1
 			Reason:  feastdevv1alpha1.FailedReason,
 			Message: "Error: " + err.Error(),
 		}
+	} else {
+		deployment, deploymentErr := feast.GetDeployment()
+		if deploymentErr != nil {
+			condition = metav1.Condition{
+				Type:    feastdevv1alpha1.ReadyType,
+				Status:  metav1.ConditionUnknown,
+				Reason:  feastdevv1alpha1.DeploymentNotAvailableReason,
+				Message: feastdevv1alpha1.DeploymentNotAvailableMessage,
+			}
+
+			result = errResult
+		} else {
+			isDeployAvailable := services.IsDeploymentAvailable(deployment.Status.Conditions)
+			if !isDeployAvailable {
+				condition = metav1.Condition{
+					Type:    feastdevv1alpha1.ReadyType,
+					Status:  metav1.ConditionUnknown,
+					Reason:  feastdevv1alpha1.DeploymentNotAvailableReason,
+					Message: feastdevv1alpha1.DeploymentNotAvailableMessage,
+				}
+
+				result = errResult
+			}
+		}
 	}
 
 	logger.Info(condition.Message)
