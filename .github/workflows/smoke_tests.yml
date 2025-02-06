@@ -1,6 +1,11 @@
 name: smoke-tests
 
-on: [pull_request]
+on:
+  pull_request:
+    paths-ignore:
+      - 'community/**'
+      - 'docs/**'
+      - 'examples/**'
 jobs:
   unit-test-python:
     runs-on: ${{ matrix.os }}
@@ -26,7 +31,7 @@ jobs:
       - name: Get uv cache dir
         id: uv-cache
         run: |
-          echo "::set-output name=dir::$(uv cache dir)"
+          echo "dir=$(uv cache dir)" >> $GITHUB_OUTPUT
       - name: uv cache
         uses: actions/cache@v4
         with:

@@ -106,7 +106,15 @@ def test_feature_service_logging(environment, universal_data_sources, pass_as_pa
     )
 
     persisted_logs = persisted_logs[expected_columns]
+
     logs_df = logs_df[expected_columns]
+
+    # Convert timezone-aware datetime values to naive datetime values
+    logs_df[LOG_TIMESTAMP_FIELD] = logs_df[LOG_TIMESTAMP_FIELD].dt.tz_localize(None)
+    persisted_logs[LOG_TIMESTAMP_FIELD] = persisted_logs[
+        LOG_TIMESTAMP_FIELD
+    ].dt.tz_localize(None)
+
     pd.testing.assert_frame_equal(
         logs_df.sort_values(REQUEST_ID_FIELD).reset_index(drop=True),
         persisted_logs.sort_values(REQUEST_ID_FIELD).reset_index(drop=True),

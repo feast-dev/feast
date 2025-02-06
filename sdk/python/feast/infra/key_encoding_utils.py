@@ -1,5 +1,7 @@
 import struct
-from typing import List, Tuple
+from typing import List, Tuple, Union
+
+from google.protobuf.internal.containers import RepeatedScalarFieldContainer
 
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
@@ -81,6 +83,8 @@ def serialize_entity_key(
     )
 
     output: List[bytes] = []
+    if entity_key_serialization_version > 2:
+        output.append(struct.pack("<I", len(sorted_keys)))
     for k in sorted_keys:
         output.append(struct.pack("<I", ValueType.STRING))
         if entity_key_serialization_version > 2:
@@ -120,7 +124,11 @@ def deserialize_entity_key(
     offset = 0
     keys = []
     values = []
-    while offset < len(serialized_entity_key):
+
+    num_keys = struct.unpack_from("<I", serialized_entity_key, offset)[0]
+    offset += 4
+
+    for _ in range(num_keys):
         key_type = struct.unpack_from("<I", serialized_entity_key, offset)[0]
         offset += 4
 
@@ -137,6 +145,7 @@ def deserialize_entity_key(
         else:
             raise ValueError(f"Unsupported key type: {key_type}")
 
+    while offset < len(serialized_entity_key):
         (value_type,) = struct.unpack_from("<I", serialized_entity_key, offset)
         offset += 4
 
@@ -163,3 +172,16 @@ def get_list_val_str(val):
         if val.HasField(accept_type):
             return str(getattr(val, accept_type).val)
     return None
+
+
+def serialize_f32(
+    vector: Union[RepeatedScalarFieldContainer[float], List[float]], vector_length: int
+) -> bytes:
+    """serializes a list of floats into a compact "raw bytes" format"""
+    return struct.pack(f"{vector_length}f", *vector)
+
+
+def deserialize_f32(byte_vector: bytes, vector_length: int) -> List[float]:
+    """deserializes a list of floats from a compact "raw bytes" format"""
+    num_floats = vector_length // 4  # 4 bytes per float
+    return list(struct.unpack(f"{num_floats}f", byte_vector))

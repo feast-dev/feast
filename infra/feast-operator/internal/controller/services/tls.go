@@ -29,7 +29,7 @@ func (feast *FeastServices) setTlsDefaults() error {
 	}
 	appliedServices := feast.Handler.FeatureStore.Status.Applied.Services
 	if feast.isOfflinStore() && appliedServices.OfflineStore.TLS != nil {
-		tlsDefaults(&appliedServices.OfflineStore.TLS.TlsConfigs)
+		tlsDefaults(appliedServices.OfflineStore.TLS)
 	}
 	if feast.isOnlinStore() {
 		tlsDefaults(appliedServices.OnlineStore.TLS)
@@ -37,17 +37,18 @@ func (feast *FeastServices) setTlsDefaults() error {
 	if feast.isLocalRegistry() {
 		tlsDefaults(appliedServices.Registry.Local.TLS)
 	}
+	if feast.isUI() {
+		tlsDefaults(appliedServices.UI.TLS)
+	}
 	return nil
 }
 
 func (feast *FeastServices) setOpenshiftTls() error {
 	appliedServices := feast.Handler.FeatureStore.Status.Applied.Services
 	if feast.offlineOpenshiftTls() {
-		appliedServices.OfflineStore.TLS = &feastdevv1alpha1.OfflineTlsConfigs{
-			TlsConfigs: feastdevv1alpha1.TlsConfigs{
-				SecretRef: &corev1.LocalObjectReference{
-					Name: feast.initFeastSvc(OfflineFeastType).Name + tlsNameSuffix,
-				},
+		appliedServices.OfflineStore.TLS = &feastdevv1alpha1.TlsConfigs{
+			SecretRef: &corev1.LocalObjectReference{
+				Name: feast.initFeastSvc(OfflineFeastType).Name + tlsNameSuffix,
 			},
 		}
 	}
@@ -58,6 +59,14 @@ func (feast *FeastServices) setOpenshiftTls() error {
 			},
 		}
 	}
+	if feast.uiOpenshiftTls() {
+		appliedServices.UI.TLS = &feastdevv1alpha1.TlsConfigs{
+			SecretRef: &corev1.LocalObjectReference{
+				Name: feast.initFeastSvc(UIFeastType).Name + tlsNameSuffix,
+			},
+		}
+	}
+
 	if feast.localRegistryOpenshiftTls() {
 		appliedServices.Registry.Local.TLS = &feastdevv1alpha1.TlsConfigs{
 			SecretRef: &corev1.LocalObjectReference{
@@ -81,7 +90,7 @@ func (feast *FeastServices) setOpenshiftTls() error {
 }
 
 func (feast *FeastServices) checkOpenshiftTls() (bool, error) {
-	if feast.offlineOpenshiftTls() || feast.onlineOpenshiftTls() || feast.localRegistryOpenshiftTls() {
+	if feast.offlineOpenshiftTls() || feast.onlineOpenshiftTls() || feast.localRegistryOpenshiftTls() || feast.uiOpenshiftTls() {
 		return true, nil
 	}
 	return feast.remoteRegistryOpenshiftTls()
@@ -95,7 +104,10 @@ func (feast *FeastServices) isOpenShiftTls(feastType FeastServiceType) (isOpenSh
 		isOpenShift = feast.onlineOpenshiftTls()
 	case RegistryFeastType:
 		isOpenShift = feast.localRegistryOpenshiftTls()
+	case UIFeastType:
+		isOpenShift = feast.uiOpenshiftTls()
 	}
+
 	return
 }
 
@@ -103,8 +115,8 @@ func (feast *FeastServices) getTlsConfigs(feastType FeastServiceType) (tls *feas
 	appliedServices := feast.Handler.FeatureStore.Status.Applied.Services
 	switch feastType {
 	case OfflineFeastType:
-		if feast.isOfflinStore() && appliedServices.OfflineStore.TLS != nil {
-			tls = &appliedServices.OfflineStore.TLS.TlsConfigs
+		if feast.isOfflinStore() {
+			tls = appliedServices.OfflineStore.TLS
 		}
 	case OnlineFeastType:
 		if feast.isOnlinStore() {
@@ -113,6 +125,10 @@ func (feast *FeastServices) getTlsConfigs(feastType FeastServiceType) (tls *feas
 	case RegistryFeastType:
 		if feast.isLocalRegistry() {
 			tls = appliedServices.Registry.Local.TLS
+		}
+	case UIFeastType:
+		if feast.isUI() {
+			tls = appliedServices.UI.TLS
 		}
 	}
 	return
@@ -128,6 +144,12 @@ func (feast *FeastServices) offlineOpenshiftTls() bool {
 func (feast *FeastServices) onlineOpenshiftTls() bool {
 	return isOpenShift &&
 		feast.isOnlinStore() && feast.Handler.FeatureStore.Spec.Services.OnlineStore.TLS == nil
+}
+
+// True if running in an openshift cluster and Tls not configured in the service Spec
+func (feast *FeastServices) uiOpenshiftTls() bool {
+	return isOpenShift &&
+		feast.isUI() && feast.Handler.FeatureStore.Spec.Services.UI.TLS == nil
 }
 
 // True if running in an openshift cluster and Tls not configured in the service Spec
@@ -154,12 +176,6 @@ func (feast *FeastServices) remoteRegistryOpenshiftTls() (bool, error) {
 	return false, nil
 }
 
-func (feast *FeastServices) offlineTls() bool {
-	return feast.isOfflinStore() &&
-		feast.Handler.FeatureStore.Status.Applied.Services.OfflineStore.TLS != nil &&
-		(&feast.Handler.FeatureStore.Status.Applied.Services.OfflineStore.TLS.TlsConfigs).IsTLS()
-}
-
 func (feast *FeastServices) localRegistryTls() bool {
 	return localRegistryTls(feast.Handler.FeatureStore)
 }
@@ -173,10 +189,18 @@ func (feast *FeastServices) mountRegistryClientTls(podSpec *corev1.PodSpec) {
 		if feast.localRegistryTls() {
 			feast.mountTlsConfig(RegistryFeastType, podSpec)
 		} else if feast.remoteRegistryTls() {
-			mountTlsRemoteRegistryConfig(RegistryFeastType, podSpec,
+			mountTlsRemoteRegistryConfig(podSpec,
 				feast.Handler.FeatureStore.Status.Applied.Services.Registry.Remote.TLS)
 		}
 	}
+}
+
+func (feast *FeastServices) mountTlsConfigs(podSpec *corev1.PodSpec) {
+	// how deal w/ client deployment tls mounts when the time comes? new function?
+	feast.mountRegistryClientTls(podSpec)
+	feast.mountTlsConfig(OfflineFeastType, podSpec)
+	feast.mountTlsConfig(OnlineFeastType, podSpec)
+	feast.mountTlsConfig(UIFeastType, podSpec)
 }
 
 func (feast *FeastServices) mountTlsConfig(feastType FeastServiceType, podSpec *corev1.PodSpec) {
@@ -191,18 +215,19 @@ func (feast *FeastServices) mountTlsConfig(feastType FeastServiceType, podSpec *
 				},
 			},
 		})
-		container := &podSpec.Containers[0]
-		container.VolumeMounts = append(container.VolumeMounts, corev1.VolumeMount{
-			Name:      volName,
-			MountPath: GetTlsPath(feastType),
-			ReadOnly:  true,
-		})
+		if i, container := getContainerByType(feastType, *podSpec); container != nil {
+			podSpec.Containers[i].VolumeMounts = append(podSpec.Containers[i].VolumeMounts, corev1.VolumeMount{
+				Name:      volName,
+				MountPath: GetTlsPath(feastType),
+				ReadOnly:  true,
+			})
+		}
 	}
 }
 
-func mountTlsRemoteRegistryConfig(feastType FeastServiceType, podSpec *corev1.PodSpec, tls *feastdevv1alpha1.TlsRemoteRegistryConfigs) {
+func mountTlsRemoteRegistryConfig(podSpec *corev1.PodSpec, tls *feastdevv1alpha1.TlsRemoteRegistryConfigs) {
 	if tls != nil {
-		volName := string(feastType) + tlsNameSuffix
+		volName := string(RegistryFeastType) + tlsNameSuffix
 		podSpec.Volumes = append(podSpec.Volumes, corev1.Volume{
 			Name: volName,
 			VolumeSource: corev1.VolumeSource{
@@ -211,12 +236,13 @@ func mountTlsRemoteRegistryConfig(feastType FeastServiceType, podSpec *corev1.Po
 				},
 			},
 		})
-		container := &podSpec.Containers[0]
-		container.VolumeMounts = append(container.VolumeMounts, corev1.VolumeMount{
-			Name:      volName,
-			MountPath: GetTlsPath(feastType),
-			ReadOnly:  true,
-		})
+		for i := range podSpec.Containers {
+			podSpec.Containers[i].VolumeMounts = append(podSpec.Containers[i].VolumeMounts, corev1.VolumeMount{
+				Name:      volName,
+				MountPath: GetTlsPath(RegistryFeastType),
+				ReadOnly:  true,
+			})
+		}
 	}
 }
 

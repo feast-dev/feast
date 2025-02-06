@@ -294,7 +294,8 @@ class PassthroughProvider(Provider):
         self,
         config: RepoConfig,
         table: FeatureView,
-        requested_feature: str,
+        requested_feature: Optional[str],
+        requested_features: Optional[List[str]],
         query: List[float],
         top_k: int,
         distance_metric: Optional[str] = None,
@@ -305,6 +306,28 @@ class PassthroughProvider(Provider):
                 config,
                 table,
                 requested_feature,
+                requested_features,
+                query,
+                top_k,
+                distance_metric,
+            )
+        return result
+
+    def retrieve_online_documents_v2(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        requested_features: Optional[List[str]],
+        query: List[float],
+        top_k: int,
+        distance_metric: Optional[str] = None,
+    ) -> List:
+        result = []
+        if self.online_store:
+            result = self.online_store.retrieve_online_documents_v2(
+                config,
+                table,
+                requested_features,
                 query,
                 top_k,
                 distance_metric,
@@ -471,9 +494,9 @@ class PassthroughProvider(Provider):
         config: RepoConfig,
         registry: BaseRegistry,
     ):
-        assert (
-            feature_service.logging_config is not None
-        ), "Logging should be configured for the feature service before calling this function"
+        assert feature_service.logging_config is not None, (
+            "Logging should be configured for the feature service before calling this function"
+        )
 
         self.offline_store.write_logged_features(
             config=config,
@@ -491,9 +514,9 @@ class PassthroughProvider(Provider):
         config: RepoConfig,
         registry: BaseRegistry,
     ) -> RetrievalJob:
-        assert (
-            feature_service.logging_config is not None
-        ), "Logging should be configured for the feature service before calling this function"
+        assert feature_service.logging_config is not None, (
+            "Logging should be configured for the feature service before calling this function"
+        )
 
         logging_source = FeatureServiceLoggingSource(feature_service, config.project)
         schema = logging_source.get_schema(registry)

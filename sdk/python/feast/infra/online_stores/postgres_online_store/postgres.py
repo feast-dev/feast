@@ -347,7 +347,8 @@ class PostgreSQLOnlineStore(OnlineStore):
         self,
         config: RepoConfig,
         table: FeatureView,
-        requested_feature: str,
+        requested_feature: Optional[str],
+        requested_features: Optional[List[str]],
         embedding: List[float],
         top_k: int,
         distance_metric: Optional[str] = "L2",
@@ -366,6 +367,7 @@ class PostgreSQLOnlineStore(OnlineStore):
             config: Feast configuration object
             table: FeatureView object as the table to search
             requested_feature: The requested feature as the column to search
+            requested_features: The list of features whose embeddings should be used for retrieval.
             embedding: The query embedding to search for
             top_k: The number of items to return
             distance_metric: The distance metric to use for the search.G

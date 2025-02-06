@@ -20,17 +20,19 @@ import (
 	"github.com/feast-dev/feast/infra/feast-operator/api/feastversion"
 	feastdevv1alpha1 "github.com/feast-dev/feast/infra/feast-operator/api/v1alpha1"
 	handler "github.com/feast-dev/feast/infra/feast-operator/internal/controller/handler"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
-	FeatureStoreYamlEnvVar          = "FEATURE_STORE_YAML_BASE64"
-	FeatureStoreYamlCmKey           = "feature_store.yaml"
-	DefaultRegistryEphemeralPath    = "/tmp/registry.db"
-	DefaultRegistryPvcPath          = "registry.db"
-	DefaultOnlineStoreEphemeralPath = "/tmp/online_store.db"
-	DefaultOnlineStorePvcPath       = "online_store.db"
-	svcDomain                       = ".svc.cluster.local"
+	TmpFeatureStoreYamlEnvVar = "TMP_FEATURE_STORE_YAML_BASE64"
+	feastServerImageVar       = "RELATED_IMAGE_FEATURE_SERVER"
+	FeatureStoreYamlCmKey     = "feature_store.yaml"
+	EphemeralPath             = "/feast-data"
+	FeatureRepoDir            = "/feature_repo"
+	DefaultRegistryPath       = "registry.db"
+	DefaultOnlineStorePath    = "online_store.db"
+	svcDomain                 = ".svc.cluster.local"
 
 	HttpPort      = 80
 	HttpsPort     = 443
@@ -46,6 +48,7 @@ const (
 	OfflineFeastType  FeastServiceType = "offline"
 	OnlineFeastType   FeastServiceType = "online"
 	RegistryFeastType FeastServiceType = "registry"
+	UIFeastType       FeastServiceType = "ui"
 	ClientFeastType   FeastServiceType = "client"
 	ClientCaFeastType FeastServiceType = "client-ca"
 
@@ -80,10 +83,11 @@ const (
 )
 
 var (
-	DefaultImage        = "feastdev/feature-server:" + feastversion.FeastVersion
-	DefaultReplicas     = int32(1)
-	NameLabelKey        = feastdevv1alpha1.GroupVersion.Group + "/name"
-	ServiceTypeLabelKey = feastdevv1alpha1.GroupVersion.Group + "/service-type"
+	DefaultImage          = "feastdev/feature-server:" + feastversion.FeastVersion
+	DefaultReplicas       = int32(1)
+	DefaultPVCAccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}
+	NameLabelKey          = feastdevv1alpha1.GroupVersion.Group + "/name"
+	ServiceTypeLabelKey   = feastdevv1alpha1.GroupVersion.Group + "/service-type"
 
 	FeastServiceConstants = map[FeastServiceType]deploymentSettings{
 		OfflineFeastType: {
@@ -100,6 +104,11 @@ var (
 			Args:            []string{"serve_registry"},
 			TargetHttpPort:  6570,
 			TargetHttpsPort: 6571,
+		},
+		UIFeastType: {
+			Args:            []string{"ui", "-h", "0.0.0.0"},
+			TargetHttpPort:  8888,
+			TargetHttpsPort: 8443,
 		},
 	}
 
@@ -143,6 +152,20 @@ var (
 				Reason: feastdevv1alpha1.RegistryFailedReason,
 			},
 		},
+		UIFeastType: {
+			metav1.ConditionTrue: {
+				Type:    feastdevv1alpha1.UIReadyType,
+				Status:  metav1.ConditionTrue,
+				Reason:  feastdevv1alpha1.ReadyReason,
+				Message: feastdevv1alpha1.UIReadyMessage,
+			},
+			metav1.ConditionFalse: {
+				Type:   feastdevv1alpha1.UIReadyType,
+				Status: metav1.ConditionFalse,
+				Reason: feastdevv1alpha1.UIFailedReason,
+			},
+		},
+
 		ClientFeastType: {
 			metav1.ConditionTrue: {
 				Type:    feastdevv1alpha1.ClientReadyType,
@@ -161,6 +184,13 @@ var (
 	OidcServerProperties = []OidcPropertyType{OidcClientId, OidcAuthDiscoveryUrl}
 	OidcClientProperties = []OidcPropertyType{OidcClientSecret, OidcUsername, OidcPassword}
 )
+
+// Feast server types: Reserved only for server types like Online, Offline, and Registry servers. Should not be used for client types like the UI, etc.
+var feastServerTypes = []FeastServiceType{
+	RegistryFeastType,
+	OfflineFeastType,
+	OnlineFeastType,
+}
 
 // AuthzType defines the authorization type
 type AuthzType string

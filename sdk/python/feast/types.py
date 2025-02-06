@@ -207,9 +207,9 @@ def from_feast_to_pyarrow_type(feast_type: FeastType) -> pyarrow.DataType:
     Raises:
         ValueError: The conversion could not be performed.
     """
-    assert isinstance(
-        feast_type, (ComplexFeastType, PrimitiveFeastType)
-    ), f"Expected FeastType, got {type(feast_type)}"
+    assert isinstance(feast_type, (ComplexFeastType, PrimitiveFeastType)), (
+        f"Expected FeastType, got {type(feast_type)}"
+    )
     if isinstance(feast_type, PrimitiveFeastType):
         if feast_type in FEAST_TYPES_TO_PYARROW_TYPES:
             return FEAST_TYPES_TO_PYARROW_TYPES[feast_type]
@@ -236,3 +236,26 @@ def from_value_type(
         return VALUE_TYPES_TO_FEAST_TYPES[value_type]
 
     raise ValueError(f"Could not convert value type {value_type} to FeastType.")
+
+
+def from_feast_type(
+    feast_type: FeastType,
+) -> ValueType:
+    """
+    Converts a Feast type to a ValueType enum.
+
+    Args:
+        feast_type: The Feast type to be converted.
+
+    Returns:
+        The corresponding ValueType enum.
+
+    Raises:
+        ValueError: The conversion could not be performed.
+    """
+    if feast_type in VALUE_TYPES_TO_FEAST_TYPES.values():
+        return list(VALUE_TYPES_TO_FEAST_TYPES.keys())[
+            list(VALUE_TYPES_TO_FEAST_TYPES.values()).index(feast_type)
+        ]
+
+    raise ValueError(f"Could not convert feast type {feast_type} to ValueType.")

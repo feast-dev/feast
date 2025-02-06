@@ -1,0 +1,7 @@
+registry: s3://feast-demo/registry.db
+project: feast_python_demo
+provider: local
+online_store:
+  path: http://localhost:6566
+  type: remote
+entity_key_serialization_version: 2

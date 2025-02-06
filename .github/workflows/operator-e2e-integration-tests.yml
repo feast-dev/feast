@@ -10,9 +10,14 @@ on:
       - opened
       - synchronize
       - labeled
+    paths-ignore:
+      - 'community/**'
+      - 'docs/**'
+      - 'examples/**'
 
 jobs:
   operator-e2e-tests:
+    timeout-minutes: 40
     if:
       ((github.event.action == 'labeled' && (github.event.label.name == 'approved' || github.event.label.name == 'lgtm' || github.event.label.name == 'ok-to-test')) ||
       (github.event.action != 'labeled' && (contains(github.event.pull_request.labels.*.name, 'ok-to-test') || contains(github.event.pull_request.labels.*.name, 'approved') || contains(github.event.pull_request.labels.*.name, 'lgtm')))) &&
@@ -34,11 +39,11 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.21.0'
+          go-version: 1.22.9
 
       - name: Create KIND cluster
         run: |
-          kind create cluster --name $KIND_CLUSTER --wait 5m
+          kind create cluster --name $KIND_CLUSTER --wait 10m
 
       - name: Set up kubernetes context
         run: |
@@ -51,8 +56,16 @@ jobs:
           cd infra/feast-operator/
           make test-e2e
 
+      - name: Debug KIND Cluster when there is a failure
+        if: failure()
+        run: |
+          kubectl get pods --all-namespaces
+          kubectl describe nodes
+
       - name: Clean up
         if: always()
         run: |
           # Delete the KIND cluster after tests
           kind delete cluster --name kind-$KIND_CLUSTER
+
+      

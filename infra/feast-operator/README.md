@@ -1,10 +1,12 @@
 # Feast Operator
 This is a K8s Operator that can be used to deploy and manage **Feast**, an open source feature store for machine learning.
 
+### **[FeatureStore CR API Reference](docs/api/markdown/ref.md)**
+
 ## Getting Started
 
 ### Prerequisites
-- go version v1.21.0+
+- go version v1.22
 - docker version 17.03+.
 - kubectl version v1.11.3+.
 - Access to a Kubernetes v1.11.3+ cluster.
@@ -108,8 +110,8 @@ make deploy IMG=<some-registry>/feast-operator:<some-tag>
 ```
 
 ### Prerequisites
-- go version v1.21
-- operator-sdk version v1.37.0
+- go version v1.22
+- operator-sdk version v1.38.0
 
 **NOTE:** Run `make help` for more information on all potential `make` targets
 
@@ -153,6 +155,3 @@ make test-e2e
 # delete cluster once you are done.
 kind delete cluster
 ```
-
-
-

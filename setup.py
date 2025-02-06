@@ -33,7 +33,7 @@ REQUIRED = [
     "click>=7.0.0,<9.0.0",
     "colorama>=0.3.9,<1",
     "dill~=0.3.0",
-    "protobuf>=4.24.0,<5.0.0",
+    "protobuf>=4.24.0",
     "Jinja2>=2,<4",
     "jsonschema",
     "mmh3",
@@ -156,18 +156,20 @@ QDRANT_REQUIRED = ["qdrant-client>=1.12.0"]
 
 GO_REQUIRED = ["cffi~=1.15.0"]
 
+MILVUS_REQUIRED = ["pymilvus"]
+
 CI_REQUIRED = (
     [
         "build",
         "virtualenv==20.23.0",
-        "cryptography>=35.0,<43",
+        "cryptography>=43.0,<44",
         "ruff>=0.8.0",
         "mypy-protobuf>=3.1",
         "grpcio-tools>=1.56.2,<2",
         "grpcio-testing>=1.56.2,<2",
         # FastAPI does not correctly pull starlette dependency on httpx see thread(https://github.com/tiangolo/fastapi/issues/5656).
-        "httpx>=0.23.3",
-        "minio==7.1.0",
+        "httpx==0.27.2",
+        "minio==7.2.11",
         "mock==2.0.0",
         "moto<5",
         "mypy>=1.4.1,<1.11.3",
@@ -226,6 +228,7 @@ CI_REQUIRED = (
     + OPENTELEMETRY
     + FAISS_REQUIRED
     + QDRANT_REQUIRED
+    + MILVUS_REQUIRED
 )
 
 DOCS_REQUIRED = CI_REQUIRED
@@ -253,61 +256,6 @@ else:
     use_scm_version = None
 
 PYTHON_CODE_PREFIX = "sdk/python"
-
-def _generate_path_with_gopath():
-    go_path = subprocess.check_output(["go", "env", "GOPATH"]).decode("utf-8")
-    go_path = go_path.strip()
-    path_val = os.getenv("PATH")
-    path_val = f"{path_val}:{go_path}/bin"
-
-    return path_val
-
-class BuildGoProtosCommand(Command):
-    description = "Builds the proto files into Go files."
-    user_options = []
-
-    def initialize_options(self):
-        self.go_protoc = [
-            sys.executable,
-            "-m",
-            "grpc_tools.protoc",
-        ]  # find_executable("protoc")
-        self.proto_folder = os.path.join(repo_root, "protos")
-        self.go_folder = os.path.join(repo_root, "go/protos")
-        self.sub_folders = ["core", "registry", "serving", "types", "storage"]
-        self.path_val = _generate_path_with_gopath()
-
-    def finalize_options(self):
-        pass
-
-    def _generate_go_protos(self, path: str):
-        proto_files = glob.glob(os.path.join(self.proto_folder, path))
-
-        try:
-            subprocess.check_call(
-                self.go_protoc
-                + [
-                    "-I",
-                    self.proto_folder,
-                    "--go_out",
-                    self.go_folder,
-                    "--go_opt=module=github.com/feast-dev/feast/go/protos",
-                    "--go-grpc_out",
-                    self.go_folder,
-                    "--go-grpc_opt=module=github.com/feast-dev/feast/go/protos",
-                ]
-                + proto_files,
-                env={"PATH": self.path_val},
-            )
-        except CalledProcessError as e:
-            print(f"Stderr: {e.stderr}")
-            print(f"Stdout: {e.stdout}")
-
-    def run(self):
-        go_dir = Path(repo_root) / "go" / "protos"
-        go_dir.mkdir(exist_ok=True)
-        for sub_folder in self.sub_folders:
-            self._generate_go_protos(f"feast/{sub_folder}/*.proto")
 
 
 setup(
@@ -355,6 +303,7 @@ setup(
         "faiss": FAISS_REQUIRED,
         "qdrant": QDRANT_REQUIRED,
         "go": GO_REQUIRED,
+        "milvus": MILVUS_REQUIRED,
     },
     include_package_data=True,
     license="Apache",
@@ -372,7 +321,4 @@ setup(
         "pybindgen==0.22.0",  # TODO do we need this?
         "setuptools_scm>=6.2",  # TODO do we need this?
     ],
-    cmdclass={
-        "build_go_protos": BuildGoProtosCommand
-    },
 )

@@ -74,6 +74,38 @@ class GetOnlineFeaturesRequest(BaseModel):
     feature_service: Optional[str] = None
     features: Optional[List[str]] = None
     full_feature_names: bool = False
+    query_embedding: Optional[List[float]] = None
+
+
+def _get_features(request: GetOnlineFeaturesRequest, store: "feast.FeatureStore"):
+    if request.feature_service:
+        feature_service = store.get_feature_service(
+            request.feature_service, allow_cache=True
+        )
+        assert_permissions(
+            resource=feature_service, actions=[AuthzedAction.READ_ONLINE]
+        )
+        features = feature_service  # type: ignore
+    else:
+        all_feature_views, all_on_demand_feature_views = (
+            utils._get_feature_views_to_use(
+                store.registry,
+                store.project,
+                request.features,
+                allow_cache=True,
+                hide_dummy_entity=False,
+            )
+        )
+        for feature_view in all_feature_views:
+            assert_permissions(
+                resource=feature_view, actions=[AuthzedAction.READ_ONLINE]
+            )
+        for od_feature_view in all_on_demand_feature_views:
+            assert_permissions(
+                resource=od_feature_view, actions=[AuthzedAction.READ_ONLINE]
+            )
+        features = request.features  # type: ignore
+    return features
 
 
 def get_app(
@@ -121,33 +153,7 @@ def get_app(
     )
     async def get_online_features(request: GetOnlineFeaturesRequest) -> Dict[str, Any]:
         # Initialize parameters for FeatureStore.get_online_features(...) call
-        if request.feature_service:
-            feature_service = store.get_feature_service(
-                request.feature_service, allow_cache=True
-            )
-            assert_permissions(
-                resource=feature_service, actions=[AuthzedAction.READ_ONLINE]
-            )
-            features = feature_service  # type: ignore
-        else:
-            all_feature_views, all_on_demand_feature_views = (
-                utils._get_feature_views_to_use(
-                    store.registry,
-                    store.project,
-                    request.features,
-                    allow_cache=True,
-                    hide_dummy_entity=False,
-                )
-            )
-            for feature_view in all_feature_views:
-                assert_permissions(
-                    resource=feature_view, actions=[AuthzedAction.READ_ONLINE]
-                )
-            for od_feature_view in all_on_demand_feature_views:
-                assert_permissions(
-                    resource=od_feature_view, actions=[AuthzedAction.READ_ONLINE]
-                )
-            features = request.features  # type: ignore
+        features = await run_in_threadpool(_get_features, request, store)
 
         read_params = dict(
             features=features,
@@ -163,9 +169,46 @@ def get_app(
             )
 
         # Convert the Protobuf object to JSON and return it
-        return MessageToDict(
-            response.proto, preserving_proto_field_name=True, float_precision=18
+        response_dict = await run_in_threadpool(
+            MessageToDict,
+            response.proto,
+            preserving_proto_field_name=True,
+            float_precision=18,
         )
+        return response_dict
+
+    @app.post(
+        "/retrieve-online-documents",
+        dependencies=[Depends(inject_user_details)],
+    )
+    async def retrieve_online_documents(
+        request: GetOnlineFeaturesRequest,
+    ) -> Dict[str, Any]:
+        logger.warn(
+            "This endpoint is in alpha and will be moved to /get-online-features when stable."
+        )
+        # Initialize parameters for FeatureStore.retrieve_online_documents_v2(...) call
+        features = await run_in_threadpool(_get_features, request, store)
+
+        read_params = dict(
+            features=features,
+            entity_rows=request.entities,
+            full_feature_names=request.full_feature_names,
+            query=request.query_embedding,
+        )
+
+        response = await run_in_threadpool(
+            lambda: store.retrieve_online_documents_v2(**read_params)  # type: ignore
+        )
+
+        # Convert the Protobuf object to JSON and return it
+        response_dict = await run_in_threadpool(
+            MessageToDict,
+            response.proto,
+            preserving_proto_field_name=True,
+            float_precision=18,
+        )
+        return response_dict
 
     @app.post("/push", dependencies=[Depends(inject_user_details)])
     async def push(request: PushFeaturesRequest) -> None:

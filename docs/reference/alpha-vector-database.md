@@ -7,20 +7,35 @@ Vector database allows user to store and retrieve embeddings. Feast provides gen
 ## Integration
 Below are supported vector databases and implemented features:
 
-| Vector Database | Retrieval | Indexing |
-|-----------------|-----------|----------|
-| Pgvector        | [x]       | [ ]      |
-| Elasticsearch   | [x]       | [x]      |
-| Milvus          | [ ]       | [ ]      |
-| Faiss           | [ ]       | [ ]      |
-| SQLite          | [x]       | [ ]      |
-| Qdrant          | [x]       | [x]      |
+| Vector Database | Retrieval | Indexing | V2 Support* | 
+|-----------------|-----------|----------|-------------|
+| Pgvector        | [x]       | [ ]      | []          |
+| Elasticsearch   | [x]       | [x]      | []          |
+| Milvus          | [x]       | [x]      | [x]         |
+| Faiss           | [ ]       | [ ]      | []          |
+| SQLite          | [x]       | [ ]      | []          |
+| Qdrant          | [x]       | [x]      | []          |
+
+*Note: V2 Support means the SDK supports retrieval of features along with vector embeddings from vector similarity search.
 
 Note: SQLite is in limited access and only working on Python 3.10. It will be updated as [sqlite_vec](https://github.com/asg017/sqlite-vec/) progresses.
 
-## Example
+{% hint style="danger" %}
+We will be deprecating the `retrieve_online_documents` method in the SDK in the future. 
+We recommend using the `retrieve_online_documents_v2` method instead, which offers easier vector index configuration 
+directly in the Feature View and the ability to retrieve standard features alongside your vector embeddings for richer context injection. 
 
-See [https://github.com/feast-dev/feast-workshop/blob/rag/module_4_rag](https://github.com/feast-dev/feast-workshop/blob/rag/module_4_rag) for an example on how to use vector database.
+Long term we will collapse the two methods into one, but for now, we recommend using the `retrieve_online_documents_v2` method.
+Beyond that, we will then have `retrieve_online_documents` and `retrieve_online_documents_v2` simply point to `get_online_features` for 
+backwards compatibility and the adopt industry standard naming conventions.
+{% endhint %}
+
+**Note**: Milvus implements the v2 `retrieve_online_documents_v2` method in the SDK. This will be the longer-term solution so that Data Scientists can easily enable vector similarity search by just flipping a flag.
+
+## Examples
+
+- See the v0 [Rag Demo](https://github.com/feast-dev/feast-workshop/blob/rag/module_4_rag) for an example on how to use vector database using the `retrieve_online_documents` method (planning migration and deprecation (planning migration and deprecation).
+- See the v1 [Milvus Quickstart](../../examples/rag/milvus-quickstart.ipynb) for a quickstart guide on how to use Feast with Milvus using the `retrieve_online_documents_v2` method.
 
 ### **Prepare offline embedding dataset**
 Run the following commands to prepare the embedding dataset:
@@ -34,25 +49,23 @@ The output will be stored in `data/city_wikipedia_summaries.csv.`
 Use the feature_store.yaml file to initialize the feature store. This will use the data as offline store, and Pgvector as online store.
 
 ```yaml
-project: feast_demo_local
+project: local_rag
 provider: local
-registry:
-  registry_type: sql
-  path: postgresql://@localhost:5432/feast
+registry: data/registry.db
 online_store:
-  type: postgres
+  type: milvus
+  path: data/online_store.db
   vector_enabled: true
-  vector_len: 384
-  host: 127.0.0.1
-  port: 5432
-  database: feast
-  user: ""
-  password: ""
+  embedding_dim: 384
+  index_type: "IVF_FLAT"
 
 
 offline_store:
   type: file
-entity_key_serialization_version: 2
+entity_key_serialization_version: 3
+# By default, no_auth for authentication and authorization, other possible values kubernetes and oidc. Refer the documentation for more details.
+auth:
+    type: no_auth
 ```
 Run the following command in terminal to apply the feature store configuration:
 
@@ -63,75 +76,128 @@ feast apply
 Note that when you run `feast apply` you are going to apply the following Feature View that we will use for retrieval later:  
 
 ```python
-city_embeddings_feature_view = FeatureView(
-    name="city_embeddings",
-    entities=[item],
+document_embeddings = FeatureView(
+    name="embedded_documents",
+    entities=[item, author],
     schema=[
-        Field(name="Embeddings", dtype=Array(Float32)),
+        Field(
+            name="vector",
+            dtype=Array(Float32),
+            # Look how easy it is to enable RAG!
+            vector_index=True,
+            vector_search_metric="COSINE",
+        ),
+        Field(name="item_id", dtype=Int64),
+        Field(name="author_id", dtype=String),
+        Field(name="created_timestamp", dtype=UnixTimestamp),
+        Field(name="sentence_chunks", dtype=String),
+        Field(name="event_timestamp", dtype=UnixTimestamp),
     ],
-    source=source,
-    ttl=timedelta(hours=2),
+    source=rag_documents_source,
+    ttl=timedelta(hours=24),
 )
 ```
 
-Then run the following command in the terminal to materialize the data to the online store:  
-
-```shell  
-CURRENT_TIME=$(date -u +"%Y-%m-%dT%H:%M:%S")  
-feast materialize-incremental $CURRENT_TIME  
+Let's use the SDK to write a data frame of embeddings to the online store:
+```python
+store.write_to_online_store(feature_view_name='city_embeddings', df=df)
 ```
 
 ### **Prepare a query embedding**
-```python
-from batch_score_documents import run_model, TOKENIZER, MODEL
-from transformers import AutoTokenizer, AutoModel
+During inference (e.g., during when a user submits a chat message) we need to embed the input text. This can be thought of as a feature transformation of the input data. In this example, we'll do this with a small Sentence Transformer from Hugging Face.
 
-question = "the most populous city in the U.S. state of Texas?"
+```python
+import torch
+import torch.nn.functional as F
+from feast import FeatureStore
+from pymilvus import MilvusClient, DataType, FieldSchema
+from transformers import AutoTokenizer, AutoModel
+from example_repo import city_embeddings_feature_view, item
+
+TOKENIZER = "sentence-transformers/all-MiniLM-L6-v2"
+MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+
+def mean_pooling(model_output, attention_mask):
+    token_embeddings = model_output[
+        0
+    ]  # First element of model_output contains all token embeddings
+    input_mask_expanded = (
+        attention_mask.unsqueeze(-1).expand(token_embeddings.size()).float()
+    )
+    return torch.sum(token_embeddings * input_mask_expanded, 1) / torch.clamp(
+        input_mask_expanded.sum(1), min=1e-9
+    )
+
+def run_model(sentences, tokenizer, model):
+    encoded_input = tokenizer(
+        sentences, padding=True, truncation=True, return_tensors="pt"
+    )
+    # Compute token embeddings
+    with torch.no_grad():
+        model_output = model(**encoded_input)
+
+    sentence_embeddings = mean_pooling(model_output, encoded_input["attention_mask"])
+    sentence_embeddings = F.normalize(sentence_embeddings, p=2, dim=1)
+    return sentence_embeddings
+
+question = "Which city has the largest population in New York?"
 
 tokenizer = AutoTokenizer.from_pretrained(TOKENIZER)
 model = AutoModel.from_pretrained(MODEL)
-query_embedding = run_model(question, tokenizer, model)
-query = query_embedding.detach().cpu().numpy().tolist()[0]
+query_embedding = run_model(question, tokenizer, model).detach().cpu().numpy().tolist()[0]
 ```
 
-### **Retrieve the top 5 similar documents**
-First create a feature store instance, and use the `retrieve_online_documents` API to retrieve the top 5 similar documents to the specified query.
+### **Retrieve the top K similar documents**
+First create a feature store instance, and use the `retrieve_online_documents_v2` API to retrieve the top 5 similar documents to the specified query.
 
 ```python
-from feast import FeatureStore
-store = FeatureStore(repo_path=".")
-features = store.retrieve_online_documents(
-    feature="city_embeddings:Embeddings",
-    query=query,
-    top_k=5
-).to_dict()
+context_data = store.retrieve_online_documents_v2(
+    features=[
+        "city_embeddings:vector",
+        "city_embeddings:item_id",
+        "city_embeddings:state",
+        "city_embeddings:sentence_chunks",
+        "city_embeddings:wiki_summary",
+    ],
+    query=query_embedding,
+    top_k=3,
+    distance_metric='COSINE',
+).to_df()
+```
+### **Generate the Response** 
+Let's assume we have a base prompt and a function that formats the retrieved documents called `format_documents` that we 
+can then use to generate the response with OpenAI's chat completion API.
+```python 
+FULL_PROMPT = format_documents(rag_context_data, BASE_PROMPT)
 
-def print_online_features(features):
-    for key, value in sorted(features.items()):
-        print(key, " : ", value)
+from openai import OpenAI
 
-print_online_features(features)
+client = OpenAI(
+    api_key=os.environ.get("OPENAI_API_KEY"),
+)
+response = client.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=[
+        {"role": "system", "content": FULL_PROMPT},
+        {"role": "user", "content": question}
+    ],
+)
+
+# And this will print the content. Look at the examples/rag/milvus-quickstart.ipynb for an end-to-end example.
+print('\n'.join([c.message.content for c in response.choices]))
 ```
 
-### Configuration
+### Configuration and Installation
 
-We offer [PGVector](https://github.com/pgvector/pgvector), [SQLite](https://github.com/asg017/sqlite-vec), [Elasticsearch](https://www.elastic.co) and [Qdrant](https://qdrant.tech/) as Online Store options for Vector Databases.
+We offer [Milvus](https://milvus.io/), [PGVector](https://github.com/pgvector/pgvector), [SQLite](https://github.com/asg017/sqlite-vec), [Elasticsearch](https://www.elastic.co) and [Qdrant](https://qdrant.tech/) as Online Store options for Vector Databases.
 
-#### Installation with SQLite
+Milvus offers a convenient local implementation for vector similarity search. To use Milvus, you can install the Feast package with the Milvus extra.
 
-If you are using `pyenv` to manage your Python versions, you can install the SQLite extension with the following command:
+#### Installation with Milvus
+
 ```bash
-PYTHON_CONFIGURE_OPTS="--enable-loadable-sqlite-extensions" \
-    LDFLAGS="-L/opt/homebrew/opt/sqlite/lib" \
-    CPPFLAGS="-I/opt/homebrew/opt/sqlite/include" \
-    pyenv install 3.10.14
+pip install feast[milvus]
 ```
-And you can the Feast install package via:
-
-```bash
-pip install feast[sqlite_vec]
-```
-
 #### Installation with Elasticsearch
 
 ```bash
@@ -142,4 +208,18 @@ pip install feast[elasticsearch]
 
 ```bash
 pip install feast[qdrant]
+```
+#### Installation with SQLite
+
+If you are using `pyenv` to manage your Python versions, you can install the SQLite extension with the following command:
+```bash
+PYTHON_CONFIGURE_OPTS="--enable-loadable-sqlite-extensions" \
+    LDFLAGS="-L/opt/homebrew/opt/sqlite/lib" \
+    CPPFLAGS="-I/opt/homebrew/opt/sqlite/include" \
+    pyenv install 3.10.14
+```
+
+And you can the Feast install package via:
+```bash
+pip install feast[sqlite_vec]
 ```
