@@ -24,7 +24,7 @@ def bootstrap():
 
     if click.confirm("Configure Couchbase Online Store?", default=True):
         connection_string = click.prompt(
-            "Couchbase Connection String", default="couchbase://localhost"
+            "Couchbase Connection String", default="couchbase://127.0.0.1"
         )
         user = click.prompt("Couchbase Username", default="Administrator")
         password = click.prompt("Couchbase Password", hide_input=True)
