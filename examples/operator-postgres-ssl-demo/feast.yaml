@@ -1,0 +1,137 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-secret
+  namespace: default
+  labels:
+    app: postgres
+stringData:
+  POSTGRES_DB: mydatabase
+  POSTGRES_USER: admin
+  POSTGRES_PASSWORD: password
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: feast-data-stores
+  namespace: default
+stringData:
+  redis: |
+    connection_string: redis.feast.svc.cluster.local:6379
+  sql: |
+    path: postgresql+psycopg://admin:password@postgresql.default.svc.cluster.local:5432/mydatabase?sslmode=require&sslrootcert=/var/lib/postgresql/certs/ca.crt&sslcert=/var/lib/postgresql/certs/tls.crt&sslkey=/var/lib/postgresql/certs/tls.key
+    cache_ttl_seconds: 60
+    sqlalchemy_config_kwargs:
+        echo: false
+        pool_pre_ping: true
+---
+apiVersion: feast.dev/v1alpha1
+kind: FeatureStore
+metadata:
+  name: example
+  namespace: default
+spec:
+  feastProject: credit_scoring_local
+  services:
+    volumes:
+      - name: ca-cert
+        secret:
+          secretName: postgresql-client-certs
+          items:
+            - key: ca.crt
+              path: ca.crt
+              mode: 0644  # Readable by all, required by PostgreSQL
+
+      - name: client-cert
+        secret:
+          secretName: postgresql-client-certs
+          items:
+            - key: tls.crt
+              path: tls.crt
+              mode: 0644  # Required for the client certificate
+
+      - name: client-key
+        secret:
+          secretName: postgresql-client-certs
+          items:
+            - key: tls.key
+              path: tls.key
+              mode: 0640  # Required for the private key
+    offlineStore:
+      volumeMounts:
+        - name: ca-cert
+          mountPath: /var/lib/postgresql/certs/ca.crt
+          subPath: ca.crt
+          readOnly: true
+
+        - name: client-cert
+          mountPath: /var/lib/postgresql/certs/tls.crt
+          subPath: tls.crt
+          readOnly: true
+
+        - name: client-key
+          mountPath: /var/lib/postgresql/certs/tls.key
+          subPath: tls.key
+          readOnly: true
+      persistence:
+        file:
+          type: duckdb
+      envFrom:
+      - secretRef:
+          name: postgres-secret
+    onlineStore:
+      volumeMounts:
+        - name: ca-cert
+          mountPath: /var/lib/postgresql/certs/ca.crt
+          subPath: ca.crt
+          readOnly: true
+
+        - name: client-cert
+          mountPath: /var/lib/postgresql/certs/tls.crt
+          subPath: tls.crt
+          readOnly: true
+
+        - name: client-key
+          mountPath: /var/lib/postgresql/certs/tls.key
+          subPath: tls.key
+          readOnly: true
+      persistence:
+        store:
+          type: redis
+          secretRef:
+            name: feast-data-stores
+      envFrom:
+      - secretRef:
+          name: postgres-secret
+    registry:
+      local:
+        volumeMounts:
+          - name: ca-cert
+            mountPath: /var/lib/postgresql/certs/ca.crt
+            subPath: ca.crt
+            readOnly: true
+
+          - name: client-cert
+            mountPath: /var/lib/postgresql/certs/tls.crt
+            subPath: tls.crt
+            readOnly: true
+
+          - name: client-key
+            mountPath: /var/lib/postgresql/certs/tls.key
+            subPath: tls.key
+            readOnly: true
+        persistence:
+          store:
+            type: sql
+            secretRef:
+              name: feast-data-stores
+        envFrom:
+        - secretRef:
+            name: postgres-secret
+        env:
+        - name: MPLCONFIGDIR
+          value: /tmp
+        resources:
+          requests:
+            cpu: 150m
+            memory: 128Mi
