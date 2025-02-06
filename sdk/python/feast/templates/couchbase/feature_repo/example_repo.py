@@ -17,9 +17,9 @@ driver = Entity(name="driver", join_keys=["driver_id"])
 
 driver_stats_source = CouchbaseColumnarSource(
     name="driver_hourly_stats_source",
-    query="SELECT * FROM foo_database.bar_scope.`feast_driver_hourly_stats`",
-    database="foo_database",
-    scope="bar_scope",
+    query="SELECT * FROM Default.Default.`feast_driver_hourly_stats`",
+    database="Default",
+    scope="Default",
     collection="feast_driver_hourly_stats",
     timestamp_field="event_timestamp",
     created_timestamp_column="created",
