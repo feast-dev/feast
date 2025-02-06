@@ -14,6 +14,16 @@ Please do not assume complete stability.
 
 In order to use this offline store, you'll need to run `pip install 'feast[couchbase]'`. You can get started by then running `feast init -t couchbase`.
 
+To get started with Couchbase Capella Columnar:
+1. Sign up for a [Couchbase Capella](https://cloud.couchbase.com/) account
+2. [Deploy a Columnar cluster](https://docs.couchbase.com/columnar/admin/prepare-project.html)
+3. [Create an Access Control Account](https://docs.couchbase.com/columnar/admin/auth/auth-data.html)
+    - This account should be able to read and write. 
+    - For testing purposes, it is recommended to assign all roles to avoid any permission issues.
+4. [Configure allowed IP addresses](https://docs.couchbase.com/columnar/admin/ip-allowed-list.html)
+    - You must allow the IP address of the machine running Feast.
+
+
 ## Example
 
 {% code title="feature_store.yaml" %}
