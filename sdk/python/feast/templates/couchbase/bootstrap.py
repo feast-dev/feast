@@ -2,7 +2,7 @@ import click
 from couchbase_columnar.cluster import Cluster
 from couchbase_columnar.common.errors import InvalidCredentialError, TimeoutError
 from couchbase_columnar.credential import Credential
-from couchbase_columnar.options import QueryOptions
+from couchbase_columnar.options import ClusterOptions, QueryOptions, TimeoutOptions
 
 from feast.file_utils import replace_str_in_file
 from feast.infra.offline_stores.contrib.couchbase_offline_store.couchbase import (
@@ -61,13 +61,18 @@ def bootstrap():
             cred = Credential.from_username_and_password(
                 columnar_user, columnar_password
             )
-            cluster = Cluster.create_instance(columnar_connection_string, cred)
+            timeout_opts = TimeoutOptions(dispatch_timeout=timedelta(seconds=120))
+            cluster = Cluster.create_instance(
+                columnar_connection_string,
+                cred,
+                ClusterOptions(timeout_options=timeout_opts),
+            )
 
             table_name = "Default.Default.feast_driver_hourly_stats"
             try:
                 cluster.execute_query(
                     f"DROP COLLECTION {table_name} IF EXISTS",
-                    QueryOptions(timeout=timedelta(seconds=500)),
+                    QueryOptions(timeout=timedelta(seconds=columnar_timeout)),
                 )
             except TimeoutError:
                 # FIXME: temp workaround, timeouts occur in Columnar SDK even when the drop was successful

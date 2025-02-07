@@ -23,7 +23,7 @@ import pyarrow as pa
 from couchbase_columnar.cluster import Cluster
 from couchbase_columnar.common.result import BlockingQueryResult
 from couchbase_columnar.credential import Credential
-from couchbase_columnar.options import QueryOptions
+from couchbase_columnar.options import ClusterOptions, QueryOptions, TimeoutOptions
 from jinja2 import BaseLoader, Environment
 from pydantic import StrictFloat, StrictStr
 
@@ -348,7 +348,10 @@ def _get_columnar_cluster(config: CouchbaseColumnarOfflineStoreConfig) -> Cluste
     assert config.password is not None
 
     cred = Credential.from_username_and_password(config.user, config.password)
-    return Cluster.create_instance(config.connection_string, cred)
+    timeout_opts = TimeoutOptions(dispatch_timeout=timedelta(seconds=120))
+    return Cluster.create_instance(
+        config.connection_string, cred, ClusterOptions(timeout_options=timeout_opts)
+    )
 
 
 def _execute_query(
