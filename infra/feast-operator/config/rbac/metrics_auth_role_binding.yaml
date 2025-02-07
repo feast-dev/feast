@@ -4,11 +4,11 @@ metadata:
   labels:
     app.kubernetes.io/name: feast-operator
     app.kubernetes.io/managed-by: kustomize
-  name: proxy-rolebinding
+  name: metrics-auth-rolebinding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: proxy-role
+  name: metrics-auth-role
 subjects:
 - kind: ServiceAccount
   name: controller-manager

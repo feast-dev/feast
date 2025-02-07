@@ -178,9 +178,9 @@ def test_snowflake_materialization_consistency_internal_with_lists(
         assert actual_value is not None, f"Response: {response_dict}"
         if feature_dtype == "float":
             for actual_num, expected_num in zip(actual_value, expected_value):
-                assert (
-                    abs(actual_num - expected_num) < 1e-6
-                ), f"Response: {response_dict}, Expected: {expected_value}"
+                assert abs(actual_num - expected_num) < 1e-6, (
+                    f"Response: {response_dict}, Expected: {expected_value}"
+                )
         else:
             assert actual_value == expected_value
 

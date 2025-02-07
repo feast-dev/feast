@@ -1,0 +1,58 @@
+name: pr-remote-rbac-integration-tests
+# This runs the integration tests related to rbac functionality and remote registry and online features.
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - labeled
+    paths-ignore:
+      - 'community/**'
+      - 'docs/**'
+      - 'examples/**'
+
+jobs:
+  remote-rbac-integration-tests-python:
+    if:
+      ((github.event.action == 'labeled' && (github.event.label.name == 'approved' || github.event.label.name == 'lgtm' || github.event.label.name == 'ok-to-test')) ||
+      (github.event.action != 'labeled' && (contains(github.event.pull_request.labels.*.name, 'ok-to-test') || contains(github.event.pull_request.labels.*.name, 'approved') || contains(github.event.pull_request.labels.*.name, 'lgtm')))) &&
+      github.event.pull_request.base.repo.full_name == 'feast-dev/feast'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [ "3.11" ]
+        os: [ ubuntu-latest ]
+    env:
+      OS: ${{ matrix.os }}
+      PYTHON: ${{ matrix.python-version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ github.event.repository.full_name }}  # Uses the full repository name
+          ref: ${{ github.ref }}                                  # Uses the ref from the event
+          token: ${{ secrets.GITHUB_TOKEN }}                     # Automatically provided token
+          submodules: recursive
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        id: setup-python
+        with:
+          python-version: ${{ matrix.python-version }}
+          architecture: x64
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+      - name: Get uv cache dir
+        id: uv-cache
+        run: |
+          echo "dir=$(uv cache dir)" >> $GITHUB_OUTPUT
+      - name: uv cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.uv-cache.outputs.dir }}
+          key: ${{ runner.os }}-${{ matrix.python-version }}-uv-${{ hashFiles(format('**/py{0}-ci-requirements.txt', matrix.python-version)) }}
+      - name: Install dependencies
+        run: make install-python-dependencies-ci
+      - name: Test rbac and remote feature integration tests
+        if: ${{ always() }}  # this will guarantee that step won't be canceled and resources won't leak
+        run: make test-python-integration-rbac-remote

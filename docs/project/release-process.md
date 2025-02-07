@@ -1,5 +1,43 @@
 # Release process
 
+The release process is automated through a GitHub Action called [release.yml](https://github.com/feast-dev/feast/blob/master/.github/workflows/release.yml).
+Here's a diagram of the workflows:
+
+```mermaid
+graph LR
+    A[get_dry_release_versions] --> B[validate_version_bumps]
+    B --> C[publish-web-ui-npm]
+    C --> D[release]
+```
+
+The release step will trigger an automated chore commit by the CI-bot ([example](https://github.com/feast-dev/feast/commit/121617053344117cdbfbb480882b10cc176245ac)).
+
+After the `release` step and release commit, the `publish` step will be triggered ([example](https://github.com/feast-dev/feast/actions/runs/13143995111)). 
+
+The `publish` worfklow triggers this flow:
+
+```mermaid
+graph TD
+    A[publish.yml] -->|triggers| B[publish_python_sdk.yml]
+    B -->|needs| C[publish_images.yml]
+    B -->|needs| D[publish_helm_charts.yml]
+
+    subgraph B[publish_python_sdk.yml]
+        direction LR
+        B1[Checkout code] --> B2[Set up Python] --> B3[Install dependencies] --> B4[Run tests] --> B5[Build wheels] --> B6[Publish to PyPI]
+    end
+
+    subgraph C[publish_images.yml]
+        direction LR
+        C1[Checkout code] --> C2[Set up Docker] --> C3[Build Docker images] --> C4[Push Docker images]
+    end
+
+    subgraph D[publish_helm_charts.yml]
+        direction LR
+        D1[Checkout code] --> D2[Set up Helm] --> D3[Package Helm charts] --> D4[Publish Helm charts]
+    end
+```
+
 ## Release process
 
 For Feast maintainers, these are the concrete steps for making a new release.

@@ -81,6 +81,7 @@ ONLINE_STORE_CLASS_FOR_TYPE = {
     "singlestore": "feast.infra.online_stores.singlestore_online_store.singlestore.SingleStoreOnlineStore",
     "qdrant": "feast.infra.online_stores.cqdrant.QdrantOnlineStore",
     "couchbase": "feast.infra.online_stores.couchbase_online_store.couchbase.CouchbaseOnlineStore",
+    "milvus": "feast.infra.online_stores.milvus_online_store.milvus.MilvusOnlineStore",
     **LEGACY_ONLINE_STORE_CLASS_FOR_TYPE,
 }
 
@@ -368,14 +369,14 @@ class RepoConfig(FeastBaseModel):
                     )
                 elif values["auth"]["type"] not in ALLOWED_AUTH_TYPES:
                     raise ValueError(
-                        f'auth configuration has invalid authentication type={values["auth"]["type"]}. Possible '
-                        f'values={ALLOWED_AUTH_TYPES}'
+                        f"auth configuration has invalid authentication type={values['auth']['type']}. Possible "
+                        f"values={ALLOWED_AUTH_TYPES}"
                     )
             elif isinstance(values["auth"], AuthConfig):
                 if values["auth"].type not in ALLOWED_AUTH_TYPES:
                     raise ValueError(
-                        f'auth configuration has invalid authentication type={values["auth"].type}. Possible '
-                        f'values={ALLOWED_AUTH_TYPES}'
+                        f"auth configuration has invalid authentication type={values['auth'].type}. Possible "
+                        f"values={ALLOWED_AUTH_TYPES}"
                     )
         return values
 

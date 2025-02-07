@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -32,25 +33,30 @@ const (
 	OfflineStoreReadyType  = "OfflineStore"
 	OnlineStoreReadyType   = "OnlineStore"
 	RegistryReadyType      = "Registry"
+	UIReadyType            = "UI"
 	ReadyType              = "FeatureStore"
 	AuthorizationReadyType = "Authorization"
 
 	// Feast condition reasons:
-	ReadyReason                 = "Ready"
-	FailedReason                = "FeatureStoreFailed"
-	OfflineStoreFailedReason    = "OfflineStoreDeploymentFailed"
-	OnlineStoreFailedReason     = "OnlineStoreDeploymentFailed"
-	RegistryFailedReason        = "RegistryDeploymentFailed"
-	ClientFailedReason          = "ClientDeploymentFailed"
-	KubernetesAuthzFailedReason = "KubernetesAuthorizationDeploymentFailed"
+	ReadyReason                  = "Ready"
+	FailedReason                 = "FeatureStoreFailed"
+	DeploymentNotAvailableReason = "DeploymentNotAvailable"
+	OfflineStoreFailedReason     = "OfflineStoreDeploymentFailed"
+	OnlineStoreFailedReason      = "OnlineStoreDeploymentFailed"
+	RegistryFailedReason         = "RegistryDeploymentFailed"
+	UIFailedReason               = "UIDeploymentFailed"
+	ClientFailedReason           = "ClientDeploymentFailed"
+	KubernetesAuthzFailedReason  = "KubernetesAuthorizationDeploymentFailed"
 
 	// Feast condition messages:
-	ReadyMessage                = "FeatureStore installation complete"
-	OfflineStoreReadyMessage    = "Offline Store installation complete"
-	OnlineStoreReadyMessage     = "Online Store installation complete"
-	RegistryReadyMessage        = "Registry installation complete"
-	ClientReadyMessage          = "Client installation complete"
-	KubernetesAuthzReadyMessage = "Kubernetes authorization installation complete"
+	ReadyMessage                  = "FeatureStore installation complete"
+	OfflineStoreReadyMessage      = "Offline Store installation complete"
+	OnlineStoreReadyMessage       = "Online Store installation complete"
+	RegistryReadyMessage          = "Registry installation complete"
+	UIReadyMessage                = "UI installation complete"
+	ClientReadyMessage            = "Client installation complete"
+	KubernetesAuthzReadyMessage   = "Kubernetes authorization installation complete"
+	DeploymentNotAvailableMessage = "Deployment is not available"
 
 	// entity_key_serialization_version
 	SerializationVersion = 3
@@ -65,29 +71,21 @@ type FeatureStoreSpec struct {
 	AuthzConfig  *AuthzConfig          `json:"authz,omitempty"`
 }
 
-// FeatureStoreServices defines the desired feast service deployments. ephemeral registry is deployed by default.
+// FeatureStoreServices defines the desired feast services. An ephemeral registry is deployed by default.
 type FeatureStoreServices struct {
-	OfflineStore *OfflineStore `json:"offlineStore,omitempty"`
-	OnlineStore  *OnlineStore  `json:"onlineStore,omitempty"`
-	Registry     *Registry     `json:"registry,omitempty"`
+	OfflineStore       *OfflineStore              `json:"offlineStore,omitempty"`
+	OnlineStore        *OnlineStore               `json:"onlineStore,omitempty"`
+	Registry           *Registry                  `json:"registry,omitempty"`
+	UI                 *ServerConfigs             `json:"ui,omitempty"`
+	DeploymentStrategy *appsv1.DeploymentStrategy `json:"deploymentStrategy,omitempty"`
+	// Disable the 'feast repo initialization' initContainer
+	DisableInitContainers bool `json:"disableInitContainers,omitempty"`
 }
 
 // OfflineStore configures the deployed offline store service
 type OfflineStore struct {
-	ServiceConfigs `json:",inline"`
-	Persistence    *OfflineStorePersistence `json:"persistence,omitempty"`
-	TLS            *OfflineTlsConfigs       `json:"tls,omitempty"`
-	// LogLevel sets the logging level for the offline store service
-	// Allowed values: "debug", "info", "warning", "error", "critical".
-	// +kubebuilder:validation:Enum=debug;info;warning;error;critical
-	LogLevel string `json:"logLevel,omitempty"`
-}
-
-// OfflineTlsConfigs configures server TLS for the offline feast service. in an openshift cluster, this is configured by default using service serving certificates.
-type OfflineTlsConfigs struct {
-	TlsConfigs `json:",inline"`
-	// verify the client TLS certificate.
-	VerifyClient *bool `json:"verifyClient,omitempty"`
+	ServerConfigs `json:",inline"`
+	Persistence   *OfflineStorePersistence `json:"persistence,omitempty"`
 }
 
 // OfflineStorePersistence configures the persistence settings for the offline store service
@@ -99,7 +97,7 @@ type OfflineStorePersistence struct {
 
 // OfflineStoreFilePersistence configures the file-based persistence for the offline store service
 type OfflineStoreFilePersistence struct {
-	// +kubebuilder:validation:Enum=dask;duckdb
+	// +kubebuilder:validation:Enum=file;dask;duckdb
 	Type      string     `json:"type,omitempty"`
 	PvcConfig *PvcConfig `json:"pvc,omitempty"`
 }
@@ -107,11 +105,12 @@ type OfflineStoreFilePersistence struct {
 var ValidOfflineStoreFilePersistenceTypes = []string{
 	"dask",
 	"duckdb",
+	"file",
 }
 
 // OfflineStoreDBStorePersistence configures the DB store persistence for the offline store service
 type OfflineStoreDBStorePersistence struct {
-	// +kubebuilder:validation:Enum=snowflake.offline;bigquery;redshift;spark;postgres;feast_trino.trino.TrinoOfflineStore;redis
+	// +kubebuilder:validation:Enum=snowflake.offline;bigquery;redshift;spark;postgres;trino;redis;athena;mssql
 	Type string `json:"type"`
 	// Data store parameters should be placed as-is from the "feature_store.yaml" under the secret key. "registry_type" & "type" fields should be removed.
 	SecretRef corev1.LocalObjectReference `json:"secretRef"`
@@ -125,19 +124,16 @@ var ValidOfflineStoreDBStorePersistenceTypes = []string{
 	"redshift",
 	"spark",
 	"postgres",
-	"feast_trino.trino.TrinoOfflineStore",
+	"trino",
 	"redis",
+	"athena",
+	"mssql",
 }
 
 // OnlineStore configures the deployed online store service
 type OnlineStore struct {
-	ServiceConfigs `json:",inline"`
-	Persistence    *OnlineStorePersistence `json:"persistence,omitempty"`
-	TLS            *TlsConfigs             `json:"tls,omitempty"`
-	// LogLevel sets the logging level for the online store service
-	// Allowed values: "debug", "info", "warning", "error", "critical".
-	// +kubebuilder:validation:Enum=debug;info;warning;error;critical
-	LogLevel string `json:"logLevel,omitempty"`
+	ServerConfigs `json:",inline"`
+	Persistence   *OnlineStorePersistence `json:"persistence,omitempty"`
 }
 
 // OnlineStorePersistence configures the persistence settings for the online store service
@@ -150,7 +146,7 @@ type OnlineStorePersistence struct {
 // OnlineStoreFilePersistence configures the file-based persistence for the offline store service
 // +kubebuilder:validation:XValidation:rule="(!has(self.pvc) && has(self.path)) ? self.path.startsWith('/') : true",message="Ephemeral stores must have absolute paths."
 // +kubebuilder:validation:XValidation:rule="(has(self.pvc) && has(self.path)) ? !self.path.startsWith('/') : true",message="PVC path must be a file name only, with no slashes."
-// +kubebuilder:validation:XValidation:rule="has(self.path) && !self.path.startsWith('s3://') && !self.path.startsWith('gs://')",message="Online store does not support S3 or GS buckets."
+// +kubebuilder:validation:XValidation:rule="has(self.path) ? !(self.path.startsWith('s3://') || self.path.startsWith('gs://')) : true",message="Online store does not support S3 or GS buckets."
 type OnlineStoreFilePersistence struct {
 	Path      string     `json:"path,omitempty"`
 	PvcConfig *PvcConfig `json:"pvc,omitempty"`
@@ -158,7 +154,7 @@ type OnlineStoreFilePersistence struct {
 
 // OnlineStoreDBStorePersistence configures the DB store persistence for the offline store service
 type OnlineStoreDBStorePersistence struct {
-	// +kubebuilder:validation:Enum=snowflake.online;redis;ikv;datastore;dynamodb;bigtable;postgres;cassandra;mysql;hazelcast;singlestore
+	// +kubebuilder:validation:Enum=snowflake.online;redis;ikv;datastore;dynamodb;bigtable;postgres;cassandra;mysql;hazelcast;singlestore;hbase;elasticsearch;qdrant;couchbase;milvus
 	Type string `json:"type"`
 	// Data store parameters should be placed as-is from the "feature_store.yaml" under the secret key. "registry_type" & "type" fields should be removed.
 	SecretRef corev1.LocalObjectReference `json:"secretRef"`
@@ -178,17 +174,17 @@ var ValidOnlineStoreDBStorePersistenceTypes = []string{
 	"mysql",
 	"hazelcast",
 	"singlestore",
+	"hbase",
+	"elasticsearch",
+	"qdrant",
+	"couchbase",
+	"milvus",
 }
 
 // LocalRegistryConfig configures the deployed registry service
 type LocalRegistryConfig struct {
-	ServiceConfigs `json:",inline"`
-	Persistence    *RegistryPersistence `json:"persistence,omitempty"`
-	TLS            *TlsConfigs          `json:"tls,omitempty"`
-	// LogLevel sets the logging level for the registry service
-	// Allowed values: "debug", "info", "warning", "error", "critical".
-	// +kubebuilder:validation:Enum=debug;info;warning;error;critical
-	LogLevel string `json:"logLevel,omitempty"`
+	ServerConfigs `json:",inline"`
+	Persistence   *RegistryPersistence `json:"persistence,omitempty"`
 }
 
 // RegistryPersistence configures the persistence settings for the registry service
@@ -235,13 +231,15 @@ type PvcConfig struct {
 	Create *PvcCreate `json:"create,omitempty"`
 	// MountPath within the container at which the volume should be mounted.
 	// Must start by "/" and cannot contain ':'.
-	MountPath string `json:"mountPath,omitempty"`
+	MountPath string `json:"mountPath"`
 }
 
 // PvcCreate defines the immutable settings to create a new PVC mounted at the given path.
-// The PVC name is the same as the associated deployment name.
+// The PVC name is the same as the associated deployment & feast service name.
 // +kubebuilder:validation:XValidation:rule="self == oldSelf",message="PvcCreate is immutable"
 type PvcCreate struct {
+	// AccessModes k8s persistent volume access modes. Defaults to ["ReadWriteOnce"].
+	AccessModes []corev1.PersistentVolumeAccessMode `json:"accessModes,omitempty"`
 	// StorageClassName is the name of an existing StorageClass to which this persistent volume belongs. Empty value
 	// means that this volume does not belong to any StorageClass and the cluster default will be used.
 	StorageClassName *string `json:"storageClassName,omitempty"`
@@ -279,20 +277,31 @@ type FeatureStoreRef struct {
 	Namespace string `json:"namespace,omitempty"`
 }
 
-// ServiceConfigs k8s container settings
-type ServiceConfigs struct {
-	DefaultConfigs  `json:",inline"`
-	OptionalConfigs `json:",inline"`
+// ServerConfigs server-related configurations for a feast service
+type ServerConfigs struct {
+	ContainerConfigs `json:",inline"`
+	TLS              *TlsConfigs `json:"tls,omitempty"`
+	// LogLevel sets the logging level for the server
+	// Allowed values: "debug", "info", "warning", "error", "critical".
+	// +kubebuilder:validation:Enum=debug;info;warning;error;critical
+	LogLevel string `json:"logLevel,omitempty"`
 }
 
-// DefaultConfigs k8s container settings that are applied by default
-type DefaultConfigs struct {
+// ContainerConfigs k8s container settings for the server
+type ContainerConfigs struct {
+	DefaultCtrConfigs  `json:",inline"`
+	OptionalCtrConfigs `json:",inline"`
+}
+
+// DefaultCtrConfigs k8s container settings that are applied by default
+type DefaultCtrConfigs struct {
 	Image *string `json:"image,omitempty"`
 }
 
-// OptionalConfigs k8s container settings that are optional
-type OptionalConfigs struct {
+// OptionalCtrConfigs k8s container settings that are optional
+type OptionalCtrConfigs struct {
 	Env             *[]corev1.EnvVar             `json:"env,omitempty"`
+	EnvFrom         *[]corev1.EnvFromSource      `json:"envFrom,omitempty"`
 	ImagePullPolicy *corev1.PullPolicy           `json:"imagePullPolicy,omitempty"`
 	Resources       *corev1.ResourceRequirements `json:"resources,omitempty"`
 }
@@ -366,12 +375,11 @@ type FeatureStoreStatus struct {
 	// Shows the currently applied feast configuration, including any pertinent defaults
 	Applied FeatureStoreSpec `json:"applied,omitempty"`
 	// ConfigMap in this namespace containing a client `feature_store.yaml` for this feast deployment
-	ClientConfigMap string             `json:"clientConfigMap,omitempty"`
-	Conditions      []metav1.Condition `json:"conditions,omitempty"`
-	// Version of feast that's currently deployed
-	FeastVersion     string           `json:"feastVersion,omitempty"`
-	Phase            string           `json:"phase,omitempty"`
-	ServiceHostnames ServiceHostnames `json:"serviceHostnames,omitempty"`
+	ClientConfigMap  string             `json:"clientConfigMap,omitempty"`
+	Conditions       []metav1.Condition `json:"conditions,omitempty"`
+	FeastVersion     string             `json:"feastVersion,omitempty"`
+	Phase            string             `json:"phase,omitempty"`
+	ServiceHostnames ServiceHostnames   `json:"serviceHostnames,omitempty"`
 }
 
 // ServiceHostnames defines the service hostnames in the format of <domain>:<port>, e.g. example.svc.cluster.local:80
@@ -379,13 +387,14 @@ type ServiceHostnames struct {
 	OfflineStore string `json:"offlineStore,omitempty"`
 	OnlineStore  string `json:"onlineStore,omitempty"`
 	Registry     string `json:"registry,omitempty"`
+	UI           string `json:"ui,omitempty"`
 }
 
-//+kubebuilder:object:root=true
-//+kubebuilder:subresource:status
-//+kubebuilder:resource:shortName=feast
-//+kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.phase`
-//+kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+// +kubebuilder:resource:shortName=feast
+// +kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.phase`
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 
 // FeatureStore is the Schema for the featurestores API
 type FeatureStore struct {
@@ -396,7 +405,7 @@ type FeatureStore struct {
 	Status FeatureStoreStatus `json:"status,omitempty"`
 }
 
-//+kubebuilder:object:root=true
+// +kubebuilder:object:root=true
 
 // FeatureStoreList contains a list of FeatureStore
 type FeatureStoreList struct {

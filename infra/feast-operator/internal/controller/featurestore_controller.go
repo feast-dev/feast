@@ -39,6 +39,7 @@ import (
 	"github.com/feast-dev/feast/infra/feast-operator/internal/controller/authz"
 	feasthandler "github.com/feast-dev/feast/infra/feast-operator/internal/controller/handler"
 	"github.com/feast-dev/feast/infra/feast-operator/internal/controller/services"
+	routev1 "github.com/openshift/api/route/v1"
 )
 
 // Constants for requeue
@@ -52,13 +53,14 @@ type FeatureStoreReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-//+kubebuilder:rbac:groups=feast.dev,resources=featurestores,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=feast.dev,resources=featurestores/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=feast.dev,resources=featurestores/finalizers,verbs=update
-//+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;create;update;watch;delete
-//+kubebuilder:rbac:groups=core,resources=services;configmaps;persistentvolumeclaims;serviceaccounts,verbs=get;list;create;update;watch;delete
-//+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles;rolebindings,verbs=get;list;create;update;watch;delete
-//+kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list
+// +kubebuilder:rbac:groups=feast.dev,resources=featurestores,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=feast.dev,resources=featurestores/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=feast.dev,resources=featurestores/finalizers,verbs=update
+// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;create;update;watch;delete
+// +kubebuilder:rbac:groups=core,resources=services;configmaps;persistentvolumeclaims;serviceaccounts,verbs=get;list;create;update;watch;delete
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles;rolebindings,verbs=get;list;create;update;watch;delete
+// +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list
+// +kubebuilder:rbac:groups=route.openshift.io,resources=routes,verbs=get;list;create;update;watch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -136,6 +138,30 @@ func (r *FeatureStoreReconciler) deployFeast(ctx context.Context, cr *feastdevv1
 			Reason:  feastdevv1alpha1.FailedReason,
 			Message: "Error: " + err.Error(),
 		}
+	} else {
+		deployment, deploymentErr := feast.GetDeployment()
+		if deploymentErr != nil {
+			condition = metav1.Condition{
+				Type:    feastdevv1alpha1.ReadyType,
+				Status:  metav1.ConditionUnknown,
+				Reason:  feastdevv1alpha1.DeploymentNotAvailableReason,
+				Message: feastdevv1alpha1.DeploymentNotAvailableMessage,
+			}
+
+			result = errResult
+		} else {
+			isDeployAvailable := services.IsDeploymentAvailable(deployment.Status.Conditions)
+			if !isDeployAvailable {
+				condition = metav1.Condition{
+					Type:    feastdevv1alpha1.ReadyType,
+					Status:  metav1.ConditionUnknown,
+					Reason:  feastdevv1alpha1.DeploymentNotAvailableReason,
+					Message: feastdevv1alpha1.DeploymentNotAvailableMessage,
+				}
+
+				result = errResult
+			}
+		}
 	}
 
 	logger.Info(condition.Message)
@@ -153,7 +179,7 @@ func (r *FeatureStoreReconciler) deployFeast(ctx context.Context, cr *feastdevv1
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *FeatureStoreReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
+	bldr := ctrl.NewControllerManagedBy(mgr).
 		For(&feastdevv1alpha1.FeatureStore{}).
 		Owns(&corev1.ConfigMap{}).
 		Owns(&appsv1.Deployment{}).
@@ -162,8 +188,13 @@ func (r *FeatureStoreReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&corev1.ServiceAccount{}).
 		Owns(&rbacv1.RoleBinding{}).
 		Owns(&rbacv1.Role{}).
-		Watches(&feastdevv1alpha1.FeatureStore{}, handler.EnqueueRequestsFromMapFunc(r.mapFeastRefsToFeastRequests)).
-		Complete(r)
+		Watches(&feastdevv1alpha1.FeatureStore{}, handler.EnqueueRequestsFromMapFunc(r.mapFeastRefsToFeastRequests))
+	if services.IsOpenShift() {
+		bldr = bldr.Owns(&routev1.Route{})
+	}
+
+	return bldr.Complete(r)
+
 }
 
 // if a remotely referenced FeatureStore is changed, reconcile any FeatureStores that reference it.

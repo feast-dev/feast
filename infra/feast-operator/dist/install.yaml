@@ -11,7 +11,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.14.0
+    controller-gen.kubebuilder.io/version: v0.15.0
   name: featurestores.feast.dev
 spec:
   group: feast.dev
@@ -34,64 +34,30 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: FeatureStore is the Schema for the featurestores API
         properties:
           apiVersion:
-            description: |-
-              APIVersion defines the versioned schema of this representation of an object.
-              Servers should convert recognized schemas to the latest internal value, and
-              may reject unrecognized values.
-              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
             type: string
           kind:
-            description: |-
-              Kind is a string value representing the REST resource this object represents.
-              Servers may infer this from the endpoint the client submits requests to.
-              Cannot be updated.
-              In CamelCase.
-              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
             type: string
           metadata:
             type: object
           spec:
-            description: FeatureStoreSpec defines the desired state of FeatureStore
             properties:
               authz:
-                description: AuthzConfig defines the authorization settings for the
-                  deployed Feast services.
                 properties:
                   kubernetes:
-                    description: |-
-                      KubernetesAuthz provides a way to define the authorization settings using Kubernetes RBAC resources.
-                      https://kubernetes.io/docs/reference/access-authn-authz/rbac/
                     properties:
                       roles:
-                        description: |-
-                          The Kubernetes RBAC roles to be deployed in the same namespace of the FeatureStore.
-                          Roles are managed by the operator and created with an empty list of rules.
-                          See the Feast permission model at https://docs.feast.dev/getting-started/concepts/permission
-                          The feature store admin is not obligated to manage roles using the Feast operator, roles can be managed independently.
-                          This configuration option is only providing a way to automate this procedure.
-                          Important note: the operator cannot ensure that these roles will match the ones used in the configured Feast permissions.
                         items:
                           type: string
                         type: array
                     type: object
                   oidc:
-                    description: |-
-                      OidcAuthz defines the authorization settings for deployments using an Open ID Connect identity provider.
-                      https://auth0.com/docs/authenticate/protocols/openid-connect-protocol
                     properties:
                       secretRef:
-                        description: |-
-                          LocalObjectReference contains enough information to let you locate the
-                          referenced object inside the same namespace.
                         properties:
                           name:
-                            description: |-
-                              Name of the referent.
-                              More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                              TODO: Add other useful fields. apiVersion, kind, uid?
+                            default: ""
                             type: string
                         type: object
                         x-kubernetes-map-type: atomic
@@ -103,122 +69,88 @@ spec:
                 - message: One selection required between kubernetes or oidc.
                   rule: '[has(self.kubernetes), has(self.oidc)].exists_one(c, c)'
               feastProject:
-                description: FeastProject is the Feast project id. This can be any
-                  alphanumeric string with underscores, but it cannot start with an
-                  underscore. Required.
                 pattern: ^[A-Za-z0-9][A-Za-z0-9_]*$
                 type: string
               services:
-                description: FeatureStoreServices defines the desired feast service
-                  deployments. ephemeral registry is deployed by default.
                 properties:
+                  deploymentStrategy:
+                    properties:
+                      rollingUpdate:
+                        properties:
+                          maxSurge:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            x-kubernetes-int-or-string: true
+                          maxUnavailable:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            x-kubernetes-int-or-string: true
+                        type: object
+                      type:
+                        type: string
+                    type: object
+                  disableInitContainers:
+                    type: boolean
                   offlineStore:
-                    description: OfflineStore configures the deployed offline store
-                      service
                     properties:
                       env:
                         items:
-                          description: EnvVar represents an environment variable present
-                            in a Container.
                           properties:
                             name:
-                              description: Name of the environment variable. Must
-                                be a C_IDENTIFIER.
                               type: string
                             value:
-                              description: |-
-                                Variable references $(VAR_NAME) are expanded
-                                using the previously defined environment variables in the container and
-                                any service environment variables. If a variable cannot be resolved,
-                                the reference in the input string will be unchanged. Double $$ are reduced
-                                to a single $, which allows for escaping the $(VAR_NAME) syntax: i.e.
-                                "$$(VAR_NAME)" will produce the string literal "$(VAR_NAME)".
-                                Escaped references will never be expanded, regardless of whether the variable
-                                exists or not.
-                                Defaults to "".
                               type: string
                             valueFrom:
-                              description: Source for the environment variable's value.
-                                Cannot be used if value is not empty.
                               properties:
                                 configMapKeyRef:
-                                  description: Selects a key of a ConfigMap.
                                   properties:
                                     key:
-                                      description: The key to select.
                                       type: string
                                     name:
-                                      description: |-
-                                        Name of the referent.
-                                        More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                                        TODO: Add other useful fields. apiVersion, kind, uid?
+                                      default: ""
                                       type: string
                                     optional:
-                                      description: Specify whether the ConfigMap or
-                                        its key must be defined
                                       type: boolean
                                   required:
                                   - key
                                   type: object
                                   x-kubernetes-map-type: atomic
                                 fieldRef:
-                                  description: |-
-                                    Selects a field of the pod: supports metadata.name, metadata.namespace, `metadata.labels['<KEY>']`, `metadata.annotations['<KEY>']`,
-                                    spec.nodeName, spec.serviceAccountName, status.hostIP, status.podIP, status.podIPs.
                                   properties:
                                     apiVersion:
-                                      description: Version of the schema the FieldPath
-                                        is written in terms of, defaults to "v1".
                                       type: string
                                     fieldPath:
-                                      description: Path of the field to select in
-                                        the specified API version.
                                       type: string
                                   required:
                                   - fieldPath
                                   type: object
                                   x-kubernetes-map-type: atomic
                                 resourceFieldRef:
-                                  description: |-
-                                    Selects a resource of the container: only resources limits and requests
-                                    (limits.cpu, limits.memory, limits.ephemeral-storage, requests.cpu, requests.memory and requests.ephemeral-storage) are currently supported.
                                   properties:
                                     containerName:
-                                      description: 'Container name: required for volumes,
-                                        optional for env vars'
                                       type: string
                                     divisor:
                                       anyOf:
                                       - type: integer
                                       - type: string
-                                      description: Specifies the output format of
-                                        the exposed resources, defaults to "1"
                                       pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                       x-kubernetes-int-or-string: true
                                     resource:
-                                      description: 'Required: resource to select'
                                       type: string
                                   required:
                                   - resource
                                   type: object
                                   x-kubernetes-map-type: atomic
                                 secretKeyRef:
-                                  description: Selects a key of a secret in the pod's
-                                    namespace
                                   properties:
                                     key:
-                                      description: The key of the secret to select
-                                        from.  Must be a valid secret key.
                                       type: string
                                     name:
-                                      description: |-
-                                        Name of the referent.
-                                        More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                                        TODO: Add other useful fields. apiVersion, kind, uid?
+                                      default: ""
                                       type: string
                                     optional:
-                                      description: Specify whether the Secret or its
-                                        key must be defined
                                       type: boolean
                                   required:
                                   - key
@@ -229,16 +161,36 @@ spec:
                           - name
                           type: object
                         type: array
+                      envFrom:
+                        items:
+                          properties:
+                            configMapRef:
+                              properties:
+                                name:
+                                  default: ""
+                                  type: string
+                                optional:
+                                  type: boolean
+                              type: object
+                              x-kubernetes-map-type: atomic
+                            prefix:
+                              type: string
+                            secretRef:
+                              properties:
+                                name:
+                                  default: ""
+                                  type: string
+                                optional:
+                                  type: boolean
+                              type: object
+                              x-kubernetes-map-type: atomic
+                          type: object
+                        type: array
                       image:
                         type: string
                       imagePullPolicy:
-                        description: PullPolicy describes a policy for if/when to
-                          pull a container image
                         type: string
                       logLevel:
-                        description: |-
-                          LogLevel sets the logging level for the offline store service
-                          Allowed values: "debug", "info", "warning", "error", "critical".
                         enum:
                         - debug
                         - info
@@ -247,28 +199,18 @@ spec:
                         - critical
                         type: string
                       persistence:
-                        description: OfflineStorePersistence configures the persistence
-                          settings for the offline store service
                         properties:
                           file:
-                            description: OfflineStoreFilePersistence configures the
-                              file-based persistence for the offline store service
                             properties:
                               pvc:
-                                description: |-
-                                  PvcConfig defines the settings for a persistent file store based on PVCs.
-                                  We can refer to an existing PVC using the `Ref` field, or create a new one using the `Create` field.
                                 properties:
                                   create:
-                                    description: Settings for creating a new PVC
                                     properties:
+                                      accessModes:
+                                        items:
+                                          type: string
+                                        type: array
                                       resources:
-                                        description: |-
-                                          Resources describes the storage resource requirements for a volume.
-                                          Default requested storage size depends on the associated service:
-                                          - 10Gi for offline store
-                                          - 5Gi for online store
-                                          - 5Gi for registry
                                         properties:
                                           limits:
                                             additionalProperties:
@@ -277,9 +219,6 @@ spec:
                                               - type: string
                                               pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                               x-kubernetes-int-or-string: true
-                                            description: |-
-                                              Limits describes the maximum amount of compute resources allowed.
-                                              More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                                             type: object
                                           requests:
                                             additionalProperties:
@@ -288,38 +227,25 @@ spec:
                                               - type: string
                                               pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                               x-kubernetes-int-or-string: true
-                                            description: |-
-                                              Requests describes the minimum amount of compute resources required.
-                                              If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
-                                              otherwise to an implementation-defined value. Requests cannot exceed Limits.
-                                              More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                                             type: object
                                         type: object
                                       storageClassName:
-                                        description: |-
-                                          StorageClassName is the name of an existing StorageClass to which this persistent volume belongs. Empty value
-                                          means that this volume does not belong to any StorageClass and the cluster default will be used.
                                         type: string
                                     type: object
                                     x-kubernetes-validations:
                                     - message: PvcCreate is immutable
                                       rule: self == oldSelf
                                   mountPath:
-                                    description: |-
-                                      MountPath within the container at which the volume should be mounted.
-                                      Must start by "/" and cannot contain ':'.
                                     type: string
                                   ref:
-                                    description: Reference to an existing field
                                     properties:
                                       name:
-                                        description: |-
-                                          Name of the referent.
-                                          More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                                          TODO: Add other useful fields. apiVersion, kind, uid?
+                                        default: ""
                                         type: string
                                     type: object
                                     x-kubernetes-map-type: atomic
+                                required:
+                                - mountPath
                                 type: object
                                 x-kubernetes-validations:
                                 - message: One selection is required between ref and
@@ -331,28 +257,19 @@ spec:
                                   rule: self.mountPath.matches('^/[^:]*$')
                               type:
                                 enum:
+                                - file
                                 - dask
                                 - duckdb
                                 type: string
                             type: object
                           store:
-                            description: OfflineStoreDBStorePersistence configures
-                              the DB store persistence for the offline store service
                             properties:
                               secretKeyName:
-                                description: By default, the selected store "type"
-                                  is used as the SecretKeyName
                                 type: string
                               secretRef:
-                                description: Data store parameters should be placed
-                                  as-is from the "feature_store.yaml" under the secret
-                                  key. "registry_type" & "type" fields should be removed.
                                 properties:
                                   name:
-                                    description: |-
-                                      Name of the referent.
-                                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                                      TODO: Add other useful fields. apiVersion, kind, uid?
+                                    default: ""
                                     type: string
                                 type: object
                                 x-kubernetes-map-type: atomic
@@ -363,8 +280,10 @@ spec:
                                 - redshift
                                 - spark
                                 - postgres
-                                - feast_trino.trino.TrinoOfflineStore
+                                - trino
                                 - redis
+                                - athena
+                                - mssql
                                 type: string
                             required:
                             - secretRef
@@ -375,28 +294,11 @@ spec:
                         - message: One selection required between file or store.
                           rule: '[has(self.file), has(self.store)].exists_one(c, c)'
                       resources:
-                        description: ResourceRequirements describes the compute resource
-                          requirements.
                         properties:
                           claims:
-                            description: |-
-                              Claims lists the names of resources, defined in spec.resourceClaims,
-                              that are used by this container.
-
-
-                              This is an alpha field and requires enabling the
-                              DynamicResourceAllocation feature gate.
-
-
-                              This field is immutable. It can only be set for containers.
                             items:
-                              description: ResourceClaim references one entry in PodSpec.ResourceClaims.
                               properties:
                                 name:
-                                  description: |-
-                                    Name must match the name of one entry in pod.spec.resourceClaims of
-                                    the Pod where this field is used. It makes that resource available
-                                    inside a container.
                                   type: string
                               required:
                               - name
@@ -412,9 +314,6 @@ spec:
                               - type: string
                               pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                               x-kubernetes-int-or-string: true
-                            description: |-
-                              Limits describes the maximum amount of compute resources allowed.
-                              More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                             type: object
                           requests:
                             additionalProperties:
@@ -423,49 +322,26 @@ spec:
                               - type: string
                               pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                               x-kubernetes-int-or-string: true
-                            description: |-
-                              Requests describes the minimum amount of compute resources required.
-                              If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
-                              otherwise to an implementation-defined value. Requests cannot exceed Limits.
-                              More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                             type: object
                         type: object
                       tls:
-                        description: OfflineTlsConfigs configures server TLS for the
-                          offline feast service. in an openshift cluster, this is
-                          configured by default using service serving certificates.
                         properties:
                           disable:
-                            description: will disable TLS for the feast service. useful
-                              in an openshift cluster, for example, where TLS is configured
-                              by default
                             type: boolean
                           secretKeyNames:
-                            description: SecretKeyNames defines the secret key names
-                              for the TLS key and cert.
                             properties:
                               tlsCrt:
-                                description: defaults to "tls.crt"
                                 type: string
                               tlsKey:
-                                description: defaults to "tls.key"
                                 type: string
                             type: object
                           secretRef:
-                            description: references the local k8s secret where the
-                              TLS key and cert reside
                             properties:
                               name:
-                                description: |-
-                                  Name of the referent.
-                                  More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                                  TODO: Add other useful fields. apiVersion, kind, uid?
+                                default: ""
                                 type: string
                             type: object
                             x-kubernetes-map-type: atomic
-                          verifyClient:
-                            description: verify the client TLS certificate.
-                            type: boolean
                         type: object
                         x-kubernetes-validations:
                         - message: '`secretRef` required if `disable` is false.'
@@ -473,112 +349,63 @@ spec:
                             : true'
                     type: object
                   onlineStore:
-                    description: OnlineStore configures the deployed online store
-                      service
                     properties:
                       env:
                         items:
-                          description: EnvVar represents an environment variable present
-                            in a Container.
                           properties:
                             name:
-                              description: Name of the environment variable. Must
-                                be a C_IDENTIFIER.
                               type: string
                             value:
-                              description: |-
-                                Variable references $(VAR_NAME) are expanded
-                                using the previously defined environment variables in the container and
-                                any service environment variables. If a variable cannot be resolved,
-                                the reference in the input string will be unchanged. Double $$ are reduced
-                                to a single $, which allows for escaping the $(VAR_NAME) syntax: i.e.
-                                "$$(VAR_NAME)" will produce the string literal "$(VAR_NAME)".
-                                Escaped references will never be expanded, regardless of whether the variable
-                                exists or not.
-                                Defaults to "".
                               type: string
                             valueFrom:
-                              description: Source for the environment variable's value.
-                                Cannot be used if value is not empty.
                               properties:
                                 configMapKeyRef:
-                                  description: Selects a key of a ConfigMap.
                                   properties:
                                     key:
-                                      description: The key to select.
                                       type: string
                                     name:
-                                      description: |-
-                                        Name of the referent.
-                                        More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                                        TODO: Add other useful fields. apiVersion, kind, uid?
+                                      default: ""
                                       type: string
                                     optional:
-                                      description: Specify whether the ConfigMap or
-                                        its key must be defined
                                       type: boolean
                                   required:
                                   - key
                                   type: object
                                   x-kubernetes-map-type: atomic
                                 fieldRef:
-                                  description: |-
-                                    Selects a field of the pod: supports metadata.name, metadata.namespace, `metadata.labels['<KEY>']`, `metadata.annotations['<KEY>']`,
-                                    spec.nodeName, spec.serviceAccountName, status.hostIP, status.podIP, status.podIPs.
                                   properties:
                                     apiVersion:
-                                      description: Version of the schema the FieldPath
-                                        is written in terms of, defaults to "v1".
                                       type: string
                                     fieldPath:
-                                      description: Path of the field to select in
-                                        the specified API version.
                                       type: string
                                   required:
                                   - fieldPath
                                   type: object
                                   x-kubernetes-map-type: atomic
                                 resourceFieldRef:
-                                  description: |-
-                                    Selects a resource of the container: only resources limits and requests
-                                    (limits.cpu, limits.memory, limits.ephemeral-storage, requests.cpu, requests.memory and requests.ephemeral-storage) are currently supported.
                                   properties:
                                     containerName:
-                                      description: 'Container name: required for volumes,
-                                        optional for env vars'
                                       type: string
                                     divisor:
                                       anyOf:
                                       - type: integer
                                       - type: string
-                                      description: Specifies the output format of
-                                        the exposed resources, defaults to "1"
                                       pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                       x-kubernetes-int-or-string: true
                                     resource:
-                                      description: 'Required: resource to select'
                                       type: string
                                   required:
                                   - resource
                                   type: object
                                   x-kubernetes-map-type: atomic
                                 secretKeyRef:
-                                  description: Selects a key of a secret in the pod's
-                                    namespace
                                   properties:
                                     key:
-                                      description: The key of the secret to select
-                                        from.  Must be a valid secret key.
                                       type: string
                                     name:
-                                      description: |-
-                                        Name of the referent.
-                                        More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                                        TODO: Add other useful fields. apiVersion, kind, uid?
+                                      default: ""
                                       type: string
                                     optional:
-                                      description: Specify whether the Secret or its
-                                        key must be defined
                                       type: boolean
                                   required:
                                   - key
@@ -589,16 +416,36 @@ spec:
                           - name
                           type: object
                         type: array
+                      envFrom:
+                        items:
+                          properties:
+                            configMapRef:
+                              properties:
+                                name:
+                                  default: ""
+                                  type: string
+                                optional:
+                                  type: boolean
+                              type: object
+                              x-kubernetes-map-type: atomic
+                            prefix:
+                              type: string
+                            secretRef:
+                              properties:
+                                name:
+                                  default: ""
+                                  type: string
+                                optional:
+                                  type: boolean
+                              type: object
+                              x-kubernetes-map-type: atomic
+                          type: object
+                        type: array
                       image:
                         type: string
                       imagePullPolicy:
-                        description: PullPolicy describes a policy for if/when to
-                          pull a container image
                         type: string
                       logLevel:
-                        description: |-
-                          LogLevel sets the logging level for the online store service
-                          Allowed values: "debug", "info", "warning", "error", "critical".
                         enum:
                         - debug
                         - info
@@ -607,30 +454,20 @@ spec:
                         - critical
                         type: string
                       persistence:
-                        description: OnlineStorePersistence configures the persistence
-                          settings for the online store service
                         properties:
                           file:
-                            description: OnlineStoreFilePersistence configures the
-                              file-based persistence for the offline store service
                             properties:
                               path:
                                 type: string
                               pvc:
-                                description: |-
-                                  PvcConfig defines the settings for a persistent file store based on PVCs.
-                                  We can refer to an existing PVC using the `Ref` field, or create a new one using the `Create` field.
                                 properties:
                                   create:
-                                    description: Settings for creating a new PVC
                                     properties:
+                                      accessModes:
+                                        items:
+                                          type: string
+                                        type: array
                                       resources:
-                                        description: |-
-                                          Resources describes the storage resource requirements for a volume.
-                                          Default requested storage size depends on the associated service:
-                                          - 10Gi for offline store
-                                          - 5Gi for online store
-                                          - 5Gi for registry
                                         properties:
                                           limits:
                                             additionalProperties:
@@ -639,9 +476,6 @@ spec:
                                               - type: string
                                               pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                               x-kubernetes-int-or-string: true
-                                            description: |-
-                                              Limits describes the maximum amount of compute resources allowed.
-                                              More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                                             type: object
                                           requests:
                                             additionalProperties:
@@ -650,38 +484,25 @@ spec:
                                               - type: string
                                               pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                               x-kubernetes-int-or-string: true
-                                            description: |-
-                                              Requests describes the minimum amount of compute resources required.
-                                              If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
-                                              otherwise to an implementation-defined value. Requests cannot exceed Limits.
-                                              More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                                             type: object
                                         type: object
                                       storageClassName:
-                                        description: |-
-                                          StorageClassName is the name of an existing StorageClass to which this persistent volume belongs. Empty value
-                                          means that this volume does not belong to any StorageClass and the cluster default will be used.
                                         type: string
                                     type: object
                                     x-kubernetes-validations:
                                     - message: PvcCreate is immutable
                                       rule: self == oldSelf
                                   mountPath:
-                                    description: |-
-                                      MountPath within the container at which the volume should be mounted.
-                                      Must start by "/" and cannot contain ':'.
                                     type: string
                                   ref:
-                                    description: Reference to an existing field
                                     properties:
                                       name:
-                                        description: |-
-                                          Name of the referent.
-                                          More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                                          TODO: Add other useful fields. apiVersion, kind, uid?
+                                        default: ""
                                         type: string
                                     type: object
                                     x-kubernetes-map-type: atomic
+                                required:
+                                - mountPath
                                 type: object
                                 x-kubernetes-validations:
                                 - message: One selection is required between ref and
@@ -701,26 +522,16 @@ spec:
                               rule: '(has(self.pvc) && has(self.path)) ? !self.path.startsWith(''/'')
                                 : true'
                             - message: Online store does not support S3 or GS buckets.
-                              rule: has(self.path) && !self.path.startsWith('s3://')
-                                && !self.path.startsWith('gs://')
+                              rule: 'has(self.path) ? !(self.path.startsWith(''s3://'')
+                                || self.path.startsWith(''gs://'')) : true'
                           store:
-                            description: OnlineStoreDBStorePersistence configures
-                              the DB store persistence for the offline store service
                             properties:
                               secretKeyName:
-                                description: By default, the selected store "type"
-                                  is used as the SecretKeyName
                                 type: string
                               secretRef:
-                                description: Data store parameters should be placed
-                                  as-is from the "feature_store.yaml" under the secret
-                                  key. "registry_type" & "type" fields should be removed.
                                 properties:
                                   name:
-                                    description: |-
-                                      Name of the referent.
-                                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                                      TODO: Add other useful fields. apiVersion, kind, uid?
+                                    default: ""
                                     type: string
                                 type: object
                                 x-kubernetes-map-type: atomic
@@ -737,6 +548,11 @@ spec:
                                 - mysql
                                 - hazelcast
                                 - singlestore
+                                - hbase
+                                - elasticsearch
+                                - qdrant
+                                - couchbase
+                                - milvus
                                 type: string
                             required:
                             - secretRef
@@ -747,28 +563,11 @@ spec:
                         - message: One selection required between file or store.
                           rule: '[has(self.file), has(self.store)].exists_one(c, c)'
                       resources:
-                        description: ResourceRequirements describes the compute resource
-                          requirements.
                         properties:
                           claims:
-                            description: |-
-                              Claims lists the names of resources, defined in spec.resourceClaims,
-                              that are used by this container.
-
-
-                              This is an alpha field and requires enabling the
-                              DynamicResourceAllocation feature gate.
-
-
-                              This field is immutable. It can only be set for containers.
                             items:
-                              description: ResourceClaim references one entry in PodSpec.ResourceClaims.
                               properties:
                                 name:
-                                  description: |-
-                                    Name must match the name of one entry in pod.spec.resourceClaims of
-                                    the Pod where this field is used. It makes that resource available
-                                    inside a container.
                                   type: string
                               required:
                               - name
@@ -784,9 +583,6 @@ spec:
                               - type: string
                               pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                               x-kubernetes-int-or-string: true
-                            description: |-
-                              Limits describes the maximum amount of compute resources allowed.
-                              More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                             type: object
                           requests:
                             additionalProperties:
@@ -795,43 +591,23 @@ spec:
                               - type: string
                               pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                               x-kubernetes-int-or-string: true
-                            description: |-
-                              Requests describes the minimum amount of compute resources required.
-                              If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
-                              otherwise to an implementation-defined value. Requests cannot exceed Limits.
-                              More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                             type: object
                         type: object
                       tls:
-                        description: TlsConfigs configures server TLS for a feast
-                          service. in an openshift cluster, this is configured by
-                          default using service serving certificates.
                         properties:
                           disable:
-                            description: will disable TLS for the feast service. useful
-                              in an openshift cluster, for example, where TLS is configured
-                              by default
                             type: boolean
                           secretKeyNames:
-                            description: SecretKeyNames defines the secret key names
-                              for the TLS key and cert.
                             properties:
                               tlsCrt:
-                                description: defaults to "tls.crt"
                                 type: string
                               tlsKey:
-                                description: defaults to "tls.key"
                                 type: string
                             type: object
                           secretRef:
-                            description: references the local k8s secret where the
-                              TLS key and cert reside
                             properties:
                               name:
-                                description: |-
-                                  Name of the referent.
-                                  More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                                  TODO: Add other useful fields. apiVersion, kind, uid?
+                                default: ""
                                 type: string
                             type: object
                             x-kubernetes-map-type: atomic
@@ -842,117 +618,65 @@ spec:
                             : true'
                     type: object
                   registry:
-                    description: Registry configures the registry service. One selection
-                      is required. Local is the default setting.
                     properties:
                       local:
-                        description: LocalRegistryConfig configures the deployed registry
-                          service
                         properties:
                           env:
                             items:
-                              description: EnvVar represents an environment variable
-                                present in a Container.
                               properties:
                                 name:
-                                  description: Name of the environment variable. Must
-                                    be a C_IDENTIFIER.
                                   type: string
                                 value:
-                                  description: |-
-                                    Variable references $(VAR_NAME) are expanded
-                                    using the previously defined environment variables in the container and
-                                    any service environment variables. If a variable cannot be resolved,
-                                    the reference in the input string will be unchanged. Double $$ are reduced
-                                    to a single $, which allows for escaping the $(VAR_NAME) syntax: i.e.
-                                    "$$(VAR_NAME)" will produce the string literal "$(VAR_NAME)".
-                                    Escaped references will never be expanded, regardless of whether the variable
-                                    exists or not.
-                                    Defaults to "".
                                   type: string
                                 valueFrom:
-                                  description: Source for the environment variable's
-                                    value. Cannot be used if value is not empty.
                                   properties:
                                     configMapKeyRef:
-                                      description: Selects a key of a ConfigMap.
                                       properties:
                                         key:
-                                          description: The key to select.
                                           type: string
                                         name:
-                                          description: |-
-                                            Name of the referent.
-                                            More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                                            TODO: Add other useful fields. apiVersion, kind, uid?
+                                          default: ""
                                           type: string
                                         optional:
-                                          description: Specify whether the ConfigMap
-                                            or its key must be defined
                                           type: boolean
                                       required:
                                       - key
                                       type: object
                                       x-kubernetes-map-type: atomic
                                     fieldRef:
-                                      description: |-
-                                        Selects a field of the pod: supports metadata.name, metadata.namespace, `metadata.labels['<KEY>']`, `metadata.annotations['<KEY>']`,
-                                        spec.nodeName, spec.serviceAccountName, status.hostIP, status.podIP, status.podIPs.
                                       properties:
                                         apiVersion:
-                                          description: Version of the schema the FieldPath
-                                            is written in terms of, defaults to "v1".
                                           type: string
                                         fieldPath:
-                                          description: Path of the field to select
-                                            in the specified API version.
                                           type: string
                                       required:
                                       - fieldPath
                                       type: object
                                       x-kubernetes-map-type: atomic
                                     resourceFieldRef:
-                                      description: |-
-                                        Selects a resource of the container: only resources limits and requests
-                                        (limits.cpu, limits.memory, limits.ephemeral-storage, requests.cpu, requests.memory and requests.ephemeral-storage) are currently supported.
                                       properties:
                                         containerName:
-                                          description: 'Container name: required for
-                                            volumes, optional for env vars'
                                           type: string
                                         divisor:
                                           anyOf:
                                           - type: integer
                                           - type: string
-                                          description: Specifies the output format
-                                            of the exposed resources, defaults to
-                                            "1"
                                           pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                           x-kubernetes-int-or-string: true
                                         resource:
-                                          description: 'Required: resource to select'
                                           type: string
                                       required:
                                       - resource
                                       type: object
                                       x-kubernetes-map-type: atomic
                                     secretKeyRef:
-                                      description: Selects a key of a secret in the
-                                        pod's namespace
                                       properties:
                                         key:
-                                          description: The key of the secret to select
-                                            from.  Must be a valid secret key.
                                           type: string
                                         name:
-                                          description: |-
-                                            Name of the referent.
-                                            More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                                            TODO: Add other useful fields. apiVersion, kind, uid?
+                                          default: ""
                                           type: string
                                         optional:
-                                          description: Specify whether the Secret
-                                            or its key must be defined
                                           type: boolean
                                       required:
                                       - key
@@ -963,16 +687,36 @@ spec:
                               - name
                               type: object
                             type: array
+                          envFrom:
+                            items:
+                              properties:
+                                configMapRef:
+                                  properties:
+                                    name:
+                                      default: ""
+                                      type: string
+                                    optional:
+                                      type: boolean
+                                  type: object
+                                  x-kubernetes-map-type: atomic
+                                prefix:
+                                  type: string
+                                secretRef:
+                                  properties:
+                                    name:
+                                      default: ""
+                                      type: string
+                                    optional:
+                                      type: boolean
+                                  type: object
+                                  x-kubernetes-map-type: atomic
+                              type: object
+                            type: array
                           image:
                             type: string
                           imagePullPolicy:
-                            description: PullPolicy describes a policy for if/when
-                              to pull a container image
                             type: string
                           logLevel:
-                            description: |-
-                              LogLevel sets the logging level for the registry service
-                              Allowed values: "debug", "info", "warning", "error", "critical".
                             enum:
                             - debug
                             - info
@@ -981,30 +725,20 @@ spec:
                             - critical
                             type: string
                           persistence:
-                            description: RegistryPersistence configures the persistence
-                              settings for the registry service
                             properties:
                               file:
-                                description: RegistryFilePersistence configures the
-                                  file-based persistence for the registry service
                                 properties:
                                   path:
                                     type: string
                                   pvc:
-                                    description: |-
-                                      PvcConfig defines the settings for a persistent file store based on PVCs.
-                                      We can refer to an existing PVC using the `Ref` field, or create a new one using the `Create` field.
                                     properties:
                                       create:
-                                        description: Settings for creating a new PVC
                                         properties:
+                                          accessModes:
+                                            items:
+                                              type: string
+                                            type: array
                                           resources:
-                                            description: |-
-                                              Resources describes the storage resource requirements for a volume.
-                                              Default requested storage size depends on the associated service:
-                                              - 10Gi for offline store
-                                              - 5Gi for online store
-                                              - 5Gi for registry
                                             properties:
                                               limits:
                                                 additionalProperties:
@@ -1013,9 +747,6 @@ spec:
                                                   - type: string
                                                   pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                                   x-kubernetes-int-or-string: true
-                                                description: |-
-                                                  Limits describes the maximum amount of compute resources allowed.
-                                                  More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                                                 type: object
                                               requests:
                                                 additionalProperties:
@@ -1024,38 +755,25 @@ spec:
                                                   - type: string
                                                   pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                                   x-kubernetes-int-or-string: true
-                                                description: |-
-                                                  Requests describes the minimum amount of compute resources required.
-                                                  If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
-                                                  otherwise to an implementation-defined value. Requests cannot exceed Limits.
-                                                  More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                                                 type: object
                                             type: object
                                           storageClassName:
-                                            description: |-
-                                              StorageClassName is the name of an existing StorageClass to which this persistent volume belongs. Empty value
-                                              means that this volume does not belong to any StorageClass and the cluster default will be used.
                                             type: string
                                         type: object
                                         x-kubernetes-validations:
                                         - message: PvcCreate is immutable
                                           rule: self == oldSelf
                                       mountPath:
-                                        description: |-
-                                          MountPath within the container at which the volume should be mounted.
-                                          Must start by "/" and cannot contain ':'.
                                         type: string
                                       ref:
-                                        description: Reference to an existing field
                                         properties:
                                           name:
-                                            description: |-
-                                              Name of the referent.
-                                              More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                                              TODO: Add other useful fields. apiVersion, kind, uid?
+                                            default: ""
                                             type: string
                                         type: object
                                         x-kubernetes-map-type: atomic
+                                    required:
+                                    - mountPath
                                     type: object
                                     x-kubernetes-validations:
                                     - message: One selection is required between ref
@@ -1090,24 +808,13 @@ spec:
                                   rule: '(has(self.s3_additional_kwargs) && has(self.path))
                                     ? self.path.startsWith(''s3://'') : true'
                               store:
-                                description: RegistryDBStorePersistence configures
-                                  the DB store persistence for the registry service
                                 properties:
                                   secretKeyName:
-                                    description: By default, the selected store "type"
-                                      is used as the SecretKeyName
                                     type: string
                                   secretRef:
-                                    description: Data store parameters should be placed
-                                      as-is from the "feature_store.yaml" under the
-                                      secret key. "registry_type" & "type" fields
-                                      should be removed.
                                     properties:
                                       name:
-                                        description: |-
-                                          Name of the referent.
-                                          More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                                          TODO: Add other useful fields. apiVersion, kind, uid?
+                                        default: ""
                                         type: string
                                     type: object
                                     x-kubernetes-map-type: atomic
@@ -1126,29 +833,11 @@ spec:
                               rule: '[has(self.file), has(self.store)].exists_one(c,
                                 c)'
                           resources:
-                            description: ResourceRequirements describes the compute
-                              resource requirements.
                             properties:
                               claims:
-                                description: |-
-                                  Claims lists the names of resources, defined in spec.resourceClaims,
-                                  that are used by this container.
-
-
-                                  This is an alpha field and requires enabling the
-                                  DynamicResourceAllocation feature gate.
-
-
-                                  This field is immutable. It can only be set for containers.
                                 items:
-                                  description: ResourceClaim references one entry
-                                    in PodSpec.ResourceClaims.
                                   properties:
                                     name:
-                                      description: |-
-                                        Name must match the name of one entry in pod.spec.resourceClaims of
-                                        the Pod where this field is used. It makes that resource available
-                                        inside a container.
                                       type: string
                                   required:
                                   - name
@@ -1164,9 +853,6 @@ spec:
                                   - type: string
                                   pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                   x-kubernetes-int-or-string: true
-                                description: |-
-                                  Limits describes the maximum amount of compute resources allowed.
-                                  More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                                 type: object
                               requests:
                                 additionalProperties:
@@ -1175,43 +861,23 @@ spec:
                                   - type: string
                                   pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                   x-kubernetes-int-or-string: true
-                                description: |-
-                                  Requests describes the minimum amount of compute resources required.
-                                  If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
-                                  otherwise to an implementation-defined value. Requests cannot exceed Limits.
-                                  More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                                 type: object
                             type: object
                           tls:
-                            description: TlsConfigs configures server TLS for a feast
-                              service. in an openshift cluster, this is configured
-                              by default using service serving certificates.
                             properties:
                               disable:
-                                description: will disable TLS for the feast service.
-                                  useful in an openshift cluster, for example, where
-                                  TLS is configured by default
                                 type: boolean
                               secretKeyNames:
-                                description: SecretKeyNames defines the secret key
-                                  names for the TLS key and cert.
                                 properties:
                                   tlsCrt:
-                                    description: defaults to "tls.crt"
                                     type: string
                                   tlsKey:
-                                    description: defaults to "tls.key"
                                     type: string
                                 type: object
                               secretRef:
-                                description: references the local k8s secret where
-                                  the TLS key and cert reside
                                 properties:
                                   name:
-                                    description: |-
-                                      Name of the referent.
-                                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                                      TODO: Add other useful fields. apiVersion, kind, uid?
+                                    default: ""
                                     type: string
                                 type: object
                                 x-kubernetes-map-type: atomic
@@ -1222,46 +888,26 @@ spec:
                                 : true'
                         type: object
                       remote:
-                        description: |-
-                          RemoteRegistryConfig points to a remote feast registry server. When set, the operator will not deploy a registry for this FeatureStore CR.
-                          Instead, this FeatureStore CR's online/offline services will use a remote registry. One selection is required.
                         properties:
                           feastRef:
-                            description: Reference to an existing `FeatureStore` CR
-                              in the same k8s cluster.
                             properties:
                               name:
-                                description: Name of the FeatureStore
                                 type: string
                               namespace:
-                                description: Namespace of the FeatureStore
                                 type: string
                             required:
                             - name
                             type: object
                           hostname:
-                            description: Host address of the remote registry service
-                              - <domain>:<port>, e.g. `registry.<namespace>.svc.cluster.local:80`
                             type: string
                           tls:
-                            description: TlsRemoteRegistryConfigs configures client
-                              TLS for a remote feast registry. in an openshift cluster,
-                              this is configured by default when the remote feast
-                              registry is using service serving certificates.
                             properties:
                               certName:
-                                description: defines the configmap key name for the
-                                  client TLS cert.
                                 type: string
                               configMapRef:
-                                description: references the local k8s configmap where
-                                  the TLS cert resides
                                 properties:
                                   name:
-                                    description: |-
-                                      Name of the referent.
-                                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                                      TODO: Add other useful fields. apiVersion, kind, uid?
+                                    default: ""
                                     type: string
                                 type: object
                                 x-kubernetes-map-type: atomic
@@ -1278,53 +924,189 @@ spec:
                     x-kubernetes-validations:
                     - message: One selection required.
                       rule: '[has(self.local), has(self.remote)].exists_one(c, c)'
+                  ui:
+                    properties:
+                      env:
+                        items:
+                          properties:
+                            name:
+                              type: string
+                            value:
+                              type: string
+                            valueFrom:
+                              properties:
+                                configMapKeyRef:
+                                  properties:
+                                    key:
+                                      type: string
+                                    name:
+                                      default: ""
+                                      type: string
+                                    optional:
+                                      type: boolean
+                                  required:
+                                  - key
+                                  type: object
+                                  x-kubernetes-map-type: atomic
+                                fieldRef:
+                                  properties:
+                                    apiVersion:
+                                      type: string
+                                    fieldPath:
+                                      type: string
+                                  required:
+                                  - fieldPath
+                                  type: object
+                                  x-kubernetes-map-type: atomic
+                                resourceFieldRef:
+                                  properties:
+                                    containerName:
+                                      type: string
+                                    divisor:
+                                      anyOf:
+                                      - type: integer
+                                      - type: string
+                                      pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                      x-kubernetes-int-or-string: true
+                                    resource:
+                                      type: string
+                                  required:
+                                  - resource
+                                  type: object
+                                  x-kubernetes-map-type: atomic
+                                secretKeyRef:
+                                  properties:
+                                    key:
+                                      type: string
+                                    name:
+                                      default: ""
+                                      type: string
+                                    optional:
+                                      type: boolean
+                                  required:
+                                  - key
+                                  type: object
+                                  x-kubernetes-map-type: atomic
+                              type: object
+                          required:
+                          - name
+                          type: object
+                        type: array
+                      envFrom:
+                        items:
+                          properties:
+                            configMapRef:
+                              properties:
+                                name:
+                                  default: ""
+                                  type: string
+                                optional:
+                                  type: boolean
+                              type: object
+                              x-kubernetes-map-type: atomic
+                            prefix:
+                              type: string
+                            secretRef:
+                              properties:
+                                name:
+                                  default: ""
+                                  type: string
+                                optional:
+                                  type: boolean
+                              type: object
+                              x-kubernetes-map-type: atomic
+                          type: object
+                        type: array
+                      image:
+                        type: string
+                      imagePullPolicy:
+                        type: string
+                      logLevel:
+                        enum:
+                        - debug
+                        - info
+                        - warning
+                        - error
+                        - critical
+                        type: string
+                      resources:
+                        properties:
+                          claims:
+                            items:
+                              properties:
+                                name:
+                                  type: string
+                              required:
+                              - name
+                              type: object
+                            type: array
+                            x-kubernetes-list-map-keys:
+                            - name
+                            x-kubernetes-list-type: map
+                          limits:
+                            additionalProperties:
+                              anyOf:
+                              - type: integer
+                              - type: string
+                              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                              x-kubernetes-int-or-string: true
+                            type: object
+                          requests:
+                            additionalProperties:
+                              anyOf:
+                              - type: integer
+                              - type: string
+                              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                              x-kubernetes-int-or-string: true
+                            type: object
+                        type: object
+                      tls:
+                        properties:
+                          disable:
+                            type: boolean
+                          secretKeyNames:
+                            properties:
+                              tlsCrt:
+                                type: string
+                              tlsKey:
+                                type: string
+                            type: object
+                          secretRef:
+                            properties:
+                              name:
+                                default: ""
+                                type: string
+                            type: object
+                            x-kubernetes-map-type: atomic
+                        type: object
+                        x-kubernetes-validations:
+                        - message: '`secretRef` required if `disable` is false.'
+                          rule: '(!has(self.disable) || !self.disable) ? has(self.secretRef)
+                            : true'
+                    type: object
                 type: object
             required:
             - feastProject
             type: object
           status:
-            description: FeatureStoreStatus defines the observed state of FeatureStore
             properties:
               applied:
-                description: Shows the currently applied feast configuration, including
-                  any pertinent defaults
                 properties:
                   authz:
-                    description: AuthzConfig defines the authorization settings for
-                      the deployed Feast services.
                     properties:
                       kubernetes:
-                        description: |-
-                          KubernetesAuthz provides a way to define the authorization settings using Kubernetes RBAC resources.
-                          https://kubernetes.io/docs/reference/access-authn-authz/rbac/
                         properties:
                           roles:
-                            description: |-
-                              The Kubernetes RBAC roles to be deployed in the same namespace of the FeatureStore.
-                              Roles are managed by the operator and created with an empty list of rules.
-                              See the Feast permission model at https://docs.feast.dev/getting-started/concepts/permission
-                              The feature store admin is not obligated to manage roles using the Feast operator, roles can be managed independently.
-                              This configuration option is only providing a way to automate this procedure.
-                              Important note: the operator cannot ensure that these roles will match the ones used in the configured Feast permissions.
                             items:
                               type: string
                             type: array
                         type: object
                       oidc:
-                        description: |-
-                          OidcAuthz defines the authorization settings for deployments using an Open ID Connect identity provider.
-                          https://auth0.com/docs/authenticate/protocols/openid-connect-protocol
                         properties:
                           secretRef:
-                            description: |-
-                              LocalObjectReference contains enough information to let you locate the
-                              referenced object inside the same namespace.
                             properties:
                               name:
-                                description: |-
-                                  Name of the referent.
-                                  More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                                  TODO: Add other useful fields. apiVersion, kind, uid?
+                                default: ""
                                 type: string
                             type: object
                             x-kubernetes-map-type: atomic
@@ -1337,123 +1119,88 @@ spec:
                       rule: '[has(self.kubernetes), has(self.oidc)].exists_one(c,
                         c)'
                   feastProject:
-                    description: FeastProject is the Feast project id. This can be
-                      any alphanumeric string with underscores, but it cannot start
-                      with an underscore. Required.
                     pattern: ^[A-Za-z0-9][A-Za-z0-9_]*$
                     type: string
                   services:
-                    description: FeatureStoreServices defines the desired feast service
-                      deployments. ephemeral registry is deployed by default.
                     properties:
+                      deploymentStrategy:
+                        properties:
+                          rollingUpdate:
+                            properties:
+                              maxSurge:
+                                anyOf:
+                                - type: integer
+                                - type: string
+                                x-kubernetes-int-or-string: true
+                              maxUnavailable:
+                                anyOf:
+                                - type: integer
+                                - type: string
+                                x-kubernetes-int-or-string: true
+                            type: object
+                          type:
+                            type: string
+                        type: object
+                      disableInitContainers:
+                        type: boolean
                       offlineStore:
-                        description: OfflineStore configures the deployed offline
-                          store service
                         properties:
                           env:
                             items:
-                              description: EnvVar represents an environment variable
-                                present in a Container.
                               properties:
                                 name:
-                                  description: Name of the environment variable. Must
-                                    be a C_IDENTIFIER.
                                   type: string
                                 value:
-                                  description: |-
-                                    Variable references $(VAR_NAME) are expanded
-                                    using the previously defined environment variables in the container and
-                                    any service environment variables. If a variable cannot be resolved,
-                                    the reference in the input string will be unchanged. Double $$ are reduced
-                                    to a single $, which allows for escaping the $(VAR_NAME) syntax: i.e.
-                                    "$$(VAR_NAME)" will produce the string literal "$(VAR_NAME)".
-                                    Escaped references will never be expanded, regardless of whether the variable
-                                    exists or not.
-                                    Defaults to "".
                                   type: string
                                 valueFrom:
-                                  description: Source for the environment variable's
-                                    value. Cannot be used if value is not empty.
                                   properties:
                                     configMapKeyRef:
-                                      description: Selects a key of a ConfigMap.
                                       properties:
                                         key:
-                                          description: The key to select.
                                           type: string
                                         name:
-                                          description: |-
-                                            Name of the referent.
-                                            More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                                            TODO: Add other useful fields. apiVersion, kind, uid?
+                                          default: ""
                                           type: string
                                         optional:
-                                          description: Specify whether the ConfigMap
-                                            or its key must be defined
                                           type: boolean
                                       required:
                                       - key
                                       type: object
                                       x-kubernetes-map-type: atomic
                                     fieldRef:
-                                      description: |-
-                                        Selects a field of the pod: supports metadata.name, metadata.namespace, `metadata.labels['<KEY>']`, `metadata.annotations['<KEY>']`,
-                                        spec.nodeName, spec.serviceAccountName, status.hostIP, status.podIP, status.podIPs.
                                       properties:
                                         apiVersion:
-                                          description: Version of the schema the FieldPath
-                                            is written in terms of, defaults to "v1".
                                           type: string
                                         fieldPath:
-                                          description: Path of the field to select
-                                            in the specified API version.
                                           type: string
                                       required:
                                       - fieldPath
                                       type: object
                                       x-kubernetes-map-type: atomic
                                     resourceFieldRef:
-                                      description: |-
-                                        Selects a resource of the container: only resources limits and requests
-                                        (limits.cpu, limits.memory, limits.ephemeral-storage, requests.cpu, requests.memory and requests.ephemeral-storage) are currently supported.
                                       properties:
                                         containerName:
-                                          description: 'Container name: required for
-                                            volumes, optional for env vars'
                                           type: string
                                         divisor:
                                           anyOf:
                                           - type: integer
                                           - type: string
-                                          description: Specifies the output format
-                                            of the exposed resources, defaults to
-                                            "1"
                                           pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                           x-kubernetes-int-or-string: true
                                         resource:
-                                          description: 'Required: resource to select'
                                           type: string
                                       required:
                                       - resource
                                       type: object
                                       x-kubernetes-map-type: atomic
                                     secretKeyRef:
-                                      description: Selects a key of a secret in the
-                                        pod's namespace
                                       properties:
                                         key:
-                                          description: The key of the secret to select
-                                            from.  Must be a valid secret key.
                                           type: string
                                         name:
-                                          description: |-
-                                            Name of the referent.
-                                            More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                                            TODO: Add other useful fields. apiVersion, kind, uid?
+                                          default: ""
                                           type: string
                                         optional:
-                                          description: Specify whether the Secret
-                                            or its key must be defined
                                           type: boolean
                                       required:
                                       - key
@@ -1464,16 +1211,36 @@ spec:
                               - name
                               type: object
                             type: array
+                          envFrom:
+                            items:
+                              properties:
+                                configMapRef:
+                                  properties:
+                                    name:
+                                      default: ""
+                                      type: string
+                                    optional:
+                                      type: boolean
+                                  type: object
+                                  x-kubernetes-map-type: atomic
+                                prefix:
+                                  type: string
+                                secretRef:
+                                  properties:
+                                    name:
+                                      default: ""
+                                      type: string
+                                    optional:
+                                      type: boolean
+                                  type: object
+                                  x-kubernetes-map-type: atomic
+                              type: object
+                            type: array
                           image:
                             type: string
                           imagePullPolicy:
-                            description: PullPolicy describes a policy for if/when
-                              to pull a container image
                             type: string
                           logLevel:
-                            description: |-
-                              LogLevel sets the logging level for the offline store service
-                              Allowed values: "debug", "info", "warning", "error", "critical".
                             enum:
                             - debug
                             - info
@@ -1482,29 +1249,18 @@ spec:
                             - critical
                             type: string
                           persistence:
-                            description: OfflineStorePersistence configures the persistence
-                              settings for the offline store service
                             properties:
                               file:
-                                description: OfflineStoreFilePersistence configures
-                                  the file-based persistence for the offline store
-                                  service
                                 properties:
                                   pvc:
-                                    description: |-
-                                      PvcConfig defines the settings for a persistent file store based on PVCs.
-                                      We can refer to an existing PVC using the `Ref` field, or create a new one using the `Create` field.
                                     properties:
                                       create:
-                                        description: Settings for creating a new PVC
                                         properties:
+                                          accessModes:
+                                            items:
+                                              type: string
+                                            type: array
                                           resources:
-                                            description: |-
-                                              Resources describes the storage resource requirements for a volume.
-                                              Default requested storage size depends on the associated service:
-                                              - 10Gi for offline store
-                                              - 5Gi for online store
-                                              - 5Gi for registry
                                             properties:
                                               limits:
                                                 additionalProperties:
@@ -1513,9 +1269,6 @@ spec:
                                                   - type: string
                                                   pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                                   x-kubernetes-int-or-string: true
-                                                description: |-
-                                                  Limits describes the maximum amount of compute resources allowed.
-                                                  More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                                                 type: object
                                               requests:
                                                 additionalProperties:
@@ -1524,38 +1277,25 @@ spec:
                                                   - type: string
                                                   pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                                   x-kubernetes-int-or-string: true
-                                                description: |-
-                                                  Requests describes the minimum amount of compute resources required.
-                                                  If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
-                                                  otherwise to an implementation-defined value. Requests cannot exceed Limits.
-                                                  More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                                                 type: object
                                             type: object
                                           storageClassName:
-                                            description: |-
-                                              StorageClassName is the name of an existing StorageClass to which this persistent volume belongs. Empty value
-                                              means that this volume does not belong to any StorageClass and the cluster default will be used.
                                             type: string
                                         type: object
                                         x-kubernetes-validations:
                                         - message: PvcCreate is immutable
                                           rule: self == oldSelf
                                       mountPath:
-                                        description: |-
-                                          MountPath within the container at which the volume should be mounted.
-                                          Must start by "/" and cannot contain ':'.
                                         type: string
                                       ref:
-                                        description: Reference to an existing field
                                         properties:
                                           name:
-                                            description: |-
-                                              Name of the referent.
-                                              More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                                              TODO: Add other useful fields. apiVersion, kind, uid?
+                                            default: ""
                                             type: string
                                         type: object
                                         x-kubernetes-map-type: atomic
+                                    required:
+                                    - mountPath
                                     type: object
                                     x-kubernetes-validations:
                                     - message: One selection is required between ref
@@ -1567,29 +1307,19 @@ spec:
                                       rule: self.mountPath.matches('^/[^:]*$')
                                   type:
                                     enum:
+                                    - file
                                     - dask
                                     - duckdb
                                     type: string
                                 type: object
                               store:
-                                description: OfflineStoreDBStorePersistence configures
-                                  the DB store persistence for the offline store service
                                 properties:
                                   secretKeyName:
-                                    description: By default, the selected store "type"
-                                      is used as the SecretKeyName
                                     type: string
                                   secretRef:
-                                    description: Data store parameters should be placed
-                                      as-is from the "feature_store.yaml" under the
-                                      secret key. "registry_type" & "type" fields
-                                      should be removed.
                                     properties:
                                       name:
-                                        description: |-
-                                          Name of the referent.
-                                          More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                                          TODO: Add other useful fields. apiVersion, kind, uid?
+                                        default: ""
                                         type: string
                                     type: object
                                     x-kubernetes-map-type: atomic
@@ -1600,8 +1330,10 @@ spec:
                                     - redshift
                                     - spark
                                     - postgres
-                                    - feast_trino.trino.TrinoOfflineStore
+                                    - trino
                                     - redis
+                                    - athena
+                                    - mssql
                                     type: string
                                 required:
                                 - secretRef
@@ -1613,29 +1345,11 @@ spec:
                               rule: '[has(self.file), has(self.store)].exists_one(c,
                                 c)'
                           resources:
-                            description: ResourceRequirements describes the compute
-                              resource requirements.
                             properties:
                               claims:
-                                description: |-
-                                  Claims lists the names of resources, defined in spec.resourceClaims,
-                                  that are used by this container.
-
-
-                                  This is an alpha field and requires enabling the
-                                  DynamicResourceAllocation feature gate.
-
-
-                                  This field is immutable. It can only be set for containers.
                                 items:
-                                  description: ResourceClaim references one entry
-                                    in PodSpec.ResourceClaims.
                                   properties:
                                     name:
-                                      description: |-
-                                        Name must match the name of one entry in pod.spec.resourceClaims of
-                                        the Pod where this field is used. It makes that resource available
-                                        inside a container.
                                       type: string
                                   required:
                                   - name
@@ -1651,9 +1365,6 @@ spec:
                                   - type: string
                                   pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                   x-kubernetes-int-or-string: true
-                                description: |-
-                                  Limits describes the maximum amount of compute resources allowed.
-                                  More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                                 type: object
                               requests:
                                 additionalProperties:
@@ -1662,50 +1373,26 @@ spec:
                                   - type: string
                                   pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                   x-kubernetes-int-or-string: true
-                                description: |-
-                                  Requests describes the minimum amount of compute resources required.
-                                  If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
-                                  otherwise to an implementation-defined value. Requests cannot exceed Limits.
-                                  More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                                 type: object
                             type: object
                           tls:
-                            description: OfflineTlsConfigs configures server TLS for
-                              the offline feast service. in an openshift cluster,
-                              this is configured by default using service serving
-                              certificates.
                             properties:
                               disable:
-                                description: will disable TLS for the feast service.
-                                  useful in an openshift cluster, for example, where
-                                  TLS is configured by default
                                 type: boolean
                               secretKeyNames:
-                                description: SecretKeyNames defines the secret key
-                                  names for the TLS key and cert.
                                 properties:
                                   tlsCrt:
-                                    description: defaults to "tls.crt"
                                     type: string
                                   tlsKey:
-                                    description: defaults to "tls.key"
                                     type: string
                                 type: object
                               secretRef:
-                                description: references the local k8s secret where
-                                  the TLS key and cert reside
                                 properties:
                                   name:
-                                    description: |-
-                                      Name of the referent.
-                                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                                      TODO: Add other useful fields. apiVersion, kind, uid?
+                                    default: ""
                                     type: string
                                 type: object
                                 x-kubernetes-map-type: atomic
-                              verifyClient:
-                                description: verify the client TLS certificate.
-                                type: boolean
                             type: object
                             x-kubernetes-validations:
                             - message: '`secretRef` required if `disable` is false.'
@@ -1713,113 +1400,63 @@ spec:
                                 : true'
                         type: object
                       onlineStore:
-                        description: OnlineStore configures the deployed online store
-                          service
                         properties:
                           env:
                             items:
-                              description: EnvVar represents an environment variable
-                                present in a Container.
                               properties:
                                 name:
-                                  description: Name of the environment variable. Must
-                                    be a C_IDENTIFIER.
                                   type: string
                                 value:
-                                  description: |-
-                                    Variable references $(VAR_NAME) are expanded
-                                    using the previously defined environment variables in the container and
-                                    any service environment variables. If a variable cannot be resolved,
-                                    the reference in the input string will be unchanged. Double $$ are reduced
-                                    to a single $, which allows for escaping the $(VAR_NAME) syntax: i.e.
-                                    "$$(VAR_NAME)" will produce the string literal "$(VAR_NAME)".
-                                    Escaped references will never be expanded, regardless of whether the variable
-                                    exists or not.
-                                    Defaults to "".
                                   type: string
                                 valueFrom:
-                                  description: Source for the environment variable's
-                                    value. Cannot be used if value is not empty.
                                   properties:
                                     configMapKeyRef:
-                                      description: Selects a key of a ConfigMap.
                                       properties:
                                         key:
-                                          description: The key to select.
                                           type: string
                                         name:
-                                          description: |-
-                                            Name of the referent.
-                                            More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                                            TODO: Add other useful fields. apiVersion, kind, uid?
+                                          default: ""
                                           type: string
                                         optional:
-                                          description: Specify whether the ConfigMap
-                                            or its key must be defined
                                           type: boolean
                                       required:
                                       - key
                                       type: object
                                       x-kubernetes-map-type: atomic
                                     fieldRef:
-                                      description: |-
-                                        Selects a field of the pod: supports metadata.name, metadata.namespace, `metadata.labels['<KEY>']`, `metadata.annotations['<KEY>']`,
-                                        spec.nodeName, spec.serviceAccountName, status.hostIP, status.podIP, status.podIPs.
                                       properties:
                                         apiVersion:
-                                          description: Version of the schema the FieldPath
-                                            is written in terms of, defaults to "v1".
                                           type: string
                                         fieldPath:
-                                          description: Path of the field to select
-                                            in the specified API version.
                                           type: string
                                       required:
                                       - fieldPath
                                       type: object
                                       x-kubernetes-map-type: atomic
                                     resourceFieldRef:
-                                      description: |-
-                                        Selects a resource of the container: only resources limits and requests
-                                        (limits.cpu, limits.memory, limits.ephemeral-storage, requests.cpu, requests.memory and requests.ephemeral-storage) are currently supported.
                                       properties:
                                         containerName:
-                                          description: 'Container name: required for
-                                            volumes, optional for env vars'
                                           type: string
                                         divisor:
                                           anyOf:
                                           - type: integer
                                           - type: string
-                                          description: Specifies the output format
-                                            of the exposed resources, defaults to
-                                            "1"
                                           pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                           x-kubernetes-int-or-string: true
                                         resource:
-                                          description: 'Required: resource to select'
                                           type: string
                                       required:
                                       - resource
                                       type: object
                                       x-kubernetes-map-type: atomic
                                     secretKeyRef:
-                                      description: Selects a key of a secret in the
-                                        pod's namespace
                                       properties:
                                         key:
-                                          description: The key of the secret to select
-                                            from.  Must be a valid secret key.
                                           type: string
                                         name:
-                                          description: |-
-                                            Name of the referent.
-                                            More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                                            TODO: Add other useful fields. apiVersion, kind, uid?
+                                          default: ""
                                           type: string
                                         optional:
-                                          description: Specify whether the Secret
-                                            or its key must be defined
                                           type: boolean
                                       required:
                                       - key
@@ -1830,16 +1467,36 @@ spec:
                               - name
                               type: object
                             type: array
+                          envFrom:
+                            items:
+                              properties:
+                                configMapRef:
+                                  properties:
+                                    name:
+                                      default: ""
+                                      type: string
+                                    optional:
+                                      type: boolean
+                                  type: object
+                                  x-kubernetes-map-type: atomic
+                                prefix:
+                                  type: string
+                                secretRef:
+                                  properties:
+                                    name:
+                                      default: ""
+                                      type: string
+                                    optional:
+                                      type: boolean
+                                  type: object
+                                  x-kubernetes-map-type: atomic
+                              type: object
+                            type: array
                           image:
                             type: string
                           imagePullPolicy:
-                            description: PullPolicy describes a policy for if/when
-                              to pull a container image
                             type: string
                           logLevel:
-                            description: |-
-                              LogLevel sets the logging level for the online store service
-                              Allowed values: "debug", "info", "warning", "error", "critical".
                             enum:
                             - debug
                             - info
@@ -1848,31 +1505,20 @@ spec:
                             - critical
                             type: string
                           persistence:
-                            description: OnlineStorePersistence configures the persistence
-                              settings for the online store service
                             properties:
                               file:
-                                description: OnlineStoreFilePersistence configures
-                                  the file-based persistence for the offline store
-                                  service
                                 properties:
                                   path:
                                     type: string
                                   pvc:
-                                    description: |-
-                                      PvcConfig defines the settings for a persistent file store based on PVCs.
-                                      We can refer to an existing PVC using the `Ref` field, or create a new one using the `Create` field.
                                     properties:
                                       create:
-                                        description: Settings for creating a new PVC
                                         properties:
+                                          accessModes:
+                                            items:
+                                              type: string
+                                            type: array
                                           resources:
-                                            description: |-
-                                              Resources describes the storage resource requirements for a volume.
-                                              Default requested storage size depends on the associated service:
-                                              - 10Gi for offline store
-                                              - 5Gi for online store
-                                              - 5Gi for registry
                                             properties:
                                               limits:
                                                 additionalProperties:
@@ -1881,9 +1527,6 @@ spec:
                                                   - type: string
                                                   pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                                   x-kubernetes-int-or-string: true
-                                                description: |-
-                                                  Limits describes the maximum amount of compute resources allowed.
-                                                  More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                                                 type: object
                                               requests:
                                                 additionalProperties:
@@ -1892,38 +1535,25 @@ spec:
                                                   - type: string
                                                   pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                                   x-kubernetes-int-or-string: true
-                                                description: |-
-                                                  Requests describes the minimum amount of compute resources required.
-                                                  If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
-                                                  otherwise to an implementation-defined value. Requests cannot exceed Limits.
-                                                  More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                                                 type: object
                                             type: object
                                           storageClassName:
-                                            description: |-
-                                              StorageClassName is the name of an existing StorageClass to which this persistent volume belongs. Empty value
-                                              means that this volume does not belong to any StorageClass and the cluster default will be used.
                                             type: string
                                         type: object
                                         x-kubernetes-validations:
                                         - message: PvcCreate is immutable
                                           rule: self == oldSelf
                                       mountPath:
-                                        description: |-
-                                          MountPath within the container at which the volume should be mounted.
-                                          Must start by "/" and cannot contain ':'.
                                         type: string
                                       ref:
-                                        description: Reference to an existing field
                                         properties:
                                           name:
-                                            description: |-
-                                              Name of the referent.
-                                              More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                                              TODO: Add other useful fields. apiVersion, kind, uid?
+                                            default: ""
                                             type: string
                                         type: object
                                         x-kubernetes-map-type: atomic
+                                    required:
+                                    - mountPath
                                     type: object
                                     x-kubernetes-validations:
                                     - message: One selection is required between ref
@@ -1944,27 +1574,16 @@ spec:
                                     : true'
                                 - message: Online store does not support S3 or GS
                                     buckets.
-                                  rule: has(self.path) && !self.path.startsWith('s3://')
-                                    && !self.path.startsWith('gs://')
+                                  rule: 'has(self.path) ? !(self.path.startsWith(''s3://'')
+                                    || self.path.startsWith(''gs://'')) : true'
                               store:
-                                description: OnlineStoreDBStorePersistence configures
-                                  the DB store persistence for the offline store service
                                 properties:
                                   secretKeyName:
-                                    description: By default, the selected store "type"
-                                      is used as the SecretKeyName
                                     type: string
                                   secretRef:
-                                    description: Data store parameters should be placed
-                                      as-is from the "feature_store.yaml" under the
-                                      secret key. "registry_type" & "type" fields
-                                      should be removed.
                                     properties:
                                       name:
-                                        description: |-
-                                          Name of the referent.
-                                          More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                                          TODO: Add other useful fields. apiVersion, kind, uid?
+                                        default: ""
                                         type: string
                                     type: object
                                     x-kubernetes-map-type: atomic
@@ -1981,6 +1600,11 @@ spec:
                                     - mysql
                                     - hazelcast
                                     - singlestore
+                                    - hbase
+                                    - elasticsearch
+                                    - qdrant
+                                    - couchbase
+                                    - milvus
                                     type: string
                                 required:
                                 - secretRef
@@ -1992,29 +1616,11 @@ spec:
                               rule: '[has(self.file), has(self.store)].exists_one(c,
                                 c)'
                           resources:
-                            description: ResourceRequirements describes the compute
-                              resource requirements.
                             properties:
                               claims:
-                                description: |-
-                                  Claims lists the names of resources, defined in spec.resourceClaims,
-                                  that are used by this container.
-
-
-                                  This is an alpha field and requires enabling the
-                                  DynamicResourceAllocation feature gate.
-
-
-                                  This field is immutable. It can only be set for containers.
                                 items:
-                                  description: ResourceClaim references one entry
-                                    in PodSpec.ResourceClaims.
                                   properties:
                                     name:
-                                      description: |-
-                                        Name must match the name of one entry in pod.spec.resourceClaims of
-                                        the Pod where this field is used. It makes that resource available
-                                        inside a container.
                                       type: string
                                   required:
                                   - name
@@ -2030,9 +1636,6 @@ spec:
                                   - type: string
                                   pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                   x-kubernetes-int-or-string: true
-                                description: |-
-                                  Limits describes the maximum amount of compute resources allowed.
-                                  More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                                 type: object
                               requests:
                                 additionalProperties:
@@ -2041,43 +1644,23 @@ spec:
                                   - type: string
                                   pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                   x-kubernetes-int-or-string: true
-                                description: |-
-                                  Requests describes the minimum amount of compute resources required.
-                                  If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
-                                  otherwise to an implementation-defined value. Requests cannot exceed Limits.
-                                  More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                                 type: object
                             type: object
                           tls:
-                            description: TlsConfigs configures server TLS for a feast
-                              service. in an openshift cluster, this is configured
-                              by default using service serving certificates.
                             properties:
                               disable:
-                                description: will disable TLS for the feast service.
-                                  useful in an openshift cluster, for example, where
-                                  TLS is configured by default
                                 type: boolean
                               secretKeyNames:
-                                description: SecretKeyNames defines the secret key
-                                  names for the TLS key and cert.
                                 properties:
                                   tlsCrt:
-                                    description: defaults to "tls.crt"
                                     type: string
                                   tlsKey:
-                                    description: defaults to "tls.key"
                                     type: string
                                 type: object
                               secretRef:
-                                description: references the local k8s secret where
-                                  the TLS key and cert reside
                                 properties:
                                   name:
-                                    description: |-
-                                      Name of the referent.
-                                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                                      TODO: Add other useful fields. apiVersion, kind, uid?
+                                    default: ""
                                     type: string
                                 type: object
                                 x-kubernetes-map-type: atomic
@@ -2088,120 +1671,65 @@ spec:
                                 : true'
                         type: object
                       registry:
-                        description: Registry configures the registry service. One
-                          selection is required. Local is the default setting.
                         properties:
                           local:
-                            description: LocalRegistryConfig configures the deployed
-                              registry service
                             properties:
                               env:
                                 items:
-                                  description: EnvVar represents an environment variable
-                                    present in a Container.
                                   properties:
                                     name:
-                                      description: Name of the environment variable.
-                                        Must be a C_IDENTIFIER.
                                       type: string
                                     value:
-                                      description: |-
-                                        Variable references $(VAR_NAME) are expanded
-                                        using the previously defined environment variables in the container and
-                                        any service environment variables. If a variable cannot be resolved,
-                                        the reference in the input string will be unchanged. Double $$ are reduced
-                                        to a single $, which allows for escaping the $(VAR_NAME) syntax: i.e.
-                                        "$$(VAR_NAME)" will produce the string literal "$(VAR_NAME)".
-                                        Escaped references will never be expanded, regardless of whether the variable
-                                        exists or not.
-                                        Defaults to "".
                                       type: string
                                     valueFrom:
-                                      description: Source for the environment variable's
-                                        value. Cannot be used if value is not empty.
                                       properties:
                                         configMapKeyRef:
-                                          description: Selects a key of a ConfigMap.
                                           properties:
                                             key:
-                                              description: The key to select.
                                               type: string
                                             name:
-                                              description: |-
-                                                Name of the referent.
-                                                More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                                                TODO: Add other useful fields. apiVersion, kind, uid?
+                                              default: ""
                                               type: string
                                             optional:
-                                              description: Specify whether the ConfigMap
-                                                or its key must be defined
                                               type: boolean
                                           required:
                                           - key
                                           type: object
                                           x-kubernetes-map-type: atomic
                                         fieldRef:
-                                          description: |-
-                                            Selects a field of the pod: supports metadata.name, metadata.namespace, `metadata.labels['<KEY>']`, `metadata.annotations['<KEY>']`,
-                                            spec.nodeName, spec.serviceAccountName, status.hostIP, status.podIP, status.podIPs.
                                           properties:
                                             apiVersion:
-                                              description: Version of the schema the
-                                                FieldPath is written in terms of,
-                                                defaults to "v1".
                                               type: string
                                             fieldPath:
-                                              description: Path of the field to select
-                                                in the specified API version.
                                               type: string
                                           required:
                                           - fieldPath
                                           type: object
                                           x-kubernetes-map-type: atomic
                                         resourceFieldRef:
-                                          description: |-
-                                            Selects a resource of the container: only resources limits and requests
-                                            (limits.cpu, limits.memory, limits.ephemeral-storage, requests.cpu, requests.memory and requests.ephemeral-storage) are currently supported.
                                           properties:
                                             containerName:
-                                              description: 'Container name: required
-                                                for volumes, optional for env vars'
                                               type: string
                                             divisor:
                                               anyOf:
                                               - type: integer
                                               - type: string
-                                              description: Specifies the output format
-                                                of the exposed resources, defaults
-                                                to "1"
                                               pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                               x-kubernetes-int-or-string: true
                                             resource:
-                                              description: 'Required: resource to
-                                                select'
                                               type: string
                                           required:
                                           - resource
                                           type: object
                                           x-kubernetes-map-type: atomic
                                         secretKeyRef:
-                                          description: Selects a key of a secret in
-                                            the pod's namespace
                                           properties:
                                             key:
-                                              description: The key of the secret to
-                                                select from.  Must be a valid secret
-                                                key.
                                               type: string
                                             name:
-                                              description: |-
-                                                Name of the referent.
-                                                More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                                                TODO: Add other useful fields. apiVersion, kind, uid?
+                                              default: ""
                                               type: string
                                             optional:
-                                              description: Specify whether the Secret
-                                                or its key must be defined
                                               type: boolean
                                           required:
                                           - key
@@ -2212,16 +1740,36 @@ spec:
                                   - name
                                   type: object
                                 type: array
+                              envFrom:
+                                items:
+                                  properties:
+                                    configMapRef:
+                                      properties:
+                                        name:
+                                          default: ""
+                                          type: string
+                                        optional:
+                                          type: boolean
+                                      type: object
+                                      x-kubernetes-map-type: atomic
+                                    prefix:
+                                      type: string
+                                    secretRef:
+                                      properties:
+                                        name:
+                                          default: ""
+                                          type: string
+                                        optional:
+                                          type: boolean
+                                      type: object
+                                      x-kubernetes-map-type: atomic
+                                  type: object
+                                type: array
                               image:
                                 type: string
                               imagePullPolicy:
-                                description: PullPolicy describes a policy for if/when
-                                  to pull a container image
                                 type: string
                               logLevel:
-                                description: |-
-                                  LogLevel sets the logging level for the registry service
-                                  Allowed values: "debug", "info", "warning", "error", "critical".
                                 enum:
                                 - debug
                                 - info
@@ -2230,32 +1778,20 @@ spec:
                                 - critical
                                 type: string
                               persistence:
-                                description: RegistryPersistence configures the persistence
-                                  settings for the registry service
                                 properties:
                                   file:
-                                    description: RegistryFilePersistence configures
-                                      the file-based persistence for the registry
-                                      service
                                     properties:
                                       path:
                                         type: string
                                       pvc:
-                                        description: |-
-                                          PvcConfig defines the settings for a persistent file store based on PVCs.
-                                          We can refer to an existing PVC using the `Ref` field, or create a new one using the `Create` field.
                                         properties:
                                           create:
-                                            description: Settings for creating a new
-                                              PVC
                                             properties:
+                                              accessModes:
+                                                items:
+                                                  type: string
+                                                type: array
                                               resources:
-                                                description: |-
-                                                  Resources describes the storage resource requirements for a volume.
-                                                  Default requested storage size depends on the associated service:
-                                                  - 10Gi for offline store
-                                                  - 5Gi for online store
-                                                  - 5Gi for registry
                                                 properties:
                                                   limits:
                                                     additionalProperties:
@@ -2264,9 +1800,6 @@ spec:
                                                       - type: string
                                                       pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                                       x-kubernetes-int-or-string: true
-                                                    description: |-
-                                                      Limits describes the maximum amount of compute resources allowed.
-                                                      More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                                                     type: object
                                                   requests:
                                                     additionalProperties:
@@ -2275,39 +1808,25 @@ spec:
                                                       - type: string
                                                       pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                                       x-kubernetes-int-or-string: true
-                                                    description: |-
-                                                      Requests describes the minimum amount of compute resources required.
-                                                      If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
-                                                      otherwise to an implementation-defined value. Requests cannot exceed Limits.
-                                                      More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                                                     type: object
                                                 type: object
                                               storageClassName:
-                                                description: |-
-                                                  StorageClassName is the name of an existing StorageClass to which this persistent volume belongs. Empty value
-                                                  means that this volume does not belong to any StorageClass and the cluster default will be used.
                                                 type: string
                                             type: object
                                             x-kubernetes-validations:
                                             - message: PvcCreate is immutable
                                               rule: self == oldSelf
                                           mountPath:
-                                            description: |-
-                                              MountPath within the container at which the volume should be mounted.
-                                              Must start by "/" and cannot contain ':'.
                                             type: string
                                           ref:
-                                            description: Reference to an existing
-                                              field
                                             properties:
                                               name:
-                                                description: |-
-                                                  Name of the referent.
-                                                  More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                                                  TODO: Add other useful fields. apiVersion, kind, uid?
+                                                default: ""
                                                 type: string
                                             type: object
                                             x-kubernetes-map-type: atomic
+                                        required:
+                                        - mountPath
                                         type: object
                                         x-kubernetes-validations:
                                         - message: One selection is required between
@@ -2342,24 +1861,13 @@ spec:
                                       rule: '(has(self.s3_additional_kwargs) && has(self.path))
                                         ? self.path.startsWith(''s3://'') : true'
                                   store:
-                                    description: RegistryDBStorePersistence configures
-                                      the DB store persistence for the registry service
                                     properties:
                                       secretKeyName:
-                                        description: By default, the selected store
-                                          "type" is used as the SecretKeyName
                                         type: string
                                       secretRef:
-                                        description: Data store parameters should
-                                          be placed as-is from the "feature_store.yaml"
-                                          under the secret key. "registry_type" &
-                                          "type" fields should be removed.
                                         properties:
                                           name:
-                                            description: |-
-                                              Name of the referent.
-                                              More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                                              TODO: Add other useful fields. apiVersion, kind, uid?
+                                            default: ""
                                             type: string
                                         type: object
                                         x-kubernetes-map-type: atomic
@@ -2379,29 +1887,11 @@ spec:
                                   rule: '[has(self.file), has(self.store)].exists_one(c,
                                     c)'
                               resources:
-                                description: ResourceRequirements describes the compute
-                                  resource requirements.
                                 properties:
                                   claims:
-                                    description: |-
-                                      Claims lists the names of resources, defined in spec.resourceClaims,
-                                      that are used by this container.
-
-
-                                      This is an alpha field and requires enabling the
-                                      DynamicResourceAllocation feature gate.
-
-
-                                      This field is immutable. It can only be set for containers.
                                     items:
-                                      description: ResourceClaim references one entry
-                                        in PodSpec.ResourceClaims.
                                       properties:
                                         name:
-                                          description: |-
-                                            Name must match the name of one entry in pod.spec.resourceClaims of
-                                            the Pod where this field is used. It makes that resource available
-                                            inside a container.
                                           type: string
                                       required:
                                       - name
@@ -2417,9 +1907,6 @@ spec:
                                       - type: string
                                       pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                       x-kubernetes-int-or-string: true
-                                    description: |-
-                                      Limits describes the maximum amount of compute resources allowed.
-                                      More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                                     type: object
                                   requests:
                                     additionalProperties:
@@ -2428,43 +1915,23 @@ spec:
                                       - type: string
                                       pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                       x-kubernetes-int-or-string: true
-                                    description: |-
-                                      Requests describes the minimum amount of compute resources required.
-                                      If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
-                                      otherwise to an implementation-defined value. Requests cannot exceed Limits.
-                                      More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                                     type: object
                                 type: object
                               tls:
-                                description: TlsConfigs configures server TLS for
-                                  a feast service. in an openshift cluster, this is
-                                  configured by default using service serving certificates.
                                 properties:
                                   disable:
-                                    description: will disable TLS for the feast service.
-                                      useful in an openshift cluster, for example,
-                                      where TLS is configured by default
                                     type: boolean
                                   secretKeyNames:
-                                    description: SecretKeyNames defines the secret
-                                      key names for the TLS key and cert.
                                     properties:
                                       tlsCrt:
-                                        description: defaults to "tls.crt"
                                         type: string
                                       tlsKey:
-                                        description: defaults to "tls.key"
                                         type: string
                                     type: object
                                   secretRef:
-                                    description: references the local k8s secret where
-                                      the TLS key and cert reside
                                     properties:
                                       name:
-                                        description: |-
-                                          Name of the referent.
-                                          More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                                          TODO: Add other useful fields. apiVersion, kind, uid?
+                                        default: ""
                                         type: string
                                     type: object
                                     x-kubernetes-map-type: atomic
@@ -2475,46 +1942,26 @@ spec:
                                     : true'
                             type: object
                           remote:
-                            description: |-
-                              RemoteRegistryConfig points to a remote feast registry server. When set, the operator will not deploy a registry for this FeatureStore CR.
-                              Instead, this FeatureStore CR's online/offline services will use a remote registry. One selection is required.
                             properties:
                               feastRef:
-                                description: Reference to an existing `FeatureStore`
-                                  CR in the same k8s cluster.
                                 properties:
                                   name:
-                                    description: Name of the FeatureStore
                                     type: string
                                   namespace:
-                                    description: Namespace of the FeatureStore
                                     type: string
                                 required:
                                 - name
                                 type: object
                               hostname:
-                                description: Host address of the remote registry service
-                                  - <domain>:<port>, e.g. `registry.<namespace>.svc.cluster.local:80`
                                 type: string
                               tls:
-                                description: TlsRemoteRegistryConfigs configures client
-                                  TLS for a remote feast registry. in an openshift
-                                  cluster, this is configured by default when the
-                                  remote feast registry is using service serving certificates.
                                 properties:
                                   certName:
-                                    description: defines the configmap key name for
-                                      the client TLS cert.
                                     type: string
                                   configMapRef:
-                                    description: references the local k8s configmap
-                                      where the TLS cert resides
                                     properties:
                                       name:
-                                        description: |-
-                                          Name of the referent.
-                                          More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                                          TODO: Add other useful fields. apiVersion, kind, uid?
+                                        default: ""
                                         type: string
                                     type: object
                                     x-kubernetes-map-type: atomic
@@ -2532,72 +1979,197 @@ spec:
                         - message: One selection required.
                           rule: '[has(self.local), has(self.remote)].exists_one(c,
                             c)'
+                      ui:
+                        properties:
+                          env:
+                            items:
+                              properties:
+                                name:
+                                  type: string
+                                value:
+                                  type: string
+                                valueFrom:
+                                  properties:
+                                    configMapKeyRef:
+                                      properties:
+                                        key:
+                                          type: string
+                                        name:
+                                          default: ""
+                                          type: string
+                                        optional:
+                                          type: boolean
+                                      required:
+                                      - key
+                                      type: object
+                                      x-kubernetes-map-type: atomic
+                                    fieldRef:
+                                      properties:
+                                        apiVersion:
+                                          type: string
+                                        fieldPath:
+                                          type: string
+                                      required:
+                                      - fieldPath
+                                      type: object
+                                      x-kubernetes-map-type: atomic
+                                    resourceFieldRef:
+                                      properties:
+                                        containerName:
+                                          type: string
+                                        divisor:
+                                          anyOf:
+                                          - type: integer
+                                          - type: string
+                                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                          x-kubernetes-int-or-string: true
+                                        resource:
+                                          type: string
+                                      required:
+                                      - resource
+                                      type: object
+                                      x-kubernetes-map-type: atomic
+                                    secretKeyRef:
+                                      properties:
+                                        key:
+                                          type: string
+                                        name:
+                                          default: ""
+                                          type: string
+                                        optional:
+                                          type: boolean
+                                      required:
+                                      - key
+                                      type: object
+                                      x-kubernetes-map-type: atomic
+                                  type: object
+                              required:
+                              - name
+                              type: object
+                            type: array
+                          envFrom:
+                            items:
+                              properties:
+                                configMapRef:
+                                  properties:
+                                    name:
+                                      default: ""
+                                      type: string
+                                    optional:
+                                      type: boolean
+                                  type: object
+                                  x-kubernetes-map-type: atomic
+                                prefix:
+                                  type: string
+                                secretRef:
+                                  properties:
+                                    name:
+                                      default: ""
+                                      type: string
+                                    optional:
+                                      type: boolean
+                                  type: object
+                                  x-kubernetes-map-type: atomic
+                              type: object
+                            type: array
+                          image:
+                            type: string
+                          imagePullPolicy:
+                            type: string
+                          logLevel:
+                            enum:
+                            - debug
+                            - info
+                            - warning
+                            - error
+                            - critical
+                            type: string
+                          resources:
+                            properties:
+                              claims:
+                                items:
+                                  properties:
+                                    name:
+                                      type: string
+                                  required:
+                                  - name
+                                  type: object
+                                type: array
+                                x-kubernetes-list-map-keys:
+                                - name
+                                x-kubernetes-list-type: map
+                              limits:
+                                additionalProperties:
+                                  anyOf:
+                                  - type: integer
+                                  - type: string
+                                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                  x-kubernetes-int-or-string: true
+                                type: object
+                              requests:
+                                additionalProperties:
+                                  anyOf:
+                                  - type: integer
+                                  - type: string
+                                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                  x-kubernetes-int-or-string: true
+                                type: object
+                            type: object
+                          tls:
+                            properties:
+                              disable:
+                                type: boolean
+                              secretKeyNames:
+                                properties:
+                                  tlsCrt:
+                                    type: string
+                                  tlsKey:
+                                    type: string
+                                type: object
+                              secretRef:
+                                properties:
+                                  name:
+                                    default: ""
+                                    type: string
+                                type: object
+                                x-kubernetes-map-type: atomic
+                            type: object
+                            x-kubernetes-validations:
+                            - message: '`secretRef` required if `disable` is false.'
+                              rule: '(!has(self.disable) || !self.disable) ? has(self.secretRef)
+                                : true'
+                        type: object
                     type: object
                 required:
                 - feastProject
                 type: object
               clientConfigMap:
-                description: ConfigMap in this namespace containing a client `feature_store.yaml`
-                  for this feast deployment
                 type: string
               conditions:
                 items:
-                  description: "Condition contains details for one aspect of the current
-                    state of this API Resource.\n---\nThis struct is intended for
-                    direct use as an array at the field path .status.conditions.  For
-                    example,\n\n\n\ttype FooStatus struct{\n\t    // Represents the
-                    observations of a foo's current state.\n\t    // Known .status.conditions.type
-                    are: \"Available\", \"Progressing\", and \"Degraded\"\n\t    //
-                    +patchMergeKey=type\n\t    // +patchStrategy=merge\n\t    // +listType=map\n\t
-                    \   // +listMapKey=type\n\t    Conditions []metav1.Condition `json:\"conditions,omitempty\"
-                    patchStrategy:\"merge\" patchMergeKey:\"type\" protobuf:\"bytes,1,rep,name=conditions\"`\n\n\n\t
-                    \   // other fields\n\t}"
                   properties:
                     lastTransitionTime:
-                      description: |-
-                        lastTransitionTime is the last time the condition transitioned from one status to another.
-                        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
                       format: date-time
                       type: string
                     message:
-                      description: |-
-                        message is a human readable message indicating details about the transition.
-                        This may be an empty string.
                       maxLength: 32768
                       type: string
                     observedGeneration:
-                      description: |-
-                        observedGeneration represents the .metadata.generation that the condition was set based upon.
-                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
-                        with respect to the current state of the instance.
                       format: int64
                       minimum: 0
                       type: integer
                     reason:
-                      description: |-
-                        reason contains a programmatic identifier indicating the reason for the condition's last transition.
-                        Producers of specific condition types may define expected values and meanings for this field,
-                        and whether the values are considered a guaranteed API.
-                        The value should be a CamelCase string.
-                        This field may not be empty.
                       maxLength: 1024
                       minLength: 1
                       pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
                       type: string
                     status:
-                      description: status of the condition, one of True, False, Unknown.
                       enum:
                       - "True"
                       - "False"
                       - Unknown
                       type: string
                     type:
-                      description: |-
-                        type of condition in CamelCase or in foo.example.com/CamelCase.
-                        ---
-                        Many .condition.type values are consistent across resources like Available, but because arbitrary conditions can be
-                        useful (see .node.status.conditions), the ability to deconflict is important.
-                        The regex it matches is (dns1123SubdomainFmt/)?(qualifiedNameFmt)
                       maxLength: 316
                       pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
                       type: string
@@ -2610,19 +2182,18 @@ spec:
                   type: object
                 type: array
               feastVersion:
-                description: Version of feast that's currently deployed
                 type: string
               phase:
                 type: string
               serviceHostnames:
-                description: ServiceHostnames defines the service hostnames in the
-                  format of <domain>:<port>, e.g. example.svc.cluster.local:80
                 properties:
                   offlineStore:
                     type: string
                   onlineStore:
                     type: string
                   registry:
+                    type: string
+                  ui:
                     type: string
                 type: object
             type: object
@@ -2807,19 +2378,17 @@ rules:
   - list
   - update
   - watch
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  labels:
-    app.kubernetes.io/managed-by: kustomize
-    app.kubernetes.io/name: feast-operator
-  name: feast-operator-metrics-reader
-rules:
-- nonResourceURLs:
-  - /metrics
+- apiGroups:
+  - route.openshift.io
+  resources:
+  - routes
   verbs:
+  - create
+  - delete
   - get
+  - list
+  - update
+  - watch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -2827,7 +2396,7 @@ metadata:
   labels:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: feast-operator
-  name: feast-operator-proxy-role
+  name: feast-operator-metrics-auth-role
 rules:
 - apiGroups:
   - authentication.k8s.io
@@ -2841,6 +2410,19 @@ rules:
   - subjectaccessreviews
   verbs:
   - create
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: feast-operator
+  name: feast-operator-metrics-reader
+rules:
+- nonResourceURLs:
+  - /metrics
+  verbs:
+  - get
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -2881,11 +2463,11 @@ metadata:
   labels:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: feast-operator
-  name: feast-operator-proxy-rolebinding
+  name: feast-operator-metrics-auth-rolebinding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: feast-operator-proxy-role
+  name: feast-operator-metrics-auth-role
 subjects:
 - kind: ServiceAccount
   name: feast-operator-controller-manager
@@ -2905,7 +2487,7 @@ spec:
   - name: https
     port: 8443
     protocol: TCP
-    targetPort: https
+    targetPort: 8443
   selector:
     control-plane: controller-manager
 ---
@@ -2932,35 +2514,15 @@ spec:
     spec:
       containers:
       - args:
-        - --secure-listen-address=0.0.0.0:8443
-        - --upstream=http://127.0.0.1:8080/
-        - --logtostderr=true
-        - --v=0
-        image: gcr.io/kubebuilder/kube-rbac-proxy:v0.16.0
-        name: kube-rbac-proxy
-        ports:
-        - containerPort: 8443
-          name: https
-          protocol: TCP
-        resources:
-          limits:
-            cpu: 500m
-            memory: 128Mi
-          requests:
-            cpu: 5m
-            memory: 64Mi
-        securityContext:
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-            - ALL
-      - args:
-        - --health-probe-bind-address=:8081
-        - --metrics-bind-address=127.0.0.1:8080
+        - --metrics-bind-address=:8443
         - --leader-elect
+        - --health-probe-bind-address=:8081
         command:
         - /manager
-        image: feastdev/feast-operator:0.42.0
+        env:
+        - name: RELATED_IMAGE_FEATURE_SERVER
+          value: docker.io/feastdev/feature-server:0.45.0
+        image: feastdev/feast-operator:0.45.0
         livenessProbe:
           httpGet:
             path: /healthz
