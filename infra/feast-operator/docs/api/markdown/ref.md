@@ -35,9 +35,6 @@ _Appears in:_
 ContainerConfigs k8s container settings for the server
 
 _Appears in:_
-- [LocalRegistryConfig](#localregistryconfig)
-- [OfflineStore](#offlinestore)
-- [OnlineStore](#onlinestore)
 - [ServerConfigs](#serverconfigs)
 
 | Field | Description |
@@ -57,9 +54,6 @@ DefaultCtrConfigs k8s container settings that are applied by default
 
 _Appears in:_
 - [ContainerConfigs](#containerconfigs)
-- [LocalRegistryConfig](#localregistryconfig)
-- [OfflineStore](#offlinestore)
-- [OnlineStore](#onlinestore)
 - [ServerConfigs](#serverconfigs)
 
 | Field | Description |
@@ -113,7 +107,7 @@ _Appears in:_
 | `offlineStore` _[OfflineStore](#offlinestore)_ |  |
 | `onlineStore` _[OnlineStore](#onlinestore)_ |  |
 | `registry` _[Registry](#registry)_ |  |
-| `ui` _[ServerConfigs](#serverconfigs)_ |  |
+| `ui` _[ServerConfigs](#serverconfigs)_ | Creates a UI server container |
 | `deploymentStrategy` _[DeploymentStrategy](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#deploymentstrategy-v1-apps)_ |  |
 | `disableInitContainers` _boolean_ | Disable the 'feast repo initialization' initContainer |
 
@@ -185,14 +179,7 @@ _Appears in:_
 
 | Field | Description |
 | --- | --- |
-| `image` _string_ |  |
-| `env` _[EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#envvar-v1-core)_ |  |
-| `envFrom` _[EnvFromSource](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#envfromsource-v1-core)_ |  |
-| `imagePullPolicy` _[PullPolicy](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#pullpolicy-v1-core)_ |  |
-| `resources` _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core)_ |  |
-| `tls` _[TlsConfigs](#tlsconfigs)_ |  |
-| `logLevel` _string_ | LogLevel sets the logging level for the server
-Allowed values: "debug", "info", "warning", "error", "critical". |
+| `server` _[ServerConfigs](#serverconfigs)_ | Creates a registry server container |
 | `persistence` _[RegistryPersistence](#registrypersistence)_ |  |
 
 
@@ -207,14 +194,7 @@ _Appears in:_
 
 | Field | Description |
 | --- | --- |
-| `image` _string_ |  |
-| `env` _[EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#envvar-v1-core)_ |  |
-| `envFrom` _[EnvFromSource](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#envfromsource-v1-core)_ |  |
-| `imagePullPolicy` _[PullPolicy](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#pullpolicy-v1-core)_ |  |
-| `resources` _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core)_ |  |
-| `tls` _[TlsConfigs](#tlsconfigs)_ |  |
-| `logLevel` _string_ | LogLevel sets the logging level for the server
-Allowed values: "debug", "info", "warning", "error", "critical". |
+| `server` _[ServerConfigs](#serverconfigs)_ | Creates a remote offline server container |
 | `persistence` _[OfflineStorePersistence](#offlinestorepersistence)_ |  |
 
 
@@ -290,14 +270,7 @@ _Appears in:_
 
 | Field | Description |
 | --- | --- |
-| `image` _string_ |  |
-| `env` _[EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#envvar-v1-core)_ |  |
-| `envFrom` _[EnvFromSource](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#envfromsource-v1-core)_ |  |
-| `imagePullPolicy` _[PullPolicy](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#pullpolicy-v1-core)_ |  |
-| `resources` _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core)_ |  |
-| `tls` _[TlsConfigs](#tlsconfigs)_ |  |
-| `logLevel` _string_ | LogLevel sets the logging level for the server
-Allowed values: "debug", "info", "warning", "error", "critical". |
+| `server` _[ServerConfigs](#serverconfigs)_ | Creates a feature server container |
 | `persistence` _[OnlineStorePersistence](#onlinestorepersistence)_ |  |
 
 
@@ -355,9 +328,6 @@ OptionalCtrConfigs k8s container settings that are optional
 
 _Appears in:_
 - [ContainerConfigs](#containerconfigs)
-- [LocalRegistryConfig](#localregistryconfig)
-- [OfflineStore](#offlinestore)
-- [OnlineStore](#onlinestore)
 - [ServerConfigs](#serverconfigs)
 
 | Field | Description |
@@ -471,7 +441,7 @@ _Appears in:_
 
 
 
-ServerConfigs server-related configurations for a feast service
+ServerConfigs creates a server for the feast service, with specified container configurations.
 
 _Appears in:_
 - [FeatureStoreServices](#featurestoreservices)
@@ -515,9 +485,6 @@ _Appears in:_
 TlsConfigs configures server TLS for a feast service. in an openshift cluster, this is configured by default using service serving certificates.
 
 _Appears in:_
-- [LocalRegistryConfig](#localregistryconfig)
-- [OfflineStore](#offlinestore)
-- [OnlineStore](#onlinestore)
 - [ServerConfigs](#serverconfigs)
 
 | Field | Description |

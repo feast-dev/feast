@@ -73,9 +73,10 @@ type FeatureStoreSpec struct {
 
 // FeatureStoreServices defines the desired feast services. An ephemeral registry is deployed by default.
 type FeatureStoreServices struct {
-	OfflineStore       *OfflineStore              `json:"offlineStore,omitempty"`
-	OnlineStore        *OnlineStore               `json:"onlineStore,omitempty"`
-	Registry           *Registry                  `json:"registry,omitempty"`
+	OfflineStore *OfflineStore `json:"offlineStore,omitempty"`
+	OnlineStore  *OnlineStore  `json:"onlineStore,omitempty"`
+	Registry     *Registry     `json:"registry,omitempty"`
+	// Creates a UI server container
 	UI                 *ServerConfigs             `json:"ui,omitempty"`
 	DeploymentStrategy *appsv1.DeploymentStrategy `json:"deploymentStrategy,omitempty"`
 	// Disable the 'feast repo initialization' initContainer
@@ -84,8 +85,9 @@ type FeatureStoreServices struct {
 
 // OfflineStore configures the deployed offline store service
 type OfflineStore struct {
-	ServerConfigs `json:",inline"`
-	Persistence   *OfflineStorePersistence `json:"persistence,omitempty"`
+	// Creates a remote offline server container
+	Server      *ServerConfigs           `json:"server,omitempty"`
+	Persistence *OfflineStorePersistence `json:"persistence,omitempty"`
 }
 
 // OfflineStorePersistence configures the persistence settings for the offline store service
@@ -132,8 +134,9 @@ var ValidOfflineStoreDBStorePersistenceTypes = []string{
 
 // OnlineStore configures the deployed online store service
 type OnlineStore struct {
-	ServerConfigs `json:",inline"`
-	Persistence   *OnlineStorePersistence `json:"persistence,omitempty"`
+	// Creates a feature server container
+	Server      *ServerConfigs          `json:"server,omitempty"`
+	Persistence *OnlineStorePersistence `json:"persistence,omitempty"`
 }
 
 // OnlineStorePersistence configures the persistence settings for the online store service
@@ -183,8 +186,9 @@ var ValidOnlineStoreDBStorePersistenceTypes = []string{
 
 // LocalRegistryConfig configures the deployed registry service
 type LocalRegistryConfig struct {
-	ServerConfigs `json:",inline"`
-	Persistence   *RegistryPersistence `json:"persistence,omitempty"`
+	// Creates a registry server container
+	Server      *ServerConfigs       `json:"server,omitempty"`
+	Persistence *RegistryPersistence `json:"persistence,omitempty"`
 }
 
 // RegistryPersistence configures the persistence settings for the registry service
@@ -277,14 +281,14 @@ type FeatureStoreRef struct {
 	Namespace string `json:"namespace,omitempty"`
 }
 
-// ServerConfigs server-related configurations for a feast service
+// ServerConfigs creates a server for the feast service, with specified container configurations.
 type ServerConfigs struct {
 	ContainerConfigs `json:",inline"`
 	TLS              *TlsConfigs `json:"tls,omitempty"`
 	// LogLevel sets the logging level for the server
 	// Allowed values: "debug", "info", "warning", "error", "critical".
 	// +kubebuilder:validation:Enum=debug;info;warning;error;critical
-	LogLevel string `json:"logLevel,omitempty"`
+	LogLevel *string `json:"logLevel,omitempty"`
 }
 
 // ContainerConfigs k8s container settings for the server

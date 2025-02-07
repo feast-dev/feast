@@ -137,9 +137,9 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 			Expect(resource.Status.Applied.Services.Registry.Local.Persistence.FilePersistence.S3AdditionalKwargs).NotTo(BeNil())
 			Expect(resource.Status.Applied.Services.Registry.Local.Persistence.FilePersistence.S3AdditionalKwargs).To(Equal(&s3AdditionalKwargs))
 			Expect(resource.Status.Applied.Services.Registry.Local.Persistence.FilePersistence.PvcConfig).To(BeNil())
-			Expect(resource.Status.Applied.Services.Registry.Local.ImagePullPolicy).To(BeNil())
-			Expect(resource.Status.Applied.Services.Registry.Local.Resources).To(BeNil())
-			Expect(resource.Status.Applied.Services.Registry.Local.Image).To(Equal(&services.DefaultImage))
+			Expect(resource.Status.Applied.Services.Registry.Local.Server.ImagePullPolicy).To(BeNil())
+			Expect(resource.Status.Applied.Services.Registry.Local.Server.Resources).To(BeNil())
+			Expect(resource.Status.Applied.Services.Registry.Local.Server.Image).To(Equal(&services.DefaultImage))
 
 			Expect(resource.Status.ServiceHostnames.OfflineStore).To(BeEmpty())
 			Expect(resource.Status.ServiceHostnames.OnlineStore).To(BeEmpty())

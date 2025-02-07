@@ -7,15 +7,18 @@ spec:
   feastProject: my_project
   services:
     onlineStore:
-      tls:
-        disable : true
+      server:
+        tls:
+          disable: true
     offlineStore:
-      tls:
-        disable: true
+      server:
+        tls:
+          disable: true
+    registry:
+      local:
+        server:
+          tls:
+            disable: true
     ui:
       tls:
         disable: true
-    registry:
-      local:
-        tls:
-          disable: true
