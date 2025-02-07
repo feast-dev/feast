@@ -4,7 +4,7 @@ aiobotocore==2.19.0
     # via feast (setup.py)
 aiohappyeyeballs==2.4.4
     # via aiohttp
-aiohttp==3.11.11
+aiohttp==3.11.12
     # via aiobotocore
 aioitertools==0.12.0
     # via aiobotocore
@@ -61,11 +61,11 @@ azure-identity==1.19.0
     # via feast (setup.py)
 azure-storage-blob==12.24.1
     # via feast (setup.py)
-babel==2.16.0
+babel==2.17.0
     # via
     #   jupyterlab-server
     #   sphinx
-beautifulsoup4==4.12.3
+beautifulsoup4==4.13.3
     # via nbconvert
 bidict==0.23.1
     # via ibis-framework
@@ -92,7 +92,7 @@ cachetools==5.5.1
     # via google-auth
 cassandra-driver==3.29.2
     # via feast (setup.py)
-certifi==2024.12.14
+certifi==2025.1.31
     # via
     #   elastic-transport
     #   httpcore
@@ -156,7 +156,7 @@ dask[dataframe]==2024.8.0
     #   dask-expr
 dask-expr==1.1.10
     # via dask
-db-dtypes==1.4.0
+db-dtypes==1.4.1
     # via google-cloud-bigquery
 debugpy==1.8.12
     # via ipykernel
@@ -195,9 +195,9 @@ execnet==2.1.1
     # via pytest-xdist
 executing==2.2.0
     # via stack-data
-faiss-cpu==1.9.0.post1
+faiss-cpu==1.10.0
     # via feast (setup.py)
-fastapi==0.115.7
+fastapi==0.115.8
     # via feast (setup.py)
 fastjsonschema==2.21.1
     # via nbformat
@@ -238,7 +238,7 @@ google-auth==2.38.0
     #   kubernetes
 google-cloud-bigquery[pandas]==3.29.0
     # via feast (setup.py)
-google-cloud-bigquery-storage==2.27.0
+google-cloud-bigquery-storage==2.28.0
     # via feast (setup.py)
 google-cloud-bigtable==2.28.1
     # via feast (setup.py)
@@ -303,7 +303,7 @@ h11==0.14.0
     # via
     #   httpcore
     #   uvicorn
-h2==4.1.0
+h2==4.2.0
     # via httpx
 happybase==1.2.0
     # via feast (setup.py)
@@ -419,7 +419,7 @@ jupyter-core==5.7.2
     #   nbclient
     #   nbconvert
     #   nbformat
-jupyter-events==0.11.0
+jupyter-events==0.12.0
     # via jupyter-server
 jupyter-lsp==2.2.5
     # via jupyterlab
@@ -432,7 +432,7 @@ jupyter-server==2.15.0
     #   notebook-shim
 jupyter-server-terminals==0.5.3
     # via jupyter-server
-jupyterlab==4.3.4
+jupyterlab==4.3.5
     # via notebook
 jupyterlab-pygments==0.3.0
     # via nbconvert
@@ -459,7 +459,7 @@ markupsafe==3.0.2
     #   jinja2
     #   nbconvert
     #   werkzeug
-marshmallow==3.26.0
+marshmallow==3.26.1
     # via
     #   environs
     #   great-expectations
@@ -473,7 +473,7 @@ milvus-lite==2.4.11
     # via pymilvus
 minio==7.2.11
     # via feast (setup.py)
-mistune==3.1.0
+mistune==3.1.1
     # via
     #   great-expectations
     #   nbconvert
@@ -504,7 +504,7 @@ mypy-protobuf==3.3.0
     # via feast (setup.py)
 nbclient==0.10.2
     # via nbconvert
-nbconvert==7.16.5
+nbconvert==7.16.6
     # via jupyter-server
 nbformat==5.10.4
     # via
@@ -551,6 +551,7 @@ packaging==24.2
     #   gunicorn
     #   ibis-substrait
     #   ipykernel
+    #   jupyter-events
     #   jupyter-server
     #   jupyterlab
     #   jupyterlab-server
@@ -581,7 +582,7 @@ parsy==2.1
     # via ibis-framework
 partd==1.4.2
     # via dask
-pbr==6.1.0
+pbr==6.1.1
     # via mock
 pexpect==4.9.0
     # via ipython
@@ -773,7 +774,7 @@ python-json-logger==3.2.1
     # via jupyter-events
 python-keycloak==4.2.2
     # via feast (setup.py)
-pytz==2024.2
+pytz==2025.1
     # via
     #   great-expectations
     #   ibis-framework
@@ -790,7 +791,7 @@ pyyaml==6.0.2
     #   pre-commit
     #   responses
     #   uvicorn
-pyzmq==26.2.0
+pyzmq==26.2.1
     # via
     #   ipykernel
     #   jupyter-client
@@ -855,7 +856,7 @@ ruamel-yaml==0.17.40
     # via great-expectations
 ruamel-yaml-clib==0.2.12
     # via ruamel-yaml
-ruff==0.9.3
+ruff==0.9.5
     # via feast (setup.py)
 s3transfer==0.11.2
     # via boto3
@@ -868,6 +869,7 @@ setuptools==75.8.0
     #   grpcio-tools
     #   jupyterlab
     #   kubernetes
+    #   pbr
     #   pip-tools
     #   pymilvus
     #   singlestoredb
@@ -889,7 +891,7 @@ sniffio==1.3.1
     #   httpx
 snowballstemmer==2.2.0
     # via sphinx
-snowflake-connector-python[pandas]==3.13.0
+snowflake-connector-python[pandas]==3.13.2
     # via feast (setup.py)
 sortedcontainers==2.4.0
     # via snowflake-connector-python
@@ -909,11 +911,11 @@ sphinxcontrib-qthelp==2.0.0
     # via sphinx
 sphinxcontrib-serializinghtml==2.0.0
     # via sphinx
-sqlalchemy[mypy]==2.0.37
+sqlalchemy[mypy]==2.0.38
     # via feast (setup.py)
 sqlglot==23.12.2
     # via ibis-framework
-sqlite-vec==0.1.1
+sqlite-vec==0.1.6
     # via feast (setup.py)
 sqlparams==6.2.0
     # via singlestoredb
@@ -985,7 +987,7 @@ traitlets==5.14.3
     #   nbclient
     #   nbconvert
     #   nbformat
-trino==0.332.0
+trino==0.333.0
     # via feast (setup.py)
 typeguard==4.4.1
     # via feast (setup.py)
@@ -1003,7 +1005,7 @@ types-python-dateutil==2.9.0.20241206
     # via
     #   feast (setup.py)
     #   arrow
-types-pytz==2024.2.0.20241221
+types-pytz==2025.1.0.20250204
     # via feast (setup.py)
 types-pyyaml==6.0.12.20241230
     # via feast (setup.py)
@@ -1027,6 +1029,7 @@ typing-extensions==4.12.2
     #   azure-core
     #   azure-identity
     #   azure-storage-blob
+    #   beautifulsoup4
     #   fastapi
     #   great-expectations
     #   ibis-framework
