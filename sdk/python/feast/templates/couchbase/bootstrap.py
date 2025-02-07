@@ -1,8 +1,8 @@
 import click
 from couchbase_columnar.cluster import Cluster
 from couchbase_columnar.common.errors import InvalidCredentialError, TimeoutError
-from couchbase_columnar.common.options import QueryOptions
 from couchbase_columnar.credential import Credential
+from couchbase_columnar.options import QueryOptions
 
 from feast.file_utils import replace_str_in_file
 from feast.infra.offline_stores.contrib.couchbase_offline_store.couchbase import (
