@@ -110,6 +110,7 @@ _Appears in:_
 | `ui` _[ServerConfigs](#serverconfigs)_ | Creates a UI server container |
 | `deploymentStrategy` _[DeploymentStrategy](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#deploymentstrategy-v1-apps)_ |  |
 | `disableInitContainers` _boolean_ | Disable the 'feast repo initialization' initContainer |
+| `volumes` _[Volume](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#volume-v1-core) array_ | Volumes specifies the volumes to mount in the FeatureStore deployment. A corresponding `VolumeMount` should be added to whichever feast service(s) require access to said volume(s). |
 
 
 #### FeatureStoreSpec
@@ -209,7 +210,7 @@ _Appears in:_
 
 | Field | Description |
 | --- | --- |
-| `type` _string_ |  |
+| `type` _string_ | Type of the persistence type you want to use. Allowed values are: snowflake.offline, bigquery, redshift, spark, postgres, trino, redis, athena, mssql |
 | `secretRef` _[LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#localobjectreference-v1-core)_ | Data store parameters should be placed as-is from the "feature_store.yaml" under the secret key. "registry_type" & "type" fields should be removed. |
 | `secretKeyName` _string_ | By default, the selected store "type" is used as the SecretKeyName |
 
@@ -278,14 +279,14 @@ _Appears in:_
 
 
 
-OnlineStoreDBStorePersistence configures the DB store persistence for the offline store service
+OnlineStoreDBStorePersistence configures the DB store persistence for the online store service
 
 _Appears in:_
 - [OnlineStorePersistence](#onlinestorepersistence)
 
 | Field | Description |
 | --- | --- |
-| `type` _string_ |  |
+| `type` _string_ | Type of the persistence type you want to use. Allowed values are: snowflake.online, redis, ikv, datastore, dynamodb, bigtable, postgres, cassandra, mysql, hazelcast, singlestore, hbase, elasticsearch, qdrant, couchbase, milvus |
 | `secretRef` _[LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#localobjectreference-v1-core)_ | Data store parameters should be placed as-is from the "feature_store.yaml" under the secret key. "registry_type" & "type" fields should be removed. |
 | `secretKeyName` _string_ | By default, the selected store "type" is used as the SecretKeyName |
 
@@ -294,7 +295,7 @@ _Appears in:_
 
 
 
-OnlineStoreFilePersistence configures the file-based persistence for the offline store service
+OnlineStoreFilePersistence configures the file-based persistence for the online store service
 
 _Appears in:_
 - [OnlineStorePersistence](#onlinestorepersistence)
@@ -459,6 +460,10 @@ _Appears in:_
 | `tls` _[TlsConfigs](#tlsconfigs)_ |  |
 | `logLevel` _string_ | LogLevel sets the logging level for the server
 Allowed values: "debug", "info", "warning", "error", "critical". |
+| `volumeMounts` _[VolumeMount](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#volumemount-v1-core) array_ | VolumeMounts defines the list of volumes that should be mounted into the feast container.
+This allows attaching persistent storage, config files, secrets, or other resources
+required by the Feast components. Ensure that each volume mount has a corresponding
+volume definition in the Volumes field. |
 
 
 #### ServiceHostnames

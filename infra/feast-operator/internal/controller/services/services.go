@@ -355,6 +355,7 @@ func (feast *FeastServices) setPod(podSpec *corev1.PodSpec) error {
 	feast.mountTlsConfigs(podSpec)
 	feast.mountPvcConfigs(podSpec)
 	feast.mountEmptyDirVolumes(podSpec)
+	feast.mountUserDefinedVolumes(podSpec)
 
 	return nil
 }
@@ -420,8 +421,49 @@ func (feast *FeastServices) setContainer(containers *[]corev1.Container, feastTy
 			},
 		}
 		applyOptionalCtrConfigs(container, serverConfigs.ContainerConfigs.OptionalCtrConfigs)
+		volumeMounts := feast.getVolumeMounts(feastType)
+		if len(volumeMounts) > 0 {
+			container.VolumeMounts = append(container.VolumeMounts, volumeMounts...)
+		}
 		*containers = append(*containers, *container)
 	}
+}
+
+func (feast *FeastServices) mountUserDefinedVolumes(podSpec *corev1.PodSpec) {
+	var volumes []corev1.Volume
+	if feast.Handler.FeatureStore.Spec.Services != nil {
+		volumes = feast.Handler.FeatureStore.Spec.Services.Volumes
+	}
+	if len(volumes) > 0 {
+		podSpec.Volumes = append(podSpec.Volumes, volumes...)
+	}
+}
+
+func (feast *FeastServices) getVolumeMounts(feastType FeastServiceType) (volumeMounts []corev1.VolumeMount) {
+	appliedServices := feast.Handler.FeatureStore.Status.Applied.Services
+	if appliedServices == nil {
+		return []corev1.VolumeMount{} // Return an empty slice to avoid nil issues
+	}
+
+	switch feastType {
+	case OfflineFeastType:
+		if feast.isOfflineServer() {
+			return appliedServices.OfflineStore.Server.VolumeMounts
+		}
+	case OnlineFeastType:
+		if feast.isOnlineServer() {
+			return appliedServices.OnlineStore.Server.VolumeMounts
+		}
+	case RegistryFeastType:
+		if feast.isRegistryServer() {
+			return appliedServices.Registry.Local.Server.VolumeMounts
+		}
+	case UIFeastType:
+		if feast.isUiServer() {
+			return appliedServices.UI.VolumeMounts
+		}
+	}
+	return []corev1.VolumeMount{} // Default empty slice
 }
 
 func (feast *FeastServices) setRoute(route *routev1.Route, feastType FeastServiceType) error {
