@@ -81,6 +81,8 @@ type FeatureStoreServices struct {
 	DeploymentStrategy *appsv1.DeploymentStrategy `json:"deploymentStrategy,omitempty"`
 	// Disable the 'feast repo initialization' initContainer
 	DisableInitContainers bool `json:"disableInitContainers,omitempty"`
+	// Volumes specifies the volumes to mount in the FeatureStore deployment. A corresponding `VolumeMount` should be added to whichever feast service(s) require access to said volume(s).
+	Volumes []corev1.Volume `json:"volumes,omitempty"`
 }
 
 // OfflineStore configures the deployed offline store service
@@ -112,6 +114,7 @@ var ValidOfflineStoreFilePersistenceTypes = []string{
 
 // OfflineStoreDBStorePersistence configures the DB store persistence for the offline store service
 type OfflineStoreDBStorePersistence struct {
+	// Type of the persistence type you want to use. Allowed values are: snowflake.offline, bigquery, redshift, spark, postgres, trino, redis, athena, mssql
 	// +kubebuilder:validation:Enum=snowflake.offline;bigquery;redshift;spark;postgres;trino;redis;athena;mssql
 	Type string `json:"type"`
 	// Data store parameters should be placed as-is from the "feature_store.yaml" under the secret key. "registry_type" & "type" fields should be removed.
@@ -146,7 +149,7 @@ type OnlineStorePersistence struct {
 	DBPersistence   *OnlineStoreDBStorePersistence `json:"store,omitempty"`
 }
 
-// OnlineStoreFilePersistence configures the file-based persistence for the offline store service
+// OnlineStoreFilePersistence configures the file-based persistence for the online store service
 // +kubebuilder:validation:XValidation:rule="(!has(self.pvc) && has(self.path)) ? self.path.startsWith('/') : true",message="Ephemeral stores must have absolute paths."
 // +kubebuilder:validation:XValidation:rule="(has(self.pvc) && has(self.path)) ? !self.path.startsWith('/') : true",message="PVC path must be a file name only, with no slashes."
 // +kubebuilder:validation:XValidation:rule="has(self.path) ? !(self.path.startsWith('s3://') || self.path.startsWith('gs://')) : true",message="Online store does not support S3 or GS buckets."
@@ -155,8 +158,9 @@ type OnlineStoreFilePersistence struct {
 	PvcConfig *PvcConfig `json:"pvc,omitempty"`
 }
 
-// OnlineStoreDBStorePersistence configures the DB store persistence for the offline store service
+// OnlineStoreDBStorePersistence configures the DB store persistence for the online store service
 type OnlineStoreDBStorePersistence struct {
+	// Type of the persistence type you want to use. Allowed values are: snowflake.online, redis, ikv, datastore, dynamodb, bigtable, postgres, cassandra, mysql, hazelcast, singlestore, hbase, elasticsearch, qdrant, couchbase, milvus
 	// +kubebuilder:validation:Enum=snowflake.online;redis;ikv;datastore;dynamodb;bigtable;postgres;cassandra;mysql;hazelcast;singlestore;hbase;elasticsearch;qdrant;couchbase;milvus
 	Type string `json:"type"`
 	// Data store parameters should be placed as-is from the "feature_store.yaml" under the secret key. "registry_type" & "type" fields should be removed.
@@ -211,6 +215,7 @@ type RegistryFilePersistence struct {
 
 // RegistryDBStorePersistence configures the DB store persistence for the registry service
 type RegistryDBStorePersistence struct {
+	// Type of the persistence type you want to use. Allowed values are: sql, snowflake.registry
 	// +kubebuilder:validation:Enum=sql;snowflake.registry
 	Type string `json:"type"`
 	// Data store parameters should be placed as-is from the "feature_store.yaml" under the secret key. "registry_type" & "type" fields should be removed.
@@ -289,6 +294,11 @@ type ServerConfigs struct {
 	// Allowed values: "debug", "info", "warning", "error", "critical".
 	// +kubebuilder:validation:Enum=debug;info;warning;error;critical
 	LogLevel *string `json:"logLevel,omitempty"`
+	// VolumeMounts defines the list of volumes that should be mounted into the feast container.
+	// This allows attaching persistent storage, config files, secrets, or other resources
+	// required by the Feast components. Ensure that each volume mount has a corresponding
+	// volume definition in the Volumes field.
+	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitempty"`
 }
 
 // ContainerConfigs k8s container settings for the server
