@@ -4,7 +4,7 @@ from typing import Any, Callable, Dict, Iterable, Optional, Tuple
 
 from couchbase_columnar.cluster import Cluster
 from couchbase_columnar.credential import Credential
-from couchbase_columnar.options import QueryOptions
+from couchbase_columnar.options import ClusterOptions, QueryOptions, TimeoutOptions
 from typeguard import typechecked
 
 from feast.data_source import DataSource
@@ -203,7 +203,12 @@ class CouchbaseColumnarSource(DataSource):
         cred = Credential.from_username_and_password(
             config.offline_store.user, config.offline_store.password
         )
-        cluster = Cluster.create_instance(config.offline_store.connection_string, cred)
+        timeout_opts = TimeoutOptions(dispatch_timeout=timedelta(seconds=120))
+        cluster = Cluster.create_instance(
+            config.offline_store.connection_string,
+            cred,
+            ClusterOptions(timeout_options=timeout_opts),
+        )
 
         query_context = self.get_table_query_string()
         query = f"""
@@ -218,7 +223,7 @@ class CouchbaseColumnarSource(DataSource):
         """
 
         result = cluster.execute_query(
-            query, QueryOptions(timeout=timedelta(seconds=500))
+            query, QueryOptions(timeout=timedelta(seconds=config.offline_store.timeout))
         )
         if not result:
             raise ZeroColumnQueryResult(query)
