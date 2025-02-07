@@ -17,7 +17,7 @@ metadata:
   namespace: default
 stringData:
   sql: |
-    path: postgresql+psycopg://admin:password@postgresql.default.svc.cluster.local:5432/mydatabase?sslmode=require&sslrootcert=/var/lib/postgresql/certs/ca.crt&sslcert=/var/lib/postgresql/certs/tls.crt&sslkey=/var/lib/postgresql/certs/tls.key
+    path: postgresql+psycopg://admin:password@postgresql.default.svc.cluster.local:5432/mydatabase?sslmode=disable&sslrootcert=/var/lib/postgresql/certs/ca.crt&sslcert=/var/lib/postgresql/certs/tls.crt&sslkey=/var/lib/postgresql/certs/tls.key
     cache_ttl_seconds: 60
     sqlalchemy_config_kwargs:
         echo: false
@@ -57,42 +57,29 @@ spec:
               path: tls.key
               mode: 0640  # Required for the private key
     offlineStore:
-      volumeMounts:
-        - name: postgres-certs
-          mountPath: /var/lib/postgresql/certs
-          readOnly: true
       persistence:
         store:
           type: postgres
           secretRef:
             name: feast-data-stores
-      envFrom:
-        - secretRef:
-            name: postgres-secret
     onlineStore:
-      volumeMounts:
-        - name: postgres-certs
-          mountPath: /var/lib/postgresql/certs
-          readOnly: true
       persistence:
         store:
           type: postgres
           secretRef:
             name: feast-data-stores
-      envFrom:
-        - secretRef:
-            name: postgres-secret
     registry:
       local:
-        volumeMounts:
-          - name: postgres-certs
-            mountPath: /var/lib/postgresql/certs
-            readOnly: true
         persistence:
           store:
             type: sql
             secretRef:
               name: feast-data-stores
-        envFrom:
-          - secretRef:
-              name: postgres-secret
+        server:
+          volumeMounts:
+            - name: postgres-certs
+              mountPath: /var/lib/postgresql/certs
+              readOnly: true
+          envFrom:
+            - secretRef:
+                name: postgres-secret
