@@ -455,7 +455,7 @@ func (feast *FeastServices) getVolumeMounts(feastType FeastServiceType) (volumeM
 			return appliedServices.OnlineStore.Server.VolumeMounts
 		}
 	case RegistryFeastType:
-		if feast.isLocalRegistry() {
+		if feast.isRegistryServer() {
 			return appliedServices.Registry.Local.Server.VolumeMounts
 		}
 	case UIFeastType:

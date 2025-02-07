@@ -17,7 +17,7 @@ metadata:
   namespace: default
 stringData:
   sql: |
-    path: postgresql+psycopg://admin:password@postgresql.default.svc.cluster.local:5432/mydatabase?sslmode=require&sslrootcert=/var/lib/postgresql/certs/ca.crt&sslcert=/var/lib/postgresql/certs/tls.crt&sslkey=/var/lib/postgresql/certs/tls.key
+    path: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgresql.default.svc.cluster.local:5432/${POSTGRES_DB}?sslmode=require&sslrootcert=/var/lib/postgresql/certs/ca.crt&sslcert=/var/lib/postgresql/certs/tls.crt&sslkey=/var/lib/postgresql/certs/tls.key
     cache_ttl_seconds: 60
     sqlalchemy_config_kwargs:
         echo: false
@@ -25,10 +25,10 @@ stringData:
   postgres: |
     host: postgresql.default.svc.cluster.local
     port: 5432
-    database: mydatabase
+    database: ${POSTGRES_DB}
     db_schema: public
-    user: admin
-    password: password
+    user: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
     sslmode: require
     sslkey_path: /var/lib/postgresql/certs/tls.key
     sslcert_path: /var/lib/postgresql/certs/tls.crt
