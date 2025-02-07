@@ -180,12 +180,12 @@ func createFeatureStoreVolumeResource(resourceName string, image string, pullPol
 			Services: &feastdevv1alpha1.FeatureStoreServices{
 				Volumes: []corev1.Volume{volume},
 				OfflineStore: &feastdevv1alpha1.OfflineStore{
-					ServerConfigs: feastdevv1alpha1.ServerConfigs{
+					Server: &feastdevv1alpha1.ServerConfigs{
 						ContainerConfigs: feastdevv1alpha1.ContainerConfigs{},
 					},
 				},
 				OnlineStore: &feastdevv1alpha1.OnlineStore{
-					ServerConfigs: feastdevv1alpha1.ServerConfigs{
+					Server: &feastdevv1alpha1.ServerConfigs{
 						VolumeMounts: []corev1.VolumeMount{volumeMount},
 						ContainerConfigs: feastdevv1alpha1.ContainerConfigs{
 							DefaultCtrConfigs: feastdevv1alpha1.DefaultCtrConfigs{

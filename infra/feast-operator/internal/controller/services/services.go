@@ -421,7 +421,21 @@ func (feast *FeastServices) setContainer(containers *[]corev1.Container, feastTy
 			},
 		}
 		applyOptionalCtrConfigs(container, serverConfigs.ContainerConfigs.OptionalCtrConfigs)
+		volumeMounts := feast.getVolumeMounts(feastType)
+		if len(volumeMounts) > 0 {
+			container.VolumeMounts = append(container.VolumeMounts, volumeMounts...)
+		}
 		*containers = append(*containers, *container)
+	}
+}
+
+func (feast *FeastServices) mountUserDefinedVolumes(podSpec *corev1.PodSpec) {
+	var volumes []corev1.Volume
+	if feast.Handler.FeatureStore.Spec.Services != nil {
+		volumes = feast.Handler.FeatureStore.Spec.Services.Volumes
+	}
+	if len(volumes) > 0 {
+		podSpec.Volumes = append(podSpec.Volumes, volumes...)
 	}
 }
 
@@ -433,19 +447,19 @@ func (feast *FeastServices) getVolumeMounts(feastType FeastServiceType) (volumeM
 
 	switch feastType {
 	case OfflineFeastType:
-		if feast.isOfflinStore() {
-			return appliedServices.OfflineStore.VolumeMounts
+		if feast.isOfflineServer() {
+			return appliedServices.OfflineStore.Server.VolumeMounts
 		}
 	case OnlineFeastType:
-		if feast.isOnlinStore() {
-			return appliedServices.OnlineStore.VolumeMounts
+		if feast.isOnlineServer() {
+			return appliedServices.OnlineStore.Server.VolumeMounts
 		}
 	case RegistryFeastType:
 		if feast.isLocalRegistry() {
-			return appliedServices.Registry.Local.VolumeMounts
+			return appliedServices.Registry.Local.Server.VolumeMounts
 		}
 	case UIFeastType:
-		if feast.isUI() {
+		if feast.isUiServer() {
 			return appliedServices.UI.VolumeMounts
 		}
 	}
