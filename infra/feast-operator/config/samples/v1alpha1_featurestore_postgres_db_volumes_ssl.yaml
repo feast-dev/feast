@@ -17,7 +17,7 @@ metadata:
   namespace: default
 stringData:
   sql: |
-    path: postgresql+psycopg://admin:password@postgresql.default.svc.cluster.local:5432/mydatabase?sslmode=disable&sslrootcert=/var/lib/postgresql/certs/ca.crt&sslcert=/var/lib/postgresql/certs/tls.crt&sslkey=/var/lib/postgresql/certs/tls.key
+    path: postgresql+psycopg://admin:password@postgresql.default.svc.cluster.local:5432/mydatabase?sslmode=require&sslrootcert=/var/lib/postgresql/certs/ca.crt&sslcert=/var/lib/postgresql/certs/tls.crt&sslkey=/var/lib/postgresql/certs/tls.key
     cache_ttl_seconds: 60
     sqlalchemy_config_kwargs:
         echo: false
