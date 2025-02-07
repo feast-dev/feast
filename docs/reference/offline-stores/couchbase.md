@@ -33,9 +33,9 @@ registry: data/registry.db
 provider: local
 offline_store:
   type: couchbase
-  connection_string: COUCHBASE_COLUMNAR_CONNECTION_STRING # Copied from 'Connect' page in Capella Columnar console, starts with couchbases://
-  user: COUCHBASE_COLUMNAR_USER # Couchbase username from access credentials
-  password: COUCHBASE_COLUMNAR_PASSWORD # Couchbase password from access credentials
+  connection_string: COUCHBASE_COLUMNAR_CONNECTION_STRING # Copied from Settings > Connection String page in Capella Columnar console, starts with couchbases://
+  user: COUCHBASE_COLUMNAR_USER # Couchbase cluster access name from Settings > Access Control page in Capella Columnar console
+  password: COUCHBASE_COLUMNAR_PASSWORD # Couchbase password from Settings > Access Control page in Capella Columnar console
   timeout: 120 # Timeout in seconds for Columnar operations, optional
 online_store:
     path: data/online_store.db
