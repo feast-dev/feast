@@ -137,6 +137,21 @@ def test_get_online_features() -> None:
 
         assert "trips" in result
 
+        with pytest.raises(KeyError) as excinfo:
+            _ = store.get_online_features(
+                features=["driver_locations:lon"],
+                entity_rows=[{"customer_id": 0}],
+                full_feature_names=False,
+            ).to_dict()
+
+        error_message = str(excinfo.value)
+        assert "Missing join key values for keys:" in error_message
+        assert (
+            "Missing join key values for keys: ['customer_id', 'driver_id', 'item_id']."
+            in error_message
+        )
+        assert "Provided join_key_values: ['customer_id']" in error_message
+
         result = store.get_online_features(
             features=["customer_profile_pandas_odfv:on_demand_age"],
             entity_rows=[{"driver_id": 1, "customer_id": "5"}],
