@@ -8,7 +8,7 @@ from django.db.models.query import QuerySet
 from typeguard import typechecked
 
 from feast.data_source import DataSource
-from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_VAL, FeatureView
+from feast.feature_view import FeatureView
 from feast.infra.offline_stores.contrib.django_offline_store.django_source import DjangoSource
 from feast.infra.offline_stores.offline_store import (
     OfflineStore,

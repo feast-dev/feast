@@ -1,4 +1,3 @@
-
 from django.db import models
 from django.test import TestCase
 
@@ -82,7 +81,6 @@ class TestSchemaInference(TestCase):
         )
         source.validate(self.config)  # Should not raise
 
-        # Test with non-existent field
         source = DjangoSource(
             model=self.model,
             timestamp_field="nonexistent_field",
