@@ -752,6 +752,7 @@ def test_sqlite_get_online_documents_v2() -> None:
     ) as store:
         store.config.online_store.vector_enabled = True
         store.config.online_store.vector_len = vector_length
+        store.config.entity_key_serialization_version = 3
         document_embeddings_fv = store.get_feature_view(name="document_embeddings")
 
         provider = store._get_provider()
