@@ -1,0 +1,9 @@
+tls:
+  enabled: true
+  certificatesSecret: "postgresql-server-certs"
+  certFilename: "tls.crt"
+  certKeyFilename: "tls.key"
+  certCAFilename: "ca.crt"
+
+volumePermissions:
+  enabled: true
