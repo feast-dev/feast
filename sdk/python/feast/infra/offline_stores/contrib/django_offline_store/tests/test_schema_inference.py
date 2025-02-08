@@ -1,7 +1,8 @@
 from django.db import models
 from django.test import TestCase
 
-from feast.infra.offline_stores.contrib.django_offline_store.django_source import DjangoSource
+from feast.infra.offline_stores.contrib.django_offline_store.django_source import \
+    DjangoSource
 from feast.repo_config import RepoConfig
 from feast.value_type import ValueType
 
