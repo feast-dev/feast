@@ -7,7 +7,9 @@ from typeguard import typechecked
 
 from feast.data_source import DataSource
 from feast.feature_view import FeatureView
-from feast.infra.offline_stores.contrib.django_offline_store.django_source import DjangoSource
+from feast.infra.offline_stores.contrib.django_offline_store.django_source import (
+    DjangoSource,
+)
 from feast.infra.offline_stores.offline_store import (
     OfflineStore,
     RetrievalJob,

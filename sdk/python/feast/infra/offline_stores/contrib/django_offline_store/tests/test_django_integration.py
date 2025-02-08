@@ -5,8 +5,9 @@ import pandas as pd
 from django.test import TestCase, override_settings
 
 from feast import Entity, FeatureStore, FeatureView, Field, RepoConfig
-from feast.infra.offline_stores.contrib.django_offline_store.django_source import \
-    DjangoSource
+from feast.infra.offline_stores.contrib.django_offline_store.django_source import (
+    DjangoSource,
+)
 from feast.types import Float32, Int64
 from feast.value_type import ValueType
 
