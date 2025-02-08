@@ -210,6 +210,14 @@ class FeastRegistryTypeInvalidError(FeastError):
         )
 
 
+class FeastFileRegistryPathNotAbsoluteError(FeastError):
+    def __init__(self, path: str):
+        super().__init__(
+            f"File registry path was set to {path}, which is a relative path. "
+            "Please, specify the absolute path of the registry file in the feature_store.yaml"
+        )
+
+
 class FeastModuleImportError(FeastError):
     def __init__(self, module_name: str, class_name: str):
         super().__init__(
