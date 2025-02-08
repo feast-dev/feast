@@ -59,12 +59,12 @@ class TestDjangoSource(TestCase):
         """Test getting column names and types."""
         source = DjangoSource(model=self.model)
         columns = dict(source.get_table_column_names_and_types(self.config))
-        
+
         self.assertIn("id", columns)
         self.assertIn("event_timestamp", columns)
         self.assertIn("created", columns)
         self.assertIn("value", columns)
-        
+
         self.assertEqual(columns["id"], "AutoField")
         self.assertEqual(columns["event_timestamp"], "DateTimeField")
         self.assertEqual(columns["value"], "FloatField")
@@ -92,7 +92,7 @@ class TestDjangoSource(TestCase):
     def test_saved_dataset_storage(self):
         """Test saved dataset storage functionality."""
         storage = SavedDatasetDjangoStorage(model=self.model)
-        
+
         # Test conversion to data source
         source = storage.to_data_source()
         self.assertIsInstance(source, DataSource)
