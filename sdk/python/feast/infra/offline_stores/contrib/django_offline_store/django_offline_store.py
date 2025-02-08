@@ -10,7 +10,11 @@ from typeguard import typechecked
 from feast.data_source import DataSource
 from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_VAL, FeatureView
 from feast.infra.offline_stores.contrib.django_offline_store.django_source import DjangoSource
-from feast.infra.offline_stores.offline_store import OfflineStore, RetrievalJob
+from feast.infra.offline_stores.offline_store import (
+    OfflineStore,
+    RetrievalJob,
+    ValidationReference,
+)
 from feast.repo_config import RepoConfig
 
 
@@ -28,7 +32,7 @@ class DjangoOfflineStore(OfflineStore):
     @staticmethod
     def pull_latest_from_table_or_query(
         config: RepoConfig,
-        data_source: DjangoSource,
+        data_source: DataSource,
         join_key_columns: List[str],
         feature_name_columns: List[str],
         timestamp_field: str,
@@ -37,6 +41,7 @@ class DjangoOfflineStore(OfflineStore):
         end_date: datetime,
     ) -> RetrievalJob:
         assert isinstance(config.offline_store, DjangoOfflineStoreConfig)
+        assert isinstance(data_source, DjangoSource)
 
         filters = Q()
         if timestamp_field:
@@ -93,7 +98,9 @@ class DjangoRetrievalJob(RetrievalJob):
         """Initialize DjangoRetrievalJob"""
         self.evaluation_function = evaluation_function
 
-    def to_df(self) -> pd.DataFrame:
+    def to_df(
+        self, validation_reference: Optional[ValidationReference] = None, timeout: Optional[int] = None
+    ) -> pd.DataFrame:
         if isinstance(self.evaluation_function, pd.DataFrame):
             return self.evaluation_function
         return self.evaluation_function()
@@ -114,7 +121,7 @@ def _get_entity_df_event_timestamp_range(
 def _get_requested_feature_views_to_features_dict(
     feature_refs: List[str], feature_views: List[FeatureView]
 ) -> Dict[str, List[str]]:
-    feature_views_to_feature_map = {}
+    feature_views_to_feature_map: Dict[str, List[str]] = {}
     for ref in feature_refs:
         view_name = ref.split(":")[0]
         feature = ref.split(":")[1]
