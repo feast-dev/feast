@@ -1164,7 +1164,7 @@ def test_registry_cache_thread_async(test_registry):
     test_registry.teardown()
 
 
-# @pytest.mark.integration
+@pytest.mark.integration
 @pytest.mark.parametrize(
     "test_registry",
     all_fixtures,
