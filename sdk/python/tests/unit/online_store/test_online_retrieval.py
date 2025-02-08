@@ -738,6 +738,68 @@ def test_sqlite_vec_import() -> None:
     assert result == [(2, 2.39), (1, 2.39)]
 
 
+@pytest.mark.skipif(
+    sys.version_info[0:2] != (3, 10),
+    reason="Only works on Python 3.10",
+)
+def test_sqlite_get_online_documents_v2() -> None:
+    """Test retrieving documents using v2 method with vector similarity search."""
+    n = 10
+    vector_length = 8
+    runner = CliRunner()
+    with runner.local_repo(
+        get_example_repo("example_feature_repo_1.py"), "file"
+    ) as store:
+        store.config.online_store.vector_enabled = True
+        store.config.online_store.vector_len = vector_length
+        document_embeddings_fv = store.get_feature_view(name="document_embeddings")
+
+        provider = store._get_provider()
+
+        # Create test data
+        item_keys = [
+            EntityKeyProto(
+                join_keys=["item_id"], entity_values=[ValueProto(int64_val=i)]
+            )
+            for i in range(n)
+        ]
+        data = []
+        for item_key in item_keys:
+            data.append(
+                (
+                    item_key,
+                    {
+                        "Embeddings": ValueProto(
+                            float_list_val=FloatListProto(
+                                val=[float(x) for x in np.random.random(vector_length)]
+                            )
+                        )
+                    },
+                    _utc_now(),
+                    _utc_now(),
+                )
+            )
+
+        provider.online_write_batch(
+            config=store.config,
+            table=document_embeddings_fv,
+            data=data,
+            progress=None,
+        )
+
+        # Test vector similarity search
+        query_embedding = [float(x) for x in np.random.random(vector_length)]
+        result = store.retrieve_online_documents_v2(
+            features=["document_embeddings:Embeddings"],
+            query=query_embedding,
+            top_k=3,
+        ).to_dict()
+
+        assert "Embeddings" in result
+        assert "distance" in result
+        assert len(result["distance"]) == 3
+
+
 @pytest.mark.skip(reason="Skipping this test as CI struggles with it")
 def test_local_milvus() -> None:
     import random
