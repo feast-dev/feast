@@ -332,6 +332,14 @@ feast.saved\_dataset module
    :undoc-members:
    :show-inheritance:
 
+feast.ssl\_ca\_trust\_store\_setup module
+-----------------------------------------
+
+.. automodule:: feast.ssl_ca_trust_store_setup
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 feast.stream\_feature\_view module
 ----------------------------------
 
