@@ -62,8 +62,6 @@ const FeastUISansProviders = ({
           isCustom: true,
         }
       : { projectsListPromise: defaultProjectListPromise(), isCustom: false };
-    
-  const BASE_URL = process.env.PUBLIC_URL || ""
 
   return (
     <EuiProvider colorMode="light">
@@ -76,9 +74,9 @@ const FeastUISansProviders = ({
           >
             <ProjectListContext.Provider value={projectListContext}>
               <Routes>
-                <Route path={BASE_URL + "/"} element={<Layout />}>
+                <Route path="/" element={<Layout />}>
                   <Route index element={<RootProjectSelectionPage />} />
-                  <Route path={BASE_URL + "/p/:projectName/*"} element={<NoProjectGuard />}>
+                  <Route path="/p/:projectName/*" element={<NoProjectGuard />}>
                     <Route index element={<ProjectOverviewPage />} />
                     <Route path="data-source/" element={<DatasourceIndex />} />
                     <Route

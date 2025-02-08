@@ -97,7 +97,7 @@ You can use `projectListPromise` to provide a promise that overrides where the F
 
 You can add custom tabs for any of the core Feast objects through the `tabsRegistry`.
 
-```
+```jsx
 const tabsRegistry = {
   RegularFeatureViewCustomTabs: [
     {
@@ -116,6 +116,26 @@ const tabsRegistry = {
 ```
 
 Examples of custom tabs can be found in the `/custom-tabs` folder.
+
+##### Custom Basename
+
+If you want to serve the UI under a specific URL path instead of at the root,
+you can use the `basename` prop, and it will be forwarded to React Router.
+
+For example, to serve the UI at the `/feast-ui` path:
+
+```jsx
+<FeastUI
+  basename="/feast-ui"
+  feastUIConfigs={{
+    projectListPromise: fetch("/feast-ui/projects-list.json", {
+      headers: {
+        "Content-Type": "application/json",
+      },
+    }).then((res) => res.json())
+  }}
+/>
+```
 
 ## On React and Create React App
 

@@ -53,7 +53,7 @@ const SideNav = () => {
       : ""
   }`;
 
-  const baseUrl = `${process.env.PUBLIC_URL || ""}/p/${projectName}`;
+  const baseUrl = `/p/${projectName}`;
 
   const sideNav: React.ComponentProps<typeof EuiSideNav>['items'] = [
     {
