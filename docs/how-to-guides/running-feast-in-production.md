@@ -203,7 +203,7 @@ feature_vector = fs.get_online_features(
 ).to_dict()
 ```
 
-### 4.2. Deploy Feast feature servers on Kubernetes
+### 4.2. Deploy Feast feature servers on Kubernetes (Deprecated replaced by [feast-operator](../../infra/feast-operator/README.md))
 
 To deploy a Feast feature server on Kubernetes, you can use the included [helm chart + tutorial](https://github.com/feast-dev/feast/tree/master/infra/charts/feast-feature-server) (which also has detailed instructions and an example tutorial).
 
