@@ -2,9 +2,7 @@ from datetime import datetime
 from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union
 
 import pandas as pd
-from django.db import models
 from django.db.models import Q
-from django.db.models.query import QuerySet
 from typeguard import typechecked
 
 from feast.data_source import DataSource
