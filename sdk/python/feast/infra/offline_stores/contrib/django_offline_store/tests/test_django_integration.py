@@ -1,10 +1,7 @@
-import os
-from datetime import datetime, timedelta
 from decimal import Decimal
+from datetime import datetime, timedelta
 
 import pandas as pd
-import pytest
-from django.conf import settings
 from django.test import TestCase, override_settings
 
 from feast import Entity, FeatureView, Field, FeatureStore, RepoConfig

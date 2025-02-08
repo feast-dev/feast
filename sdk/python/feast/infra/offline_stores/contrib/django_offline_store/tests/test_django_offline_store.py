@@ -1,6 +1,4 @@
-import os
 from datetime import datetime, timedelta
-from typing import List
 
 import pandas as pd
 from django.db import models
@@ -52,7 +50,7 @@ class TestDjangoOfflineStore(TestCase):
         self.start_date = datetime.now() - timedelta(days=7)
         self.end_date = datetime.now()
         self.driver_ids = [1, 2, 3]
-        
+
         # Create test entities and feature views
         self.entity = Entity(
             name="driver_id",
