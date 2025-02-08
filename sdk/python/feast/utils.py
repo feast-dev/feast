@@ -687,25 +687,48 @@ def _get_unique_entities(
         entity_name_to_join_key_map,
         join_key_values,
     )
+    # Validate that all expected join keys exist and have non-empty values.
+    expected_keys = set(entity_name_to_join_key_map.values())
+    expected_keys.discard("__dummy_id")
+    missing_keys = sorted(
+        list(set([key for key in expected_keys if key not in table_entity_values]))
+    )
+    empty_keys = sorted(
+        list(set([key for key in expected_keys if not table_entity_values.get(key)]))
+    )
 
-    # Convert back to rowise.
-    keys = table_entity_values.keys()
-    # Sort the rowise data to allow for grouping but keep original index. This lambda is
-    # sufficient as Entity types cannot be complex (ie. lists).
+    if missing_keys or empty_keys:
+        if not any(table_entity_values.values()):
+            raise KeyError(
+                f"Missing join key values for keys: {missing_keys}. "
+                f"No values provided for keys: {empty_keys}. "
+                f"Provided join_key_values: {list(join_key_values.keys())}"
+            )
+
+    # Convert the column-oriented table_entity_values into row-wise data.
+    keys = list(table_entity_values.keys())
+    # Each row is a tuple of ValueProto objects corresponding to the join keys.
     rowise = list(enumerate(zip(*table_entity_values.values())))
+
+    # If there are no rows, return empty tuples.
+    if not rowise:
+        return (), ()
+
+    # Sort rowise so that rows with the same join key values are adjacent.
     rowise.sort(key=lambda row: tuple(getattr(x, x.WhichOneof("val")) for x in row[1]))
 
-    # Identify unique entities and the indexes at which they occur.
-    unique_entities: Tuple[Dict[str, ValueProto], ...]
-    indexes: Tuple[List[int], ...]
-    unique_entities, indexes = tuple(
-        zip(
-            *[
-                (dict(zip(keys, k)), [_[0] for _ in g])
-                for k, g in itertools.groupby(rowise, key=lambda x: x[1])
-            ]
-        )
-    )
+    # Group rows by their composite join key value.
+    groups = [
+        (dict(zip(keys, key_tuple)), [idx for idx, _ in group])
+        for key_tuple, group in itertools.groupby(rowise, key=lambda row: row[1])
+    ]
+
+    # If no groups were formed (should not happen for valid input), return empty tuples.
+    if not groups:
+        return (), ()
+
+    # Unpack the unique entities and their original row indexes.
+    unique_entities, indexes = tuple(zip(*groups))
     return unique_entities, indexes
 
 
