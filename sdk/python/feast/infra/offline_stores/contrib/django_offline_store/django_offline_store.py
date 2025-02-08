@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union
 
 import pandas as pd
 from django.db import models
@@ -9,8 +9,8 @@ from typeguard import typechecked
 
 from feast.data_source import DataSource
 from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_VAL, FeatureView
-from feast.infra.offline_stores.offline_store import OfflineStore, RetrievalJob
 from feast.infra.offline_stores.contrib.django_offline_store.django_source import DjangoSource
+from feast.infra.offline_stores.offline_store import OfflineStore, RetrievalJob
 from feast.repo_config import RepoConfig
 
 
