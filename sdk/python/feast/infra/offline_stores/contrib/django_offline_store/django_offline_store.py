@@ -99,7 +99,9 @@ class DjangoRetrievalJob(RetrievalJob):
         self.evaluation_function = evaluation_function
 
     def to_df(
-        self, validation_reference: Optional[ValidationReference] = None, timeout: Optional[int] = None
+        self,
+        validation_reference: Optional[ValidationReference] = None,
+        timeout: Optional[int] = None,
     ) -> pd.DataFrame:
         if isinstance(self.evaluation_function, pd.DataFrame):
             return self.evaluation_function

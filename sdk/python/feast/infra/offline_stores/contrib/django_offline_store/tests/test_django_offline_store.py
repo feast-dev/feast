@@ -21,6 +21,7 @@ from feast.value_type import ValueType
 
 class DriverModel(models.Model):
     """Test Django model for driver features."""
+
     driver_id = models.IntegerField(primary_key=True)
     event_timestamp = models.DateTimeField()
     created = models.DateTimeField(auto_now_add=True)
@@ -29,8 +30,8 @@ class DriverModel(models.Model):
     avg_daily_trips = models.IntegerField()
 
     class Meta:
-        app_label = 'test_app'
-        db_table = 'driver_stats'
+        app_label = "test_app"
+        db_table = "driver_stats"
 
 
 class TestDjangoOfflineStore(TestCase):
@@ -90,7 +91,11 @@ class TestDjangoOfflineStore(TestCase):
 
         df = retrieval_job.to_df()
         self.assertIsInstance(df, pd.DataFrame)
-        self.assertTrue({"driver_id", "conv_rate", "acc_rate", "avg_daily_trips"}.issubset(df.columns))
+        self.assertTrue(
+            {"driver_id", "conv_rate", "acc_rate", "avg_daily_trips"}.issubset(
+                df.columns
+            )
+        )
 
     def test_get_historical_features(self):
         """Test getting historical features."""

@@ -11,14 +11,15 @@ from feast.repo_config import RepoConfig
 
 class TestModel(models.Model):
     """Test Django model for feature source testing."""
+
     id = models.AutoField(primary_key=True)
     event_timestamp = models.DateTimeField()
     created = models.DateTimeField(auto_now_add=True)
     value = models.FloatField()
 
     class Meta:
-        app_label = 'test_app'
-        db_table = 'test_table'
+        app_label = "test_app"
+        db_table = "test_table"
 
 
 class TestDjangoSource(TestCase):
@@ -96,6 +97,5 @@ class TestDjangoSource(TestCase):
         proto = storage.to_proto()
         restored = SavedDatasetDjangoStorage.from_proto(proto)
         self.assertEqual(
-            restored.django_options._model._meta.db_table,
-            self.model._meta.db_table
+            restored.django_options._model._meta.db_table, self.model._meta.db_table
         )

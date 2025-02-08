@@ -10,6 +10,7 @@ from feast.value_type import ValueType
 
 class ComplexModel(models.Model):
     """Test model with various field types for schema inference testing."""
+
     id = models.AutoField(primary_key=True)
     char_field = models.CharField(max_length=100)
     text_field = models.TextField()
@@ -24,8 +25,8 @@ class ComplexModel(models.Model):
     binary_field = models.BinaryField()
 
     class Meta:
-        app_label = 'test_app'
-        db_table = 'complex_model'
+        app_label = "test_app"
+        db_table = "complex_model"
 
 
 class TestSchemaInference(TestCase):

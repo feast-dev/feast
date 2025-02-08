@@ -15,16 +15,17 @@ from .test_app.models import Driver, Order
 
 # Configure Django settings for testing
 test_settings = {
-    'DATABASES': {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': ':memory:',
+    "DATABASES": {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": ":memory:",
         }
     },
-    'INSTALLED_APPS': [
-        'feast.infra.offline_stores.contrib.django_offline_store.tests.test_app',
+    "INSTALLED_APPS": [
+        "feast.infra.offline_stores.contrib.django_offline_store.tests.test_app",
     ],
 }
+
 
 @override_settings(**test_settings)
 class TestDjangoIntegration(TestCase):
@@ -44,8 +45,8 @@ class TestDjangoIntegration(TestCase):
             order_id=1,
             driver=self.driver,
             event_timestamp=datetime.now(),
-            amount=Decimal('25.50'),
-            status='completed',
+            amount=Decimal("25.50"),
+            status="completed",
         )
 
         # Create feature store
@@ -91,10 +92,12 @@ class TestDjangoIntegration(TestCase):
         self.store.apply([self.driver_entity, self.driver_stats_fv])
 
         # Create entity DataFrame
-        entity_df = pd.DataFrame.from_dict({
-            "driver_id": [1],
-            "event_timestamp": [datetime.now()],
-        })
+        entity_df = pd.DataFrame.from_dict(
+            {
+                "driver_id": [1],
+                "event_timestamp": [datetime.now()],
+            }
+        )
 
         # Get historical features
         feature_data = self.store.get_historical_features(
@@ -118,13 +121,15 @@ class TestDjangoIntegration(TestCase):
         self.store.apply([self.driver_entity, self.driver_stats_fv])
 
         # Create entity DataFrame with multiple drivers
-        entity_df = pd.DataFrame.from_dict({
-            "driver_id": [1, 1],
-            "event_timestamp": [
-                datetime.now(),
-                datetime.now() - timedelta(days=1),
-            ],
-        })
+        entity_df = pd.DataFrame.from_dict(
+            {
+                "driver_id": [1, 1],
+                "event_timestamp": [
+                    datetime.now(),
+                    datetime.now() - timedelta(days=1),
+                ],
+            }
+        )
 
         # Get historical features
         feature_data = self.store.get_historical_features(
