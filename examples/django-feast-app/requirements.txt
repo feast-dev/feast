@@ -1,0 +1,4 @@
+django>=5.1.6
+feast>=0.34.1
+pandas>=2.2.0
+pyarrow>=18.0.0
