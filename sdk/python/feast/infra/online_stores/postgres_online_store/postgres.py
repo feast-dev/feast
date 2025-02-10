@@ -345,6 +345,7 @@ class PostgreSQLOnlineStore(OnlineStore):
                 for table in tables:
                     table_name = _table_id(project, table)
                     cur.execute(_drop_table_and_index(table_name))
+                conn.commit()
         except Exception:
             logging.exception("Teardown failed")
             raise
