@@ -5,7 +5,6 @@ from datetime import datetime
 from typing import (
     Any,
     AsyncGenerator,
-    Bool,
     Callable,
     Dict,
     Generator,
@@ -59,7 +58,9 @@ class PostgreSQLOnlineStore(OnlineStore):
     _conn_pool_async: Optional[AsyncConnectionPool] = None
 
     @contextlib.contextmanager
-    def _get_conn(self, config: RepoConfig, autocommit: Bool = False) -> Generator[Connection, Any, Any]:
+    def _get_conn(
+        self, config: RepoConfig, autocommit: bool = False
+    ) -> Generator[Connection, Any, Any]:
         assert config.online_store.type == "postgres"
 
         if config.online_store.conn_type == ConnectionType.pool:
@@ -73,12 +74,12 @@ class PostgreSQLOnlineStore(OnlineStore):
         else:
             if not self._conn:
                 self._conn = _get_conn(config.online_store)
-            self._conn .set_autocommit(autocommit)
+            self._conn.set_autocommit(autocommit)
             yield self._conn
 
     @contextlib.asynccontextmanager
     async def _get_conn_async(
-        self, config: RepoConfig, autocommit: Bool = False
+        self, config: RepoConfig, autocommit: bool = False
     ) -> AsyncGenerator[AsyncConnection, Any]:
         if config.online_store.conn_type == ConnectionType.pool:
             if not self._conn_pool_async:
