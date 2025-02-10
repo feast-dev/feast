@@ -178,7 +178,6 @@ spec:
                                 - spark
                                 - postgres
                                 - trino
-                                - redis
                                 - athena
                                 - mssql
                                 type: string
@@ -2091,7 +2090,6 @@ spec:
                                     - spark
                                     - postgres
                                     - trino
-                                    - redis
                                     - athena
                                     - mssql
                                     type: string

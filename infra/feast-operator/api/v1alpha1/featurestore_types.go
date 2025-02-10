@@ -114,8 +114,8 @@ var ValidOfflineStoreFilePersistenceTypes = []string{
 
 // OfflineStoreDBStorePersistence configures the DB store persistence for the offline store service
 type OfflineStoreDBStorePersistence struct {
-	// Type of the persistence type you want to use. Allowed values are: snowflake.offline, bigquery, redshift, spark, postgres, trino, redis, athena, mssql
-	// +kubebuilder:validation:Enum=snowflake.offline;bigquery;redshift;spark;postgres;trino;redis;athena;mssql
+	// Type of the persistence type you want to use.
+	// +kubebuilder:validation:Enum=snowflake.offline;bigquery;redshift;spark;postgres;trino;athena;mssql
 	Type string `json:"type"`
 	// Data store parameters should be placed as-is from the "feature_store.yaml" under the secret key. "registry_type" & "type" fields should be removed.
 	SecretRef corev1.LocalObjectReference `json:"secretRef"`
@@ -130,7 +130,6 @@ var ValidOfflineStoreDBStorePersistenceTypes = []string{
 	"spark",
 	"postgres",
 	"trino",
-	"redis",
 	"athena",
 	"mssql",
 }
@@ -160,7 +159,7 @@ type OnlineStoreFilePersistence struct {
 
 // OnlineStoreDBStorePersistence configures the DB store persistence for the online store service
 type OnlineStoreDBStorePersistence struct {
-	// Type of the persistence type you want to use. Allowed values are: snowflake.online, redis, ikv, datastore, dynamodb, bigtable, postgres, cassandra, mysql, hazelcast, singlestore, hbase, elasticsearch, qdrant, couchbase, milvus
+	// Type of the persistence type you want to use.
 	// +kubebuilder:validation:Enum=snowflake.online;redis;ikv;datastore;dynamodb;bigtable;postgres;cassandra;mysql;hazelcast;singlestore;hbase;elasticsearch;qdrant;couchbase;milvus
 	Type string `json:"type"`
 	// Data store parameters should be placed as-is from the "feature_store.yaml" under the secret key. "registry_type" & "type" fields should be removed.
@@ -215,7 +214,7 @@ type RegistryFilePersistence struct {
 
 // RegistryDBStorePersistence configures the DB store persistence for the registry service
 type RegistryDBStorePersistence struct {
-	// Type of the persistence type you want to use. Allowed values are: sql, snowflake.registry
+	// Type of the persistence type you want to use.
 	// +kubebuilder:validation:Enum=sql;snowflake.registry
 	Type string `json:"type"`
 	// Data store parameters should be placed as-is from the "feature_store.yaml" under the secret key. "registry_type" & "type" fields should be removed.
@@ -225,8 +224,8 @@ type RegistryDBStorePersistence struct {
 }
 
 var ValidRegistryDBStorePersistenceTypes = []string{
-	"snowflake.registry",
 	"sql",
+	"snowflake.registry",
 }
 
 // PvcConfig defines the settings for a persistent file store based on PVCs.

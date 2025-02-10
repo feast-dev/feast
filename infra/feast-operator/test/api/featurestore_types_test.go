@@ -2,6 +2,8 @@ package api
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -334,6 +336,16 @@ func registryStoreWithDBPersistenceType(dbPersistenceType string, featureStore *
 	return fsCopy
 }
 
+func quotedSlice(stringSlice []string) string {
+	quotedSlice := make([]string, len(stringSlice))
+
+	for i, str := range stringSlice {
+		quotedSlice[i] = fmt.Sprintf("\"%s\"", str)
+	}
+
+	return strings.Join(quotedSlice, ", ")
+}
+
 const resourceName = "test-resource"
 const namespaceName = "default"
 
@@ -377,7 +389,7 @@ var _ = Describe("FeatureStore API", func() {
 		})
 
 		It("should fail when db persistence type is invalid", func() {
-			attemptInvalidCreationAndAsserts(ctx, onlineStoreWithDBPersistenceType("invalid", featurestore), "Unsupported value: \"invalid\": supported values: \"snowflake.online\", \"redis\", \"ikv\", \"datastore\", \"dynamodb\", \"bigtable\", \"postgres\", \"cassandra\", \"mysql\", \"hazelcast\", \"singlestore\", \"hbase\", \"elasticsearch\", \"qdrant\", \"couchbase\"")
+			attemptInvalidCreationAndAsserts(ctx, onlineStoreWithDBPersistenceType("invalid", featurestore), "Unsupported value: \"invalid\": supported values: "+quotedSlice(feastdevv1alpha1.ValidOnlineStoreDBStorePersistenceTypes))
 		})
 	})
 
@@ -388,7 +400,7 @@ var _ = Describe("FeatureStore API", func() {
 			attemptInvalidCreationAndAsserts(ctx, offlineStoreWithUnmanagedFileType(featurestore), "Unsupported value")
 		})
 		It("should fail when db persistence type is invalid", func() {
-			attemptInvalidCreationAndAsserts(ctx, offlineStoreWithDBPersistenceType("invalid", featurestore), "Unsupported value: \"invalid\": supported values: \"snowflake.offline\", \"bigquery\", \"redshift\", \"spark\", \"postgres\", \"trino\", \"redis\", \"athena\", \"mssql\"")
+			attemptInvalidCreationAndAsserts(ctx, offlineStoreWithDBPersistenceType("invalid", featurestore), "Unsupported value: \"invalid\": supported values: "+quotedSlice(feastdevv1alpha1.ValidOfflineStoreDBStorePersistenceTypes))
 		})
 	})
 
@@ -410,7 +422,7 @@ var _ = Describe("FeatureStore API", func() {
 			attemptInvalidCreationAndAsserts(ctx, registryWithS3AdditionalKeywordsForGsBucket(featurestore), "Additional S3 settings are available only for S3 object store URIs")
 		})
 		It("should fail when db persistence type is invalid", func() {
-			attemptInvalidCreationAndAsserts(ctx, registryStoreWithDBPersistenceType("invalid", featurestore), "Unsupported value: \"invalid\": supported values: \"sql\", \"snowflake.registry\"")
+			attemptInvalidCreationAndAsserts(ctx, registryStoreWithDBPersistenceType("invalid", featurestore), "Unsupported value: \"invalid\": supported values: "+quotedSlice(feastdevv1alpha1.ValidRegistryDBStorePersistenceTypes))
 		})
 	})
 

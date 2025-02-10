@@ -210,7 +210,7 @@ _Appears in:_
 
 | Field | Description |
 | --- | --- |
-| `type` _string_ | Type of the persistence type you want to use. Allowed values are: snowflake.offline, bigquery, redshift, spark, postgres, trino, redis, athena, mssql |
+| `type` _string_ | Type of the persistence type you want to use. |
 | `secretRef` _[LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#localobjectreference-v1-core)_ | Data store parameters should be placed as-is from the "feature_store.yaml" under the secret key. "registry_type" & "type" fields should be removed. |
 | `secretKeyName` _string_ | By default, the selected store "type" is used as the SecretKeyName |
 
@@ -286,7 +286,7 @@ _Appears in:_
 
 | Field | Description |
 | --- | --- |
-| `type` _string_ | Type of the persistence type you want to use. Allowed values are: snowflake.online, redis, ikv, datastore, dynamodb, bigtable, postgres, cassandra, mysql, hazelcast, singlestore, hbase, elasticsearch, qdrant, couchbase, milvus |
+| `type` _string_ | Type of the persistence type you want to use. |
 | `secretRef` _[LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#localobjectreference-v1-core)_ | Data store parameters should be placed as-is from the "feature_store.yaml" under the secret key. "registry_type" & "type" fields should be removed. |
 | `secretKeyName` _string_ | By default, the selected store "type" is used as the SecretKeyName |
 
