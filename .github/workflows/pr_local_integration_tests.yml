@@ -56,3 +56,9 @@ jobs:
       - name: Test local integration tests
         if: ${{ always() }}  # this will guarantee that step won't be canceled and resources won't leak
         run: make test-python-integration-local
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.22.9
+      - name: Operator Data Source types test
+        run: make -C infra/feast-operator test-datasources

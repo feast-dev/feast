@@ -113,12 +113,18 @@ vet: ## Run go vet against code.
 
 .PHONY: test
 test: build-installer vet lint envtest ## Run tests.
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $$(go list ./... | grep -v /e2e) -coverprofile cover.out
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $$(go list ./... | grep -v test/e2e | grep -v test/data-source-types) -coverprofile cover.out
 
 # Utilize Kind or modify the e2e tests to load the image locally, enabling compatibility with other vendors.
 .PHONY: test-e2e  # Run the e2e tests against a Kind k8s instance that is spun up.
 test-e2e:
 	go test -timeout 30m ./test/e2e/ -v -ginkgo.v
+
+# Requires python3
+.PHONY: test-datasources
+test-datasources:
+	python3 test/data-source-types/data-source-types.py
+	go test ./test/data-source-types/
 
 .PHONY: lint
 lint: golangci-lint ## Run golangci-lint linter & yamllint
