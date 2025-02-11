@@ -33,7 +33,7 @@ stringData:
 apiVersion: feast.dev/v1alpha1
 kind: FeatureStore
 metadata:
-  name: example
+  name: sample-db-persistence
   namespace: test
 spec:
   feastProject: my_project
@@ -44,6 +44,10 @@ spec:
           type: postgres
           secretRef:
             name: feast-data-stores
+      server:
+        envFrom:
+        - secretRef:
+            name: postgres-secret
     registry:
       local:
         persistence:
@@ -51,7 +55,3 @@ spec:
             type: sql
             secretRef:
               name: feast-data-stores
-        server:
-          envFrom:
-          - secretRef:
-              name: postgres-secret

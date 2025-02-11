@@ -128,6 +128,11 @@ func createFeatureStoreResource(resourceName string, image string, pullPolicy co
 						},
 					},
 				},
+				Registry: &feastdevv1alpha1.Registry{
+					Local: &feastdevv1alpha1.LocalRegistryConfig{
+						Server: &feastdevv1alpha1.ServerConfigs{},
+					},
+				},
 				UI: &feastdevv1alpha1.ServerConfigs{
 					ContainerConfigs: feastdevv1alpha1.ContainerConfigs{
 						DefaultCtrConfigs: feastdevv1alpha1.DefaultCtrConfigs{

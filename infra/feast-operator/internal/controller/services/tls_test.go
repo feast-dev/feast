@@ -93,8 +93,8 @@ var _ = Describe("TLS Config", func() {
 			Expect(tls).To(BeNil())
 			Expect(tls.IsTLS()).To(BeFalse())
 			tls = feast.getTlsConfigs(OnlineFeastType)
-			Expect(tls).To(BeNil())
-			Expect(tls.IsTLS()).To(BeFalse())
+			Expect(tls).NotTo(BeNil())
+			Expect(tls.IsTLS()).To(BeTrue())
 			tls = feast.getTlsConfigs(UIFeastType)
 			Expect(tls).To(BeNil())
 			Expect(tls.IsTLS()).To(BeFalse())
@@ -108,7 +108,7 @@ var _ = Describe("TLS Config", func() {
 			Expect(feast.remoteRegistryTls()).To(BeFalse())
 			Expect(feast.localRegistryTls()).To(BeTrue())
 			Expect(feast.isOpenShiftTls(OfflineFeastType)).To(BeFalse())
-			Expect(feast.isOpenShiftTls(OnlineFeastType)).To(BeFalse())
+			Expect(feast.isOpenShiftTls(OnlineFeastType)).To(BeTrue())
 			Expect(feast.isOpenShiftTls(UIFeastType)).To(BeFalse())
 			Expect(feast.isOpenShiftTls(RegistryFeastType)).To(BeTrue())
 
@@ -229,8 +229,12 @@ var _ = Describe("TLS Config", func() {
 			// all services w/ tls and in an openshift cluster
 			feast.Handler.FeatureStore = minimalFeatureStoreWithAllServers()
 			disable := true
-			feast.Handler.FeatureStore.Spec.Services.OnlineStore.Server.TLS = &feastdevv1alpha1.TlsConfigs{
-				Disable: &disable,
+			feast.Handler.FeatureStore.Spec.Services.OnlineStore = &feastdevv1alpha1.OnlineStore{
+				Server: &feastdevv1alpha1.ServerConfigs{
+					TLS: &feastdevv1alpha1.TlsConfigs{
+						Disable: &disable,
+					},
+				},
 			}
 			feast.Handler.FeatureStore.Spec.Services.UI.TLS = &feastdevv1alpha1.TlsConfigs{
 				Disable: &disable,

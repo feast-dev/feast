@@ -78,13 +78,9 @@ var _ = Describe("FeatureStore Controller-Ephemeral services", func() {
 						Path: onlineStorePath,
 					},
 				}
-				resource.Spec.Services.Registry = &feastdevv1alpha1.Registry{
-					Local: &feastdevv1alpha1.LocalRegistryConfig{
-						Persistence: &feastdevv1alpha1.RegistryPersistence{
-							FilePersistence: &feastdevv1alpha1.RegistryFilePersistence{
-								Path: registryPath,
-							},
-						},
+				resource.Spec.Services.Registry.Local.Persistence = &feastdevv1alpha1.RegistryPersistence{
+					FilePersistence: &feastdevv1alpha1.RegistryFilePersistence{
+						Path: registryPath,
 					},
 				}
 

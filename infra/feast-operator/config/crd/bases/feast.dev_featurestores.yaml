@@ -89,7 +89,7 @@ spec:
                 type: string
               services:
                 description: FeatureStoreServices defines the desired feast services.
-                  An ephemeral registry is deployed by default.
+                  An ephemeral onlineStore feature server is deployed by default.
                 properties:
                   deploymentStrategy:
                     description: DeploymentStrategy describes how to replace existing
@@ -125,8 +125,7 @@ spec:
                     description: Disable the 'feast repo initialization' initContainer
                     type: boolean
                   offlineStore:
-                    description: OfflineStore configures the deployed offline store
-                      service
+                    description: OfflineStore configures the offline store service
                     properties:
                       persistence:
                         description: OfflineStorePersistence configures the persistence
@@ -566,8 +565,7 @@ spec:
                         type: object
                     type: object
                   onlineStore:
-                    description: OnlineStore configures the deployed online store
-                      service
+                    description: OnlineStore configures the online store service
                     properties:
                       persistence:
                         description: OnlineStorePersistence configures the persistence
@@ -1026,8 +1024,7 @@ spec:
                       is required. Local is the default setting.
                     properties:
                       local:
-                        description: LocalRegistryConfig configures the deployed registry
-                          service
+                        description: LocalRegistryConfig configures the registry service
                         properties:
                           persistence:
                             description: RegistryPersistence configures the persistence
@@ -3316,7 +3313,7 @@ spec:
                     type: string
                   services:
                     description: FeatureStoreServices defines the desired feast services.
-                      An ephemeral registry is deployed by default.
+                      An ephemeral onlineStore feature server is deployed by default.
                     properties:
                       deploymentStrategy:
                         description: DeploymentStrategy describes how to replace existing
@@ -3352,8 +3349,7 @@ spec:
                         description: Disable the 'feast repo initialization' initContainer
                         type: boolean
                       offlineStore:
-                        description: OfflineStore configures the deployed offline
-                          store service
+                        description: OfflineStore configures the offline store service
                         properties:
                           persistence:
                             description: OfflineStorePersistence configures the persistence
@@ -3800,8 +3796,7 @@ spec:
                             type: object
                         type: object
                       onlineStore:
-                        description: OnlineStore configures the deployed online store
-                          service
+                        description: OnlineStore configures the online store service
                         properties:
                           persistence:
                             description: OnlineStorePersistence configures the persistence
@@ -4268,8 +4263,8 @@ spec:
                           selection is required. Local is the default setting.
                         properties:
                           local:
-                            description: LocalRegistryConfig configures the deployed
-                              registry service
+                            description: LocalRegistryConfig configures the registry
+                              service
                             properties:
                               persistence:
                                 description: RegistryPersistence configures the persistence

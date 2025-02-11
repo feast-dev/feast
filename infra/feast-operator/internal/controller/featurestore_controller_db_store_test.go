@@ -224,17 +224,13 @@ var _ = Describe("FeatureStore Controller - db storage services", func() {
 						},
 					},
 				}
-				resource.Spec.Services.Registry = &feastdevv1alpha1.Registry{
-					Local: &feastdevv1alpha1.LocalRegistryConfig{
-						Persistence: &feastdevv1alpha1.RegistryPersistence{
-							DBPersistence: &feastdevv1alpha1.RegistryDBStorePersistence{
-								Type: string(registryType),
-								SecretRef: corev1.LocalObjectReference{
-									Name: "registry-store-secret",
-								},
-								SecretKeyName: "sql_custom_registry_key",
-							},
+				resource.Spec.Services.Registry.Local.Persistence = &feastdevv1alpha1.RegistryPersistence{
+					DBPersistence: &feastdevv1alpha1.RegistryDBStorePersistence{
+						Type: string(registryType),
+						SecretRef: corev1.LocalObjectReference{
+							Name: "registry-store-secret",
 						},
+						SecretKeyName: "sql_custom_registry_key",
 					},
 				}
 
