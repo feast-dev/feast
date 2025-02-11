@@ -1,0 +1,121 @@
+//
+// Copyright 2020 The Feast Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
+
+syntax = "proto3";
+package feast.core;
+
+option go_package = "github.com/feast-dev/feast/go/protos/feast/core";
+option java_outer_classname = "SortedFeatureViewProto";
+option java_package = "feast.proto.core";
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+import "feast/core/DataSource.proto";
+import "feast/core/Entity.proto";
+import "feast/core/Feature.proto";
+import "feast/core/FeatureView.proto";
+import "feast/types/Value.proto";
+
+// Represents a SortedFeatureView, used for range queries on features
+message SortedFeatureView {
+    // User-specified specifications of the sorted feature view.
+    SortedFeatureViewSpec spec = 1;
+
+    // System-populated metadata for this feature view.
+    FeatureViewMeta meta = 2;
+}
+
+message SortedFeatureViewSpec {
+    // Name of the feature view. Must be unique. Not updated.
+    string name = 1;
+
+    // Name of Feast project that this feature view belongs to.
+    string project = 2;
+
+    // List of names of entities associated with this feature view.
+    repeated string entities = 3;
+
+    // List of specifications for each feature defined as part of this feature view.
+    repeated FeatureSpecV2 features = 4;
+
+    // List of specifications for each entity defined as part of this feature view.
+    repeated FeatureSpecV2 entity_columns = 12;
+
+    // List of sort keys for this feature view.
+    repeated SortKey sort_keys = 13;
+
+    // Description of the feature view.
+    string description = 10;
+
+    // User defined metadata
+    map<string,string> tags = 5;
+
+    // Owner of the feature view.
+    string owner = 11;
+
+    // Features in this feature view can only be retrieved from online serving
+    // younger than ttl. Ttl is measured as the duration of time between
+    // the feature's event timestamp and when the feature is retrieved
+    // Feature values outside ttl will be returned as unset values and indicated to end user
+    google.protobuf.Duration ttl = 6;
+
+    // Batch/Offline DataSource where this view can retrieve offline feature data.
+    DataSource batch_source = 7;
+
+    // Streaming DataSource from where this view can consume "online" feature data.
+    DataSource stream_source = 9;
+
+    // Whether these features should be served online or not
+    bool online = 8;
+
+    // User-specified specifications of this entity.
+    // Adding higher index to avoid conflicts in future 
+    // if Feast adds more fields
+    repeated Entity original_entities = 30;
+}
+
+// Defines the sorting criteria for range-based feature queries.
+message SortKey {
+    // Name of the feature used for sorting.
+    string name = 1;
+
+    // The value type of the sorting key (e.g., INT64, FLOAT, STRING).
+    feast.types.ValueType.Enum value_type = 2;
+
+    // The default sorting order for this key.
+    SortOrder.Enum default_sort_order = 3;
+
+    // Tags for user defined metadata on a feature
+    map<string,string> tags = 4;
+
+    // Description of the feature.
+    string description = 5;
+}
+
+// Specifies the possible sorting orders for a feature view.
+message SortOrder {
+    enum Enum {
+        // Invalid sorting order (default value).
+        INVALID = 0;
+
+        // Ascending sorting order.
+        ASC = 1;
+
+        // Descending sorting order.
+        DESC = 2;
+    }
+}
