@@ -138,6 +138,24 @@ def version():
 
 
 @cli.command()
+@click.pass_context
+def configuration(ctx: click.Context):
+    """
+    Display Feast configuration
+    """
+    repo = ctx.obj["CHDIR"]
+    fs_yaml_file = ctx.obj["FS_YAML_FILE"]
+    cli_check_repo(repo, fs_yaml_file)
+    repo_config = load_repo_config(repo, fs_yaml_file)
+    if repo_config:
+        config_dict = repo_config.model_dump(by_alias=True, exclude_unset=True)
+        config_dict.pop("repo_path", None)
+        print(yaml.dump(config_dict, default_flow_style=False, sort_keys=False))
+    else:
+        print("No configuration found.")
+
+
+@cli.command()
 @click.option(
     "--host",
     "-h",
