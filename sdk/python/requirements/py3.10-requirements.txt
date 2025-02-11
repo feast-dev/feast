@@ -10,7 +10,7 @@ attrs==25.1.0
     # via
     #   jsonschema
     #   referencing
-bigtree==0.23.1
+bigtree==0.24.0
     # via feast (setup.py)
 certifi==2025.1.31
     # via requests

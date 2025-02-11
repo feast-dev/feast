@@ -2,7 +2,7 @@
 #    uv pip compile -p 3.9 --system --no-strip-extras setup.py --extra ci --output-file sdk/python/requirements/py3.9-ci-requirements.txt
 aiobotocore==2.19.0
     # via feast (setup.py)
-aiohappyeyeballs==2.4.4
+aiohappyeyeballs==2.4.6
     # via aiohttp
 aiohttp==3.11.12
     # via aiobotocore
@@ -69,7 +69,7 @@ beautifulsoup4==4.13.3
     # via nbconvert
 bidict==0.23.1
     # via ibis-framework
-bigtree==0.23.1
+bigtree==0.24.0
     # via feast (setup.py)
 bleach[css]==6.2.0
     # via nbconvert
@@ -94,6 +94,7 @@ cassandra-driver==3.29.2
     # via feast (setup.py)
 certifi==2025.1.31
     # via
+    #   clickhouse-connect
     #   elastic-transport
     #   httpcore
     #   httpx
@@ -120,6 +121,8 @@ click==8.1.8
     #   great-expectations
     #   pip-tools
     #   uvicorn
+clickhouse-connect==0.8.15
+    # via feast (setup.py)
 cloudpickle==3.1.1
     # via dask
 colorama==0.4.6
@@ -132,7 +135,7 @@ comm==0.2.2
     #   ipywidgets
 couchbase==4.3.2
     # via feast (setup.py)
-coverage[toml]==7.6.10
+coverage[toml]==7.6.12
     # via pytest-cov
 cryptography==43.0.3
     # via
@@ -148,7 +151,7 @@ cryptography==43.0.3
     #   snowflake-connector-python
     #   types-pyopenssl
     #   types-redis
-cython==3.0.11
+cython==3.0.12
     # via thriftpy2
 dask[dataframe]==2024.8.0
     # via
@@ -331,7 +334,7 @@ ibis-framework[duckdb]==9.0.0
     #   ibis-substrait
 ibis-substrait==4.0.1
     # via feast (setup.py)
-identify==2.6.6
+identify==2.6.7
     # via pre-commit
 idna==3.10
     # via
@@ -449,7 +452,9 @@ kubernetes==20.13.0
 locket==1.0.0
     # via partd
 lz4==4.4.3
-    # via trino
+    # via
+    #   clickhouse-connect
+    #   trino
 makefun==1.15.6
     # via great-expectations
 markdown-it-py==3.0.0
@@ -586,7 +591,7 @@ pbr==6.1.1
     # via mock
 pexpect==4.9.0
     # via ipython
-pip==25.0
+pip==25.0.1
     # via pip-tools
 pip-tools==7.4.1
     # via feast (setup.py)
@@ -776,6 +781,7 @@ python-keycloak==4.2.2
     # via feast (setup.py)
 pytz==2025.1
     # via
+    #   clickhouse-connect
     #   great-expectations
     #   ibis-framework
     #   pandas
@@ -856,7 +862,7 @@ ruamel-yaml==0.17.40
     # via great-expectations
 ruamel-yaml-clib==0.2.12
     # via ruamel-yaml
-ruff==0.9.5
+ruff==0.9.6
     # via feast (setup.py)
 s3transfer==0.11.2
     # via boto3
@@ -1013,7 +1019,7 @@ types-redis==4.6.0.20241004
     # via feast (setup.py)
 types-requests==2.30.0.0
     # via feast (setup.py)
-types-setuptools==75.8.0.20250110
+types-setuptools==75.8.0.20250210
     # via
     #   feast (setup.py)
     #   types-cffi
@@ -1067,6 +1073,7 @@ urllib3==1.26.20
     #   feast (setup.py)
     #   aiobotocore
     #   botocore
+    #   clickhouse-connect
     #   docker
     #   elastic-transport
     #   great-expectations
@@ -1124,4 +1131,6 @@ yarl==1.18.3
 zipp==3.21.0
     # via importlib-metadata
 zstandard==0.23.0
-    # via trino
+    # via
+    #   clickhouse-connect
+    #   trino
