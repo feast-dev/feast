@@ -102,7 +102,7 @@ class ClickhouseOfflineStore(OfflineStore):
             # Hack for query_context.entity_selections to support uppercase in columns
             for context in query_context_dict:
                 context["entity_selections"] = [
-                    f""""{entity_selection.replace(' AS ', '" AS "')}\""""
+                    f""""{entity_selection.replace(" AS ", '" AS "')}\""""
                     for entity_selection in context["entity_selections"]
                 ]
 

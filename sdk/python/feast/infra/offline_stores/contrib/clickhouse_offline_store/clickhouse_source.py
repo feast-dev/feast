@@ -58,15 +58,15 @@ class ClickhouseOptions:
 class ClickhouseSource(DataSource):
     def __init__(
         self,
-        name: str | None = None,
-        query: str | None = None,
-        table: str | None = None,
-        timestamp_field: str | None = "",
-        created_timestamp_column: str | None = "",
-        field_mapping: dict[str, str] | None = None,
-        description: str | None = "",
-        tags: dict[str, str] | None = None,
-        owner: str | None = "",
+        name: Optional[str] = None,
+        query: Optional[str] = None,
+        table: Optional[str] = None,
+        timestamp_field: Optional[str] = "",
+        created_timestamp_column: Optional[str] = "",
+        field_mapping: Optional[dict[str, str]] = None,
+        description: Optional[str] = "",
+        tags: Optional[dict[str, str]] = None,
+        owner: Optional[str] = "",
     ):
         self._clickhouse_options = ClickhouseOptions(
             name=name, query=query, table=table
@@ -180,7 +180,7 @@ def ch_type_to_feast_value_type(type_str: str) -> ValueType:
     if isinstance(type_obj, Array):
         container_type = Array
     type_map: dict[
-        tuple[Type[ClickHouseType] | None, Type[ClickHouseType]], ValueType
+        tuple[Optional[Type[ClickHouseType]], Type[ClickHouseType]], ValueType
     ] = {
         (None, Boolean): ValueType.BOOL,
         (None, String): ValueType.STRING,
