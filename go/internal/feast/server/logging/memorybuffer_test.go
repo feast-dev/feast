@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/apache/arrow/go/v8/arrow"
-	"github.com/apache/arrow/go/v8/arrow/array"
-	"github.com/apache/arrow/go/v8/arrow/memory"
+	"github.com/apache/arrow/go/v17/arrow"
+	"github.com/apache/arrow/go/v17/arrow/array"
+	"github.com/apache/arrow/go/v17/arrow/memory"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -118,7 +118,7 @@ func TestSerializeToArrowTable(t *testing.T) {
 		LogTimestamp: time.Now(),
 	})
 
-	pool := memory.NewCgoArrowAllocator()
+	pool := memory.NewGoAllocator()
 	builder := array.NewRecordBuilder(pool, b.arrowSchema)
 	defer builder.Release()
 

@@ -62,6 +62,7 @@ spec:
         - /manager
         args:
         - --leader-elect
+        - --health-probe-bind-address=:8081
         image: controller:latest
         name: manager
         securityContext:
@@ -69,6 +70,9 @@ spec:
           capabilities:
             drop:
             - "ALL"
+        env:
+        - name: RELATED_IMAGE_FEATURE_SERVER
+          value: feast:latest
         livenessProbe:
           httpGet:
             path: /healthz

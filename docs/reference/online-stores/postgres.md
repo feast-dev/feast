@@ -1,4 +1,4 @@
-# PostgreSQL online store (contrib)
+# PostgreSQL online store
 
 ## Description
 
@@ -35,7 +35,7 @@ online_store:
 ```
 {% endcode %}
 
-The full set of configuration options is available in [PostgreSQLOnlineStoreConfig](https://rtd.feast.dev/en/master/#feast.infra.online_stores.contrib.postgres.PostgreSQLOnlineStoreConfig).
+The full set of configuration options is available in [PostgreSQLOnlineStoreConfig](https://rtd.feast.dev/en/master/#feast.infra.online_stores.postgres_online_store.PostgreSQLOnlineStoreConfig).
 
 ## Functionality Matrix
 
@@ -79,7 +79,7 @@ For the Retrieval Augmented  Generation (RAG) use-case, you have to embed the qu
 {% code title="python" %}
 ```python
 from feast import FeatureStore
-from feast.infra.online_stores.postgres import retrieve_online_documents
+from feast.infra.online_stores.postgres_online_store import retrieve_online_documents
 
 feature_store = FeatureStore(repo_path=".")
 

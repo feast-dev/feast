@@ -1,0 +1,51 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: feast-data-stores
+  namespace: feast
+stringData:
+  redis: |
+    connection_string: redis.feast.svc.cluster.local:6379
+  sql: |
+    path: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres.feast.svc.cluster.local:5432/${POSTGRES_DB}
+    cache_ttl_seconds: 60
+    sqlalchemy_config_kwargs:
+        echo: false
+        pool_pre_ping: true
+---
+apiVersion: feast.dev/v1alpha1
+kind: FeatureStore
+metadata:
+  name: example
+  namespace: feast
+spec:
+  feastProject: credit_scoring_local
+  services:
+    offlineStore:
+      persistence:
+        file:
+          type: duckdb
+    onlineStore:
+      persistence:
+        store:
+          type: redis
+          secretRef:
+            name: feast-data-stores
+    registry:
+      local:
+        persistence:
+          store:
+            type: sql
+            secretRef:
+              name: feast-data-stores
+        server:
+          envFrom:
+          - secretRef:
+              name: postgres-secret
+          env:
+          - name: MPLCONFIGDIR
+            value: /tmp
+          resources:
+            requests:
+              cpu: 150m
+              memory: 128Mi

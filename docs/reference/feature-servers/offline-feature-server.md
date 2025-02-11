@@ -23,7 +23,7 @@ helm install feast-offline-server feast-charts/feast-feature-server --set feast_
 
 ## Server Example
 
-The complete example can be find under [remote-offline-store-example](../../../examples/remote-offline-store)
+The complete example can be found under [remote-offline-store-example](../../../examples/remote-offline-store)
 
 ## How to configure the client
 

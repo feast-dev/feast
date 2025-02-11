@@ -84,6 +84,8 @@ class TrinoOptions:
 
 
 class TrinoSource(DataSource):
+    """A TrinoSource object defines a data source that a TrinoOfflineStore class can use."""
+
     def __init__(
         self,
         *,

@@ -228,7 +228,6 @@ class Registry(BaseRegistry):
                 self._sync_feast_metadata_to_projects_table()
             except FileNotFoundError:
                 logger.info("Registry file not found. Creating new registry.")
-            finally:
                 self.commit()
 
     def _sync_feast_metadata_to_projects_table(self):

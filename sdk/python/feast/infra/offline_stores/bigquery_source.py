@@ -21,6 +21,8 @@ from feast.value_type import ValueType
 
 @typechecked
 class BigQuerySource(DataSource):
+    """A BigQuerySource object defines a data source that a BigQueryOfflineStore class can use."""
+
     def __init__(
         self,
         *,

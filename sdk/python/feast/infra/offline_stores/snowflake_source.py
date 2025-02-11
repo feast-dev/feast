@@ -21,6 +21,8 @@ from feast.value_type import ValueType
 
 @typechecked
 class SnowflakeSource(DataSource):
+    """A SnowflakeSource object defines a data source that a SnowflakeOfflineStore class can use."""
+
     def __init__(
         self,
         *,
@@ -283,15 +285,15 @@ class SnowflakeSource(DataSource):
                     row["snowflake_type"] = "NUMBERwSCALE"
 
             elif row["type_code"] in [5, 9, 12]:
-                error = snowflake_unsupported_map[row["type_code"]]
+                datatype = snowflake_unsupported_map[row["type_code"]]
                 raise NotImplementedError(
-                    f"The following Snowflake Data Type is not supported: {error}"
+                    f"The datatype of column {row['column_name']} is of type {datatype} in datasource {query}. This type is not supported. Try converting to VARCHAR."
                 )
             elif row["type_code"] in [1, 2, 3, 4, 6, 7, 8, 10, 11, 13]:
                 row["snowflake_type"] = snowflake_type_code_map[row["type_code"]]
             else:
                 raise NotImplementedError(
-                    f"The following Snowflake Column is not supported: {row['column_name']} (type_code: {row['type_code']})"
+                    f"The datatype of column {row['column_name']} in datasource {query} is not supported."
                 )
 
         return [
@@ -315,9 +317,9 @@ snowflake_type_code_map = {
 }
 
 snowflake_unsupported_map = {
-    5: "VARIANT -- Try converting to VARCHAR",
-    9: "OBJECT -- Try converting to VARCHAR",
-    12: "TIME -- Try converting to VARCHAR",
+    5: "VARIANT",
+    9: "OBJECT",
+    12: "TIME",
 }
 
 python_int_to_snowflake_type_map = {

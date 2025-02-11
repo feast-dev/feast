@@ -106,7 +106,8 @@ def _get_requested_feature_views_to_features_dict(
     on_demand_feature_views: List["OnDemandFeatureView"],
 ) -> Tuple[Dict["FeatureView", List[str]], Dict["OnDemandFeatureView", List[str]]]:
     """Create a dict of FeatureView -> List[Feature] for all requested features.
-    Set full_feature_names to True to have feature names prefixed by their feature view name."""
+    Set full_feature_names to True to have feature names prefixed by their feature view name.
+    """
 
     feature_views_to_feature_map: Dict["FeatureView", List[str]] = defaultdict(list)
     on_demand_feature_views_to_feature_map: Dict["OnDemandFeatureView", List[str]] = (
@@ -210,6 +211,28 @@ def _run_pyarrow_field_mapping(
     ]
     table = table.rename_columns(mapped_cols)
     return table
+
+
+def _get_fields_with_aliases(
+    fields: List[str],
+    field_mappings: Dict[str, str],
+) -> Tuple[List[str], List[str]]:
+    """
+    Get a list of fields with aliases based on the field mappings.
+    """
+    for field in fields:
+        if "." in field and field not in field_mappings:
+            raise ValueError(
+                f"Feature {field} contains a '.' character, which is not allowed in field names. Use field mappings to rename fields."
+            )
+    fields_with_aliases = [
+        f"{field} AS {field_mappings[field]}" if field in field_mappings else field
+        for field in fields
+    ]
+    aliases = [
+        field_mappings[field] if field in field_mappings else field for field in fields
+    ]
+    return (fields_with_aliases, aliases)
 
 
 def _coerce_datetime(ts):
@@ -570,6 +593,8 @@ def _augment_response_with_on_demand_transforms(
             proto_values.append(
                 python_values_to_proto_values(
                     feature_vector
+                    if isinstance(feature_vector, list)
+                    else [feature_vector]
                     if odfv.mode == "python"
                     else feature_vector.to_numpy(),
                     feature_type,
@@ -662,8 +687,60 @@ def _get_unique_entities(
         entity_name_to_join_key_map,
         join_key_values,
     )
+    # Validate that all expected join keys exist and have non-empty values.
+    expected_keys = set(entity_name_to_join_key_map.values())
+    expected_keys.discard("__dummy_id")
+    missing_keys = sorted(
+        list(set([key for key in expected_keys if key not in table_entity_values]))
+    )
+    empty_keys = sorted(
+        list(set([key for key in expected_keys if not table_entity_values.get(key)]))
+    )
 
-    # Convert back to rowise.
+    if missing_keys or empty_keys:
+        if not any(table_entity_values.values()):
+            raise KeyError(
+                f"Missing join key values for keys: {missing_keys}. "
+                f"No values provided for keys: {empty_keys}. "
+                f"Provided join_key_values: {list(join_key_values.keys())}"
+            )
+
+    # Convert the column-oriented table_entity_values into row-wise data.
+    keys = list(table_entity_values.keys())
+    # Each row is a tuple of ValueProto objects corresponding to the join keys.
+    rowise = list(enumerate(zip(*table_entity_values.values())))
+
+    # If there are no rows, return empty tuples.
+    if not rowise:
+        return (), ()
+
+    # Sort rowise so that rows with the same join key values are adjacent.
+    rowise.sort(key=lambda row: tuple(getattr(x, x.WhichOneof("val")) for x in row[1]))
+
+    # Group rows by their composite join key value.
+    groups = [
+        (dict(zip(keys, key_tuple)), [idx for idx, _ in group])
+        for key_tuple, group in itertools.groupby(rowise, key=lambda row: row[1])
+    ]
+
+    # If no groups were formed (should not happen for valid input), return empty tuples.
+    if not groups:
+        return (), ()
+
+    # Unpack the unique entities and their original row indexes.
+    unique_entities, indexes = tuple(zip(*groups))
+    return unique_entities, indexes
+
+
+def _get_unique_entities_from_values(
+    table_entity_values: Dict[str, List[ValueProto]],
+) -> Tuple[Tuple[Dict[str, ValueProto], ...], Tuple[List[int], ...]]:
+    """Return the set of unique composite Entities for a Feature View and the indexes at which they appear.
+
+    This method allows us to query the OnlineStore for data we need only once
+    rather than requesting and processing data for the same combination of
+    Entities multiple times.
+    """
     keys = table_entity_values.keys()
     # Sort the rowise data to allow for grouping but keep original index. This lambda is
     # sufficient as Entity types cannot be complex (ie. lists).
@@ -779,9 +856,11 @@ def _populate_response_from_feature_data(
     """
     # Add the feature names to the response.
     requested_feature_refs = [
-        f"{table.projection.name_to_use()}__{feature_name}"
-        if full_feature_names
-        else feature_name
+        (
+            f"{table.projection.name_to_use()}__{feature_name}"
+            if full_feature_names
+            else feature_name
+        )
         for feature_name in requested_features
     ]
     online_features_response.metadata.feature_names.val.extend(requested_feature_refs)
@@ -801,6 +880,70 @@ def _populate_response_from_feature_data(
                 event_timestamps=apply_list_mapping(timestamp_vector, indexes),
             )
         )
+
+
+def _populate_response_from_feature_data_v2(
+    feature_data: Iterable[
+        Tuple[
+            Iterable[Timestamp], Iterable["FieldStatus.ValueType"], Iterable[ValueProto]
+        ]
+    ],
+    indexes: Iterable[List[int]],
+    online_features_response: GetOnlineFeaturesResponse,
+    requested_features: Iterable[str],
+):
+    """Populate the GetOnlineFeaturesResponse with feature data.
+
+    This method assumes that `_read_from_online_store` returns data for each
+    combination of Entities in `entity_rows` in the same order as they
+    are provided.
+
+    Args:
+        feature_data: A list of data in Protobuf form which was retrieved from the OnlineStore.
+        indexes: A list of indexes which should be the same length as `feature_data`. Each list
+            of indexes corresponds to a set of result rows in `online_features_response`.
+        online_features_response: The object to populate.
+        full_feature_names: A boolean that provides the option to add the feature view prefixes to the feature names,
+            changing them from the format "feature" to "feature_view__feature" (e.g., "daily_transactions" changes to
+            "customer_fv__daily_transactions").
+        requested_features: The names of the features in `feature_data`. This should be ordered in the same way as the
+            data in `feature_data`.
+    """
+    # Add the feature names to the response.
+    requested_feature_refs = [(feature_name) for feature_name in requested_features]
+    online_features_response.metadata.feature_names.val.extend(requested_feature_refs)
+
+    timestamps, statuses, values = zip(*feature_data)
+
+    # Populate the result with data fetched from the OnlineStore
+    # which is guaranteed to be aligned with `requested_features`.
+    for (
+        feature_idx,
+        (timestamp_vector, statuses_vector, values_vector),
+    ) in enumerate(zip(zip(*timestamps), zip(*statuses), zip(*values))):
+        online_features_response.results.append(
+            GetOnlineFeaturesResponse.FeatureVector(
+                values=apply_list_mapping(values_vector, indexes),
+                statuses=apply_list_mapping(statuses_vector, indexes),
+                event_timestamps=apply_list_mapping(timestamp_vector, indexes),
+            )
+        )
+
+
+def _convert_entity_key_to_proto_to_dict(
+    entity_key_vals: List[EntityKeyProto],
+) -> Dict[str, List[ValueProto]]:
+    entity_dict: Dict[str, List[ValueProto]] = {}
+    for entity_key_val in entity_key_vals:
+        if entity_key_val is not None:
+            for join_key, entity_value in zip(
+                entity_key_val.join_keys, entity_key_val.entity_values
+            ):
+                if join_key not in entity_dict:
+                    entity_dict[join_key] = []
+                    # python_entity_value = _proto_value_to_value_type(entity_value)
+                    entity_dict[join_key].append(entity_value)
+    return entity_dict
 
 
 def _get_features(
@@ -1163,6 +1306,10 @@ def tags_str_to_dict(tags: str = "") -> dict[str, str]:
 
 def _utc_now() -> datetime:
     return datetime.now(tz=timezone.utc)
+
+
+def _serialize_vector_to_float_list(vector: List[float]) -> ValueProto:
+    return ValueProto(float_list_val=FloatListProto(val=vector))
 
 
 def _build_retrieve_online_document_record(

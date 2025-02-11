@@ -39,7 +39,7 @@ export default function EuiCustomLink({ to, ...rest }) {
   }
 
   // Generate the correct link href (with basename accounted for)
-  const href = useHref({ pathname: to });
+  const href = useHref(to);
 
   const props = { ...rest, href, onClick };
   return <EuiLink {...props} />;

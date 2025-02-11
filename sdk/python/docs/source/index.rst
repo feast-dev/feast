@@ -359,28 +359,28 @@ Snowflake Online Store
 PostgreSQL Online Store
 -----------------------
 
-.. autoclass:: feast.infra.online_stores.contrib.postgres.PostgreSQLOnlineStore
+.. autoclass:: feast.infra.online_stores.postgres_online_store.PostgreSQLOnlineStore
     :members:
 
-.. autoclass:: feast.infra.online_stores.contrib.postgres.PostgreSQLOnlineStoreConfig
+.. autoclass:: feast.infra.online_stores.postgres_online_store.PostgreSQLOnlineStoreConfig
     :members:
 
 HBase Online Store
 -----------------------
 
-.. autoclass:: feast.infra.online_stores.contrib.hbase_online_store.hbase.HbaseOnlineStore
+.. autoclass:: feast.infra.online_stores.hbase_online_store.hbase.HbaseOnlineStore
     :members:
 
-.. autoclass:: feast.infra.online_stores.contrib.hbase_online_store.hbase.HbaseOnlineStoreConfig
+.. autoclass:: feast.infra.online_stores.hbase_online_store.hbase.HbaseOnlineStoreConfig
     :members:
 
 Cassandra Online Store
 -----------------------
 
-.. autoclass:: feast.infra.online_stores.contrib.cassandra_online_store.cassandra_online_store.CassandraOnlineStore
+.. autoclass:: feast.infra.online_stores.cassandra_online_store.cassandra_online_store.CassandraOnlineStore
     :members:
 
-.. autoclass:: feast.infra.online_stores.contrib.cassandra_online_store.cassandra_online_store.CassandraOnlineStoreConfig
+.. autoclass:: feast.infra.online_stores.cassandra_online_store.cassandra_online_store.CassandraOnlineStoreConfig
     :members:
 
 Batch Materialization Engine

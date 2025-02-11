@@ -12,6 +12,10 @@
 [online-store.md](online-store.md)
 {% endcontent-ref %}
 
+{% content-ref url="feature-server.md" %}
+[feature-server.md](feature-server.md)
+{% endcontent-ref %}
+
 {% content-ref url="batch-materialization-engine.md" %}
 [batch-materialization-engine.md](batch-materialization-engine.md)
 {% endcontent-ref %}

@@ -35,6 +35,11 @@ class PandasTransformation:
     def transform(self, input_df: pd.DataFrame) -> pd.DataFrame:
         return self.udf(input_df)
 
+    def transform_singleton(self, input_df: pd.DataFrame) -> pd.DataFrame:
+        raise ValueError(
+            "PandasTransformation does not support singleton transformations."
+        )
+
     def infer_features(self, random_input: dict[str, list[Any]]) -> list[Field]:
         df = pd.DataFrame.from_dict(random_input)
         output_df: pd.DataFrame = self.transform(df)

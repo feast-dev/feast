@@ -1,0 +1,48 @@
+apiVersion: feast.dev/v1alpha1
+kind: FeatureStore
+metadata:
+  name: sample-pvc-persistence
+spec:
+  feastProject: my_project
+  services:
+    # demonstrates using a pre-existing PVC
+    onlineStore:
+      persistence:
+        file:
+          path: online_store.db
+          pvc:
+            ref:
+              name: online-pvc
+            mountPath: /data/online
+    # demonstrates specifying a storageClassName and storage size
+    offlineStore:
+      persistence:
+        file:
+          type: duckdb
+          pvc:
+            create:
+              storageClassName: standard
+              resources:
+                requests:
+                  storage: 5Gi
+            mountPath: /data/offline
+    # demonstrates letting the Operator create a PVC w/ defaults set
+    registry:
+      local:
+        persistence:
+          file:
+            path: registry.db
+            pvc:
+              create: {}
+              mountPath: /data/registry
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: online-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi

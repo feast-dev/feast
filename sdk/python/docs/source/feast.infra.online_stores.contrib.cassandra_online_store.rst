@@ -7,7 +7,7 @@ Submodules
 feast.infra.online\_stores.contrib.cassandra\_online\_store.cassandra\_online\_store module
 -------------------------------------------------------------------------------------------
 
-.. automodule:: feast.infra.online_stores.contrib.cassandra_online_store.cassandra_online_store
+.. automodule:: feast.infra.online_stores.cassandra_online_store.cassandra_online_store
    :members:
    :undoc-members:
    :show-inheritance:
@@ -15,7 +15,7 @@ feast.infra.online\_stores.contrib.cassandra\_online\_store.cassandra\_online\_s
 Module contents
 ---------------
 
-.. automodule:: feast.infra.online_stores.contrib.cassandra_online_store
+.. automodule:: feast.infra.online_stores.cassandra_online_store
    :members:
    :undoc-members:
    :show-inheritance:

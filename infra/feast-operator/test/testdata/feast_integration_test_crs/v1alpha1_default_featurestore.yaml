@@ -1,0 +1,12 @@
+apiVersion: feast.dev/v1alpha1
+kind: FeatureStore
+metadata:
+  name: simple-feast-setup
+spec:
+  feastProject: my_project
+  services:
+    onlineStore:
+      server: {}
+    offlineStore:
+      server: {}
+    ui: {}

@@ -49,6 +49,7 @@ from tests.integration.feature_repos.universal.data_sources.file import (
     FileDataSourceCreator,
     RemoteOfflineOidcAuthStoreDataSourceCreator,
     RemoteOfflineStoreDataSourceCreator,
+    RemoteOfflineTlsStoreDataSourceCreator,
 )
 from tests.integration.feature_repos.universal.data_sources.redshift import (
     RedshiftDataSourceCreator,
@@ -85,6 +86,7 @@ from tests.integration.feature_repos.universal.online_store_creator import (
 )
 
 DYNAMO_CONFIG = {"type": "dynamodb", "region": "us-west-2"}
+MILVUS_CONFIG = {"type": "milvus"}
 REDIS_CONFIG = {"type": "redis", "connection_string": "localhost:6379,db=0"}
 REDIS_CLUSTER_CONFIG = {
     "type": "redis",
@@ -131,6 +133,7 @@ AVAILABLE_OFFLINE_STORES: List[Tuple[str, Type[DataSourceCreator]]] = [
     ("local", DuckDBDeltaDataSourceCreator),
     ("local", RemoteOfflineStoreDataSourceCreator),
     ("local", RemoteOfflineOidcAuthStoreDataSourceCreator),
+    ("local", RemoteOfflineTlsStoreDataSourceCreator),
 ]
 
 if os.getenv("FEAST_IS_LOCAL_TEST", "False") == "True":
@@ -160,6 +163,7 @@ if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
     AVAILABLE_ONLINE_STORES["datastore"] = ("datastore", None)
     AVAILABLE_ONLINE_STORES["snowflake"] = (SNOWFLAKE_CONFIG, None)
     AVAILABLE_ONLINE_STORES["bigtable"] = (BIGTABLE_CONFIG, None)
+    # AVAILABLE_ONLINE_STORES["milvus"] = (MILVUS_CONFIG, None)
 
     # Uncomment to test using private IKV account. Currently not enabled as
     # there is no dedicated IKV instance for CI testing and there is no
@@ -556,6 +560,9 @@ def construct_test_environment(
             path=str(Path(repo_dir_name) / "registry.db"),
             cache_ttl_seconds=1,
         )
+
+    if test_repo_config.online_store in ["milvus", "pgvector", "qdrant"]:
+        entity_key_serialization_version = 3
 
     environment_params = {
         "name": project,

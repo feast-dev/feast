@@ -193,9 +193,7 @@ class DaskOfflineStore(OfflineStore):
             ):
                 # Make sure all event timestamp fields are tz-aware. We default tz-naive fields to UTC
                 entity_df_with_features[entity_df_event_timestamp_col] = (
-                    entity_df_with_features[
-                        entity_df_event_timestamp_col
-                    ].apply(
+                    entity_df_with_features[entity_df_event_timestamp_col].apply(
                         lambda x: x
                         if x.tzinfo is not None
                         else x.replace(tzinfo=timezone.utc)

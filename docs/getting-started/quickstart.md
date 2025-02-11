@@ -10,6 +10,9 @@ Feast (Feature Store) is an open-source feature store designed to facilitate the
 	
 * *For Data Engineers*: Feast provides a centralized catalog for storing feature definitions allowing one to maintain a single source of truth for feature data. It provides the abstraction for reading and writing to many different types of offline and online data stores. Using either the provided python SDK or the feature server service, users can write data to the online and/or offline stores and then read that data out again in either low-latency online scenarios for model inference, or in batch scenarios for model training.
 
+* *For AI Engineers*: Feast provides a platform designed to scale your AI applications by enabling seamless integration of richer data and facilitating fine-tuning. With Feast, you can optimize the performance of your AI models while ensuring a scalable and efficient data pipeline.
+
+
 For more info refer to [Introduction to feast](../README.md)
 
 ## Prerequisites
@@ -493,19 +496,14 @@ print(training_df.head())
 {% endtabs %}
 ### Step 6: Ingest batch features into your online store
 
-We now serialize the latest values of features since the beginning of time to prepare for serving (note: 
-`materialize-incremental` serializes all new features since the last `materialize` call).
+We now serialize the latest values of features since the beginning of time to prepare for serving. Note, `materialize_incremental` serializes all new features since the last `materialize` call, or since the time provided minus the `ttl` timedelta. In this case, this will be `CURRENT_TIME - 1 day` (`ttl` was set on the `FeatureView` instances in [feature_repo/feature_repo/example_repo.py](feature_repo/feature_repo/example_repo.py)).
 
 {% tabs %}
 {% tab title="Bash" %}
 ```bash
 CURRENT_TIME=$(date -u +"%Y-%m-%dT%H:%M:%S")
-# For mac
-LAST_YEAR=$(date -u -v -1y +"%Y-%m-%dT%H:%M:%S")
-# For Linux
-# LAST_YEAR=$(date -u -d "last year" +"%Y-%m-%dT%H:%M:%S")
 
-feast materialize-incremental $LAST_YEAR $CURRENT_TIME
+feast materialize-incremental $CURRENT_TIME
 ```
 {% endtab %}
 {% endtabs %}

@@ -1,10 +1,12 @@
 # Feast Operator
 This is a K8s Operator that can be used to deploy and manage **Feast**, an open source feature store for machine learning.
 
+### **[FeatureStore CR API Reference](docs/api/markdown/ref.md)**
+
 ## Getting Started
 
 ### Prerequisites
-- go version v1.21.0+
+- go version v1.22
 - docker version 17.03+.
 - kubectl version v1.11.3+.
 - Access to a Kubernetes v1.11.3+ cluster.
@@ -108,8 +110,8 @@ make deploy IMG=<some-registry>/feast-operator:<some-tag>
 ```
 
 ### Prerequisites
-- go version v1.21
-- operator-sdk version v1.37.0
+- go version v1.22
+- operator-sdk version v1.38.0
 
 **NOTE:** Run `make help` for more information on all potential `make` targets
 
@@ -131,3 +133,25 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
+
+
+## Running End-to-End integration tests on local(dev) environment
+You need a kind cluster to run the e2e tests on local(dev) environment.
+
+```shell
+# Default kind cluster configuration is not enough to run all the pods. In my case i was using docker with colima. kind uses the cpi and memory assigned to docker.
+# below memory configuration worked well but if you are using other docker runtime then please increase the cpu and memory.
+colima start --cpu 10 --memory 15 --disk 100
+
+# create the kind cluster
+kind create cluster
+
+# set kubernetes context to the recently created kind cluster
+kubectl cluster-info --context kind-kind
+
+# run the command from operator directory to run e2e tests.
+make test-e2e
+
+# delete cluster once you are done.
+kind delete cluster
+```

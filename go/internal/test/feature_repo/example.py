@@ -2,10 +2,12 @@
 
 from datetime import timedelta
 
-from feast import Entity, Feature, FeatureView, Field, FileSource, FeatureService
+from feast import Entity, Feature, FeatureView, Field, FileSource, FeatureService, RequestSource
 from feast.feature_logging import LoggingConfig
 from feast.infra.offline_stores.file_source import FileLoggingDestination
-from feast.types import Float32, Int64
+from feast.types import Float32, Float64, Int64, PrimitiveFeastType
+from feast.on_demand_feature_view import on_demand_feature_view
+import pandas as pd
 
 # Read data from parquet files. Parquet is convenient for local development mode. For
 # production, you can use your favorite DWH, such as BigQuery. See Feast documentation
@@ -42,3 +44,31 @@ driver_stats_fs = FeatureService(
     features=[driver_hourly_stats_view],
     logging_config=LoggingConfig(destination=FileLoggingDestination(path=""))
 )
+
+
+# Define a request data source which encodes features / information only
+# available at request time (e.g. part of the user initiated HTTP request)
+input_request = RequestSource(
+    name="vals_to_add",
+    schema=[
+        Field(name="val_to_add", dtype=PrimitiveFeastType.INT64),
+        Field(name="val_to_add_2", dtype=PrimitiveFeastType.INT64),
+    ]
+)
+
+# Use the input data and feature view features to create new features
+@on_demand_feature_view(
+   sources=[
+       driver_hourly_stats_view,
+       input_request
+   ],
+   schema=[
+     Field(name='conv_rate_plus_val1', dtype=Float64),
+     Field(name='conv_rate_plus_val2', dtype=Float64)
+   ]
+)
+def transformed_conv_rate(features_df: pd.DataFrame) -> pd.DataFrame:
+    df = pd.DataFrame()
+    df['conv_rate_plus_val1'] = (features_df['conv_rate'] + features_df['val_to_add'])
+    df['conv_rate_plus_val2'] = (features_df['conv_rate'] + features_df['val_to_add_2'])
+    return df

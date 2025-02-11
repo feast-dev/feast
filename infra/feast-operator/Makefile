@@ -3,7 +3,7 @@
 # To re-generate a bundle for another specific version without changing the standard setup, you can:
 # - use the VERSION as arg of the bundle target (e.g make bundle VERSION=0.0.2)
 # - use environment variables to overwrite this value (e.g export VERSION=0.0.2)
-VERSION ?= 0.41.0
+VERSION ?= 0.45.0
 
 # CHANNELS define the bundle channels used in the bundle.
 # Add a new line here if you would like to change its default config. (E.g CHANNELS = "candidate,fast,stable")
@@ -48,11 +48,12 @@ endif
 
 # Set the Operator SDK version to use. By default, what is installed on the system is used.
 # This is useful for CI or a project to utilize a specific version of the operator-sdk toolkit.
-OPERATOR_SDK_VERSION ?= v1.37.0
+OPERATOR_SDK_VERSION ?= v1.38.0
 # Image URL to use all building/pushing image targets
 IMG ?= $(IMAGE_TAG_BASE):$(VERSION)
+FS_IMG ?= docker.io/feastdev/feature-server:$(VERSION)
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
-ENVTEST_K8S_VERSION = 1.29.0
+ENVTEST_K8S_VERSION = 1.30.0
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -96,7 +97,7 @@ help: ## Display this help.
 
 .PHONY: manifests
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
-	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+	$(CONTROLLER_GEN) rbac:roleName=manager-role crd:maxDescLen=0 webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
 .PHONY: generate
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
@@ -111,13 +112,19 @@ vet: ## Run go vet against code.
 	go vet ./...
 
 .PHONY: test
-test: build-installer fmt vet lint envtest ## Run tests.
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $$(go list ./... | grep -v /e2e) -coverprofile cover.out
+test: build-installer vet lint envtest ## Run tests.
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $$(go list ./... | grep -v test/e2e | grep -v test/data-source-types) -coverprofile cover.out
 
 # Utilize Kind or modify the e2e tests to load the image locally, enabling compatibility with other vendors.
 .PHONY: test-e2e  # Run the e2e tests against a Kind k8s instance that is spun up.
 test-e2e:
-	go test ./test/e2e/ -v -ginkgo.v
+	go test -timeout 30m ./test/e2e/ -v -ginkgo.v
+
+# Requires python3
+.PHONY: test-datasources
+test-datasources:
+	python3 test/data-source-types/data-source-types.py
+	go test ./test/data-source-types/
 
 .PHONY: lint
 lint: golangci-lint ## Run golangci-lint linter & yamllint
@@ -142,7 +149,13 @@ run: manifests generate fmt vet ## Run a controller from your host.
 # More info: https://docs.docker.com/develop/develop-images/build_enhancements/
 .PHONY: docker-build
 docker-build: ## Build docker image with the manager.
-	$(CONTAINER_TOOL) build -t ${IMG} .
+	$(CONTAINER_TOOL) build -t ${IMG} --load .
+
+## Build feast docker image.
+.PHONY: feast-ci-dev-docker-img
+feast-ci-dev-docker-img:
+	cd ./../.. && make build-feature-server-dev
+
 
 .PHONY: docker-push
 docker-push: ## Push docker image with the manager.
@@ -161,12 +174,12 @@ docker-buildx: ## Build and push docker image for the manager for cross-platform
 	sed -e '1 s/\(^FROM\)/FROM --platform=\$$\{BUILDPLATFORM\}/; t' -e ' 1,// s//FROM --platform=\$$\{BUILDPLATFORM\}/' Dockerfile > Dockerfile.cross
 	- $(CONTAINER_TOOL) buildx create --name project-v3-builder
 	$(CONTAINER_TOOL) buildx use project-v3-builder
-	- $(CONTAINER_TOOL) buildx build --push --platform=$(PLATFORMS) --tag ${IMG} -f Dockerfile.cross .
+	- $(CONTAINER_TOOL) buildx build --push --platform=$(PLATFORMS) --tag ${IMG} -f Dockerfile.cross --load .
 	- $(CONTAINER_TOOL) buildx rm project-v3-builder
 	rm Dockerfile.cross
 
 .PHONY: build-installer
-build-installer: manifests generate kustomize ## Generate a consolidated YAML with CRDs and deployment.
+build-installer: manifests generate-ref kustomize related-image-fs ## Generate a consolidated YAML with CRDs and deployment.
 	mkdir -p dist
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build config/default > dist/install.yaml
@@ -186,7 +199,7 @@ uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified 
 	$(KUSTOMIZE) build config/crd | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
 
 .PHONY: deploy
-deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
+deploy: manifests kustomize related-image-fs ## Deploy controller to the K8s cluster specified in ~/.kube/config.
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build config/default | $(KUBECTL) apply -f -
 
@@ -197,22 +210,27 @@ undeploy: kustomize ## Undeploy controller from the K8s cluster specified in ~/.
 ##@ Dependencies
 
 ## Location to install dependencies to
-LOCALBIN ?= $(shell pwd)/bin
+LOCALDIR ?= $(shell pwd)
+LOCALBIN ?= $(LOCALDIR)/bin
 $(LOCALBIN):
 	mkdir -p $(LOCALBIN)
 
 ## Tool Binaries
 KUBECTL ?= kubectl
-KUSTOMIZE ?= $(LOCALBIN)/kustomize-$(KUSTOMIZE_VERSION)
-CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen-$(CONTROLLER_TOOLS_VERSION)
-ENVTEST ?= $(LOCALBIN)/setup-envtest-$(ENVTEST_VERSION)
-GOLANGCI_LINT = $(LOCALBIN)/golangci-lint-$(GOLANGCI_LINT_VERSION)
+KUSTOMIZE ?= $(LOCALBIN)/kustomize
+CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
+CRD_REF_DOCS ?= $(LOCALBIN)/crd-ref-docs
+ENVTEST ?= $(LOCALBIN)/setup-envtest
+GOLANGCI_LINT = $(LOCALBIN)/golangci-lint
+ENVSUBST = $(LOCALBIN)/envsubst
 
 ## Tool Versions
-KUSTOMIZE_VERSION ?= v5.3.0
-CONTROLLER_TOOLS_VERSION ?= v0.14.0
-ENVTEST_VERSION ?= release-0.17
-GOLANGCI_LINT_VERSION ?= v1.57.2
+KUSTOMIZE_VERSION ?= v5.4.2
+CONTROLLER_TOOLS_VERSION ?= v0.15.0
+CRD_REF_DOCS_VERSION ?= v0.1.0
+ENVTEST_VERSION ?= release-0.18
+GOLANGCI_LINT_VERSION ?= v1.59.1
+ENVSUBST_VERSION ?= v1.4.2
 
 .PHONY: kustomize
 kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.
@@ -232,20 +250,28 @@ $(ENVTEST): $(LOCALBIN)
 .PHONY: golangci-lint
 golangci-lint: $(GOLANGCI_LINT) ## Download golangci-lint locally if necessary.
 $(GOLANGCI_LINT): $(LOCALBIN)
-	$(call go-install-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/cmd/golangci-lint,${GOLANGCI_LINT_VERSION})
+	$(call go-install-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/cmd/golangci-lint,$(GOLANGCI_LINT_VERSION))
+
+.PHONY: envsubst
+envsubst: $(ENVSUBST) ## Download envsubst locally if necessary.
+$(ENVSUBST): $(LOCALBIN)
+	$(call go-install-tool,$(ENVSUBST),github.com/a8m/envsubst/cmd/envsubst,$(ENVSUBST_VERSION))
 
 # go-install-tool will 'go install' any package with custom target and name of binary, if it doesn't exist
 # $1 - target path with name of binary (ideally with version)
 # $2 - package url which can be installed
 # $3 - specific version of package
 define go-install-tool
-@[ -f $(1) ] || { \
+@[ -f "$(1)-$(3)" ] || { \
+   echo "Downloading $${package}" ;\
+rm -f $(1) || true ;\
 set -e; \
 package=$(2)@$(3) ;\
 echo "Downloading $${package}" ;\
 GOBIN=$(LOCALBIN) go install $${package} ;\
-mv "$$(echo "$(1)" | sed "s/-$(3)$$//")" $(1) ;\
-}
+mv $(1) $(1)-$(3) ;\
+} ;\
+ln -sf $(1)-$(3) $(1) 
 endef
 
 .PHONY: operator-sdk
@@ -265,8 +291,17 @@ OPERATOR_SDK = $(shell which operator-sdk)
 endif
 endif
 
+.PHONY: crd-ref-docs
+crd-ref-docs: $(CRD_REF_DOCS) ## Download crd-ref-docs locally if necessary.
+$(CRD_REF_DOCS): $(LOCALBIN)
+	$(call go-install-tool,$(CRD_REF_DOCS),github.com/elastic/crd-ref-docs,$(CRD_REF_DOCS_VERSION))
+
+.PHONY: generate-ref
+generate-ref: generate fmt crd-ref-docs
+	$(CRD_REF_DOCS) --log-level=WARN --config=$(LOCALDIR)/docs/crd-ref-templates/config.yaml --source-path=$(LOCALDIR)/api/v1alpha1 --renderer=markdown --templates-dir=$(LOCALDIR)/docs/crd-ref-templates/markdown --output-path=$(LOCALDIR)/docs/api/markdown/ref.md
+
 .PHONY: bundle
-bundle: manifests kustomize operator-sdk ## Generate bundle manifests and metadata, then validate generated files.
+bundle: manifests kustomize related-image-fs operator-sdk ## Generate bundle manifests and metadata, then validate generated files.
 	$(OPERATOR_SDK) generate kustomize manifests -q
 	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
 	$(KUSTOMIZE) build config/manifests | $(OPERATOR_SDK) generate bundle $(BUNDLE_GEN_FLAGS)
@@ -320,3 +355,7 @@ catalog-build: opm ## Build a catalog image.
 .PHONY: catalog-push
 catalog-push: ## Push a catalog image.
 	$(MAKE) docker-push IMG=$(CATALOG_IMG)
+
+.PHONY: related-image-fs
+related-image-fs: envsubst
+	FS_IMG=$(FS_IMG) $(ENVSUBST) < config/default/related_image_fs_patch.tmpl > config/default/related_image_fs_patch.yaml

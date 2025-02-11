@@ -16,12 +16,14 @@ issues:
       linters:
         - dupl
         - lll
+    - path: "test/*"
+      linters:
+        - lll
 linters:
   disable-all: true
   enable:
     - dupl
     - errcheck
-    - exportloopref
     - goconst
     - gocyclo
     - gofmt
@@ -32,9 +34,16 @@ linters:
     - lll
     - misspell
     - nakedret
+    - ginkgolinter
     - prealloc
+    - revive
     - staticcheck
     - typecheck
     - unconvert
     - unparam
     - unused
+
+linters-settings:
+  revive:
+    rules:
+      - name: comment-spacings

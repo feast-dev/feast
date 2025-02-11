@@ -7,7 +7,7 @@ Dataset's metadata is stored in the Feast registry and raw data (features, entit
 Dataset can be created from:
 
 1. Results of historical retrieval
-2. \[planned] Logging request (including input for [on demand transformation](../../reference/alpha-on-demand-feature-view.md)) and response during feature serving
+2. \[planned] Logging request (including input for [on demand transformation](../../reference/beta-on-demand-feature-view.md)) and response during feature serving
 3. \[planned] Logging features during writing to online store (from batch source or stream)
 
 ### Creating a saved dataset from historical retrieval

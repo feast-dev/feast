@@ -1,10 +1,9 @@
-import json
 import sys
 import threading
 import time
 import traceback
 from contextlib import asynccontextmanager
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 import pandas as pd
 import psutil
@@ -25,6 +24,7 @@ from feast.errors import (
     FeastError,
     FeatureViewNotFoundException,
 )
+from feast.feast_object import FeastObject
 from feast.permissions.action import WRITE, AuthzedAction
 from feast.permissions.security_manager import assert_permissions
 from feast.permissions.server.rest import inject_user_details
@@ -69,6 +69,45 @@ class MaterializeIncrementalRequest(BaseModel):
     feature_views: Optional[List[str]] = None
 
 
+class GetOnlineFeaturesRequest(BaseModel):
+    entities: Dict[str, List[Any]]
+    feature_service: Optional[str] = None
+    features: Optional[List[str]] = None
+    full_feature_names: bool = False
+    query_embedding: Optional[List[float]] = None
+
+
+def _get_features(request: GetOnlineFeaturesRequest, store: "feast.FeatureStore"):
+    if request.feature_service:
+        feature_service = store.get_feature_service(
+            request.feature_service, allow_cache=True
+        )
+        assert_permissions(
+            resource=feature_service, actions=[AuthzedAction.READ_ONLINE]
+        )
+        features = feature_service  # type: ignore
+    else:
+        all_feature_views, all_on_demand_feature_views = (
+            utils._get_feature_views_to_use(
+                store.registry,
+                store.project,
+                request.features,
+                allow_cache=True,
+                hide_dummy_entity=False,
+            )
+        )
+        for feature_view in all_feature_views:
+            assert_permissions(
+                resource=feature_view, actions=[AuthzedAction.READ_ONLINE]
+            )
+        for od_feature_view in all_on_demand_feature_views:
+            assert_permissions(
+                resource=od_feature_view, actions=[AuthzedAction.READ_ONLINE]
+            )
+        features = request.features  # type: ignore
+    return features
+
+
 def get_app(
     store: "feast.FeatureStore",
     registry_ttl_sec: int = DEFAULT_FEATURE_SERVER_REGISTRY_TTL,
@@ -108,67 +147,71 @@ def get_app(
 
     app = FastAPI(lifespan=lifespan)
 
-    async def get_body(request: Request):
-        return await request.body()
-
     @app.post(
         "/get-online-features",
         dependencies=[Depends(inject_user_details)],
     )
-    async def get_online_features(body=Depends(get_body)):
-        body = json.loads(body)
-        full_feature_names = body.get("full_feature_names", False)
-        entity_rows = body["entities"]
+    async def get_online_features(request: GetOnlineFeaturesRequest) -> Dict[str, Any]:
         # Initialize parameters for FeatureStore.get_online_features(...) call
-        if "feature_service" in body:
-            feature_service = store.get_feature_service(
-                body["feature_service"], allow_cache=True
-            )
-            assert_permissions(
-                resource=feature_service, actions=[AuthzedAction.READ_ONLINE]
-            )
-            features = feature_service
-        else:
-            features = body["features"]
-            all_feature_views, all_on_demand_feature_views = (
-                utils._get_feature_views_to_use(
-                    store.registry,
-                    store.project,
-                    features,
-                    allow_cache=True,
-                    hide_dummy_entity=False,
-                )
-            )
-            for feature_view in all_feature_views:
-                assert_permissions(
-                    resource=feature_view, actions=[AuthzedAction.READ_ONLINE]
-                )
-            for od_feature_view in all_on_demand_feature_views:
-                assert_permissions(
-                    resource=od_feature_view, actions=[AuthzedAction.READ_ONLINE]
-                )
+        features = await run_in_threadpool(_get_features, request, store)
 
         read_params = dict(
             features=features,
-            entity_rows=entity_rows,
-            full_feature_names=full_feature_names,
+            entity_rows=request.entities,
+            full_feature_names=request.full_feature_names,
         )
 
         if store._get_provider().async_supported.online.read:
-            response = await store.get_online_features_async(**read_params)
+            response = await store.get_online_features_async(**read_params)  # type: ignore
         else:
             response = await run_in_threadpool(
-                lambda: store.get_online_features(**read_params)
+                lambda: store.get_online_features(**read_params)  # type: ignore
             )
 
         # Convert the Protobuf object to JSON and return it
-        return MessageToDict(
-            response.proto, preserving_proto_field_name=True, float_precision=18
+        response_dict = await run_in_threadpool(
+            MessageToDict,
+            response.proto,
+            preserving_proto_field_name=True,
+            float_precision=18,
+        )
+        return response_dict
+
+    @app.post(
+        "/retrieve-online-documents",
+        dependencies=[Depends(inject_user_details)],
+    )
+    async def retrieve_online_documents(
+        request: GetOnlineFeaturesRequest,
+    ) -> Dict[str, Any]:
+        logger.warn(
+            "This endpoint is in alpha and will be moved to /get-online-features when stable."
+        )
+        # Initialize parameters for FeatureStore.retrieve_online_documents_v2(...) call
+        features = await run_in_threadpool(_get_features, request, store)
+
+        read_params = dict(
+            features=features,
+            entity_rows=request.entities,
+            full_feature_names=request.full_feature_names,
+            query=request.query_embedding,
         )
 
+        response = await run_in_threadpool(
+            lambda: store.retrieve_online_documents_v2(**read_params)  # type: ignore
+        )
+
+        # Convert the Protobuf object to JSON and return it
+        response_dict = await run_in_threadpool(
+            MessageToDict,
+            response.proto,
+            preserving_proto_field_name=True,
+            float_precision=18,
+        )
+        return response_dict
+
     @app.post("/push", dependencies=[Depends(inject_user_details)])
-    async def push(body=Depends(get_body)):
-        request = PushFeaturesRequest(**json.loads(body))
+    async def push(request: PushFeaturesRequest) -> None:
         df = pd.DataFrame(request.df)
         actions = []
         if request.to == "offline":
@@ -219,22 +262,25 @@ def get_app(
         else:
             store.push(**push_params)
 
-    @app.post("/write-to-online-store", dependencies=[Depends(inject_user_details)])
-    def write_to_online_store(body=Depends(get_body)):
-        request = WriteToFeatureStoreRequest(**json.loads(body))
-        df = pd.DataFrame(request.df)
-        feature_view_name = request.feature_view_name
-        allow_registry_cache = request.allow_registry_cache
+    def _get_feast_object(
+        feature_view_name: str, allow_registry_cache: bool
+    ) -> FeastObject:
         try:
-            feature_view = store.get_stream_feature_view(
+            return store.get_stream_feature_view(  # type: ignore
                 feature_view_name, allow_registry_cache=allow_registry_cache
             )
         except FeatureViewNotFoundException:
-            feature_view = store.get_feature_view(
+            return store.get_feature_view(  # type: ignore
                 feature_view_name, allow_registry_cache=allow_registry_cache
             )
 
-        assert_permissions(resource=feature_view, actions=[AuthzedAction.WRITE_ONLINE])
+    @app.post("/write-to-online-store", dependencies=[Depends(inject_user_details)])
+    def write_to_online_store(request: WriteToFeatureStoreRequest) -> None:
+        df = pd.DataFrame(request.df)
+        feature_view_name = request.feature_view_name
+        allow_registry_cache = request.allow_registry_cache
+        resource = _get_feast_object(feature_view_name, allow_registry_cache)
+        assert_permissions(resource=resource, actions=[AuthzedAction.WRITE_ONLINE])
         store.write_to_online_store(
             feature_view_name=feature_view_name,
             df=df,
@@ -250,11 +296,11 @@ def get_app(
         )
 
     @app.post("/materialize", dependencies=[Depends(inject_user_details)])
-    def materialize(body=Depends(get_body)):
-        request = MaterializeRequest(**json.loads(body))
-        for feature_view in request.feature_views:
+    def materialize(request: MaterializeRequest) -> None:
+        for feature_view in request.feature_views or []:
             assert_permissions(
-                resource=feature_view, actions=[AuthzedAction.WRITE_ONLINE]
+                resource=_get_feast_object(feature_view, True),
+                actions=[AuthzedAction.WRITE_ONLINE],
             )
         store.materialize(
             utils.make_tzaware(parser.parse(request.start_ts)),
@@ -263,11 +309,11 @@ def get_app(
         )
 
     @app.post("/materialize-incremental", dependencies=[Depends(inject_user_details)])
-    def materialize_incremental(body=Depends(get_body)):
-        request = MaterializeIncrementalRequest(**json.loads(body))
-        for feature_view in request.feature_views:
+    def materialize_incremental(request: MaterializeIncrementalRequest) -> None:
+        for feature_view in request.feature_views or []:
             assert_permissions(
-                resource=feature_view, actions=[AuthzedAction.WRITE_ONLINE]
+                resource=_get_feast_object(feature_view, True),
+                actions=[AuthzedAction.WRITE_ONLINE],
             )
         store.materialize_incremental(
             utils.make_tzaware(parser.parse(request.end_ts)), request.feature_views
@@ -339,10 +385,14 @@ def start_server(
     workers: int,
     keep_alive_timeout: int,
     registry_ttl_sec: int,
-    ssl_key_path: str,
-    ssl_cert_path: str,
+    tls_key_path: str,
+    tls_cert_path: str,
     metrics: bool,
 ):
+    if (tls_key_path and not tls_cert_path) or (not tls_key_path and tls_cert_path):
+        raise ValueError(
+            "Both key and cert file paths are required to start server in TLS mode."
+        )
     if metrics:
         logger.info("Starting Prometheus Server")
         start_http_server(8000)
@@ -375,22 +425,22 @@ def start_server(
         }
 
         # Add SSL options if the paths exist
-        if ssl_key_path and ssl_cert_path:
-            options["keyfile"] = ssl_key_path
-            options["certfile"] = ssl_cert_path
+        if tls_key_path and tls_cert_path:
+            options["keyfile"] = tls_key_path
+            options["certfile"] = tls_cert_path
         FeastServeApplication(store=store, **options).run()
     else:
         import uvicorn
 
         app = get_app(store, registry_ttl_sec)
-        if ssl_key_path and ssl_cert_path:
+        if tls_key_path and tls_cert_path:
             uvicorn.run(
                 app,
                 host=host,
                 port=port,
                 access_log=(not no_access_log),
-                ssl_keyfile=ssl_key_path,
-                ssl_certfile=ssl_cert_path,
+                ssl_keyfile=tls_key_path,
+                ssl_certfile=tls_cert_path,
             )
         else:
             uvicorn.run(app, host=host, port=port, access_log=(not no_access_log))

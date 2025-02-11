@@ -7,7 +7,7 @@ Submodules
 feast.infra.online\_stores.contrib.mysql\_online\_store.mysql module
 --------------------------------------------------------------------
 
-.. automodule:: feast.infra.online_stores.contrib.mysql_online_store.mysql
+.. automodule:: feast.infra.online_stores.mysql_online_store.mysql
    :members:
    :undoc-members:
    :show-inheritance:
@@ -15,7 +15,7 @@ feast.infra.online\_stores.contrib.mysql\_online\_store.mysql module
 Module contents
 ---------------
 
-.. automodule:: feast.infra.online_stores.contrib.mysql_online_store
+.. automodule:: feast.infra.online_stores.mysql_online_store
    :members:
    :undoc-members:
    :show-inheritance:

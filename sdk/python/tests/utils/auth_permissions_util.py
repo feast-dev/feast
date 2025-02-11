@@ -58,8 +58,9 @@ def start_feature_server(
     repo_path: str,
     server_port: int,
     metrics: bool = False,
-    ssl_key_path: str = "",
-    ssl_cert_path: str = "",
+    tls_key_path: str = "",
+    tls_cert_path: str = "",
+    ca_trust_store_path: str = "",
 ):
     host = "0.0.0.0"
     cmd = [
@@ -72,11 +73,11 @@ def start_feature_server(
         str(server_port),
     ]
 
-    if ssl_cert_path and ssl_cert_path:
-        cmd.append("--ssl-key-path")
-        cmd.append(ssl_key_path)
-        cmd.append("--ssl-cert-path")
-        cmd.append(ssl_cert_path)
+    if tls_cert_path and tls_cert_path:
+        cmd.append("--key")
+        cmd.append(tls_key_path)
+        cmd.append("--cert")
+        cmd.append(tls_cert_path)
 
     feast_server_process = subprocess.Popen(
         cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE
@@ -100,13 +101,13 @@ def start_feature_server(
             timeout_msg="Unable to start the Prometheus server in 60 seconds.",
         )
     else:
-        assert not check_port_open(
-            "localhost", 8000
-        ), "Prometheus server is running when it should be disabled."
+        assert not check_port_open("localhost", 8000), (
+            "Prometheus server is running when it should be disabled."
+        )
 
     online_server_url = (
         f"https://localhost:{server_port}"
-        if ssl_key_path and ssl_cert_path
+        if tls_key_path and tls_cert_path
         else f"http://localhost:{server_port}"
     )
 
@@ -126,10 +127,30 @@ def start_feature_server(
         )
 
 
-def get_remote_registry_store(server_port, feature_store):
-    registry_config = RemoteRegistryConfig(
-        registry_type="remote", path=f"localhost:{server_port}"
-    )
+def get_remote_registry_store(server_port, feature_store, tls_mode):
+    is_tls_mode, _, tls_cert_path, ca_trust_store_path = tls_mode
+    if is_tls_mode:
+        if ca_trust_store_path:
+            registry_config = RemoteRegistryConfig(
+                registry_type="remote",
+                path=f"localhost:{server_port}",
+                is_tls=True,
+            )
+        else:
+            registry_config = RemoteRegistryConfig(
+                registry_type="remote",
+                path=f"localhost:{server_port}",
+                is_tls=True,
+                cert=tls_cert_path,
+            )
+    else:
+        registry_config = RemoteRegistryConfig(
+            registry_type="remote", path=f"localhost:{server_port}"
+        )
+
+    if is_tls_mode and ca_trust_store_path:
+        # configure trust store path only when is_tls_mode and ca_trust_store_path exists.
+        os.environ["FEAST_CA_CERT_FILE_PATH"] = ca_trust_store_path
 
     store = FeatureStore(
         config=RepoConfig(

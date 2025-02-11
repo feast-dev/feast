@@ -16,7 +16,7 @@ Feast supports primarily **time-stamped** tabular data as data sources. There ar
 * **Stream data sources**: Feast does **not** have native streaming integrations. It does however facilitate making streaming features available in different environments. There are two kinds of sources:
   * **Push sources** allow users to push features into Feast, and make it available for training / batch scoring ("offline"), for realtime feature serving ("online") or both.
   * **\[Alpha] Stream sources** allow users to register metadata from Kafka or Kinesis sources. The onus is on the user to ingest from these sources, though Feast provides some limited helper methods to ingest directly from Kafka / Kinesis topics.
-* **(Experimental) Request data sources:** This is data that is only available at request time (e.g. from a user action that needs an immediate model prediction response). This is primarily relevant as an input into [**on-demand feature views**](../../../docs/reference/alpha-on-demand-feature-view.md), which allow light-weight feature engineering and combining features across sources.
+* **(Experimental) Request data sources:** This is data that is only available at request time (e.g. from a user action that needs an immediate model prediction response). This is primarily relevant as an input into [**on-demand feature views**](../../../docs/reference/beta-on-demand-feature-view.md), which allow light-weight feature engineering and combining features across sources.
 
 ## Batch data ingestion
 

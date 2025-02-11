@@ -1,0 +1,5 @@
+- op: replace
+  path: "/spec/template/spec/containers/0/env/0"
+  value:
+    name: RELATED_IMAGE_FEATURE_SERVER
+    value: docker.io/feastdev/feature-server:0.45.0

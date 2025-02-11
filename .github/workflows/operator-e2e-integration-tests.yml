@@ -1,0 +1,71 @@
+# .github/workflows/operator-e2e-integration-tests.yml
+name: Operator e2e tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - labeled
+    paths-ignore:
+      - 'community/**'
+      - 'docs/**'
+      - 'examples/**'
+
+jobs:
+  operator-e2e-tests:
+    timeout-minutes: 40
+    if:
+      ((github.event.action == 'labeled' && (github.event.label.name == 'approved' || github.event.label.name == 'lgtm' || github.event.label.name == 'ok-to-test')) ||
+      (github.event.action != 'labeled' && (contains(github.event.pull_request.labels.*.name, 'ok-to-test') || contains(github.event.pull_request.labels.*.name, 'approved') || contains(github.event.pull_request.labels.*.name, 'lgtm')))) &&
+      github.repository == 'feast-dev/feast'
+    runs-on: ubuntu-latest
+
+    services:
+      kind:
+        # Specify the Kubernetes version
+        image: kindest/node:v1.30.6
+
+    env:
+      KIND_CLUSTER: "operator-e2e-cluster"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.22.9
+
+      - name: Create KIND cluster
+        run: |
+          kind create cluster --name $KIND_CLUSTER --wait 10m
+
+      - name: Set up kubernetes context
+        run: |
+          kubectl config use-context kind-$KIND_CLUSTER
+          echo "kind context is switched to cluster kind-$KIND_CLUSTER"
+
+      - name: Run E2E tests
+        run: |
+          # Run the e2e tests
+          cd infra/feast-operator/
+          make test-e2e
+
+      - name: Debug KIND Cluster when there is a failure
+        if: failure()
+        run: |
+          kubectl get pods --all-namespaces
+          kubectl describe nodes
+
+      - name: Clean up
+        if: always()
+        run: |
+          # Delete the KIND cluster after tests
+          kind delete cluster --name kind-$KIND_CLUSTER
+
+      

@@ -1,4 +1,4 @@
-# SingleStore online store (contrib)
+# SingleStore online store
 
 ## Description
 

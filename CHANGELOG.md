@@ -1,5 +1,154 @@
 # Changelog
 
+# [0.45.0](https://github.com/feast-dev/feast/compare/v0.44.0...v0.45.0) (2025-02-04)
+
+
+### Features
+
+* Changing refresh stable branch from step to a job. Using github credentials bot so that we can push the changes. ([#5011](https://github.com/feast-dev/feast/issues/5011)) ([7335e26](https://github.com/feast-dev/feast/commit/7335e266455561ebcb5ce8e318a79661e509a1c2))
+
+# [0.44.0](https://github.com/feast-dev/feast/compare/v0.43.0...v0.44.0) (2025-02-04)
+
+
+### Bug Fixes
+
+* Adding periodic check to fix the sporadic failures of the operator e2e tests.  ([#4952](https://github.com/feast-dev/feast/issues/4952)) ([1d086be](https://github.com/feast-dev/feast/commit/1d086beb9f9726f68ababace87c58c2cc6412ca3))
+* Adding the feast-operator/bin to the .gitignore directory. Somehow it… ([#5005](https://github.com/feast-dev/feast/issues/5005)) ([1a027ee](https://github.com/feast-dev/feast/commit/1a027eec3dc38ce8a949aca842c91742b0f68b47))
+* Changed Env Vars for e2e tests ([#4975](https://github.com/feast-dev/feast/issues/4975)) ([fa0084f](https://github.com/feast-dev/feast/commit/fa0084f2ed0e9d41ff813538ee63dd4ee7371e6c))
+* Fix GitHub Actions to pass authentication ([#4963](https://github.com/feast-dev/feast/issues/4963)) ([22b9138](https://github.com/feast-dev/feast/commit/22b9138a3c0040f5779f7218522f2d96e750fbbf)), closes [#4937](https://github.com/feast-dev/feast/issues/4937) [#4939](https://github.com/feast-dev/feast/issues/4939) [#4941](https://github.com/feast-dev/feast/issues/4941) [#4940](https://github.com/feast-dev/feast/issues/4940) [#4943](https://github.com/feast-dev/feast/issues/4943) [#4944](https://github.com/feast-dev/feast/issues/4944) [#4945](https://github.com/feast-dev/feast/issues/4945) [#4946](https://github.com/feast-dev/feast/issues/4946) [#4947](https://github.com/feast-dev/feast/issues/4947) [#4948](https://github.com/feast-dev/feast/issues/4948) [#4951](https://github.com/feast-dev/feast/issues/4951) [#4954](https://github.com/feast-dev/feast/issues/4954) [#4957](https://github.com/feast-dev/feast/issues/4957) [#4958](https://github.com/feast-dev/feast/issues/4958) [#4959](https://github.com/feast-dev/feast/issues/4959) [#4960](https://github.com/feast-dev/feast/issues/4960) [#4962](https://github.com/feast-dev/feast/issues/4962)
+* Fix showing selected navigation item in UI sidebar ([#4969](https://github.com/feast-dev/feast/issues/4969)) ([8ac6a85](https://github.com/feast-dev/feast/commit/8ac6a8547361708fec00a11a33c48ca3ae25f311))
+* Invalid column names in get_historical_features when there are field mappings on join keys ([#4886](https://github.com/feast-dev/feast/issues/4886)) ([c9aca2d](https://github.com/feast-dev/feast/commit/c9aca2d42254d1c4dfcc778b0d90303329901bd0))
+* Read project data from the 'projects' key while loading the registry state in the Feast UI ([#4772](https://github.com/feast-dev/feast/issues/4772)) ([cb81939](https://github.com/feast-dev/feast/commit/cb8193945932b98d5b8f750ac07d58c034870565))
+* Remove grpcurl dependency from Operator ([#4972](https://github.com/feast-dev/feast/issues/4972)) ([439e0b9](https://github.com/feast-dev/feast/commit/439e0b98819ef222b35617dfd6c97f04ca049f2f))
+* Removed the dry-run flag to test and we will add it back later. ([#5007](https://github.com/feast-dev/feast/issues/5007)) ([d112b52](https://github.com/feast-dev/feast/commit/d112b529d618f19a5602039b6d347915d7e75b88))
+* Render UI navigation items as links instead of buttons ([#4970](https://github.com/feast-dev/feast/issues/4970)) ([1267703](https://github.com/feast-dev/feast/commit/1267703d099491393ca212c38f1a63a36fe6c443))
+* Resolve Operator CRD bloat due to long field descriptions ([#4985](https://github.com/feast-dev/feast/issues/4985)) ([7593bb3](https://github.com/feast-dev/feast/commit/7593bb3ec8871dbb83403461e0b6f6863d64abc6))
+* Update manifest to add feature server image for odh ([#4973](https://github.com/feast-dev/feast/issues/4973)) ([6a1c102](https://github.com/feast-dev/feast/commit/6a1c1029b5462aaa42c82fdad421176ad1692f81))
+* Updating release workflows to refer to yml instead of yaml ([#4935](https://github.com/feast-dev/feast/issues/4935)) ([02b0a68](https://github.com/feast-dev/feast/commit/02b0a68a435ab01f26b20824f3f8a4dd4e21da8d))
+* Use locally built feast-ui package in dev feature-server image ([#4998](https://github.com/feast-dev/feast/issues/4998)) ([0145e55](https://github.com/feast-dev/feast/commit/0145e5501e2c7854628d204cb515270fac3bee7d))
+
+
+### Features
+
+* Added OWNERS file for OpenshiftCI ([#4991](https://github.com/feast-dev/feast/issues/4991)) ([86a2ee8](https://github.com/feast-dev/feast/commit/86a2ee8e3ce1cd4432749928fda7a4386dc7ce0f))
+* Adding Milvus demo to examples ([#4910](https://github.com/feast-dev/feast/issues/4910)) ([2daf852](https://github.com/feast-dev/feast/commit/2daf8527c4539a007d639ac6e3061767a9c45110))
+* Adding retrieve_online_documents endpoint ([#5002](https://github.com/feast-dev/feast/issues/5002)) ([6607d3d](https://github.com/feast-dev/feast/commit/6607d3dfa1041638d3896b25cb98677412889724))
+* Adding support to return additional features from vector retrieval for Milvus db ([#4971](https://github.com/feast-dev/feast/issues/4971)) ([6ce08d3](https://github.com/feast-dev/feast/commit/6ce08d31863b12a7a92bf5207172a05f8da077d1))
+* Creating/updating the stable branch after the release. ([#5003](https://github.com/feast-dev/feast/issues/5003)) ([e9b53cc](https://github.com/feast-dev/feast/commit/e9b53cc83ee51b906423ec2e1fac36e159d55db2))
+* Implementing online_read for MilvusOnlineStore ([#4996](https://github.com/feast-dev/feast/issues/4996)) ([92dde13](https://github.com/feast-dev/feast/commit/92dde1311c419dc3d8cbb534ed2e706fdeae1e26))
+* Improve exception message for unsupported Snowflake data types ([#4779](https://github.com/feast-dev/feast/issues/4779)) ([5992364](https://github.com/feast-dev/feast/commit/59923645e4f6a64a49bcecb7da503528af850d0f))
+* Operator add feast ui deployment ([#4930](https://github.com/feast-dev/feast/issues/4930)) ([b026d0c](https://github.com/feast-dev/feast/commit/b026d0ce30d7ce9b621679fbb33f2a9c0edaad84))
+* Updating documents to highlight v2 api for Vector Similarity Se… ([#5000](https://github.com/feast-dev/feast/issues/5000)) ([32b82a4](https://github.com/feast-dev/feast/commit/32b82a4b59bceaf9eb6662f35e77d0cae0d36550))
+
+# [0.43.0](https://github.com/feast-dev/feast/compare/v0.42.0...v0.43.0) (2025-01-20)
+
+
+### Bug Fixes
+
+* Add k8s module to feature-server image ([#4839](https://github.com/feast-dev/feast/issues/4839)) ([f565565](https://github.com/feast-dev/feast/commit/f565565e0132ea5170221dc6af2e93a5dc3e750d))
+* Adding input to workflow ([e3e8c97](https://github.com/feast-dev/feast/commit/e3e8c975b4b9891913d0be8d50df909d4d243191))
+* Change image push to use --all-tags option ([#4926](https://github.com/feast-dev/feast/issues/4926)) ([02458fd](https://github.com/feast-dev/feast/commit/02458fd7aad49d5daa5b9836f5abdc4dd81d07bb))
+* Fix integration build/push for images ([#4923](https://github.com/feast-dev/feast/issues/4923)) ([695e49b](https://github.com/feast-dev/feast/commit/695e49bd93a4c8af2ce5839586295b5e74e1b98e))
+* Fix integration operator push ([#4924](https://github.com/feast-dev/feast/issues/4924)) ([13c7267](https://github.com/feast-dev/feast/commit/13c7267b555cca4f3361f34fb384a6fd9f27dedf))
+* Fix release.yml ([#4845](https://github.com/feast-dev/feast/issues/4845)) ([b4768a8](https://github.com/feast-dev/feast/commit/b4768a81b94352de037dc305df309fcf06fd2973))
+* Fixing some of the warnings with the github actions ([#4763](https://github.com/feast-dev/feast/issues/4763)) ([1119439](https://github.com/feast-dev/feast/commit/1119439c49bc90e62f02da078901509c1d740236))
+* Improve status.applied updates & add offline pvc unit test ([#4871](https://github.com/feast-dev/feast/issues/4871)) ([3f49517](https://github.com/feast-dev/feast/commit/3f49517dfeabea5ffbd3f6b589cc0f2280ee4018))
+* Made fixes to Go Operator DB persistence ([#4830](https://github.com/feast-dev/feast/issues/4830)) ([cdc0753](https://github.com/feast-dev/feast/commit/cdc075360242bfdf3812d394a3c9c550f81b0f98))
+* Make transformation_service_endpoint configuration optional ([#4880](https://github.com/feast-dev/feast/issues/4880)) ([c62377b](https://github.com/feast-dev/feast/commit/c62377bc095a83022d13e5a8a3a9413d7e0f3e2c))
+* Move pre-release image builds to quay.io, retire gcr.io pushes ([#4922](https://github.com/feast-dev/feast/issues/4922)) ([40b975b](https://github.com/feast-dev/feast/commit/40b975b8468de2678af8b191e93495e51af0b6aa))
+* Performance regression in /get-online-features ([#4892](https://github.com/feast-dev/feast/issues/4892)) ([0db56a2](https://github.com/feast-dev/feast/commit/0db56a2cb5888bc21dbdb331e2b5fc3d33508424))
+* Refactor Operator to deploy all feast services to the same Deployment/Pod ([#4863](https://github.com/feast-dev/feast/issues/4863)) ([88854dd](https://github.com/feast-dev/feast/commit/88854dd56fd0becf4a5d5293735a1c9ba394d53d))
+* Remove unnecessary google cloud steps & upgrade docker action versions ([#4925](https://github.com/feast-dev/feast/issues/4925)) ([32aaf9a](https://github.com/feast-dev/feast/commit/32aaf9aba96c53e1c69577312982472182e99659))
+* Remove verifyClient TLS offlineStore option from the Operator ([#4847](https://github.com/feast-dev/feast/issues/4847)) ([79fa247](https://github.com/feast-dev/feast/commit/79fa247026dd95e75a19308d437997310d061b35))
+* Resolving syntax error while querying a feature view with column name starting with a number and BigQuery as data source ([#4908](https://github.com/feast-dev/feast/issues/4908)) ([d3495a0](https://github.com/feast-dev/feast/commit/d3495a09083b1e6a746fff8444f0bbb887d6ac8b))
+* Updated python-helm-demo example to use MinIO instead of GS ([#4691](https://github.com/feast-dev/feast/issues/4691)) ([31afd99](https://github.com/feast-dev/feast/commit/31afd99c0969002fe04982e40cf7a857960f7abf))
+
+
+### Features
+
+* Add date field support to spark ([#4913](https://github.com/feast-dev/feast/issues/4913)) ([a8aeb79](https://github.com/feast-dev/feast/commit/a8aeb79830f12358c2355be44fca68e61992cb46))
+* Add date support when converting from python to feast types ([#4918](https://github.com/feast-dev/feast/issues/4918)) ([bd9f071](https://github.com/feast-dev/feast/commit/bd9f071017756e205fbabe6af0d38dfaa9be3d7b))
+* Add duckdb extra to multicloud release image ([#4862](https://github.com/feast-dev/feast/issues/4862)) ([b539eba](https://github.com/feast-dev/feast/commit/b539ebaad5ec2c1a199fe08ceccd206754ce82f0))
+* Add milvus package to release image & option to Operator ([#4870](https://github.com/feast-dev/feast/issues/4870)) ([ef724b6](https://github.com/feast-dev/feast/commit/ef724b66bd4d5f355b055d6d81525c4a17ce94c1))
+* Add Milvus Vector Database Implementation ([#4751](https://github.com/feast-dev/feast/issues/4751)) ([22c7b58](https://github.com/feast-dev/feast/commit/22c7b58f9590a357eaa57c77d5ed351f1fa07501))
+* Add online/offline replica support ([#4812](https://github.com/feast-dev/feast/issues/4812)) ([b97da6c](https://github.com/feast-dev/feast/commit/b97da6ca3a08e3f0fc35552dd7f0bd3b59083f35))
+* Added pvc accessModes support ([#4851](https://github.com/feast-dev/feast/issues/4851)) ([a73514c](https://github.com/feast-dev/feast/commit/a73514cd4f7fecbc89679566e0f8a0af16b6b06d))
+* Adding EnvFrom support for the OptionalConfigs type to the Go Operator ([#4909](https://github.com/feast-dev/feast/issues/4909)) ([e01e510](https://github.com/feast-dev/feast/commit/e01e51076f5d8fe5be459037bd254e6f94e0cb0f))
+* Adding Feature Server to components docs ([#4868](https://github.com/feast-dev/feast/issues/4868)) ([f95e54b](https://github.com/feast-dev/feast/commit/f95e54bdbee80be6b0e290a02e56f92daac2cf64))
+* Adding features field to retrieve_online_features to return mor… ([#4869](https://github.com/feast-dev/feast/issues/4869)) ([7df287e](https://github.com/feast-dev/feast/commit/7df287e8c0f5ec3ab3fa88fd5576f636053a3769))
+* Adding packages for Milvus Online Store ([#4854](https://github.com/feast-dev/feast/issues/4854)) ([49171bd](https://github.com/feast-dev/feast/commit/49171bd53fb8bfc325eb7167cac8cae18a28bd63))
+* Adding vector_search parameter to fields ([#4855](https://github.com/feast-dev/feast/issues/4855)) ([739eaa7](https://github.com/feast-dev/feast/commit/739eaa78e6d995ee0750292d2f8d81886a3f9829))
+* Feast Operator support log level configuration for services ([#4808](https://github.com/feast-dev/feast/issues/4808)) ([19424bc](https://github.com/feast-dev/feast/commit/19424bcc975d90d922791b5bd0da6ac13955c0c5))
+* Go Operator - Parsing the output to go structs ([#4832](https://github.com/feast-dev/feast/issues/4832)) ([732865f](https://github.com/feast-dev/feast/commit/732865f20e7fae7a46f54be7bc469ce2b3bc44e2))
+* Implement `date_partition_column` for `SparkSource` ([#4844](https://github.com/feast-dev/feast/issues/4844)) ([c5ffa03](https://github.com/feast-dev/feast/commit/c5ffa037cb030c64d6e25995199cf762cc0e9b2a))
+* Loading the CA trusted store certificate into Feast to verify the public certificate. ([#4852](https://github.com/feast-dev/feast/issues/4852)) ([132ce2a](https://github.com/feast-dev/feast/commit/132ce2a6c9e3ff8544680d5237e9e1523d988d7e))
+* Operator E2E test to validate FeatureStore custom resource using remote registry ([#4822](https://github.com/feast-dev/feast/issues/4822)) ([d558ef7](https://github.com/feast-dev/feast/commit/d558ef7e19aa561c37c38d4d0da2b8c1467414f5))
+* Operator improvements ([#4928](https://github.com/feast-dev/feast/issues/4928)) ([7a1f4dd](https://github.com/feast-dev/feast/commit/7a1f4dd8b96a40d055467e1e5f72c91167e40484))
+* Removing the tls_verify_client flag from feast cli for offline server. ([#4842](https://github.com/feast-dev/feast/issues/4842)) ([8320e23](https://github.com/feast-dev/feast/commit/8320e23eb85cc419ef8aa0fdc07efa81857e0345))
+* Separating the RBAC and Remote related integration tests. ([#4905](https://github.com/feast-dev/feast/issues/4905)) ([76e1e21](https://github.com/feast-dev/feast/commit/76e1e2178c285886136e8f2fc4436302e4291715))
+* Snyk vulnerability issues fix. ([#4867](https://github.com/feast-dev/feast/issues/4867)) ([dbc9207](https://github.com/feast-dev/feast/commit/dbc92070c8ef6b9e4e53d89ec03090bf30bd0f60)), closes [#6](https://github.com/feast-dev/feast/issues/6) [#3](https://github.com/feast-dev/feast/issues/3) [#4](https://github.com/feast-dev/feast/issues/4)
+* Use ASOF JOIN in Snowflake offline store query ([#4850](https://github.com/feast-dev/feast/issues/4850)) ([8f591a2](https://github.com/feast-dev/feast/commit/8f591a235ba5bd9d1bc598195f46c7e12e437a2c))
+
+
+### Reverts
+
+* Revert "chore: Add Milvus to pr_integration_tests.yml" ([#4900](https://github.com/feast-dev/feast/issues/4900)) ([07958f7](https://github.com/feast-dev/feast/commit/07958f71cd89984325ec3ca2006b17fe5d333d02)), closes [#4891](https://github.com/feast-dev/feast/issues/4891)
+
+# [0.42.0](https://github.com/feast-dev/feast/compare/v0.41.0...v0.42.0) (2024-12-05)
+
+
+### Bug Fixes
+
+* Add adapters for sqlite datetime conversion ([#4797](https://github.com/feast-dev/feast/issues/4797)) ([e198b17](https://github.com/feast-dev/feast/commit/e198b173be6355c1f169aeaae2b503f2273f23f1))
+* Added grpcio extras to default feature-server image ([#4737](https://github.com/feast-dev/feast/issues/4737)) ([e9cd373](https://github.com/feast-dev/feast/commit/e9cd3733f041da99bb1e84843ffe5af697085c34))
+* Changing node version in release ([7089918](https://github.com/feast-dev/feast/commit/7089918509404b3d217e7a2a0161293a8d6cb8aa))
+* Feast create empty online table when FeatureView attribute online=False ([#4666](https://github.com/feast-dev/feast/issues/4666)) ([237c453](https://github.com/feast-dev/feast/commit/237c453c2da7d549b9bdb2c044ba284fbb9d9ba7))
+* Fix db store types in Operator CRD ([#4798](https://github.com/feast-dev/feast/issues/4798)) ([f09339e](https://github.com/feast-dev/feast/commit/f09339eda24785d0a57feb4cf785f297d1a02ccb))
+* Fix the config issue for postgres ([#4776](https://github.com/feast-dev/feast/issues/4776)) ([a36f7e5](https://github.com/feast-dev/feast/commit/a36f7e50d97c85595cbaa14165901924efa61cbb))
+* Fixed example materialize-incremental and improved explanation ([#4734](https://github.com/feast-dev/feast/issues/4734)) ([ca8a7ab](https://github.com/feast-dev/feast/commit/ca8a7ab888b53fe43db6e6437e7070c83e00c10d))
+* Fixed SparkSource docstrings so it wouldn't used inhereted class docstrings ([#4722](https://github.com/feast-dev/feast/issues/4722)) ([32e6aa1](https://github.com/feast-dev/feast/commit/32e6aa1e7c752551d455c5efd0974a938d756210))
+* Fixing PGVector integration tests ([#4778](https://github.com/feast-dev/feast/issues/4778)) ([88a0320](https://github.com/feast-dev/feast/commit/88a03205a4ecbd875e808f6e8f86fef4f93e6da6))
+* Incorrect type passed to assert_permissions in materialize endpoints ([#4727](https://github.com/feast-dev/feast/issues/4727)) ([b72c2da](https://github.com/feast-dev/feast/commit/b72c2daac80ac22d1d8160f155bb55a1bdbf16f7))
+* Issue of DataSource subclasses using parent abstract class docstrings ([#4730](https://github.com/feast-dev/feast/issues/4730)) ([b24acd5](https://github.com/feast-dev/feast/commit/b24acd50149cb4737d5c27aa3236881f8ad26fea))
+* Operator envVar positioning & tls.SecretRef.Name ([#4806](https://github.com/feast-dev/feast/issues/4806)) ([1115d96](https://github.com/feast-dev/feast/commit/1115d966df8ecff5553ae0c0879559f9ad735245))
+* Populates project created_time correctly according to created ti… ([#4686](https://github.com/feast-dev/feast/issues/4686)) ([a61b93c](https://github.com/feast-dev/feast/commit/a61b93c666a79ec72b48d0927b2a4e1598f6650b))
+* Reduce feast-server container image size & fix dev image build ([#4781](https://github.com/feast-dev/feast/issues/4781)) ([ccc9aea](https://github.com/feast-dev/feast/commit/ccc9aea6ee0a720c6dfddf9eaa6805e7b63fa7f1))
+* Removed version func from feature_store.py ([#4748](https://github.com/feast-dev/feast/issues/4748)) ([f902bb9](https://github.com/feast-dev/feast/commit/f902bb9765a2efd4b1325de80e3b4f2101bb3911))
+* Support registry instantiation for read-only users ([#4719](https://github.com/feast-dev/feast/issues/4719)) ([ca3d3c8](https://github.com/feast-dev/feast/commit/ca3d3c8f474ff6bf9f716c37df236bbc41bbd0d2))
+* Syntax Error in BigQuery While Retrieving Columns that Start wit… ([#4713](https://github.com/feast-dev/feast/issues/4713)) ([60fbc62](https://github.com/feast-dev/feast/commit/60fbc62080950549f28b9411e00926be168bea56))
+* Update release version in a pertinent Operator file ([#4708](https://github.com/feast-dev/feast/issues/4708)) ([764a8a6](https://github.com/feast-dev/feast/commit/764a8a657c045e99575bb8cfdc51afd9c61fa8e2))
+
+
+### Features
+
+* Add api contract to fastapi docs ([#4721](https://github.com/feast-dev/feast/issues/4721)) ([1a165c7](https://github.com/feast-dev/feast/commit/1a165c734ad8ee3923c786d80a00e4040cb1b1c8))
+* Add Couchbase as an online store ([#4637](https://github.com/feast-dev/feast/issues/4637)) ([824859b](https://github.com/feast-dev/feast/commit/824859b813a1d756887f1006fb25914a2018d097))
+* Add Operator support for spec.feastProject & status.applied fields ([#4656](https://github.com/feast-dev/feast/issues/4656)) ([430ac53](https://github.com/feast-dev/feast/commit/430ac535a5bd8311a485e51011a9602ca441d2d3))
+* Add services functionality to Operator ([#4723](https://github.com/feast-dev/feast/issues/4723)) ([d1d80c0](https://github.com/feast-dev/feast/commit/d1d80c0d208e25b92047fe5f162c67c00c69bb43))
+* Add TLS support to the Operator ([#4796](https://github.com/feast-dev/feast/issues/4796)) ([a617a6c](https://github.com/feast-dev/feast/commit/a617a6c8d67c6baaa6f9c1cc78b7799d72de48a3))
+* Added feast Go operator db stores support ([#4771](https://github.com/feast-dev/feast/issues/4771)) ([3302363](https://github.com/feast-dev/feast/commit/3302363e2f149715e1c0fb5597d0b91a97756db2))
+* Added support for setting env vars in feast services in feast controller  ([#4739](https://github.com/feast-dev/feast/issues/4739)) ([84b24b5](https://github.com/feast-dev/feast/commit/84b24b547e40bab4fad664bb77cd864613267aad))
+* Adding docs outlining native Python transformations on singletons ([#4741](https://github.com/feast-dev/feast/issues/4741)) ([0150278](https://github.com/feast-dev/feast/commit/01502785109dfd64e3db03c855a34d9cab1a9073))
+* Adding first feast operator e2e test. ([#4791](https://github.com/feast-dev/feast/issues/4791)) ([8339f8d](https://github.com/feast-dev/feast/commit/8339f8d55c7263becda42ab41961224091dee727))
+* Adding github action to run the operator end-to-end tests. ([#4762](https://github.com/feast-dev/feast/issues/4762)) ([d8ccb00](https://github.com/feast-dev/feast/commit/d8ccb005ab8db0e79885b43aa430b78d1fbba379))
+* Adding ssl support for registry server. ([#4718](https://github.com/feast-dev/feast/issues/4718)) ([ccf7a55](https://github.com/feast-dev/feast/commit/ccf7a55e11165f4663384c580003cb809b5e0f83))
+* Adding SSL support for the React UI server and feast UI command. ([#4736](https://github.com/feast-dev/feast/issues/4736)) ([4a89252](https://github.com/feast-dev/feast/commit/4a89252cb18715458d724e5b54c77ed0de27cf3f))
+* Adding support for native Python transformations on a single dictionary  ([#4724](https://github.com/feast-dev/feast/issues/4724)) ([9bbc1c6](https://github.com/feast-dev/feast/commit/9bbc1c61c7bbc38fce5568e6427257cf4d683fb2))
+* Adding TLS support for offline server. ([#4744](https://github.com/feast-dev/feast/issues/4744)) ([5d8d03f](https://github.com/feast-dev/feast/commit/5d8d03ff2086256aa2977e5ec2ecdc048154dc1f))
+* Building the feast image ([#4775](https://github.com/feast-dev/feast/issues/4775)) ([6635dde](https://github.com/feast-dev/feast/commit/6635dde9618d000d0567791018779fc188c893d8))
+* File persistence definition and implementation ([#4742](https://github.com/feast-dev/feast/issues/4742)) ([3bad4a1](https://github.com/feast-dev/feast/commit/3bad4a135cdd9184f1b8e3c9c52470552cf2799d))
+* Object store persistence in operator ([#4758](https://github.com/feast-dev/feast/issues/4758)) ([0ae86da](https://github.com/feast-dev/feast/commit/0ae86da3ab931832b0dfe357c0be82997d37430d))
+* OIDC authorization in Feast Operator ([#4801](https://github.com/feast-dev/feast/issues/4801)) ([eb111d6](https://github.com/feast-dev/feast/commit/eb111d673ee5cea2cfadda55d0917a591cd6c377))
+* Operator will create k8s serviceaccount for each feast service ([#4767](https://github.com/feast-dev/feast/issues/4767)) ([cde5760](https://github.com/feast-dev/feast/commit/cde5760cc94cccd4cbeed918acca09d1b106d7e5))
+* Printing more verbose logs when we start the offline server  ([#4660](https://github.com/feast-dev/feast/issues/4660)) ([9d8d3d8](https://github.com/feast-dev/feast/commit/9d8d3d88a0ecccef4d610baf84f1b409276044dd))
+* PVC configuration and impl ([#4750](https://github.com/feast-dev/feast/issues/4750)) ([785a190](https://github.com/feast-dev/feast/commit/785a190b50873bca2704c835027290787fe56656))
+* Qdrant vectorstore support ([#4689](https://github.com/feast-dev/feast/issues/4689)) ([86573d2](https://github.com/feast-dev/feast/commit/86573d2778cb064fb7a930dfe08e84465084523f))
+* RBAC Authorization in Feast Operator ([#4786](https://github.com/feast-dev/feast/issues/4786)) ([0ef5acc](https://github.com/feast-dev/feast/commit/0ef5acccc09a4a4a379a84cdacb0f5b7d9e8df70))
+* Support for nested timestamp fields in Spark Offline store ([#4740](https://github.com/feast-dev/feast/issues/4740)) ([d4d94f8](https://github.com/feast-dev/feast/commit/d4d94f8ed76f72625305ad6e80337670664ba9b0))
+* Update the go feature server from Expedia code repo. ([#4665](https://github.com/feast-dev/feast/issues/4665)) ([6406625](https://github.com/feast-dev/feast/commit/6406625ff8895fa65b11d587246f7d1f5feaecba))
+* Updated feast Go operator db stores ([#4809](https://github.com/feast-dev/feast/issues/4809)) ([2c5a6b5](https://github.com/feast-dev/feast/commit/2c5a6b554cf6170b2590f32124cd7b84121cb864))
+* Updated sample secret following review ([#4811](https://github.com/feast-dev/feast/issues/4811)) ([dc9f825](https://github.com/feast-dev/feast/commit/dc9f8259ee6a2043a6fce88ea0d0a5e59494ef76))
+
 # [0.41.0](https://github.com/feast-dev/feast/compare/v0.40.0...v0.41.0) (2024-10-26)
 
 

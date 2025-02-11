@@ -51,7 +51,14 @@ class CliRunner:
             return e.returncode, e.output
 
     @contextmanager
-    def local_repo(self, example_repo_py: str, offline_store: str):
+    def local_repo(
+        self,
+        example_repo_py: str,
+        offline_store: str,
+        online_store: str = "sqlite",
+        apply=True,
+        teardown=True,
+    ):
         """
         Convenience method to set up all the boilerplate for a local feature repo.
         """
@@ -59,46 +66,69 @@ class CliRunner:
             random.choice(string.ascii_lowercase + string.digits) for _ in range(10)
         )
 
-        with tempfile.TemporaryDirectory() as repo_dir_name, tempfile.TemporaryDirectory() as data_dir_name:
+        with (
+            tempfile.TemporaryDirectory() as repo_dir_name,
+            tempfile.TemporaryDirectory() as data_dir_name,
+        ):
             repo_path = Path(repo_dir_name)
             data_path = Path(data_dir_name)
 
             repo_config = repo_path / "feature_store.yaml"
-
-            repo_config.write_text(
-                dedent(
+            if online_store == "sqlite":
+                yaml_config = dedent(
                     f"""
-            project: {project_id}
-            registry: {data_path / "registry.db"}
-            provider: local
-            online_store:
-                path: {data_path / "online_store.db"}
-            offline_store:
-                type: {offline_store}
-            entity_key_serialization_version: 2
-            """
+                project: {project_id}
+                registry: {data_path / "registry.db"}
+                provider: local
+                online_store:
+                    path: {data_path / "online_store.db"}
+                offline_store:
+                    type: {offline_store}
+                entity_key_serialization_version: 2
+                """
                 )
-            )
+            elif online_store == "milvus":
+                yaml_config = dedent(
+                    f"""
+                project: {project_id}
+                registry: {data_path / "registry.db"}
+                provider: local
+                online_store:
+                    path: {data_path / "online_store.db"}
+                    type: milvus
+                    vector_enabled: true
+                    embedding_dim: 10
+                offline_store:
+                    type: {offline_store}
+                entity_key_serialization_version: 3
+                """
+                )
+            else:
+                pass
+
+            repo_config.write_text(yaml_config)
 
             repo_example = repo_path / "example.py"
             repo_example.write_text(example_repo_py)
 
-            result = self.run(["apply"], cwd=repo_path)
-            stdout = result.stdout.decode("utf-8")
-            stderr = result.stderr.decode("utf-8")
-            print(f"Apply stdout:\n{stdout}")
-            print(f"Apply stderr:\n{stderr}")
-            assert (
-                result.returncode == 0
-            ), f"stdout: {result.stdout}\nstderr: {result.stderr}"
+            if apply:
+                result = self.run(["apply"], cwd=repo_path)
+                stdout = result.stdout.decode("utf-8")
+                stderr = result.stderr.decode("utf-8")
+                print(f"Apply stdout:\n{stdout}")
+                print(f"Apply stderr:\n{stderr}")
+                assert result.returncode == 0, (
+                    f"stdout: {result.stdout}\nstderr: {result.stderr}"
+                )
 
             yield FeatureStore(repo_path=str(repo_path), config=None)
 
-            result = self.run(["teardown"], cwd=repo_path)
-            stdout = result.stdout.decode("utf-8")
-            stderr = result.stderr.decode("utf-8")
-            print(f"Apply stdout:\n{stdout}")
-            print(f"Apply stderr:\n{stderr}")
-            assert (
-                result.returncode == 0
-            ), f"stdout: {result.stdout}\nstderr: {result.stderr}"
+            if teardown:
+                result = self.run(["teardown"], cwd=repo_path)
+                stdout = result.stdout.decode("utf-8")
+                stderr = result.stderr.decode("utf-8")
+                print(f"Apply stdout:\n{stdout}")
+                print(f"Apply stderr:\n{stderr}")
+                assert result.returncode == 0, (
+                    f"stdout: {result.stdout}\nstderr: {result.stderr}"
+                )

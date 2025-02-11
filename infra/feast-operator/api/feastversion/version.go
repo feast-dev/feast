@@ -17,4 +17,4 @@ limitations under the License.
 package feastversion
 
 // Feast release version
-const FeastVersion = "0.40.0"
+const FeastVersion = "0.45.0"

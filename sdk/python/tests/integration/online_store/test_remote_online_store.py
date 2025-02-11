@@ -1,3 +1,4 @@
+import logging
 import os
 import tempfile
 from textwrap import dedent
@@ -15,14 +16,21 @@ from tests.utils.auth_permissions_util import (
     start_feature_server,
 )
 from tests.utils.cli_repo_creator import CliRunner
-from tests.utils.generate_self_signed_certifcate_util import generate_self_signed_cert
 from tests.utils.http_server import free_port
 
+logger = logging.getLogger(__name__)
 
-@pytest.mark.parametrize("ssl_mode", [True, False])
+
 @pytest.mark.integration
-def test_remote_online_store_read(auth_config, ssl_mode):
-    with tempfile.TemporaryDirectory() as remote_server_tmp_dir, tempfile.TemporaryDirectory() as remote_client_tmp_dir:
+@pytest.mark.rbac_remote_integration_test
+@pytest.mark.parametrize(
+    "tls_mode", [("True", "True"), ("True", "False"), ("False", "")], indirect=True
+)
+def test_remote_online_store_read(auth_config, tls_mode):
+    with (
+        tempfile.TemporaryDirectory() as remote_server_tmp_dir,
+        tempfile.TemporaryDirectory() as remote_client_tmp_dir,
+    ):
         permissions_list = [
             Permission(
                 name="online_list_fv_perm",
@@ -43,21 +51,22 @@ def test_remote_online_store_read(auth_config, ssl_mode):
                 actions=[AuthzedAction.READ_ONLINE],
             ),
         ]
-        server_store, server_url, registry_path, ssl_cert_path = (
+        server_store, server_url, registry_path = (
             _create_server_store_spin_feature_server(
                 temp_dir=remote_server_tmp_dir,
                 auth_config=auth_config,
                 permissions_list=permissions_list,
-                ssl_mode=ssl_mode,
+                tls_mode=tls_mode,
             )
         )
         assert None not in (server_store, server_url, registry_path)
+
         client_store = _create_remote_client_feature_store(
             temp_dir=remote_client_tmp_dir,
             server_registry_path=str(registry_path),
             feature_server_url=server_url,
             auth_config=auth_config,
-            ssl_cert_path=ssl_cert_path,
+            tls_mode=tls_mode,
         )
         assert client_store is not None
         _assert_non_existing_entity_feature_views_entity(
@@ -163,37 +172,34 @@ def _assert_client_server_online_stores_are_matching(
 
 
 def _create_server_store_spin_feature_server(
-    temp_dir, auth_config: str, permissions_list, ssl_mode: bool
+    temp_dir, auth_config: str, permissions_list, tls_mode
 ):
     store = default_store(str(temp_dir), auth_config, permissions_list)
     feast_server_port = free_port()
-    if ssl_mode:
-        certificates_path = tempfile.mkdtemp()
-        ssl_key_path = os.path.join(certificates_path, "key.pem")
-        ssl_cert_path = os.path.join(certificates_path, "cert.pem")
-        generate_self_signed_cert(cert_path=ssl_cert_path, key_path=ssl_key_path)
-    else:
-        ssl_key_path = ""
-        ssl_cert_path = ""
+    is_tls_mode, tls_key_path, tls_cert_path, ca_trust_store_path = tls_mode
 
     server_url = next(
         start_feature_server(
             repo_path=str(store.repo_path),
             server_port=feast_server_port,
-            ssl_key_path=ssl_key_path,
-            ssl_cert_path=ssl_cert_path,
+            tls_key_path=tls_key_path,
+            tls_cert_path=tls_cert_path,
+            ca_trust_store_path=ca_trust_store_path,
         )
     )
-    if ssl_cert_path and ssl_key_path:
-        print(f"Online Server started successfully in SSL mode, {server_url}")
+    if is_tls_mode:
+        logger.info(
+            f"Online Server started successfully in TLS(SSL) mode, {server_url}"
+        )
     else:
-        print(f"Server started successfully, {server_url}")
+        logger.info(
+            f"Online Server started successfully in Non-TLS(SSL) mode, {server_url}"
+        )
 
     return (
         store,
         server_url,
         os.path.join(store.repo_path, "data", "registry.db"),
-        ssl_cert_path,
     )
 
 
@@ -202,20 +208,33 @@ def _create_remote_client_feature_store(
     server_registry_path: str,
     feature_server_url: str,
     auth_config: str,
-    ssl_cert_path: str = "",
+    tls_mode,
 ) -> FeatureStore:
     project_name = "REMOTE_ONLINE_CLIENT_PROJECT"
     runner = CliRunner()
     result = runner.run(["init", project_name], cwd=temp_dir)
     assert result.returncode == 0
     repo_path = os.path.join(temp_dir, project_name, "feature_repo")
-    _overwrite_remote_client_feature_store_yaml(
-        repo_path=str(repo_path),
-        registry_path=server_registry_path,
-        feature_server_url=feature_server_url,
-        auth_config=auth_config,
-        ssl_cert_path=ssl_cert_path,
-    )
+    is_tls_mode, _, tls_cert_path, ca_trust_store_path = tls_mode
+    if is_tls_mode and not ca_trust_store_path:
+        _overwrite_remote_client_feature_store_yaml(
+            repo_path=str(repo_path),
+            registry_path=server_registry_path,
+            feature_server_url=feature_server_url,
+            auth_config=auth_config,
+            tls_cert_path=tls_cert_path,
+        )
+    else:
+        _overwrite_remote_client_feature_store_yaml(
+            repo_path=str(repo_path),
+            registry_path=server_registry_path,
+            feature_server_url=feature_server_url,
+            auth_config=auth_config,
+        )
+
+    if is_tls_mode and ca_trust_store_path:
+        # configure trust store path only when is_tls_mode and ca_trust_store_path exists.
+        os.environ["FEAST_CA_CERT_FILE_PATH"] = ca_trust_store_path
 
     return FeatureStore(repo_path=repo_path)
 
@@ -225,7 +244,7 @@ def _overwrite_remote_client_feature_store_yaml(
     registry_path: str,
     feature_server_url: str,
     auth_config: str,
-    ssl_cert_path: str = "",
+    tls_cert_path: str = "",
 ):
     repo_config = os.path.join(repo_path, "feature_store.yaml")
 
@@ -241,8 +260,8 @@ def _overwrite_remote_client_feature_store_yaml(
     """
     )
 
-    if ssl_cert_path:
-        config_content += f"    ssl_cert_path: {ssl_cert_path}\n"
+    if tls_cert_path:
+        config_content += f"    cert: {tls_cert_path}\n"
 
     with open(repo_config, "w") as repo_config_file:
         repo_config_file.write(config_content)

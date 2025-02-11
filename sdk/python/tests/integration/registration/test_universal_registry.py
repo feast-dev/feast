@@ -344,7 +344,10 @@ else:
             marks=pytest.mark.xdist_group(name="mysql_registry"),
         ),
         lazy_fixture("sqlite_registry"),
-        lazy_fixture("mock_remote_registry"),
+        pytest.param(
+            lazy_fixture("mock_remote_registry"),
+            marks=pytest.mark.rbac_remote_integration_test,
+        ),
     ]
 
 sql_fixtures = [
@@ -1828,3 +1831,51 @@ def test_apply_entity_to_sql_registry_and_reinitialize_sql_registry(test_registr
 
     updated_test_registry.teardown()
     test_registry.teardown()
+
+
+@pytest.mark.integration
+def test_commit_for_read_only_user():
+    fd, registry_path = mkstemp()
+    registry_config = RegistryConfig(path=registry_path, cache_ttl_seconds=600)
+    write_registry = Registry("project", registry_config, None)
+
+    entity = Entity(
+        name="driver_car_id",
+        description="Car driver id",
+        tags={"team": "matchmaking"},
+    )
+
+    project = "project"
+
+    # Register Entity without commiting
+    write_registry.apply_entity(entity, project, commit=False)
+    assert write_registry.cached_registry_proto
+    project_obj = write_registry.cached_registry_proto.projects[0]
+    assert project == Project.from_proto(project_obj).name
+    assert_project(project, write_registry, True)
+
+    # Retrieving the entity should still succeed
+    entities = write_registry.list_entities(project, allow_cache=True, tags=entity.tags)
+    entity = entities[0]
+    assert (
+        len(entities) == 1
+        and entity.name == "driver_car_id"
+        and entity.description == "Car driver id"
+        and "team" in entity.tags
+        and entity.tags["team"] == "matchmaking"
+    )
+
+    # commit from the original registry
+    write_registry.commit()
+
+    # Reconstruct the new registry in order to read the newly written store
+    with mock.patch.object(
+        Registry,
+        "commit",
+        side_effect=Exception("Read only users are not allowed to commit"),
+    ):
+        read_registry = Registry("project", registry_config, None)
+        entities = read_registry.list_entities(project, tags=entity.tags)
+        assert len(entities) == 1
+
+    write_registry.teardown()

@@ -268,3 +268,7 @@ message DataSource {
     AthenaOptions athena_options = 35;
   }
 }
+
+message DataSourceList {
+    repeated DataSource datasources = 1;
+}

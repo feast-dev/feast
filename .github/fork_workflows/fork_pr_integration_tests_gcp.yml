@@ -75,7 +75,7 @@ jobs:
             sudo apt update
             sudo apt install -y -V libarrow-dev
       - name: Install dependencies
-        run: make install-python-ci-dependencies-uv
+        run: make install-python-dependencies-ci
       - name: Setup Redis Cluster
         run: |
           docker pull vishnunair/docker-redis-cluster:latest
@@ -86,4 +86,3 @@ jobs:
         run: |
           pytest -n 8 --cov=./ --cov-report=xml --color=yes sdk/python/tests --integration --durations=5 --timeout=1200 --timeout_method=thread -k "BigQuery and not dynamo and not Redshift and not Snowflake and not minio_registry"
           pytest -n 8 --cov=./ --cov-report=xml --color=yes sdk/python/tests --integration --durations=5 --timeout=1200 --timeout_method=thread -k "File and not dynamo and not Redshift and not Snowflake and not minio_registry"
-

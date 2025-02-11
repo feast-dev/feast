@@ -240,6 +240,8 @@ def _map_by_partition(iterator, spark_serialized_artifacts: _SparkSerializedArti
         ) = spark_serialized_artifacts.unserialize()
 
         if feature_view.batch_source.field_mapping is not None:
+            # Spark offline store does the field mapping in pull_latest_from_table_or_query() call
+            # This may be needed in future if this materialization engine supports other offline stores
             table = _run_pyarrow_field_mapping(
                 table, feature_view.batch_source.field_mapping
             )

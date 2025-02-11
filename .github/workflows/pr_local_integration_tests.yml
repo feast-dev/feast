@@ -7,6 +7,10 @@ on:
       - opened
       - synchronize
       - labeled
+    paths-ignore:
+      - 'community/**'
+      - 'docs/**'
+      - 'examples/**'
 
 jobs:
   integration-test-python-local:
@@ -41,14 +45,20 @@ jobs:
       - name: Get uv cache dir
         id: uv-cache
         run: |
-          echo "::set-output name=dir::$(uv cache dir)"
+          echo "dir=$(uv cache dir)" >> $GITHUB_OUTPUT
       - name: uv cache
         uses: actions/cache@v4
         with:
           path: ${{ steps.uv-cache.outputs.dir }}
-          key: ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-uv-${{ hashFiles(format('**/py{0}-ci-requirements.txt', env.PYTHON)) }}
+          key: ${{ runner.os }}-${{ matrix.python-version }}-uv-${{ hashFiles(format('**/py{0}-ci-requirements.txt', matrix.python-version)) }}
       - name: Install dependencies
-        run: make install-python-ci-dependencies-uv
+        run: make install-python-dependencies-ci
       - name: Test local integration tests
         if: ${{ always() }}  # this will guarantee that step won't be canceled and resources won't leak
         run: make test-python-integration-local
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.22.9
+      - name: Operator Data Source types test
+        run: make -C infra/feast-operator test-datasources

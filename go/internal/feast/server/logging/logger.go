@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/apache/arrow/go/v8/arrow"
+	"github.com/apache/arrow/go/v17/arrow"
 	"github.com/pkg/errors"
 	"google.golang.org/protobuf/types/known/timestamppb"
 

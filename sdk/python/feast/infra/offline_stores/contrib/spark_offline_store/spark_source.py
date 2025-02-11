@@ -29,6 +29,8 @@ class SparkSourceFormat(Enum):
 
 
 class SparkSource(DataSource):
+    """A SparkSource object defines a data source that a Spark offline store can use"""
+
     def __init__(
         self,
         *,
@@ -43,7 +45,29 @@ class SparkSource(DataSource):
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
         timestamp_field: Optional[str] = None,
+        date_partition_column: Optional[str] = None,
     ):
+        """Creates a SparkSource object.
+
+        Args:
+            name: The name of the data source, which should be unique within a project.
+            table: The name of a Spark table.
+            query: The query to be executed in Spark.
+            path: The path to file data.
+            file_format: The format of the file data.
+            created_timestamp_column: Timestamp column indicating when the row
+                was created, used for deduplicating rows.
+            field_mapping: A dictionary mapping of column names in this data
+                source to feature names in a feature table or view.
+            description: A human-readable description.
+            tags: A dictionary of key-value pairs to store arbitrary metadata.
+            owner: The owner of the DataSource, typically the email of the primary
+                maintainer.
+            timestamp_field: Event timestamp field used for point-in-time joins of
+                feature values.
+            date_partition_column: The column to partition the data on for faster
+                retrieval. This is useful for large tables and will limit the number ofi
+        """
         # If no name, use the table as the default name.
         if name is None and table is None:
             raise DataSourceNoNameException()
@@ -56,6 +80,7 @@ class SparkSource(DataSource):
             created_timestamp_column=created_timestamp_column,
             field_mapping=field_mapping,
             description=description,
+            date_partition_column=date_partition_column,
             tags=tags,
             owner=owner,
         )
@@ -114,6 +139,7 @@ class SparkSource(DataSource):
             query=spark_options.query,
             path=spark_options.path,
             file_format=spark_options.file_format,
+            date_partition_column=data_source.date_partition_column,
             timestamp_field=data_source.timestamp_field,
             created_timestamp_column=data_source.created_timestamp_column,
             description=data_source.description,
@@ -127,6 +153,7 @@ class SparkSource(DataSource):
             type=DataSourceProto.BATCH_SPARK,
             data_source_class_type="feast.infra.offline_stores.contrib.spark_offline_store.spark_source.SparkSource",
             field_mapping=self.field_mapping,
+            date_partition_column=self.date_partition_column,
             spark_options=self.spark_options.to_proto(),
             description=self.description,
             tags=self.tags,

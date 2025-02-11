@@ -38,6 +38,11 @@ class SubstraitTransformation:
         ).read_all()
         return table.to_pandas()
 
+    def transform_singleton(self, input_df: pd.DataFrame) -> pd.DataFrame:
+        raise ValueError(
+            "SubstraitTransform does not support singleton transformations."
+        )
+
     def transform_ibis(self, table):
         return self.ibis_function(table)
 

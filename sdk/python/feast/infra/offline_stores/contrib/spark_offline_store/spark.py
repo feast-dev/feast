@@ -33,6 +33,7 @@ from feast.infra.registry.base_registry import BaseRegistry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 from feast.type_map import spark_schema_to_np_dtypes
+from feast.utils import _get_fields_with_aliases
 
 # Make sure spark warning doesn't raise more than once.
 warnings.simplefilter("once", RuntimeWarning)
@@ -90,19 +91,27 @@ class SparkOfflineStore(OfflineStore):
         if created_timestamp_column:
             timestamps.append(created_timestamp_column)
         timestamp_desc_string = " DESC, ".join(timestamps) + " DESC"
-        field_string = ", ".join(join_key_columns + feature_name_columns + timestamps)
+        (fields_with_aliases, aliases) = _get_fields_with_aliases(
+            fields=join_key_columns + feature_name_columns + timestamps,
+            field_mappings=data_source.field_mapping,
+        )
+
+        fields_as_string = ", ".join(fields_with_aliases)
+        aliases_as_string = ", ".join(aliases)
+
+        date_partition_column = data_source.date_partition_column
 
         start_date_str = _format_datetime(start_date)
         end_date_str = _format_datetime(end_date)
         query = f"""
                 SELECT
-                    {field_string}
+                    {aliases_as_string}
                     {f", {repr(DUMMY_ENTITY_VAL)} AS {DUMMY_ENTITY_ID}" if not join_key_columns else ""}
                 FROM (
-                    SELECT {field_string},
+                    SELECT {fields_as_string},
                     ROW_NUMBER() OVER({partition_by_join_key_string} ORDER BY {timestamp_desc_string}) AS feast_row_
                     FROM {from_expression} t1
-                    WHERE {timestamp_field} BETWEEN TIMESTAMP('{start_date_str}') AND TIMESTAMP('{end_date_str}')
+                    WHERE {timestamp_field} BETWEEN TIMESTAMP('{start_date_str}') AND TIMESTAMP('{end_date_str}'){" AND " + date_partition_column + " >= '" + start_date.strftime("%Y-%m-%d") + "' AND " + date_partition_column + " <= '" + end_date.strftime("%Y-%m-%d") + "' " if date_partition_column != "" and date_partition_column is not None else ""}
                 ) t2
                 WHERE feast_row_ = 1
                 """
@@ -279,14 +288,19 @@ class SparkOfflineStore(OfflineStore):
         spark_session = get_spark_session_or_start_new_with_repoconfig(
             store_config=config.offline_store
         )
+        (fields_with_aliases, aliases) = _get_fields_with_aliases(
+            fields=join_key_columns + feature_name_columns + [timestamp_field],
+            field_mappings=data_source.field_mapping,
+        )
 
-        fields = ", ".join(join_key_columns + feature_name_columns + [timestamp_field])
+        fields_with_alias_string = ", ".join(fields_with_aliases)
+
         from_expression = data_source.get_table_query_string()
         start_date = start_date.astimezone(tz=timezone.utc)
         end_date = end_date.astimezone(tz=timezone.utc)
 
         query = f"""
-            SELECT {fields}
+            SELECT {fields_with_alias_string}
             FROM {from_expression}
             WHERE {timestamp_field} BETWEEN TIMESTAMP '{start_date}' AND TIMESTAMP '{end_date}'
         """
@@ -629,8 +643,15 @@ CREATE OR REPLACE TEMPORARY VIEW {{ featureview.name }}__cleaned AS (
             {% endfor %}
         FROM {{ featureview.table_subquery }}
         WHERE {{ featureview.timestamp_field }} <= '{{ featureview.max_event_timestamp }}'
+        {% if featureview.date_partition_column != "" and featureview.date_partition_column is not none %}
+        AND {{ featureview.date_partition_column }} <= '{{ featureview.max_event_timestamp[:10] }}'
+        {% endif %}
+
         {% if featureview.ttl == 0 %}{% else %}
         AND {{ featureview.timestamp_field }} >= '{{ featureview.min_event_timestamp }}'
+        {% if featureview.date_partition_column != "" and featureview.date_partition_column is not none %}
+          AND {{ featureview.date_partition_column }} >= '{{ featureview.min_event_timestamp[:10] }}'
+        {% endif %}
         {% endif %}
     ),
 

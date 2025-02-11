@@ -1,4 +1,4 @@
-# ElasticSearch online store (contrib)
+# ElasticSearch online store
 
 ## Description
 
@@ -26,7 +26,7 @@ online_store:
 ```
 {% endcode %}
 
-The full set of configuration options is available in [ElasticsearchOnlineStoreConfig](https://rtd.feast.dev/en/master/#feast.infra.online_stores.contrib.elasticsearch.ElasticsearchOnlineStoreConfig).
+The full set of configuration options is available in [ElasticsearchOnlineStoreConfig](https://rtd.feast.dev/en/master/#feast.infra.online_stores.elasticsearch_online_store.ElasticsearchOnlineStoreConfig).
 
 ## Functionality Matrix
 
