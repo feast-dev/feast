@@ -51,6 +51,8 @@ DUMMY_ENTITY = Entity(
     join_keys=[DUMMY_ENTITY_ID],
 )
 
+ONLINE_STORE_TAG_SUFFIX = "online_store_"
+
 
 @typechecked
 class FeatureView(BaseFeatureView):
@@ -496,20 +498,18 @@ class FeatureView(BaseFeatureView):
         return max([interval[1] for interval in self.materialization_intervals])
 
     @property
-    def online_store_key_ttl_seconds(self) -> Optional[int]:
+    def get_online_store_tags(self) -> Dict[str, str]:
         """
-        Retrieves the online store TTL from the FeatureView's tags.
+        Retrieves online store specific tags which are prefixed with online_store_.
+        This helps to identify the overrides provided at feature view level. Not all
+        online store configurations are relevant for override.
 
         Returns:
-            An integer representing the TTL in seconds, or None if not set.
+            A dictionary of tags. If no tags are found, returns an empty dictionary.
         """
-        ttl_str = self.tags.get("online_store_key_ttl_seconds")
-        if ttl_str:
-            try:
-                return int(ttl_str)
-            except ValueError:
-                raise ValueError(
-                    f"Invalid online_store_key_ttl_seconds value '{ttl_str}' in tags. It must be an integer representing seconds."
-                )
-        else:
-            return None
+        tags = {
+            k.removeprefix(ONLINE_STORE_TAG_SUFFIX).lower(): v
+            for k, v in self.tags.items()
+            if k.lower().startswith(ONLINE_STORE_TAG_SUFFIX)
+        }
+        return tags

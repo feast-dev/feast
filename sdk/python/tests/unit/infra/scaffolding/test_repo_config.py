@@ -365,31 +365,6 @@ def test_repo_config_init_expedia_provider():
     assert isinstance(c.offline_store, SparkOfflineStoreConfig)
 
 
-def test_repo_config_init_expedia_provider_with_onlne_store_config():
-    c = _test_config(
-        dedent(
-            """
-        project: foo
-        registry: "registry.db"
-        provider: expedia
-        online_store:
-            type: redis
-            connection_string: localhost:6380
-        entity_key_serialization_version: 2
-        """
-        ),
-        expect_error=None,
-    )
-    assert c.registry_config == "registry.db"
-    assert c.offline_config["type"] == "spark"
-    assert c.online_config["type"] == "redis"
-    assert c.online_config["connection_string"] == "localhost:6380"
-    assert c.batch_engine_config == "spark.engine"
-    assert isinstance(c.online_store, RedisOnlineStoreConfig)
-    assert isinstance(c.batch_engine, SparkMaterializationEngineConfig)
-    assert isinstance(c.offline_store, SparkOfflineStoreConfig)
-
-
 def test_repo_config_init_expedia_provider_with_online_store_config():
     c = _test_config(
         dedent(
@@ -400,8 +375,6 @@ def test_repo_config_init_expedia_provider_with_online_store_config():
         online_store:
             type: redis
             connection_string: localhost:6380
-            redis_type: redis_cluster
-            key_ttl_seconds: 123456
         entity_key_serialization_version: 2
         """
         ),
@@ -411,8 +384,6 @@ def test_repo_config_init_expedia_provider_with_online_store_config():
     assert c.offline_config["type"] == "spark"
     assert c.online_config["type"] == "redis"
     assert c.online_config["connection_string"] == "localhost:6380"
-    assert c.online_config["redis_type"] == "redis_cluster"
-    assert c.online_config["key_ttl_seconds"] == 123456
     assert c.batch_engine_config == "spark.engine"
     assert isinstance(c.online_store, RedisOnlineStoreConfig)
     assert isinstance(c.batch_engine, SparkMaterializationEngineConfig)

@@ -19,18 +19,11 @@ Cassandra/Astra DB online store for Feast.
 """
 
 import logging
+import time
 from datetime import datetime
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    Iterable,
-    List,
-    Literal,
-    Optional,
-    Sequence,
-    Tuple,
-)
+from functools import partial
+from queue import Queue
+from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
 
 from cassandra.auth import PlainTextAuthProvider
 from cassandra.cluster import (
@@ -42,7 +35,7 @@ from cassandra.cluster import (
 )
 from cassandra.concurrent import execute_concurrent_with_args
 from cassandra.policies import DCAwareRoundRobinPolicy, TokenAwarePolicy
-from cassandra.query import PreparedStatement
+from cassandra.query import BatchStatement, BatchType, PreparedStatement
 from pydantic import StrictFloat, StrictInt, StrictStr
 
 from feast import Entity, FeatureView, RepoConfig
@@ -50,6 +43,7 @@ from feast.infra.key_encoding_utils import serialize_entity_key
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
+from feast.rate_limiter import SlidingWindowRateLimiter
 from feast.repo_config import FeastConfigBaseModel
 
 # Error messages
@@ -75,7 +69,7 @@ E_CASSANDRA_UNKNOWN_LB_POLICY = (
 INSERT_CQL_4_TEMPLATE = (
     "INSERT INTO {fqtable} (feature_name,"
     " value, entity_key, event_ts) VALUES"
-    " (?, ?, ?, ?);"
+    " (?, ?, ?, ?) USING TTL {ttl};"
 )
 
 SELECT_CQL_TEMPLATE = "SELECT {columns} FROM {fqtable} WHERE entity_key = ?;"
@@ -88,7 +82,7 @@ CREATE_TABLE_CQL_TEMPLATE = """
         event_ts        TIMESTAMP,
         created_ts      TIMESTAMP,
         PRIMARY KEY ((entity_key), feature_name)
-    ) WITH CLUSTERING ORDER BY (feature_name ASC) AND default_time_to_live={ttl};
+    ) WITH CLUSTERING ORDER BY (feature_name ASC);
 """
 
 DROP_TABLE_CQL_TEMPLATE = "DROP TABLE IF EXISTS {fqtable};"
@@ -160,7 +154,9 @@ class CassandraOnlineStoreConfig(FeastConfigBaseModel):
     """
 
     key_ttl_seconds: Optional[StrictInt] = None
-    """Default TTL (in seconds) to apply to all tables if not specified in FeatureView. Value 0 or None means No TTL."""
+    """
+    Default TTL (in seconds) to apply to all tables if not specified in FeatureView. Value 0 or None means No TTL.
+    """
 
     key_batch_size: Optional[StrictInt] = 10
     """In Go Feature Server, this configuration is used to query tables with multiple keys at a time using IN clause based on the size specified. Value 1 means key batching is disabled. Valid values are 1 to 100."""
@@ -197,10 +193,14 @@ class CassandraOnlineStoreConfig(FeastConfigBaseModel):
 
     write_concurrency: Optional[StrictInt] = 100
     """
-    Value of the `concurrency` parameter internally passed to Cassandra driver's
-    `execute_concurrent_with_args` call when writing rows to tables.
-    See https://docs.datastax.com/en/developer/python-driver/3.25/api/cassandra/concurrent/#module-cassandra.concurrent .
+    Controls the number of concurrent writes to the database.
     Default: 100.
+    """
+
+    write_rate_limit: Optional[StrictInt] = 0
+    """
+    The maximum number of write batches per second. Value 0 means no rate limiting.
+    For spark materialization engine, this configuration is per executor task.
     """
 
 
@@ -234,7 +234,10 @@ class CassandraOnlineStore(OnlineStore):
             raise CassandraInvalidConfig(E_CASSANDRA_UNEXPECTED_CONFIGURATION_CLASS)
 
         if self._session:
-            return self._session
+            if not self._session.is_shutdown:
+                return self._session
+            else:
+                self._session = None
         if not self._session:
             # configuration consistency checks
             hosts = online_store_config.hosts
@@ -301,7 +304,10 @@ class CassandraOnlineStore(OnlineStore):
             # creation of Cluster (Cassandra vs. Astra)
             if hosts:
                 self._cluster = Cluster(
-                    hosts, port=port, auth_provider=auth_provider, **cluster_kwargs
+                    hosts,
+                    port=port,
+                    auth_provider=auth_provider,
+                    **cluster_kwargs,
                 )
             else:
                 # we use 'secure_bundle_path'
@@ -319,16 +325,18 @@ class CassandraOnlineStore(OnlineStore):
 
     def __del__(self):
         """
-        One may be tempted to reclaim resources and do, here:
-            if self._session:
-                self._session.shutdown()
-        But *beware*, DON'T DO THIS.
-        Indeed this could destroy the session object before some internal
-        tasks runs in other threads (this is handled internally in the
-        Cassandra driver).
+        Shutting down the session and cluster objects. If you don't do this,
+        you would notice increase in connection spikes on the cluster. Once shutdown,
+        you can't use the session object anymore.
         You'd get a RuntimeError "cannot schedule new futures after shutdown".
         """
-        pass
+        if self._session:
+            if not self._session.is_shutdown:
+                self._session.shutdown()
+
+        if self._cluster:
+            if not self._cluster.is_shutdown:
+                self._cluster.shutdown()
 
     def online_write_batch(
         self,
@@ -353,36 +361,77 @@ class CassandraOnlineStore(OnlineStore):
                       rows is written to the online store. Can be used to
                       display progress.
         """
+
+        def on_success(result, concurrent_queue):
+            concurrent_queue.get_nowait()
+
+        def on_failure(exc, concurrent_queue):
+            concurrent_queue.get_nowait()
+            logger.exception(f"Error writing a batch: {exc}")
+            raise Exception("Exception raised while writing a batch") from exc
+
+        online_store_config = config.online_store
+
         project = config.project
 
-        def unroll_insertion_tuples() -> Iterable[Tuple[str, bytes, str, datetime]]:
-            """
-            We craft an iterable over all rows to be inserted (entities->features),
-            but this way we can call `progress` after each entity is done.
-            """
-            for entity_key, values, timestamp, created_ts in data:
-                entity_key_bin = serialize_entity_key(
-                    entity_key,
-                    entity_key_serialization_version=config.entity_key_serialization_version,
-                ).hex()
-                for feature_name, val in values.items():
-                    params: Tuple[str, bytes, str, datetime] = (
-                        feature_name,
-                        val.SerializeToString(),
-                        entity_key_bin,
-                        timestamp,
-                    )
-                    yield params
-                # this happens N-1 times, will be corrected outside:
-                if progress:
-                    progress(1)
+        ttl = online_store_config.key_ttl_seconds or 0
+        write_concurrency = online_store_config.write_concurrency
+        write_rate_limit = online_store_config.write_rate_limit
+        concurrent_queue: Queue = Queue(maxsize=write_concurrency)
+        rate_limiter = SlidingWindowRateLimiter(write_rate_limit, 1)
 
-        self._write_rows_concurrently(
+        session: Session = self._get_session(config)
+        keyspace: str = self._keyspace
+        fqtable = CassandraOnlineStore._fq_table_name(keyspace, project, table)
+
+        insert_cql = self._get_cql_statement(
             config,
-            project,
-            table,
-            unroll_insertion_tuples(),
+            "insert4",
+            fqtable=fqtable,
+            ttl=ttl,
+            session=session,
         )
+
+        for entity_key, values, timestamp, created_ts in data:
+            batch = BatchStatement(batch_type=BatchType.UNLOGGED)
+            entity_key_bin = serialize_entity_key(
+                entity_key,
+                entity_key_serialization_version=config.entity_key_serialization_version,
+            ).hex()
+            for feature_name, val in values.items():
+                params: Tuple[str, bytes, str, datetime] = (
+                    feature_name,
+                    val.SerializeToString(),
+                    entity_key_bin,
+                    timestamp,
+                )
+                batch.add(insert_cql, params)
+
+            # Wait until the rate limiter allows
+            if not rate_limiter.acquire():
+                while not rate_limiter.acquire():
+                    time.sleep(0.001)
+
+            future = session.execute_async(batch)
+            concurrent_queue.put(future)
+            future.add_callbacks(
+                partial(
+                    on_success,
+                    concurrent_queue=concurrent_queue,
+                ),
+                partial(
+                    on_failure,
+                    concurrent_queue=concurrent_queue,
+                ),
+            )
+
+            # this happens N-1 times, will be corrected outside:
+            if progress:
+                progress(1)
+        # Wait for all tasks to complete
+        while not concurrent_queue.empty():
+            time.sleep(0.001)
+
         # correction for the last missing call to `progress`:
         if progress:
             progress(1)
@@ -493,25 +542,6 @@ class CassandraOnlineStore(OnlineStore):
         """
         return f'"{keyspace}"."{project}_{table.name}"'
 
-    def _write_rows_concurrently(
-        self,
-        config: RepoConfig,
-        project: str,
-        table: FeatureView,
-        rows: Iterable[Tuple[str, bytes, str, datetime]],
-    ):
-        session: Session = self._get_session(config)
-        keyspace: str = self._keyspace
-        fqtable = CassandraOnlineStore._fq_table_name(keyspace, project, table)
-        insert_cql = self._get_cql_statement(config, "insert4", fqtable=fqtable)
-        #
-        execute_concurrent_with_args(
-            session,
-            insert_cql,
-            rows,
-            concurrency=config.online_store.write_concurrency,
-        )
-
     def _read_rows_by_entity_keys(
         self,
         config: RepoConfig,
@@ -572,13 +602,8 @@ class CassandraOnlineStore(OnlineStore):
         session: Session = self._get_session(config)
         keyspace: str = self._keyspace
         fqtable = CassandraOnlineStore._fq_table_name(keyspace, project, table)
-        ttl = (
-            table.online_store_key_ttl_seconds
-            or config.online_store.key_ttl_seconds
-            or 0
-        )
-        create_cql = self._get_cql_statement(config, "create", fqtable, ttl=ttl)
-        logger.info(f"Creating table {fqtable} with TTL {ttl}.")
+        create_cql = self._get_cql_statement(config, "create", fqtable)
+        logger.info(f"Creating table {fqtable} in keyspace {keyspace}.")
         session.execute(create_cql)
 
     def _get_cql_statement(
@@ -594,7 +619,12 @@ class CassandraOnlineStore(OnlineStore):
         This additional layer makes it easy to control whether to use prepared
         statements and, if so, on which database operations.
         """
-        session: Session = self._get_session(config)
+        session: Session = None
+        if "session" in kwargs:
+            session = kwargs["session"]
+        else:
+            session = self._get_session(config)
+
         template, prepare = CQL_TEMPLATE_MAP[op_name]
         statement = template.format(
             fqtable=fqtable,

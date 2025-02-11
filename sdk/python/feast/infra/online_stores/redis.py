@@ -330,11 +330,7 @@ class RedisOnlineStore(OnlineStore):
 
                 pipe.hset(redis_key_bin, mapping=entity_hset)
 
-                ttl = (
-                    table.online_store_key_ttl_seconds
-                    or online_store_config.key_ttl_seconds
-                    or None
-                )
+                ttl = online_store_config.key_ttl_seconds
                 if ttl:
                     pipe.expire(name=redis_key_bin, time=ttl)
             results = pipe.execute()
