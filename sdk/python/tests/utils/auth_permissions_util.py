@@ -87,9 +87,9 @@ def start_feature_server(repo_path: str, server_port: int, metrics: bool = False
             timeout_msg="Unable to start the Prometheus server in 60 seconds.",
         )
     else:
-        assert not check_port_open(
-            "localhost", 8000
-        ), "Prometheus server is running when it should be disabled."
+        assert not check_port_open("localhost", 8000), (
+            "Prometheus server is running when it should be disabled."
+        )
 
     yield f"http://localhost:{server_port}"
 

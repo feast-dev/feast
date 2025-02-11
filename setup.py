@@ -115,12 +115,14 @@ HBASE_REQUIRED = [
 
 CASSANDRA_REQUIRED = [
     "cassandra-driver>=3.24.0,<4",
+    "lz4",
 ]
 
 GE_REQUIRED = ["great_expectations>=0.15.41"]
 
 SCYLLADB_REQUIRED = [
     "scylla-driver>=3.24.0,<4",
+    "lz4",
 ]
 
 AZURE_REQUIRED = [
@@ -169,7 +171,7 @@ SINGLESTORE_REQUIRED = ["singlestoredb"]
 MSSQL_REQUIRED = ["ibis-framework[mssql]>=9.0.0,<10"]
 
 CI_REQUIRED = (
-        [
+    [
         "build",
         "virtualenv==20.23.0",
         "cryptography>=35.0,<43",
@@ -213,29 +215,30 @@ CI_REQUIRED = (
         "types-tabulate",
         "virtualenv<20.24.2",
     ]
-        + GCP_REQUIRED
-        + REDIS_REQUIRED
-        + AWS_REQUIRED
-        + KUBERNETES_REQUIRED
-        + SNOWFLAKE_REQUIRED
-        + SPARK_REQUIRED
-        + POSTGRES_REQUIRED
-        + MYSQL_REQUIRED
-        + TRINO_REQUIRED
-        + GE_REQUIRED
-        + HBASE_REQUIRED
-        + CASSANDRA_REQUIRED
-        + AZURE_REQUIRED
-        + HAZELCAST_REQUIRED
-        + EG_MILVUS_REQUIRED
-        + IBIS_REQUIRED
-        + GRPCIO_REQUIRED
-        + DUCKDB_REQUIRED
-        + DELTA_REQUIRED
-        + ELASTICSEARCH_REQUIRED
-        + SQLITE_VEC_REQUIRED
-        + SINGLESTORE_REQUIRED
-        + OPENTELEMETRY
+    + GCP_REQUIRED
+    + REDIS_REQUIRED
+    + AWS_REQUIRED
+    + KUBERNETES_REQUIRED
+    + SNOWFLAKE_REQUIRED
+    + SPARK_REQUIRED
+    + POSTGRES_REQUIRED
+    + MYSQL_REQUIRED
+    + TRINO_REQUIRED
+    + GE_REQUIRED
+    + HBASE_REQUIRED
+    + CASSANDRA_REQUIRED
+    + SCYLLADB_REQUIRED
+    + AZURE_REQUIRED
+    + HAZELCAST_REQUIRED
+    + EG_MILVUS_REQUIRED
+    + IBIS_REQUIRED
+    + GRPCIO_REQUIRED
+    + DUCKDB_REQUIRED
+    + DELTA_REQUIRED
+    + ELASTICSEARCH_REQUIRED
+    + SQLITE_VEC_REQUIRED
+    + SINGLESTORE_REQUIRED
+    + OPENTELEMETRY
 )
 
 DOCS_REQUIRED = CI_REQUIRED

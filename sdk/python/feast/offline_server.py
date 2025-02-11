@@ -236,15 +236,15 @@ class OfflineServer(fl.FlightServerBase):
         return fl.RecordBatchStream(table)
 
     def _validate_offline_write_batch_parameters(self, command: dict):
-        assert (
-            "feature_view_names" in command
-        ), "feature_view_names is a mandatory parameter"
+        assert "feature_view_names" in command, (
+            "feature_view_names is a mandatory parameter"
+        )
         assert "name_aliases" in command, "name_aliases is a mandatory parameter"
 
         feature_view_names = command["feature_view_names"]
-        assert (
-            len(feature_view_names) == 1
-        ), "feature_view_names list should only have one item"
+        assert len(feature_view_names) == 1, (
+            "feature_view_names list should only have one item"
+        )
 
         name_aliases = command["name_aliases"]
         assert len(name_aliases) == 1, "name_aliases list should only have one item"
@@ -286,9 +286,9 @@ class OfflineServer(fl.FlightServerBase):
             command["feature_service_name"]
         )
 
-        assert (
-            feature_service.logging_config is not None
-        ), "feature service must have logging_config set"
+        assert feature_service.logging_config is not None, (
+            "feature service must have logging_config set"
+        )
 
         assert_permissions(
             resource=feature_service,
@@ -305,15 +305,15 @@ class OfflineServer(fl.FlightServerBase):
         )
 
     def _validate_pull_all_from_table_or_query_parameters(self, command: dict):
-        assert (
-            "data_source_name" in command
-        ), "data_source_name is a mandatory parameter"
-        assert (
-            "join_key_columns" in command
-        ), "join_key_columns is a mandatory parameter"
-        assert (
-            "feature_name_columns" in command
-        ), "feature_name_columns is a mandatory parameter"
+        assert "data_source_name" in command, (
+            "data_source_name is a mandatory parameter"
+        )
+        assert "join_key_columns" in command, (
+            "join_key_columns is a mandatory parameter"
+        )
+        assert "feature_name_columns" in command, (
+            "feature_name_columns is a mandatory parameter"
+        )
         assert "timestamp_field" in command, "timestamp_field is a mandatory parameter"
         assert "start_date" in command, "start_date is a mandatory parameter"
         assert "end_date" in command, "end_date is a mandatory parameter"
@@ -334,15 +334,15 @@ class OfflineServer(fl.FlightServerBase):
         )
 
     def _validate_pull_latest_from_table_or_query_parameters(self, command: dict):
-        assert (
-            "data_source_name" in command
-        ), "data_source_name is a mandatory parameter"
-        assert (
-            "join_key_columns" in command
-        ), "join_key_columns is a mandatory parameter"
-        assert (
-            "feature_name_columns" in command
-        ), "feature_name_columns is a mandatory parameter"
+        assert "data_source_name" in command, (
+            "data_source_name is a mandatory parameter"
+        )
+        assert "join_key_columns" in command, (
+            "join_key_columns is a mandatory parameter"
+        )
+        assert "feature_name_columns" in command, (
+            "feature_name_columns is a mandatory parameter"
+        )
         assert "timestamp_field" in command, "timestamp_field is a mandatory parameter"
         assert "start_date" in command, "start_date is a mandatory parameter"
         assert "end_date" in command, "end_date is a mandatory parameter"

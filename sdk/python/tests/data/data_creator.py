@@ -1,8 +1,8 @@
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
+from zoneinfo import ZoneInfo
 
 import pandas as pd
-from zoneinfo import ZoneInfo
 
 from feast.types import FeastType, Float32, Int32, Int64, String
 from feast.utils import _utc_now

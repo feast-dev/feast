@@ -1059,7 +1059,7 @@ def upload_arrow_table_to_athena(
         f"CREATE EXTERNAL TABLE {database}.{table_name} {'IF NOT EXISTS' if not fail_if_exists else ''}"
         f"({column_query_list}) "
         f"STORED AS PARQUET "
-        f"LOCATION '{s3_path[:s3_path.rfind('/')]}' "
+        f"LOCATION '{s3_path[: s3_path.rfind('/')]}' "
         f"TBLPROPERTIES('parquet.compress' = 'SNAPPY') "
     )
 

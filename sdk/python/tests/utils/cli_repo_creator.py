@@ -59,7 +59,10 @@ class CliRunner:
             random.choice(string.ascii_lowercase + string.digits) for _ in range(10)
         )
 
-        with tempfile.TemporaryDirectory() as repo_dir_name, tempfile.TemporaryDirectory() as data_dir_name:
+        with (
+            tempfile.TemporaryDirectory() as repo_dir_name,
+            tempfile.TemporaryDirectory() as data_dir_name,
+        ):
             repo_path = Path(repo_dir_name)
             data_path = Path(data_dir_name)
 
@@ -88,9 +91,9 @@ class CliRunner:
             stderr = result.stderr.decode("utf-8")
             print(f"Apply stdout:\n{stdout}")
             print(f"Apply stderr:\n{stderr}")
-            assert (
-                result.returncode == 0
-            ), f"stdout: {result.stdout}\nstderr: {result.stderr}"
+            assert result.returncode == 0, (
+                f"stdout: {result.stdout}\nstderr: {result.stderr}"
+            )
 
             yield FeatureStore(repo_path=str(repo_path), config=None)
 
@@ -99,6 +102,6 @@ class CliRunner:
             stderr = result.stderr.decode("utf-8")
             print(f"Apply stdout:\n{stdout}")
             print(f"Apply stderr:\n{stderr}")
-            assert (
-                result.returncode == 0
-            ), f"stdout: {result.stdout}\nstderr: {result.stderr}"
+            assert result.returncode == 0, (
+                f"stdout: {result.stdout}\nstderr: {result.stderr}"
+            )
