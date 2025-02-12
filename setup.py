@@ -116,6 +116,7 @@ HBASE_REQUIRED = [
 CASSANDRA_REQUIRED = [
     "cassandra-driver>=3.24.0,<4",
     "lz4",
+    "python-snappy",
 ]
 
 GE_REQUIRED = ["great_expectations>=0.15.41"]
@@ -123,6 +124,7 @@ GE_REQUIRED = ["great_expectations>=0.15.41"]
 SCYLLADB_REQUIRED = [
     "scylla-driver>=3.24.0,<4",
     "lz4",
+    "python-snappy",
 ]
 
 AZURE_REQUIRED = [
