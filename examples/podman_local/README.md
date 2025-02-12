@@ -18,7 +18,7 @@ This guide explains how to deploy Feast remote server components using Podman Co
 
 ### 2. **Run the Podman Compose File**
 
-- Use the [docker-compose.yml](docker-compose.yml) file to install and run the Feast feature servers (online, offline, and registry) on podman. The docker-compose file uses the `feastdev/feature-server:latest` image. Each respective service has specific port mappings and maps the volume from the  `./feature_repo` configuration.
+- Use the [docker-compose.yml](docker-compose.yml) file to install and run the Feast feature servers (online, offline, and registry) on podman. The docker-compose file uses the `quay.io/feastdev/feature-server:latest` image. Each respective service has specific port mappings and maps the volume from the  `./feature_repo` configuration.
 - To start the feature servers, run the following command:
 
   ```bash
