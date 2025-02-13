@@ -490,16 +490,28 @@ def _group_feature_refs(
     return fvs_result, odfvs_result
 
 
-def apply_list_mapping(
-    lst: Iterable[Any], mapping_indexes: Iterable[List[int]]
-) -> Iterable[Any]:
-    output_len = sum(len(item) for item in mapping_indexes)
-    output = [None] * output_len
-    for elem, destinations in zip(lst, mapping_indexes):
-        for idx in destinations:
-            output[idx] = elem
+def construct_response_feature_vector(
+    values_vector: Iterable[Any],
+    statuses_vector: Iterable[Any],
+    timestamp_vector: Iterable[Any],
+    mapping_indexes: Iterable[list[int]],
+    output_len: int,
+) -> GetOnlineFeaturesResponse.FeatureVector:
+    values_output = [None] * output_len
+    statuses_output = [None] * output_len
+    timestamp_output = [None] * output_len
 
-    return output
+    for i, destinations in enumerate(mapping_indexes):
+        for idx in destinations:
+            values_output[idx] = values_vector[i]
+            statuses_output[idx] = statuses_vector[i]
+            timestamp_output[idx] = timestamp_vector[i]
+
+    return GetOnlineFeaturesResponse.FeatureVector(
+        values=values_output,
+        statuses=statuses_output,
+        event_timestamps=timestamp_output,
+    )
 
 
 def _augment_response_with_on_demand_transforms(
@@ -674,7 +686,7 @@ def _get_unique_entities(
     table: "FeatureView",
     join_key_values: Dict[str, List[ValueProto]],
     entity_name_to_join_key_map: Dict[str, str],
-) -> Tuple[Tuple[Dict[str, ValueProto], ...], Tuple[List[int], ...]]:
+) -> Tuple[Tuple[Dict[str, ValueProto], ...], Tuple[List[int], ...], int]:
     """Return the set of unique composite Entities for a Feature View and the indexes at which they appear.
 
     This method allows us to query the OnlineStore for data we need only once
@@ -712,7 +724,7 @@ def _get_unique_entities(
 
     # If there are no rows, return empty tuples.
     if not rowise:
-        return (), ()
+        return (), (), 0
 
     # Sort rowise so that rows with the same join key values are adjacent.
     rowise.sort(key=lambda row: tuple(getattr(x, x.WhichOneof("val")) for x in row[1]))
@@ -725,16 +737,16 @@ def _get_unique_entities(
 
     # If no groups were formed (should not happen for valid input), return empty tuples.
     if not groups:
-        return (), ()
+        return (), (), 0
 
     # Unpack the unique entities and their original row indexes.
     unique_entities, indexes = tuple(zip(*groups))
-    return unique_entities, indexes
+    return unique_entities, indexes, len(rowise)
 
 
 def _get_unique_entities_from_values(
     table_entity_values: Dict[str, List[ValueProto]],
-) -> Tuple[Tuple[Dict[str, ValueProto], ...], Tuple[List[int], ...]]:
+) -> Tuple[Tuple[Dict[str, ValueProto], ...], Tuple[List[int], ...], int]:
     """Return the set of unique composite Entities for a Feature View and the indexes at which they appear.
 
     This method allows us to query the OnlineStore for data we need only once
@@ -758,7 +770,7 @@ def _get_unique_entities_from_values(
             ]
         )
     )
-    return unique_entities, indexes
+    return unique_entities, indexes, len(rowise)
 
 
 def _drop_unneeded_columns(
@@ -835,6 +847,7 @@ def _populate_response_from_feature_data(
     full_feature_names: bool,
     requested_features: Iterable[str],
     table: "FeatureView",
+    output_len: int,
 ):
     """Populate the GetOnlineFeaturesResponse with feature data.
 
@@ -853,14 +866,12 @@ def _populate_response_from_feature_data(
         requested_features: The names of the features in `feature_data`. This should be ordered in the same way as the
             data in `feature_data`.
         table: The FeatureView that `feature_data` was retrieved from.
+        output_len: The number of result rows in `online_features_response`.
     """
     # Add the feature names to the response.
+    table_name = table.projection.name_to_use()
     requested_feature_refs = [
-        (
-            f"{table.projection.name_to_use()}__{feature_name}"
-            if full_feature_names
-            else feature_name
-        )
+        f"{table_name}__{feature_name}" if full_feature_names else feature_name
         for feature_name in requested_features
     ]
     online_features_response.metadata.feature_names.val.extend(requested_feature_refs)
@@ -873,13 +884,14 @@ def _populate_response_from_feature_data(
         feature_idx,
         (timestamp_vector, statuses_vector, values_vector),
     ) in enumerate(zip(zip(*timestamps), zip(*statuses), zip(*values))):
-        online_features_response.results.append(
-            GetOnlineFeaturesResponse.FeatureVector(
-                values=apply_list_mapping(values_vector, indexes),
-                statuses=apply_list_mapping(statuses_vector, indexes),
-                event_timestamps=apply_list_mapping(timestamp_vector, indexes),
-            )
+        response_feature_vector = construct_response_feature_vector(
+            values_vector=values_vector,
+            statuses_vector=statuses_vector,
+            timestamp_vector=timestamp_vector,
+            mapping_indexes=indexes,
+            output_len=output_len,
         )
+        online_features_response.results.append(response_feature_vector)
 
 
 def _populate_response_from_feature_data_v2(
