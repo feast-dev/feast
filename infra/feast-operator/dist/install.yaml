@@ -91,6 +91,384 @@ spec:
                 x-kubernetes-validations:
                 - message: One selection required between kubernetes or oidc.
                   rule: '[has(self.kubernetes), has(self.oidc)].exists_one(c, c)'
+              cronJob:
+                description: FeastCronJob defines a CronJob to execute against a Feature
+                  Store deployment.
+                properties:
+                  concurrencyPolicy:
+                    description: Specifies how to treat concurrent executions of a
+                      Job.
+                    type: string
+                  containerConfigs:
+                    description: CronJobContainerConfigs k8s container settings for
+                      the CronJob
+                    properties:
+                      commands:
+                        description: Array of commands to be executed (in order) against
+                          a Feature Store deployment.
+                        items:
+                          type: string
+                        type: array
+                      env:
+                        items:
+                          description: EnvVar represents an environment variable present
+                            in a Container.
+                          properties:
+                            name:
+                              description: Name of the environment variable. Must
+                                be a C_IDENTIFIER.
+                              type: string
+                            value:
+                              description: |-
+                                Variable references $(VAR_NAME) are expanded
+                                using the previously defined environment variables in the container and
+                                any
+                              type: string
+                            valueFrom:
+                              description: Source for the environment variable's value.
+                                Cannot be used if value is not empty.
+                              properties:
+                                configMapKeyRef:
+                                  description: Selects a key of a ConfigMap.
+                                  properties:
+                                    key:
+                                      description: The key to select.
+                                      type: string
+                                    name:
+                                      default: ""
+                                      description: |-
+                                        Name of the referent.
+                                        This field is effectively required, but due to backwards compatibility is
+                                        allowed to be empty.
+                                      type: string
+                                    optional:
+                                      description: Specify whether the ConfigMap or
+                                        its key must be defined
+                                      type: boolean
+                                  required:
+                                  - key
+                                  type: object
+                                  x-kubernetes-map-type: atomic
+                                fieldRef:
+                                  description: 'Selects a field of the pod: supports
+                                    metadata.name, metadata.namespace, `metadata.labels[''<KEY>'']`,
+                                    `metadata.'
+                                  properties:
+                                    apiVersion:
+                                      description: Version of the schema the FieldPath
+                                        is written in terms of, defaults to "v1".
+                                      type: string
+                                    fieldPath:
+                                      description: Path of the field to select in
+                                        the specified API version.
+                                      type: string
+                                  required:
+                                  - fieldPath
+                                  type: object
+                                  x-kubernetes-map-type: atomic
+                                resourceFieldRef:
+                                  description: |-
+                                    Selects a resource of the container: only resources limits and requests
+                                    (limits.cpu, limits.memory, limits.
+                                  properties:
+                                    containerName:
+                                      description: 'Container name: required for volumes,
+                                        optional for env vars'
+                                      type: string
+                                    divisor:
+                                      anyOf:
+                                      - type: integer
+                                      - type: string
+                                      description: Specifies the output format of
+                                        the exposed resources, defaults to "1"
+                                      pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                      x-kubernetes-int-or-string: true
+                                    resource:
+                                      description: 'Required: resource to select'
+                                      type: string
+                                  required:
+                                  - resource
+                                  type: object
+                                  x-kubernetes-map-type: atomic
+                                secretKeyRef:
+                                  description: Selects a key of a secret in the pod's
+                                    namespace
+                                  properties:
+                                    key:
+                                      description: The key of the secret to select
+                                        from.  Must be a valid secret key.
+                                      type: string
+                                    name:
+                                      default: ""
+                                      description: |-
+                                        Name of the referent.
+                                        This field is effectively required, but due to backwards compatibility is
+                                        allowed to be empty.
+                                      type: string
+                                    optional:
+                                      description: Specify whether the Secret or its
+                                        key must be defined
+                                      type: boolean
+                                  required:
+                                  - key
+                                  type: object
+                                  x-kubernetes-map-type: atomic
+                              type: object
+                          required:
+                          - name
+                          type: object
+                        type: array
+                      envFrom:
+                        items:
+                          description: EnvFromSource represents the source of a set
+                            of ConfigMaps
+                          properties:
+                            configMapRef:
+                              description: The ConfigMap to select from
+                              properties:
+                                name:
+                                  default: ""
+                                  description: |-
+                                    Name of the referent.
+                                    This field is effectively required, but due to backwards compatibility is
+                                    allowed to be empty.
+                                  type: string
+                                optional:
+                                  description: Specify whether the ConfigMap must
+                                    be defined
+                                  type: boolean
+                              type: object
+                              x-kubernetes-map-type: atomic
+                            prefix:
+                              description: An optional identifier to prepend to each
+                                key in the ConfigMap. Must be a C_IDENTIFIER.
+                              type: string
+                            secretRef:
+                              description: The Secret to select from
+                              properties:
+                                name:
+                                  default: ""
+                                  description: |-
+                                    Name of the referent.
+                                    This field is effectively required, but due to backwards compatibility is
+                                    allowed to be empty.
+                                  type: string
+                                optional:
+                                  description: Specify whether the Secret must be
+                                    defined
+                                  type: boolean
+                              type: object
+                              x-kubernetes-map-type: atomic
+                          type: object
+                        type: array
+                      image:
+                        type: string
+                      imagePullPolicy:
+                        description: PullPolicy describes a policy for if/when to
+                          pull a container image
+                        type: string
+                      resources:
+                        description: ResourceRequirements describes the compute resource
+                          requirements.
+                        properties:
+                          claims:
+                            description: |-
+                              Claims lists the names of resources, defined in spec.resourceClaims,
+                              that are used by this container.
+                            items:
+                              description: ResourceClaim references one entry in PodSpec.ResourceClaims.
+                              properties:
+                                name:
+                                  description: |-
+                                    Name must match the name of one entry in pod.spec.resourceClaims of
+                                    the Pod where this field is used.
+                                  type: string
+                              required:
+                              - name
+                              type: object
+                            type: array
+                            x-kubernetes-list-map-keys:
+                            - name
+                            x-kubernetes-list-type: map
+                          limits:
+                            additionalProperties:
+                              anyOf:
+                              - type: integer
+                              - type: string
+                              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                              x-kubernetes-int-or-string: true
+                            description: |-
+                              Limits describes the maximum amount of compute resources allowed.
+                              More info: https://kubernetes.
+                            type: object
+                          requests:
+                            additionalProperties:
+                              anyOf:
+                              - type: integer
+                              - type: string
+                              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                              x-kubernetes-int-or-string: true
+                            description: Requests describes the minimum amount of
+                              compute resources required.
+                            type: object
+                        type: object
+                    type: object
+                  failedJobsHistoryLimit:
+                    description: The number of failed finished jobs to retain. Value
+                      must be non-negative integer.
+                    format: int32
+                    type: integer
+                  jobSpec:
+                    description: Specification of the desired behavior of a job.
+                    properties:
+                      activeDeadlineSeconds:
+                        description: |-
+                          Specifies the duration in seconds relative to the startTime that the job
+                          may be continuously active before the system tr
+                        format: int64
+                        type: integer
+                      backoffLimit:
+                        description: Specifies the number of retries before marking
+                          this job failed.
+                        format: int32
+                        type: integer
+                      backoffLimitPerIndex:
+                        description: |-
+                          Specifies the limit for the number of retries within an
+                          index before marking this index as failed.
+                        format: int32
+                        type: integer
+                      completionMode:
+                        description: |-
+                          completionMode specifies how Pod completions are tracked. It can be
+                          `NonIndexed` (default) or `Indexed`.
+                        type: string
+                      completions:
+                        description: |-
+                          Specifies the desired number of successfully finished pods the
+                          job should be run with.
+                        format: int32
+                        type: integer
+                      maxFailedIndexes:
+                        description: |-
+                          Specifies the maximal number of failed indexes before marking the Job as
+                          failed, when backoffLimitPerIndex is set.
+                        format: int32
+                        type: integer
+                      parallelism:
+                        description: |-
+                          Specifies the maximum desired number of pods the job should
+                          run at any given time.
+                        format: int32
+                        type: integer
+                      podFailurePolicy:
+                        description: Specifies the policy of handling failed pods.
+                        properties:
+                          rules:
+                            description: A list of pod failure policy rules. The rules
+                              are evaluated in order.
+                            items:
+                              description: PodFailurePolicyRule describes how a pod
+                                failure is handled when the requirements are met.
+                              properties:
+                                action:
+                                  description: Specifies the action taken on a pod
+                                    failure when the requirements are satisfied.
+                                  type: string
+                                onExitCodes:
+                                  description: Represents the requirement on the container
+                                    exit codes.
+                                  properties:
+                                    containerName:
+                                      description: |-
+                                        Restricts the check for exit codes to the container with the
+                                        specified name.
+                                      type: string
+                                    operator:
+                                      description: |-
+                                        Represents the relationship between the container exit code(s) and the
+                                        specified values.
+                                      type: string
+                                    values:
+                                      description: Specifies the set of values.
+                                      items:
+                                        format: int32
+                                        type: integer
+                                      type: array
+                                      x-kubernetes-list-type: set
+                                  required:
+                                  - operator
+                                  - values
+                                  type: object
+                                onPodConditions:
+                                  description: |-
+                                    Represents the requirement on the pod conditions. The requirement is represented
+                                    as a list of pod condition patterns.
+                                  items:
+                                    description: |-
+                                      PodFailurePolicyOnPodConditionsPattern describes a pattern for matching
+                                      an actual pod condition type.
+                                    properties:
+                                      status:
+                                        description: Specifies the required Pod condition
+                                          status.
+                                        type: string
+                                      type:
+                                        description: Specifies the required Pod condition
+                                          type.
+                                        type: string
+                                    required:
+                                    - status
+                                    - type
+                                    type: object
+                                  type: array
+                                  x-kubernetes-list-type: atomic
+                              required:
+                              - action
+                              type: object
+                            type: array
+                            x-kubernetes-list-type: atomic
+                        required:
+                        - rules
+                        type: object
+                      podReplacementPolicy:
+                        description: podReplacementPolicy specifies when to create
+                          replacement Pods.
+                        type: string
+                      suspend:
+                        description: suspend specifies whether the Job controller
+                          should create Pods or not.
+                        type: boolean
+                      ttlSecondsAfterFinished:
+                        description: |-
+                          ttlSecondsAfterFinished limits the lifetime of a Job that has finished
+                          execution (either Complete or Failed).
+                        format: int32
+                        type: integer
+                    type: object
+                  schedule:
+                    description: The schedule in Cron format, see https://en.wikipedia.org/wiki/Cron.
+                    type: string
+                  startingDeadlineSeconds:
+                    description: |-
+                      Optional deadline in seconds for starting the job if it misses scheduled
+                      time for any reason.
+                    format: int64
+                    type: integer
+                  successfulJobsHistoryLimit:
+                    description: The number of successful finished jobs to retain.
+                      Value must be non-negative integer.
+                    format: int32
+                    type: integer
+                  suspend:
+                    description: |-
+                      This flag tells the controller to suspend subsequent executions, it does
+                      not apply to already started executions.
+                    type: boolean
+                  timeZone:
+                    description: The time zone name for the given schedule, see https://en.wikipedia.org/wiki/List_of_tz_database_time_zones.
+                    type: string
+                type: object
               feastProject:
                 description: FeastProject is the Feast project id.
                 pattern: ^[A-Za-z0-9][A-Za-z0-9_]*$
@@ -3525,6 +3903,388 @@ spec:
                     - message: One selection required between kubernetes or oidc.
                       rule: '[has(self.kubernetes), has(self.oidc)].exists_one(c,
                         c)'
+                  cronJob:
+                    description: FeastCronJob defines a CronJob to execute against
+                      a Feature Store deployment.
+                    properties:
+                      concurrencyPolicy:
+                        description: Specifies how to treat concurrent executions
+                          of a Job.
+                        type: string
+                      containerConfigs:
+                        description: CronJobContainerConfigs k8s container settings
+                          for the CronJob
+                        properties:
+                          commands:
+                            description: Array of commands to be executed (in order)
+                              against a Feature Store deployment.
+                            items:
+                              type: string
+                            type: array
+                          env:
+                            items:
+                              description: EnvVar represents an environment variable
+                                present in a Container.
+                              properties:
+                                name:
+                                  description: Name of the environment variable. Must
+                                    be a C_IDENTIFIER.
+                                  type: string
+                                value:
+                                  description: |-
+                                    Variable references $(VAR_NAME) are expanded
+                                    using the previously defined environment variables in the container and
+                                    any
+                                  type: string
+                                valueFrom:
+                                  description: Source for the environment variable's
+                                    value. Cannot be used if value is not empty.
+                                  properties:
+                                    configMapKeyRef:
+                                      description: Selects a key of a ConfigMap.
+                                      properties:
+                                        key:
+                                          description: The key to select.
+                                          type: string
+                                        name:
+                                          default: ""
+                                          description: |-
+                                            Name of the referent.
+                                            This field is effectively required, but due to backwards compatibility is
+                                            allowed to be empty.
+                                          type: string
+                                        optional:
+                                          description: Specify whether the ConfigMap
+                                            or its key must be defined
+                                          type: boolean
+                                      required:
+                                      - key
+                                      type: object
+                                      x-kubernetes-map-type: atomic
+                                    fieldRef:
+                                      description: 'Selects a field of the pod: supports
+                                        metadata.name, metadata.namespace, `metadata.labels[''<KEY>'']`,
+                                        `metadata.'
+                                      properties:
+                                        apiVersion:
+                                          description: Version of the schema the FieldPath
+                                            is written in terms of, defaults to "v1".
+                                          type: string
+                                        fieldPath:
+                                          description: Path of the field to select
+                                            in the specified API version.
+                                          type: string
+                                      required:
+                                      - fieldPath
+                                      type: object
+                                      x-kubernetes-map-type: atomic
+                                    resourceFieldRef:
+                                      description: |-
+                                        Selects a resource of the container: only resources limits and requests
+                                        (limits.cpu, limits.memory, limits.
+                                      properties:
+                                        containerName:
+                                          description: 'Container name: required for
+                                            volumes, optional for env vars'
+                                          type: string
+                                        divisor:
+                                          anyOf:
+                                          - type: integer
+                                          - type: string
+                                          description: Specifies the output format
+                                            of the exposed resources, defaults to
+                                            "1"
+                                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                          x-kubernetes-int-or-string: true
+                                        resource:
+                                          description: 'Required: resource to select'
+                                          type: string
+                                      required:
+                                      - resource
+                                      type: object
+                                      x-kubernetes-map-type: atomic
+                                    secretKeyRef:
+                                      description: Selects a key of a secret in the
+                                        pod's namespace
+                                      properties:
+                                        key:
+                                          description: The key of the secret to select
+                                            from.  Must be a valid secret key.
+                                          type: string
+                                        name:
+                                          default: ""
+                                          description: |-
+                                            Name of the referent.
+                                            This field is effectively required, but due to backwards compatibility is
+                                            allowed to be empty.
+                                          type: string
+                                        optional:
+                                          description: Specify whether the Secret
+                                            or its key must be defined
+                                          type: boolean
+                                      required:
+                                      - key
+                                      type: object
+                                      x-kubernetes-map-type: atomic
+                                  type: object
+                              required:
+                              - name
+                              type: object
+                            type: array
+                          envFrom:
+                            items:
+                              description: EnvFromSource represents the source of
+                                a set of ConfigMaps
+                              properties:
+                                configMapRef:
+                                  description: The ConfigMap to select from
+                                  properties:
+                                    name:
+                                      default: ""
+                                      description: |-
+                                        Name of the referent.
+                                        This field is effectively required, but due to backwards compatibility is
+                                        allowed to be empty.
+                                      type: string
+                                    optional:
+                                      description: Specify whether the ConfigMap must
+                                        be defined
+                                      type: boolean
+                                  type: object
+                                  x-kubernetes-map-type: atomic
+                                prefix:
+                                  description: An optional identifier to prepend to
+                                    each key in the ConfigMap. Must be a C_IDENTIFIER.
+                                  type: string
+                                secretRef:
+                                  description: The Secret to select from
+                                  properties:
+                                    name:
+                                      default: ""
+                                      description: |-
+                                        Name of the referent.
+                                        This field is effectively required, but due to backwards compatibility is
+                                        allowed to be empty.
+                                      type: string
+                                    optional:
+                                      description: Specify whether the Secret must
+                                        be defined
+                                      type: boolean
+                                  type: object
+                                  x-kubernetes-map-type: atomic
+                              type: object
+                            type: array
+                          image:
+                            type: string
+                          imagePullPolicy:
+                            description: PullPolicy describes a policy for if/when
+                              to pull a container image
+                            type: string
+                          resources:
+                            description: ResourceRequirements describes the compute
+                              resource requirements.
+                            properties:
+                              claims:
+                                description: |-
+                                  Claims lists the names of resources, defined in spec.resourceClaims,
+                                  that are used by this container.
+                                items:
+                                  description: ResourceClaim references one entry
+                                    in PodSpec.ResourceClaims.
+                                  properties:
+                                    name:
+                                      description: |-
+                                        Name must match the name of one entry in pod.spec.resourceClaims of
+                                        the Pod where this field is used.
+                                      type: string
+                                  required:
+                                  - name
+                                  type: object
+                                type: array
+                                x-kubernetes-list-map-keys:
+                                - name
+                                x-kubernetes-list-type: map
+                              limits:
+                                additionalProperties:
+                                  anyOf:
+                                  - type: integer
+                                  - type: string
+                                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                  x-kubernetes-int-or-string: true
+                                description: |-
+                                  Limits describes the maximum amount of compute resources allowed.
+                                  More info: https://kubernetes.
+                                type: object
+                              requests:
+                                additionalProperties:
+                                  anyOf:
+                                  - type: integer
+                                  - type: string
+                                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                  x-kubernetes-int-or-string: true
+                                description: Requests describes the minimum amount
+                                  of compute resources required.
+                                type: object
+                            type: object
+                        type: object
+                      failedJobsHistoryLimit:
+                        description: The number of failed finished jobs to retain.
+                          Value must be non-negative integer.
+                        format: int32
+                        type: integer
+                      jobSpec:
+                        description: Specification of the desired behavior of a job.
+                        properties:
+                          activeDeadlineSeconds:
+                            description: |-
+                              Specifies the duration in seconds relative to the startTime that the job
+                              may be continuously active before the system tr
+                            format: int64
+                            type: integer
+                          backoffLimit:
+                            description: Specifies the number of retries before marking
+                              this job failed.
+                            format: int32
+                            type: integer
+                          backoffLimitPerIndex:
+                            description: |-
+                              Specifies the limit for the number of retries within an
+                              index before marking this index as failed.
+                            format: int32
+                            type: integer
+                          completionMode:
+                            description: |-
+                              completionMode specifies how Pod completions are tracked. It can be
+                              `NonIndexed` (default) or `Indexed`.
+                            type: string
+                          completions:
+                            description: |-
+                              Specifies the desired number of successfully finished pods the
+                              job should be run with.
+                            format: int32
+                            type: integer
+                          maxFailedIndexes:
+                            description: |-
+                              Specifies the maximal number of failed indexes before marking the Job as
+                              failed, when backoffLimitPerIndex is set.
+                            format: int32
+                            type: integer
+                          parallelism:
+                            description: |-
+                              Specifies the maximum desired number of pods the job should
+                              run at any given time.
+                            format: int32
+                            type: integer
+                          podFailurePolicy:
+                            description: Specifies the policy of handling failed pods.
+                            properties:
+                              rules:
+                                description: A list of pod failure policy rules. The
+                                  rules are evaluated in order.
+                                items:
+                                  description: PodFailurePolicyRule describes how
+                                    a pod failure is handled when the requirements
+                                    are met.
+                                  properties:
+                                    action:
+                                      description: Specifies the action taken on a
+                                        pod failure when the requirements are satisfied.
+                                      type: string
+                                    onExitCodes:
+                                      description: Represents the requirement on the
+                                        container exit codes.
+                                      properties:
+                                        containerName:
+                                          description: |-
+                                            Restricts the check for exit codes to the container with the
+                                            specified name.
+                                          type: string
+                                        operator:
+                                          description: |-
+                                            Represents the relationship between the container exit code(s) and the
+                                            specified values.
+                                          type: string
+                                        values:
+                                          description: Specifies the set of values.
+                                          items:
+                                            format: int32
+                                            type: integer
+                                          type: array
+                                          x-kubernetes-list-type: set
+                                      required:
+                                      - operator
+                                      - values
+                                      type: object
+                                    onPodConditions:
+                                      description: |-
+                                        Represents the requirement on the pod conditions. The requirement is represented
+                                        as a list of pod condition patterns.
+                                      items:
+                                        description: |-
+                                          PodFailurePolicyOnPodConditionsPattern describes a pattern for matching
+                                          an actual pod condition type.
+                                        properties:
+                                          status:
+                                            description: Specifies the required Pod
+                                              condition status.
+                                            type: string
+                                          type:
+                                            description: Specifies the required Pod
+                                              condition type.
+                                            type: string
+                                        required:
+                                        - status
+                                        - type
+                                        type: object
+                                      type: array
+                                      x-kubernetes-list-type: atomic
+                                  required:
+                                  - action
+                                  type: object
+                                type: array
+                                x-kubernetes-list-type: atomic
+                            required:
+                            - rules
+                            type: object
+                          podReplacementPolicy:
+                            description: podReplacementPolicy specifies when to create
+                              replacement Pods.
+                            type: string
+                          suspend:
+                            description: suspend specifies whether the Job controller
+                              should create Pods or not.
+                            type: boolean
+                          ttlSecondsAfterFinished:
+                            description: |-
+                              ttlSecondsAfterFinished limits the lifetime of a Job that has finished
+                              execution (either Complete or Failed).
+                            format: int32
+                            type: integer
+                        type: object
+                      schedule:
+                        description: The schedule in Cron format, see https://en.wikipedia.org/wiki/Cron.
+                        type: string
+                      startingDeadlineSeconds:
+                        description: |-
+                          Optional deadline in seconds for starting the job if it misses scheduled
+                          time for any reason.
+                        format: int64
+                        type: integer
+                      successfulJobsHistoryLimit:
+                        description: The number of successful finished jobs to retain.
+                          Value must be non-negative integer.
+                        format: int32
+                        type: integer
+                      suspend:
+                        description: |-
+                          This flag tells the controller to suspend subsequent executions, it does
+                          not apply to already started executions.
+                        type: boolean
+                      timeZone:
+                        description: The time zone name for the given schedule, see
+                          https://en.wikipedia.org/wiki/List_of_tz_database_time_zones.
+                        type: string
+                    type: object
                   feastProject:
                     description: FeastProject is the Feast project id.
                     pattern: ^[A-Za-z0-9][A-Za-z0-9_]*$
@@ -7014,6 +7774,9 @@ spec:
                   - type
                   type: object
                 type: array
+              cronJob:
+                description: CronJob in this namespace for this feast deployment
+                type: string
               feastVersion:
                 type: string
               phase:
@@ -7155,6 +7918,18 @@ rules:
   - update
   - watch
 - apiGroups:
+  - batch
+  resources:
+  - cronjobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
   - ""
   resources:
   - configmaps
@@ -7171,10 +7946,17 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - pods
   - secrets
   verbs:
   - get
   - list
+- apiGroups:
+  - ""
+  resources:
+  - pods/exec
+  verbs:
+  - create
 - apiGroups:
   - feast.dev
   resources:
@@ -7357,6 +8139,8 @@ spec:
         env:
         - name: RELATED_IMAGE_FEATURE_SERVER
           value: quay.io/feastdev/feature-server:0.47.0
+        - name: RELATED_IMAGE_CRON_JOB
+          value: quay.io/openshift/origin-cli:4.17
         image: quay.io/feastdev/feast-operator:0.47.0
         livenessProbe:
           httpGet:
