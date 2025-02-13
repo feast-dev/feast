@@ -36,6 +36,7 @@
   * [Batch Materialization Engine](getting-started/components/batch-materialization-engine.md)
   * [Provider](getting-started/components/provider.md)
   * [Authorization Manager](getting-started/components/authz_manager.md)
+  * [OpenTelemetry Integration](getting-started/components/open-telemetry.md)
 * [Third party integrations](getting-started/third-party-integrations.md)
 * [FAQ](getting-started/faq.md)
 
