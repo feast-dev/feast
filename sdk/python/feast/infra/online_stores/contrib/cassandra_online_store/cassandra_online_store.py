@@ -18,6 +18,7 @@
 Cassandra/Astra DB online store for Feast.
 """
 
+import hashlib
 import logging
 import time
 from datetime import datetime
@@ -82,7 +83,8 @@ CREATE_TABLE_CQL_TEMPLATE = """
         event_ts        TIMESTAMP,
         created_ts      TIMESTAMP,
         PRIMARY KEY ((entity_key), feature_name)
-    ) WITH CLUSTERING ORDER BY (feature_name ASC);
+    ) WITH CLUSTERING ORDER BY (feature_name ASC)
+    AND COMMENT='project={project}, feature_view={feature_view}';
 """
 
 DROP_TABLE_CQL_TEMPLATE = "DROP TABLE IF EXISTS {fqtable};"
@@ -96,6 +98,8 @@ CQL_TEMPLATE_MAP = {
     "drop": (DROP_TABLE_CQL_TEMPLATE, False),
     "create": (CREATE_TABLE_CQL_TEMPLATE, False),
 }
+
+SCYLLADB_MAX_TABLE_NAME_LENGTH = 48
 
 # Logger
 logger = logging.getLogger(__name__)
@@ -539,8 +543,23 @@ class CassandraOnlineStore(OnlineStore):
         """
         Generate a fully-qualified table name,
         including quotes and keyspace.
+        Scylladb has a limit of 48 characters for table names.
         """
-        return f'"{keyspace}"."{project}_{table.name}"'
+        feature_view_name = table.name
+        db_table_name = f"{project}_{feature_view_name}"
+        if len(db_table_name) <= SCYLLADB_MAX_TABLE_NAME_LENGTH:
+            return f'"{keyspace}"."{db_table_name}"'
+
+        project_hash = hashlib.md5(project.encode()).hexdigest()[:7]
+        table_name_hash = hashlib.md5(db_table_name.encode()).hexdigest()[:8]
+
+        # Shorten table name if it exceeds 30 characters
+        if len(feature_view_name) > 30:
+            feature_view_name = feature_view_name[:30]
+
+        # Table name should start with a character so we are adding 'p' as prefix.
+        # p represents project.
+        return f'"{keyspace}"."p{project_hash}_{feature_view_name}_{table_name_hash}"'
 
     def _read_rows_by_entity_keys(
         self,
@@ -602,8 +621,16 @@ class CassandraOnlineStore(OnlineStore):
         session: Session = self._get_session(config)
         keyspace: str = self._keyspace
         fqtable = CassandraOnlineStore._fq_table_name(keyspace, project, table)
-        create_cql = self._get_cql_statement(config, "create", fqtable)
-        logger.info(f"Creating table {fqtable} in keyspace {keyspace}.")
+        create_cql = self._get_cql_statement(
+            config,
+            "create",
+            fqtable,
+            project=project,
+            feature_view=table.name,
+        )
+        logger.info(
+            f"Creating table {fqtable} in keyspace {keyspace} if not exists using {create_cql}."
+        )
         session.execute(create_cql)
 
     def _get_cql_statement(

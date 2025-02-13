@@ -2,6 +2,7 @@ package onlinestore
 
 import (
 	"context"
+	"crypto/md5"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -36,6 +37,8 @@ type CassandraOnlineStore struct {
 
 	// The number of keys to include in a single CQL query for retrieval from the database
 	keyBatchSize int
+
+	tableNameCache sync.Map
 }
 
 type CassandraConfig struct {
@@ -50,6 +53,10 @@ type CassandraConfig struct {
 	keyBatchSize            int
 }
 
+const (
+	SCYLLADB_MAX_TABLE_NAME_LENGTH = 48
+)
+
 func parseStringField(config map[string]any, fieldName string, defaultValue string) (string, error) {
 	rawValue, ok := config[fieldName]
 	if !ok {
@@ -57,7 +64,7 @@ func parseStringField(config map[string]any, fieldName string, defaultValue stri
 	}
 	stringValue, ok := rawValue.(string)
 	if !ok {
-		return "", fmt.Errorf("failed to convert %s to string: %v", fieldName, rawValue)
+		return "", fmt.Errorf("failed to convert field %s to string: %v", fieldName, rawValue)
 	}
 	return stringValue, nil
 }
@@ -228,8 +235,35 @@ func NewCassandraOnlineStore(project string, config *registry.RepoConfig, online
 	return &store, nil
 }
 
-func (c *CassandraOnlineStore) getFqTableName(tableName string) string {
-	return fmt.Sprintf(`"%s"."%s_%s"`, c.clusterConfigs.Keyspace, c.project, tableName)
+func (c *CassandraOnlineStore) getFqTableName(keySpace string, project string, featureViewName string) string {
+	var dbTableName string
+
+	tableName := fmt.Sprintf("%s_%s", project, featureViewName)
+
+	if cacheValue, found := c.tableNameCache.Load(tableName); found {
+		return fmt.Sprintf(`"%s"."%s"`, keySpace, cacheValue.(string))
+	}
+
+	if len(tableName) <= SCYLLADB_MAX_TABLE_NAME_LENGTH {
+		dbTableName = tableName
+	} else {
+		projectHashBytes := md5.Sum([]byte(project))
+		projectHash := hex.EncodeToString(projectHashBytes[:])[:7]
+
+		dbTableHashBytes := md5.Sum([]byte(tableName))
+		dbTableHash := hex.EncodeToString(dbTableHashBytes[:])[:8]
+
+		// Shorten FeatureView name if it exceeds 30 characters
+		if len(featureViewName) > 30 {
+			featureViewName = featureViewName[:30]
+		}
+
+		dbTableName = fmt.Sprintf("p%s_%s_%s", projectHash, featureViewName, dbTableHash)
+	}
+
+	c.tableNameCache.Store(tableName, dbTableName)
+
+	return fmt.Sprintf(`"%s"."%s"`, keySpace, dbTableName)
 }
 
 func (c *CassandraOnlineStore) getSingleKeyCQLStatement(tableName string, featureNames []string) string {
@@ -307,7 +341,7 @@ func (c *CassandraOnlineStore) UnbatchedKeysOnlineRead(ctx context.Context, enti
 	featureViewName := featureViewNames[0]
 
 	// Prepare the query
-	tableName := c.getFqTableName(featureViewName)
+	tableName := c.getFqTableName(c.clusterConfigs.Keyspace, c.project, featureViewName)
 	cqlStatement := c.getSingleKeyCQLStatement(tableName, featureNames)
 
 	var waitGroup sync.WaitGroup
@@ -441,7 +475,7 @@ func (c *CassandraOnlineStore) BatchedKeysOnlineRead(ctx context.Context, entity
 	featureViewName := featureViewNames[0]
 
 	// Prepare the query
-	tableName := c.getFqTableName(featureViewName)
+	tableName := c.getFqTableName(c.clusterConfigs.Keyspace, c.project, featureViewName)
 
 	// Key batching
 	nKeys := len(serializedEntityKeys)

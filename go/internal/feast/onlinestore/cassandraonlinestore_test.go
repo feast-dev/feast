@@ -2,10 +2,13 @@ package onlinestore
 
 import (
 	"context"
+	"fmt"
+	"reflect"
+	"strings"
+	"testing"
+
 	"github.com/gocql/gocql"
 	"github.com/stretchr/testify/assert"
-	"reflect"
-	"testing"
 )
 
 func TestExtractCassandraConfig_CorrectDefaults(t *testing.T) {
@@ -56,7 +59,7 @@ func TestGetFqTableName(t *testing.T) {
 		},
 	}
 
-	fqTableName := store.getFqTableName("dummy_fv")
+	fqTableName := store.getFqTableName(store.clusterConfigs.Keyspace, store.project, "dummy_fv")
 	assert.Equal(t, `"scylladb"."dummy_project_dummy_fv"`, fqTableName)
 }
 
@@ -86,4 +89,90 @@ func TestOnlineRead_RejectsDifferentFeatureViewsInSameRead(t *testing.T) {
 	store := CassandraOnlineStore{}
 	_, err := store.OnlineRead(context.TODO(), nil, []string{"fv1", "fv2"}, []string{"feat1", "feat2"})
 	assert.Error(t, err)
+}
+
+func TestGetFqTableNameWithinLimit(t *testing.T) {
+	store := CassandraOnlineStore{
+		project: "test_project",
+	}
+
+	keySpace := "test_keyspace"
+	featureViewName := "test_feature_view"
+
+	expectedTableName := `"test_keyspace"."test_project_test_feature_view"`
+	actualTableName := store.getFqTableName(keySpace, store.project, featureViewName)
+
+	assert.Equal(t, expectedTableName, actualTableName)
+}
+
+func TestGetFqTableNameExceedsLimit(t *testing.T) {
+	store := CassandraOnlineStore{
+		project: "test_project",
+	}
+
+	keySpace := "test_keyspace"
+	featureViewName := "test_feature_view_with_a_very_long_name_exceeding_limit"
+
+	expectedTableName := `"test_keyspace"."p6e72a69_test_feature_view_with_a_very__4d479508"`
+	actualTableName := store.getFqTableName(keySpace, store.project, featureViewName)
+
+	assert.Equal(t, expectedTableName, actualTableName)
+}
+
+func TestGetFqTableNameEdgeCase(t *testing.T) {
+	store := CassandraOnlineStore{
+		project: "test_project",
+	}
+
+	keySpace := "test_keyspace"
+	featureViewName := strings.Repeat("a", 30)
+
+	expectedTableName := `"test_keyspace"."test_project_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"`
+	actualTableName := store.getFqTableName(keySpace, store.project, featureViewName)
+
+	assert.Equal(t, expectedTableName, actualTableName)
+}
+
+func TestGetFqTableNameEdgeCaseExceedsLimit(t *testing.T) {
+	store := CassandraOnlineStore{
+		project: "test_project_edge",
+	}
+
+	keySpace := "test_keyspace"
+	featureViewName := strings.Repeat("a", 31)
+
+	expectedTableName := `"test_keyspace"."pfd98066_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa_625ed0fd"`
+	actualTableName := store.getFqTableName(keySpace, store.project, featureViewName)
+
+	assert.Equal(t, expectedTableName, actualTableName)
+}
+
+func TestGetFqTableNameWithCache(t *testing.T) {
+	store := CassandraOnlineStore{
+		project: "test_project",
+	}
+
+	keySpace := "test_keyspace"
+	featureViewName := "test_feature_view"
+
+	// Pre-populate the cache
+	tableName := fmt.Sprintf("%s_%s", store.project, featureViewName)
+	expectedTableName := `"test_keyspace"."cached_table_name"`
+	store.tableNameCache.Store(tableName, "cached_table_name")
+
+	actualTableName := store.getFqTableName(keySpace, store.project, featureViewName)
+
+	assert.Equal(t, expectedTableName, actualTableName)
+}
+
+func BenchmarkGetFqTableName(b *testing.B) {
+	store := CassandraOnlineStore{
+		project: "test_project",
+	}
+	keySpace := "test_keyspace"
+	project := store.project
+	featureViewNames := []string{"small_feature_view", "large_feature_view_large_feature_view_large_feature_view", "large_feature_view_large_feature_view_large_feature_view_large_feature_view_large_feature_view_large_feature_view_large_feature_view_large_feature_view_large_feature_view"}
+	for i := 0; i < b.N; i++ {
+		store.getFqTableName(keySpace, project, featureViewNames[i%3])
+	}
 }
