@@ -35,15 +35,92 @@ The OpenTelemetry integration in Feast consists of several components working to
 
 ## Setup and Configuration
 
-For detailed setup instructions and configuration options, please refer to our [Helm chart documentation](https://github.com/feast-dev/feast/blob/master/infra/charts/feast-feature-server/opentelemetry.md).
+To add monitoring to the Feast Feature Server, follow these steps:
 
-Key configuration steps include:
+### 1. Deploy Prometheus Operator
+Follow the [Prometheus Operator documentation](https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/user-guides/getting-started.md) to install the operator.
 
-1. Deploying the Prometheus Operator
-2. Setting up the OpenTelemetry Operator
-3. Configuring the OpenTelemetry Collector
-4. Adding instrumentation annotations
-5. Configuring environment variables
+### 2. Deploy OpenTelemetry Operator
+Before installing the OpenTelemetry Operator:
+1. Install `cert-manager`
+2. Validate that the `pods` are running
+3. Apply the OpenTelemetry operator:
+```bash
+kubectl apply -f https://github.com/open-telemetry/opentelemetry-operator/releases/latest/download/opentelemetry-operator.yaml
+```
+
+For additional installation steps, refer to the [OpenTelemetry Operator documentation](https://github.com/open-telemetry/opentelemetry-operator).
+
+### 3. Configure OpenTelemetry Collector
+Add the OpenTelemetry Collector configuration under the metrics section in your values.yaml file:
+
+```yaml
+metrics:
+  enabled: true
+  otelCollector:
+    endpoint: "otel-collector.default.svc.cluster.local:4317"  # sample
+    headers:
+      api-key: "your-api-key"
+```
+
+### 4. Add Instrumentation Configuration
+Add the following annotations and environment variables to your deployment.yaml:
+
+```yaml
+template:
+  metadata:
+    annotations:
+      instrumentation.opentelemetry.io/inject-python: "true"
+```
+
+```yaml
+- name: OTEL_EXPORTER_OTLP_ENDPOINT
+  value: http://{{ .Values.service.name }}-collector.{{ .Release.namespace }}.svc.cluster.local:{{ .Values.metrics.endpoint.port}}
+- name: OTEL_EXPORTER_OTLP_INSECURE
+  value: "true"
+```
+
+### 5. Add Metric Checks
+Add metric checks to all manifests and deployment files:
+
+```yaml
+{{ if .Values.metrics.enabled }}
+apiVersion: opentelemetry.io/v1alpha1
+kind: Instrumentation
+metadata:
+  name: feast-instrumentation
+spec:
+  exporter:
+    endpoint: http://{{ .Values.service.name }}-collector.{{ .Release.Namespace }}.svc.cluster.local:4318
+  env:
+  propagators:
+    - tracecontext
+    - baggage
+  python:
+    env:
+      - name: OTEL_METRICS_EXPORTER
+        value: console,otlp_proto_http
+      - name: OTEL_LOGS_EXPORTER
+        value: otlp_proto_http
+      - name: OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED
+        value: "true"
+{{end}}
+```
+
+### 6. Add Required Manifests
+Add the following components to your chart:
+- Instrumentation
+- OpenTelemetryCollector
+- ServiceMonitors
+- Prometheus Instance
+- RBAC rules
+
+### 7. Deploy Feast
+Deploy Feast with metrics enabled:
+
+```bash
+helm install feast-release infra/charts/feast-feature-server --set metric=true --set feature_store_yaml_base64=""
+```
 
 ## Usage
 
