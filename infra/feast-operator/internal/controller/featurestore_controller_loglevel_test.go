@@ -194,8 +194,10 @@ var _ = Describe("FeatureStore Controller - Feast service LogLevel", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			resource.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
-				OnlineStore: &feastdevv1alpha1.OnlineStore{
-					Server: &feastdevv1alpha1.ServerConfigs{},
+				Registry: &feastdevv1alpha1.Registry{
+					Local: &feastdevv1alpha1.LocalRegistryConfig{
+						Server: &feastdevv1alpha1.ServerConfigs{},
+					},
 				},
 				OfflineStore: &feastdevv1alpha1.OfflineStore{},
 				UI:           &feastdevv1alpha1.ServerConfigs{},

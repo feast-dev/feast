@@ -37,7 +37,7 @@ stringData:
 apiVersion: feast.dev/v1alpha1
 kind: FeatureStore
 metadata:
-  name: example
+  name: sample-db-ssl
   namespace: default
 spec:
   feastProject: postgres_tls_sample
@@ -68,6 +68,14 @@ spec:
           type: postgres
           secretRef:
             name: feast-data-stores
+      server:
+        volumeMounts:
+          - name: postgres-certs
+            mountPath: /var/lib/postgresql/certs
+            readOnly: true
+        envFrom:
+          - secretRef:
+              name: postgres-secret
     registry:
       local:
         persistence:
@@ -75,11 +83,3 @@ spec:
             type: sql
             secretRef:
               name: feast-data-stores
-        server:
-          volumeMounts:
-            - name: postgres-certs
-              mountPath: /var/lib/postgresql/certs
-              readOnly: true
-          envFrom:
-            - secretRef:
-                name: postgres-secret

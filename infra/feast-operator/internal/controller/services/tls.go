@@ -126,7 +126,11 @@ func (feast *FeastServices) offlineOpenshiftTls() bool {
 // True if running in an openshift cluster and Tls not configured in the service Spec
 func (feast *FeastServices) onlineOpenshiftTls() bool {
 	return isOpenShift &&
-		feast.isOnlineServer() && feast.Handler.FeatureStore.Spec.Services.OnlineStore.Server.TLS == nil
+		feast.isOnlineServer() &&
+		(feast.Handler.FeatureStore.Spec.Services == nil ||
+			feast.Handler.FeatureStore.Spec.Services.OnlineStore == nil ||
+			feast.Handler.FeatureStore.Spec.Services.OnlineStore.Server == nil ||
+			feast.Handler.FeatureStore.Spec.Services.OnlineStore.Server.TLS == nil)
 }
 
 // True if running in an openshift cluster and Tls not configured in the service Spec
@@ -138,12 +142,7 @@ func (feast *FeastServices) uiOpenshiftTls() bool {
 // True if running in an openshift cluster and Tls not configured in the service Spec
 func (feast *FeastServices) localRegistryOpenshiftTls() bool {
 	return isOpenShift &&
-		feast.isRegistryServer() &&
-		(feast.Handler.FeatureStore.Spec.Services == nil ||
-			feast.Handler.FeatureStore.Spec.Services.Registry == nil ||
-			feast.Handler.FeatureStore.Spec.Services.Registry.Local == nil ||
-			feast.Handler.FeatureStore.Spec.Services.Registry.Local.Server == nil ||
-			feast.Handler.FeatureStore.Spec.Services.Registry.Local.Server.TLS == nil)
+		feast.isRegistryServer() && feast.Handler.FeatureStore.Spec.Services.Registry.Local.Server.TLS == nil
 }
 
 // True if running in an openshift cluster, and using a remote registry in the same cluster, with no remote Tls set in the service Spec

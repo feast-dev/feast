@@ -31,6 +31,17 @@ spec:
           type: redis
           secretRef:
             name: feast-data-stores
+      server:
+        envFrom:
+        - secretRef:
+            name: postgres-secret
+        env:
+        - name: MPLCONFIGDIR
+          value: /tmp
+        resources:
+          requests:
+            cpu: 150m
+            memory: 128Mi
     registry:
       local:
         persistence:
@@ -38,14 +49,3 @@ spec:
             type: sql
             secretRef:
               name: feast-data-stores
-        server:
-          envFrom:
-          - secretRef:
-              name: postgres-secret
-          env:
-          - name: MPLCONFIGDIR
-            value: /tmp
-          resources:
-            requests:
-              cpu: 150m
-              memory: 128Mi

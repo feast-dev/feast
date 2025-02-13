@@ -431,8 +431,8 @@ func (feast *FeastServices) setContainer(containers *[]corev1.Container, feastTy
 
 func (feast *FeastServices) mountUserDefinedVolumes(podSpec *corev1.PodSpec) {
 	var volumes []corev1.Volume
-	if feast.Handler.FeatureStore.Spec.Services != nil {
-		volumes = feast.Handler.FeatureStore.Spec.Services.Volumes
+	if feast.Handler.FeatureStore.Status.Applied.Services != nil {
+		volumes = feast.Handler.FeatureStore.Status.Applied.Services.Volumes
 	}
 	if len(volumes) > 0 {
 		podSpec.Volumes = append(podSpec.Volumes, volumes...)
@@ -440,28 +440,8 @@ func (feast *FeastServices) mountUserDefinedVolumes(podSpec *corev1.PodSpec) {
 }
 
 func (feast *FeastServices) getVolumeMounts(feastType FeastServiceType) (volumeMounts []corev1.VolumeMount) {
-	appliedServices := feast.Handler.FeatureStore.Status.Applied.Services
-	if appliedServices == nil {
-		return []corev1.VolumeMount{} // Return an empty slice to avoid nil issues
-	}
-
-	switch feastType {
-	case OfflineFeastType:
-		if feast.isOfflineServer() {
-			return appliedServices.OfflineStore.Server.VolumeMounts
-		}
-	case OnlineFeastType:
-		if feast.isOnlineServer() {
-			return appliedServices.OnlineStore.Server.VolumeMounts
-		}
-	case RegistryFeastType:
-		if feast.isRegistryServer() {
-			return appliedServices.Registry.Local.Server.VolumeMounts
-		}
-	case UIFeastType:
-		if feast.isUiServer() {
-			return appliedServices.UI.VolumeMounts
-		}
+	if serviceConfigs := feast.getServerConfigs(feastType); serviceConfigs != nil {
+		return serviceConfigs.VolumeMounts
 	}
 	return []corev1.VolumeMount{} // Default empty slice
 }
@@ -787,7 +767,7 @@ func (feast *FeastServices) isRemoteHostnameRegistry() bool {
 
 func (feast *FeastServices) isOfflineServer() bool {
 	return feast.isOfflineStore() &&
-		feast.Handler.FeatureStore.Spec.Services.OfflineStore.Server != nil
+		feast.Handler.FeatureStore.Status.Applied.Services.OfflineStore.Server != nil
 }
 
 func (feast *FeastServices) isOfflineStore() bool {
@@ -797,7 +777,7 @@ func (feast *FeastServices) isOfflineStore() bool {
 
 func (feast *FeastServices) isOnlineServer() bool {
 	return feast.isOnlineStore() &&
-		feast.Handler.FeatureStore.Spec.Services.OnlineStore.Server != nil
+		feast.Handler.FeatureStore.Status.Applied.Services.OnlineStore.Server != nil
 }
 
 func (feast *FeastServices) isOnlineStore() bool {

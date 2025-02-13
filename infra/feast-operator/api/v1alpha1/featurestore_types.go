@@ -71,7 +71,7 @@ type FeatureStoreSpec struct {
 	AuthzConfig  *AuthzConfig          `json:"authz,omitempty"`
 }
 
-// FeatureStoreServices defines the desired feast services. An ephemeral registry is deployed by default.
+// FeatureStoreServices defines the desired feast services. An ephemeral onlineStore feature server is deployed by default.
 type FeatureStoreServices struct {
 	OfflineStore *OfflineStore `json:"offlineStore,omitempty"`
 	OnlineStore  *OnlineStore  `json:"onlineStore,omitempty"`
@@ -85,7 +85,7 @@ type FeatureStoreServices struct {
 	Volumes []corev1.Volume `json:"volumes,omitempty"`
 }
 
-// OfflineStore configures the deployed offline store service
+// OfflineStore configures the offline store service
 type OfflineStore struct {
 	// Creates a remote offline server container
 	Server      *ServerConfigs           `json:"server,omitempty"`
@@ -134,7 +134,7 @@ var ValidOfflineStoreDBStorePersistenceTypes = []string{
 	"mssql",
 }
 
-// OnlineStore configures the deployed online store service
+// OnlineStore configures the online store service
 type OnlineStore struct {
 	// Creates a feature server container
 	Server      *ServerConfigs          `json:"server,omitempty"`
@@ -187,7 +187,7 @@ var ValidOnlineStoreDBStorePersistenceTypes = []string{
 	"milvus",
 }
 
-// LocalRegistryConfig configures the deployed registry service
+// LocalRegistryConfig configures the registry service
 type LocalRegistryConfig struct {
 	// Creates a registry server container
 	Server      *ServerConfigs       `json:"server,omitempty"`
