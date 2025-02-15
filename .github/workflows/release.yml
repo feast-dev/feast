@@ -183,6 +183,7 @@ jobs:
 
   update_stable_branch:
     name: Update Stable Branch after release
+    if: github.event.inputs.dry_run == 'false'
     runs-on: ubuntu-latest
     needs: release
     env:
