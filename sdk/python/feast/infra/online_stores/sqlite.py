@@ -123,12 +123,10 @@ class SqliteOnlineStore(OnlineStore):
         if not self._conn:
             db_path = self._get_db_path(config)
             self._conn = _initialize_conn(db_path)
-            online_store = config.online_store
-            if not isinstance(online_store, SqliteOnlineStoreConfig):
-                raise ValueError("online_store must be SqliteOnlineStoreConfig")
-            if sys.version_info[0:2] == (3, 10) and online_store.vector_enabled:
+            if sys.version_info[0:2] == (3, 10) and config.online_store.vector_enabled:
                 import sqlite_vec  # noqa: F401
-                db = sqlite3.Connection(':memory:')
+
+                db = sqlite3.Connection(":memory:")
                 db.enable_load_extension(True)
                 sqlite_vec.load(db)
                 return db
@@ -149,9 +147,6 @@ class SqliteOnlineStore(OnlineStore):
         ],
         progress: Optional[Callable[[int], Any]],
     ) -> None:
-        online_store = config.online_store
-        if not isinstance(online_store, SqliteOnlineStoreConfig):
-            raise ValueError("online_store must be SqliteOnlineStoreConfig")
         conn = self._get_conn(config)
 
         project = config.project
@@ -168,13 +163,9 @@ class SqliteOnlineStore(OnlineStore):
 
                 table_name = _table_id(project, table)
                 for feature_name, val in values.items():
-                    online_store = config.online_store
-                    if not isinstance(online_store, SqliteOnlineStoreConfig):
-                        raise ValueError("online_store must be SqliteOnlineStoreConfig")
-                    if online_store.vector_enabled and online_store.vector_len:
+                    if config.online_store.vector_enabled:
                         vector_bin = serialize_f32(
-                            val.float_list_val.val,
-                            online_store.vector_len,
+                            val.float_list_val.val, config.online_store.vector_len
                         )  # type: ignore
                         conn.execute(
                             f"""
@@ -371,28 +362,22 @@ class SqliteOnlineStore(OnlineStore):
         Returns:
             List of tuples containing the event timestamp, the document feature, the vector value, and the distance
         """
-        online_store = config.online_store
-        if not isinstance(online_store, SqliteOnlineStoreConfig):
-            raise ValueError("online_store must be SqliteOnlineStoreConfig")
-        if not online_store.vector_enabled:
+        project = config.project
+
+        if not config.online_store.vector_enabled:
             raise ValueError("sqlite-vss is not enabled in the online store config")
 
         conn = self._get_conn(config)
         cur = conn.cursor()
 
+        query_embedding_bin = serialize_f32(embedding, config.online_store.vector_len)
+        table_name = _table_id(project, table)
         # Convert the embedding to a binary format instead of using SerializeToString()
-        online_store = config.online_store
-        if not isinstance(online_store, SqliteOnlineStoreConfig):
-            raise ValueError("online_store must be SqliteOnlineStoreConfig")
-        if not online_store.vector_len:
-            raise ValueError("vector_len is not configured in the online store config")
-        query_embedding_bin = serialize_f32(embedding, online_store.vector_len)  # type: ignore
-        table_name = _table_id(config.project, table)
 
         cur.execute(
             f"""
             CREATE VIRTUAL TABLE vec_example using vec0(
-                vector_value float[{online_store.vector_len}]
+                vector_value float[{config.online_store.vector_len}]
         );
         """
         )
