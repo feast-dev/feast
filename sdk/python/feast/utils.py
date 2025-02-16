@@ -1242,7 +1242,7 @@ def _get_entity_key_protos(
 
 def _convert_rows_to_protobuf(
     requested_features: List[str],
-    read_rows: List[Tuple[datetime | None, dict[str, ValueProto] | None]],
+    read_rows: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]],
 ) -> List[Tuple[List[Timestamp], List["FieldStatus.ValueType"], List[ValueProto]]]:
     # Pre-calculate the length to avoid repeated calculations
     n_rows = len(read_rows)
