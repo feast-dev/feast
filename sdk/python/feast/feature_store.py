@@ -2018,7 +2018,7 @@ class FeatureStore:
                         entity_key_dict[key] = []
                     entity_key_dict[key].append(python_value)
 
-        table_entity_values, idxs = utils._get_unique_entities_from_values(
+        table_entity_values, idxs, output_len = utils._get_unique_entities_from_values(
             entity_key_dict,
         )
 
@@ -2040,6 +2040,7 @@ class FeatureStore:
             full_feature_names=False,
             requested_features=features_to_request,
             table=table,
+            output_len=output_len,
         )
 
         return OnlineResponse(online_features_response)

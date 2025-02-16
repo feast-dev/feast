@@ -187,7 +187,7 @@ class OnlineStore(ABC):
 
         for table, requested_features in grouped_refs:
             # Get the correct set of entity values with the correct join keys.
-            table_entity_values, idxs = utils._get_unique_entities(
+            table_entity_values, idxs, output_len = utils._get_unique_entities(
                 table,
                 join_key_values,
                 entity_name_to_join_key_map,
@@ -215,6 +215,7 @@ class OnlineStore(ABC):
                 full_feature_names,
                 requested_features,
                 table,
+                output_len,
             )
 
         if requested_on_demand_feature_views:
@@ -274,7 +275,7 @@ class OnlineStore(ABC):
 
         async def query_table(table, requested_features):
             # Get the correct set of entity values with the correct join keys.
-            table_entity_values, idxs = utils._get_unique_entities(
+            table_entity_values, idxs, output_len = utils._get_unique_entities(
                 table,
                 join_key_values,
                 entity_name_to_join_key_map,
@@ -290,7 +291,7 @@ class OnlineStore(ABC):
                 requested_features=requested_features,
             )
 
-            return idxs, read_rows
+            return idxs, read_rows, output_len
 
         all_responses = await asyncio.gather(
             *[
@@ -299,7 +300,7 @@ class OnlineStore(ABC):
             ]
         )
 
-        for (idxs, read_rows), (table, requested_features) in zip(
+        for (idxs, read_rows, output_len), (table, requested_features) in zip(
             all_responses, grouped_refs
         ):
             feature_data = utils._convert_rows_to_protobuf(
@@ -314,6 +315,7 @@ class OnlineStore(ABC):
                 full_feature_names,
                 requested_features,
                 table,
+                output_len,
             )
 
         if requested_on_demand_feature_views:
