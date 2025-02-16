@@ -108,12 +108,16 @@ class SqliteOnlineStore(OnlineStore):
 
     @staticmethod
     def _get_db_path(config: RepoConfig) -> str:
-        online_store = config.online_store
-        if not isinstance(online_store, SqliteOnlineStoreConfig):
-            raise ValueError("online_store must be SqliteOnlineStoreConfig")
-        if config.repo_path and not Path(online_store.path).is_absolute():
-            return str(config.repo_path / online_store.path)
-        return str(online_store.path)
+        assert (
+            config.online_store.type == "sqlite"
+            or config.online_store.type.endswith("SqliteOnlineStore")
+        )
+
+        if config.repo_path and not Path(config.online_store.path).is_absolute():
+            db_path = str(config.repo_path / config.online_store.path)
+        else:
+            db_path = config.online_store.path
+        return db_path
 
     def _get_conn(self, config: RepoConfig):
         if not self._conn:
@@ -124,9 +128,10 @@ class SqliteOnlineStore(OnlineStore):
                 raise ValueError("online_store must be SqliteOnlineStoreConfig")
             if sys.version_info[0:2] == (3, 10) and online_store.vector_enabled:
                 import sqlite_vec  # noqa: F401
-
-                self._conn.enable_load_extension(True)  # type: ignore
-                sqlite_vec.load(self._conn)
+                db = sqlite3.Connection(':memory:')
+                db.enable_load_extension(True)
+                sqlite_vec.load(db)
+                return db
 
         return self._conn
 
@@ -588,11 +593,12 @@ def _initialize_conn(db_path: str):
     except ModuleNotFoundError:
         logging.warning("Cannot use sqlite_vec for vector search")
     Path(db_path).parent.mkdir(exist_ok=True)
-    return sqlite3.connect(
+    db = sqlite3.connect(
         db_path,
         detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES,
         check_same_thread=False,
     )
+    return db
 
 
 def _table_id(project: str, table: FeatureView) -> str:
