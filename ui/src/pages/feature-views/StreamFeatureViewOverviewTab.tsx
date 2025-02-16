@@ -96,8 +96,7 @@ const StreamFeatureViewOverviewTab = ({
                     </EuiText>
                     <EuiTitle size="s">
                       <EuiCustomLink
-                        href={`${process.env.PUBLIC_URL || ""}/p/${projectName}/data-source/${inputGroup?.name}`}
-                        to={`${process.env.PUBLIC_URL || ""}/p/${projectName}/data-source/${inputGroup?.name}`}
+                        to={`/p/${projectName}/data-source/${inputGroup?.name}`}
                       >
                         {inputGroup?.name}
                       </EuiCustomLink>

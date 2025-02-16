@@ -100,7 +100,7 @@ yarn start
 
 The advantage of importing Feast UI as a module is in the ease of customization. The `<FeastUI>` component exposes a `feastUIConfigs` prop thorough which you can customize the UI. Currently it supports a few parameters.
 
-**Fetching the Project List**
+##### Fetching the Project List
 
 You can use `projectListPromise` to provide a promise that overrides where the Feast UI fetches the project list from.
 
@@ -118,11 +118,11 @@ You can use `projectListPromise` to provide a promise that overrides where the F
 />
 ```
 
-**Custom Tabs**
+##### Custom Tabs
 
 You can add custom tabs for any of the core Feast objects through the `tabsRegistry`.
 
-```
+```jsx
 const tabsRegistry = {
   RegularFeatureViewCustomTabs: [
     {
@@ -141,3 +141,23 @@ const tabsRegistry = {
 ```
 
 Examples of custom tabs can be found in the `ui/custom-tabs` folder.
+
+##### Custom Basename
+
+If you want to serve the UI under a specific URL path instead of at the root,
+you can use the `basename` prop, and it will be forwarded to React Router.
+
+For example, to serve the UI at the `/feast-ui` path:
+
+```jsx
+<FeastUI
+  basename="/feast-ui"
+  feastUIConfigs={{
+    projectListPromise: fetch("/feast-ui/projects-list.json", {
+      headers: {
+        "Content-Type": "application/json",
+      },
+    }).then((res) => res.json())
+  }}
+/>
+```
