@@ -120,16 +120,12 @@ class SqliteOnlineStore(OnlineStore):
         return db_path
 
     def _get_conn(self, config: RepoConfig):
+        enable_sqlite_vec = (
+            sys.version_info[0:2] == (3, 10) and config.online_store.vector_enabled
+        )
         if not self._conn:
             db_path = self._get_db_path(config)
-            self._conn = _initialize_conn(db_path)
-            if sys.version_info[0:2] == (3, 10) and config.online_store.vector_enabled:
-                import sqlite_vec  # noqa: F401
-
-                db = sqlite3.Connection(":memory:")
-                db.enable_load_extension(True)
-                sqlite_vec.load(db)
-                return db
+            self._conn = _initialize_conn(db_path, enable_sqlite_vec)
 
         return self._conn
 
@@ -370,9 +366,9 @@ class SqliteOnlineStore(OnlineStore):
         conn = self._get_conn(config)
         cur = conn.cursor()
 
+        # Convert the embedding to a binary format instead of using SerializeToString()
         query_embedding_bin = serialize_f32(embedding, config.online_store.vector_len)
         table_name = _table_id(project, table)
-        # Convert the embedding to a binary format instead of using SerializeToString()
 
         cur.execute(
             f"""
@@ -572,17 +568,24 @@ class SqliteOnlineStore(OnlineStore):
         return result
 
 
-def _initialize_conn(db_path: str):
-    try:
-        import sqlite_vec  # noqa: F401
-    except ModuleNotFoundError:
-        logging.warning("Cannot use sqlite_vec for vector search")
+def _initialize_conn(
+    db_path: str, enable_sqlite_vec: bool = False
+) -> sqlite3.Connection:
     Path(db_path).parent.mkdir(exist_ok=True)
     db = sqlite3.connect(
         db_path,
         detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES,
         check_same_thread=False,
     )
+    if enable_sqlite_vec:
+        try:
+            import sqlite_vec  # noqa: F401
+        except ModuleNotFoundError:
+            logging.warning("Cannot use sqlite_vec for vector search")
+
+        db.enable_load_extension(True)
+        sqlite_vec.load(db)
+
     return db
 
 
