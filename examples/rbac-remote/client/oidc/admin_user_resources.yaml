@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: client-admin-container
-          image: feastdev/feature-server:latest
+          image: quay.io/feastdev/feature-server:latest
           imagePullPolicy: Always
           command: ["sleep", "infinity"]
           env:
