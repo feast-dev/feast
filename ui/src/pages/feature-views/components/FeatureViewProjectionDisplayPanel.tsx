@@ -31,7 +31,6 @@ const FeatureViewProjectionDisplayPanel = (featureViewProjection: RequestDataDis
       <EuiSpacer size="xs" />
       <EuiTitle size="s">
         <EuiCustomLink
-          href={`${process.env.PUBLIC_URL || ""}/p/${projectName}/feature-view/${featureViewProjection.featureViewName}`}
           to={`${process.env.PUBLIC_URL || ""}/p/${projectName}/feature-view/${featureViewProjection.featureViewName}`}
         >
           {featureViewProjection?.featureViewName}
