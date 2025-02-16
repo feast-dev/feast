@@ -372,7 +372,7 @@ class SqliteOnlineStore(OnlineStore):
 
         cur.execute(
             f"""
-            CREATE VIRTUAL TABLE vec_example using vec0(
+            CREATE VIRTUAL TABLE vec_table using vec0(
                 vector_value float[{config.online_store.vector_len}]
         );
         """
@@ -381,13 +381,13 @@ class SqliteOnlineStore(OnlineStore):
         # Currently I can only insert the embedding value without crashing SQLite, will report a bug
         cur.execute(
             f"""
-            INSERT INTO vec_example(rowid, vector_value)
+            INSERT INTO vec_table(rowid, vector_value)
             select rowid, vector_value from {table_name}
         """
         )
         cur.execute(
             """
-            INSERT INTO vec_example(rowid, vector_value)
+            INSERT INTO vec_table(rowid, vector_value)
                 VALUES (?, ?)
         """,
             (0, query_embedding_bin),
@@ -408,7 +408,7 @@ class SqliteOnlineStore(OnlineStore):
                     rowid,
                     vector_value,
                     distance
-                from vec_example
+                from vec_table
                 where vector_value match ?
                 order by distance
                 limit ?
@@ -492,7 +492,7 @@ class SqliteOnlineStore(OnlineStore):
 
         cur.execute(
             f"""
-            CREATE VIRTUAL TABLE IF NOT EXISTS vec_example using vec0(
+            CREATE VIRTUAL TABLE IF NOT EXISTS vec_table using vec0(
                 vector_value float[{online_store.vector_len}]
             );
             """
@@ -500,17 +500,9 @@ class SqliteOnlineStore(OnlineStore):
 
         cur.execute(
             f"""
-            INSERT INTO vec_example(rowid, vector_value)
+            INSERT INTO vec_table(rowid, vector_value)
             select rowid, vector_value from {table_name}
             """
-        )
-
-        cur.execute(
-            """
-            INSERT INTO vec_example(rowid, vector_value)
-            VALUES (?, ?)
-            """,
-            (0, query_embedding_bin),
         )
 
         cur.execute(
@@ -527,13 +519,13 @@ class SqliteOnlineStore(OnlineStore):
                     rowid,
                     vector_value,
                     distance
-                from vec_example
+                from vec_table
                 where vector_value match ?
                 order by distance
                 limit ?
             ) f
             left join {table_name} fv
-            on f.rowid = fv.rowid
+                on f.rowid = fv.rowid
             where fv.feature_name in ({",".join(["?" for _ in requested_features])})
             """,
             (
