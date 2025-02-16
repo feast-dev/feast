@@ -26,6 +26,7 @@ from feast import Entity
 from feast.feature_view import FeatureView
 from feast.infra.infra_object import SQLITE_INFRA_OBJECT_CLASS_TYPE, InfraObject
 from feast.infra.key_encoding_utils import (
+    deserialize_entity_key,
     serialize_entity_key,
     serialize_f32,
 )
@@ -91,6 +92,9 @@ class SqliteOnlineStoreConfig(FeastConfigBaseModel, VectorStoreConfig):
     path: StrictStr = "data/online.db"
     """ (optional) Path to sqlite db """
 
+    vector_enabled: bool = False
+    vector_len: Optional[int] = None
+
 
 class SqliteOnlineStore(OnlineStore):
     """
@@ -116,14 +120,12 @@ class SqliteOnlineStore(OnlineStore):
         return db_path
 
     def _get_conn(self, config: RepoConfig):
+        enable_sqlite_vec = (
+            sys.version_info[0:2] == (3, 10) and config.online_store.vector_enabled
+        )
         if not self._conn:
             db_path = self._get_db_path(config)
-            self._conn = _initialize_conn(db_path)
-            if sys.version_info[0:2] == (3, 10) and config.online_store.vector_enabled:
-                import sqlite_vec  # noqa: F401
-
-                self._conn.enable_load_extension(True)  # type: ignore
-                sqlite_vec.load(self._conn)
+            self._conn = _initialize_conn(db_path, enable_sqlite_vec)
 
         return self._conn
 
@@ -370,7 +372,7 @@ class SqliteOnlineStore(OnlineStore):
 
         cur.execute(
             f"""
-            CREATE VIRTUAL TABLE vec_example using vec0(
+            CREATE VIRTUAL TABLE vec_table using vec0(
                 vector_value float[{config.online_store.vector_len}]
         );
         """
@@ -379,13 +381,13 @@ class SqliteOnlineStore(OnlineStore):
         # Currently I can only insert the embedding value without crashing SQLite, will report a bug
         cur.execute(
             f"""
-            INSERT INTO vec_example(rowid, vector_value)
+            INSERT INTO vec_table(rowid, vector_value)
             select rowid, vector_value from {table_name}
         """
         )
         cur.execute(
             """
-            INSERT INTO vec_example(rowid, vector_value)
+            INSERT INTO vec_table(rowid, vector_value)
                 VALUES (?, ?)
         """,
             (0, query_embedding_bin),
@@ -406,7 +408,7 @@ class SqliteOnlineStore(OnlineStore):
                     rowid,
                     vector_value,
                     distance
-                from vec_example
+                from vec_table
                 where vector_value match ?
                 order by distance
                 limit ?
@@ -444,18 +446,139 @@ class SqliteOnlineStore(OnlineStore):
 
         return result
 
+    def retrieve_online_documents_v2(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        requested_features: List[str],
+        query: List[float],
+        top_k: int,
+        distance_metric: Optional[str] = None,
+    ) -> List[
+        Tuple[
+            Optional[datetime],
+            Optional[EntityKeyProto],
+            Optional[Dict[str, ValueProto]],
+        ]
+    ]:
+        """
+        Retrieve documents using vector similarity search.
+        Args:
+            config: Feast configuration object
+            table: FeatureView object as the table to search
+            requested_features: List of requested features to retrieve
+            query: Query embedding to search for
+            top_k: Number of items to return
+            distance_metric: Distance metric to use (optional)
+        Returns:
+            List of tuples containing the event timestamp, entity key, and feature values
+        """
+        online_store = config.online_store
+        if not isinstance(online_store, SqliteOnlineStoreConfig):
+            raise ValueError("online_store must be SqliteOnlineStoreConfig")
+        if not online_store.vector_enabled:
+            raise ValueError("Vector search is not enabled in the online store config")
 
-def _initialize_conn(db_path: str):
-    try:
-        import sqlite_vec  # noqa: F401
-    except ModuleNotFoundError:
-        logging.warning("Cannot use sqlite_vec for vector search")
+        conn = self._get_conn(config)
+        cur = conn.cursor()
+
+        online_store = config.online_store
+        if not isinstance(online_store, SqliteOnlineStoreConfig):
+            raise ValueError("online_store must be SqliteOnlineStoreConfig")
+        if not online_store.vector_len:
+            raise ValueError("vector_len is not configured in the online store config")
+        query_embedding_bin = serialize_f32(query, online_store.vector_len)  # type: ignore
+        table_name = _table_id(config.project, table)
+
+        cur.execute(
+            f"""
+            CREATE VIRTUAL TABLE IF NOT EXISTS vec_table using vec0(
+                vector_value float[{online_store.vector_len}]
+            );
+            """
+        )
+
+        cur.execute(
+            f"""
+            INSERT INTO vec_table(rowid, vector_value)
+            select rowid, vector_value from {table_name}
+            """
+        )
+
+        cur.execute(
+            f"""
+            select
+                fv.entity_key,
+                fv.feature_name,
+                fv.value,
+                f.distance,
+                fv.event_ts,
+                fv.created_ts
+            from (
+                select
+                    rowid,
+                    vector_value,
+                    distance
+                from vec_table
+                where vector_value match ?
+                order by distance
+                limit ?
+            ) f
+            left join {table_name} fv
+                on f.rowid = fv.rowid
+            where fv.feature_name in ({",".join(["?" for _ in requested_features])})
+            """,
+            (
+                query_embedding_bin,
+                top_k,
+                *[f.split(":")[-1] for f in requested_features],
+            ),
+        )
+
+        rows = cur.fetchall()
+        result: List[
+            Tuple[
+                Optional[datetime],
+                Optional[EntityKeyProto],
+                Optional[Dict[str, ValueProto]],
+            ]
+        ] = []
+
+        for entity_key, feature_name, value_bin, distance, event_ts, created_ts in rows:
+            val = ValueProto()
+            val.ParseFromString(value_bin)
+            entity_key_proto = None
+            if entity_key:
+                entity_key_proto = deserialize_entity_key(
+                    entity_key,
+                    entity_key_serialization_version=config.entity_key_serialization_version,
+                )
+            res = {feature_name: val}
+            res["distance"] = ValueProto(float_val=distance)
+            result.append((event_ts, entity_key_proto, res))
+
+        return result
+
+
+def _initialize_conn(
+    db_path: str, enable_sqlite_vec: bool = False
+) -> sqlite3.Connection:
     Path(db_path).parent.mkdir(exist_ok=True)
-    return sqlite3.connect(
+    db = sqlite3.connect(
         db_path,
         detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES,
         check_same_thread=False,
     )
+    if enable_sqlite_vec:
+        try:
+            import sqlite_vec  # noqa: F401
+        except ModuleNotFoundError:
+            logging.warning("Cannot use sqlite_vec for vector search")
+
+        db.enable_load_extension(True)
+        sqlite_vec.load(db)
+
+    return db
 
 
 def _table_id(project: str, table: FeatureView) -> str:
