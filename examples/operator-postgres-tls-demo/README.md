@@ -31,7 +31,7 @@ The following Jupyter Notebooks will walk you through the entire process:
 
    ```shell
    https://github.com/feast-dev/feast.git
-   cd examples/operator-postgres-ssl-demo
+   cd examples/operator-postgres-tls-demo
    ```
 2. Start Jupyter Notebook or JupyterLab from the repository root:
 
