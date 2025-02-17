@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"math/big"
 	"os"
 	"strings"
 	"sync"
@@ -38,6 +39,10 @@ type CassandraOnlineStore struct {
 	// The number of keys to include in a single CQL query for retrieval from the database
 	keyBatchSize int
 
+	// The version of the table name format
+	tableNameFormatVersion int
+
+	// Caches table names instead of generating the table name every time
 	tableNameCache sync.Map
 }
 
@@ -54,8 +59,34 @@ type CassandraConfig struct {
 }
 
 const (
-	SCYLLADB_MAX_TABLE_NAME_LENGTH = 48
+	V2_TABLE_NAME_FORMAT_MAX_LENGTH = 48
+	BASE62_CHAR_SET                 = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 )
+
+// toBase62 converts a big integer to a base62 string.
+func toBase62(num *big.Int) string {
+	if num.Sign() == 0 {
+		return "0"
+	}
+
+	base := big.NewInt(62)
+	result := []string{}
+	zero := big.NewInt(0)
+	remainder := new(big.Int)
+
+	for num.Cmp(zero) > 0 {
+		num.DivMod(num, base, remainder)
+		result = append([]string{string(BASE62_CHAR_SET[remainder.Int64()])}, result...)
+	}
+
+	return strings.Join(result, "")
+}
+
+// base62Encode converts a byte slice to a Base62 string.
+func base62Encode(data []byte) string {
+	num := new(big.Int).SetBytes(data)
+	return toBase62(num)
+}
 
 func parseStringField(config map[string]any, fieldName string, defaultValue string) (string, error) {
 	rawValue, ok := config[fieldName]
@@ -232,38 +263,68 @@ func NewCassandraOnlineStore(project string, config *registry.RepoConfig, online
 	}
 	store.keyBatchSize = cassandraConfig.keyBatchSize
 
+	// parse tableNameFormatVersion
+	tableNameFormatVersion, ok := onlineStoreConfig["table_name_format_version"]
+	if !ok {
+		tableNameFormatVersion = 1
+		log.Warn().Msg("table_name_format_version not specified: Using 1 instead")
+	}
+	store.tableNameFormatVersion = tableNameFormatVersion.(int)
+
 	return &store, nil
 }
 
-func (c *CassandraOnlineStore) getFqTableName(keySpace string, project string, featureViewName string) string {
+// fqTableNameV2 generates a fully qualified table name with Base62 hashing.
+func getFqTableNameV2(keyspace string, project string, featureViewName string) string {
+	dbTableName := fmt.Sprintf("%s_%s", project, featureViewName)
+
+	if len(dbTableName) <= V2_TABLE_NAME_FORMAT_MAX_LENGTH {
+		return dbTableName
+	}
+
+	// Truncate project & feature view name
+	prjPrefixMaxLen := 5
+	fvPrefixMaxLen := 5
+	truncatedProject := project[:min(len(project), prjPrefixMaxLen)]
+	truncatedFv := featureViewName[:min(len(featureViewName), fvPrefixMaxLen)]
+
+	projectToHash := project[len(truncatedProject):]
+	fvToHash := featureViewName[len(truncatedFv):]
+
+	projectHashBytes := md5.Sum([]byte(projectToHash))
+	fvHashBytes := md5.Sum([]byte(fvToHash))
+
+	// Compute MD5 hash and encode to Base62
+	projectHash := base62Encode(projectHashBytes[:])
+	fvHash := base62Encode(fvHashBytes[:])
+
+	// Format final table name (48 - 3 underscores - 5 prj prefix - 5 fv prefix) / 2 = ~17 each
+	dbTableName = fmt.Sprintf("%s_%s_%s_%s",
+		truncatedProject, projectHash[:17], truncatedFv, fvHash[:18])
+
+	return dbTableName
+}
+
+func (c *CassandraOnlineStore) getFqTableName(keySpace string, project string, featureViewName string, tableNameVersion int) (string, error) {
 	var dbTableName string
 
 	tableName := fmt.Sprintf("%s_%s", project, featureViewName)
 
 	if cacheValue, found := c.tableNameCache.Load(tableName); found {
-		return fmt.Sprintf(`"%s"."%s"`, keySpace, cacheValue.(string))
+		return fmt.Sprintf(`"%s"."%s"`, keySpace, cacheValue.(string)), nil
 	}
 
-	if len(tableName) <= SCYLLADB_MAX_TABLE_NAME_LENGTH {
+	if tableNameVersion == 1 {
 		dbTableName = tableName
+	} else if tableNameVersion == 2 {
+		dbTableName = getFqTableNameV2(keySpace, project, featureViewName)
 	} else {
-		projectHashBytes := md5.Sum([]byte(project))
-		projectHash := hex.EncodeToString(projectHashBytes[:])[:7]
-
-		dbTableHashBytes := md5.Sum([]byte(tableName))
-		dbTableHash := hex.EncodeToString(dbTableHashBytes[:])[:8]
-
-		// Shorten FeatureView name if it exceeds 30 characters
-		if len(featureViewName) > 30 {
-			featureViewName = featureViewName[:30]
-		}
-
-		dbTableName = fmt.Sprintf("p%s_%s_%s", projectHash, featureViewName, dbTableHash)
+		return "", fmt.Errorf("unknown table name format version: %d", tableNameVersion)
 	}
 
 	c.tableNameCache.Store(tableName, dbTableName)
 
-	return fmt.Sprintf(`"%s"."%s"`, keySpace, dbTableName)
+	return fmt.Sprintf(`"%s"."%s"`, keySpace, dbTableName), nil
 }
 
 func (c *CassandraOnlineStore) getSingleKeyCQLStatement(tableName string, featureNames []string) string {
@@ -341,7 +402,10 @@ func (c *CassandraOnlineStore) UnbatchedKeysOnlineRead(ctx context.Context, enti
 	featureViewName := featureViewNames[0]
 
 	// Prepare the query
-	tableName := c.getFqTableName(c.clusterConfigs.Keyspace, c.project, featureViewName)
+	tableName, err := c.getFqTableName(c.clusterConfigs.Keyspace, c.project, featureViewName, c.tableNameFormatVersion)
+	if err != nil {
+		return nil, err
+	}
 	cqlStatement := c.getSingleKeyCQLStatement(tableName, featureNames)
 
 	var waitGroup sync.WaitGroup
@@ -486,7 +550,10 @@ func (c *CassandraOnlineStore) BatchedKeysOnlineRead(ctx context.Context, entity
 	featureViewName := featureViewNames[0]
 
 	// Prepare the query
-	tableName := c.getFqTableName(c.clusterConfigs.Keyspace, c.project, featureViewName)
+	tableName, err := c.getFqTableName(c.clusterConfigs.Keyspace, c.project, featureViewName, c.tableNameFormatVersion)
+	if err != nil {
+		return nil, err
+	}
 
 	// Key batching
 	nKeys := len(serializedEntityKeys)
