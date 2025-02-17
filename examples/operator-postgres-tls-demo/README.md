@@ -1,6 +1,6 @@
 # Installing Feast on Kubernetes with PostgreSQL TLS Demo using feast operator
 
-This repository contains a series of Jupyter Notebooks that guide you through setting up [Feast](https://feast.dev/) on a Kubernetes cluster. 
+This example folder contains a series of Jupyter Notebooks that guide you through setting up [Feast](https://feast.dev/) on a Kubernetes cluster. 
 
 In this demo, Feast connects to a PostgreSQL database running in TLS mode, ensuring secure communication between services. Additionally, the example demonstrates how feast application references TLS certificates using Kubernetes volumes and volume mounts. While the focus is on mounting TLS certificates, you can also mount any other resources supported by Kubernetes volumes.
 
