@@ -22,10 +22,7 @@ The following Jupyter Notebooks will walk you through the entire process:
 2. **[02-Install-feast.ipynb](02-Install-feast.ipynb)**  
    Deploys Feast using the Feast Operator.
 
-3. **[03-demo-feast.ipynb](./03-Demo.ipynb)**  
-   Demonstrates the functionality of Feast by executing [feast-credit-score-local-tutorial](https://github.com/feast-dev/feast-credit-score-local-tutorial/tree/f43b44b245ae2632b582f14176392cfe31f98da9) the tutorial.
-
-4. **[04-Uninstall.ipynb](./04-Uninstall.ipynb)**  
+3. **[03-Uninstall.ipynb](./03-Uninstall.ipynb)**  
    Uninstalls Feast, the Feast Operator, and the PostgreSQL deployments set up in this demo.
 
 ## How to Run the Demo
