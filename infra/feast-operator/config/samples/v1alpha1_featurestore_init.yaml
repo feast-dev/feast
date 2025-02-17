@@ -1,0 +1,9 @@
+apiVersion: feast.dev/v1alpha1
+kind: FeatureStore
+metadata:
+  name: sample-init
+spec:
+  feastProjectDir:
+    init:
+      template: spark
+  feastProject: sample_init

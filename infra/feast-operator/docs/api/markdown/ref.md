@@ -61,6 +61,36 @@ _Appears in:_
 | `image` _string_ |  |
 
 
+#### FeastInitOptions
+
+
+
+FeastInitOptions defines how to run a `feast init`.
+
+_Appears in:_
+- [FeastProjectDir](#feastprojectdir)
+
+| Field | Description |
+| --- | --- |
+| `minimal` _boolean_ |  |
+| `template` _string_ | Template for the created project |
+
+
+#### FeastProjectDir
+
+
+
+FeastProjectDir defines how to create the feast project directory.
+
+_Appears in:_
+- [FeatureStoreSpec](#featurestorespec)
+
+| Field | Description |
+| --- | --- |
+| `git` _[GitCloneOptions](#gitcloneoptions)_ |  |
+| `init` _[FeastInitOptions](#feastinitoptions)_ |  |
+
+
 #### FeatureStore
 
 
@@ -126,6 +156,7 @@ _Appears in:_
 | Field | Description |
 | --- | --- |
 | `feastProject` _string_ | FeastProject is the Feast project id. This can be any alphanumeric string with underscores, but it cannot start with an underscore. Required. |
+| `feastProjectDir` _[FeastProjectDir](#feastprojectdir)_ |  |
 | `services` _[FeatureStoreServices](#featurestoreservices)_ |  |
 | `authz` _[AuthzConfig](#authzconfig)_ |  |
 
@@ -147,6 +178,27 @@ _Appears in:_
 | `feastVersion` _string_ |  |
 | `phase` _string_ |  |
 | `serviceHostnames` _[ServiceHostnames](#servicehostnames)_ |  |
+
+
+#### GitCloneOptions
+
+
+
+GitCloneOptions describes how a clone should be performed.
+
+_Appears in:_
+- [FeastProjectDir](#feastprojectdir)
+
+| Field | Description |
+| --- | --- |
+| `url` _string_ | The repository URL to clone from. |
+| `ref` _string_ | Reference to a branch / tag / commit |
+| `configs` _object (keys:string, values:string)_ | Configs passed to git via `-c`
+e.g. http.sslVerify: 'false'
+OR 'url."https://api:\${TOKEN}@github.com/".insteadOf': 'https://github.com/' |
+| `featureRepoPath` _string_ | FeatureRepoPath is the relative path to the feature repo subdirectory. Default is 'feature_repo'. |
+| `env` _[EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#envvar-v1-core)_ |  |
+| `envFrom` _[EnvFromSource](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#envfromsource-v1-core)_ |  |
 
 
 #### KubernetesAuthz
