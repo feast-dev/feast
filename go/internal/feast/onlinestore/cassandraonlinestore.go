@@ -269,7 +269,7 @@ func NewCassandraOnlineStore(project string, config *registry.RepoConfig, online
 		tableNameFormatVersion = 1
 		log.Warn().Msg("table_name_format_version not specified: Using 1 instead")
 	}
-	store.tableNameFormatVersion = tableNameFormatVersion.(int)
+	store.tableNameFormatVersion = int(tableNameFormatVersion.(float64))
 
 	return &store, nil
 }
