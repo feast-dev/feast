@@ -1570,10 +1570,10 @@
     minimatch "^3.1.2"
     strip-json-comments "^3.1.1"
 
-"@feast-dev/feast-ui@0.44.0":
-  version "0.44.0"
-  resolved "https://registry.yarnpkg.com/@feast-dev/feast-ui/-/feast-ui-0.44.0.tgz#71708bc66b0bef9b3961bdf236295e0669e63ba9"
-  integrity sha512-OZkcW0IhFd6dMoi8oKz5ssKO1iPz8SeEoeu0kA4qE6UNEE3K2MnsOsMhRSn8r6DKAl/wLV1LbjCHPNifk824jQ==
+"@feast-dev/feast-ui@0.46.0":
+  version "0.46.0"
+  resolved "https://registry.yarnpkg.com/@feast-dev/feast-ui/-/feast-ui-0.46.0.tgz#2ab5fa42b43c20829a6cbb44e66df8f4ee2597ae"
+  integrity sha512-d4EgsfhXH1nlpMGuD8M/D/2Z7OryUQkg4cUWvGadj06bwoUM60+ku0gGUZb2PnbfgdUdMrB5p7VS9di0jFurNA==
   dependencies:
     "@elastic/datemath" "^5.0.3"
     "@elastic/eui" "^95.12.0"
