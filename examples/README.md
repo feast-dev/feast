@@ -6,7 +6,9 @@
 
 3. **[Kind Quickstart](kind-quickstart)**: Demonstrates how to install and use Feast on Kind with the Helm chart.
 
-4. **[Operator Quickstart](operator-quickstart)**: Demonstrates how to install and use Feast on Kubernetes with the Feast Go Operator.
+4. **[Operator Quickstart with Postgres in TLS](operator-quickstart)**: Demonstrates installing and configuring Feast with PostgreSQL in TLS mode on Kubernetes, using the Feast Go Operator.
+
+5. **[Operator Quickstart](operator-quickstart)**: Demonstrates how to install and use Feast on Kubernetes with the Feast Go Operator.
 
 5. **[Credit Risk End-to-End](credit-risk-end-to-end)**: Demonstrates how to use Feast with Java feature server and deployed with Kubernetes.
 
