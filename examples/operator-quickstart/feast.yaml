@@ -20,6 +20,10 @@ metadata:
   namespace: feast
 spec:
   feastProject: credit_scoring_local
+  feastProjectDir:
+    git:
+      url: https://github.com/feast-dev/feast-credit-score-local-tutorial
+      ref: 598a270
   services:
     offlineStore:
       persistence:

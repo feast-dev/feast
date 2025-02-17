@@ -90,6 +90,11 @@ func ApplyDefaultsToStatus(cr *feastdevv1alpha1.FeatureStore) {
 	cr.Status.FeastVersion = feastversion.FeastVersion
 
 	applied := &cr.Status.Applied
+	if applied.FeastProjectDir == nil {
+		applied.FeastProjectDir = &feastdevv1alpha1.FeastProjectDir{
+			Init: &feastdevv1alpha1.FeastInitOptions{},
+		}
+	}
 	if applied.Services == nil {
 		applied.Services = &feastdevv1alpha1.FeatureStoreServices{}
 	}

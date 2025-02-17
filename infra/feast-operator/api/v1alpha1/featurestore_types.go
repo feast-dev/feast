@@ -66,9 +66,42 @@ const (
 type FeatureStoreSpec struct {
 	// +kubebuilder:validation:Pattern="^[A-Za-z0-9][A-Za-z0-9_]*$"
 	// FeastProject is the Feast project id. This can be any alphanumeric string with underscores, but it cannot start with an underscore. Required.
-	FeastProject string                `json:"feastProject"`
-	Services     *FeatureStoreServices `json:"services,omitempty"`
-	AuthzConfig  *AuthzConfig          `json:"authz,omitempty"`
+	FeastProject    string                `json:"feastProject"`
+	FeastProjectDir *FeastProjectDir      `json:"feastProjectDir,omitempty"`
+	Services        *FeatureStoreServices `json:"services,omitempty"`
+	AuthzConfig     *AuthzConfig          `json:"authz,omitempty"`
+}
+
+// FeastProjectDir defines how to create the feast project directory.
+// +kubebuilder:validation:XValidation:rule="[has(self.git), has(self.init)].exists_one(c, c)",message="One selection required between init or git."
+type FeastProjectDir struct {
+	Git  *GitCloneOptions  `json:"git,omitempty"`
+	Init *FeastInitOptions `json:"init,omitempty"`
+}
+
+// GitCloneOptions describes how a clone should be performed.
+// +kubebuilder:validation:XValidation:rule="has(self.featureRepoPath) ? !self.featureRepoPath.startsWith('/') : true",message="RepoPath must be a file name only, with no slashes."
+type GitCloneOptions struct {
+	// The repository URL to clone from.
+	URL string `json:"url"`
+	// Reference to a branch / tag / commit
+	Ref string `json:"ref,omitempty"`
+	// Configs passed to git via `-c`
+	// e.g. http.sslVerify: 'false'
+	// OR 'url."https://api:\${TOKEN}@github.com/".insteadOf': 'https://github.com/'
+	Configs map[string]string `json:"configs,omitempty"`
+	// FeatureRepoPath is the relative path to the feature repo subdirectory. Default is 'feature_repo'.
+	FeatureRepoPath string                  `json:"featureRepoPath,omitempty"`
+	Env             *[]corev1.EnvVar        `json:"env,omitempty"`
+	EnvFrom         *[]corev1.EnvFromSource `json:"envFrom,omitempty"`
+}
+
+// FeastInitOptions defines how to run a `feast init`.
+type FeastInitOptions struct {
+	Minimal bool `json:"minimal,omitempty"`
+	// Template for the created project
+	// +kubebuilder:validation:Enum=local;gcp;aws;snowflake;spark;postgres;hbase;cassandra;hazelcast;ikv;couchbase
+	Template string `json:"template,omitempty"`
 }
 
 // FeatureStoreServices defines the desired feast services. An ephemeral onlineStore feature server is deployed by default.
