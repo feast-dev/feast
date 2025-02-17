@@ -32,7 +32,7 @@ stringData:
     sslmode: verify-full
     sslkey_path: /var/lib/postgresql/certs/tls.key
     sslcert_path: /var/lib/postgresql/certs/tls.crt
-    sslrootcert_path: /var/lib/postgresql/certs/ca.crt
+    sslrootcert_path: system
 ---
 apiVersion: feast.dev/v1alpha1
 kind: FeatureStore
