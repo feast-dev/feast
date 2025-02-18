@@ -469,6 +469,7 @@ spec:
                                 - trino
                                 - athena
                                 - mssql
+                                - couchbase.offline
                                 type: string
                             required:
                             - secretRef
@@ -3907,6 +3908,7 @@ spec:
                                     - trino
                                     - athena
                                     - mssql
+                                    - couchbase.offline
                                     type: string
                                 required:
                                 - secretRef
