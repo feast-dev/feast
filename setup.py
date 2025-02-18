@@ -158,6 +158,8 @@ GO_REQUIRED = ["cffi~=1.15.0"]
 
 MILVUS_REQUIRED = ["pymilvus"]
 
+RAG_REQUIRED = ["docling"]
+
 CI_REQUIRED = (
     [
         "build",
@@ -229,6 +231,7 @@ CI_REQUIRED = (
     + FAISS_REQUIRED
     + QDRANT_REQUIRED
     + MILVUS_REQUIRED
+    + RAG_REQUIRED
 )
 
 DOCS_REQUIRED = CI_REQUIRED
@@ -304,6 +307,7 @@ setup(
         "qdrant": QDRANT_REQUIRED,
         "go": GO_REQUIRED,
         "milvus": MILVUS_REQUIRED,
+        "rag": RAG_REQUIRED,
     },
     include_package_data=True,
     license="Apache",

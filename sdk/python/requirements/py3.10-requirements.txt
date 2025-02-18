@@ -10,7 +10,7 @@ attrs==25.1.0
     # via
     #   jsonschema
     #   referencing
-bigtree==0.23.1
+bigtree==0.24.0
     # via feast (setup.py)
 certifi==2025.1.31
     # via requests
@@ -25,7 +25,7 @@ cloudpickle==3.1.1
     # via dask
 colorama==0.4.6
     # via feast (setup.py)
-dask[dataframe]==2025.1.0
+dask[dataframe]==2025.2.0
     # via feast (setup.py)
 dill==0.3.9
     # via feast (setup.py)
@@ -84,7 +84,7 @@ prometheus-client==0.21.1
     # via feast (setup.py)
 protobuf==5.29.3
     # via feast (setup.py)
-psutil==6.1.1
+psutil==7.0.0
     # via feast (setup.py)
 pyarrow==18.0.0
     # via
@@ -143,7 +143,7 @@ toolz==1.0.0
     #   partd
 tqdm==4.67.1
     # via feast (setup.py)
-typeguard==4.4.1
+typeguard==4.4.2
     # via feast (setup.py)
 typing-extensions==4.12.2
     # via
@@ -170,7 +170,7 @@ uvloop==0.21.0
     # via uvicorn
 watchfiles==1.0.4
     # via uvicorn
-websockets==14.2
+websockets==15.0
     # via uvicorn
 zipp==3.21.0
     # via importlib-metadata
