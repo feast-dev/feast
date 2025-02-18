@@ -32,7 +32,7 @@ project: my_project
 registry: data/registry.db
 provider: local
 offline_store:
-  type: couchbase
+  type: couchbase.offline
   connection_string: COUCHBASE_COLUMNAR_CONNECTION_STRING # Copied from Settings > Connection String page in Capella Columnar console, starts with couchbases://
   user: COUCHBASE_COLUMNAR_USER # Couchbase cluster access name from Settings > Access Control page in Capella Columnar console
   password: COUCHBASE_COLUMNAR_PASSWORD # Couchbase password from Settings > Access Control page in Capella Columnar console

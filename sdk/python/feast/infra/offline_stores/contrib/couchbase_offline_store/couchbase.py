@@ -54,7 +54,7 @@ warnings.simplefilter("once", RuntimeWarning)
 class CouchbaseColumnarOfflineStoreConfig(FeastConfigBaseModel):
     """Offline store config for Couchbase Columnar"""
 
-    type: Literal["couchbase"] = "couchbase"
+    type: Literal["couchbase.offline"] = "couchbase.offline"
 
     connection_string: Optional[StrictStr] = None
     user: Optional[StrictStr] = None
