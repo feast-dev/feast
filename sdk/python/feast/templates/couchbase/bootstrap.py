@@ -52,7 +52,7 @@ def bootstrap():
         columnar_connection_string = click.prompt("Columnar Connection String")
         columnar_user = click.prompt("Columnar Username")
         columnar_password = click.prompt("Columnar Password", hide_input=True)
-        columnar_timeout = click.prompt("Couchbase Columnar Timeout", default=480)
+        columnar_timeout = click.prompt("Couchbase Columnar Timeout", default=120)
 
         if click.confirm(
             'Should I upload example data to Couchbase Capella Columnar (overwriting "Default.Default.feast_driver_hourly_stats" table)?',
@@ -82,7 +82,7 @@ def bootstrap():
                 return
 
             offline_store = CouchbaseColumnarOfflineStoreConfig(
-                type="couchbase",
+                type="couchbase.offline",
                 connection_string=columnar_connection_string,
                 user=columnar_user,
                 password=columnar_password,

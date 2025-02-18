@@ -58,7 +58,7 @@ class CouchbaseColumnarDataSourceCreator(DataSourceCreator):
         self.collections: List[str] = []
 
         self.offline_store_config = CouchbaseColumnarOfflineStoreConfig(
-            type="couchbase",
+            type="couchbase.offline",
             connection_string=os.environ["COUCHBASE_COLUMNAR_CONNECTION_STRING"],
             user=os.environ["COUCHBASE_COLUMNAR_USER"],
             password=os.environ["COUCHBASE_COLUMNAR_PASSWORD"],
