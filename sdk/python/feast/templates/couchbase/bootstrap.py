@@ -1,6 +1,6 @@
 import click
 from couchbase_columnar.cluster import Cluster
-from couchbase_columnar.common.errors import InvalidCredentialError, TimeoutError
+from couchbase_columnar.common.errors import InvalidCredentialError
 from couchbase_columnar.credential import Credential
 from couchbase_columnar.options import ClusterOptions, QueryOptions, TimeoutOptions
 
@@ -74,9 +74,6 @@ def bootstrap():
                     f"DROP COLLECTION {table_name} IF EXISTS",
                     QueryOptions(timeout=timedelta(seconds=columnar_timeout)),
                 )
-            except TimeoutError:
-                # FIXME: temp workaround, timeouts occur in Columnar SDK even when the drop was successful
-                pass
             except InvalidCredentialError:
                 print("Error: Invalid Cluster Credentials.")
                 return
