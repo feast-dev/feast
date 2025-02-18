@@ -431,7 +431,7 @@ test-python-universal-couchbase-offline:
 
 test-python-universal-couchbase-online:
 	PYTHONPATH='.' \
-		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.contrib.couchbase_repo_configuration \
+		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.couchbase_online_store.couchbase_repo_configuration \
 		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.couchbase \
 		python -m pytest -n 8 --integration \
 			-k "not test_universal_cli and \
