@@ -2,7 +2,7 @@ project: my_project
 registry: data/registry.db
 provider: local
 online_store:
-    type: couchbase
+    type: couchbase.online
     connection_string: COUCHBASE_CONNECTION_STRING # Couchbase connection string, copied from 'Connect' page in Couchbase Capella console
     user: COUCHBASE_USER # Couchbase username from database access credentials
     password: COUCHBASE_PASSWORD # Couchbase password from database access credentials

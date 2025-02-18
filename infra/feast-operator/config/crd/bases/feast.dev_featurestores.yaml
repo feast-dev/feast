@@ -914,7 +914,7 @@ spec:
                                 - hbase
                                 - elasticsearch
                                 - qdrant
-                                - couchbase
+                                - couchbase.online
                                 - milvus
                                 type: string
                             required:
@@ -4360,7 +4360,7 @@ spec:
                                     - hbase
                                     - elasticsearch
                                     - qdrant
-                                    - couchbase
+                                    - couchbase.online
                                     - milvus
                                     type: string
                                 required:

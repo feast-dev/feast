@@ -80,7 +80,7 @@ ONLINE_STORE_CLASS_FOR_TYPE = {
     "remote": "feast.infra.online_stores.remote.RemoteOnlineStore",
     "singlestore": "feast.infra.online_stores.singlestore_online_store.singlestore.SingleStoreOnlineStore",
     "qdrant": "feast.infra.online_stores.cqdrant.QdrantOnlineStore",
-    "couchbase": "feast.infra.online_stores.couchbase_online_store.couchbase.CouchbaseOnlineStore",
+    "couchbase.online": "feast.infra.online_stores.couchbase_online_store.couchbase.CouchbaseOnlineStore",
     "milvus": "feast.infra.online_stores.milvus_online_store.milvus.MilvusOnlineStore",
     **LEGACY_ONLINE_STORE_CLASS_FOR_TYPE,
 }
