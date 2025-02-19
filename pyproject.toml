@@ -153,6 +153,14 @@ ci = [
 dev = ["feast[ci]"]
 docs = ["feast[ci]"]
 
+torch_cpu = [
+  "torch>=2.6.0",
+  "torchvision>=0.21.0",
+]
+docling = [
+    "docling>=2.23.0"
+]
+
 [project.urls]
 Homepage = "https://github.com/feast-dev/feast"
 
@@ -203,3 +211,14 @@ exclude = [
   ".pyi",
   "protos",
   "sdk/python/feast/embedded_go/lib"]
+
+[tool.uv.sources]
+torch = [
+  { index = "pytorch-cpu", extra = "torch_cpu" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
