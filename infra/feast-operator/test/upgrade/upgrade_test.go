@@ -14,32 +14,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package e2e
+package previous_version
 
 import (
 	"github.com/feast-dev/feast/infra/feast-operator/test/utils"
 	. "github.com/onsi/ginkgo/v2"
 )
 
-var _ = Describe("controller", Ordered, func() {
-	featureStoreName := "simple-feast-setup"
-	feastResourceName := utils.FeastPrefix + featureStoreName
-	feastK8sResourceNames := []string{
-		feastResourceName + "-online",
-		feastResourceName + "-offline",
-		feastResourceName + "-ui",
-	}
-
-	runTestDeploySimpleCRFunc := utils.GetTestDeploySimpleCRFunc("/test/e2e",
-		"test/testdata/feast_integration_test_crs/v1alpha1_default_featurestore.yaml",
-		featureStoreName, feastResourceName, feastK8sResourceNames)
-
-	runTestWithRemoteRegistryFunction := utils.GetTestWithRemoteRegistryFunc("/test/e2e",
-		"test/testdata/feast_integration_test_crs/v1alpha1_default_featurestore.yaml",
-		"test/testdata/feast_integration_test_crs/v1alpha1_remote_registry_featurestore.yaml",
-		featureStoreName, feastResourceName, feastK8sResourceNames)
-
+var _ = Describe("operator upgrade", Ordered, func() {
 	BeforeAll(func() {
+		utils.DeployPreviousVersionOperator()
 		utils.DeployOperatorFromCode("/test/e2e")
 	})
 
@@ -47,7 +31,13 @@ var _ = Describe("controller", Ordered, func() {
 		utils.DeleteOperatorDeployment("/test/e2e")
 	})
 
-	Context("Operator E2E Tests", func() {
+	Context("Operator upgrade Tests", func() {
+		runTestDeploySimpleCRFunc := utils.GetTestDeploySimpleCRFunc("/test/upgrade", utils.GetSimplePreviousVerCR(),
+			utils.FeatureStoreName, utils.FeastResourceName, []string{})
+		runTestWithRemoteRegistryFunction := utils.GetTestWithRemoteRegistryFunc("/test/upgrade", utils.GetSimplePreviousVerCR(),
+			utils.GetRemoteRegistryPreviousVerCR(), utils.FeatureStoreName, utils.FeastResourceName, []string{})
+
+		// Run Test on current version operator with previous version CR
 		It("Should be able to deploy and run a default feature store CR successfully", runTestDeploySimpleCRFunc)
 		It("Should be able to deploy and run a feature store with remote registry CR successfully", runTestWithRemoteRegistryFunction)
 	})
