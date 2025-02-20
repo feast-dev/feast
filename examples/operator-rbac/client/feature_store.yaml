@@ -1,0 +1,15 @@
+project: feast_rbac
+provider: local
+offline_store:
+    host: localhost
+    type: remote
+    port: 8081
+online_store:
+    path: http://localhost:8082
+    type: remote
+registry:
+    path: localhost:8083
+    registry_type: remote
+auth:
+    type: kubernetes
+entity_key_serialization_version: 3
