@@ -29,7 +29,7 @@ const (
 	feastServerImageVar       = "RELATED_IMAGE_FEATURE_SERVER"
 	FeatureStoreYamlCmKey     = "feature_store.yaml"
 	EphemeralPath             = "/feast-data"
-	FeatureRepoDir            = "/feature_repo"
+	FeatureRepoDir            = "feature_repo"
 	DefaultRegistryPath       = "registry.db"
 	DefaultOnlineStorePath    = "online_store.db"
 	svcDomain                 = ".svc.cluster.local"
