@@ -228,6 +228,27 @@ class LoggingConfig(google.protobuf.message.Message):
         ) -> None: ...
         def ClearField(self, field_name: typing_extensions.Literal["config", b"config", "kind", b"kind"]) -> None: ...
 
+    class CouchbaseColumnarDestination(google.protobuf.message.Message):
+        DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+        DATABASE_FIELD_NUMBER: builtins.int
+        SCOPE_FIELD_NUMBER: builtins.int
+        COLLECTION_FIELD_NUMBER: builtins.int
+        database: builtins.str
+        """Destination database name"""
+        scope: builtins.str
+        """Destination scope name"""
+        collection: builtins.str
+        """Destination collection name"""
+        def __init__(
+            self,
+            *,
+            database: builtins.str = ...,
+            scope: builtins.str = ...,
+            collection: builtins.str = ...,
+        ) -> None: ...
+        def ClearField(self, field_name: typing_extensions.Literal["collection", b"collection", "database", b"database", "scope", b"scope"]) -> None: ...
+
     SAMPLE_RATE_FIELD_NUMBER: builtins.int
     FILE_DESTINATION_FIELD_NUMBER: builtins.int
     BIGQUERY_DESTINATION_FIELD_NUMBER: builtins.int
@@ -235,6 +256,7 @@ class LoggingConfig(google.protobuf.message.Message):
     SNOWFLAKE_DESTINATION_FIELD_NUMBER: builtins.int
     CUSTOM_DESTINATION_FIELD_NUMBER: builtins.int
     ATHENA_DESTINATION_FIELD_NUMBER: builtins.int
+    COUCHBASE_COLUMNAR_DESTINATION_FIELD_NUMBER: builtins.int
     sample_rate: builtins.float
     @property
     def file_destination(self) -> global___LoggingConfig.FileDestination: ...
@@ -248,6 +270,8 @@ class LoggingConfig(google.protobuf.message.Message):
     def custom_destination(self) -> global___LoggingConfig.CustomDestination: ...
     @property
     def athena_destination(self) -> global___LoggingConfig.AthenaDestination: ...
+    @property
+    def couchbase_columnar_destination(self) -> global___LoggingConfig.CouchbaseColumnarDestination: ...
     def __init__(
         self,
         *,
@@ -258,10 +282,11 @@ class LoggingConfig(google.protobuf.message.Message):
         snowflake_destination: global___LoggingConfig.SnowflakeDestination | None = ...,
         custom_destination: global___LoggingConfig.CustomDestination | None = ...,
         athena_destination: global___LoggingConfig.AthenaDestination | None = ...,
+        couchbase_columnar_destination: global___LoggingConfig.CouchbaseColumnarDestination | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["athena_destination", b"athena_destination", "bigquery_destination", b"bigquery_destination", "custom_destination", b"custom_destination", "destination", b"destination", "file_destination", b"file_destination", "redshift_destination", b"redshift_destination", "snowflake_destination", b"snowflake_destination"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["athena_destination", b"athena_destination", "bigquery_destination", b"bigquery_destination", "custom_destination", b"custom_destination", "destination", b"destination", "file_destination", b"file_destination", "redshift_destination", b"redshift_destination", "sample_rate", b"sample_rate", "snowflake_destination", b"snowflake_destination"]) -> None: ...
-    def WhichOneof(self, oneof_group: typing_extensions.Literal["destination", b"destination"]) -> typing_extensions.Literal["file_destination", "bigquery_destination", "redshift_destination", "snowflake_destination", "custom_destination", "athena_destination"] | None: ...
+    def HasField(self, field_name: typing_extensions.Literal["athena_destination", b"athena_destination", "bigquery_destination", b"bigquery_destination", "couchbase_columnar_destination", b"couchbase_columnar_destination", "custom_destination", b"custom_destination", "destination", b"destination", "file_destination", b"file_destination", "redshift_destination", b"redshift_destination", "snowflake_destination", b"snowflake_destination"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["athena_destination", b"athena_destination", "bigquery_destination", b"bigquery_destination", "couchbase_columnar_destination", b"couchbase_columnar_destination", "custom_destination", b"custom_destination", "destination", b"destination", "file_destination", b"file_destination", "redshift_destination", b"redshift_destination", "sample_rate", b"sample_rate", "snowflake_destination", b"snowflake_destination"]) -> None: ...
+    def WhichOneof(self, oneof_group: typing_extensions.Literal["destination", b"destination"]) -> typing_extensions.Literal["file_destination", "bigquery_destination", "redshift_destination", "snowflake_destination", "custom_destination", "athena_destination", "couchbase_columnar_destination"] | None: ...
 
 global___LoggingConfig = LoggingConfig
 
