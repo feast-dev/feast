@@ -125,6 +125,8 @@ document_embeddings = FeatureView(
             vector_search_metric="L2",
         ),
         Field(name="item_id", dtype=String),
+        Field(name="content", dtype=String),
+        Field(name="title", dtype=String),
     ],
     source=rag_documents_source,
     ttl=timedelta(hours=24),
