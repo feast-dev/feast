@@ -14,7 +14,7 @@
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Dict, Union
+from typing import Dict, List, Union
 
 import pyarrow
 
@@ -195,6 +195,17 @@ FEAST_TYPES_TO_PYARROW_TYPES = {
     # Note: datetime only supports microseconds https://github.com/python/cpython/blob/3.8/Lib/datetime.py#L1559
     UnixTimestamp: pyarrow.timestamp("us", tz=_utc_now().tzname()),
 }
+
+FEAST_VECTOR_TYPES: List[Union[ValueType, PrimitiveFeastType, ComplexFeastType]] = [
+    ValueType.BYTES_LIST,
+    ValueType.INT32_LIST,
+    ValueType.INT64_LIST,
+    ValueType.FLOAT_LIST,
+    ValueType.BOOL_LIST,
+]
+for k in VALUE_TYPES_TO_FEAST_TYPES:
+    if k in FEAST_VECTOR_TYPES:
+        FEAST_VECTOR_TYPES.append(VALUE_TYPES_TO_FEAST_TYPES[k])
 
 
 def from_feast_to_pyarrow_type(feast_type: FeastType) -> pyarrow.DataType:
