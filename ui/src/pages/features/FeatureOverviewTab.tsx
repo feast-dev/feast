@@ -63,8 +63,8 @@ const FeatureOverviewTab = () => {
                   <EuiDescriptionListTitle>FeatureView</EuiDescriptionListTitle>
                   <EuiDescriptionListDescription>
                     <EuiCustomLink
-                      href={`${process.env.PUBLIC_URL || ""}/p/${projectName}/feature-view/${FeatureViewName}`}
-                      to={`${process.env.PUBLIC_URL || ""}/p/${projectName}/feature-view/${FeatureViewName}`}>
+                      to={`/p/${projectName}/feature-view/${FeatureViewName}`}
+                    >
                       {FeatureViewName}
                     </EuiCustomLink>
                   </EuiDescriptionListDescription>
