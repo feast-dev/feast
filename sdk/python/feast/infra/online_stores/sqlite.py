@@ -171,7 +171,6 @@ class SqliteOnlineStore(OnlineStore):
                             val_bin = serialize_f32(
                                 val.float_list_val.val, config.online_store.vector_len
                             )  # type: ignore
-
                         else:
                             val_bin = feast_value_type_to_python_type(val)
                         conn.execute(
