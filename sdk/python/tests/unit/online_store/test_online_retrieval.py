@@ -713,9 +713,10 @@ def test_sqlite_get_online_documents() -> None:
         )
         assert record_count == len(data) * len(document_embeddings_fv.features)
 
-        query_embedding = np.random.random(
-            vector_length,
-        )
+        # query_embedding = np.random.random(
+        #     vector_length,
+        # )
+        query_embedding = [float(x) for x in np.random.random(vector_length)]
         result = store.retrieve_online_documents(
             feature="document_embeddings:Embeddings", query=query_embedding, top_k=3
         ).to_dict()

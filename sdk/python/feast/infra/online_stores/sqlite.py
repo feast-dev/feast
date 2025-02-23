@@ -355,6 +355,7 @@ class SqliteOnlineStore(OnlineStore):
         # Convert the embedding to a binary format instead of using SerializeToString()
         query_embedding_bin = serialize_f32(embedding, config.online_store.vector_len)
         table_name = _table_id(project, table)
+        vector_field = _get_vector_field(table)
 
         cur.execute(
             f"""
@@ -369,14 +370,15 @@ class SqliteOnlineStore(OnlineStore):
             f"""
             INSERT INTO vec_table(rowid, vector_value)
             select rowid, vector_value from {table_name}
+            where feature_name = "{vector_field}"
         """
         )
         cur.execute(
+            f"""
+            CREATE VIRTUAL TABLE IF NOT EXISTS vec_table using vec0(
+                vector_value float[{config.online_store.vector_len}]
+            );
             """
-            INSERT INTO vec_table(rowid, vector_value)
-                VALUES (?, ?)
-        """,
-            (0, query_embedding_bin),
         )
 
         # Have to join this with the {table_name} to get the feature name and entity_key
@@ -473,16 +475,7 @@ class SqliteOnlineStore(OnlineStore):
 
         query_embedding_bin = serialize_f32(query, online_store.vector_len)  # type: ignore
         table_name = _table_id(config.project, table)
-        vector_fields: List[Field] = [
-            f for f in table.features if getattr(f, "vector_index", None)
-        ]
-        assert len(vector_fields) > 0, (
-            f"No vector field found, please update feature view = {table.name} to declare a vector field"
-        )
-        assert len(vector_fields) < 2, (
-            "Only one vector field is supported, please update feature view = {table.name} to declare one vector field"
-        )
-        vector_field: str = vector_fields[0].name
+        vector_field = _get_vector_field(table)
 
         cur.execute(
             f"""
@@ -696,3 +689,20 @@ class SqliteTable(InfraObject):
 
     def teardown(self):
         self.conn.execute(f"DROP TABLE IF EXISTS {self.name}")
+
+
+def _get_vector_field(table: FeatureView) -> str:
+    """
+    Get the vector field from the feature view. There can be only one.
+    """
+    vector_fields: List[Field] = [
+        f for f in table.features if getattr(f, "vector_index", None)
+    ]
+    assert len(vector_fields) > 0, (
+        f"No vector field found, please update feature view = {table.name} to declare a vector field"
+    )
+    assert len(vector_fields) < 2, (
+        "Only one vector field is supported, please update feature view = {table.name} to declare one vector field"
+    )
+    vector_field: str = vector_fields[0].name
+    return vector_field
