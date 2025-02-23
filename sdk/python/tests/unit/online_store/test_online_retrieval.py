@@ -640,12 +640,12 @@ def test_sqlite_get_online_documents() -> None:
 
         item_keys = [
             EntityKeyProto(
-                join_keys=["item_id"], entity_values=[ValueProto(int64_val=i)]
+                join_keys=["item_id"], entity_values=[ValueProto(string_val=str(i))]
             )
             for i in range(n)
         ]
         data = []
-        for item_key in item_keys:
+        for i, item_key in enumerate(item_keys):
             data.append(
                 (
                     item_key,
@@ -656,19 +656,17 @@ def test_sqlite_get_online_documents() -> None:
                                     vector_length,
                                 )
                             )
-                        )
+                        ),
+                        "content": ValueProto(
+                            string_val=f"the {i}th sentence with some text"
+                        ),
+                        "title": ValueProto(string_val=f"Title {i}"),
                     },
                     _utc_now(),
                     _utc_now(),
                 )
             )
 
-        provider.online_write_batch(
-            config=store.config,
-            table=document_embeddings_fv,
-            data=data,
-            progress=None,
-        )
         documents_df = pd.DataFrame(
             {
                 "item_id": [str(i) for i in range(n)],
@@ -678,26 +676,42 @@ def test_sqlite_get_online_documents() -> None:
                     )
                     for i in range(n)
                 ],
+                "content": [f"the {i}th sentence with some text" for i in range(n)],
+                "title": [f"Title {i}" for i in range(n)],
                 "event_timestamp": [_utc_now() for _ in range(n)],
             }
         )
 
-        store.write_to_online_store(
-            feature_view_name="document_embeddings",
-            df=documents_df,
+        print(len(data), documents_df.shape[0])
+        provider.online_write_batch(
+            config=store.config,
+            table=document_embeddings_fv,
+            data=data,
+            progress=None,
         )
-
         document_table = store._provider._online_store._conn.execute(
             "SELECT name FROM sqlite_master WHERE type='table' and name like '%_document_embeddings';"
         ).fetchall()
+
         assert len(document_table) == 1
         document_table_name = document_table[0][0]
+
         record_count = len(
             store._provider._online_store._conn.execute(
                 f"select * from {document_table_name}"
             ).fetchall()
         )
-        assert record_count == len(data) + documents_df.shape[0]
+        assert record_count == len(data) * len(document_embeddings_fv.features)
+        store.write_to_online_store(
+            feature_view_name="document_embeddings",
+            df=documents_df,
+        )
+        record_count = len(
+            store._provider._online_store._conn.execute(
+                f"select * from {document_table_name}"
+            ).fetchall()
+        )
+        assert record_count == len(data) * len(document_embeddings_fv.features)
 
         query_embedding = np.random.random(
             vector_length,
