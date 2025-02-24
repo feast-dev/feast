@@ -202,7 +202,7 @@ The list below contains the functionality that contributors are planning to deve
   * [x] Python Client
   * [x] [Python feature server](https://docs.feast.dev/reference/feature-servers/python-feature-server)
   * [x] [Java feature server (alpha)](https://github.com/feast-dev/feast/blob/master/infra/charts/feast/README.md)
-  * [x] [Go feature server (alpha)](https://docs.feast.dev/reference/feature-servers/go-feature-server)
+  * [x] [Go feature server (alpha)](https://github.com/feast-dev/feast/blob/master/go/README.md)
 * **Data Quality Management (See [RFC](https://docs.google.com/document/d/110F72d4NTv80p35wDSONxhhPBqWRwbZXG4f9mNEMd98/edit))**
   * [x] Data profiling and validation (Great Expectations)
 * **Feature Discovery and Governance**
