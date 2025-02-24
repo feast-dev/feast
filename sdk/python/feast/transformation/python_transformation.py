@@ -170,7 +170,7 @@ class PythonTransformation:
     def infer_feature_dependencies(self) -> dict:
         try:
             key_usage = track_key_usage(self.udf)
-            print(f"Key usage: {key_usage}")
+            # print(f"Key usage: {key_usage}")
             return key_usage
         except Exception as e:
             print(f"Warning: An error occurred while tracking key usage: {str(e)}")
