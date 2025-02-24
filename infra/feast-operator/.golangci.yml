@@ -19,6 +19,12 @@ issues:
     - path: "test/*"
       linters:
         - lll
+    - path: "upgrade/*"
+      linters:
+        - lll
+    - path: "previous-version/*"
+      linters:
+        - lll
 linters:
   disable-all: true
   enable:
