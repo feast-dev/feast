@@ -390,7 +390,7 @@ func (feast *FeastServices) setContainer(containers *[]corev1.Container, feastTy
 		container := &corev1.Container{
 			Name:       string(feastType),
 			Image:      *defaultCtrConfigs.Image,
-			WorkingDir: getOfflineMountPath(feast.Handler.FeatureStore) + "/" + feast.Handler.FeatureStore.Status.Applied.FeastProject + FeatureRepoDir,
+			WorkingDir: feast.getFeatureRepoDir(),
 			Command:    feast.getContainerCommand(feastType),
 			Ports: []corev1.ContainerPort{
 				{
@@ -507,11 +507,12 @@ func (feast *FeastServices) getDeploymentStrategy() appsv1.DeploymentStrategy {
 }
 
 func (feast *FeastServices) setInitContainer(podSpec *corev1.PodSpec, fsYamlB64 string) {
-	if !feast.Handler.FeatureStore.Status.Applied.Services.DisableInitContainers {
-		feastProject := feast.Handler.FeatureStore.Status.Applied.FeastProject
-		feastRepoDir := feastProject + FeatureRepoDir
+	applied := feast.Handler.FeatureStore.Status.Applied
+	if applied.FeastProjectDir != nil && !applied.Services.DisableInitContainers {
+		feastProjectDir := applied.FeastProjectDir
 		workingDir := getOfflineMountPath(feast.Handler.FeatureStore)
-		podSpec.InitContainers = append(podSpec.InitContainers, corev1.Container{
+		projectPath := workingDir + "/" + applied.FeastProject
+		container := corev1.Container{
 			Name:  "feast-init",
 			Image: getFeatureServerImage(),
 			Env: []corev1.EnvVar{
@@ -520,13 +521,48 @@ func (feast *FeastServices) setInitContainer(podSpec *corev1.PodSpec, fsYamlB64 
 					Value: fsYamlB64,
 				},
 			},
-			Command: []string{"/bin/sh", "-c"},
-			Args: []string{"echo \"Starting feast initialization job...\";\n[ -d " +
-				feastRepoDir + " ] || feast init " + feastProject + ";\necho $" +
-				TmpFeatureStoreYamlEnvVar + " | base64 -d \u003e " + workingDir + "/" + feastRepoDir +
-				"/feature_store.yaml;\necho \"Feast initialization complete\";\n"},
+			Command:    []string{"bash", "-c"},
 			WorkingDir: workingDir,
-		})
+		}
+
+		var createCommand string
+		if feastProjectDir.Init != nil {
+			initSlice := []string{"feast", "init"}
+			if feastProjectDir.Init.Minimal {
+				initSlice = append(initSlice, "-m")
+			}
+			if len(feastProjectDir.Init.Template) > 0 {
+				initSlice = append(initSlice, "-t", feastProjectDir.Init.Template)
+			}
+			initSlice = append(initSlice, applied.FeastProject)
+			createCommand = strings.Join(initSlice, " ")
+		} else if feastProjectDir.Git != nil {
+			gitSlice := []string{"git"}
+			for key, value := range feastProjectDir.Git.Configs {
+				gitSlice = append(gitSlice, "-c", key+"="+value)
+			}
+			gitSlice = append(gitSlice, "clone", feastProjectDir.Git.URL, projectPath)
+
+			if len(feastProjectDir.Git.Ref) > 0 {
+				gitSlice = append(gitSlice, "&&", "cd "+projectPath, "&&", "git checkout "+feastProjectDir.Git.Ref)
+			}
+			createCommand = strings.Join(gitSlice, " ")
+
+			if feastProjectDir.Git.Env != nil {
+				container.Env = envOverride(container.Env, *feastProjectDir.Git.Env)
+			}
+			if feastProjectDir.Git.EnvFrom != nil {
+				container.EnvFrom = *feastProjectDir.Git.EnvFrom
+			}
+		}
+
+		featureRepoDir := feast.getFeatureRepoDir()
+		container.Args = []string{
+			"echo \"Creating feast repository...\"\necho '" + createCommand + "'\n" +
+				"if [[ ! -d " + featureRepoDir + " ]]; then " + createCommand + "; fi;\n" +
+				"echo $" + TmpFeatureStoreYamlEnvVar + " | base64 -d \u003e " + featureRepoDir + "/feature_store.yaml;\necho \"Feast repo creation complete\";\n",
+		}
+		podSpec.InitContainers = append(podSpec.InitContainers, container)
 	}
 }
 
@@ -893,6 +929,15 @@ func (feast *FeastServices) mountEmptyDirVolumes(podSpec *corev1.PodSpec) {
 	if shouldMountEmptyDir(feast.Handler.FeatureStore) {
 		mountEmptyDirVolume(podSpec)
 	}
+}
+
+func (feast *FeastServices) getFeatureRepoDir() string {
+	applied := feast.Handler.FeatureStore.Status.Applied
+	feastProjectDir := getOfflineMountPath(feast.Handler.FeatureStore) + "/" + applied.FeastProject
+	if applied.FeastProjectDir != nil && applied.FeastProjectDir.Git != nil && len(applied.FeastProjectDir.Git.FeatureRepoPath) > 0 {
+		return feastProjectDir + "/" + applied.FeastProjectDir.Git.FeatureRepoPath
+	}
+	return feastProjectDir + "/" + FeatureRepoDir
 }
 
 func mountEmptyDirVolume(podSpec *corev1.PodSpec) {

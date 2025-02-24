@@ -1,0 +1,11 @@
+apiVersion: feast.dev/v1alpha1
+kind: FeatureStore
+metadata:
+  name: sample-git-repopath
+spec:
+  feastProject: feast_demo_odfv
+  feastProjectDir:
+    git:
+      url: https://github.com/feast-dev/feast-workshop
+      ref: e959053
+      featureRepoPath: module_2/feature_repo

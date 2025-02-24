@@ -205,6 +205,7 @@ var _ = Describe("FeatureStore Controller", func() {
 			Expect(controllerutil.HasControllerReference(deploy)).To(BeTrue())
 			Expect(deploy.Spec.Template.Spec.ServiceAccountName).To(Equal(deploy.Name))
 			Expect(deploy.Spec.Template.Spec.InitContainers).To(HaveLen(1))
+			Expect(deploy.Spec.Template.Spec.InitContainers[0].Args[0]).To(ContainSubstring("feast init"))
 			Expect(deploy.Spec.Template.Spec.Containers).To(HaveLen(1))
 
 			svc := &corev1.Service{}
@@ -216,6 +217,74 @@ var _ = Describe("FeatureStore Controller", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(controllerutil.HasControllerReference(svc)).To(BeTrue())
 			Expect(svc.Spec.Ports[0].TargetPort).To(Equal(intstr.FromInt(int(services.FeastServiceConstants[services.OnlineFeastType].TargetHttpPort))))
+
+			// change projectDir to use a git repo
+			featureRepoPath := "test/dir/feature_repo2"
+			ref := "xxxxx"
+			envVars := []corev1.EnvVar{
+				{
+					Name:  "test",
+					Value: "value",
+				},
+			}
+			resource.Spec.FeastProjectDir = &feastdevv1alpha1.FeastProjectDir{
+				Git: &feastdevv1alpha1.GitCloneOptions{
+					URL:             "test",
+					Ref:             ref,
+					FeatureRepoPath: featureRepoPath,
+					Configs: map[string]string{
+						"http.sslVerify": "false",
+					},
+					Env: &envVars,
+				},
+			}
+			err = k8sClient.Update(ctx, resource)
+			Expect(err).NotTo(HaveOccurred())
+			_, err = controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: typeNamespacedName,
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			err = k8sClient.Get(ctx, typeNamespacedName, resource)
+			Expect(err).NotTo(HaveOccurred())
+
+			err = k8sClient.Get(ctx, types.NamespacedName{
+				Name:      objMeta.Name,
+				Namespace: objMeta.Namespace,
+			}, deploy)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(deploy.Spec.Template.Spec.InitContainers).To(HaveLen(1))
+			Expect(deploy.Spec.Template.Spec.InitContainers[0].Args[0]).To(ContainSubstring("git -c http.sslVerify=false clone"))
+			Expect(deploy.Spec.Template.Spec.InitContainers[0].Args[0]).To(ContainSubstring("git checkout " + ref))
+			Expect(deploy.Spec.Template.Spec.InitContainers[0].Args[0]).To(ContainSubstring(featureRepoPath))
+			Expect(deploy.Spec.Template.Spec.InitContainers[0].Env).To(ContainElements(envVars))
+
+			online := services.GetOnlineContainer(*deploy)
+			Expect(online.WorkingDir).To(Equal(services.EphemeralPath + "/" + resource.Spec.FeastProject + "/" + featureRepoPath))
+
+			// change projectDir to use an init template
+			resource.Spec.FeastProjectDir = &feastdevv1alpha1.FeastProjectDir{
+				Init: &feastdevv1alpha1.FeastInitOptions{
+					Template: "spark",
+				},
+			}
+			err = k8sClient.Update(ctx, resource)
+			Expect(err).NotTo(HaveOccurred())
+			_, err = controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: typeNamespacedName,
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			err = k8sClient.Get(ctx, typeNamespacedName, resource)
+			Expect(err).NotTo(HaveOccurred())
+
+			err = k8sClient.Get(ctx, types.NamespacedName{
+				Name:      objMeta.Name,
+				Namespace: objMeta.Namespace,
+			}, deploy)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(deploy.Spec.Template.Spec.InitContainers).To(HaveLen(1))
+			Expect(deploy.Spec.Template.Spec.InitContainers[0].Args[0]).To(ContainSubstring("feast init -t spark"))
 		})
 
 		It("should properly encode a feature_store.yaml config", func() {
