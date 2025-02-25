@@ -518,8 +518,8 @@ setup(
         "grpcio-tools>=1.56.2,<2",
         "mypy-protobuf>=3.1",
         "pybindgen==0.22.0",
-        "setuptools_scm>=6.2",
         "setuptools>=60",
+        "setuptools_scm>=6.2",
     ],
     cmdclass={
         "build_python_protos": BuildPythonProtosCommand,
