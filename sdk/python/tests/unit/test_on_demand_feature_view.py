@@ -374,7 +374,6 @@ def test_function_call_syntax():
     )
     sources = [feature_view]
 
-    # Test with default name (function name)
     def transform_features(features_df: pd.DataFrame) -> pd.DataFrame:
         df = pd.DataFrame()
         df["output1"] = features_df["feature1"]
@@ -389,7 +388,6 @@ def test_function_call_syntax():
         ],
     )(transform_features)
 
-    # Verify default name behavior
     assert odfv.name == transform_features.__name__
     assert isinstance(odfv, OnDemandFeatureView)
 
@@ -399,7 +397,6 @@ def test_function_call_syntax():
     deserialized = OnDemandFeatureView.from_proto(proto)
     assert deserialized.name == transform_features.__name__
 
-    # Test with custom name
     def another_transform(features_df: pd.DataFrame) -> pd.DataFrame:
         df = pd.DataFrame()
         df["output1"] = features_df["feature1"]
@@ -415,7 +412,6 @@ def test_function_call_syntax():
         ],
     )(another_transform)
 
-    # Verify custom name behavior
     assert odfv_custom.name == CUSTOM_FUNCTION_NAME
     assert isinstance(odfv_custom, OnDemandFeatureView)
 
