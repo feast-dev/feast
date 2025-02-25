@@ -173,12 +173,11 @@ class Entity:
         entity = cls(
             name=entity_proto.spec.name,
             join_keys=[entity_proto.spec.join_key],
+            value_type=ValueType(entity_proto.spec.value_type),
             description=entity_proto.spec.description,
             tags=dict(entity_proto.spec.tags),
             owner=entity_proto.spec.owner,
         )
-
-        entity.value_type = ValueType(entity_proto.spec.value_type)
 
         if entity_proto.meta.HasField("created_timestamp"):
             entity.created_timestamp = entity_proto.meta.created_timestamp.ToDatetime()
