@@ -397,15 +397,15 @@ func DeployOperatorFromCode(testDir string) {
 		cmd = exec.Command("make", "deploy", fmt.Sprintf("IMG=%s", projectimage), fmt.Sprintf("FS_IMG=%s", feastLocalImage))
 		_, err = Run(cmd, testDir)
 		ExpectWithOffset(1, err).NotTo(HaveOccurred())
-
-		By("Validating that the controller-manager deployment is in available state")
-		err = CheckIfDeploymentExistsAndAvailable(FeastControllerNamespace, ControllerDeploymentName, Timeout)
-		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf(
-			"Deployment %s is not available but expected to be available. \nError: %v\n",
-			ControllerDeploymentName, err,
-		))
-		fmt.Printf("Feast Control Manager Deployment %s is available\n", ControllerDeploymentName)
 	}
+
+	By("Validating that the controller-manager deployment is in available state")
+	err := CheckIfDeploymentExistsAndAvailable(FeastControllerNamespace, ControllerDeploymentName, Timeout)
+	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf(
+		"Deployment %s is not available but expected to be available. \nError: %v\n",
+		ControllerDeploymentName, err,
+	))
+	fmt.Printf("Feast Control Manager Deployment %s is available\n", ControllerDeploymentName)
 }
 
 // DeleteOperatorDeployment - Deletes the operator deployment
@@ -421,21 +421,18 @@ func DeleteOperatorDeployment(testDir string) {
 
 // DeployPreviousVersionOperator - Deploys the previous version of the operator
 func DeployPreviousVersionOperator() {
-	_, isRunOnOpenShiftCI := os.LookupEnv("RUN_ON_OPENSHIFT_CI")
-	if !isRunOnOpenShiftCI {
-		var err error
+	var err error
 
-		cmd := exec.Command("kubectl", "apply", "-f", fmt.Sprintf("https://raw.githubusercontent.com/feast-dev/feast/refs/tags/v%s/infra/feast-operator/dist/install.yaml", feastversion.FeastVersion))
-		_, err = Run(cmd, "/test/upgrade")
-		ExpectWithOffset(1, err).NotTo(HaveOccurred())
+	cmd := exec.Command("kubectl", "apply", "-f", fmt.Sprintf("https://raw.githubusercontent.com/feast-dev/feast/refs/tags/v%s/infra/feast-operator/dist/install.yaml", feastversion.FeastVersion))
+	_, err = Run(cmd, "/test/upgrade")
+	ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
-		err = CheckIfDeploymentExistsAndAvailable(FeastControllerNamespace, ControllerDeploymentName, Timeout)
-		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf(
-			"Deployment %s is not available but expected to be available. \nError: %v\n",
-			ControllerDeploymentName, err,
-		))
-		fmt.Printf("Feast Control Manager Deployment %s is available\n", ControllerDeploymentName)
-	}
+	err = CheckIfDeploymentExistsAndAvailable(FeastControllerNamespace, ControllerDeploymentName, Timeout)
+	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf(
+		"Deployment %s is not available but expected to be available. \nError: %v\n",
+		ControllerDeploymentName, err,
+	))
+	fmt.Printf("Feast Control Manager Deployment %s is available\n", ControllerDeploymentName)
 }
 
 // GetSimplePreviousVerCR - Get The previous version simple CR for tests
