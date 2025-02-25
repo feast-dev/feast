@@ -18,7 +18,7 @@
   <properties>
     <!-- TODO: Standardize other modules on JUnit 5 and move this to parent -->
     <junit.version>5.5.2</junit.version>
-    <mockito.version>2.28.2</mockito.version>
+    <mockito.version>4.11.0</mockito.version>
     <opentracing.version>0.33.0</opentracing.version>
   </properties>
 

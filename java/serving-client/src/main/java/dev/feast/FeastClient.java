@@ -17,6 +17,8 @@
 package dev.feast;
 
 import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.MoreExecutors;
 import feast.proto.serving.ServingAPIProto;
 import feast.proto.serving.ServingAPIProto.GetFeastServingInfoRequest;
 import feast.proto.serving.ServingAPIProto.GetFeastServingInfoResponse;
@@ -24,17 +26,21 @@ import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.proto.serving.ServingServiceGrpc;
 import feast.proto.serving.ServingServiceGrpc.ServingServiceBlockingStub;
+import feast.proto.serving.ServingServiceGrpc.ServingServiceFutureStub;
 import feast.proto.types.ValueProto;
 import io.grpc.CallCredentials;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.netty.shaded.io.grpc.netty.GrpcSslContexts;
 import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder;
+import io.grpc.stub.StreamObserver;
 import io.opentracing.contrib.grpc.TracingClientInterceptor;
 import io.opentracing.util.GlobalTracer;
 import java.io.File;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.net.ssl.SSLException;
@@ -46,9 +52,15 @@ public class FeastClient implements AutoCloseable {
   Logger logger = LoggerFactory.getLogger(FeastClient.class);
 
   private static final int CHANNEL_SHUTDOWN_TIMEOUT_SEC = 5;
+  private static final int DEFAULT_MAX_MESSAGE_SIZE = 64 * 1024 * 1024; // 64MB
+  private static final int DEFAULT_BATCH_SIZE = 1000;
+  private static final Duration DEFAULT_KEEP_ALIVE_TIME = Duration.ofSeconds(60);
+  private static final Duration DEFAULT_KEEP_ALIVE_TIMEOUT = Duration.ofSeconds(20);
 
   private final ManagedChannel channel;
-  private final ServingServiceBlockingStub stub;
+  private final ServingServiceBlockingStub blockingStub;
+  private final ServingServiceFutureStub asyncStub;
+  private final int batchSize;
 
   /**
    * Create a client to access Feast Serving.
@@ -72,30 +84,33 @@ public class FeastClient implements AutoCloseable {
    * @return {@link FeastClient}
    */
   public static FeastClient createSecure(String host, int port, SecurityConfig securityConfig) {
-    // Configure client TLS
     ManagedChannel channel = null;
     if (securityConfig.isTLSEnabled()) {
+      NettyChannelBuilder builder = NettyChannelBuilder.forAddress(host, port)
+          .maxInboundMessageSize(DEFAULT_MAX_MESSAGE_SIZE)
+          .maxInboundMetadataSize(DEFAULT_MAX_MESSAGE_SIZE)
+          .keepAliveTime(DEFAULT_KEEP_ALIVE_TIME.toMillis(), TimeUnit.MILLISECONDS)
+          .keepAliveTimeout(DEFAULT_KEEP_ALIVE_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS)
+          .keepAliveWithoutCalls(true);
+
       if (securityConfig.getCertificatePath().isPresent()) {
         String certificatePath = securityConfig.getCertificatePath().get();
-        // Use custom certificate for TLS
-        File certificateFile = new File(certificatePath);
         try {
-          channel =
-              NettyChannelBuilder.forAddress(host, port)
-                  .useTransportSecurity()
-                  .sslContext(GrpcSslContexts.forClient().trustManager(certificateFile).build())
-                  .build();
+          builder.useTransportSecurity()
+              .sslContext(GrpcSslContexts.forClient().trustManager(new File(certificatePath)).build());
         } catch (SSLException e) {
           throw new IllegalArgumentException(
               String.format("Invalid Certificate provided at path: %s", certificatePath), e);
         }
       } else {
-        // Use system certificates for TLS
-        channel = ManagedChannelBuilder.forAddress(host, port).useTransportSecurity().build();
+        builder.useTransportSecurity();
       }
+      channel = builder.build();
     } else {
-      // Disable TLS
-      channel = ManagedChannelBuilder.forAddress(host, port).usePlaintext().build();
+      channel = ManagedChannelBuilder.forAddress(host, port)
+          .maxInboundMessageSize(DEFAULT_MAX_MESSAGE_SIZE)
+          .usePlaintext()
+          .build();
     }
 
     return new FeastClient(channel, securityConfig.getCredentials());
@@ -107,7 +122,7 @@ public class FeastClient implements AutoCloseable {
    * @return {@link GetFeastServingInfoResponse} containing Feast version, Serving type etc.
    */
   public GetFeastServingInfoResponse getFeastServingInfo() {
-    return stub.getFeastServingInfo(GetFeastServingInfoRequest.newBuilder().build());
+    return blockingStub.getFeastServingInfo(GetFeastServingInfoRequest.newBuilder().build());
   }
 
   /**
@@ -129,7 +144,7 @@ public class FeastClient implements AutoCloseable {
 
     requestBuilder.putAllEntities(getEntityValuesMap(entities));
 
-    GetOnlineFeaturesResponse response = stub.getOnlineFeatures(requestBuilder.build());
+    GetOnlineFeaturesResponse response = blockingStub.getOnlineFeatures(requestBuilder.build());
 
     List<Row> results = Lists.newArrayList();
     if (response.getResultsCount() == 0) {
@@ -201,19 +216,94 @@ public class FeastClient implements AutoCloseable {
     return getOnlineFeatures(featureRefs, rows);
   }
 
+  public CompletableFuture<List<Row>> getOnlineFeaturesAsync(
+      List<String> featureRefs, List<Row> entities) {
+    return getOnlineFeaturesAsync(featureRefs, entities, null);
+  }
+
+  public CompletableFuture<List<Row>> getOnlineFeaturesAsync(
+      List<String> featureRefs, List<Row> entities, String project) {
+    
+    GetOnlineFeaturesRequest.Builder requestBuilder = GetOnlineFeaturesRequest.newBuilder();
+    requestBuilder.setFeatures(
+        ServingAPIProto.FeatureList.newBuilder().addAllVal(featureRefs).build());
+    requestBuilder.putAllEntities(getEntityValuesMap(entities));
+
+    GetOnlineFeaturesRequest request = requestBuilder.build();
+    ListenableFuture<GetOnlineFeaturesResponse> future = asyncStub.getOnlineFeatures(request);
+    
+    CompletableFuture<List<Row>> result = new CompletableFuture<>();
+    future.addListener(() -> {
+      try {
+        GetOnlineFeaturesResponse response = future.get();
+        result.complete(processOnlineFeaturesResponse(response, entities));
+      } catch (Exception e) {
+        result.completeExceptionally(e);
+      }
+    }, MoreExecutors.directExecutor());
+    
+    return result;
+  }
+
+  private List<Row> processOnlineFeaturesResponse(
+      GetOnlineFeaturesResponse response, List<Row> entities) {
+    List<Row> results = Lists.newArrayList();
+    if (response.getResultsCount() == 0) {
+      return results;
+    }
+
+    for (int rowIdx = 0; rowIdx < response.getResults(0).getValuesCount(); rowIdx++) {
+      Row row = Row.create();
+      for (int featureIdx = 0; featureIdx < response.getResultsCount(); featureIdx++) {
+        row.set(
+            response.getMetadata().getFeatureNames().getVal(featureIdx),
+            response.getResults(featureIdx).getValues(rowIdx),
+            response.getResults(featureIdx).getStatuses(rowIdx));
+
+        row.setEntityTimestamp(
+            Instant.ofEpochSecond(
+                response.getResults(featureIdx).getEventTimestamps(rowIdx).getSeconds()));
+      }
+      
+      // Add entity fields
+      entities.get(rowIdx).getFields().forEach(row::set);
+      results.add(row);
+    }
+    return results;
+  }
+
+  public List<Row> getOnlineFeaturesInBatches(
+      List<String> featureRefs, List<Row> entities, String project) {
+    List<Row> results = new ArrayList<>();
+    
+    for (int i = 0; i < entities.size(); i += batchSize) {
+      int end = Math.min(entities.size(), i + batchSize);
+      List<Row> batch = entities.subList(i, end);
+      results.addAll(getOnlineFeatures(featureRefs, batch, project));
+    }
+    
+    return results;
+  }
+
   protected FeastClient(ManagedChannel channel, Optional<CallCredentials> credentials) {
     this.channel = channel;
+    this.batchSize = DEFAULT_BATCH_SIZE;
     TracingClientInterceptor tracingInterceptor =
         TracingClientInterceptor.newBuilder().withTracer(GlobalTracer.get()).build();
 
     ServingServiceBlockingStub servingStub =
         ServingServiceGrpc.newBlockingStub(tracingInterceptor.intercept(channel));
 
+    ServingServiceFutureStub asyncServingStub =
+        ServingServiceGrpc.newFutureStub(tracingInterceptor.intercept(channel));
+
     if (credentials.isPresent()) {
       servingStub = servingStub.withCallCredentials(credentials.get());
+      asyncServingStub = asyncServingStub.withCallCredentials(credentials.get());
     }
 
-    this.stub = servingStub;
+    this.blockingStub = servingStub;
+    this.asyncStub = asyncServingStub;
   }
 
   public void close() throws Exception {

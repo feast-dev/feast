@@ -39,40 +39,42 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 public class FeastClientTest {
   private final String AUTH_TOKEN = "test token";
 
-  @Rule public GrpcCleanupRule grpcRule;
+  @RegisterExtension 
+  public GrpcCleanupRule grpcRule = new GrpcCleanupRule();
+  
   private AtomicBoolean isAuthenticated;
 
-  private ServingServiceImplBase servingMock =
-      mock(
-          ServingServiceImplBase.class,
-          delegatesTo(
-              new ServingServiceImplBase() {
-                @Override
-                public void getOnlineFeatures(
-                    GetOnlineFeaturesRequest request,
-                    StreamObserver<GetOnlineFeaturesResponse> responseObserver) {
-                  if (!request.equals(FeastClientTest.getFakeRequest())) {
-                    responseObserver.onError(Status.FAILED_PRECONDITION.asRuntimeException());
-                  }
-
-                  responseObserver.onNext(FeastClientTest.getFakeResponse());
-                  responseObserver.onCompleted();
-                }
-              }));
-
+  private ServingServiceImplBase servingMock;
   private FeastClient client;
 
-  @Before
+  @BeforeEach
   public void setup() throws Exception {
-    this.grpcRule = new GrpcCleanupRule();
     this.isAuthenticated = new AtomicBoolean(false);
+    
+    // Create the mock with newer Mockito API
+    this.servingMock = mock(ServingServiceImplBase.class, invocation -> {
+      if (invocation.getMethod().getName().equals("getOnlineFeatures")) {
+        GetOnlineFeaturesRequest request = invocation.getArgument(0);
+        StreamObserver<GetOnlineFeaturesResponse> responseObserver = invocation.getArgument(1);
+        
+        if (!request.equals(FeastClientTest.getFakeRequest())) {
+          responseObserver.onError(Status.FAILED_PRECONDITION.asRuntimeException());
+          return null;
+        }
+
+        responseObserver.onNext(FeastClientTest.getFakeResponse());
+        responseObserver.onCompleted();
+      }
+      return null;
+    });
+
     // setup fake serving service
     String serverName = InProcessServerBuilder.generateName();
     this.grpcRule.register(
