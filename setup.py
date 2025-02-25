@@ -110,7 +110,7 @@ CASSANDRA_REQUIRED = [
     "cassandra-driver>=3.24.0,<4",
 ]
 
-GE_REQUIRED = ["great_expectations>=0.15.41"]
+GE_REQUIRED = ["great_expectations>=0.15.41,<1"]
 
 AZURE_REQUIRED = [
     "azure-storage-blob>=0.37.0",
@@ -154,7 +154,7 @@ MSSQL_REQUIRED = ["ibis-framework[mssql]>=9.0.0,<10"]
 FAISS_REQUIRED = ["faiss-cpu>=1.7.0,<2"]
 QDRANT_REQUIRED = ["qdrant-client>=1.12.0"]
 
-GO_REQUIRED = ["cffi~=1.15.0"]
+GO_REQUIRED = ["cffi>=1.15.0"]
 
 MILVUS_REQUIRED = ["pymilvus"]
 
