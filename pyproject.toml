@@ -70,8 +70,8 @@ gcp = [
     "google-cloud-bigtable>=2.11.0,<3",
     "fsspec<=2024.9.0",
 ]
-ge = ["great_expectations>=0.15.41"]
-go = ["cffi~=1.15.0"]
+ge = ["great_expectations>=0.15.41,<1"]
+go = ["cffi>=1.15.0"]
 grpcio = [
     "grpcio>=1.56.2,<2",
     "grpcio-reflection>=1.56.2,<2",
