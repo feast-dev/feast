@@ -28,6 +28,8 @@ from feast.on_demand_feature_view import (
 )
 from feast.types import Float32
 
+CUSTOM_FUNCTION_NAME = "custom-function-name"
+
 
 def udf1(features_df: pd.DataFrame) -> pd.DataFrame:
     df = pd.DataFrame()
@@ -388,14 +390,14 @@ def test_function_call_syntax():
     )(transform_features)
 
     # Verify default name behavior
-    assert odfv.name == "transform_features"
+    assert odfv.name == transform_features.__name__
     assert isinstance(odfv, OnDemandFeatureView)
 
     proto = odfv.to_proto()
-    assert proto.spec.name == "transform_features"
+    assert proto.spec.name == transform_features.__name__
 
     deserialized = OnDemandFeatureView.from_proto(proto)
-    assert deserialized.name == "transform_features"
+    assert deserialized.name == transform_features.__name__
 
     # Test with custom name
     def another_transform(features_df: pd.DataFrame) -> pd.DataFrame:
@@ -405,7 +407,7 @@ def test_function_call_syntax():
         return df
 
     odfv_custom = on_demand_feature_view(
-        name="custom-function-name",
+        name=CUSTOM_FUNCTION_NAME,
         sources=sources,
         schema=[
             Field(name="output1", dtype=Float32),
@@ -414,11 +416,11 @@ def test_function_call_syntax():
     )(another_transform)
 
     # Verify custom name behavior
-    assert odfv_custom.name == "custom-function-name"
+    assert odfv_custom.name == CUSTOM_FUNCTION_NAME
     assert isinstance(odfv_custom, OnDemandFeatureView)
 
     proto = odfv_custom.to_proto()
-    assert proto.spec.name == "custom-function-name"
+    assert proto.spec.name == CUSTOM_FUNCTION_NAME
 
     deserialized = OnDemandFeatureView.from_proto(proto)
-    assert deserialized.name == "custom-function-name"
+    assert deserialized.name == CUSTOM_FUNCTION_NAME
