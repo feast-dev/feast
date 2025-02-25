@@ -28,8 +28,6 @@ from feast.on_demand_feature_view import (
 )
 from feast.types import Float32
 
-CUSTOM_FUNCTION_NAME = "custom-function-name"
-
 
 def udf1(features_df: pd.DataFrame) -> pd.DataFrame:
     df = pd.DataFrame()
@@ -362,6 +360,7 @@ def test_on_demand_feature_view_stored_writes():
 
 
 def test_function_call_syntax():
+    CUSTOM_FUNCTION_NAME = "custom-function-name"
     file_source = FileSource(name="my-file-source", path="test.parquet")
     feature_view = FeatureView(
         name="my-feature-view",
