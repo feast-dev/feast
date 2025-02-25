@@ -51,6 +51,7 @@ atpublic==4.1.0
 attrs==25.1.0
     # via
     #   aiohttp
+    #   jsonlines
     #   jsonschema
     #   referencing
 azure-core==1.32.0
@@ -66,7 +67,9 @@ babel==2.17.0
     #   jupyterlab-server
     #   sphinx
 beautifulsoup4==4.13.3
-    # via nbconvert
+    # via
+    #   docling
+    #   nbconvert
 bidict==0.23.1
     # via ibis-framework
 bigtree==0.25.0
@@ -95,6 +98,7 @@ cassandra-driver==3.29.2
     # via feast (setup.py)
 certifi==2025.1.31
     # via
+    #   docling
     #   elastic-transport
     #   httpcore
     #   httpx
@@ -122,6 +126,7 @@ click==8.1.8
     #   geomet
     #   great-expectations
     #   pip-tools
+    #   typer
     #   uvicorn
 cloudpickle==3.1.1
     # via dask
@@ -172,21 +177,38 @@ deltalake==0.25.1
 deprecation==2.1.0
     # via python-keycloak
 dill==0.3.9
-    # via feast (setup.py)
+    # via
+    #   feast (setup.py)
+    #   multiprocess
 distlib==0.3.9
     # via virtualenv
 docker==7.1.0
     # via testcontainers
+docling==2.24.0
+    # via feast (setup.py)
+docling-core[chunking]==2.20.0
+    # via
+    #   docling
+    #   docling-ibm-models
+    #   docling-parse
+docling-ibm-models==3.4.0
+    # via docling
+docling-parse==3.4.0
+    # via docling
 docutils==0.19
     # via sphinx
 duckdb==0.10.3
     # via ibis-framework
+easyocr==1.7.2
+    # via docling
 elastic-transport==8.17.0
     # via elasticsearch
 elasticsearch==8.17.1
     # via feast (setup.py)
 entrypoints==0.4
     # via altair
+et-xmlfile==2.0.0
+    # via openpyxl
 exceptiongroup==1.2.2
     # via
     #   anyio
@@ -204,8 +226,13 @@ fastjsonschema==2.21.1
     # via nbformat
 filelock==3.17.0
     # via
+    #   huggingface-hub
     #   snowflake-connector-python
+    #   torch
+    #   transformers
     #   virtualenv
+filetype==1.2.0
+    # via docling
 fqdn==1.5.1
     # via jsonschema
 frozenlist==1.5.0
@@ -216,6 +243,8 @@ fsspec==2024.9.0
     # via
     #   feast (setup.py)
     #   dask
+    #   huggingface-hub
+    #   torch
 geomet==0.2.1.post1
     # via cassandra-driver
 google-api-core[grpc]==2.24.1
@@ -329,6 +358,12 @@ httpx[http2]==0.27.2
     #   jupyterlab
     #   python-keycloak
     #   qdrant-client
+huggingface-hub==0.29.1
+    # via
+    #   docling
+    #   docling-ibm-models
+    #   tokenizers
+    #   transformers
 hyperframe==6.1.0
     # via h2
 ibis-framework[duckdb, mssql]==9.0.0
@@ -349,6 +384,8 @@ idna==3.10
     #   yarl
 ikvpy==0.0.36
     # via feast (setup.py)
+imageio==2.37.0
+    # via scikit-image
 imagesize==1.4.1
     # via sphinx
 importlib-metadata==8.6.1
@@ -390,6 +427,7 @@ jinja2==3.1.5
     #   moto
     #   nbconvert
     #   sphinx
+    #   torch
 jmespath==1.0.1
     # via
     #   aiobotocore
@@ -397,16 +435,21 @@ jmespath==1.0.1
     #   botocore
 json5==0.10.0
     # via jupyterlab-server
+jsonlines==3.1.0
+    # via docling-ibm-models
 jsonpatch==1.33
     # via great-expectations
 jsonpointer==3.0.0
     # via
     #   jsonpatch
     #   jsonschema
+jsonref==1.1.0
+    # via docling-core
 jsonschema[format-nongpl]==4.23.0
     # via
     #   feast (setup.py)
     #   altair
+    #   docling-core
     #   great-expectations
     #   jupyter-events
     #   jupyterlab-server
@@ -454,14 +497,25 @@ jwcrypto==1.5.6
     # via python-keycloak
 kubernetes==20.13.0
     # via feast (setup.py)
+latex2mathml==3.77.0
+    # via docling-core
+lazy-loader==0.4
+    # via scikit-image
 locket==1.0.0
     # via partd
+lxml==5.3.1
+    # via
+    #   docling
+    #   python-docx
+    #   python-pptx
 lz4==4.4.3
     # via trino
 makefun==1.15.6
     # via great-expectations
 markdown-it-py==3.0.0
     # via rich
+marko==2.1.2
+    # via docling
 markupsafe==3.0.2
     # via
     #   jinja2
@@ -489,6 +543,10 @@ mock==2.0.0
     # via feast (setup.py)
 moto==4.2.14
     # via feast (setup.py)
+mpire[dill]==2.10.2
+    # via semchunk
+mpmath==1.3.0
+    # via sympy
 msal==1.31.1
     # via
     #   azure-identity
@@ -500,6 +558,8 @@ multidict==6.1.0
     #   aiobotocore
     #   aiohttp
     #   yarl
+multiprocess==0.70.17
+    # via mpire
 mypy==1.11.2
     # via
     #   feast (setup.py)
@@ -520,6 +580,12 @@ nbformat==5.10.4
     #   nbconvert
 nest-asyncio==1.6.0
     # via ipykernel
+networkx==3.2.1
+    # via
+    #   scikit-image
+    #   torch
+ninja==1.11.1.3
+    # via easyocr
 nodeenv==1.9.1
     # via pre-commit
 notebook==7.3.2
@@ -534,15 +600,31 @@ numpy==1.26.4
     #   altair
     #   dask
     #   db-dtypes
+    #   docling-ibm-models
+    #   easyocr
     #   faiss-cpu
     #   great-expectations
     #   ibis-framework
+    #   imageio
+    #   opencv-python-headless
     #   pandas
     #   pyarrow
     #   qdrant-client
+    #   safetensors
+    #   scikit-image
     #   scipy
+    #   shapely
+    #   tifffile
+    #   torchvision
+    #   transformers
 oauthlib==3.2.2
     # via requests-oauthlib
+opencv-python-headless==4.11.0.86
+    # via
+    #   docling-ibm-models
+    #   easyocr
+openpyxl==3.1.5
+    # via docling
 overrides==7.7.0
     # via jupyter-server
 packaging==24.2
@@ -555,17 +637,21 @@ packaging==24.2
     #   google-cloud-bigquery
     #   great-expectations
     #   gunicorn
+    #   huggingface-hub
     #   ibis-substrait
     #   ipykernel
     #   jupyter-events
     #   jupyter-server
     #   jupyterlab
     #   jupyterlab-server
+    #   lazy-loader
     #   marshmallow
     #   nbconvert
     #   pytest
+    #   scikit-image
     #   snowflake-connector-python
     #   sphinx
+    #   transformers
 pandas==2.2.3
     # via
     #   feast (setup.py)
@@ -573,6 +659,8 @@ pandas==2.2.3
     #   dask
     #   dask-expr
     #   db-dtypes
+    #   docling
+    #   docling-core
     #   google-cloud-bigquery
     #   great-expectations
     #   ibis-framework
@@ -592,6 +680,17 @@ pbr==6.1.1
     # via mock
 pexpect==4.9.0
     # via ipython
+pillow==11.1.0
+    # via
+    #   docling
+    #   docling-core
+    #   docling-ibm-models
+    #   docling-parse
+    #   easyocr
+    #   imageio
+    #   python-pptx
+    #   scikit-image
+    #   torchvision
 pip==25.0.1
     # via pip-tools
 pip-tools==7.4.1
@@ -687,6 +786,8 @@ pyasn1-modules==0.4.1
     # via google-auth
 pybindgen==0.22.1
     # via feast (setup.py)
+pyclipper==1.3.0.post6
+    # via easyocr
 pycparser==2.22
     # via cffi
 pycryptodome==3.21.0
@@ -694,15 +795,23 @@ pycryptodome==3.21.0
 pydantic==2.10.6
     # via
     #   feast (setup.py)
+    #   docling
+    #   docling-core
+    #   docling-ibm-models
+    #   docling-parse
     #   fastapi
     #   great-expectations
+    #   pydantic-settings
     #   qdrant-client
 pydantic-core==2.27.2
     # via pydantic
+pydantic-settings==2.8.0
+    # via docling
 pygments==2.19.1
     # via
     #   feast (setup.py)
     #   ipython
+    #   mpire
     #   nbconvert
     #   rich
     #   sphinx
@@ -726,6 +835,8 @@ pyopenssl==24.3.0
     # via snowflake-connector-python
 pyparsing==3.2.1
     # via great-expectations
+pypdfium2==4.30.1
+    # via docling
 pyproject-hooks==1.2.0
     # via
     #   build
@@ -762,6 +873,8 @@ pytest-timeout==1.4.2
     # via feast (setup.py)
 pytest-xdist==3.6.1
     # via feast (setup.py)
+python-bidi==0.6.6
+    # via easyocr
 python-dateutil==2.9.0.post0
     # via
     #   aiobotocore
@@ -775,14 +888,19 @@ python-dateutil==2.9.0.post0
     #   moto
     #   pandas
     #   trino
+python-docx==1.1.2
+    # via docling
 python-dotenv==1.0.1
     # via
+    #   pydantic-settings
     #   pymilvus
     #   uvicorn
 python-json-logger==3.2.1
     # via jupyter-events
 python-keycloak==4.2.2
     # via feast (setup.py)
+python-pptx==1.0.2
+    # via docling
 pytz==2025.1
     # via
     #   great-expectations
@@ -794,11 +912,15 @@ pyyaml==6.0.2
     # via
     #   feast (setup.py)
     #   dask
+    #   docling-core
+    #   easyocr
+    #   huggingface-hub
     #   ibis-substrait
     #   jupyter-events
     #   kubernetes
     #   pre-commit
     #   responses
+    #   transformers
     #   uvicorn
 pyzmq==26.2.1
     # via
@@ -818,15 +940,18 @@ regex==2024.11.6
     # via
     #   feast (setup.py)
     #   parsimonious
+    #   transformers
 requests==2.32.3
     # via
     #   feast (setup.py)
     #   azure-core
     #   docker
+    #   docling
     #   google-api-core
     #   google-cloud-bigquery
     #   google-cloud-storage
     #   great-expectations
+    #   huggingface-hub
     #   jupyterlab-server
     #   kubernetes
     #   moto
@@ -838,6 +963,7 @@ requests==2.32.3
     #   singlestoredb
     #   snowflake-connector-python
     #   sphinx
+    #   transformers
     #   trino
 requests-oauthlib==2.0.0
     # via kubernetes
@@ -854,13 +980,17 @@ rfc3986-validator==0.1.1
     #   jsonschema
     #   jupyter-events
 rich==13.9.4
-    # via ibis-framework
+    # via
+    #   ibis-framework
+    #   typer
 rpds-py==0.23.1
     # via
     #   jsonschema
     #   referencing
 rsa==4.9
     # via google-auth
+rtree==1.3.0
+    # via docling
 ruamel-yaml==0.17.40
     # via great-expectations
 ruamel-yaml-clib==0.2.12
@@ -869,8 +999,20 @@ ruff==0.9.7
     # via feast (setup.py)
 s3transfer==0.11.2
     # via boto3
+safetensors[torch]==0.5.2
+    # via
+    #   docling-ibm-models
+    #   transformers
+scikit-image==0.24.0
+    # via easyocr
 scipy==1.13.1
-    # via great-expectations
+    # via
+    #   docling
+    #   easyocr
+    #   great-expectations
+    #   scikit-image
+semchunk==2.2.2
+    # via docling-core
 send2trash==1.8.3
     # via jupyter-server
 setuptools==75.8.0
@@ -882,6 +1024,10 @@ setuptools==75.8.0
     #   pip-tools
     #   pymilvus
     #   singlestoredb
+shapely==2.0.7
+    # via easyocr
+shellingham==1.5.4
+    # via typer
 singlestoredb==1.7.2
     # via feast (setup.py)
 six==1.17.0
@@ -934,8 +1080,13 @@ starlette==0.45.3
     # via fastapi
 substrait==0.23.0
     # via ibis-substrait
+sympy==1.13.3
+    # via torch
 tabulate==0.9.0
-    # via feast (setup.py)
+    # via
+    #   feast (setup.py)
+    #   docling-core
+    #   docling-parse
 tenacity==8.5.0
     # via feast (setup.py)
 terminado==0.18.1
@@ -946,8 +1097,12 @@ testcontainers==4.8.2
     # via feast (setup.py)
 thriftpy2==0.5.2
     # via happybase
+tifffile==2024.8.30
+    # via scikit-image
 tinycss2==1.4.0
     # via bleach
+tokenizers==0.19.1
+    # via transformers
 toml==0.10.2
     # via feast (setup.py)
 tomli==2.2.1
@@ -968,6 +1123,18 @@ toolz==0.12.1
     #   dask
     #   ibis-framework
     #   partd
+torch==2.2.2
+    # via
+    #   feast (setup.py)
+    #   docling-ibm-models
+    #   easyocr
+    #   safetensors
+    #   torchvision
+torchvision==0.17.2
+    # via
+    #   feast (setup.py)
+    #   docling-ibm-models
+    #   easyocr
 tornado==6.4.2
     # via
     #   ipykernel
@@ -979,8 +1146,14 @@ tornado==6.4.2
 tqdm==4.67.1
     # via
     #   feast (setup.py)
+    #   docling
+    #   docling-ibm-models
     #   great-expectations
+    #   huggingface-hub
     #   milvus-lite
+    #   mpire
+    #   semchunk
+    #   transformers
 traitlets==5.14.3
     # via
     #   comm
@@ -996,10 +1169,18 @@ traitlets==5.14.3
     #   nbclient
     #   nbconvert
     #   nbformat
+transformers==4.42.4
+    # via
+    #   docling-core
+    #   docling-ibm-models
 trino==0.333.0
     # via feast (setup.py)
 typeguard==4.4.2
     # via feast (setup.py)
+typer==0.12.5
+    # via
+    #   docling
+    #   docling-core
 types-cffi==1.16.0.20241221
     # via types-pyopenssl
 types-protobuf==3.19.22
@@ -1039,8 +1220,10 @@ typing-extensions==4.12.2
     #   azure-identity
     #   azure-storage-blob
     #   beautifulsoup4
+    #   docling-core
     #   fastapi
     #   great-expectations
+    #   huggingface-hub
     #   ibis-framework
     #   ipython
     #   jwcrypto
@@ -1052,14 +1235,18 @@ typing-extensions==4.12.2
     #   psycopg-pool
     #   pydantic
     #   pydantic-core
+    #   python-docx
     #   python-json-logger
+    #   python-pptx
     #   referencing
     #   rich
     #   snowflake-connector-python
     #   sqlalchemy
     #   starlette
     #   testcontainers
+    #   torch
     #   typeguard
+    #   typer
     #   uvicorn
 tzdata==2025.1
     # via pandas
@@ -1126,6 +1313,8 @@ wrapt==1.17.2
     # via
     #   aiobotocore
     #   testcontainers
+xlsxwriter==3.2.2
+    # via python-pptx
 xmltodict==0.14.2
     # via moto
 yarl==1.18.3
