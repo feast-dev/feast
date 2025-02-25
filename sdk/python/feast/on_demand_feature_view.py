@@ -722,6 +722,7 @@ class OnDemandFeatureView(BaseFeatureView):
 
 def on_demand_feature_view(
     *,
+    name: Optional[str] = None,
     entities: Optional[List[Entity]] = None,
     schema: list[Field],
     sources: list[
@@ -742,6 +743,7 @@ def on_demand_feature_view(
     Creates an OnDemandFeatureView object with the given user function as udf.
 
     Args:
+        name (optional): The name of the on demand feature view. If not provided, the name will be the name of the user function.
         entities (Optional): The list of names of entities that this feature view is associated with.
         schema: The list of features in the output of the on demand feature view, after
             the transformation has been applied.
@@ -791,7 +793,7 @@ def on_demand_feature_view(
             transformation = SubstraitTransformation.from_ibis(user_function, sources)
 
         on_demand_feature_view_obj = OnDemandFeatureView(
-            name=user_function.__name__,
+            name=name if name is not None else user_function.__name__,
             sources=sources,
             schema=schema,
             feature_transformation=transformation,
