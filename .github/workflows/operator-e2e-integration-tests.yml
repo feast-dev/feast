@@ -43,7 +43,15 @@ jobs:
 
       - name: Create KIND cluster
         run: |
-          kind create cluster --name $KIND_CLUSTER --wait 10m
+          cat <<EOF | kind create cluster --name $KIND_CLUSTER --wait 10m --config=-
+          kind: Cluster
+          apiVersion: kind.x-k8s.io/v1alpha4
+          nodes:
+            - role: control-plane
+              extraMounts:
+                - hostPath: /tmp/kind
+                  containerPath: /var/lib/containerd
+          EOF
 
       - name: Set up kubernetes context
         run: |
