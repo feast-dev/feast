@@ -34,6 +34,7 @@ AUTHOR = "Feast and EG"
 REQUIRES_PYTHON = ">=3.9.0"
 
 REQUIRED = [
+    "setuptools>=61",
     "click>=7.0.0,<9.0.0",
     "colorama>=0.3.9,<1",
     "dill~=0.3.0",
@@ -518,7 +519,6 @@ setup(
         "grpcio-tools>=1.56.2,<2",
         "mypy-protobuf>=3.1",
         "pybindgen==0.22.0",
-        "setuptools>=60",
         "setuptools_scm>=6.2",
     ],
     cmdclass={
