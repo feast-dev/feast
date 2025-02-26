@@ -151,6 +151,9 @@ The list below contains the functionality that contributors are planning to deve
 
 * We welcome contribution to all items in the roadmap!
 
+* **Natural Language Processing**
+  * [x] Vector Search (Alpha release. See [RFC](https://docs.google.com/document/d/18IWzLEA9i2lDWnbfbwXnMCg3StlqaLVI-uRpQjr_Vos/edit#heading=h.9gaqqtox9jg6))
+  * [ ] [Enhanced Feature Server and SDK for native support for NLP](https://github.com/feast-dev/feast/issues/4964)
 * **Data Sources**
   * [x] [Snowflake source](https://docs.feast.dev/reference/data-sources/snowflake)
   * [x] [Redshift source](https://docs.feast.dev/reference/data-sources/redshift)
@@ -187,10 +190,10 @@ The list below contains the functionality that contributors are planning to deve
   * [x] [ScyllaDB (contrib plugin)](https://docs.feast.dev/reference/online-stores/scylladb)
   * [x] [Custom online store support](https://docs.feast.dev/how-to-guides/customizing-feast/adding-support-for-a-new-online-store)
 * **Feature Engineering**
-  * [x] On-demand Transformations (Beta release. See [RFC](https://docs.google.com/document/d/1lgfIw0Drc65LpaxbUu49RCeJgMew547meSJttnUqz7c/edit#))
+  * [x] On-demand Transformations (On Read) (Beta release. See [RFC](https://docs.google.com/document/d/1lgfIw0Drc65LpaxbUu49RCeJgMew547meSJttnUqz7c/edit#))
   * [x] Streaming Transformations (Alpha release. See [RFC](https://docs.google.com/document/d/1UzEyETHUaGpn0ap4G82DHluiCj7zEbrQLkJJkKSv4e8/edit))
   * [ ] Batch transformation (In progress. See [RFC](https://docs.google.com/document/d/1964OkzuBljifDvkV-0fakp2uaijnVzdwWNGdz7Vz50A/edit))
-  * [ ] Persistent On-demand Transformations (Beta release. See [GitHub Issue](https://github.com/feast-dev/feast/issues/4376))
+  * [x] On-demand Transformations (On Write) (Beta release. See [GitHub Issue](https://github.com/feast-dev/feast/issues/4376))
 * **Streaming**
   * [x] [Custom streaming ingestion job support](https://docs.feast.dev/how-to-guides/customizing-feast/creating-a-custom-provider)
   * [x] [Push based streaming data ingestion to online store](https://docs.feast.dev/reference/data-sources/push)
@@ -213,8 +216,6 @@ The list below contains the functionality that contributors are planning to deve
   * [x] DataHub integration (see [DataHub Feast docs](https://datahubproject.io/docs/generated/ingestion/sources/feast/))
   * [x] Feast Web UI (Beta release. See [docs](https://docs.feast.dev/reference/alpha-web-ui))
   * [ ] Feast Lineage Explorer
-* **Natural Language Processing**
-  * [x] Vector Search (Alpha release. See [RFC](https://docs.google.com/document/d/18IWzLEA9i2lDWnbfbwXnMCg3StlqaLVI-uRpQjr_Vos/edit#heading=h.9gaqqtox9jg6))
 
 
 ## 🎓 Important Resources
