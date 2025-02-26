@@ -480,9 +480,10 @@ push-feature-server-docker:
 	docker push $(REGISTRY)/feature-server:$(VERSION)
 
 build-feature-server-docker:
-	docker buildx build --build-arg VERSION=$(VERSION) \
+	docker buildx build \
 		-t $(REGISTRY)/feature-server:$(VERSION) \
-		-f sdk/python/feast/infra/feature_servers/multicloud/Dockerfile --load .
+		-f sdk/python/feast/infra/feature_servers/multicloud/Dockerfile \
+		--load sdk/python/feast/infra/feature_servers/multicloud
 
 push-feature-transformation-server-docker:
 	docker push $(REGISTRY)/feature-transformation-server:$(VERSION)
