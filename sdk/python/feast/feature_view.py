@@ -48,6 +48,7 @@ DUMMY_ENTITY_VAL = ""
 DUMMY_ENTITY = Entity(
     name=DUMMY_ENTITY_NAME,
     join_keys=[DUMMY_ENTITY_ID],
+    value_type=ValueType.UNKNOWN,
 )
 DUMMY_ENTITY_FIELD = Field(
     name=DUMMY_ENTITY_ID,
