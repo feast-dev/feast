@@ -192,6 +192,10 @@ class FeatureView(BaseFeatureView):
             else:
                 features.append(field)
 
+        assert len([f for f in features if f.vector_index]) < 2, (
+            f"Only one vector feature is allowed per feature view. Please update {self.name}."
+        )
+
         # TODO(felixwang9817): Add more robust validation of features.
         cols = [field.name for field in schema]
         for col in cols:

@@ -1867,6 +1867,7 @@ class FeatureStore:
         top_k: int,
         features: List[str],
         distance_metric: Optional[str] = "L2",
+        query_string: Optional[str] = None,
     ) -> OnlineResponse:
         """
         Retrieves the top k closest document features. Note, embeddings are a subset of features.
@@ -1878,6 +1879,7 @@ class FeatureStore:
             query: The query to retrieve the closest document features for.
             top_k: The number of closest document features to retrieve.
             distance_metric: The distance metric to use for retrieval.
+            query_string: The query string to retrieve the closest document features using keyword search (bm25).
         """
         if isinstance(query, str):
             raise ValueError(
@@ -1919,6 +1921,7 @@ class FeatureStore:
             query,
             top_k,
             distance_metric,
+            query_string,
         )
 
     def _retrieve_from_online_store(
@@ -1988,6 +1991,7 @@ class FeatureStore:
         query: List[float],
         top_k: int,
         distance_metric: Optional[str],
+        query_string: Optional[str],
     ) -> OnlineResponse:
         """
         Search and return document features from the online document store.
@@ -2003,6 +2007,7 @@ class FeatureStore:
             query=query,
             top_k=top_k,
             distance_metric=distance_metric,
+            query_string=query_string,
         )
 
         entity_key_dict: Dict[str, List[ValueProto]] = {}

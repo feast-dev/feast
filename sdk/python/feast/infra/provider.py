@@ -459,6 +459,7 @@ class Provider(ABC):
         query: List[float],
         top_k: int,
         distance_metric: Optional[str] = None,
+        query_string: Optional[str] = None,
     ) -> List[
         Tuple[
             Optional[datetime],
@@ -476,6 +477,7 @@ class Provider(ABC):
             requested_features: the requested document feature names.
             query: The query embedding to search for.
             top_k: The number of documents to return.
+            query_string: The query string to search for using keyword search (bm25) (optional)
 
         Returns:
             A list of dictionaries, where each dictionary contains the datetime, entitykey, and a dictionary

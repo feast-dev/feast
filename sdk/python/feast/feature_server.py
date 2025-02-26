@@ -75,6 +75,7 @@ class GetOnlineFeaturesRequest(BaseModel):
     features: Optional[List[str]] = None
     full_feature_names: bool = False
     query_embedding: Optional[List[float]] = None
+    query_string: Optional[str] = None
 
 
 def _get_features(request: GetOnlineFeaturesRequest, store: "feast.FeatureStore"):
@@ -195,6 +196,7 @@ def get_app(
             entity_rows=request.entities,
             full_feature_names=request.full_feature_names,
             query=request.query_embedding,
+            query_string=request.query_string,
         )
 
         response = await run_in_threadpool(
