@@ -439,6 +439,7 @@ class OnlineStore(ABC):
         embedding: List[float],
         top_k: int,
         distance_metric: Optional[str] = None,
+        query_string: Optional[str] = None,
     ) -> List[
         Tuple[
             Optional[datetime],
@@ -456,6 +457,7 @@ class OnlineStore(ABC):
             requested_features: The list of features whose embeddings should be used for retrieval.
             embedding: The embeddings to use for retrieval.
             top_k: The number of documents to retrieve.
+            query_string: The query string to search for using keyword search (bm25) (optional)
 
         Returns:
             object: A list of top k closest documents to the specified embedding. Each item in the list is a tuple

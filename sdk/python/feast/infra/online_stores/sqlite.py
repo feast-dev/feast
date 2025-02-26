@@ -40,7 +40,7 @@ from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.type_map import feast_value_type_to_python_type
-from feast.types import FEAST_VECTOR_TYPES
+from feast.types import FEAST_VECTOR_TYPES, PrimitiveFeastType
 from feast.utils import (
     _build_retrieve_online_document_record,
     _serialize_vector_to_float_list,
@@ -442,6 +442,7 @@ class SqliteOnlineStore(OnlineStore):
         query: List[float],
         top_k: int,
         distance_metric: Optional[str] = None,
+        query_string: Optional[str] = None,
     ) -> List[
         Tuple[
             Optional[datetime],
@@ -458,72 +459,135 @@ class SqliteOnlineStore(OnlineStore):
             query: Query embedding to search for
             top_k: Number of items to return
             distance_metric: Distance metric to use (optional)
+            query_string: The query string to search for using keyword search (bm25) (optional)
         Returns:
             List of tuples containing the event timestamp, entity key, and feature values
         """
         online_store = config.online_store
         if not isinstance(online_store, SqliteOnlineStoreConfig):
             raise ValueError("online_store must be SqliteOnlineStoreConfig")
-        if not online_store.vector_enabled:
-            raise ValueError("Vector search is not enabled in the online store config")
+        if not online_store.vector_enabled and not online_store.text_search_enabled:
+            raise ValueError(
+                "You must enable either vector search or text search in the online store config"
+            )
 
         conn = self._get_conn(config)
         cur = conn.cursor()
 
-        if not online_store.vector_len:
+        if online_store.vector_enabled and not online_store.vector_len:
             raise ValueError("vector_len is not configured in the online store config")
 
-        query_embedding_bin = serialize_f32(query, online_store.vector_len)  # type: ignore
         table_name = _table_id(config.project, table)
         vector_field = _get_vector_field(table)
 
-        cur.execute(
-            f"""
-            CREATE VIRTUAL TABLE IF NOT EXISTS vec_table using vec0(
-                vector_value float[{online_store.vector_len}]
-            );
-            """
-        )
+        if online_store.vector_enabled:
+            query_embedding_bin = serialize_f32(query, online_store.vector_len)  # type: ignore
+            cur.execute(
+                f"""
+                CREATE VIRTUAL TABLE IF NOT EXISTS vec_table using vec0(
+                    vector_value float[{online_store.vector_len}]
+                );
+                """
+            )
+            cur.execute(
+                f"""
+                INSERT INTO vec_table (rowid, vector_value)
+                select rowid, vector_value from {table_name}
+                where feature_name = "{vector_field}"
+                """
+            )
+        elif online_store.text_search_enabled:
+            string_field_list = [
+                f.name for f in table.features if f.dtype == PrimitiveFeastType.STRING
+            ]
+            string_fields = ", ".join(string_field_list)
+            # TODO: swap this for a value configurable in each Field()
+            BM25_DEFAULT_WEIGHTS = ", ".join(
+                [
+                    str(1.0)
+                    for f in table.features
+                    if f.dtype == PrimitiveFeastType.STRING
+                ]
+            )
+            cur.execute(
+                f"""
+                CREATE VIRTUAL TABLE IF NOT EXISTS search_table using fts5(
+                    entity_key, fv_rowid, {string_fields}, tokenize="porter unicode61"
+                );
+                """
+            )
+            insert_query = _generate_bm25_search_insert_query(
+                table_name, string_field_list
+            )
+            cur.execute(insert_query)
 
-        cur.execute(
-            f"""
-            INSERT INTO vec_table (rowid, vector_value)
-            select rowid, vector_value from {table_name}
-            where feature_name = "{vector_field}"
-            """
-        )
+        else:
+            raise ValueError(
+                "Neither vector search nor text search are enabled in the online store config"
+            )
 
-        cur.execute(
-            f"""
+        if online_store.vector_enabled:
+            cur.execute(
+                f"""
+                select
+                    fv2.entity_key,
+                    fv2.feature_name,
+                    fv2.value,
+                    fv.vector_value,
+                    f.distance,
+                    fv.event_ts,
+                    fv.created_ts
+                from (
+                    select
+                        rowid,
+                        vector_value,
+                        distance
+                    from vec_table
+                    where vector_value match ?
+                    order by distance
+                    limit ?
+                ) f
+                left join {table_name} fv
+                    on f.rowid = fv.rowid
+                left join {table_name} fv2
+                    on fv.entity_key = fv2.entity_key
+                where fv2.feature_name != "{vector_field}"
+                """,
+                (
+                    query_embedding_bin,
+                    top_k,
+                ),
+            )
+        elif online_store.text_search_enabled:
+            cur.execute(
+                f"""
             select
-                fv2.entity_key,
-                fv2.feature_name,
-                fv2.value,
+                fv.entity_key,
+                fv.feature_name,
+                fv.value,
                 fv.vector_value,
                 f.distance,
                 fv.event_ts,
                 fv.created_ts
-            from (
-                select
-                    rowid,
-                    vector_value,
-                    distance
-                from vec_table
-                where vector_value match ?
-                order by distance
-                limit ?
-            ) f
-            left join {table_name} fv
-                on f.rowid = fv.rowid
-            left join {table_name} fv2
-                on fv.entity_key = fv2.entity_key
-            where fv2.feature_name != "{vector_field}"
-            """,
-            (
-                query_embedding_bin,
-                top_k,
-            ),
-        )
+                from {table_name} fv
+                inner join (
+                    select
+                        fv_rowid,
+                        entity_key,
+                        {string_fields},
+                        bm25(search_table, {BM25_DEFAULT_WEIGHTS}) as distance
+                    from search_table
+                    where search_table match ? order by distance limit ?
+                ) f
+                    on f.entity_key = fv.entity_key
+                """,
+                (query_string, top_k),
+            )
+
+        else:
+            raise ValueError(
+                "Neither vector search nor text search are enabled in the online store config"
+            )
 
         rows = cur.fetchall()
         results: List[
@@ -557,9 +621,10 @@ class SqliteOnlineStore(OnlineStore):
             feature_val.ParseFromString(value_bin)
             entity_dict[entity_key]["entity_key_proto"] = entity_key_proto
             entity_dict[entity_key][feature_name] = feature_val
-            entity_dict[entity_key][vector_field] = _serialize_vector_to_float_list(
-                vector_value
-            )
+            if online_store.vector_enabled:
+                entity_dict[entity_key][vector_field] = _serialize_vector_to_float_list(
+                    vector_value
+                )
             entity_dict[entity_key]["distance"] = ValueProto(float_val=distance)
             entity_dict[entity_key]["event_ts"] = event_ts
             entity_dict[entity_key]["created_ts"] = created_ts
@@ -706,3 +771,31 @@ def _get_vector_field(table: FeatureView) -> str:
     )
     vector_field: str = vector_fields[0].name
     return vector_field
+
+
+def _generate_bm25_search_insert_query(
+    table_name: str, string_field_list: List[str]
+) -> str:
+    """
+    Generates an SQL insertion query for the given table and string fields.
+
+    Args:
+        table_name (str): The name of the table to select data from.
+        string_field_list (List[str]): The list of string fields to be used in the insertion.
+
+    Returns:
+        str: The generated SQL insertion query.
+    """
+    _string_fields = ", ".join(string_field_list)
+    query = f"INSERT INTO search_table (entity_key, fv_rowid, {_string_fields})\nSELECT\n\tDISTINCT fv0.entity_key,\n\tfv0.rowid as fv_rowid"
+    from_query = f"\nFROM (select rowid, * from {table_name} where feature_name = '{string_field_list[0]}') fv0"
+
+    for i, string_field in enumerate(string_field_list):
+        query += f"\n\t,fv{i}.value as {string_field}"
+        if i > 0:
+            from_query += (
+                f"\nLEFT JOIN (select rowid, * from {table_name} where feature_name = '{string_field}') fv{i}"
+                + f"\n\tON fv0.entity_key = fv{i}.entity_key"
+            )
+
+    return query + from_query

@@ -713,10 +713,9 @@ def test_sqlite_get_online_documents() -> None:
         )
         assert record_count == len(data) * len(document_embeddings_fv.features)
 
-        # query_embedding = np.random.random(
-        #     vector_length,
-        # )
-        query_embedding = [float(x) for x in np.random.random(vector_length)]
+        query_embedding = np.random.random(
+            vector_length,
+        )
         result = store.retrieve_online_documents(
             feature="document_embeddings:Embeddings", query=query_embedding, top_k=3
         ).to_dict()
@@ -928,6 +927,78 @@ def test_sqlite_get_online_documents_v2() -> None:
         assert ["1th sentence with some text" in r for r in result["content"]]
         assert ["Title " in r for r in result["title"]]
         assert len(result["distance"]) == 3
+
+
+def test_sqlite_get_online_documents_v2_search() -> None:
+    """Test retrieving documents using v2 method with key word search"""
+    n = 10
+    vector_length = 8
+    runner = CliRunner()
+    with runner.local_repo(
+        get_example_repo("example_feature_repo_1.py"), "file"
+    ) as store:
+        store.config.online_store.text_search_enabled = True
+        store.config.entity_key_serialization_version = 3
+        document_embeddings_fv = store.get_feature_view(name="document_embeddings")
+
+        provider = store._get_provider()
+
+        # Create test data
+        item_keys = [
+            EntityKeyProto(
+                join_keys=["item_id"], entity_values=[ValueProto(int64_val=i)]
+            )
+            for i in range(n)
+        ]
+        data = []
+        for i, item_key in enumerate(item_keys):
+            data.append(
+                (
+                    item_key,
+                    {
+                        "Embeddings": ValueProto(
+                            float_list_val=FloatListProto(
+                                val=[float(x) for x in np.random.random(vector_length)]
+                            )
+                        ),
+                        "content": ValueProto(
+                            string_val=f"the {i}th sentence with some text"
+                        ),
+                        "title": ValueProto(string_val=f"Title {i}"),
+                    },
+                    _utc_now(),
+                    _utc_now(),
+                )
+            )
+
+        provider.online_write_batch(
+            config=store.config,
+            table=document_embeddings_fv,
+            data=data,
+            progress=None,
+        )
+
+        # Test vector similarity search
+        query_embedding = [float(x) for x in np.random.random(vector_length)]
+        result = store.retrieve_online_documents_v2(
+            features=[
+                "document_embeddings:Embeddings",
+                "document_embeddings:content",
+                "document_embeddings:title",
+            ],
+            query=query_embedding,
+            query_string="(content: 5) OR (title: 1) OR (title: 3)",
+            top_k=3,
+        ).to_dict()
+
+        assert "Embeddings" in result
+        assert "content" in result
+        assert "title" in result
+        assert "distance" in result
+        assert ["1th sentence with some text" in r for r in result["content"]]
+        assert ["Title " in r for r in result["title"]]
+        assert len(result["distance"]) == 2
+        assert result["distance"] == [-1.8458267450332642, -1.8458267450332642]
 
 
 @pytest.mark.skip(reason="Skipping this test as CI struggles with it")
