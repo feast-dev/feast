@@ -18,5 +18,5 @@ infra/feast-operator/config/component_metadata.yaml 4
 infra/feast-operator/config/overlays/odh/params.env 1 2
 infra/feast-operator/api/feastversion/version.go 20
 java/pom.xml 38
-sdk/python/feast/infra/feature_servers/multicloud/Dockerfile 3
+sdk/python/feast/infra/feature_servers/multicloud/requirements.txt 2
 ui/package.json 3
