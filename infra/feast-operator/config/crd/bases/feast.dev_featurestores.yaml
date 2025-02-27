@@ -461,6 +461,7 @@ spec:
                                 - trino
                                 - athena
                                 - mssql
+                                - couchbase.offline
                                 type: string
                             required:
                             - secretRef
@@ -914,7 +915,7 @@ spec:
                                 - hbase
                                 - elasticsearch
                                 - qdrant
-                                - couchbase
+                                - couchbase.online
                                 - milvus
                                 type: string
                             required:
@@ -3899,6 +3900,7 @@ spec:
                                     - trino
                                     - athena
                                     - mssql
+                                    - couchbase.offline
                                     type: string
                                 required:
                                 - secretRef
@@ -4360,7 +4362,7 @@ spec:
                                     - hbase
                                     - elasticsearch
                                     - qdrant
-                                    - couchbase
+                                    - couchbase.online
                                     - milvus
                                     type: string
                                 required:

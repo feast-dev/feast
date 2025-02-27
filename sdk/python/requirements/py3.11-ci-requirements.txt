@@ -136,6 +136,8 @@ comm==0.2.2
     #   ipywidgets
 couchbase==4.3.2
     # via feast (setup.py)
+couchbase-columnar==1.0.0
+    # via feast (setup.py)
 coverage[toml]==7.6.12
     # via pytest-cov
 cryptography==43.0.3

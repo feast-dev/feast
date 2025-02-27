@@ -55,7 +55,7 @@ azure = [
     "pymssql"
 ]
 cassandra = ["cassandra-driver>=3.24.0,<4"]
-couchbase = ["couchbase==4.3.2"]
+couchbase = ["couchbase==4.3.2", "couchbase-columnar==1.0.0"]
 delta = ["deltalake"]
 docling = ["docling>=2.23.0"]
 duckdb = ["ibis-framework[duckdb]>=9.0.0,<10"]

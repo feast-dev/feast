@@ -66,7 +66,7 @@ class CouchbaseOnlineStoreCreator(OnlineStoreCreator):
 
         # Return the configuration for Feast
         return {
-            "type": "couchbase",
+            "type": "couchbase.online",
             "connection_string": "couchbase://127.0.0.1",
             "user": self.username,
             "password": self.password,

@@ -16,6 +16,7 @@ The list below contains the functionality that contributors are planning to deve
   * [x] [Hive (community plugin)](https://github.com/baineng/feast-hive)
   * [x] [Postgres (contrib plugin)](https://docs.feast.dev/reference/data-sources/postgres)
   * [x] [Spark (contrib plugin)](https://docs.feast.dev/reference/data-sources/spark)
+  * [x] [Couchbase (contrib plugin)](https://docs.feast.dev/reference/data-sources/couchbase)
   * [x] Kafka / Kinesis sources (via [push support into the online store](https://docs.feast.dev/reference/data-sources/push))
 * **Offline Stores**
   * [x] [Snowflake](https://docs.feast.dev/reference/offline-stores/snowflake)
@@ -26,6 +27,7 @@ The list below contains the functionality that contributors are planning to deve
   * [x] [Postgres (contrib plugin)](https://docs.feast.dev/reference/offline-stores/postgres)
   * [x] [Trino (contrib plugin)](https://github.com/Shopify/feast-trino)
   * [x] [Spark (contrib plugin)](https://docs.feast.dev/reference/offline-stores/spark)
+  * [x] [Couchbase (contrib plugin)](https://docs.feast.dev/reference/offline-stores/couchbase)
   * [x] [In-memory / Pandas](https://docs.feast.dev/reference/offline-stores/file)
   * [x] [Custom offline store support](https://docs.feast.dev/how-to-guides/customizing-feast/adding-a-new-offline-store)
 * **Online Stores**
@@ -41,6 +43,7 @@ The list below contains the functionality that contributors are planning to deve
   * [x] [Postgres (contrib plugin)](https://docs.feast.dev/reference/online-stores/postgres)
   * [x] [Cassandra / AstraDB (contrib plugin)](https://docs.feast.dev/reference/online-stores/cassandra)
   * [x] [ScyllaDB (contrib plugin)](https://docs.feast.dev/reference/online-stores/scylladb)
+  * [x] [Couchbase (contrib plugin)](https://docs.feast.dev/reference/online-stores/couchbase)
   * [x] [Custom online store support](https://docs.feast.dev/how-to-guides/customizing-feast/adding-support-for-a-new-online-store)
 * **Feature Engineering**
   * [x] On-demand Transformations (On Read) (Beta release. See [RFC](https://docs.google.com/document/d/1lgfIw0Drc65LpaxbUu49RCeJgMew547meSJttnUqz7c/edit#))
