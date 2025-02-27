@@ -1876,7 +1876,7 @@ class FeatureStore:
             features: The list of features that should be retrieved from the online document store. These features can be
                 specified either as a list of string document feature references or as a feature service. String feature
                 references must have format "feature_view:feature", e.g, "document_fv:document_embeddings".
-            query: The query to retrieve the closest document features for (optional)
+            query: The embeded query to retrieve the closest document features for (optional)
             top_k: The number of closest document features to retrieve.
             distance_metric: The distance metric to use for retrieval.
             query_string: The query string to retrieve the closest document features using keyword search (bm25).
