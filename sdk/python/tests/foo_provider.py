@@ -169,7 +169,7 @@ class FooProvider(Provider):
         config: RepoConfig,
         table: FeatureView,
         requested_features: List[str],
-        query: List[float],
+        query: Optional[List[float]],
         top_k: int,
         distance_metric: Optional[str] = None,
         query_string: Optional[str] = None,

@@ -436,7 +436,7 @@ class OnlineStore(ABC):
         config: RepoConfig,
         table: FeatureView,
         requested_features: List[str],
-        embedding: List[float],
+        embedding: Optional[List[float]],
         top_k: int,
         distance_metric: Optional[str] = None,
         query_string: Optional[str] = None,
@@ -455,7 +455,7 @@ class OnlineStore(ABC):
             config: The config for the current feature store.
             table: The feature view whose feature values should be read.
             requested_features: The list of features whose embeddings should be used for retrieval.
-            embedding: The embeddings to use for retrieval.
+            embedding: The embeddings to use for retrieval (optional)
             top_k: The number of documents to retrieve.
             query_string: The query string to search for using keyword search (bm25) (optional)
 
@@ -464,6 +464,9 @@ class OnlineStore(ABC):
             where the first item is the event timestamp for the row, and the second item is a dict of feature
             name to embeddings.
         """
+        assert embedding is not None or query_string is not None, (
+            "Either embedding or query_string must be specified"
+        )
         raise NotImplementedError(
             f"Online store {self.__class__.__name__} does not support online retrieval"
         )

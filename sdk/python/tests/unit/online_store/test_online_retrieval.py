@@ -1279,12 +1279,12 @@ def test_milvus_native_from_feast_data() -> None:
     search_res = client.search(
         collection_name=COLLECTION_NAME,
         data=[query_embedding],
-        limit=3,  # Top 3 results
+        limit=5,  # Top 3 results
         output_fields=["item_id", "author_id", "sentence_chunks"],
     )
 
     # Validate the search results
-    assert len(search_res[0]) == 3
+    assert len(search_res[0]) == 5
     print("Search Results:", search_res[0])
 
     # Clean up the collection
