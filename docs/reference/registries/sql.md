@@ -62,7 +62,7 @@ like we do as follows, again using `cockroachdb` as an example:
 ```shell
 cat <<'EOF' >Dockerfile
 ARG DOCKER_IO_FEASTDEV_FEATURE_SERVER
-FROM docker.io/feastdev/feature-server:${DOCKER_IO_FEASTDEV_FEATURE_SERVER}
+FROM quay.io/feastdev/feature-server:${DOCKER_IO_FEASTDEV_FEATURE_SERVER}
 ARG PYPI_ORG_PROJECT_SQLALCHEMY_COCKROACHDB
 RUN pip install -I --no-cache-dir \
       sqlalchemy-cockroachdb==${PYPI_ORG_PROJECT_SQLALCHEMY_COCKROACHDB}
