@@ -986,8 +986,6 @@ def test_sqlite_get_online_documents_v2_search() -> None:
                 "document_embeddings:content",
                 "document_embeddings:title",
             ],
-            query=None,
-            # query=query_embedding,
             query_string="(content: 5) OR (title: 1) OR (title: 3)",
             top_k=3,
         ).to_dict()

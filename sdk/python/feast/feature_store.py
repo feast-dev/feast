@@ -1863,11 +1863,11 @@ class FeatureStore:
 
     def retrieve_online_documents_v2(
         self,
-        query: Optional[List[float]],
-        top_k: int,
         features: List[str],
-        distance_metric: Optional[str] = "L2",
+        top_k: int,
+        query: Optional[List[float]] = None,
         query_string: Optional[str] = None,
+        distance_metric: Optional[str] = "L2",
     ) -> OnlineResponse:
         """
         Retrieves the top k closest document features. Note, embeddings are a subset of features.
