@@ -136,17 +136,6 @@ enum FieldStatus {
     OUTSIDE_MAX_AGE = 4;
 }
 
-enum SortOrder {
-    // SortOrder is unspecified for this field.
-    UNSPECIFIED = 0;
-
-    // Sort results in ascending order as defined by the ordering within the feature store.
-    ASC = 1;
-
-    // Sort results in reverse order as defined by the ordering within the feature store.
-    DESC = 2;
-}
-
 message SortKeyFilter {
     // Name of the sort key to filter on
     string sort_key_name = 1;
@@ -175,7 +164,8 @@ message GetOnlineFeaturesRangeRequest {
     map<string, feast.types.RepeatedValue> entities = 3;
     bool full_feature_names = 4;
     repeated SortKeyFilter sort_key_filters = 5;
-    SortOrder sort_order = 6;
+    // Whether to sort the results in the reverse order of the default
+    bool reverse_sort_order = 6;
     int32 limit = 7;
 
     // Context for OnDemand Feature Transformation
