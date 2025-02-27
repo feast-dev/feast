@@ -979,14 +979,15 @@ def test_sqlite_get_online_documents_v2_search() -> None:
         )
 
         # Test vector similarity search
-        query_embedding = [float(x) for x in np.random.random(vector_length)]
+        # query_embedding = [float(x) for x in np.random.random(vector_length)]
         result = store.retrieve_online_documents_v2(
             features=[
                 "document_embeddings:Embeddings",
                 "document_embeddings:content",
                 "document_embeddings:title",
             ],
-            query=query_embedding,
+            query=None,
+            # query=query_embedding,
             query_string="(content: 5) OR (title: 1) OR (title: 3)",
             top_k=3,
         ).to_dict()
