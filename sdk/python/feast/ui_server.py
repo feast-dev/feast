@@ -69,6 +69,8 @@ def get_app(
 
     @app.get("/registry")
     def read_registry():
+        if registry_proto is None:
+            return Response(status_code=503)  # Service Unavailable
         return Response(
             content=registry_proto.SerializeToString(),
             media_type="application/octet-stream",
