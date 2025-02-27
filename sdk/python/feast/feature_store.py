@@ -1863,11 +1863,11 @@ class FeatureStore:
 
     def retrieve_online_documents_v2(
         self,
-        query: Union[str, List[float]],
-        top_k: int,
         features: List[str],
-        distance_metric: Optional[str] = "L2",
+        top_k: int,
+        query: Optional[List[float]] = None,
         query_string: Optional[str] = None,
+        distance_metric: Optional[str] = "L2",
     ) -> OnlineResponse:
         """
         Retrieves the top k closest document features. Note, embeddings are a subset of features.
@@ -1876,15 +1876,14 @@ class FeatureStore:
             features: The list of features that should be retrieved from the online document store. These features can be
                 specified either as a list of string document feature references or as a feature service. String feature
                 references must have format "feature_view:feature", e.g, "document_fv:document_embeddings".
-            query: The query to retrieve the closest document features for.
+            query: The embeded query to retrieve the closest document features for (optional)
             top_k: The number of closest document features to retrieve.
             distance_metric: The distance metric to use for retrieval.
             query_string: The query string to retrieve the closest document features using keyword search (bm25).
         """
-        if isinstance(query, str):
-            raise ValueError(
-                "Using embedding functionality is not supported for document retrieval. Please embed the query before calling retrieve_online_documents."
-            )
+        assert query is not None or query_string is not None, (
+            "Either query or query_string must be provided."
+        )
 
         (
             available_feature_views,
@@ -1988,7 +1987,7 @@ class FeatureStore:
         provider: Provider,
         table: FeatureView,
         requested_features: List[str],
-        query: List[float],
+        query: Optional[List[float]],
         top_k: int,
         distance_metric: Optional[str],
         query_string: Optional[str],

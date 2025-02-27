@@ -439,7 +439,7 @@ class SqliteOnlineStore(OnlineStore):
         config: RepoConfig,
         table: FeatureView,
         requested_features: List[str],
-        query: List[float],
+        query: Optional[List[float]],
         top_k: int,
         distance_metric: Optional[str] = None,
         query_string: Optional[str] = None,
@@ -456,7 +456,7 @@ class SqliteOnlineStore(OnlineStore):
             config: Feast configuration object
             table: FeatureView object as the table to search
             requested_features: List of requested features to retrieve
-            query: Query embedding to search for
+            query: Query embedding to search for (optional)
             top_k: Number of items to return
             distance_metric: Distance metric to use (optional)
             query_string: The query string to search for using keyword search (bm25) (optional)

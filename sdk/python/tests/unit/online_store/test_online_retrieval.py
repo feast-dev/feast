@@ -979,14 +979,13 @@ def test_sqlite_get_online_documents_v2_search() -> None:
         )
 
         # Test vector similarity search
-        query_embedding = [float(x) for x in np.random.random(vector_length)]
+        # query_embedding = [float(x) for x in np.random.random(vector_length)]
         result = store.retrieve_online_documents_v2(
             features=[
                 "document_embeddings:Embeddings",
                 "document_embeddings:content",
                 "document_embeddings:title",
             ],
-            query=query_embedding,
             query_string="(content: 5) OR (title: 1) OR (title: 3)",
             top_k=3,
         ).to_dict()
@@ -1279,12 +1278,12 @@ def test_milvus_native_from_feast_data() -> None:
     search_res = client.search(
         collection_name=COLLECTION_NAME,
         data=[query_embedding],
-        limit=3,  # Top 3 results
+        limit=5,  # Top 3 results
         output_fields=["item_id", "author_id", "sentence_chunks"],
     )
 
     # Validate the search results
-    assert len(search_res[0]) == 3
+    assert len(search_res[0]) == 5
     print("Search Results:", search_res[0])
 
     # Clean up the collection
