@@ -1881,7 +1881,7 @@ class FeatureStore:
             distance_metric: The distance metric to use for retrieval.
             query_string: The query string to retrieve the closest document features using keyword search (bm25).
         """
-        assert query or query_string, "Either query or query_string must be provided."
+        assert query is not None or query_string is not None, "Either query or query_string must be provided."
 
         (
             available_feature_views,
