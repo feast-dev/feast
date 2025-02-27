@@ -527,6 +527,12 @@ build-feast-operator-docker:
 
 # Dev images
 
+build-feature-server-dev-minimal:
+	docker buildx build \
+		-t feastdev/feature-server:dev \
+		-f sdk/python/feast/infra/feature_servers/multicloud/Dockerfile \
+		--load sdk/python/feast/infra/feature_servers/multicloud
+
 build-feature-server-dev:
 	docker buildx build \
 		-t feastdev/feature-server:dev \

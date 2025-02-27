@@ -57,6 +57,7 @@ azure = [
 cassandra = ["cassandra-driver>=3.24.0,<4"]
 couchbase = ["couchbase==4.3.2"]
 delta = ["deltalake"]
+docling = ["docling>=2.23.0"]
 duckdb = ["ibis-framework[duckdb]>=9.0.0,<10"]
 elasticsearch = ["elasticsearch>=8.13.0"]
 faiss = ["faiss-cpu>=1.7.0,<2"]
@@ -94,6 +95,7 @@ opentelemetry = ["prometheus_client", "psutil"]
 spark = ["pyspark>=3.0.0,<4"]
 trino = ["trino>=0.305.0,<0.400.0", "regex"]
 postgres = ["psycopg[binary,pool]>=3.0.0,<4"]
+pytorch = ["torch>=2.2.2", "torchvision>=0.17.2"]
 qdrant = ["qdrant-client>=1.12.0"]
 redis = [
     "redis>=4.2.2,<5",
@@ -148,8 +150,9 @@ ci = [
     "types-setuptools",
     "types-tabulate",
     "virtualenv<20.24.2",
-    "feast[aws, azure, cassandra, couchbase, delta, duckdb, elasticsearch, faiss, gcp, ge, go, grpcio, hazelcast, hbase, ibis, ikv, k8s, milvus, mssql, mysql, opentelemetry, spark, trino, postgres, qdrant, redis, singlestore, snowflake, sqlite_vec]"
+    "feast[aws, azure, cassandra, couchbase, delta, docling, duckdb, elasticsearch, faiss, gcp, ge, go, grpcio, hazelcast, hbase, ibis, ikv, k8s, milvus, mssql, mysql, opentelemetry, spark, trino, postgres, pytorch, qdrant, redis, singlestore, snowflake, sqlite_vec]"
 ]
+nlp = ["feast[docling, milvus, pytorch]"]
 dev = ["feast[ci]"]
 docs = ["feast[ci]"]
 
