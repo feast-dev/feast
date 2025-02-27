@@ -35,6 +35,10 @@ from feast.infra.offline_stores.snowflake import (
     SnowflakeOfflineStoreConfig,
     SnowflakeRetrievalJob,
 )
+from feast.infra.offline_stores.sqlite import (
+    SQLiteOfflineStoreConfig,
+    SQLiteRetrievalJob,
+)
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.saved_dataset import SavedDatasetStorage
 
@@ -106,6 +110,7 @@ class MockRetrievalJob(RetrievalJob):
         SparkRetrievalJob,
         TrinoRetrievalJob,
         RemoteRetrievalJob,
+        SQLiteRetrievalJob,
     ]
 )
 def retrieval_job(request, environment):
@@ -195,6 +200,16 @@ def retrieval_job(request, environment):
         return TrinoRetrievalJob(
             query="str",
             client=MagicMock(),
+            config=environment.config,
+            full_feature_names=False,
+        )
+    elif request.param is SQLiteRetrievalJob:
+        offline_store_config = SQLiteOfflineStoreConfig(
+            type="sqlite",
+            path=":memory:",
+        )
+        return SQLiteRetrievalJob(
+            query="SELECT * FROM test",
             config=environment.config,
             full_feature_names=False,
         )
