@@ -144,7 +144,7 @@ couchbase-columnar==1.0.0
     # via feast (setup.py)
 coverage[toml]==7.6.12
     # via pytest-cov
-cryptography==43.0.3
+cryptography==44.0.1
     # via
     #   feast (setup.py)
     #   azure-identity
