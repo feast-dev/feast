@@ -15,7 +15,7 @@ from typing import List, Optional, Set, Union
 import click
 from click.exceptions import BadParameter
 
-from feast import PushSource
+from feast import PushSource, SortedFeatureView
 from feast.batch_feature_view import BatchFeatureView
 from feast.constants import FEATURE_STORE_YAML_ENV_NAME
 from feast.data_source import DataSource, KafkaSource, KinesisSource
@@ -124,6 +124,7 @@ def parse_repo(repo_root: Path) -> RepoContents:
         data_sources=[],
         entities=[],
         feature_views=[],
+        sorted_feature_views=[],
         feature_services=[],
         on_demand_feature_views=[],
         stream_feature_views=[],
@@ -173,6 +174,16 @@ def parse_repo(repo_root: Path) -> RepoContents:
                     stream_source = obj.stream_source
                     if not any((stream_source is ds) for ds in res.data_sources):
                         res.data_sources.append(stream_source)
+
+            elif isinstance(obj, SortedFeatureView) and not any(
+                (obj is sfv) for sfv in res.sorted_feature_views
+            ):
+                res.sorted_feature_views.append(obj)
+                if obj.batch_source and not any(
+                    (obj.batch_source is ds) for ds in res.data_sources
+                ):
+                    res.data_sources.append(obj.batch_source)
+
             elif isinstance(obj, StreamFeatureView) and not any(
                 (obj is sfv) for sfv in res.stream_feature_views
             ):
@@ -288,6 +299,7 @@ def extract_objects_for_apply_delete(project, registry, repo):
         Union[
             Entity,
             FeatureView,
+            SortedFeatureView,
             OnDemandFeatureView,
             StreamFeatureView,
             FeatureService,
@@ -301,6 +313,7 @@ def extract_objects_for_apply_delete(project, registry, repo):
         Union[
             Entity,
             FeatureView,
+            SortedFeatureView,
             OnDemandFeatureView,
             StreamFeatureView,
             FeatureService,

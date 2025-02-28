@@ -31,6 +31,7 @@ from feast.protos.feast.types.Value_pb2 import RepeatedValue
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import BATCH_ENGINE_CLASS_FOR_TYPE, RepoConfig
 from feast.saved_dataset import SavedDataset
+from feast.sorted_feature_view import SortedFeatureView
 from feast.stream_feature_view import StreamFeatureView
 from feast.utils import (
     _convert_arrow_to_proto,
@@ -317,6 +318,7 @@ class PassthroughProvider(Provider):
     ) -> None:
         assert (
             isinstance(feature_view, BatchFeatureView)
+            or isinstance(feature_view, SortedFeatureView)
             or isinstance(feature_view, StreamFeatureView)
             or isinstance(feature_view, FeatureView)
         ), f"Unexpected type for {feature_view.name}: {type(feature_view)}"

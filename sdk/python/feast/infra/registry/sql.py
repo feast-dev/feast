@@ -63,6 +63,9 @@ from feast.protos.feast.core.Permission_pb2 import Permission as PermissionProto
 from feast.protos.feast.core.Project_pb2 import Project as ProjectProto
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.protos.feast.core.SavedDataset_pb2 import SavedDataset as SavedDatasetProto
+from feast.protos.feast.core.SortedFeatureView_pb2 import (
+    SortedFeatureView as SortedFeatureViewProto,
+)
 from feast.protos.feast.core.StreamFeatureView_pb2 import (
     StreamFeatureView as StreamFeatureViewProto,
 )
@@ -71,6 +74,7 @@ from feast.protos.feast.core.ValidationProfile_pb2 import (
 )
 from feast.repo_config import RegistryConfig
 from feast.saved_dataset import SavedDataset, ValidationReference
+from feast.sorted_feature_view import SortedFeatureView
 from feast.stream_feature_view import StreamFeatureView
 from feast.utils import _utc_now
 
@@ -134,6 +138,17 @@ stream_feature_views = Table(
 )
 
 Index("idx_stream_feature_views_project_id", stream_feature_views.c.project_id)
+
+sorted_feature_views = Table(
+    "sorted_feature_views",
+    metadata,
+    Column("feature_view_name", String(255), primary_key=True),
+    Column("project_id", String(255), primary_key=True),
+    Column("last_updated_timestamp", BigInteger, nullable=False),
+    Column("feature_view_proto", LargeBinary, nullable=False),
+    Column("user_metadata", LargeBinary, nullable=True),
+)
+Index("idx_sorted_feature_views_project_id", sorted_feature_views.c.project_id)
 
 on_demand_feature_views = Table(
     "on_demand_feature_views",
@@ -351,6 +366,20 @@ class SqlRegistry(CachingRegistry):
             not_found_exception=FeatureViewNotFoundException,
         )
 
+    def get_sorted_feature_view(
+        self, name: str, project: str, allow_cache: bool = False
+    ):
+        return self._get_object(
+            table=sorted_feature_views,  # the table you defined
+            name=name,
+            project=project,
+            proto_class=SortedFeatureViewProto,
+            python_class=SortedFeatureView,
+            id_field_name="feature_view_name",
+            proto_field_name="feature_view_proto",
+            not_found_exception=FeatureViewNotFoundException,
+        )
+
     def _list_stream_feature_views(
         self, project: str, tags: Optional[dict[str, str]]
     ) -> List[StreamFeatureView]:
@@ -359,6 +388,33 @@ class SqlRegistry(CachingRegistry):
             project,
             StreamFeatureViewProto,
             StreamFeatureView,
+            "feature_view_proto",
+            tags=tags,
+        )
+
+    def _list_sorted_feature_views(
+        self, project: str, tags: Optional[dict[str, str]] = None
+    ) -> List[SortedFeatureView]:
+        return self._list_objects(
+            sorted_feature_views,
+            project,
+            SortedFeatureViewProto,
+            SortedFeatureView,
+            "feature_view_proto",
+            tags=tags,
+        )
+
+    def list_sorted_feature_views(
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
+    ) -> List[SortedFeatureView]:
+        return self._list_objects(
+            sorted_feature_views,
+            project,
+            SortedFeatureViewProto,
+            SortedFeatureView,
             "feature_view_proto",
             tags=tags,
         )
@@ -425,6 +481,18 @@ class SqlRegistry(CachingRegistry):
                 proto_field_name="feature_view_proto",
                 not_found_exception=FeatureViewNotFoundException,
             )
+
+        if not fv:
+            fv = self._get_object(
+                table=sorted_feature_views,
+                name=name,
+                project=project,
+                proto_class=SortedFeatureViewProto,
+                python_class=SortedFeatureView,
+                id_field_name="feature_view_name",
+                proto_field_name="feature_view_proto",
+                not_found_exception=FeatureViewNotFoundException,
+            )
         return fv
 
     def _list_all_feature_views(
@@ -442,6 +510,10 @@ class SqlRegistry(CachingRegistry):
             + cast(
                 list[BaseFeatureView],
                 self._list_on_demand_feature_views(project=project, tags=tags),
+            )
+            + cast(
+                list[BaseFeatureView],
+                self._list_sorted_feature_views(project=project, tags=tags),
             )
         )
 
@@ -822,6 +894,8 @@ class SqlRegistry(CachingRegistry):
     def _infer_fv_table(self, feature_view):
         if isinstance(feature_view, StreamFeatureView):
             table = stream_feature_views
+        elif isinstance(feature_view, SortedFeatureView):
+            table = sorted_feature_views
         elif isinstance(feature_view, FeatureView):
             table = feature_views
         elif isinstance(feature_view, OnDemandFeatureView):
@@ -835,6 +909,8 @@ class SqlRegistry(CachingRegistry):
             python_class, proto_class = StreamFeatureView, StreamFeatureViewProto
         elif isinstance(feature_view, FeatureView):
             python_class, proto_class = FeatureView, FeatureViewProto
+        elif isinstance(feature_view, SortedFeatureView):
+            python_class, proto_class = SortedFeatureView, SortedFeatureViewProto
         elif isinstance(feature_view, OnDemandFeatureView):
             python_class, proto_class = OnDemandFeatureView, OnDemandFeatureViewProto
         else:
@@ -885,6 +961,7 @@ class SqlRegistry(CachingRegistry):
                 (self.list_data_sources, r.data_sources),
                 (self.list_on_demand_feature_views, r.on_demand_feature_views),
                 (self.list_stream_feature_views, r.stream_feature_views),
+                (self.list_sorted_feature_views, r.sorted_feature_views),
                 (self.list_feature_services, r.feature_services),
                 (self.list_saved_datasets, r.saved_datasets),
                 (self.list_validation_references, r.validation_references),

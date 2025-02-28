@@ -80,6 +80,8 @@ jobs:
       - name: Upgrade pip version
         run: |
           pip install --upgrade "pip>=22.1,<23"
+      - name: Upgrade setuptools and wheel
+        run: pip install --upgrade setuptools wheel
       - name: Test
         run: make test-go
 

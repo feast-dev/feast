@@ -47,6 +47,7 @@ from feast.protos.feast.core.StreamFeatureView_pb2 import (
     StreamFeatureView as StreamFeatureViewProto,
 )
 from feast.saved_dataset import SavedDataset, ValidationReference
+from feast.sorted_feature_view import SortedFeatureView
 from feast.stream_feature_view import StreamFeatureView
 from feast.transformation.pandas_transformation import PandasTransformation
 from feast.transformation.substrait_transformation import SubstraitTransformation
@@ -271,6 +272,45 @@ class BaseRegistry(ABC):
             name: Name of feature view
             project: Feast project that this feature view belongs to
             commit: Whether the change should be persisted immediately
+        """
+        raise NotImplementedError
+
+    # Sorted feature view operations
+    @abstractmethod
+    def get_sorted_feature_view(
+        self, name: str, project: str, allow_cache: bool = False
+    ) -> SortedFeatureView:
+        """
+        Retrieves a sorted feature view.
+
+        Args:
+            name: Name of sorted feature view
+            project: Feast project that this sorted feature view belongs to
+            allow_cache: Allow returning sorted feature view from the cached registry
+
+        Returns:
+            Returns either the specified feature view, or raises an exception if
+            none is found
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def list_sorted_feature_views(
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[Dict[str, str]] = None,
+    ) -> List[SortedFeatureView]:
+        """
+        Retrieve a list of sorted feature views from the registry
+
+        Args:
+            project: Filter sorted feature views based on project name
+            allow_cache: Whether to allow returning sorted feature views from a cached registry
+            tags: Filter by tags
+
+        Returns:
+            List of sorted feature views
         """
         raise NotImplementedError
 

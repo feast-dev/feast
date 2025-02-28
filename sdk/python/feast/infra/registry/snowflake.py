@@ -59,6 +59,7 @@ from feast.protos.feast.core.ValidationProfile_pb2 import (
 )
 from feast.repo_config import RegistryConfig
 from feast.saved_dataset import SavedDataset, ValidationReference
+from feast.sorted_feature_view import SortedFeatureView
 from feast.stream_feature_view import StreamFeatureView
 from feast.utils import _utc_now, has_all_tags
 
@@ -676,6 +677,23 @@ class SnowflakeRegistry(BaseRegistry):
             "ON_DEMAND_FEATURE_VIEW_NAME",
             "ON_DEMAND_FEATURE_VIEW_PROTO",
             FeatureViewNotFoundException,
+        )
+
+    def get_sorted_feature_view(
+        self, name: str, project: str, allow_cache: bool = False
+    ):
+        raise NotImplementedError(
+            "Sorted feature views are not supported in SnowflakeRegistry."
+        )
+
+    def list_sorted_feature_views(
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
+    ) -> List[SortedFeatureView]:
+        raise NotImplementedError(
+            "Sorted feature views are not supported in SnowflakeRegistry."
         )
 
     def get_saved_dataset(

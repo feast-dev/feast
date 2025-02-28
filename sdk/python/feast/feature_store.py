@@ -84,6 +84,7 @@ from feast.protos.feast.types.Value_pb2 import RepeatedValue, Value
 from feast.repo_config import RepoConfig, load_repo_config
 from feast.repo_contents import RepoContents
 from feast.saved_dataset import SavedDataset, SavedDatasetStorage, ValidationReference
+from feast.sorted_feature_view import SortedFeatureView
 from feast.stream_feature_view import StreamFeatureView
 from feast.utils import _utc_now
 from feast.version import get_version
@@ -562,6 +563,7 @@ class FeatureStore:
         views_to_update: List[FeatureView],
         odfvs_to_update: List[OnDemandFeatureView],
         sfvs_to_update: List[StreamFeatureView],
+        sorted_fvs_to_update: List[SortedFeatureView],
     ):
         """Validates all feature views."""
         if len(odfvs_to_update) > 0 and not flags_helper.is_test():
@@ -575,6 +577,7 @@ class FeatureStore:
                 *views_to_update,
                 *odfvs_to_update,
                 *sfvs_to_update,
+                *sorted_fvs_to_update,
             ]
         )
 
@@ -583,6 +586,7 @@ class FeatureStore:
         data_sources_to_update: List[DataSource],
         entities_to_update: List[Entity],
         views_to_update: List[FeatureView],
+        sorted_fvs_to_update: List[SortedFeatureView],
         odfvs_to_update: List[OnDemandFeatureView],
         sfvs_to_update: List[StreamFeatureView],
         feature_services_to_update: List[FeatureService],
@@ -600,6 +604,10 @@ class FeatureStore:
             [view.batch_source for view in sfvs_to_update], self.config
         )
 
+        update_data_sources_with_inferred_event_timestamp_col(
+            [view.batch_source for view in sorted_fvs_to_update], self.config
+        )
+
         # New feature views may reference previously applied entities.
         entities = self._list_entities()
         update_feature_views_with_inferred_features_and_entities(
@@ -607,6 +615,9 @@ class FeatureStore:
         )
         update_feature_views_with_inferred_features_and_entities(
             sfvs_to_update, entities + entities_to_update, self.config
+        )
+        update_feature_views_with_inferred_features_and_entities(
+            sorted_fvs_to_update, entities + entities_to_update, self.config
         )
         # TODO(kevjumba): Update schema inferrence
         for sfv in sfvs_to_update:
@@ -655,14 +666,29 @@ class FeatureStore:
             feature_views_to_materialize += [
                 sfv for sfv in stream_feature_views_to_materialize if sfv.online
             ]
+            # Get sorted feature views from the registry and append those that are online.
+            sorted_feature_views_to_materialize = (
+                self._registry.list_sorted_feature_views(
+                    self.project, allow_cache=False, tags={}
+                )
+            )
+            feature_views_to_materialize += [
+                sfv for sfv in sorted_feature_views_to_materialize if sfv.online
+            ]
         else:
             for name in feature_views:
                 try:
                     feature_view = self._get_feature_view(name, hide_dummy_entity=False)
                 except FeatureViewNotFoundException:
-                    feature_view = self._get_stream_feature_view(
-                        name, hide_dummy_entity=False
-                    )
+                    try:
+                        feature_view = self._get_stream_feature_view(
+                            name, hide_dummy_entity=False
+                        )
+                    except FeatureViewNotFoundException:
+                        # Fallback to sorted feature view lookup.
+                        feature_view = self._registry.get_sorted_feature_view(
+                            name, self.project, allow_cache=False
+                        )
 
                 if not feature_view.online:
                     raise ValueError(
@@ -712,6 +738,7 @@ class FeatureStore:
             ...     feature_views=[driver_hourly_stats_view],
             ...     on_demand_feature_views=list(),
             ...     stream_feature_views=list(),
+            ...     sorted_feature_views=list(),
             ...     entities=[driver],
             ...     feature_services=list(),
             ...     permissions=list())) # register entity and feature view
@@ -721,12 +748,14 @@ class FeatureStore:
             desired_repo_contents.feature_views,
             desired_repo_contents.on_demand_feature_views,
             desired_repo_contents.stream_feature_views,
+            desired_repo_contents.sorted_feature_views,
         )
         _validate_data_sources(desired_repo_contents.data_sources)
         self._make_inferences(
             desired_repo_contents.data_sources,
             desired_repo_contents.entities,
             desired_repo_contents.feature_views,
+            desired_repo_contents.sorted_feature_views,
             desired_repo_contents.on_demand_feature_views,
             desired_repo_contents.stream_feature_views,
             desired_repo_contents.feature_services,
@@ -774,6 +803,7 @@ class FeatureStore:
             DataSource,
             Entity,
             FeatureView,
+            SortedFeatureView,
             OnDemandFeatureView,
             BatchFeatureView,
             StreamFeatureView,
@@ -845,6 +875,9 @@ class FeatureStore:
             )
         ]
         sfvs_to_update = [ob for ob in objects if isinstance(ob, StreamFeatureView)]
+        sorted_fvs_to_update = [
+            ob for ob in objects if isinstance(ob, SortedFeatureView)
+        ]
         odfvs_to_update = [ob for ob in objects if isinstance(ob, OnDemandFeatureView)]
         services_to_update = [ob for ob in objects if isinstance(ob, FeatureService)]
         data_sources_set_to_update = {
@@ -883,12 +916,13 @@ class FeatureStore:
 
         # Validate all feature views and make inferences.
         self._validate_all_feature_views(
-            views_to_update, odfvs_to_update, sfvs_to_update
+            views_to_update, odfvs_to_update, sfvs_to_update, sorted_fvs_to_update
         )
         self._make_inferences(
             data_sources_to_update,
             entities_to_update,
             views_to_update,
+            sorted_fvs_to_update,
             odfvs_to_update,
             sfvs_to_update,
             services_to_update,
@@ -900,6 +934,10 @@ class FeatureStore:
         for ds in data_sources_to_update:
             self._registry.apply_data_source(ds, project=self.project, commit=False)
         for view in itertools.chain(views_to_update, odfvs_to_update, sfvs_to_update):
+            self._registry.apply_feature_view(view, project=self.project, commit=False)
+        for view in itertools.chain(
+            views_to_update, sfvs_to_update, sorted_fvs_to_update
+        ):
             self._registry.apply_feature_view(view, project=self.project, commit=False)
         for ent in entities_to_update:
             self._registry.apply_entity(ent, project=self.project, commit=False)
@@ -935,6 +973,9 @@ class FeatureStore:
             ]
             odfvs_to_delete = [
                 ob for ob in objects_to_delete if isinstance(ob, OnDemandFeatureView)
+            ]
+            sorted_fvs_to_delete = [
+                ob for ob in objects_to_delete if isinstance(ob, SortedFeatureView)
             ]
             sfvs_to_delete = [
                 ob for ob in objects_to_delete if isinstance(ob, StreamFeatureView)
@@ -986,9 +1027,17 @@ class FeatureStore:
                 )
 
         tables_to_delete: List[FeatureView] = (
-            views_to_delete + sfvs_to_delete if not partial else []  # type: ignore
+            views_to_delete
+            + sfvs_to_delete  # type: ignore
+            + sorted_fvs_to_delete  # type: ignore
+            if not partial
+            else []  # type: ignore
         )
-        tables_to_keep: List[FeatureView] = views_to_update + sfvs_to_update  # type: ignore
+        tables_to_keep: List[FeatureView] = (
+            views_to_update
+            + sfvs_to_update  # type: ignore
+            + sorted_fvs_to_update  # type: ignore
+        )  # type: ignore
 
         if not getattr(self.config.online_store, "lazy_table_creation", False):
             self._get_provider().update_infra(

@@ -17,17 +17,20 @@ from .protos.feast.core.FeatureView_pb2 import FeatureViewSpec
 from .protos.feast.core.OnDemandFeatureView_pb2 import OnDemandFeatureViewSpec
 from .protos.feast.core.Permission_pb2 import PermissionSpec as PermissionSpec
 from .protos.feast.core.SavedDataset_pb2 import SavedDatasetSpec
+from .protos.feast.core.SortedFeatureView_pb2 import SortedFeatureViewSpec
 from .protos.feast.core.StreamFeatureView_pb2 import StreamFeatureViewSpec
 from .protos.feast.core.ValidationProfile_pb2 import (
     ValidationReference as ValidationReferenceProto,
 )
 from .saved_dataset import SavedDataset, ValidationReference
+from .sorted_feature_view import SortedFeatureView
 from .stream_feature_view import StreamFeatureView
 
 # Convenience type representing all Feast objects
 FeastObject = Union[
     Project,
     FeatureView,
+    SortedFeatureView,
     OnDemandFeatureView,
     BatchFeatureView,
     StreamFeatureView,
@@ -42,6 +45,7 @@ FeastObject = Union[
 FeastObjectSpecProto = Union[
     ProjectSpec,
     FeatureViewSpec,
+    SortedFeatureViewSpec,
     OnDemandFeatureViewSpec,
     StreamFeatureViewSpec,
     EntitySpecV2,
@@ -55,6 +59,7 @@ FeastObjectSpecProto = Union[
 ALL_RESOURCE_TYPES = list(get_args(FeastObject))
 ALL_FEATURE_VIEW_TYPES = [
     FeatureView,
+    SortedFeatureView,
     OnDemandFeatureView,
     BatchFeatureView,
     StreamFeatureView,

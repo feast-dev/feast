@@ -27,6 +27,7 @@ from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.protos.feast.registry import RegistryServer_pb2, RegistryServer_pb2_grpc
 from feast.repo_config import RegistryConfig
 from feast.saved_dataset import SavedDataset, ValidationReference
+from feast.sorted_feature_view import SortedFeatureView
 from feast.stream_feature_view import StreamFeatureView
 
 
@@ -43,6 +44,10 @@ def extract_base_feature_view(
     elif feature_view_type == "stream_feature_view":
         feature_view = StreamFeatureView.from_proto(
             any_feature_view.stream_feature_view
+        )
+    elif feature_view_type == "sorted_feature_view":
+        feature_view = SortedFeatureView.from_proto(
+            any_feature_view.sorted_feature_view
         )
 
     return feature_view
@@ -190,6 +195,8 @@ class RemoteRegistry(BaseRegistry):
     ):
         if isinstance(feature_view, StreamFeatureView):
             arg_name = "stream_feature_view"
+        elif isinstance(feature_view, SortedFeatureView):
+            arg_name = "sorted_feature_view"
         elif isinstance(feature_view, FeatureView):
             arg_name = "feature_view"
         elif isinstance(feature_view, OnDemandFeatureView):
@@ -207,6 +214,9 @@ class RemoteRegistry(BaseRegistry):
                 if arg_name == "on_demand_feature_view"
                 else None
             ),
+            sorted_feature_view=(
+                feature_view.to_proto() if arg_name == "sorted_feature_view" else None
+            ),
             project=project,
             commit=commit,
         )
@@ -218,6 +228,30 @@ class RemoteRegistry(BaseRegistry):
             name=name, project=project, commit=commit
         )
         self.stub.DeleteFeatureView(request)
+
+    def get_sorted_feature_view(
+        self, name: str, project: str, allow_cache: bool = False
+    ) -> SortedFeatureView:
+        request = RegistryServer_pb2.GetSortedFeatureViewRequest(
+            name=name, project=project, allow_cache=allow_cache
+        )
+        response = self.stub.GetSortedFeatureView(request)
+        return SortedFeatureView.from_proto(response)
+
+    def list_sorted_feature_views(
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
+    ) -> List[SortedFeatureView]:
+        request = RegistryServer_pb2.ListSortedFeatureViewsRequest(
+            project=project, allow_cache=allow_cache, tags=tags
+        )
+        response = self.stub.ListSortedFeatureViews(request)
+        return [
+            SortedFeatureView.from_proto(sorted_feature_view)
+            for sorted_feature_view in response.sorted_feature_views
+        ]
 
     def get_stream_feature_view(
         self, name: str, project: str, allow_cache: bool = False
