@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Feast Chat</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        .message {
+            margin-bottom: 10px;
+            padding: 10px;
+            border-radius: 5px;
+            max-width: 70%;
+        }
+        .user-message {
+            background-color: #e6f7ff;
+            align-self: flex-end;
+        }
+        .bot-message {
+            background-color: #f0f0f0;
+            align-self: flex-start;
+        }
+        .input-container {
+            display: flex;
+            padding: 10px;
+            border-top: 1px solid #ccc;
+        }
+        #message-input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            margin-right: 10px;
+        }
+        #send-button {
+            padding: 10px 20px;
+            background-color: #1890ff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container" id="chat-container">
+        <div class="message bot-message">Hello! How can I help you today?</div>
+    </div>
+    <div class="input-container">
+        <input type="text" id="message-input" placeholder="Type your message...">
+        <button id="send-button">Send</button>
+    </div>
+    <script>
+        const chatContainer = document.getElementById('chat-container');
+        const messageInput = document.getElementById('message-input');
+        const sendButton = document.getElementById('send-button');
+        
+        // WebSocket connection
+        const ws = new WebSocket(`ws://${window.location.host}/ws/chat`);
+        
+        ws.onmessage = function(event) {
+            // Check if there's an existing bot message being built
+            const lastMessage = chatContainer.lastElementChild;
+            if (lastMessage && lastMessage.classList.contains('bot-message') && lastMessage.dataset.streaming === 'true') {
+                // Append to the existing message
+                lastMessage.textContent += event.data;
+            } else {
+                // Create a new bot message
+                const botMessage = document.createElement('div');
+                botMessage.classList.add('message', 'bot-message');
+                botMessage.dataset.streaming = 'true';
+                botMessage.textContent = event.data;
+                chatContainer.appendChild(botMessage);
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            }
+        };
+        
+        ws.onclose = function(event) {
+            console.log('Connection closed');
+            // Mark the last message as complete if it was streaming
+            const lastMessage = chatContainer.lastElementChild;
+            if (lastMessage && lastMessage.classList.contains('bot-message') && lastMessage.dataset.streaming === 'true') {
+                lastMessage.dataset.streaming = 'false';
+            }
+        };
+        
+        function sendMessage() {
+            const message = messageInput.value.trim();
+            if (message) {
+                // Add user message to chat
+                const userMessage = document.createElement('div');
+                userMessage.classList.add('message', 'user-message');
+                userMessage.textContent = message;
+                chatContainer.appendChild(userMessage);
+                
+                // Send message to server
+                ws.send(message);
+                
+                // Clear input
+                messageInput.value = '';
+                
+                // Scroll to bottom
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            }
+        }
+        
+        sendButton.addEventListener('click', sendMessage);
+        messageInput.addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>
