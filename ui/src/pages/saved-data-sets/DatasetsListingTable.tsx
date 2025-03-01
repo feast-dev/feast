@@ -20,7 +20,6 @@ const DatasetsListingTable = ({ datasets }: DatasetsListingTableProps) => {
       render: (name: string) => {
         return (
           <EuiCustomLink
-            href={`${process.env.PUBLIC_URL || ""}/p/${projectName}/data-set/${name}`}
             to={`${process.env.PUBLIC_URL || ""}/p/${projectName}/data-set/${name}`}
           >
             {name}

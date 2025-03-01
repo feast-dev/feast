@@ -1,23 +1,26 @@
-// File name: "EuiCustomLink.js".
 import React from "react";
-import { EuiLink } from "@elastic/eui";
-import { useNavigate, useHref } from "react-router-dom";
+import { EuiLink, type EuiLinkAnchorProps } from "@elastic/eui";
+import { useNavigate, useHref, type To } from "react-router-dom";
 
-const isModifiedEvent = (event) =>
+interface EuiCustomLinkProps extends Omit<EuiLinkAnchorProps, 'href'> {
+  to: To;
+}
+
+const isModifiedEvent = (event: React.MouseEvent) =>
   !!(event.metaKey || event.altKey || event.ctrlKey || event.shiftKey);
 
-const isLeftClickEvent = (event) => event.button === 0;
+const isLeftClickEvent = (event: React.MouseEvent) => event.button === 0;
 
-const isTargetBlank = (event) => {
-  const target = event.target.getAttribute("target");
+const isTargetBlank = (event: React.MouseEvent) => {
+  const target = (event.target as Element).getAttribute("target");
   return target && target !== "_self";
 };
 
-export default function EuiCustomLink({ to, ...rest }) {
+export default function EuiCustomLink({ to, ...rest }: EuiCustomLinkProps) {
   // This is the key!
   const navigate = useNavigate();
 
-  function onClick(event) {
+  const onClick: React.MouseEventHandler<HTMLAnchorElement> = (event) => {
     if (event.defaultPrevented) {
       return;
     }
@@ -41,6 +44,5 @@ export default function EuiCustomLink({ to, ...rest }) {
   // Generate the correct link href (with basename accounted for)
   const href = useHref(to);
 
-  const props = { ...rest, href, onClick };
-  return <EuiLink {...props} />;
+  return <EuiLink {...rest} href={href} onClick={onClick} />;
 }

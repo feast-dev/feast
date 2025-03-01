@@ -31,7 +31,6 @@ const FeatureServiceListingTable = ({
       render: (name: string) => {
         return (
           <EuiCustomLink
-            href={`${process.env.PUBLIC_URL || ""}/p/${projectName}/feature-service/${name}`}
             to={`${process.env.PUBLIC_URL || ""}/p/${projectName}/feature-service/${name}`}
           >
             {name}

@@ -54,7 +54,6 @@ const FeatureViewEdgesList = ({ fvNames }: FeatureViewEdgesListInterace) => {
       render: ({ name }: { name: string }) => {
         return (
           <EuiCustomLink
-            href={`${process.env.PUBLIC_URL || ""}/p/${projectName}/feature-view/${name}`}
             to={`${process.env.PUBLIC_URL || ""}/p/${projectName}/feature-view/${name}`}
           >
             {name}
