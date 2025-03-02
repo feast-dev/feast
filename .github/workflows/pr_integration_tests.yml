@@ -95,6 +95,10 @@ jobs:
         run: |
           docker pull vishnunair/docker-redis-cluster:latest
           docker run -d -p 6001:6379 -p 6002:6380 -p 6003:6381 -p 6004:6382 -p 6005:6383 -p 6006:6384 --name redis-cluster vishnunair/docker-redis-cluster
+      - name: Setup Milvus Database
+        run: |
+          wget https://github.com/milvus-io/milvus/releases/download/v2.5.1/milvus-standalone-docker-compose.yml -O docker-compose.yml
+          docker compose up -d
       - name: Test python
         if: ${{ always() }}  # this will guarantee that step won't be canceled and resources won't leak
         env:
