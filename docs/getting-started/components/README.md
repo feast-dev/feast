@@ -27,3 +27,7 @@
 {% content-ref url="authz_manager.md" %}
 [authz_manager.md](authz_manager.md)
 {% endcontent-ref %}
+
+{% content-ref url="open-telemetry.md" %}
+[open-telemetry.md](open-telemetry.md)
+{% endcontent-ref %}
