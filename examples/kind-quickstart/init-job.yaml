@@ -7,7 +7,7 @@ spec:
     spec:
       containers:
         - name: feast-apply
-          image: feastdev/feature-server:0.40.1
+          image: quay.io/feastdev/feature-server:latest
           command: ["/bin/sh", "-c"]
           args:
             - |
