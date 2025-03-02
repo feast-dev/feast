@@ -20,9 +20,7 @@ const DatasourcesListingTable = ({
       sortable: true,
       render: (name: string) => {
         return (
-          <EuiCustomLink
-            to={`${process.env.PUBLIC_URL || ""}/p/${projectName}/data-source/${name}`}
-          >
+          <EuiCustomLink to={`/p/${projectName}/data-source/${name}`}>
             {name}
           </EuiCustomLink>
         );

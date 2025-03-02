@@ -15,10 +15,14 @@ const defaultQueryClient = new QueryClient();
 
 const FeastUI = ({ reactQueryClient, feastUIConfigs }: FeastUIProps) => {
   const queryClient = reactQueryClient || defaultQueryClient;
+  const basename = process.env.PUBLIC_URL ?? '';
 
   return (
     // Disable v7_relativeSplatPath: custom tab routes don't currently work with it
-    <BrowserRouter future={{ v7_relativeSplatPath: false, v7_startTransition: true }}>
+    <BrowserRouter
+      basename={basename}
+      future={{ v7_relativeSplatPath: false, v7_startTransition: true }}
+    >
       <QueryClientProvider client={queryClient}>
         <QueryParamProvider adapter={ReactRouter6Adapter}>
           <FeastUISansProviders feastUIConfigs={feastUIConfigs} />

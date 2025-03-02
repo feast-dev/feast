@@ -39,7 +39,7 @@ const RequestDataDisplayPanel = ({
       <EuiSpacer size="xs" />
       <EuiTitle size="s">
         <EuiCustomLink
-          to={`${process.env.PUBLIC_URL || ""}/p/${projectName}/data-source/${requestDataSource?.name}`}
+          to={`/p/${projectName}/data-source/${requestDataSource?.name}`}
         >
           {requestDataSource?.name}
         </EuiCustomLink>
