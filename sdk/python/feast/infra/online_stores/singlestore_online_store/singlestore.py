@@ -50,6 +50,7 @@ class SingleStoreOnlineStore(OnlineStore):
             password=online_store_config.password or "test",
             database=online_store_config.database or "feast",
             port=online_store_config.port or 3306,
+            conn_attrs={"_connector_name": "SingleStore Feast Online Store"},
             autocommit=True,
         )
 
