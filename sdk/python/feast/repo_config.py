@@ -61,6 +61,7 @@ LEGACY_ONLINE_STORE_CLASS_FOR_TYPE = {
     "feast.infra.online_stores.contrib.elasticsearch.ElasticSearchOnlineStore": "feast.infra.online_stores.elasticsearch_online_store.ElasticSearchOnlineStore",
     "feast.infra.online_stores.contrib.singlestore_online_store.singlestore.SingleStoreOnlineStore": "feast.infra.online_stores.singlestore_online_store.singlestore.SingleStoreOnlineStore",
     "feast.infra.online_stores.contrib.qdrant.QdrantOnlineStore": "feast.infra.online_stores.cqdrant.QdrantOnlineStore",
+    "feast.infra.online_stores.contrib.milvus.MilvusOnlineStore": "feast.infra.online_stores.milvus.MilvusOnlineStore",
 }
 
 ONLINE_STORE_CLASS_FOR_TYPE = {
