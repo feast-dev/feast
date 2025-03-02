@@ -18,4 +18,5 @@ The following examples illustrate various **Feast** use cases to enhance underst
 The examples below showcase how to deploy and manage **Feast on Kubernetes** using the **Feast Go Operator**.
 
 1. **[Operator Quickstart](operator-quickstart)**: Demonstrates how to install and use Feast on Kubernetes with the Feast Go Operator.
-1. **[Operator Quickstart with Postgres in TLS](operator-postgres-tls-demo)**: Demonstrates installing and configuring Feast with PostgreSQL in TLS mode on Kubernetes using the Feast Go Operator, with an emphasis on volumes and VolumeMounts support.  
+1. **[Operator Quickstart with Postgres in TLS](operator-postgres-tls-demo)**: Demonstrates installing and configuring Feast with PostgreSQL in TLS mode on Kubernetes using the Feast Go Operator, with an emphasis on volumes and VolumeMounts support.
+1. **[Operator RBAC with Kubernetes](operator-rbac)**: Demonstrates the Feast RBAC example on Kubernetes using the Feast Operator.
