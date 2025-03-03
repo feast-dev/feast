@@ -197,10 +197,14 @@ class MilvusOnlineStore(OnlineStore):
                 )
                 index_params = self.client.prepare_index_params()
                 for vector_field in schema.fields:
-                    if vector_field.dtype in [
-                        DataType.FLOAT_VECTOR,
-                        DataType.BINARY_VECTOR,
-                    ]:
+                    if (
+                        vector_field.dtype
+                        in [
+                            DataType.FLOAT_VECTOR,
+                            DataType.BINARY_VECTOR,
+                        ]
+                        and vector_field.name in vector_field_dict
+                    ):
                         metric = vector_field_dict[
                             vector_field.name
                         ].vector_search_metric
