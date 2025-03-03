@@ -4,7 +4,11 @@ USER 0
 RUN npm install -g yarn yalc && rm -rf .npm
 USER default
 
-COPY --chown=default . ${APP_ROOT}/src
+COPY --chown=default .git ${APP_ROOT}/src/.git
+COPY --chown=default setup.py pyproject.toml README.md Makefile ${APP_ROOT}/src/
+COPY --chown=default protos ${APP_ROOT}/src/protos
+COPY --chown=default ui ${APP_ROOT}/src/ui
+COPY --chown=default sdk/python ${APP_ROOT}/src/sdk/python
 
 WORKDIR ${APP_ROOT}/src/ui
 RUN npm install && \

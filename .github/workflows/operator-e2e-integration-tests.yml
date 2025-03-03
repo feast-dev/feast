@@ -36,6 +36,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@v1.3.1
+        with:
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: false
+          docker-images: false
+          swap-storage: false
+          tool-cache: false
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
@@ -49,7 +60,7 @@ jobs:
           nodes:
             - role: control-plane
               extraMounts:
-                - hostPath: /tmp/kind
+                - hostPath: /mnt/kind
                   containerPath: /var/lib/containerd
           EOF
 
@@ -63,12 +74,6 @@ jobs:
           # Run the e2e tests
           cd infra/feast-operator/
           make test-e2e
-
-      - name: Clean up docker images
-        if: always()
-        run: |
-          docker images --format '{{.Repository}}:{{.Tag}}' | grep 'feast' | xargs -r docker rmi -f
-          docker system prune -a -f
 
       - name: Run Previous version tests
         run: |
