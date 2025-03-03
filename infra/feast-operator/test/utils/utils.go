@@ -111,7 +111,7 @@ func LoadImageToKindClusterWithName(name string, testDir string) error {
 	}
 	fmt.Println("cluster used in the test is -", cluster)
 	kindOptions := []string{"load", "docker-image", name, "--name", cluster}
-	cmd := exec.Command("kind", kindOptions...)
+	cmd := exec.Command("export TMPDIR=/mnt/docker && kind", kindOptions...)
 	_, err := Run(cmd, testDir)
 	return err
 }

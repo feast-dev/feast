@@ -18,10 +18,6 @@ on:
 jobs:
   operator-e2e-tests:
     timeout-minutes: 40
-    if:
-      ((github.event.action == 'labeled' && (github.event.label.name == 'approved' || github.event.label.name == 'lgtm' || github.event.label.name == 'ok-to-test')) ||
-      (github.event.action != 'labeled' && (contains(github.event.pull_request.labels.*.name, 'ok-to-test') || contains(github.event.pull_request.labels.*.name, 'approved') || contains(github.event.pull_request.labels.*.name, 'lgtm')))) &&
-      github.repository == 'feast-dev/feast'
     runs-on: ubuntu-latest
 
     services:
@@ -43,13 +39,18 @@ jobs:
 
       - name: Create KIND cluster
         run: |
+          df -h
+          ls -al
+          ls -al /mnt/
+          ls -al /
+          docker system df -v
           cat <<EOF | kind create cluster --name $KIND_CLUSTER --wait 10m --config=-
           kind: Cluster
           apiVersion: kind.x-k8s.io/v1alpha4
           nodes:
             - role: control-plane
               extraMounts:
-                - hostPath: /tmp/kind
+                - hostPath: /mnt/docker
                   containerPath: /var/lib/containerd
           EOF
 
@@ -60,6 +61,8 @@ jobs:
 
       - name: Run E2E tests
         run: |
+          df -h 
+          docker system df -v
           # Run the e2e tests
           cd infra/feast-operator/
           make test-e2e

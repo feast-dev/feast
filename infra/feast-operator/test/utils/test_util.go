@@ -358,6 +358,7 @@ func DeployOperatorFromCode(testDir string) {
 		_, _ = Run(cmd, testDir)
 
 		var err error
+		var output []byte
 		// projectimage stores the name of the image used in the example
 		var projectimage = "localhost/feast-operator:v0.0.1"
 
@@ -379,6 +380,12 @@ func DeployOperatorFromCode(testDir string) {
 		_, err = Run(cmd, testDir)
 		ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
+		By("Check storage space after feast image build")
+		cmd = exec.Command("df", "-h")
+		output, err = Run(cmd, testDir)
+		_, _ = fmt.Println(GinkgoWriter, string(output))
+		ExpectWithOffset(1, err).NotTo(HaveOccurred())
+
 		By("Tag the local feast image for the integration tests")
 		cmd = exec.Command("docker", "image", "tag", feastImage, feastLocalImage)
 		_, err = Run(cmd, testDir)
@@ -388,9 +395,21 @@ func DeployOperatorFromCode(testDir string) {
 		err = LoadImageToKindClusterWithName(feastLocalImage, testDir)
 		ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
+		By("Check storage space after feast image loaded")
+		cmd = exec.Command("df", "-h")
+		output, err = Run(cmd, testDir)
+		_, _ = fmt.Println(GinkgoWriter, string(output))
+		ExpectWithOffset(1, err).NotTo(HaveOccurred())
+
 		By("installing CRDs")
 		cmd = exec.Command("make", "install")
 		_, err = Run(cmd, testDir)
+		ExpectWithOffset(1, err).NotTo(HaveOccurred())
+
+		By("Check storage space after installing CRDs")
+		cmd = exec.Command("df", "-h")
+		output, err = Run(cmd, testDir)
+		_, _ = fmt.Println(GinkgoWriter, string(output))
 		ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
 		By("deploying the controller-manager")
@@ -412,9 +431,15 @@ func DeployOperatorFromCode(testDir string) {
 func DeleteOperatorDeployment(testDir string) {
 	_, isRunOnOpenShiftCI := os.LookupEnv("RUN_ON_OPENSHIFT_CI")
 	if !isRunOnOpenShiftCI {
+		By("Check storage space before uninstall CRD")
+		var output []byte
+		cmd := exec.Command("df", "-h")
+		output, err := Run(cmd, testDir)
+		fmt.Print(string(output))
+		ExpectWithOffset(1, err).NotTo(HaveOccurred())
 		By("Uninstalling the feast CRD")
-		cmd := exec.Command("kubectl", "delete", "deployment", ControllerDeploymentName, "-n", FeastControllerNamespace)
-		_, err := Run(cmd, testDir)
+		cmd = exec.Command("kubectl", "delete", "deployment", ControllerDeploymentName, "-n", FeastControllerNamespace)
+		_, err = Run(cmd, testDir)
 		ExpectWithOffset(1, err).NotTo(HaveOccurred())
 	}
 }
