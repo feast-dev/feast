@@ -6,7 +6,7 @@ from feast import (
     FileSource,
 )
 from feast.data_format import ParquetFormat
-from feast.types import Float32, Array, String, ValueType
+from feast.types import Float64, Array, String, ValueType
 from feast import Entity, RequestSource
 from feast.on_demand_feature_view import on_demand_feature_view
 from sentence_transformers import SentenceTransformer
@@ -40,15 +40,15 @@ embedding_model = SentenceTransformer(EMBED_MODEL_ID)
 @on_demand_feature_view(
     sources=[input_request],
     schema=[
-        Field(name="chunk_embedding", dtype=Array(Float32)),
+        Field(name="query_embedding", dtype=Array(Float64), vector_index=False),
     ],
     mode="python",
     singleton=True,
     write_to_online_store=True,
 )
-def embed_chunk(inputs: Dict[str, Any]) -> dict[str, List]:
+def embed_chunk(inputs: Dict[str, Any]) -> Dict[str, List[float]]:
     output = {
-        "conv_rate_plus_acc_singleton": embedding_model.encode([
+        "query_embedding": embedding_model.encode([
             inputs["query_string"]], normalize_embeddings=True,
         ).tolist()[0]
     }
@@ -63,8 +63,8 @@ docling_example_feature_view = FeatureView(
         # Field(name="full_document_markdown", dtype=String),
         Field(name="raw_chunk_markdown", dtype=String),
         Field(
-            name="chunk_embedding",
-            dtype=Array(Float32),
+            name="vector",
+            dtype=Array(Float64),
             vector_index=True,
             vector_search_metric="COSINE",
         ),
