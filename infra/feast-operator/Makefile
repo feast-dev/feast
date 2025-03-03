@@ -162,7 +162,7 @@ docker-build: ## Build docker image with the manager.
 ## Build feast docker image.
 .PHONY: feast-ci-dev-docker-img
 feast-ci-dev-docker-img:
-	cd ./../.. && make build-feature-server-dev-minimal
+	cd ./../.. && make build-feature-server-dev
 
 
 .PHONY: docker-push
