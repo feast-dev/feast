@@ -147,8 +147,6 @@ message DataSource {
     // Watermark delay threshold for stream data
     google.protobuf.Duration watermark_delay_threshold = 4;
 
-    // kafka_settings field
-    StreamFormat kafka_settings = 5;
   }
 
   // Defines options for DataSource that sources features from Kinesis records.
