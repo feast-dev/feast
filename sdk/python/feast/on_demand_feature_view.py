@@ -640,7 +640,9 @@ class OnDemandFeatureView(BaseFeatureView):
 
     def infer_features(self) -> None:
         random_input = self._construct_random_input(singleton=self.singleton)
-        inferred_features = self.feature_transformation.infer_features(random_input)
+        inferred_features = self.feature_transformation.infer_features(
+            random_input=random_input, singleton=self.singleton
+        )
 
         if self.features:
             missing_features = []
@@ -778,10 +780,6 @@ def on_demand_feature_view(
                 )
             transformation = PandasTransformation(user_function, udf_string)
         elif mode == "python":
-            if return_annotation not in (inspect._empty, dict[str, Any]):
-                raise TypeError(
-                    f"return signature for {user_function} is {return_annotation} but should be dict[str, Any]"
-                )
             transformation = PythonTransformation(user_function, udf_string)
         elif mode == "substrait":
             from ibis.expr.types.relations import Table
