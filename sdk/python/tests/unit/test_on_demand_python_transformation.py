@@ -161,7 +161,11 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
             @on_demand_feature_view(
                 sources=[driver_stats_fv[["conv_rate", "acc_rate"]]],
                 schema=[
-                    Field(name="conv_rate_plus_acc_python_singleton", dtype=Float64)
+                    Field(name="conv_rate_plus_acc_python_singleton", dtype=Float64),
+                    Field(
+                        name="conv_rate_plus_acc_python_singleton_array",
+                        dtype=Array(Float64),
+                    ),
                 ],
                 mode="python",
                 singleton=True,
@@ -171,6 +175,7 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
                 output["conv_rate_plus_acc_python_singleton"] = (
                     inputs["conv_rate"] + inputs["acc_rate"]
                 )
+                output["conv_rate_plus_acc_python_singleton_array"] = [0.1, 0.2, 0.3]
                 return output
 
             @on_demand_feature_view(
