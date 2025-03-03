@@ -88,6 +88,7 @@
   * [PostgreSQL (contrib)](reference/data-sources/postgres.md)
   * [Trino (contrib)](reference/data-sources/trino.md)
   * [Azure Synapse + Azure SQL (contrib)](reference/data-sources/mssql.md)
+  * [Couchbase (contrib)](reference/data-sources/couchbase.md)
 * [Offline stores](reference/offline-stores/README.md)
   * [Overview](reference/offline-stores/overview.md)
   * [Dask](reference/offline-stores/dask.md)
