@@ -44,7 +44,7 @@ embedding_model = SentenceTransformer(EMBED_MODEL_ID)
     ],
     mode="python",
     singleton=True,
-    write_to_online_store=True,
+    write_to_online_store=False,
 )
 def embed_chunk(inputs: Dict[str, Any]) -> Dict[str, List[float]]:
     output = {
