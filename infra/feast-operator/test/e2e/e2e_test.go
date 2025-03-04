@@ -40,7 +40,7 @@ var _ = Describe("controller", Ordered, func() {
 		featureStoreName, feastResourceName, feastK8sResourceNames)
 
 	BeforeAll(func() {
-		utils.DeployOperatorFromCode("/test/e2e")
+		utils.DeployOperatorFromCode("/test/e2e", false)
 	})
 
 	AfterAll(func() {

@@ -24,7 +24,7 @@ import (
 var _ = Describe("operator upgrade", Ordered, func() {
 	BeforeAll(func() {
 		utils.DeployPreviousVersionOperator()
-		utils.DeployOperatorFromCode("/test/e2e")
+		utils.DeployOperatorFromCode("/test/e2e", true)
 	})
 
 	AfterAll(func() {

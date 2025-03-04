@@ -350,7 +350,7 @@ func fixRemoteFeastK8sResourceNames(feastK8sResourceNames []string, remoteFeastR
 }
 
 // DeployOperatorFromCode - Creates the images for the operator and deploys it
-func DeployOperatorFromCode(testDir string) {
+func DeployOperatorFromCode(testDir string, skipBuilds bool) {
 	_, isRunOnOpenShiftCI := os.LookupEnv("RUN_ON_OPENSHIFT_CI")
 	if !isRunOnOpenShiftCI {
 		By("creating manager namespace")
@@ -361,32 +361,34 @@ func DeployOperatorFromCode(testDir string) {
 		// projectimage stores the name of the image used in the example
 		var projectimage = "localhost/feast-operator:v0.0.1"
 
-		By("building the manager(Operator) image")
-		cmd = exec.Command("make", "docker-build", fmt.Sprintf("IMG=%s", projectimage))
-		_, err = Run(cmd, testDir)
-		ExpectWithOffset(1, err).NotTo(HaveOccurred())
-
-		By("loading the the manager(Operator) image on Kind")
-		err = LoadImageToKindClusterWithName(projectimage, testDir)
-		ExpectWithOffset(1, err).NotTo(HaveOccurred())
-
 		// this image will be built in above make target.
 		var feastImage = "feastdev/feature-server:dev"
 		var feastLocalImage = "localhost/feastdev/feature-server:dev"
 
-		By("building the feast image")
-		cmd = exec.Command("make", "feast-ci-dev-docker-img")
-		_, err = Run(cmd, testDir)
-		ExpectWithOffset(1, err).NotTo(HaveOccurred())
+		if !skipBuilds {
+			By("building the manager(Operator) image")
+			cmd = exec.Command("make", "docker-build", fmt.Sprintf("IMG=%s", projectimage))
+			_, err = Run(cmd, testDir)
+			ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
-		By("Tag the local feast image for the integration tests")
-		cmd = exec.Command("docker", "image", "tag", feastImage, feastLocalImage)
-		_, err = Run(cmd, testDir)
-		ExpectWithOffset(1, err).NotTo(HaveOccurred())
+			By("loading the the manager(Operator) image on Kind")
+			err = LoadImageToKindClusterWithName(projectimage, testDir)
+			ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
-		By("loading the the feast image on Kind cluster")
-		err = LoadImageToKindClusterWithName(feastLocalImage, testDir)
-		ExpectWithOffset(1, err).NotTo(HaveOccurred())
+			By("building the feast image")
+			cmd = exec.Command("make", "feast-ci-dev-docker-img")
+			_, err = Run(cmd, testDir)
+			ExpectWithOffset(1, err).NotTo(HaveOccurred())
+
+			By("Tag the local feast image for the integration tests")
+			cmd = exec.Command("docker", "image", "tag", feastImage, feastLocalImage)
+			_, err = Run(cmd, testDir)
+			ExpectWithOffset(1, err).NotTo(HaveOccurred())
+
+			By("loading the the feast image on Kind cluster")
+			err = LoadImageToKindClusterWithName(feastLocalImage, testDir)
+			ExpectWithOffset(1, err).NotTo(HaveOccurred())
+		}
 
 		By("installing CRDs")
 		cmd = exec.Command("make", "install")
