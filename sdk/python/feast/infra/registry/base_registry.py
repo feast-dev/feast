@@ -43,6 +43,9 @@ from feast.protos.feast.core.Permission_pb2 import Permission as PermissionProto
 from feast.protos.feast.core.Project_pb2 import Project as ProjectProto
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.protos.feast.core.SavedDataset_pb2 import SavedDataset as SavedDatasetProto
+from feast.protos.feast.core.SortedFeatureView_pb2 import (
+    SortedFeatureView as SortedFeatureViewProto,
+)
 from feast.protos.feast.core.StreamFeatureView_pb2 import (
     StreamFeatureView as StreamFeatureViewProto,
 )
@@ -951,6 +954,8 @@ class BaseRegistry(ABC):
             return SavedDatasetProto.FromString(serialized_proto)
         if feast_obj_type == FeatureView:
             return FeatureViewProto.FromString(serialized_proto)
+        if feast_obj_type == SortedFeatureView:
+            return SortedFeatureViewProto.FromString(serialized_proto)
         if feast_obj_type == StreamFeatureView:
             return StreamFeatureViewProto.FromString(serialized_proto)
         if feast_obj_type == OnDemandFeatureView:
