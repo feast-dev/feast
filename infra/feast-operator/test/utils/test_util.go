@@ -358,16 +358,44 @@ func DeployOperatorFromCode(testDir string) {
 		_, _ = Run(cmd, testDir)
 
 		var err error
+		var output []byte
 		// projectimage stores the name of the image used in the example
 		var projectimage = "localhost/feast-operator:v0.0.1"
+
+		By("Check storage space before operator image build")
+		cmd = exec.Command("df", "-h")
+		output, err = Run(cmd, testDir)
+		_, _ = fmt.Println(GinkgoWriter, string(output))
+		cmd = exec.Command("sudo", "ls", "-la", "/var/lib/docker/overlay2")
+		output, _ = Run(cmd, testDir)
+		_, _ = fmt.Println(GinkgoWriter, string(output))
+		ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
 		By("building the manager(Operator) image")
 		cmd = exec.Command("make", "docker-build", fmt.Sprintf("IMG=%s", projectimage))
 		_, err = Run(cmd, testDir)
 		ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
+		By("Check storage space before loading operator image")
+		cmd = exec.Command("df", "-h")
+		output, err = Run(cmd, testDir)
+		_, _ = fmt.Println(GinkgoWriter, string(output))
+		cmd = exec.Command("sudo", "ls", "-la", "/var/lib/docker/overlay2")
+		output, _ = Run(cmd, testDir)
+		_, _ = fmt.Println(GinkgoWriter, string(output))
+		ExpectWithOffset(1, err).NotTo(HaveOccurred())
+
 		By("loading the the manager(Operator) image on Kind")
 		err = LoadImageToKindClusterWithName(projectimage, testDir)
+		ExpectWithOffset(1, err).NotTo(HaveOccurred())
+
+		By("Check storage space after loaded operator image")
+		cmd = exec.Command("df", "-h")
+		output, err = Run(cmd, testDir)
+		_, _ = fmt.Println(GinkgoWriter, string(output))
+		cmd = exec.Command("sudo", "ls", "-la", "/var/lib/docker/overlay2")
+		output, _ = Run(cmd, testDir)
+		_, _ = fmt.Println(GinkgoWriter, string(output))
 		ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
 		// this image will be built in above make target.
@@ -379,6 +407,15 @@ func DeployOperatorFromCode(testDir string) {
 		_, err = Run(cmd, testDir)
 		ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
+		By("Check storage space after feast image build")
+		cmd = exec.Command("df", "-h")
+		output, err = Run(cmd, testDir)
+		_, _ = fmt.Println(GinkgoWriter, string(output))
+		cmd = exec.Command("sudo", "ls", "-la", "/var/lib/docker/overlay2")
+		output, _ = Run(cmd, testDir)
+		_, _ = fmt.Println(GinkgoWriter, string(output))
+		ExpectWithOffset(1, err).NotTo(HaveOccurred())
+
 		By("Tag the local feast image for the integration tests")
 		cmd = exec.Command("docker", "image", "tag", feastImage, feastLocalImage)
 		_, err = Run(cmd, testDir)
@@ -386,6 +423,15 @@ func DeployOperatorFromCode(testDir string) {
 
 		By("loading the the feast image on Kind cluster")
 		err = LoadImageToKindClusterWithName(feastLocalImage, testDir)
+		ExpectWithOffset(1, err).NotTo(HaveOccurred())
+
+		By("Check storage space after feast image loaded")
+		cmd = exec.Command("df", "-h")
+		output, err = Run(cmd, testDir)
+		_, _ = fmt.Println(GinkgoWriter, string(output))
+		cmd = exec.Command("sudo", "ls", "-la", "/var/lib/docker/overlay2")
+		output, _ = Run(cmd, testDir)
+		_, _ = fmt.Println(GinkgoWriter, string(output))
 		ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
 		By("installing CRDs")
