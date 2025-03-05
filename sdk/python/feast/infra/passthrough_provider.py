@@ -185,7 +185,7 @@ class PassthroughProvider(Provider):
         config: RepoConfig,
         table: FeatureView,
         entity_keys: List[EntityKeyProto],
-        requested_features: List[str] | None = None,
+        requested_features: Optional[List[str]] = None,
     ) -> List:
         result = []
         if self.online_store:
