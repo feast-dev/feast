@@ -18,7 +18,7 @@ type FeatureServiceSchema struct {
 }
 
 func GenerateSchemaFromFeatureService(fs FeatureStore, featureServiceName string) (*FeatureServiceSchema, error) {
-	entityMap, fvMap, odFvMap, err := fs.GetFcosMap()
+	entityMap, fvMap, sortedFvMap, odFvMap, err := fs.GetFcosMap()
 	if err != nil {
 		return nil, err
 	}
@@ -28,10 +28,15 @@ func GenerateSchemaFromFeatureService(fs FeatureStore, featureServiceName string
 		return nil, err
 	}
 
-	return generateSchema(featureService, entityMap, fvMap, odFvMap)
+	return generateSchema(featureService, entityMap, fvMap, sortedFvMap, odFvMap)
 }
 
-func generateSchema(featureService *model.FeatureService, entityMap map[string]*model.Entity, fvMap map[string]*model.FeatureView, odFvMap map[string]*model.OnDemandFeatureView) (*FeatureServiceSchema, error) {
+func generateSchema(
+	featureService *model.FeatureService,
+	entityMap map[string]*model.Entity,
+	fvMap map[string]*model.FeatureView,
+	sortedFvMap map[string]*model.SortedFeatureView,
+	odFvMap map[string]*model.OnDemandFeatureView) (*FeatureServiceSchema, error) {
 	joinKeys := make([]string, 0)
 	features := make([]string, 0)
 	requestData := make([]string, 0)
@@ -53,6 +58,27 @@ func generateSchema(featureService *model.FeatureService, entityMap map[string]*
 				allFeatureTypes[fullFeatureName] = f.Dtype
 			}
 			for _, entityColumn := range fv.EntityColumns {
+				var joinKey string
+				if joinKeyAlias, ok := featureProjection.JoinKeyMap[entityColumn.Name]; ok {
+					joinKey = joinKeyAlias
+				} else {
+					joinKey = entityColumn.Name
+				}
+
+				if _, ok := joinKeysSet[joinKey]; !ok {
+					joinKeys = append(joinKeys, joinKey)
+				}
+
+				joinKeysSet[joinKey] = nil
+				entityJoinKeyToType[joinKey] = entityColumn.Dtype
+			}
+		} else if sortedFv, ok := sortedFvMap[featureViewName]; ok {
+			for _, f := range featureProjection.Features {
+				fullFeatureName := getFullFeatureName(featureProjection.NameToUse(), f.Name)
+				features = append(features, fullFeatureName)
+				allFeatureTypes[fullFeatureName] = f.Dtype
+			}
+			for _, entityColumn := range sortedFv.EntityColumns {
 				var joinKey string
 				if joinKeyAlias, ok := featureProjection.JoinKeyMap[entityColumn.Name]; ok {
 					joinKey = joinKeyAlias

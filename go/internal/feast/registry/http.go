@@ -152,6 +152,21 @@ func (r *HttpRegistryStore) loadFeatureViews(registry *core.Registry) error {
 	})
 }
 
+func (r *HttpRegistryStore) loadSortedFeatureViews(registry *core.Registry) error {
+	url := fmt.Sprintf("%s/projects/%s/sorted_feature_views?allow_cache=true", r.endpoint, r.project)
+	return r.loadProtobufMessages(url, func(data []byte) error {
+		sorted_feature_view_list := &core.SortedFeatureViewList{}
+		if err := proto.Unmarshal(data, sorted_feature_view_list); err != nil {
+			return err
+		}
+		if len(sorted_feature_view_list.GetSortedFeatureViews()) == 0 {
+			log.Warn().Msg(fmt.Sprintf("Feature Registry has no associated SortedFeatureViews for project %s.", r.project))
+		}
+		registry.SortedFeatureViews = append(registry.SortedFeatureViews, sorted_feature_view_list.GetSortedFeatureViews()...)
+		return nil
+	})
+}
+
 func (r *HttpRegistryStore) loadOnDemandFeatureViews(registry *core.Registry) error {
 	url := fmt.Sprintf("%s/projects/%s/on_demand_feature_views?allow_cache=true", r.endpoint, r.project)
 	return r.loadProtobufMessages(url, func(data []byte) error {
@@ -189,6 +204,10 @@ func (r *HttpRegistryStore) GetRegistryProto() (*core.Registry, error) {
 	}
 
 	if err := r.loadFeatureViews(&registry); err != nil {
+		return nil, err
+	}
+
+	if err := r.loadSortedFeatureViews(&registry); err != nil {
 		return nil, err
 	}
 

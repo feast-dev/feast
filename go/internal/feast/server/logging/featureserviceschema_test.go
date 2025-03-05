@@ -13,9 +13,14 @@ import (
 	"github.com/feast-dev/feast/go/protos/feast/types"
 )
 
-func buildFCOMaps(entities []*model.Entity, fvs []*model.FeatureView, odFvs []*model.OnDemandFeatureView) (map[string]*model.Entity, map[string]*model.FeatureView, map[string]*model.OnDemandFeatureView) {
+func buildFCOMaps(
+	entities []*model.Entity,
+	fvs []*model.FeatureView,
+	sortedFvs []*model.SortedFeatureView,
+	odFvs []*model.OnDemandFeatureView) (map[string]*model.Entity, map[string]*model.FeatureView, map[string]*model.SortedFeatureView, map[string]*model.OnDemandFeatureView) {
 	entityMap := make(map[string]*model.Entity)
 	fvMap := make(map[string]*model.FeatureView)
+	sortedFvMap := make(map[string]*model.SortedFeatureView)
 	odFvMap := make(map[string]*model.OnDemandFeatureView)
 
 	for _, entity := range entities {
@@ -26,16 +31,20 @@ func buildFCOMaps(entities []*model.Entity, fvs []*model.FeatureView, odFvs []*m
 		fvMap[fv.Base.Name] = fv
 	}
 
+	for _, sortedFv := range sortedFvs {
+		sortedFvMap[sortedFv.Base.Name] = sortedFv
+	}
+
 	for _, fv := range odFvs {
 		odFvMap[fv.Base.Name] = fv
 	}
 
-	return entityMap, fvMap, odFvMap
+	return entityMap, fvMap, sortedFvMap, odFvMap
 }
 
 func TestSchemaTypeRetrieval(t *testing.T) {
-	featureService, entities, fvs, odfvs := InitializeFeatureRepoVariablesForTest()
-	entityMap, fvMap, odFvMap := buildFCOMaps(entities, fvs, odfvs)
+	featureService, entities, fvs, sortedFvs, odfvs := InitializeFeatureRepoVariablesForTest()
+	entityMap, fvMap, sortedFvMap, odFvMap := buildFCOMaps(entities, fvs, sortedFvs, odfvs)
 
 	expectedFeatureNames := make([]string, 0)
 	expectedRequestData := make([]string, 0)
@@ -55,15 +64,20 @@ func TestSchemaTypeRetrieval(t *testing.T) {
 			}
 		}
 	}
+	for _, sortedFv := range sortedFvs {
+		for _, f := range sortedFv.Base.Features {
+			expectedFeatureNames = append(expectedFeatureNames, getFullFeatureName(sortedFv.Base.Name, f.Name))
+		}
+	}
 
-	schema, err := generateSchema(featureService, entityMap, fvMap, odFvMap)
+	schema, err := generateSchema(featureService, entityMap, fvMap, sortedFvMap, odFvMap)
 	assert.Nil(t, err)
 
 	assert.Equal(t, expectedFeatureNames, schema.Features)
 	assert.Equal(t, []string{"driver_id"}, schema.JoinKeys)
 	assert.Equal(t, schema.JoinKeysTypes["driver_id"], types.ValueType_INT64)
 
-	types := []types.ValueType_Enum{*types.ValueType_INT64.Enum(), *types.ValueType_FLOAT.Enum(), *types.ValueType_INT32.Enum(), *types.ValueType_DOUBLE.Enum(), *types.ValueType_INT32.Enum(), *types.ValueType_DOUBLE.Enum()}
+	types := []types.ValueType_Enum{*types.ValueType_INT64.Enum(), *types.ValueType_FLOAT.Enum(), *types.ValueType_INT32.Enum(), *types.ValueType_DOUBLE.Enum(), *types.ValueType_INT32.Enum(), *types.ValueType_DOUBLE.Enum(), *types.ValueType_FLOAT.Enum()}
 	for idx, featureName := range expectedFeatureNames {
 		assert.Contains(t, schema.FeaturesTypes, featureName)
 		assert.Equal(t, schema.FeaturesTypes[featureName], types[idx])
@@ -71,23 +85,27 @@ func TestSchemaTypeRetrieval(t *testing.T) {
 }
 
 func TestSchemaRetrievalIgnoresEntitiesNotInFeatureService(t *testing.T) {
-	featureService, entities, fvs, odfvs := InitializeFeatureRepoVariablesForTest()
-	entityMap, fvMap, odFvMap := buildFCOMaps(entities, fvs, odfvs)
+	featureService, entities, fvs, sortedFvs, odfvs := InitializeFeatureRepoVariablesForTest()
+	entityMap, fvMap, sortedFvMap, odFvMap := buildFCOMaps(entities, fvs, sortedFvs, odfvs)
 
 	// Remove entities in featureservice
 	for _, featureView := range fvs {
 		featureView.EntityNames = []string{}
 		featureView.EntityColumns = []*model.Field{}
 	}
+	for _, featureView := range sortedFvs {
+		featureView.EntityNames = []string{}
+		featureView.EntityColumns = []*model.Field{}
+	}
 
-	schema, err := generateSchema(featureService, entityMap, fvMap, odFvMap)
+	schema, err := generateSchema(featureService, entityMap, fvMap, sortedFvMap, odFvMap)
 	assert.Nil(t, err)
 	assert.Empty(t, schema.JoinKeysTypes)
 }
 
 func TestSchemaUsesOrderInFeatureService(t *testing.T) {
-	featureService, entities, fvs, odfvs := InitializeFeatureRepoVariablesForTest()
-	entityMap, fvMap, odFvMap := buildFCOMaps(entities, fvs, odfvs)
+	featureService, entities, fvs, sortedFvs, odfvs := InitializeFeatureRepoVariablesForTest()
+	entityMap, fvMap, sortedFvMap, odFvMap := buildFCOMaps(entities, fvs, sortedFvs, odfvs)
 
 	expectedFeatureNames := make([]string, 0)
 
@@ -98,6 +116,11 @@ func TestSchemaUsesOrderInFeatureService(t *testing.T) {
 		}
 	}
 	for _, featureView := range odfvs {
+		for _, f := range featureView.Base.Features {
+			expectedFeatureNames = append(expectedFeatureNames, getFullFeatureName(featureView.Base.Name, f.Name))
+		}
+	}
+	for _, featureView := range sortedFvs {
 		for _, f := range featureView.Base.Features {
 			expectedFeatureNames = append(expectedFeatureNames, getFullFeatureName(featureView.Base.Name, f.Name))
 		}
@@ -116,7 +139,7 @@ func TestSchemaUsesOrderInFeatureService(t *testing.T) {
 		})
 	}
 
-	schema, err := generateSchema(featureService, entityMap, fvMap, odFvMap)
+	schema, err := generateSchema(featureService, entityMap, fvMap, sortedFvMap, odFvMap)
 	assert.Nil(t, err)
 
 	// Ensure the same results
@@ -126,7 +149,7 @@ func TestSchemaUsesOrderInFeatureService(t *testing.T) {
 }
 
 // Initialize all dummy featureservice, entities and featureviews/on demand featureviews for testing.
-func InitializeFeatureRepoVariablesForTest() (*model.FeatureService, []*model.Entity, []*model.FeatureView, []*model.OnDemandFeatureView) {
+func InitializeFeatureRepoVariablesForTest() (*model.FeatureService, []*model.Entity, []*model.FeatureView, []*model.SortedFeatureView, []*model.OnDemandFeatureView) {
 	f1 := test.CreateNewField(
 		"int64",
 		types.ValueType_INT64,
@@ -198,12 +221,34 @@ func InitializeFeatureRepoVariablesForTest() (*model.FeatureService, []*model.En
 			{Name: "param1", ValueType: types.ValueType_FLOAT},
 		},
 	}
+
+	f7 := test.CreateNewField(
+		"sorted_f1",
+		types.ValueType_FLOAT,
+	)
+	projection4 := test.CreateNewFeatureViewProjection(
+		"sorted_fv1",
+		"",
+		[]*model.Field{f7},
+		map[string]string{},
+	)
+	baseSortedFeatureView1 := test.CreateBaseFeatureView(
+		"sorted_fv1",
+		[]*model.Field{f7},
+		projection4,
+	)
+	sortKey := &model.SortKey{
+		FieldName: "sorted_f1",
+		Order:     &model.SortOrder{Order: core.SortOrder_DESC},
+		ValueType: types.ValueType_FLOAT,
+	}
+	sortedFeatureView1 := test.CreateSortedFeatureView(baseSortedFeatureView1, nil, []string{"driver_id"}, []*model.Field{entitycolumn1}, []*model.SortKey{sortKey})
 	featureService := test.CreateNewFeatureService(
 		"test_service",
 		"test_project",
 		nil,
 		nil,
-		[]*model.FeatureViewProjection{projection1, projection2, projection3},
+		[]*model.FeatureViewProjection{projection1, projection2, projection3, projection4},
 	)
-	return featureService, []*model.Entity{entity1}, []*model.FeatureView{featureView1, featureView2}, []*model.OnDemandFeatureView{odfv}
+	return featureService, []*model.Entity{entity1}, []*model.FeatureView{featureView1, featureView2}, []*model.SortedFeatureView{sortedFeatureView1}, []*model.OnDemandFeatureView{odfv}
 }

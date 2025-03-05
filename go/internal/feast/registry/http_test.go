@@ -369,6 +369,13 @@ func TestGetRegistryProto(t *testing.T) {
 				},
 			}
 			data, err = proto.Marshal(featureViewList)
+		case "/projects/test_project/sorted_feature_views":
+			sortedFeatureViewList := &core.SortedFeatureViewList{
+				SortedFeatureViews: []*core.SortedFeatureView{
+					{Spec: &core.SortedFeatureViewSpec{Name: "test_sorted_feature_view"}},
+				},
+			}
+			data, err = proto.Marshal(sortedFeatureViewList)
 		case "/projects/test_project/on_demand_feature_views":
 			odFeatureViewList := &core.OnDemandFeatureViewList{
 				Ondemandfeatureviews: []*core.OnDemandFeatureView{
@@ -414,6 +421,8 @@ func TestGetRegistryProto(t *testing.T) {
 	assert.Equal(t, "test_datasource", registry.DataSources[0].Name)
 	assert.Equal(t, 1, len(registry.FeatureViews))
 	assert.Equal(t, "test_feature_view", registry.FeatureViews[0].Spec.Name)
+	assert.Equal(t, 1, len(registry.SortedFeatureViews))
+	assert.Equal(t, "test_sorted_feature_view", registry.SortedFeatureViews[0].Spec.Name)
 	assert.Equal(t, 1, len(registry.OnDemandFeatureViews))
 	assert.Equal(t, "test_view", registry.OnDemandFeatureViews[0].Spec.Name)
 	assert.Equal(t, 1, len(registry.FeatureServices))

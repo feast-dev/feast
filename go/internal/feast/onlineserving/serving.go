@@ -39,6 +39,11 @@ type FeatureViewAndRefs struct {
 	FeatureRefs []string
 }
 
+type SortedFeatureViewAndRefs struct {
+	View        *model.SortedFeatureView
+	FeatureRefs []string
+}
+
 /*
 We group all features from a single request by entities they attached to.
 Thus, we will be able to call online retrieval per entity and not per each feature View.
@@ -69,9 +74,11 @@ existed in the registry
 func GetFeatureViewsToUseByService(
 	featureService *model.FeatureService,
 	featureViews map[string]*model.FeatureView,
-	onDemandFeatureViews map[string]*model.OnDemandFeatureView) ([]*FeatureViewAndRefs, []*model.OnDemandFeatureView, error) {
+	sortedFeatureViews map[string]*model.SortedFeatureView,
+	onDemandFeatureViews map[string]*model.OnDemandFeatureView) ([]*FeatureViewAndRefs, []*SortedFeatureViewAndRefs, []*model.OnDemandFeatureView, error) {
 
 	viewNameToViewAndRefs := make(map[string]*FeatureViewAndRefs)
+	viewNameToSortedViewAndRefs := make(map[string]*SortedFeatureViewAndRefs)
 	odFvsToUse := make([]*model.OnDemandFeatureView, 0)
 
 	for _, featureProjection := range featureService.Projections {
@@ -81,7 +88,7 @@ func GetFeatureViewsToUseByService(
 		if fv, ok := featureViews[featureViewName]; ok {
 			base, err := fv.Base.WithProjection(featureProjection)
 			if err != nil {
-				return nil, nil, err
+				return nil, nil, nil, err
 			}
 			if _, ok := viewNameToViewAndRefs[featureProjection.NameToUse()]; !ok {
 				viewNameToViewAndRefs[featureProjection.NameToUse()] = &FeatureViewAndRefs{
@@ -96,10 +103,27 @@ func GetFeatureViewsToUseByService(
 						feature.Name)
 			}
 
+		} else if sortedFv, ok := sortedFeatureViews[featureViewName]; ok {
+			base, err := sortedFv.Base.WithProjection(featureProjection)
+			if err != nil {
+				return nil, nil, nil, err
+			}
+			if _, ok := viewNameToSortedViewAndRefs[featureProjection.NameToUse()]; !ok {
+				viewNameToSortedViewAndRefs[featureProjection.NameToUse()] = &SortedFeatureViewAndRefs{
+					View:        sortedFv.NewSortedFeatureViewFromBase(base),
+					FeatureRefs: []string{},
+				}
+			}
+
+			for _, feature := range featureProjection.Features {
+				viewNameToSortedViewAndRefs[featureProjection.NameToUse()].FeatureRefs =
+					addStringIfNotContains(viewNameToSortedViewAndRefs[featureProjection.NameToUse()].FeatureRefs,
+						feature.Name)
+			}
 		} else if odFv, ok := onDemandFeatureViews[featureViewName]; ok {
 			projectedOdFv, err := odFv.NewWithProjection(featureProjection)
 			if err != nil {
-				return nil, nil, err
+				return nil, nil, nil, err
 			}
 			odFvsToUse = append(odFvsToUse, projectedOdFv)
 			err = extractOdFvDependencies(
@@ -107,10 +131,10 @@ func GetFeatureViewsToUseByService(
 				featureViews,
 				viewNameToViewAndRefs)
 			if err != nil {
-				return nil, nil, err
+				return nil, nil, nil, err
 			}
 		} else {
-			return nil, nil, fmt.Errorf("the provided feature service %s contains a reference to a feature View"+
+			return nil, nil, nil, fmt.Errorf("the provided feature service %s contains a reference to a feature View"+
 				"%s which doesn't exist, please make sure that you have created the feature View"+
 				"%s and that you have registered it by running \"apply\"", featureService.Name, featureViewName, featureViewName)
 		}
@@ -120,8 +144,12 @@ func GetFeatureViewsToUseByService(
 	for _, viewAndRef := range viewNameToViewAndRefs {
 		fvsToUse = append(fvsToUse, viewAndRef)
 	}
+	sortedFvsToUse := make([]*SortedFeatureViewAndRefs, 0)
+	for _, viewAndRef := range viewNameToSortedViewAndRefs {
+		sortedFvsToUse = append(sortedFvsToUse, viewAndRef)
+	}
 
-	return fvsToUse, odFvsToUse, nil
+	return fvsToUse, sortedFvsToUse, odFvsToUse, nil
 }
 
 /*
@@ -135,14 +163,16 @@ existed in the registry
 func GetFeatureViewsToUseByFeatureRefs(
 	features []string,
 	featureViews map[string]*model.FeatureView,
-	onDemandFeatureViews map[string]*model.OnDemandFeatureView) ([]*FeatureViewAndRefs, []*model.OnDemandFeatureView, error) {
+	sortedFeatureViews map[string]*model.SortedFeatureView,
+	onDemandFeatureViews map[string]*model.OnDemandFeatureView) ([]*FeatureViewAndRefs, []*SortedFeatureViewAndRefs, []*model.OnDemandFeatureView, error) {
 	viewNameToViewAndRefs := make(map[string]*FeatureViewAndRefs)
+	viewNameToSortedViewAndRefs := make(map[string]*SortedFeatureViewAndRefs)
 	odFvToFeatures := make(map[string][]string)
 
 	for _, featureRef := range features {
 		featureViewName, featureName, err := ParseFeatureReference(featureRef)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 		if fv, ok := featureViews[featureViewName]; ok {
 			if viewAndRef, ok := viewNameToViewAndRefs[fv.Base.Name]; ok {
@@ -150,6 +180,15 @@ func GetFeatureViewsToUseByFeatureRefs(
 			} else {
 				viewNameToViewAndRefs[fv.Base.Name] = &FeatureViewAndRefs{
 					View:        fv,
+					FeatureRefs: []string{featureName},
+				}
+			}
+		} else if sortedFv, ok := sortedFeatureViews[featureViewName]; ok {
+			if viewAndRef, ok := viewNameToSortedViewAndRefs[sortedFv.Base.Name]; ok {
+				viewAndRef.FeatureRefs = addStringIfNotContains(viewAndRef.FeatureRefs, featureName)
+			} else {
+				viewNameToSortedViewAndRefs[sortedFv.Base.Name] = &SortedFeatureViewAndRefs{
+					View:        sortedFv,
 					FeatureRefs: []string{featureName},
 				}
 			}
@@ -161,7 +200,7 @@ func GetFeatureViewsToUseByFeatureRefs(
 					odFvToFeatures[odfv.Base.Name], featureName)
 			}
 		} else {
-			return nil, nil, fmt.Errorf("feature View %s doesn't exist, please make sure that you have created the"+
+			return nil, nil, nil, fmt.Errorf("feature View %s doesn't exist, please make sure that you have created the"+
 				" feature View %s and that you have registered it by running \"apply\"", featureViewName, featureViewName)
 		}
 	}
@@ -171,7 +210,7 @@ func GetFeatureViewsToUseByFeatureRefs(
 	for odFvName, featureNames := range odFvToFeatures {
 		projectedOdFv, err := onDemandFeatureViews[odFvName].ProjectWithFeatures(featureNames)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 
 		err = extractOdFvDependencies(
@@ -179,7 +218,7 @@ func GetFeatureViewsToUseByFeatureRefs(
 			featureViews,
 			viewNameToViewAndRefs)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 		odFvsToUse = append(odFvsToUse, projectedOdFv)
 	}
@@ -188,8 +227,12 @@ func GetFeatureViewsToUseByFeatureRefs(
 	for _, viewAndRefs := range viewNameToViewAndRefs {
 		fvsToUse = append(fvsToUse, viewAndRefs)
 	}
+	sortedFvsToUse := make([]*SortedFeatureViewAndRefs, 0)
+	for _, viewAndRefs := range viewNameToSortedViewAndRefs {
+		sortedFvsToUse = append(sortedFvsToUse, viewAndRefs)
+	}
 
-	return fvsToUse, odFvsToUse, nil
+	return fvsToUse, sortedFvsToUse, odFvsToUse, nil
 }
 
 func extractOdFvDependencies(

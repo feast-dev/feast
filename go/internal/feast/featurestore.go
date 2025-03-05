@@ -85,7 +85,7 @@ func (fs *FeatureStore) GetOnlineFeatures(
 	joinKeyToEntityValues map[string]*prototypes.RepeatedValue,
 	requestData map[string]*prototypes.RepeatedValue,
 	fullFeatureNames bool) ([]*onlineserving.FeatureVector, error) {
-	fvs, odFvs, err := fs.listAllViews()
+	fvs, sortedFvs, odFvs, err := fs.listAllViews()
 	if err != nil {
 		return nil, err
 	}
@@ -97,12 +97,14 @@ func (fs *FeatureStore) GetOnlineFeatures(
 
 	var requestedFeatureViews []*onlineserving.FeatureViewAndRefs
 	var requestedOnDemandFeatureViews []*model.OnDemandFeatureView
+
+	// TODO: currently ignores SortedFeatureViews, need to either implement get for them or throw some kind of error/warning
 	if featureService != nil {
-		requestedFeatureViews, requestedOnDemandFeatureViews, err =
-			onlineserving.GetFeatureViewsToUseByService(featureService, fvs, odFvs)
+		requestedFeatureViews, _, requestedOnDemandFeatureViews, err =
+			onlineserving.GetFeatureViewsToUseByService(featureService, fvs, sortedFvs, odFvs)
 	} else {
-		requestedFeatureViews, requestedOnDemandFeatureViews, err =
-			onlineserving.GetFeatureViewsToUseByFeatureRefs(featureRefs, fvs, odFvs)
+		requestedFeatureViews, _, requestedOnDemandFeatureViews, err =
+			onlineserving.GetFeatureViewsToUseByFeatureRefs(featureRefs, fvs, sortedFvs, odFvs)
 	}
 	if err != nil {
 		return nil, err
@@ -230,21 +232,30 @@ func (fs *FeatureStore) GetFeatureService(name string) (*model.FeatureService, e
 	return fs.registry.GetFeatureService(fs.config.Project, name)
 }
 
-func (fs *FeatureStore) listAllViews() (map[string]*model.FeatureView, map[string]*model.OnDemandFeatureView, error) {
+func (fs *FeatureStore) listAllViews() (map[string]*model.FeatureView, map[string]*model.SortedFeatureView, map[string]*model.OnDemandFeatureView, error) {
 	fvs := make(map[string]*model.FeatureView)
+	sortedFvs := make(map[string]*model.SortedFeatureView)
 	odFvs := make(map[string]*model.OnDemandFeatureView)
 
 	featureViews, err := fs.ListFeatureViews()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	for _, featureView := range featureViews {
 		fvs[featureView.Base.Name] = featureView
 	}
 
+	sortedFeatureViews, err := fs.ListSortedFeatureViews()
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	for _, sortedFeatureView := range sortedFeatureViews {
+		sortedFvs[sortedFeatureView.Base.Name] = sortedFeatureView
+	}
+
 	streamFeatureViews, err := fs.ListStreamFeatureViews()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	for _, streamFeatureView := range streamFeatureViews {
 		fvs[streamFeatureView.Base.Name] = streamFeatureView
@@ -252,12 +263,12 @@ func (fs *FeatureStore) listAllViews() (map[string]*model.FeatureView, map[strin
 
 	onDemandFeatureViews, err := fs.registry.ListOnDemandFeatureViews(fs.config.Project)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	for _, onDemandFeatureView := range onDemandFeatureViews {
 		odFvs[onDemandFeatureView.Base.Name] = onDemandFeatureView
 	}
-	return fvs, odFvs, nil
+	return fvs, sortedFvs, odFvs, nil
 }
 
 func (fs *FeatureStore) ListFeatureViews() ([]*model.FeatureView, error) {
@@ -266,6 +277,14 @@ func (fs *FeatureStore) ListFeatureViews() ([]*model.FeatureView, error) {
 		return featureViews, err
 	}
 	return featureViews, nil
+}
+
+func (fs *FeatureStore) ListSortedFeatureViews() ([]*model.SortedFeatureView, error) {
+	sortedFeatureViews, err := fs.registry.ListSortedFeatureViews(fs.config.Project)
+	if err != nil {
+		return sortedFeatureViews, err
+	}
+	return sortedFeatureViews, nil
 }
 
 func (fs *FeatureStore) ListStreamFeatureViews() ([]*model.FeatureView, error) {
@@ -327,18 +346,22 @@ func (fs *FeatureStore) readFromOnlineStore(ctx context.Context, entityRows []*p
 	return fs.onlineStore.OnlineRead(ctx, entityRowsValue, requestedFeatureViewNames, requestedFeatureNames)
 }
 
-func (fs *FeatureStore) GetFcosMap() (map[string]*model.Entity, map[string]*model.FeatureView, map[string]*model.OnDemandFeatureView, error) {
+func (fs *FeatureStore) GetFcosMap() (map[string]*model.Entity, map[string]*model.FeatureView, map[string]*model.SortedFeatureView, map[string]*model.OnDemandFeatureView, error) {
 	odfvs, err := fs.ListOnDemandFeatureViews()
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 	fvs, err := fs.ListFeatureViews()
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
+	}
+	sortedFvs, err := fs.ListSortedFeatureViews()
+	if err != nil {
+		return nil, nil, nil, nil, err
 	}
 	entities, err := fs.ListEntities(true)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 
 	entityMap := make(map[string]*model.Entity)
@@ -349,9 +372,13 @@ func (fs *FeatureStore) GetFcosMap() (map[string]*model.Entity, map[string]*mode
 	for _, fv := range fvs {
 		fvMap[fv.Base.Name] = fv
 	}
+	sortedFvMap := make(map[string]*model.SortedFeatureView)
+	for _, sortedFv := range sortedFvs {
+		sortedFvMap[sortedFv.Base.Name] = sortedFv
+	}
 	odfvMap := make(map[string]*model.OnDemandFeatureView)
 	for _, odfv := range odfvs {
 		odfvMap[odfv.Base.Name] = odfv
 	}
-	return entityMap, fvMap, odfvMap, nil
+	return entityMap, fvMap, sortedFvMap, odfvMap, nil
 }

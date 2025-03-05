@@ -242,3 +242,10 @@ func CreateFeatureView(base *model.BaseFeatureView, ttl *durationpb.Duration, en
 		EntityColumns: entityColumns,
 	}
 }
+
+func CreateSortedFeatureView(base *model.BaseFeatureView, ttl *durationpb.Duration, entities []string, entityColumns []*model.Field, sortKeys []*model.SortKey) *model.SortedFeatureView {
+	return &model.SortedFeatureView{
+		FeatureView: CreateFeatureView(base, ttl, entities, entityColumns),
+		SortKeys:    sortKeys,
+	}
+}

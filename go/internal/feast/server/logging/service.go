@@ -10,7 +10,7 @@ import (
 )
 
 type FeatureStore interface {
-	GetFcosMap() (map[string]*model.Entity, map[string]*model.FeatureView, map[string]*model.OnDemandFeatureView, error)
+	GetFcosMap() (map[string]*model.Entity, map[string]*model.FeatureView, map[string]*model.SortedFeatureView, map[string]*model.OnDemandFeatureView, error)
 	GetFeatureService(name string) (*model.FeatureService, error)
 }
 

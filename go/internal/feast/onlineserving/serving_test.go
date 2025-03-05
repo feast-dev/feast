@@ -203,6 +203,27 @@ func createFeatureView(name string, entities []string, features ...*core.Feature
 	return model.NewFeatureViewFromProto(&viewProto)
 }
 
+func createSortKey(name string, order core.SortOrder_Enum, valueType types.ValueType_Enum) *core.SortKey {
+	return &core.SortKey{
+		Name:             name,
+		DefaultSortOrder: order,
+		ValueType:        valueType,
+	}
+}
+
+func createSortedFeatureView(name string, entities []string, sortKeys []*core.SortKey, features ...*core.FeatureSpecV2) *model.SortedFeatureView {
+	viewProto := core.SortedFeatureView{
+		Spec: &core.SortedFeatureViewSpec{
+			Name:     name,
+			Entities: entities,
+			Features: features,
+			SortKeys: sortKeys,
+			Ttl:      &durationpb.Duration{},
+		},
+	}
+	return model.NewSortedFeatureViewFromProto(&viewProto)
+}
+
 func createFeatureService(viewProjections map[string][]*core.FeatureSpecV2) *model.FeatureService {
 	projections := make([]*core.FeatureViewProjection, 0)
 	for name, features := range viewProjections {
@@ -258,10 +279,13 @@ func TestUnpackFeatureService(t *testing.T) {
 	featESpec := createFeature("featE", types.ValueType_FLOAT)
 	onDemandFeature1 := createFeature("featF", types.ValueType_FLOAT)
 	onDemandFeature2 := createFeature("featG", types.ValueType_FLOAT)
+	featSSpec := createFeature("featS", types.ValueType_FLOAT)
+	sortKeyA := createSortKey("featS", core.SortOrder_DESC, types.ValueType_FLOAT)
 
 	viewA := createFeatureView("viewA", []string{"entity"}, featASpec, featBSpec)
 	viewB := createFeatureView("viewB", []string{"entity"}, featCSpec, featDSpec)
 	viewC := createFeatureView("viewC", []string{"entity"}, featESpec)
+	viewS := createSortedFeatureView("viewS", []string{"entity"}, []*core.SortKey{sortKeyA}, featSSpec)
 	onDemandView := createOnDemandFeatureView(
 		"odfv",
 		map[string][]*core.FeatureSpecV2{"viewB": {featCSpec}, "viewC": {featESpec}},
@@ -271,19 +295,22 @@ func TestUnpackFeatureService(t *testing.T) {
 		"viewA": {featASpec, featBSpec},
 		"viewB": {featCSpec},
 		"odfv":  {onDemandFeature2},
+		"viewS": {featSSpec},
 	})
 
-	fvs, odfvs, err := GetFeatureViewsToUseByService(
+	fvs, sortedFvs, odfvs, err := GetFeatureViewsToUseByService(
 		fs,
 		map[string]*model.FeatureView{"viewA": viewA, "viewB": viewB, "viewC": viewC},
+		map[string]*model.SortedFeatureView{"viewS": viewS},
 		map[string]*model.OnDemandFeatureView{"odfv": onDemandView})
 
-	assertCorrectUnpacking(t, fvs, odfvs, err)
+	assertCorrectUnpacking(t, fvs, sortedFvs, odfvs, err)
 }
 
-func assertCorrectUnpacking(t *testing.T, fvs []*FeatureViewAndRefs, odfvs []*model.OnDemandFeatureView, err error) {
+func assertCorrectUnpacking(t *testing.T, fvs []*FeatureViewAndRefs, sortedFvs []*SortedFeatureViewAndRefs, odfvs []*model.OnDemandFeatureView, err error) {
 	assert.Nil(t, err)
 	assert.Len(t, fvs, 3)
+	assert.Len(t, sortedFvs, 1)
 	assert.Len(t, odfvs, 1)
 
 	fvsByName := make(map[string]*FeatureViewAndRefs)
@@ -301,6 +328,9 @@ func assertCorrectUnpacking(t *testing.T, fvs []*FeatureViewAndRefs, odfvs []*mo
 	// only requested features projected
 	assert.Len(t, odfvs[0].Base.Projection.Features, 1)
 	assert.Equal(t, "featG", odfvs[0].Base.Projection.Features[0].Name)
+
+	// sorted feature views and features as declared in service
+	assert.Equal(t, []string{"featS"}, sortedFvs[0].FeatureRefs)
 }
 
 func TestUnpackFeatureViewsByReferences(t *testing.T) {
@@ -311,24 +341,29 @@ func TestUnpackFeatureViewsByReferences(t *testing.T) {
 	featESpec := createFeature("featE", types.ValueType_FLOAT)
 	onDemandFeature1 := createFeature("featF", types.ValueType_FLOAT)
 	onDemandFeature2 := createFeature("featG", types.ValueType_FLOAT)
+	featSSpec := createFeature("featS", types.ValueType_FLOAT)
+	sortKeyA := createSortKey("featS", core.SortOrder_DESC, types.ValueType_FLOAT)
 
 	viewA := createFeatureView("viewA", []string{"entity"}, featASpec, featBSpec)
 	viewB := createFeatureView("viewB", []string{"entity"}, featCSpec, featDSpec)
 	viewC := createFeatureView("viewC", []string{"entity"}, featESpec)
+	viewS := createSortedFeatureView("viewS", []string{"entity"}, []*core.SortKey{sortKeyA}, featSSpec)
 	onDemandView := createOnDemandFeatureView(
 		"odfv",
 		map[string][]*core.FeatureSpecV2{"viewB": {featCSpec}, "viewC": {featESpec}},
 		onDemandFeature1, onDemandFeature2)
 
-	fvs, odfvs, err := GetFeatureViewsToUseByFeatureRefs(
+	fvs, sortedFvs, odfvs, err := GetFeatureViewsToUseByFeatureRefs(
 		[]string{
 			"viewA:featA",
 			"viewA:featB",
 			"viewB:featC",
 			"odfv:featG",
+			"viewS:featS",
 		},
 		map[string]*model.FeatureView{"viewA": viewA, "viewB": viewB, "viewC": viewC},
+		map[string]*model.SortedFeatureView{"viewS": viewS},
 		map[string]*model.OnDemandFeatureView{"odfv": onDemandView})
 
-	assertCorrectUnpacking(t, fvs, odfvs, err)
+	assertCorrectUnpacking(t, fvs, sortedFvs, odfvs, err)
 }

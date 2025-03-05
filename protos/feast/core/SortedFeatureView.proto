@@ -23,7 +23,6 @@ option java_outer_classname = "SortedFeatureViewProto";
 option java_package = "feast.proto.core";
 
 import "google/protobuf/duration.proto";
-import "google/protobuf/timestamp.proto";
 import "feast/core/DataSource.proto";
 import "feast/core/Entity.proto";
 import "feast/core/Feature.proto";
@@ -118,4 +117,8 @@ message SortOrder {
         // Descending sorting order.
         DESC = 2;
     }
+}
+
+message SortedFeatureViewList {
+    repeated SortedFeatureView sorted_feature_views = 1;
 }
