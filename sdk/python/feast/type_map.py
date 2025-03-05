@@ -580,6 +580,12 @@ def pa_to_feast_value_type(pa_type_as_str: str) -> ValueType:
             "bool": ValueType.BOOL,
             "null": ValueType.NULL,
             "list<element: double>": ValueType.DOUBLE_LIST,
+            "list<element: int64>": ValueType.INT64_LIST,
+            "list<element: int32>": ValueType.INT32_LIST,
+            "list<element: str>": ValueType.STRING_LIST,
+            "list<element: bool>": ValueType.BOOL_LIST,
+            "list<element: bytes>": ValueType.BYTES_LIST,
+            "list<element: float>": ValueType.FLOAT_LIST,
         }
         value_type = type_map[pa_type_as_str]
 
