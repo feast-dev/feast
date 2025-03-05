@@ -444,7 +444,7 @@ class HttpRegistry(BaseRegistry):
         try:
             params = {"commit": commit}
             if isinstance(feature_view, SortedFeatureView):
-                url = f"{self.base_url}/projects/{project}/sorted_feature_views"
+                url = f"{self.base_url}/projects/{project}/feature_views"
                 data = SortedFeatureViewModel.from_feature_view(
                     feature_view
                 ).model_dump_json()

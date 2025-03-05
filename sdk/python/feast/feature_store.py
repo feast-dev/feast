@@ -1013,6 +1013,10 @@ class FeatureStore:
                 self._registry.delete_feature_view(
                     sfv.name, project=self.project, commit=False
                 )
+            for sortedfv in sorted_fvs_to_delete:
+                self._registry.delete_feature_view(
+                    sortedfv.name, project=self.project, commit=False
+                )
             for service in services_to_delete:
                 self._registry.delete_feature_service(
                     service.name, project=self.project, commit=False
