@@ -137,13 +137,13 @@ def test_get_online_features() -> None:
         result = store.get_online_features(
             features=["customer_profile_pandas_odfv:on_demand_age"],
             entity_rows=[{"driver_id": 1, "customer_id": "5"}],
-            full_feature_names=False,
+            full_feature_names=True,
         ).to_dict()
 
-        assert "on_demand_age" in result
+        assert "on_demand_age" in [i.split("__")[-1] for i in result]
         assert result["driver_id"] == [1]
         assert result["customer_id"] == ["5"]
-        assert result["on_demand_age"] == [4]
+        assert result["customer_profile_pandas_odfv__on_demand_age"] == [4]
 
         # invalid table reference
         with pytest.raises(FeatureViewNotFoundException):

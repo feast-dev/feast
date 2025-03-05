@@ -185,7 +185,7 @@ class PassthroughProvider(Provider):
         config: RepoConfig,
         table: FeatureView,
         entity_keys: List[EntityKeyProto],
-        requested_features: List[str] = None,
+        requested_features: Optional[List[str]] = None,
     ) -> List:
         result = []
         if self.online_store:
@@ -284,7 +284,7 @@ class PassthroughProvider(Provider):
         jobs = self.batch_engine.materialize(registry, [task])
         # Empty jobs list might happen when there is no new data to materialize. In that case, we would just skip the execution and move on to another view.
         if len(jobs) == 0:
-            return 
+            return
         if jobs[0].status() == MaterializationJobStatus.ERROR and jobs[0].error():
             e = jobs[0].error()
             assert e

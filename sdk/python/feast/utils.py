@@ -926,7 +926,7 @@ def _prepare_entities_to_read_from_online_store(
         # Convert values to Protobuf once.
         entity_proto_values = {
             k: python_values_to_proto_values(
-                v, entity_type_map.get(k, ValueType.FLOAT)
+                v, entity_type_map.get(k, ValueType.DOUBLE)
             )
             for k, v in entity_value_lists.items()
         }
