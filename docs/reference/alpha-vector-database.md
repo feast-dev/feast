@@ -46,7 +46,7 @@ python batch_score_documents.py
 The output will be stored in `data/city_wikipedia_summaries.csv.`
 
 ### **Initialize Feast feature store and materialize the data to the online store**
-Use the feature_store.yaml file to initialize the feature store. This will use the data as offline store, and Pgvector as online store.
+Use the feature_store.yaml file to initialize the feature store. This will use the data as offline store, and Milvus as online store.
 
 ```yaml
 project: local_rag
