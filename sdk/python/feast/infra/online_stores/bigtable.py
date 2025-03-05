@@ -130,8 +130,12 @@ class BigtableOnlineStore(OnlineStore):
                 for entity_key in entity_keys
             ]
 
-            row_filter = data_row_filters.ColumnQualifierRegexFilter(
-                f"^({'|'.join(requested_features or list())}|event_ts)$".encode()
+            row_filter = (
+                data_row_filters.ColumnQualifierRegexFilter(
+                    f"^({'|'.join(requested_features)}|event_ts)$".encode()
+                )
+                if requested_features
+                else None
             )
             query = ReadRowsQuery(
                 row_keys=row_keys, row_filter=row_filter if requested_features else None
@@ -218,8 +222,10 @@ class BigtableOnlineStore(OnlineStore):
                 "table_name": f"projects/{project_name}/instances/{instance_id}/tables/{bt_table_name}",
                 "rows": query._row_set,
                 "filter": RowFilter(
-                    column_qualifier_regex_filter=f"^({'|'.join(requested_features or list())}|event_ts)$".encode()
-                ),
+                    column_qualifier_regex_filter=f"^({'|'.join(requested_features)}|event_ts)$".encode()
+                )
+                if requested_features
+                else None,
                 "rows_limit": query.limit,
             }
         )
