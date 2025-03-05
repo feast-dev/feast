@@ -742,18 +742,16 @@ class CassandraOnlineStore(OnlineStore):
 
         ts_field = getattr(table.batch_source, "timestamp_field", None)
 
-        sort_key_names_list = [sk.name for sk in table.sort_keys if sk.name != ts_field]
-
-        if ts_field:
-            sort_key_names = ", ".join(sort_key_names_list + ["event_ts"])
-        else:
-            sort_key_names = ", ".join(sort_key_names_list)
-
-        sort_key_orders = [
-            f"{'event_ts' if sk.name == ts_field else sk.name} {'ASC' if sk.default_sort_order == SortOrder.Enum.ASC else 'DESC'}"
+        sorted_keys = [
+            (
+                "event_ts" if sk.name == ts_field else sk.name,
+                "ASC" if sk.default_sort_order == SortOrder.Enum.ASC else "DESC",
+            )
             for sk in table.sort_keys
         ]
-        clustering_order = ", ".join(sort_key_orders)
+
+        sort_key_names = ", ".join(name for name, _ in sorted_keys)
+        clustering_order = ", ".join(f"{name} {order}" for name, order in sorted_keys)
 
         create_cql = (
             f"CREATE TABLE IF NOT EXISTS {fqtable} (\n"
