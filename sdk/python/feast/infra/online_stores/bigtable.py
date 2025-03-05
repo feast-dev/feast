@@ -131,7 +131,7 @@ class BigtableOnlineStore(OnlineStore):
             ]
 
             row_filter = data_row_filters.ColumnQualifierRegexFilter(
-                f"^({'|'.join(requested_features)}|event_ts)$".encode()
+                f"^({'|'.join(requested_features or list())}|event_ts)$".encode()
             )
             query = ReadRowsQuery(
                 row_keys=row_keys, row_filter=row_filter if requested_features else None
@@ -145,7 +145,7 @@ class BigtableOnlineStore(OnlineStore):
             # `entity_keys`.
             bt_rows_dict: Dict[bytes, Row] = {row.row_key: row for row in rows}
 
-            final_result = []
+            final_result: List[Tuple[Any, Any]] = []
             for key in row_keys:
                 res = {}
                 row = bt_rows_dict.get(key)
@@ -218,7 +218,7 @@ class BigtableOnlineStore(OnlineStore):
                 "table_name": f"projects/{project_name}/instances/{instance_id}/tables/{bt_table_name}",
                 "rows": query._row_set,
                 "filter": RowFilter(
-                    column_qualifier_regex_filter=f"^({'|'.join(requested_features)}|event_ts)$".encode()
+                    column_qualifier_regex_filter=f"^({'|'.join(requested_features or list())}|event_ts)$".encode()
                 ),
                 "rows_limit": query.limit,
             }
@@ -228,7 +228,7 @@ class BigtableOnlineStore(OnlineStore):
 
         event_ts = None
         res = None
-        final_result = [
+        final_result: List[Tuple[Any, Any]] = [
             (event_ts, res) for _ in range(len(entity_keys))
         ]  # will end up containing tuples (event_ts, res)
 

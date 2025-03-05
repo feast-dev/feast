@@ -1737,7 +1737,7 @@ class FeatureStore:
     async def get_online_features_async_v2(
         self,
         features: Union[List[str], FeatureService],
-        entity_rows: List[Dict[str, Any]],
+        entity_rows: Union[List[Dict[str, Any]], Dict[str, List[Any]]],
         full_feature_names: bool = False,
     ) -> OnlineResponse:
         """

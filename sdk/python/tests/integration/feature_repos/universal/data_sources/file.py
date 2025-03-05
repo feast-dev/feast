@@ -367,7 +367,7 @@ class RemoteOfflineStoreDataSourceCreator(FileDataSourceCreator):
     def __init__(self, project_name: str, *args, **kwargs):
         super().__init__(project_name)
         self.server_port: int = 0
-        self.proc = None
+        self.proc: Optional[subprocess.Popen] = None
 
     def setup(self, registry: RegistryConfig):
         parent_offline_config = super().create_offline_store_config()
@@ -382,13 +382,12 @@ class RemoteOfflineStoreDataSourceCreator(FileDataSourceCreator):
         repo_path = Path(tempfile.mkdtemp())
         with open(repo_path / "feature_store.yaml", "w") as outfile:
             yaml.dump(config.dict(by_alias=True), outfile)
-        repo_path = str(repo_path.resolve())
 
         self.server_port = free_port()
         host = "0.0.0.0"
         cmd = [
             "feast",
-            "-c" + repo_path,
+            "-c" + str(repo_path.resolve()),
             "serve_offline",
             "--host",
             host,
