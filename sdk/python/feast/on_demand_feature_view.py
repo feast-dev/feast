@@ -740,6 +740,7 @@ def on_demand_feature_view(
     owner: str = "",
     write_to_online_store: bool = False,
     singleton: bool = False,
+    explode: bool = False,
 ):
     """
     Creates an OnDemandFeatureView object with the given user function as udf.
@@ -761,6 +762,7 @@ def on_demand_feature_view(
             the online store for faster retrieval.
         singleton (optional): A boolean that indicates whether the transformation is executed on a singleton
             (only applicable when mode="python").
+        explode (optional): A boolean that indicates whether the transformation explodes the input data into multiple rows.
     """
 
     def mainify(obj) -> None:
