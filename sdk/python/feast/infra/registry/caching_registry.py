@@ -496,6 +496,9 @@ class CachingRegistry(BaseRegistry):
                     if not self._stop_event.is_set():
                         self.refresh()
                 except Exception as e:
+                    logger.exception(
+                        f"Exception in registry cache refresh_loop: {e}", exc_info=True
+                    )
                     if self._on_cache_refresh_failure:
                         self._on_cache_refresh_failure(e)
 
