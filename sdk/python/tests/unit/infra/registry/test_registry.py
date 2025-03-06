@@ -1,3 +1,4 @@
+import time
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
@@ -195,3 +196,21 @@ def test_skip_refresh_if_lock_held(registry):
         # Since the lock was already held, refresh should NOT be called
         mock_refresh.assert_not_called()
     registry._refresh_lock.release()
+
+
+def test_refresh_failure_triggers_alert_in_thread_mode(registry):
+    """Test that refresh failures in thread mode trigger the failure handler"""
+
+    registry._on_cache_refresh_failure = lambda e: None
+
+    with (
+        patch.object(registry, "_on_cache_refresh_failure") as mock_handler,
+        patch.object(
+            registry, "refresh", side_effect=Exception("Mock refresh failure")
+        ),
+    ):
+        registry._start_thread_async_refresh(cache_ttl_seconds=1)
+
+        time.sleep(2)
+
+        mock_handler.assert_called_once()

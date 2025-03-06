@@ -1,11 +1,12 @@
 import atexit
 import logging
 import threading
+import time
 import warnings
 from abc import abstractmethod
 from datetime import timedelta
 from threading import Lock
-from typing import List, Optional
+from typing import Callable, List, Optional
 
 from feast.base_feature_view import BaseFeatureView
 from feast.data_source import DataSource
@@ -28,8 +29,15 @@ logger = logging.getLogger(__name__)
 
 
 class CachingRegistry(BaseRegistry):
-    def __init__(self, project: str, cache_ttl_seconds: int, cache_mode: str):
+    def __init__(
+        self,
+        project: str,
+        cache_ttl_seconds: int,
+        cache_mode: str,
+        on_cache_refresh_failure: Optional[Callable[[Exception], None]] = None,
+    ):
         self.cache_mode = cache_mode
+        self._on_cache_refresh_failure = on_cache_refresh_failure
         self.cached_registry_proto = RegistryProto()
         self._refresh_lock = Lock()
         self.cached_registry_proto_ttl = timedelta(
@@ -37,6 +45,8 @@ class CachingRegistry(BaseRegistry):
         )
         self.cached_registry_proto = self.proto()
         self.cached_registry_proto_created = _utc_now()
+        self._stop_event = threading.Event()
+        logger.info(f"Registry initialized with cache mode: {cache_mode}")
         if cache_mode == "thread":
             self._start_thread_async_refresh(cache_ttl_seconds)
             atexit.register(self._exit_handler)
@@ -475,14 +485,32 @@ class CachingRegistry(BaseRegistry):
                 self._refresh_lock.release()  # Always release the lock safely
 
     def _start_thread_async_refresh(self, cache_ttl_seconds):
-        self.refresh()
         if cache_ttl_seconds <= 0:
+            logger.info("Registry cache refresh thread not started as TTL is 0")
             return
-        self.registry_refresh_thread = threading.Timer(
-            cache_ttl_seconds, self._start_thread_async_refresh, [cache_ttl_seconds]
-        )
-        self.registry_refresh_thread.daemon = True
-        self.registry_refresh_thread.start()
+
+        def refresh_loop():
+            while not self._stop_event.is_set():
+                try:
+                    time.sleep(cache_ttl_seconds)
+                    if not self._stop_event.is_set():
+                        self.refresh()
+                except Exception as e:
+                    if self._on_cache_refresh_failure:
+                        self._on_cache_refresh_failure(e)
+
+        try:
+            self.registry_refresh_thread = threading.Thread(
+                target=refresh_loop, daemon=True
+            )
+            self.registry_refresh_thread.start()
+            logger.info(
+                f"Registry cache refresh thread started with TTL {cache_ttl_seconds}"
+            )
+        except Exception as e:
+            logger.exception("Failed to start registry refresh thread: %s", e)
+            raise e
 
     def _exit_handler(self):
-        self.registry_refresh_thread.cancel()
+        logger.info("Exiting, setting stop event for registry cache refresh thread")
+        self._stop_event.set()
