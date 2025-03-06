@@ -368,7 +368,11 @@ def _convert_arrow_odfv_to_proto(
     entity_keys = [
         EntityKeyProto(
             join_keys=join_keys,
-            entity_values=[proto_values_by_column[k][idx] for k in join_keys],
+            entity_values=[
+                proto_values_by_column[k][idx]
+                for k in join_keys
+                if k in proto_values_by_column
+            ],
         )
         for idx in range(table.num_rows)
     ]

@@ -17,10 +17,10 @@ from feast import (
     RequestSource,
 )
 from feast.driver_test_data import create_driver_hourly_stats_df
-from feast.nlp_test_data import create_document_chunks_df
 from feast.feature_view import DUMMY_ENTITY_FIELD
 from feast.field import Field
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
+from feast.nlp_test_data import create_document_chunks_df
 from feast.on_demand_feature_view import on_demand_feature_view
 from feast.types import (
     Array,
@@ -829,7 +829,6 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
             )
 
             driver = Entity(name="driver", join_keys=["driver_id"])
-            word = Entity(name="word", join_keys=["word_id"])
 
             driver_stats_source = FileSource(
                 name="driver_hourly_stats_source",
@@ -1014,7 +1013,7 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
             # This should be 1 because we write the value and then we should not increment it
             # query sqlite here to confirm value:
             # self.store.config.online_store._conn.
-            assert online_odfv_python_response['counter'] == [0]
+            assert online_odfv_python_response["counter"] == [0]
 
     def test_stored_writes_with_explode(self):
         with tempfile.TemporaryDirectory() as data_dir:
@@ -1032,21 +1031,26 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
 
             documents = {
                 "doc_1": "Hello world. How are you?",
-                "doc_2": "This is a test. Document chunking example."
+                "doc_2": "This is a test. Document chunking example.",
             }
             start_date = datetime.now() - timedelta(days=15)
             end_date = datetime.now()
 
             documents_df = create_document_chunks_df(
-                documents, start_date, end_date, embedding_size=60,
+                documents,
+                start_date,
+                end_date,
+                embedding_size=60,
             )
             corpus_path = os.path.join(data_dir, "documents.parquet")
-            documents_df.to_parquet(
-                path=corpus_path, allow_truncated_timestamps=True
-            )
+            documents_df.to_parquet(path=corpus_path, allow_truncated_timestamps=True)
 
-            chunk = Entity(name="chunk", join_keys=["chunk_id"], value_type=ValueType.STRING)
-            document = Entity(name="document", join_keys=["document_id"], value_type=ValueType.STRING)
+            chunk = Entity(
+                name="chunk", join_keys=["chunk_id"], value_type=ValueType.STRING
+            )
+            document = Entity(
+                name="document", join_keys=["document_id"], value_type=ValueType.STRING
+            )
 
             input_explode_request_source = RequestSource(
                 name="counter_source",
@@ -1078,13 +1082,31 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
                 output: dict[str, Any] = {
                     "document_id": ["doc_1", "doc_1", "doc_2", "doc_2"],
                     "chunk_id": [1, 2, 1, 2],
-                    "chunk_text": ["hello friends", "how are you?", "This is a test.", "Document chunking example."],
+                    "chunk_text": [
+                        "hello friends",
+                        "how are you?",
+                        "This is a test.",
+                        "Document chunking example.",
+                    ],
                 }
                 return output
 
-            assert python_stored_writes_feature_view_explode_singleton.entities == [chunk.name, document.name]
-            assert python_stored_writes_feature_view_explode_singleton.entity_columns[0].name == document.join_key
-            assert python_stored_writes_feature_view_explode_singleton.entity_columns[1].name == chunk.join_key
+            assert python_stored_writes_feature_view_explode_singleton.entities == [
+                chunk.name,
+                document.name,
+            ]
+            assert (
+                python_stored_writes_feature_view_explode_singleton.entity_columns[
+                    0
+                ].name
+                == document.join_key
+            )
+            assert (
+                python_stored_writes_feature_view_explode_singleton.entity_columns[
+                    1
+                ].name
+                == chunk.join_key
+            )
 
             self.store.apply(
                 [
@@ -1114,10 +1136,15 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
                 ).entity_columns
             )
 
-            current_datetime = _utc_now()
             odfv_entity_rows_to_write = [
-                {"document_id": "document_1", "document_text": "Hello world. How are you?"},
-                {"document_id": "document_2", "document_text": "This is a test. Document chunking example."},
+                {
+                    "document_id": "document_1",
+                    "document_text": "Hello world. How are you?",
+                },
+                {
+                    "document_id": "document_2",
+                    "document_text": "This is a test. Document chunking example.",
+                },
             ]
             fv_entity_rows_to_read = [
                 {
@@ -1138,14 +1165,10 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
                     "python_stored_writes_feature_view_explode_singleton:chunk_text",
                 ],
             ).to_dict()
-            assert online_python_response == {
-            }
-            assert sorted(list(online_odfv_python_response.keys())) == sorted(
+            assert sorted(list(online_python_response.keys())) == sorted(
                 [
-                    "driver_id",
-                    "conv_rate_plus_acc",
-                    "counter",
-                    "current_datetime",
-                    "input_datetime",
+                    "chunk_id",
+                    "chunk_text",
+                    "document_id",
                 ]
             )
