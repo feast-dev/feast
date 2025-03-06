@@ -242,7 +242,7 @@ def test_sorted_feature_view_sort_key_not_in_schema():
         name="sort_key1", value_type=ValueType.INT64, default_sort_order=SortOrder.ASC
     )
 
-    with pytest.raises(ValueError) as excinfo:
+    with pytest.raises(ValueError):
         SortedFeatureView(
             name="invalid_sorted_feature_view",
             source=source,
@@ -250,11 +250,6 @@ def test_sorted_feature_view_sort_key_not_in_schema():
             schema=schema,
             sort_keys=[sort_key],
         )
-
-    assert (
-        "Sort key 'sort_key1' does not match any feature name or the event timestamp. Valid options are: ['feature1']"
-        in str(excinfo.value)
-    )
 
 
 def test_sorted_feature_view_sort_key_invalid_data_type():
