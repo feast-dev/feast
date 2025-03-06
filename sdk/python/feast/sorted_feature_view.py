@@ -95,7 +95,7 @@ class SortedFeatureView(FeatureView):
         """
         super().ensure_valid()
 
-        reserved_columns = {"event_ts", "created_ts"}
+        reserved_columns = {"event_ts", "created_ts", "entity_key"}
         feature_map = {}
 
         for field in self.features:
@@ -128,7 +128,7 @@ class SortedFeatureView(FeatureView):
             # Validate that the sort key corresponds to a feature.
             if sort_key.name not in feature_map:
                 raise ValueError(
-                    f"Sort key '{sort_key.name}' does not match any feature name or the event timestamp. "
+                    f"Sort key '{sort_key.name}' does not match any feature name. "
                     f"Valid options are: {valid_feature_names}"
                 )
 

@@ -354,6 +354,32 @@ def test_sorted_feature_view_reserved_feature_name_created_ts():
         )
 
 
+def test_sorted_feature_view_reserved_feature_name_entity_key():
+    """
+    Test that a SortedFeatureView fails validation if a feature is named 'entity_key'
+    """
+    source = FileSource(path="some path")
+    entity = Entity(name="entity1", join_keys=["entity1_id"])
+    schema = [
+        Field(name="entity_key", dtype=Int64),
+        Field(name="feature1", dtype=Int64),
+    ]
+    sort_key = SortKey(
+        name="feature1",
+        value_type=ValueType.INT64,
+        default_sort_order=SortOrder.ASC,
+    )
+    with pytest.raises(ValueError):
+        SortedFeatureView(
+            name="invalid_sorted_feature_view",
+            source=source,
+            entities=[entity],
+            schema=schema,
+            sort_keys=[sort_key],
+            ttl=timedelta(days=1),
+        )
+
+
 def test_sorted_feature_view_entity_conflict_feature_name():
     """
     Test that a SortedFeatureView fails validation if a feature name conflicts with an entity name.
