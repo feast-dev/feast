@@ -181,7 +181,7 @@ func TestGroupingFeatureRefsWithMissingKey(t *testing.T) {
 		},
 		true,
 	)
-	assert.Errorf(t, err, "key destination_id is missing in provided entity rows")
+	assert.Errorf(t, err, "key destination_id is missing in provided entity rows for view viewA")
 }
 
 func createFeature(name string, valueType types.ValueType_Enum) *core.FeatureSpecV2 {

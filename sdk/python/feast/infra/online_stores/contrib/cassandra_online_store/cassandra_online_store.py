@@ -164,7 +164,7 @@ class CassandraOnlineStoreConfig(FeastConfigBaseModel):
     """Explicit specification of the CQL protocol version used."""
 
     request_timeout: Optional[StrictFloat] = None
-    """Request timeout in seconds."""
+    """Request timeout in seconds. Defaults to no operation timeout."""
 
     lazy_table_creation: Optional[bool] = False
     """
@@ -439,6 +439,9 @@ class CassandraOnlineStore(OnlineStore):
 
             # Wait until the rate limiter allows
             if not rate_limiter.acquire():
+                logger.warning(
+                    f"Rate limit {write_rate_limit} exceeded. Waiting for reset."
+                )
                 while not rate_limiter.acquire():
                     time.sleep(0.001)
 
@@ -458,9 +461,16 @@ class CassandraOnlineStore(OnlineStore):
             # this happens N-1 times, will be corrected outside:
             if progress:
                 progress(1)
-        # Wait for all tasks to complete
-        while not concurrent_queue.empty():
-            time.sleep(0.001)
+        # Wait for all futures to complete
+        if not concurrent_queue.empty():
+            logger.warning(
+                f"Waiting for futures. Pending are {concurrent_queue.qsize()}"
+            )
+            while not concurrent_queue.empty():
+                time.sleep(0.001)
+            # Spark materialization engine doesn't log info messages
+            # so we print the message to stdout
+            print("Completed writing all futures.")
 
         # correction for the last missing call to `progress`:
         if progress:

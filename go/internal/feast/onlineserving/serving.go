@@ -598,7 +598,7 @@ func GroupFeatureRefs(requestedFeatureViews []*FeatureViewAndRefs,
 			}
 
 			if _, ok := joinKeyValues[joinKeyOrAlias]; !ok {
-				return nil, fmt.Errorf("key %s is missing in provided entity rows", joinKey)
+				return nil, fmt.Errorf("key %s is missing in provided entity rows for view %s", joinKey, fv.Base.Name)
 			}
 			joinKeysValuesProjection[joinKey] = joinKeyValues[joinKeyOrAlias]
 		}
