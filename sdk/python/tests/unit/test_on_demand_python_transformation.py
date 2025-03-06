@@ -20,6 +20,7 @@ from feast import (
     RequestSource,
 )
 from feast.driver_test_data import create_driver_hourly_stats_df
+from feast.nlp_test_data import create_document_chunks_df
 from feast.feature_view import DUMMY_ENTITY_FIELD
 from feast.field import Field
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
@@ -843,6 +844,7 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
             )
 
             driver = Entity(name="driver", join_keys=["driver_id"])
+            word = Entity(name="word", join_keys=["word_id"])
 
             driver_stats_source = FileSource(
                 name="driver_hourly_stats_source",

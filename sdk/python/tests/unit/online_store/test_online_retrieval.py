@@ -1001,7 +1001,7 @@ def test_sqlite_get_online_documents_v2_search() -> None:
         assert result["distance"] == [-1.8458267450332642, -1.8458267450332642]
 
 
-@pytest.mark.skip(reason="Skipping this test as CI struggles with it")
+# @pytest.mark.skip(reason="Skipping this test as CI struggles with it")
 def test_local_milvus() -> None:
     import random
 
