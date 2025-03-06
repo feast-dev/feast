@@ -93,8 +93,8 @@ var _ = Describe("Repo Config", func() {
 			}
 			ApplyDefaultsToStatus(featureStore)
 			appliedServices := featureStore.Status.Applied.Services
-			Expect(appliedServices.OnlineStore).To(BeNil())
-			Expect(appliedServices.OnlineStore).To(BeNil())
+			Expect(appliedServices.OnlineStore).NotTo(BeNil())
+			Expect(appliedServices.Registry.Local).NotTo(BeNil())
 
 			repoConfig, err = getServiceRepoConfig(featureStore, emptyMockExtractConfigFromSecret)
 			Expect(err).NotTo(HaveOccurred())
@@ -367,12 +367,15 @@ func minimalFeatureStore() *feastdevv1alpha1.FeatureStore {
 
 func minimalFeatureStoreWithAllServers() *feastdevv1alpha1.FeatureStore {
 	feast := minimalFeatureStore()
+	// onlineStore configured by default
 	feast.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
 		OfflineStore: &feastdevv1alpha1.OfflineStore{
 			Server: &feastdevv1alpha1.ServerConfigs{},
 		},
-		OnlineStore: &feastdevv1alpha1.OnlineStore{
-			Server: &feastdevv1alpha1.ServerConfigs{},
+		Registry: &feastdevv1alpha1.Registry{
+			Local: &feastdevv1alpha1.LocalRegistryConfig{
+				Server: &feastdevv1alpha1.ServerConfigs{},
+			},
 		},
 		UI: &feastdevv1alpha1.ServerConfigs{},
 	}

@@ -24,6 +24,7 @@ from feast.on_demand_feature_view import (
     OnDemandFeatureView,
     PandasTransformation,
     PythonTransformation,
+    on_demand_feature_view,
 )
 from feast.types import Float32
 
@@ -356,3 +357,65 @@ def test_on_demand_feature_view_stored_writes():
     assert transformed_output["output3"] is not None and isinstance(
         transformed_output["output3"], datetime.datetime
     )
+
+
+def test_function_call_syntax():
+    CUSTOM_FUNCTION_NAME = "custom-function-name"
+    file_source = FileSource(name="my-file-source", path="test.parquet")
+    feature_view = FeatureView(
+        name="my-feature-view",
+        entities=[],
+        schema=[
+            Field(name="feature1", dtype=Float32),
+            Field(name="feature2", dtype=Float32),
+        ],
+        source=file_source,
+    )
+    sources = [feature_view]
+
+    def transform_features(features_df: pd.DataFrame) -> pd.DataFrame:
+        df = pd.DataFrame()
+        df["output1"] = features_df["feature1"]
+        df["output2"] = features_df["feature2"]
+        return df
+
+    odfv = on_demand_feature_view(
+        sources=sources,
+        schema=[
+            Field(name="output1", dtype=Float32),
+            Field(name="output2", dtype=Float32),
+        ],
+    )(transform_features)
+
+    assert odfv.name == transform_features.__name__
+    assert isinstance(odfv, OnDemandFeatureView)
+
+    proto = odfv.to_proto()
+    assert proto.spec.name == transform_features.__name__
+
+    deserialized = OnDemandFeatureView.from_proto(proto)
+    assert deserialized.name == transform_features.__name__
+
+    def another_transform(features_df: pd.DataFrame) -> pd.DataFrame:
+        df = pd.DataFrame()
+        df["output1"] = features_df["feature1"]
+        df["output2"] = features_df["feature2"]
+        return df
+
+    odfv_custom = on_demand_feature_view(
+        name=CUSTOM_FUNCTION_NAME,
+        sources=sources,
+        schema=[
+            Field(name="output1", dtype=Float32),
+            Field(name="output2", dtype=Float32),
+        ],
+    )(another_transform)
+
+    assert odfv_custom.name == CUSTOM_FUNCTION_NAME
+    assert isinstance(odfv_custom, OnDemandFeatureView)
+
+    proto = odfv_custom.to_proto()
+    assert proto.spec.name == CUSTOM_FUNCTION_NAME
+
+    deserialized = OnDemandFeatureView.from_proto(proto)
+    assert deserialized.name == CUSTOM_FUNCTION_NAME

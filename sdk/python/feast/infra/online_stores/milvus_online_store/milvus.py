@@ -460,9 +460,10 @@ class MilvusOnlineStore(OnlineStore):
         config: RepoConfig,
         table: FeatureView,
         requested_features: List[str],
-        embedding: List[float],
+        embedding: Optional[List[float]],
         top_k: int,
         distance_metric: Optional[str] = None,
+        query_string: Optional[str] = None,
     ) -> List[
         Tuple[
             Optional[datetime],
@@ -470,6 +471,7 @@ class MilvusOnlineStore(OnlineStore):
             Optional[Dict[str, ValueProto]],
         ]
     ]:
+        assert embedding is not None, "Key Word Search not yet implemented for Milvus"
         entity_name_feast_primitive_type_map = {
             k.name: k.dtype for k in table.entity_columns
         }

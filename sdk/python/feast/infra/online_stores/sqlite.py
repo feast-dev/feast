@@ -18,14 +18,16 @@ import sqlite3
 import sys
 from datetime import date, datetime
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union
 
 from pydantic import StrictStr
 
 from feast import Entity
 from feast.feature_view import FeatureView
+from feast.field import Field
 from feast.infra.infra_object import SQLITE_INFRA_OBJECT_CLASS_TYPE, InfraObject
 from feast.infra.key_encoding_utils import (
+    deserialize_entity_key,
     serialize_entity_key,
     serialize_f32,
 )
@@ -37,7 +39,13 @@ from feast.protos.feast.core.SqliteTable_pb2 import SqliteTable as SqliteTablePr
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
-from feast.utils import _build_retrieve_online_document_record, to_naive_utc
+from feast.type_map import feast_value_type_to_python_type
+from feast.types import FEAST_VECTOR_TYPES, PrimitiveFeastType
+from feast.utils import (
+    _build_retrieve_online_document_record,
+    _serialize_vector_to_float_list,
+    to_naive_utc,
+)
 
 
 def adapt_date_iso(val: date):
@@ -91,6 +99,10 @@ class SqliteOnlineStoreConfig(FeastConfigBaseModel, VectorStoreConfig):
     path: StrictStr = "data/online.db"
     """ (optional) Path to sqlite db """
 
+    vector_enabled: bool = False
+    vector_len: Optional[int] = None
+    text_search_enabled: bool = False
+
 
 class SqliteOnlineStore(OnlineStore):
     """
@@ -116,14 +128,12 @@ class SqliteOnlineStore(OnlineStore):
         return db_path
 
     def _get_conn(self, config: RepoConfig):
+        enable_sqlite_vec = (
+            sys.version_info[0:2] == (3, 10) and config.online_store.vector_enabled
+        )
         if not self._conn:
             db_path = self._get_db_path(config)
-            self._conn = _initialize_conn(db_path)
-            if sys.version_info[0:2] == (3, 10) and config.online_store.vector_enabled:
-                import sqlite_vec  # noqa: F401
-
-                self._conn.enable_load_extension(True)  # type: ignore
-                sqlite_vec.load(self._conn)
+            self._conn = _initialize_conn(db_path, enable_sqlite_vec)
 
         return self._conn
 
@@ -142,9 +152,8 @@ class SqliteOnlineStore(OnlineStore):
         progress: Optional[Callable[[int], Any]],
     ) -> None:
         conn = self._get_conn(config)
-
         project = config.project
-
+        feature_type_dict = {f.name: f.dtype for f in table.features}
         with conn:
             for entity_key, values, timestamp, created_ts in data:
                 entity_key_bin = serialize_entity_key(
@@ -158,71 +167,50 @@ class SqliteOnlineStore(OnlineStore):
                 table_name = _table_id(project, table)
                 for feature_name, val in values.items():
                     if config.online_store.vector_enabled:
-                        vector_bin = serialize_f32(
-                            val.float_list_val.val, config.online_store.vector_len
-                        )  # type: ignore
+                        if feature_type_dict[feature_name] in FEAST_VECTOR_TYPES:
+                            val_bin = serialize_f32(
+                                val.float_list_val.val, config.online_store.vector_len
+                            )  # type: ignore
+                        else:
+                            val_bin = feast_value_type_to_python_type(val)
                         conn.execute(
                             f"""
-                                    UPDATE {table_name}
-                                    SET value = ?, vector_value = ?, event_ts = ?, created_ts = ?
-                                    WHERE (entity_key = ? AND feature_name = ?)
-                                """,
+                            INSERT INTO {table_name} (entity_key, feature_name, value, vector_value, event_ts, created_ts)
+                            VALUES (?, ?, ?, ?, ?, ?)
+                            ON CONFLICT(entity_key, feature_name) DO UPDATE SET
+                                value = excluded.value,
+                                vector_value = excluded.vector_value,
+                                event_ts = excluded.event_ts,
+                                created_ts = excluded.created_ts;
+                            """,
                             (
-                                # SET
-                                val.SerializeToString(),
-                                vector_bin,
-                                timestamp,
-                                created_ts,
-                                # WHERE
-                                entity_key_bin,
-                                feature_name,
+                                entity_key_bin,  # entity_key
+                                feature_name,  # feature_name
+                                val.SerializeToString(),  # value
+                                val_bin,  # vector_value
+                                timestamp,  # event_ts
+                                created_ts,  # created_ts
                             ),
                         )
-
-                        conn.execute(
-                            f"""INSERT OR IGNORE INTO {table_name}
-                                (entity_key, feature_name, value, vector_value, event_ts, created_ts)
-                                VALUES (?, ?, ?, ?, ?, ?)""",
-                            (
-                                entity_key_bin,
-                                feature_name,
-                                val.SerializeToString(),
-                                vector_bin,
-                                timestamp,
-                                created_ts,
-                            ),
-                        )
-
                     else:
                         conn.execute(
                             f"""
-                                UPDATE {table_name}
-                                SET value = ?, event_ts = ?, created_ts = ?
-                                WHERE (entity_key = ? AND feature_name = ?)
+                            INSERT INTO {table_name} (entity_key, feature_name, value, event_ts, created_ts)
+                            VALUES (?, ?, ?, ?, ?)
+                            ON CONFLICT(entity_key, feature_name) DO UPDATE SET
+                                value = excluded.value,
+                                event_ts = excluded.event_ts,
+                                created_ts = excluded.created_ts;
                             """,
                             (
-                                # SET
-                                val.SerializeToString(),
-                                timestamp,
-                                created_ts,
-                                # WHERE
-                                entity_key_bin,
-                                feature_name,
+                                entity_key_bin,  # entity_key
+                                feature_name,  # feature_name
+                                val.SerializeToString(),  # value
+                                timestamp,  # event_ts
+                                created_ts,  # created_ts
                             ),
                         )
 
-                        conn.execute(
-                            f"""INSERT OR IGNORE INTO {table_name}
-                                (entity_key, feature_name, value, event_ts, created_ts)
-                                VALUES (?, ?, ?, ?, ?)""",
-                            (
-                                entity_key_bin,
-                                feature_name,
-                                val.SerializeToString(),
-                                timestamp,
-                                created_ts,
-                            ),
-                        )
                 if progress:
                     progress(1)
 
@@ -367,10 +355,11 @@ class SqliteOnlineStore(OnlineStore):
         # Convert the embedding to a binary format instead of using SerializeToString()
         query_embedding_bin = serialize_f32(embedding, config.online_store.vector_len)
         table_name = _table_id(project, table)
+        vector_field = _get_vector_field(table)
 
         cur.execute(
             f"""
-            CREATE VIRTUAL TABLE vec_example using vec0(
+            CREATE VIRTUAL TABLE vec_table using vec0(
                 vector_value float[{config.online_store.vector_len}]
         );
         """
@@ -379,16 +368,17 @@ class SqliteOnlineStore(OnlineStore):
         # Currently I can only insert the embedding value without crashing SQLite, will report a bug
         cur.execute(
             f"""
-            INSERT INTO vec_example(rowid, vector_value)
+            INSERT INTO vec_table(rowid, vector_value)
             select rowid, vector_value from {table_name}
+            where feature_name = "{vector_field}"
         """
         )
         cur.execute(
+            f"""
+            CREATE VIRTUAL TABLE IF NOT EXISTS vec_table using vec0(
+                vector_value float[{config.online_store.vector_len}]
+            );
             """
-            INSERT INTO vec_example(rowid, vector_value)
-                VALUES (?, ?)
-        """,
-            (0, query_embedding_bin),
         )
 
         # Have to join this with the {table_name} to get the feature name and entity_key
@@ -406,7 +396,7 @@ class SqliteOnlineStore(OnlineStore):
                     rowid,
                     vector_value,
                     distance
-                from vec_example
+                from vec_table
                 where vector_value match ?
                 order by distance
                 limit ?
@@ -444,18 +434,247 @@ class SqliteOnlineStore(OnlineStore):
 
         return result
 
+    def retrieve_online_documents_v2(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        requested_features: List[str],
+        query: Optional[List[float]],
+        top_k: int,
+        distance_metric: Optional[str] = None,
+        query_string: Optional[str] = None,
+    ) -> List[
+        Tuple[
+            Optional[datetime],
+            Optional[EntityKeyProto],
+            Optional[Dict[str, ValueProto]],
+        ]
+    ]:
+        """
+        Retrieve documents using vector similarity search.
+        Args:
+            config: Feast configuration object
+            table: FeatureView object as the table to search
+            requested_features: List of requested features to retrieve
+            query: Query embedding to search for (optional)
+            top_k: Number of items to return
+            distance_metric: Distance metric to use (optional)
+            query_string: The query string to search for using keyword search (bm25) (optional)
+        Returns:
+            List of tuples containing the event timestamp, entity key, and feature values
+        """
+        online_store = config.online_store
+        if not isinstance(online_store, SqliteOnlineStoreConfig):
+            raise ValueError("online_store must be SqliteOnlineStoreConfig")
+        if not online_store.vector_enabled and not online_store.text_search_enabled:
+            raise ValueError(
+                "You must enable either vector search or text search in the online store config"
+            )
 
-def _initialize_conn(db_path: str):
-    try:
-        import sqlite_vec  # noqa: F401
-    except ModuleNotFoundError:
-        logging.warning("Cannot use sqlite_vec for vector search")
+        conn = self._get_conn(config)
+        cur = conn.cursor()
+
+        if online_store.vector_enabled and not online_store.vector_len:
+            raise ValueError("vector_len is not configured in the online store config")
+
+        table_name = _table_id(config.project, table)
+        vector_field = _get_vector_field(table)
+
+        if online_store.vector_enabled:
+            query_embedding_bin = serialize_f32(query, online_store.vector_len)  # type: ignore
+            cur.execute(
+                f"""
+                CREATE VIRTUAL TABLE IF NOT EXISTS vec_table using vec0(
+                    vector_value float[{online_store.vector_len}]
+                );
+                """
+            )
+            cur.execute(
+                f"""
+                INSERT INTO vec_table (rowid, vector_value)
+                select rowid, vector_value from {table_name}
+                where feature_name = "{vector_field}"
+                """
+            )
+        elif online_store.text_search_enabled:
+            string_field_list = [
+                f.name for f in table.features if f.dtype == PrimitiveFeastType.STRING
+            ]
+            string_fields = ", ".join(string_field_list)
+            # TODO: swap this for a value configurable in each Field()
+            BM25_DEFAULT_WEIGHTS = ", ".join(
+                [
+                    str(1.0)
+                    for f in table.features
+                    if f.dtype == PrimitiveFeastType.STRING
+                ]
+            )
+            cur.execute(
+                f"""
+                CREATE VIRTUAL TABLE IF NOT EXISTS search_table using fts5(
+                    entity_key, fv_rowid, {string_fields}, tokenize="porter unicode61"
+                );
+                """
+            )
+            insert_query = _generate_bm25_search_insert_query(
+                table_name, string_field_list
+            )
+            cur.execute(insert_query)
+
+        else:
+            raise ValueError(
+                "Neither vector search nor text search are enabled in the online store config"
+            )
+
+        if online_store.vector_enabled:
+            cur.execute(
+                f"""
+                select
+                    fv2.entity_key,
+                    fv2.feature_name,
+                    fv2.value,
+                    fv.vector_value,
+                    f.distance,
+                    fv.event_ts,
+                    fv.created_ts
+                from (
+                    select
+                        rowid,
+                        vector_value,
+                        distance
+                    from vec_table
+                    where vector_value match ?
+                    order by distance
+                    limit ?
+                ) f
+                left join {table_name} fv
+                    on f.rowid = fv.rowid
+                left join {table_name} fv2
+                    on fv.entity_key = fv2.entity_key
+                where fv2.feature_name != "{vector_field}"
+                """,
+                (
+                    query_embedding_bin,
+                    top_k,
+                ),
+            )
+        elif online_store.text_search_enabled:
+            cur.execute(
+                f"""
+            select
+                fv.entity_key,
+                fv.feature_name,
+                fv.value,
+                fv.vector_value,
+                f.distance,
+                fv.event_ts,
+                fv.created_ts
+                from {table_name} fv
+                inner join (
+                    select
+                        fv_rowid,
+                        entity_key,
+                        {string_fields},
+                        bm25(search_table, {BM25_DEFAULT_WEIGHTS}) as distance
+                    from search_table
+                    where search_table match ? order by distance limit ?
+                ) f
+                    on f.entity_key = fv.entity_key
+                """,
+                (query_string, top_k),
+            )
+
+        else:
+            raise ValueError(
+                "Neither vector search nor text search are enabled in the online store config"
+            )
+
+        rows = cur.fetchall()
+        results: List[
+            Tuple[
+                Optional[datetime],
+                Optional[EntityKeyProto],
+                Optional[Dict[str, ValueProto]],
+            ]
+        ] = []
+
+        entity_dict: Dict[
+            str, Dict[str, Union[str, ValueProto, EntityKeyProto, datetime]]
+        ] = {}
+        for (
+            entity_key,
+            feature_name,
+            value_bin,
+            vector_value,
+            distance,
+            event_ts,
+            created_ts,
+        ) in rows:
+            entity_key_proto = deserialize_entity_key(
+                entity_key,
+                entity_key_serialization_version=config.entity_key_serialization_version,
+            )
+            if entity_key not in entity_dict:
+                entity_dict[entity_key] = {}
+
+            feature_val = ValueProto()
+            feature_val.ParseFromString(value_bin)
+            entity_dict[entity_key]["entity_key_proto"] = entity_key_proto
+            entity_dict[entity_key][feature_name] = feature_val
+            if online_store.vector_enabled:
+                entity_dict[entity_key][vector_field] = _serialize_vector_to_float_list(
+                    vector_value
+                )
+            entity_dict[entity_key]["distance"] = ValueProto(float_val=distance)
+            entity_dict[entity_key]["event_ts"] = event_ts
+            entity_dict[entity_key]["created_ts"] = created_ts
+
+        for entity_key_value in entity_dict:
+            res_event_ts: Optional[datetime] = None
+            res_entity_key_proto: Optional[EntityKeyProto] = None
+            if isinstance(entity_dict[entity_key_value]["event_ts"], datetime):
+                res_event_ts = entity_dict[entity_key_value]["event_ts"]  # type: ignore[assignment]
+
+            if isinstance(
+                entity_dict[entity_key_value]["entity_key_proto"], EntityKeyProto
+            ):
+                res_entity_key_proto = entity_dict[entity_key_value]["entity_key_proto"]  # type: ignore[assignment]
+
+            res_dict: Dict[str, ValueProto] = {
+                k: v
+                for k, v in entity_dict[entity_key_value].items()
+                if isinstance(v, ValueProto) and isinstance(k, str)
+            }
+
+            results.append(
+                (
+                    res_event_ts,
+                    res_entity_key_proto,
+                    res_dict,
+                )
+            )
+        return results
+
+
+def _initialize_conn(
+    db_path: str, enable_sqlite_vec: bool = False
+) -> sqlite3.Connection:
     Path(db_path).parent.mkdir(exist_ok=True)
-    return sqlite3.connect(
+    db = sqlite3.connect(
         db_path,
         detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES,
         check_same_thread=False,
     )
+    if enable_sqlite_vec:
+        try:
+            import sqlite_vec  # noqa: F401
+        except ModuleNotFoundError:
+            logging.warning("Cannot use sqlite_vec for vector search")
+
+        db.enable_load_extension(True)
+        sqlite_vec.load(db)
+
+    return db
 
 
 def _table_id(project: str, table: FeatureView) -> str:
@@ -517,7 +736,17 @@ class SqliteTable(InfraObject):
             except ModuleNotFoundError:
                 logging.warning("Cannot use sqlite_vec for vector search")
         self.conn.execute(
-            f"CREATE TABLE IF NOT EXISTS {self.name} (entity_key BLOB, feature_name TEXT, value BLOB, vector_value BLOB, event_ts timestamp, created_ts timestamp,  PRIMARY KEY(entity_key, feature_name))"
+            f"""
+            CREATE TABLE IF NOT EXISTS {self.name} (
+                entity_key BLOB,
+                feature_name TEXT,
+                value BLOB,
+                vector_value BLOB,
+                event_ts timestamp,
+                created_ts timestamp,
+                PRIMARY KEY(entity_key, feature_name)
+            )
+            """
         )
         self.conn.execute(
             f"CREATE INDEX IF NOT EXISTS {self.name}_ek ON {self.name} (entity_key);"
@@ -525,3 +754,48 @@ class SqliteTable(InfraObject):
 
     def teardown(self):
         self.conn.execute(f"DROP TABLE IF EXISTS {self.name}")
+
+
+def _get_vector_field(table: FeatureView) -> str:
+    """
+    Get the vector field from the feature view. There can be only one.
+    """
+    vector_fields: List[Field] = [
+        f for f in table.features if getattr(f, "vector_index", None)
+    ]
+    assert len(vector_fields) > 0, (
+        f"No vector field found, please update feature view = {table.name} to declare a vector field"
+    )
+    assert len(vector_fields) < 2, (
+        "Only one vector field is supported, please update feature view = {table.name} to declare one vector field"
+    )
+    vector_field: str = vector_fields[0].name
+    return vector_field
+
+
+def _generate_bm25_search_insert_query(
+    table_name: str, string_field_list: List[str]
+) -> str:
+    """
+    Generates an SQL insertion query for the given table and string fields.
+
+    Args:
+        table_name (str): The name of the table to select data from.
+        string_field_list (List[str]): The list of string fields to be used in the insertion.
+
+    Returns:
+        str: The generated SQL insertion query.
+    """
+    _string_fields = ", ".join(string_field_list)
+    query = f"INSERT INTO search_table (entity_key, fv_rowid, {_string_fields})\nSELECT\n\tDISTINCT fv0.entity_key,\n\tfv0.rowid as fv_rowid"
+    from_query = f"\nFROM (select rowid, * from {table_name} where feature_name = '{string_field_list[0]}') fv0"
+
+    for i, string_field in enumerate(string_field_list):
+        query += f"\n\t,fv{i}.value as {string_field}"
+        if i > 0:
+            from_query += (
+                f"\nLEFT JOIN (select rowid, * from {table_name} where feature_name = '{string_field}') fv{i}"
+                + f"\n\tON fv0.entity_key = fv{i}.entity_key"
+            )
+
+    return query + from_query

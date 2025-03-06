@@ -20,6 +20,10 @@ metadata:
   namespace: feast
 spec:
   feastProject: credit_scoring_local
+  feastProjectDir:
+    git:
+      url: https://github.com/feast-dev/feast-credit-score-local-tutorial
+      ref: 598a270
   services:
     offlineStore:
       persistence:
@@ -31,6 +35,17 @@ spec:
           type: redis
           secretRef:
             name: feast-data-stores
+      server:
+        envFrom:
+        - secretRef:
+            name: postgres-secret
+        env:
+        - name: MPLCONFIGDIR
+          value: /tmp
+        resources:
+          requests:
+            cpu: 150m
+            memory: 128Mi
     registry:
       local:
         persistence:
@@ -38,14 +53,3 @@ spec:
             type: sql
             secretRef:
               name: feast-data-stores
-        server:
-          envFrom:
-          - secretRef:
-              name: postgres-secret
-          env:
-          - name: MPLCONFIGDIR
-            value: /tmp
-          resources:
-            requests:
-              cpu: 150m
-              memory: 128Mi

@@ -66,12 +66,45 @@ const (
 type FeatureStoreSpec struct {
 	// +kubebuilder:validation:Pattern="^[A-Za-z0-9][A-Za-z0-9_]*$"
 	// FeastProject is the Feast project id. This can be any alphanumeric string with underscores, but it cannot start with an underscore. Required.
-	FeastProject string                `json:"feastProject"`
-	Services     *FeatureStoreServices `json:"services,omitempty"`
-	AuthzConfig  *AuthzConfig          `json:"authz,omitempty"`
+	FeastProject    string                `json:"feastProject"`
+	FeastProjectDir *FeastProjectDir      `json:"feastProjectDir,omitempty"`
+	Services        *FeatureStoreServices `json:"services,omitempty"`
+	AuthzConfig     *AuthzConfig          `json:"authz,omitempty"`
 }
 
-// FeatureStoreServices defines the desired feast services. An ephemeral registry is deployed by default.
+// FeastProjectDir defines how to create the feast project directory.
+// +kubebuilder:validation:XValidation:rule="[has(self.git), has(self.init)].exists_one(c, c)",message="One selection required between init or git."
+type FeastProjectDir struct {
+	Git  *GitCloneOptions  `json:"git,omitempty"`
+	Init *FeastInitOptions `json:"init,omitempty"`
+}
+
+// GitCloneOptions describes how a clone should be performed.
+// +kubebuilder:validation:XValidation:rule="has(self.featureRepoPath) ? !self.featureRepoPath.startsWith('/') : true",message="RepoPath must be a file name only, with no slashes."
+type GitCloneOptions struct {
+	// The repository URL to clone from.
+	URL string `json:"url"`
+	// Reference to a branch / tag / commit
+	Ref string `json:"ref,omitempty"`
+	// Configs passed to git via `-c`
+	// e.g. http.sslVerify: 'false'
+	// OR 'url."https://api:\${TOKEN}@github.com/".insteadOf': 'https://github.com/'
+	Configs map[string]string `json:"configs,omitempty"`
+	// FeatureRepoPath is the relative path to the feature repo subdirectory. Default is 'feature_repo'.
+	FeatureRepoPath string                  `json:"featureRepoPath,omitempty"`
+	Env             *[]corev1.EnvVar        `json:"env,omitempty"`
+	EnvFrom         *[]corev1.EnvFromSource `json:"envFrom,omitempty"`
+}
+
+// FeastInitOptions defines how to run a `feast init`.
+type FeastInitOptions struct {
+	Minimal bool `json:"minimal,omitempty"`
+	// Template for the created project
+	// +kubebuilder:validation:Enum=local;gcp;aws;snowflake;spark;postgres;hbase;cassandra;hazelcast;ikv;couchbase
+	Template string `json:"template,omitempty"`
+}
+
+// FeatureStoreServices defines the desired feast services. An ephemeral onlineStore feature server is deployed by default.
 type FeatureStoreServices struct {
 	OfflineStore *OfflineStore `json:"offlineStore,omitempty"`
 	OnlineStore  *OnlineStore  `json:"onlineStore,omitempty"`
@@ -85,7 +118,7 @@ type FeatureStoreServices struct {
 	Volumes []corev1.Volume `json:"volumes,omitempty"`
 }
 
-// OfflineStore configures the deployed offline store service
+// OfflineStore configures the offline store service
 type OfflineStore struct {
 	// Creates a remote offline server container
 	Server      *ServerConfigs           `json:"server,omitempty"`
@@ -115,7 +148,7 @@ var ValidOfflineStoreFilePersistenceTypes = []string{
 // OfflineStoreDBStorePersistence configures the DB store persistence for the offline store service
 type OfflineStoreDBStorePersistence struct {
 	// Type of the persistence type you want to use.
-	// +kubebuilder:validation:Enum=snowflake.offline;bigquery;redshift;spark;postgres;trino;athena;mssql
+	// +kubebuilder:validation:Enum=snowflake.offline;bigquery;redshift;spark;postgres;trino;athena;mssql;couchbase.offline
 	Type string `json:"type"`
 	// Data store parameters should be placed as-is from the "feature_store.yaml" under the secret key. "registry_type" & "type" fields should be removed.
 	SecretRef corev1.LocalObjectReference `json:"secretRef"`
@@ -132,9 +165,10 @@ var ValidOfflineStoreDBStorePersistenceTypes = []string{
 	"trino",
 	"athena",
 	"mssql",
+	"couchbase.offline",
 }
 
-// OnlineStore configures the deployed online store service
+// OnlineStore configures the online store service
 type OnlineStore struct {
 	// Creates a feature server container
 	Server      *ServerConfigs          `json:"server,omitempty"`
@@ -160,7 +194,7 @@ type OnlineStoreFilePersistence struct {
 // OnlineStoreDBStorePersistence configures the DB store persistence for the online store service
 type OnlineStoreDBStorePersistence struct {
 	// Type of the persistence type you want to use.
-	// +kubebuilder:validation:Enum=snowflake.online;redis;ikv;datastore;dynamodb;bigtable;postgres;cassandra;mysql;hazelcast;singlestore;hbase;elasticsearch;qdrant;couchbase;milvus
+	// +kubebuilder:validation:Enum=snowflake.online;redis;ikv;datastore;dynamodb;bigtable;postgres;cassandra;mysql;hazelcast;singlestore;hbase;elasticsearch;qdrant;couchbase.online;milvus
 	Type string `json:"type"`
 	// Data store parameters should be placed as-is from the "feature_store.yaml" under the secret key. "registry_type" & "type" fields should be removed.
 	SecretRef corev1.LocalObjectReference `json:"secretRef"`
@@ -183,11 +217,11 @@ var ValidOnlineStoreDBStorePersistenceTypes = []string{
 	"hbase",
 	"elasticsearch",
 	"qdrant",
-	"couchbase",
+	"couchbase.online",
 	"milvus",
 }
 
-// LocalRegistryConfig configures the deployed registry service
+// LocalRegistryConfig configures the registry service
 type LocalRegistryConfig struct {
 	// Creates a registry server container
 	Server      *ServerConfigs       `json:"server,omitempty"`

@@ -31,7 +31,7 @@ class CouchbaseOnlineStoreConfig(FeastConfigBaseModel):
     Configuration for the Couchbase online store.
     """
 
-    type: Literal["couchbase"] = "couchbase"
+    type: Literal["couchbase.online"] = "couchbase.online"
 
     connection_string: Optional[StrictStr] = None
     user: Optional[StrictStr] = None

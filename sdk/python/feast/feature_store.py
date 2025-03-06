@@ -1863,9 +1863,10 @@ class FeatureStore:
 
     def retrieve_online_documents_v2(
         self,
-        query: Union[str, List[float]],
-        top_k: int,
         features: List[str],
+        top_k: int,
+        query: Optional[List[float]] = None,
+        query_string: Optional[str] = None,
         distance_metric: Optional[str] = "L2",
     ) -> OnlineResponse:
         """
@@ -1875,14 +1876,14 @@ class FeatureStore:
             features: The list of features that should be retrieved from the online document store. These features can be
                 specified either as a list of string document feature references or as a feature service. String feature
                 references must have format "feature_view:feature", e.g, "document_fv:document_embeddings".
-            query: The query to retrieve the closest document features for.
+            query: The embeded query to retrieve the closest document features for (optional)
             top_k: The number of closest document features to retrieve.
             distance_metric: The distance metric to use for retrieval.
+            query_string: The query string to retrieve the closest document features using keyword search (bm25).
         """
-        if isinstance(query, str):
-            raise ValueError(
-                "Using embedding functionality is not supported for document retrieval. Please embed the query before calling retrieve_online_documents."
-            )
+        assert query is not None or query_string is not None, (
+            "Either query or query_string must be provided."
+        )
 
         (
             available_feature_views,
@@ -1919,6 +1920,7 @@ class FeatureStore:
             query,
             top_k,
             distance_metric,
+            query_string,
         )
 
     def _retrieve_from_online_store(
@@ -1985,9 +1987,10 @@ class FeatureStore:
         provider: Provider,
         table: FeatureView,
         requested_features: List[str],
-        query: List[float],
+        query: Optional[List[float]],
         top_k: int,
         distance_metric: Optional[str],
+        query_string: Optional[str],
     ) -> OnlineResponse:
         """
         Search and return document features from the online document store.
@@ -2003,6 +2006,7 @@ class FeatureStore:
             query=query,
             top_k=top_k,
             distance_metric=distance_metric,
+            query_string=query_string,
         )
 
         entity_key_dict: Dict[str, List[ValueProto]] = {}
@@ -2018,7 +2022,7 @@ class FeatureStore:
                         entity_key_dict[key] = []
                     entity_key_dict[key].append(python_value)
 
-        table_entity_values, idxs = utils._get_unique_entities_from_values(
+        table_entity_values, idxs, output_len = utils._get_unique_entities_from_values(
             entity_key_dict,
         )
 
@@ -2040,6 +2044,7 @@ class FeatureStore:
             full_feature_names=False,
             requested_features=features_to_request,
             table=table,
+            output_len=output_len,
         )
 
         return OnlineResponse(online_features_response)

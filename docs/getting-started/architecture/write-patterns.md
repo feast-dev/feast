@@ -1,6 +1,6 @@
 # Writing Data to Feast
 
-Feast uses a [Push Model](getting-started/architecture/push-vs-pull-model.md) to push features to the online store.
+Feast uses a [Push Model](push-vs-pull-model.md) to push features to the online store.
 
 This has two important consequences: (1) communication patterns between the Data Producer (i.e., the client) and Feast (i.e,. the server) and (2) feature computation and 
 _feature value_ write patterns to Feast's online store.

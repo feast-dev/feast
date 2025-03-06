@@ -55,7 +55,7 @@ const ObjectsCountStats = () => {
             <EuiFlexItem>
               <EuiStat
                 style={statStyle}
-                onClick={() => navigate(`${process.env.PUBLIC_URL || ""}/p/${projectName}/feature-service`)}
+                onClick={() => navigate(`/p/${projectName}/feature-service`)}
                 description="Feature Services→"
                 title={data.featureServices}
                 reverse
@@ -65,7 +65,7 @@ const ObjectsCountStats = () => {
               <EuiStat
                 style={statStyle}
                 description="Feature Views→"
-                onClick={() => navigate(`${process.env.PUBLIC_URL || ""}/p/${projectName}/feature-view`)}
+                onClick={() => navigate(`/p/${projectName}/feature-view`)}
                 title={data.featureViews}
                 reverse
               />
@@ -74,7 +74,7 @@ const ObjectsCountStats = () => {
               <EuiStat
                 style={statStyle}
                 description="Entities→"
-                onClick={() => navigate(`${process.env.PUBLIC_URL || ""}/p/${projectName}/entity`)}
+                onClick={() => navigate(`/p/${projectName}/entity`)}
                 title={data.entities}
                 reverse
               />
@@ -83,7 +83,7 @@ const ObjectsCountStats = () => {
               <EuiStat
                 style={statStyle}
                 description="Data Sources→"
-                onClick={() => navigate(`${process.env.PUBLIC_URL || ""}/p/${projectName}/data-source`)}
+                onClick={() => navigate(`/p/${projectName}/data-source`)}
                 title={data.dataSources}
                 reverse
               />

@@ -5,4 +5,4 @@ kind: Kustomization
 images:
 - name: controller
   newName: feastdev/feast-operator
-  newTag: 0.45.0
+  newTag: 0.46.0

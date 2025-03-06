@@ -110,7 +110,7 @@ CASSANDRA_REQUIRED = [
     "cassandra-driver>=3.24.0,<4",
 ]
 
-GE_REQUIRED = ["great_expectations>=0.15.41"]
+GE_REQUIRED = ["great_expectations>=0.15.41,<1"]
 
 AZURE_REQUIRED = [
     "azure-storage-blob>=0.37.0",
@@ -143,20 +143,30 @@ DUCKDB_REQUIRED = ["ibis-framework[duckdb]>=9.0.0,<10"]
 
 DELTA_REQUIRED = ["deltalake"]
 
+DOCLING_REQUIRED = ["docling>=2.23.0"]
+
 ELASTICSEARCH_REQUIRED = ["elasticsearch>=8.13.0"]
 
 SINGLESTORE_REQUIRED = ["singlestoredb<1.8.0"]
 
-COUCHBASE_REQUIRED = ["couchbase==4.3.2"]
+COUCHBASE_REQUIRED = [
+    "couchbase==4.3.2",
+    "couchbase-columnar==1.0.0"
+]
 
 MSSQL_REQUIRED = ["ibis-framework[mssql]>=9.0.0,<10"]
 
 FAISS_REQUIRED = ["faiss-cpu>=1.7.0,<2"]
 QDRANT_REQUIRED = ["qdrant-client>=1.12.0"]
 
-GO_REQUIRED = ["cffi~=1.15.0"]
+GO_REQUIRED = ["cffi>=1.15.0"]
 
 MILVUS_REQUIRED = ["pymilvus"]
+
+TORCH_REQUIRED = [
+    "torch>=2.2.2",
+    "torchvision>=0.17.2",
+]
 
 CLICKHOUSE_REQUIRED = ["clickhouse-connect>=0.7.19"]
 
@@ -231,9 +241,15 @@ CI_REQUIRED = (
     + FAISS_REQUIRED
     + QDRANT_REQUIRED
     + MILVUS_REQUIRED
+    + DOCLING_REQUIRED
+    + TORCH_REQUIRED
     + CLICKHOUSE_REQUIRED
 )
-
+NLP_REQUIRED = (
+    DOCLING_REQUIRED
+    + MILVUS_REQUIRED
+    + TORCH_REQUIRED
+)
 DOCS_REQUIRED = CI_REQUIRED
 DEV_REQUIRED = CI_REQUIRED
 
@@ -307,6 +323,9 @@ setup(
         "qdrant": QDRANT_REQUIRED,
         "go": GO_REQUIRED,
         "milvus": MILVUS_REQUIRED,
+        "docling": DOCLING_REQUIRED,
+        "pytorch": TORCH_REQUIRED,
+        "nlp": NLP_REQUIRED,
         "clickhouse": CLICKHOUSE_REQUIRED,
     },
     include_package_data=True,

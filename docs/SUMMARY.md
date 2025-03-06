@@ -37,6 +37,7 @@
   * [Batch Materialization Engine](getting-started/components/batch-materialization-engine.md)
   * [Provider](getting-started/components/provider.md)
   * [Authorization Manager](getting-started/components/authz_manager.md)
+  * [OpenTelemetry Integration](getting-started/components/open-telemetry.md)
 * [Third party integrations](getting-started/third-party-integrations.md)
 * [FAQ](getting-started/faq.md)
 
@@ -87,6 +88,7 @@
   * [PostgreSQL (contrib)](reference/data-sources/postgres.md)
   * [Trino (contrib)](reference/data-sources/trino.md)
   * [Azure Synapse + Azure SQL (contrib)](reference/data-sources/mssql.md)
+  * [Couchbase (contrib)](reference/data-sources/couchbase.md)
 * [Offline stores](reference/offline-stores/README.md)
   * [Overview](reference/offline-stores/overview.md)
   * [Dask](reference/offline-stores/dask.md)
@@ -94,6 +96,7 @@
   * [BigQuery](reference/offline-stores/bigquery.md)
   * [Redshift](reference/offline-stores/redshift.md)
   * [DuckDB](reference/offline-stores/duckdb.md)
+  * [Couchbase Columnar (contrib)](reference/offline-stores/couchbase.md)
   * [Spark (contrib)](reference/offline-stores/spark.md)
   * [PostgreSQL (contrib)](reference/offline-stores/postgres.md)
   * [Trino (contrib)](reference/offline-stores/trino.md)

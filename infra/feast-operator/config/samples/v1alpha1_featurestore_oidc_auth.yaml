@@ -4,20 +4,6 @@ metadata:
   name: sample-oidc-auth
 spec:
   feastProject: my_project
-  services:
-    onlineStore:
-      persistence:
-        file:
-          path: /data/online_store.db
-    offlineStore:
-      persistence:
-        file:
-          type: dask
-    registry:
-      local:
-        persistence:
-          file:
-            path: /data/registry.db
   authz:
     oidc:
       secretRef:

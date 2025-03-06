@@ -7,14 +7,14 @@ Vector database allows user to store and retrieve embeddings. Feast provides gen
 ## Integration
 Below are supported vector databases and implemented features:
 
-| Vector Database | Retrieval | Indexing | V2 Support* | 
-|-----------------|-----------|----------|-------------|
-| Pgvector        | [x]       | [ ]      | []          |
-| Elasticsearch   | [x]       | [x]      | []          |
-| Milvus          | [x]       | [x]      | [x]         |
-| Faiss           | [ ]       | [ ]      | []          |
-| SQLite          | [x]       | [ ]      | []          |
-| Qdrant          | [x]       | [x]      | []          |
+| Vector Database | Retrieval | Indexing | V2 Support* | Online Read |
+|-----------------|-----------|----------|-------------|-------------|
+| Pgvector        | [x]       | [ ]      | []          | []          |
+| Elasticsearch   | [x]       | [x]      | []          | []          |
+| Milvus          | [x]       | [x]      | [x]         | [x]         |
+| Faiss           | [ ]       | [ ]      | []          | []          |
+| SQLite          | [x]       | [ ]      | [x]         | [x]         |
+| Qdrant          | [x]       | [x]      | []          | []          |
 
 *Note: V2 Support means the SDK supports retrieval of features along with vector embeddings from vector similarity search.
 
@@ -30,7 +30,7 @@ Beyond that, we will then have `retrieve_online_documents` and `retrieve_online_
 backwards compatibility and the adopt industry standard naming conventions.
 {% endhint %}
 
-**Note**: Milvus implements the v2 `retrieve_online_documents_v2` method in the SDK. This will be the longer-term solution so that Data Scientists can easily enable vector similarity search by just flipping a flag.
+**Note**: Milvus and SQLite implement the v2 `retrieve_online_documents_v2` method in the SDK. This will be the longer-term solution so that Data Scientists can easily enable vector similarity search by just flipping a flag.
 
 ## Examples
 
@@ -46,7 +46,7 @@ python batch_score_documents.py
 The output will be stored in `data/city_wikipedia_summaries.csv.`
 
 ### **Initialize Feast feature store and materialize the data to the online store**
-Use the feature_store.yaml file to initialize the feature store. This will use the data as offline store, and Pgvector as online store.
+Use the feature_store.yaml file to initialize the feature store. This will use the data as offline store, and Milvus as online store.
 
 ```yaml
 project: local_rag

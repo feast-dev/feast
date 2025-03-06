@@ -90,43 +90,45 @@ func ApplyDefaultsToStatus(cr *feastdevv1alpha1.FeatureStore) {
 	cr.Status.FeastVersion = feastversion.FeastVersion
 
 	applied := &cr.Status.Applied
+	if applied.FeastProjectDir == nil {
+		applied.FeastProjectDir = &feastdevv1alpha1.FeastProjectDir{
+			Init: &feastdevv1alpha1.FeastInitOptions{},
+		}
+	}
 	if applied.Services == nil {
 		applied.Services = &feastdevv1alpha1.FeatureStoreServices{}
 	}
 	services := applied.Services
 
-	// default to registry service deployment
-	if services.Registry == nil {
-		services.Registry = &feastdevv1alpha1.Registry{}
-	}
-	// if remote registry not set, proceed w/ local registry defaults
-	if services.Registry.Remote == nil {
-		// if local registry not set, apply an empty pointer struct
-		if services.Registry.Local == nil {
-			services.Registry.Local = &feastdevv1alpha1.LocalRegistryConfig{}
-		}
-		if services.Registry.Local.Persistence == nil {
-			services.Registry.Local.Persistence = &feastdevv1alpha1.RegistryPersistence{}
-		}
-
-		if services.Registry.Local.Persistence.DBPersistence == nil {
-			if services.Registry.Local.Persistence.FilePersistence == nil {
-				services.Registry.Local.Persistence.FilePersistence = &feastdevv1alpha1.RegistryFilePersistence{}
+	if services.Registry != nil {
+		// if remote registry not set, proceed w/ local registry defaults
+		if services.Registry.Remote == nil {
+			// if local registry not set, apply an empty pointer struct
+			if services.Registry.Local == nil {
+				services.Registry.Local = &feastdevv1alpha1.LocalRegistryConfig{}
+			}
+			if services.Registry.Local.Persistence == nil {
+				services.Registry.Local.Persistence = &feastdevv1alpha1.RegistryPersistence{}
 			}
 
-			if len(services.Registry.Local.Persistence.FilePersistence.Path) == 0 {
-				services.Registry.Local.Persistence.FilePersistence.Path = defaultRegistryPath(cr)
+			if services.Registry.Local.Persistence.DBPersistence == nil {
+				if services.Registry.Local.Persistence.FilePersistence == nil {
+					services.Registry.Local.Persistence.FilePersistence = &feastdevv1alpha1.RegistryFilePersistence{}
+				}
+
+				if len(services.Registry.Local.Persistence.FilePersistence.Path) == 0 {
+					services.Registry.Local.Persistence.FilePersistence.Path = defaultRegistryPath(cr)
+				}
+
+				ensurePVCDefaults(services.Registry.Local.Persistence.FilePersistence.PvcConfig, RegistryFeastType)
 			}
 
-			ensurePVCDefaults(services.Registry.Local.Persistence.FilePersistence.PvcConfig, RegistryFeastType)
+			if services.Registry.Local.Server != nil {
+				setDefaultCtrConfigs(&services.Registry.Local.Server.ContainerConfigs.DefaultCtrConfigs)
+			}
+		} else if services.Registry.Remote.FeastRef != nil && len(services.Registry.Remote.FeastRef.Namespace) == 0 {
+			services.Registry.Remote.FeastRef.Namespace = cr.Namespace
 		}
-
-		if services.Registry.Local.Server == nil {
-			services.Registry.Local.Server = &feastdevv1alpha1.ServerConfigs{}
-		}
-		setDefaultCtrConfigs(&services.Registry.Local.Server.ContainerConfigs.DefaultCtrConfigs)
-	} else if services.Registry.Remote.FeastRef != nil && len(services.Registry.Remote.FeastRef.Namespace) == 0 {
-		services.Registry.Remote.FeastRef.Namespace = cr.Namespace
 	}
 
 	if services.OfflineStore != nil {
@@ -151,27 +153,31 @@ func ApplyDefaultsToStatus(cr *feastdevv1alpha1.FeatureStore) {
 		}
 	}
 
-	if services.OnlineStore != nil {
-		if services.OnlineStore.Persistence == nil {
-			services.OnlineStore.Persistence = &feastdevv1alpha1.OnlineStorePersistence{}
-		}
-
-		if services.OnlineStore.Persistence.DBPersistence == nil {
-			if services.OnlineStore.Persistence.FilePersistence == nil {
-				services.OnlineStore.Persistence.FilePersistence = &feastdevv1alpha1.OnlineStoreFilePersistence{}
-			}
-
-			if len(services.OnlineStore.Persistence.FilePersistence.Path) == 0 {
-				services.OnlineStore.Persistence.FilePersistence.Path = defaultOnlineStorePath(cr)
-			}
-
-			ensurePVCDefaults(services.OnlineStore.Persistence.FilePersistence.PvcConfig, OnlineFeastType)
-		}
-
-		if services.OnlineStore.Server != nil {
-			setDefaultCtrConfigs(&services.OnlineStore.Server.ContainerConfigs.DefaultCtrConfigs)
-		}
+	// default to onlineStore service deployment
+	if services.OnlineStore == nil {
+		services.OnlineStore = &feastdevv1alpha1.OnlineStore{}
 	}
+	if services.OnlineStore.Persistence == nil {
+		services.OnlineStore.Persistence = &feastdevv1alpha1.OnlineStorePersistence{}
+	}
+
+	if services.OnlineStore.Persistence.DBPersistence == nil {
+		if services.OnlineStore.Persistence.FilePersistence == nil {
+			services.OnlineStore.Persistence.FilePersistence = &feastdevv1alpha1.OnlineStoreFilePersistence{}
+		}
+
+		if len(services.OnlineStore.Persistence.FilePersistence.Path) == 0 {
+			services.OnlineStore.Persistence.FilePersistence.Path = defaultOnlineStorePath(cr)
+		}
+
+		ensurePVCDefaults(services.OnlineStore.Persistence.FilePersistence.PvcConfig, OnlineFeastType)
+	}
+
+	if services.OnlineStore.Server == nil {
+		services.OnlineStore.Server = &feastdevv1alpha1.ServerConfigs{}
+	}
+	setDefaultCtrConfigs(&services.OnlineStore.Server.ContainerConfigs.DefaultCtrConfigs)
+
 	if services.UI != nil {
 		setDefaultCtrConfigs(&services.UI.ContainerConfigs.DefaultCtrConfigs)
 	}

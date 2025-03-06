@@ -61,6 +61,36 @@ _Appears in:_
 | `image` _string_ |  |
 
 
+#### FeastInitOptions
+
+
+
+FeastInitOptions defines how to run a `feast init`.
+
+_Appears in:_
+- [FeastProjectDir](#feastprojectdir)
+
+| Field | Description |
+| --- | --- |
+| `minimal` _boolean_ |  |
+| `template` _string_ | Template for the created project |
+
+
+#### FeastProjectDir
+
+
+
+FeastProjectDir defines how to create the feast project directory.
+
+_Appears in:_
+- [FeatureStoreSpec](#featurestorespec)
+
+| Field | Description |
+| --- | --- |
+| `git` _[GitCloneOptions](#gitcloneoptions)_ |  |
+| `init` _[FeastInitOptions](#feastinitoptions)_ |  |
+
+
 #### FeatureStore
 
 
@@ -97,7 +127,7 @@ _Appears in:_
 
 
 
-FeatureStoreServices defines the desired feast services. An ephemeral registry is deployed by default.
+FeatureStoreServices defines the desired feast services. An ephemeral onlineStore feature server is deployed by default.
 
 _Appears in:_
 - [FeatureStoreSpec](#featurestorespec)
@@ -126,6 +156,7 @@ _Appears in:_
 | Field | Description |
 | --- | --- |
 | `feastProject` _string_ | FeastProject is the Feast project id. This can be any alphanumeric string with underscores, but it cannot start with an underscore. Required. |
+| `feastProjectDir` _[FeastProjectDir](#feastprojectdir)_ |  |
 | `services` _[FeatureStoreServices](#featurestoreservices)_ |  |
 | `authz` _[AuthzConfig](#authzconfig)_ |  |
 
@@ -147,6 +178,27 @@ _Appears in:_
 | `feastVersion` _string_ |  |
 | `phase` _string_ |  |
 | `serviceHostnames` _[ServiceHostnames](#servicehostnames)_ |  |
+
+
+#### GitCloneOptions
+
+
+
+GitCloneOptions describes how a clone should be performed.
+
+_Appears in:_
+- [FeastProjectDir](#feastprojectdir)
+
+| Field | Description |
+| --- | --- |
+| `url` _string_ | The repository URL to clone from. |
+| `ref` _string_ | Reference to a branch / tag / commit |
+| `configs` _object (keys:string, values:string)_ | Configs passed to git via `-c`
+e.g. http.sslVerify: 'false'
+OR 'url."https://api:\${TOKEN}@github.com/".insteadOf': 'https://github.com/' |
+| `featureRepoPath` _string_ | FeatureRepoPath is the relative path to the feature repo subdirectory. Default is 'feature_repo'. |
+| `env` _[EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#envvar-v1-core)_ |  |
+| `envFrom` _[EnvFromSource](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#envfromsource-v1-core)_ |  |
 
 
 #### KubernetesAuthz
@@ -173,7 +225,7 @@ Important note: the operator cannot ensure that these roles will match the ones 
 
 
 
-LocalRegistryConfig configures the deployed registry service
+LocalRegistryConfig configures the registry service
 
 _Appears in:_
 - [Registry](#registry)
@@ -188,7 +240,7 @@ _Appears in:_
 
 
 
-OfflineStore configures the deployed offline store service
+OfflineStore configures the offline store service
 
 _Appears in:_
 - [FeatureStoreServices](#featurestoreservices)
@@ -264,7 +316,7 @@ _Appears in:_
 
 
 
-OnlineStore configures the deployed online store service
+OnlineStore configures the online store service
 
 _Appears in:_
 - [FeatureStoreServices](#featurestoreservices)
@@ -341,7 +393,7 @@ _Appears in:_
 
 #### PvcConfig
 
-_Underlying type:_ `[struct{Ref *k8s.io/api/core/v1.LocalObjectReference "json:\"ref,omitempty\""; Create *PvcCreate "json:\"create,omitempty\""; MountPath string "json:\"mountPath\""}](#struct{ref-*k8sioapicorev1localobjectreference-"json:\"ref,omitempty\"";-create-*pvccreate-"json:\"create,omitempty\"";-mountpath-string-"json:\"mountpath\""})`
+
 
 PvcConfig defines the settings for a persistent file store based on PVCs.
 We can refer to an existing PVC using the `Ref` field, or create a new one using the `Create` field.
@@ -349,9 +401,36 @@ We can refer to an existing PVC using the `Ref` field, or create a new one using
 _Appears in:_
 - [OfflineStoreFilePersistence](#offlinestorefilepersistence)
 - [OnlineStoreFilePersistence](#onlinestorefilepersistence)
+- [RegistryFilePersistence](#registryfilepersistence)
+
+| Field | Description |
+| --- | --- |
+| `ref` _[LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#localobjectreference-v1-core)_ | Reference to an existing field |
+| `create` _[PvcCreate](#pvccreate)_ | Settings for creating a new PVC |
+| `mountPath` _string_ | MountPath within the container at which the volume should be mounted.
+Must start by "/" and cannot contain ':'. |
+
+
+#### PvcCreate
 
 
 
+PvcCreate defines the immutable settings to create a new PVC mounted at the given path.
+The PVC name is the same as the associated deployment & feast service name.
+
+_Appears in:_
+- [PvcConfig](#pvcconfig)
+
+| Field | Description |
+| --- | --- |
+| `accessModes` _[PersistentVolumeAccessMode](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#persistentvolumeaccessmode-v1-core) array_ | AccessModes k8s persistent volume access modes. Defaults to ["ReadWriteOnce"]. |
+| `storageClassName` _string_ | StorageClassName is the name of an existing StorageClass to which this persistent volume belongs. Empty value
+means that this volume does not belong to any StorageClass and the cluster default will be used. |
+| `resources` _[VolumeResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#volumeresourcerequirements-v1-core)_ | Resources describes the storage resource requirements for a volume.
+Default requested storage size depends on the associated service:
+- 10Gi for offline store
+- 5Gi for online store
+- 5Gi for registry |
 
 
 #### Registry
@@ -371,24 +450,34 @@ _Appears in:_
 
 #### RegistryDBStorePersistence
 
-_Underlying type:_ `[struct{Type string "json:\"type\""; SecretRef k8s.io/api/core/v1.LocalObjectReference "json:\"secretRef\""; SecretKeyName string "json:\"secretKeyName,omitempty\""}](#struct{type-string-"json:\"type\"";-secretref-k8sioapicorev1localobjectreference-"json:\"secretref\"";-secretkeyname-string-"json:\"secretkeyname,omitempty\""})`
+
 
 RegistryDBStorePersistence configures the DB store persistence for the registry service
 
 _Appears in:_
 - [RegistryPersistence](#registrypersistence)
 
+| Field | Description |
+| --- | --- |
+| `type` _string_ | Type of the persistence type you want to use. |
+| `secretRef` _[LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#localobjectreference-v1-core)_ | Data store parameters should be placed as-is from the "feature_store.yaml" under the secret key. "registry_type" & "type" fields should be removed. |
+| `secretKeyName` _string_ | By default, the selected store "type" is used as the SecretKeyName |
 
 
 #### RegistryFilePersistence
 
-_Underlying type:_ `[struct{Path string "json:\"path,omitempty\""; PvcConfig *PvcConfig "json:\"pvc,omitempty\""; S3AdditionalKwargs *map[string]string "json:\"s3_additional_kwargs,omitempty\""}](#struct{path-string-"json:\"path,omitempty\"";-pvcconfig-*pvcconfig-"json:\"pvc,omitempty\"";-s3additionalkwargs-*map[string]string-"json:\"s3_additional_kwargs,omitempty\""})`
+
 
 RegistryFilePersistence configures the file-based persistence for the registry service
 
 _Appears in:_
 - [RegistryPersistence](#registrypersistence)
 
+| Field | Description |
+| --- | --- |
+| `path` _string_ |  |
+| `pvc` _[PvcConfig](#pvcconfig)_ |  |
+| `s3_additional_kwargs` _map[string]string_ |  |
 
 
 #### RegistryPersistence

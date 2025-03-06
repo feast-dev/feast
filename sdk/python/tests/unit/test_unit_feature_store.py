@@ -38,7 +38,7 @@ def test_get_unique_entities_success():
         projection=MockFeatureViewProjection(join_key_map={}),
     )
 
-    unique_entities, indexes = utils._get_unique_entities(
+    unique_entities, indexes, output_len = utils._get_unique_entities(
         table=fv,
         join_key_values=entity_values,
         entity_name_to_join_key_map=entity_name_to_join_key_map,
@@ -51,6 +51,7 @@ def test_get_unique_entities_success():
 
     assert unique_entities == expected_entities
     assert indexes == expected_indexes
+    assert output_len == 3
 
 
 def test_get_unique_entities_missing_join_key_success():
@@ -74,7 +75,7 @@ def test_get_unique_entities_missing_join_key_success():
         projection=MockFeatureViewProjection(join_key_map={}),
     )
 
-    unique_entities, indexes = utils._get_unique_entities(
+    unique_entities, indexes, output_len = utils._get_unique_entities(
         table=fv,
         join_key_values=entity_values,
         entity_name_to_join_key_map=entity_name_to_join_key_map,
@@ -87,6 +88,7 @@ def test_get_unique_entities_missing_join_key_success():
 
     assert unique_entities == expected_entities
     assert indexes == expected_indexes
+    assert output_len == 3
     # We're not say anything about the entity_1 missing from the unique_entities list
     assert "entity_1" not in [entity.keys() for entity in unique_entities]
 

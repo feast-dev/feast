@@ -21,8 +21,7 @@ const FeaturesList = ({
       field: "name",
       render: (item: string) => (
         <EuiCustomLink
-          href={`${process.env.PUBLIC_URL || ""}/p/${projectName}/feature-view/${featureViewName}/feature/${item}`}
-          to={`${process.env.PUBLIC_URL || ""}/p/${projectName}/feature-view/${featureViewName}/feature/${item}`}
+          to={`/p/${projectName}/feature-view/${featureViewName}/feature/${item}`}
         >
           {item}
         </EuiCustomLink>

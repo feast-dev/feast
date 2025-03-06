@@ -18,10 +18,7 @@ const ConsumingFeatureServicesList = ({
       field: "",
       render: ({ name }: { name: string }) => {
         return (
-          <EuiCustomLink
-            href={`${process.env.PUBLIC_URL || ""}/p/${projectName}/feature-service/${name}`}
-            to={`${process.env.PUBLIC_URL || ""}/p/${projectName}/feature-service/${name}`}
-          >
+          <EuiCustomLink to={`/p/${projectName}/feature-service/${name}`}>
             {name}
           </EuiCustomLink>
         );

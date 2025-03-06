@@ -318,9 +318,10 @@ class PassthroughProvider(Provider):
         config: RepoConfig,
         table: FeatureView,
         requested_features: Optional[List[str]],
-        query: List[float],
+        query: Optional[List[float]],
         top_k: int,
         distance_metric: Optional[str] = None,
+        query_string: Optional[str] = None,
     ) -> List:
         result = []
         if self.online_store:
@@ -331,6 +332,7 @@ class PassthroughProvider(Provider):
                 query,
                 top_k,
                 distance_metric,
+                query_string,
             )
         return result
 

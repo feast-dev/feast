@@ -51,10 +51,9 @@ def _write_data_source(
 
     file_options = data_source.file_options
 
-    if not Path(file_options.uri).is_absolute():
-        absolute_path = Path(repo_path) / file_options.uri
-    else:
-        absolute_path = Path(file_options.uri)
+    absolute_path = FileSource.get_uri_for_file_path(
+        repo_path=repo_path, uri=file_options.uri
+    )
 
     if (
         mode == "overwrite"
