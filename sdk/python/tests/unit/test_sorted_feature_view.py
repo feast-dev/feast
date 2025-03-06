@@ -9,7 +9,7 @@ from feast.field import Field
 from feast.protos.feast.core.SortedFeatureView_pb2 import SortOrder
 from feast.sort_key import SortKey
 from feast.sorted_feature_view import SortedFeatureView
-from feast.types import Float32, Int64, String
+from feast.types import Int64, String
 from feast.utils import _utc_now, make_tzaware
 from feast.value_type import ValueType
 
@@ -81,29 +81,21 @@ def test_sorted_feature_view_ensure_valid_sort_key_in_entity_columns():
     """
     source = FileSource(path="some path")
     entity = Entity(name="entity1", join_keys=["entity1_id"])
-    entity_field = Field(name="entity1", dtype=Float32)
 
     sort_key = SortKey(
         name="entity1",
         value_type=ValueType.STRING,
-        default_sort_order=SortOrder.ASC,  # Assuming ASC is valid.
+        default_sort_order=SortOrder.ASC,
     )
 
     # Create a SortedFeatureView with a sort key that conflicts.
-    with pytest.raises(ValueError) as excinfo:
-        sfv = SortedFeatureView(
+    with pytest.raises(ValueError):
+        SortedFeatureView(
             name="invalid_sorted_feature_view",
             source=source,
             entities=[entity],
             sort_keys=[sort_key],
         )
-
-        sfv.entity_columns = [entity_field]
-
-    assert (
-        "Sort key 'entity1' does not match any feature name or the event timestamp. Valid options are: []"
-        in str(excinfo.value)
-    )
 
 
 def test_sorted_feature_view_copy():
@@ -314,29 +306,99 @@ def test_sorted_feature_view_same_sort_key_repeated_in_schema():
         )
 
 
-def test_sorted_feature_view_sort_key_matches_event_timestamp():
+def test_sorted_feature_view_reserved_feature_name_event_ts():
     """
-    Test that a SortedFeatureView is valid if the sort key matches the event timestamp field.
+    Test that a SortedFeatureView fails validation if a feature is named 'event_ts'
     """
-    source = FileSource(path="some path", timestamp_field="event_timestamp")
+    source = FileSource(path="some path")
     entity = Entity(name="entity1", join_keys=["entity1_id"])
-    schema = [
-        Field(name="feature1", dtype=Int64),
-    ]
-
+    schema = [Field(name="event_ts", dtype=Int64), Field(name="feature1", dtype=Int64)]
     sort_key = SortKey(
-        name="event_timestamp",
-        value_type=ValueType.UNIX_TIMESTAMP,
+        name="feature1",
+        value_type=ValueType.INT64,
         default_sort_order=SortOrder.ASC,
     )
+    with pytest.raises(ValueError):
+        SortedFeatureView(
+            name="invalid_sorted_feature_view",
+            source=source,
+            entities=[entity],
+            schema=schema,
+            sort_keys=[sort_key],
+        )
 
-    sfv = SortedFeatureView(
-        name="valid_sorted_feature_view",
-        source=source,
-        entities=[entity],
-        schema=schema,
-        sort_keys=[sort_key],
+
+def test_sorted_feature_view_reserved_feature_name_created_ts():
+    """
+    Test that a SortedFeatureView fails validation if a feature is named 'created_ts'
+    """
+    source = FileSource(path="some path")
+    entity = Entity(name="entity1", join_keys=["entity1_id"])
+    schema = [
+        Field(name="created_ts", dtype=Int64),
+        Field(name="feature1", dtype=Int64),
+    ]
+    sort_key = SortKey(
+        name="feature1",
+        value_type=ValueType.INT64,
+        default_sort_order=SortOrder.ASC,
     )
+    with pytest.raises(ValueError):
+        SortedFeatureView(
+            name="invalid_sorted_feature_view",
+            source=source,
+            entities=[entity],
+            schema=schema,
+            sort_keys=[sort_key],
+            ttl=timedelta(days=1),
+        )
 
-    assert sfv.name == "valid_sorted_feature_view"
-    assert sfv.sort_keys[0].name == "event_timestamp"
+
+def test_sorted_feature_view_entity_conflict_feature_name():
+    """
+    Test that a SortedFeatureView fails validation if a feature name conflicts with an entity name.
+    """
+    source = FileSource(path="some path")
+    entity = Entity(name="customer", join_keys=["customer_id"])
+    # Schema with a field that conflicts with the entity name "customer".
+    schema = [Field(name="customer", dtype=Int64), Field(name="feature1", dtype=Int64)]
+    sort_key = SortKey(
+        name="feature1",
+        value_type=ValueType.INT64,
+        default_sort_order=SortOrder.ASC,
+    )
+    with pytest.raises(ValueError):
+        SortedFeatureView(
+            name="invalid_sorted_feature_view",
+            source=source,
+            entities=[entity],
+            schema=schema,
+            sort_keys=[sort_key],
+            ttl=timedelta(days=1),
+        )
+
+
+def test_sorted_feature_view_duplicate_features():
+    """
+    Test that a SortedFeatureView fails validation if duplicate feature names are present.
+    """
+    source = FileSource(path="some path")
+    entity = Entity(name="entity1", join_keys=["entity1_id"])
+    # Schema with duplicate feature names.
+    schema = [
+        Field(name="dup_field", dtype=Int64),
+        Field(name="dup_field", dtype=Int64),
+    ]
+    sort_key = SortKey(
+        name="dup_field",
+        value_type=ValueType.INT64,
+        default_sort_order=SortOrder.ASC,
+    )
+    with pytest.raises(ValueError, match="Duplicate feature name found: 'dup_field'"):
+        SortedFeatureView(
+            name="invalid_sorted_feature_view",
+            source=source,
+            entities=[entity],
+            schema=schema,
+            sort_keys=[sort_key],
+        )

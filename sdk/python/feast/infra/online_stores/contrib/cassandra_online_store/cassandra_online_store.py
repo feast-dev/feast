@@ -734,19 +734,13 @@ class CassandraOnlineStore(OnlineStore):
         entity and sort key columns.
         """
 
-        feature_columns = [
+        feature_columns = ", ".join(
             f"{feature.name} {self._get_cql_type(feature.dtype)}"
             for feature in table.features
-        ]
-        feature_columns_str = ",".join(feature_columns)
-
-        ts_field = getattr(table.batch_source, "timestamp_field", None)
+        )
 
         sorted_keys = [
-            (
-                "event_ts" if sk.name == ts_field else sk.name,
-                "ASC" if sk.default_sort_order == SortOrder.Enum.ASC else "DESC",
-            )
+            (sk.name, "ASC" if sk.default_sort_order == SortOrder.Enum.ASC else "DESC")
             for sk in table.sort_keys
         ]
 
@@ -756,7 +750,7 @@ class CassandraOnlineStore(OnlineStore):
         create_cql = (
             f"CREATE TABLE IF NOT EXISTS {fqtable} (\n"
             f"    entity_key TEXT,\n"
-            f"    {feature_columns_str},\n"
+            f"    {feature_columns},\n"
             f"    event_ts TIMESTAMP,\n"
             f"    created_ts TIMESTAMP,\n"
             f"    PRIMARY KEY ((entity_key), {sort_key_names})\n"
