@@ -25,7 +25,7 @@ const FeastUI = ({ reactQueryClient, feastUIConfigs }: FeastUIProps) => {
     >
       <QueryClientProvider client={queryClient}>
         <QueryParamProvider adapter={ReactRouter6Adapter}>
-          <FeastUISansProviders feastUIConfigs={feastUIConfigs} />
+          <FeastUISansProviders basename={basename} feastUIConfigs={feastUIConfigs} />
         </QueryParamProvider>
       </QueryClientProvider>
     </BrowserRouter>
