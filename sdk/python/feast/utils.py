@@ -343,6 +343,22 @@ def _convert_arrow_odfv_to_proto(
         for column, value_type in columns
         if column in table.column_names
     }
+
+    # Ensure join keys are included in proto_values_by_column, but check if they exist first
+    for join_key, value_type in join_keys.items():
+        if join_key not in proto_values_by_column:
+            # Check if the join key exists in the table before trying to access it
+            if join_key in table.column_names:
+                proto_values_by_column[join_key] = python_values_to_proto_values(
+                    table.column(join_key).to_numpy(zero_copy_only=False), value_type
+                )
+            else:
+                # Create null/default values if the join key isn't in the table
+                null_column = [None] * table.num_rows
+                proto_values_by_column[join_key] = python_values_to_proto_values(
+                    null_column, value_type
+                )
+
     # Adding On Demand Features
     for feature in feature_view.features:
         if (

@@ -1546,6 +1546,35 @@ class FeatureStore:
                     df = pd.DataFrame(df)
                 except Exception as _:
                     raise DataFrameSerializationError(df)
+
+        # # Apply transformations if this is an OnDemandFeatureView with write_to_online_store=True
+        if (
+            isinstance(feature_view, OnDemandFeatureView)
+            and feature_view.write_to_online_store
+        ):
+            if feature_view.mode == "python":
+                print(f"Applying Python transformation on \n{df}")
+                input_dict = (
+                    df.to_dict(orient="records")[0]
+                    if feature_view.singleton
+                    else df.to_dict(orient="list")
+                )
+                transformed_data = feature_view.feature_transformation.udf(input_dict)
+                # overwrite any transformed features and update the dictionary
+                for k in input_dict:
+                    if k not in transformed_data:
+                        transformed_data[k] = input_dict[k]
+                df = pd.DataFrame(transformed_data)
+                print(f"Output from transformation = \n{df}")
+            elif feature_view.mode == "pandas":
+                transformed_df = feature_view.feature_transformation.udf(df)
+                for col in df.columns:
+                    transformed_df[col] = df[col]
+                df = transformed_df
+
+            else:
+                raise Exception("Unsupported OnDemandFeatureView mode")
+
         return feature_view, df
 
     def write_to_online_store(

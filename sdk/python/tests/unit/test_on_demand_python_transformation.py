@@ -1,5 +1,6 @@
 import os
 import re
+import sqlite3
 import tempfile
 import unittest
 from datetime import datetime, timedelta
@@ -870,6 +871,7 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
                     Field(name="current_datetime", dtype=UnixTimestamp),
                     Field(name="counter", dtype=Int64),
                     Field(name="input_datetime", dtype=UnixTimestamp),
+                    Field(name="string_constant", dtype=String),
                 ],
                 mode="python",
                 write_to_online_store=True,
@@ -887,6 +889,7 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
                     "current_datetime": [datetime.now() for _ in inputs["conv_rate"]],
                     "counter": [c + 1 for c in inputs["counter"]],
                     "input_datetime": [d for d in inputs["input_datetime"]],
+                    "string_constant": ["guaranteed constant"],
                 }
                 return output
 
@@ -940,30 +943,13 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
                     "created": current_datetime,
                 }
             ]
-            odfv_entity_rows_to_write = [
-                {
-                    "driver_id": 1001,
-                    "counter": 0,
-                    "input_datetime": current_datetime,
-                }
-            ]
             fv_entity_rows_to_read = [
                 {
                     "driver_id": 1001,
                 }
             ]
-            # Note that here we shouldn't have to pass the request source features for reading
-            # because they should have already been written to the online store
-            odfv_entity_rows_to_read = [
-                {
-                    "driver_id": 1001,
-                    "conv_rate": 0.25,
-                    "acc_rate": 0.50,
-                    "counter": 0,
-                    "input_datetime": current_datetime,
-                }
-            ]
-            print("storing fv features")
+            print("")
+            print("storing FV features")
             self.store.write_to_online_store(
                 feature_view_name="driver_hourly_stats",
                 df=fv_entity_rows_to_write,
@@ -985,11 +971,58 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
                 "acc_rate": [0.25],
             }
 
-            print("storing odfv features")
+            # Note that here we shouldn't have to pass the request source features for reading
+            # because they should have already been written to the online store
+            odfv_entity_rows_to_write = [
+                {
+                    "driver_id": 1002,
+                    "counter": 0,
+                    "conv_rate": 0.25,
+                    "acc_rate": 0.50,
+                    "input_datetime": current_datetime,
+                    "string_constant": "something else",
+                }
+            ]
+            odfv_entity_rows_to_read = [
+                {
+                    "driver_id": 1002,
+                    "conv_rate_plus_acc": 7,  # note how this is not the correct value and would be calculate on demand
+                    "conv_rate": 0.25,
+                    "acc_rate": 0.50,
+                    "counter": 0,
+                    "input_datetime": current_datetime,
+                    "string_constant": "guaranteed constant",
+                }
+            ]
+            print("storing ODFV features")
             self.store.write_to_online_store(
                 feature_view_name="python_stored_writes_feature_view",
                 df=odfv_entity_rows_to_write,
             )
+            _conn = sqlite3.connect(self.store.config.online_store.path)
+            _table_name = (
+                self.store.project
+                + "_"
+                + self.store.get_on_demand_feature_view(
+                    "python_stored_writes_feature_view"
+                ).name
+            )
+            sample = pd.read_sql(
+                f"""
+            select
+                feature_name,
+                value
+            from {_table_name}
+            """,
+                _conn,
+            )
+            assert (
+                sample[sample["feature_name"] == "string_constant"]["value"]
+                .astype(str)
+                .str.contains("guaranteed constant")
+                .values[0]
+            )
+
             print("reading odfv features")
             online_odfv_python_response = self.store.get_online_features(
                 entity_rows=odfv_entity_rows_to_read,
@@ -998,6 +1031,7 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
                     "python_stored_writes_feature_view:current_datetime",
                     "python_stored_writes_feature_view:counter",
                     "python_stored_writes_feature_view:input_datetime",
+                    "python_stored_writes_feature_view:string_constant",
                 ],
             ).to_dict()
             print(online_odfv_python_response)
@@ -1008,12 +1042,16 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
                     "counter",
                     "current_datetime",
                     "input_datetime",
+                    "string_constant",
                 ]
             )
             # This should be 1 because we write the value and then we should not increment it
             # query sqlite here to confirm value:
             # self.store.config.online_store._conn.
             assert online_odfv_python_response["counter"] == [0]
+            assert online_odfv_python_response["string_constant"] == [
+                "gauranteed constant"
+            ]
 
     def test_stored_writes_with_explode(self):
         with tempfile.TemporaryDirectory() as data_dir:
