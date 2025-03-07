@@ -860,6 +860,9 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
             assert driver_stats_fv.entities == [driver.name]
             assert driver_stats_fv.entity_columns == []
 
+            ODFV_STRING_CONSTANT = "guaranteed constant"
+            ODFV_OTHER_STRING_CONSTANT = "somethign else"
+
             @on_demand_feature_view(
                 entities=[driver],
                 sources=[
@@ -889,7 +892,7 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
                     "current_datetime": [datetime.now() for _ in inputs["conv_rate"]],
                     "counter": [c + 1 for c in inputs["counter"]],
                     "input_datetime": [d for d in inputs["input_datetime"]],
-                    "string_constant": ["guaranteed constant"],
+                    "string_constant": [ODFV_STRING_CONSTANT],
                 }
                 return output
 
@@ -980,7 +983,7 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
                     "conv_rate": 0.25,
                     "acc_rate": 0.50,
                     "input_datetime": current_datetime,
-                    "string_constant": "something else",
+                    "string_constant": ODFV_OTHER_STRING_CONSTANT,
                 }
             ]
             odfv_entity_rows_to_read = [
@@ -991,7 +994,7 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
                     "acc_rate": 0.50,
                     "counter": 0,
                     "input_datetime": current_datetime,
-                    "string_constant": "guaranteed constant",
+                    "string_constant": ODFV_STRING_CONSTANT,
                 }
             ]
             print("storing ODFV features")
@@ -1045,12 +1048,13 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
                     "string_constant",
                 ]
             )
-            # This should be 1 because we write the value and then we should not increment it
-            # query sqlite here to confirm value:
-            # self.store.config.online_store._conn.
-            assert online_odfv_python_response["counter"] == [0]
+            # This should be 1 because we write the value of 0 and during the write, the counter is incremented
+            assert online_odfv_python_response["counter"] == [1]
             assert online_odfv_python_response["string_constant"] == [
-                "gauranteed constant"
+                ODFV_STRING_CONSTANT
+            ]
+            assert online_odfv_python_response["string_constant"] != [
+                ODFV_OTHER_STRING_CONSTANT
             ]
 
     def test_stored_writes_with_explode(self):
