@@ -1553,19 +1553,38 @@ class FeatureStore:
             and feature_view.write_to_online_store
         ):
             if feature_view.mode == "python":
-                print(f"Applying Python transformation on \n{df}")
                 input_dict = (
                     df.to_dict(orient="records")[0]
                     if feature_view.singleton
                     else df.to_dict(orient="list")
                 )
                 transformed_data = feature_view.feature_transformation.udf(input_dict)
-                # overwrite any transformed features and update the dictionary
-                for k in input_dict:
-                    if k not in transformed_data:
-                        transformed_data[k] = input_dict[k]
+                if feature_view.write_to_online_store:
+                    entities = [
+                        self.get_entity(entity) for entity in feature_view.entities
+                    ]
+                    join_keys = [entity.join_key for entity in entities if entity]
+                    join_keys = [k for k in join_keys if k in input_dict.keys()]
+                    transformed_df = pd.DataFrame(transformed_data)
+                    input_df = pd.DataFrame(input_dict)
+                    if input_df.shape[0] == transformed_df.shape[0]:
+                        for k in input_dict:
+                            if k not in transformed_data:
+                                transformed_data[k] = input_dict[k]
+                        transformed_df = pd.DataFrame(transformed_data)
+                    else:
+                        transformed_df = pd.merge(
+                            transformed_df,
+                            input_df,
+                            how="left",
+                            on=join_keys,
+                        )
+                else:
+                    # overwrite any transformed features and update the dictionary
+                    for k in input_dict:
+                        if k not in transformed_data:
+                            transformed_data[k] = input_dict[k]
                 df = pd.DataFrame(transformed_data)
-                print(f"Output from transformation = \n{df}")
             elif feature_view.mode == "pandas":
                 transformed_df = feature_view.feature_transformation.udf(df)
                 for col in df.columns:

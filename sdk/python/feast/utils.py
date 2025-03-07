@@ -398,6 +398,12 @@ def _convert_arrow_odfv_to_proto(
         feature.name: proto_values_by_column[feature.name]
         for feature in feature_view.features
     }
+    if feature_view.write_to_online_store:
+        table_columns = [col.name for col in table.schema]
+        for feature in feature_view.schema:
+            if feature.name not in feature_dict and feature.name in table_columns:
+                feature_dict[feature.name] = proto_values_by_column[feature.name]
+
     features = [dict(zip(feature_dict, vars)) for vars in zip(*feature_dict.values())]
 
     # We need to artificially add event_timestamps and created_timestamps
@@ -486,7 +492,16 @@ def _group_feature_refs(
     for ref in features:
         view_name, feat_name = ref.split(":")
         if view_name in view_index:
-            view_index[view_name].projection.get_feature(feat_name)  # For validation
+            if hasattr(view_index[view_name], "write_to_online_store"):
+                tmp_feat_name = [
+                    f for f in view_index[view_name].schema if f.name == feat_name
+                ]
+                if len(tmp_feat_name) > 0:
+                    feat_name = tmp_feat_name[0].name
+            else:
+                view_index[view_name].projection.get_feature(
+                    feat_name
+                )  # For validation
             views_features[view_name].add(feat_name)
         elif view_name in on_demand_view_index:
             on_demand_view_index[view_name].projection.get_feature(
@@ -1196,7 +1211,13 @@ def _prepare_entities_to_read_from_online_store(
     odfv_entities: List[Entity] = []
     request_source_keys: List[str] = []
     for on_demand_feature_view in requested_on_demand_feature_views:
-        odfv_entities.append(*getattr(on_demand_feature_view, "entities", []))
+        entities_for_odfv = getattr(on_demand_feature_view, "entities", [])
+        if len(entities_for_odfv) > 0 and isinstance(entities_for_odfv[0], str):
+            entities_for_odfv = [
+                registry.get_entity(entity_name, project, allow_cache=True)
+                for entity_name in entities_for_odfv
+            ]
+        odfv_entities.extend(entities_for_odfv)
         for source in on_demand_feature_view.source_request_sources:
             source_schema = on_demand_feature_view.source_request_sources[source].schema
             for column in source_schema:

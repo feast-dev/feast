@@ -1123,7 +1123,7 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
             ):
                 output: dict[str, Any] = {
                     "document_id": ["doc_1", "doc_1", "doc_2", "doc_2"],
-                    "chunk_id": [1, 2, 1, 2],
+                    "chunk_id": ["chunk-1", "chunk-2", "chunk-1", "chunk-2"],
                     "chunk_text": [
                         "hello friends",
                         "how are you?",
@@ -1153,6 +1153,7 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
             self.store.apply(
                 [
                     chunk,
+                    document,
                     input_explode_request_source,
                     python_stored_writes_feature_view_explode_singleton,
                 ]
@@ -1190,14 +1191,46 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
             ]
             fv_entity_rows_to_read = [
                 {
-                    "driver_id": 1001,
-                }
+                    "document_id": "doc_1",
+                },
+                {
+                    "document_id": "doc_2",
+                },
             ]
 
             self.store.write_to_online_store(
                 feature_view_name="python_stored_writes_feature_view_explode_singleton",
                 df=odfv_entity_rows_to_write,
             )
+            _table_name = (
+                self.store.project
+                + "_"
+                + self.store.get_on_demand_feature_view(
+                    "python_stored_writes_feature_view_explode_singleton"
+                ).name
+            )
+            _conn = sqlite3.connect(self.store.config.online_store.path)
+            sample = pd.read_sql(
+                f"""
+            select
+                entity_key,
+                feature_name,
+                value
+            from {_table_name}
+            """,
+                _conn,
+            )
+            print(f"sample from {_table_name}: {sample}")
+
+            # verifying we retrieve doc_1 chunk-2
+            filt = (sample["feature_name"] == "chunk_text") & (
+                sample["value"].astype(str).str.contains("how are")
+            )
+            assert (
+                sample[filt]["entity_key"].astype(str).str.contains("doc_1")
+                & sample[filt]["entity_key"].astype(str).str.contains("chunk-2")
+            ).values[0]
+
             print("reading fv features")
             online_python_response = self.store.get_online_features(
                 entity_rows=fv_entity_rows_to_read,
