@@ -1935,7 +1935,7 @@ class FeatureStore:
 
         (
             available_feature_views,
-            _,
+            available_odfv_views,
         ) = utils._get_feature_views_to_use(
             registry=self._registry,
             project=self.project,
@@ -1944,15 +1944,23 @@ class FeatureStore:
             hide_dummy_entity=False,
         )
         feature_view_set = set()
+        print(
+            f"available feature view {available_feature_views} {available_odfv_views}"
+        )
         for feature in features:
             feature_view_name = feature.split(":")[0]
-            feature_view = self.get_feature_view(feature_view_name)
+            if feature_view_name in [fv.name for fv in available_odfv_views]:
+                feature_view = self.get_on_demand_feature_view(feature_view_name)
+            else:
+                feature_view = self.get_feature_view(feature_view_name)
             feature_view_set.add(feature_view.name)
         if len(feature_view_set) > 1:
             raise ValueError("Document retrieval only supports a single feature view.")
         requested_features = [
             f.split(":")[1] for f in features if isinstance(f, str) and ":" in f
         ]
+        if len(available_feature_views) == 0:
+            available_feature_views.extend(available_odfv_views)
 
         requested_feature_view = available_feature_views[0]
         if not requested_feature_view:

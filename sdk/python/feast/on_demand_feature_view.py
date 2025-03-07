@@ -647,8 +647,18 @@ class OnDemandFeatureView(BaseFeatureView):
         if self.features:
             missing_features = []
             for specified_feature in self.features:
-                if specified_feature not in inferred_features:
+                if (
+                    specified_feature not in inferred_features
+                    and "Array" not in specified_feature.dtype.__str__()
+                ):
                     missing_features.append(specified_feature)
+                elif "Array" in specified_feature.dtype.__str__():
+                    if specified_feature.name not in [
+                        f.name for f in inferred_features
+                    ]:
+                        missing_features.append(specified_feature)
+                else:
+                    pass
             if missing_features:
                 raise SpecifiedFeaturesNotPresentError(
                     missing_features, inferred_features, self.name

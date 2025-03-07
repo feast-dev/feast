@@ -1066,7 +1066,9 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
                     provider="local",
                     entity_key_serialization_version=3,
                     online_store=SqliteOnlineStoreConfig(
-                        path=os.path.join(data_dir, "online.db")
+                        path=os.path.join(data_dir, "online.db"),
+                        vector_enabled=True,
+                        vector_len=5,
                     ),
                 )
             )
@@ -1112,11 +1114,15 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
                     Field(name="document_id", dtype=String),
                     Field(name="chunk_id", dtype=String),
                     Field(name="chunk_text", dtype=String),
+                    Field(
+                        name="vector",
+                        dtype=Array(Float32),
+                        vector_index=True,
+                        vector_search_metric="L2",
+                    ),
                 ],
                 mode="python",
-                # singleton=True,
                 write_to_online_store=True,
-                # explode=True,
             )
             def python_stored_writes_feature_view_explode_singleton(
                 inputs: dict[str, Any],
@@ -1129,6 +1135,12 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
                         "how are you?",
                         "This is a test.",
                         "Document chunking example.",
+                    ],
+                    "vector": [
+                        [0.1] * 5,
+                        [0.2] * 5,
+                        [0.3] * 5,
+                        [0.4] * 5,
                     ],
                 }
                 return output
@@ -1192,9 +1204,11 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
             fv_entity_rows_to_read = [
                 {
                     "document_id": "doc_1",
+                    "chunk_id": "chunk-2",
                 },
                 {
                     "document_id": "doc_2",
+                    "chunk_id": "chunk-1",
                 },
             ]
 
@@ -1220,11 +1234,13 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
             """,
                 _conn,
             )
-            print(f"sample from {_table_name}: {sample}")
+            print(f"\nsample from {_table_name}:\n{sample}")
 
             # verifying we retrieve doc_1 chunk-2
             filt = (sample["feature_name"] == "chunk_text") & (
-                sample["value"].astype(str).str.contains("how are")
+                sample["value"]
+                .apply(lambda x: x.decode("latin1"))
+                .str.contains("how are")
             )
             assert (
                 sample[filt]["entity_key"].astype(str).str.contains("doc_1")
@@ -1247,3 +1263,21 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
                     "document_id",
                 ]
             )
+            assert online_python_response == {
+                "document_id": ["doc_1", "doc_2"],
+                "chunk_id": ["chunk-2", "chunk-1"],
+                "chunk_text": ["how are you?", "This is a test."],
+            }
+
+            query_embedding = [0.05] * 5
+            online_python_vec_response = self.store.retrieve_online_documents_v2(
+                features=[
+                    "python_stored_writes_feature_view_explode_singleton:document_id",
+                    "python_stored_writes_feature_view_explode_singleton:chunk_id",
+                    "python_stored_writes_feature_view_explode_singleton:chunk_text",
+                ],
+                query=query_embedding,
+                top_k=2,
+            ).to_dict()
+
+            assert online_python_vec_response is not None
