@@ -11,8 +11,8 @@ from tests.integration.feature_repos.universal.online_store_creator import (
 class EGCassandraOnlineStoreCreator(OnlineStoreCreator):
     def __init__(self, project_name: str, **kwargs):
         super().__init__(project_name)
-        with CassandraContainer("cassandra:4.1.4") as milvus_container:
-            self.container = milvus_container
+        with CassandraContainer("cassandra:4.1.4") as cassandra_container:
+            self.container = cassandra_container
 
     def create_online_store(self) -> Dict[str, str]:
         self.container.start()
