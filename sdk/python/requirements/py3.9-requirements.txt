@@ -10,7 +10,7 @@ attrs==25.1.0
     # via
     #   jsonschema
     #   referencing
-bigtree==0.25.0
+bigtree==0.25.1
     # via feast (setup.py)
 certifi==2025.1.31
     # via requests
@@ -35,7 +35,7 @@ dill==0.3.9
     # via feast (setup.py)
 exceptiongroup==1.2.2
     # via anyio
-fastapi==0.115.8
+fastapi==0.115.11
     # via feast (setup.py)
 fsspec==2025.2.0
     # via dask
@@ -57,7 +57,7 @@ importlib-metadata==8.6.1
     # via
     #   dask
     #   typeguard
-jinja2==3.1.5
+jinja2==3.1.6
     # via feast (setup.py)
 jsonschema==4.23.0
     # via feast (setup.py)
@@ -91,7 +91,7 @@ partd==1.4.2
     # via dask
 prometheus-client==0.21.1
     # via feast (setup.py)
-protobuf==5.29.3
+protobuf==6.30.0
     # via feast (setup.py)
 psutil==7.0.0
     # via feast (setup.py)
@@ -136,7 +136,7 @@ sniffio==1.3.1
     # via anyio
 sqlalchemy[mypy]==2.0.38
     # via feast (setup.py)
-starlette==0.45.3
+starlette==0.46.0
     # via fastapi
 tabulate==0.9.0
     # via feast (setup.py)
@@ -180,7 +180,7 @@ uvloop==0.21.0
     # via uvicorn
 watchfiles==1.0.4
     # via uvicorn
-websockets==15.0
+websockets==15.0.1
     # via uvicorn
 zipp==3.21.0
     # via importlib-metadata
