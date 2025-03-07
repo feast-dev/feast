@@ -577,73 +577,74 @@ def _augment_response_with_on_demand_transforms(
     odfv_result_names = set()
     for odfv_name, _feature_refs in odfv_feature_refs.items():
         odfv = requested_odfv_map[odfv_name]
-        if odfv.mode == "python":
-            if initial_response_dict is None:
-                initial_response_dict = initial_response.to_dict()
-            transformed_features_dict: Dict[str, List[Any]] = odfv.transform_dict(
-                initial_response_dict
-            )
-        elif odfv.mode in {"pandas", "substrait"}:
-            if initial_response_arrow is None:
-                initial_response_arrow = initial_response.to_arrow()
-            transformed_features_arrow = odfv.transform_arrow(
-                initial_response_arrow, full_feature_names
-            )
-        else:
-            raise Exception(
-                f"Invalid OnDemandFeatureMode: {odfv.mode}. Expected one of 'pandas', 'python', or 'substrait'."
-            )
+        if not odfv.write_to_online_store:
+            if odfv.mode == "python":
+                if initial_response_dict is None:
+                    initial_response_dict = initial_response.to_dict()
+                transformed_features_dict: Dict[str, List[Any]] = odfv.transform_dict(
+                    initial_response_dict
+                )
+            elif odfv.mode in {"pandas", "substrait"}:
+                if initial_response_arrow is None:
+                    initial_response_arrow = initial_response.to_arrow()
+                transformed_features_arrow = odfv.transform_arrow(
+                    initial_response_arrow, full_feature_names
+                )
+            else:
+                raise Exception(
+                    f"Invalid OnDemandFeatureMode: {odfv.mode}. Expected one of 'pandas', 'python', or 'substrait'."
+                )
 
-        transformed_features = (
-            transformed_features_dict
-            if odfv.mode == "python"
-            else transformed_features_arrow
-        )
-        transformed_columns = (
-            transformed_features.column_names
-            if isinstance(transformed_features, pyarrow.Table)
-            else transformed_features
-        )
-        selected_subset = [f for f in transformed_columns if f in _feature_refs]
+            transformed_features = (
+                transformed_features_dict
+                if odfv.mode == "python"
+                else transformed_features_arrow
+            )
+            transformed_columns = (
+                transformed_features.column_names
+                if isinstance(transformed_features, pyarrow.Table)
+                else transformed_features
+            )
+            selected_subset = [f for f in transformed_columns if f in _feature_refs]
 
-        proto_values = []
-        schema_dict = {k.name: k.dtype for k in odfv.schema}
-        for selected_feature in selected_subset:
-            feature_vector = transformed_features[selected_feature]
-            selected_feature_type = schema_dict.get(selected_feature, None)
-            feature_type: ValueType = ValueType.UNKNOWN
-            if selected_feature_type is not None:
-                if isinstance(
-                    selected_feature_type, (ComplexFeastType, PrimitiveFeastType)
-                ):
-                    feature_type = selected_feature_type.to_value_type()
-                elif not isinstance(selected_feature_type, ValueType):
-                    raise TypeError(
-                        f"Unexpected type for feature_type: {type(feature_type)}"
+            proto_values = []
+            schema_dict = {k.name: k.dtype for k in odfv.schema}
+            for selected_feature in selected_subset:
+                feature_vector = transformed_features[selected_feature]
+                selected_feature_type = schema_dict.get(selected_feature, None)
+                feature_type: ValueType = ValueType.UNKNOWN
+                if selected_feature_type is not None:
+                    if isinstance(
+                        selected_feature_type, (ComplexFeastType, PrimitiveFeastType)
+                    ):
+                        feature_type = selected_feature_type.to_value_type()
+                    elif not isinstance(selected_feature_type, ValueType):
+                        raise TypeError(
+                            f"Unexpected type for feature_type: {type(feature_type)}"
+                        )
+
+                proto_values.append(
+                    python_values_to_proto_values(
+                        feature_vector
+                        if isinstance(feature_vector, list)
+                        else [feature_vector]
+                        if odfv.mode == "python"
+                        else feature_vector.to_numpy(),
+                        feature_type,
                     )
-
-            proto_values.append(
-                python_values_to_proto_values(
-                    feature_vector
-                    if isinstance(feature_vector, list)
-                    else [feature_vector]
-                    if odfv.mode == "python"
-                    else feature_vector.to_numpy(),
-                    feature_type,
                 )
-            )
 
-        odfv_result_names |= set(selected_subset)
+            odfv_result_names |= set(selected_subset)
 
-        online_features_response.metadata.feature_names.val.extend(selected_subset)
-        for feature_idx in range(len(selected_subset)):
-            online_features_response.results.append(
-                GetOnlineFeaturesResponse.FeatureVector(
-                    values=proto_values[feature_idx],
-                    statuses=[FieldStatus.PRESENT] * len(proto_values[feature_idx]),
-                    event_timestamps=[Timestamp()] * len(proto_values[feature_idx]),
+            online_features_response.metadata.feature_names.val.extend(selected_subset)
+            for feature_idx in range(len(selected_subset)):
+                online_features_response.results.append(
+                    GetOnlineFeaturesResponse.FeatureVector(
+                        values=proto_values[feature_idx],
+                        statuses=[FieldStatus.PRESENT] * len(proto_values[feature_idx]),
+                        event_timestamps=[Timestamp()] * len(proto_values[feature_idx]),
+                    )
                 )
-            )
 
 
 def _get_entity_maps(
@@ -841,6 +842,7 @@ def get_needed_request_data(
     needed_request_data: Set[str] = set()
     for odfv, _ in grouped_odfv_refs:
         odfv_request_data_schema = odfv.get_request_data_schema()
+        # if odfv.write_to_online_store, we should not pass in the request data
         needed_request_data.update(odfv_request_data_schema.keys())
     return needed_request_data
 
