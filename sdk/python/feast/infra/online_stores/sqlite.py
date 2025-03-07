@@ -176,6 +176,14 @@ class SqliteOnlineStore(OnlineStore):
                             )  # type: ignore
                         else:
                             val_bin = feast_value_type_to_python_type(val)
+                        print(
+                            f"entity_key_bin = {entity_key_bin} (type: {type(entity_key_bin)})\n"
+                            f"feature_name = {feature_name} (type: {type(feature_name)})\n"
+                            f"value = {val.SerializeToString()} (type: {type(val.SerializeToString())})\n"
+                            f"val_bin = {val_bin} (type: {type(val_bin)})\n"
+                            f"timestamp = {timestamp} (type: {type(timestamp)})\n"
+                            f"created_ts = {created_ts} (type: {type(created_ts)})\n"
+                        )
                         conn.execute(
                             f"""
                             INSERT INTO {table_name} (entity_key, feature_name, value, vector_value, event_ts, created_ts)

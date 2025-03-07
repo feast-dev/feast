@@ -854,10 +854,10 @@ def test_sqlite_hybrid_search() -> None:
     res_df["title"].tolist() == ["Guardians of the Galaxy", "Sing", "Suicide Squad"]
 
 
-@pytest.mark.skipif(
-    sys.version_info[0:2] != (3, 10),
-    reason="Only works on Python 3.10",
-)
+# @pytest.mark.skipif(
+#     sys.version_info[0:2] != (3, 10),
+#     reason="Only works on Python 3.10",
+# )
 def test_sqlite_get_online_documents_v2() -> None:
     """Test retrieving documents using v2 method with vector similarity search."""
     n = 10
