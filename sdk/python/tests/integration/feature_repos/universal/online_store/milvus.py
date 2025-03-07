@@ -13,7 +13,7 @@ class MilvusOnlineStoreCreator(OnlineStoreCreator):
     def __init__(self, project_name: str, **kwargs):
         super().__init__(project_name)
         self.fixed_port = 19530
-        self.container = DockerContainer("milvusdb/milvus:v2.4.4").with_exposed_ports(
+        self.container = DockerContainer("milvusdb/milvus:v2.4.9").with_exposed_ports(
             self.fixed_port
         )
         self.client = docker.from_env()
