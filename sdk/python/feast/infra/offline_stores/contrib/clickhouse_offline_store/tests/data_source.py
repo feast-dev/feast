@@ -70,7 +70,7 @@ class ClickhouseDataSourceCreator(DataSourceCreator):
             )
 
         self.offline_store_config = ClickhouseOfflineStoreConfig(
-            type="feast.infra.offline_stores.contrib.clickhouse_offline_store.clickhouse.ClickhouseOfflineStore",
+            type="clickhouse",
             host="localhost",
             port=self.container.get_exposed_port(8123),
             database=CLICKHOUSE_OFFLINE_DB,
