@@ -34,9 +34,7 @@ from feast.saved_dataset import SavedDatasetStorage
 
 
 class ClickhouseOfflineStoreConfig(ClickhouseConfig):
-    type: Literal[
-        "clickhouse"
-    ] = "clickhouse"
+    type: Literal["clickhouse"] = "clickhouse"
 
 
 class ClickhouseOfflineStore(OfflineStore):

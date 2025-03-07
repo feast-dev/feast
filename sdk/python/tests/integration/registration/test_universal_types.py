@@ -340,10 +340,13 @@ def offline_types_test_fixtures(request, environment):
     config: TypeTestConfig = request.param
     if environment.provider == "aws" and config.feature_is_list is True:
         pytest.skip("Redshift doesn't support list features")
-    if (environment.data_source_creator.__class__.__name__ == "ClickhouseDataSourceCreator"
-            and config.feature_dtype in {"float", "datetime", "bool"}
-            and config.feature_is_list
-            and not config.has_empty_list):
+    if (
+        environment.data_source_creator.__class__.__name__
+        == "ClickhouseDataSourceCreator"
+        and config.feature_dtype in {"float", "datetime", "bool"}
+        and config.feature_is_list
+        and not config.has_empty_list
+    ):
         pytest.skip("Clickhouse doesn't support Nullable(Array) type features")
 
     return get_fixtures(request, environment)
