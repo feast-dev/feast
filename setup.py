@@ -168,6 +168,8 @@ TORCH_REQUIRED = [
     "torchvision>=0.17.2",
 ]
 
+CLICKHOUSE_REQUIRED = ["clickhouse-connect>=0.7.19"]
+
 CI_REQUIRED = (
     [
         "build",
@@ -241,6 +243,7 @@ CI_REQUIRED = (
     + MILVUS_REQUIRED
     + DOCLING_REQUIRED
     + TORCH_REQUIRED
+    + CLICKHOUSE_REQUIRED
 )
 NLP_REQUIRED = (
     DOCLING_REQUIRED
@@ -323,6 +326,7 @@ setup(
         "docling": DOCLING_REQUIRED,
         "pytorch": TORCH_REQUIRED,
         "nlp": NLP_REQUIRED,
+        "clickhouse": CLICKHOUSE_REQUIRED,
     },
     include_package_data=True,
     license="Apache",
