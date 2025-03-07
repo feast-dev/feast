@@ -184,6 +184,7 @@ class OnlineStore(ABC):
             full_feature_names=full_feature_names,
             native_entity_values=True,
         )
+        # print(f"\nfeature refs = {feature_refs}")
 
         for table, requested_features in grouped_refs:
             # Get the correct set of entity values with the correct join keys.
@@ -194,6 +195,7 @@ class OnlineStore(ABC):
             )
 
             entity_key_protos = utils._get_entity_key_protos(table_entity_values)
+            print(f"entity key protos {entity_key_protos}")
 
             # Fetch data for Entities.
             read_rows = self.online_read(
