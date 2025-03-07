@@ -98,6 +98,7 @@ cassandra-driver==3.29.2
     # via feast (setup.py)
 certifi==2025.1.31
     # via
+    #   clickhouse-connect
     #   docling
     #   elastic-transport
     #   httpcore
@@ -128,6 +129,8 @@ click==8.1.8
     #   pip-tools
     #   typer
     #   uvicorn
+clickhouse-connect==0.8.15
+    # via feast (setup.py)
 cloudpickle==3.1.1
     # via dask
 colorama==0.4.6
@@ -306,7 +309,7 @@ google-resumable-media==2.7.2
     # via
     #   google-cloud-bigquery
     #   google-cloud-storage
-googleapis-common-protos[grpc]==1.69.0
+googleapis-common-protos[grpc]==1.69.1
     # via
     #   feast (setup.py)
     #   google-api-core
@@ -524,7 +527,9 @@ lxml==5.3.1
     #   python-docx
     #   python-pptx
 lz4==4.4.3
-    # via trino
+    # via
+    #   clickhouse-connect
+    #   trino
 makefun==1.15.6
     # via great-expectations
 markdown-it-py==3.0.0
@@ -920,7 +925,7 @@ python-dotenv==1.0.1
     #   environs
     #   pydantic-settings
     #   uvicorn
-python-json-logger==3.2.1
+python-json-logger==3.3.0
     # via jupyter-events
 python-keycloak==4.2.2
     # via feast (setup.py)
@@ -928,6 +933,7 @@ python-pptx==1.0.2
     # via docling
 pytz==2025.1
     # via
+    #   clickhouse-connect
     #   great-expectations
     #   ibis-framework
     #   pandas
@@ -1211,7 +1217,7 @@ typer==0.12.5
     # via
     #   docling
     #   docling-core
-types-cffi==1.16.0.20241221
+types-cffi==1.16.0.20250307
     # via types-pyopenssl
 types-protobuf==3.19.22
     # via
@@ -1294,6 +1300,7 @@ urllib3==1.26.20
     # via
     #   feast (setup.py)
     #   botocore
+    #   clickhouse-connect
     #   docker
     #   elastic-transport
     #   great-expectations
@@ -1353,4 +1360,6 @@ yarl==1.18.3
 zipp==3.21.0
     # via importlib-metadata
 zstandard==0.23.0
-    # via trino
+    # via
+    #   clickhouse-connect
+    #   trino

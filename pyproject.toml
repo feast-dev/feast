@@ -151,7 +151,7 @@ ci = [
     "types-setuptools",
     "types-tabulate",
     "virtualenv<20.24.2",
-    "feast[aws, azure, cassandra, couchbase, delta, docling, duckdb, elasticsearch, faiss, gcp, ge, go, grpcio, hazelcast, hbase, ibis, ikv, k8s, milvus, mssql, mysql, opentelemetry, spark, trino, postgres, pytorch, qdrant, redis, singlestore, snowflake, sqlite_vec]"
+    "feast[aws, azure, cassandra, clickhouse, couchbase, delta, docling, duckdb, elasticsearch, faiss, gcp, ge, go, grpcio, hazelcast, hbase, ibis, ikv, k8s, milvus, mssql, mysql, opentelemetry, spark, trino, postgres, pytorch, qdrant, redis, singlestore, snowflake, sqlite_vec]"
 ]
 nlp = ["feast[docling, milvus, pytorch]"]
 dev = ["feast[ci]"]
