@@ -18,7 +18,7 @@ This guide explains how to deploy Feast remote server components using Podman Co
 
 ### 2. **Run the Podman Compose File**
 
-- Use the [docker-compose.yml](docker-compose.yml) file to install and run the Feast feature servers (online, offline, and registry) on podman. The docker-compose file uses the `feastdev/feature-server:latest` image. Each respective service has specific port mappings and maps the volume from the  `./feature_repo` configuration.
+- Use the [docker-compose.yml](docker-compose.yml) file to install and run the Feast feature servers (online, offline, and registry) on podman. The docker-compose file uses the `quay.io/feastdev/feature-server:latest` image. Each respective service has specific port mappings and maps the volume from the  `./feature_repo` configuration.
 - To start the feature servers, run the following command:
 
   ```bash
@@ -39,9 +39,9 @@ This guide explains how to deploy Feast remote server components using Podman Co
 
   ```
   CONTAINER ID  IMAGE                                     COMMAND               CREATED        STATUS        PORTS                   NAMES
-  61442d6d6ef3  docker.io/feastdev/feature-server:latest  feast -c /feature...  2 minutes ago  Up 2 minutes  0.0.0.0:6566->6566/tcp  online-feature-server
-  1274c21716a6  docker.io/feastdev/feature-server:latest  feast -c /feature...  2 minutes ago  Up 2 minutes  0.0.0.0:8815->8815/tcp  offline-feature-server
-  4e38ca8c39db  docker.io/feastdev/feature-server:latest  feast -c /feature...  2 minutes ago  Up 2 minutes  0.0.0.0:6570->6570/tcp  registry-feature-server
+  61442d6d6ef3  quay.io/feastdev/feature-server:latest  feast -c /feature...  2 minutes ago  Up 2 minutes  0.0.0.0:6566->6566/tcp  online-feature-server
+  1274c21716a6  quay.io/feastdev/feature-server:latest  feast -c /feature...  2 minutes ago  Up 2 minutes  0.0.0.0:8815->8815/tcp  offline-feature-server
+  4e38ca8c39db  quay.io/feastdev/feature-server:latest  feast -c /feature...  2 minutes ago  Up 2 minutes  0.0.0.0:6570->6570/tcp  registry-feature-server
   ```
 
 - Alternatively, you can verify the running containers through **Podman Desktop**:
