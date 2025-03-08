@@ -1283,3 +1283,9 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
             ).to_dict()
 
             assert online_python_vec_response is not None
+            assert online_python_vec_response == {
+                "document_id": ["doc_1", "doc_1"],
+                "chunk_id": ["chunk-1", "chunk-2"],
+                "chunk_text": ["hello friends", "how are you?"],
+                "distance": [0.11180340498685837, 0.3354102075099945],
+            }
