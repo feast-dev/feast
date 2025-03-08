@@ -195,7 +195,6 @@ class OnlineStore(ABC):
             )
 
             entity_key_protos = utils._get_entity_key_protos(table_entity_values)
-            print(f"entity key protos {entity_key_protos}")
 
             # Fetch data for Entities.
             read_rows = self.online_read(

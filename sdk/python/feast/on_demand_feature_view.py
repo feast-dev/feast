@@ -339,7 +339,6 @@ class OnDemandFeatureView(BaseFeatureView):
             write_to_online_store=self.write_to_online_store,
             singleton=self.singleton if self.singleton else False,
         )
-
         return OnDemandFeatureViewProto(spec=spec, meta=meta)
 
     @classmethod
@@ -454,6 +453,8 @@ class OnDemandFeatureView(BaseFeatureView):
                 Field(
                     name=feature.name,
                     dtype=from_value_type(ValueType(feature.value_type)),
+                    vector_index=feature.vector_index,
+                    vector_search_metric=feature.vector_search_metric,
                 )
                 for feature in on_demand_feature_view_proto.spec.features
             ],

@@ -1174,6 +1174,8 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
                 "python_stored_writes_feature_view_explode_singleton"
             )
 
+            assert odfv_applied.features[1].vector_index
+
             assert odfv_applied.entities == [chunk.name, document.name]
 
             # Note here that after apply() is called, the entity_columns are populated with the join_key

@@ -1944,9 +1944,6 @@ class FeatureStore:
             hide_dummy_entity=False,
         )
         feature_view_set = set()
-        print(
-            f"available feature view {available_feature_views} {available_odfv_views}"
-        )
         for feature in features:
             feature_view_name = feature.split(":")[0]
             if feature_view_name in [fv.name for fv in available_odfv_views]:
