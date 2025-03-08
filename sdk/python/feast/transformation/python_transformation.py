@@ -1,5 +1,5 @@
 from types import FunctionType
-from typing import Any
+from typing import Any, Optional
 
 import dill
 import pyarrow
@@ -45,7 +45,9 @@ class PythonTransformation:
         output_dict = self.udf.__call__(input_dict)
         return {**input_dict, **output_dict}
 
-    def infer_features(self, random_input: dict[str, Any]) -> list[Field]:
+    def infer_features(
+        self, random_input: dict[str, Any], singleton: Optional[bool] = False
+    ) -> list[Field]:
         output_dict: dict[str, Any] = self.transform(random_input)
 
         fields = []
@@ -58,6 +60,10 @@ class PythonTransformation:
                     )
                 inferred_type = type(feature_value[0])
                 inferred_value = feature_value[0]
+                if singleton:
+                    inferred_value = feature_value
+                    inferred_type = None  # type: ignore
+
             else:
                 inferred_type = type(feature_value)
                 inferred_value = feature_value
@@ -69,7 +75,7 @@ class PythonTransformation:
                         python_type_to_feast_value_type(
                             feature_name,
                             value=inferred_value,
-                            type_name=inferred_type.__name__,
+                            type_name=inferred_type.__name__ if inferred_type else None,
                         )
                     ),
                 )

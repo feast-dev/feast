@@ -854,10 +854,10 @@ def test_sqlite_hybrid_search() -> None:
     res_df["title"].tolist() == ["Guardians of the Galaxy", "Sing", "Suicide Squad"]
 
 
-@pytest.mark.skipif(
-    sys.version_info[0:2] != (3, 10),
-    reason="Only works on Python 3.10",
-)
+# @pytest.mark.skipif(
+#     sys.version_info[0:2] != (3, 10),
+#     reason="Only works on Python 3.10",
+# )
 def test_sqlite_get_online_documents_v2() -> None:
     """Test retrieving documents using v2 method with vector similarity search."""
     n = 10
@@ -1000,7 +1000,7 @@ def test_sqlite_get_online_documents_v2_search() -> None:
         assert result["distance"] == [-1.8458267450332642, -1.8458267450332642]
 
 
-@pytest.mark.skip(reason="Skipping this test as CI struggles with it")
+# @pytest.mark.skip(reason="Skipping this test as CI struggles with it")
 def test_local_milvus() -> None:
     import random
 

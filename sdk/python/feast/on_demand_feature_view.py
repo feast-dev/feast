@@ -339,7 +339,6 @@ class OnDemandFeatureView(BaseFeatureView):
             write_to_online_store=self.write_to_online_store,
             singleton=self.singleton if self.singleton else False,
         )
-
         return OnDemandFeatureViewProto(spec=spec, meta=meta)
 
     @classmethod
@@ -454,6 +453,8 @@ class OnDemandFeatureView(BaseFeatureView):
                 Field(
                     name=feature.name,
                     dtype=from_value_type(ValueType(feature.value_type)),
+                    vector_index=feature.vector_index,
+                    vector_search_metric=feature.vector_search_metric,
                 )
                 for feature in on_demand_feature_view_proto.spec.features
             ],
@@ -640,13 +641,25 @@ class OnDemandFeatureView(BaseFeatureView):
 
     def infer_features(self) -> None:
         random_input = self._construct_random_input(singleton=self.singleton)
-        inferred_features = self.feature_transformation.infer_features(random_input)
+        inferred_features = self.feature_transformation.infer_features(
+            random_input=random_input, singleton=self.singleton
+        )
 
         if self.features:
             missing_features = []
             for specified_feature in self.features:
-                if specified_feature not in inferred_features:
+                if (
+                    specified_feature not in inferred_features
+                    and "Array" not in specified_feature.dtype.__str__()
+                ):
                     missing_features.append(specified_feature)
+                elif "Array" in specified_feature.dtype.__str__():
+                    if specified_feature.name not in [
+                        f.name for f in inferred_features
+                    ]:
+                        missing_features.append(specified_feature)
+                else:
+                    pass
             if missing_features:
                 raise SpecifiedFeaturesNotPresentError(
                     missing_features, inferred_features, self.name
@@ -738,6 +751,7 @@ def on_demand_feature_view(
     owner: str = "",
     write_to_online_store: bool = False,
     singleton: bool = False,
+    explode: bool = False,
 ):
     """
     Creates an OnDemandFeatureView object with the given user function as udf.
@@ -759,6 +773,7 @@ def on_demand_feature_view(
             the online store for faster retrieval.
         singleton (optional): A boolean that indicates whether the transformation is executed on a singleton
             (only applicable when mode="python").
+        explode (optional): A boolean that indicates whether the transformation explodes the input data into multiple rows.
     """
 
     def mainify(obj) -> None:
@@ -778,10 +793,6 @@ def on_demand_feature_view(
                 )
             transformation = PandasTransformation(user_function, udf_string)
         elif mode == "python":
-            if return_annotation not in (inspect._empty, dict[str, Any]):
-                raise TypeError(
-                    f"return signature for {user_function} is {return_annotation} but should be dict[str, Any]"
-                )
             transformation = PythonTransformation(user_function, udf_string)
         elif mode == "substrait":
             from ibis.expr.types.relations import Table

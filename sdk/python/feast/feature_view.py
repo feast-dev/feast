@@ -348,12 +348,11 @@ class FeatureView(BaseFeatureView):
         if self.stream_source:
             stream_source_proto = self.stream_source.to_proto()
             stream_source_proto.data_source_class_type = f"{self.stream_source.__class__.__module__}.{self.stream_source.__class__.__name__}"
-
         spec = FeatureViewSpecProto(
             name=self.name,
             entities=self.entities,
             entity_columns=[field.to_proto() for field in self.entity_columns],
-            features=[field.to_proto() for field in self.features],
+            features=[feature.to_proto() for feature in self.features],
             description=self.description,
             tags=self.tags,
             owner=self.owner,
