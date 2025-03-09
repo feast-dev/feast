@@ -63,6 +63,9 @@ class Transformation(ABC):
     def transform(self, inputs: Any) -> Any:
         raise NotImplementedError
 
+    def transform_arrow(self, inputs: Any) -> Any:
+        raise NotImplementedError
+
 
 def transformation(
     mode: Union[TransformationMode, str],
