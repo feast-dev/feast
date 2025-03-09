@@ -195,9 +195,11 @@ class OnDemandFeatureView(BaseFeatureView):
         if self.singleton and self.mode != "python":
             raise ValueError("Singleton is only supported for Python mode.")
 
-    def get_feature_transformation(self) -> Optional[Transformation]:
-        if not self.udf:
-            return None
+    def get_feature_transformation(self) -> Transformation:
+        if not self.udf or not self.feature_transformation:
+            raise ValueError(
+                "Either udf or feature_transformation must be provided to create an OnDemandFeatureView"
+            )
         return_annotation = get_type_hints(self.udf).get("return", inspect._empty)
         if self.mode in (
             TransformationMode.PANDAS,
