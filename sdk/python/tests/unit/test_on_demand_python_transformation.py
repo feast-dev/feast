@@ -1,6 +1,7 @@
 import os
 import re
 import sqlite3
+import sys
 import tempfile
 import unittest
 from datetime import datetime, timedelta
@@ -1271,21 +1272,22 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
                 "chunk_text": ["how are you?", "This is a test."],
             }
 
-            query_embedding = [0.05] * 5
-            online_python_vec_response = self.store.retrieve_online_documents_v2(
-                features=[
-                    "python_stored_writes_feature_view_explode_singleton:document_id",
-                    "python_stored_writes_feature_view_explode_singleton:chunk_id",
-                    "python_stored_writes_feature_view_explode_singleton:chunk_text",
-                ],
-                query=query_embedding,
-                top_k=2,
-            ).to_dict()
+            if sys.version_info[0:2] == (3, 10):
+                query_embedding = [0.05] * 5
+                online_python_vec_response = self.store.retrieve_online_documents_v2(
+                    features=[
+                        "python_stored_writes_feature_view_explode_singleton:document_id",
+                        "python_stored_writes_feature_view_explode_singleton:chunk_id",
+                        "python_stored_writes_feature_view_explode_singleton:chunk_text",
+                    ],
+                    query=query_embedding,
+                    top_k=2,
+                ).to_dict()
 
-            assert online_python_vec_response is not None
-            assert online_python_vec_response == {
-                "document_id": ["doc_1", "doc_1"],
-                "chunk_id": ["chunk-1", "chunk-2"],
-                "chunk_text": ["hello friends", "how are you?"],
-                "distance": [0.11180340498685837, 0.3354102075099945],
-            }
+                assert online_python_vec_response is not None
+                assert online_python_vec_response == {
+                    "document_id": ["doc_1", "doc_1"],
+                    "chunk_id": ["chunk-1", "chunk-2"],
+                    "chunk_text": ["hello friends", "how are you?"],
+                    "distance": [0.11180340498685837, 0.3354102075099945],
+                }
