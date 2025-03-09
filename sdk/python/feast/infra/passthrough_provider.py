@@ -449,7 +449,7 @@ class PassthroughProvider(Provider):
     def get_historical_features(
         self,
         config: RepoConfig,
-        feature_views: List[FeatureView],
+        feature_views: List[Union[FeatureView, OnDemandFeatureView]],
         feature_refs: List[str],
         entity_df: Union[pd.DataFrame, str],
         registry: BaseRegistry,

@@ -373,7 +373,7 @@ def _convert_arrow_odfv_to_proto(
             updated_table = pyarrow.RecordBatch.from_arrays(
                 table.columns + [null_column],
                 schema=table.schema.append(
-                    pyarrow.field(feature.name, null_column.type)
+                    pyarrow.field(feature.name, null_column.type)  # type: ignore[attr-defined]
                 ),
             )
             proto_values_by_column[feature.name] = python_values_to_proto_values(
@@ -467,12 +467,15 @@ def _group_feature_refs(
     all_feature_views: List["FeatureView"],
     all_on_demand_feature_views: List["OnDemandFeatureView"],
 ) -> Tuple[
-    List[Tuple["FeatureView", List[str]]], List[Tuple["OnDemandFeatureView", List[str]]]
+    List[Tuple[Union["FeatureView", "OnDemandFeatureView"], List[str]]],
+    List[Tuple["OnDemandFeatureView", List[str]]],
 ]:
     """Get list of feature views and corresponding feature names based on feature references"""
 
     # view name to view proto
-    view_index = {view.projection.name_to_use(): view for view in all_feature_views}
+    view_index: Dict[str, Union["FeatureView", "OnDemandFeatureView"]] = {
+        view.projection.name_to_use(): view for view in all_feature_views
+    }
 
     # on demand view to on demand view proto
     on_demand_view_index: Dict[str, "OnDemandFeatureView"] = {}
@@ -517,7 +520,7 @@ def _group_feature_refs(
         else:
             raise FeatureViewNotFoundException(view_name)
 
-    fvs_result: List[Tuple["FeatureView", List[str]]] = []
+    fvs_result: List[Tuple[Union["FeatureView", "OnDemandFeatureView"], List[str]]] = []
     odfvs_result: List[Tuple["OnDemandFeatureView", List[str]]] = []
 
     for view_name, feature_names in views_features.items():
@@ -1148,7 +1151,7 @@ def _get_online_request_context(
     entityless_case = DUMMY_ENTITY_NAME in [
         entity_name
         for feature_view in feature_views
-        for entity_name in feature_view.entities
+        for entity_name in (feature_view.entities or [])
     ]
 
     return (
