@@ -38,7 +38,6 @@ def start_server(
         cors_origins: List of allowed CORS origins
     """
     app = FastAPI(title="Feast MCP Server")
-    
     # Configure CORS
     if cors_origins:
         app.add_middleware(
@@ -48,24 +47,19 @@ def start_server(
             allow_methods=["*"],
             allow_headers=["*"],
         )
-    
     # Create MCP server
     mcp_server = FeastMCP(
         feature_store=store,
         name=f"Feast MCP Server ({store.project})",
     )
-    
     # Mount MCP server
     app.mount("/mcp", mcp_server.app)
-    
     # Add health check endpoint
     @app.get("/health")
     def health_check():
         return {"status": "ok"}
-    
     # Start server
     _logger.info(f"Starting MCP server at {host}:{port}")
-    
     if tls_cert_path and tls_key_path:
         uvicorn.run(
             app,
