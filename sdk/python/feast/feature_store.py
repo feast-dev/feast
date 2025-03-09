@@ -2148,6 +2148,54 @@ class FeatureStore:
         from feast import transformation_server
 
         transformation_server.start_server(self, port)
+        
+    def serve_mcp(
+        self,
+        host: str,
+        port: int,
+        registry_ttl_sec: int = 5,
+        tls_cert_path: str = "",
+        tls_key_path: str = "",
+        enable_auth: bool = False,
+        enable_metrics: bool = False,
+        cors_origins: Optional[List[str]] = None,
+    ) -> None:
+        """Start the Model Context Protocol (MCP) server locally on a given port.
+        
+        The MCP server allows LLMs to interact with the feature store through
+        the Model Context Protocol.
+        
+        Args:
+            host: Host to bind to
+            port: Port to bind to
+            registry_ttl_sec: Time to live for registry cache in seconds
+            tls_cert_path: Path to TLS certificate file
+            tls_key_path: Path to TLS key file
+            enable_auth: Whether to enable authentication
+            enable_metrics: Whether to enable metrics
+            cors_origins: List of allowed CORS origins
+        """
+        if flags_helper.is_test():
+            warnings.warn(
+                "The Feast MCP server is an experimental feature. "
+                "We do not guarantee that future changes will maintain backward compatibility.",
+                RuntimeWarning,
+            )
+            
+        # Import locally to avoid circular imports
+        from feast.mcp_server import start_server
+        
+        start_server(
+            self,
+            host=host,
+            port=port,
+            registry_ttl_sec=registry_ttl_sec,
+            tls_cert_path=tls_cert_path,
+            tls_key_path=tls_key_path,
+            enable_auth=enable_auth,
+            enable_metrics=enable_metrics,
+            cors_origins=cors_origins,
+        )
 
     def write_logged_features(
         self, logs: Union[pa.Table, Path], source: FeatureService
