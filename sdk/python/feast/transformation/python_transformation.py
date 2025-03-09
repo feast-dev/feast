@@ -16,7 +16,7 @@ from feast.type_map import (
 
 
 class PythonTransformation(Transformation):
-    def __init__(self, udf: FunctionType, udf_string: str = "", *args, **kwargs):
+    def __init__(self, udf: FunctionType, *args, **kwargs):
         """
         Creates an PythonTransformation object.
         Args:

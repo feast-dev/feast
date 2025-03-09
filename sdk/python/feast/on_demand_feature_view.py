@@ -205,13 +205,13 @@ class OnDemandFeatureView(BaseFeatureView):
                 raise TypeError(
                     f"return signature for {self.udf} is {return_annotation} but should be pd.DataFrame"
                 )
-            return PandasTransformation(self.udf, self.udf_string)
+            return PandasTransformation(self.udf)
         elif self.mode == TransformationMode.PYTHON or self.mode == "python":
             if return_annotation not in (inspect._empty, dict[str, Any]):
                 raise TypeError(
                     f"return signature for {self.udf} is {return_annotation} but should be dict[str, Any]"
                 )
-            return PythonTransformation(self.udf, self.udf_string)
+            return PythonTransformation(self.udf)
         elif self.mode == TransformationMode.SUBSTRAIT or self.mode == "substrait":
             from ibis.expr.types.relations import Table
 
