@@ -1,12 +1,14 @@
 """MCP tools for Feast feature store."""
 
 from datetime import datetime
-import pandas as pd
 from typing import Any, Dict, List, Optional
 
+import pandas as pd
 from mcp.server.fastmcp import FastMCP
+
 from feast import FeatureStore
 from feast.data_source import PushMode
+
 
 def register_feature_tools(mcp: FastMCP, feature_store: FeatureStore):
     """Register Feast feature tools with the MCP server.

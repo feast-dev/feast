@@ -3,6 +3,7 @@
 import json
 
 from mcp.server.fastmcp import FastMCP
+
 from feast import FeatureStore
 
 

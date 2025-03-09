@@ -1,8 +1,8 @@
 """MCP prompts for Feast feature store."""
 
-import json
 
 from mcp.server.fastmcp import FastMCP
+
 from feast import FeatureStore
 
 

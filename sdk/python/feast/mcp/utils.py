@@ -1,8 +1,9 @@
 """Utility functions for Feast MCP integration."""
 
 import json
-import pandas as pd
 from typing import Any, Dict, List
+
+import pandas as pd
 
 
 def format_feature_view_info(feature_view) -> str:

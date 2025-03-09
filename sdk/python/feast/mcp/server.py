@@ -1,7 +1,9 @@
 """MCP server implementation for Feast feature store."""
 
 from mcp.server.fastmcp import FastMCP
+
 from feast import FeatureStore
+
 
 class FeastMCP(FastMCP):
     """MCP server implementation for Feast feature store.
