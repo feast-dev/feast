@@ -25,7 +25,6 @@ def test_serve_mcp():
     # Mock the start_server function
     with patch("feast.mcp_server.start_server") as mock_start_server:
         # Call serve_mcp
-        from feast.feature_store import FeatureStore
         original_serve_mcp = FeatureStore.serve_mcp
         
         try:
@@ -72,7 +71,6 @@ def test_serve_mcp_warning():
          patch("feast.mcp_server.start_server") as mock_start_server:
         
         # Call serve_mcp
-        from feast.feature_store import FeatureStore
         original_serve_mcp = FeatureStore.serve_mcp
         
         try:
