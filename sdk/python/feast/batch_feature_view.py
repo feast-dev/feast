@@ -2,7 +2,7 @@ import functools
 import warnings
 from datetime import datetime, timedelta
 from types import FunctionType
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 import dill
 from transformation.base import Transformation
@@ -51,6 +51,7 @@ class BatchFeatureView(FeatureView):
     """
 
     name: str
+    mode: Union[TransformationMode, str]
     entities: List[str]
     ttl: Optional[timedelta]
     source: DataSource
