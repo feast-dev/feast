@@ -140,9 +140,6 @@ class OnDemandFeatureView(BaseFeatureView):
         self.mode = mode.lower()
         self.udf = udf
         self.udf_string = udf_string
-        self.feature_transformation = (
-            feature_transformation or self.get_feature_transformation()
-        )
         self.source_feature_view_projections: dict[str, FeatureViewProjection] = {}
         self.source_request_sources: dict[str, RequestSource] = {}
         for odfv_source in sources:
@@ -190,7 +187,9 @@ class OnDemandFeatureView(BaseFeatureView):
                 features.append(field)
 
         self.features = features
-        self.feature_transformation = feature_transformation
+        self.feature_transformation = (
+            feature_transformation or self.get_feature_transformation()
+        )
         self.write_to_online_store = write_to_online_store
         self.singleton = singleton
         if self.singleton and self.mode != "python":
