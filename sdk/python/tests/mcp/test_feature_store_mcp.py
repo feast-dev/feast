@@ -21,12 +21,12 @@ def test_serve_mcp():
     # Create a mock feature store instance
     feature_store = MagicMock(spec=FeatureStore)
     feature_store.project = "test_project"
-    
+
     # Mock the start_server function
     with patch("feast.mcp_server.start_server") as mock_start_server:
         # Call serve_mcp
         original_serve_mcp = FeatureStore.serve_mcp
-        
+
         try:
             # Call the method directly on the instance
             original_serve_mcp(
@@ -40,11 +40,11 @@ def test_serve_mcp():
                 enable_metrics=True,
                 cors_origins=["http://localhost:3000"],
             )
-            
+
             # Check that start_server was called with the correct arguments
             mock_start_server.assert_called_once()
             args, kwargs = mock_start_server.call_args
-            
+
             assert args[0] == feature_store
             assert kwargs["host"] == "localhost"
             assert kwargs["port"] == 8080
@@ -64,15 +64,15 @@ def test_serve_mcp_warning():
     # Create a mock feature store
     feature_store = MagicMock(spec=FeatureStore)
     feature_store.project = "test_project"
-    
+
     # Mock the dependencies
     with patch("feast.feature_store.warnings.warn") as mock_warn, \
          patch("feast.feature_store.flags_helper.is_test", return_value=True), \
          patch("feast.mcp_server.start_server") as mock_start_server:
-        
+
         # Call serve_mcp
         original_serve_mcp = FeatureStore.serve_mcp
-        
+
         try:
             # Call the method directly on the instance
             original_serve_mcp(
@@ -80,12 +80,12 @@ def test_serve_mcp_warning():
                 host="localhost",
                 port=8080,
             )
-            
+
             # Check that a warning was shown
             mock_warn.assert_called_once()
             warning_message = mock_warn.call_args[0][0]
             assert "experimental feature" in warning_message
-            
+
             # Check that start_server was called
             mock_start_server.assert_called_once()
         finally:
