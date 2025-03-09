@@ -173,7 +173,7 @@ def test_stream_feature_view_udfs():
         import pandas as pd
 
         assert type(pandas_df) == pd.DataFrame
-        df = pandas_df.transform(lambda x: x + 10, axis=1)
+        df = pandas_df.transform(lambda x: x + 10)
         return df
 
     import pandas as pd

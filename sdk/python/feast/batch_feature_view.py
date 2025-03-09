@@ -1,5 +1,13 @@
+import functools
 import warnings
 from datetime import datetime, timedelta
+
+import dill
+from transformation.base import Transformation
+from transformation.mode import TransformationMode
+from transformation.pandas_transformation import PandasTransformation
+from transformation.python_transformation import PythonTransformation
+from types import FunctionType
 from typing import Dict, List, Optional, Tuple
 
 from feast import flags_helper
@@ -54,6 +62,9 @@ class BatchFeatureView(FeatureView):
     owner: str
     timestamp_field: str
     materialization_intervals: List[Tuple[datetime, datetime]]
+    udf: Optional[FunctionType]
+    udf_string: Optional[str]
+    feature_transformation: Optional[Transformation]
 
     def __init__(
         self,
@@ -67,6 +78,9 @@ class BatchFeatureView(FeatureView):
         description: str = "",
         owner: str = "",
         schema: Optional[List[Field]] = None,
+        udf: Optional[FunctionType] = None,
+        udf_string: Optional[str] = "",
+        feature_transformation: Optional[Transformation] = None,
     ):
         if not flags_helper.is_test():
             warnings.warn(
@@ -84,6 +98,10 @@ class BatchFeatureView(FeatureView):
                 f"or CUSTOM_SOURCE, got {type(source).__name__}: {source.name} instead "
             )
 
+        self.udf = udf
+        self.udf_string = udf_string
+        self.feature_transformation = feature_transformation or self.get_feature_transformation()
+
         super().__init__(
             name=name,
             entities=entities,
@@ -95,3 +113,70 @@ class BatchFeatureView(FeatureView):
             schema=schema,
             source=source,
         )
+
+    def get_feature_transformation(self) -> Optional[Transformation]:
+        if not self.udf:
+            return None
+        if self.mode == TransformationMode.pandas or self.mode == "pandas":
+            return PandasTransformation(self.udf, self.udf_string)
+        elif self.mode == TransformationMode.python or self.mode == "python":
+            return PythonTransformation(self.udf, self.udf_string)
+        elif self.mode == TransformationMode.sql or self.mode == "sql":
+            return SQLTransformation(self.udf, self.udf_string)
+        else:
+            raise ValueError(f"Unsupported transformation mode: {self.mode} for StreamFeatureView")
+
+
+def batch_feature_view(
+    *,
+    name: Optional[str] = None,
+    entities: Optional[List[str]] = None,
+    ttl: Optional[timedelta] = None,
+    source: Optional[DataSource] = None,
+    tags: Optional[Dict[str, str]] = None,
+    online: bool = True,
+    description: str = "",
+    owner: str = "",
+    schema: Optional[List[Field]] = None,
+):
+    """
+    Args:
+        name:
+        entities:
+        ttl:
+        source:
+        tags:
+        online:
+        description:
+        owner:
+        schema:
+
+    Returns:
+
+    """
+
+    def mainify(obj):
+        # Needed to allow dill to properly serialize the udf. Otherwise, clients will need to have a file with the same
+        # name as the original file defining the sfv.
+        if obj.__module__ != "__main__":
+            obj.__module__ = "__main__"
+
+    def decorator(user_function):
+        udf_string = dill.source.getsource(user_function)
+        mainify(user_function)
+        batch_feature_view_obj = BatchFeatureView(
+            name=name or user_function.__name__,
+            entities=entities,
+            ttl=ttl,
+            source=source,
+            tags=tags,
+            online=online,
+            description=description,
+            owner=owner,
+            schema=schema,
+            udf=user_function,
+            udf_string=udf_string,
+        )
+        functools.update_wrapper(wrapper=batch_feature_view_obj, wrapped=user_function)
+        return batch_feature_view_obj
+    return decorator

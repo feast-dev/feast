@@ -1,3 +1,5 @@
+from transformation.base import Transformation
+from transformation.mode import TransformationMode
 from types import FunctionType
 from typing import Any
 
@@ -13,8 +15,11 @@ from feast.type_map import (
 )
 
 
-class PythonTransformation:
-    def __init__(self, udf: FunctionType, udf_string: str = ""):
+class PythonTransformation(Transformation):
+    def __init__(self,
+                 udf: FunctionType,
+                 udf_string: str = "",
+                 *args, **kwargs):
         """
         Creates an PythonTransformation object.
         Args:
@@ -22,8 +27,7 @@ class PythonTransformation:
                 dataframes as inputs.
             udf_string: The source code version of the udf (for diffing and displaying in Web UI)
         """
-        self.udf = udf
-        self.udf_string = udf_string
+        super().__init__(mode=TransformationMode.PYTHON, udf=udf, *args, **kwargs)
 
     def transform_arrow(
         self,

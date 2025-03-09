@@ -2,6 +2,11 @@ import copy
 import functools
 import warnings
 from datetime import datetime, timedelta
+
+from transformation.base import Transformation
+from transformation.mode import TransformationMode
+from transformation.pandas_transformation import PandasTransformation
+from transformation.python_transformation import PythonTransformation
 from types import FunctionType
 from typing import Dict, List, Optional, Tuple, Type, Union
 
@@ -31,7 +36,6 @@ from feast.protos.feast.core.Transformation_pb2 import (
 from feast.protos.feast.core.Transformation_pb2 import (
     UserDefinedFunctionV2 as UserDefinedFunctionProtoV2,
 )
-from feast.transformation.pandas_transformation import PandasTransformation
 
 warnings.simplefilter("once", RuntimeWarning)
 
@@ -80,7 +84,7 @@ class StreamFeatureView(FeatureView):
     materialization_intervals: List[Tuple[datetime, datetime]]
     udf: Optional[FunctionType]
     udf_string: Optional[str]
-    feature_transformation: Optional[PandasTransformation]
+    feature_transformation: Optional[Transformation]
 
     def __init__(
         self,
@@ -95,11 +99,11 @@ class StreamFeatureView(FeatureView):
         owner: str = "",
         schema: Optional[List[Field]] = None,
         aggregations: Optional[List[Aggregation]] = None,
-        mode: Optional[str] = "spark",
+        mode: Optional[Union[str, TransformationMode]] = TransformationMode.spark,
         timestamp_field: Optional[str] = "",
         udf: Optional[FunctionType] = None,
         udf_string: Optional[str] = "",
-        feature_transformation: Optional[Union[PandasTransformation]] = None,
+        feature_transformation: Optional[Transformation] = None,
     ):
         if not flags_helper.is_test():
             warnings.warn(
@@ -127,7 +131,7 @@ class StreamFeatureView(FeatureView):
         self.timestamp_field = timestamp_field or ""
         self.udf = udf
         self.udf_string = udf_string
-        self.feature_transformation = feature_transformation
+        self.feature_transformation = feature_transformation or self.get_feature_transformation()
 
         super().__init__(
             name=name,
@@ -140,6 +144,16 @@ class StreamFeatureView(FeatureView):
             schema=schema,
             source=source,
         )
+
+    def get_feature_transformation(self) -> Optional[Transformation]:
+        if not self.udf:
+            return None
+        if self.mode == TransformationMode.PANDAS or self.mode == "pandas":
+            return PandasTransformation(self.udf, self.udf_string)
+        elif self.mode == TransformationMode.PYTHON or self.mode == "python":
+            return PythonTransformation(self.udf, self.udf_string)
+        else:
+            raise ValueError(f"Unsupported transformation mode: {self.mode} for StreamFeatureView")
 
     def __eq__(self, other):
         if not isinstance(other, StreamFeatureView):
@@ -264,9 +278,6 @@ class StreamFeatureView(FeatureView):
             mode=sfv_proto.spec.mode,
             udf=udf,
             udf_string=udf_string,
-            feature_transformation=PandasTransformation(udf, udf_string)
-            if udf
-            else None,
             aggregations=[
                 Aggregation.from_proto(agg_proto)
                 for agg_proto in sfv_proto.spec.aggregations
@@ -323,6 +334,7 @@ class StreamFeatureView(FeatureView):
             timestamp_field=self.timestamp_field,
             source=self.stream_source if self.stream_source else self.batch_source,
             udf=self.udf,
+            udf_string=self.udf_string,
             feature_transformation=self.feature_transformation,
         )
         fv.entities = self.entities
@@ -373,7 +385,6 @@ def stream_feature_view(
             schema=schema,
             udf=user_function,
             udf_string=udf_string,
-            feature_transformation=PandasTransformation(user_function, udf_string),
             description=description,
             tags=tags,
             online=online,

@@ -1,5 +1,7 @@
+from transformation.base import Transformation
+from transformation.mode import TransformationMode
 from types import FunctionType
-from typing import Any
+from typing import Any, Union, Callable
 
 import dill
 import pandas as pd
@@ -17,8 +19,12 @@ from feast.type_map import (
 )
 
 
-class SubstraitTransformation:
-    def __init__(self, substrait_plan: bytes, ibis_function: FunctionType):
+class SubstraitTransformation(Transformation):
+    def __init__(self,
+                 substrait_plan: bytes,
+                 ibis_function: FunctionType,
+                 mode: Union[TransformationMode, str],
+                 udf: Callable[[Any], Any]):
         """
         Creates an SubstraitTransformation object.
 
@@ -26,6 +32,7 @@ class SubstraitTransformation:
             substrait_plan: The user-provided substrait plan.
             ibis_function: The user-provided ibis function.
         """
+        super().__init__(mode, udf)
         self.substrait_plan = substrait_plan
         self.ibis_function = ibis_function
 

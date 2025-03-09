@@ -11,20 +11,10 @@ from feast.protos.feast.core.Transformation_pb2 import (
 from feast.type_map import (
     python_type_to_feast_value_type,
 )
+from transformation.base import Transformation
 
 
-class PandasTransformation:
-    def __init__(self, udf: Callable[[Any], Any], udf_string: str = ""):
-        """
-        Creates an PandasTransformation object.
-
-        Args:
-            udf: The user defined transformation function, which must take pandas
-                dataframes as inputs.
-            udf_string: The source code version of the udf (for diffing and displaying in Web UI)
-        """
-        self.udf = udf
-        self.udf_string = udf_string
+class PandasTransformation(Transformation):
 
     def transform_arrow(
         self, pa_table: pyarrow.Table, features: list[Field]
@@ -32,8 +22,9 @@ class PandasTransformation:
         output_df_pandas = self.udf(pa_table.to_pandas())
         return pyarrow.Table.from_pandas(output_df_pandas)
 
-    def transform(self, input_df: pd.DataFrame) -> pd.DataFrame:
-        return self.udf(input_df)
+    def transform(self,
+                  inputs: pd.DataFrame) -> pd.DataFrame:
+        return self.udf(inputs)
 
     def transform_singleton(self, input_df: pd.DataFrame) -> pd.DataFrame:
         raise ValueError(
