@@ -857,7 +857,9 @@ def assert_feature_service_entity_mapping_correctness(
 
 
 @pytest.mark.integration
-@pytest.mark.universal_online_stores(only=["pgvector", "elasticsearch", "qdrant", "milvus"])
+@pytest.mark.universal_online_stores(
+    only=["pgvector", "elasticsearch", "qdrant", "milvus"]
+)
 def test_retrieve_online_documents(environment, fake_document_data):
     fs = environment.feature_store
     df, data_source = fake_document_data

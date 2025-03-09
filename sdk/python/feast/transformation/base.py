@@ -10,17 +10,18 @@ from transformation.sql_transformation import SQLTransformation
 
 
 class Transformation(ABC):
-    def __new__(cls,
-                mode: Union[TransformationMode, str],
-                udf: Callable[[Any], Any],
-                name: Optional[str] = None,
-                udf_string: str = "",
-                tags: Optional[Dict[str, str]] = None,
-                description: str = "",
-                owner: str = "",
-                *args,
-                **kwargs):
-
+    def __new__(
+        cls,
+        mode: Union[TransformationMode, str],
+        udf: Callable[[Any], Any],
+        name: Optional[str] = None,
+        udf_string: str = "",
+        tags: Optional[Dict[str, str]] = None,
+        description: str = "",
+        owner: str = "",
+        *args,
+        **kwargs,
+    ):
         if cls is Transformation and mode is not None:
             # Normalize mode to string
             if isinstance(mode, TransformationMode):
@@ -35,19 +36,22 @@ class Transformation(ABC):
             if mode.lower() in transformation_classes:
                 return super().__new__(transformation_classes[mode.lower()])
             else:
-                raise ValueError(f"Invalid mode: {mode}. Choose from 'pandas', 'python', or 'sql'.")
+                raise ValueError(
+                    f"Invalid mode: {mode}. Choose from 'pandas', 'python', or 'sql'."
+                )
 
         return super().__new__(cls)
 
-    def __init__(self,
-                 mode: Union[TransformationMode, str],
-                 udf: Callable[[Any], Any],
-                 name: Optional[str] = None,
-                 udf_string: str = "",
-                 tags: Optional[Dict[str, str]] = None,
-                 description: str = "",
-                 owner: str = ""):
-
+    def __init__(
+        self,
+        mode: Union[TransformationMode, str],
+        udf: Callable[[Any], Any],
+        name: Optional[str] = None,
+        udf_string: str = "",
+        tags: Optional[Dict[str, str]] = None,
+        description: str = "",
+        owner: str = "",
+    ):
         self.mode = mode if isinstance(mode, str) else mode.value
         self.udf = udf
         self.name = name
@@ -56,17 +60,16 @@ class Transformation(ABC):
         self.description = description
         self.owner = owner
 
-    def transform(self,
-                  inputs: Any) -> Any:
+    def transform(self, inputs: Any) -> Any:
         raise NotImplementedError
 
 
 def transformation(
-        mode: Union[TransformationMode, str],
-        name: Optional[str] = None,
-        tags: Optional[Dict[str, str]] = None,
-        description: Optional[str] = "",
-        owner: Optional[str] = "",
+    mode: Union[TransformationMode, str],
+    name: Optional[str] = None,
+    tags: Optional[Dict[str, str]] = None,
+    description: Optional[str] = "",
+    owner: Optional[str] = "",
 ):
     def mainify(obj):
         # Needed to allow dill to properly serialize the udf. Otherwise, clients will need to have a file with the same

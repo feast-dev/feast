@@ -130,7 +130,9 @@ class StreamFeatureView(FeatureView):
         self.timestamp_field = timestamp_field or ""
         self.udf = udf
         self.udf_string = udf_string
-        self.feature_transformation = feature_transformation or self.get_feature_transformation()
+        self.feature_transformation = (
+            feature_transformation or self.get_feature_transformation()
+        )
 
         super().__init__(
             name=name,
@@ -152,7 +154,9 @@ class StreamFeatureView(FeatureView):
         elif self.mode == TransformationMode.PYTHON or self.mode == "python":
             return PythonTransformation(self.udf, self.udf_string)
         else:
-            raise ValueError(f"Unsupported transformation mode: {self.mode} for StreamFeatureView")
+            raise ValueError(
+                f"Unsupported transformation mode: {self.mode} for StreamFeatureView"
+            )
 
     def __eq__(self, other):
         if not isinstance(other, StreamFeatureView):

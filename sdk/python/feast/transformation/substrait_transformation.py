@@ -20,11 +20,13 @@ from feast.type_map import (
 
 
 class SubstraitTransformation(Transformation):
-    def __init__(self,
-                 substrait_plan: bytes,
-                 ibis_function: FunctionType,
-                 mode: Union[TransformationMode, str],
-                 udf: Callable[[Any], Any]):
+    def __init__(
+        self,
+        substrait_plan: bytes,
+        ibis_function: FunctionType,
+        mode: Union[TransformationMode, str],
+        udf: Callable[[Any], Any],
+    ):
         """
         Creates an SubstraitTransformation object.
 

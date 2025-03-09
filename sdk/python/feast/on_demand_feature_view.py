@@ -140,7 +140,9 @@ class OnDemandFeatureView(BaseFeatureView):
         self.mode = mode.lower()
         self.udf = udf
         self.udf_string = udf_string
-        self.feature_transformation = feature_transformation or self.get_feature_transformation()
+        self.feature_transformation = (
+            feature_transformation or self.get_feature_transformation()
+        )
         self.source_feature_view_projections: dict[str, FeatureViewProjection] = {}
         self.source_request_sources: dict[str, RequestSource] = {}
         for odfv_source in sources:
@@ -212,6 +214,7 @@ class OnDemandFeatureView(BaseFeatureView):
             return PythonTransformation(self.udf, self.udf_string)
         elif self.mode == TransformationMode.SUBSTRAIT or self.mode == "substrait":
             from ibis.expr.types.relations import Table
+
             if return_annotation not in (inspect._empty, Table):
                 raise TypeError(
                     f"return signature for {self.udf} is {return_annotation} but should be ibis.expr.types.relations.Table"
@@ -221,7 +224,6 @@ class OnDemandFeatureView(BaseFeatureView):
             raise ValueError(
                 f"Unsupported transformation mode: {self.mode} for OnDemandFeatureView"
             )
-
 
     @property
     def proto_class(self) -> type[OnDemandFeatureViewProto]:

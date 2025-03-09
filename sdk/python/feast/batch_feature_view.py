@@ -1,16 +1,15 @@
 import functools
 import warnings
 from datetime import datetime, timedelta
-
 from types import FunctionType
 from typing import Dict, List, Optional, Tuple
 
 import dill
 from transformation.base import Transformation
 from transformation.mode import TransformationMode
-from transformation.sql_transformation import SQLTransformation
 from transformation.pandas_transformation import PandasTransformation
 from transformation.python_transformation import PythonTransformation
+from transformation.sql_transformation import SQLTransformation
 
 from feast import flags_helper
 from feast.data_source import DataSource
@@ -102,7 +101,9 @@ class BatchFeatureView(FeatureView):
 
         self.udf = udf
         self.udf_string = udf_string
-        self.feature_transformation = feature_transformation or self.get_feature_transformation()
+        self.feature_transformation = (
+            feature_transformation or self.get_feature_transformation()
+        )
 
         super().__init__(
             name=name,
@@ -126,7 +127,9 @@ class BatchFeatureView(FeatureView):
         elif self.mode == TransformationMode.sql or self.mode == "sql":
             return SQLTransformation(self.udf, self.udf_string)
         else:
-            raise ValueError(f"Unsupported transformation mode: {self.mode} for StreamFeatureView")
+            raise ValueError(
+                f"Unsupported transformation mode: {self.mode} for StreamFeatureView"
+            )
 
 
 def batch_feature_view(
@@ -181,4 +184,5 @@ def batch_feature_view(
         )
         functools.update_wrapper(wrapper=batch_feature_view_obj, wrapped=user_function)
         return batch_feature_view_obj
+
     return decorator

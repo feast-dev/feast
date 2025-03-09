@@ -15,15 +15,13 @@ from feast.type_map import (
 
 
 class PandasTransformation(Transformation):
-
     def transform_arrow(
         self, pa_table: pyarrow.Table, features: list[Field]
     ) -> pyarrow.Table:
         output_df_pandas = self.udf(pa_table.to_pandas())
         return pyarrow.Table.from_pandas(output_df_pandas)
 
-    def transform(self,
-                  inputs: pd.DataFrame) -> pd.DataFrame:
+    def transform(self, inputs: pd.DataFrame) -> pd.DataFrame:
         return self.udf(inputs)
 
     def transform_singleton(self, input_df: pd.DataFrame) -> pd.DataFrame:
