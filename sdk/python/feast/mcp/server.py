@@ -49,3 +49,12 @@ class FeastMCP(FastMCP):
         """Register Feast prompts with the MCP server."""
         from feast.mcp.prompts import register_feature_prompts
         register_feature_prompts(self, self.feature_store)
+        
+    @property
+    def app(self):
+        """Get the FastAPI app instance.
+
+        Returns:
+            The FastAPI app instance
+        """
+        return self.fastapi_app
