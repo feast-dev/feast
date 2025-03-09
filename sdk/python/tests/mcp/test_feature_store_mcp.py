@@ -16,59 +16,80 @@ from unittest.mock import MagicMock, patch
 from feast.feature_store import FeatureStore
 
 
-@patch("feast.mcp_server.start_server")
-def test_serve_mcp(mock_start_server):
+def test_serve_mcp():
     """Test that serve_mcp calls the start_server function with the correct arguments."""
     # Create a mock feature store instance
     feature_store = MagicMock(spec=FeatureStore)
     feature_store.project = "test_project"
     
-    # Call serve_mcp
-    feature_store.serve_mcp(
-        host="localhost",
-        port=8080,
-        registry_ttl_sec=5,
-        tls_cert_path="cert.pem",
-        tls_key_path="key.pem",
-        enable_auth=True,
-        enable_metrics=True,
-        cors_origins=["http://localhost:3000"],
-    )
-    
-    # Check that start_server was called with the correct arguments
-    mock_start_server.assert_called_once()
-    args, kwargs = mock_start_server.call_args
-    
-    assert args[0] == feature_store
-    assert kwargs["host"] == "localhost"
-    assert kwargs["port"] == 8080
-    assert kwargs["registry_ttl_sec"] == 5
-    assert kwargs["tls_cert_path"] == "cert.pem"
-    assert kwargs["tls_key_path"] == "key.pem"
-    assert kwargs["enable_auth"] is True
-    assert kwargs["enable_metrics"] is True
-    assert kwargs["cors_origins"] == ["http://localhost:3000"]
+    # Mock the start_server function
+    with patch("feast.mcp_server.start_server") as mock_start_server:
+        # Call serve_mcp
+        from feast.feature_store import FeatureStore
+        original_serve_mcp = FeatureStore.serve_mcp
+        
+        try:
+            # Call the method directly on the instance
+            original_serve_mcp(
+                feature_store,
+                host="localhost",
+                port=8080,
+                registry_ttl_sec=5,
+                tls_cert_path="cert.pem",
+                tls_key_path="key.pem",
+                enable_auth=True,
+                enable_metrics=True,
+                cors_origins=["http://localhost:3000"],
+            )
+            
+            # Check that start_server was called with the correct arguments
+            mock_start_server.assert_called_once()
+            args, kwargs = mock_start_server.call_args
+            
+            assert args[0] == feature_store
+            assert kwargs["host"] == "localhost"
+            assert kwargs["port"] == 8080
+            assert kwargs["registry_ttl_sec"] == 5
+            assert kwargs["tls_cert_path"] == "cert.pem"
+            assert kwargs["tls_key_path"] == "key.pem"
+            assert kwargs["enable_auth"] is True
+            assert kwargs["enable_metrics"] is True
+            assert kwargs["cors_origins"] == ["http://localhost:3000"]
+        finally:
+            # Restore the original method
+            FeatureStore.serve_mcp = original_serve_mcp
 
 
-@patch("feast.feature_store.warnings.warn")
-@patch("feast.feature_store.flags_helper.is_test", return_value=True)
-@patch("feast.mcp_server.start_server")
-def test_serve_mcp_warning(mock_start_server, mock_is_test, mock_warn):
+def test_serve_mcp_warning():
     """Test that serve_mcp shows a warning when in test mode."""
     # Create a mock feature store
     feature_store = MagicMock(spec=FeatureStore)
     feature_store.project = "test_project"
     
-    # Call serve_mcp
-    feature_store.serve_mcp(
-        host="localhost",
-        port=8080,
-    )
-    
-    # Check that a warning was shown
-    mock_warn.assert_called_once()
-    warning_message = mock_warn.call_args[0][0]
-    assert "experimental feature" in warning_message
-    
-    # Check that start_server was called
-    mock_start_server.assert_called_once()
+    # Mock the dependencies
+    with patch("feast.feature_store.warnings.warn") as mock_warn, \
+         patch("feast.feature_store.flags_helper.is_test", return_value=True), \
+         patch("feast.mcp_server.start_server") as mock_start_server:
+        
+        # Call serve_mcp
+        from feast.feature_store import FeatureStore
+        original_serve_mcp = FeatureStore.serve_mcp
+        
+        try:
+            # Call the method directly on the instance
+            original_serve_mcp(
+                feature_store,
+                host="localhost",
+                port=8080,
+            )
+            
+            # Check that a warning was shown
+            mock_warn.assert_called_once()
+            warning_message = mock_warn.call_args[0][0]
+            assert "experimental feature" in warning_message
+            
+            # Check that start_server was called
+            mock_start_server.assert_called_once()
+        finally:
+            # Restore the original method
+            FeatureStore.serve_mcp = original_serve_mcp
