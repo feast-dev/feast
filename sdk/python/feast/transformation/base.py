@@ -1,9 +1,8 @@
 import functools
-import dill
-
 from abc import ABC
-from typing import Union, Callable, Any, Optional, Dict
+from typing import Any, Callable, Dict, Optional, Union
 
+import dill
 from transformation.mode import TransformationMode
 from transformation.pandas_transformation import PandasTransformation
 from transformation.python_transformation import PythonTransformation

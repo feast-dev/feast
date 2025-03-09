@@ -1,12 +1,12 @@
-from transformation.base import Transformation
-from transformation.mode import TransformationMode
 from types import FunctionType
-from typing import Any, Union, Callable
+from typing import Any, Callable, Union
 
 import dill
 import pandas as pd
 import pyarrow
 import pyarrow.substrait as substrait  # type: ignore # noqa
+from transformation.base import Transformation
+from transformation.mode import TransformationMode
 
 from feast.feature_view import FeatureView
 from feast.field import Field, from_value_type

@@ -1,8 +1,9 @@
-from typing import Any, Callable
+from typing import Any
 
 import dill
 import pandas as pd
 import pyarrow
+from transformation.base import Transformation
 
 from feast.field import Field, from_value_type
 from feast.protos.feast.core.Transformation_pb2 import (
@@ -11,7 +12,6 @@ from feast.protos.feast.core.Transformation_pb2 import (
 from feast.type_map import (
     python_type_to_feast_value_type,
 )
-from transformation.base import Transformation
 
 
 class PandasTransformation(Transformation):

@@ -2,13 +2,15 @@ import functools
 import warnings
 from datetime import datetime, timedelta
 
+from types import FunctionType
+from typing import Dict, List, Optional, Tuple
+
 import dill
 from transformation.base import Transformation
 from transformation.mode import TransformationMode
+from transformation.sql_transformation import SQLTransformation
 from transformation.pandas_transformation import PandasTransformation
 from transformation.python_transformation import PythonTransformation
-from types import FunctionType
-from typing import Dict, List, Optional, Tuple
 
 from feast import flags_helper
 from feast.data_source import DataSource
