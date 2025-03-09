@@ -8,7 +8,6 @@ from mcp.server.fastmcp import FastMCP
 from feast import FeatureStore
 from feast.data_source import PushMode
 
-
 def register_feature_tools(mcp: FastMCP, feature_store: FeatureStore):
     """Register Feast feature tools with the MCP server.
 

@@ -1552,11 +1552,11 @@ def serve_mcp_command(
         raise click.BadParameter(
             "Please pass --cert and --key args to start the MCP server in TLS mode."
         )
-    
+
     cors_origins_list = [origin.strip() for origin in cors_origins.split(",")] if cors_origins else None
-    
+
     store = create_feature_store(ctx)
-    
+
     store.serve_mcp(
         host=host,
         port=port,

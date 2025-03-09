@@ -4,6 +4,7 @@ import json
 import pandas as pd
 from typing import Any, Dict, List
 
+
 def format_feature_view_info(feature_view) -> str:
     """Format feature view information as a string.
 

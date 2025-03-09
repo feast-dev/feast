@@ -1,10 +1,10 @@
 """MCP resources for Feast feature store."""
 
-from typing import Dict, List, Any, Optional
 import json
 
 from mcp.server.fastmcp import FastMCP
 from feast import FeatureStore
+
 
 def register_feature_resources(mcp: FastMCP, feature_store: FeatureStore):
     """Register Feast feature resources with the MCP server.

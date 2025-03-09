@@ -2148,7 +2148,7 @@ class FeatureStore:
         from feast import transformation_server
 
         transformation_server.start_server(self, port)
-        
+
     def serve_mcp(
         self,
         host: str,
@@ -2161,10 +2161,10 @@ class FeatureStore:
         cors_origins: Optional[List[str]] = None,
     ) -> None:
         """Start the Model Context Protocol (MCP) server locally on a given port.
-        
+
         The MCP server allows LLMs to interact with the feature store through
         the Model Context Protocol.
-        
+
         Args:
             host: Host to bind to
             port: Port to bind to
@@ -2181,10 +2181,10 @@ class FeatureStore:
                 "We do not guarantee that future changes will maintain backward compatibility.",
                 RuntimeWarning,
             )
-            
+
         # Import locally to avoid circular imports
         from feast.mcp_server import start_server
-        
+
         start_server(
             self,
             host=host,

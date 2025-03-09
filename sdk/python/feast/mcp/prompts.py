@@ -1,19 +1,19 @@
 """MCP prompts for Feast feature store."""
 
-from typing import Dict, List, Any, Optional
 import json
 
 from mcp.server.fastmcp import FastMCP
 from feast import FeatureStore
 
+
 def register_feature_prompts(mcp: FastMCP, feature_store: FeatureStore):
     """Register Feast feature prompts with the MCP server.
-    
+
     Args:
         mcp: The MCP server instance
         feature_store: The Feast feature store instance
     """
-    
+
     @mcp.prompt("feast_feature_store_overview")
     def feature_store_overview() -> str:
         """Provides an overview of the Feast feature store."""
@@ -21,42 +21,42 @@ def register_feature_prompts(mcp: FastMCP, feature_store: FeatureStore):
         entities = feature_store.list_entities()
         feature_services = feature_store.list_feature_services()
         data_sources = feature_store.list_data_sources()
-        
+
         overview = [
             f"# Feast Feature Store: {feature_store.project}",
             "",
             f"## Feature Views ({len(feature_views)})",
         ]
-        
+
         for fv in feature_views:
             overview.append(f"- {fv.name}: {fv.description or 'No description'}")
-        
+
         overview.extend([
             "",
             f"## Entities ({len(entities)})",
         ])
-        
+
         for entity in entities:
             overview.append(f"- {entity.name}: {entity.description or 'No description'}")
-        
+
         overview.extend([
             "",
             f"## Feature Services ({len(feature_services)})",
         ])
-        
+
         for fs in feature_services:
             overview.append(f"- {fs.name}: {fs.description or 'No description'}")
-        
+
         overview.extend([
             "",
             f"## Data Sources ({len(data_sources)})",
         ])
-        
+
         for ds in data_sources:
             overview.append(f"- {ds.name}: {ds.description or 'No description'}")
-        
+
         return "\n".join(overview)
-    
+
     @mcp.prompt("feast_feature_retrieval_guide")
     def feature_retrieval_guide() -> str:
         """Provides a guide on how to retrieve features from the feature store."""
@@ -109,7 +109,7 @@ result = materialize_incremental(
 )
 ```
 """
-    
+
     @mcp.prompt("feast_feature_exploration")
     def feature_exploration() -> str:
         """Provides guidance on how to explore the feature store."""
