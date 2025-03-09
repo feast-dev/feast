@@ -200,7 +200,10 @@ class OnDemandFeatureView(BaseFeatureView):
         if not self.udf:
             return None
         return_annotation = get_type_hints(self.udf).get("return", inspect._empty)
-        if self.mode in (TransformationMode.PANDAS, TransformationMode.PYTHON) or self.mode in ("pandas", "python"):
+        if self.mode in (
+            TransformationMode.PANDAS,
+            TransformationMode.PYTHON,
+        ) or self.mode in ("pandas", "python"):
             if return_annotation not in (inspect._empty, pd.DataFrame):
                 raise TypeError(
                     f"return signature for {self.udf} is {return_annotation} but should be pd.DataFrame"
