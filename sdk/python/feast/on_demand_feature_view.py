@@ -200,18 +200,12 @@ class OnDemandFeatureView(BaseFeatureView):
         if not self.udf:
             return None
         return_annotation = get_type_hints(self.udf).get("return", inspect._empty)
-        if self.mode == TransformationMode.PANDAS or self.mode == "pandas":
+        if self.mode in (TransformationMode.PANDAS, TransformationMode.PYTHON) or self.mode in ("pandas", "python"):
             if return_annotation not in (inspect._empty, pd.DataFrame):
                 raise TypeError(
                     f"return signature for {self.udf} is {return_annotation} but should be pd.DataFrame"
                 )
-            return PandasTransformation(self.udf)
-        elif self.mode == TransformationMode.PYTHON or self.mode == "python":
-            if return_annotation not in (inspect._empty, dict[str, Any]):
-                raise TypeError(
-                    f"return signature for {self.udf} is {return_annotation} but should be dict[str, Any]"
-                )
-            return PythonTransformation(self.udf)
+            return Transformation(mode=self.mode, udf=self.udf)
         elif self.mode == TransformationMode.SUBSTRAIT or self.mode == "substrait":
             from ibis.expr.types.relations import Table
 
