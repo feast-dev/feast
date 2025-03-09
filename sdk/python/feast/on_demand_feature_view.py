@@ -68,7 +68,7 @@ class OnDemandFeatureView(BaseFeatureView):
     features: List[Field]
     source_feature_view_projections: dict[str, FeatureViewProjection]
     source_request_sources: dict[str, RequestSource]
-    feature_transformation: Optional[Transformation]
+    feature_transformation: Transformation
     mode: str
     description: str
     tags: dict[str, str]
