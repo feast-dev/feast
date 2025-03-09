@@ -72,6 +72,7 @@ class BatchFeatureView(FeatureView):
         self,
         *,
         name: str,
+        mode: Union[TransformationMode, str],
         source: DataSource,
         entities: Optional[List[Entity]] = None,
         ttl: Optional[timedelta] = None,
@@ -100,6 +101,7 @@ class BatchFeatureView(FeatureView):
                 f"or CUSTOM_SOURCE, got {type(source).__name__}: {source.name} instead "
             )
 
+        self.mode = mode
         self.udf = udf
         self.udf_string = udf_string
         self.feature_transformation = (
@@ -136,6 +138,7 @@ class BatchFeatureView(FeatureView):
 def batch_feature_view(
     *,
     name: Optional[str] = None,
+    mode: Union[TransformationMode, str] = TransformationMode.PYTHON,
     entities: Optional[List[str]] = None,
     ttl: Optional[timedelta] = None,
     source: Optional[DataSource] = None,
@@ -172,6 +175,7 @@ def batch_feature_view(
         mainify(user_function)
         batch_feature_view_obj = BatchFeatureView(
             name=name or user_function.__name__,
+            mode=mode,
             entities=entities,
             ttl=ttl,
             source=source,
