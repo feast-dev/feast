@@ -53,3 +53,7 @@ Please see [Data Source](../../getting-started/concepts/data-ingestion.md) for a
 {% content-ref url="mssql.md" %}
 [mssql.md](mssql.md)
 {% endcontent-ref %}
+
+{% content-ref url="clickhouse.md" %}
+[clickhouse.md](clickhouse.md)
+{% endcontent-ref %}
