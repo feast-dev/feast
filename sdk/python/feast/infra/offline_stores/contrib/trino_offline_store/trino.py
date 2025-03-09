@@ -65,8 +65,8 @@ class JWTAuthModel(FeastConfigBaseModel):
 
 
 class CertificateAuthModel(FeastConfigBaseModel):
-    cert: FilePath = Field(default=None, alias="cert-file")
-    key: FilePath = Field(default=None, alias="key-file")
+    cert: Optional[FilePath] = Field(default=None, alias="cert-file")
+    key: Optional[FilePath] = Field(default=None, alias="key-file")
 
 
 CLASSES_BY_AUTH_TYPE = {

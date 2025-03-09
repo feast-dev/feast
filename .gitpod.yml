@@ -8,7 +8,7 @@ tasks:
       uv pip install pre-commit
       pre-commit install --hook-type pre-commit --hook-type pre-push
       source .venv/bin/activate
-      export PYTHON=3.10 && make install-python-ci-dependencies-uv-venv
+      export PYTHON=3.10 && make install-python-dependencies-dev
     #   git config --global alias.ci 'commit -s'
     #   git config --global alias.sw switch
     #   git config --global alias.st status

@@ -96,7 +96,7 @@ const RegularFeatureViewOverviewTab = ({
                       <EuiBadge
                         color="primary"
                         onClick={() => {
-                          navigate(`${process.env.PUBLIC_URL || ""}/p/${projectName}/entity/${entity}`);
+                          navigate(`/p/${projectName}/entity/${entity}`);
                         }}
                         onClickAriaLabel={entity}
                         data-test-sub="testExample1"
@@ -134,7 +134,7 @@ const RegularFeatureViewOverviewTab = ({
                 tags={data.spec.tags}
                 createLink={(key, value) => {
                   return (
-                    `${process.env.PUBLIC_URL || ""}/p/${projectName}/feature-view?` +
+                    `/p/${projectName}/feature-view?` +
                     encodeSearchQueryString(`${key}:${value}`)
                   );
                 }}

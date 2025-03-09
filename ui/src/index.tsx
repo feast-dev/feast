@@ -96,16 +96,7 @@ root.render(
   <React.StrictMode>
     <FeastUI
       reactQueryClient={queryClient}
-      feastUIConfigs={{
-        tabsRegistry: tabsRegistry,
-        projectListPromise: fetch((process.env.PUBLIC_URL || "") + "/projects-list.json", {
-            headers: {
-              "Content-Type": "application/json",
-            },
-          }).then((res) => {
-            return res.json();
-          })
-      }}
+      feastUIConfigs={{ tabsRegistry }}
     />
   </React.StrictMode>
 );

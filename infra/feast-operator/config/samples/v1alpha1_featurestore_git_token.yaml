@@ -1,0 +1,21 @@
+kind: Secret
+apiVersion: v1
+metadata:
+  name: git-token
+stringData:
+  TOKEN: xxxxxxxxxxx
+---
+apiVersion: feast.dev/v1alpha1
+kind: FeatureStore
+metadata:
+  name: sample-git-token
+spec:
+  feastProject: private
+  feastProjectDir:
+    git:
+      configs:
+        'url."https://api:${TOKEN}@github.com/".insteadOf': 'https://github.com/'
+      envFrom:
+        - secretRef:
+            name: git-token
+      url: 'https://github.com/user/private'

@@ -23,7 +23,7 @@
 	// "forwardPorts": [],
 
 	// Uncomment the next line to run commands after the container is created.
-	// "postCreateCommand": "make install-python-ci-dependencies-uv-venv"
+	// "postCreateCommand": "make install-python-dependencies-dev"
 
 	// Configure tool-specific properties.
 	// "customizations": {},

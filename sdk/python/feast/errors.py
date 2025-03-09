@@ -32,7 +32,7 @@ class FeastError(Exception):
 
     def __repr__(self) -> str:
         if hasattr(self, "__overridden_message__"):
-            return f"{type(self).__name__}('{getattr(self,'__overridden_message__')}')"
+            return f"{type(self).__name__}('{getattr(self, '__overridden_message__')}')"
         return super().__repr__()
 
     def to_error_detail(self) -> str:

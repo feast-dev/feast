@@ -57,7 +57,7 @@ def collect_cassandra_store_settings():
         # it's regular Cassandra
         c_secure_bundle_path = None
         hosts_string = click.prompt(
-            ("Enter the seed hosts of your cluster " "(comma-separated IP addresses)"),
+            ("Enter the seed hosts of your cluster (comma-separated IP addresses)"),
             default="127.0.0.1",
         )
         c_hosts = [

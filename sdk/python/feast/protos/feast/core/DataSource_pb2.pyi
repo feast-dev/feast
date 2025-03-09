@@ -557,3 +557,18 @@ class DataSource(google.protobuf.message.Message):
     def WhichOneof(self, oneof_group: typing_extensions.Literal["options", b"options"]) -> typing_extensions.Literal["file_options", "bigquery_options", "kafka_options", "kinesis_options", "redshift_options", "request_data_options", "custom_options", "snowflake_options", "push_options", "spark_options", "trino_options", "athena_options"] | None: ...
 
 global___DataSource = DataSource
+
+class DataSourceList(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    DATASOURCES_FIELD_NUMBER: builtins.int
+    @property
+    def datasources(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___DataSource]: ...
+    def __init__(
+        self,
+        *,
+        datasources: collections.abc.Iterable[global___DataSource] | None = ...,
+    ) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["datasources", b"datasources"]) -> None: ...
+
+global___DataSourceList = DataSourceList

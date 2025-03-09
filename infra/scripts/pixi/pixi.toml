@@ -6,7 +6,7 @@ platforms = ["linux-64", "osx-arm64", "osx-64"]
 [tasks]
 
 [dependencies]
-uv = ">=0.1.39,<0.2"
+uv = ">=0.6.3"
 
 [feature.py39.dependencies]
 python = "~=3.9.0"

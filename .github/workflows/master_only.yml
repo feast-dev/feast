@@ -65,7 +65,7 @@ jobs:
           path: ${{ steps.uv-cache.outputs.dir }}
           key: ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-uv-${{ hashFiles(format('**/py{0}-ci-requirements.txt', env.PYTHON)) }}
       - name: Install dependencies
-        run: make install-python-ci-dependencies-uv
+        run: make install-python-dependencies-ci
       - name: Setup Redis Cluster
         run: |
           docker pull vishnunair/docker-redis-cluster:latest
@@ -94,40 +94,32 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        component: [ feature-server-java, feature-transformation-server ]
+        component: [ feature-server-dev, feature-transformation-server, feast-operator ]
     env:
-      MAVEN_CACHE: gs://feast-templocation-kf-feast/.m2.2020-08-19.tar
-      REGISTRY: gcr.io/kf-feast
+      REGISTRY: quay.io/feastdev-ci
     steps:
       - uses: actions/checkout@v4
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v1
+        uses: docker/setup-qemu-action@v3
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
         with:
           install: true
-      - name: Login to DockerHub
-        uses: docker/login-action@v1
+      - name: Login to Quay.io
+        uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - name: Authenticate to Google Cloud
-        uses: 'google-github-actions/auth@v1'
-        with:
-          credentials_json: '${{ secrets.GCP_SA_KEY }}'
-      - name: Set up gcloud SDK
-        uses: google-github-actions/setup-gcloud@v1
-        with:
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
-      - name: Use gcloud CLI
-        run: gcloud info
-      - run: gcloud auth configure-docker --quiet
+          registry: quay.io
+          username: ${{ secrets.QUAYIO_CI_USERNAME }}
+          password: ${{ secrets.QUAYIO_CI_TOKEN }}
       - name: Build image
         run: |
           make build-${{ matrix.component }}-docker REGISTRY=${REGISTRY} VERSION=${GITHUB_SHA}
       - name: Push image
         run: |
-          make push-${{ matrix.component }}-docker REGISTRY=${REGISTRY} VERSION=${GITHUB_SHA}
-
-          docker tag ${REGISTRY}/${{ matrix.component }}:${GITHUB_SHA} ${REGISTRY}/${{ matrix.component }}:develop
-          docker push ${REGISTRY}/${{ matrix.component }}:develop
+          if [[ "${{ matrix.component }}" == "feature-server-dev" ]]; then
+            docker tag ${REGISTRY}/feature-server:${GITHUB_SHA} ${REGISTRY}/feature-server:develop
+            docker push ${REGISTRY}/feature-server --all-tags
+          else
+            docker tag ${REGISTRY}/${{ matrix.component }}:${GITHUB_SHA} ${REGISTRY}/${{ matrix.component }}:develop
+            docker push ${REGISTRY}/${{ matrix.component }} --all-tags
+          fi

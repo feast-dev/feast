@@ -53,13 +53,13 @@ jobs:
           java-version: '11'
           java-package: jdk
           architecture: x64
-      - uses: actions/cache@v2
+      - uses: actions/cache@v4
         with:
           path: ~/.m2/repository
           key: ${{ runner.os }}-it-maven-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
             ${{ runner.os }}-it-maven-
-      - uses: actions/cache@v2
+      - uses: actions/cache@v4
         with:
           path: ~/.m2/repository
           key: ${{ runner.os }}-ut-maven-${{ hashFiles('**/pom.xml') }}
@@ -67,7 +67,7 @@ jobs:
             ${{ runner.os }}-ut-maven-
       - name: Test java
         run: make test-java-with-coverage
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: java-coverage-report
           path: ${{ github.workspace }}/docs/coverage/java/target/site/jacoco-aggregate/
@@ -84,7 +84,7 @@ jobs:
         component: [ feature-server-java ]
     env:
       MAVEN_CACHE: gs://feast-templocation-kf-feast/.m2.2020-08-19.tar
-      REGISTRY: gcr.io/kf-feast
+      REGISTRY: quay.io/feastdev-ci
     steps:
       - uses: actions/checkout@v4
         with:
@@ -97,11 +97,11 @@ jobs:
           python-version: "3.11"
           architecture: x64
       - name: Authenticate to Google Cloud
-        uses: 'google-github-actions/auth@v1'
+        uses: google-github-actions/auth@v2
         with:
           credentials_json: '${{ secrets.GCP_SA_KEY }}'
       - name: Set up gcloud SDK
-        uses: google-github-actions/setup-gcloud@v1
+        uses: google-github-actions/setup-gcloud@v2
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
       - run: gcloud auth configure-docker --quiet
@@ -137,18 +137,18 @@ jobs:
         with:
           python-version: '3.11'
           architecture: 'x64'
-      - uses: actions/cache@v2
+      - uses: actions/cache@v4
         with:
           path: ~/.m2/repository
           key: ${{ runner.os }}-it-maven-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
             ${{ runner.os }}-it-maven-
       - name: Authenticate to Google Cloud
-        uses: 'google-github-actions/auth@v1'
+        uses: google-github-actions/auth@v2
         with:
           credentials_json: '${{ secrets.GCP_SA_KEY }}'
       - name: Set up gcloud SDK
-        uses: google-github-actions/setup-gcloud@v1
+        uses: google-github-actions/setup-gcloud@v2
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
       - name: Use gcloud CLI
@@ -180,11 +180,11 @@ jobs:
           path: ${{ steps.uv-cache.outputs.dir }}
           key: ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-uv-${{ hashFiles(format('**/py{0}-ci-requirements.txt', env.PYTHON)) }}
       - name: Install dependencies
-        run: make install-python-ci-dependencies-uv
+        run: make install-python-dependencies-ci
       - name: Run integration tests
         run:  make test-java-integration
       - name: Save report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: it-report

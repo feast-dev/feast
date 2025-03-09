@@ -171,9 +171,9 @@ def test_feature_get_online_features_types_match(
     if config.feature_is_list:
         for feature in online_features["value"]:
             assert isinstance(feature, list), "Feature value should be a list"
-            assert (
-                config.has_empty_list or len(feature) > 0
-            ), "List of values should not be empty"
+            assert config.has_empty_list or len(feature) > 0, (
+                "List of values should not be empty"
+            )
             for element in feature:
                 assert isinstance(element, expected_dtype)
     else:
@@ -224,7 +224,9 @@ def assert_expected_historical_feature_types(
     dtype_checkers = feature_dtype_to_expected_historical_feature_dtype[feature_dtype]
     assert any(
         check(historical_features_df.dtypes["value"]) for check in dtype_checkers
-    ), f"Failed to match feature type {historical_features_df.dtypes['value']} with checkers {dtype_checkers}"
+    ), (
+        f"Failed to match feature type {historical_features_df.dtypes['value']} with checkers {dtype_checkers}"
+    )
 
 
 def assert_feature_list_types(

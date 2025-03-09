@@ -1,58 +1,35 @@
-name: build_wheels
+name: build wheels
 
 # Call this workflow from other workflows in the repository by specifying "uses: ./.github/workflows/build_wheels.yml"
 # Developers who are starting a new release should use this workflow to ensure wheels will be built correctly.
 # Devs should check out their fork, add a tag to the last master commit on their fork, and run the release off of their fork on the added tag to ensure wheels will be built correctly.
 on:
-  workflow_dispatch:
-      tags:
-        - 'v*.*.*'
+  workflow_dispatch: # Allows manual trigger of the workflow
+    inputs:
+      custom_version: # Optional input for a custom version
+        description: 'Custom version to publish (e.g., v1.2.3) -- only edit if you know what you are doing'
+        required: false
+        type: string
+      token:
+        description: 'Personal Access Token'
+        required: true
+        default: ""
+        type: string
   workflow_call:
+    inputs:
+      custom_version: # Optional input for a custom version
+        description: 'Custom version to publish (e.g., v1.2.3) -- only edit if you know what you are doing'
+        required: false
+        type: string
+      token:
+        description: 'Personal Access Token'
+        required: true
+        default: ""
+        type: string
 
 jobs:
-  get-version:
-    runs-on:  ubuntu-latest
-    outputs:
-      release_version: ${{ steps.get_release_version.outputs.release_version }}
-      version_without_prefix: ${{ steps.get_release_version_without_prefix.outputs.version_without_prefix }}
-      highest_semver_tag: ${{ steps.get_highest_semver.outputs.highest_semver_tag }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - name: Get release version
-        id: get_release_version
-        run: echo ::set-output name=release_version::${GITHUB_REF#refs/*/}
-      - name: Get release version without prefix
-        id: get_release_version_without_prefix
-        env:
-          RELEASE_VERSION: ${{ steps.get_release_version.outputs.release_version }}
-        run: |
-          echo ::set-output name=version_without_prefix::${RELEASE_VERSION:1}
-      - name: Get highest semver
-        id: get_highest_semver
-        env:
-          RELEASE_VERSION: ${{ steps.get_release_version.outputs.release_version }}
-        run: |
-          source infra/scripts/setup-common-functions.sh
-          SEMVER_REGEX='^v[0-9]+\.[0-9]+\.[0-9]+(-([0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*))?$'
-          if echo "${RELEASE_VERSION}" | grep -P "$SEMVER_REGEX" &>/dev/null ; then
-            echo ::set-output name=highest_semver_tag::$(get_tag_release -m)
-          fi
-      - name: Check output
-        id: check_output
-        env:
-          RELEASE_VERSION: ${{ steps.get_release_version.outputs.release_version }}
-          VERSION_WITHOUT_PREFIX: ${{ steps.get_release_version_without_prefix.outputs.version_without_prefix }}
-          HIGHEST_SEMVER_TAG: ${{ steps.get_highest_semver.outputs.highest_semver_tag }}
-        run: |
-          echo $RELEASE_VERSION
-          echo $VERSION_WITHOUT_PREFIX
-          echo $HIGHEST_SEMVER_TAG
-
   build-python-wheel:
-    name: Build wheels
+    name: Build wheels and source
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -68,54 +45,34 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
       - name: Build UI
         run: make build-ui
-      - name: Build wheels
+      - id: get-version
+        uses: ./.github/actions/get-semantic-release-version
+        with:
+          custom_version: ${{ github.event.inputs.custom_version }}
+          token: ${{ github.event.inputs.token }}
+      - name: Checkout version and install dependencies
+        env:
+          VERSION: ${{ steps.get-version.outputs.release_version }}
+          PYPI_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
         run: |
+          git fetch --tags
+          git checkout ${VERSION}
           python -m pip install build
-          python -m build --wheel --outdir wheelhouse/
-      - uses: actions/upload-artifact@v3
+      - name: Build feast
+        run: python -m build
+      - uses: actions/upload-artifact@v4
         with:
-          name: wheels
-          path: ./wheelhouse/*.whl
-
-  build-source-distribution:
-    name: Build source distribution
-    runs-on: macos-13
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup Python
-        id: setup-python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-          architecture: x64
-      - name: Setup Node
-        uses: actions/setup-node@v3
-        with:
-          node-version-file: './ui/.nvmrc'
-          registry-url: 'https://registry.npmjs.org'
-      - name: Build and install dependencies
-        # There's a `git restore` in here because `make install-go-ci-dependencies` is actually messing up go.mod & go.sum.
-        run: |
-          pip install -U pip setuptools wheel twine
-          make build-ui
-          git status
-          git restore go.mod go.sum
-          git restore sdk/python/feast/ui/yarn.lock
-      - name: Build
-        run: |
-          python3 setup.py sdist
-      - uses: actions/upload-artifact@v3
-        with:
-          name: wheels
+          name: python-wheels
           path: dist/*
 
   # We add this step so the docker images can be built as part of the pre-release verification steps.
   build-docker-images:
+    name: Build Docker images
     runs-on: ubuntu-latest
-    needs: get-version
+    needs: [ build-python-wheel ]
     strategy:
       matrix:
-        component: [feature-server, feature-server-java, feature-transformation-server]
+        component: [ feature-server-dev, feature-server-java, feature-transformation-server, feast-operator ]
     env:
       REGISTRY: feastdev
     steps:
@@ -124,19 +81,27 @@ jobs:
         uses: docker/setup-qemu-action@v1
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
+      - id: get-version
+        uses: ./.github/actions/get-semantic-release-version
+        with:
+          custom_version: ${{ github.event.inputs.custom_version }}
+          token: ${{ github.event.inputs.token }}
       - name: Build image
-        run: |
-          make build-${{ matrix.component }}-docker REGISTRY=${REGISTRY} VERSION=${VERSION_WITHOUT_PREFIX}
         env:
-          VERSION_WITHOUT_PREFIX: ${{ needs.get-version.outputs.version_without_prefix }}
+          VERSION_WITHOUT_PREFIX: ${{ steps.get-version.outputs.version_without_prefix }}
+          RELEASE_VERSION: ${{ steps.get-version.outputs.release_version }}
+        run: |
+          echo "Building docker image for ${{ matrix.component }} with version $VERSION_WITHOUT_PREFIX and release version $RELEASE_VERSION"
+          make build-${{ matrix.component }}-docker REGISTRY=${REGISTRY} VERSION=${VERSION_WITHOUT_PREFIX}
 
   verify-python-wheels:
+    name: Verify Python wheels
     runs-on: ${{ matrix.os }}
-    needs: [build-python-wheel, build-source-distribution, get-version]
+    needs: [ build-python-wheel ]
     strategy:
       matrix:
-        os: [ubuntu-latest,  macos-13 ]
-        python-version: ["3.9", "3.10", "3.11"]
+        os: [ ubuntu-latest,  macos-13 ]
+        python-version: [ "3.9", "3.10", "3.11" ]
         from-source: [ True, False ]
     env:
       # this script is for testing servers
@@ -151,8 +116,8 @@ jobs:
         else
            echo "Succeeded!"
         fi
-      VERSION_WITHOUT_PREFIX: ${{ needs.get-version.outputs.version_without_prefix }}
     steps:
+      - uses: actions/checkout@v4
       - name: Setup Python
         id: setup-python
         uses: actions/setup-python@v5
@@ -161,7 +126,7 @@ jobs:
           architecture: x64
       - uses: actions/download-artifact@v4.1.7
         with:
-          name: wheels
+          name: python-wheels
           path: dist
       - name: Install OS X dependencies
         if: matrix.os == 'macos-13'
@@ -178,13 +143,25 @@ jobs:
         if: ${{ matrix.from-source }}
         run: pip install dist/*tar.gz
       # Validate that the feast version installed is not development and is the correct version of the tag we ran it off of.
+      - id: get-version
+        uses: ./.github/actions/get-semantic-release-version
+        with:
+          custom_version: ${{ github.event.inputs.custom_version }}
+          token: ${{ github.event.inputs.token }}
       - name: Validate Feast Version
+        env:
+          VERSION_WITHOUT_PREFIX: ${{ steps.get-version.outputs.version_without_prefix }}
         run: |
+          feast version
+          if ! VERSION_OUTPUT=$(feast version); then
+            echo "Error: Failed to get Feast version."
+            exit 1
+          fi
           VERSION_REGEX='[0-9]+\.[0-9]+\.[0-9]+'
           OUTPUT_REGEX='^Feast SDK Version: "$VERSION_REGEX"$'
-          VERSION_OUTPUT=$(feast version)
           VERSION=$(echo $VERSION_OUTPUT | grep -oE "$VERSION_REGEX")
           OUTPUT=$(echo $VERSION_OUTPUT | grep -E "$REGEX")
+          echo "Installed Feast Version: $VERSION and using Feast Version: $VERSION_WITHOUT_PREFIX"
           if  [ -n "$OUTPUT" ] && [ "$VERSION" = "$VERSION_WITHOUT_PREFIX" ]; then
             echo "Correct Feast Version Installed"
           else

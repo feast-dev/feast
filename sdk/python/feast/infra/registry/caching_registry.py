@@ -425,12 +425,24 @@ class CachingRegistry(BaseRegistry):
         return self._list_projects(tags)
 
     def refresh(self, project: Optional[str] = None):
-        self.cached_registry_proto = self.proto()
-        self.cached_registry_proto_created = _utc_now()
+        if self._refresh_lock.locked():
+            logger.info("Skipping refresh if already in progress")
+            return
+        try:
+            self.cached_registry_proto = self.proto()
+            self.cached_registry_proto_created = _utc_now()
+        except Exception as e:
+            logger.error(f"Error while refreshing registry: {e}", exc_info=True)
 
     def _refresh_cached_registry_if_necessary(self):
         if self.cache_mode == "sync":
-            with self._refresh_lock:
+            # Try acquiring the lock without blocking
+            if not self._refresh_lock.acquire(blocking=False):
+                logger.info(
+                    "Skipping refresh if lock is already held by another thread"
+                )
+                return
+            try:
                 if self.cached_registry_proto == RegistryProto():
                     # Avoids the need to refresh the registry when cache is not populated yet
                     # Specially during the __init__ phase
@@ -454,6 +466,13 @@ class CachingRegistry(BaseRegistry):
                 if expired:
                     logger.info("Registry cache expired, so refreshing")
                     self.refresh()
+            except Exception as e:
+                logger.error(
+                    f"Error in _refresh_cached_registry_if_necessary: {e}",
+                    exc_info=True,
+                )
+            finally:
+                self._refresh_lock.release()  # Always release the lock safely
 
     def _start_thread_async_refresh(self, cache_ttl_seconds):
         self.refresh()

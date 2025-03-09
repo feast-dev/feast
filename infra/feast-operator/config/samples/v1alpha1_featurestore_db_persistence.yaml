@@ -1,0 +1,57 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-secret
+  namespace: test
+  labels:
+    app: postgres
+stringData:
+  POSTGRES_DB: feast
+  POSTGRES_USER: feast
+  POSTGRES_PASSWORD: feast
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: feast-data-stores
+  namespace: test
+stringData:
+  sql: |
+    path: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres.test.svc.cluster.local:5432/${POSTGRES_DB}
+    cache_ttl_seconds: 60
+    sqlalchemy_config_kwargs:
+        echo: false
+        pool_pre_ping: true
+  postgres: |
+    host: postgres.test.svc.cluster.local
+    port: 5432
+    database: ${POSTGRES_DB}
+    db_schema: public
+    user: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
+---
+apiVersion: feast.dev/v1alpha1
+kind: FeatureStore
+metadata:
+  name: sample-db-persistence
+  namespace: test
+spec:
+  feastProject: my_project
+  services:
+    onlineStore:
+      persistence:
+        store:
+          type: postgres
+          secretRef:
+            name: feast-data-stores
+      server:
+        envFrom:
+        - secretRef:
+            name: postgres-secret
+    registry:
+      local:
+        persistence:
+          store:
+            type: sql
+            secretRef:
+              name: feast-data-stores

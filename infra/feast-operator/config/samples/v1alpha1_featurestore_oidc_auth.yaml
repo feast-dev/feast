@@ -1,0 +1,21 @@
+apiVersion: feast.dev/v1alpha1
+kind: FeatureStore
+metadata:
+  name: sample-oidc-auth
+spec:
+  feastProject: my_project
+  authz:
+    oidc:
+      secretRef:
+        name: oidc-secret
+---
+kind: Secret
+apiVersion: v1
+metadata:
+  name: oidc-secret
+stringData:
+  client_id: client_id
+  auth_discovery_url: auth_discovery_url
+  client_secret: client_secret
+  username: username
+  password: password

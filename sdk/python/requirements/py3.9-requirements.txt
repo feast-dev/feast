@@ -2,26 +2,26 @@
 #    uv pip compile -p 3.9 --system --no-strip-extras setup.py --output-file sdk/python/requirements/py3.9-requirements.txt
 annotated-types==0.7.0
     # via pydantic
-anyio==4.6.2.post1
+anyio==4.8.0
     # via
     #   starlette
     #   watchfiles
-attrs==24.2.0
+attrs==25.1.0
     # via
     #   jsonschema
     #   referencing
-bigtree==0.21.3
+bigtree==0.25.0
     # via feast (setup.py)
-certifi==2024.8.30
+certifi==2025.1.31
     # via requests
-charset-normalizer==3.4.0
+charset-normalizer==3.4.1
     # via requests
-click==8.1.7
+click==8.1.8
     # via
     #   feast (setup.py)
     #   dask
     #   uvicorn
-cloudpickle==3.1.0
+cloudpickle==3.1.1
     # via dask
 colorama==0.4.6
     # via feast (setup.py)
@@ -35,10 +35,12 @@ dill==0.3.9
     # via feast (setup.py)
 exceptiongroup==1.2.2
     # via anyio
-fastapi==0.115.4
+fastapi==0.115.8
     # via feast (setup.py)
-fsspec==2024.10.0
+fsspec==2025.2.0
     # via dask
+greenlet==3.1.1
+    # via sqlalchemy
 gunicorn==23.0.0
     # via
     #   feast (setup.py)
@@ -51,11 +53,11 @@ idna==3.10
     # via
     #   anyio
     #   requests
-importlib-metadata==8.5.0
+importlib-metadata==8.6.1
     # via
     #   dask
     #   typeguard
-jinja2==3.1.4
+jinja2==3.1.5
     # via feast (setup.py)
 jsonschema==4.23.0
     # via feast (setup.py)
@@ -65,9 +67,9 @@ locket==1.0.0
     # via partd
 markupsafe==3.0.2
     # via jinja2
-mmh3==5.0.1
+mmh3==5.1.0
     # via feast (setup.py)
-mypy==1.13.0
+mypy==1.15.0
     # via sqlalchemy
 mypy-extensions==1.0.0
     # via mypy
@@ -76,7 +78,7 @@ numpy==1.26.4
     #   feast (setup.py)
     #   dask
     #   pandas
-packaging==24.1
+packaging==24.2
     # via
     #   dask
     #   gunicorn
@@ -87,54 +89,54 @@ pandas==2.2.3
     #   dask-expr
 partd==1.4.2
     # via dask
-prometheus-client==0.21.0
+prometheus-client==0.21.1
     # via feast (setup.py)
-protobuf==4.25.5
+protobuf==5.29.3
     # via feast (setup.py)
-psutil==6.1.0
+psutil==7.0.0
     # via feast (setup.py)
 pyarrow==18.0.0
     # via
     #   feast (setup.py)
     #   dask-expr
-pydantic==2.9.2
+pydantic==2.10.6
     # via
     #   feast (setup.py)
     #   fastapi
-pydantic-core==2.23.4
+pydantic-core==2.27.2
     # via pydantic
-pygments==2.18.0
+pygments==2.19.1
     # via feast (setup.py)
-pyjwt==2.9.0
+pyjwt==2.10.1
     # via feast (setup.py)
 python-dateutil==2.9.0.post0
     # via pandas
 python-dotenv==1.0.1
     # via uvicorn
-pytz==2024.2
+pytz==2025.1
     # via pandas
 pyyaml==6.0.2
     # via
     #   feast (setup.py)
     #   dask
     #   uvicorn
-referencing==0.35.1
+referencing==0.36.2
     # via
     #   jsonschema
     #   jsonschema-specifications
 requests==2.32.3
     # via feast (setup.py)
-rpds-py==0.20.0
+rpds-py==0.23.1
     # via
     #   jsonschema
     #   referencing
-six==1.16.0
+six==1.17.0
     # via python-dateutil
 sniffio==1.3.1
     # via anyio
-sqlalchemy[mypy]==2.0.36
+sqlalchemy[mypy]==2.0.38
     # via feast (setup.py)
-starlette==0.41.2
+starlette==0.45.3
     # via fastapi
 tabulate==0.9.0
     # via feast (setup.py)
@@ -142,15 +144,15 @@ tenacity==8.5.0
     # via feast (setup.py)
 toml==0.10.2
     # via feast (setup.py)
-tomli==2.0.2
+tomli==2.2.1
     # via mypy
 toolz==1.0.0
     # via
     #   dask
     #   partd
-tqdm==4.66.6
+tqdm==4.67.1
     # via feast (setup.py)
-typeguard==4.4.0
+typeguard==4.4.2
     # via feast (setup.py)
 typing-extensions==4.12.2
     # via
@@ -159,25 +161,26 @@ typing-extensions==4.12.2
     #   mypy
     #   pydantic
     #   pydantic-core
+    #   referencing
     #   sqlalchemy
     #   starlette
     #   typeguard
     #   uvicorn
-tzdata==2024.2
+tzdata==2025.1
     # via pandas
-urllib3==2.2.3
+urllib3==2.3.0
     # via requests
-uvicorn[standard]==0.32.0
+uvicorn[standard]==0.34.0
     # via
     #   feast (setup.py)
     #   uvicorn-worker
-uvicorn-worker==0.2.0
+uvicorn-worker==0.3.0
     # via feast (setup.py)
 uvloop==0.21.0
     # via uvicorn
-watchfiles==0.24.0
+watchfiles==1.0.4
     # via uvicorn
-websockets==13.1
+websockets==15.0
     # via uvicorn
-zipp==3.20.2
+zipp==3.21.0
     # via importlib-metadata

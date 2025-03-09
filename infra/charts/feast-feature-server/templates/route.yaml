@@ -1,0 +1,18 @@
+{{- if and (.Values.route.enabled) (eq .Values.feast_mode "ui") }}
+---
+kind: Route
+apiVersion: route.openshift.io/v1
+metadata:
+  name: {{ include "feast-feature-server.fullname" . }}
+  labels:
+    {{- include "feast-feature-server.labels" . | nindent 4 }}
+spec:
+  to:
+    kind: Service
+    name: {{ include "feast-feature-server.fullname" . }}
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+{{- end}}

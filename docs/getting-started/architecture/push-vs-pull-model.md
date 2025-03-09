@@ -25,4 +25,4 @@ Implicit in the Push model are decisions about _how_ and _when_ to push feature 
 
 From a developer's perspective, there are three ways to push feature values to the online store with different tradeoffs.
 
-They are discussed further in the [Write Patterns](getting-started/architecture/write-patterns.md) section.
+They are discussed further in the [Write Patterns](write-patterns.md) section.

@@ -187,7 +187,7 @@ class OnlineStore(ABC):
 
         for table, requested_features in grouped_refs:
             # Get the correct set of entity values with the correct join keys.
-            table_entity_values, idxs = utils._get_unique_entities(
+            table_entity_values, idxs, output_len = utils._get_unique_entities(
                 table,
                 join_key_values,
                 entity_name_to_join_key_map,
@@ -215,6 +215,7 @@ class OnlineStore(ABC):
                 full_feature_names,
                 requested_features,
                 table,
+                output_len,
             )
 
         if requested_on_demand_feature_views:
@@ -274,7 +275,7 @@ class OnlineStore(ABC):
 
         async def query_table(table, requested_features):
             # Get the correct set of entity values with the correct join keys.
-            table_entity_values, idxs = utils._get_unique_entities(
+            table_entity_values, idxs, output_len = utils._get_unique_entities(
                 table,
                 join_key_values,
                 entity_name_to_join_key_map,
@@ -290,7 +291,7 @@ class OnlineStore(ABC):
                 requested_features=requested_features,
             )
 
-            return idxs, read_rows
+            return idxs, read_rows, output_len
 
         all_responses = await asyncio.gather(
             *[
@@ -299,7 +300,7 @@ class OnlineStore(ABC):
             ]
         )
 
-        for (idxs, read_rows), (table, requested_features) in zip(
+        for (idxs, read_rows, output_len), (table, requested_features) in zip(
             all_responses, grouped_refs
         ):
             feature_data = utils._convert_rows_to_protobuf(
@@ -314,6 +315,7 @@ class OnlineStore(ABC):
                 full_feature_names,
                 requested_features,
                 table,
+                output_len,
             )
 
         if requested_on_demand_feature_views:
@@ -390,7 +392,8 @@ class OnlineStore(ABC):
         self,
         config: RepoConfig,
         table: FeatureView,
-        requested_feature: str,
+        requested_feature: Optional[str],
+        requested_features: Optional[List[str]],
         embedding: List[float],
         top_k: int,
         distance_metric: Optional[str] = None,
@@ -411,6 +414,7 @@ class OnlineStore(ABC):
             config: The config for the current feature store.
             table: The feature view whose feature values should be read.
             requested_feature: The name of the feature whose embeddings should be used for retrieval.
+            requested_features: The list of features whose embeddings should be used for retrieval.
             embedding: The embeddings to use for retrieval.
             top_k: The number of documents to retrieve.
 
@@ -419,6 +423,50 @@ class OnlineStore(ABC):
             where the first item is the event timestamp for the row, and the second item is a dict of feature
             name to embeddings.
         """
+        if not requested_feature and not requested_features:
+            raise ValueError(
+                "Either requested_feature or requested_features must be specified"
+            )
+        raise NotImplementedError(
+            f"Online store {self.__class__.__name__} does not support online retrieval"
+        )
+
+    def retrieve_online_documents_v2(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        requested_features: List[str],
+        embedding: Optional[List[float]],
+        top_k: int,
+        distance_metric: Optional[str] = None,
+        query_string: Optional[str] = None,
+    ) -> List[
+        Tuple[
+            Optional[datetime],
+            Optional[EntityKeyProto],
+            Optional[Dict[str, ValueProto]],
+        ]
+    ]:
+        """
+        Retrieves online feature values for the specified embeddings.
+
+        Args:
+            distance_metric: distance metric to use for retrieval.
+            config: The config for the current feature store.
+            table: The feature view whose feature values should be read.
+            requested_features: The list of features whose embeddings should be used for retrieval.
+            embedding: The embeddings to use for retrieval (optional)
+            top_k: The number of documents to retrieve.
+            query_string: The query string to search for using keyword search (bm25) (optional)
+
+        Returns:
+            object: A list of top k closest documents to the specified embedding. Each item in the list is a tuple
+            where the first item is the event timestamp for the row, and the second item is a dict of feature
+            name to embeddings.
+        """
+        assert embedding is not None or query_string is not None, (
+            "Either embedding or query_string must be specified"
+        )
         raise NotImplementedError(
             f"Online store {self.__class__.__name__} does not support online retrieval"
         )

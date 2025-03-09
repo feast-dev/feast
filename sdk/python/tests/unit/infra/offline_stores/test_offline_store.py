@@ -21,6 +21,7 @@ from feast.infra.offline_stores.contrib.trino_offline_store.trino import (
     TrinoRetrievalJob,
 )
 from feast.infra.offline_stores.dask import DaskRetrievalJob
+from feast.infra.offline_stores.file_source import FileSource
 from feast.infra.offline_stores.offline_store import RetrievalJob, RetrievalMetadata
 from feast.infra.offline_stores.redshift import (
     RedshiftOfflineStoreConfig,
@@ -246,3 +247,28 @@ def test_to_arrow_timeout(retrieval_job, timeout: Optional[int]):
     with patch.object(retrieval_job, "_to_arrow_internal") as mock_to_arrow_internal:
         retrieval_job.to_arrow(timeout=timeout)
         mock_to_arrow_internal.assert_called_once_with(timeout=timeout)
+
+
+@pytest.mark.parametrize(
+    "repo_path, uri, expected",
+    [
+        # Remote URI - Should return as-is
+        (
+            "/some/repo",
+            "s3://bucket-name/file.parquet",
+            "s3://bucket-name/file.parquet",
+        ),
+        # Absolute Path - Should return as-is
+        ("/some/repo", "/abs/path/file.parquet", "/abs/path/file.parquet"),
+        # Relative Path with repo_path - Should combine
+        ("/some/repo", "data/output.parquet", "/some/repo/data/output.parquet"),
+        # Relative Path without repo_path - Should return absolute path
+        (None, "C:/path/to/file.parquet", "C:/path/to/file.parquet"),
+    ],
+    ids=["s3_uri", "absolute_path", "relative_path", "windows_path"],
+)
+def test_get_uri_for_file_path(
+    repo_path: Optional[str], uri: str, expected: str
+) -> None:
+    result = FileSource.get_uri_for_file_path(repo_path=repo_path, uri=uri)
+    assert result == expected, f"Expected {expected}, but got {result}"

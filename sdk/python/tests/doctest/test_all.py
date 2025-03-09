@@ -77,9 +77,11 @@ def test_docstrings():
 
                 full_name = package.__name__ + "." + name
                 try:
-                    temp_module = importlib.import_module(full_name)
-                    if is_pkg:
-                        next_packages.append(temp_module)
+                    # https://github.com/feast-dev/feast/issues/5088
+                    if "ikv" not in full_name and "milvus" not in full_name:
+                        temp_module = importlib.import_module(full_name)
+                        if is_pkg:
+                            next_packages.append(temp_module)
                 except ModuleNotFoundError:
                     pass
 

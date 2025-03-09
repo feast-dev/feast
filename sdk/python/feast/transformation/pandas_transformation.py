@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Optional
 
 import dill
 import pandas as pd
@@ -29,7 +29,9 @@ class PandasTransformation(Transformation):
             "PandasTransformation does not support singleton transformations."
         )
 
-    def infer_features(self, random_input: dict[str, list[Any]]) -> list[Field]:
+    def infer_features(
+        self, random_input: dict[str, list[Any]], singleton: Optional[bool]
+    ) -> list[Field]:
         df = pd.DataFrame.from_dict(random_input)
         output_df: pd.DataFrame = self.transform(df)
 

@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 
-	"github.com/apache/arrow/go/v8/arrow/memory"
+	"github.com/apache/arrow/go/v17/arrow/memory"
+
+	//"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 
 	"github.com/feast-dev/feast/go/internal/feast/model"
 	"github.com/feast-dev/feast/go/internal/feast/onlineserving"
@@ -20,6 +22,7 @@ type FeatureStore struct {
 	registry               *registry.Registry
 	onlineStore            onlinestore.OnlineStore
 	transformationCallback transformation.TransformationCallback
+	transformationService  *transformation.GrpcTransformationService
 }
 
 // A Features struct specifies a list of features to be retrieved from the online store. These features
@@ -45,18 +48,33 @@ func NewFeatureStore(config *registry.RepoConfig, callback transformation.Transf
 	if err != nil {
 		return nil, err
 	}
-
-	registry, err := registry.NewRegistry(config.GetRegistryConfig(), config.RepoPath)
+	registryConfig, err := config.GetRegistryConfig()
 	if err != nil {
 		return nil, err
 	}
-	registry.InitializeRegistry()
+	registry, err := registry.NewRegistry(registryConfig, config.RepoPath, config.Project)
+	if err != nil {
+		return nil, err
+	}
+	err = registry.InitializeRegistry()
+	if err != nil {
+		return nil, err
+	}
+
+	var transformationService *transformation.GrpcTransformationService
+	if transformationServerEndpoint, ok := config.FeatureServer["transformation_service_endpoint"]; ok {
+		// Use a scalable transformation service like Python Transformation Service.
+		// Assume the user will define the "transformation_service_endpoint" in the feature_store.yaml file
+		// under the "feature_server" section.
+		transformationService, _ = transformation.NewGrpcTransformationService(config, transformationServerEndpoint.(string))
+	}
 
 	return &FeatureStore{
 		config:                 config,
 		registry:               registry,
 		onlineStore:            onlineStore,
 		transformationCallback: callback,
+		transformationService:  transformationService,
 	}, nil
 }
 
@@ -92,6 +110,10 @@ func (fs *FeatureStore) GetOnlineFeatures(
 		return nil, err
 	}
 
+	if len(requestedOnDemandFeatureViews) > 0 && fs.transformationService == nil {
+		return nil, FeastTransformationServiceNotConfigured{}
+	}
+
 	entityNameToJoinKeyMap, expectedJoinKeysSet, err := onlineserving.GetEntityMaps(requestedFeatureViews, entities)
 	if err != nil {
 		return nil, err
@@ -113,7 +135,7 @@ func (fs *FeatureStore) GetOnlineFeatures(
 	}
 
 	result := make([]*onlineserving.FeatureVector, 0)
-	arrowMemory := memory.NewCgoArrowAllocator()
+	arrowMemory := memory.NewGoAllocator()
 	featureViews := make([]*model.FeatureView, len(requestedFeatureViews))
 	index := 0
 	for _, featuresAndView := range requestedFeatureViews {
@@ -161,13 +183,15 @@ func (fs *FeatureStore) GetOnlineFeatures(
 		result = append(result, vectors...)
 	}
 
-	if fs.transformationCallback != nil {
+	if fs.transformationCallback != nil || fs.transformationService != nil {
 		onDemandFeatures, err := transformation.AugmentResponseWithOnDemandTransforms(
+			ctx,
 			requestedOnDemandFeatureViews,
 			requestData,
 			joinKeyToEntityValues,
 			result,
 			fs.transformationCallback,
+			fs.transformationService,
 			arrowMemory,
 			numRows,
 			fullFeatureNames,
@@ -297,6 +321,10 @@ func (fs *FeatureStore) readFromOnlineStore(ctx context.Context, entityRows []*p
 	requestedFeatureViewNames []string,
 	requestedFeatureNames []string,
 ) ([][]onlinestore.FeatureData, error) {
+	// Create a Datadog span from context
+	//span, _ := tracer.StartSpanFromContext(ctx, "fs.readFromOnlineStore")
+	//defer span.Finish()
+
 	numRows := len(entityRows)
 	entityRowsValue := make([]*prototypes.EntityKey, numRows)
 	for index, entityKey := range entityRows {

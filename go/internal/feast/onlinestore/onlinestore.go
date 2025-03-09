@@ -5,11 +5,9 @@ import (
 	"fmt"
 
 	"github.com/feast-dev/feast/go/internal/feast/registry"
-
-	"github.com/golang/protobuf/ptypes/timestamp"
-
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/feast-dev/feast/go/protos/feast/types"
+	"github.com/golang/protobuf/ptypes/timestamp"
 )
 
 type FeatureData struct {

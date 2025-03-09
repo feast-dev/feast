@@ -156,7 +156,7 @@ class PostgreSQLOfflineStore(OfflineStore):
             # Hack for query_context.entity_selections to support uppercase in columns
             for context in query_context_dict:
                 context["entity_selections"] = [
-                    f""""{entity_selection.replace(' AS ', '" AS "')}\""""
+                    f""""{entity_selection.replace(" AS ", '" AS "')}\""""
                     for entity_selection in context["entity_selections"]
                 ]
 
@@ -370,7 +370,7 @@ def build_point_in_time_query(
     final_output_feature_names.extend(
         [
             (
-                f'{fv["name"]}__{fv["field_mapping"].get(feature, feature)}'
+                f"{fv['name']}__{fv['field_mapping'].get(feature, feature)}"
                 if full_feature_names
                 else fv["field_mapping"].get(feature, feature)
             )

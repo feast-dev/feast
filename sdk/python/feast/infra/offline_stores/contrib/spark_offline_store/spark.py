@@ -99,6 +99,8 @@ class SparkOfflineStore(OfflineStore):
         fields_as_string = ", ".join(fields_with_aliases)
         aliases_as_string = ", ".join(aliases)
 
+        date_partition_column = data_source.date_partition_column
+
         start_date_str = _format_datetime(start_date)
         end_date_str = _format_datetime(end_date)
         query = f"""
@@ -109,7 +111,7 @@ class SparkOfflineStore(OfflineStore):
                     SELECT {fields_as_string},
                     ROW_NUMBER() OVER({partition_by_join_key_string} ORDER BY {timestamp_desc_string}) AS feast_row_
                     FROM {from_expression} t1
-                    WHERE {timestamp_field} BETWEEN TIMESTAMP('{start_date_str}') AND TIMESTAMP('{end_date_str}')
+                    WHERE {timestamp_field} BETWEEN TIMESTAMP('{start_date_str}') AND TIMESTAMP('{end_date_str}'){" AND " + date_partition_column + " >= '" + start_date.strftime("%Y-%m-%d") + "' AND " + date_partition_column + " <= '" + end_date.strftime("%Y-%m-%d") + "' " if date_partition_column != "" and date_partition_column is not None else ""}
                 ) t2
                 WHERE feast_row_ = 1
                 """
@@ -641,8 +643,15 @@ CREATE OR REPLACE TEMPORARY VIEW {{ featureview.name }}__cleaned AS (
             {% endfor %}
         FROM {{ featureview.table_subquery }}
         WHERE {{ featureview.timestamp_field }} <= '{{ featureview.max_event_timestamp }}'
+        {% if featureview.date_partition_column != "" and featureview.date_partition_column is not none %}
+        AND {{ featureview.date_partition_column }} <= '{{ featureview.max_event_timestamp[:10] }}'
+        {% endif %}
+
         {% if featureview.ttl == 0 %}{% else %}
         AND {{ featureview.timestamp_field }} >= '{{ featureview.min_event_timestamp }}'
+        {% if featureview.date_partition_column != "" and featureview.date_partition_column is not none %}
+          AND {{ featureview.date_partition_column }} >= '{{ featureview.min_event_timestamp[:10] }}'
+        {% endif %}
         {% endif %}
     ),
 

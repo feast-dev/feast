@@ -11,6 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import warnings
+
 import assertpy
 import pytest
 
@@ -73,3 +75,16 @@ def test_hash():
 
     s4 = {entity1, entity2, entity3, entity4}
     assert len(s4) == 3
+
+
+def test_entity_without_value_type_warns():
+    with pytest.warns(DeprecationWarning, match="Entity value_type will be mandatory"):
+        entity = Entity(name="my-entity")
+    assert entity.value_type == ValueType.UNKNOWN
+
+
+def test_entity_with_value_type_no_warning():
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        entity = Entity(name="my-entity", value_type=ValueType.STRING)
+    assert entity.value_type == ValueType.STRING

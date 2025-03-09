@@ -278,7 +278,7 @@ class KubernetesMaterializationEngine(BatchMaterializationEngine):
             label_selector=f"job-name={job_id}",
         ).items
         for i, pod in enumerate(pods_list):
-            logger.info(f"Logging output for {feature_view.name} pod {offset+i}")
+            logger.info(f"Logging output for {feature_view.name} pod {offset + i}")
             try:
                 logger.info(
                     self.v1.read_namespaced_pod_log(pod.metadata.name, self.namespace)

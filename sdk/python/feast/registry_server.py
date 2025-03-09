@@ -792,9 +792,10 @@ def start_server(
     reflection.enable_server_reflection(service_names_available_for_reflection, server)
 
     if tls_cert_path and tls_key_path:
-        with open(tls_cert_path, "rb") as cert_file, open(
-            tls_key_path, "rb"
-        ) as key_file:
+        with (
+            open(tls_cert_path, "rb") as cert_file,
+            open(tls_key_path, "rb") as key_file,
+        ):
             certificate_chain = cert_file.read()
             private_key = key_file.read()
             server_credentials = grpc.ssl_server_credentials(

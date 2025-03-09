@@ -1,0 +1,83 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-secret
+  labels:
+    app: postgres
+stringData:
+  POSTGRES_DB: feast
+  POSTGRES_USER: admin
+  POSTGRES_PASSWORD: password
+  POSTGRES_HOST: postgresql.feast.svc.cluster.local
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: feast-data-stores
+stringData:
+  sql: |
+    path: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:5432/${POSTGRES_DB}?sslmode=verify-full&sslrootcert=/var/lib/postgresql/certs/ca.crt&sslcert=/var/lib/postgresql/certs/tls.crt&sslkey=/var/lib/postgresql/certs/tls.key
+    cache_ttl_seconds: 60
+    sqlalchemy_config_kwargs:
+        echo: false
+        pool_pre_ping: true
+  postgres: |
+    host: ${POSTGRES_HOST}
+    port: 5432
+    database: ${POSTGRES_DB}
+    db_schema: public
+    user: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
+    sslmode: verify-full
+    sslkey_path: /var/lib/postgresql/certs/tls.key
+    sslcert_path: /var/lib/postgresql/certs/tls.crt
+    sslrootcert_path: /var/lib/postgresql/certs/ca.crt
+---
+apiVersion: feast.dev/v1alpha1
+kind: FeatureStore
+metadata:
+  name: sample-db-ssl
+spec:
+  feastProject: postgres_tls_sample
+  services:
+    volumes:
+      - name: postgres-certs
+        secret:
+          secretName: postgresql-client-certs
+          items:
+            - key: ca.crt
+              path: ca.crt
+              mode: 0644  # Readable by all, required by PostgreSQL
+            - key: tls.crt
+              path: tls.crt
+              mode: 0644  # Required for the client certificate
+            - key: tls.key
+              path: tls.key
+              mode: 0640  # Required for the private key
+    offlineStore:
+      persistence:
+        store:
+          type: postgres
+          secretRef:
+            name: feast-data-stores
+    onlineStore:
+      persistence:
+        store:
+          type: postgres
+          secretRef:
+            name: feast-data-stores
+      server:
+        volumeMounts:
+          - name: postgres-certs
+            mountPath: /var/lib/postgresql/certs
+            readOnly: true
+        envFrom:
+          - secretRef:
+              name: postgres-secret
+    registry:
+      local:
+        persistence:
+          store:
+            type: sql
+            secretRef:
+              name: feast-data-stores

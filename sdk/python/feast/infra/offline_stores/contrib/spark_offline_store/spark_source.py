@@ -45,6 +45,7 @@ class SparkSource(DataSource):
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
         timestamp_field: Optional[str] = None,
+        date_partition_column: Optional[str] = None,
     ):
         """Creates a SparkSource object.
 
@@ -64,6 +65,8 @@ class SparkSource(DataSource):
                 maintainer.
             timestamp_field: Event timestamp field used for point-in-time joins of
                 feature values.
+            date_partition_column: The column to partition the data on for faster
+                retrieval. This is useful for large tables and will limit the number ofi
         """
         # If no name, use the table as the default name.
         if name is None and table is None:
@@ -77,6 +80,7 @@ class SparkSource(DataSource):
             created_timestamp_column=created_timestamp_column,
             field_mapping=field_mapping,
             description=description,
+            date_partition_column=date_partition_column,
             tags=tags,
             owner=owner,
         )
@@ -135,6 +139,7 @@ class SparkSource(DataSource):
             query=spark_options.query,
             path=spark_options.path,
             file_format=spark_options.file_format,
+            date_partition_column=data_source.date_partition_column,
             timestamp_field=data_source.timestamp_field,
             created_timestamp_column=data_source.created_timestamp_column,
             description=data_source.description,
@@ -148,6 +153,7 @@ class SparkSource(DataSource):
             type=DataSourceProto.BATCH_SPARK,
             data_source_class_type="feast.infra.offline_stores.contrib.spark_offline_store.spark_source.SparkSource",
             field_mapping=self.field_mapping,
+            date_partition_column=self.date_partition_column,
             spark_options=self.spark_options.to_proto(),
             description=self.description,
             tags=self.tags,

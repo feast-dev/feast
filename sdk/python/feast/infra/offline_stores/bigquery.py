@@ -901,7 +901,10 @@ CREATE TEMP TABLE {{ featureview.name }}__cleaned AS (
             {{ featureview.created_timestamp_column ~ ' as created_timestamp,' if featureview.created_timestamp_column else '' }}
             {{ featureview.entity_selections | join(', ')}}{% if featureview.entity_selections %},{% else %}{% endif %}
             {% for feature in featureview.features %}
-                {{ feature }} as {% if full_feature_names %}{{ featureview.name }}__{{featureview.field_mapping.get(feature, feature)}}{% else %}{{ featureview.field_mapping.get(feature, feature) }}{% endif %}{% if loop.last %}{% else %}, {% endif %}
+                {{ feature | backticks }} as {% if full_feature_names %}
+                {{ featureview.name }}__{{featureview.field_mapping.get(feature, feature)}}{% else %}
+                {{ featureview.field_mapping.get(feature, feature) | backticks }}{% endif %}
+                {% if loop.last %}{% else %}, {% endif %}
             {% endfor %}
         FROM {{ featureview.table_subquery }}
         WHERE {{ featureview.timestamp_field }} <= '{{ featureview.max_event_timestamp }}'
@@ -995,14 +998,14 @@ CREATE TEMP TABLE {{ featureview.name }}__cleaned AS (
  The entity_dataframe dataset being our source of truth here.
  */
 
-SELECT {{ final_output_feature_names | join(', ')}}
+SELECT {{ final_output_feature_names | backticks | join(', ')}}
 FROM entity_dataframe
 {% for featureview in featureviews %}
 LEFT JOIN (
     SELECT
         {{featureview.name}}__entity_row_unique_id
         {% for feature in featureview.features %}
-            ,{% if full_feature_names %}{{ featureview.name }}__{{featureview.field_mapping.get(feature, feature)}}{% else %}{{ featureview.field_mapping.get(feature, feature) }}{% endif %}
+            ,{% if full_feature_names %}{{ featureview.name }}__{{featureview.field_mapping.get(feature, feature)}}{% else %}{{ featureview.field_mapping.get(feature, feature) | backticks }}{% endif %}
         {% endfor %}
     FROM {{ featureview.name }}__cleaned
 ) USING ({{featureview.name}}__entity_row_unique_id)

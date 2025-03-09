@@ -43,6 +43,7 @@ def py_path_to_module(path: Path) -> str:
         str(path.relative_to(os.getcwd()))[: -len(".py")]
         .replace("./", "")
         .replace("/", ".")
+        .replace("\\", ".")
     )
 
 

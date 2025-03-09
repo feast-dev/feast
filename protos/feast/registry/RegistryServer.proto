@@ -17,6 +17,8 @@ import "feast/core/InfraObject.proto";
 import "feast/core/Permission.proto";
 import "feast/core/Project.proto";
 
+option go_package = "github.com/feast-dev/feast/go/protos/feast/registry";
+
 service RegistryServer{
   // Entity RPCs
   rpc ApplyEntity (ApplyEntityRequest) returns (google.protobuf.Empty) {}

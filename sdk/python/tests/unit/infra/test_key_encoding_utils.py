@@ -52,6 +52,24 @@ def test_deserialize_entity_key():
     )
 
 
+def test_deserialize_multiple_entity_keys():
+    entity_key_proto = EntityKeyProto(
+        join_keys=["customer", "user"],
+        entity_values=[ValueProto(string_val="test"), ValueProto(int64_val=int(2**15))],
+    )
+
+    serialized_entity_key = serialize_entity_key(
+        entity_key_proto,
+        entity_key_serialization_version=3,
+    )
+
+    deserialized_entity_key = deserialize_entity_key(
+        serialized_entity_key,
+        entity_key_serialization_version=3,
+    )
+    assert deserialized_entity_key == entity_key_proto
+
+
 def test_serialize_value():
     v, t = _serialize_val("string_val", ValueProto(string_val="test"))
     assert t == ValueType.STRING

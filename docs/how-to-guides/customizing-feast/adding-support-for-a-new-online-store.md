@@ -25,7 +25,7 @@ OnlineStore class names must end with the OnlineStore suffix!
 
 ### Contrib online stores
 
-New online stores go in `sdk/python/feast/infra/online_stores/contrib/`.
+New online stores go in `sdk/python/feast/infra/online_stores/`.
 
 #### What is a contrib plugin?
 

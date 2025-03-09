@@ -11,12 +11,17 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import glob
 import os
 import pathlib
 import re
 import shutil
+import subprocess
+from subprocess import CalledProcessError
+import sys
+from pathlib import Path
 
-from setuptools import find_packages, setup
+from setuptools import find_packages, setup, Command
 
 NAME = "feast"
 DESCRIPTION = "Python SDK for Feast"
@@ -28,13 +33,13 @@ REQUIRED = [
     "click>=7.0.0,<9.0.0",
     "colorama>=0.3.9,<1",
     "dill~=0.3.0",
-    "protobuf>=4.24.0,<5.0.0",
+    "protobuf>=4.24.0",
     "Jinja2>=2,<4",
     "jsonschema",
     "mmh3",
     "numpy>=1.22,<2",
     "pandas>=1.4.3,<3",
-    "pyarrow>=9.0.0",
+    "pyarrow<18.1.0",
     "pydantic>=2.0.0",
     "pygments>=2.12.0,<3",
     "PyYAML>=5.4.0,<7",
@@ -85,7 +90,7 @@ SPARK_REQUIRED = [
 ]
 
 SQLITE_VEC_REQUIRED = [
-    "sqlite-vec==v0.1.1",
+    "sqlite-vec==v0.1.6",
 ]
 TRINO_REQUIRED = ["trino>=0.305.0,<0.400.0", "regex"]
 
@@ -105,7 +110,7 @@ CASSANDRA_REQUIRED = [
     "cassandra-driver>=3.24.0,<4",
 ]
 
-GE_REQUIRED = ["great_expectations>=0.15.41"]
+GE_REQUIRED = ["great_expectations>=0.15.41,<1"]
 
 AZURE_REQUIRED = [
     "azure-storage-blob>=0.37.0",
@@ -138,30 +143,43 @@ DUCKDB_REQUIRED = ["ibis-framework[duckdb]>=9.0.0,<10"]
 
 DELTA_REQUIRED = ["deltalake"]
 
+DOCLING_REQUIRED = ["docling>=2.23.0"]
+
 ELASTICSEARCH_REQUIRED = ["elasticsearch>=8.13.0"]
 
-SINGLESTORE_REQUIRED = ["singlestoredb"]
+SINGLESTORE_REQUIRED = ["singlestoredb<1.8.0"]
 
-COUCHBASE_REQUIRED = ["couchbase==4.3.2"]
+COUCHBASE_REQUIRED = [
+    "couchbase==4.3.2",
+    "couchbase-columnar==1.0.0"
+]
 
 MSSQL_REQUIRED = ["ibis-framework[mssql]>=9.0.0,<10"]
 
 FAISS_REQUIRED = ["faiss-cpu>=1.7.0,<2"]
-
 QDRANT_REQUIRED = ["qdrant-client>=1.12.0"]
+
+GO_REQUIRED = ["cffi>=1.15.0"]
+
+MILVUS_REQUIRED = ["pymilvus"]
+
+TORCH_REQUIRED = [
+    "torch>=2.2.2",
+    "torchvision>=0.17.2",
+]
 
 CI_REQUIRED = (
     [
         "build",
         "virtualenv==20.23.0",
-        "cryptography>=35.0,<43",
-        "ruff>=0.3.3",
+        "cryptography>=43.0,<44",
+        "ruff>=0.8.0",
         "mypy-protobuf>=3.1",
         "grpcio-tools>=1.56.2,<2",
         "grpcio-testing>=1.56.2,<2",
         # FastAPI does not correctly pull starlette dependency on httpx see thread(https://github.com/tiangolo/fastapi/issues/5656).
-        "httpx>=0.23.3",
-        "minio==7.1.0",
+        "httpx==0.27.2",
+        "minio==7.2.11",
         "mock==2.0.0",
         "moto<5",
         "mypy>=1.4.1,<1.11.3",
@@ -179,7 +197,7 @@ CI_REQUIRED = (
         "pytest-mock==1.10.4",
         "pytest-env",
         "Sphinx>4.0.0,<7",
-        "testcontainers==4.4.0",
+        "testcontainers==4.8.2",
         "python-keycloak==4.2.2",
         "pre-commit<3.3.2",
         "assertpy==1.1",
@@ -220,8 +238,15 @@ CI_REQUIRED = (
     + OPENTELEMETRY
     + FAISS_REQUIRED
     + QDRANT_REQUIRED
+    + MILVUS_REQUIRED
+    + DOCLING_REQUIRED
+    + TORCH_REQUIRED
 )
-
+NLP_REQUIRED = (
+    DOCLING_REQUIRED
+    + MILVUS_REQUIRED
+    + TORCH_REQUIRED
+)
 DOCS_REQUIRED = CI_REQUIRED
 DEV_REQUIRED = CI_REQUIRED
 
@@ -247,6 +272,7 @@ else:
     use_scm_version = None
 
 PYTHON_CODE_PREFIX = "sdk/python"
+
 
 setup(
     name=NAME,
@@ -291,7 +317,12 @@ setup(
         "couchbase": COUCHBASE_REQUIRED,
         "opentelemetry": OPENTELEMETRY,
         "faiss": FAISS_REQUIRED,
-        "qdrant": QDRANT_REQUIRED
+        "qdrant": QDRANT_REQUIRED,
+        "go": GO_REQUIRED,
+        "milvus": MILVUS_REQUIRED,
+        "docling": DOCLING_REQUIRED,
+        "pytorch": TORCH_REQUIRED,
+        "nlp": NLP_REQUIRED,
     },
     include_package_data=True,
     license="Apache",

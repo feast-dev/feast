@@ -38,7 +38,7 @@ project: my_feature_repo
 registry: data/registry.db
 provider: local
 online_store:
-  type: couchbase
+  type: couchbase.online
   connection_string: couchbase://127.0.0.1 # Couchbase connection string, copied from 'Connect' page in Couchbase Capella console
   user: Administrator  # Couchbase username from access credentials
   password: password  # Couchbase password from access credentials

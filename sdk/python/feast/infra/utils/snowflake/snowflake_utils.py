@@ -513,7 +513,7 @@ def chunk_helper(lst: pd.DataFrame, n: int) -> Iterator[Tuple[int, pd.DataFrame]
 
 
 def parse_private_key_path(
-    private_key_passphrase: str,
+    private_key_passphrase: Optional[str] = None,
     key_path: Optional[str] = None,
     private_key_content: Optional[bytes] = None,
 ) -> bytes:
@@ -521,14 +521,18 @@ def parse_private_key_path(
     if private_key_content:
         p_key = serialization.load_pem_private_key(
             private_key_content,
-            password=private_key_passphrase.encode(),
+            password=private_key_passphrase.encode()
+            if private_key_passphrase is not None
+            else None,
             backend=default_backend(),
         )
     elif key_path:
         with open(key_path, "rb") as key:
             p_key = serialization.load_pem_private_key(
                 key.read(),
-                password=private_key_passphrase.encode(),
+                password=private_key_passphrase.encode()
+                if private_key_passphrase is not None
+                else None,
                 backend=default_backend(),
             )
     else:

@@ -48,14 +48,17 @@ def retrieval_job(request):
 
 def test_to_remote_storage(retrieval_job):
     stored_files = ["just a path", "maybe another"]
-    with patch.object(
-        retrieval_job, "to_snowflake", return_value=None
-    ) as mock_to_snowflake, patch.object(
-        retrieval_job, "_get_file_names_from_copy_into", return_value=stored_files
-    ) as mock_get_file_names_from_copy:
-        assert (
-            retrieval_job.to_remote_storage() == stored_files
-        ), "should return the list of files"
+    with (
+        patch.object(
+            retrieval_job, "to_snowflake", return_value=None
+        ) as mock_to_snowflake,
+        patch.object(
+            retrieval_job, "_get_file_names_from_copy_into", return_value=stored_files
+        ) as mock_get_file_names_from_copy,
+    ):
+        assert retrieval_job.to_remote_storage() == stored_files, (
+            "should return the list of files"
+        )
         mock_to_snowflake.assert_called_once()
         mock_get_file_names_from_copy.assert_called_once_with(ANY, ANY)
         native_path = mock_get_file_names_from_copy.call_args[0][1]
