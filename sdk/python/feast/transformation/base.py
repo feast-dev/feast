@@ -4,8 +4,9 @@ from typing import Any, Callable, Dict, Optional, Union
 
 import dill
 
-from feast.transformation.factory import TRANSFORMATION_CLASSES
+from feast.transformation.factory import TRANSFORMATION_CLASS_FOR_TYPE, get_transformation_class_from_type
 from feast.transformation.mode import TransformationMode
+from feast.importer import import_class
 
 
 class Transformation(ABC):
@@ -25,8 +26,8 @@ class Transformation(ABC):
             if isinstance(mode, TransformationMode):
                 mode = mode.value
 
-            if mode.lower() in TRANSFORMATION_CLASSES:
-                subclass = TRANSFORMATION_CLASSES[mode.lower()]
+            if mode.lower() in TRANSFORMATION_CLASS_FOR_TYPE:
+                subclass = get_transformation_class_from_type(mode.lower())
                 return super().__new__(subclass)
 
             raise ValueError(

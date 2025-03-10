@@ -1,13 +1,19 @@
-from typing import Dict, Type
+from feast.importer import import_class
 
-from feast.transformation.base import Transformation
-from feast.transformation.mode import TransformationMode
-from feast.transformation.pandas_transformation import PandasTransformation
-from feast.transformation.python_transformation import PythonTransformation
-from feast.transformation.sql_transformation import SQLTransformation
-
-TRANSFORMATION_CLASSES: Dict[str, Type[Transformation]] = {
-    TransformationMode.PANDAS.value: PandasTransformation,
-    TransformationMode.PYTHON.value: PythonTransformation,
-    TransformationMode.SQL.value: SQLTransformation,
+TRANSFORMATION_CLASS_FOR_TYPE = {
+    "python": "feast.transformation.python_transformation.PythonTransformation",
+    "pandas": "feast.transformation.pandas_transformation.PandasTransformation",
+    "substrait": "feast.transformation.substrait_transformation.SubstraitTransformation",
+    "sql": "feast.transformation.sql_transformation.SQLTransformation",
 }
+
+
+def get_transformation_class_from_type(transformation_type: str):
+    if transformation_type in TRANSFORMATION_CLASS_FOR_TYPE:
+        transformation_type = TRANSFORMATION_CLASS_FOR_TYPE[transformation_type]
+    elif not transformation_type.endswith("Transformation"):
+        raise ValueError(
+            f"Invalid transformation type: {transformation_type}. Choose from {list(TRANSFORMATION_CLASS_FOR_TYPE.keys())}."
+        )
+    module_name, transformation_class_type = transformation_type.rsplit(".", 1)
+    return import_class(module_name, transformation_class_type, transformation_class_type)
