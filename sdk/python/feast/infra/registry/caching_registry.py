@@ -1,7 +1,6 @@
 import atexit
 import logging
 import threading
-import time
 import warnings
 from abc import abstractmethod
 from datetime import timedelta
@@ -490,11 +489,9 @@ class CachingRegistry(BaseRegistry):
             return
 
         def refresh_loop():
-            while not self._stop_event.is_set():
+            while not self._stop_event.wait(cache_ttl_seconds):
                 try:
-                    time.sleep(cache_ttl_seconds)
-                    if not self._stop_event.is_set():
-                        self.refresh()
+                    self.refresh()
                 except Exception as e:
                     logger.exception(
                         f"Exception in registry cache refresh_loop: {e}", exc_info=True
