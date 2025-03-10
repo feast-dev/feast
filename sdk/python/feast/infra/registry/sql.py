@@ -230,6 +230,9 @@ class SqlRegistryConfig(RegistryConfig):
     """ str: Read Path to metadata store if different from path.
     If registry_type is 'sql', then this is a Read Endpoint for database URL. If not set, path will be used for read and write. """
 
+    on_cache_refresh_failure: Optional[Callable[[Exception], None]] = None
+    """ Optional[Callable[[Exception], None]]: Callback function for if CachingRegistry cache refresh fails. """
+
     sqlalchemy_config_kwargs: Dict[str, Any] = {"echo": False}
     """ Dict[str, Any]: Extra arguments to pass to SQLAlchemy.create_engine. """
 
@@ -246,6 +249,7 @@ class SqlRegistry(CachingRegistry):
         registry_config,
         project: str,
         repo_path: Optional[Path],
+        on_cache_refresh_failure: Optional[Callable[[Exception], None]] = None,
     ):
         assert registry_config is not None and isinstance(
             registry_config, SqlRegistryConfig
@@ -278,6 +282,7 @@ class SqlRegistry(CachingRegistry):
             project=project,
             cache_ttl_seconds=registry_config.cache_ttl_seconds,
             cache_mode=registry_config.cache_mode,
+            on_cache_refresh_failure=on_cache_refresh_failure,
         )
 
     def _sync_feast_metadata_to_projects_table(self):
