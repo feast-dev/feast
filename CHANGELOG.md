@@ -1,5 +1,76 @@
 # Changelog
 
+# [0.47.0](https://github.com/feast-dev/feast/compare/v0.46.0...v0.47.0) (2025-03-10)
+
+
+* feat!: Include PUBLIC_URL in defaultProjectListPromise URL in /ui ([2f0f7b3](https://github.com/feast-dev/feast/commit/2f0f7b386c7297ea8393ad4e3d73b198581f341b))
+
+
+### Bug Fixes
+
+* Add transformation_service_endpoit to support Go feature server. ([#5071](https://github.com/feast-dev/feast/issues/5071)) ([5627d7c](https://github.com/feast-dev/feast/commit/5627d7cd3676d61290cd716b74feb9212227b5fa))
+* Adding extra space on the VM to kind cluster to see if this solves the issue with memory not available with operator e2e tests. ([#5102](https://github.com/feast-dev/feast/issues/5102)) ([e6e928c](https://github.com/feast-dev/feast/commit/e6e928c1f53fe323359275d9ab05b235ace04026))
+* Allow unencrypted Snowflake key ([#5097](https://github.com/feast-dev/feast/issues/5097)) ([87a7c23](https://github.com/feast-dev/feast/commit/87a7c23dac7e5b99471b90ee9f2bf375c5705210))
+* Cant add different type of list types ([#5118](https://github.com/feast-dev/feast/issues/5118)) ([bebd7be](https://github.com/feast-dev/feast/commit/bebd7be16aeabc2c7f2e0f570393c0fabe219d8b))
+* Fixing transformations on writes ([#5127](https://github.com/feast-dev/feast/issues/5127)) ([95ac34a](https://github.com/feast-dev/feast/commit/95ac34a63ce99186be003ba28a21f93fc9d81fce))
+* Identify s3/remote uri path correctly ([#5076](https://github.com/feast-dev/feast/issues/5076)) ([93becff](https://github.com/feast-dev/feast/commit/93becff68a3552c0cfa6dbcd2b9e778083328472))
+* Increase available action VM storage and reduce dev feature-server image size ([#5112](https://github.com/feast-dev/feast/issues/5112)) ([75f5a90](https://github.com/feast-dev/feast/commit/75f5a90536f7caa566b38b9c368ec33a90d2bfa5))
+* Move Feast to pyproject.toml instead of setup.py ([#5067](https://github.com/feast-dev/feast/issues/5067)) ([4231274](https://github.com/feast-dev/feast/commit/4231274800873c1421ffa95602d7ee36a9265eb5))
+* Skip refresh if already in progress or if lock is already held ([#5068](https://github.com/feast-dev/feast/issues/5068)) ([f3a24de](https://github.com/feast-dev/feast/commit/f3a24dea078ca5ecaace9fe100b7190972e6617d))
+
+
+### Features
+
+* Add an OOTB Chat uI to the Feature Server to support RAG demo ([#5106](https://github.com/feast-dev/feast/issues/5106)) ([40ea7a9](https://github.com/feast-dev/feast/commit/40ea7a924bcfa6b9ca55125c1ba7ac9c82f6d280))
+* Add Couchbase Columnar as an Offline Store ([#5025](https://github.com/feast-dev/feast/issues/5025)) ([4373cbf](https://github.com/feast-dev/feast/commit/4373cbf9974eff7f8913a1d0ade14c0a1f385295))
+* Add Feast Operator RBAC example with Kubernetes Authentication … ([#5077](https://github.com/feast-dev/feast/issues/5077)) ([2179fbe](https://github.com/feast-dev/feast/commit/2179fbe41b53e1c10bf83f142fcc7fba43e83bdf))
+* Added docling and pytorch as add on ([#5089](https://github.com/feast-dev/feast/issues/5089)) ([135342b](https://github.com/feast-dev/feast/commit/135342bb1665dbed58912c61ee7c00e2f61b6ef2))
+* Feast Operator example with Postgres in TLS mode. ([#5028](https://github.com/feast-dev/feast/issues/5028)) ([2c46f6a](https://github.com/feast-dev/feast/commit/2c46f6a283294fc4c7d90c792d560f01ae0f1b64))
+* Operator - Add feastProjectDir section to CR with git & init options ([#5079](https://github.com/feast-dev/feast/issues/5079)) ([d64f01e](https://github.com/feast-dev/feast/commit/d64f01ecf406f9d429196ae0bd08a84ec90f0c15))
+* Override the udf name when provided as input to an on demand transformation ([#5094](https://github.com/feast-dev/feast/issues/5094)) ([8a714bb](https://github.com/feast-dev/feast/commit/8a714bb57093a1a77057748ad9eb1f529d34f41e))
+* Set value_type of entity directly in from_proto ([#5092](https://github.com/feast-dev/feast/issues/5092)) ([90e7498](https://github.com/feast-dev/feast/commit/90e7498c8a65eac685d35b83d709f647b03f1445))
+* Updating retrieve online documents v2 to work for other fields for sq… ([#5082](https://github.com/feast-dev/feast/issues/5082)) ([fc121c3](https://github.com/feast-dev/feast/commit/fc121c3fb96ffb6e8dcaf096ccdda3933492972d))
+
+
+### BREAKING CHANGES
+
+* The PUBLIC_URL environment variable is now taken into account by default
+when fetching the projects list. This is a breaking change only if all
+these points apply:
+
+1. You're using Feast UI as a module
+
+2. You're serving the UI files from a non-root path via the PUBLIC_URL
+   environment variable
+
+3. You're serving the project list from the root path
+
+4. You're not passing the `feastUIConfigs.projectListPromise` prop to
+   the FeastUI component
+
+In this case, you need to explicitly fetch the project list from the
+root path via the `feastUIConfigs.projectListPromise` prop:
+
+```diff
+ const root = createRoot(document.getElementById("root")!);
+ root.render(
+   <React.StrictMode>
+-    <FeastUI />
++    <FeastUI
++      feastUIConfigs={{
++        projectListPromise: fetch("/projects-list.json", {
++            headers: {
++              "Content-Type": "application/json",
++            },
++          }).then((res) => res.json())
++      }}
++    />
+   </React.StrictMode>
+ );
+```
+
+Signed-off-by: Harri Lehtola <peruukki@hotmail.com>
+
 # [0.46.0](https://github.com/feast-dev/feast/compare/v0.45.0...v0.46.0) (2025-02-17)
 
 

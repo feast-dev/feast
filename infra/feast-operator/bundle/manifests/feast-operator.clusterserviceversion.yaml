@@ -37,10 +37,10 @@ metadata:
         }
       ]
     capabilities: Basic Install
-    createdAt: "2025-02-17T22:19:00Z"
+    createdAt: "2025-03-10T19:57:05Z"
     operators.operatorframework.io/builder: operator-sdk-v1.38.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
-  name: feast-operator.v0.46.0
+  name: feast-operator.v0.47.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -182,8 +182,8 @@ spec:
                 - /manager
                 env:
                 - name: RELATED_IMAGE_FEATURE_SERVER
-                  value: docker.io/feastdev/feature-server:0.46.0
-                image: feastdev/feast-operator:0.46.0
+                  value: quay.io/feastdev/feature-server:0.47.0
+                image: quay.io/feastdev/feast-operator:0.47.0
                 livenessProbe:
                   httpGet:
                     path: /healthz
@@ -273,6 +273,6 @@ spec:
     name: Feast Community
     url: https://lf-aidata.atlassian.net/wiki/spaces/FEAST/
   relatedImages:
-  - image: docker.io/feastdev/feature-server:0.46.0
+  - image: quay.io/feastdev/feature-server:0.47.0
     name: feature-server
-  version: 0.46.0
+  version: 0.47.0
