@@ -3,6 +3,7 @@ from typing import Any, Optional
 import dill
 import pandas as pd
 import pyarrow
+from transformation.mode import TransformationMode
 
 from feast.field import Field, from_value_type
 from feast.protos.feast.core.Transformation_pb2 import (
@@ -12,7 +13,6 @@ from feast.transformation.base import Transformation
 from feast.type_map import (
     python_type_to_feast_value_type,
 )
-from transformation.mode import TransformationMode
 
 
 class PandasTransformation(Transformation):

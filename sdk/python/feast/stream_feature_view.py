@@ -147,7 +147,10 @@ class StreamFeatureView(FeatureView):
     def get_feature_transformation(self) -> Optional[Transformation]:
         if not self.udf:
             return None
-        if self.mode in (TransformationMode.PANDAS, TransformationMode.PYTHON) or self.mode in ("pandas", "python"):
+        if self.mode in (
+            TransformationMode.PANDAS,
+            TransformationMode.PYTHON,
+        ) or self.mode in ("pandas", "python"):
             return Transformation(mode=self.mode, udf=self.udf)
         else:
             raise ValueError(

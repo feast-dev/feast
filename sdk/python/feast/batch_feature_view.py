@@ -120,8 +120,11 @@ class BatchFeatureView(FeatureView):
     def get_feature_transformation(self) -> Optional[Transformation]:
         if not self.udf:
             return None
-        if self.mode in (TransformationMode.PANDAS, TransformationMode.PYTHON, TransformationMode.SQL) \
-                or self.mode in ("pandas", "python", "sql"):
+        if self.mode in (
+            TransformationMode.PANDAS,
+            TransformationMode.PYTHON,
+            TransformationMode.SQL,
+        ) or self.mode in ("pandas", "python", "sql"):
             return Transformation(mode=self.mode, udf=self.udf)
         else:
             raise ValueError(
