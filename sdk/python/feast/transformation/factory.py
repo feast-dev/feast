@@ -16,4 +16,6 @@ def get_transformation_class_from_type(transformation_type: str):
             f"Invalid transformation type: {transformation_type}. Choose from {list(TRANSFORMATION_CLASS_FOR_TYPE.keys())}."
         )
     module_name, transformation_class_type = transformation_type.rsplit(".", 1)
-    return import_class(module_name, transformation_class_type, transformation_class_type)
+    return import_class(
+        module_name, transformation_class_type, transformation_class_type
+    )

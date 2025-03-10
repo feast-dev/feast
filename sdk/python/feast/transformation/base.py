@@ -4,7 +4,10 @@ from typing import Any, Callable, Dict, Optional, Union
 
 import dill
 
-from feast.transformation.factory import TRANSFORMATION_CLASS_FOR_TYPE, get_transformation_class_from_type
+from feast.transformation.factory import (
+    TRANSFORMATION_CLASS_FOR_TYPE,
+    get_transformation_class_from_type,
+)
 from feast.transformation.mode import TransformationMode
 
 
