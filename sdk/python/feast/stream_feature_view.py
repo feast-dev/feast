@@ -33,8 +33,6 @@ from feast.protos.feast.core.Transformation_pb2 import (
 )
 from feast.transformation.base import Transformation
 from feast.transformation.mode import TransformationMode
-from feast.transformation.pandas_transformation import PandasTransformation
-from feast.transformation.python_transformation import PythonTransformation
 
 warnings.simplefilter("once", RuntimeWarning)
 
@@ -149,10 +147,8 @@ class StreamFeatureView(FeatureView):
     def get_feature_transformation(self) -> Optional[Transformation]:
         if not self.udf:
             return None
-        if self.mode == TransformationMode.PANDAS or self.mode == "pandas":
-            return PandasTransformation(self.udf, self.udf_string)
-        elif self.mode == TransformationMode.PYTHON or self.mode == "python":
-            return PythonTransformation(self.udf, self.udf_string)
+        if self.mode in (TransformationMode.PANDAS, TransformationMode.PYTHON) or self.mode in ("pandas", "python"):
+            return Transformation(mode=self.mode, udf=self.udf)
         else:
             raise ValueError(
                 f"Unsupported transformation mode: {self.mode} for StreamFeatureView"

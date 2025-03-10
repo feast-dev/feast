@@ -16,6 +16,8 @@ from feast.type_map import (
 
 
 class PythonTransformation(Transformation):
+    udf: FunctionType
+
     def __init__(
         self,
         udf: FunctionType,
@@ -67,7 +69,7 @@ class PythonTransformation(Transformation):
         # in the case of a singleton element, it takes the value directly
         # in the case of a list of lists, it takes the first list
         input_dict = {k: v[0] for k, v in input_dict.items()}
-        output_dict = self.udf.__call__(input_dict)
+        output_dict = self.udf(input_dict)
         return {**input_dict, **output_dict}
 
     def infer_features(

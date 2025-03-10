@@ -66,6 +66,12 @@ class Transformation(ABC):
     def transform_arrow(self, *args, **kwargs) -> Any:
         raise NotImplementedError
 
+    def infer_features(self, *args, **kwargs) -> Any:
+        raise NotImplementedError
+
+    def transform_singleton(self, *args, **kwargs) -> Any:
+        raise NotImplementedError
+
 
 def transformation(
     mode: Union[TransformationMode, str],

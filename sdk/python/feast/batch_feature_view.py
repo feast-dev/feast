@@ -14,9 +14,6 @@ from feast.field import Field
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.transformation.base import Transformation
 from feast.transformation.mode import TransformationMode
-from feast.transformation.pandas_transformation import PandasTransformation
-from feast.transformation.python_transformation import PythonTransformation
-from feast.transformation.sql_transformation import SQLTransformation
 
 warnings.simplefilter("once", RuntimeWarning)
 
@@ -123,12 +120,9 @@ class BatchFeatureView(FeatureView):
     def get_feature_transformation(self) -> Optional[Transformation]:
         if not self.udf:
             return None
-        if self.mode == TransformationMode.pandas or self.mode == "pandas":
-            return PandasTransformation(self.udf, self.udf_string)
-        elif self.mode == TransformationMode.python or self.mode == "python":
-            return PythonTransformation(self.udf, self.udf_string)
-        elif self.mode == TransformationMode.sql or self.mode == "sql":
-            return SQLTransformation(self.udf, self.udf_string)
+        if self.mode in (TransformationMode.PANDAS, TransformationMode.PYTHON, TransformationMode.SQL) \
+                or self.mode in ("pandas", "python", "sql"):
+            return Transformation(mode=self.mode, udf=self.udf)
         else:
             raise ValueError(
                 f"Unsupported transformation mode: {self.mode} for StreamFeatureView"
