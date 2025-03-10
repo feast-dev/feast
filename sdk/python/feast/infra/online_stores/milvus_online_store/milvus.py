@@ -245,6 +245,8 @@ class MilvusOnlineStore(OnlineStore):
         collection = self._get_or_create_collection(config, table)
         vector_cols = [f.name for f in table.features if f.vector_index]
         entity_batch_to_insert = []
+        unique_entities: dict[str, dict[str, Any]] = {}
+        required_fields = {field["name"] for field in collection["fields"]}
         for entity_key, values_dict, timestamp, created_ts in data:
             # need to construct the composite primary key also need to handle the fact that entities are a list
             entity_key_str = serialize_entity_key(
@@ -278,12 +280,22 @@ class MilvusOnlineStore(OnlineStore):
                 "created_ts": created_ts_int,
             }
             single_entity_record.update(values_dict)
-            entity_batch_to_insert.append(single_entity_record)
+            # Ensure all required fields exist, setting missing ones to empty strings
+            for field in required_fields:
+                if field not in single_entity_record:
+                    single_entity_record[field] = ""
+            # Store only the latest event timestamp per entity
+            if (
+                entity_key_str not in unique_entities
+                or unique_entities[entity_key_str]["event_ts"] < timestamp_int
+            ):
+                unique_entities[entity_key_str] = single_entity_record
 
             if progress:
                 progress(1)
 
-        self.client.insert(
+        entity_batch_to_insert = list(unique_entities.values())
+        self.client.upsert(
             collection_name=collection["collection_name"],
             data=entity_batch_to_insert,
         )
