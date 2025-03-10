@@ -1,6 +1,7 @@
 import functools
+
 from abc import ABC
-from typing import Any, Callable, Dict, Optional, Union
+from typing import Any, Callable, Dict, Optional, Union, Type
 
 import dill
 
@@ -12,7 +13,7 @@ from feast.transformation.sql_transformation import SQLTransformation
 
 class Transformation(ABC):
     def __new__(
-        cls,
+        cls: Type["Transformation"],  # Explicit type hint to fix mypy
         mode: Union[TransformationMode, str],
         udf: Callable[[Any], Any],
         name: Optional[str] = None,
@@ -22,26 +23,28 @@ class Transformation(ABC):
         owner: str = "",
         *args,
         **kwargs,
-    ):
-        if cls is Transformation and mode is not None:
+    ) -> "Transformation":
+        if cls is Transformation:  # Ensure factory logic runs only for the base class
             # Normalize mode to string
             if isinstance(mode, TransformationMode):
                 mode = mode.value  # Convert enum to string
 
-            transformation_classes = {
+            transformation_classes: Dict[str, Type[Transformation]] = {
                 TransformationMode.PANDAS.value: PandasTransformation,
                 TransformationMode.PYTHON.value: PythonTransformation,
                 TransformationMode.SQL.value: SQLTransformation,
             }
 
             if mode.lower() in transformation_classes:
-                return object.__new__(transformation_classes[mode.lower()])
+                # Correctly instantiate the subclass
+                subclass = transformation_classes[mode.lower()]
+                return super().__new__(subclass)  # Ensures correct type is returned
             else:
                 raise ValueError(
                     f"Invalid mode: {mode}. Choose from 'pandas', 'python', or 'sql'."
                 )
 
-        return object.__new__(cls)
+        return super().__new__(cls)  # Allow normal instantiation for subclasses
 
     def __init__(
         self,
