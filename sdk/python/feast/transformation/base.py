@@ -3,8 +3,8 @@ from abc import ABC
 from typing import Any, Callable, Dict, Optional, Union
 
 import dill
-from feast.transformation.factory import TRANSFORMATION_CLASSES
 
+from feast.transformation.factory import TRANSFORMATION_CLASSES
 from feast.transformation.mode import TransformationMode
 
 
