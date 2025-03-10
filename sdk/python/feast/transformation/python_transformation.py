@@ -1,5 +1,5 @@
 from types import FunctionType
-from typing import Any, Optional, Dict
+from typing import Any, Dict, Optional
 
 import dill
 import pyarrow
@@ -16,14 +16,17 @@ from feast.type_map import (
 
 
 class PythonTransformation(Transformation):
-    def __init__(self,
-                 udf: FunctionType,
-                 name: Optional[str] = None,
-                 udf_string: str = "",
-                 tags: Optional[Dict[str, str]] = None,
-                 description: str = "",
-                 owner: str = "",
-                 *args, **kwargs):
+    def __init__(
+        self,
+        udf: FunctionType,
+        name: Optional[str] = None,
+        udf_string: str = "",
+        tags: Optional[Dict[str, str]] = None,
+        description: str = "",
+        owner: str = "",
+        *args,
+        **kwargs,
+    ):
         """
         Creates a PythonTransformation object.
 
@@ -44,7 +47,7 @@ class PythonTransformation(Transformation):
             udf_string=udf_string,
             tags=tags,
             description=description,
-            owner=owner
+            owner=owner,
         )
 
     def transform_arrow(

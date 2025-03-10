@@ -78,7 +78,7 @@ class StreamFeatureView(FeatureView):
     tags: Dict[str, str]
     owner: str
     aggregations: List[Aggregation]
-    mode: str
+    mode: Union[TransformationMode, str]
     timestamp_field: str
     materialization_intervals: List[Tuple[datetime, datetime]]
     udf: Optional[FunctionType]
@@ -98,7 +98,7 @@ class StreamFeatureView(FeatureView):
         owner: str = "",
         schema: Optional[List[Field]] = None,
         aggregations: Optional[List[Aggregation]] = None,
-        mode: Optional[Union[str, TransformationMode]] = TransformationMode.spark,
+        mode: Union[str, TransformationMode] = TransformationMode.PYTHON,
         timestamp_field: Optional[str] = "",
         udf: Optional[FunctionType] = None,
         udf_string: Optional[str] = "",
@@ -126,7 +126,7 @@ class StreamFeatureView(FeatureView):
             )
 
         self.aggregations = aggregations or []
-        self.mode = mode or ""
+        self.mode = mode
         self.timestamp_field = timestamp_field or ""
         self.udf = udf
         self.udf_string = udf_string

@@ -12,6 +12,7 @@ from feast.transformation.base import Transformation
 from feast.type_map import (
     python_type_to_feast_value_type,
 )
+from transformation.mode import TransformationMode
 
 
 class PandasTransformation(Transformation):
@@ -81,6 +82,7 @@ class PandasTransformation(Transformation):
     @classmethod
     def from_proto(cls, user_defined_function_proto: UserDefinedFunctionProto):
         return PandasTransformation(
+            mode=TransformationMode.PANDAS,
             udf=dill.loads(user_defined_function_proto.body),
             udf_string=user_defined_function_proto.body_text,
         )
