@@ -3,8 +3,8 @@ from typing import Any, Optional
 
 import dill
 import pyarrow
-from transformation.base import Transformation
-from transformation.mode import TransformationMode
+from feast.transformation.base import Transformation
+from feast.transformation.mode import TransformationMode
 
 from feast.field import Field, from_value_type
 from feast.protos.feast.core.Transformation_pb2 import (

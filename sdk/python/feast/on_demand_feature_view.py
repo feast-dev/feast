@@ -8,8 +8,6 @@ from typing import Any, List, Optional, Union, get_type_hints
 import dill
 import pandas as pd
 import pyarrow
-from transformation.base import Transformation
-from transformation.mode import TransformationMode
 from typeguard import typechecked
 
 from feast.base_feature_view import BaseFeatureView
@@ -33,6 +31,8 @@ from feast.protos.feast.core.Transformation_pb2 import (
 from feast.protos.feast.core.Transformation_pb2 import (
     UserDefinedFunctionV2 as UserDefinedFunctionProto,
 )
+from feast.transformation.base import Transformation
+from feast.transformation.mode import TransformationMode
 from feast.transformation.pandas_transformation import PandasTransformation
 from feast.transformation.python_transformation import PythonTransformation
 from feast.transformation.substrait_transformation import SubstraitTransformation

@@ -5,11 +5,11 @@ from types import FunctionType
 from typing import Dict, List, Optional, Tuple, Union
 
 import dill
-from transformation.base import Transformation
-from transformation.mode import TransformationMode
-from transformation.pandas_transformation import PandasTransformation
-from transformation.python_transformation import PythonTransformation
-from transformation.sql_transformation import SQLTransformation
+from feast.transformation.base import Transformation
+from feast.transformation.mode import TransformationMode
+from feast.transformation.pandas_transformation import PandasTransformation
+from feast.transformation.python_transformation import PythonTransformation
+from feast.transformation.sql_transformation import SQLTransformation
 
 from feast import flags_helper
 from feast.data_source import DataSource

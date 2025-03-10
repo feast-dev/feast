@@ -1,6 +1,6 @@
 from typing import Any
 
-from transformation.base import Transformation
+from feast.transformation.base import Transformation
 
 
 class SQLTransformation(Transformation):
