@@ -3,6 +3,7 @@ from abc import ABC
 from typing import Any, Callable, Dict, Optional, Union
 
 import dill
+
 from feast.transformation.mode import TransformationMode
 from feast.transformation.pandas_transformation import PandasTransformation
 from feast.transformation.python_transformation import PythonTransformation
@@ -34,13 +35,13 @@ class Transformation(ABC):
             }
 
             if mode.lower() in transformation_classes:
-                return super().__new__(transformation_classes[mode.lower()])
+                return object.__new__(transformation_classes[mode.lower()])
             else:
                 raise ValueError(
                     f"Invalid mode: {mode}. Choose from 'pandas', 'python', or 'sql'."
                 )
 
-        return super().__new__(cls)
+        return object.__new__(cls)
 
     def __init__(
         self,
