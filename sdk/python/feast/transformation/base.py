@@ -1,7 +1,6 @@
 import functools
-
 from abc import ABC
-from typing import Any, Callable, Dict, Optional, Union, Type
+from typing import Any, Callable, Dict, Optional, Type, Union
 
 import dill
 
@@ -68,13 +67,13 @@ class Transformation(ABC):
         raise NotImplementedError
 
     def transform_arrow(self, *args, **kwargs) -> Any:
-        raise NotImplementedError
+        pass
 
     def infer_features(self, *args, **kwargs) -> Any:
         raise NotImplementedError
 
     def transform_singleton(self, *args, **kwargs) -> Any:
-        raise NotImplementedError
+        pass
 
 
 def transformation(
