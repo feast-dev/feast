@@ -24,12 +24,12 @@ BUNDLE_DEFAULT_CHANNEL := --default-channel=$(DEFAULT_CHANNEL)
 endif
 BUNDLE_METADATA_OPTS ?= $(BUNDLE_CHANNELS) $(BUNDLE_DEFAULT_CHANNEL)
 
-# IMAGE_TAG_BASE defines the docker.io namespace and part of the image name for remote images.
+# IMAGE_TAG_BASE defines the quay.io namespace and part of the image name for remote images.
 # This variable is used to construct full image tags for bundle and catalog images.
 #
 # For example, running 'make bundle-build bundle-push catalog-build catalog-push' will build and push both
 # feast.dev/feast-operator-bundle:$VERSION and feast.dev/feast-operator-catalog:$VERSION.
-IMAGE_TAG_BASE ?= feastdev/feast-operator
+IMAGE_TAG_BASE ?= quay.io/feastdev/feast-operator
 
 # BUNDLE_IMG defines the image:tag used for the bundle.
 # You can use it as an arg. (E.g make bundle-build BUNDLE_IMG=<some-registry>/<project-name-bundle>:<tag>)
@@ -51,7 +51,7 @@ endif
 OPERATOR_SDK_VERSION ?= v1.38.0
 # Image URL to use all building/pushing image targets
 IMG ?= $(IMAGE_TAG_BASE):$(VERSION)
-FS_IMG ?= docker.io/feastdev/feature-server:$(VERSION)
+FS_IMG ?= quay.io/feastdev/feature-server:$(VERSION)
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.30.0
 
