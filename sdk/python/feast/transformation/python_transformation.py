@@ -1,5 +1,5 @@
 from types import FunctionType
-from typing import Any, Optional
+from typing import Any, Optional, Dict
 
 import dill
 import pyarrow
@@ -16,15 +16,36 @@ from feast.type_map import (
 
 
 class PythonTransformation(Transformation):
-    def __init__(self, udf: FunctionType, *args, **kwargs):
+    def __init__(self,
+                 udf: FunctionType,
+                 name: Optional[str] = None,
+                 udf_string: str = "",
+                 tags: Optional[Dict[str, str]] = None,
+                 description: str = "",
+                 owner: str = "",
+                 *args, **kwargs):
         """
-        Creates an PythonTransformation object.
+        Creates a PythonTransformation object.
+
         Args:
-            udf: The user defined transformation function, which must take pandas
+            udf: The user-defined transformation function, which must take pandas
                 dataframes as inputs.
-            udf_string: The source code version of the udf (for diffing and displaying in Web UI)
+            name: The name of the transformation.
+            udf_string: The source code version of the UDF (for diffing and displaying in Web UI).
+            tags: Metadata tags for the transformation.
+            description: A description of the transformation.
+            owner: The owner of the transformation.
         """
-        super().__init__(mode=TransformationMode.PYTHON, udf=udf, *args, **kwargs)
+        # Explicitly pass parameters to avoid mypy errors
+        super().__init__(
+            mode=TransformationMode.PYTHON,
+            udf=udf,
+            name=name,
+            udf_string=udf_string,
+            tags=tags,
+            description=description,
+            owner=owner
+        )
 
     def transform_arrow(
         self,
