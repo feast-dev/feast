@@ -131,17 +131,17 @@ def _check_offline_and_online_features(
     if full_feature_names:
         if expected_value:
             assert response_dict[f"{fv.name}__value"][0], f"Response: {response_dict}"
-            assert (
-                abs(response_dict[f"{fv.name}__value"][0] - expected_value) < 1e-6
-            ), f"Response: {response_dict}, Expected: {expected_value}"
+            assert abs(response_dict[f"{fv.name}__value"][0] - expected_value) < 1e-6, (
+                f"Response: {response_dict}, Expected: {expected_value}"
+            )
         else:
             assert response_dict[f"{fv.name}__value"][0] is None
     else:
         if expected_value:
             assert response_dict["value"][0], f"Response: {response_dict}"
-            assert (
-                abs(response_dict["value"][0] - expected_value) < 1e-6
-            ), f"Response: {response_dict}, Expected: {expected_value}"
+            assert abs(response_dict["value"][0] - expected_value) < 1e-6, (
+                f"Response: {response_dict}, Expected: {expected_value}"
+            )
         else:
             assert response_dict["value"][0] is None
 
