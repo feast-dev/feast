@@ -1,18 +1,16 @@
 import functools
 from abc import ABC
-from typing import Any, Callable, Dict, Optional, Type, Union
+from typing import Any, Callable, Dict, Optional, Union
 
 import dill
 
 from feast.transformation.mode import TransformationMode
-from feast.transformation.pandas_transformation import PandasTransformation
-from feast.transformation.python_transformation import PythonTransformation
-from feast.transformation.sql_transformation import SQLTransformation
+from transformation.factory import TRANSFORMATION_CLASSES
 
 
 class Transformation(ABC):
     def __new__(
-        cls: Type["Transformation"],  # Explicit type hint to fix mypy
+        cls,
         mode: Union[TransformationMode, str],
         udf: Callable[[Any], Any],
         name: Optional[str] = None,
@@ -27,19 +25,13 @@ class Transformation(ABC):
             if isinstance(mode, TransformationMode):
                 mode = mode.value
 
-            transformation_classes: Dict[str, Type[Transformation]] = {
-                TransformationMode.PANDAS.value: PandasTransformation,
-                TransformationMode.PYTHON.value: PythonTransformation,
-                TransformationMode.SQL.value: SQLTransformation,
-            }
-
-            if mode.lower() in transformation_classes:
-                subclass = transformation_classes[mode.lower()]
+            if mode.lower() in TRANSFORMATION_CLASSES:
+                subclass = TRANSFORMATION_CLASSES[mode.lower()]
                 return super().__new__(subclass)
-            else:
-                raise ValueError(
-                    f"Invalid mode: {mode}. Choose from 'pandas', 'python', or 'sql'."
-                )
+
+            raise ValueError(
+                f"Invalid mode: {mode}. Choose from 'pandas', 'python', or 'sql'."
+            )
 
         return super().__new__(cls)
 
@@ -49,6 +41,7 @@ class Transformation(ABC):
         udf: Callable[[Any], Any],
         name: Optional[str] = None,
         udf_string: str = "",
+        singletons: Optional[Dict[str, Any]] = None,
         tags: Optional[Dict[str, str]] = None,
         description: str = "",
         owner: str = "",
@@ -57,6 +50,7 @@ class Transformation(ABC):
         self.udf = udf
         self.name = name
         self.udf_string = udf_string
+        self.singletons = singletons or {}
         self.tags = tags or {}
         self.description = description
         self.owner = owner
