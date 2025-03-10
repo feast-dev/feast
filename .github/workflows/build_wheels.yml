@@ -74,13 +74,15 @@ jobs:
       matrix:
         component: [ feature-server-dev, feature-server-java, feature-transformation-server, feast-operator ]
     env:
-      REGISTRY: feastdev
+      REGISTRY: quay.io/feastdev
     steps:
       - uses: actions/checkout@v4
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v1
+        uses: docker/setup-qemu-action@v3
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
+        uses: docker/setup-buildx-action@v3
+        with:
+          install: true
       - id: get-version
         uses: ./.github/actions/get-semantic-release-version
         with:

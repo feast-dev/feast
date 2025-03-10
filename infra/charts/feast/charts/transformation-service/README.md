@@ -12,7 +12,7 @@ Transformation service: to compute on-demand features
 |-----|------|---------|-------------|
 | envOverrides | object | `{}` | Extra environment variables to set |
 | image.pullPolicy | string | `"IfNotPresent"` | Image pull policy |
-| image.repository | string | `"feastdev/feature-transformation-server"` | Docker image for Transformation Server repository |
+| image.repository | string | `"quay.io/feastdev/feature-transformation-server"` | Docker image for Transformation Server repository |
 | image.tag | string | `"0.46.0"` | Image tag |
 | nodeSelector | object | `{}` | Node labels for pod assignment |
 | podLabels | object | `{}` | Labels to be added to Feast Serving pods |

@@ -3,7 +3,7 @@ replicaCount: 1
 
 image:
   # image.repository -- Docker image for Transformation Server repository
-  repository: feastdev/feature-transformation-server
+  repository: quay.io/feastdev/feature-transformation-server
   # image.tag -- Image tag
   tag: 0.46.0
   # image.pullPolicy -- Image pull policy

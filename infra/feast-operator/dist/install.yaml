@@ -7356,8 +7356,8 @@ spec:
         - /manager
         env:
         - name: RELATED_IMAGE_FEATURE_SERVER
-          value: docker.io/feastdev/feature-server:0.46.0
-        image: feastdev/feast-operator:0.46.0
+          value: quay.io/feastdev/feature-server:0.46.0
+        image: quay.io/feastdev/feast-operator:0.46.0
         livenessProbe:
           httpGet:
             path: /healthz
