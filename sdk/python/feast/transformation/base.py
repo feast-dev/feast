@@ -3,9 +3,9 @@ from abc import ABC
 from typing import Any, Callable, Dict, Optional, Union
 
 import dill
+from transformation.factory import TRANSFORMATION_CLASSES
 
 from feast.transformation.mode import TransformationMode
-from transformation.factory import TRANSFORMATION_CLASSES
 
 
 class Transformation(ABC):
