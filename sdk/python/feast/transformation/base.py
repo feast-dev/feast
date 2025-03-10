@@ -23,10 +23,9 @@ class Transformation(ABC):
         *args,
         **kwargs,
     ) -> "Transformation":
-        if cls is Transformation:  # Ensure factory logic runs only for the base class
-            # Normalize mode to string
+        if cls is Transformation:
             if isinstance(mode, TransformationMode):
-                mode = mode.value  # Convert enum to string
+                mode = mode.value
 
             transformation_classes: Dict[str, Type[Transformation]] = {
                 TransformationMode.PANDAS.value: PandasTransformation,
@@ -35,15 +34,14 @@ class Transformation(ABC):
             }
 
             if mode.lower() in transformation_classes:
-                # Correctly instantiate the subclass
                 subclass = transformation_classes[mode.lower()]
-                return super().__new__(subclass)  # Ensures correct type is returned
+                return super().__new__(subclass)
             else:
                 raise ValueError(
                     f"Invalid mode: {mode}. Choose from 'pandas', 'python', or 'sql'."
                 )
 
-        return super().__new__(cls)  # Allow normal instantiation for subclasses
+        return super().__new__(cls)
 
     def __init__(
         self,
