@@ -3,10 +3,10 @@ from abc import ABC
 from typing import Any, Callable, Dict, Optional, Union
 
 import dill
-from transformation.mode import TransformationMode
-from transformation.pandas_transformation import PandasTransformation
-from transformation.python_transformation import PythonTransformation
-from transformation.sql_transformation import SQLTransformation
+from feast.transformation.mode import TransformationMode
+from feast.transformation.pandas_transformation import PandasTransformation
+from feast.transformation.python_transformation import PythonTransformation
+from feast.transformation.sql_transformation import SQLTransformation
 
 
 class Transformation(ABC):
