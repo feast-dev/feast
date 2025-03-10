@@ -5,11 +5,6 @@ from types import FunctionType
 from typing import Dict, List, Optional, Tuple, Union
 
 import dill
-from feast.transformation.base import Transformation
-from feast.transformation.mode import TransformationMode
-from feast.transformation.pandas_transformation import PandasTransformation
-from feast.transformation.python_transformation import PythonTransformation
-from feast.transformation.sql_transformation import SQLTransformation
 
 from feast import flags_helper
 from feast.data_source import DataSource
@@ -17,6 +12,11 @@ from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.field import Field
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
+from feast.transformation.base import Transformation
+from feast.transformation.mode import TransformationMode
+from feast.transformation.pandas_transformation import PandasTransformation
+from feast.transformation.python_transformation import PythonTransformation
+from feast.transformation.sql_transformation import SQLTransformation
 
 warnings.simplefilter("once", RuntimeWarning)
 

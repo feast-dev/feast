@@ -7,10 +7,6 @@ from typing import Dict, List, Optional, Tuple, Type, Union
 
 import dill
 from google.protobuf.message import Message
-from feast.transformation.base import Transformation
-from feast.transformation.mode import TransformationMode
-from feast.transformation.pandas_transformation import PandasTransformation
-from feast.transformation.python_transformation import PythonTransformation
 from typeguard import typechecked
 
 from feast import flags_helper, utils
@@ -35,6 +31,10 @@ from feast.protos.feast.core.Transformation_pb2 import (
 from feast.protos.feast.core.Transformation_pb2 import (
     UserDefinedFunctionV2 as UserDefinedFunctionProtoV2,
 )
+from feast.transformation.base import Transformation
+from feast.transformation.mode import TransformationMode
+from feast.transformation.pandas_transformation import PandasTransformation
+from feast.transformation.python_transformation import PythonTransformation
 
 warnings.simplefilter("once", RuntimeWarning)
 
