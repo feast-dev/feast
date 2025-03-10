@@ -93,7 +93,7 @@ class OnDemandFeatureView(BaseFeatureView):
         ],
         udf: Optional[FunctionType] = None,
         udf_string: Optional[str] = "",
-        feature_transformation: Optional[Transformation],
+        feature_transformation: Optional[Transformation] = None,
         mode: str = "pandas",
         description: str = "",
         tags: Optional[dict[str, str]] = None,
