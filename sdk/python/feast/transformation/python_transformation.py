@@ -1,5 +1,5 @@
 from types import FunctionType
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
 import dill
 import pyarrow
@@ -8,22 +8,49 @@ from feast.field import Field, from_value_type
 from feast.protos.feast.core.Transformation_pb2 import (
     UserDefinedFunctionV2 as UserDefinedFunctionProto,
 )
+from feast.transformation.base import Transformation
+from feast.transformation.mode import TransformationMode
 from feast.type_map import (
     python_type_to_feast_value_type,
 )
 
 
-class PythonTransformation:
-    def __init__(self, udf: FunctionType, udf_string: str = ""):
+class PythonTransformation(Transformation):
+    udf: FunctionType
+
+    def __init__(
+        self,
+        udf: FunctionType,
+        name: Optional[str] = None,
+        udf_string: str = "",
+        tags: Optional[Dict[str, str]] = None,
+        description: str = "",
+        owner: str = "",
+        *args,
+        **kwargs,
+    ):
         """
-        Creates an PythonTransformation object.
+        Creates a PythonTransformation object.
+
         Args:
-            udf: The user defined transformation function, which must take pandas
+            udf: The user-defined transformation function, which must take pandas
                 dataframes as inputs.
-            udf_string: The source code version of the udf (for diffing and displaying in Web UI)
+            name: The name of the transformation.
+            udf_string: The source code version of the UDF (for diffing and displaying in Web UI).
+            tags: Metadata tags for the transformation.
+            description: A description of the transformation.
+            owner: The owner of the transformation.
         """
-        self.udf = udf
-        self.udf_string = udf_string
+        # Explicitly pass parameters to avoid mypy errors
+        super().__init__(
+            mode=TransformationMode.PYTHON,
+            udf=udf,
+            name=name,
+            udf_string=udf_string,
+            tags=tags,
+            description=description,
+            owner=owner,
+        )
 
     def transform_arrow(
         self,
@@ -42,7 +69,7 @@ class PythonTransformation:
         # in the case of a singleton element, it takes the value directly
         # in the case of a list of lists, it takes the first list
         input_dict = {k: v[0] for k, v in input_dict.items()}
-        output_dict = self.udf.__call__(input_dict)
+        output_dict = self.udf(input_dict)
         return {**input_dict, **output_dict}
 
     def infer_features(
