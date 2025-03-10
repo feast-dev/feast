@@ -171,6 +171,11 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: 1.22.9
+      - name: Compile Go Test Binaries
+        run: |
+          cd infra/feast-operator
+          mkdir -p dist
+          go test -c -o dist/operator-e2e-tests ./test/e2e/
       - name: Release (Dry Run)
         if: github.event.inputs.dry_run == 'true'
         run: |
@@ -178,7 +183,7 @@ jobs:
       - name: Release
         if: github.event.inputs.dry_run == 'false'
         run: |
-          npx -p @semantic-release/changelog -p @semantic-release/git -p @semantic-release/exec -p semantic-release semantic-release
+          npx -p @semantic-release/changelog -p @semantic-release/git -p @semantic-release/exec -p semantic-release semantic-release --github-assets "infra/feast-operator/dist/operator-e2e-tests"
           
 
   update_stable_branch:
