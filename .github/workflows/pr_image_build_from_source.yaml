@@ -1,0 +1,47 @@
+name: pr-image-build-from-source
+
+on:
+  push:
+    branches:
+      - main
+  #pull_request:
+  #  types:
+  #    - opened
+  #    - synchronize
+  #    - labeled
+  #  paths-ignore:
+  #    - 'community/**'
+  #    - 'docs/**'
+  #    - 'examples/**'
+
+jobs:
+  image-build-from-source:
+    if:
+      ((github.event.action == 'labeled' && (github.event.label.name == 'approved' || github.event.label.name == 'lgtm' || github.event.label.name == 'ok-to-test')) ||
+      (github.event.action != 'labeled' && (contains(github.event.pull_request.labels.*.name, 'ok-to-test') || contains(github.event.pull_request.labels.*.name, 'approved') || contains(github.event.pull_request.labels.*.name, 'lgtm')))) &&
+      github.event.pull_request.base.repo.full_name == 'feast-dev/feast'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          install: true
+      - name: Build grpc builder image from source
+        uses: docker/build-push-action@v6
+        with:
+          context: sdk/python/feast/infra/feature_servers/multicloud
+          file: sdk/python/feast/infra/feature_servers/multicloud/Dockerfile.builder.grpc
+          load: true
+          tags: grpc-builder:latest
+      - name: Build arrow builder image from source
+        uses: docker/build-push-action@v6
+        with:
+          context: sdk/python/feast/infra/feature_servers/multicloud
+          file: sdk/python/feast/infra/feature_servers/multicloud/Dockerfile.builder.arrow
+          load: true
+          tags: feast-sdist-builder:latest
+      - name: Run cachi2-based feast release image build from source
+        run: source ./infra/scripts/cachi2.sh

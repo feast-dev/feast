@@ -1,0 +1,26 @@
+FROM grpc-builder:latest
+
+ENV ARROW_VERSION=16.1.0
+RUN wget https://github.com/apache/arrow/archive/refs/tags/apache-arrow-${ARROW_VERSION}.tar.gz && \
+    tar xvfz apache-arrow-${ARROW_VERSION}.tar.gz
+RUN cd apache-arrow-${ARROW_VERSION}/cpp && \
+    cmake . \
+    -DARROW_COMPUTE=ON \
+    -DARROW_ACERO=ON \
+    -DARROW_CSV=ON \
+    -DARROW_DATASET=ON \
+    -DARROW_FILESYSTEM=ON \
+    -DARROW_FLIGHT=ON \
+    -DARROW_FLIGHT_SQL=ON \
+    -DARROW_GANDIVA_JAVA=ON \
+    -DARROW_HDFS=ON \
+    -DARROW_JSON=ON \
+    -DARROW_PARQUET=ON \
+    -DARROW_S3=ON \
+    -DARROW_WITH_UTF8PROC=ON \
+    -DARROW_TENSORFLOW=ON && \
+    cmake --build .
+RUN cmake --install .
+RUN rm -rf ${APP_ROOT}/src/apache-arrow*
+
+USER 1001

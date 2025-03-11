@@ -33,23 +33,17 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           architecture: x64
-      - name: Install uv
-        run: |
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-      - name: Get uv cache dir
-        id: uv-cache
-        run: |          
-          echo "dir=$(uv cache dir)" >> $GITHUB_OUTPUT
-      - name: uv cache
-        uses: actions/cache@v4
+      - name: Install the latest version of uv and set the python version
+        uses: astral-sh/setup-uv@v5
         with:
-          path: ${{ steps.uv-cache.outputs.dir }}
-          key: ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-uv-${{ hashFiles(format('**/py{0}-ci-requirements.txt', env.PYTHON)) }}
+          enable-cache: true
+          python-version: ${{ matrix.python-version }}
       - name: Install dependencies
         run: make install-python-dependencies-ci
       - name: Test Python
-        run: make test-python-unit
-
+        run: uv run --active make test-python-unit
+      - name: Minimize uv cache
+        run: uv cache prune --ci
 
   unit-test-ui:
     runs-on: ubuntu-latest
