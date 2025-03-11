@@ -685,6 +685,10 @@ func (c *CassandraOnlineStore) OnlineRead(ctx context.Context, entityKeys []*typ
 	}
 }
 
+func (c *CassandraOnlineStore) OnlineReadRange(ctx context.Context, entityKeys []*types.EntityKey, featureViewNames []string, featureNames []string, sortKeyFilters []*serving.SortKeyFilter, reverseSortOrder bool, limit int32) ([][]RangeFeatureData, error) {
+	return nil, errors.New("not implemented")
+}
+
 func (c *CassandraOnlineStore) Destruct() {
 	c.session.Close()
 }

@@ -332,6 +332,10 @@ func (r *RedisOnlineStore) OnlineRead(ctx context.Context, entityKeys []*types.E
 	return results, nil
 }
 
+func (r *RedisOnlineStore) OnlineReadRange(ctx context.Context, entityKeys []*types.EntityKey, featureViewNames []string, featureNames []string, sortKeyFilters []*serving.SortKeyFilter, reverseSortOrder bool, limit int32) ([][]RangeFeatureData, error) {
+	return nil, errors.New("not implemented")
+}
+
 // Dummy destruct function to conform with plugin OnlineStore interface
 func (r *RedisOnlineStore) Destruct() {
 
