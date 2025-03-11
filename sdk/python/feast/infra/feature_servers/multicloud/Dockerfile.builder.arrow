@@ -1,0 +1,25 @@
+FROM grpc-builder
+
+RUN wget https://www.apache.org/dyn/closer.lua?action=download&filename=arrow/arrow-18.0.0/apache-arrow-18.0.0.tar.gz && \
+    tar xvfz apache-arrow-18.0.0.tar.gz
+RUN cd apache-arrow-18.0.0/cpp && \
+    cmake . \
+    -DARROW_COMPUTE=ON \
+    -DARROW_ACERO=ON \
+    -DARROW_CSV=ON \
+    -DARROW_DATASET=ON \
+    -DARROW_FILESYSTEM=ON \
+    -DARROW_FLIGHT=ON \
+    -DARROW_FLIGHT_SQL=ON \
+    -DARROW_GANDIVA_JAVA=ON \
+    -DARROW_HDFS=ON \
+    -DARROW_JSON=ON \
+    -DARROW_PARQUET=ON \
+    -DARROW_S3=ON \
+    -DARROW_WITH_UTF8PROC=ON \
+    -DARROW_TENSORFLOW=ON && \
+    cmake --build .
+RUN cmake --install .
+RUN rm -rf ${APP_ROOT}/src/apache-arrow*
+
+USER 1001

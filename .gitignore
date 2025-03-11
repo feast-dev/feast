@@ -232,3 +232,7 @@ infra/feast-operator/bin
 # ignore the website build directory
 infra/website/node_modules/
 infra/website/.astro/
+
+# cachi2
+cachi2.env
+cachi2-output/

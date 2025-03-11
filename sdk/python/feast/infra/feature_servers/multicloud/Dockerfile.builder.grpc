@@ -1,0 +1,19 @@
+FROM registry.access.redhat.com/ubi8/python-311:1
+USER 0
+#RUN yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
+RUN yum install -y \
+     cmake \
+     pkg-config \
+     gcc \
+     gcc-c++ \
+     ninja-build \
+     curl-devel \
+     make
+
+RUN git clone --depth 1 --branch v1.70.1 --recursive https://github.com/grpc/grpc
+RUN mkdir -p grpc/cmake/build && \
+    cd grpc/cmake/build && \
+    cmake ../.. -DBUILD_SHARED_LIBS=ON && \
+    make
+RUN make install
+RUN rm -rf ${APP_ROOT}/src/grpc

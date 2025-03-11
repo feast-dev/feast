@@ -54,8 +54,17 @@ build: protos build-java build-docker
 # formerly install-python-ci-dependencies-uv-venv
 # editable install
 install-python-dependencies-dev:
-	uv pip sync sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt
+	uv pip sync --require-hashes sdk/python/requirements/py$(PYTHON_VERSION)-dev-requirements.txt
 	uv pip install --no-deps -e .
+
+install-python-dependencies-limited:
+	uv pip sync --require-hashes sdk/python/requirements/py$(PYTHON_VERSION)-limited-requirements.txt
+	uv pip install --no-deps -e .[aws,gcp,snowflake,redis,go,mysql,postgres,opentelemetry,grpcio,k8s,duckdb,milvus]
+
+install-python-dependencies-limited-source:
+	uv pip sync --require-hashes sdk/python/requirements/py$(PYTHON_VERSION)-limited-requirements.txt
+	uv pip install --no-binary :all: --reinstall pyarrow==18.0.0 && \
+	uv pip install --no-binary :all: --reinstall -e .[aws,gcp,snowflake,redis,go,mysql,postgres,opentelemetry,grpcio,k8s,duckdb,milvus]
 
 # Python SDK - system
 # the --system flag installs dependencies in the global python context
@@ -67,11 +76,6 @@ install-python-dependencies-ci:
 	uv pip sync --system sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt
 	uv pip install --system --no-deps -e .
 
-# Used by multicloud/Dockerfile.dev
-install-python-ci-dependencies:
-	python -m piptools sync sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt
-	pip install --no-deps -e .
-
 # Currently used in test-end-to-end.sh
 install-python:
 	python -m piptools sync sdk/python/requirements/py$(PYTHON_VERSION)-requirements.txt
@@ -81,14 +85,53 @@ lock-python-dependencies-all:
 	# Remove all existing requirements because we noticed the lock file is not always updated correctly.
 	# Removing and running the command again ensures that the lock file is always up to date.
 	rm -rf sdk/python/requirements/* 2>/dev/null || true
-
+	pixi run --environment $(call get_env_name,3.11) --manifest-path infra/scripts/pixi/pixi.toml \
+		"uv pip compile -p 3.11 --system --no-strip-extras setup.py --extra pandas \
+		--generate-hashes --output-file sdk/python/requirements/py3.11-pandas-requirements.txt" && \
 	$(foreach ver,$(PYTHON_VERSIONS),\
 		pixi run --environment $(call get_env_name,$(ver)) --manifest-path infra/scripts/pixi/pixi.toml \
+			"uv pip compile -p $(ver) --system --no-strip-extras setup.py --extra dev \
+			--generate-hashes --output-file sdk/python/requirements/py$(ver)-dev-requirements.txt" && \
+		pixi run --environment $(call get_env_name,$(ver)) --manifest-path infra/scripts/pixi/pixi.toml \
+			"uv pip compile -p $(ver) --system --no-strip-extras setup.py --extra build \
+			--generate-hashes --output-file sdk/python/requirements/py$(ver)-build-requirements.txt" && \
+		pixi run --environment $(call get_env_name,$(ver)) --manifest-path infra/scripts/pixi/pixi.toml \
 			"uv pip compile -p $(ver) --system --no-strip-extras setup.py \
-			--output-file sdk/python/requirements/py$(ver)-requirements.txt" && \
+			--extra aws \
+			--extra gcp \
+			--extra snowflake \
+			--extra redis \
+			--extra go \
+			--extra mysql \
+			--extra postgres \
+			--extra opentelemetry \
+			--extra grpcio \
+			--extra k8s \
+			--extra duckdb \
+			--extra milvus \
+			--generate-hashes --output-file sdk/python/requirements/py$(ver)-limited-requirements.txt" && \
+		pixi run --environment $(call get_env_name,$(ver)) --manifest-path infra/scripts/pixi/pixi.toml \
+			"uv pip compile -p $(ver) --system --no-strip-extras setup.py \
+			--extra aws \
+			--extra gcp \
+			--extra snowflake \
+			--extra redis \
+			--extra go \
+			--extra mysql \
+			--extra postgres-source \
+			--extra opentelemetry \
+			--extra grpcio \
+			--extra k8s \
+			--extra duckdb \
+			--extra milvus \
+			--no-emit-package milvus-lite \
+			--output-file sdk/python/requirements/py$(ver)-sdist-requirements.txt" && \
 		pixi run --environment $(call get_env_name,$(ver)) --manifest-path infra/scripts/pixi/pixi.toml \
 			"uv pip compile -p $(ver) --system --no-strip-extras setup.py --extra ci \
-			--output-file sdk/python/requirements/py$(ver)-ci-requirements.txt" && \
+			--generate-hashes --output-file sdk/python/requirements/py$(ver)-ci-requirements.txt" && \
+		pixi run --environment $(call get_env_name,$(ver)) --manifest-path infra/scripts/pixi/pixi.toml \
+			"uv pip compile -p $(ver) --system --no-strip-extras setup.py \
+			--generate-hashes --output-file sdk/python/requirements/py$(ver)-requirements.txt" && \
 	) true
 
 
