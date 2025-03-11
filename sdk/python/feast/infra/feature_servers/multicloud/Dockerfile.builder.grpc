@@ -1,0 +1,15 @@
+FROM sdist-builder:latest
+
+ARG GRPC_VERSION=v1.71.0
+RUN git clone --depth 1 --branch ${GRPC_VERSION} --recursive https://github.com/grpc/grpc && \
+    mkdir -p grpc/cmake/build && \
+    cd grpc/cmake/build && \
+    cmake \
+    -DgRPC_INSTALL=ON \
+    -DgRPC_BUILD_TESTS=OFF \
+    -DCMAKE_CXX_STANDARD=17 \
+    -DBUILD_SHARED_LIBS=ON \
+    ../.. && \
+    make && \
+    make install && \
+    rm -rf ${APP_ROOT}/src/grpc

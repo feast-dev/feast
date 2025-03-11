@@ -118,19 +118,10 @@ jobs:
         with:
           python-version: 3.11
           architecture: x64
-      - name: Install uv
-        run: |
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-      - name: Get uv cache dir
-        id: uv-cache
-        run: |
-          echo "::set-output name=dir::$(uv cache dir)"
-      - name: uv cache
-        uses: actions/cache@v4
+      - name: Install the latest version of uv and set the python version
+        uses: astral-sh/setup-uv@v5
         with:
-          path: ${{ steps.uv-cache.outputs.dir }}
-          key: ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-uv-${{ hashFiles(format('**/py{0}-ci-requirements.txt', env.PYTHON)) }}
-
+          enable-cache: true
       - name: Install Python dependencies
         run: make install-python-dependencies-ci
       - uses: actions/cache@v4
@@ -159,3 +150,5 @@ jobs:
         run: aws sts get-caller-identity
       - name: Run integration tests
         run:  make test-java-integration
+      - name: Minimize uv cache
+        run: uv cache prune --ci

@@ -1,0 +1,12 @@
+FROM feast-sdist-builder:latest
+
+ARG ARROW_VERSION=17.0.0
+USER 1001
+COPY requirements.txt requirements.txt
+RUN source /tmp/cachi2.env && \
+    pip install --no-binary :all: pyarrow==${ARROW_VERSION} && \
+    # pip install --no-binary :all: .[aws,gcp,snowflake,redis,go,mysql,postgres,opentelemetry,grpcio,k8s,duckdb,milvus]
+    pip install --no-binary :all: -r requirements.txt
+
+# modify permissions to support running with a random uid
+RUN chmod g+w $(python -c "import feast.ui as ui; print(ui.__path__)" | tr -d "[']")/build/projects-list.json

@@ -108,6 +108,8 @@ coverage.out
 .pytest_cache/
 infra/scripts/*.conf
 go/internal/test/feature_repo/data/
+milvus_demo.db
+.milvus_demo.db.lock
 
 # Translations
 *.mo
@@ -155,6 +157,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+uv.lock
 
 # Spyder project settings
 .spyderproject
@@ -232,3 +235,7 @@ infra/feast-operator/bin
 # ignore the website build directory
 infra/website/node_modules/
 infra/website/.astro/
+
+# cachi2
+cachi2.env
+cachi2-output/

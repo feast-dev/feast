@@ -15,10 +15,14 @@ jobs:
         with:
           python-version: "3.11"
           architecture: x64
-      - name: Install uv
-        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+      - name: Install the latest version of uv and set the python version
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
       - name: Install dependencies
         run: |
           make install-python-dependencies-ci
       - name: Lint python
         run: make lint-python
+      - name: Minimize uv cache
+        run: uv cache prune --ci

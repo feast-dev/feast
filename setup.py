@@ -37,9 +37,9 @@ REQUIRED = [
     "Jinja2>=2,<4",
     "jsonschema",
     "mmh3",
-    "numpy>=1.22,<2",
-    "pandas>=1.4.3,<3",
-    "pyarrow<18.1.0",
+    "numpy==1.26.4",
+    "pandas==2.2.3",
+    "pyarrow<=17.0.0",
     "pydantic>=2.0.0",
     "pygments>=2.12.0,<3",
     "PyYAML>=5.4.0,<7",
@@ -95,7 +95,7 @@ SQLITE_VEC_REQUIRED = [
 TRINO_REQUIRED = ["trino>=0.305.0,<0.400.0", "regex"]
 
 POSTGRES_REQUIRED = [
-    "psycopg[binary,pool]>=3.0.0,<4",
+    "psycopg[binary,pool]==3.2.5",
 ]
 
 OPENTELEMETRY = ["prometheus_client", "psutil"]
@@ -134,7 +134,7 @@ IBIS_REQUIRED = [
 ]
 
 GRPCIO_REQUIRED = [
-    "grpcio>=1.56.2,<2",
+    "grpcio>=1.56.2,<=1.71.0",
     "grpcio-reflection>=1.56.2,<2",
     "grpcio-health-checking>=1.56.2,<2",
 ]
@@ -161,7 +161,7 @@ QDRANT_REQUIRED = ["qdrant-client>=1.12.0"]
 
 GO_REQUIRED = ["cffi>=1.15.0"]
 
-MILVUS_REQUIRED = ["pymilvus"]
+MILVUS_REQUIRED = ["pymilvus==2.4.9"]
 
 TORCH_REQUIRED = [
     "torch==2.2.2",
@@ -204,7 +204,7 @@ CI_REQUIRED = (
         "pre-commit<3.3.2",
         "assertpy==1.1",
         "pip-tools",
-        "pybindgen",
+        "pybindgen==0.22.0",
         "types-protobuf~=3.19.22",
         "types-python-dateutil",
         "types-pytz",
