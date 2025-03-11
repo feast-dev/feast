@@ -92,6 +92,31 @@ public class FeastClient implements AutoCloseable {
   }
 
   /**
+   * Create an authenticated client to access Feast Serving.
+   *
+   * @param url URL of Feast serving GRPC server
+   * @param securityConfig security options to configure the Feast client. See {@link
+   *     SecurityConfig}
+   * @param requestTimeout grpc deadline/netty http2 timeout
+   * @param serviceConfig see https://grpc.io/docs/guides/service-config/
+   * @return {@link FeastClient}
+   */
+  public static FeastClient createSecureWithTarget(
+      String url,
+      SecurityConfig securityConfig,
+      long requestTimeout,
+      Map<String, Object> serviceConfig) {
+    NettyChannelBuilder nettyChannelBuilder =
+        NettyChannelBuilder.forTarget(url).defaultServiceConfig(serviceConfig);
+
+    if (securityConfig.isTLSEnabled()) {
+      nettyChannelBuilder.useTransportSecurity();
+    }
+
+    return new FeastClient(nettyChannelBuilder.build(), Optional.empty(), requestTimeout);
+  }
+
+  /**
    * Create an authenticated client that can access Feast serving with authentication enabled.
    *
    * @param host hostname or ip address of Feast serving GRPC server
