@@ -1,2 +1,2 @@
 # keep VERSION on line #2, this is critical to release CI
-feast[aws,gcp,snowflake,redis,go,mysql,postgres,opentelemetry,grpcio,k8s,duckdb,milvus] == 0.46.0
+feast[aws,gcp,snowflake,redis,go,mysql,postgres,opentelemetry,grpcio,k8s,duckdb,milvus] == 0.47.0
