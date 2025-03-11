@@ -54,8 +54,12 @@ build: protos build-java build-docker
 # formerly install-python-ci-dependencies-uv-venv
 # editable install
 install-python-dependencies-dev:
-	uv pip sync sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt
+	uv pip sync --require-hashes sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt
 	uv pip install --no-deps -e .
+
+install-python-dependencies-limited:
+	uv pip sync --require-hashes sdk/python/requirements/py$(PYTHON_VERSION)-limited-requirements.txt
+	uv pip install --no-deps -e .[limited]
 
 # Python SDK - system
 # the --system flag installs dependencies in the global python context
@@ -81,16 +85,24 @@ lock-python-dependencies-all:
 	# Remove all existing requirements because we noticed the lock file is not always updated correctly.
 	# Removing and running the command again ensures that the lock file is always up to date.
 	rm -rf sdk/python/requirements/* 2>/dev/null || true
-
+	pixi run --environment $(call get_env_name,3.11) --manifest-path infra/scripts/pixi/pixi.toml \
+		"uv pip compile -p 3.11 --no-strip-extras setup.py --extra pandas-build \
+		--generate-hashes --output-file sdk/python/requirements/py3.11-pandas-requirements.txt"
+	pixi run --environment $(call get_env_name,3.11) --manifest-path infra/scripts/pixi/pixi.toml \
+		"uv pip compile -p 3.11 --no-strip-extras setup.py --extra sdist-build \
+		--no-emit-package milvus-lite \
+		--output-file sdk/python/requirements/py3.11-sdist-requirements.txt"
 	$(foreach ver,$(PYTHON_VERSIONS),\
 		pixi run --environment $(call get_env_name,$(ver)) --manifest-path infra/scripts/pixi/pixi.toml \
-			"uv pip compile -p $(ver) --system --no-strip-extras setup.py \
-			--output-file sdk/python/requirements/py$(ver)-requirements.txt" && \
+			"uv pip compile -p $(ver) --no-strip-extras setup.py --extra limited \
+			--generate-hashes --output-file sdk/python/requirements/py$(ver)-limited-requirements.txt" && \
 		pixi run --environment $(call get_env_name,$(ver)) --manifest-path infra/scripts/pixi/pixi.toml \
-			"uv pip compile -p $(ver) --system --no-strip-extras setup.py --extra ci \
-			--output-file sdk/python/requirements/py$(ver)-ci-requirements.txt" && \
+			"uv pip compile -p $(ver) --no-strip-extras setup.py --extra ci-with-binaries \
+			--generate-hashes --output-file sdk/python/requirements/py$(ver)-ci-requirements.txt" && \
+		pixi run --environment $(call get_env_name,$(ver)) --manifest-path infra/scripts/pixi/pixi.toml \
+			"uv pip compile -p $(ver) --no-strip-extras setup.py \
+			--generate-hashes --output-file sdk/python/requirements/py$(ver)-requirements.txt" && \
 	) true
-
 
 compile-protos-python:
 	python infra/scripts/generate_protos.py

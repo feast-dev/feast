@@ -1,0 +1,32 @@
+FROM registry.access.redhat.com/ubi8/python-311:1
+
+ARG ARROW_VERSION=17.0.0
+
+USER 0
+RUN yum install -y ninja-build llvm-devel llvm-libs llvm-toolset ncurses-devel rust
+RUN wget https://github.com/apache/arrow/archive/refs/tags/apache-arrow-${ARROW_VERSION}.tar.gz && \
+    tar xvfz apache-arrow-${ARROW_VERSION}.tar.gz && \
+    cd arrow-apache-arrow-${ARROW_VERSION}/cpp && \
+    cmake \
+    -DARROW_COMPUTE=ON \
+    -DARROW_ACERO=ON \
+    -DARROW_CSV=ON \
+    -DARROW_DATASET=ON \
+    -DARROW_FILESYSTEM=ON \
+    -DARROW_FLIGHT=ON \
+    -DARROW_FLIGHT_SQL=ON \
+    -DARROW_GANDIVA=ON \
+    -DARROW_HDFS=ON \
+    -DARROW_JSON=ON \
+    -DARROW_PARQUET=ON \
+    -DARROW_S3=ON \
+    -DARROW_WITH_UTF8PROC=ON \
+    -DARROW_TENSORFLOW=ON \
+    -DARROW_PARQUET=ON \
+    . && \
+    cmake --build . && \
+    cmake --install . && \
+    cd ${APP_ROOT}/src && \
+    rm -rf *apache-arrow*
+
+USER 1001

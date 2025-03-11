@@ -1,0 +1,57 @@
+name: pr-image-build-from-source
+
+on:
+  push:
+    branches:
+      - main
+      - stable
+      - '*-branch'
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - labeled
+    paths:
+      - '.github/workflows/pr_image_build_from_source.yaml'
+      - 'Makefile'
+      - 'pyproject.toml'
+      - 'setup.py'
+      - 'infra/scripts/cachi2.sh'
+      - 'sdk/python/requirements/**'
+      - 'sdk/python/feast/infra/feature_servers/multicloud/**'
+
+jobs:
+  image-build-from-source:
+    if:
+      ((github.event.action == 'labeled' && (github.event.label.name == 'approved' || github.event.label.name == 'lgtm' || github.event.label.name == 'ok-to-test')) ||
+      (github.event.action != 'labeled' && (contains(github.event.pull_request.labels.*.name, 'ok-to-test') || contains(github.event.pull_request.labels.*.name, 'approved') || contains(github.event.pull_request.labels.*.name, 'lgtm')))) &&
+      github.event.pull_request.base.repo.full_name == 'feast-dev/feast'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@v1.3.1
+        with:
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: false
+          docker-images: false
+          swap-storage: false
+          tool-cache: false
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          install: true
+          driver: docker
+      - name: Build arrow builder image from source
+        uses: docker/build-push-action@v6
+        with:
+          context: sdk/python/feast/infra/feature_servers/multicloud
+          file: sdk/python/feast/infra/feature_servers/multicloud/Dockerfile.builder.arrow
+          load: true
+          tags: feast-sdist-builder:latest
+      - name: Run feast release image build from source using cachi2
+        run: source ./infra/scripts/cachi2.sh
