@@ -63,6 +63,9 @@ class SortedFeatureView(FeatureView):
         if not _skip_validation:
             self.ensure_valid()
 
+    def __hash__(self):
+        return super().__hash__()
+
     def __copy__(self):
         sfv = SortedFeatureView(
             name=self.name,
