@@ -81,7 +81,7 @@ class StreamFeatureView(FeatureView):
     materialization_intervals: List[Tuple[datetime, datetime]]
     udf: Optional[FunctionType]
     udf_string: Optional[str]
-    feature_transformation: Optional[Transformation]
+    feature_transformation: Transformation
 
     def __init__(
         self,
@@ -146,7 +146,9 @@ class StreamFeatureView(FeatureView):
 
     def get_feature_transformation(self) -> Optional[Transformation]:
         if not self.udf:
-            return None
+            raise ValueError(
+                "Either a UDF or a feature transformation must be specified for StreamFeatureView"
+            )
         if self.mode in (
             TransformationMode.PANDAS,
             TransformationMode.PYTHON,
