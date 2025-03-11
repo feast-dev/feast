@@ -1,4 +1,0 @@
-## Append samples of your project ##
-resources:
-- charts_v1alpha1_feastfeatureserver.yaml
-#+kubebuilder:scaffold:manifestskustomizesamples
