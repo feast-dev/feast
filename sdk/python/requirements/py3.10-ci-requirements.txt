@@ -1189,7 +1189,7 @@ traitlets==5.14.3
     #   nbclient
     #   nbconvert
     #   nbformat
-transformers==4.42.4
+transformers==4.48.0
     # via
     #   docling-core
     #   docling-ibm-models
