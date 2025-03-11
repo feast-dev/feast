@@ -117,17 +117,10 @@ jobs:
           aws-region: us-west-2
       - name: Use AWS CLI
         run: aws sts get-caller-identity
-      - name: Install uv
-        run: curl -LsSf https://astral.sh/uv/install.sh | sh
-      - name: Get uv cache dir
-        id: uv-cache
-        run: |
-          echo "::set-output name=dir::$(uv cache dir)"
-      - name: uv cache
-        uses: actions/cache@v4
+      - name: Install the latest version of uv
+        uses: astral-sh/setup-uv@v5
         with:
-          path: ${{ steps.uv-cache.outputs.dir }}
-          key: ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-uv-${{ hashFiles(format('**/py{0}-ci-requirements.txt', env.PYTHON)) }}
+          enable-cache: true
       - name: Install apache-arrow on ubuntu
         if: matrix.os == 'ubuntu-latest'
         run: |
@@ -155,3 +148,5 @@ jobs:
           SNOWFLAKE_CI_ROLE: ${{ secrets.SNOWFLAKE_CI_ROLE }}
           SNOWFLAKE_CI_WAREHOUSE: ${{ secrets.SNOWFLAKE_CI_WAREHOUSE }}
         run: make test-python-integration
+      - name: Minimize uv cache
+        run: uv cache prune --ci

@@ -26,9 +26,8 @@ RUN yalc add @feast-dev/feast-ui && \
     yarn cache clean --all
 
 WORKDIR ${APP_ROOT}/src
-RUN pip install --no-cache-dir pip-tools && \
-    make install-python-ci-dependencies && \
-    pip uninstall -y pip-tools
+RUN pip install --require-hashes --no-deps -r sdk/python/requirements/py3.11-minimal-requirements.txt
+RUN pip install --no-deps -e .[minimal]
 
 # modify permissions to support running with a random uid
 RUN chmod g+w $(python -c "import feast.ui as ui; print(ui.__path__)" | tr -d "[']")/build/projects-list.json
