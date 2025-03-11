@@ -463,7 +463,7 @@ func (feast *FeastServices) setRoute(route *routev1.Route, feastType FeastServic
 	}
 	if tls.IsTLS() {
 		route.Spec.TLS = &routev1.TLSConfig{
-			Termination:                   routev1.TLSTerminationPassthrough,
+			Termination:                   routev1.TLSTerminationReencrypt,
 			InsecureEdgeTerminationPolicy: routev1.InsecureEdgeTerminationPolicyRedirect,
 		}
 	}
