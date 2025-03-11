@@ -85,7 +85,7 @@ run: helm-operator ## Run against the configured Kubernetes cluster in ~/.kube/c
 
 .PHONY: docker-build
 docker-build: ## Build docker image with the manager.
-	docker build --build-context helmcharts=../charts/ -t ${IMG} .
+	docker build --build-context helmcharts=../charts/ -t ${IMG} --load .
 
 .PHONY: docker-push
 docker-push: ## Push docker image with the manager.
