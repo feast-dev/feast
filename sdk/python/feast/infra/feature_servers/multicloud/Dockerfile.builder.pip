@@ -1,0 +1,21 @@
+FROM arrow-builder:latest
+
+RUN pip list
+
+# we'll need to pip install anything that tries to build maturin from source
+RUN pip install \
+    # feast deps
+    pydantic_core==2.27.2 \
+    watchfiles==1.0.4 \
+    rpds-py==0.23.1 \
+    # snowflake dep
+    cryptography==44.0.2 \
+    # aws dep
+    aiohttp==3.11.14 \
+    # milvus dep
+    milvus-lite==2.4.12
+
+RUN pip list
+
+# ibis-framework must build from its own git repo... versioning requirement
+RUN git clone -b 9.5.0 https://github.com/ibis-project/ibis ${APP_ROOT}/src/ibis

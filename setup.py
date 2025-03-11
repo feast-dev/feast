@@ -37,10 +37,10 @@ REQUIRED = [
     "Jinja2>=2,<4",
     "jsonschema",
     "mmh3",
-    "numpy>=1.22,<2",
+    "numpy>=1.22",
     "pandas>=1.4.3,<3",
-    "pyarrow<18.1.0",
-    "pydantic>=2.0.0",
+    "pyarrow<=17.0.0",
+    "pydantic==2.10.6",
     "pygments>=2.12.0,<3",
     "PyYAML>=5.4.0,<7",
     "requests",
@@ -51,7 +51,7 @@ REQUIRED = [
     "tqdm>=4,<5",
     "typeguard>=4.0.0",
     "fastapi>=0.68.0",
-    "uvicorn[standard]>=0.14.0,<1",
+    "uvicorn[standard]==0.34.0",
     "uvicorn-worker",
     "gunicorn; platform_system != 'Windows'",
     "dask[dataframe]>=2024.2.1",
@@ -95,7 +95,7 @@ SQLITE_VEC_REQUIRED = [
 TRINO_REQUIRED = ["trino>=0.305.0,<0.400.0", "regex"]
 
 POSTGRES_REQUIRED = [
-    "psycopg[binary,pool]>=3.0.0,<4",
+    "psycopg[binary,pool]==3.2.5",
 ]
 
 OPENTELEMETRY = ["prometheus_client", "psutil"]
@@ -143,7 +143,7 @@ DUCKDB_REQUIRED = ["ibis-framework[duckdb]>=9.0.0,<10"]
 
 DELTA_REQUIRED = ["deltalake"]
 
-DOCLING_REQUIRED = ["docling>=2.23.0"]
+DOCLING_REQUIRED = ["docling==2.27.0"]
 
 ELASTICSEARCH_REQUIRED = ["elasticsearch>=8.13.0"]
 
@@ -161,7 +161,7 @@ QDRANT_REQUIRED = ["qdrant-client>=1.12.0"]
 
 GO_REQUIRED = ["cffi>=1.15.0"]
 
-MILVUS_REQUIRED = ["pymilvus"]
+MILVUS_REQUIRED = ["pymilvus==2.4.9"]
 
 TORCH_REQUIRED = [
     "torch==2.2.2",
@@ -204,7 +204,7 @@ CI_REQUIRED = (
         "pre-commit<3.3.2",
         "assertpy==1.1",
         "pip-tools",
-        "pybindgen",
+        "pybindgen==0.22.0",
         "types-protobuf~=3.19.22",
         "types-python-dateutil",
         "types-pytz",

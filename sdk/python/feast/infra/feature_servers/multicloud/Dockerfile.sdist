@@ -1,0 +1,13 @@
+FROM ibis-builder:latest
+
+COPY --chown=default .git ${APP_ROOT}/src/.git
+COPY --chown=default setup.py setup.cfg pyproject.toml README.md LICENSE ${APP_ROOT}/src/
+COPY --chown=default sdk/python ${APP_ROOT}/src/sdk/python
+
+RUN source /tmp/cachi2.env && \
+    pip install --no-deps --no-binary :all: .[limited]
+
+RUN pip list
+
+# modify permissions to support running with a random uid
+RUN chmod g+w $(python -c "import feast.ui as ui; print(ui.__path__)" | tr -d "[']")/build/projects-list.json

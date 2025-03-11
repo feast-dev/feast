@@ -1,0 +1,95 @@
+FROM yum-builder:latest
+
+RUN mkdir ${APP_ROOT}/arrow-dist ${APP_ROOT}/src/arrow-build
+ENV ARROW_HOME=${APP_ROOT}/arrow-dist
+ENV LD_LIBRARY_PATH=${ARROW_HOME}/lib:$LD_LIBRARY_PATH
+ENV CMAKE_PREFIX_PATH=${ARROW_HOME}:$CMAKE_PREFIX_PATH
+
+COPY --chown=default cpp/cmake_modules ${APP_ROOT}/src/arrow/cpp/cmake_modules
+COPY --chown=default python ${APP_ROOT}/src/arrow/python
+
+# configured for arrow version 17.0.0
+RUN export \
+    # Environment variables for offline Arrow build
+    ARROW_ABSL_URL="/tmp/arrow/cpp/arrow-thirdparty/absl-20211102.0.tar.gz" \
+    ARROW_AWS_C_AUTH_URL="/tmp/arrow/cpp/arrow-thirdparty/aws-c-auth-v0.6.22.tar.gz" \
+    ARROW_AWS_C_CAL_URL="/tmp/arrow/cpp/arrow-thirdparty/aws-c-cal-v0.5.20.tar.gz" \
+    ARROW_AWS_C_COMMON_URL="/tmp/arrow/cpp/arrow-thirdparty/aws-c-common-v0.8.9.tar.gz" \
+    ARROW_AWS_C_COMPRESSION_URL="/tmp/arrow/cpp/arrow-thirdparty/aws-c-compression-v0.2.16.tar.gz" \
+    ARROW_AWS_C_EVENT_STREAM_URL="/tmp/arrow/cpp/arrow-thirdparty/aws-c-event-stream-v0.2.18.tar.gz" \
+    ARROW_AWS_C_HTTP_URL="/tmp/arrow/cpp/arrow-thirdparty/aws-c-http-v0.7.3.tar.gz" \
+    ARROW_AWS_C_IO_URL="/tmp/arrow/cpp/arrow-thirdparty/aws-c-io-v0.13.14.tar.gz" \
+    ARROW_AWS_C_MQTT_URL="/tmp/arrow/cpp/arrow-thirdparty/aws-c-mqtt-v0.8.4.tar.gz" \
+    ARROW_AWS_C_S3_URL="/tmp/arrow/cpp/arrow-thirdparty/aws-c-s3-v0.2.3.tar.gz" \
+    ARROW_AWS_C_SDKUTILS_URL="/tmp/arrow/cpp/arrow-thirdparty/aws-c-sdkutils-v0.1.6.tar.gz" \
+    ARROW_AWS_CHECKSUMS_URL="/tmp/arrow/cpp/arrow-thirdparty/aws-checksums-v0.1.13.tar.gz" \
+    ARROW_AWS_CRT_CPP_URL="/tmp/arrow/cpp/arrow-thirdparty/aws-crt-cpp-v0.18.16.tar.gz" \
+    ARROW_AWS_LC_URL="/tmp/arrow/cpp/arrow-thirdparty/aws-lc-v1.3.0.tar.gz" \
+    ARROW_AWSSDK_URL="/tmp/arrow/cpp/arrow-thirdparty/aws-sdk-cpp-1.10.55.tar.gz" \
+    ARROW_BOOST_URL="/tmp/arrow/cpp/arrow-thirdparty/boost-1.81.0.tar.gz" \
+    ARROW_BROTLI_URL="/tmp/arrow/cpp/arrow-thirdparty/brotli-v1.0.9.tar.gz" \
+    ARROW_BZIP2_URL="/tmp/arrow/cpp/arrow-thirdparty/bzip2-1.0.8.tar.gz" \
+    ARROW_CARES_URL="/tmp/arrow/cpp/arrow-thirdparty/cares-1.17.2.tar.gz" \
+    ARROW_CRC32C_URL="/tmp/arrow/cpp/arrow-thirdparty/crc32c-1.1.2.tar.gz" \
+    ARROW_GBENCHMARK_URL="/tmp/arrow/cpp/arrow-thirdparty/gbenchmark-v1.8.3.tar.gz" \
+    ARROW_GFLAGS_URL="/tmp/arrow/cpp/arrow-thirdparty/gflags-v2.2.2.tar.gz" \
+    ARROW_GLOG_URL="/tmp/arrow/cpp/arrow-thirdparty/glog-v0.5.0.tar.gz" \
+    ARROW_GOOGLE_CLOUD_CPP_URL="/tmp/arrow/cpp/arrow-thirdparty/google-cloud-cpp-v2.22.0.tar.gz" \
+    ARROW_GRPC_URL="/tmp/arrow/cpp/arrow-thirdparty/grpc-v1.46.3.tar.gz" \
+    ARROW_GTEST_URL="/tmp/arrow/cpp/arrow-thirdparty/gtest-1.11.0.tar.gz" \
+    ARROW_JEMALLOC_URL="/tmp/arrow/cpp/arrow-thirdparty/jemalloc-5.3.0.tar.bz2" \
+    ARROW_LZ4_URL="/tmp/arrow/cpp/arrow-thirdparty/lz4-v1.9.4.tar.gz" \
+    ARROW_MIMALLOC_URL="/tmp/arrow/cpp/arrow-thirdparty/mimalloc-v2.0.6.tar.gz" \
+    ARROW_NLOHMANN_JSON_URL="/tmp/arrow/cpp/arrow-thirdparty/nlohmann-json-v3.10.5.tar.gz" \
+    ARROW_OPENTELEMETRY_URL="/tmp/arrow/cpp/arrow-thirdparty/opentelemetry-cpp-v1.13.0.tar.gz" \
+    ARROW_OPENTELEMETRY_PROTO_URL="/tmp/arrow/cpp/arrow-thirdparty/opentelemetry-proto-v0.17.0.tar.gz" \
+    ARROW_ORC_URL="/tmp/arrow/cpp/arrow-thirdparty/orc-2.0.1.tar.gz" \
+    ARROW_PROTOBUF_URL="/tmp/arrow/cpp/arrow-thirdparty/protobuf-v21.3.tar.gz" \
+    ARROW_RAPIDJSON_URL="/tmp/arrow/cpp/arrow-thirdparty/rapidjson-232389d4f1012dddec4ef84861face2d2ba85709.tar.gz" \
+    ARROW_RE2_URL="/tmp/arrow/cpp/arrow-thirdparty/re2-2022-06-01.tar.gz" \
+    ARROW_S2N_TLS_URL="/tmp/arrow/cpp/arrow-thirdparty/s2n-v1.3.35.tar.gz" \
+    ARROW_SNAPPY_URL="/tmp/arrow/cpp/arrow-thirdparty/snappy-1.1.10.tar.gz" \
+    ARROW_THRIFT_URL="/tmp/arrow/cpp/arrow-thirdparty/thrift-0.16.0.tar.gz" \
+    ARROW_UCX_URL="/tmp/arrow/cpp/arrow-thirdparty/ucx-1.12.1.tar.gz" \
+    ARROW_UTF8PROC_URL="/tmp/arrow/cpp/arrow-thirdparty/utf8proc-v2.7.0.tar.gz" \
+    ARROW_XSIMD_URL="/tmp/arrow/cpp/arrow-thirdparty/xsimd-13.0.0.tar.gz" \
+    ARROW_ZLIB_URL="/tmp/arrow/cpp/arrow-thirdparty/zlib-1.3.1.tar.gz" \
+    ARROW_ZSTD_URL="/tmp/arrow/cpp/arrow-thirdparty/zstd-1.5.6.tar.gz" \
+    && \
+    cmake \
+    -DARROW_COMPUTE=ON \
+    -DARROW_ACERO=ON \
+    -DARROW_CSV=ON \
+    -DARROW_DATASET=ON \
+    -DARROW_FILESYSTEM=ON \
+    -DARROW_FLIGHT=ON \
+    -DARROW_FLIGHT_SQL=ON \
+    -DARROW_GANDIVA=ON \
+    -DARROW_HDFS=ON \
+    -DARROW_JSON=ON \
+    -DARROW_PARQUET=ON \
+    -DARROW_S3=ON \
+    -DARROW_WITH_UTF8PROC=ON \
+    -DARROW_TENSORFLOW=ON \
+    -DARROW_BUILD_SHARED=ON \
+    -DCMAKE_INSTALL_PREFIX=$ARROW_HOME \
+    -S /tmp/arrow/cpp \
+    -B ${APP_ROOT}/src/arrow-build && \
+    \
+    cmake --build ${APP_ROOT}/src/arrow-build --target install && \
+    \
+    source /tmp/cachi2.env && \
+    pip install --no-binary :all: -r ${APP_ROOT}/src/arrow/python/requirements-wheel-build.txt && \
+    pip install --no-binary :all: typing-extensions && \
+    \
+    cd ${APP_ROOT}/src/arrow/python && \
+    PYARROW_PARALLEL=4 python setup.py build_ext --bundle-arrow-cpp bdist_wheel && \
+    pip install dist/pyarrow-*.whl && \
+    \
+    cd ${APP_ROOT}/src && \
+    rm -rf ${APP_ROOT}/src/arrow-build ${APP_ROOT}/src/arrow ${APP_ROOT}/arrow-dist
+
+RUN python -c "import pyarrow.lib as _lib; print(_lib.__name__)"
+RUN python -c "import pyarrow.parquet as parquet; print(parquet.__name__)"
+RUN python -c "import pyarrow.dataset as dataset; print(dataset.__name__)"
+RUN python -c "import pyarrow.flight as flight; print(flight.__name__)"
