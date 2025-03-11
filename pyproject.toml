@@ -43,6 +43,7 @@ dependencies = [
     "psutil",
     "bigtree>=0.19.2",
     "pyjwt",
+    "sqlite-vec==v0.1.7a2",
 ]
 
 [project.optional-dependencies]
@@ -106,7 +107,6 @@ singlestore = ["singlestoredb<1.8.0"]
 snowflake = [
     "snowflake-connector-python[pandas]>=3.7,<4",
 ]
-sqlite_vec = ["sqlite-vec==v0.1.6"]
 
 ci = [
     "build",
@@ -151,7 +151,7 @@ ci = [
     "types-setuptools",
     "types-tabulate",
     "virtualenv<20.24.2",
-    "feast[aws, azure, cassandra, clickhouse, couchbase, delta, docling, duckdb, elasticsearch, faiss, gcp, ge, go, grpcio, hazelcast, hbase, ibis, ikv, k8s, milvus, mssql, mysql, opentelemetry, spark, trino, postgres, pytorch, qdrant, redis, singlestore, snowflake, sqlite_vec]"
+    "feast[aws, azure, cassandra, clickhouse, couchbase, delta, docling, duckdb, elasticsearch, faiss, gcp, ge, go, grpcio, hazelcast, hbase, ibis, ikv, k8s, milvus, mssql, mysql, opentelemetry, spark, trino, postgres, pytorch, qdrant, redis, singlestore, snowflake]"
 ]
 nlp = ["feast[docling, milvus, pytorch]"]
 dev = ["feast[ci]"]
