@@ -1,0 +1,8 @@
+FROM arrow-builder:latest
+
+USER 1001
+WORKDIR ${APP_ROOT}/src
+COPY --chown=default . ${APP_ROOT}/src/ahash
+WORKDIR ${APP_ROOT}/src/ahash
+
+RUN cargo build --release

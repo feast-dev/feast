@@ -1,0 +1,14 @@
+#FROM pydantic-core-builder:latest
+FROM arrow-builder:latest
+
+USER 1001
+WORKDIR ${APP_ROOT}/src
+#COPY --chown=default . ${APP_ROOT}/src/pydantic-core
+#WORKDIR ${APP_ROOT}/src/pydantic-core
+
+#RUN ls -la
+#RUN cargo build --release
+
+RUN source /tmp/cachi2.env && \
+    pip install --no-binary :all: ruff==0.7.4 && \
+    pip install --no-binary :all: -r pydantic-core/requirements.txt

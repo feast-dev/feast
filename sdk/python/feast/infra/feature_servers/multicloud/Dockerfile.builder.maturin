@@ -1,0 +1,8 @@
+FROM ahash-builder:latest
+
+USER 1001
+WORKDIR ${APP_ROOT}/src
+COPY --chown=default . ${APP_ROOT}/src/maturin
+WORKDIR ${APP_ROOT}/src/maturin
+
+RUN cargo install --locked --path .

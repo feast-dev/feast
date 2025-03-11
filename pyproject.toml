@@ -21,10 +21,10 @@ dependencies = [
     "Jinja2>=2,<4",
     "jsonschema",
     "mmh3",
-    "numpy>=1.22,<2",
+    "numpy>=1.22",
     "pandas>=1.4.3,<3",
-    "pyarrow<18.1.0",
-    "pydantic>=2.0.0",
+    "pyarrow<=17.0.0",
+    "pydantic==2.10.6",
     "pygments>=2.12.0,<3",
     "PyYAML>=5.4.0,<7",
     "requests",
@@ -58,7 +58,7 @@ cassandra = ["cassandra-driver>=3.24.0,<4"]
 clickhouse = ["clickhouse-connect>=0.7.19"]
 couchbase = ["couchbase==4.3.2", "couchbase-columnar==1.0.0"]
 delta = ["deltalake"]
-docling = ["docling>=2.23.0"]
+docling = ["docling==2.27.0"]
 duckdb = ["ibis-framework[duckdb]>=9.0.0,<10"]
 elasticsearch = ["elasticsearch>=8.13.0"]
 faiss = ["faiss-cpu>=1.7.0,<2"]
@@ -89,13 +89,19 @@ ikv = [
     "ikvpy>=0.0.36",
 ]
 k8s = ["kubernetes<=20.13.0"]
-milvus = ["pymilvus"]
+milvus = ["pymilvus==2.4.9"]
 mssql = ["ibis-framework[mssql]>=9.0.0,<10"]
 mysql = ["pymysql", "types-PyMySQL"]
 opentelemetry = ["prometheus_client", "psutil"]
 spark = ["pyspark>=3.0.0,<4"]
 trino = ["trino>=0.305.0,<0.400.0", "regex"]
-postgres = ["psycopg[binary,pool]>=3.0.0,<4"]
+postgres = [
+    "psycopg[pool]==3.2.5",
+]
+postgres-dev = [
+    "psycopg[binary]==3.2.5",
+    "feast[postgres]",
+]
 pytorch = ["torch==2.2.2", "torchvision>=0.17.2"]
 qdrant = ["qdrant-client>=1.12.0"]
 redis = [
@@ -108,6 +114,10 @@ snowflake = [
 ]
 sqlite_vec = ["sqlite-vec==v0.1.6"]
 
+ci-with-binaries = [
+    "feast[postgres-dev]",
+    "feast[ci]",
+]
 ci = [
     "build",
     "virtualenv==20.23.0",
@@ -141,7 +151,7 @@ ci = [
     "pre-commit<3.3.2",
     "assertpy==1.1",
     "pip-tools",
-    "pybindgen",
+    "pybindgen==0.22.0",
     "types-protobuf~=3.19.22",
     "types-python-dateutil",
     "types-pytz",
@@ -156,6 +166,57 @@ ci = [
 nlp = ["feast[docling, milvus, pytorch]"]
 dev = ["feast[ci]"]
 docs = ["feast[ci]"]
+limited = ["feast[aws, gcp, snowflake, redis, go, mysql, postgres, opentelemetry, grpcio, k8s, duckdb, milvus]"]
+
+# extras for a disconnected build from source (numpy, pandas, postgres-source, sdist)
+numpy-build = [
+    "numpy==2.2.4",
+    "meson-python<0.16.0,>=0.15.0",
+    "Cython<3.1,>=0.29.34",
+    "flit_core<4,>=3.8",
+    "patchelf>=0.11.0",
+    "scikit-build-core>=0.10",
+    "hatch-fancy-pypi-readme>=23.2.0",
+    "hatch-vcs==0.4.0",
+    "hatchling>=1.6.0,<2",
+    "calver",
+]
+pandas-build = [
+    "pandas==2.2.3",
+    "meson-python==0.13.1",
+    "meson==1.2.1",
+    "oldest-supported-numpy>=2022.8.16,<2023.8.3",
+    "versioneer[toml]==0.29",
+]
+postgres-source = [
+    "psycopg-pool @ git+https://github.com/psycopg/psycopg@3.2.5#subdirectory=psycopg_pool",
+    "psycopg @ git+https://github.com/psycopg/psycopg@3.2.5#subdirectory=psycopg",
+    "feast[postgres]",
+]
+pydantic-build = [
+    "pydantic==2.10.6",
+    "pydantic-core==2.27.2",
+    "maturin==1.8.3",
+    "setuptools==76.1.0",
+    "setuptools_scm<8.0",
+    "poetry-core>=1.0.0",
+    "ruff==0.11.0",
+]
+sdist-build = [
+    "feast[limited]",
+    "feast[postgres-source]",
+    "feast[numpy-build]",
+    "pybindgen==0.22.0",
+    "setuptools>=60",
+    "setuptools_scm[toml]>=8",
+    "sphinx!=4.0.0",
+    "wheel==0.45.1",
+    "mypy<=1.14.0,>=1.4.1",
+    "types-psutil",
+    "types-setuptools",
+    "pdm-backend",
+    "setuptools-rust>=1.4.0",
+]
 
 [project.urls]
 Homepage = "https://github.com/feast-dev/feast"
