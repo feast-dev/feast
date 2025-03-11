@@ -89,7 +89,7 @@ from tests.integration.feature_repos.universal.online_store_creator import (
 )
 
 DYNAMO_CONFIG = {"type": "dynamodb", "region": "us-west-2"}
-MILVUS_CONFIG = {"type": "milvus"}
+MILVUS_CONFIG = {"type": "milvus", "embedding_dim": "2"}
 REDIS_CONFIG = {"type": "redis", "connection_string": "localhost:6379,db=0"}
 REDIS_CLUSTER_CONFIG = {
     "type": "redis",
@@ -565,7 +565,9 @@ def construct_test_environment(
             cache_ttl_seconds=1,
         )
 
-    if test_repo_config.online_store in ["milvus", "pgvector", "qdrant"]:
+    if isinstance(
+        test_repo_config.online_store, dict
+    ) and test_repo_config.online_store.get("type") in ["milvus", "pgvector", "qdrant"]:
         entity_key_serialization_version = 3
 
     environment_params = {

@@ -563,11 +563,16 @@ class MilvusOnlineStore(OnlineStore):
                         field, PrimitiveFeastType.INVALID
                     ) in [
                         PrimitiveFeastType.STRING,
-                        PrimitiveFeastType.INT64,
-                        PrimitiveFeastType.INT32,
                         PrimitiveFeastType.BYTES,
                     ]:
-                        res[field] = ValueProto(string_val=field_value)
+                        res[field] = ValueProto(string_val=str(field_value))
+                    elif entity_name_feast_primitive_type_map.get(
+                        field, PrimitiveFeastType.INVALID
+                    ) in [
+                        PrimitiveFeastType.INT64,
+                        PrimitiveFeastType.INT32,
+                    ]:
+                        res[field] = ValueProto(int64_val=int(field_value))
                     elif field == composite_key_name:
                         pass
                     elif isinstance(field_value, bytes):

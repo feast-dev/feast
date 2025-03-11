@@ -905,8 +905,7 @@ def test_retrieve_online_milvus_documents(environment, fake_document_data):
     item_embeddings_feature_view = create_item_embeddings_feature_view(data_source)
     fs.apply([item_embeddings_feature_view, item()])
     fs.write_to_online_store("item_embeddings", df)
-    documents = fs.retrieve_online_documents(
-        feature=None,
+    documents = fs.retrieve_online_documents_v2(
         features=[
             "item_embeddings:embedding_float",
             "item_embeddings:item_id",
