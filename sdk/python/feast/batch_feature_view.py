@@ -5,6 +5,7 @@ from types import FunctionType
 from typing import Dict, List, Optional, Tuple, Union
 
 import dill
+
 from feast import flags_helper
 from feast.data_source import DataSource
 from feast.entity import Entity
