@@ -1098,7 +1098,7 @@ starlette==0.46.1
     # via fastapi
 substrait==0.23.0
     # via ibis-substrait
-sympy==1.13.1
+sympy==1.13.3
     # via torch
 tabulate==0.9.0
     # via
@@ -1133,14 +1133,14 @@ toolz==0.12.1
     #   dask
     #   ibis-framework
     #   partd
-torch==2.6.0
+torch==2.2.2
     # via
     #   feast (setup.py)
     #   docling-ibm-models
     #   easyocr
     #   safetensors
     #   torchvision
-torchvision==0.21.0
+torchvision==0.17.2
     # via
     #   feast (setup.py)
     #   docling-ibm-models

@@ -96,7 +96,7 @@ opentelemetry = ["prometheus_client", "psutil"]
 spark = ["pyspark>=3.0.0,<4"]
 trino = ["trino>=0.305.0,<0.400.0", "regex"]
 postgres = ["psycopg[binary,pool]>=3.0.0,<4"]
-pytorch = ["torch>=2.2.2", "torchvision>=0.17.2"]
+pytorch = ["torch==2.2.2", "torchvision>=0.17.2"]
 qdrant = ["qdrant-client>=1.12.0"]
 redis = [
     "redis>=4.2.2,<5",
