@@ -34,7 +34,7 @@ class Transformation(ABC):
                 return super().__new__(subclass)
 
             raise ValueError(
-                f"Invalid mode: {mode}. Choose from 'pandas', 'python', or 'sql'."
+                f"Invalid mode: {mode}. Choose one from TransformationMode."
             )
 
         return super().__new__(cls)
