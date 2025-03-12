@@ -246,7 +246,28 @@ test-python-universal-postgres-offline:
 				not gcs_registry and \
 				not s3_registry and \
 				not test_snowflake and \
- 				not test_universal_types" \
+ 				not test_spark" \
+ 			sdk/python/tests
+
+ test-python-universal-clickhouse-offline:
+	PYTHONPATH='.' \
+		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.offline_stores.contrib.clickhouse_repo_configuration \
+		PYTEST_PLUGINS=sdk.python.feast.infra.offline_stores.contrib.clickhouse_offline_store.tests \
+		python -m pytest -v -n 8 --integration \
+ 			-k "not test_historical_retrieval_with_validation and \
+				not test_historical_features_persisting and \
+ 				not test_universal_cli and \
+ 				not test_go_feature_server and \
+ 				not test_feature_logging and \
+				not test_reorder_columns and \
+				not test_logged_features_validation and \
+				not test_lambda_materialization_consistency and \
+				not test_offline_write and \
+				not test_push_features_to_offline_store and \
+				not gcs_registry and \
+				not s3_registry and \
+				not test_snowflake and \
+ 				not test_spark" \
  			sdk/python/tests
 
 test-python-universal-postgres-online:
