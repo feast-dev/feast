@@ -144,7 +144,7 @@ class StreamFeatureView(FeatureView):
             source=source,
         )
 
-    def get_feature_transformation(self) -> Optional[Transformation]:
+    def get_feature_transformation(self) -> Transformation:
         if not self.udf:
             raise ValueError(
                 "Either a UDF or a feature transformation must be specified for StreamFeatureView"
