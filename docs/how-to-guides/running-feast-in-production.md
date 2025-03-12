@@ -225,8 +225,6 @@ helm install feast-release feast-charts/feast-feature-server \
 
 This will deploy a single service. The service must have read access to the registry file on cloud storage and to the online store (e.g. via [podAnnotations](https://kubernetes-on-aws.readthedocs.io/en/latest/user-guide/iam-roles.html)). It will keep a copy of the registry in their memory and periodically refresh it, so expect some delays in update propagation in exchange for better performance. 
 
-> Alternatively, deploy the same helm chart with a [Kubernetes Operator](/infra/feast-helm-operator).
-
 ## 5. Using environment variables in your yaml configuration
 
 You might want to dynamically set parts of your configuration from your environment. For instance to deploy Feast to production and development with the same configuration, but a different server. Or to inject secrets without exposing them in your git repo. To do this, it is possible to use the `${ENV_VAR}` syntax in your `feature_store.yaml` file. For instance:

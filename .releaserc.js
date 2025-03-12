@@ -66,7 +66,6 @@ module.exports = {
                     "CHANGELOG.md",
                     "java/pom.xml",
                     "infra/charts/**/*.*",
-                    "infra/feast-helm-operator/**/*",
                     "infra/feast-operator/**/*",
                     "ui/package.json",
                     "sdk/python/feast/infra/feature_servers/multicloud/requirements.txt",

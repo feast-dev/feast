@@ -528,18 +528,6 @@ build-feature-server-java-docker:
 		-t $(REGISTRY)/feature-server-java:$(VERSION) \
 		-f java/infra/docker/feature-server/Dockerfile --load .
 
-push-feast-helm-operator-docker:
-	cd infra/feast-helm-operator && \
-	IMAGE_TAG_BASE=$(REGISTRY)/feast-helm-operator \
-	VERSION=$(VERSION) \
-	$(MAKE) docker-push
-
-build-feast-helm-operator-docker:
-	cd infra/feast-helm-operator && \
-	IMAGE_TAG_BASE=$(REGISTRY)/feast-helm-operator \
-	VERSION=$(VERSION) \
-	$(MAKE) docker-build
-
 push-feast-operator-docker:
 	cd infra/feast-operator && \
 	IMAGE_TAG_BASE=$(REGISTRY)/feast-operator \
