@@ -1,5 +1,7 @@
 import os
 import re
+import sqlite3
+import sys
 import tempfile
 import unittest
 from datetime import datetime, timedelta
@@ -20,10 +22,12 @@ from feast.driver_test_data import create_driver_hourly_stats_df
 from feast.feature_view import DUMMY_ENTITY_FIELD
 from feast.field import Field
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
+from feast.nlp_test_data import create_document_chunks_df
 from feast.on_demand_feature_view import on_demand_feature_view
 from feast.types import (
     Array,
     Bool,
+    Bytes,
     Float32,
     Float64,
     Int64,
@@ -161,7 +165,11 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
             @on_demand_feature_view(
                 sources=[driver_stats_fv[["conv_rate", "acc_rate"]]],
                 schema=[
-                    Field(name="conv_rate_plus_acc_python_singleton", dtype=Float64)
+                    Field(name="conv_rate_plus_acc_python_singleton", dtype=Float64),
+                    Field(
+                        name="conv_rate_plus_acc_python_singleton_array",
+                        dtype=Array(Float64),
+                    ),
                 ],
                 mode="python",
                 singleton=True,
@@ -171,6 +179,7 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
                 output["conv_rate_plus_acc_python_singleton"] = (
                     inputs["conv_rate"] + inputs["acc_rate"]
                 )
+                output["conv_rate_plus_acc_python_singleton_array"] = [0.1, 0.2, 0.3]
                 return output
 
             @on_demand_feature_view(
@@ -852,6 +861,9 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
             assert driver_stats_fv.entities == [driver.name]
             assert driver_stats_fv.entity_columns == []
 
+            ODFV_STRING_CONSTANT = "guaranteed constant"
+            ODFV_OTHER_STRING_CONSTANT = "somethign else"
+
             @on_demand_feature_view(
                 entities=[driver],
                 sources=[
@@ -863,6 +875,7 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
                     Field(name="current_datetime", dtype=UnixTimestamp),
                     Field(name="counter", dtype=Int64),
                     Field(name="input_datetime", dtype=UnixTimestamp),
+                    Field(name="string_constant", dtype=String),
                 ],
                 mode="python",
                 write_to_online_store=True,
@@ -880,6 +893,7 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
                     "current_datetime": [datetime.now() for _ in inputs["conv_rate"]],
                     "counter": [c + 1 for c in inputs["counter"]],
                     "input_datetime": [d for d in inputs["input_datetime"]],
+                    "string_constant": [ODFV_STRING_CONSTANT],
                 }
                 return output
 
@@ -933,30 +947,13 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
                     "created": current_datetime,
                 }
             ]
-            odfv_entity_rows_to_write = [
-                {
-                    "driver_id": 1001,
-                    "counter": 0,
-                    "input_datetime": current_datetime,
-                }
-            ]
             fv_entity_rows_to_read = [
                 {
                     "driver_id": 1001,
                 }
             ]
-            # Note that here we shouldn't have to pass the request source features for reading
-            # because they should have already been written to the online store
-            odfv_entity_rows_to_read = [
-                {
-                    "driver_id": 1001,
-                    "conv_rate": 0.25,
-                    "acc_rate": 0.50,
-                    "counter": 0,
-                    "input_datetime": current_datetime,
-                }
-            ]
-            print("storing fv  features")
+            print("")
+            print("storing FV features")
             self.store.write_to_online_store(
                 feature_view_name="driver_hourly_stats",
                 df=fv_entity_rows_to_write,
@@ -978,11 +975,58 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
                 "acc_rate": [0.25],
             }
 
-            print("storing odfv features")
+            # Note that here we shouldn't have to pass the request source features for reading
+            # because they should have already been written to the online store
+            odfv_entity_rows_to_write = [
+                {
+                    "driver_id": 1002,
+                    "counter": 0,
+                    "conv_rate": 0.25,
+                    "acc_rate": 0.50,
+                    "input_datetime": current_datetime,
+                    "string_constant": ODFV_OTHER_STRING_CONSTANT,
+                }
+            ]
+            odfv_entity_rows_to_read = [
+                {
+                    "driver_id": 1002,
+                    "conv_rate_plus_acc": 7,  # note how this is not the correct value and would be calculate on demand
+                    "conv_rate": 0.25,
+                    "acc_rate": 0.50,
+                    "counter": 0,
+                    "input_datetime": current_datetime,
+                    "string_constant": ODFV_STRING_CONSTANT,
+                }
+            ]
+            print("storing ODFV features")
             self.store.write_to_online_store(
                 feature_view_name="python_stored_writes_feature_view",
                 df=odfv_entity_rows_to_write,
             )
+            _conn = sqlite3.connect(self.store.config.online_store.path)
+            _table_name = (
+                self.store.project
+                + "_"
+                + self.store.get_on_demand_feature_view(
+                    "python_stored_writes_feature_view"
+                ).name
+            )
+            sample = pd.read_sql(
+                f"""
+            select
+                feature_name,
+                value
+            from {_table_name}
+            """,
+                _conn,
+            )
+            assert (
+                sample[sample["feature_name"] == "string_constant"]["value"]
+                .astype(str)
+                .str.contains("guaranteed constant")
+                .values[0]
+            )
+
             print("reading odfv features")
             online_odfv_python_response = self.store.get_online_features(
                 entity_rows=odfv_entity_rows_to_read,
@@ -991,6 +1035,7 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
                     "python_stored_writes_feature_view:current_datetime",
                     "python_stored_writes_feature_view:counter",
                     "python_stored_writes_feature_view:input_datetime",
+                    "python_stored_writes_feature_view:string_constant",
                 ],
             ).to_dict()
             print(online_odfv_python_response)
@@ -1001,5 +1046,248 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
                     "counter",
                     "current_datetime",
                     "input_datetime",
+                    "string_constant",
                 ]
             )
+            # This should be 1 because we write the value of 0 and during the write, the counter is incremented
+            assert online_odfv_python_response["counter"] == [1]
+            assert online_odfv_python_response["string_constant"] == [
+                ODFV_STRING_CONSTANT
+            ]
+            assert online_odfv_python_response["string_constant"] != [
+                ODFV_OTHER_STRING_CONSTANT
+            ]
+
+    def test_stored_writes_with_explode(self):
+        with tempfile.TemporaryDirectory() as data_dir:
+            self.store = FeatureStore(
+                config=RepoConfig(
+                    project="test_on_demand_python_transformation_explode",
+                    registry=os.path.join(data_dir, "registry.db"),
+                    provider="local",
+                    entity_key_serialization_version=3,
+                    online_store=SqliteOnlineStoreConfig(
+                        path=os.path.join(data_dir, "online.db"),
+                        vector_enabled=True,
+                        vector_len=5,
+                    ),
+                )
+            )
+
+            documents = {
+                "doc_1": "Hello world. How are you?",
+                "doc_2": "This is a test. Document chunking example.",
+            }
+            start_date = datetime.now() - timedelta(days=15)
+            end_date = datetime.now()
+
+            documents_df = create_document_chunks_df(
+                documents,
+                start_date,
+                end_date,
+                embedding_size=60,
+            )
+            corpus_path = os.path.join(data_dir, "documents.parquet")
+            documents_df.to_parquet(path=corpus_path, allow_truncated_timestamps=True)
+
+            chunk = Entity(
+                name="chunk", join_keys=["chunk_id"], value_type=ValueType.STRING
+            )
+            document = Entity(
+                name="document", join_keys=["document_id"], value_type=ValueType.STRING
+            )
+
+            input_explode_request_source = RequestSource(
+                name="counter_source",
+                schema=[
+                    Field(name="document_id", dtype=String),
+                    Field(name="document_text", dtype=String),
+                    Field(name="document_bytes", dtype=Bytes),
+                ],
+            )
+
+            @on_demand_feature_view(
+                entities=[chunk, document],
+                sources=[
+                    input_explode_request_source,
+                ],
+                schema=[
+                    Field(name="document_id", dtype=String),
+                    Field(name="chunk_id", dtype=String),
+                    Field(name="chunk_text", dtype=String),
+                    Field(
+                        name="vector",
+                        dtype=Array(Float32),
+                        vector_index=True,
+                        vector_search_metric="L2",
+                    ),
+                ],
+                mode="python",
+                write_to_online_store=True,
+            )
+            def python_stored_writes_feature_view_explode_singleton(
+                inputs: dict[str, Any],
+            ):
+                output: dict[str, Any] = {
+                    "document_id": ["doc_1", "doc_1", "doc_2", "doc_2"],
+                    "chunk_id": ["chunk-1", "chunk-2", "chunk-1", "chunk-2"],
+                    "chunk_text": [
+                        "hello friends",
+                        "how are you?",
+                        "This is a test.",
+                        "Document chunking example.",
+                    ],
+                    "vector": [
+                        [0.1] * 5,
+                        [0.2] * 5,
+                        [0.3] * 5,
+                        [0.4] * 5,
+                    ],
+                }
+                return output
+
+            assert python_stored_writes_feature_view_explode_singleton.entities == [
+                chunk.name,
+                document.name,
+            ]
+            assert (
+                python_stored_writes_feature_view_explode_singleton.entity_columns[
+                    0
+                ].name
+                == document.join_key
+            )
+            assert (
+                python_stored_writes_feature_view_explode_singleton.entity_columns[
+                    1
+                ].name
+                == chunk.join_key
+            )
+
+            self.store.apply(
+                [
+                    chunk,
+                    document,
+                    input_explode_request_source,
+                    python_stored_writes_feature_view_explode_singleton,
+                ]
+            )
+            odfv_applied = self.store.get_on_demand_feature_view(
+                "python_stored_writes_feature_view_explode_singleton"
+            )
+
+            assert odfv_applied.features[1].vector_index
+
+            assert odfv_applied.entities == [chunk.name, document.name]
+
+            # Note here that after apply() is called, the entity_columns are populated with the join_key
+            assert odfv_applied.entity_columns[1].name == chunk.join_key
+            assert odfv_applied.entity_columns[0].name == document.join_key
+
+            assert len(self.store.list_all_feature_views()) == 1
+            assert len(self.store.list_feature_views()) == 0
+            assert len(self.store.list_on_demand_feature_views()) == 1
+            assert len(self.store.list_stream_feature_views()) == 0
+            assert (
+                python_stored_writes_feature_view_explode_singleton.entity_columns
+                == self.store.get_on_demand_feature_view(
+                    "python_stored_writes_feature_view_explode_singleton"
+                ).entity_columns
+            )
+
+            odfv_entity_rows_to_write = [
+                {
+                    "document_id": "document_1",
+                    "document_text": "Hello world. How are you?",
+                },
+                {
+                    "document_id": "document_2",
+                    "document_text": "This is a test. Document chunking example.",
+                },
+            ]
+            fv_entity_rows_to_read = [
+                {
+                    "document_id": "doc_1",
+                    "chunk_id": "chunk-2",
+                },
+                {
+                    "document_id": "doc_2",
+                    "chunk_id": "chunk-1",
+                },
+            ]
+
+            self.store.write_to_online_store(
+                feature_view_name="python_stored_writes_feature_view_explode_singleton",
+                df=odfv_entity_rows_to_write,
+            )
+            _table_name = (
+                self.store.project
+                + "_"
+                + self.store.get_on_demand_feature_view(
+                    "python_stored_writes_feature_view_explode_singleton"
+                ).name
+            )
+            _conn = sqlite3.connect(self.store.config.online_store.path)
+            sample = pd.read_sql(
+                f"""
+            select
+                entity_key,
+                feature_name,
+                value
+            from {_table_name}
+            """,
+                _conn,
+            )
+            print(f"\nsample from {_table_name}:\n{sample}")
+
+            # verifying we retrieve doc_1 chunk-2
+            filt = (sample["feature_name"] == "chunk_text") & (
+                sample["value"]
+                .apply(lambda x: x.decode("latin1"))
+                .str.contains("how are")
+            )
+            assert (
+                sample[filt]["entity_key"].astype(str).str.contains("doc_1")
+                & sample[filt]["entity_key"].astype(str).str.contains("chunk-2")
+            ).values[0]
+
+            print("reading fv features")
+            online_python_response = self.store.get_online_features(
+                entity_rows=fv_entity_rows_to_read,
+                features=[
+                    "python_stored_writes_feature_view_explode_singleton:document_id",
+                    "python_stored_writes_feature_view_explode_singleton:chunk_id",
+                    "python_stored_writes_feature_view_explode_singleton:chunk_text",
+                ],
+            ).to_dict()
+            assert sorted(list(online_python_response.keys())) == sorted(
+                [
+                    "chunk_id",
+                    "chunk_text",
+                    "document_id",
+                ]
+            )
+            assert online_python_response == {
+                "document_id": ["doc_1", "doc_2"],
+                "chunk_id": ["chunk-2", "chunk-1"],
+                "chunk_text": ["how are you?", "This is a test."],
+            }
+
+            if sys.version_info[0:2] == (3, 10):
+                query_embedding = [0.05] * 5
+                online_python_vec_response = self.store.retrieve_online_documents_v2(
+                    features=[
+                        "python_stored_writes_feature_view_explode_singleton:document_id",
+                        "python_stored_writes_feature_view_explode_singleton:chunk_id",
+                        "python_stored_writes_feature_view_explode_singleton:chunk_text",
+                    ],
+                    query=query_embedding,
+                    top_k=2,
+                ).to_dict()
+
+                assert online_python_vec_response is not None
+                assert online_python_vec_response == {
+                    "document_id": ["doc_1", "doc_1"],
+                    "chunk_id": ["chunk-1", "chunk-2"],
+                    "chunk_text": ["hello friends", "how are you?"],
+                    "distance": [0.11180340498685837, 0.3354102075099945],
+                }

@@ -167,7 +167,10 @@ class SqliteOnlineStore(OnlineStore):
                 table_name = _table_id(project, table)
                 for feature_name, val in values.items():
                     if config.online_store.vector_enabled:
-                        if feature_type_dict[feature_name] in FEAST_VECTOR_TYPES:
+                        if (
+                            feature_type_dict.get(feature_name, None)
+                            in FEAST_VECTOR_TYPES
+                        ):
                             val_bin = serialize_f32(
                                 val.float_list_val.val, config.online_store.vector_len
                             )  # type: ignore
@@ -226,22 +229,22 @@ class SqliteOnlineStore(OnlineStore):
 
         result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
 
+        serialized_entity_keys = [
+            serialize_entity_key(
+                entity_key,
+                entity_key_serialization_version=config.entity_key_serialization_version,
+            )
+            for entity_key in entity_keys
+        ]
         # Fetch all entities in one go
         cur.execute(
             f"SELECT entity_key, feature_name, value, event_ts "
             f"FROM {_table_id(config.project, table)} "
             f"WHERE entity_key IN ({','.join('?' * len(entity_keys))}) "
             f"ORDER BY entity_key",
-            [
-                serialize_entity_key(
-                    entity_key,
-                    entity_key_serialization_version=config.entity_key_serialization_version,
-                )
-                for entity_key in entity_keys
-            ],
+            serialized_entity_keys,
         )
         rows = cur.fetchall()
-
         rows = {
             k: list(group) for k, group in itertools.groupby(rows, key=lambda r: r[0])
         }

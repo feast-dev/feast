@@ -2,7 +2,7 @@ apiVersion: v2
 name: feast-feature-server
 description: Feast Feature Server in Go or Python
 type: application
-version: 0.46.0
+version: 0.47.0
 keywords:
   - machine learning
   - big data

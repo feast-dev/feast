@@ -69,6 +69,7 @@ module.exports = {
                     "infra/feast-helm-operator/**/*",
                     "infra/feast-operator/**/*",
                     "ui/package.json",
+                    "sdk/python/feast/infra/feature_servers/multicloud/requirements.txt",
                     "sdk/python/feast/ui/package.json",
                     "sdk/python/feast/ui/yarn.lock"
                 ],

@@ -1,4 +1,4 @@
-name: publish images
+name: publish helm charts
 
 on:
   workflow_dispatch: # Allows manual trigger of the workflow

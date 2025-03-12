@@ -98,7 +98,6 @@ cassandra-driver==3.29.2
     # via feast (setup.py)
 certifi==2025.1.31
     # via
-    #   clickhouse-connect
     #   docling
     #   elastic-transport
     #   httpcore
@@ -129,8 +128,6 @@ click==8.1.8
     #   pip-tools
     #   typer
     #   uvicorn
-clickhouse-connect==0.8.15
-    # via feast (setup.py)
 cloudpickle==3.1.1
     # via dask
 colorama==0.4.6
@@ -317,6 +314,8 @@ googleapis-common-protos[grpc]==1.69.1
     #   grpcio-status
 great-expectations==0.18.22
     # via feast (setup.py)
+greenlet==3.1.1
+    # via sqlalchemy
 grpc-google-iam-v1==0.14.1
     # via google-cloud-bigtable
 grpcio==1.70.0
@@ -527,9 +526,7 @@ lxml==5.3.1
     #   python-docx
     #   python-pptx
 lz4==4.4.3
-    # via
-    #   clickhouse-connect
-    #   trino
+    # via trino
 makefun==1.15.6
     # via great-expectations
 markdown-it-py==3.0.0
@@ -924,6 +921,7 @@ python-dotenv==1.0.1
     # via
     #   environs
     #   pydantic-settings
+    #   testcontainers
     #   uvicorn
 python-json-logger==3.3.0
     # via jupyter-events
@@ -933,7 +931,6 @@ python-pptx==1.0.2
     # via docling
 pytz==2025.1
     # via
-    #   clickhouse-connect
     #   great-expectations
     #   ibis-framework
     #   pandas
@@ -1116,7 +1113,7 @@ starlette==0.46.0
     # via fastapi
 substrait==0.23.0
     # via ibis-substrait
-sympy==1.13.1
+sympy==1.13.3
     # via torch
 tabulate==0.9.0
     # via
@@ -1129,7 +1126,7 @@ terminado==0.18.1
     # via
     #   jupyter-server
     #   jupyter-server-terminals
-testcontainers==4.8.2
+testcontainers==4.9.0
     # via feast (setup.py)
 thriftpy2==0.5.2
     # via happybase
@@ -1137,7 +1134,7 @@ tifffile==2024.8.30
     # via scikit-image
 tinycss2==1.4.0
     # via bleach
-tokenizers==0.21.0
+tokenizers==0.19.1
     # via transformers
 toml==0.10.2
     # via feast (setup.py)
@@ -1159,14 +1156,14 @@ toolz==0.12.1
     #   dask
     #   ibis-framework
     #   partd
-torch==2.6.0
+torch==2.2.2
     # via
     #   feast (setup.py)
     #   docling-ibm-models
     #   easyocr
     #   safetensors
     #   torchvision
-torchvision==0.21.0
+torchvision==0.17.2
     # via
     #   feast (setup.py)
     #   docling-ibm-models
@@ -1205,7 +1202,7 @@ traitlets==5.14.3
     #   nbclient
     #   nbconvert
     #   nbformat
-transformers==4.49.0
+transformers==4.42.4
     # via
     #   docling-core
     #   docling-ibm-models
@@ -1300,7 +1297,6 @@ urllib3==1.26.20
     # via
     #   feast (setup.py)
     #   botocore
-    #   clickhouse-connect
     #   docker
     #   elastic-transport
     #   great-expectations
@@ -1360,6 +1356,4 @@ yarl==1.18.3
 zipp==3.21.0
     # via importlib-metadata
 zstandard==0.23.0
-    # via
-    #   clickhouse-connect
-    #   trino
+    # via trino

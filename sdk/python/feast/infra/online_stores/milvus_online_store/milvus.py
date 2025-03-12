@@ -88,7 +88,7 @@ class MilvusOnlineStoreConfig(FeastConfigBaseModel, VectorStoreConfig):
     """
 
     type: Literal["milvus"] = "milvus"
-    path: Optional[StrictStr] = "data/online_store.db"
+    path: Optional[StrictStr] = "online_store.db"
     host: Optional[StrictStr] = "localhost"
     port: Optional[int] = 19530
     index_type: Optional[str] = "FLAT"
@@ -197,10 +197,14 @@ class MilvusOnlineStore(OnlineStore):
                 )
                 index_params = self.client.prepare_index_params()
                 for vector_field in schema.fields:
-                    if vector_field.dtype in [
-                        DataType.FLOAT_VECTOR,
-                        DataType.BINARY_VECTOR,
-                    ]:
+                    if (
+                        vector_field.dtype
+                        in [
+                            DataType.FLOAT_VECTOR,
+                            DataType.BINARY_VECTOR,
+                        ]
+                        and vector_field.name in vector_field_dict
+                    ):
                         metric = vector_field_dict[
                             vector_field.name
                         ].vector_search_metric
@@ -241,6 +245,8 @@ class MilvusOnlineStore(OnlineStore):
         collection = self._get_or_create_collection(config, table)
         vector_cols = [f.name for f in table.features if f.vector_index]
         entity_batch_to_insert = []
+        unique_entities: dict[str, dict[str, Any]] = {}
+        required_fields = {field["name"] for field in collection["fields"]}
         for entity_key, values_dict, timestamp, created_ts in data:
             # need to construct the composite primary key also need to handle the fact that entities are a list
             entity_key_str = serialize_entity_key(
@@ -274,12 +280,22 @@ class MilvusOnlineStore(OnlineStore):
                 "created_ts": created_ts_int,
             }
             single_entity_record.update(values_dict)
-            entity_batch_to_insert.append(single_entity_record)
+            # Ensure all required fields exist, setting missing ones to empty strings
+            for field in required_fields:
+                if field not in single_entity_record:
+                    single_entity_record[field] = ""
+            # Store only the latest event timestamp per entity
+            if (
+                entity_key_str not in unique_entities
+                or unique_entities[entity_key_str]["event_ts"] < timestamp_int
+            ):
+                unique_entities[entity_key_str] = single_entity_record
 
             if progress:
                 progress(1)
 
-        self.client.insert(
+        entity_batch_to_insert = list(unique_entities.values())
+        self.client.upsert(
             collection_name=collection["collection_name"],
             data=entity_batch_to_insert,
         )
@@ -547,11 +563,16 @@ class MilvusOnlineStore(OnlineStore):
                         field, PrimitiveFeastType.INVALID
                     ) in [
                         PrimitiveFeastType.STRING,
-                        PrimitiveFeastType.INT64,
-                        PrimitiveFeastType.INT32,
                         PrimitiveFeastType.BYTES,
                     ]:
-                        res[field] = ValueProto(string_val=field_value)
+                        res[field] = ValueProto(string_val=str(field_value))
+                    elif entity_name_feast_primitive_type_map.get(
+                        field, PrimitiveFeastType.INVALID
+                    ) in [
+                        PrimitiveFeastType.INT64,
+                        PrimitiveFeastType.INT32,
+                    ]:
+                        res[field] = ValueProto(int64_val=int(field_value))
                     elif field == composite_key_name:
                         pass
                     elif isinstance(field_value, bytes):

@@ -161,12 +161,6 @@ def create_item_embeddings_feature_view(source, infer_features: bool = False):
         if infer_features
         else [
             Field(
-                name="embedding_double",
-                dtype=Array(Float64),
-                vector_index=True,
-                vector_search_metric="L2",
-            ),
-            Field(
                 name="embedding_float",
                 dtype=Array(Float32),
                 vector_index=True,

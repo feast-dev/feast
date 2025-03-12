@@ -89,6 +89,8 @@ from feast.repo_contents import RepoContents
 from feast.saved_dataset import SavedDataset, SavedDatasetStorage, ValidationReference
 from feast.ssl_ca_trust_store_setup import configure_ca_trust_store_env_variables
 from feast.stream_feature_view import StreamFeatureView
+from feast.transformation.pandas_transformation import PandasTransformation
+from feast.transformation.python_transformation import PythonTransformation
 from feast.utils import _utc_now
 
 warnings.simplefilter("once", DeprecationWarning)
@@ -1546,6 +1548,64 @@ class FeatureStore:
                     df = pd.DataFrame(df)
                 except Exception as _:
                     raise DataFrameSerializationError(df)
+
+        # # Apply transformations if this is an OnDemandFeatureView with write_to_online_store=True
+        if (
+            isinstance(feature_view, OnDemandFeatureView)
+            and feature_view.write_to_online_store
+        ):
+            if (
+                feature_view.mode == "python"
+                and isinstance(
+                    feature_view.feature_transformation, PythonTransformation
+                )
+                and df is not None
+            ):
+                input_dict = (
+                    df.to_dict(orient="records")[0]
+                    if feature_view.singleton
+                    else df.to_dict(orient="list")
+                )
+                transformed_data = feature_view.feature_transformation.udf(input_dict)
+                if feature_view.write_to_online_store:
+                    entities = [
+                        self.get_entity(entity)
+                        for entity in (feature_view.entities or [])
+                    ]
+                    join_keys = [entity.join_key for entity in entities if entity]
+                    join_keys = [k for k in join_keys if k in input_dict.keys()]
+                    transformed_df = pd.DataFrame(transformed_data)
+                    input_df = pd.DataFrame(input_dict)
+                    if input_df.shape[0] == transformed_df.shape[0]:
+                        for k in input_dict:
+                            if k not in transformed_data:
+                                transformed_data[k] = input_dict[k]
+                        transformed_df = pd.DataFrame(transformed_data)
+                    else:
+                        transformed_df = pd.merge(
+                            transformed_df,
+                            input_df,
+                            how="left",
+                            on=join_keys,
+                        )
+                else:
+                    # overwrite any transformed features and update the dictionary
+                    for k in input_dict:
+                        if k not in transformed_data:
+                            transformed_data[k] = input_dict[k]
+                df = pd.DataFrame(transformed_data)
+            elif feature_view.mode == "pandas" and isinstance(
+                feature_view.feature_transformation, PandasTransformation
+            ):
+                transformed_df = feature_view.feature_transformation.udf(df)
+                if df is not None:
+                    for col in df.columns:
+                        transformed_df[col] = df[col]
+                    df = transformed_df
+
+            else:
+                raise Exception("Unsupported OnDemandFeatureView mode")
+
         return feature_view, df
 
     def write_to_online_store(
@@ -1887,7 +1947,7 @@ class FeatureStore:
 
         (
             available_feature_views,
-            _,
+            available_odfv_views,
         ) = utils._get_feature_views_to_use(
             registry=self._registry,
             project=self.project,
@@ -1898,13 +1958,20 @@ class FeatureStore:
         feature_view_set = set()
         for feature in features:
             feature_view_name = feature.split(":")[0]
-            feature_view = self.get_feature_view(feature_view_name)
+            if feature_view_name in [fv.name for fv in available_odfv_views]:
+                feature_view: Union[OnDemandFeatureView, FeatureView] = (
+                    self.get_on_demand_feature_view(feature_view_name)
+                )
+            else:
+                feature_view = self.get_feature_view(feature_view_name)
             feature_view_set.add(feature_view.name)
         if len(feature_view_set) > 1:
             raise ValueError("Document retrieval only supports a single feature view.")
         requested_features = [
             f.split(":")[1] for f in features if isinstance(f, str) and ":" in f
         ]
+        if len(available_feature_views) == 0:
+            available_feature_views.extend(available_odfv_views)  # type: ignore[arg-type]
 
         requested_feature_view = available_feature_views[0]
         if not requested_feature_view:
