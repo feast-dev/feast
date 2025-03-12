@@ -185,7 +185,7 @@ docker==7.1.0
     # via testcontainers
 docling==2.26.0
     # via feast (setup.py)
-docling-core[chunking]==2.21.2
+docling-core[chunking]==2.22.0
     # via
     #   docling
     #   docling-ibm-models
@@ -1088,7 +1088,7 @@ sqlalchemy[mypy]==2.0.39
     # via feast (setup.py)
 sqlglot==25.20.2
     # via ibis-framework
-sqlite-vec==0.1.6
+sqlite-vec==0.1.7a2
     # via feast (setup.py)
 sqlparams==6.2.0
     # via singlestoredb
