@@ -943,6 +943,27 @@ def init_command(project_directory, minimal: bool, template: str):
     help="Number of worker",
 )
 @click.option(
+    "--threads",
+    type=click.INT,
+    default=1,
+    show_default=True,
+    help="Number of thread. When this value increases, concurrency request handling is enabled"
+)
+@click.option(
+    "--max-requests",
+    type=click.INT,
+    default=0,
+    show_default=True,
+    help="The number of requests required to meet the conditions for worker process restart"
+)
+@click.option(
+    "--max-requests-jitter",
+    type=click.INT,
+    default=0,
+    show_default=True,
+    help="A value to update `max-requests` randomly for each process to prevent multiple worker processes from restarting simultaneously",
+)
+@click.option(
     "--keep-alive-timeout",
     type=click.INT,
     default=5,
@@ -990,6 +1011,9 @@ def serve_command(
     type_: str,
     no_access_log: bool,
     workers: int,
+    threads: int,
+    max_requests: int,
+    max_requests_jitter: int,
     metrics: bool,
     keep_alive_timeout: int,
     tls_key_path: str,
@@ -1009,6 +1033,9 @@ def serve_command(
         type_=type_,
         no_access_log=no_access_log,
         workers=workers,
+        threads=threads,
+        max_requests=max_requests,
+        max_requests_jitter=max_requests_jitter,
         metrics=metrics,
         keep_alive_timeout=keep_alive_timeout,
         tls_key_path=tls_key_path,
