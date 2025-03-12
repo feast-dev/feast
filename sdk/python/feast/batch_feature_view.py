@@ -5,7 +5,6 @@ from types import FunctionType
 from typing import Dict, List, Optional, Tuple, Union
 
 import dill
-
 from feast import flags_helper
 from feast.data_source import DataSource
 from feast.entity import Entity
@@ -69,7 +68,7 @@ class BatchFeatureView(FeatureView):
         self,
         *,
         name: str,
-        mode: Union[TransformationMode, str],
+        mode: Union[TransformationMode, str] = TransformationMode.PYTHON,
         source: DataSource,
         entities: Optional[List[Entity]] = None,
         ttl: Optional[timedelta] = None,

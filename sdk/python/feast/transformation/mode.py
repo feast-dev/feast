@@ -4,6 +4,6 @@ from enum import Enum
 class TransformationMode(Enum):
     PYTHON = "python"
     PANDAS = "pandas"
-    spark = "spark"
+    SPARK = "spark"
     SQL = "sql"
     SUBSTRAIT = "substrait"

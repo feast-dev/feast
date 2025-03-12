@@ -152,7 +152,8 @@ class StreamFeatureView(FeatureView):
         if self.mode in (
             TransformationMode.PANDAS,
             TransformationMode.PYTHON,
-        ) or self.mode in ("pandas", "python"):
+            TransformationMode.SPARK,
+        ) or self.mode in ("pandas", "python", "spark"):
             return Transformation(mode=self.mode, udf=self.udf)
         else:
             raise ValueError(

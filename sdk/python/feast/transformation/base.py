@@ -21,6 +21,7 @@ class Transformation(ABC):
         tags: Optional[Dict[str, str]] = None,
         description: str = "",
         owner: str = "",
+        singleton: bool = False,
         *args,
         **kwargs,
     ) -> "Transformation":
@@ -44,19 +45,19 @@ class Transformation(ABC):
         udf: Callable[[Any], Any],
         name: Optional[str] = None,
         udf_string: str = "",
-        singletons: Optional[Dict[str, Any]] = None,
         tags: Optional[Dict[str, str]] = None,
         description: str = "",
         owner: str = "",
+        singleton: bool = False,
     ):
         self.mode = mode if isinstance(mode, str) else mode.value
         self.udf = udf
         self.name = name
         self.udf_string = udf_string
-        self.singletons = singletons or {}
         self.tags = tags or {}
         self.description = description
         self.owner = owner
+        self.singleton = singleton
 
     def transform(self, inputs: Any) -> Any:
         raise NotImplementedError
@@ -77,6 +78,7 @@ def transformation(
     tags: Optional[Dict[str, str]] = None,
     description: Optional[str] = "",
     owner: Optional[str] = "",
+    singleton: bool = False,
 ):
     def mainify(obj):
         # Needed to allow dill to properly serialize the udf. Otherwise, clients will need to have a file with the same
@@ -95,6 +97,7 @@ def transformation(
             owner=owner,
             udf=user_function,
             udf_string=udf_string,
+            singleton=singleton,
         )
         functools.update_wrapper(wrapper=batch_feature_view_obj, wrapped=user_function)
         return batch_feature_view_obj
