@@ -23,3 +23,13 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New",
     monospace;
 }
+
+/* Add styles for fixed header */
+.euiHeader {
+  z-index: 1000;
+}
+
+/* Add padding to account for fixed header */
+.euiPage {
+  padding-top: 48px;
+}
