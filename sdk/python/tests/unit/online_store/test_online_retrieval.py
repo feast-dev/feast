@@ -4,6 +4,7 @@ import random
 import sqlite3
 import sys
 import time
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -1056,7 +1057,7 @@ def test_local_milvus() -> None:
     client.drop_collection(collection_name=COLLECTION_NAME)
 
 
-def test_milvus_lite_get_online_documents_v2() -> None:
+def test_milvus_lite_retrieve_online_documents_v2() -> None:
     """
     Test retrieving documents from the online store in local mode.
     """
@@ -1224,6 +1225,192 @@ def test_milvus_lite_get_online_documents_v2() -> None:
         for k in ["vector", "item_id", "author_id", "sentence_chunks", "distance"]:
             assert k in result, f"Missing {k} in retrieve_online_documents response"
         assert len(result["distance"]) == len(results[0])
+
+
+def test_milvus_stored_writes_with_explode() -> None:
+    """
+    Test storing and retrieving exploded document embeddings with Milvus online store.
+    """
+    from feast import (
+        Entity,
+        RequestSource,
+    )
+    from feast.field import Field
+    from feast.on_demand_feature_view import on_demand_feature_view
+    from feast.types import (
+        Array,
+        Bytes,
+        Float32,
+        String,
+        ValueType,
+    )
+
+    random.seed(42)
+    vector_length = 5
+    runner = CliRunner()
+    with runner.local_repo(
+        example_repo_py=get_example_repo("example_rag_feature_repo.py"),
+        offline_store="file",
+        online_store="milvus",
+        apply=False,
+        teardown=False,
+    ) as store:
+        # Define entities and sources
+        chunk = Entity(
+            name="chunk", join_keys=["chunk_id"], value_type=ValueType.STRING
+        )
+        document = Entity(
+            name="document", join_keys=["document_id"], value_type=ValueType.STRING
+        )
+
+        input_explode_request_source = RequestSource(
+            name="document_source",
+            schema=[
+                Field(name="document_id", dtype=String),
+                Field(name="document_text", dtype=String),
+                Field(name="document_bytes", dtype=Bytes),
+            ],
+        )
+
+        @on_demand_feature_view(
+            entities=[chunk, document],
+            sources=[input_explode_request_source],
+            schema=[
+                Field(name="document_id", dtype=String),
+                Field(name="chunk_id", dtype=String),
+                Field(name="chunk_text", dtype=String),
+                Field(
+                    name="vector",
+                    dtype=Array(Float32),
+                    vector_index=True,
+                    vector_search_metric="COSINE",  # Use COSINE like in Milvus test
+                ),
+            ],
+            mode="python",
+            write_to_online_store=True,
+        )
+        def milvus_explode_feature_view(inputs: dict[str, Any]):
+            output: dict[str, Any] = {
+                "document_id": ["doc_1", "doc_1", "doc_2", "doc_2"],
+                "chunk_id": ["chunk-1", "chunk-2", "chunk-1", "chunk-2"],
+                "chunk_text": [
+                    "hello friends",
+                    "how are you?",
+                    "This is a test.",
+                    "Document chunking example.",
+                ],
+                "vector": [
+                    [0.1] * 5,
+                    [0.2] * 5,
+                    [0.3] * 5,
+                    [0.4] * 5,
+                ],
+            }
+            return output
+
+        # Apply the feature store configuration
+        store.apply(
+            [
+                chunk,
+                document,
+                input_explode_request_source,
+                milvus_explode_feature_view,
+            ]
+        )
+
+        # Verify feature view registration
+        odfv_applied = store.get_on_demand_feature_view("milvus_explode_feature_view")
+        assert odfv_applied.features[1].vector_index
+        assert odfv_applied.entities == [chunk.name, document.name]
+        assert odfv_applied.entity_columns[0].name == document.join_key
+        assert odfv_applied.entity_columns[1].name == chunk.join_key
+
+        # Write to online store
+        odfv_entity_rows_to_write = [
+            {
+                "document_id": "document_1",
+                "document_text": "Hello world. How are you?",
+            },
+            {
+                "document_id": "document_2",
+                "document_text": "This is a test. Document chunking example.",
+            },
+        ]
+        store.write_to_online_store(
+            feature_view_name="milvus_explode_feature_view",
+            df=odfv_entity_rows_to_write,
+        )
+
+        # Verify feature retrieval
+        fv_entity_rows_to_read = [
+            {
+                "document_id": "doc_1",
+                "chunk_id": "chunk-2",
+            },
+            {
+                "document_id": "doc_2",
+                "chunk_id": "chunk-1",
+            },
+        ]
+
+        online_response = store.get_online_features(
+            entity_rows=fv_entity_rows_to_read,
+            features=[
+                "milvus_explode_feature_view:document_id",
+                "milvus_explode_feature_view:chunk_id",
+                "milvus_explode_feature_view:chunk_text",
+            ],
+        ).to_dict()
+
+        assert sorted(list(online_response.keys())) == sorted(
+            [
+                "chunk_id",
+                "chunk_text",
+                "document_id",
+            ]
+        )
+
+        # Test vector search using Milvus
+        query_embedding = np.random.random(vector_length)
+
+        # First get Milvus client and search directly
+        client = store._provider._online_store.client
+        collection_name = client.list_collections()[0]
+        search_params = {
+            "metric_type": "COSINE",
+            "params": {"nprobe": 10},
+        }
+
+        direct_results = client.search(
+            collection_name=collection_name,
+            data=[query_embedding],
+            anns_field="vector",
+            search_params=search_params,
+            limit=2,
+            output_fields=["document_id", "chunk_id", "chunk_text"],
+        )
+
+        # Then use the Feast API
+        feast_results = store.retrieve_online_documents_v2(
+            features=[
+                "milvus_explode_feature_view:document_id",
+                "milvus_explode_feature_view:chunk_id",
+                "milvus_explode_feature_view:chunk_text",
+            ],
+            query=query_embedding,
+            top_k=2,
+        ).to_dict()
+
+        # Validate vector search results
+        assert "document_id" in feast_results
+        assert "chunk_id" in feast_results
+        assert "chunk_text" in feast_results
+        assert "distance" in feast_results
+        assert len(feast_results["distance"]) == 2
+        assert len(feast_results["document_id"]) == 2
+        assert (
+            len(direct_results[0]) == 2
+        )  # Verify both approaches return same number of results
 
 
 def test_milvus_native_from_feast_data() -> None:
