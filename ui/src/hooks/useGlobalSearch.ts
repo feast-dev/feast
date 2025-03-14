@@ -5,6 +5,9 @@ import { useContext } from "react";
 import RegistryPathContext from "../contexts/RegistryPathContext";
 import { FEAST_FV_TYPES } from "../parsers/mergedFVTypes";
 
+// Import Fuse.js types
+import type { FuseResult } from "fuse.js";
+
 export interface SearchResult {
   id: string;
   type: string;
@@ -120,7 +123,7 @@ const useGlobalSearch = (searchTerm: string) => {
     const results = fuse.search(searchTerm);
     
     // Return top 10 results
-    return results.slice(0, 10).map(result => result.item);
+    return results.slice(0, 10).map((result: FuseResult<SearchResult>) => result.item);
   }, [registryQuery.data, searchTerm]);
   
   return {
