@@ -5,8 +5,12 @@ import {
   EuiPageSidebar,
   EuiPageBody,
   EuiErrorBoundary,
-  EuiHorizontalRule,
   EuiSpacer,
+  EuiHeader,
+  EuiHeaderSection,
+  EuiHeaderSectionItem,
+  EuiFlexGroup,
+  EuiFlexItem,
 } from "@elastic/eui";
 import { Outlet } from "react-router-dom";
 
@@ -17,6 +21,7 @@ import { useLoadProjectsList } from "../contexts/ProjectListContext";
 import ProjectSelector from "../components/ProjectSelector";
 import Sidebar from "./Sidebar";
 import FeastWordMark from "../graphics/FeastWordMark";
+import GlobalSearchBar from "../components/GlobalSearchBar";
 
 const Layout = () => {
   // Registry Path Context has to be inside Layout
@@ -34,19 +39,39 @@ const Layout = () => {
 
   return (
     <RegistryPathContext.Provider value={registryPath}>
+      <EuiHeader position="fixed">
+        <EuiHeaderSection>
+          <EuiHeaderSectionItem>
+            <FeastWordMark />
+          </EuiHeaderSectionItem>
+        </EuiHeaderSection>
+        {registryPath && (
+          <EuiHeaderSection grow={true}>
+            <EuiHeaderSectionItem>
+              <EuiFlexGroup gutterSize="s" alignItems="center">
+                <EuiFlexItem>
+                  <GlobalSearchBar />
+                </EuiFlexItem>
+              </EuiFlexGroup>
+            </EuiHeaderSectionItem>
+          </EuiHeaderSection>
+        )}
+        <EuiHeaderSection>
+          <EuiHeaderSectionItem>
+            <ProjectSelector />
+          </EuiHeaderSectionItem>
+        </EuiHeaderSection>
+      </EuiHeader>
+      <EuiSpacer size="xxl" />
       <EuiPage paddingSize="none" style={{ background: "transparent" }}>
         <EuiPageSidebar
           paddingSize="l"
-          sticky={{ offset: 0 }}
+          sticky={{ offset: 48 }}
           role={"navigation"}
           aria-label={"Top Level"}
         >
-          <FeastWordMark />
-          <EuiSpacer size="s" />
-          <ProjectSelector />
           {registryPath && (
             <React.Fragment>
-              <EuiHorizontalRule margin="s" />
               <Sidebar />
             </React.Fragment>
           )}
