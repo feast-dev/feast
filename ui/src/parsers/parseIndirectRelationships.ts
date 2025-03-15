@@ -4,7 +4,7 @@ import { feast } from "../protos";
 
 const parseIndirectRelationships = (
   relationships: EntityRelation[],
-  objects: feast.core.Registry
+  objects: feast.core.Registry,
 ) => {
   const indirectLinks: EntityRelation[] = [];
 
@@ -14,7 +14,7 @@ const parseIndirectRelationships = (
       relationships
         .filter(
           (relationship) =>
-            relationship.target.name === featureView.featureViewName
+            relationship.target.name === featureView.featureViewName,
         )
         .forEach((relationship) => {
           indirectLinks.push({

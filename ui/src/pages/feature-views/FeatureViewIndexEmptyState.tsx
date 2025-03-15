@@ -18,7 +18,7 @@ const FeatureViewIndexEmptyState = () => {
           onClick={() => {
             window.open(
               "https://docs.feast.dev/getting-started/concepts/feature-view",
-              "_blank"
+              "_blank",
             );
           }}
         >

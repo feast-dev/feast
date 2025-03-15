@@ -44,7 +44,7 @@ const useLoadFeatureServices = () => {
 
 const shouldIncludeFSsGivenTokenGroups = (
   entry: feast.core.IFeatureService,
-  tagTokenGroups: tagTokenGroupsType
+  tagTokenGroups: tagTokenGroupsType,
 ) => {
   return Object.entries(tagTokenGroups).every(([key, values]) => {
     const entryTagValue = entry?.spec?.tags ? entry.spec.tags[key] : undefined;
@@ -61,7 +61,7 @@ const shouldIncludeFSsGivenTokenGroups = (
 
 const filterFn = (
   data: feast.core.IFeatureService[],
-  filterInput: filterInputInterface
+  filterInput: filterInputInterface,
 ) => {
   let filteredByTags = data;
 
@@ -69,7 +69,7 @@ const filterFn = (
     filteredByTags = data.filter((entry) => {
       return shouldIncludeFSsGivenTokenGroups(
         entry,
-        filterInput.tagTokenGroups
+        filterInput.tagTokenGroups,
       );
     });
   }

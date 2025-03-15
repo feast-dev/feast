@@ -25,8 +25,8 @@ const useLoadRegularFeatureView = (featureViewName: string) => {
     registryQuery.data === undefined
       ? undefined
       : registryQuery.data.objects.featureViews?.find((fv) => {
-        return fv?.spec?.name === featureViewName;
-      });
+          return fv?.spec?.name === featureViewName;
+        });
 
   return {
     ...registryQuery,
@@ -42,8 +42,8 @@ const useLoadOnDemandFeatureView = (featureViewName: string) => {
     registryQuery.data === undefined
       ? undefined
       : registryQuery.data.objects.onDemandFeatureViews?.find((fv) => {
-        return fv?.spec?.name === featureViewName;
-      });
+          return fv?.spec?.name === featureViewName;
+        });
 
   return {
     ...registryQuery,
@@ -69,4 +69,8 @@ const useLoadStreamFeatureView = (featureViewName: string) => {
 };
 
 export default useLoadFeatureView;
-export { useLoadRegularFeatureView, useLoadOnDemandFeatureView, useLoadStreamFeatureView };
+export {
+  useLoadRegularFeatureView,
+  useLoadOnDemandFeatureView,
+  useLoadStreamFeatureView,
+};

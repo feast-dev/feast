@@ -22,7 +22,7 @@ const EntityOverviewTab = () => {
 
   if (!datasetName) {
     throw new Error(
-      "Route doesn't have a 'datasetName' part. This route is likely rendering the wrong component."
+      "Route doesn't have a 'datasetName' part. This route is likely rendering the wrong component.",
     );
   }
 
@@ -48,15 +48,17 @@ const EntityOverviewTab = () => {
                 </EuiTitle>
                 <EuiHorizontalRule margin="xs" />
                 <DatasetFeaturesTable
-                  features={data.spec?.features!.map((joinedName: string) => {
-                    const [featureViewName, featureName] =
-                      joinedName.split(":");
+                  features={
+                    data.spec?.features!.map((joinedName: string) => {
+                      const [featureViewName, featureName] =
+                        joinedName.split(":");
 
-                    return {
-                      featureViewName,
-                      featureName,
-                    };
-                  })!}
+                      return {
+                        featureViewName,
+                        featureName,
+                      };
+                    })!
+                  }
                 />
               </EuiPanel>
               <EuiSpacer size="m" />
@@ -66,9 +68,11 @@ const EntityOverviewTab = () => {
                 </EuiTitle>
                 <EuiHorizontalRule margin="xs" />
                 <DatasetJoinKeysTable
-                  joinKeys={data?.spec?.joinKeys!.map((joinKey) => {
-                    return { name: joinKey };
-                  })!}
+                  joinKeys={
+                    data?.spec?.joinKeys!.map((joinKey) => {
+                      return { name: joinKey };
+                    })!
+                  }
                 />
               </EuiPanel>
             </EuiFlexItem>
@@ -92,7 +96,9 @@ const EntityOverviewTab = () => {
                 <EuiDescriptionList>
                   <EuiDescriptionListTitle>Created</EuiDescriptionListTitle>
                   <EuiDescriptionListDescription>
-                    {toDate(data?.meta?.createdTimestamp!).toLocaleDateString("en-CA")}
+                    {toDate(data?.meta?.createdTimestamp!).toLocaleDateString(
+                      "en-CA",
+                    )}
                   </EuiDescriptionListDescription>
                 </EuiDescriptionList>
               </EuiPanel>

@@ -1,18 +1,27 @@
 import React from "react";
-import { EuiBasicTable, EuiPanel, EuiSpacer, EuiText, EuiTitle } from "@elastic/eui";
+import {
+  EuiBasicTable,
+  EuiPanel,
+  EuiSpacer,
+  EuiText,
+  EuiTitle,
+} from "@elastic/eui";
 import { useParams } from "react-router-dom";
 import EuiCustomLink from "../../../components/EuiCustomLink";
 import { feast } from "../../../protos";
 
-interface RequestDataDisplayPanelProps extends feast.core.IFeatureViewProjection { }
+interface RequestDataDisplayPanelProps
+  extends feast.core.IFeatureViewProjection {}
 
-const FeatureViewProjectionDisplayPanel = (featureViewProjection: RequestDataDisplayPanelProps) => {
+const FeatureViewProjectionDisplayPanel = (
+  featureViewProjection: RequestDataDisplayPanelProps,
+) => {
   const { projectName } = useParams();
 
   const columns = [
     {
       name: "Column Name",
-      field: "name"
+      field: "name",
     },
     {
       name: "Type",
