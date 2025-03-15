@@ -50,7 +50,7 @@ const projectListExampleString = `
 
 const anticipatedProjectListErrors = (
   err: Error,
-  isCustomProjectList: boolean
+  isCustomProjectList: boolean,
 ) => {
   const isSyntaxError = err.stack?.indexOf("SyntaxError") === 0;
 
@@ -91,7 +91,7 @@ const useLoadProjectsList = () => {
         .catch((e) => {
           const anticipatedError = anticipatedProjectListErrors(
             e,
-            projectListPromise.isCustom
+            projectListPromise.isCustom,
           );
           setQueryError(() => {
             if (anticipatedError) {
@@ -113,7 +113,7 @@ const useLoadProjectsList = () => {
               throw new ProjectListError(
                 `Error parsing project list JSON. JSON Object does not match expected type for a Feast project list. A project list JSON file should look like
                 ${projectListExampleString}
-                Zod (our parser) returned the following: \n\n${e}`
+                Zod (our parser) returned the following: \n\n${e}`,
               );
             });
 
@@ -123,7 +123,7 @@ const useLoadProjectsList = () => {
     },
     {
       enabled: !!projectListPromise?.projectsListPromise,
-    }
+    },
   );
 };
 

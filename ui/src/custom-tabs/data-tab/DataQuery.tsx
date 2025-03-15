@@ -13,7 +13,7 @@ const DataQuery = (featureView: string) => {
     },
     {
       enabled: !!featureView, // Only start the query when the variable is not undefined
-    }
+    },
   );
 };
 

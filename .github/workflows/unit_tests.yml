@@ -38,7 +38,7 @@ jobs:
           curl -LsSf https://astral.sh/uv/install.sh | sh
       - name: Get uv cache dir
         id: uv-cache
-        run: |          
+        run: |
           echo "dir=$(uv cache dir)" >> $GITHUB_OUTPUT
       - name: uv cache
         uses: actions/cache@v4
@@ -64,6 +64,9 @@ jobs:
       - name: Install yarn dependencies
         working-directory: ./ui
         run: yarn install
+      - name: Check code formatting
+        working-directory: ./ui
+        run: yarn format:check
       - name: Build yarn rollup
         working-directory: ./ui
         run: yarn build:lib

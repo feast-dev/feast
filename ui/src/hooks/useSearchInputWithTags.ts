@@ -23,7 +23,7 @@ interface TagSuggestionInstance {
 }
 
 const generateEmptyStateSuggestions = (
-  tagsAggregationData: tagAggregationRecordType
+  tagsAggregationData: tagAggregationRecordType,
 ) => {
   if (tagsAggregationData) {
     return sortTagsByTotalUsage(tagsAggregationData).map(
@@ -33,14 +33,14 @@ const generateEmptyStateSuggestions = (
           (memo, current) => {
             return memo + current.length;
           },
-          0
+          0,
         );
 
         return {
           suggestion: tagKey,
           description: `${uniqueValues} unique tag values. ${totalEntries} total entries.`,
         };
-      }
+      },
     );
   } else {
     return [];
@@ -49,7 +49,7 @@ const generateEmptyStateSuggestions = (
 
 const generateTagKeySuggestions = (
   input: string,
-  tagsAggregationData: tagAggregationRecordType
+  tagsAggregationData: tagAggregationRecordType,
 ) => {
   if (tagsAggregationData) {
     return Object.entries(tagsAggregationData)
@@ -71,7 +71,7 @@ const generateTagKeySuggestions = (
 
 const generateTagValueSuggestions = (
   input: string,
-  tagsAggregationData: tagAggregationRecordType
+  tagsAggregationData: tagAggregationRecordType,
 ) => {
   if (tagsAggregationData) {
     const [currentTagKey, currentTagValue] = input.split(":");
@@ -130,7 +130,7 @@ interface TagSplitterReturnInterface {
 
 const parseTokenInput = (
   cursorPosition: number | undefined,
-  tagsString: string
+  tagsString: string,
 ): TagSplitterReturnInterface => {
   // Get where the spaces in the tagString, plus a start and end value
   // e.g. "A:a B:b" would return
@@ -178,11 +178,11 @@ const useSearchQuery = () => {
 };
 
 const useTagsWithSuggestions = (
-  tagsAggregationData: tagAggregationRecordType
+  tagsAggregationData: tagAggregationRecordType,
 ) => {
   const [rawtagsString, setTagsStringParam] = useQueryParam(
     "tags",
-    StringParam
+    StringParam,
   );
 
   const tagsString = rawtagsString || "";
@@ -202,7 +202,7 @@ const useTagsWithSuggestions = (
   // we are focused on given the current cursor position
   const { chunks, tokenInFocusIndex, currentTag } = parseTokenInput(
     cursorPosition,
-    tagsString
+    tagsString,
   );
 
   const suggestionMode: SuggestionModes =
@@ -214,12 +214,12 @@ const useTagsWithSuggestions = (
       if (suggestionMode === "KEY") {
         tagSuggestions = generateTagKeySuggestions(
           currentTag,
-          tagsAggregationData
+          tagsAggregationData,
         );
       } else {
         tagSuggestions = generateTagValueSuggestions(
           currentTag,
-          tagsAggregationData
+          tagsAggregationData,
         );
       }
     } else {
@@ -231,7 +231,7 @@ const useTagsWithSuggestions = (
   // Helper method for accepting suggestions
   const setSuggestionAtPositionInTagsString = (
     suggestion: string,
-    position: number
+    position: number,
   ) => {
     const nextTagsTokens = chunks.slice(0);
     nextTagsTokens[position] = suggestion;
@@ -279,7 +279,7 @@ const useTagsWithSuggestions = (
 
       return memo;
     },
-    {}
+    {},
   );
 
   return {

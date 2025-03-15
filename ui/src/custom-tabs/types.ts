@@ -94,7 +94,6 @@ interface FeatureCustomTabRegistrationInterface
   }: FeatureCustomTabProps) => JSX.Element;
 }
 
-
 // Type for Feature Service Custom Tabs
 interface FeatureServiceCustomTabProps {
   id: string | undefined;

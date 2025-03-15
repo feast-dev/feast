@@ -18,7 +18,7 @@ const EntityIndexEmptyState = () => {
           onClick={() => {
             window.open(
               "https://docs.feast.dev/getting-started/concepts/entity",
-              "_blank"
+              "_blank",
             );
           }}
         >

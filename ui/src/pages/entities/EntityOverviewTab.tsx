@@ -74,18 +74,26 @@ const EntityOverviewTab = () => {
                   <EuiDescriptionListTitle>Created</EuiDescriptionListTitle>
                   <EuiDescriptionListDescription>
                     {data?.meta?.createdTimestamp ? (
-                      toDate(data.meta.createdTimestamp).toLocaleDateString("en-CA")
+                      toDate(data.meta.createdTimestamp).toLocaleDateString(
+                        "en-CA",
+                      )
                     ) : (
-                      <EuiText>No createdTimestamp specified on this entity.</EuiText>
+                      <EuiText>
+                        No createdTimestamp specified on this entity.
+                      </EuiText>
                     )}
                   </EuiDescriptionListDescription>
 
                   <EuiDescriptionListTitle>Updated</EuiDescriptionListTitle>
                   <EuiDescriptionListDescription>
                     {data?.meta?.lastUpdatedTimestamp ? (
-                      toDate(data.meta.lastUpdatedTimestamp).toLocaleDateString("en-CA")
+                      toDate(data.meta.lastUpdatedTimestamp).toLocaleDateString(
+                        "en-CA",
+                      )
                     ) : (
-                      <EuiText>No lastUpdatedTimestamp specified on this entity.</EuiText>
+                      <EuiText>
+                        No lastUpdatedTimestamp specified on this entity.
+                      </EuiText>
                     )}
                   </EuiDescriptionListDescription>
                 </EuiDescriptionList>
