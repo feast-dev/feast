@@ -14,7 +14,6 @@ RUN yum install -y \
      make
 
 RUN ls -la /usr/lib64/cmake/absl
-
 RUN git clone --depth 1 --branch ${GRPC_VERSION} --recursive https://github.com/grpc/grpc && \
     mkdir -p grpc/cmake/build && \
     cd grpc/cmake/build && \
