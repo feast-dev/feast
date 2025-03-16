@@ -81,5 +81,5 @@ jobs:
           SNOWFLAKE_CI_WAREHOUSE: ${{ secrets.SNOWFLAKE_CI_WAREHOUSE }}
         # Run only Snowflake BigQuery and File tests without dynamo and redshift tests.
         run: |
-          pytest -n 8 --cov=./ --cov-report=xml --color=yes sdk/python/tests --integration --durations=5 --timeout=1200 --timeout_method=thread -k "Snowflake and not dynamo and not Redshift and not Bigquery and not gcp and not minio_registry"
-          pytest -n 8 --cov=./ --cov-report=xml --color=yes sdk/python/tests --integration --durations=5 --timeout=1200 --timeout_method=thread -k "File and not dynamo and not Redshift and not Bigquery and not gcp and not minio_registry"
+          uv run --active pytest -n 8 --cov=./ --cov-report=xml --color=yes sdk/python/tests --integration --durations=5 --timeout=1200 --timeout_method=thread -k "Snowflake and not dynamo and not Redshift and not Bigquery and not gcp and not minio_registry"
+          uv run --active pytest -n 8 --cov=./ --cov-report=xml --color=yes sdk/python/tests --integration --durations=5 --timeout=1200 --timeout_method=thread -k "File and not dynamo and not Redshift and not Bigquery and not gcp and not minio_registry"
