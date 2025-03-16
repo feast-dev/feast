@@ -112,6 +112,10 @@ snowflake = [
 ]
 sqlite_vec = ["sqlite-vec==v0.1.6"]
 
+ci-with-binaries = [
+    "feast[postgres-dev]",
+    "feast[ci]",
+]
 ci = [
     "build",
     "virtualenv==20.23.0",
@@ -161,10 +165,6 @@ ci = [
 ]
 nlp = ["feast[docling, milvus, pytorch]"]
 dev = ["feast[ci]"]
-ci-with-binaries = [
-    "feast[postgres-dev]",
-    "feast[ci]",
-]
 docs = ["feast[ci]"]
 
 # extras for a disconnected build from source (pandas, postgres-source, build)
