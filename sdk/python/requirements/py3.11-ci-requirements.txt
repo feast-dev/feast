@@ -167,9 +167,9 @@ asttokens==3.0.0 \
     --hash=sha256:0dcd8baa8d62b0c1d118b399b2ddba3c4aff271d0d7a9e0d4c1681c79035bbc7 \
     --hash=sha256:e3078351a059199dd5138cb1c706e6430c05eff2ff136af5eb4790f9d28932e2
     # via stack-data
-async-lru==2.0.4 \
-    --hash=sha256:b8a59a5df60805ff63220b2a0c5b5393da5521b113cd5465a44eb037d81a5627 \
-    --hash=sha256:ff02944ce3c288c5be660c42dbcca0742b32c3b279d6dceda655190240b99224
+async-lru==2.0.5 \
+    --hash=sha256:481d52ccdd27275f42c43a928b4a50c3bfb2d67af4e78b170e3e0bb39c66e5bb \
+    --hash=sha256:ab95404d8d2605310d345932697371a5f40def0487c03d6d0ad9138de52c9943
     # via jupyterlab
 async-property==0.2.2 \
     --hash=sha256:17d9bd6ca67e27915a75d92549df64b5c7174e9dc806b30a3934dc4ff0506380 \
