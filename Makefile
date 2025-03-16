@@ -76,14 +76,14 @@ lock-python-dependencies-all:
 	# Removing and running the command again ensures that the lock file is always up to date.
 	rm -rf sdk/python/requirements/* 2>/dev/null || true
 	pixi run --environment $(call get_env_name,3.11) --manifest-path infra/scripts/pixi/pixi.toml \
-		"uv pip compile -p 3.11 --system --no-strip-extras setup.py --extra pandas \
+		"uv pip compile -p 3.11 --no-strip-extras setup.py --extra pandas \
 		--generate-hashes --output-file sdk/python/requirements/py3.11-pandas-requirements.txt" && \
 	$(foreach ver,$(PYTHON_VERSIONS),\
 		pixi run --environment $(call get_env_name,$(ver)) --manifest-path infra/scripts/pixi/pixi.toml \
-			"uv pip compile -p $(ver) --system --no-strip-extras setup.py --extra build \
+			"uv pip compile -p $(ver) --no-strip-extras setup.py --extra build \
 			--generate-hashes --output-file sdk/python/requirements/py$(ver)-build-requirements.txt" && \
 		pixi run --environment $(call get_env_name,$(ver)) --manifest-path infra/scripts/pixi/pixi.toml \
-			"uv pip compile -p $(ver) --system --no-strip-extras setup.py \
+			"uv pip compile -p $(ver) --no-strip-extras setup.py \
 			--extra aws \
 			--extra gcp \
 			--extra snowflake \
@@ -98,7 +98,7 @@ lock-python-dependencies-all:
 			--extra milvus \
 			--generate-hashes --output-file sdk/python/requirements/py$(ver)-limited-requirements.txt" && \
 		pixi run --environment $(call get_env_name,$(ver)) --manifest-path infra/scripts/pixi/pixi.toml \
-			"uv pip compile -p $(ver) --system --no-strip-extras setup.py \
+			"uv pip compile -p $(ver) --no-strip-extras setup.py \
 			--extra aws \
 			--extra gcp \
 			--extra snowflake \
@@ -114,10 +114,10 @@ lock-python-dependencies-all:
 			--no-emit-package milvus-lite \
 			--output-file sdk/python/requirements/py$(ver)-sdist-requirements.txt" && \
 		pixi run --environment $(call get_env_name,$(ver)) --manifest-path infra/scripts/pixi/pixi.toml \
-			"uv pip compile -p $(ver) --system --no-strip-extras setup.py --extra ci-with-binaries \
+			"uv pip compile -p $(ver) --no-strip-extras setup.py --extra ci-with-binaries \
 			--generate-hashes --output-file sdk/python/requirements/py$(ver)-ci-requirements.txt" && \
 		pixi run --environment $(call get_env_name,$(ver)) --manifest-path infra/scripts/pixi/pixi.toml \
-			"uv pip compile -p $(ver) --system --no-strip-extras setup.py \
+			"uv pip compile -p $(ver) --no-strip-extras setup.py \
 			--generate-hashes --output-file sdk/python/requirements/py$(ver)-requirements.txt" && \
 	) true
 
