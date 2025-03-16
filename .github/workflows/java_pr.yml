@@ -170,7 +170,7 @@ jobs:
       - name: Install the latest version of uv and set the python version
         uses: astral-sh/setup-uv@v5
         with:
-          python-version: ${PYTHON}
+          python-version: 3.11
       - name: Get uv cache dir
         id: uv-cache
         run: |
