@@ -1,0 +1,97 @@
+---
+import BaseLayout from './BaseLayout.astro';
+import Navigation from '../components/Navigation.astro';
+
+const { frontmatter } = Astro.props;
+---
+
+<BaseLayout title={`${frontmatter.title} - Feast Blog`} description={frontmatter.description}>
+  <Navigation slot="header" />
+  
+  <div class="pt-[52px]">
+    <div class="max-w-4xl mx-auto px-4 py-12">
+      <article class="prose prose-lg max-w-none">
+        <header class="mb-8">
+          <h1 class="font-mono font-bold text-4xl mb-2">{frontmatter.title}</h1>
+          {frontmatter.date && (
+            <time class="font-mono text-sm text-gray-500 block" datetime={frontmatter.date}>
+              {new Date(frontmatter.date).toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+              })}
+            </time>
+          )}
+
+        </header>
+        
+        <div class="blog-content">
+          <slot />
+        </div>
+      </article>
+    </div>
+  </div>
+</BaseLayout>
+
+<style>
+  .blog-content {
+    font-family: var(--font-sans);
+  }
+  
+  .blog-content :global(h1),
+  .blog-content :global(h2),
+  .blog-content :global(h3),
+  .blog-content :global(h4),
+  .blog-content :global(h5),
+  .blog-content :global(h6) {
+    font-family: var(--font-mono);
+    font-weight: 700;
+    margin-top: 2em;
+    margin-bottom: 1em;
+  }
+  
+  .blog-content :global(h1) {
+    font-size: 2.5em;
+    line-height: 1.2;
+  }
+  
+  .blog-content :global(h2) {
+    font-size: 1.75em;
+    line-height: 1.3;
+  }
+  
+  .blog-content :global(p) {
+    margin-bottom: 1.5em;
+    line-height: 1.6;
+  }
+  
+  .blog-content :global(ul),
+  .blog-content :global(ol) {
+    margin-bottom: 1.5em;
+    padding-left: 1.5em;
+  }
+  
+  .blog-content :global(li) {
+    margin-bottom: 0.5em;
+  }
+  
+  .blog-content :global(code) {
+    font-family: var(--font-mono);
+    background-color: #f5f5f5;
+    padding: 0.2em 0.4em;
+    border-radius: 3px;
+  }
+  
+  .blog-content :global(pre) {
+    background-color: #f5f5f5;
+    padding: 1em;
+    border-radius: 5px;
+    overflow-x: auto;
+    margin-bottom: 1.5em;
+  }
+  
+  .blog-content :global(pre code) {
+    background-color: transparent;
+    padding: 0;
+  }
+</style> 

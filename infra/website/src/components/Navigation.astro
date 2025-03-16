@@ -1,0 +1,138 @@
+<nav class="navbar">
+  <div class="max-width-wrapper">
+    <div class="nav-wrapper">
+      <div class="logo">
+        <img src="/images/feast_icon-black.png" alt="Feast Logo">
+        <a href="/" class="text-mono">FEAST</a>
+      </div>
+      
+      <div class="desktop-menu">
+        <a href="https://github.com/feast-dev/feast/releases" class="nav-item">RELEASES</a>
+        <a href="https://docs.feast.dev/" class="nav-item">DOCS</a>
+        <a href="/blog" class="nav-item">BLOG</a>
+        <a href="https://github.com/feast-dev/feast" class="nav-item">GITHUB</a>
+        <a href="https://slack.feast.dev/" class="nav-item">COMMUNITY</a>
+      </div>
+      
+      <button class="mobile-menu-button" id="mobile-menu-button">
+        <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+        </svg>
+      </button>
+    </div>
+    
+    <div class="mobile-menu" id="mobile-menu">
+      <a href="https://github.com/feast-dev/feast/releases" class="nav-item">RELEASES</a>
+      <a href="https://docs.feast.dev/" class="nav-item">DOCS</a>
+      <a href="/blog" class="nav-item">BLOG</a>
+      <a href="https://github.com/feast-dev/feast" class="nav-item">GITHUB</a>
+      <a href="https://slack.feast.dev/" class="nav-item">COMMUNITY</a>
+    </div>
+  </div>
+</nav>
+
+<style>
+  .navbar {
+    height: 52px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background-color: white;
+    z-index: 1000;
+  }
+
+  .nav-wrapper {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 52px;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 var(--content-padding);
+  }
+
+  .logo img {
+    height: 20px;
+    width: auto;
+  }
+
+  .logo a {
+    font-family: var(--font-mono);
+    font-weight: 700;
+    font-size: 18px;
+    text-decoration: none;
+    color: var(--color-text);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizelegibility;
+  }
+
+  .desktop-menu {
+    display: none;
+    padding: 0 var(--content-padding);
+  }
+
+  .desktop-menu a {
+    margin-left: 32px;
+  }
+
+  .mobile-menu-button {
+    display: block;
+    background: none;
+    border: none;
+    padding: 8px;
+    cursor: pointer;
+    color: var(--color-text);
+    margin-right: var(--content-padding);
+  }
+
+  @media (min-width: 1024px) {
+    .desktop-menu {
+      display: flex;
+      align-items: center;
+    }
+    
+    .mobile-menu-button {
+      display: none;
+    }
+  }
+
+  .mobile-menu {
+    display: none;
+    width: 100%;
+    background: white;
+    padding: 16px 0;
+    border-top: 1px solid #eee;
+    position: absolute;
+    top: 52px;
+    left: 0;
+  }
+
+  .mobile-menu.active {
+    display: block;
+  }
+
+  .mobile-menu a {
+    display: block;
+    padding: 12px var(--content-padding);
+  }
+
+  .mobile-menu a:hover {
+    background-color: #f5f5f5;
+  }
+</style>
+
+<script>
+  const menuButton = document.getElementById('mobile-menu-button');
+  const mobileMenu = document.getElementById('mobile-menu');
+  
+  if (menuButton && mobileMenu) {
+    menuButton.addEventListener('click', () => {
+      mobileMenu.classList.toggle('active');
+    });
+  }
+</script> 

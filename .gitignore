@@ -228,3 +228,7 @@ sdk/python/feast/binaries/
 
 # ignore the bin directory under feast operator.
 infra/feast-operator/bin
+
+# ignore the website build directory
+infra/website/node_modules/
+infra/website/.astro/

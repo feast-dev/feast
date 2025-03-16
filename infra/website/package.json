@@ -1,0 +1,17 @@
+{
+  "name": "feast-website",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "astro dev",
+    "start": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro"
+  },
+  "dependencies": {
+    "astro": "^4.5.5",
+    "d3": "^7.9.0",
+    "shiki": "^1.29.2"
+  }
+}

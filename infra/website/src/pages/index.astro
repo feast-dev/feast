@@ -1,0 +1,304 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Navigation from '../components/Navigation.astro';
+import { Code } from 'astro/components';
+
+const codeString = `from feast import FeatureStore
+
+# Initialize the feature store
+store = FeatureStore(repo_path="feature_repo")
+
+# Get features for training
+training_df = store.get_historical_features(
+    entity_df=training_entities,
+    features=[
+        "customer_stats:daily_transactions",
+        "customer_stats:lifetime_value",
+        "product_features:price"
+    ]
+).to_df()
+
+# Get online features for inference
+features = store.get_online_features(
+    features=[
+        "customer_stats:daily_transactions",
+        "customer_stats:lifetime_value",
+        "product_features:price"
+    ],
+    entity_rows=[{"customer_id": "C123", "product_id": "P456"}]
+).to_dict()`;
+---
+
+<BaseLayout>
+  <Navigation />
+  
+  <div class="bordered-container">
+    <section class="hero-section">
+      <div class="max-width-wrapper">
+        <h1 class="hero-title text-smooth">Feature Serving for Production AI</h1>
+        <p class="hero-subtitle text-smooth text-center">
+          Feast is an open source feature store that delivers structured data to AI and LLM applications at high scale during training and inference
+        </p>
+        <button onclick="window.location.href='https://docs.feast.dev/'" class="button button-primary hero-button text-smooth">Get Started</button>
+        
+        <!-- Ridgeline plot -->
+        <div class="ridgeline-container" id="ridgeline"></div>
+      </div>
+    </section>
+    
+    <section class="section adopters-section text-center">
+      <div class="max-width-wrapper">
+        <h2 class="section-title text-smooth">[ADOPTERS AND CONTRIBUTORS]</h2>
+        <div class="logo-grid">
+          <div class="logo-item">
+            <img src="/images/logos/robinhood.png" alt="Robinhood" class="company-logo">
+          </div>
+          <div class="logo-item">
+            <img src="/images/logos/nvidia.png" alt="NVIDIA" class="company-logo">
+          </div>
+          <div class="logo-item">
+            <img src="/images/logos/discord.png" alt="Discord" class="company-logo">
+          </div>
+          <div class="logo-item">
+            <img src="/images/logos/cloudflare.png" alt="Cloudflare" class="company-logo">
+          </div>
+          <div class="logo-item">
+            <img src="/images/logos/walmart.png" alt="Walmart" class="company-logo">
+          </div>
+          <div class="logo-item">
+            <img src="/images/logos/shopify.png" alt="Shopify" class="company-logo">
+          </div>
+          <div class="logo-item">
+            <img src="/images/logos/salesforce.png" alt="Salesforce" class="company-logo">
+          </div>
+          <div class="logo-item">
+            <img src="/images/logos/twitter.webp" alt="Twitter" class="company-logo">
+          </div>
+          <div class="logo-item">
+            <img src="/images/logos/ibm.png" alt="IBM" class="company-logo">
+          </div>
+          <div class="logo-item">
+            <img src="/images/logos/capital_one.png" alt="Capital One" class="company-logo">
+          </div>
+          <div class="logo-item">
+            <img src="/images/logos/red_hat.png" alt="Red Hat" class="company-logo">
+          </div>
+          <div class="logo-item">
+            <img src="/images/logos/expedia.png" alt="Expedia" class="company-logo">
+          </div>
+          <div class="logo-item">
+            <img src="/images/logos/hello_fresh.png" alt="HelloFresh" class="company-logo">
+          </div>
+          <div class="logo-item">
+            <img src="/images/logos/adyen.png" alt="Adyen" class="company-logo">
+          </div>
+          <div class="logo-item">
+            <img src="/images/logos/seatgeek.svg" alt="SeatGeek" class="company-logo">
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="metrics-section">
+      <div class="metrics-grid">
+        <div class="metric-tile">
+          <div class="metric-number">293</div>
+          <div class="metric-label">Contributors</div>
+        </div>
+        <div class="metric-tile">
+          <div class="metric-number">12M+</div>
+          <div class="metric-label">Downloads</div>
+        </div>
+        <div class="metric-tile">
+          <div class="metric-number">5.5K</div>
+          <div class="metric-label">Slack Members</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="use-cases-section">
+      <div class="use-cases-header">
+        <div class="max-width-wrapper">
+          <h2 class="section-title text-smooth">[USE CASES]</h2>
+          <h3 class="use-cases-subtitle text-smooth text-center">SOLVE REAL PROBLEMS</h3>
+        </div>
+      </div>
+      <div class="use-cases-grid">
+        <div class="use-case-tile">
+          <h3 class="use-case-title">Real-Time Recommendations</h3>
+          <p class="use-case-description">Serve personalized product and content recommendations with real-time user interaction features</p>
+        </div>
+        <div class="use-case-tile">
+          <h3 class="use-case-title">Fraud Detection</h3>
+          <p class="use-case-description">Detect fraudulent transactions using historical patterns and real-time behavioral features</p>
+        </div>
+        <div class="use-case-tile">
+          <h3 class="use-case-title">Risk Scoring</h3>
+          <p class="use-case-description">Calculate risk scores for financial services using consistent features across training and inference</p>
+        </div>
+        <div class="use-case-tile">
+          <h3 class="use-case-title">Customer Segmentation</h3>
+          <p class="use-case-description">Create dynamic customer segments using consistent feature definitions across teams</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="integrations-section">
+      <div class="max-width-wrapper">
+        <h2 class="section-title text-smooth">[INTEGRATIONS]</h2>
+        <h3 class="integrations-subtitle text-smooth text-center">CONNECT WITH YOUR STACK</h3>
+        
+        <div class="integrations-container">
+          <div class="integration-category">
+            <h4 class="integration-category-title">OFFLINE STORES</h4>
+            <div class="integration-grid">
+              <div class="integration-item">
+                <img src="/images/logos/snowflake.png" alt="Snowflake" class="integration-logo">
+              </div>
+              <div class="integration-item">
+                <img src="/images/logos/bigquery.png" alt="BigQuery" class="integration-logo">
+              </div>
+              <div class="integration-item">
+                <img src="/images/logos/redshift.png" alt="Redshift" class="integration-logo">
+              </div>
+              <div class="integration-item">
+                <img src="/images/logos/spark.png" alt="Spark" class="integration-logo">
+              </div>
+              <div class="integration-item">
+                <img src="/images/logos/postgres.png" alt="PostgreSQL" class="integration-logo">
+              </div>
+              <div class="integration-item">
+                <img src="/images/logos/trino.png" alt="Trino" class="integration-logo">
+              </div>
+              <div class="integration-item">
+                <img src="/images/logos/duckdb.png" alt="DuckDB" class="integration-logo">
+              </div>
+              <div class="integration-item">
+                <img src="/images/logos/azure_synapse.png" alt="Azure Synapse" class="integration-logo">
+              </div>
+            </div>
+          </div>
+          
+          <div class="integration-category">
+            <h4 class="integration-category-title">ONLINE STORES</h4>
+            <div class="integration-grid">
+              <div class="integration-item">
+                <img src="/images/logos/redis.png" alt="Redis" class="integration-logo">
+              </div>
+              <div class="integration-item">
+                <img src="/images/logos/dynamodb.avif" alt="DynamoDB" class="integration-logo">
+              </div>
+              <div class="integration-item">
+                <img src="/images/logos/bigtable.png" alt="Bigtable" class="integration-logo">
+              </div>
+              <div class="integration-item">
+                <img src="/images/logos/cassandra.png" alt="Cassandra" class="integration-logo">
+              </div>
+              <div class="integration-item">
+                <img src="/images/logos/mysql.svg" alt="MySQL" class="integration-logo">
+              </div>
+              <div class="integration-item">
+                <img src="/images/logos/postgres.png" alt="PostgreSQL" class="integration-logo">
+              </div>
+              <div class="integration-item">
+                <img src="/images/logos/snowflake.png" alt="Snowflake" class="integration-logo">
+              </div>
+              <div class="integration-item">
+                <img src="/images/logos/sqlite.png" alt="SQLite" class="integration-logo">
+              </div>
+              <div class="integration-item">
+                <img src="/images/logos/dragonfly.svg" alt="Dragonfly" class="integration-logo">
+              </div>
+              <div class="integration-item">
+                <img src="/images/logos/singlestore.png" alt="SingleStore" class="integration-logo">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="code-section">
+      <div class="max-width-wrapper">
+        <h2 class="section-title text-smooth">[GET STARTED]</h2>
+        <h3 class="code-section-subtitle">START SERVING IN SECONDS</h3>
+        <div class="code-block">
+          <div class="code-content">
+            <Code code={codeString} lang="python" theme="github-dark" />
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="blog-posts-section">
+      <div class="max-width-wrapper">
+        <h2 class="section-title text-smooth">[BLOG POSTS]</h2>
+        <h3 class="integrations-subtitle text-smooth text-center">THE LATEST FROM FEAST</h3>
+        
+        <div class="blog-grid">
+          <a href="#" class="blog-post">
+            <div class="blog-type">Blog</div>
+            <h4 class="blog-title">Learn how to use Feast with Denormalized</h4>
+            <p class="blog-excerpt">Learn how to use Feast with Denormalized to build real-time features for ML and AI.This article was originally posted on…</p>
+          </a>
+          <a href="#" class="blog-post">
+            <div class="blog-type">Blog</div>
+            <h4 class="blog-title">Faster Feature Transformations in Feast</h4>
+            <p class="blog-excerpt">Thank you to Shuchu Han and Francisco Javier Arceo for their contributions evaluating the latency of transformation for On Demand…</p>
+          </a>
+          <a href="#" class="blog-post">
+            <div class="blog-type">Blog</div>
+            <h4 class="blog-title">Feast Launches Role Based Access Control (RBAC)</h4>
+            <p class="blog-excerpt">Feast is proud to introduce Role-Based Access Control (RBAC), a game-changing feature for secure and scalable feature store management. With…</p>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <section class="cta-section">
+      <div class="max-width-wrapper">
+        <h2 class="section-title text-smooth">[GET STARTED]</h2>
+        <h3 class="integrations-subtitle text-smooth text-center">START BUILDING TODAY</h3>
+        <div class="cta-grid">
+          <div class="cta-tile">
+            <h3 class="cta-title">Join our Slack</h3>
+            <p class="cta-description">Become part of our developer community & get support from the Feast developers</p>
+            <a href="https://slack.feast.dev/" class="cta-button">Join Community</a>
+          </div>
+          <div class="cta-tile">
+            <h3 class="cta-title">Docs</h3>
+            <p class="cta-description">See our comprehensive documentation and start building with Feast today</p>
+            <a href="https://docs.feast.dev/" class="cta-button">Read Docs</a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</BaseLayout>
+
+<script>
+  import { createRidgelinePlot } from '../scripts/ridgeline';
+
+  let cleanup;
+  let resizeTimer;
+
+  // Initialize the ridgeline plot when the document is loaded
+  document.addEventListener('DOMContentLoaded', () => {
+    // Initialize the ridgeline plot
+    cleanup = createRidgelinePlot();
+
+    // Handle window resize
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        if (cleanup) cleanup();
+        cleanup = createRidgelinePlot();
+      }, 250);
+    });
+  });
+
+  // Cleanup when component is unmounted
+  document.addEventListener('astro:before-swap', () => {
+    if (cleanup) cleanup();
+  });
+</script>
