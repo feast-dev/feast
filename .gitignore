@@ -108,6 +108,7 @@ coverage.out
 .pytest_cache/
 infra/scripts/*.conf
 go/internal/test/feature_repo/data/
+milvus_demo.db
 
 # Translations
 *.mo

@@ -29,14 +29,14 @@ jobs:
         uses: docker/setup-buildx-action@v3
         with:
           install: true
-      - name: Build grpc image from source
+      - name: Build grpc builder image from source
         uses: docker/build-push-action@v6
         with:
           context: sdk/python/feast/infra/feature_servers/multicloud
           file: sdk/python/feast/infra/feature_servers/multicloud/Dockerfile.builder.grpc
           load: true
           tags: grpc-builder:latest
-      - name: Build arrow image from source
+      - name: Build arrow builder image from source
         uses: docker/build-push-action@v6
         with:
           context: sdk/python/feast/infra/feature_servers/multicloud

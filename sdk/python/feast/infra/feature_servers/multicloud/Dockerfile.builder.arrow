@@ -1,4 +1,4 @@
-FROM grpc-builder
+FROM grpc-builder:latest
 
 RUN wget https://www.apache.org/dyn/closer.lua?action=download&filename=arrow/arrow-18.0.0/apache-arrow-18.0.0.tar.gz && \
     tar xvfz apache-arrow-18.0.0.tar.gz
