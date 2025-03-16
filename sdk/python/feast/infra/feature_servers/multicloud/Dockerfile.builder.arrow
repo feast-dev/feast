@@ -1,8 +1,9 @@
 FROM grpc-builder:latest
 
-RUN wget https://www.apache.org/dyn/closer.lua?action=download&filename=arrow/arrow-18.0.0/apache-arrow-18.0.0.tar.gz && \
-    tar xvfz apache-arrow-18.0.0.tar.gz
-RUN cd apache-arrow-18.0.0/cpp && \
+ENV ARROW_VERSION=16.1.0
+RUN wget https://github.com/apache/arrow/archive/refs/tags/apache-arrow-${ARROW_VERSION}.tar.gz && \
+    tar xvfz apache-arrow-${ARROW_VERSION}.tar.gz
+RUN cd apache-arrow-${ARROW_VERSION}/cpp && \
     cmake . \
     -DARROW_COMPUTE=ON \
     -DARROW_ACERO=ON \

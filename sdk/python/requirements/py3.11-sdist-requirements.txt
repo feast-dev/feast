@@ -217,8 +217,9 @@ mypy==1.15.0
     # via sqlalchemy
 mypy-extensions==1.0.0
     # via mypy
-numpy==2.2.3
+numpy==1.26.4
     # via
+    #   feast (setup.py)
     #   dask
     #   db-dtypes
     #   ibis-framework
@@ -236,8 +237,9 @@ packaging==24.2
     #   ibis-framework
     #   pandas-gbq
     #   snowflake-connector-python
-pandas==2.2.3
+pandas==2.1.4
     # via
+    #   feast (setup.py)
     #   dask
     #   db-dtypes
     #   google-cloud-bigquery
@@ -287,7 +289,7 @@ psycopg-pool @ git+https://github.com/psycopg/psycopg@664b2a12d68d9f826b58ea004f
     # via
     #   feast (setup.py)
     #   psycopg
-pyarrow==17.0.0
+pyarrow==16.1.0
     # via
     #   feast (setup.py)
     #   dask

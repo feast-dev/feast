@@ -68,8 +68,8 @@ install-python-dependencies-limited:
 # Used in github actions/ci
 # formerly install-python-ci-dependencies-uv
 install-python-dependencies-ci:
-	uv pip sync --require-hashes sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt
-	uv pip install --no-deps -e .
+	uv pip sync --system sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt
+	uv pip install --system --no-deps -e .
 
 lock-python-dependencies-all:
 	# Remove all existing requirements because we noticed the lock file is not always updated correctly.

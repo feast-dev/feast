@@ -231,6 +231,7 @@ mypy-extensions==1.0.0
     # via mypy
 numpy==1.26.4
     # via
+    #   feast (setup.py)
     #   dask
     #   db-dtypes
     #   ibis-framework
@@ -247,8 +248,9 @@ packaging==24.2
     #   gunicorn
     #   pandas-gbq
     #   snowflake-connector-python
-pandas==2.2.3
+pandas==2.1.4
     # via
+    #   feast (setup.py)
     #   dask
     #   dask-expr
     #   db-dtypes

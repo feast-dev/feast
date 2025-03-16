@@ -21,7 +21,9 @@ dependencies = [
     "Jinja2>=2,<4",
     "jsonschema",
     "mmh3",
-    "pyarrow<18.1.0",
+    "numpy==1.26.4",
+    "pandas>=2,<2.2",
+    "pyarrow==16.1.0",
     "pydantic>=2.0.0",
     "pygments>=2.12.0,<3",
     "PyYAML>=5.4.0,<7",
@@ -130,8 +132,6 @@ ci = [
     "mock==2.0.0",
     "moto<5",
     "mypy>=1.4.1,<1.11.3",
-    "numpy==1.26.4",
-    "pandas>=2,<2.2",
     "urllib3>=1.25.4,<3",
     "psutil==5.9.0",
     "py>=1.11.0",  # https://github.com/pytest-dev/pytest/issues/10420
@@ -172,11 +172,11 @@ pandas = [
     "Cython<3,>=0.29.33",
     "meson-python==0.13.1",
     "meson==1.2.1",
-    "oldest-supported-numpy>=2022.8.16,<2023.8.3",
     "setuptools==59.2.0",
     "wheel==0.37.0",
     "setuptools_scm>=6.2,<8.0",
 ]
+oldest-supported-numpy = ["oldest-supported-numpy>=2022.8.16,<2023.8.3"]
 postgres-source = [
     "psycopg-pool @ git+https://github.com/psycopg/psycopg@3.2.5#subdirectory=psycopg_pool",
     "psycopg @ git+https://github.com/psycopg/psycopg@3.2.5#subdirectory=psycopg",
