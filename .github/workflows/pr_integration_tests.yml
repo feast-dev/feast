@@ -78,8 +78,10 @@ jobs:
           aws-region: us-west-2
       - name: Use AWS CLI
         run: aws sts get-caller-identity
-      - name: Install uv
-        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+      - name: Install the latest version of uv and set the python version
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: ${{ matrix.python-version }}
       - name: Get uv cache dir
         id: uv-cache
         run: |
