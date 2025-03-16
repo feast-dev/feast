@@ -18,9 +18,12 @@ jobs:
       - name: Install the latest version of uv and set the python version
         uses: astral-sh/setup-uv@v5
         with:
+          enable-cache: true
           python-version: 3.11
       - name: Install dependencies
         run: |
           make install-python-dependencies-ci
       - name: Lint python
         run: uv run --active make lint-python
+      - name: Minimize uv cache
+        run: uv cache prune --ci
