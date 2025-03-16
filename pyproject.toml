@@ -172,7 +172,7 @@ pandas = [
     "Cython<3,>=0.29.33",
     "meson-python==0.13.1",
     "meson==1.2.1",
-    #"oldest-supported-numpy>=2022.8.16,<2023.8.3",
+    # "oldest-supported-numpy>=2022.8.16,<2023.8.3",
     "setuptools==59.2.0",
     "wheel==0.37.0",
     "setuptools_scm>=6.2,<8.0",
