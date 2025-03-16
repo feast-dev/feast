@@ -3,6 +3,13 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 import Navigation from '../components/Navigation.astro';
 import { Code } from 'astro/components';
 
+const posts = await Astro.glob('../../docs/blog/*.md');
+const sortedPosts = posts.sort((a, b) => {
+  const dateA = new Date(a.frontmatter.date || '2000-01-01');
+  const dateB = new Date(b.frontmatter.date || '2000-01-01');
+  return dateB.getTime() - dateA.getTime();
+}).slice(0, 3);
+
 const codeString = `from feast import FeatureStore
 
 # Initialize the feature store
@@ -236,21 +243,13 @@ features = store.get_online_features(
         <h3 class="integrations-subtitle text-smooth text-center">THE LATEST FROM FEAST</h3>
         
         <div class="blog-grid">
-          <a href="#" class="blog-post">
-            <div class="blog-type">Blog</div>
-            <h4 class="blog-title">Learn how to use Feast with Denormalized</h4>
-            <p class="blog-excerpt">Learn how to use Feast with Denormalized to build real-time features for ML and AI.This article was originally posted on…</p>
-          </a>
-          <a href="#" class="blog-post">
-            <div class="blog-type">Blog</div>
-            <h4 class="blog-title">Faster Feature Transformations in Feast</h4>
-            <p class="blog-excerpt">Thank you to Shuchu Han and Francisco Javier Arceo for their contributions evaluating the latency of transformation for On Demand…</p>
-          </a>
-          <a href="#" class="blog-post">
-            <div class="blog-type">Blog</div>
-            <h4 class="blog-title">Feast Launches Role Based Access Control (RBAC)</h4>
-            <p class="blog-excerpt">Feast is proud to introduce Role-Based Access Control (RBAC), a game-changing feature for secure and scalable feature store management. With…</p>
-          </a>
+          {sortedPosts.map((post) => (
+            <a href={`/blog/${post.file.split('/').pop().replace('.md', '')}`} class="blog-post">
+              <div class="blog-type">Blog</div>
+              <h4 class="blog-title">{post.frontmatter.title}</h4>
+              <p class="blog-excerpt">{post.frontmatter.description}</p>
+            </a>
+          ))}
         </div>
       </div>
     </section>

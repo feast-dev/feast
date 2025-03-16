@@ -755,7 +755,7 @@ main::before {
 /* CTA section */
 .cta-section {
     padding: calc(var(--spacing-lg) * 0.5) 0 calc(var(--spacing-lg) * 0.75) 0;
-    margin: 0;
+    margin: 0 0 var(--spacing-lg) 0;
     border-bottom: 1px solid var(--border-color);
 }
 
@@ -771,20 +771,15 @@ main::before {
     text-align: center;
     position: relative;
     margin: 0;
-    min-height: 300px;
+    min-height: 200px;
     display: flex;
     flex-direction: column;
     justify-content: center;
+    align-items: center;
 }
 
 .cta-tile:not(:last-child)::after {
-    content: '';
-    position: absolute;
-    right: 0;
-    top: 0;
-    bottom: 0;
-    width: 1px;
-    background-color: var(--border-color);
+    display: none;
 }
 
 .cta-title {
@@ -819,6 +814,8 @@ main::before {
     transition: all 0.2s ease;
     text-decoration: none;
     display: inline-block;
+    min-width: 140px;
+    max-width: 180px;
 }
 
 .cta-button:hover {
@@ -829,7 +826,9 @@ main::before {
 /* Bordered container */
 .bordered-container {
     position: relative;
-    border: 1px solid var(--border-color);
+    border-top: 1px solid var(--border-color);
+    border-left: 1px solid var(--border-color);
+    border-right: 1px solid var(--border-color);
     margin: 52px auto 0;
     max-width: calc(var(--content-max-width) - (var(--content-padding) * 2));
     box-sizing: border-box;
