@@ -183,7 +183,7 @@ jobs:
       - name: Install dependencies
         run: make install-python-dependencies-ci
       - name: Run integration tests
-        run:  make test-java-integration
+        run:  uv run --active make test-java-integration
       - name: Save report
         uses: actions/upload-artifact@v4
         if: failure()

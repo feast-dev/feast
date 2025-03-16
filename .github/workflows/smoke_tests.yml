@@ -29,8 +29,9 @@ jobs:
         uses: astral-sh/setup-uv@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install dependencies and test Imports
+      - name: Install dependencies
         run: |
           uv pip sync --system sdk/python/requirements/py${{ matrix.python-version }}-requirements.txt
           uv pip install --system --no-deps .
-          python -c "from feast import cli"
+      - name: Test Imports
+        run: uv run --active python -c "from feast import cli"

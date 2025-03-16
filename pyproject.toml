@@ -168,15 +168,15 @@ dev = ["feast[ci]"]
 docs = ["feast[ci]"]
 
 # extra for a disconnected build from source (pandas, postgres-source, build)
-pandas = [
-    "Cython<3,>=0.29.33",
-    "meson-python==0.13.1",
-    "meson==1.2.1",
-    # "oldest-supported-numpy>=2022.8.16,<2023.8.3",
-    "setuptools==59.2.0",
-    "wheel==0.37.0",
-    "setuptools_scm>=6.2,<8.0",
-]
+#pandas = [
+#    "Cython<3,>=0.29.33",
+#    "meson-python==0.13.1",
+#    "meson==1.2.1",
+#    # "oldest-supported-numpy>=2022.8.16,<2023.8.3",
+#    "setuptools==59.2.0",
+#    "wheel==0.37.0",
+#    "setuptools_scm>=6.2,<8.0",
+#]
 postgres-source = [
     "psycopg-pool @ git+https://github.com/psycopg/psycopg@3.2.5#subdirectory=psycopg_pool",
     "psycopg @ git+https://github.com/psycopg/psycopg@3.2.5#subdirectory=psycopg",

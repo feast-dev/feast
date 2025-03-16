@@ -82,7 +82,7 @@ jobs:
       - name: Test python
         if: ${{ always() }}  # this will guarantee that step won't be canceled and resources won't leak
         run: |
-          pytest -n 8 --cov=./ --cov-report=xml --color=yes sdk/python/tests --integration --durations=5 --timeout=1200 --timeout_method=thread -k "aws and not Snowflake and not BigQuery and not minio_registry"
-          pytest -n 8 --cov=./ --cov-report=xml --color=yes sdk/python/tests --integration --durations=5 --timeout=1200 --timeout_method=thread -k "File and not Snowflake and not BigQuery and not minio_registry"
-          pytest -n 8 --cov=./ --cov-report=xml --color=yes sdk/python/tests --integration --durations=5 --timeout=1200 --timeout_method=thread -k "dynamo and not Snowflake and not BigQuery and not minio_registry"
-          pytest -n 8 --cov=./ --cov-report=xml --color=yes sdk/python/tests --integration --durations=5 --timeout=1200 --timeout_method=thread -k "Redshift and not Snowflake and not BigQuery and not minio_registry"
+          uv run --active pytest -n 8 --cov=./ --cov-report=xml --color=yes sdk/python/tests --integration --durations=5 --timeout=1200 --timeout_method=thread -k "aws and not Snowflake and not BigQuery and not minio_registry"
+          uv run --active pytest -n 8 --cov=./ --cov-report=xml --color=yes sdk/python/tests --integration --durations=5 --timeout=1200 --timeout_method=thread -k "File and not Snowflake and not BigQuery and not minio_registry"
+          uv run --active pytest -n 8 --cov=./ --cov-report=xml --color=yes sdk/python/tests --integration --durations=5 --timeout=1200 --timeout_method=thread -k "dynamo and not Snowflake and not BigQuery and not minio_registry"
+          uv run --active pytest -n 8 --cov=./ --cov-report=xml --color=yes sdk/python/tests --integration --durations=5 --timeout=1200 --timeout_method=thread -k "Redshift and not Snowflake and not BigQuery and not minio_registry"

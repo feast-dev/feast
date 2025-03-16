@@ -23,4 +23,4 @@ jobs:
         run: |
           make install-python-dependencies-ci
       - name: Lint python
-        run: make lint-python
+        run: uv run --active make lint-python

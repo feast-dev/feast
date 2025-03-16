@@ -49,7 +49,7 @@ jobs:
       - name: Install dependencies
         run: make install-python-dependencies-ci
       - name: Test Python
-        run: make test-python-unit
+        run: uv run --active make test-python-unit
 
 
   unit-test-ui:
