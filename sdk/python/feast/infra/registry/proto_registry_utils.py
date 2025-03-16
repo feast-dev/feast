@@ -28,7 +28,6 @@ from feast.saved_dataset import SavedDataset, ValidationReference
 from feast.sorted_feature_view import SortedFeatureView
 from feast.stream_feature_view import StreamFeatureView
 
-
 def registry_proto_cache(func):
     cache_key = None
     cache_value = None
