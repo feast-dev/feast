@@ -37,7 +37,6 @@ jobs:
         uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
-          python-version: ${{ matrix.python-version }}
       - name: Install dependencies
         run: make install-python-dependencies-ci
       - name: Test Python

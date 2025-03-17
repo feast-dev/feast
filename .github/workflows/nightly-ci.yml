@@ -121,7 +121,6 @@ jobs:
         uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
-          python-version: ${{ matrix.python-version }}
       - name: Install apache-arrow on ubuntu
         if: matrix.os == 'ubuntu-latest'
         run: |
