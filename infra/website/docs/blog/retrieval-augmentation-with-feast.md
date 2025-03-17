@@ -12,14 +12,14 @@ authors: ["Francisco Javier Arceo"]
 # Is a Feature Store a good fit for GenAI use cases?
 Yes, a Feature Store is a great fit for GenAI use cases! 
 
-That's because Feature Stores were developed over the last 10 years to explicitly handle the problems facing AI 
-practitioners. The Feast maintainers will continue to invest in making the GenAI development experience a first-class 
+That's because Feature Stores were developed over the last 10 years to explicitly handle the problems AI 
+practitioners faced when working with data. The Feast maintainers will continue to invest in making the GenAI development experience a first-class 
 citizen so that you can rely on Feast to customize your AI applications. If you have thoughts or ideas 
 feel free to reach out!
 
 # What is Retrieval Augmented Generation (RAG)?
 [RAG](https://en.wikipedia.org/wiki/Retrieval-augmented_generation) is a technique that combines generative models 
-(e.g., LLMs) with retrieval systems to produce to generate contextually relevant output for a particular goal (e.g., 
+(e.g., LLMs) with retrieval systems to generate contextually relevant output for a particular goal (e.g., 
 question and answering).
 
 The typical RAG process involves:
