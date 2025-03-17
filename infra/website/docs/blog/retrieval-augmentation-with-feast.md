@@ -1,0 +1,167 @@
+---
+title: Retrieval Augmented Generation with Feast 
+description: How Feast can empower you to customize your RAG applications for maximum flexibility.
+date: 2025-03-17
+authors: ["Francisco Javier Arceo"]
+---
+
+<div class="hero-image">
+  <img src="/images/blog/space.jpg" alt="Exploring the Possibilities of AI" loading="lazy">
+</div>
+
+# Is a Feature Store a good fit for GenAI use cases?
+Yes, a Feature Store is a great fit for GenAI use cases! 
+
+That's because Feature Stores were developed over the last 10 years to explicitly handle the problems facing AI 
+practitioners. The Feast maintainers will continue to invest in making the GenAI development experience a first-class 
+citizen so that you can rely on Feast to customize your AI applications. If you have thoughts or ideas 
+feel free to reach out!
+
+# What is Retrieval Augmented Generation (RAG)?
+[RAG](https://en.wikipedia.org/wiki/Retrieval-augmented_generation) is a technique that combines generative models 
+(e.g., LLMs) with retrieval systems to produce to generate contextually relevant output for a particular goal (e.g., 
+question and answering).
+
+The typical RAG process involves:
+1. Sourcing text data relevant for your application
+2. Transforming each text document into smaller chunks of text
+3. Transforming those chunks of text into embeddings
+4. Inserting those chunks of text along with some identifier for the chunk and document in some database
+5. Retrieving those chunks of text along with the identifiers at run-time to inject that text into the LLM's context
+6. Calling some API to run inference with your LLM to generate contextually relevant output
+7. Returning the output to some end user
+
+Implicit in (1)-(4) is the potential of scaling to large amounts of data (i.e., using some form of distributed computing),
+orchestrating that scaling through some batch or streaming pipeline, and customization of key transformation decisions
+(e.g., tokenization, model, chunking, data format, etc.).
+
+# What is the scope of Retrieval?
+So, the Retrieval in RAG also includes:
+1. Ingestion
+1. Transformation
+1. Indexing
+1. Retrieval
+
+RAG patterns often use vector similarity search for the retrieval step, but it is worth emphasizing that this is not the
+only retrieval pattern that can be useful. In fact, standard entity-based retrieval can be very powerful for 
+applications where relevant user-context is necessary.
+
+# How does that relate to Feast?
+Feast is focused on supporting the lifecycle of data for AI/ML applications. Feast was built to support the
+offline training, online serving, and metadata management so that users can successfully scale their production AI
+applications.
+
+What that means is that Feast can help you not only serve your documents, user data, and other metadata for production 
+RAG applications, but it can also help you scale your embeddings on large amounts of data (e.g,. using Spark to embed 
+gigabytes of documents), re-use the same code online and offline, prepare your datasets so you can fine tune your
+embedding, generative, or retrieval models later, and track changes to your transformations, data sources, and 
+RAG-sources to provide you with replayability and data lineage.
+
+Historically, Feast catered to Data Scientists and ML Engineers who implemented their own types of data/feature transformations but, now, 
+many RAG providers handle this out of the box for you. We will invest in creating extendable implementations to make it easier 
+to customize your applications.
+
+# How might I want to customize retrieval?
+As mentioned, Feast allows you to customize:
+- Chunking
+- Tokenization
+- Embedding
+- The offline engine to embed huge amounts of documents
+- The metadata you may want to structure or weight differently during retrieval
+- Hybrid Retrieval strategies combining dense and sparse retrieval
+- Reranking mechanisms
+- Fine Tuning embedding, retrieval, and generative models
+
+# Feast Powered by Milvus
+
+## Step 0: Configure Milvus
+Configure milvus in a simple `yaml` file.
+```yaml
+project: rag
+provider: local
+registry: data/registry.db
+online_store:
+  type: milvus
+  path: data/online_store.db
+  vector_enabled: true
+  embedding_dim: 384
+  index_type: "IVF_FLAT"
+
+
+offline_store:
+  type: file
+entity_key_serialization_version: 3
+# By default, no_auth for authentication and authorization, other possible values kubernetes and oidc. Refer the documentation for more details.
+auth:
+    type: no_auth
+```
+
+## Step 1: Define your Data Sources and Views
+You define your data declaratively using Feast's FeatureView and entity objects:
+```python
+document = Entity(
+    name="document_id",
+    description="Document ID",
+    value_type=ValueType.INT64,
+)
+
+source = FileSource(
+    file_format=ParquetFormat(),
+    path="./data/my_data.parquet",
+    timestamp_field="event_timestamp",
+)
+
+# Define the view for retrieval
+city_embeddings_feature_view = FeatureView(
+    name="city_embeddings",
+    entities=[document],
+    schema=[
+        Field(
+            name="vector",
+            dtype=Array(Float32),
+            vector_index=True,                # Vector search enabled
+            vector_search_metric="COSINE",    # Distance metric configured
+        ),
+        Field(name="state", dtype=String),
+        Field(name="sentence_chunks", dtype=String),
+        Field(name="wiki_summary", dtype=String),
+    ],
+    source=source,
+    ttl=timedelta(hours=2),
+)
+```
+
+## Step 2: Ingest your Data
+
+```python
+store.write_to_online_store(feature_view_name='city_embeddings', df=df)
+```
+
+## Step 3: Retrieve your Data
+
+```python
+context_data = store.retrieve_online_documents_v2(
+    features=[
+        "city_embeddings:vector",
+        "city_embeddings:document_id",
+        "city_embeddings:state",
+        "city_embeddings:sentence_chunks",
+        "city_embeddings:wiki_summary",
+    ],
+    query=query_embedding,
+    top_k=3,
+    distance_metric='COSINE',
+).to_df()
+```
+
+## What are the benefits from using Feast?
+You get a lot for free.
+1. Data dictionary/metadata catalog autogenerated from code
+3. UI exposing the metadata catalog 
+2. FastAPI Server to serve your data
+3. Role Based Access Control (RBAC) to govern access to your data
+6. Deployment on Kubernetes using our Helm Chart or our Operator
+7. Multiple vector database providers
+8. Multiple data warehouse providers
+9. Support for different data formats
+10. Support for stream and batch processors  (e.g., Spark and Flink)

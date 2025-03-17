@@ -33,7 +33,19 @@ features = store.get_online_features(
         "product_features:price"
     ],
     entity_rows=[{"customer_id": "C123", "product_id": "P456"}]
-).to_dict()`;
+).to_dict()
+
+# Retrieve your documents using vector similarity search for RAG
+features = store.retrieve_online_documents(
+    features=[
+        "corpus:document_id",
+        "corpus:chunk_id",
+        "corpus:chunk_text",
+        "corpus:chunk_embedding",
+    ],
+    query="What is the biggest city in the USA?"
+).to_dict()
+`;
 ---
 
 <BaseLayout>
@@ -42,7 +54,7 @@ features = store.get_online_features(
   <div class="bordered-container">
     <section class="hero-section">
       <div class="max-width-wrapper">
-        <h1 class="hero-title text-smooth">Feature Serving for Production AI</h1>
+        <h1 class="hero-title text-smooth">Serving Data for Production AI</h1>
         <p class="hero-subtitle text-smooth text-center">
           Feast is an open source feature store that delivers structured data to AI and LLM applications at high scale during training and inference
         </p>
