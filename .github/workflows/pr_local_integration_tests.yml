@@ -49,7 +49,7 @@ jobs:
         run: make install-python-dependencies-ci
       - name: Test local integration tests
         if: ${{ always() }}  # this will guarantee that step won't be canceled and resources won't leak
-        run: uv run --active make test-python-integration-local
+        run: make test-python-integration-local
       - name: Install Go
         uses: actions/setup-go@v5
         with:

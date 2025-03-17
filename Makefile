@@ -123,19 +123,22 @@ lock-python-dependencies-all:
 
 
 compile-protos-python:
-	python infra/scripts/generate_protos.py
+	uv run --active python infra/scripts/generate_protos.py
 
 benchmark-python:
-	IS_TEST=True python -m pytest --integration --benchmark  --benchmark-autosave --benchmark-save-data sdk/python/tests
+	IS_TEST=True \
+	uv run --active python -m pytest --integration --benchmark  --benchmark-autosave --benchmark-save-data sdk/python/tests
 
 benchmark-python-local:
-	IS_TEST=True FEAST_IS_LOCAL_TEST=True python -m pytest --integration --benchmark  --benchmark-autosave --benchmark-save-data sdk/python/tests
+	IS_TEST=True \
+	FEAST_IS_LOCAL_TEST=True \
+	uv run --active python -m pytest --integration --benchmark  --benchmark-autosave --benchmark-save-data sdk/python/tests
 
 test-python-unit:
-	python -m pytest -n 8 --color=yes sdk/python/tests
+	uv run --active python -m pytest -n 8 --color=yes sdk/python/tests
 
 test-python-integration:
-	python -m pytest --tb=short -v -n 8 --integration --color=yes --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
+	uv run --active python -m pytest --tb=short -v -n 8 --integration --color=yes --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
 		-k "(not snowflake or not test_historical_features_main)" \
 		-m "not rbac_remote_integration_test" \
 		--log-cli-level=INFO -s \
@@ -144,7 +147,7 @@ test-python-integration:
 test-python-integration-local:
 	FEAST_IS_LOCAL_TEST=True \
 	FEAST_LOCAL_ONLINE_CONTAINER=True \
-	python -m pytest --tb=short -v -n 8 --color=yes --integration --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
+	uv run --active python -m pytest --tb=short -v -n 8 --color=yes --integration --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
 		-k "not test_lambda_materialization and not test_snowflake_materialization" \
 		-m "not rbac_remote_integration_test" \
 		--log-cli-level=INFO -s \
@@ -153,7 +156,7 @@ test-python-integration-local:
 test-python-integration-rbac-remote:
 	FEAST_IS_LOCAL_TEST=True \
 	FEAST_LOCAL_ONLINE_CONTAINER=True \
-	python -m pytest --tb=short -v -n 8 --color=yes --integration --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
+	uv run --active python -m pytest --tb=short -v -n 8 --color=yes --integration --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
 		-k "not test_lambda_materialization and not test_snowflake_materialization" \
 		-m "rbac_remote_integration_test" \
 		--log-cli-level=INFO -s \
@@ -500,11 +503,11 @@ test-python-universal-couchbase-online:
 		sdk/python/tests
 
 test-python-universal:
-	python -m pytest -n 8 --integration sdk/python/tests
+	uv run --active python -m pytest -n 8 --integration sdk/python/tests
 
 format-python:
-	cd ${ROOT_DIR}/sdk/python; python -m ruff check --fix feast/ tests/
-	cd ${ROOT_DIR}/sdk/python; python -m ruff format feast/ tests/
+	uv run --active python -m ruff check --fix ${ROOT_DIR}/sdk/python/feast/ ${ROOT_DIR}/sdk/python/tests/
+	uv run --active python -m ruff format ${ROOT_DIR}/sdk/python/feast/ ${ROOT_DIR}/sdk/python/tests/
 
 lint-python:
 	cd ${ROOT_DIR}/sdk/python; python -m mypy feast
@@ -643,7 +646,7 @@ build-sphinx: compile-protos-python
 	cd 	$(ROOT_DIR)/sdk/python/docs && $(MAKE) build-api-source
 
 build-templates:
-	python infra/scripts/compile-templates.py
+	uv run --active python infra/scripts/compile-templates.py
 
 build-helm-docs:
 	cd ${ROOT_DIR}/infra/charts/feast; helm-docs

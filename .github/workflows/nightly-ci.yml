@@ -148,6 +148,6 @@ jobs:
           SNOWFLAKE_CI_PASSWORD: ${{ secrets.SNOWFLAKE_CI_PASSWORD }}
           SNOWFLAKE_CI_ROLE: ${{ secrets.SNOWFLAKE_CI_ROLE }}
           SNOWFLAKE_CI_WAREHOUSE: ${{ secrets.SNOWFLAKE_CI_WAREHOUSE }}
-        run: uv run --active make test-python-integration
+        run: make test-python-integration
       - name: Minimize uv cache
         run: uv cache prune --ci
