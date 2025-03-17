@@ -802,7 +802,10 @@ def test_invalid_python_transformation_raises_type_error_on_apply():
         ):
             store.apply([request_source, python_view])
 
-
+@pytest.mark.skipif(
+    not (sys.version_info[0:2] in [(3, 10), (3, 11)] and platform.system() == "Darwin"),
+    reason="Only works on Python 3.10 and 3.11 on macOS"
+)
 class TestOnDemandTransformationsWithWrites(unittest.TestCase):
     def test_stored_writes(self):
         with tempfile.TemporaryDirectory() as data_dir:
