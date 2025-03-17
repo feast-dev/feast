@@ -134,16 +134,14 @@
 
     <!-- Release Java library on Sonatype https://central.sonatype.org/pages/apache-maven.html -->
     <distributionManagement>
-        <repository>
-            <id>eg-artylab-releases</id>
-            <name>EG Artylab Releases Repository</name>
-            <url>https://artylab.expedia.biz/eg-maven-release-local</url>
-        </repository>
         <snapshotRepository>
-            <id>eg-artylab-snapshots</id>
-            <name>EG Artifactory Snapshot Repository</name>
-            <url>https://artylab.expedia.biz/eg-maven-snapshot-local</url>
+            <id>ossrh</id>
+            <url>https://oss.sonatype.org/content/repositories/snapshots</url>
         </snapshotRepository>
+        <repository>
+            <id>ossrh</id>
+            <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+        </repository>
     </distributionManagement>
 
     <profiles>
@@ -158,6 +156,21 @@
                     <family>mac</family>
                 </os>
             </activation>
+        </profile>
+        <profile>
+            <id>eg-release-dev</id>
+            <distributionManagement>
+                <repository>
+                    <id>eg-artylab-releases</id>
+                    <name>EG Artylab Releases Repository</name>
+                    <url>https://artylab.expedia.biz/eg-maven-release-local</url>
+                </repository>
+                <snapshotRepository>
+                    <id>eg-artylab-snapshots</id>
+                    <name>EG Artifactory Snapshot Repository</name>
+                    <url>https://artylab.expedia.biz/eg-maven-snapshot-local</url>
+                </snapshotRepository>
+            </distributionManagement>
         </profile>
     </profiles>
 
@@ -439,6 +452,20 @@
                     <additionalClasspathElements>
                         <additionalClasspathElement>${project.build.outputDirectory}</additionalClasspathElement>
                     </additionalClasspathElements>
+                </configuration>
+            </plugin>
+            <!-- nexus-staging-maven-plugin configures Maven to deploy to OSSRH Nexus Repository Manager -->
+            <plugin>
+                <groupId>org.sonatype.plugins</groupId>
+                <artifactId>nexus-staging-maven-plugin</artifactId>
+                <version>1.6.8</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <serverId>ossrh</serverId>
+                    <nexusUrl>https://oss.sonatype.org/</nexusUrl>
+                    <!-- autoReleaseAfterClose is true as the release should be automated via continuous integration -->
+                    <autoReleaseAfterClose>true</autoReleaseAfterClose>
+                    <skipNexusStagingDeployMojo>true</skipNexusStagingDeployMojo>
                 </configuration>
             </plugin>
             <!--

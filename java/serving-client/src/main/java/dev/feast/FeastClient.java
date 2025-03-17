@@ -128,7 +128,7 @@ public class FeastClient implements AutoCloseable {
    * @return {@link FeastClient}
    */
   public static FeastClient createSecure(
-      String host, int port, SecurityConfig securityConfig, long requestTimeout) {
+      String host, int port, SecurityConfig securityConfig, long requestTimeout, Optional<Map<String, Object>> serviceConfig) {
 
     if (requestTimeout < 0) {
       throw new IllegalArgumentException("Request timeout can't be negative");
@@ -146,6 +146,7 @@ public class FeastClient implements AutoCloseable {
               NettyChannelBuilder.forAddress(host, port)
                   .useTransportSecurity()
                   .sslContext(GrpcSslContexts.forClient().trustManager(certificateFile).build())
+                  .defaultServiceConfig(serviceConfig.get())
                   .build();
         } catch (SSLException e) {
           throw new IllegalArgumentException(
