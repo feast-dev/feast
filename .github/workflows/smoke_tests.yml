@@ -31,9 +31,7 @@ jobs:
           enable-cache: true
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
-        run: |
-          uv pip sync --system sdk/python/requirements/py${{ matrix.python-version }}-requirements.txt
-          pip install --system --no-deps .
+        run: make install-python-dependencies-ci
       - name: Test Imports
         run: python -c "from feast import cli"
       - name: Minimize uv cache
