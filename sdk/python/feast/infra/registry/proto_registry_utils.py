@@ -13,6 +13,7 @@ from feast.errors import (
     PermissionObjectNotFoundException,
     ProjectObjectNotFoundException,
     SavedDatasetNotFound,
+    SortedFeatureViewNotFoundException,
     ValidationReferenceNotFound,
 )
 from feast.feature_service import FeatureService
