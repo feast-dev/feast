@@ -1,3 +1,6 @@
+from functools import wraps
+from typing import List, Optional
+
 from feast import utils
 from feast.base_feature_view import BaseFeatureView
 from feast.data_source import DataSource
@@ -7,7 +10,6 @@ from feast.errors import (
     EntityNotFoundException,
     FeatureServiceNotFoundException,
     FeatureViewNotFoundException,
-    SortedFeatureViewNotFoundException,
     PermissionObjectNotFoundException,
     ProjectObjectNotFoundException,
     SavedDatasetNotFound,
@@ -24,8 +26,6 @@ from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.saved_dataset import SavedDataset, ValidationReference
 from feast.sorted_feature_view import SortedFeatureView
 from feast.stream_feature_view import StreamFeatureView
-from functools import wraps
-from typing import List, Optional
 
 
 def registry_proto_cache(func):
