@@ -12,7 +12,7 @@ aiosignal==1.3.2
     # via aiohttp
 annotated-types==0.7.0
     # via pydantic
-anyio==4.8.0
+anyio==4.9.0
     # via
     #   starlette
     #   watchfiles
@@ -241,7 +241,7 @@ packaging==24.2
     #   ibis-framework
     #   pandas-gbq
     #   snowflake-connector-python
-pandas==2.1.4
+pandas==2.2.3
     # via
     #   feast (setup.py)
     #   dask
