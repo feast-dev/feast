@@ -33,7 +33,7 @@ jobs:
       - name: Install dependencies
         run: |
           uv pip sync --system sdk/python/requirements/py${{ matrix.python-version }}-requirements.txt
-          uv pip install --system --no-deps .
+          pip install --system --no-deps .
       - name: Test Imports
         run: python -c "from feast import cli"
       - name: Minimize uv cache
