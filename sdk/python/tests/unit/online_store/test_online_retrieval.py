@@ -1414,9 +1414,9 @@ def test_milvus_stored_writes_with_explode() -> None:
         del feast_results["distance"]
 
         assert feast_results == {
-            'document_id': ['doc_2', 'doc_1'],
-            'chunk_id': ['chunk-1', 'chunk-2'],
-            'chunk_text': ['This is a test.', 'how are you?']
+            "document_id": ["doc_2", "doc_1"],
+            "chunk_id": ["chunk-1", "chunk-2"],
+            "chunk_text": ["This is a test.", "how are you?"],
         }
 
 
