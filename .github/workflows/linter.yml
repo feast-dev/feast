@@ -24,6 +24,6 @@ jobs:
         run: |
           make install-python-dependencies-ci
       - name: Lint python
-        run: uv run --active make lint-python
+        run: make lint-python
       - name: Minimize uv cache
         run: uv cache prune --ci
