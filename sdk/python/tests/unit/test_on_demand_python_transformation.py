@@ -40,6 +40,8 @@ from feast.types import (
     from_value_type,
 )
 
+MAC_VER = platform.mac_ver()[0].split(".")[0] if platform.mac_ver() else ""
+
 
 class TestOnDemandPythonTransformation(unittest.TestCase):
     def setUp(self):
@@ -805,7 +807,11 @@ def test_invalid_python_transformation_raises_type_error_on_apply():
 
 
 @pytest.mark.skipif(
-    not (sys.version_info[0:2] in [(3, 10), (3, 11)] and platform.system() == "Darwin"),
+    not (
+        sys.version_info[0:2] in [(3, 10), (3, 11)]
+        and platform.system() == "Darwin"
+        and MAC_VER == "13"
+    ),
     reason="Only works on Python 3.10 and 3.11 on macOS",
 )
 class TestOnDemandTransformationsWithWrites(unittest.TestCase):
