@@ -354,6 +354,10 @@ class MilvusOnlineStore(OnlineStore):
         feature_name_feast_primitive_type_map = {
             f.name: f.dtype for f in table.features
         }
+        if getattr(table, "write_to_online_store", False):
+            feature_name_feast_primitive_type_map.update(
+                {f.name: f.dtype for f in table.schema}
+            )
         # Build a dictionary mapping composite key -> (res_ts, res)
         results_dict: Dict[
             str, Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]
@@ -394,6 +398,7 @@ class MilvusOnlineStore(OnlineStore):
                                 "int64_val",
                                 "float_val",
                                 "double_val",
+                                "string_val",
                             ]:
                                 setattr(
                                     val,
@@ -420,7 +425,7 @@ class MilvusOnlineStore(OnlineStore):
                                 setattr(val, proto_attr, field_value)
                         else:
                             raise ValueError(
-                                f"Unsupported ValueType: {feature_feast_primitive_type} with feature view value {field_value} for feature {field} with value {field_value}"
+                                f"Unsupported ValueType: {feature_feast_primitive_type} with feature view value {field_value} for feature {field} with value type {proto_attr}"
                             )
                         # res[field] = val
                         key_to_use = field.split(":", 1)[-1] if ":" in field else field

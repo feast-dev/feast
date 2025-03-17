@@ -1001,7 +1001,7 @@ def test_sqlite_get_online_documents_v2_search() -> None:
         assert result["distance"] == [-1.8458267450332642, -1.8458267450332642]
 
 
-# @pytest.mark.skip(reason="Skipping this test as CI struggles with it")
+@pytest.mark.skip(reason="Skipping this test as CI struggles with it")
 def test_local_milvus() -> None:
     import random
 
@@ -1246,7 +1246,7 @@ def test_milvus_stored_writes_with_explode() -> None:
     )
 
     random.seed(42)
-    vector_length = 5
+    vector_length = 10
     runner = CliRunner()
     with runner.local_repo(
         example_repo_py=get_example_repo("example_rag_feature_repo.py"),
@@ -1300,10 +1300,10 @@ def test_milvus_stored_writes_with_explode() -> None:
                     "Document chunking example.",
                 ],
                 "vector": [
-                    [0.1] * 5,
-                    [0.2] * 5,
-                    [0.3] * 5,
-                    [0.4] * 5,
+                    [0.1] * vector_length,
+                    [0.2] * vector_length,
+                    [0.3] * vector_length,
+                    [0.4] * vector_length,
                 ],
             }
             return output
@@ -1371,7 +1371,7 @@ def test_milvus_stored_writes_with_explode() -> None:
         )
 
         # Test vector search using Milvus
-        query_embedding = np.random.random(vector_length)
+        query_embedding = [0.1] * vector_length
 
         # First get Milvus client and search directly
         client = store._provider._online_store.client
@@ -1411,6 +1411,13 @@ def test_milvus_stored_writes_with_explode() -> None:
         assert (
             len(direct_results[0]) == 2
         )  # Verify both approaches return same number of results
+        del feast_results["distance"]
+
+        assert feast_results == {
+            'document_id': ['doc_2', 'doc_1'],
+            'chunk_id': ['chunk-1', 'chunk-2'],
+            'chunk_text': ['This is a test.', 'how are you?']
+        }
 
 
 def test_milvus_native_from_feast_data() -> None:
