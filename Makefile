@@ -68,8 +68,8 @@ install-python-dependencies-limited:
 # Used in github actions/ci
 # formerly install-python-ci-dependencies-uv
 install-python-dependencies-ci:
-	uv pip sync --require-hashes sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt
-	uv pip install --no-deps -e .
+	uv pip sync --system sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt
+	uv pip install --system --no-deps -e .
 
 lock-python-dependencies-all:
 	# Remove all existing requirements because we noticed the lock file is not always updated correctly.
@@ -126,13 +126,10 @@ compile-protos-python:
 	python infra/scripts/generate_protos.py
 
 benchmark-python:
-	IS_TEST=True \
-	python -m pytest --integration --benchmark  --benchmark-autosave --benchmark-save-data sdk/python/tests
+IS_TEST=True python -m pytest --integration --benchmark --benchmark-autosave --benchmark-save-data sdk/python/tests
 
 benchmark-python-local:
-	IS_TEST=True \
-	FEAST_IS_LOCAL_TEST=True \
-	python -m pytest --integration --benchmark  --benchmark-autosave --benchmark-save-data sdk/python/tests
+IS_TEST=True FEAST_IS_LOCAL_TEST=True python -m pytest --integration --benchmark --benchmark-autosave --benchmark-save-data sdk/python/tests
 
 test-python-unit:
 	python -m pytest -n 8 --color=yes sdk/python/tests
@@ -506,8 +503,8 @@ test-python-universal:
 	python -m pytest -n 8 --integration sdk/python/tests
 
 format-python:
-	python -m ruff check --fix ${ROOT_DIR}/sdk/python/feast/ ${ROOT_DIR}/sdk/python/tests/
-	python -m ruff format ${ROOT_DIR}/sdk/python/feast/ ${ROOT_DIR}/sdk/python/tests/
+	cd ${ROOT_DIR}/sdk/python; python -m ruff check --fix feast/ tests/
+	cd ${ROOT_DIR}/sdk/python; python -m ruff format feast/ tests/
 
 lint-python:
 	cd ${ROOT_DIR}/sdk/python; python -m mypy feast
