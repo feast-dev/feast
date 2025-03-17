@@ -27,6 +27,8 @@ jobs:
           architecture: x64
       - name: Install the latest version of uv and set the python version
         uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
       - name: Install dependencies
         run: |
           make install-python-dependencies-ci
