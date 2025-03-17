@@ -3,7 +3,7 @@ FROM grpc-builder:latest
 ARG ARROW_VERSION=17.0.0
 RUN wget https://github.com/apache/arrow/archive/refs/tags/apache-arrow-${ARROW_VERSION}.tar.gz && \
     tar xvfz apache-arrow-${ARROW_VERSION}.tar.gz && \
-    cd apache-arrow-${ARROW_VERSION}/cpp && \
+    cd arrow-apache-arrow-${ARROW_VERSION}/cpp && \
     cmake \
     -DARROW_COMPUTE=ON \
     -DARROW_ACERO=ON \
@@ -22,4 +22,4 @@ RUN wget https://github.com/apache/arrow/archive/refs/tags/apache-arrow-${ARROW_
     . && \
     cmake --build . && \
     cmake --install . && \
-    rm -rf ${APP_ROOT}/src/apache-arrow*
+    rm -rf ${APP_ROOT}/src/*apache-arrow*
