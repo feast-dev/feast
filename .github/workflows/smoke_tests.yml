@@ -35,6 +35,6 @@ jobs:
           uv pip sync --system sdk/python/requirements/py${{ matrix.python-version }}-requirements.txt
           uv pip install --system --no-deps .
       - name: Test Imports
-        run: uv run --active python -c "from feast import cli"
+        run: python -c "from feast import cli"
       - name: Minimize uv cache
         run: uv cache prune --ci
