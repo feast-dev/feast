@@ -126,10 +126,10 @@ compile-protos-python:
 	python infra/scripts/generate_protos.py
 
 benchmark-python:
-IS_TEST=True python -m pytest --integration --benchmark --benchmark-autosave --benchmark-save-data sdk/python/tests
+	IS_TEST=True python -m pytest --integration --benchmark --benchmark-autosave --benchmark-save-data sdk/python/tests
 
 benchmark-python-local:
-IS_TEST=True FEAST_IS_LOCAL_TEST=True python -m pytest --integration --benchmark --benchmark-autosave --benchmark-save-data sdk/python/tests
+	IS_TEST=True FEAST_IS_LOCAL_TEST=True python -m pytest --integration --benchmark --benchmark-autosave --benchmark-save-data sdk/python/tests
 
 test-python-unit:
 	python -m pytest -n 8 --color=yes sdk/python/tests

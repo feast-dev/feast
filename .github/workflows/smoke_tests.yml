@@ -30,8 +30,7 @@ jobs:
         with:
           enable-cache: true
       - name: Install dependencies
-        run: |
-          make install-python-dependencies-ci
+        run: make install-python-dependencies-ci
       - name: Test Imports
         run: python -c "from feast import cli"
       - name: Minimize uv cache
