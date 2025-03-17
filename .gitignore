@@ -109,6 +109,7 @@ coverage.out
 infra/scripts/*.conf
 go/internal/test/feature_repo/data/
 milvus_demo.db
+.milvus_demo.db.lock
 
 # Translations
 *.mo
