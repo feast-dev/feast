@@ -28,6 +28,10 @@ spec:
       {{- end }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- with .Values.volumes }}
+      volumes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: {{ .Chart.Name }}
           securityContext:
@@ -39,6 +43,9 @@ spec:
               value: {{ .Values.feature_store_yaml_base64 }}
             - name: INTRA_COMMUNICATION_BASE64
               value: {{ "intra-server-communication" | b64enc }}
+            {{- with .Values.extraEnvs}}
+              {{- toYaml . | nindent 12 }}
+            {{- end}}
           command:
             {{- if eq .Values.feast_mode "offline" }}
             - "feast"
@@ -99,6 +106,10 @@ spec:
             periodSeconds: {{ .Values.readinessProbe.periodSeconds }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
+          {{- with .Values.volumeMounts}}
+          volumeMounts:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
