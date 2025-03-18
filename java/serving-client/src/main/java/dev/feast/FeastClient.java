@@ -75,7 +75,7 @@ public class FeastClient implements AutoCloseable {
   public static FeastClient create(String host, int port, long requestTimeout) {
     // configure client with no security config.
     return FeastClient.createSecure(
-        host, port, SecurityConfig.newBuilder().build(), requestTimeout);
+        host, port, SecurityConfig.newBuilder().build(), requestTimeout, Optional.empty());
   }
 
   /**
@@ -88,33 +88,23 @@ public class FeastClient implements AutoCloseable {
    * @return {@link FeastClient}
    */
   public static FeastClient createSecure(String host, int port, SecurityConfig securityConfig) {
-    return FeastClient.createSecure(host, port, securityConfig, 0);
+    return FeastClient.createSecure(host, port, securityConfig, 0, Optional.empty());
   }
 
   /**
-   * Create an authenticated client to access Feast Serving with HTTP config values.
+   * Create an authenticated client that can access Feast serving with authentication enabled & has
+   * an optional serviceConfig.
    *
-   * @param url URL of Feast serving GRPC server
+   * @param host hostname or ip address of Feast serving GRPC server
+   * @param port port number of Feast serving GRPC server
    * @param securityConfig security options to configure the Feast client. See {@link
-   *     SecurityConfig}
-   * @param requestTimeout grpc deadline/netty http2 timeout
-   * @param serviceConfig see https://grpc.io/docs/guides/service-config/
+   *     SecurityConfig} for options.
    * @return {@link FeastClient}
    */
   public static FeastClient createSecure(
-      String url,
-      int port,
-      SecurityConfig securityConfig,
-      long requestTimeout,
-      Map<String, Object> serviceConfig) {
-    NettyChannelBuilder nettyChannelBuilder =
-        NettyChannelBuilder.forAddress(url, port).defaultServiceConfig(serviceConfig);
-
-    if (securityConfig.isTLSEnabled()) {
-      nettyChannelBuilder.useTransportSecurity();
-    }
-
-    return new FeastClient(nettyChannelBuilder.build(), Optional.empty(), requestTimeout);
+      String host, int port, long requestTimeout, Optional<Map<String, Object>> serviceConfig) {
+    return FeastClient.createSecure(
+        host, port, SecurityConfig.newBuilder().build(), requestTimeout, serviceConfig);
   }
 
   /**
@@ -129,7 +119,11 @@ public class FeastClient implements AutoCloseable {
    * @return {@link FeastClient}
    */
   public static FeastClient createSecure(
-      String host, int port, SecurityConfig securityConfig, long requestTimeout) {
+      String host,
+      int port,
+      SecurityConfig securityConfig,
+      long requestTimeout,
+      Optional<Map<String, Object>> serviceConfig) {
 
     if (requestTimeout < 0) {
       throw new IllegalArgumentException("Request timeout can't be negative");
@@ -143,18 +137,30 @@ public class FeastClient implements AutoCloseable {
         // Use custom certificate for TLS
         File certificateFile = new File(certificatePath);
         try {
-          channel =
+          NettyChannelBuilder builder =
               NettyChannelBuilder.forAddress(host, port)
                   .useTransportSecurity()
-                  .sslContext(GrpcSslContexts.forClient().trustManager(certificateFile).build())
-                  .build();
+                  .sslContext(GrpcSslContexts.forClient().trustManager(certificateFile).build());
+
+          if (serviceConfig.isPresent()) {
+            builder.defaultServiceConfig(serviceConfig.get());
+          }
+
+          channel = builder.build();
         } catch (SSLException e) {
           throw new IllegalArgumentException(
               String.format("Invalid Certificate provided at path: %s", certificatePath), e);
         }
       } else {
         // Use system certificates for TLS
-        channel = ManagedChannelBuilder.forAddress(host, port).useTransportSecurity().build();
+        NettyChannelBuilder builder =
+            NettyChannelBuilder.forAddress(host, port).useTransportSecurity();
+
+        if (serviceConfig.isPresent()) {
+          builder.defaultServiceConfig(serviceConfig.get());
+        }
+
+        channel = builder.build();
       }
     } else {
       // Disable TLS

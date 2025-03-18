@@ -158,6 +158,7 @@
             </activation>
         </profile>
         <profile>
+            <!-- DO NOT MERGE TO EG-FEAST. This is used by the maven-deploy lifecycle to push to artylab. -->
             <id>eg-release-dev</id>
             <distributionManagement>
                 <repository>
