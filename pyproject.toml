@@ -206,9 +206,7 @@ sdist-build = [
     "types-psutil",
     "types-setuptools",
     "pdm-backend",
-    "maturin<2,>=1",
     "setuptools-rust>=1.4.0",
-    #"anyhow",
 ]
 
 [project.urls]
