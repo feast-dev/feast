@@ -37,7 +37,7 @@ REQUIRED = [
     "Jinja2>=2,<4",
     "jsonschema",
     "mmh3",
-    "numpy==1.26.4",
+    "numpy>=1.22",
     "pandas==2.2.3",
     "pyarrow<=17.0.0",
     "pydantic>=2.0.0",
