@@ -1,6 +1,5 @@
 FROM feast-sdist-builder:latest
 
-USER default
 COPY --chown=default .git ${APP_ROOT}/src/.git
 COPY --chown=default setup.py pyproject.toml Makefile ${APP_ROOT}/src/
 #COPY --chown=default setup.py pyproject.toml README.md Makefile ${APP_ROOT}/src/
