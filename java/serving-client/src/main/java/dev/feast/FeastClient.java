@@ -27,7 +27,6 @@ import feast.proto.serving.ServingServiceGrpc.ServingServiceBlockingStub;
 import feast.proto.types.ValueProto;
 import io.grpc.CallCredentials;
 import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
 import io.grpc.netty.shaded.io.grpc.netty.GrpcSslContexts;
 import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder;
 import io.opentracing.contrib.grpc.TracingClientInterceptor;
@@ -102,9 +101,12 @@ public class FeastClient implements AutoCloseable {
    * @return {@link FeastClient}
    */
   public static FeastClient createSecure(
-      String host, int port, long requestTimeout, Optional<Map<String, Object>> serviceConfig) {
-    return FeastClient.createSecure(
-        host, port, SecurityConfig.newBuilder().build(), requestTimeout, serviceConfig);
+      String host,
+      int port,
+      long requestTimeout,
+      SecurityConfig securityConfig,
+      Optional<Map<String, Object>> serviceConfig) {
+    return FeastClient.createSecure(host, port, securityConfig, requestTimeout, serviceConfig);
   }
 
   /**
@@ -116,6 +118,8 @@ public class FeastClient implements AutoCloseable {
    *     SecurityConfig} for options.
    * @param requestTimeout maximum duration for online retrievals from the GRPC server in
    *     milliseconds
+   * @param serviceConfig NettyChannel uses this serviceConfig to declare HTTP/2.0 protocol config
+   *     options.
    * @return {@link FeastClient}
    */
   public static FeastClient createSecure(
@@ -130,44 +134,36 @@ public class FeastClient implements AutoCloseable {
     }
 
     // Configure client TLS
-    ManagedChannel channel = null;
+    NettyChannelBuilder nettyChannelBuilder = NettyChannelBuilder.forAddress(host, port);
+
+    if (serviceConfig.isPresent()) {
+      nettyChannelBuilder.defaultServiceConfig(serviceConfig.get());
+    }
+
     if (securityConfig.isTLSEnabled()) {
       if (securityConfig.getCertificatePath().isPresent()) {
         String certificatePath = securityConfig.getCertificatePath().get();
         // Use custom certificate for TLS
         File certificateFile = new File(certificatePath);
         try {
-          NettyChannelBuilder builder =
-              NettyChannelBuilder.forAddress(host, port)
-                  .useTransportSecurity()
-                  .sslContext(GrpcSslContexts.forClient().trustManager(certificateFile).build());
-
-          if (serviceConfig.isPresent()) {
-            builder.defaultServiceConfig(serviceConfig.get());
-          }
-
-          channel = builder.build();
+          nettyChannelBuilder
+              .useTransportSecurity()
+              .sslContext(GrpcSslContexts.forClient().trustManager(certificateFile).build());
         } catch (SSLException e) {
           throw new IllegalArgumentException(
               String.format("Invalid Certificate provided at path: %s", certificatePath), e);
         }
       } else {
         // Use system certificates for TLS
-        NettyChannelBuilder builder =
-            NettyChannelBuilder.forAddress(host, port).useTransportSecurity();
-
-        if (serviceConfig.isPresent()) {
-          builder.defaultServiceConfig(serviceConfig.get());
-        }
-
-        channel = builder.build();
+        nettyChannelBuilder.useTransportSecurity();
       }
     } else {
       // Disable TLS
-      channel = ManagedChannelBuilder.forAddress(host, port).usePlaintext().build();
+      nettyChannelBuilder.usePlaintext();
     }
 
-    return new FeastClient(channel, securityConfig.getCredentials(), requestTimeout);
+    return new FeastClient(
+        nettyChannelBuilder.build(), securityConfig.getCredentials(), requestTimeout);
   }
 
   /**
