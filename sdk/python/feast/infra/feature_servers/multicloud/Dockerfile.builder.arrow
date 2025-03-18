@@ -51,6 +51,6 @@ RUN yum install -y cargo
 
 RUN yum search rust
 # how fix? build from source
-RUN cargo install maturin
+RUN cargo install --locked maturin
 
 USER 1001
