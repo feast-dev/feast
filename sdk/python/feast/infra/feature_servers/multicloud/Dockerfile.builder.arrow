@@ -32,7 +32,7 @@ RUN wget https://github.com/apache/arrow/archive/refs/tags/apache-arrow-${ARROW_
 RUN yum install -y cargo
 
 ARG BACKTRACE_VERSION=0.3.51
-RUN https://github.com/rust-lang/backtrace-rs/archive/refs/tags/backtrace-rs-${BACKTRACE_VERSION}.tar.gz
+RUN wget https://github.com/rust-lang/backtrace-rs/archive/refs/tags/${BACKTRACE_VERSION}.tar.gz
 RUN tar xvfz ${BACKTRACE_VERSION}.tar.gz && \
     cd backtrace-rs-${BACKTRACE_VERSION} && \
     cargo build --offline --lib
