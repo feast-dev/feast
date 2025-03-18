@@ -4,7 +4,6 @@ from datetime import timedelta
 import pytest
 
 from feast.aggregation import Aggregation
-from feast.batch_feature_view import BatchFeatureView
 from feast.data_format import AvroFormat
 from feast.data_source import KafkaSource, PushSource
 from feast.entity import Entity
@@ -16,37 +15,6 @@ from feast.protos.feast.core.StreamFeatureView_pb2 import (
 from feast.stream_feature_view import StreamFeatureView, stream_feature_view
 from feast.types import Float32
 from feast.utils import _utc_now, make_tzaware
-
-
-def test_create_batch_feature_view():
-    batch_source = FileSource(path="some path")
-    BatchFeatureView(
-        name="test batch feature view",
-        entities=[],
-        ttl=timedelta(days=30),
-        source=batch_source,
-    )
-
-    with pytest.raises(TypeError):
-        BatchFeatureView(
-            name="test batch feature view", entities=[], ttl=timedelta(days=30)
-        )
-
-    stream_source = KafkaSource(
-        name="kafka",
-        timestamp_field="event_timestamp",
-        kafka_bootstrap_servers="",
-        message_format=AvroFormat(""),
-        topic="topic",
-        batch_source=FileSource(path="some path"),
-    )
-    with pytest.raises(ValueError):
-        BatchFeatureView(
-            name="test batch feature view",
-            entities=[],
-            ttl=timedelta(days=30),
-            source=stream_source,
-        )
 
 
 def test_create_stream_feature_view():

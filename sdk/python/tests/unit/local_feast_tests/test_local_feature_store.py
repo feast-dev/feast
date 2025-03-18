@@ -93,6 +93,7 @@ def test_apply_feature_view(test_feature_store):
             Field(name="fs1_my_feature_4", dtype=Array(Bytes)),
             Field(name="entity_id", dtype=Int64),
         ],
+        udf=lambda df: df,
         entities=[entity],
         tags={"team": "matchmaking", "tag": "two"},
         source=batch_source,

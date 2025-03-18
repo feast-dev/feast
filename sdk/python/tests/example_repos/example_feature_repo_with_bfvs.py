@@ -18,6 +18,8 @@ driver = Entity(
 driver_hourly_stats_view = BatchFeatureView(
     name="driver_hourly_stats",
     entities=[driver],
+    mode="python",
+    udf=lambda x: x,
     ttl=timedelta(days=1),
     schema=[
         Field(name="conv_rate", dtype=Float32),
@@ -41,6 +43,8 @@ global_daily_stats = FileSource(
 global_stats_feature_view = BatchFeatureView(
     name="global_daily_stats",
     entities=None,
+    mode="python",
+    udf=lambda x: x,
     ttl=timedelta(days=1),
     schema=[
         Field(name="num_rides", dtype=Int32),
