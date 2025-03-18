@@ -1,5 +1,7 @@
-FROM grpc-builder:latest
+#FROM grpc-builder:latest
+FROM quay.io/tchughesiv/grpc-builder:v1.71.0
 
+# gflags, Thrift, RapidJSON, xsimd, AWSSDK
 ARG ARROW_VERSION=17.0.0
 RUN wget https://github.com/apache/arrow/archive/refs/tags/apache-arrow-${ARROW_VERSION}.tar.gz && \
     tar xvfz apache-arrow-${ARROW_VERSION}.tar.gz && \
@@ -12,7 +14,7 @@ RUN wget https://github.com/apache/arrow/archive/refs/tags/apache-arrow-${ARROW_
     -DARROW_FILESYSTEM=ON \
     -DARROW_FLIGHT=ON \
     -DARROW_FLIGHT_SQL=ON \
-    -DARROW_GANDIVA_JAVA=ON \
+    -ARROW_GANDIVA=ON \
     -DARROW_HDFS=ON \
     -DARROW_JSON=ON \
     -DARROW_PARQUET=ON \

@@ -85,6 +85,9 @@ lock-python-dependencies-all:
 	# Remove all existing requirements because we noticed the lock file is not always updated correctly.
 	# Removing and running the command again ensures that the lock file is always up to date.
 	rm -rf sdk/python/requirements/* 2>/dev/null || true
+	pixi run --environment $(call get_env_name,3.11) --manifest-path infra/scripts/pixi/pixi.toml \
+	"uv pip compile -p 3.11 --no-strip-extras setup.py --extra pandas \
+	--generate-hashes --output-file sdk/python/requirements/py3.11-pandas-requirements.txt"
 	$(foreach ver,$(PYTHON_VERSIONS),\
 		pixi run --environment $(call get_env_name,$(ver)) --manifest-path infra/scripts/pixi/pixi.toml \
 			"uv pip compile -p $(ver) --no-strip-extras setup.py --extra build \
@@ -127,10 +130,6 @@ lock-python-dependencies-all:
 			"uv pip compile -p $(ver) --no-strip-extras setup.py \
 			--generate-hashes --output-file sdk/python/requirements/py$(ver)-requirements.txt" && \
 	) true
-#	pixi run --environment $(call get_env_name,3.11) --manifest-path infra/scripts/pixi/pixi.toml \
-#		"uv pip compile -p 3.11 --no-strip-extras setup.py --extra pandas \
-#		--generate-hashes --output-file sdk/python/requirements/py3.11-pandas-requirements.txt" && \
-
 
 compile-protos-python:
 	python infra/scripts/generate_protos.py
