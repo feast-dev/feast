@@ -31,10 +31,9 @@ cachi2 fetch-deps \
   "type": "pip",
   "path": ".",
   "requirements_files": ["sdk/python/feast/infra/feature_servers/multicloud/requirements.txt"],
-  "requirements_build_files": ["sdk/python/requirements/py3.11-build-requirements.txt", "sdk/python/requirements/py3.11-sdist-requirements.txt"],
+  "requirements_build_files": ["sdk/python/requirements/py3.11-build-requirements.txt", "sdk/python/requirements/py3.11-pandas-requirements.txt", "sdk/python/requirements/py3.11-sdist-requirements.txt"],
   "allow_binary": "false"
 }'
-# , "sdk/python/requirements/py3.11-pandas-requirements.txt"
 
 cachi2 generate-env ./cachi2-output -o ./cachi2.env --for-output-dir /tmp/cachi2-output
 
