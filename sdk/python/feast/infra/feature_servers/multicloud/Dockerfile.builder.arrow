@@ -31,6 +31,14 @@ RUN wget https://github.com/apache/arrow/archive/refs/tags/apache-arrow-${ARROW_
 
 RUN yum install -y cargo
 
+RUN yum search rs
+
+ARG CC_VERSION=0.3.51
+RUN wget https://github.com/rust-lang/cc-rs/archive/refs/tags/${CC_VERSION}.tar.gz
+RUN tar xvfz ${CC_VERSION}.tar.gz && \
+    cd cc-rs-${CC_VERSION} && \
+    cargo build --offline --lib
+
 ARG BACKTRACE_VERSION=0.3.51
 RUN wget https://github.com/rust-lang/backtrace-rs/archive/refs/tags/${BACKTRACE_VERSION}.tar.gz
 RUN tar xvfz ${BACKTRACE_VERSION}.tar.gz && \
