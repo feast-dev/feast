@@ -6,19 +6,11 @@ on:
       - main
       - stable
       - '*-branch'
-  pull_request:
-    types:
-      - opened
-      - synchronize
-      - labeled
-    paths:
-      - '.github/workflows/pr_image_build_from_source.yaml'
-      - 'Makefile'
-      - 'pyproject.toml'
-      - 'setup.py'
-      - 'infra/scripts/cachi2.sh'
-      - 'sdk/python/requirements/**'
-      - 'sdk/python/feast/infra/feature_servers/multicloud/**'
+  #pull_request:
+  #  types:
+  #    - opened
+  #    - synchronize
+  #    - labeled
 
 jobs:
   image-build-from-source:

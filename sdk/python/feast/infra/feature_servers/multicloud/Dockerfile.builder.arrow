@@ -29,4 +29,6 @@ RUN wget https://github.com/apache/arrow/archive/refs/tags/apache-arrow-${ARROW_
     cd ${APP_ROOT}/src && \
     rm -rf *apache-arrow*
 
+RUN yum install -y cargo
+
 USER 1001
