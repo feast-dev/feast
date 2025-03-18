@@ -92,7 +92,7 @@ public class FeastClient implements AutoCloseable {
   }
 
   /**
-   * Create an authenticated client to access Feast Serving.
+   * Create an authenticated client to access Feast Serving with HTTP config values.
    *
    * @param url URL of Feast serving GRPC server
    * @param securityConfig security options to configure the Feast client. See {@link
@@ -101,13 +101,14 @@ public class FeastClient implements AutoCloseable {
    * @param serviceConfig see https://grpc.io/docs/guides/service-config/
    * @return {@link FeastClient}
    */
-  public static FeastClient createSecureWithTarget(
+  public static FeastClient createSecure(
       String url,
+      int port,
       SecurityConfig securityConfig,
       long requestTimeout,
       Map<String, Object> serviceConfig) {
     NettyChannelBuilder nettyChannelBuilder =
-        NettyChannelBuilder.forTarget(url).defaultServiceConfig(serviceConfig);
+        NettyChannelBuilder.forAddress(url, port).defaultServiceConfig(serviceConfig);
 
     if (securityConfig.isTLSEnabled()) {
       nettyChannelBuilder.useTransportSecurity();
@@ -128,7 +129,7 @@ public class FeastClient implements AutoCloseable {
    * @return {@link FeastClient}
    */
   public static FeastClient createSecure(
-      String host, int port, SecurityConfig securityConfig, long requestTimeout, Optional<Map<String, Object>> serviceConfig) {
+      String host, int port, SecurityConfig securityConfig, long requestTimeout) {
 
     if (requestTimeout < 0) {
       throw new IllegalArgumentException("Request timeout can't be negative");
@@ -146,7 +147,6 @@ public class FeastClient implements AutoCloseable {
               NettyChannelBuilder.forAddress(host, port)
                   .useTransportSecurity()
                   .sslContext(GrpcSslContexts.forClient().trustManager(certificateFile).build())
-                  .defaultServiceConfig(serviceConfig.get())
                   .build();
         } catch (SSLException e) {
           throw new IllegalArgumentException(
