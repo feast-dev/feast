@@ -30,5 +30,7 @@ RUN wget https://github.com/apache/arrow/archive/refs/tags/apache-arrow-${ARROW_
     rm -rf *apache-arrow*
 
 RUN yum install -y cargo
+RUN yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
+RUN yum search anyhow
 
 USER 1001

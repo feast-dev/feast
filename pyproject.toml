@@ -208,6 +208,7 @@ sdist-build = [
     "pdm-backend",
     "maturin<2,>=1",
     "setuptools-rust>=1.4.0",
+    "anyhow",
 ]
 
 [project.urls]
