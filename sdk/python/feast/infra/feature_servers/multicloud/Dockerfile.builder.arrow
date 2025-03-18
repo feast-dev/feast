@@ -34,6 +34,7 @@ ARG ANYHOW_VERSION=1.0.97
 RUN wget https://github.com/dtolnay/anyhow/archive/refs/tags/${ANYHOW_VERSION}.tar.gz
 RUN tar xvfz ${ANYHOW_VERSION}.tar.gz && \
     cd anyhow-${ANYHOW_VERSION} && \
-    cargo install --offline --path .
+    #cargo install --offline --path .
+    cargo install anyhow
 
 USER 1001
