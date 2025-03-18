@@ -33,4 +33,4 @@ RUN yum install -y cargo
 
 USER 1001
 # pydantic dep
-RUN cargo install --locked maturin@v1.8.3
+RUN cargo install --locked maturin@1.8.3
