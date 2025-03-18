@@ -159,6 +159,7 @@ def parse_repo(repo_root: Path) -> RepoContents:
                 isinstance(obj, FeatureView)
                 and not any((obj is fv) for fv in res.feature_views)
                 and not isinstance(obj, StreamFeatureView)
+                and not isinstance(obj, SortedFeatureView)
                 and not isinstance(obj, BatchFeatureView)
             ):
                 res.feature_views.append(obj)
@@ -179,10 +180,18 @@ def parse_repo(repo_root: Path) -> RepoContents:
                 (obj is sfv) for sfv in res.sorted_feature_views
             ):
                 res.sorted_feature_views.append(obj)
-                if obj.batch_source and not any(
-                    (obj.batch_source is ds) for ds in res.data_sources
-                ):
-                    res.data_sources.append(obj.batch_source)
+
+                # Handle batch sources defined with feature views.
+                batch_source = obj.batch_source
+                assert batch_source
+                if not any((batch_source is ds) for ds in res.data_sources):
+                    res.data_sources.append(batch_source)
+
+                # Handle stream sources defined with feature views.
+                if obj.stream_source:
+                    stream_source = obj.stream_source
+                    if not any((stream_source is ds) for ds in res.data_sources):
+                        res.data_sources.append(stream_source)
 
             elif isinstance(obj, StreamFeatureView) and not any(
                 (obj is sfv) for sfv in res.stream_feature_views

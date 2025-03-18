@@ -871,7 +871,7 @@ class FeatureStore:
             if (
                 # BFVs are not handled separately from FVs right now.
                 (isinstance(ob, FeatureView) or isinstance(ob, BatchFeatureView))
-                and not isinstance(ob, StreamFeatureView)
+                and not isinstance(ob, StreamFeatureView) and not isinstance(ob, SortedFeatureView)
             )
         ]
         sfvs_to_update = [ob for ob in objects if isinstance(ob, StreamFeatureView)]
@@ -933,11 +933,7 @@ class FeatureStore:
             self._registry.apply_project(project, commit=False)
         for ds in data_sources_to_update:
             self._registry.apply_data_source(ds, project=self.project, commit=False)
-        for view in itertools.chain(views_to_update, odfvs_to_update, sfvs_to_update):
-            self._registry.apply_feature_view(view, project=self.project, commit=False)
-        for view in itertools.chain(
-            views_to_update, sfvs_to_update, sorted_fvs_to_update
-        ):
+        for view in itertools.chain(views_to_update, odfvs_to_update, sfvs_to_update, sorted_fvs_to_update):
             self._registry.apply_feature_view(view, project=self.project, commit=False)
         for ent in entities_to_update:
             self._registry.apply_entity(ent, project=self.project, commit=False)

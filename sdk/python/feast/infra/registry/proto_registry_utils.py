@@ -13,6 +13,7 @@ from feast.errors import (
     PermissionObjectNotFoundException,
     ProjectObjectNotFoundException,
     SavedDatasetNotFound,
+    SortedFeatureViewNotFoundException,
     ValidationReferenceNotFound,
 )
 from feast.feature_service import FeatureService
@@ -162,7 +163,7 @@ def get_sorted_feature_view(
             and sorted_feature_view_proto.spec.project == project
         ):
             return SortedFeatureView.from_proto(sorted_feature_view_proto)
-    raise FeatureViewNotFoundException(name, project)
+    raise SortedFeatureViewNotFoundException(name, project)
 
 
 def get_on_demand_feature_view(

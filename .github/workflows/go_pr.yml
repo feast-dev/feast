@@ -60,7 +60,7 @@ jobs:
           architecture: x64
       - name: Test Go
         run: make test-go
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: go-coverage-report
           path: ${{ github.workspace }}/coverage.html
