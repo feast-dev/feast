@@ -43,7 +43,7 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: 1.18.0
-      - name: Install the latest version of uv and set the python version
+      - name: Install the latest version of uv
         uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true

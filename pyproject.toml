@@ -168,7 +168,7 @@ dev = ["feast[ci]"]
 docs = ["feast[ci]"]
 limited = ["feast[aws, gcp, snowflake, redis, go, mysql, postgres, opentelemetry, grpcio, k8s, duckdb, milvus]"]
 
-# extras for a disconnected build from source (numpy, pandas, postgres-source, build)
+# extras for a disconnected build from source (numpy, pandas, postgres-source, sdist)
 numpy-build = [
     "numpy==2.2.4",
     "meson-python<0.16.0,>=0.15.0",

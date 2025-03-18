@@ -53,7 +53,7 @@ jobs:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
       - name: Use gcloud CLI
         run: gcloud info
-      - name: Install the latest version of uv and set the python version
+      - name: Install the latest version of uv
         uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true

@@ -4,18 +4,24 @@ on: [push, pull_request]
 
 jobs:
   lint-python:
-    runs-on: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [ "3.9", "3.10", "3.11"]
+        os: [ ubuntu-latest ]
     env:
-      PYTHON: 3.11
+      OS: ${{ matrix.os }}
+      PYTHON: ${{ matrix.python-version }}
     steps:
       - uses: actions/checkout@v4
       - name: Setup Python
         id: setup-python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: ${{ matrix.python-version }}
           architecture: x64
-      - name: Install the latest version of uv and set the python version
+      - name: Install the latest version of uv
         uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
