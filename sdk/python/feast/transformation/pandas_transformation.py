@@ -20,7 +20,7 @@ class PandasTransformation(Transformation):
     def __init__(
         self,
         udf: Callable[[Any], Any],
-        udf_string: str = "",
+        udf_string: str,
         name: Optional[str] = None,
         tags: Optional[dict[str, str]] = None,
         description: str = "",
@@ -100,12 +100,7 @@ class PandasTransformation(Transformation):
 
         return True
 
-    def to_proto(self) -> UserDefinedFunctionProto:
-        return UserDefinedFunctionProto(
-            name=self.udf.__name__,
-            body=dill.dumps(self.udf, recurse=True),
-            body_text=self.udf_string or "",
-        )
+
 
     @classmethod
     def from_proto(cls, user_defined_function_proto: UserDefinedFunctionProto):

@@ -21,8 +21,8 @@ class PythonTransformation(Transformation):
     def __init__(
         self,
         udf: FunctionType,
+        udf_string: str,
         name: Optional[str] = None,
-        udf_string: str = "",
         tags: Optional[Dict[str, str]] = None,
         description: str = "",
         owner: str = "",
@@ -122,16 +122,10 @@ class PythonTransformation(Transformation):
 
         return True
 
-    def to_proto(self) -> UserDefinedFunctionProto:
-        return UserDefinedFunctionProto(
-            name=self.udf.__name__,
-            body=dill.dumps(self.udf, recurse=True),
-            body_text=self.udf_string or "",
-        )
-
     @classmethod
     def from_proto(cls, user_defined_function_proto: UserDefinedFunctionProto):
         return PythonTransformation(
+            mode=TransformationMode.PYTHON,
             udf=dill.loads(user_defined_function_proto.body),
             udf_string=user_defined_function_proto.body_text,
         )

@@ -9,6 +9,9 @@ from feast.transformation.factory import (
     get_transformation_class_from_type,
 )
 from feast.transformation.mode import TransformationMode
+from feast.protos.feast.core.Transformation_pb2 import (
+    UserDefinedFunctionV2 as UserDefinedFunctionProto,
+)
 
 
 class Transformation(ABC):
@@ -16,8 +19,8 @@ class Transformation(ABC):
         cls,
         mode: Union[TransformationMode, str],
         udf: Callable[[Any], Any],
+        udf_string: str,
         name: Optional[str] = None,
-        udf_string: str = "",
         tags: Optional[Dict[str, str]] = None,
         description: str = "",
         owner: str = "",
@@ -43,8 +46,8 @@ class Transformation(ABC):
         self,
         mode: Union[TransformationMode, str],
         udf: Callable[[Any], Any],
+        udf_string: str,
         name: Optional[str] = None,
-        udf_string: Optional[str] = "",
         tags: Optional[Dict[str, str]] = None,
         description: str = "",
         owner: str = "",
@@ -52,12 +55,19 @@ class Transformation(ABC):
     ):
         self.mode = mode if isinstance(mode, str) else mode.value
         self.udf = udf
-        self.name = name
         self.udf_string = udf_string
+        self.name = name
         self.tags = tags or {}
         self.description = description
         self.owner = owner
         self.singleton = singleton
+
+    def to_proto(self) -> UserDefinedFunctionProto:
+        return UserDefinedFunctionProto(
+            name=self.udf.__name__,
+            body=dill.dumps(self.udf, recurse=True),
+            body_text=self.udf_string,
+        )
 
     def transform(self, inputs: Any) -> Any:
         raise NotImplementedError
