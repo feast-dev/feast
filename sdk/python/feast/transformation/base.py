@@ -15,6 +15,9 @@ from feast.transformation.mode import TransformationMode
 
 
 class Transformation(ABC):
+    udf: Callable[[Any], Any]
+    udf_string: str
+    
     def __new__(
         cls,
         mode: Union[TransformationMode, str],
