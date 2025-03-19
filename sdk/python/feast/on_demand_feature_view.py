@@ -1,12 +1,10 @@
 import copy
 import functools
-import inspect
 import warnings
 from types import FunctionType
-from typing import Any, List, Optional, Union, get_type_hints
+from typing import Any, List, Optional, Union
 
 import dill
-import pandas as pd
 import pyarrow
 from typeguard import typechecked
 
@@ -201,8 +199,8 @@ class OnDemandFeatureView(BaseFeatureView):
                 "Either udf or feature_transformation must be provided to create an OnDemandFeatureView"
             )
         if self.mode in (
-                TransformationMode.PANDAS,
-                TransformationMode.PYTHON,
+            TransformationMode.PANDAS,
+            TransformationMode.PYTHON,
         ) or self.mode in ("pandas", "python"):
             return Transformation(mode=self.mode, udf=self.udf)
         elif self.mode == TransformationMode.SUBSTRAIT or self.mode == "substrait":

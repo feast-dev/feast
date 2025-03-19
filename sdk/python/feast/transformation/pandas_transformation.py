@@ -1,5 +1,5 @@
 import inspect
-from typing import Any, Optional, Callable, get_type_hints
+from typing import Any, Callable, Optional, get_type_hints
 
 import dill
 import pandas as pd
@@ -17,11 +17,10 @@ from feast.type_map import (
 
 
 class PandasTransformation(Transformation):
-
     def __init__(
         self,
         udf: Callable[[Any], Any],
-        udf_string: Optional[str] = "",
+        udf_string: str = "",
         name: Optional[str] = None,
         tags: Optional[dict[str, str]] = None,
         description: str = "",
@@ -29,7 +28,6 @@ class PandasTransformation(Transformation):
         *args,
         **kwargs,
     ):
-
         return_annotation = get_type_hints(udf).get("return", inspect._empty)
         if return_annotation not in (inspect._empty, pd.DataFrame):
             raise TypeError(

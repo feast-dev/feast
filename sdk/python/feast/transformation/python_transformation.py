@@ -1,7 +1,5 @@
-import inspect
-
 from types import FunctionType
-from typing import Any, Dict, Optional, get_type_hints
+from typing import Any, Dict, Optional
 
 import dill
 import pyarrow
@@ -24,7 +22,7 @@ class PythonTransformation(Transformation):
         self,
         udf: FunctionType,
         name: Optional[str] = None,
-        udf_string: Optional[str] = "",
+        udf_string: str = "",
         tags: Optional[Dict[str, str]] = None,
         description: str = "",
         owner: str = "",
