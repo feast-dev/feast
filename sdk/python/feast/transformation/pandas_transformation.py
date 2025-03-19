@@ -20,7 +20,7 @@ class PandasTransformation(Transformation):
     def __init__(
         self,
         udf: Callable[[Any], Any],
-        udf_string: str,
+        udf_string: Optional[str] = "",
         name: Optional[str] = None,
         tags: Optional[dict[str, str]] = None,
         description: str = "",
@@ -99,8 +99,6 @@ class PandasTransformation(Transformation):
             return False
 
         return True
-
-
 
     @classmethod
     def from_proto(cls, user_defined_function_proto: UserDefinedFunctionProto):

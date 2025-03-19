@@ -21,7 +21,7 @@ class PythonTransformation(Transformation):
     def __init__(
         self,
         udf: FunctionType,
-        udf_string: str,
+        udf_string: Optional[str] = "",
         name: Optional[str] = None,
         tags: Optional[Dict[str, str]] = None,
         description: str = "",

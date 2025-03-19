@@ -13,13 +13,12 @@ from feast.protos.feast.core.Transformation_pb2 import (
     UserDefinedFunctionV2 as UserDefinedFunctionProto,
 )
 
-
 class Transformation(ABC):
     def __new__(
         cls,
         mode: Union[TransformationMode, str],
         udf: Callable[[Any], Any],
-        udf_string: str,
+        udf_string: Optional[str] = "",
         name: Optional[str] = None,
         tags: Optional[Dict[str, str]] = None,
         description: str = "",

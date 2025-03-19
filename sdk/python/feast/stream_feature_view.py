@@ -154,7 +154,9 @@ class StreamFeatureView(FeatureView):
             TransformationMode.PYTHON,
             TransformationMode.SPARK,
         ) or self.mode in ("pandas", "python", "spark"):
-            return Transformation(mode=self.mode, udf=self.udf, udf_string=self.udf_string)
+            return Transformation(
+                mode=self.mode, udf=self.udf, udf_string=self.udf_string
+            )
         else:
             raise ValueError(
                 f"Unsupported transformation mode: {self.mode} for StreamFeatureView"
