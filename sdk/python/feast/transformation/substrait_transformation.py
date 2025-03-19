@@ -1,6 +1,6 @@
 import inspect
 from types import FunctionType
-from typing import Any, Callable, Optional, get_type_hints
+from typing import Any, Optional, get_type_hints
 
 import dill
 import pandas as pd
@@ -120,7 +120,7 @@ class SubstraitTransformation:
         )
 
     @classmethod
-    def from_ibis(cls, user_function: FunctionType, sources):
+    def from_ibis(cls, user_function, sources):
         from ibis.expr.types.relations import Table
 
         return_annotation = get_type_hints(user_function).get("return", inspect._empty)
