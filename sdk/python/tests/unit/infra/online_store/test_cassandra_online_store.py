@@ -156,7 +156,7 @@ def test_build_sorted_table_cql(sorted_feature_view):
     expected_cql = textwrap.dedent("""\
         CREATE TABLE IF NOT EXISTS test_keyspace.test_project_test_sorted_feature_view (
             entity_key TEXT,
-            feature1 BIGINT,feature2 LIST<TEXT>,sort_key1 BIGINT,sort_key2 TEXT,
+            feature1 BIGINT, feature2 LIST<TEXT>, sort_key1 BIGINT, sort_key2 TEXT,
             event_ts TIMESTAMP,
             created_ts TIMESTAMP,
             PRIMARY KEY ((entity_key), sort_key1, sort_key2)
@@ -167,29 +167,6 @@ def test_build_sorted_table_cql(sorted_feature_view):
     cassandra_online_store = CassandraOnlineStore()
     actual_cql = cassandra_online_store._build_sorted_table_cql(
         project, sorted_feature_view, fqtable
-    )
-
-    assert actual_cql == expected_cql
-
-
-def test_build_sorted_table_cql_with_timestamp_sort_key(sorted_feature_view_with_ts):
-    project = "test_project"
-    fqtable = "test_keyspace.test_project_test_sorted_feature_view"
-
-    expected_cql = textwrap.dedent("""\
-        CREATE TABLE IF NOT EXISTS test_keyspace.test_project_test_sorted_feature_view (
-            entity_key TEXT,
-            feature1 BIGINT,feature2 LIST<TEXT>,sort_key1 BIGINT,sort_key2 TEXT,
-            event_ts TIMESTAMP,
-            created_ts TIMESTAMP,
-            PRIMARY KEY ((entity_key), sort_key1, sort_key2, event_ts)
-        ) WITH CLUSTERING ORDER BY (sort_key1 ASC, sort_key2 DESC, event_ts DESC)
-        AND COMMENT='project=test_project, feature_view=test_sorted_feature_view';
-    """).strip()
-
-    cassandra_online_store = CassandraOnlineStore()
-    actual_cql = cassandra_online_store._build_sorted_table_cql(
-        project, sorted_feature_view_with_ts, fqtable
     )
 
     assert actual_cql == expected_cql
