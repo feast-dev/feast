@@ -157,6 +157,22 @@
                 </os>
             </activation>
         </profile>
+        <profile>
+            <!-- DO NOT MERGE TO EG-FEAST. This is used by the maven-deploy lifecycle to push to artylab. -->
+            <id>eg-release-dev</id>
+            <distributionManagement>
+                <repository>
+                    <id>eg-artylab-releases</id>
+                    <name>EG Artylab Releases Repository</name>
+                    <url>https://artylab.expedia.biz/eg-maven-release-local</url>
+                </repository>
+                <snapshotRepository>
+                    <id>eg-artylab-snapshots</id>
+                    <name>EG Artifactory Snapshot Repository</name>
+                    <url>https://artylab.expedia.biz/eg-maven-snapshot-local</url>
+                </snapshotRepository>
+            </distributionManagement>
+        </profile>
     </profiles>
 
     <dependencyManagement>
