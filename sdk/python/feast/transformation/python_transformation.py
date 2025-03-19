@@ -1,5 +1,7 @@
+import inspect
+
 from types import FunctionType
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, get_type_hints
 
 import dill
 import pyarrow
@@ -22,7 +24,7 @@ class PythonTransformation(Transformation):
         self,
         udf: FunctionType,
         name: Optional[str] = None,
-        udf_string: str = "",
+        udf_string: Optional[str] = "",
         tags: Optional[Dict[str, str]] = None,
         description: str = "",
         owner: str = "",
@@ -41,7 +43,6 @@ class PythonTransformation(Transformation):
             description: A description of the transformation.
             owner: The owner of the transformation.
         """
-        # Explicitly pass parameters to avoid mypy errors
         super().__init__(
             mode=TransformationMode.PYTHON,
             udf=udf,

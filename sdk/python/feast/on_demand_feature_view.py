@@ -200,23 +200,12 @@ class OnDemandFeatureView(BaseFeatureView):
             raise ValueError(
                 "Either udf or feature_transformation must be provided to create an OnDemandFeatureView"
             )
-        return_annotation = get_type_hints(self.udf).get("return", inspect._empty)
         if self.mode in (
-            TransformationMode.PANDAS,
-            TransformationMode.PYTHON,
+                TransformationMode.PANDAS,
+                TransformationMode.PYTHON,
         ) or self.mode in ("pandas", "python"):
-            if return_annotation not in (inspect._empty, pd.DataFrame):
-                raise TypeError(
-                    f"return signature for {self.udf} is {return_annotation} but should be pd.DataFrame"
-                )
             return Transformation(mode=self.mode, udf=self.udf)
         elif self.mode == TransformationMode.SUBSTRAIT or self.mode == "substrait":
-            from ibis.expr.types.relations import Table
-
-            if return_annotation not in (inspect._empty, Table):
-                raise TypeError(
-                    f"return signature for {self.udf} is {return_annotation} but should be ibis.expr.types.relations.Table"
-                )
             return SubstraitTransformation.from_ibis(self.udf, self.sources)
         else:
             raise ValueError(

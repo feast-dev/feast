@@ -1,4 +1,5 @@
-from typing import Any, Optional
+import inspect
+from typing import Any, Optional, Callable, get_type_hints
 
 import dill
 import pandas as pd
@@ -16,6 +17,35 @@ from feast.type_map import (
 
 
 class PandasTransformation(Transformation):
+
+    def __init__(
+        self,
+        udf: Callable[[Any], Any],
+        udf_string: Optional[str] = "",
+        name: Optional[str] = None,
+        tags: Optional[dict[str, str]] = None,
+        description: str = "",
+        owner: str = "",
+        *args,
+        **kwargs,
+    ):
+
+        return_annotation = get_type_hints(udf).get("return", inspect._empty)
+        if return_annotation not in (inspect._empty, pd.DataFrame):
+            raise TypeError(
+                f"return signature for {self.udf} is {return_annotation}, but should be pd.DataFrame for PandasTransformation"
+            )
+
+        super().__init__(
+            mode=TransformationMode.PANDAS,
+            udf=udf,
+            name=name,
+            udf_string=udf_string,
+            tags=tags,
+            description=description,
+            owner=owner,
+        )
+
     def transform_arrow(
         self, pa_table: pyarrow.Table, features: list[Field]
     ) -> pyarrow.Table:

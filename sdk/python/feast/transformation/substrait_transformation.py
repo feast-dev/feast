@@ -1,5 +1,7 @@
+import inspect
+
 from types import FunctionType
-from typing import Any, Optional
+from typing import Any, Optional, Callable, get_type_hints
 
 import dill
 import pandas as pd
@@ -119,7 +121,17 @@ class SubstraitTransformation:
         )
 
     @classmethod
-    def from_ibis(cls, user_function, sources):
+    def from_ibis(cls,
+                  user_function: Callable[[Any], Any],
+                  sources):
+        from ibis.expr.types.relations import Table
+
+        return_annotation = get_type_hints(user_function).get("return", inspect._empty)
+        if return_annotation not in (inspect._empty, Table):
+            raise TypeError(
+                f"User function must return an ibis Table, got {return_annotation} for SubstraitTransformation"
+            )
+
         import ibis
         import ibis.expr.datatypes as dt
         from ibis_substrait.compiler.core import SubstraitCompiler

@@ -44,7 +44,7 @@ class Transformation(ABC):
         mode: Union[TransformationMode, str],
         udf: Callable[[Any], Any],
         name: Optional[str] = None,
-        udf_string: str = "",
+        udf_string: Optional[str] = "",
         tags: Optional[Dict[str, str]] = None,
         description: str = "",
         owner: str = "",
