@@ -17,7 +17,7 @@ from feast.transformation.mode import TransformationMode
 class Transformation(ABC):
     udf: Callable[[Any], Any]
     udf_string: str
-    
+
     def __new__(
         cls,
         mode: Union[TransformationMode, str],
@@ -58,9 +58,7 @@ class Transformation(ABC):
     ):
         self.mode = mode if isinstance(mode, str) else mode.value
         self.udf = udf
-        if not udf_string:
-            udf_string = dill.source.getsource(udf)
-        self.udf_string = udf_string
+        self.udf_string = udf_string or dill.source.getsource(udf)
         self.name = name
         self.tags = tags or {}
         self.description = description
