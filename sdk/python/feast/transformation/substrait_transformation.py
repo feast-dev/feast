@@ -120,7 +120,7 @@ class SubstraitTransformation:
         )
 
     @classmethod
-    def from_ibis(cls, user_function: Callable[[Any], Any], sources):
+    def from_ibis(cls, user_function: FunctionType, sources):
         from ibis.expr.types.relations import Table
 
         return_annotation = get_type_hints(user_function).get("return", inspect._empty)

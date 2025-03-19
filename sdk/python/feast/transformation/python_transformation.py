@@ -126,7 +126,7 @@ class PythonTransformation(Transformation):
         return UserDefinedFunctionProto(
             name=self.udf.__name__,
             body=dill.dumps(self.udf, recurse=True),
-            body_text=self.udf_string,
+            body_text=self.udf_string or "",
         )
 
     @classmethod
