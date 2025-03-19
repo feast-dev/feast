@@ -42,11 +42,8 @@ jobs:
       #  uses: astral-sh/setup-uv@v5
       #  with:
       #    enable-cache: true
+      # https://stackoverflow.com/questions/72981949/github-actions-how-to-share-bash-aliases-across-steps 
       - name: Run image builds from source using cachi2
-        run: |
-          shopt -s expand_aliases
-          alias cachi2='docker run --rm -ti -v "$PWD:$PWD:z" -w "$PWD" quay.io/konflux-ci/cachi2:f7a61b067f4446e4982d0e3b9545ce4aa0d8284f'
-          cachi2 --help
-          ./infra/scripts/cachi2.sh
+        run: ./infra/scripts/cachi2.sh
       #- name: Minimize uv cache
       #  run: uv cache prune --ci
