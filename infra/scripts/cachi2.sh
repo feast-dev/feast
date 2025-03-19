@@ -63,6 +63,7 @@ cachi2 fetch-deps \
 }'
 #"pydantic-core/requirements.txt",
 #"sdk/python/requirements/py3.11-pydantic-requirements.txt"
+
 cachi2 generate-env ./cachi2-output -o ./cachi2.env --for-output-dir /tmp/cachi2-output
 
 ## pydantic-core builder w/ pip install

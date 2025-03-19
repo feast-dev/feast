@@ -21,16 +21,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Free Disk Space (Ubuntu)
-        uses: jlumbroso/free-disk-space@v1.3.1
-        with:
-          android: true
-          dotnet: true
-          haskell: true
-          large-packages: false
-          docker-images: false
-          swap-storage: false
-          tool-cache: false
+      #- name: Free Disk Space (Ubuntu)
+      #  uses: jlumbroso/free-disk-space@v1.3.1
+      #  with:
+      #    android: true
+      #    dotnet: true
+      #    haskell: true
+      #    large-packages: false
+      #    docker-images: false
+      #    swap-storage: false
+      #    tool-cache: false
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
       - name: Set up Docker Buildx
@@ -38,11 +38,13 @@ jobs:
         with:
           install: true
           driver: docker
-      - name: Install the latest version of uv
-        uses: astral-sh/setup-uv@v5
-        with:
-          enable-cache: true
+      #- name: Install the latest version of uv
+      #  uses: astral-sh/setup-uv@v5
+      #  with:
+      #    enable-cache: true
       - name: Run image builds from source using cachi2
-        run: source ./infra/scripts/cachi2.sh
+        run: |
+          shopt -s expand_aliases
+          source ./infra/scripts/cachi2.sh
       - name: Minimize uv cache
         run: uv cache prune --ci
