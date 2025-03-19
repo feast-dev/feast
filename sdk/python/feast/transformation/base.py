@@ -55,6 +55,8 @@ class Transformation(ABC):
     ):
         self.mode = mode if isinstance(mode, str) else mode.value
         self.udf = udf
+        if not udf_string:
+            udf_string = dill.source.getsource(udf)
         self.udf_string = udf_string
         self.name = name
         self.tags = tags or {}
