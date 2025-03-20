@@ -1,5 +1,5 @@
 import inspect
-from typing import Any, Callable, Optional, get_type_hints, cast
+from typing import Any, Callable, Optional, cast, get_type_hints
 
 import dill
 import pandas as pd

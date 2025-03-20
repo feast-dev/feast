@@ -1,5 +1,5 @@
 from types import FunctionType
-from typing import Any, Callable, Dict, Optional, cast
+from typing import Any, Dict, Optional, cast
 
 import dill
 import pyarrow

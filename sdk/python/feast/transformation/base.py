@@ -16,7 +16,7 @@ from feast.transformation.mode import TransformationMode
 
 class Transformation(ABC):
     udf: Callable[[Any], Any]
-    udf_string: str
+    udf_string: Optional[str]
 
     def __new__(
         cls,
@@ -73,6 +73,9 @@ class Transformation(ABC):
         raise NotImplementedError
 
     def transform_arrow(self, *args, **kwargs) -> Any:
+        pass
+
+    def transform_singleton(self, *args, **kwargs) -> Any:
         pass
 
     def infer_features(self, *args, **kwargs) -> Any:
