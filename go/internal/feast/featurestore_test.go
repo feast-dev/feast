@@ -155,37 +155,47 @@ func TestGetOnlineFeaturesRange(t *testing.T) {
 		},
 	}
 
-	ts1 := timestamp.Timestamp{Seconds: now.Unix() - 86400*3}
-	ts2 := timestamp.Timestamp{Seconds: now.Unix() - 86400*2}
-	ts3 := timestamp.Timestamp{Seconds: now.Unix() - 86400*1}
-
 	mockRangeFeatureData := [][]onlinestore.RangeFeatureData{
 		{
 			{
-				FeatureView:     "driver_stats",
-				FeatureName:     "conv_rate",
-				Values:          []interface{}{0.85, 0.87, 0.89},
-				EventTimestamps: []timestamp.Timestamp{ts1, ts2, ts3},
+				FeatureView: "driver_stats",
+				FeatureName: "conv_rate",
+				Values:      []interface{}{0.85, 0.87, 0.89},
+				EventTimestamps: []timestamp.Timestamp{
+					{Seconds: now.Unix() - 86400*3},
+					{Seconds: now.Unix() - 86400*2},
+					{Seconds: now.Unix() - 86400*1},
+				},
 			},
 			{
-				FeatureView:     "driver_stats",
-				FeatureName:     "acc_rate",
-				Values:          []interface{}{0.91, 0.92, 0.94},
-				EventTimestamps: []timestamp.Timestamp{ts1, ts2, ts3},
+				FeatureView: "driver_stats",
+				FeatureName: "acc_rate",
+				Values:      []interface{}{0.91, 0.92, 0.94},
+				EventTimestamps: []timestamp.Timestamp{
+					{Seconds: now.Unix() - 86400*3},
+					{Seconds: now.Unix() - 86400*2},
+					{Seconds: now.Unix() - 86400*1},
+				},
 			},
 		},
 		{
 			{
-				FeatureView:     "driver_stats",
-				FeatureName:     "conv_rate",
-				Values:          []interface{}{0.78, 0.80},
-				EventTimestamps: []timestamp.Timestamp{ts1, ts3},
+				FeatureView: "driver_stats",
+				FeatureName: "conv_rate",
+				Values:      []interface{}{0.78, 0.80},
+				EventTimestamps: []timestamp.Timestamp{
+					{Seconds: now.Unix() - 86400*3},
+					{Seconds: now.Unix() - 86400*1},
+				},
 			},
 			{
-				FeatureView:     "driver_stats",
-				FeatureName:     "acc_rate",
-				Values:          []interface{}{0.85, 0.88},
-				EventTimestamps: []timestamp.Timestamp{ts1, ts3},
+				FeatureView: "driver_stats",
+				FeatureName: "acc_rate",
+				Values:      []interface{}{0.85, 0.88},
+				EventTimestamps: []timestamp.Timestamp{
+					{Seconds: now.Unix() - 86400*3},
+					{Seconds: now.Unix() - 86400*1},
+				},
 			},
 		},
 	}
