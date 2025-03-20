@@ -91,13 +91,17 @@ public class FeastClient implements AutoCloseable {
   }
 
   /**
-   * Create an authenticated client that can access Feast serving with authentication enabled & has
-   * an optional serviceConfig.
+   * Create an authenticated client that can access Feast serving with authentication enabled and
+   * has an optional serviceConfig.
    *
    * @param host hostname or ip address of Feast serving GRPC server
    * @param port port number of Feast serving GRPC server
+   * @param requestTimeout maximum duration for online retrievals from the GRPC server in
+   *     milliseconds
    * @param securityConfig security options to configure the Feast client. See {@link
    *     SecurityConfig} for options.
+   * @param serviceConfig NettyChannel uses this serviceConfig to declare HTTP/2.0 protocol config
+   *     options.
    * @return {@link FeastClient}
    */
   public static FeastClient createSecure(
