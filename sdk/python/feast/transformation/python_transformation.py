@@ -1,5 +1,5 @@
 from types import FunctionType
-from typing import Any, Dict, Optional, Union, Callable
+from typing import Any, Callable, Dict, Optional
 
 import dill
 import pyarrow
@@ -18,16 +18,21 @@ from feast.type_map import (
 class PythonTransformation(Transformation):
     udf: FunctionType
 
-    def __new__(cls,
-                udf: Callable[[Any], Any],
-                udf_string: Optional[str] = "",
-                name: Optional[str] = None,
-                tags: Optional[Dict[str, str]] = None,
-                description: str = "",
-                owner: str = "",
-                singleton: bool = False,
-                *args,
-                **kwargs) -> "Transformation":
+    def __new__(
+        cls,
+        udf: Callable[[Any], Any],
+        udf_string: Optional[str] = "",
+        name: Optional[str] = None,
+        tags: Optional[Dict[str, str]] = None,
+        description: str = "",
+        owner: str = "",
+        singleton: bool = False,
+        *args,
+        **kwargs,
+    ) -> "PythonTransformation":
+        # remove mode from kwargs
+        if "mode" in kwargs:
+            kwargs.pop("mode")
         instance = super(PythonTransformation, cls).__new__(
             cls,
             mode=TransformationMode.PYTHON,
@@ -39,7 +44,8 @@ class PythonTransformation(Transformation):
             owner=owner,
             singleton=singleton,
             *args,
-            **kwargs)
+            **kwargs,
+        )
         return instance
 
     def __init__(

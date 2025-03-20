@@ -1,5 +1,5 @@
 import inspect
-from typing import Any, Callable, Optional, get_type_hints, Union, Dict
+from typing import Any, Callable, Dict, Optional, get_type_hints
 
 import dill
 import pandas as pd
@@ -17,17 +17,19 @@ from feast.type_map import (
 
 
 class PandasTransformation(Transformation):
-
-    def __new__(cls,
-                udf: Callable[[Any], Any],
-                udf_string: Optional[str] = "",
-                name: Optional[str] = None,
-                tags: Optional[Dict[str, str]] = None,
-                description: str = "",
-                owner: str = "",
-                *args,
-                **kwargs
-                ) -> "Transformation":
+    def __new__(
+        cls,
+        udf: Callable[[Any], Any],
+        udf_string: Optional[str] = "",
+        name: Optional[str] = None,
+        tags: Optional[Dict[str, str]] = None,
+        description: str = "",
+        owner: str = "",
+        *args,
+        **kwargs,
+    ) -> "PandasTransformation":
+        if "mode" in kwargs:
+            kwargs.pop("mode")
         instance = super(PandasTransformation, cls).__new__(
             cls,
             mode=TransformationMode.PANDAS,
@@ -38,19 +40,20 @@ class PandasTransformation(Transformation):
             description=description,
             owner=owner,
             *args,
-            **kwargs)
+            **kwargs,
+        )
         return instance
 
     def __init__(
-            self,
-            udf: Callable[[Any], Any],
-            udf_string: Optional[str] = "",
-            name: Optional[str] = None,
-            tags: Optional[dict[str, str]] = None,
-            description: str = "",
-            owner: str = "",
-            *args,
-            **kwargs,
+        self,
+        udf: Callable[[Any], Any],
+        udf_string: Optional[str] = "",
+        name: Optional[str] = None,
+        tags: Optional[dict[str, str]] = None,
+        description: str = "",
+        owner: str = "",
+        *args,
+        **kwargs,
     ):
         return_annotation = get_type_hints(udf).get("return", inspect._empty)
         if return_annotation not in (inspect._empty, pd.DataFrame):
@@ -69,23 +72,19 @@ class PandasTransformation(Transformation):
         )
 
     def transform_arrow(
-            self,
-            pa_table: pyarrow.Table,
-            features: list[Field]
+        self, pa_table: pyarrow.Table, features: list[Field]
     ) -> pyarrow.Table:
         output_df_pandas = self.udf(pa_table.to_pandas())
         return pyarrow.Table.from_pandas(output_df_pandas)
 
-    def transform(self,
-                  inputs: pd.DataFrame) -> pd.DataFrame:
+    def transform(self, inputs: pd.DataFrame) -> pd.DataFrame:
         return self.udf(inputs)
 
-
     def infer_features(
-            self,
-            random_input: dict[str, list[Any]],
-            *args,
-            **kwargs,
+        self,
+        random_input: dict[str, list[Any]],
+        *args,
+        **kwargs,
     ) -> list[Field]:
         df = pd.DataFrame.from_dict(random_input)
         output_df: pd.DataFrame = self.transform(df)
@@ -112,24 +111,22 @@ class PandasTransformation(Transformation):
             )
         return fields
 
-    def __eq__(self,
-               other):
+    def __eq__(self, other):
         if not isinstance(other, PandasTransformation):
             raise TypeError(
                 "Comparisons should only involve PandasTransformation class objects."
             )
 
         if (
-                self.udf_string != other.udf_string
-                or self.udf.__code__.co_code != other.udf.__code__.co_code
+            self.udf_string != other.udf_string
+            or self.udf.__code__.co_code != other.udf.__code__.co_code
         ):
             return False
 
         return True
 
     @classmethod
-    def from_proto(cls,
-                   user_defined_function_proto: UserDefinedFunctionProto):
+    def from_proto(cls, user_defined_function_proto: UserDefinedFunctionProto):
         return PandasTransformation(
             udf=dill.loads(user_defined_function_proto.body),
             udf_string=user_defined_function_proto.body_text,

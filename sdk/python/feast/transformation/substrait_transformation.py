@@ -1,7 +1,4 @@
 import inspect
-
-from feast.transformation.base import Transformation
-from feast.transformation.mode import TransformationMode
 from types import FunctionType
 from typing import Any, Optional, get_type_hints
 
@@ -15,6 +12,8 @@ from feast.field import Field, from_value_type
 from feast.protos.feast.core.Transformation_pb2 import (
     SubstraitTransformationV2 as SubstraitTransformationProto,
 )
+from feast.transformation.base import Transformation
+from feast.transformation.mode import TransformationMode
 from feast.type_map import (
     feast_value_type_to_pandas_type,
     python_type_to_feast_value_type,
@@ -22,17 +21,18 @@ from feast.type_map import (
 
 
 class SubstraitTransformation(Transformation):
-    def __init__(self,
-                 substrait_plan: bytes,
-                 udf: FunctionType,
-                 udf_string: str = "",
-                 name: Optional[str] = None,
-                 tags: Optional[dict[str, str]] = None,
-                 description: str = "",
-                 owner: str = "",
-                 *args,
-                 **kwargs,
-                 ):
+    def __init__(
+        self,
+        substrait_plan: bytes,
+        udf: FunctionType,
+        udf_string: str = "",
+        name: Optional[str] = None,
+        tags: Optional[dict[str, str]] = None,
+        description: str = "",
+        owner: str = "",
+        *args,
+        **kwargs,
+    ):
         """
         Creates an SubstraitTransformation object.
 
@@ -121,8 +121,7 @@ class SubstraitTransformation(Transformation):
 
         return (
             self.substrait_plan == other.substrait_plan
-            and self.udf.__code__.co_code
-            == other.udf.__code__.co_code
+            and self.udf.__code__.co_code == other.udf.__code__.co_code
         )
 
     def to_proto(self) -> SubstraitTransformationProto:
@@ -183,5 +182,5 @@ class SubstraitTransformation(Transformation):
             mode=TransformationMode.SUBSTRAIT,
             substrait_plan=substrait_plan,
             udf=user_function,
-            udf_string=substrait_plan
+            udf_string=substrait_plan,
         )
