@@ -34,12 +34,16 @@ const (
 	DefaultOnlineStorePath    = "online_store.db"
 	svcDomain                 = ".svc.cluster.local"
 
-	HttpPort      = 80
-	HttpsPort     = 443
-	HttpScheme    = "http"
-	HttpsScheme   = "https"
-	tlsPath       = "/tls/"
-	tlsNameSuffix = "-tls"
+	HttpPort              = 80
+	HttpsPort             = 443
+	HttpScheme            = "http"
+	HttpsScheme           = "https"
+	tlsPath               = "/tls/"
+	tlsPathCustomCABundle = "/etc/pki/tls/custom-certs/ca-bundle.crt"
+	tlsNameSuffix         = "-tls"
+
+	caBundleAnnotation = "config.openshift.io/inject-trusted-cabundle"
+	caBundleName       = "odh-trusted-ca-bundle"
 
 	DefaultOfflineStorageRequest  = "20Gi"
 	DefaultOnlineStorageRequest   = "5Gi"
@@ -267,4 +271,11 @@ type deploymentSettings struct {
 	Args            []string
 	TargetHttpPort  int32
 	TargetHttpsPort int32
+}
+
+// CustomCertificatesBundle represents a custom CA bundle configuration
+type CustomCertificatesBundle struct {
+	IsDefined     bool
+	VolumeName    string
+	ConfigMapName string
 }
