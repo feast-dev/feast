@@ -1,5 +1,5 @@
 import inspect
-from typing import Any, Callable, Optional, get_type_hints
+from typing import Any, Callable, Optional, get_type_hints, cast
 
 import dill
 import pandas as pd
@@ -19,15 +19,24 @@ from feast.type_map import (
 class PandasTransformation(Transformation):
     def __new__(
         cls,
-        **kwargs,
-    ) -> "Transformation":
-        kwargs.pop("mode")
+        udf: Callable[[Any], Any],
+        udf_string: Optional[str] = "",
+        name: Optional[str] = None,
+        tags: Optional[dict[str, str]] = None,
+        description: str = "",
+        owner: str = "",
+    ) -> "PandasTransformation":
         instance = super(PandasTransformation, cls).__new__(
             cls,
             mode=TransformationMode.PANDAS,
-            **kwargs,
+            udf=udf,
+            name=name,
+            udf_string=udf_string,
+            tags=tags,
+            description=description,
+            owner=owner,
         )
-        return instance
+        return cast(PandasTransformation, instance)
 
     def __init__(
         self,
