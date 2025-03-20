@@ -1,5 +1,5 @@
 from types import FunctionType
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Dict, Optional
 
 import dill
 import pyarrow
@@ -19,21 +19,21 @@ class PythonTransformation(Transformation):
     udf: FunctionType
 
     def __new__(
-        cls,
-        singleton: bool = False,
-        *args,
-        **kwargs,
-    ) -> "PythonTransformation":
-        # remove mode from kwargs
-        if "mode" in kwargs:
-            kwargs.pop("mode")
-        instance = super(PythonTransformation, cls).__new__(
             cls,
-            mode=TransformationMode.PYTHON,
-            singleton=singleton,
+            singleton: bool = False,
             *args,
             **kwargs,
+    ) -> "PythonTransformation":
+        kwargs.pop("mode", None)
+
+        instance = super(PythonTransformation, cls).__new__(
+            cls,
+            *args,
+            **kwargs,
+            mode=TransformationMode.PYTHON,
+            singleton=singleton,
         )
+
         return instance
 
     def __init__(

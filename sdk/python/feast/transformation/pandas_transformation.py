@@ -1,5 +1,5 @@
 import inspect
-from typing import Any, Callable, Dict, Optional, get_type_hints
+from typing import Any, Callable, Optional, get_type_hints
 
 import dill
 import pandas as pd
@@ -22,13 +22,12 @@ class PandasTransformation(Transformation):
         *args,
         **kwargs,
     ) -> "PandasTransformation":
-        if "mode" in kwargs:
-            kwargs.pop("mode")
+        kwargs.pop("mode")
         instance = super(PandasTransformation, cls).__new__(
             cls,
-            mode=TransformationMode.PANDAS,
             *args,
             **kwargs,
+            mode=TransformationMode.PANDAS,
         )
         return instance
 
