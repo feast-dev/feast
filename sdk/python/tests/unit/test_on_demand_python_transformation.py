@@ -1436,14 +1436,13 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
             input_df = pd.DataFrame([sample_input])
             self.store.write_to_online_store("docling_transform_docs", input_df)
 
-            documents = self.store.retrieve_online_documents_v2(
+            documents = self.store.get_online_features(
                 features=[
                     "docling_transform_docs:document_id",
                     "docling_transform_docs:chunk_id",
                     "docling_transform_docs:chunk_text",
                 ],
-                query=[0.5] * VECTOR_LEN,
-                top_k=1,
+                entity_rows=[{"document_id": "doc_1", "chunk_id": "chunk-0"}],
             ).to_dict()
             assert documents == {
                 "document_id": ["doc_1"],
@@ -1451,7 +1450,6 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
                 "chunk_text": [
                     "Let's have fun with Natural Language Processing on PDFs."
                 ],
-                "distance": [0.0],
             }
 
             multiple_inputs_df = pd.DataFrame([sample_input, sample_input_2])
