@@ -19,15 +19,13 @@ from feast.type_map import (
 class PandasTransformation(Transformation):
     def __new__(
         cls,
-        *args,
         **kwargs,
     ) -> "PandasTransformation":
         kwargs.pop("mode")
         instance = super(PandasTransformation, cls).__new__(
             cls,
-            *args,
-            **kwargs,
             mode=TransformationMode.PANDAS,
+            **kwargs,
         )
         return instance
 

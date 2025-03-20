@@ -19,10 +19,10 @@ class PythonTransformation(Transformation):
     udf: FunctionType
 
     def __new__(
-            cls,
-            singleton: bool = False,
-            *args,
-            **kwargs,
+        cls,
+        singleton: bool = False,
+        *args,
+        **kwargs,
     ) -> "PythonTransformation":
         kwargs.pop("mode", None)
 
