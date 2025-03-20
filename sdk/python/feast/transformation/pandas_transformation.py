@@ -19,12 +19,6 @@ from feast.type_map import (
 class PandasTransformation(Transformation):
     def __new__(
         cls,
-        udf: Callable[[Any], Any],
-        udf_string: Optional[str] = "",
-        name: Optional[str] = None,
-        tags: Optional[Dict[str, str]] = None,
-        description: str = "",
-        owner: str = "",
         *args,
         **kwargs,
     ) -> "PandasTransformation":
@@ -33,12 +27,6 @@ class PandasTransformation(Transformation):
         instance = super(PandasTransformation, cls).__new__(
             cls,
             mode=TransformationMode.PANDAS,
-            udf=udf,
-            name=name,
-            udf_string=udf_string,
-            tags=tags,
-            description=description,
-            owner=owner,
             *args,
             **kwargs,
         )

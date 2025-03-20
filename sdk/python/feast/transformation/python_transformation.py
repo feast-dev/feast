@@ -20,12 +20,6 @@ class PythonTransformation(Transformation):
 
     def __new__(
         cls,
-        udf: Callable[[Any], Any],
-        udf_string: Optional[str] = "",
-        name: Optional[str] = None,
-        tags: Optional[Dict[str, str]] = None,
-        description: str = "",
-        owner: str = "",
         singleton: bool = False,
         *args,
         **kwargs,
@@ -36,12 +30,6 @@ class PythonTransformation(Transformation):
         instance = super(PythonTransformation, cls).__new__(
             cls,
             mode=TransformationMode.PYTHON,
-            udf=udf,
-            name=name,
-            udf_string=udf_string,
-            tags=tags,
-            description=description,
-            owner=owner,
             singleton=singleton,
             *args,
             **kwargs,
