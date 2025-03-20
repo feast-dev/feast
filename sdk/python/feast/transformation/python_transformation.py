@@ -49,7 +49,6 @@ class PythonTransformation:
         self, random_input: dict[str, Any], singleton: Optional[bool] = False
     ) -> list[Field]:
         output_dict: dict[str, Any] = self.transform(random_input)
-        print(f"output dict = {output_dict}")
 
         fields = []
         for feature_name, feature_value in output_dict.items():
@@ -77,9 +76,6 @@ class PythonTransformation:
                 inferred_type = type(feature_value)
                 inferred_value = feature_value
 
-            print(
-                f"Feature name: {feature_name}, inferred type: {inferred_type}, inferred value: {inferred_value} singleton: {singleton}"
-            )
             fields.append(
                 Field(
                     name=feature_name,
