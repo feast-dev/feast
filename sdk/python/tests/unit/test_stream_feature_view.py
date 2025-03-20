@@ -32,6 +32,7 @@ def test_create_stream_feature_view():
         ttl=timedelta(days=30),
         source=stream_source,
         aggregations=[],
+        udf=lambda x: x
     )
 
     push_source = PushSource(
@@ -43,6 +44,7 @@ def test_create_stream_feature_view():
         ttl=timedelta(days=30),
         source=push_source,
         aggregations=[],
+        udf=lambda x: x
     )
 
     with pytest.raises(TypeError):
@@ -60,6 +62,7 @@ def test_create_stream_feature_view():
             ttl=timedelta(days=30),
             source=FileSource(path="some path"),
             aggregations=[],
+            udf=lambda x: x
         )
 
 
@@ -198,6 +201,7 @@ def test_stream_feature_view_proto_type():
         ttl=timedelta(days=30),
         source=stream_source,
         aggregations=[],
+        udf=lambda x: x
     )
     assert sfv.proto_class is StreamFeatureViewProto
 
@@ -217,6 +221,7 @@ def test_stream_feature_view_copy():
         ttl=timedelta(days=30),
         source=stream_source,
         aggregations=[],
+        udf=lambda x: x
     )
     assert sfv == copy.copy(sfv)
 

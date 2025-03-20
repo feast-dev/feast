@@ -1,5 +1,5 @@
 from types import FunctionType
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union, Callable
 
 import dill
 import pyarrow
@@ -18,10 +18,35 @@ from feast.type_map import (
 class PythonTransformation(Transformation):
     udf: FunctionType
 
+    def __new__(cls,
+                udf: Callable[[Any], Any],
+                udf_string: Optional[str] = "",
+                name: Optional[str] = None,
+                tags: Optional[Dict[str, str]] = None,
+                description: str = "",
+                owner: str = "",
+                singleton: bool = False,
+                *args,
+                **kwargs) -> "Transformation":
+        instance = super(PythonTransformation, cls).__new__(
+            cls,
+            mode=TransformationMode.PYTHON,
+            udf=udf,
+            name=name,
+            udf_string=udf_string,
+            tags=tags,
+            description=description,
+            owner=owner,
+            singleton=singleton,
+            *args,
+            **kwargs)
+        return instance
+
     def __init__(
         self,
         udf: FunctionType,
         udf_string: Optional[str] = "",
+        singleton: bool = False,
         name: Optional[str] = None,
         tags: Optional[Dict[str, str]] = None,
         description: str = "",
@@ -50,6 +75,7 @@ class PythonTransformation(Transformation):
             description=description,
             owner=owner,
         )
+        self.singleton = singleton
 
     def transform_arrow(
         self,
@@ -125,7 +151,6 @@ class PythonTransformation(Transformation):
     @classmethod
     def from_proto(cls, user_defined_function_proto: UserDefinedFunctionProto):
         return PythonTransformation(
-            mode=TransformationMode.PYTHON,
             udf=dill.loads(user_defined_function_proto.body),
             udf_string=user_defined_function_proto.body_text,
         )

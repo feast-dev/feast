@@ -27,7 +27,6 @@ class Transformation(ABC):
         tags: Optional[Dict[str, str]] = None,
         description: str = "",
         owner: str = "",
-        singleton: bool = False,
         *args,
         **kwargs,
     ) -> "Transformation":
@@ -54,16 +53,14 @@ class Transformation(ABC):
         tags: Optional[Dict[str, str]] = None,
         description: str = "",
         owner: str = "",
-        singleton: bool = False,
     ):
         self.mode = mode if isinstance(mode, str) else mode.value
         self.udf = udf
-        self.udf_string = udf_string or dill.source.getsource(udf)
+        self.udf_string = udf_string
         self.name = name
         self.tags = tags or {}
         self.description = description
         self.owner = owner
-        self.singleton = singleton
 
     def to_proto(self) -> UserDefinedFunctionProto:
         return UserDefinedFunctionProto(
@@ -81,9 +78,6 @@ class Transformation(ABC):
     def infer_features(self, *args, **kwargs) -> Any:
         raise NotImplementedError
 
-    def transform_singleton(self, *args, **kwargs) -> Any:
-        pass
-
 
 def transformation(
     mode: Union[TransformationMode, str],
@@ -91,7 +85,6 @@ def transformation(
     tags: Optional[Dict[str, str]] = None,
     description: Optional[str] = "",
     owner: Optional[str] = "",
-    singleton: bool = False,
 ):
     def mainify(obj):
         # Needed to allow dill to properly serialize the udf. Otherwise, clients will need to have a file with the same
@@ -102,7 +95,7 @@ def transformation(
     def decorator(user_function):
         udf_string = dill.source.getsource(user_function)
         mainify(user_function)
-        batch_feature_view_obj = Transformation(
+        transformation_obj = Transformation(
             mode=mode,
             name=name or user_function.__name__,
             tags=tags,
@@ -110,9 +103,8 @@ def transformation(
             owner=owner,
             udf=user_function,
             udf_string=udf_string,
-            singleton=singleton,
         )
-        functools.update_wrapper(wrapper=batch_feature_view_obj, wrapped=user_function)
-        return batch_feature_view_obj
+        functools.update_wrapper(wrapper=transformation_obj, wrapped=user_function)
+        return transformation_obj
 
     return decorator

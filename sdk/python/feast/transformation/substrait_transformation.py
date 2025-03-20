@@ -1,4 +1,7 @@
 import inspect
+
+from feast.transformation.base import Transformation
+from feast.transformation.mode import TransformationMode
 from types import FunctionType
 from typing import Any, Optional, get_type_hints
 
@@ -18,17 +21,36 @@ from feast.type_map import (
 )
 
 
-class SubstraitTransformation:
-    def __init__(self, substrait_plan: bytes, ibis_function: FunctionType):
+class SubstraitTransformation(Transformation):
+    def __init__(self,
+                 substrait_plan: bytes,
+                 udf: FunctionType,
+                 udf_string: str = "",
+                 name: Optional[str] = None,
+                 tags: Optional[dict[str, str]] = None,
+                 description: str = "",
+                 owner: str = "",
+                 *args,
+                 **kwargs,
+                 ):
         """
         Creates an SubstraitTransformation object.
 
         Args:
             substrait_plan: The user-provided substrait plan.
-            ibis_function: The user-provided ibis function.
+            udf: The user-provided ibis function.
         """
+        super().__init__(
+            mode=TransformationMode.SUBSTRAIT,
+            udf=udf,
+            name=name,
+            udf_string=udf_string,
+            tags=tags,
+            description=description,
+            owner=owner,
+        )
         self.substrait_plan = substrait_plan
-        self.ibis_function = ibis_function
+        self.udf = udf
 
     def transform(self, df: pd.DataFrame) -> pd.DataFrame:
         def table_provider(names, schema: pyarrow.Schema):
@@ -45,7 +67,7 @@ class SubstraitTransformation:
         )
 
     def transform_ibis(self, table):
-        return self.ibis_function(table)
+        return self.udf(table)
 
     def transform_arrow(
         self, pa_table: pyarrow.Table, features: list[Field] = []
@@ -99,14 +121,14 @@ class SubstraitTransformation:
 
         return (
             self.substrait_plan == other.substrait_plan
-            and self.ibis_function.__code__.co_code
-            == other.ibis_function.__code__.co_code
+            and self.udf.__code__.co_code
+            == other.udf.__code__.co_code
         )
 
     def to_proto(self) -> SubstraitTransformationProto:
         return SubstraitTransformationProto(
             substrait_plan=self.substrait_plan,
-            ibis_function=dill.dumps(self.ibis_function, recurse=True),
+            ibis_function=dill.dumps(self.udf, recurse=True),
         )
 
     @classmethod
@@ -115,8 +137,9 @@ class SubstraitTransformation:
         substrait_transformation_proto: SubstraitTransformationProto,
     ):
         return SubstraitTransformation(
+            mode=TransformationMode.SUBSTRAIT,
             substrait_plan=substrait_transformation_proto.substrait_plan,
-            ibis_function=dill.loads(substrait_transformation_proto.ibis_function),
+            udf=dill.loads(substrait_transformation_proto.ibis_function),
         )
 
     @classmethod
@@ -154,7 +177,11 @@ class SubstraitTransformation:
 
         expr = user_function(ibis.table(input_fields, "t"))
 
+        substrait_plan = compiler.compile(expr).SerializeToString()
+
         return SubstraitTransformation(
-            substrait_plan=compiler.compile(expr).SerializeToString(),
-            ibis_function=user_function,
+            mode=TransformationMode.SUBSTRAIT,
+            substrait_plan=substrait_plan,
+            udf=user_function,
+            udf_string=substrait_plan
         )

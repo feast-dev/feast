@@ -145,10 +145,6 @@ class StreamFeatureView(FeatureView):
         )
 
     def get_feature_transformation(self) -> Transformation:
-        if not self.udf:
-            raise ValueError(
-                "Either a UDF or a feature transformation must be specified for StreamFeatureView"
-            )
         if self.mode in (
             TransformationMode.PANDAS,
             TransformationMode.PYTHON,
