@@ -1,5 +1,5 @@
 import inspect
-from typing import Any, Callable, Optional, get_type_hints
+from typing import Any, Callable, Optional, get_type_hints, Type
 
 import dill
 import pandas as pd
@@ -18,9 +18,9 @@ from feast.type_map import (
 
 class PandasTransformation(Transformation):
     def __new__(
-        cls,
+        cls: Type["PandasTransformation"],
         **kwargs,
-    ) -> "Transformation":
+    ) -> "PandasTransformation":
         kwargs.pop("mode")
         instance = super(PandasTransformation, cls).__new__(
             cls,
