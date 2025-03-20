@@ -1,5 +1,5 @@
 from types import FunctionType
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, Optional, cast
 
 import dill
 import pyarrow
@@ -19,32 +19,39 @@ class PythonTransformation(Transformation):
     udf: FunctionType
 
     def __new__(
-        cls,
-        singleton: bool = False,
-        **kwargs,
-    ) -> "Transformation":
-        kwargs.pop("mode", None)
-
+            cls,
+            udf: Callable[[Any], Any],
+            udf_string: Optional[str] = "",
+            singleton: bool = False,
+            name: Optional[str] = None,
+            tags: Optional[Dict[str, str]] = None,
+            description: str = "",
+            owner: str = "",
+    ) -> "PythonTransformation":
         instance = super(PythonTransformation, cls).__new__(
             cls,
             mode=TransformationMode.PYTHON,
             singleton=singleton,
-            **kwargs,
+            udf=udf,
+            udf_string=udf_string,
+            name=name,
+            tags=tags,
+            description=description,
+            owner=owner,
         )
-
-        return instance
+        return cast(PythonTransformation, instance)
 
     def __init__(
-        self,
-        udf: FunctionType,
-        udf_string: Optional[str] = "",
-        singleton: bool = False,
-        name: Optional[str] = None,
-        tags: Optional[Dict[str, str]] = None,
-        description: str = "",
-        owner: str = "",
-        *args,
-        **kwargs,
+            self,
+            udf: FunctionType,
+            udf_string: Optional[str] = "",
+            singleton: bool = False,
+            name: Optional[str] = None,
+            tags: Optional[Dict[str, str]] = None,
+            description: str = "",
+            owner: str = "",
+            *args,
+            **kwargs,
     ):
         """
         Creates a PythonTransformation object.
@@ -70,18 +77,20 @@ class PythonTransformation(Transformation):
         self.singleton = singleton
 
     def transform_arrow(
-        self,
-        pa_table: pyarrow.Table,
-        features: list[Field],
+            self,
+            pa_table: pyarrow.Table,
+            features: list[Field],
     ) -> pyarrow.Table:
         return pyarrow.Table.from_pydict(self.udf(pa_table.to_pydict()))
 
-    def transform(self, input_dict: dict) -> dict:
+    def transform(self,
+                  input_dict: dict) -> dict:
         # Ensuring that the inputs are included as well
         output_dict = self.udf.__call__(input_dict)
         return {**input_dict, **output_dict}
 
-    def transform_singleton(self, input_dict: dict) -> dict:
+    def transform_singleton(self,
+                            input_dict: dict) -> dict:
         # This flattens the list of elements to extract the first one
         # in the case of a singleton element, it takes the value directly
         # in the case of a list of lists, it takes the first list
@@ -90,7 +99,9 @@ class PythonTransformation(Transformation):
         return {**input_dict, **output_dict}
 
     def infer_features(
-        self, random_input: dict[str, Any], singleton: Optional[bool] = False
+            self,
+            random_input: dict[str, Any],
+            singleton: Optional[bool] = False
     ) -> list[Field]:
         output_dict: dict[str, Any] = self.transform(random_input)
 
@@ -126,22 +137,24 @@ class PythonTransformation(Transformation):
             )
         return fields
 
-    def __eq__(self, other):
+    def __eq__(self,
+               other):
         if not isinstance(other, PythonTransformation):
             raise TypeError(
                 "Comparisons should only involve PythonTransformation class objects."
             )
 
         if (
-            self.udf_string != other.udf_string
-            or self.udf.__code__.co_code != other.udf.__code__.co_code
+                self.udf_string != other.udf_string
+                or self.udf.__code__.co_code != other.udf.__code__.co_code
         ):
             return False
 
         return True
 
     @classmethod
-    def from_proto(cls, user_defined_function_proto: UserDefinedFunctionProto):
+    def from_proto(cls,
+                   user_defined_function_proto: UserDefinedFunctionProto):
         return PythonTransformation(
             udf=dill.loads(user_defined_function_proto.body),
             udf_string=user_defined_function_proto.body_text,
