@@ -22,7 +22,7 @@
     <description>Feature Store for Machine Learning</description>
     <url>${github.url}</url>
 
-    <groupId>dev.feast</groupId>
+    <groupId>eg.feast</groupId>
     <artifactId>feast-parent</artifactId>
     <version>${revision}</version>
     <packaging>pom</packaging>
@@ -35,7 +35,7 @@
     </modules>
 
     <properties>
-        <revision>0.40.0</revision>
+        <revision>0.6.15</revision>
         <github.url>https://github.com/feast-dev/feast</github.url>
 
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -593,6 +593,9 @@
                     <groupId>org.xolstice.maven.plugins</groupId>
                     <artifactId>protobuf-maven-plugin</artifactId>
                     <version>0.6.1</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.</groupId>
                 </plugin>
             </plugins>
         </pluginManagement>
