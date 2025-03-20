@@ -49,6 +49,7 @@ class PythonTransformation:
         self, random_input: dict[str, Any], singleton: Optional[bool] = False
     ) -> list[Field]:
         output_dict: dict[str, Any] = self.transform(random_input)
+        print(f"output dict = {output_dict}")
 
         fields = []
         for feature_name, feature_value in output_dict.items():
@@ -58,16 +59,27 @@ class PythonTransformation:
                         f"Failed to infer type for feature '{feature_name}' with value "
                         + f"'{feature_value}' since no items were returned by the UDF."
                     )
-                inferred_type = type(feature_value[0])
                 inferred_value = feature_value[0]
-                if singleton:
-                    inferred_value = feature_value
-                    inferred_type = None  # type: ignore
+                if singleton and isinstance(inferred_value, list):
+                    # If we have a nested list like [[0.5, 0.5, ...]]
+                    if len(inferred_value) > 0:
+                        # Get the actual element type from the inner list
+                        inferred_type = type(inferred_value[0])
+                    else:
+                        raise TypeError(
+                            f"Failed to infer type for nested feature '{feature_name}' - inner list is empty"
+                        )
+                else:
+                    # For non-nested lists or when singleton is False
+                    inferred_type = type(inferred_value)
 
             else:
                 inferred_type = type(feature_value)
                 inferred_value = feature_value
 
+            print(
+                f"Feature name: {feature_name}, inferred type: {inferred_type}, inferred value: {inferred_value} singleton: {singleton}"
+            )
             fields.append(
                 Field(
                     name=feature_name,
