@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package eg.feast;
+package dev.feast;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Timestamp;
