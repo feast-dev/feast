@@ -1346,7 +1346,7 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
                 name="document_id",
                 description="Document ID",
                 value_type=ValueType.STRING,
-                join_keys=["file_name"],
+                join_keys=["document_id"],
             )
 
             def embed_chunk(input_string) -> dict[str, list[float]]:
@@ -1382,7 +1382,6 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
                 singleton=True,
             )
             def docling_transform_docs(inputs: dict[str, Any]):
-                print(inputs)
                 document_ids, chunks, embeddings, chunk_ids = [], [], [], []
                 buf = io.BytesIO(
                     inputs["pdf_bytes"],
@@ -1436,7 +1435,25 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
             input_df = pd.DataFrame([sample_input])
             self.store.write_to_online_store("docling_transform_docs", input_df)
 
-            documents = self.store.get_online_features(
+            conn = self.store._provider._online_store._conn
+            document_table = self.store._provider._online_store._conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' and name like '%docling%';"
+            ).fetchall()[0][0]
+            written_data = pd.read_sql_query(f"select * from {document_table}", conn)
+            assert (
+                written_data[written_data["feature_name"] == "document_id"][
+                    "vector_value"
+                ].values[0]
+                == "doc_1"
+            )
+            assert (
+                written_data[written_data["feature_name"] == "chunk_id"][
+                    "vector_value"
+                ].values[0]
+                == "chunk-0"
+            )
+
+            online_features = self.store.get_online_features(
                 features=[
                     "docling_transform_docs:document_id",
                     "docling_transform_docs:chunk_id",
@@ -1444,7 +1461,7 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
                 ],
                 entity_rows=[{"document_id": "doc_1", "chunk_id": "chunk-0"}],
             ).to_dict()
-            assert documents == {
+            online_features == {
                 "document_id": ["doc_1"],
                 "chunk_id": ["chunk-0"],
                 "chunk_text": [
