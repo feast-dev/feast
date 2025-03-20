@@ -31,4 +31,5 @@ service GrpcFeatureServer {
     rpc Push (PushRequest) returns (PushResponse) {};
     rpc WriteToOnlineStore (WriteToOnlineStoreRequest) returns (WriteToOnlineStoreResponse);
     rpc GetOnlineFeatures (feast.serving.GetOnlineFeaturesRequest) returns (feast.serving.GetOnlineFeaturesResponse);
+    rpc GetOnlineFeaturesRange (feast.serving.GetOnlineFeaturesRangeRequest) returns (feast.serving.GetOnlineFeaturesRangeResponse);
 }
