@@ -20,7 +20,7 @@ class PandasTransformation(Transformation):
     def __new__(
         cls,
         **kwargs,
-    ) -> "PandasTransformation":
+    ) -> "Transformation":
         kwargs.pop("mode")
         instance = super(PandasTransformation, cls).__new__(
             cls,

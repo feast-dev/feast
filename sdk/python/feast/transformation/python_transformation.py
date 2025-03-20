@@ -21,17 +21,15 @@ class PythonTransformation(Transformation):
     def __new__(
         cls,
         singleton: bool = False,
-        *args,
         **kwargs,
-    ) -> "PythonTransformation":
+    ) -> "Transformation":
         kwargs.pop("mode", None)
 
         instance = super(PythonTransformation, cls).__new__(
             cls,
-            *args,
-            **kwargs,
             mode=TransformationMode.PYTHON,
             singleton=singleton,
+            **kwargs,
         )
 
         return instance
