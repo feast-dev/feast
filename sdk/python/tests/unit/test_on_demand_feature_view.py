@@ -149,7 +149,7 @@ def test_hash():
     assert len(s4) == 3
 
     assert on_demand_feature_view_5.feature_transformation == PandasTransformation(
-        udf2, "udf2 source code"
+        udf2, udf_string="udf2 source code"
     )
 
 
