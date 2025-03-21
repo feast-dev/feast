@@ -36,11 +36,11 @@ test("in a full App render, it shows the right initial project", async () => {
   // Wait for Project List to Load
   const options = await within(select).findAllByRole("option");
 
-  const topLevelNavigation = await screen.findByRole("navigation", {
-    name: "Top Level",
-  });
+  // Find the header where the ProjectSelector is now located
+  const header = await screen.findByTestId("feast-header");
 
-  await within(topLevelNavigation).findByDisplayValue("Credit Score Project");
+  // Look for the project selector in the header instead of the sidebar
+  await within(header).findByDisplayValue("Credit Score Project");
 
   expect(options.length).toBe(1);
 
@@ -58,16 +58,16 @@ test("in a full App render, it shows the right initial project", async () => {
   // https://stackoverflow.com/a/69478957
   await user.selectOptions(
     // Find the select element
-    within(topLevelNavigation).getByRole("combobox"),
+    within(header).getByRole("combobox"),
     // Find and select the Ireland option
-    within(topLevelNavigation).getByRole("option", {
+    within(header).getByRole("option", {
       name: "Credit Score Project",
     })
   );
 
   // The selection should updated
   expect(
-    within(topLevelNavigation).getByRole("option", {
+    within(header).getByRole("option", {
       name: "Credit Score Project",
       selected: true,
     })

@@ -39,7 +39,7 @@ const Layout = () => {
 
   return (
     <RegistryPathContext.Provider value={registryPath}>
-      <EuiHeader position="fixed">
+      <EuiHeader position="fixed" data-testid="feast-header">
         <EuiHeaderSection>
           <EuiHeaderSectionItem>
             <FeastWordMark />
