@@ -27,6 +27,7 @@
     "@elastic/eui": "^95.12.0",
     "@emotion/css": "^11.13.0",
     "@emotion/react": "^11.13.3",
+    "fuse.js": "^7.1.0",
     "inter-ui": "^3.19.3",
     "long": "^5.2.3",
     "moment": "^2.29.1",
