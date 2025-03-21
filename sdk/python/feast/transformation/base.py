@@ -5,9 +5,6 @@ from typing import Any, Callable, Dict, Optional, Union
 import dill
 
 from feast.protos.feast.core.Transformation_pb2 import (
-    SubstraitTransformationV2 as SubstraitTransformationProto,
-)
-from feast.protos.feast.core.Transformation_pb2 import (
     UserDefinedFunctionV2 as UserDefinedFunctionProto,
 )
 from feast.transformation.factory import (
@@ -65,7 +62,7 @@ class Transformation(ABC):
         self.description = description
         self.owner = owner
 
-    def to_proto(self) -> Union[UserDefinedFunctionProto, SubstraitTransformationProto]:
+    def to_proto(self) -> UserDefinedFunctionProto:
         return UserDefinedFunctionProto(
             name=self.udf.__name__,
             body=dill.dumps(self.udf, recurse=True),

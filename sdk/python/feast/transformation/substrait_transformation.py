@@ -1,6 +1,6 @@
 import inspect
 from types import FunctionType
-from typing import Any, Optional, get_type_hints, Union
+from typing import Any, Optional, get_type_hints
 
 import dill
 import pandas as pd
@@ -10,7 +10,6 @@ import pyarrow.substrait as substrait  # type: ignore # noqa
 from feast.feature_view import FeatureView
 from feast.field import Field, from_value_type
 from feast.protos.feast.core.Transformation_pb2 import (
-    UserDefinedFunctionV2 as UserDefinedFunctionProto,
     SubstraitTransformationV2 as SubstraitTransformationProto,
 )
 from feast.transformation.base import Transformation
@@ -125,7 +124,7 @@ class SubstraitTransformation(Transformation):
             and self.udf.__code__.co_code == other.udf.__code__.co_code
         )
 
-    def to_proto(self) -> Union[UserDefinedFunctionProto, SubstraitTransformationProto]:
+    def to_proto(self) -> SubstraitTransformationProto:
         return SubstraitTransformationProto(
             substrait_plan=self.substrait_plan,
             ibis_function=dill.dumps(self.udf, recurse=True),
