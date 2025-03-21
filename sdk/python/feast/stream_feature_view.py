@@ -81,7 +81,7 @@ class StreamFeatureView(FeatureView):
     materialization_intervals: List[Tuple[datetime, datetime]]
     udf: Optional[FunctionType]
     udf_string: Optional[str]
-    feature_transformation: Transformation
+    feature_transformation: Optional[Transformation]
 
     def __init__(
         self,
