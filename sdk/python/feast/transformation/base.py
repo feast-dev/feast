@@ -19,7 +19,7 @@ from feast.transformation.mode import TransformationMode
 
 class Transformation(ABC):
     udf: Callable[[Any], Any]
-    udf_string: str
+    udf_string: Optional[str]
 
     def __new__(
         cls,
