@@ -1895,12 +1895,13 @@ class FeatureStore:
         for feature_view in available_feature_views:
             if feature_view.name == requested_feature_view_name:
                 requested_feature_view = feature_view
+                break
         if not requested_feature_view:
             raise ValueError(
                 f"Feature view {requested_feature_view} not found in the registry."
             )
-
-        requested_feature_view = available_feature_views[0]
+        # Unnecessary code here a its overriding the requested_feature_view set from the above for loop
+        # requested_feature_view = available_feature_views[0]
 
         provider = self._get_provider()
         document_features = self._retrieve_from_online_store(
@@ -1933,7 +1934,7 @@ class FeatureStore:
             online_features_response=online_features_response,
             data={
                 **join_key_values,
-                requested_feature: document_feature_vals,
+                "embedding": document_feature_vals,  # Replace the hardcoded "embedding" with the actual feature name
                 "distance": document_feature_distance_vals,
             },
         )
