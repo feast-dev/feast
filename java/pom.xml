@@ -22,7 +22,7 @@
     <description>Feature Store for Machine Learning</description>
     <url>${github.url}</url>
 
-    <groupId>dev.feast</groupId>
+    <groupId>${project.custom.groupId}</groupId>
     <artifactId>feast-parent</artifactId>
     <version>${revision}</version>
     <packaging>pom</packaging>
@@ -40,6 +40,7 @@
 
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <project.custom.groupId>dev.feast</project.custom.groupId>
 
         <grpc.version>1.30.2</grpc.version>
         <protoc.version>3.12.2</protoc.version>
@@ -158,7 +159,7 @@
             </activation>
         </profile>
         <profile>
-            <!-- DO NOT MERGE TO EG-FEAST. This is used by the maven-deploy lifecycle to push to artylab. -->
+            <!-- DO NOT MERGE TO EG-FEAST. Set of custom configurations for eg-feast. -->
             <id>eg-release-dev</id>
             <distributionManagement>
                 <repository>
@@ -172,6 +173,10 @@
                     <url>https://artylab.expedia.biz/eg-maven-snapshot-local</url>
                 </snapshotRepository>
             </distributionManagement>
+            
+            <properties>
+                <project.custom.groupId>eg.feast</project.custom.groupId>
+            </properties>
         </profile>
     </profiles>
 

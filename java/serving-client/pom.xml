@@ -9,7 +9,7 @@
   <artifactId>feast-serving-client</artifactId>
 
   <parent>
-    <groupId>dev.feast</groupId>
+    <groupId>${project.custom.groupId}</groupId>
     <artifactId>feast-parent</artifactId>
     <version>${revision}</version>
     <relativePath>../</relativePath>
@@ -24,7 +24,7 @@
 
   <dependencies>
     <dependency>
-      <groupId>dev.feast</groupId>
+      <groupId>${project.custom.groupId}</groupId>
       <artifactId>feast-datatypes</artifactId>
       <version>${project.version}</version>
     </dependency>

@@ -33,7 +33,7 @@
     <artifactId>feast-datatypes</artifactId>
 
     <parent>
-        <groupId>dev.feast</groupId>
+        <groupId>${project.custom.groupId}</groupId>
         <artifactId>feast-parent</artifactId>
         <version>${revision}</version>
         <relativePath>../</relativePath>
