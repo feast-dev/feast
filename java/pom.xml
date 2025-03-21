@@ -173,21 +173,10 @@
                     <url>https://artylab.expedia.biz/eg-maven-snapshot-local</url>
                 </snapshotRepository>
             </distributionManagement>
+            
             <properties>
                 <project.custom.groupId>eg.feast</project.custom.groupId>
             </properties>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.sonatype.plugins</groupId>
-                        <artifactId>nexus-staging-maven-plugin</artifactId>
-                        <configuration>
-                            <skipStaging>true</skipStaging>
-                            <skipNexusStagingDeployMojo>true</skipNexusStagingDeployMojo>
-                        </configuration>
-                    </plugin>
-                </plugins>
-            </build>
         </profile>
     </profiles>
 
