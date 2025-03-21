@@ -2,8 +2,6 @@ import copy
 import functools
 import warnings
 from datetime import datetime, timedelta
-
-from transformation.base import Transformation
 from types import FunctionType
 from typing import Dict, List, Optional, Tuple, Type, Union
 
