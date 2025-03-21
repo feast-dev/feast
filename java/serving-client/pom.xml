@@ -24,7 +24,7 @@
 
   <dependencies>
     <dependency>
-      <groupId>dev.feast</groupId>
+      <groupId>${project.custom.groupId}</groupId>
       <artifactId>feast-datatypes</artifactId>
       <version>${project.version}</version>
     </dependency>
