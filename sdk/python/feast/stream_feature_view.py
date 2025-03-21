@@ -146,6 +146,7 @@ class StreamFeatureView(FeatureView):
 
     def get_feature_transformation(self) -> Optional[Transformation]:
         if not self.udf:
+            # TODO: Currently StreamFeatureView allow no transformation, but this should be removed in the future
             return None
         if self.mode in (
             TransformationMode.PANDAS,
