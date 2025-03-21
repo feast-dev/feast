@@ -312,13 +312,14 @@ class OnDemandFeatureView(BaseFeatureView):
                 request_data_source=request_sources.to_proto()
             )
 
-        user_defined_function_proto = cast(UserDefinedFunctionProto,
+        user_defined_function_proto = cast(
+            UserDefinedFunctionProto,
             self.feature_transformation.to_proto()
             if isinstance(
                 self.feature_transformation,
                 (PandasTransformation, PythonTransformation),
             )
-            else None
+            else None,
         )
 
         substrait_transformation_proto = (

@@ -2,6 +2,8 @@ import copy
 import functools
 import warnings
 from datetime import datetime, timedelta
+
+from transformation.base import Transformation
 from types import FunctionType
 from typing import Dict, List, Optional, Tuple, Type, Union
 
@@ -144,7 +146,9 @@ class StreamFeatureView(FeatureView):
             source=source,
         )
 
-    def get_feature_transformation(self) -> Transformation:
+    def get_feature_transformation(self) -> Optional[Transformation]:
+        if not self.udf:
+            return None
         if self.mode in (
             TransformationMode.PANDAS,
             TransformationMode.PYTHON,
