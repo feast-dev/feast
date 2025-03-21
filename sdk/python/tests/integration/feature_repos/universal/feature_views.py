@@ -189,6 +189,7 @@ def create_item_embeddings_batch_feature_view(
         ],
         source=source,
         ttl=timedelta(hours=2),
+        udf=lambda x: x,
     )
     return item_embeddings_feature_view
 
@@ -231,6 +232,7 @@ def create_driver_hourly_stats_batch_feature_view(
         source=source,
         ttl=timedelta(hours=2),
         tags=TAGS,
+        udf=lambda x: x,
     )
     return driver_stats_feature_view
 
