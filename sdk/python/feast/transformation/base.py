@@ -51,7 +51,7 @@ class Transformation(ABC):
         self,
         mode: Union[TransformationMode, str],
         udf: Callable[[Any], Any],
-        udf_string:str,
+        udf_string: str,
         name: Optional[str] = None,
         tags: Optional[Dict[str, str]] = None,
         description: str = "",

@@ -218,7 +218,9 @@ class StreamFeatureView(FeatureView):
                 user_defined_function=udf_proto_v2,
             )
 
-        mode = self.mode.value if isinstance(self.mode, TransformationMode) else self.mode
+        mode = (
+            self.mode.value if isinstance(self.mode, TransformationMode) else self.mode
+        )
 
         spec = StreamFeatureViewSpecProto(
             name=self.name,

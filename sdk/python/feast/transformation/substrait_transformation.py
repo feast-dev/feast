@@ -1,6 +1,6 @@
 import inspect
 from types import FunctionType
-from typing import Any, Optional, get_type_hints, cast
+from typing import Any, Optional, cast, get_type_hints
 
 import dill
 import pandas as pd
