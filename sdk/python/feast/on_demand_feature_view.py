@@ -2,7 +2,7 @@ import copy
 import functools
 import warnings
 from types import FunctionType
-from typing import Any, List, Optional, Union
+from typing import Any, List, Optional, Union, cast
 
 import dill
 import pyarrow
@@ -312,7 +312,7 @@ class OnDemandFeatureView(BaseFeatureView):
                 request_data_source=request_sources.to_proto()
             )
 
-        user_defined_function_proto: UserDefinedFunctionProto = (
+        user_defined_function_proto = cast(UserDefinedFunctionProto,
             self.feature_transformation.to_proto()
             if isinstance(
                 self.feature_transformation,
