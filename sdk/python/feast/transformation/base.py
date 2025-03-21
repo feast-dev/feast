@@ -5,8 +5,10 @@ from typing import Any, Callable, Dict, Optional, Union
 import dill
 
 from feast.protos.feast.core.Transformation_pb2 import (
-    UserDefinedFunctionV2 as UserDefinedFunctionProto,
     SubstraitTransformationV2 as SubstraitTransformationProto,
+)
+from feast.protos.feast.core.Transformation_pb2 import (
+    UserDefinedFunctionV2 as UserDefinedFunctionProto,
 )
 from feast.transformation.factory import (
     TRANSFORMATION_CLASS_FOR_TYPE,

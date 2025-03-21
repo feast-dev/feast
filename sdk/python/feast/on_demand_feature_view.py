@@ -312,16 +312,21 @@ class OnDemandFeatureView(BaseFeatureView):
                 request_data_source=request_sources.to_proto()
             )
 
-        feature_transformation = FeatureTransformationProto(
-            user_defined_function=self.feature_transformation.to_proto()
-            if isinstance(
-                self.feature_transformation,
-                (PandasTransformation, PythonTransformation),
-            )
-            else None,
-            substrait_transformation=self.feature_transformation.to_proto()
+        user_defined_function_proto = (
+            self.feature_transformation.to_proto()
+            if isinstance(self.feature_transformation, (PandasTransformation, PythonTransformation))
+            else None
+        )
+
+        substrait_transformation_proto = (
+            self.feature_transformation.to_proto()
             if isinstance(self.feature_transformation, SubstraitTransformation)
-            else None,
+            else None
+        )
+
+        feature_transformation = FeatureTransformationProto(
+            user_defined_function=user_defined_function_proto,
+            substrait_transformation=substrait_transformation_proto,
         )
         spec = OnDemandFeatureViewSpec(
             name=self.name,
