@@ -4,7 +4,6 @@ from datetime import timedelta
 import pytest
 
 from feast.aggregation import Aggregation
-from feast.batch_feature_view import BatchFeatureView
 from feast.data_format import AvroFormat
 from feast.data_source import KafkaSource, PushSource
 from feast.entity import Entity
@@ -16,37 +15,6 @@ from feast.protos.feast.core.StreamFeatureView_pb2 import (
 from feast.stream_feature_view import StreamFeatureView, stream_feature_view
 from feast.types import Float32
 from feast.utils import _utc_now, make_tzaware
-
-
-def test_create_batch_feature_view():
-    batch_source = FileSource(path="some path")
-    BatchFeatureView(
-        name="test batch feature view",
-        entities=[],
-        ttl=timedelta(days=30),
-        source=batch_source,
-    )
-
-    with pytest.raises(TypeError):
-        BatchFeatureView(
-            name="test batch feature view", entities=[], ttl=timedelta(days=30)
-        )
-
-    stream_source = KafkaSource(
-        name="kafka",
-        timestamp_field="event_timestamp",
-        kafka_bootstrap_servers="",
-        message_format=AvroFormat(""),
-        topic="topic",
-        batch_source=FileSource(path="some path"),
-    )
-    with pytest.raises(ValueError):
-        BatchFeatureView(
-            name="test batch feature view",
-            entities=[],
-            ttl=timedelta(days=30),
-            source=stream_source,
-        )
 
 
 def test_create_stream_feature_view():
@@ -64,6 +32,7 @@ def test_create_stream_feature_view():
         ttl=timedelta(days=30),
         source=stream_source,
         aggregations=[],
+        udf=lambda x: x,
     )
 
     push_source = PushSource(
@@ -75,6 +44,7 @@ def test_create_stream_feature_view():
         ttl=timedelta(days=30),
         source=push_source,
         aggregations=[],
+        udf=lambda x: x,
     )
 
     with pytest.raises(TypeError):
@@ -92,6 +62,7 @@ def test_create_stream_feature_view():
             ttl=timedelta(days=30),
             source=FileSource(path="some path"),
             aggregations=[],
+            udf=lambda x: x,
         )
 
 
@@ -173,7 +144,7 @@ def test_stream_feature_view_udfs():
         import pandas as pd
 
         assert type(pandas_df) == pd.DataFrame
-        df = pandas_df.transform(lambda x: x + 10, axis=1)
+        df = pandas_df.transform(lambda x: x + 10)
         return df
 
     import pandas as pd
@@ -230,6 +201,7 @@ def test_stream_feature_view_proto_type():
         ttl=timedelta(days=30),
         source=stream_source,
         aggregations=[],
+        udf=lambda x: x,
     )
     assert sfv.proto_class is StreamFeatureViewProto
 
@@ -249,6 +221,7 @@ def test_stream_feature_view_copy():
         ttl=timedelta(days=30),
         source=stream_source,
         aggregations=[],
+        udf=lambda x: x,
     )
     assert sfv == copy.copy(sfv)
 
