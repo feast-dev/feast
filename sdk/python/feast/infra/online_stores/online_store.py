@@ -184,7 +184,6 @@ class OnlineStore(ABC):
             full_feature_names=full_feature_names,
             native_entity_values=True,
         )
-        # print(f"\nfeature refs = {feature_refs}")
 
         for table, requested_features in grouped_refs:
             # Get the correct set of entity values with the correct join keys.
