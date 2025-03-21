@@ -591,7 +591,7 @@ async def _get_aiodynamodb_client(
     if _aioboto_client is None:
         logger.debug("initializing the aiobotocore dynamodb client")
 
-        retries = {}
+        retries: Dict[str, Any] = {}
         if total_max_retry_attempts is not None:
             retries["total_max_attempts"] = total_max_retry_attempts
         if retry_mode is not None:
