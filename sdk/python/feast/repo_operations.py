@@ -104,6 +104,7 @@ def get_repo_files(repo_root: Path) -> List[Path]:
         p.resolve()
         for p in repo_root.glob("**/*.py")
         if p.is_file() and "__init__.py" != p.name
+        and not p.name.endswith(".ipynb") # Ignore Jupyter Notebook files during feast apply
     }
     # Ignore all files that match any of the ignore paths in .feastignore
     repo_files -= ignore_files
