@@ -234,7 +234,7 @@ class StreamFeatureView(FeatureView):
             stream_source=stream_source_proto or None,
             timestamp_field=self.timestamp_field,
             aggregations=[agg.to_proto() for agg in self.aggregations],
-            mode=self.mode,
+            mode=self.mode.name,
         )
 
         return StreamFeatureViewProto(spec=spec, meta=meta)
