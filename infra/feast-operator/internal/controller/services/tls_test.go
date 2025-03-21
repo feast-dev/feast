@@ -17,11 +17,12 @@ limitations under the License.
 package services
 
 import (
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
+	"context"
 
 	feastdevv1alpha1 "github.com/feast-dev/feast/infra/feast-operator/api/v1alpha1"
 	"github.com/feast-dev/feast/infra/feast-operator/internal/controller/handler"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -46,8 +47,10 @@ var _ = Describe("TLS Config", func() {
 			// registry server w/o tls
 			feast := FeastServices{
 				Handler: handler.FeastHandler{
-					FeatureStore: minimalFeatureStore(),
+					Client:       k8sClient,
 					Scheme:       scheme,
+					Context:      context.TODO(),
+					FeatureStore: minimalFeatureStore(),
 				},
 			}
 			feast.Handler.FeatureStore.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
