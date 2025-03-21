@@ -52,23 +52,6 @@ except ImportError as e:
 logger = logging.getLogger(__name__)
 
 
-class DynamoDBOnlineStoreRetryConfig(FeastConfigBaseModel):
-    """Async online store retry configuration for DynamoDB store.
-
-    Cf. https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
-    for details.
-    """
-
-    total_max_attempts: Union[int, None] = None
-    """Maximum number of total attempts that will be made on a single request."""
-
-    max_attempts: Union[int, None] = None
-    """Maximum number of retry attempts that will be made on a single request."""
-
-    mode: Union[Literal["legacy", "standard", "adaptive"], None] = None
-    """The type of retry mode (aio)botocore should use."""
-
-
 class DynamoDBOnlineStoreConfig(FeastConfigBaseModel):
     """Online store config for DynamoDB store"""
 
@@ -110,8 +93,16 @@ class DynamoDBOnlineStoreConfig(FeastConfigBaseModel):
     """The time in seconds until a timeout exception is thrown when attempting to read
     from an async connection."""
 
-    retries: DynamoDBOnlineStoreRetryConfig = DynamoDBOnlineStoreRetryConfig()
-    """Configuration for retry behavior of async connections."""
+    total_max_retry_attempts: Union[int, None] = None
+    """Maximum number of total attempts that will be made on a single request.
+
+    Cf.
+    https://github.com/boto/botocore/blob/dd8406d5fa1df18037d1dd2977aec47334f7e3ce/botocore/args.py#L558
+    as for why `max_attempts` is not exposed here.
+    """
+
+    retry_mode: Union[Literal["legacy", "standard", "adaptive"], None] = None
+    """The type of retry mode (aio)botocore should use."""
 
 
 class DynamoDBOnlineStore(OnlineStore):
@@ -135,7 +126,8 @@ class DynamoDBOnlineStore(OnlineStore):
             online_config.keepalive_timeout,
             online_config.connect_timeout,
             online_config.read_timeout,
-            online_config.retries,
+            online_config.total_max_retry_attempts,
+            online_config.retry_mode,
         )
 
     async def close(self):
@@ -315,7 +307,8 @@ class DynamoDBOnlineStore(OnlineStore):
             online_config.keepalive_timeout,
             online_config.connect_timeout,
             online_config.read_timeout,
-            online_config.retries,
+            online_config.total_max_retry_attempts,
+            online_config.retry_mode,
         )
         await dynamo_write_items_async(client, table_name, items)
 
@@ -425,7 +418,8 @@ class DynamoDBOnlineStore(OnlineStore):
             online_config.keepalive_timeout,
             online_config.connect_timeout,
             online_config.read_timeout,
-            online_config.retries,
+            online_config.total_max_retry_attempts,
+            online_config.retry_mode,
         )
         response_batches = await asyncio.gather(
             *[
@@ -590,11 +584,19 @@ async def _get_aiodynamodb_client(
     keepalive_timeout: float,
     connect_timeout: Union[int, float],
     read_timeout: Union[int, float],
-    retries: DynamoDBOnlineStoreRetryConfig,
+    total_max_retry_attempts: Union[int, None],
+    retry_mode: Union[Literal["legacy", "standard", "adaptive"], None],
 ):
     global _aioboto_client
     if _aioboto_client is None:
         logger.debug("initializing the aiobotocore dynamodb client")
+
+        retries = {}
+        if total_max_retry_attempts is not None:
+            retries["total_max_attempts"] = total_max_retry_attempts
+        if retry_mode is not None:
+            retries["mode"] = retry_mode
+
         client_context = _get_aioboto_session().create_client(
             "dynamodb",
             region_name=region,
@@ -602,7 +604,7 @@ async def _get_aiodynamodb_client(
                 max_pool_connections=max_pool_connections,
                 connect_timeout=connect_timeout,
                 read_timeout=read_timeout,
-                retries=retries.model_dump(exclude_none=True),
+                retries=retries,
                 connector_args={"keepalive_timeout": keepalive_timeout},
             ),
         )
