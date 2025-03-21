@@ -1930,13 +1930,25 @@ class FeatureStore:
         document_feature_distance_vals = [feature[5] for feature in document_features]
         online_features_response = GetOnlineFeaturesResponse(results=[])
         requested_feature = requested_feature or requested_features[0]
+        if vector_field_metadata := _get_feature_view_vector_field_metadata(
+            requested_feature_view
+        ):
+            vector_field_name = vector_field_metadata.name
+        data = {
+            **join_key_values,
+            vector_field_name: document_feature_vals,
+            "distance": document_feature_distance_vals,
+        }
+        _requested_features = [_feature.split(":")[-1] for _feature in feature_list]
+        requested_features_data = {
+            _feature: data[_feature]
+            for _feature in _requested_features
+            if _feature in data
+        }
+        # TODO currently the requested 'features' list is not functioning as expected
         utils._populate_result_rows_from_columnar(
             online_features_response=online_features_response,
-            data={
-                **join_key_values,
-                "embedding": document_feature_vals,  # Replace the hardcoded "embedding" with the actual feature name
-                "distance": document_feature_distance_vals,
-            },
+            data=requested_features_data,
         )
         return OnlineResponse(online_features_response)
 
