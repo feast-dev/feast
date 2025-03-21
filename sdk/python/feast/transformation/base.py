@@ -84,6 +84,10 @@ class Transformation(ABC):
     def infer_features(self, *args, **kwargs) -> Any:
         raise NotImplementedError
 
+    def __deepcopy__(self,
+                     memo: Optional[Dict[int, Any]] = None) -> "Transformation":
+        return Transformation(mode=self.mode, udf=self.udf, udf_string=self.udf_string)
+
 
 def transformation(
     mode: Union[TransformationMode, str],
