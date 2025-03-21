@@ -52,6 +52,23 @@ except ImportError as e:
 logger = logging.getLogger(__name__)
 
 
+class DynamoDBOnlineStoreRetryConfig(FeastConfigBaseModel):
+    """Async online store retry configuration for DynamoDB store.
+
+    Cf. https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
+    for details.
+    """
+
+    total_max_attempts: int | None = None
+    """Maximum number of total attempts that will be made on a single request."""
+
+    max_attempts: int | None = None
+    """Maximum number of retry attempts that will be made on a single request."""
+
+    mode: Literal["legacy", "standard", "adaptive"] | None = None
+    """The type of retry mode (aio)botocore should use."""
+
+
 class DynamoDBOnlineStoreConfig(FeastConfigBaseModel):
     """Online store config for DynamoDB store"""
 
@@ -85,6 +102,17 @@ class DynamoDBOnlineStoreConfig(FeastConfigBaseModel):
     keepalive_timeout: float = 12.0
     """Keep-alive timeout in seconds for async Dynamodb connections."""
 
+    connect_timeout: int | float = 60
+    """The time in seconds until a timeout exception is thrown when attempting to make
+    an async connection."""
+
+    read_timeout: int | float = 60
+    """The time in seconds until a timeout exception is thrown when attempting to read
+    from an async connection."""
+
+    retries: DynamoDBOnlineStoreRetryConfig = DynamoDBOnlineStoreRetryConfig()
+    """Configuration for retry behavior of async connections."""
+
 
 class DynamoDBOnlineStore(OnlineStore):
     """
@@ -99,10 +127,15 @@ class DynamoDBOnlineStore(OnlineStore):
     _dynamodb_resource = None
 
     async def initialize(self, config: RepoConfig):
+        online_config = config.online_store
+
         await _get_aiodynamodb_client(
-            config.online_store.region,
-            config.online_store.max_pool_connections,
-            config.online_store.keepalive_timeout,
+            online_config.region,
+            online_config.max_pool_connections,
+            online_config.keepalive_timeout,
+            online_config.connect_timeout,
+            online_config.read_timeout,
+            online_config.retries,
         )
 
     async def close(self):
@@ -280,6 +313,9 @@ class DynamoDBOnlineStore(OnlineStore):
             online_config.region,
             online_config.max_pool_connections,
             online_config.keepalive_timeout,
+            online_config.connect_timeout,
+            online_config.read_timeout,
+            online_config.retries,
         )
         await dynamo_write_items_async(client, table_name, items)
 
@@ -387,6 +423,9 @@ class DynamoDBOnlineStore(OnlineStore):
             online_config.region,
             online_config.max_pool_connections,
             online_config.keepalive_timeout,
+            online_config.connect_timeout,
+            online_config.read_timeout,
+            online_config.retries,
         )
         response_batches = await asyncio.gather(
             *[
@@ -546,7 +585,12 @@ def _get_aioboto_session():
 
 
 async def _get_aiodynamodb_client(
-    region: str, max_pool_connections: int, keepalive_timeout: float
+    region: str,
+    max_pool_connections: int,
+    keepalive_timeout: float,
+    connect_timeout: int | float,
+    read_timeout: int | float,
+    retries: DynamoDBOnlineStoreRetryConfig,
 ):
     global _aioboto_client
     if _aioboto_client is None:
@@ -556,6 +600,9 @@ async def _get_aiodynamodb_client(
             region_name=region,
             config=AioConfig(
                 max_pool_connections=max_pool_connections,
+                connect_timeout=connect_timeout,
+                read_timeout=read_timeout,
+                retries=retries.model_dump(exclude_none=True),
                 connector_args={"keepalive_timeout": keepalive_timeout},
             ),
         )
