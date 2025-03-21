@@ -128,7 +128,7 @@ class BatchFeatureView(FeatureView):
             TransformationMode.SQL,
         ) or self.mode in ("pandas", "python", "sql"):
             return Transformation(
-                mode=self.mode, udf=self.udf, udf_string=self.udf_string
+                mode=self.mode, udf=self.udf, udf_string=self.udf_string or ""
             )
         else:
             raise ValueError(

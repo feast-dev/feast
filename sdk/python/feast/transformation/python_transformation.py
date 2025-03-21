@@ -21,7 +21,7 @@ class PythonTransformation(Transformation):
     def __new__(
         cls,
         udf: FunctionType,
-        udf_string: Optional[str] = "",
+        udf_string: str,
         singleton: bool = False,
         name: Optional[str] = None,
         tags: Optional[Dict[str, str]] = None,
@@ -44,7 +44,7 @@ class PythonTransformation(Transformation):
     def __init__(
         self,
         udf: FunctionType,
-        udf_string: Optional[str] = "",
+        udf_string: str,
         singleton: bool = False,
         name: Optional[str] = None,
         tags: Optional[Dict[str, str]] = None,

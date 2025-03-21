@@ -203,7 +203,7 @@ class OnDemandFeatureView(BaseFeatureView):
             TransformationMode.PYTHON,
         ) or self.mode in ("pandas", "python"):
             return Transformation(
-                mode=self.mode, udf=self.udf, udf_string=self.udf_string
+                mode=self.mode, udf=self.udf, udf_string=self.udf_string or ""
             )
         elif self.mode == TransformationMode.SUBSTRAIT or self.mode == "substrait":
             return SubstraitTransformation.from_ibis(self.udf, self.sources)

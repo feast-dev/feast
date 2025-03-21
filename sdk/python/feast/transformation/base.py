@@ -19,13 +19,13 @@ from feast.transformation.mode import TransformationMode
 
 class Transformation(ABC):
     udf: Callable[[Any], Any]
-    udf_string: Optional[str]
+    udf_string: str
 
     def __new__(
         cls,
         mode: Union[TransformationMode, str],
         udf: Callable[[Any], Any],
-        udf_string: Optional[str] = "",
+        udf_string: str,
         name: Optional[str] = None,
         tags: Optional[Dict[str, str]] = None,
         description: str = "",
@@ -51,7 +51,7 @@ class Transformation(ABC):
         self,
         mode: Union[TransformationMode, str],
         udf: Callable[[Any], Any],
-        udf_string: Optional[str] = "",
+        udf_string:str,
         name: Optional[str] = None,
         tags: Optional[Dict[str, str]] = None,
         description: str = "",

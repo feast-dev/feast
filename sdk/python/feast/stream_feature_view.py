@@ -154,7 +154,7 @@ class StreamFeatureView(FeatureView):
             TransformationMode.SPARK,
         ) or self.mode in ("pandas", "python", "spark"):
             return Transformation(
-                mode=self.mode, udf=self.udf, udf_string=self.udf_string
+                mode=self.mode, udf=self.udf, udf_string=self.udf_string or ""
             )
         else:
             raise ValueError(
@@ -218,6 +218,8 @@ class StreamFeatureView(FeatureView):
                 user_defined_function=udf_proto_v2,
             )
 
+        mode = self.mode.value if isinstance(self.mode, TransformationMode) else self.mode
+
         spec = StreamFeatureViewSpecProto(
             name=self.name,
             entities=self.entities,
@@ -234,7 +236,7 @@ class StreamFeatureView(FeatureView):
             stream_source=stream_source_proto or None,
             timestamp_field=self.timestamp_field,
             aggregations=[agg.to_proto() for agg in self.aggregations],
-            mode=self.mode.name,
+            mode=mode,
         )
 
         return StreamFeatureViewProto(spec=spec, meta=meta)

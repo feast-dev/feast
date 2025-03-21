@@ -1,6 +1,6 @@
 import inspect
 from types import FunctionType
-from typing import Any, Optional, get_type_hints
+from typing import Any, Optional, get_type_hints, cast
 
 import dill
 import pandas as pd
@@ -21,17 +21,35 @@ from feast.type_map import (
 
 
 class SubstraitTransformation(Transformation):
-    def __init__(
-        self,
+    def __new__(
+        cls,
         substrait_plan: bytes,
         udf: FunctionType,
-        udf_string: str = "",
         name: Optional[str] = None,
         tags: Optional[dict[str, str]] = None,
         description: str = "",
         owner: str = "",
-        *args,
-        **kwargs,
+    ) -> "SubstraitTransformation":
+        instance = super(SubstraitTransformation, cls).__new__(
+            cls,
+            mode=TransformationMode.SUBSTRAIT,
+            udf=udf,
+            name=name,
+            udf_string="",
+            tags=tags,
+            description=description,
+            owner=owner,
+        )
+        return cast(SubstraitTransformation, instance)
+
+    def __init__(
+        self,
+        substrait_plan: bytes,
+        udf: FunctionType,
+        name: Optional[str] = None,
+        tags: Optional[dict[str, str]] = None,
+        description: str = "",
+        owner: str = "",
     ):
         """
         Creates an SubstraitTransformation object.
@@ -44,13 +62,12 @@ class SubstraitTransformation(Transformation):
             mode=TransformationMode.SUBSTRAIT,
             udf=udf,
             name=name,
-            udf_string=udf_string,
+            udf_string="",
             tags=tags,
             description=description,
             owner=owner,
         )
         self.substrait_plan = substrait_plan
-        self.udf = udf
 
     def transform(self, df: pd.DataFrame) -> pd.DataFrame:
         def table_provider(names, schema: pyarrow.Schema):
@@ -136,7 +153,6 @@ class SubstraitTransformation(Transformation):
         substrait_transformation_proto: SubstraitTransformationProto,
     ):
         return SubstraitTransformation(
-            mode=TransformationMode.SUBSTRAIT,
             substrait_plan=substrait_transformation_proto.substrait_plan,
             udf=dill.loads(substrait_transformation_proto.ibis_function),
         )
@@ -179,8 +195,6 @@ class SubstraitTransformation(Transformation):
         substrait_plan = compiler.compile(expr).SerializeToString()
 
         return SubstraitTransformation(
-            mode=TransformationMode.SUBSTRAIT,
             substrait_plan=substrait_plan,
             udf=user_function,
-            udf_string=substrait_plan,
         )

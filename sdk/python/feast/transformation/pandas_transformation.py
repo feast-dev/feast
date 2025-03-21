@@ -20,7 +20,7 @@ class PandasTransformation(Transformation):
     def __new__(
         cls,
         udf: Callable[[Any], Any],
-        udf_string: Optional[str] = "",
+        udf_string: str,
         name: Optional[str] = None,
         tags: Optional[dict[str, str]] = None,
         description: str = "",
@@ -41,7 +41,7 @@ class PandasTransformation(Transformation):
     def __init__(
         self,
         udf: Callable[[Any], Any],
-        udf_string: Optional[str] = "",
+        udf_string: str,
         name: Optional[str] = None,
         tags: Optional[dict[str, str]] = None,
         description: str = "",
