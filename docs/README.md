@@ -7,6 +7,8 @@ Feast (**Fea**ture **St**ore) is an [open-source](https://github.com/feast-dev/f
 - **Avoid Data Leakage**: Generate point-in-time correct feature sets to ensure no future data leaks into model training.
 - **Decouple ML from Data Infra**: Provide a single data access layer that abstracts storage from retrieval, ensuring portability across batch and real-time environments.
 
+![](assets/feast_marchitecture.png)
+
 ## Core Components
 - **[Offline Store](getting-started/components/offline-store.md)**: Manages historical feature extraction for large-scale batch scoring or model training.
 - **[Online Store](getting-started/components/online-store.md)**: Powers low-latency feature serving for real-time production systems.
