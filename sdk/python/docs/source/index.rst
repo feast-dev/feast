@@ -1,6 +1,12 @@
 Feast Python API Documentation
 ==============================
 
+.. toctree::
+   :maxdepth: 2
+   :caption: Contents:
+
+   feast_mcp
+
 ..  We prefer 'autoclass' instead of 'autoclass' as 'autoclass' can specify a class, whereas
     'autoclass' will pull in all public classes and methods from that module, which we typically
     do not want.
