@@ -1566,7 +1566,19 @@ class FeatureStore:
                     if feature_view.singleton
                     else df.to_dict(orient="list")
                 )
-                transformed_data = feature_view.feature_transformation.udf(input_dict)
+                if feature_view.singleton:
+                    transformed_data = df.apply(
+                        feature_view.feature_transformation.udf, axis=1
+                    )
+                    transformed_data = pd.DataFrame(
+                        transformed_data.to_list()
+                    ).applymap(
+                        lambda x: x[0] if isinstance(x, list) and len(x) == 1 else x
+                    )
+                else:
+                    transformed_data = feature_view.feature_transformation.udf(
+                        input_dict
+                    )
                 if feature_view.write_to_online_store:
                     entities = [
                         self.get_entity(entity)
@@ -1574,8 +1586,14 @@ class FeatureStore:
                     ]
                     join_keys = [entity.join_key for entity in entities if entity]
                     join_keys = [k for k in join_keys if k in input_dict.keys()]
-                    transformed_df = pd.DataFrame(transformed_data)
-                    input_df = pd.DataFrame(input_dict)
+                    transformed_df = (
+                        pd.DataFrame(transformed_data)
+                        if not isinstance(transformed_data, pd.DataFrame)
+                        else transformed_data
+                    )
+                    input_df = pd.DataFrame(
+                        [input_dict] if feature_view.singleton else input_dict
+                    )
                     if input_df.shape[0] == transformed_df.shape[0]:
                         for k in input_dict:
                             if k not in transformed_data:

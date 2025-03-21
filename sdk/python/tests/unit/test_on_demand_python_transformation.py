@@ -1,4 +1,5 @@
 import os
+import platform
 import re
 import sqlite3
 import sys
@@ -31,12 +32,15 @@ from feast.types import (
     Float32,
     Float64,
     Int64,
+    PdfBytes,
     String,
     UnixTimestamp,
     ValueType,
     _utc_now,
     from_value_type,
 )
+
+MAC_VER = platform.mac_ver()[0].split(".")[0] if platform.mac_ver() else ""
 
 
 class TestOnDemandPythonTransformation(unittest.TestCase):
@@ -802,6 +806,14 @@ def test_invalid_python_transformation_raises_type_error_on_apply():
             store.apply([request_source, python_view])
 
 
+@pytest.mark.skipif(
+    not (
+        sys.version_info[0:2] in [(3, 10), (3, 11)]
+        and platform.system() == "Darwin"
+        and MAC_VER != "14"
+    ),
+    reason="Only works on Python 3.10 and 3.11 on macOS",
+)
 class TestOnDemandTransformationsWithWrites(unittest.TestCase):
     def test_stored_writes(self):
         with tempfile.TemporaryDirectory() as data_dir:
@@ -1291,3 +1303,172 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
                     "chunk_text": ["hello friends", "how are you?"],
                     "distance": [0.11180340498685837, 0.3354102075099945],
                 }
+
+    def test_docling_transform(self):
+        import io
+
+        from docling.chunking import HybridChunker
+        from docling.datamodel.base_models import DocumentStream
+        from docling.document_converter import DocumentConverter
+        from transformers import AutoTokenizer
+
+        EMBED_MODEL_ID = "sentence-transformers/all-MiniLM-L6-v2"
+        VECTOR_LEN = 10
+        MAX_TOKENS = 64  # Small token limit for demonstration
+        tokenizer = AutoTokenizer.from_pretrained(EMBED_MODEL_ID)
+        chunker = HybridChunker(
+            tokenizer=tokenizer, max_tokens=MAX_TOKENS, merge_peers=True
+        )
+
+        with tempfile.TemporaryDirectory() as data_dir:
+            self.store = FeatureStore(
+                config=RepoConfig(
+                    project="test_on_demand_python_transformation_explode",
+                    registry=os.path.join(data_dir, "registry.db"),
+                    provider="local",
+                    entity_key_serialization_version=3,
+                    online_store=SqliteOnlineStoreConfig(
+                        path=os.path.join(data_dir, "online.db"),
+                        vector_enabled=True,
+                        vector_len=VECTOR_LEN,
+                    ),
+                )
+            )
+
+            chunk = Entity(
+                name="chunk_id",
+                description="Chunk ID",
+                value_type=ValueType.STRING,
+                join_keys=["chunk_id"],
+            )
+
+            document = Entity(
+                name="document_id",
+                description="Document ID",
+                value_type=ValueType.STRING,
+                join_keys=["document_id"],
+            )
+
+            def embed_chunk(input_string) -> dict[str, list[float]]:
+                output = {"query_embedding": [0.5] * VECTOR_LEN}
+                return output
+
+            input_request_pdf = RequestSource(
+                name="pdf_request_source",
+                schema=[
+                    Field(name="pdf_bytes", dtype=PdfBytes),
+                    Field(name="file_name", dtype=String),
+                    Field(name="document_id", dtype=String),
+                ],
+            )
+            self.store.apply([chunk, document, input_request_pdf])
+
+            @on_demand_feature_view(
+                entities=[chunk, document],
+                sources=[input_request_pdf],
+                schema=[
+                    Field(name="document_id", dtype=String),
+                    Field(name="chunk_id", dtype=String),
+                    Field(name="chunk_text", dtype=String),
+                    Field(
+                        name="vector",
+                        dtype=Array(Float32),
+                        vector_index=True,
+                        vector_search_metric="L2",
+                    ),
+                ],
+                mode="python",
+                write_to_online_store=True,
+                singleton=True,
+            )
+            def docling_transform_docs(inputs: dict[str, Any]):
+                document_ids, chunks, embeddings, chunk_ids = [], [], [], []
+                buf = io.BytesIO(
+                    inputs["pdf_bytes"],
+                )
+                source = DocumentStream(name=inputs["file_name"], stream=buf)
+                converter = DocumentConverter()
+                result = converter.convert(source)
+                for i, chunk in enumerate(chunker.chunk(dl_doc=result.document)):
+                    raw_chunk = chunker.serialize(chunk=chunk)
+                    embedding = embed_chunk(raw_chunk).get("query_embedding", [])
+                    chunk_id = f"chunk-{i}"
+                    document_ids.append(inputs["document_id"])
+                    chunks.append(raw_chunk)
+                    chunk_ids.append(chunk_id)
+                    embeddings.append(embedding)
+                return {
+                    "document_id": document_ids,
+                    "chunk_id": chunk_ids,
+                    "vector": embeddings,
+                    "chunk_text": chunks,
+                }
+
+            sample_pdf = b"%PDF-1.3\n3 0 obj\n<</Type /Page\n/Parent 1 0 R\n/Resources 2 0 R\n/Contents 4 0 R>>\nendobj\n4 0 obj\n<</Filter /FlateDecode /Length 115>>\nstream\nx\x9c\x15\xcc1\x0e\x820\x18@\xe1\x9dS\xbcM]jk$\xd5\xd5(\x83!\x86\xa1\x17\xf8\xa3\xa5`LIh+\xd7W\xc6\xf7\r\xef\xc0\xbd\xd2\xaa\xb6,\xd5\xc5\xb1o\x0c\xa6VZ\xe3znn%\xf3o\xab\xb1\xe7\xa3:Y\xdc\x8bm\xeb\xf3&1\xc8\xd7\xd3\x97\xc82\xe6\x81\x87\xe42\xcb\x87Vb(\x12<\xdd<=}Jc\x0cL\x91\xee\xda$\xb5\xc3\xbd\xd7\xe9\x0f\x8d\x97 $\nendstream\nendobj\n1 0 obj\n<</Type /Pages\n/Kids [3 0 R ]\n/Count 1\n/MediaBox [0 0 595.28 841.89]\n>>\nendobj\n5 0 obj\n<</Type /Font\n/BaseFont /Helvetica\n/Subtype /Type1\n/Encoding /WinAnsiEncoding\n>>\nendobj\n2 0 obj\n<<\n/ProcSet [/PDF /Text /ImageB /ImageC /ImageI]\n/Font <<\n/F1 5 0 R\n>>\n/XObject <<\n>>\n>>\nendobj\n6 0 obj\n<<\n/Producer (PyFPDF 1.7.2 http://pyfpdf.googlecode.com/)\n/Title (This is a sample title.)\n/Author (Francisco Javier Arceo)\n/CreationDate (D:20250312165548)\n>>\nendobj\n7 0 obj\n<<\n/Type /Catalog\n/Pages 1 0 R\n/OpenAction [3 0 R /FitH null]\n/PageLayout /OneColumn\n>>\nendobj\nxref\n0 8\n0000000000 65535 f \n0000000272 00000 n \n0000000455 00000 n \n0000000009 00000 n \n0000000087 00000 n \n0000000359 00000 n \n0000000559 00000 n \n0000000734 00000 n \ntrailer\n<<\n/Size 8\n/Root 7 0 R\n/Info 6 0 R\n>>\nstartxref\n837\n%%EOF\n"
+            sample_pdf_2 = b"%PDF-1.3\n3 0 obj\n<</Type /Page\n/Parent 1 0 R\n/Resources 2 0 R\n/Contents 4 0 R>>\nendobj\n4 0 obj\n<</Filter /FlateDecode /Length 115>>\nstream\nx\x9c\x15\xcc1\x0e\x820\x18@\xe1\x9dS\xbcM]jk$\xd5\xd5(\x83!\x86\xa1\x17\xf8\xa3\xa5`LIh+\xd7W\xc6\xf7\r\xef\xc0\xbd\xd2\xaa\xb6,\xd5\xc5\xb1o\x0c\xa6VZ\xe3znn%\xf3o\xab\xb1\xe7\xa3:Y\xdc\x8bm\xeb\xf3&1\xc8\xd7\xd3\x97\xc82\xe6\x81\x87\xe42\xcb\x87Vb(\x12<\xdd<=}Jc\x0cL\x91\xee\xda$\xb5\xc3\xbd\xd7\xe9\x0f\x8d\x97 $\nendstream\nendobj\n1 0 obj\n<</Type /Pages\n/Kids [3 0 R ]\n/Count 1\n/MediaBox [0 0 595.28 841.89]\n>>\nendobj\n5 0 obj\n<</Type /Font\n/BaseFont /Helvetica\n/Subtype /Type1\n/Encoding /WinAnsiEncoding\n>>\nendobj\n2 0 obj\n<<\n/ProcSet [/PDF /Text /ImageB /ImageC /ImageI]\n/Font <<\n/F1 5 0 R\n>>\n/XObject <<\n>>\n>>\nendobj\n6 0 obj\n<<\n/Producer (PyFPDF 1.7.2 http://pyfpdf.googlecode.com/)\n/Title (This is another sample title.)\n/Author (Frank John Broceo)\n/CreationDate (D:20250312165548)\n>>\nendobj\n7 0 obj\n<<\n/Type /Catalog\n/Pages 1 0 R\n/OpenAction [3 0 R /FitH null]\n/PageLayout /OneColumn\n>>\nendobj\nxref\n0 8\n0000000000 65535 f \n0000000272 00000 n \n0000000455 00000 n \n0000000009 00000 n \n0000000087 00000 n \n0000000359 00000 n \n0000000559 00000 n \n0000000734 00000 n \ntrailer\n<<\n/Size 8\n/Root 7 0 R\n/Info 6 0 R\n>>\nstartxref\n837\n%%EOF\n"
+
+            sample_input = {
+                "pdf_bytes": sample_pdf,
+                "file_name": "sample_pdf",
+                "document_id": "doc_1",
+            }
+            sample_input_2 = {
+                "pdf_bytes": sample_pdf_2,
+                "file_name": "sample_pdf_2",
+                "document_id": "doc_2",
+            }
+            docling_output = docling_transform_docs.feature_transformation.udf(
+                sample_input
+            )
+
+            self.store.apply([docling_transform_docs])
+
+            assert docling_output == {
+                "document_id": ["doc_1"],
+                "chunk_id": ["chunk-0"],
+                "vector": [[0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]],
+                "chunk_text": [
+                    "Let's have fun with Natural Language Processing on PDFs."
+                ],
+            }
+
+            input_df = pd.DataFrame([sample_input])
+            self.store.write_to_online_store("docling_transform_docs", input_df)
+
+            conn = self.store._provider._online_store._conn
+            document_table = self.store._provider._online_store._conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' and name like '%docling%';"
+            ).fetchall()[0][0]
+            written_data = pd.read_sql_query(f"select * from {document_table}", conn)
+            assert (
+                written_data[written_data["feature_name"] == "document_id"][
+                    "vector_value"
+                ].values[0]
+                == "doc_1"
+            )
+            assert (
+                written_data[written_data["feature_name"] == "chunk_id"][
+                    "vector_value"
+                ].values[0]
+                == "chunk-0"
+            )
+
+            online_features = self.store.get_online_features(
+                features=[
+                    "docling_transform_docs:document_id",
+                    "docling_transform_docs:chunk_id",
+                    "docling_transform_docs:chunk_text",
+                ],
+                entity_rows=[{"document_id": "doc_1", "chunk_id": "chunk-0"}],
+            ).to_dict()
+            online_features == {
+                "document_id": ["doc_1"],
+                "chunk_id": ["chunk-0"],
+                "chunk_text": [
+                    "Let's have fun with Natural Language Processing on PDFs."
+                ],
+            }
+
+            multiple_inputs_df = pd.DataFrame([sample_input, sample_input_2])
+            # note this test needs to be updated with writing to the online store to verify this behavior works
+            assert multiple_inputs_df is not None
