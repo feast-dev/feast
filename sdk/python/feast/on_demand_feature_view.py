@@ -312,9 +312,12 @@ class OnDemandFeatureView(BaseFeatureView):
                 request_data_source=request_sources.to_proto()
             )
 
-        user_defined_function_proto = (
+        user_defined_function_proto: UserDefinedFunctionProto = (
             self.feature_transformation.to_proto()
-            if isinstance(self.feature_transformation, (PandasTransformation, PythonTransformation))
+            if isinstance(
+                self.feature_transformation,
+                (PandasTransformation, PythonTransformation),
+            )
             else None
         )
 
