@@ -96,7 +96,7 @@ class DynamoDBOnlineStoreConfig(FeastConfigBaseModel):
     total_max_retry_attempts: Union[int, None] = None
     """Maximum number of total attempts that will be made on a single request.
 
-    Maps to `retries.total_max_attempts in botocore.config.Config. Cf.
+    Maps to `retries.total_max_attempts` in botocore.config.Config. Cf.
     https://github.com/boto/botocore/blob/dd8406d5fa1df18037d1dd2977aec47334f7e3ce/botocore/args.py#L558
     as for why `retries.max_attempts` is not exposed here.
     """
@@ -104,7 +104,7 @@ class DynamoDBOnlineStoreConfig(FeastConfigBaseModel):
     retry_mode: Union[Literal["legacy", "standard", "adaptive"], None] = None
     """The type of retry mode (aio)botocore should use.
 
-    Maps to `retries.mode in botocore.config.Config.
+    Maps to `retries.mode` in botocore.config.Config.
     """
 
 
