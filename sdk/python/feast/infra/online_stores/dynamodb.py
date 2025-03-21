@@ -59,13 +59,13 @@ class DynamoDBOnlineStoreRetryConfig(FeastConfigBaseModel):
     for details.
     """
 
-    total_max_attempts: int | None = None
+    total_max_attempts: Union[int, None] = None
     """Maximum number of total attempts that will be made on a single request."""
 
-    max_attempts: int | None = None
+    max_attempts: Union[int, None] = None
     """Maximum number of retry attempts that will be made on a single request."""
 
-    mode: Literal["legacy", "standard", "adaptive"] | None = None
+    mode: Union[Literal["legacy", "standard", "adaptive"], None] = None
     """The type of retry mode (aio)botocore should use."""
 
 
@@ -102,11 +102,11 @@ class DynamoDBOnlineStoreConfig(FeastConfigBaseModel):
     keepalive_timeout: float = 12.0
     """Keep-alive timeout in seconds for async Dynamodb connections."""
 
-    connect_timeout: int | float = 60
+    connect_timeout: Union[int, float] = 60
     """The time in seconds until a timeout exception is thrown when attempting to make
     an async connection."""
 
-    read_timeout: int | float = 60
+    read_timeout: Union[int, float] = 60
     """The time in seconds until a timeout exception is thrown when attempting to read
     from an async connection."""
 
@@ -588,8 +588,8 @@ async def _get_aiodynamodb_client(
     region: str,
     max_pool_connections: int,
     keepalive_timeout: float,
-    connect_timeout: int | float,
-    read_timeout: int | float,
+    connect_timeout: Union[int, float],
+    read_timeout: Union[int, float],
     retries: DynamoDBOnlineStoreRetryConfig,
 ):
     global _aioboto_client
