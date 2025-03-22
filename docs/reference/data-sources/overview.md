@@ -18,14 +18,14 @@ Details for each specific data source can be found [here](README.md).
 
 Below is a matrix indicating which data sources support which types.
 
-| | File | BigQuery | Snowflake | Redshift | Postgres | Spark | Trino |
-| :-------------------------------- | :-- | :-- |:----------| :-- | :-- | :-- | :-- |
-| `bytes`     | yes | yes | yes       | yes | yes | yes | yes |
-| `string`    | yes | yes | yes       | yes | yes | yes | yes |
-| `int32`     | yes | yes | yes       | yes | yes | yes | yes |
-| `int64`     | yes | yes | yes       | yes | yes | yes | yes |
-| `float32`   | yes | yes | yes       | yes | yes | yes | yes |
-| `float64`   | yes | yes | yes       | yes | yes | yes | yes |
-| `bool`      | yes | yes | yes       | yes | yes | yes | yes |
-| `timestamp` | yes | yes | yes       | yes | yes | yes | yes |
-| array types | yes | yes | yes       | no  | yes | yes | no  |
+| | File | BigQuery | Snowflake | Redshift | Postgres | Spark | Trino | Couchbase |
+| :-------------------------------- | :-- | :-- |:----------| :-- | :-- | :-- | :-- |:----------|
+| `bytes`     | yes | yes | yes       | yes | yes | yes | yes | yes |
+| `string`    | yes | yes | yes       | yes | yes | yes | yes | yes |
+| `int32`     | yes | yes | yes       | yes | yes | yes | yes | yes |
+| `int64`     | yes | yes | yes       | yes | yes | yes | yes | yes |
+| `float32`   | yes | yes | yes       | yes | yes | yes | yes | yes |
+| `float64`   | yes | yes | yes       | yes | yes | yes | yes | yes |
+| `bool`      | yes | yes | yes       | yes | yes | yes | yes | yes |
+| `timestamp` | yes | yes | yes       | yes | yes | yes | yes | yes |
+| array types | yes | yes | yes       | no  | yes | yes | no  | no  |

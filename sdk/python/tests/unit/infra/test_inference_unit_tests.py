@@ -154,23 +154,6 @@ def test_on_demand_features_invalid_type_inference():
             }
             return output_dict
 
-    with pytest.raises(TypeError):
-
-        @on_demand_feature_view(
-            sources=[date_request],
-            schema=[
-                Field(name="output", dtype=UnixTimestamp),
-                Field(name="object_output", dtype=String),
-            ],
-            mode="python",
-        )
-        def python_native_test_invalid_dict_view(
-            features_df: pd.DataFrame,
-        ) -> pd.DataFrame:
-            data = pd.DataFrame()
-            data["output"] = features_df["some_date"]
-            return data
-
 
 def test_datasource_inference():
     # Create Feature Views

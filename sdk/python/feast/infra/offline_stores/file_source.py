@@ -1,5 +1,6 @@
 from pathlib import Path
-from typing import Callable, Dict, Iterable, List, Optional, Tuple
+from typing import Callable, Dict, Iterable, List, Optional, Tuple, Union
+from urllib.parse import urlparse
 
 import pyarrow
 from packaging import version
@@ -154,17 +155,21 @@ class FileSource(DataSource):
     def source_datatype_to_feast_value_type() -> Callable[[str], ValueType]:
         return type_map.pa_to_feast_value_type
 
+    @staticmethod
+    def get_uri_for_file_path(repo_path: Union[Path, str, None], uri: str) -> str:
+        parsed_uri = urlparse(uri)
+        if parsed_uri.scheme and parsed_uri.netloc:
+            return uri  # Keep remote URIs as they are
+        if repo_path is not None and not Path(uri).is_absolute():
+            return str(Path(repo_path) / uri)
+        return str(Path(uri))
+
     def get_table_column_names_and_types(
         self, config: RepoConfig
     ) -> Iterable[Tuple[str, str]]:
-        if (
-            config.repo_path is not None
-            and not Path(self.file_options.uri).is_absolute()
-        ):
-            absolute_path = config.repo_path / self.file_options.uri
-        else:
-            absolute_path = Path(self.file_options.uri)
-
+        absolute_path = self.get_uri_for_file_path(
+            repo_path=config.repo_path, uri=self.file_options.uri
+        )
         filesystem, path = FileSource.create_filesystem_and_path(
             str(absolute_path), self.file_options.s3_endpoint_override
         )

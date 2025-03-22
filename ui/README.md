@@ -77,7 +77,7 @@ The advantage of importing Feast UI as a module is in the ease of customization.
 
 ##### Fetching the Project List
 
-You can use `projectListPromise` to provide a promise that overrides where the Feast UI fetches the project list from.
+By default, the Feast UI fetches the project list from the app root path. You can use `projectListPromise` to provide a promise that overrides where it's fetched from.
 
 ```jsx
 <FeastUI
@@ -97,7 +97,7 @@ You can use `projectListPromise` to provide a promise that overrides where the F
 
 You can add custom tabs for any of the core Feast objects through the `tabsRegistry`.
 
-```
+```jsx
 const tabsRegistry = {
   RegularFeatureViewCustomTabs: [
     {

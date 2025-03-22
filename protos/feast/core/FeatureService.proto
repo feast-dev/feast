@@ -61,6 +61,7 @@ message LoggingConfig {
     SnowflakeDestination snowflake_destination = 6;
     CustomDestination custom_destination = 7;
     AthenaDestination athena_destination = 8;
+    CouchbaseColumnarDestination couchbase_columnar_destination = 9;
   }
 
   message FileDestination {
@@ -95,4 +96,17 @@ message LoggingConfig {
     string kind = 1;
     map<string, string> config = 2;
   }
+
+  message CouchbaseColumnarDestination {
+    // Destination database name
+    string database = 1;
+    // Destination scope name
+    string scope = 2;
+    // Destination collection name
+    string collection = 3;
+  }
+}
+
+message FeatureServiceList {
+    repeated FeatureService featureservices = 1;
 }

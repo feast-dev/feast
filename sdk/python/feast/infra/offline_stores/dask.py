@@ -100,11 +100,9 @@ class DaskRetrievalJob(RetrievalJob):
         # Check if the specified location already exists.
         if not allow_overwrite and os.path.exists(storage.file_options.uri):
             raise SavedDatasetLocationAlreadyExists(location=storage.file_options.uri)
-
-        if not Path(storage.file_options.uri).is_absolute():
-            absolute_path = Path(self.repo_path) / storage.file_options.uri
-        else:
-            absolute_path = Path(storage.file_options.uri)
+        absolute_path = FileSource.get_uri_for_file_path(
+            repo_path=self.repo_path, uri=storage.file_options.uri
+        )
 
         filesystem, path = FileSource.create_filesystem_and_path(
             str(absolute_path),
@@ -193,9 +191,7 @@ class DaskOfflineStore(OfflineStore):
             ):
                 # Make sure all event timestamp fields are tz-aware. We default tz-naive fields to UTC
                 entity_df_with_features[entity_df_event_timestamp_col] = (
-                    entity_df_with_features[
-                        entity_df_event_timestamp_col
-                    ].apply(
+                    entity_df_with_features[entity_df_event_timestamp_col].apply(
                         lambda x: x
                         if x.tzinfo is not None
                         else x.replace(tzinfo=timezone.utc)

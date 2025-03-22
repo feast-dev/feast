@@ -1,0 +1,20 @@
+apiVersion: feast.dev/v1alpha1
+kind: FeatureStore
+metadata:
+  name: sample-kubernetes-auth
+spec:
+  feastProject: feast_rbac
+  authz:
+    kubernetes:
+      roles:
+        - feast-writer
+        - feast-reader
+  services:
+    offlineStore:
+      server: {}
+    onlineStore:
+      server: {}
+    registry:
+      local:
+        server: {}
+    ui: {}

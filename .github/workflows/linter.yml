@@ -19,6 +19,6 @@ jobs:
         run: curl -LsSf https://astral.sh/uv/install.sh | sh
       - name: Install dependencies
         run: |
-          make install-python-ci-dependencies-uv
+          make install-python-dependencies-ci
       - name: Lint python
         run: make lint-python

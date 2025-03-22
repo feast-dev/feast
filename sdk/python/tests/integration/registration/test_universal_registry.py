@@ -344,7 +344,10 @@ else:
             marks=pytest.mark.xdist_group(name="mysql_registry"),
         ),
         lazy_fixture("sqlite_registry"),
-        lazy_fixture("mock_remote_registry"),
+        pytest.param(
+            lazy_fixture("mock_remote_registry"),
+            marks=pytest.mark.rbac_remote_integration_test,
+        ),
     ]
 
 sql_fixtures = [

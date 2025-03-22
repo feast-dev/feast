@@ -1,4 +1,4 @@
-# Feast Feature Server Helm-based Operator
+# Feast Feature Server Helm-based Operator (Deprecated replaced by [feast-operator](../feast-operator/README.md))
 
 This Operator was built with the [operator-sdk](https://github.com/operator-framework/operator-sdk) and leverages the [feast-feature-server helm chart](/infra/charts/feast-feature-server).
 

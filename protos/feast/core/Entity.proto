@@ -58,3 +58,7 @@ message EntityMeta {
     google.protobuf.Timestamp created_timestamp = 1;
     google.protobuf.Timestamp last_updated_timestamp = 2;
 }
+
+message EntityList {
+    repeated Entity entities = 1;
+}

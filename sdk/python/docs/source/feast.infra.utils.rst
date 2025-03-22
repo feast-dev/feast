@@ -7,6 +7,7 @@ Subpackages
 .. toctree::
    :maxdepth: 4
 
+   feast.infra.utils.couchbase
    feast.infra.utils.postgres
    feast.infra.utils.snowflake
 

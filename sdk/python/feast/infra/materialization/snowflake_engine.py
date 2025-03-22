@@ -206,9 +206,9 @@ class SnowflakeMaterializationEngine(BatchMaterializationEngine):
         online_store: OnlineStore,
         **kwargs,
     ):
-        assert (
-            repo_config.offline_store.type == "snowflake.offline"
-        ), "To use SnowflakeMaterializationEngine, you must use Snowflake as an offline store."
+        assert repo_config.offline_store.type == "snowflake.offline", (
+            "To use SnowflakeMaterializationEngine, you must use Snowflake as an offline store."
+        )
 
         super().__init__(
             repo_config=repo_config,
@@ -241,10 +241,11 @@ class SnowflakeMaterializationEngine(BatchMaterializationEngine):
         project: str,
         tqdm_builder: Callable[[int], tqdm],
     ):
-        assert (
-            isinstance(feature_view, BatchFeatureView)
-            or isinstance(feature_view, FeatureView)
-        ), "Snowflake can only materialize FeatureView & BatchFeatureView feature view types."
+        assert isinstance(feature_view, BatchFeatureView) or isinstance(
+            feature_view, FeatureView
+        ), (
+            "Snowflake can only materialize FeatureView & BatchFeatureView feature view types."
+        )
 
         entities = []
         for entity_name in feature_view.entities:
@@ -420,7 +421,7 @@ class SnowflakeMaterializationEngine(BatchMaterializationEngine):
               {serial_func.upper()}({entity_names}, {entity_data}, {entity_types}) AS "entity_key",
               {features_str},
               "{feature_view.batch_source.timestamp_field}"
-              {fv_created_str if fv_created_str else ''}
+              {fv_created_str if fv_created_str else ""}
             FROM (
               {fv_latest_mapped_values_sql}
             )
@@ -460,7 +461,7 @@ class SnowflakeMaterializationEngine(BatchMaterializationEngine):
                   "feature_name",
                   "feature_value" AS "value",
                   "{feature_view.batch_source.timestamp_field}" AS "event_ts"
-                  {fv_created_str + ' AS "created_ts"' if fv_created_str else ''}
+                  {fv_created_str + ' AS "created_ts"' if fv_created_str else ""}
                 FROM (
                   {materialization_sql}
                 )
@@ -472,16 +473,16 @@ class SnowflakeMaterializationEngine(BatchMaterializationEngine):
                   online_table."feature_name" = latest_values."feature_name",
                   online_table."value" = latest_values."value",
                   online_table."event_ts" = latest_values."event_ts"
-                  {',online_table."created_ts" = latest_values."created_ts"' if fv_created_str else ''}
+                  {',online_table."created_ts" = latest_values."created_ts"' if fv_created_str else ""}
               WHEN NOT MATCHED THEN
-                INSERT ("entity_feature_key", "entity_key", "feature_name", "value", "event_ts" {', "created_ts"' if fv_created_str else ''})
+                INSERT ("entity_feature_key", "entity_key", "feature_name", "value", "event_ts" {', "created_ts"' if fv_created_str else ""})
                 VALUES (
                   latest_values."entity_feature_key",
                   latest_values."entity_key",
                   latest_values."feature_name",
                   latest_values."value",
                   latest_values."event_ts"
-                  {',latest_values."created_ts"' if fv_created_str else ''}
+                  {',latest_values."created_ts"' if fv_created_str else ""}
                 )
         """
 

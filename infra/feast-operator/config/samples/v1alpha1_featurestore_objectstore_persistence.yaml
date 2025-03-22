@@ -1,0 +1,16 @@
+apiVersion: feast.dev/v1alpha1
+kind: FeatureStore
+metadata:
+  name: sample-s3-registry
+spec:
+  feastProject: my_project
+  services:
+    registry:
+      local:
+        persistence:
+          file:
+            path: s3://bucket/registry.db
+            s3_additional_kwargs:
+              ServerSideEncryption: AES256
+              ACL: bucket-owner-full-control
+              CacheControl: max-age=3600

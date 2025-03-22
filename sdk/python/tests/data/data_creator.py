@@ -1,8 +1,8 @@
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
+from zoneinfo import ZoneInfo
 
 import pandas as pd
-from zoneinfo import ZoneInfo
 
 from feast.types import FeastType, Float32, Int32, Int64, String
 from feast.utils import _utc_now
@@ -84,6 +84,8 @@ def get_feature_values_for_dtype(
 def create_document_dataset() -> pd.DataFrame:
     data = {
         "item_id": [1, 2, 3],
+        "string_feature": ["a", "b", "c"],
+        "float_feature": [1.0, 2.0, 3.0],
         "embedding_float": [[4.0, 5.0], [1.0, 2.0], [3.0, 4.0]],
         "embedding_double": [[4.0, 5.0], [1.0, 2.0], [3.0, 4.0]],
         "ts": [

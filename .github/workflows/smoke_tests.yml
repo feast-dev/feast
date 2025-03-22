@@ -1,6 +1,11 @@
 name: smoke-tests
 
-on: [pull_request]
+on:
+  pull_request:
+    paths-ignore:
+      - 'community/**'
+      - 'docs/**'
+      - 'examples/**'
 jobs:
   unit-test-python:
     runs-on: ${{ matrix.os }}
@@ -26,13 +31,15 @@ jobs:
       - name: Get uv cache dir
         id: uv-cache
         run: |
-          echo "::set-output name=dir::$(uv cache dir)"
+          echo "dir=$(uv cache dir)" >> $GITHUB_OUTPUT
       - name: uv cache
         uses: actions/cache@v4
         with:
           path: ${{ steps.uv-cache.outputs.dir }}
           key: ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-uv-${{ hashFiles(format('**/py{0}-ci-requirements.txt', env.PYTHON)) }}
       - name: Install dependencies
-        run: make install-python-dependencies-uv
+        run: |
+          uv pip sync --system sdk/python/requirements/py${{ matrix.python-version }}-requirements.txt
+          uv pip install --system --no-deps .
       - name: Test Imports
         run: python -c "from feast import cli"

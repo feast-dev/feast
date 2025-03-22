@@ -233,3 +233,18 @@ class UserDefinedFunction(google.protobuf.message.Message):
     def ClearField(self, field_name: typing_extensions.Literal["body", b"body", "body_text", b"body_text", "name", b"name"]) -> None: ...
 
 global___UserDefinedFunction = UserDefinedFunction
+
+class OnDemandFeatureViewList(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    ONDEMANDFEATUREVIEWS_FIELD_NUMBER: builtins.int
+    @property
+    def ondemandfeatureviews(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___OnDemandFeatureView]: ...
+    def __init__(
+        self,
+        *,
+        ondemandfeatureviews: collections.abc.Iterable[global___OnDemandFeatureView] | None = ...,
+    ) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["ondemandfeatureviews", b"ondemandfeatureviews"]) -> None: ...
+
+global___OnDemandFeatureViewList = OnDemandFeatureViewList

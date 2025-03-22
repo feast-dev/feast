@@ -138,6 +138,24 @@ def version():
 
 
 @cli.command()
+@click.pass_context
+def configuration(ctx: click.Context):
+    """
+    Display Feast configuration
+    """
+    repo = ctx.obj["CHDIR"]
+    fs_yaml_file = ctx.obj["FS_YAML_FILE"]
+    cli_check_repo(repo, fs_yaml_file)
+    repo_config = load_repo_config(repo, fs_yaml_file)
+    if repo_config:
+        config_dict = repo_config.model_dump(by_alias=True, exclude_unset=True)
+        config_dict.pop("repo_path", None)
+        print(yaml.dump(config_dict, default_flow_style=False, sort_keys=False))
+    else:
+        print("No configuration found.")
+
+
+@cli.command()
 @click.option(
     "--host",
     "-h",
@@ -865,6 +883,7 @@ def materialize_incremental_command(ctx: click.Context, end_ts: str, views: List
             "cassandra",
             "hazelcast",
             "ikv",
+            "couchbase",
         ],
         case_sensitive=False,
     ),
@@ -981,7 +1000,6 @@ def serve_command(
         raise click.BadParameter(
             "Please pass --cert and --key args to start the feature server in TLS mode."
         )
-
     store = create_feature_store(ctx)
 
     store.serve(
@@ -1114,16 +1132,40 @@ def serve_registry_command(
     default=DEFAULT_OFFLINE_SERVER_PORT,
     help="Specify a port for the server",
 )
+@click.option(
+    "--key",
+    "-k",
+    "tls_key_path",
+    type=click.STRING,
+    default="",
+    show_default=False,
+    help="path to TLS certificate private key. You need to pass --cert as well to start server in TLS mode",
+)
+@click.option(
+    "--cert",
+    "-c",
+    "tls_cert_path",
+    type=click.STRING,
+    default="",
+    show_default=False,
+    help="path to TLS certificate public key. You need to pass --key as well to start server in TLS mode",
+)
 @click.pass_context
 def serve_offline_command(
     ctx: click.Context,
     host: str,
     port: int,
+    tls_key_path: str,
+    tls_cert_path: str,
 ):
     """Start a remote server locally on a given host, port."""
+    if (tls_key_path and not tls_cert_path) or (not tls_key_path and tls_cert_path):
+        raise click.BadParameter(
+            "Please pass --cert and --key args to start the offline server in TLS mode."
+        )
     store = create_feature_store(ctx)
 
-    store.serve_offline(host, port)
+    store.serve_offline(host, port, tls_key_path, tls_cert_path)
 
 
 @cli.command("validate")

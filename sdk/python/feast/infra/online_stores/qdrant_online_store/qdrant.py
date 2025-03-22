@@ -69,9 +69,9 @@ class QdrantOnlineStore(OnlineStore):
         if self._client:
             return self._client
         online_store_config = config.online_store
-        assert isinstance(
-            online_store_config, QdrantOnlineStoreConfig
-        ), "Invalid type for online store config"
+        assert isinstance(online_store_config, QdrantOnlineStoreConfig), (
+            "Invalid type for online store config"
+        )
 
         assert online_store_config.similarity and (
             online_store_config.similarity.lower() in DISTANCE_MAPPING
@@ -248,7 +248,8 @@ class QdrantOnlineStore(OnlineStore):
         self,
         config: RepoConfig,
         table: FeatureView,
-        requested_feature: str,
+        requested_feature: Optional[str],
+        requested_features: Optional[List[str]],
         embedding: List[float],
         top_k: int,
         distance_metric: Optional[str] = "cosine",

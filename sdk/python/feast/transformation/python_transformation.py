@@ -1,5 +1,5 @@
 from types import FunctionType
-from typing import Any
+from typing import Any, Dict, Optional, cast
 
 import dill
 import pyarrow
@@ -8,22 +8,73 @@ from feast.field import Field, from_value_type
 from feast.protos.feast.core.Transformation_pb2 import (
     UserDefinedFunctionV2 as UserDefinedFunctionProto,
 )
+from feast.transformation.base import Transformation
+from feast.transformation.mode import TransformationMode
 from feast.type_map import (
     python_type_to_feast_value_type,
 )
 
 
-class PythonTransformation:
-    def __init__(self, udf: FunctionType, udf_string: str = ""):
+class PythonTransformation(Transformation):
+    udf: FunctionType
+
+    def __new__(
+        cls,
+        udf: FunctionType,
+        udf_string: str,
+        singleton: bool = False,
+        name: Optional[str] = None,
+        tags: Optional[Dict[str, str]] = None,
+        description: str = "",
+        owner: str = "",
+    ) -> "PythonTransformation":
+        instance = super(PythonTransformation, cls).__new__(
+            cls,
+            mode=TransformationMode.PYTHON,
+            singleton=singleton,
+            udf=udf,
+            udf_string=udf_string,
+            name=name,
+            tags=tags,
+            description=description,
+            owner=owner,
+        )
+        return cast(PythonTransformation, instance)
+
+    def __init__(
+        self,
+        udf: FunctionType,
+        udf_string: str,
+        singleton: bool = False,
+        name: Optional[str] = None,
+        tags: Optional[Dict[str, str]] = None,
+        description: str = "",
+        owner: str = "",
+        *args,
+        **kwargs,
+    ):
         """
-        Creates an PythonTransformation object.
+        Creates a PythonTransformation object.
+
         Args:
-            udf: The user defined transformation function, which must take pandas
+            udf: The user-defined transformation function, which must take pandas
                 dataframes as inputs.
-            udf_string: The source code version of the udf (for diffing and displaying in Web UI)
+            name: The name of the transformation.
+            udf_string: The source code version of the UDF (for diffing and displaying in Web UI).
+            tags: Metadata tags for the transformation.
+            description: A description of the transformation.
+            owner: The owner of the transformation.
         """
-        self.udf = udf
-        self.udf_string = udf_string
+        super().__init__(
+            mode=TransformationMode.PYTHON,
+            udf=udf,
+            name=name,
+            udf_string=udf_string,
+            tags=tags,
+            description=description,
+            owner=owner,
+        )
+        self.singleton = singleton
 
     def transform_arrow(
         self,
@@ -42,10 +93,12 @@ class PythonTransformation:
         # in the case of a singleton element, it takes the value directly
         # in the case of a list of lists, it takes the first list
         input_dict = {k: v[0] for k, v in input_dict.items()}
-        output_dict = self.udf.__call__(input_dict)
+        output_dict = self.udf(input_dict)
         return {**input_dict, **output_dict}
 
-    def infer_features(self, random_input: dict[str, Any]) -> list[Field]:
+    def infer_features(
+        self, random_input: dict[str, Any], singleton: Optional[bool] = False
+    ) -> list[Field]:
         output_dict: dict[str, Any] = self.transform(random_input)
 
         fields = []
@@ -58,6 +111,10 @@ class PythonTransformation:
                     )
                 inferred_type = type(feature_value[0])
                 inferred_value = feature_value[0]
+                if singleton:
+                    inferred_value = feature_value
+                    inferred_type = None  # type: ignore
+
             else:
                 inferred_type = type(feature_value)
                 inferred_value = feature_value
@@ -69,7 +126,7 @@ class PythonTransformation:
                         python_type_to_feast_value_type(
                             feature_name,
                             value=inferred_value,
-                            type_name=inferred_type.__name__,
+                            type_name=inferred_type.__name__ if inferred_type else None,
                         )
                     ),
                 )
@@ -89,13 +146,6 @@ class PythonTransformation:
             return False
 
         return True
-
-    def to_proto(self) -> UserDefinedFunctionProto:
-        return UserDefinedFunctionProto(
-            name=self.udf.__name__,
-            body=dill.dumps(self.udf, recurse=True),
-            body_text=self.udf_string,
-        )
 
     @classmethod
     def from_proto(cls, user_defined_function_proto: UserDefinedFunctionProto):

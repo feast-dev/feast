@@ -614,6 +614,10 @@ def test_online_store_cleanup(environment, universal_data_sources):
     online_features = fs.get_online_features(
         features=features, entity_rows=entity_rows
     ).to_dict()
+
+    # Debugging print statement
+    print("Online features values:", online_features["value"])
+
     assert all(v is None for v in online_features["value"])
 
 
@@ -858,8 +862,8 @@ def assert_feature_service_entity_mapping_correctness(
 
 @pytest.mark.integration
 @pytest.mark.universal_online_stores(only=["pgvector", "elasticsearch", "qdrant"])
-def test_retrieve_online_documents(vectordb_environment, fake_document_data):
-    fs = vectordb_environment.feature_store
+def test_retrieve_online_documents(environment, fake_document_data):
+    fs = environment.feature_store
     df, data_source = fake_document_data
     item_embeddings_feature_view = create_item_embeddings_feature_view(data_source)
     fs.apply([item_embeddings_feature_view, item()])
@@ -891,3 +895,28 @@ def test_retrieve_online_documents(vectordb_environment, fake_document_data):
             top_k=2,
             distance_metric="wrong",
         ).to_dict()
+
+
+@pytest.mark.integration
+@pytest.mark.universal_online_stores(only=["milvus"])
+def test_retrieve_online_milvus_documents(environment, fake_document_data):
+    fs = environment.feature_store
+    df, data_source = fake_document_data
+    item_embeddings_feature_view = create_item_embeddings_feature_view(data_source)
+    fs.apply([item_embeddings_feature_view, item()])
+    fs.write_to_online_store("item_embeddings", df)
+    documents = fs.retrieve_online_documents(
+        feature=None,
+        features=[
+            "item_embeddings:embedding_float",
+            "item_embeddings:item_id",
+            "item_embeddings:string_feature",
+        ],
+        query=[1.0, 2.0],
+        top_k=2,
+        distance_metric="L2",
+    ).to_dict()
+    assert len(documents["embedding_float"]) == 2
+
+    assert len(documents["item_id"]) == 2
+    assert documents["item_id"] == [2, 3]

@@ -70,7 +70,7 @@ ONLINE_STORE_CLASS_FOR_TYPE = {
     "dynamodb": "feast.infra.online_stores.dynamodb.DynamoDBOnlineStore",
     "snowflake.online": "feast.infra.online_stores.snowflake.SnowflakeOnlineStore",
     "bigtable": "feast.infra.online_stores.bigtable.BigtableOnlineStore",
-    "postgres": "feast.infra.online_stores.postgres_online_store.PostgreSQLOnlineStore",
+    "postgres": "feast.infra.online_stores.postgres_online_store.postgres.PostgreSQLOnlineStore",
     "hbase": "feast.infra.online_stores.hbase_online_store.hbase.HbaseOnlineStore",
     "cassandra": "feast.infra.online_stores.cassandra_online_store.cassandra_online_store.CassandraOnlineStore",
     "mysql": "feast.infra.online_stores.mysql_online_store.mysql.MySQLOnlineStore",
@@ -80,7 +80,8 @@ ONLINE_STORE_CLASS_FOR_TYPE = {
     "remote": "feast.infra.online_stores.remote.RemoteOnlineStore",
     "singlestore": "feast.infra.online_stores.singlestore_online_store.singlestore.SingleStoreOnlineStore",
     "qdrant": "feast.infra.online_stores.cqdrant.QdrantOnlineStore",
-    "couchbase": "feast.infra.online_stores.couchbase_online_store.couchbase.CouchbaseOnlineStore",
+    "couchbase.online": "feast.infra.online_stores.couchbase_online_store.couchbase.CouchbaseOnlineStore",
+    "milvus": "feast.infra.online_stores.milvus_online_store.milvus.MilvusOnlineStore",
     **LEGACY_ONLINE_STORE_CLASS_FOR_TYPE,
 }
 
@@ -97,6 +98,7 @@ OFFLINE_STORE_CLASS_FOR_TYPE = {
     "mssql": "feast.infra.offline_stores.contrib.mssql_offline_store.mssql.MsSqlServerOfflineStore",
     "duckdb": "feast.infra.offline_stores.duckdb.DuckDBOfflineStore",
     "remote": "feast.infra.offline_stores.remote.RemoteOfflineStore",
+    "couchbase.offline": "feast.infra.offline_stores.contrib.couchbase_offline_store.couchbase.CouchbaseColumnarOfflineStore",
 }
 
 FEATURE_SERVER_CONFIG_CLASS_FOR_TYPE = {
@@ -368,14 +370,14 @@ class RepoConfig(FeastBaseModel):
                     )
                 elif values["auth"]["type"] not in ALLOWED_AUTH_TYPES:
                     raise ValueError(
-                        f'auth configuration has invalid authentication type={values["auth"]["type"]}. Possible '
-                        f'values={ALLOWED_AUTH_TYPES}'
+                        f"auth configuration has invalid authentication type={values['auth']['type']}. Possible "
+                        f"values={ALLOWED_AUTH_TYPES}"
                     )
             elif isinstance(values["auth"], AuthConfig):
                 if values["auth"].type not in ALLOWED_AUTH_TYPES:
                     raise ValueError(
-                        f'auth configuration has invalid authentication type={values["auth"].type}. Possible '
-                        f'values={ALLOWED_AUTH_TYPES}'
+                        f"auth configuration has invalid authentication type={values['auth'].type}. Possible "
+                        f"values={ALLOWED_AUTH_TYPES}"
                     )
         return values
 

@@ -1,6 +1,6 @@
 # Feast Python / Go Feature Server Helm Charts
 
-Current chart version is `0.41.0`
+Current chart version is `0.46.0`
 
 ## Installation
 
@@ -40,7 +40,7 @@ See [here](https://github.com/feast-dev/feast/tree/master/examples/python-helm-d
 | fullnameOverride | string | `""` |  |
 | image.pullPolicy | string | `"IfNotPresent"` |  |
 | image.repository | string | `"feastdev/feature-server"` | Docker image for Feature Server repository |
-| image.tag | string | `"0.41.0"` | The Docker image tag (can be overwritten if custom feature server deps are needed for on demand transforms) |
+| image.tag | string | `"0.46.0"` | The Docker image tag (can be overwritten if custom feature server deps are needed for on demand transforms) |
 | imagePullSecrets | list | `[]` |  |
 | livenessProbe.initialDelaySeconds | int | `30` |  |
 | livenessProbe.periodSeconds | int | `30` |  |
@@ -56,6 +56,7 @@ See [here](https://github.com/feast-dev/feast/tree/master/examples/python-helm-d
 | readinessProbe.periodSeconds | int | `10` |  |
 | replicaCount | int | `1` |  |
 | resources | object | `{}` |  |
+| route.enabled | bool | `false` |  |
 | securityContext | object | `{}` |  |
 | service.port | int | `80` |  |
 | service.type | string | `"ClusterIP"` |  |

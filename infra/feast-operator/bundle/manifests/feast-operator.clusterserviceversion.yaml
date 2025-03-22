@@ -13,13 +13,34 @@ metadata:
           "spec": {
             "feastProject": "my_project"
           }
+        },
+        {
+          "apiVersion": "feast.dev/v1alpha1",
+          "kind": "FeatureStore",
+          "metadata": {
+            "name": "sample-all-servers"
+          },
+          "spec": {
+            "feastProject": "my_project",
+            "services": {
+              "offlineStore": {
+                "server": {}
+              },
+              "registry": {
+                "local": {
+                  "server": {}
+                }
+              },
+              "ui": {}
+            }
+          }
         }
       ]
     capabilities: Basic Install
-    createdAt: "2024-11-01T13:05:11Z"
-    operators.operatorframework.io/builder: operator-sdk-v1.37.0
+    createdAt: "2025-02-17T22:19:00Z"
+    operators.operatorframework.io/builder: operator-sdk-v1.38.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
-  name: feast-operator.v0.41.0
+  name: feast-operator.v0.46.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -54,6 +75,8 @@ spec:
           - ""
           resources:
           - configmaps
+          - persistentvolumeclaims
+          - serviceaccounts
           - services
           verbs:
           - create
@@ -62,6 +85,13 @@ spec:
           - list
           - update
           - watch
+        - apiGroups:
+          - ""
+          resources:
+          - secrets
+          verbs:
+          - get
+          - list
         - apiGroups:
           - feast.dev
           resources:
@@ -88,6 +118,29 @@ spec:
           - get
           - patch
           - update
+        - apiGroups:
+          - rbac.authorization.k8s.io
+          resources:
+          - rolebindings
+          - roles
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - update
+          - watch
+        - apiGroups:
+          - route.openshift.io
+          resources:
+          - routes
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - update
+          - watch
         - apiGroups:
           - authentication.k8s.io
           resources:
@@ -122,35 +175,15 @@ spec:
             spec:
               containers:
               - args:
-                - --secure-listen-address=0.0.0.0:8443
-                - --upstream=http://127.0.0.1:8080/
-                - --logtostderr=true
-                - --v=0
-                image: gcr.io/kubebuilder/kube-rbac-proxy:v0.16.0
-                name: kube-rbac-proxy
-                ports:
-                - containerPort: 8443
-                  name: https
-                  protocol: TCP
-                resources:
-                  limits:
-                    cpu: 500m
-                    memory: 128Mi
-                  requests:
-                    cpu: 5m
-                    memory: 64Mi
-                securityContext:
-                  allowPrivilegeEscalation: false
-                  capabilities:
-                    drop:
-                    - ALL
-              - args:
-                - --health-probe-bind-address=:8081
-                - --metrics-bind-address=127.0.0.1:8080
+                - --metrics-bind-address=:8443
                 - --leader-elect
+                - --health-probe-bind-address=:8081
                 command:
                 - /manager
-                image: feastdev/feast-operator:0.41.0
+                env:
+                - name: RELATED_IMAGE_FEATURE_SERVER
+                  value: docker.io/feastdev/feature-server:0.46.0
+                image: feastdev/feast-operator:0.46.0
                 livenessProbe:
                   httpGet:
                     path: /healthz
@@ -239,4 +272,7 @@ spec:
   provider:
     name: Feast Community
     url: https://lf-aidata.atlassian.net/wiki/spaces/FEAST/
-  version: 0.41.0
+  relatedImages:
+  - image: docker.io/feastdev/feature-server:0.46.0
+    name: feature-server
+  version: 0.46.0

@@ -101,3 +101,7 @@ message UserDefinedFunction {
     // The string representation of the udf
     string body_text = 3;
 }
+
+message OnDemandFeatureViewList {
+    repeated OnDemandFeatureView ondemandfeatureviews = 1;
+}

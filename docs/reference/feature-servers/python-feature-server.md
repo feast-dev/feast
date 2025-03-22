@@ -226,13 +226,14 @@ feast serve --key /path/to/key.pem --cert /path/to/cert.pem
 
 ## API Endpoints and Permissions
 
-| Endpoint                     | Resource Type                   | Permission                                            | Description                                                              |
-| ---------------------------- |---------------------------------|-------------------------------------------------------| ------------------------------------------------------------------------ |
-| /get-online-features         | FeatureView,OnDemandFeatureView | Read Online                                           | Get online features from the feature store                     |
-| /push                        | FeatureView                     | Write Online, Write Offline, Write Online and Offline | Push features to the feature store (online, offline, or both)  |
-| /write-to-online-store       | FeatureView                     | Write Online                                          | Write features to the online store                             |
-| /materialize                 | FeatureView                     | Write Online                                          | Materialize features within a specified time range             |
-| /materialize-incremental     | FeatureView                     | Write Online                                          | Incrementally materialize features up to a specified timestamp |
+| Endpoint                   | Resource Type                   | Permission                                            | Description                                                    |
+|----------------------------|---------------------------------|-------------------------------------------------------|----------------------------------------------------------------|
+| /get-online-features       | FeatureView,OnDemandFeatureView | Read Online                                           | Get online features from the feature store                     |
+| /retrieve-online-documents | FeatureView                     | Read Online                                           | Retrieve online documents from the feature store for RAG       |
+| /push                      | FeatureView                     | Write Online, Write Offline, Write Online and Offline | Push features to the feature store (online, offline, or both)  |
+| /write-to-online-store     | FeatureView                     | Write Online                                          | Write features to the online store                             |
+| /materialize               | FeatureView                     | Write Online                                          | Materialize features within a specified time range             |
+| /materialize-incremental   | FeatureView                     | Write Online                                          | Incrementally materialize features up to a specified timestamp |
 
 ## How to configure Authentication and Authorization ?
 

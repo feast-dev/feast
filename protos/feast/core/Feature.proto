@@ -35,6 +35,11 @@ message FeatureSpecV2 {
     map<string,string> tags = 3;
 
     // Description of the feature.
-
     string description = 4;
+
+    // Field indicating the vector will be indexed for vector similarity search
+    bool vector_index = 5;
+
+    // Metric used for vector similarity search.
+    string vector_search_metric = 6;
 }

@@ -150,6 +150,7 @@ class FooProvider(Provider):
         config: RepoConfig,
         table: FeatureView,
         requested_feature: str,
+        requested_features: Optional[List[str]],
         query: List[float],
         top_k: int,
         distance_metric: Optional[str] = None,
@@ -159,6 +160,24 @@ class FooProvider(Provider):
             Optional[ValueProto],
             Optional[ValueProto],
             Optional[ValueProto],
+        ]
+    ]:
+        return []
+
+    def retrieve_online_documents_v2(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        requested_features: List[str],
+        query: Optional[List[float]],
+        top_k: int,
+        distance_metric: Optional[str] = None,
+        query_string: Optional[str] = None,
+    ) -> List[
+        Tuple[
+            Optional[datetime],
+            Optional[EntityKeyProto],
+            Optional[Dict[str, ValueProto]],
         ]
     ]:
         return []

@@ -40,8 +40,8 @@ interface FeastUIConfigs {
   projectListPromise?: Promise<any>;
 }
 
-const defaultProjectListPromise = () => {
-  return fetch("/projects-list.json", {
+const defaultProjectListPromise = (basename: string) => {
+  return fetch(`${basename}/projects-list.json`, {
     headers: {
       "Content-Type": "application/json",
     },
@@ -51,8 +51,10 @@ const defaultProjectListPromise = () => {
 };
 
 const FeastUISansProviders = ({
+  basename = "",
   feastUIConfigs,
 }: {
+  basename?: string;
   feastUIConfigs?: FeastUIConfigs;
 }) => {
   const projectListContext: ProjectsListContextInterface =
@@ -61,9 +63,7 @@ const FeastUISansProviders = ({
           projectsListPromise: feastUIConfigs?.projectListPromise,
           isCustom: true,
         }
-      : { projectsListPromise: defaultProjectListPromise(), isCustom: false };
-    
-  const BASE_URL = process.env.PUBLIC_URL || ""
+      : { projectsListPromise: defaultProjectListPromise(basename), isCustom: false };
 
   return (
     <EuiProvider colorMode="light">
@@ -76,9 +76,9 @@ const FeastUISansProviders = ({
           >
             <ProjectListContext.Provider value={projectListContext}>
               <Routes>
-                <Route path={BASE_URL + "/"} element={<Layout />}>
+                <Route path="/" element={<Layout />}>
                   <Route index element={<RootProjectSelectionPage />} />
-                  <Route path={BASE_URL + "/p/:projectName/*"} element={<NoProjectGuard />}>
+                  <Route path="/p/:projectName/*" element={<NoProjectGuard />}>
                     <Route index element={<ProjectOverviewPage />} />
                     <Route path="data-source/" element={<DatasourceIndex />} />
                     <Route

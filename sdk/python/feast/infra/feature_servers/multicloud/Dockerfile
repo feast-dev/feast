@@ -1,22 +1,7 @@
-FROM debian:11-slim
-RUN apt update && \
-        apt install -y \
-        jq \
-        python3 \
-        python3-pip \
-        python3-dev \
-        build-essential
+FROM registry.access.redhat.com/ubi8/python-311:1
 
-RUN pip install pip --upgrade
-RUN pip install "feast[aws,gcp,snowflake,redis,go,mysql,postgres,opentelemetry,grpcio]"
+COPY requirements.txt requirements.txt
+RUN pip install -r requirements.txt
 
-
-RUN apt update
-RUN apt install -y -V ca-certificates lsb-release wget
-RUN wget https://apache.jfrog.io/artifactory/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
-RUN apt install -y -V ./apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
-RUN apt update
-RUN apt -y install libarrow-dev
 # modify permissions to support running with a random uid
-RUN mkdir -m 775 /.cache
-RUN chmod g+w $(python3 -c "import feast.ui as _; print(_.__path__)" | tr -d "[']")/build/projects-list.json
+RUN chmod g+w $(python -c "import feast.ui as ui; print(ui.__path__)" | tr -d "[']")/build/projects-list.json
