@@ -161,6 +161,12 @@ def create_item_embeddings_feature_view(source, infer_features: bool = False):
         if infer_features
         else [
             Field(
+                name="embedding_double",
+                dtype=Array(Float64),
+                vector_index=True,
+                vector_search_metric="L2",
+            ),
+            Field(
                 name="embedding_float",
                 dtype=Array(Float32),
                 vector_index=True,
@@ -189,6 +195,7 @@ def create_item_embeddings_batch_feature_view(
         ],
         source=source,
         ttl=timedelta(hours=2),
+        udf=lambda x: x,
     )
     return item_embeddings_feature_view
 
@@ -231,6 +238,7 @@ def create_driver_hourly_stats_batch_feature_view(
         source=source,
         ttl=timedelta(hours=2),
         tags=TAGS,
+        udf=lambda x: x,
     )
     return driver_stats_feature_view
 
