@@ -33,7 +33,11 @@ const ConsumingFeatureServicesList = ({
   };
 
   return (
-    <EuiBasicTable columns={columns} items={fsNames.map(name => ({ name }))} rowProps={getRowProps} />
+    <EuiBasicTable
+      columns={columns}
+      items={fsNames.map((name) => ({ name }))}
+      rowProps={getRowProps}
+    />
   );
 };
 

@@ -18,7 +18,7 @@ const FeatureServiceIndexEmptyState = () => {
           onClick={() => {
             window.open(
               "https://docs.feast.dev/getting-started/concepts/feature-retrieval#feature-services",
-              "_blank"
+              "_blank",
             );
           }}
         >

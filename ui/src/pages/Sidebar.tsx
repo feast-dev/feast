@@ -55,45 +55,51 @@ const SideNav = () => {
 
   const baseUrl = `/p/${projectName}`;
 
-  const sideNav: React.ComponentProps<typeof EuiSideNav>['items'] = [
+  const sideNav: React.ComponentProps<typeof EuiSideNav>["items"] = [
     {
       name: "Home",
       id: htmlIdGenerator("basicExample")(),
-      renderItem: props => <Link {...props} to={`${baseUrl}/`} />,
+      renderItem: (props) => <Link {...props} to={`${baseUrl}/`} />,
       items: [
         {
           name: dataSourcesLabel,
           id: htmlIdGenerator("dataSources")(),
           icon: <EuiIcon type={DataSourceIcon} />,
-          renderItem: props => <Link {...props} to={`${baseUrl}/data-source`} />,
+          renderItem: (props) => (
+            <Link {...props} to={`${baseUrl}/data-source`} />
+          ),
           isSelected: useMatchSubpath(`${baseUrl}/data-source`),
         },
         {
           name: entitiesLabel,
           id: htmlIdGenerator("entities")(),
           icon: <EuiIcon type={EntityIcon} />,
-          renderItem: props => <Link {...props} to={`${baseUrl}/entity`} />,
+          renderItem: (props) => <Link {...props} to={`${baseUrl}/entity`} />,
           isSelected: useMatchSubpath(`${baseUrl}/entity`),
         },
         {
           name: featureViewsLabel,
           id: htmlIdGenerator("featureView")(),
           icon: <EuiIcon type={FeatureViewIcon} />,
-          renderItem: props => <Link {...props} to={`${baseUrl}/feature-view`} />,
+          renderItem: (props) => (
+            <Link {...props} to={`${baseUrl}/feature-view`} />
+          ),
           isSelected: useMatchSubpath(`${baseUrl}/feature-view`),
         },
         {
           name: featureServicesLabel,
           id: htmlIdGenerator("featureService")(),
           icon: <EuiIcon type={FeatureServiceIcon} />,
-          renderItem: props => <Link {...props} to={`${baseUrl}/feature-service`} />,
+          renderItem: (props) => (
+            <Link {...props} to={`${baseUrl}/feature-service`} />
+          ),
           isSelected: useMatchSubpath(`${baseUrl}/feature-service`),
         },
         {
           name: savedDatasetsLabel,
           id: htmlIdGenerator("savedDatasets")(),
           icon: <EuiIcon type={DatasetIcon} />,
-          renderItem: props => <Link {...props} to={`${baseUrl}/data-set`} />,
+          renderItem: (props) => <Link {...props} to={`${baseUrl}/data-set`} />,
           isSelected: useMatchSubpath(`${baseUrl}/data-set`),
         },
       ],

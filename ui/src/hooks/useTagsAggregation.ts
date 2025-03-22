@@ -7,7 +7,7 @@ import { feast } from "../protos";
 // https://stackoverflow.com/questions/53203409/how-to-tell-typescript-that-im-returning-an-array-of-arrays-of-the-input-type
 const buildTagCollection = <T>(
   array: T[],
-  recordExtractor: (unknownFCO: T) => Record<string, string> | undefined // Assumes that tags are always a Record<string, string>
+  recordExtractor: (unknownFCO: T) => Record<string, string> | undefined, // Assumes that tags are always a Record<string, string>
 ): Record<string, Record<string, T[]>> => {
   const tagCollection = array.reduce(
     (memo: Record<string, Record<string, T[]>>, fco: T) => {
@@ -31,7 +31,7 @@ const buildTagCollection = <T>(
 
       return memo;
     },
-    {}
+    {},
   );
 
   return tagCollection;
@@ -44,11 +44,11 @@ const useFeatureViewTagsAggregation = () => {
   const data = useMemo(() => {
     return query.data && query.data.objects && query.data.objects.featureViews
       ? buildTagCollection<feast.core.IFeatureView>(
-        query.data.objects.featureViews!,
-        (fv) => {
-          return fv.spec?.tags!;
-        }
-      )
+          query.data.objects.featureViews!,
+          (fv) => {
+            return fv.spec?.tags!;
+          },
+        )
       : undefined;
   }, [query.data]);
 
@@ -67,11 +67,11 @@ const useFeatureServiceTagsAggregation = () => {
       query.data.objects &&
       query.data.objects.featureServices
       ? buildTagCollection<feast.core.IFeatureService>(
-        query.data.objects.featureServices,
-        (fs) => {
-          return fs.spec?.tags!;
-        }
-      )
+          query.data.objects.featureServices,
+          (fs) => {
+            return fs.spec?.tags!;
+          },
+        )
       : undefined;
   }, [query.data]);
 

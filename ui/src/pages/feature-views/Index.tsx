@@ -43,7 +43,7 @@ const useLoadFeatureViews = () => {
 
 const shouldIncludeFVsGivenTokenGroups = (
   entry: regularFVInterface,
-  tagTokenGroups: Record<string, string[]>
+  tagTokenGroups: Record<string, string[]>,
 ) => {
   return Object.entries(tagTokenGroups).every(([key, values]) => {
     const entryTagValue = entry?.object?.spec!.tags
@@ -68,7 +68,7 @@ const filterFn = (data: genericFVType[], filterInput: filterInputInterface) => {
       if (entry.type === "regular") {
         return shouldIncludeFVsGivenTokenGroups(
           entry,
-          filterInput.tagTokenGroups
+          filterInput.tagTokenGroups,
         );
       } else {
         return false; // ODFVs don't have tags yet

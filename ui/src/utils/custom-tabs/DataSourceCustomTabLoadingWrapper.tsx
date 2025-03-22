@@ -15,7 +15,7 @@ const DataSourceCustomTabLoadingWrapper = ({
 
   if (!dataSourceName) {
     throw new Error(
-      `This route has no 'dataSourceName' part. This route is likely not supposed to render this component.`
+      `This route has no 'dataSourceName' part. This route is likely not supposed to render this component.`,
     );
   }
 

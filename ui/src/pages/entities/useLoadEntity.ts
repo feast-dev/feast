@@ -10,8 +10,8 @@ const useLoadEntity = (entityName: string) => {
     registryQuery.data === undefined
       ? undefined
       : registryQuery.data.objects.entities?.find(
-        (fv) => fv?.spec?.name === entityName
-      );
+          (fv) => fv?.spec?.name === entityName,
+        );
 
   return {
     ...registryQuery,
