@@ -1869,39 +1869,31 @@ class FeatureStore:
             allow_cache=True,
             hide_dummy_entity=False,
         )
-        if features:
+        if feature_list:
             feature_view_set = set()
-            for feature in features:
-                feature_view_name = feature.split(":")[0]
+            for _feature in feature_list:
+                feature_view_name = _feature.split(":")[0]
                 feature_view = self.get_feature_view(feature_view_name)
                 feature_view_set.add(feature_view.name)
             if len(feature_view_set) > 1:
                 raise ValueError(
                     "Document retrieval only supports a single feature view."
                 )
-            requested_feature = None
-            requested_features = [
-                f.split(":")[1] for f in features if isinstance(f, str) and ":" in f
-            ]
-        else:
             requested_feature = (
                 feature.split(":")[1] if isinstance(feature, str) else feature
             )
-            requested_features = [requested_feature] if requested_feature else []
-
-        requested_feature_view_name = (
-            feature.split(":")[0] if feature else list(feature_view_set)[0]
-        )
+            requested_features = [
+                f.split(":")[1] for f in feature_list if isinstance(f, str) and ":" in f
+            ]
+        requested_feature_view_name = list(feature_view_set)[0]
         for feature_view in available_feature_views:
             if feature_view.name == requested_feature_view_name:
                 requested_feature_view = feature_view
                 break
-        if not requested_feature_view:
+        else:
             raise ValueError(
                 f"Feature view {requested_feature_view} not found in the registry."
             )
-        # Unnecessary code here a its overriding the requested_feature_view set from the above for loop
-        # requested_feature_view = available_feature_views[0]
 
         provider = self._get_provider()
         document_features = self._retrieve_from_online_store(
@@ -1945,7 +1937,6 @@ class FeatureStore:
             for _feature in _requested_features
             if _feature in data
         }
-        # TODO currently the requested 'features' list is not functioning as expected
         utils._populate_result_rows_from_columnar(
             online_features_response=online_features_response,
             data=requested_features_data,

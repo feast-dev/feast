@@ -718,7 +718,9 @@ def test_sqlite_get_online_documents() -> None:
             vector_length,
         )
         result = store.retrieve_online_documents(
-            feature="document_embeddings:Embeddings", query=query_embedding, top_k=3
+            query=query_embedding,
+            top_k=3,
+            features=["document_embeddings:Embeddings", "document_embeddings:distance"],
         ).to_dict()
 
         assert "Embeddings" in result

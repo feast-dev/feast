@@ -394,6 +394,11 @@ class PostgreSQLOnlineStore(OnlineStore):
                 f"Distance metric {distance_metric} is not supported. Supported distance metrics are {SUPPORTED_DISTANCE_METRICS_DICT.keys()}"
             )
 
+        if requested_features:
+            required_feature_names = ", ".join(
+                [feature for feature in requested_features]
+            )
+
         distance_metric_sql = SUPPORTED_DISTANCE_METRICS_DICT[distance_metric]
 
         result: List[
@@ -415,7 +420,7 @@ class PostgreSQLOnlineStore(OnlineStore):
                     """
                     SELECT
                         entity_key,
-                        feature_name,
+                        {feature_names},
                         value,
                         vector_value,
                         vector_value {distance_metric_sql} %s::vector as distance,
@@ -427,6 +432,7 @@ class PostgreSQLOnlineStore(OnlineStore):
                 ).format(
                     distance_metric_sql=sql.SQL(distance_metric_sql),
                     table_name=sql.Identifier(table_name),
+                    feature_names=required_feature_names,
                     feature_name=sql.Literal(requested_feature),
                     top_k=sql.Literal(top_k),
                 ),
