@@ -28,6 +28,7 @@ class Transformation(ABC):
         udf=lambda df: df.assign(new_column=df['column1'] + df['column2']),
     )
     """
+
     udf: Callable[[Any], Any]
     udf_string: str
 
