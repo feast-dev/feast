@@ -49,29 +49,27 @@ interface NavigationTabInterface {
 const TabsRegistryContext = React.createContext<FeastTabsRegistryInterface>({});
 
 const useGenericCustomTabsNavigation = <
-  T extends CustomTabRegistrationInterface
+  T extends CustomTabRegistrationInterface,
 >(
   entries: T[],
-  navigate: NavigateFunction
+  navigate: NavigateFunction,
 ) => {
   // Check for Duplicates
   const arrayOfPaths = entries.map((tab) => tab.path);
 
   const duplicatedPaths = arrayOfPaths.filter(
-    (item, index) => arrayOfPaths.indexOf(item) !== index
+    (item, index) => arrayOfPaths.indexOf(item) !== index,
   );
 
   // Throw error if multiple custom tabs being registered to the same path
   if (duplicatedPaths.length) {
     throw new Error(
-      `More than one tabs registered for path url: ${duplicatedPaths.join(
-        ", "
-      )}`
+      `More than one tabs registered for path url: ${duplicatedPaths.join(", ")}`,
     );
   }
 
   const [customNavigationTabs, setTabs] = useState<NavigationTabInterface[]>(
-    []
+    [],
   );
 
   const featureViewRoot = useResolvedPath(""); // Root of Feature View Section
@@ -94,7 +92,7 @@ const useGenericCustomTabsNavigation = <
             navigate(path);
           },
         };
-      })
+      }),
     );
   }, [pathname, navigate, featureViewRoot.pathname, entries]);
 
@@ -117,7 +115,7 @@ type WrapperComponentType<T> = ({
 
 const genericCustomTabRoutes = <T,>(
   tabs: InnerComponent<T>[],
-  WrapperComponent: WrapperComponentType<T>
+  WrapperComponent: WrapperComponentType<T>,
 ) => {
   return tabs.map(({ path, Component }) => {
     const WrappedComponent = () => {
@@ -137,7 +135,7 @@ const useRegularFeatureViewCustomTabs = (navigate: NavigateFunction) => {
 
   return useGenericCustomTabsNavigation<RegularFeatureViewCustomTabRegistrationInterface>(
     RegularFeatureViewCustomTabs || [],
-    navigate
+    navigate,
   );
 };
 
@@ -147,17 +145,16 @@ const useOnDemandFeatureViewCustomTabs = (navigate: NavigateFunction) => {
 
   return useGenericCustomTabsNavigation<OnDemandFeatureViewCustomTabRegistrationInterface>(
     OnDemandFeatureViewCustomTabs || [],
-    navigate
+    navigate,
   );
 };
 
 const useStreamFeatureViewCustomTabs = (navigate: NavigateFunction) => {
-  const { StreamFeatureViewCustomTabs } =
-    React.useContext(TabsRegistryContext);
+  const { StreamFeatureViewCustomTabs } = React.useContext(TabsRegistryContext);
 
   return useGenericCustomTabsNavigation<StreamFeatureViewCustomTabRegistrationInterface>(
     StreamFeatureViewCustomTabs || [],
-    navigate
+    navigate,
   );
 };
 
@@ -166,7 +163,7 @@ const useFeatureServiceCustomTabs = (navigate: NavigateFunction) => {
 
   return useGenericCustomTabsNavigation<FeatureServiceCustomTabRegistrationInterface>(
     FeatureServiceCustomTabs || [],
-    navigate
+    navigate,
   );
 };
 
@@ -175,7 +172,7 @@ const useFeatureCustomTabs = (navigate: NavigateFunction) => {
 
   return useGenericCustomTabsNavigation<FeatureCustomTabRegistrationInterface>(
     FeatureCustomTabs || [],
-    navigate
+    navigate,
   );
 };
 
@@ -184,7 +181,7 @@ const useDataSourceCustomTabs = (navigate: NavigateFunction) => {
 
   return useGenericCustomTabsNavigation<DataSourceCustomTabRegistrationInterface>(
     DataSourceCustomTabs || [],
-    navigate
+    navigate,
   );
 };
 
@@ -193,7 +190,7 @@ const useEntityCustomTabs = (navigate: NavigateFunction) => {
 
   return useGenericCustomTabsNavigation<EntityCustomTabRegistrationInterface>(
     EntityCustomTabs || [],
-    navigate
+    navigate,
   );
 };
 
@@ -202,7 +199,7 @@ const useDatasetCustomTabs = (navigate: NavigateFunction) => {
 
   return useGenericCustomTabsNavigation<DatasetCustomTabRegistrationInterface>(
     DatasetCustomTabs || [],
-    navigate
+    navigate,
   );
 };
 
@@ -213,7 +210,7 @@ const useRegularFeatureViewCustomTabRoutes = () => {
 
   return genericCustomTabRoutes(
     RegularFeatureViewCustomTabs || [],
-    RegularFeatureViewCustomTabLoadingWrapper
+    RegularFeatureViewCustomTabLoadingWrapper,
   );
 };
 
@@ -223,17 +220,16 @@ const useOnDemandFeatureViewCustomTabRoutes = () => {
 
   return genericCustomTabRoutes(
     OnDemandFeatureViewCustomTabs || [],
-    OnDemandFeatureViewCustomTabLoadingWrapper
+    OnDemandFeatureViewCustomTabLoadingWrapper,
   );
 };
 
 const useStreamFeatureViewCustomTabRoutes = () => {
-  const { StreamFeatureViewCustomTabs } =
-    React.useContext(TabsRegistryContext);
+  const { StreamFeatureViewCustomTabs } = React.useContext(TabsRegistryContext);
 
   return genericCustomTabRoutes(
     StreamFeatureViewCustomTabs || [],
-    StreamFeatureViewCustomTabLoadingWrapper
+    StreamFeatureViewCustomTabLoadingWrapper,
   );
 };
 
@@ -242,7 +238,7 @@ const useFeatureServiceCustomTabRoutes = () => {
 
   return genericCustomTabRoutes(
     FeatureServiceCustomTabs || [],
-    FeatureServiceCustomTabLoadingWrapper
+    FeatureServiceCustomTabLoadingWrapper,
   );
 };
 
@@ -251,7 +247,7 @@ const useEntityCustomTabRoutes = () => {
 
   return genericCustomTabRoutes(
     EntityCustomTabs || [],
-    EntityCustomTabLoadingWrapper
+    EntityCustomTabLoadingWrapper,
   );
 };
 
@@ -260,7 +256,7 @@ const useDataSourceCustomTabRoutes = () => {
 
   return genericCustomTabRoutes(
     DataSourceCustomTabs || [],
-    DataSourceCustomTabLoadingWrapper
+    DataSourceCustomTabLoadingWrapper,
   );
 };
 
@@ -269,7 +265,7 @@ const useFeatureCustomTabRoutes = () => {
 
   return genericCustomTabRoutes(
     FeatureCustomTabs || [],
-    FeatureCustomTabLoadingWrapper
+    FeatureCustomTabLoadingWrapper,
   );
 };
 
@@ -278,7 +274,7 @@ const useDatasetCustomTabRoutes = () => {
 
   return genericCustomTabRoutes(
     DatasetCustomTabs || [],
-    DatasetCustomTabLoadingWrapper
+    DatasetCustomTabLoadingWrapper,
   );
 };
 

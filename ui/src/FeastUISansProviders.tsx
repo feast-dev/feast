@@ -63,7 +63,10 @@ const FeastUISansProviders = ({
           projectsListPromise: feastUIConfigs?.projectListPromise,
           isCustom: true,
         }
-      : { projectsListPromise: defaultProjectListPromise(basename), isCustom: false };
+      : {
+          projectsListPromise: defaultProjectListPromise(basename),
+          isCustom: false,
+        };
 
   return (
     <EuiProvider colorMode="light">
@@ -89,12 +92,14 @@ const FeastUISansProviders = ({
                       path="feature-view/"
                       element={<FeatureViewIndex />}
                     />
-                    <Route path="feature-view/:featureViewName/*" element={<FeatureViewInstance />}>
-                    </Route>
                     <Route
-                        path="feature-view/:FeatureViewName/feature/:FeatureName/*"
-                        element={<FeatureInstance />}
-                      />
+                      path="feature-view/:featureViewName/*"
+                      element={<FeatureViewInstance />}
+                    ></Route>
+                    <Route
+                      path="feature-view/:FeatureViewName/feature/:FeatureName/*"
+                      element={<FeatureInstance />}
+                    />
                     <Route
                       path="feature-service/"
                       element={<FeatureServiceIndex />}

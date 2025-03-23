@@ -70,9 +70,7 @@ const FeatureServiceOverviewTab = () => {
             {data?.meta?.lastUpdatedTimestamp ? (
               <EuiFlexItem>
                 <EuiStat
-                  title={`${toDate(data?.meta?.lastUpdatedTimestamp!).toLocaleDateString(
-                    "en-CA"
-                  )}`}
+                  title={`${toDate(data?.meta?.lastUpdatedTimestamp!).toLocaleDateString("en-CA")}`}
                   description="Last updated"
                 />
               </EuiFlexItem>
@@ -133,7 +131,7 @@ const FeatureServiceOverviewTab = () => {
                             color="primary"
                             onClick={() => {
                               navigate(
-                                `/p/${projectName}/entity/${entity.name}`
+                                `/p/${projectName}/entity/${entity.name}`,
                               );
                             }}
                             onClickAriaLabel={entity.name}
@@ -157,9 +155,11 @@ const FeatureServiceOverviewTab = () => {
                 <EuiHorizontalRule margin="xs" />
                 {data?.spec?.features?.length! > 0 ? (
                   <FeatureViewEdgesList
-                    fvNames={data?.spec?.features?.map((f) => {
-                      return f.featureViewName!;
-                    })!}
+                    fvNames={
+                      data?.spec?.features?.map((f) => {
+                        return f.featureViewName!;
+                      })!
+                    }
                   />
                 ) : (
                   <EuiText>No feature views in this feature service</EuiText>

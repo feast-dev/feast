@@ -29,8 +29,9 @@ const useLoadRegistry = (url: string) => {
           return res.arrayBuffer();
         })
         .then<FeatureStoreAllData>((arrayBuffer) => {
-
-          const objects = feast.core.Registry.decode(new Uint8Array(arrayBuffer));
+          const objects = feast.core.Registry.decode(
+            new Uint8Array(arrayBuffer),
+          );
           // const objects = FeastRegistrySchema.parse(json);
 
           const { mergedFVMap, mergedFVList } = mergedFVTypes(objects);
@@ -40,7 +41,7 @@ const useLoadRegistry = (url: string) => {
           // Only contains Entity -> FS or DS -> FS relationships
           const indirectRelationships = parseIndirectRelationships(
             relationships,
-            objects
+            objects,
           );
 
           // console.log({
@@ -63,7 +64,7 @@ const useLoadRegistry = (url: string) => {
     },
     {
       staleTime: Infinity, // Given that we are reading from a registry dump, this seems reasonable for now.
-    }
+    },
   );
 };
 

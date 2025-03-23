@@ -16,11 +16,13 @@ interface IFeatureColumnInService {
 
 const FeaturesInServiceList = ({ featureViews }: FeatureViewsListInterace) => {
   const { projectName } = useParams();
-  const items: IFeatureColumnInService[] = featureViews.flatMap(featureView => featureView.featureColumns!.map(featureColumn => ({
-    featureViewName: featureView.featureViewName!,
-    name: featureColumn.name!,
-    valueType: featureColumn.valueType!,
-  })));
+  const items: IFeatureColumnInService[] = featureViews.flatMap((featureView) =>
+    featureView.featureColumns!.map((featureColumn) => ({
+      featureViewName: featureView.featureViewName!,
+      name: featureColumn.name!,
+      valueType: featureColumn.valueType!,
+    })),
+  );
 
   const columns = [
     {

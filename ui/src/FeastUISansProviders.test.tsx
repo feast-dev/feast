@@ -22,7 +22,7 @@ import path from "path";
 // declare which API requests to mock
 const server = setupServer(
   projectsListWithDefaultProject,
-  creditHistoryRegistry
+  creditHistoryRegistry,
 );
 const registry = readFileSync(path.resolve(__dirname, "../public/registry.db"));
 const parsedRegistry = feast.core.Registry.decode(registry);
@@ -56,7 +56,7 @@ test("full app rendering", async () => {
 
   const projectNameRegExp = new RegExp(
     parsedRegistry.projects[0].spec?.name!,
-    "i"
+    "i",
   );
 
   // It should load the default project, which is credit_scoring_aws
@@ -84,7 +84,7 @@ test("routes are reachable", async () => {
   for (const routeName of mainRoutesNames) {
     // Main heading shouldn't start with the route name
     expect(
-      screen.queryByRole("heading", { name: routeName, level: 1 })
+      screen.queryByRole("heading", { name: routeName, level: 1 }),
     ).toBeNull();
 
     const routeRegExp = new RegExp(routeName, "i");
