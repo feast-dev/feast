@@ -18,6 +18,16 @@ from feast.transformation.mode import TransformationMode
 
 
 class Transformation(ABC):
+    """
+    Base Transformation class. Can be used to define transformations that can be applied to FeatureViews.
+    Also encapsulates the logic to serialize and deserialize the transformation to and from proto. This is
+    important for the future transformation lifecycle management.
+    E.g.:
+    pandas_transformation = Transformation(
+        mode=TransformationMode.PANDAS,
+        udf=lambda df: df.assign(new_column=df['column1'] + df['column2']),
+    )
+    """
     udf: Callable[[Any], Any]
     udf_string: str
 
@@ -33,6 +43,19 @@ class Transformation(ABC):
         *args,
         **kwargs,
     ) -> "Transformation":
+        """
+        Creates a Transformation object.
+        Args:
+            mode: (required) The mode of the transformation. Choose one from TransformationMode.
+            udf: (required) The user-defined transformation function.
+            udf_string: (required) The string representation of the udf. The dill get source doesn't
+            work for all cases when extracting the source code from the udf. So it's better to pass
+            the source code as a string.
+            name: (optional) The name of the transformation.
+            tags: (optional) Metadata tags for the transformation.
+            description: (optional) A description of the transformation.
+            owner: (optional) The owner of the transformation.
+        """
         if cls is Transformation:
             if isinstance(mode, TransformationMode):
                 mode = mode.value
@@ -72,6 +95,9 @@ class Transformation(ABC):
             body_text=self.udf_string,
         )
 
+    def __deepcopy__(self, memo: Optional[Dict[int, Any]] = None) -> "Transformation":
+        return Transformation(mode=self.mode, udf=self.udf, udf_string=self.udf_string)
+
     def transform(self, inputs: Any) -> Any:
         raise NotImplementedError
 
@@ -83,9 +109,6 @@ class Transformation(ABC):
 
     def infer_features(self, *args, **kwargs) -> Any:
         raise NotImplementedError
-
-    def __deepcopy__(self, memo: Optional[Dict[int, Any]] = None) -> "Transformation":
-        return Transformation(mode=self.mode, udf=self.udf, udf_string=self.udf_string)
 
 
 def transformation(
