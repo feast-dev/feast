@@ -115,6 +115,10 @@ message GetOnlineFeaturesResponseMetadata {
     FeatureList feature_names = 1;
 }
 
+message RepeatedFieldStatus {
+    repeated FieldStatus status = 1;
+}
+
 enum FieldStatus {
     // Status is unset for this field.
     INVALID = 0;
@@ -184,7 +188,7 @@ message GetOnlineFeaturesRangeResponse {
     message RangeFeatureVector {
         // Each values entry contains multiple values for a feature
         repeated feast.types.RepeatedValue values = 1;
-        repeated feast.types.RepeatedValue statuses = 2;
-        repeated google.protobuf.Timestamp event_timestamps = 3;
+        repeated RepeatedFieldStatus statuses = 2;
+        repeated feast.types.RepeatedValue event_timestamps = 3;
     }
 }
