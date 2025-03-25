@@ -44,7 +44,7 @@ def remove_extra_spaces_sql(df, column_name):
     sql = f"""
     SELECT
         age,
-        regexp_replace({column_name}, '\\s+', ' ') as {column_name}
+        regexp_replace({column_name}, '\\\\s+', ' ') as {column_name}
     FROM {df}
     """
     return sql
@@ -96,7 +96,7 @@ def test_spark_transformation_sql(spark_fixture):
     spark_transformation = SparkTransformation(
         mode=TransformationMode.SPARK_SQL,
         udf=remove_extra_spaces_sql,
-        udf_string="remove extra spaces",
+        udf_string="remove extra spaces sql",
     )
 
     transformed_df = spark_transformation.transform(df, "name")
