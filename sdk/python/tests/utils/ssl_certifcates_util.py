@@ -8,7 +8,7 @@ import certifi
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives.asymmetric import dh, dsa, ec, rsa
 from cryptography.x509 import load_pem_x509_certificate
 from cryptography.x509.oid import NameOID
 
@@ -126,13 +126,33 @@ def create_ca_trust_store(
                 private_key = serialization.load_pem_private_key(
                     private_key_data, password=None, backend=default_backend()
                 )
-                # Check the public/private key match
-                if (
-                    private_key.public_key().public_numbers()
-                    != public_cert.public_key().public_numbers()
+                private_pub = private_key.public_key()
+                cert_pub = public_cert.public_key()
+
+                if isinstance(
+                    private_pub,
+                    (
+                        rsa.RSAPublicKey,
+                        dsa.DSAPublicKey,
+                        ec.EllipticCurvePublicKey,
+                        dh.DHPublicKey,
+                    ),
+                ) and isinstance(
+                    cert_pub,
+                    (
+                        rsa.RSAPublicKey,
+                        dsa.DSAPublicKey,
+                        ec.EllipticCurvePublicKey,
+                        dh.DHPublicKey,
+                    ),
                 ):
-                    raise ValueError(
-                        "Public certificate does not match the private key."
+                    if private_pub.public_numbers() != cert_pub.public_numbers():
+                        raise ValueError(
+                            "Public certificate does not match the private key."
+                        )
+                else:
+                    logger.warning(
+                        "Key type does not support public_numbers(). Skipping strict public key match."
                     )
 
         # Step 4: Add the public certificate to the new trust store
