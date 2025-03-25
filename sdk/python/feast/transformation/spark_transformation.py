@@ -9,6 +9,26 @@ from feast.transformation.mode import TransformationMode
 
 
 class SparkTransformation(Transformation):
+    """
+    SparkTransformation can be used to define a transformation using a Spark UDF or SQL query.
+    The current spark session will be used or a new one will be created if not available.
+    E.g.:
+    spark_transformation = SparkTransformation(
+        mode=TransformationMode.SPARK,
+        udf=remove_extra_spaces,
+        udf_string="remove extra spaces",
+    )
+    OR
+    spark_transformation = Transformation(
+        mode=TransformationMode.SPARK_SQL,
+        udf=remove_extra_spaces_sql,
+        udf_string="remove extra spaces sql",
+    )
+    OR
+    @transformation(mode=TransformationMode.SPARK)
+    def remove_extra_spaces_udf(df: pd.DataFrame) -> pd.DataFrame:
+        return df.assign(name=df['name'].str.replace('\s+', ' '))
+    """
     def __new__(
         cls,
         mode: Union[TransformationMode, str],
@@ -22,6 +42,18 @@ class SparkTransformation(Transformation):
         *args,
         **kwargs,
     ) -> "SparkTransformation":
+        """
+        Creates a SparkTransformation
+        Args:
+            mode: (required) The mode of the transformation. Choose one from TransformationMode.SPARK or TransformationMode.SPARK_SQL.
+            udf: (required) The user-defined transformation function.
+            udf_string: (required) The string representation of the udf. The dill get source doesn't
+            spark_config: (optional) The spark configuration to use for the transformation.
+            name: (optional) The name of the transformation.
+            tags: (optional) Metadata tags for the transformation.
+            description: (optional) A description of the transformation.
+            owner: (optional) The owner of the transformation.
+        """
         instance = super(SparkTransformation, cls).__new__(
             cls,
             mode=mode,
