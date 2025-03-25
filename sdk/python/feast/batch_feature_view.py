@@ -1,8 +1,7 @@
 import functools
 import warnings
 from datetime import datetime, timedelta
-from types import FunctionType
-from typing import Dict, List, Optional, Tuple, Union, Callable, Any
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import dill
 

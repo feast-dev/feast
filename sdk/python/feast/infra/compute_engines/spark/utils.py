@@ -1,11 +1,11 @@
-from typing import Optional, Dict
+from typing import Dict, Optional
 
 from pyspark import SparkConf
 from pyspark.sql import SparkSession
 
 
 def get_or_create_new_spark_session(
-        spark_config: Optional[Dict[str, str]] = None
+    spark_config: Optional[Dict[str, str]] = None,
 ) -> SparkSession:
     spark_session = SparkSession.getActiveSession()
     if not spark_session:

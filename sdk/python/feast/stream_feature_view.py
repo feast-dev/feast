@@ -152,7 +152,7 @@ class StreamFeatureView(FeatureView):
             TransformationMode.PANDAS,
             TransformationMode.PYTHON,
             TransformationMode.SPARK_SQL,
-            TransformationMode.SPARK
+            TransformationMode.SPARK,
         ) or self.mode in ("pandas", "python", "spark_sql", "spark"):
             return Transformation(
                 mode=self.mode, udf=self.udf, udf_string=self.udf_string or ""

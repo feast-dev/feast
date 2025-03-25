@@ -1,7 +1,8 @@
-from typing import Optional, Dict
+from typing import Dict, Optional
+
+from pydantic import StrictStr
 
 from feast.repo_config import FeastConfigBaseModel
-from pydantic import StrictStr
 
 
 class SparkComputeConfig(FeastConfigBaseModel):
