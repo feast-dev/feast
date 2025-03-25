@@ -9,7 +9,7 @@ from feast.transformation.mode import TransformationMode
 
 
 class SparkTransformation(Transformation):
-    """
+    r"""
     SparkTransformation can be used to define a transformation using a Spark UDF or SQL query.
     The current spark session will be used or a new one will be created if not available.
     E.g.:
@@ -29,6 +29,7 @@ class SparkTransformation(Transformation):
     def remove_extra_spaces_udf(df: pd.DataFrame) -> pd.DataFrame:
         return df.assign(name=df['name'].str.replace('\s+', ' '))
     """
+
     def __new__(
         cls,
         mode: Union[TransformationMode, str],
