@@ -5,6 +5,7 @@ TRANSFORMATION_CLASS_FOR_TYPE = {
     "pandas": "feast.transformation.pandas_transformation.PandasTransformation",
     "substrait": "feast.transformation.substrait_transformation.SubstraitTransformation",
     "sql": "feast.transformation.sql_transformation.SQLTransformation",
+    "spark_sql": "feast.transformation.spark_transformation.SparkTransformation",
     "spark": "feast.transformation.spark_transformation.SparkTransformation",
 }
 

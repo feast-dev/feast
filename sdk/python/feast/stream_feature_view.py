@@ -151,8 +151,9 @@ class StreamFeatureView(FeatureView):
         if self.mode in (
             TransformationMode.PANDAS,
             TransformationMode.PYTHON,
-            TransformationMode.SPARK,
-        ) or self.mode in ("pandas", "python", "spark"):
+            TransformationMode.SPARK_SQL,
+            TransformationMode.SPARK
+        ) or self.mode in ("pandas", "python", "spark_sql", "spark"):
             return Transformation(
                 mode=self.mode, udf=self.udf, udf_string=self.udf_string or ""
             )

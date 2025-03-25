@@ -81,7 +81,7 @@ class Transformation(ABC):
         description: str = "",
         owner: str = "",
     ):
-        self.mode = mode if isinstance(mode, str) else mode.value
+        self.mode = mode
         self.udf = udf
         self.udf_string = udf_string
         self.name = name
@@ -99,7 +99,7 @@ class Transformation(ABC):
     def __deepcopy__(self, memo: Optional[Dict[int, Any]] = None) -> "Transformation":
         return Transformation(mode=self.mode, udf=self.udf, udf_string=self.udf_string)
 
-    def transform(self, inputs: Any) -> Any:
+    def transform(self, *inputs: Any) -> Any:
         raise NotImplementedError
 
     def transform_arrow(self, *args, **kwargs) -> Any:
