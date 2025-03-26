@@ -5,7 +5,7 @@ COPY --chown=default setup.py setup.cfg pyproject.toml README.md LICENSE ${APP_R
 COPY --chown=default sdk/python ${APP_ROOT}/src/sdk/python
 
 RUN source /tmp/cachi2.env && \
-    pip install --no-deps --no-binary :all: .[limited]
+    pip install --no-binary :all: .[limited]
 
 RUN pip list
 
