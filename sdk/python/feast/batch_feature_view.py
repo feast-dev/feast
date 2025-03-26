@@ -1,8 +1,7 @@
 import functools
 import warnings
 from datetime import datetime, timedelta
-from types import FunctionType
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import dill
 
@@ -61,7 +60,7 @@ class BatchFeatureView(FeatureView):
     owner: str
     timestamp_field: str
     materialization_intervals: List[Tuple[datetime, datetime]]
-    udf: Optional[FunctionType]
+    udf: Optional[Callable[[Any], Any]]
     udf_string: Optional[str]
     feature_transformation: Transformation
 
@@ -78,7 +77,7 @@ class BatchFeatureView(FeatureView):
         description: str = "",
         owner: str = "",
         schema: Optional[List[Field]] = None,
-        udf: Optional[FunctionType] = None,
+        udf: Optional[Callable[[Any], Any]],
         udf_string: Optional[str] = "",
         feature_transformation: Optional[Transformation] = None,
     ):
