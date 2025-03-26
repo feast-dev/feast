@@ -9,6 +9,22 @@ authors: ["Francisco Javier Arceo"]
   <img src="/images/blog/space.jpg" alt="Exploring the Possibilities of AI" loading="lazy">
 </div>
 
+# Feast Supports RAG
+
+With the rise of generative AI applications, the need to serve vectors has grown quickly. Feast now has alpha support for vector similarity search to power retrieval augmented generation (RAG) systems in production.
+
+This allows ML Engineers and Data Scientists to leverage the power of their feature store to easily deploy GenAI applications using RAG to production. More importantly, Feast offers the flexibility to customize and scale your production RAG applications through our scalable transformation systems (streaming, request-time, and batch). 
+
+## The Future of Feast and GenAI
+
+Feast will continue to invest in GenAI use cases. 
+
+In particular, we will invest in (1) NLP as a first-class citizen, (2) added support for images, (3) support for transforming unstructured data (e.g., PDFs), (4) an enhanced gen-ai focused feature server to allow our end-users to more easily ship RAG to production, (4) an out of the box chat UI meant for internal development and fast iteration, and (5) investing in [Milvus]([url](https://milvus.io/intro)) as a fully supported online store.
+
+<div class="content-image">
+  <img src="/images/blog/milvus-rag" alt="Retrieval Augmented Generation with Milvus and Feast" loading="lazy">
+</div>
+
 # Is a Feature Store a good fit for GenAI use cases?
 Yes, a Feature Store is a great fit for GenAI use cases! 
 
