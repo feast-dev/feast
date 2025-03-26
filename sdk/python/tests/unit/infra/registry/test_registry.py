@@ -211,6 +211,6 @@ def test_refresh_failure_triggers_alert_in_thread_mode(registry):
     ):
         registry._start_thread_async_refresh(cache_ttl_seconds=1)
 
-        time.sleep(2)
+        time.sleep(1.1)
 
         mock_handler.assert_called_once()

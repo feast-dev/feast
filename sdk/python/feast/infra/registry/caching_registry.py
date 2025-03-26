@@ -490,14 +490,22 @@ class CachingRegistry(BaseRegistry):
 
         def refresh_loop():
             while not self._stop_event.wait(cache_ttl_seconds):
-                try:
-                    self.refresh()
-                except Exception as e:
-                    logger.exception(
-                        f"Exception in registry cache refresh_loop: {e}", exc_info=True
+                if self._refresh_lock.acquire(blocking=False):
+                    try:
+                        self.refresh()
+                    except Exception as e:
+                        logger.exception(
+                            f"Exception in registry cache refresh_loop: {e}",
+                            exc_info=True,
+                        )
+                        if self._on_cache_refresh_failure:
+                            self._on_cache_refresh_failure(e)
+                    finally:
+                        self._refresh_lock.release()
+                else:
+                    logger.debug(
+                        "Previous refresh still in progress. Skipping this cycle."
                     )
-                    if self._on_cache_refresh_failure:
-                        self._on_cache_refresh_failure(e)
 
         try:
             self.registry_refresh_thread = threading.Thread(
