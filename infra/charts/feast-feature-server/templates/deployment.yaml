@@ -67,7 +67,7 @@ spec:
             - "{{ .Values.logLevel }}"
             - "serve_registry"
             {{- else }}
-            {{- if .Values.metrics.enlabled }}
+            {{- if .Values.metrics.enabled }}
             - "feast"
             - "--log-level"
             - "{{ .Values.logLevel }}"
