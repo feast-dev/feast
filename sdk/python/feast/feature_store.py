@@ -1831,19 +1831,15 @@ class FeatureStore:
 
     def retrieve_online_documents(
         self,
-        feature: Optional[str],
         query: Union[str, List[float]],
         top_k: int,
-        features: Optional[List[str]] = None,
+        features: List[str],
         distance_metric: Optional[str] = "L2",
     ) -> OnlineResponse:
         """
         Retrieves the top k closest document features. Note, embeddings are a subset of features.
 
         Args:
-            feature: The list of document features that should be retrieved from the online document store. These features can be
-                specified either as a list of string document feature references or as a feature service. String feature
-                references must have format "feature_view:feature", e.g, "document_fv:document_embeddings".
             features: The list of features that should be retrieved from the online store.
             query: The query to retrieve the closest document features for.
             top_k: The number of closest document features to retrieve.
@@ -1853,11 +1849,6 @@ class FeatureStore:
             raise ValueError(
                 "Using embedding functionality is not supported for document retrieval. Please embed the query before calling retrieve_online_documents."
             )
-        feature_list: List[str] = (
-            features
-            if features is not None
-            else ([feature] if feature is not None else [])
-        )
 
         (
             available_feature_views,
@@ -1865,26 +1856,20 @@ class FeatureStore:
         ) = utils._get_feature_views_to_use(
             registry=self._registry,
             project=self.project,
-            features=feature_list,
+            features=features,
             allow_cache=True,
             hide_dummy_entity=False,
         )
-        if feature_list:
-            feature_view_set = set()
-            for _feature in feature_list:
-                feature_view_name = _feature.split(":")[0]
-                feature_view = self.get_feature_view(feature_view_name)
-                feature_view_set.add(feature_view.name)
-            if len(feature_view_set) > 1:
-                raise ValueError(
-                    "Document retrieval only supports a single feature view."
-                )
-            requested_feature = (
-                feature.split(":")[1] if isinstance(feature, str) else feature
-            )
-            requested_features = [
-                f.split(":")[1] for f in feature_list if isinstance(f, str) and ":" in f
-            ]
+        feature_view_set = set()
+        for _feature in features:
+            feature_view_name = _feature.split(":")[0]
+            feature_view = self.get_feature_view(feature_view_name)
+            feature_view_set.add(feature_view.name)
+        if len(feature_view_set) > 1:
+            raise ValueError("Document retrieval only supports a single feature view.")
+        requested_features = [
+            f.split(":")[1] for f in features if isinstance(f, str) and ":" in f
+        ]
         requested_feature_view_name = list(feature_view_set)[0]
         for feature_view in available_feature_views:
             if feature_view.name == requested_feature_view_name:
@@ -1899,15 +1884,20 @@ class FeatureStore:
         document_features = self._retrieve_from_online_store(
             provider,
             requested_feature_view,
-            requested_feature,
             requested_features,
             query,
             top_k,
             distance_metric,
         )
+
         # TODO currently not return the vector value since it is same as feature value, if embedding is supported,
         # the feature value can be raw text before embedded
-        entity_key_vals = [feature[1] for feature in document_features]
+        def _doc_feature(x):
+            return [feature[x] for feature in document_features]
+
+        entity_key_vals, document_feature_vals, document_feature_distance_vals = map(
+            _doc_feature, (1, 4, 5)
+        )
         join_key_values: Dict[str, List[ValueProto]] = {}
         for entity_key_val in entity_key_vals:
             if entity_key_val is not None:
@@ -1917,11 +1907,7 @@ class FeatureStore:
                     if join_key not in join_key_values:
                         join_key_values[join_key] = []
                     join_key_values[join_key].append(entity_value)
-
-        document_feature_vals = [feature[4] for feature in document_features]
-        document_feature_distance_vals = [feature[5] for feature in document_features]
         online_features_response = GetOnlineFeaturesResponse(results=[])
-        requested_feature = requested_feature or requested_features[0]
         if vector_field_metadata := _get_feature_view_vector_field_metadata(
             requested_feature_view
         ):
@@ -1931,7 +1917,7 @@ class FeatureStore:
             vector_field_name: document_feature_vals,
             "distance": document_feature_distance_vals,
         }
-        _requested_features = [_feature.split(":")[-1] for _feature in feature_list]
+        _requested_features = [_feature.split(":")[-1] for _feature in features]
         requested_features_data = {
             _feature: data[_feature]
             for _feature in _requested_features
@@ -2016,7 +2002,6 @@ class FeatureStore:
         self,
         provider: Provider,
         table: FeatureView,
-        requested_feature: Optional[str],
         requested_features: Optional[List[str]],
         query: List[float],
         top_k: int,
@@ -2036,7 +2021,6 @@ class FeatureStore:
         documents = provider.retrieve_online_documents(
             config=self.config,
             table=table,
-            requested_feature=requested_feature,
             requested_features=requested_features,
             query=query,
             top_k=top_k,

@@ -419,7 +419,6 @@ class Provider(ABC):
         self,
         config: RepoConfig,
         table: FeatureView,
-        requested_feature: Optional[str],
         requested_features: Optional[List[str]],
         query: List[float],
         top_k: int,
@@ -440,7 +439,6 @@ class Provider(ABC):
             distance_metric: distance metric to use for the search.
             config: The config for the current feature store.
             table: The feature view whose embeddings should be searched.
-            requested_feature: the requested document feature name.
             requested_features: the requested document feature names.
             query: The query embedding to search for.
             top_k: The number of documents to return.

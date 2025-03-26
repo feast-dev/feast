@@ -354,7 +354,6 @@ class PostgreSQLOnlineStore(OnlineStore):
         self,
         config: RepoConfig,
         table: FeatureView,
-        requested_feature: Optional[str],
         requested_features: Optional[List[str]],
         embedding: List[float],
         top_k: int,
@@ -373,7 +372,6 @@ class PostgreSQLOnlineStore(OnlineStore):
         Args:
             config: Feast configuration object
             table: FeatureView object as the table to search
-            requested_feature: The requested feature as the column to search
             requested_features: The list of features whose embeddings should be used for retrieval.
             embedding: The query embedding to search for
             top_k: The number of items to return
@@ -425,7 +423,6 @@ class PostgreSQLOnlineStore(OnlineStore):
                         vector_value,
                         vector_value {distance_metric_sql} %s::vector as distance,
                         event_ts FROM {table_name}
-                    WHERE feature_name = {feature_name}
                     ORDER BY distance
                     LIMIT {top_k};
                     """
@@ -433,7 +430,6 @@ class PostgreSQLOnlineStore(OnlineStore):
                     distance_metric_sql=sql.SQL(distance_metric_sql),
                     table_name=sql.Identifier(table_name),
                     feature_names=required_feature_names,
-                    feature_name=sql.Literal(requested_feature),
                     top_k=sql.Literal(top_k),
                 ),
                 (embedding,),
