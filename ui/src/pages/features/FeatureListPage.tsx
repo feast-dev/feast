@@ -12,6 +12,7 @@ import EuiCustomLink from "../../components/EuiCustomLink";
 import { useParams } from "react-router-dom";
 import useLoadRegistry from "../../queries/useLoadRegistry";
 import RegistryPathContext from "../../contexts/RegistryPathContext";
+import { FeatureIcon } from "../../graphics/FeatureIcon";
 
 interface Feature {
   name: string;
@@ -34,9 +35,6 @@ const FeatureListPage = () => {
 
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(100);
-
-  if (isLoading) return <p>Loading...</p>;
-  if (isError) return <p>Error loading features.</p>;
 
   const features: Feature[] = data?.allFeatures || [];
 
@@ -107,24 +105,36 @@ const FeatureListPage = () => {
 
   return (
     <EuiPageTemplate panelled>
-      <EuiPageTemplate.Header pageTitle="Feature List" />
+      <EuiPageTemplate.Header
+        restrictWidth
+        iconType={FeatureIcon}
+        pageTitle="Feature List"
+      />
       <EuiPageTemplate.Section>
-        <EuiFieldSearch
-          placeholder="Search features"
-          value={searchText}
-          onChange={(e) => setSearchText(e.target.value)}
-          fullWidth
-        />
-        <EuiBasicTable
-          columns={columns}
-          items={paginatedFeatures}
-          rowProps={getRowProps}
-          sorting={{
-            sort: { field: sortField, direction: sortDirection },
-          }}
-          onChange={onTableChange}
-          pagination={pagination}
-        />
+        {isLoading ? (
+          <p>Loading...</p>
+        ) : isError ? (
+          <p>We encountered an error while loading.</p>
+        ) : (
+          <>
+            <EuiFieldSearch
+              placeholder="Search features"
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              fullWidth
+            />
+            <EuiBasicTable
+              columns={columns}
+              items={paginatedFeatures}
+              rowProps={getRowProps}
+              sorting={{
+                sort: { field: sortField, direction: sortDirection },
+              }}
+              onChange={onTableChange}
+              pagination={pagination}
+            />
+          </>
+        )}
       </EuiPageTemplate.Section>
     </EuiPageTemplate>
   );

@@ -36,6 +36,7 @@ const RegistrySearch: React.FC<RegistrySearchProps> = ({ categories }) => {
       <EuiText>
         <h3>Search in registry</h3>
       </EuiText>
+      <EuiSpacer size="s" />
       <EuiFieldSearch
         placeholder="Search across Feature Views, Features, Entities, etc."
         value={searchText}
@@ -73,6 +74,7 @@ const RegistrySearch: React.FC<RegistrySearchProps> = ({ categories }) => {
                       );
                     })}
                   </ul>
+                  <EuiSpacer size="m" />
                 </div>
               ) : null,
             )

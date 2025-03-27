@@ -130,7 +130,7 @@ const ProjectOverviewPage = () => {
         </EuiFlexGroup>
       </EuiPageTemplate.Section>
       <EuiPageTemplate.Section>
-        <RegistrySearch categories={categories} />
+        {isSuccess && <RegistrySearch categories={categories} />}
       </EuiPageTemplate.Section>
     </EuiPageTemplate>
   );
