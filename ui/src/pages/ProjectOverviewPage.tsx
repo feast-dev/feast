@@ -16,7 +16,7 @@ import ObjectsCountStats from "../components/ObjectsCountStats";
 import ExplorePanel from "../components/ExplorePanel";
 import useLoadRegistry from "../queries/useLoadRegistry";
 import RegistryPathContext from "../contexts/RegistryPathContext";
-import EuiCustomLink from "../components/EuiCustomLink";
+import RegistrySearch from "../components/RegistrySearch";
 import { useParams } from "react-router-dom";
 
 const ProjectOverviewPage = () => {
@@ -65,22 +65,6 @@ const ProjectOverviewPage = () => {
       },
     },
   ];
-
-  const searchResults = categories.map(({ name, data }) => {
-    const filteredItems = searchText
-      ? data.filter((item) => {
-          const itemName =
-            "name" in item
-              ? String(item.name)
-              : "spec" in item && item.spec && "name" in item.spec
-                ? String(item.spec.name ?? "Unknown")
-                : "Unknown";
-
-          return itemName.toLowerCase().includes(searchText.toLowerCase());
-        })
-      : [];
-    return { name, items: filteredItems };
-  });
 
   return (
     <EuiPageTemplate panelled>
@@ -145,57 +129,8 @@ const ProjectOverviewPage = () => {
           </EuiFlexItem>
         </EuiFlexGroup>
       </EuiPageTemplate.Section>
-
       <EuiPageTemplate.Section>
-        <EuiSpacer size="l" />
-        <EuiTitle size="xs">
-          <h3>Search in Registry</h3>
-        </EuiTitle>
-        <EuiFieldSearch
-          placeholder="Search across Feature Views, Features, Entities, etc."
-          value={searchText}
-          onChange={(e) => setSearchText(e.target.value)}
-          isClearable
-          fullWidth
-        />
-        <EuiSpacer size="m" />
-
-        {searchText && (
-          <EuiText>
-            <h3>Search Results</h3>
-            {searchResults.some(({ items }) => items.length > 0) ? (
-              searchResults.map(({ name, items }, index) =>
-                items.length > 0 ? (
-                  <div key={index}>
-                    <h4>{name}</h4>
-                    <ul>
-                      {items.map((item, idx) => {
-                        const itemName =
-                          "name" in item
-                            ? item.name
-                            : "spec" in item
-                              ? item.spec?.name
-                              : "Unknown";
-
-                        const itemLink = categories[index].getLink(item);
-
-                        return (
-                          <li key={idx}>
-                            <EuiCustomLink to={itemLink}>
-                              {itemName}
-                            </EuiCustomLink>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
-                ) : null,
-              )
-            ) : (
-              <p>No matches found.</p>
-            )}
-          </EuiText>
-        )}
+        <RegistrySearch categories={categories} />
       </EuiPageTemplate.Section>
     </EuiPageTemplate>
   );
