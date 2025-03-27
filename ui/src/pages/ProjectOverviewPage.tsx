@@ -1,5 +1,4 @@
-import React, { useContext } from "react";
-
+import React, { useContext, useState } from "react";
 import {
   EuiPageTemplate,
   EuiText,
@@ -9,6 +8,7 @@ import {
   EuiSpacer,
   EuiSkeletonText,
   EuiEmptyPrompt,
+  EuiFieldSearch,
 } from "@elastic/eui";
 
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
@@ -21,6 +21,32 @@ const ProjectOverviewPage = () => {
   useDocumentTitle("Feast Home");
   const registryUrl = useContext(RegistryPathContext);
   const { isLoading, isSuccess, isError, data } = useLoadRegistry(registryUrl);
+
+  const [searchText, setSearchText] = useState("");
+
+  const categories = [
+    { name: "Data Sources", data: data?.objects.dataSources || [] },
+    { name: "Entities", data: data?.objects.entities || [] },
+    { name: "Features", data: data?.allFeatures || [] },
+    { name: "Feature Views", data: data?.mergedFVList || [] },
+    { name: "Feature Services", data: data?.objects.featureServices || [] },
+  ];
+
+  const searchResults = categories.map(({ name, data }) => {
+    const filteredItems = searchText
+      ? data.filter((item) => {
+          const itemName =
+            "name" in item
+              ? String(item.name)
+              : "spec" in item && item.spec && "name" in item.spec
+                ? String(item.spec.name ?? "Unknown")
+                : "Unknown";
+
+          return itemName.toLowerCase().includes(searchText.toLowerCase());
+        })
+      : [];
+    return { name, items: filteredItems };
+  });
 
   return (
     <EuiPageTemplate panelled>
@@ -59,7 +85,7 @@ const ProjectOverviewPage = () => {
                 <EuiText>
                   <p>
                     Welcome to your new Feast project. In this UI, you can see
-                    Data Sources, Entities, Feature Views and Feature Services
+                    Data Sources, Entities, Features, Feature Views, and Feature Services
                     registered in Feast.
                   </p>
                   <p>
@@ -84,6 +110,49 @@ const ProjectOverviewPage = () => {
             <ExplorePanel />
           </EuiFlexItem>
         </EuiFlexGroup>
+      </EuiPageTemplate.Section>
+
+      <EuiPageTemplate.Section>
+        <EuiSpacer size="l" />
+        <EuiTitle size="xs">
+          <h3>Search in Registry</h3>
+        </EuiTitle>
+        <EuiFieldSearch
+          placeholder="Search across Feature Views, Features, Entities, etc."
+          value={searchText}
+          onChange={(e) => setSearchText(e.target.value)}
+          isClearable
+          fullWidth
+        />
+        <EuiSpacer size="m" />
+
+        {searchText && (
+          <EuiText>
+            <h3>Search Results</h3>
+            {searchResults.some(({ items }) => items.length > 0) ? (
+              searchResults.map(({ name, items }) =>
+                items.length > 0 ? (
+                  <div key={name}>
+                    <h4>{name}</h4>
+                    <ul>
+                      {items.map((item, idx) => (
+                        <li key={idx}>
+                          {"name" in item
+                            ? item.name
+                            : "spec" in item
+                              ? item.spec?.name
+                              : "Unknown"}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null,
+              )
+            ) : (
+              <p>No matches found.</p>
+            )}
+          </EuiText>
+        )}
       </EuiPageTemplate.Section>
     </EuiPageTemplate>
   );
