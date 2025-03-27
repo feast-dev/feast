@@ -16,6 +16,8 @@ import ObjectsCountStats from "../components/ObjectsCountStats";
 import ExplorePanel from "../components/ExplorePanel";
 import useLoadRegistry from "../queries/useLoadRegistry";
 import RegistryPathContext from "../contexts/RegistryPathContext";
+import EuiCustomLink from "../components/EuiCustomLink";
+import { useParams } from "react-router-dom";
 
 const ProjectOverviewPage = () => {
   useDocumentTitle("Feast Home");
@@ -24,12 +26,44 @@ const ProjectOverviewPage = () => {
 
   const [searchText, setSearchText] = useState("");
 
+  const { projectName } = useParams<{ projectName: string }>();
+
   const categories = [
-    { name: "Data Sources", data: data?.objects.dataSources || [] },
-    { name: "Entities", data: data?.objects.entities || [] },
-    { name: "Features", data: data?.allFeatures || [] },
-    { name: "Feature Views", data: data?.mergedFVList || [] },
-    { name: "Feature Services", data: data?.objects.featureServices || [] },
+    {
+      name: "Data Sources",
+      data: data?.objects.dataSources || [],
+      getLink: (item: any) => `/p/${projectName}/data-source/${item.name}`,
+    },
+    {
+      name: "Entities",
+      data: data?.objects.entities || [],
+      getLink: (item: any) => `/p/${projectName}/entity/${item.name}`,
+    },
+    {
+      name: "Features",
+      data: data?.allFeatures || [],
+      getLink: (item: any) => {
+        const featureView = item?.featureView;
+        return featureView
+          ? `/p/${projectName}/feature-view/${featureView}/feature/${item.name}`
+          : "#";
+      },
+    },
+    {
+      name: "Feature Views",
+      data: data?.mergedFVList || [],
+      getLink: (item: any) => `/p/${projectName}/feature-view/${item.name}`,
+    },
+    {
+      name: "Feature Services",
+      data: data?.objects.featureServices || [],
+      getLink: (item: any) => {
+        const serviceName = item?.name || item?.spec?.name;
+        return serviceName
+          ? `/p/${projectName}/feature-service/${serviceName}`
+          : "#";
+      },
+    },
   ];
 
   const searchResults = categories.map(({ name, data }) => {
@@ -85,8 +119,8 @@ const ProjectOverviewPage = () => {
                 <EuiText>
                   <p>
                     Welcome to your new Feast project. In this UI, you can see
-                    Data Sources, Entities, Features, Feature Views, and Feature Services
-                    registered in Feast.
+                    Data Sources, Entities, Features, Feature Views, and Feature
+                    Services registered in Feast.
                   </p>
                   <p>
                     It looks like this project already has some objects
@@ -130,20 +164,29 @@ const ProjectOverviewPage = () => {
           <EuiText>
             <h3>Search Results</h3>
             {searchResults.some(({ items }) => items.length > 0) ? (
-              searchResults.map(({ name, items }) =>
+              searchResults.map(({ name, items }, index) =>
                 items.length > 0 ? (
-                  <div key={name}>
+                  <div key={index}>
                     <h4>{name}</h4>
                     <ul>
-                      {items.map((item, idx) => (
-                        <li key={idx}>
-                          {"name" in item
+                      {items.map((item, idx) => {
+                        const itemName =
+                          "name" in item
                             ? item.name
                             : "spec" in item
                               ? item.spec?.name
-                              : "Unknown"}
-                        </li>
-                      ))}
+                              : "Unknown";
+
+                        const itemLink = categories[index].getLink(item);
+
+                        return (
+                          <li key={idx}>
+                            <EuiCustomLink to={itemLink}>
+                              {itemName}
+                            </EuiCustomLink>
+                          </li>
+                        );
+                      })}
                     </ul>
                   </div>
                 ) : null,
