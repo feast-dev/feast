@@ -305,7 +305,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
     def DeleteFeatureView(
         self, request: RegistryServer_pb2.DeleteFeatureViewRequest, context
     ):
-        feature_view: Union[StreamFeatureView, FeatureView]
+        feature_view: Union[StreamFeatureView, FeatureView, SortedFeatureView]
 
         try:
             feature_view = self.proxied_registry.get_stream_feature_view(

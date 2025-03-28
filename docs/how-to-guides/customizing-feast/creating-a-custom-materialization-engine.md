@@ -26,6 +26,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.batch_feature_view import BatchFeatureView
+from feast.sorted_feature_view import SortedFeatureView
 from feast.stream_feature_view import StreamFeatureView
 from feast.infra.materialization import LocalMaterializationEngine, LocalMaterializationJob, MaterializationTask
 from feast.infra.offline_stores.offline_store import OfflineStore
@@ -53,10 +54,10 @@ class MyCustomEngine(LocalMaterializationEngine):
             self,
             project: str,
             views_to_delete: Sequence[
-                Union[BatchFeatureView, StreamFeatureView, FeatureView]
+                Union[BatchFeatureView, StreamFeatureView, FeatureView, SortedFeatureView]
             ],
             views_to_keep: Sequence[
-                Union[BatchFeatureView, StreamFeatureView, FeatureView]
+                Union[BatchFeatureView, StreamFeatureView, FeatureView, SortedFeatureView]
             ],
             entities_to_delete: Sequence[Entity],
             entities_to_keep: Sequence[Entity],

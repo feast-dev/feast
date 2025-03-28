@@ -1021,7 +1021,7 @@ class SnowflakeRegistry(BaseRegistry):
             raise ValueError(
                 f"Cannot apply materialization for feature {feature_view.name} of type {python_class}"
             )
-        fv: Union[FeatureView, StreamFeatureView] = self._get_object(
+        fv: Union[FeatureView, StreamFeatureView, SortedFeatureView] = self._get_object(
             fv_table_str,
             feature_view.name,
             project,

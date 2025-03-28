@@ -18,6 +18,7 @@ from feast.errors import (
     FeatureServiceNotFoundException,
     FeatureViewNotFoundException,
     ProjectMetadataNotFoundException,
+    SortedFeatureViewNotFoundException,
 )
 from feast.expediagroup.pydantic_models.data_source_model import (
     KafkaSourceModel,
@@ -549,7 +550,7 @@ class HttpRegistry(BaseRegistry):
             return SortedFeatureViewModel.model_validate(
                 response_data
             ).to_feature_view()
-        except FeatureViewNotFoundException as exception:
+        except SortedFeatureViewNotFoundException as exception:
             logger.error(
                 f"SortedFeatureView {name} requested does not exist: {str(exception)}"
             )
@@ -649,10 +650,18 @@ class HttpRegistry(BaseRegistry):
         commit: bool = True,
     ):
         try:
-            if isinstance(feature_view, FeatureView):
-                feature_view.materialization_intervals.append((start_date, end_date))
-                params = {"commit": commit}
-                url = f"{self.base_url}/projects/{project}/feature_views"
+            feature_view.materialization_intervals.append((start_date, end_date))
+            params = {"commit": commit}
+            url = f"{self.base_url}/projects/{project}/feature_views"
+            if isinstance(feature_view, SortedFeatureView):
+                data = SortedFeatureViewModel.from_feature_view(
+                    feature_view
+                ).model_dump_json()
+                response_data = self._send_request("PUT", url, params=params, data=data)
+                return SortedFeatureViewModel.model_validate(
+                    response_data
+                ).to_feature_view()
+            elif isinstance(feature_view, FeatureView):
                 data = FeatureViewModel.from_feature_view(
                     feature_view
                 ).model_dump_json()
@@ -660,7 +669,7 @@ class HttpRegistry(BaseRegistry):
                 return FeatureViewModel.model_validate(response_data).to_feature_view()
             else:
                 raise TypeError(
-                    "Unsupported FeatureView type. Please use either FeatureView or OnDemandFeatureView only"
+                    "Unsupported FeatureView type. Please use either FeatureView, SortedFeatureView or OnDemandFeatureView only"
                 )
         except Exception as exception:
             self._handle_exception(exception)
@@ -776,6 +785,7 @@ class HttpRegistry(BaseRegistry):
                 (self.list_feature_views, r.feature_views),
                 (self.list_data_sources, r.data_sources),
                 (self.list_on_demand_feature_views, r.on_demand_feature_views),
+                (self.list_sorted_feature_views, r.sorted_feature_views),
                 (self.list_stream_feature_views, r.stream_feature_views),
                 (self.list_feature_services, r.feature_services),
                 (self.list_saved_datasets, r.saved_datasets),

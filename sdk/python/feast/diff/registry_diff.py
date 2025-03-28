@@ -459,6 +459,7 @@ def apply_diff_to_registry(
                 FeastObjectType.FEATURE_VIEW,
                 FeastObjectType.ON_DEMAND_FEATURE_VIEW,
                 FeastObjectType.STREAM_FEATURE_VIEW,
+                FeastObjectType.SORTED_FEATURE_VIEW,
             ]:
                 registry.apply_feature_view(
                     cast(BaseFeatureView, feast_object_diff.new_feast_object),

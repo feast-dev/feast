@@ -57,6 +57,7 @@ from feast.errors import (
     FeatureViewNotFoundException,
     PushSourceNotFoundException,
     RequestDataNotFoundInEntityDfException,
+    SortedFeatureViewNotFoundException,
 )
 from feast.feast_object import FeastObject
 from feast.feature_service import FeatureService
@@ -380,6 +381,22 @@ class FeatureStore:
         """
         return self._list_stream_feature_views(allow_cache, tags=tags)
 
+    def _list_sorted_feature_views(
+        self,
+        allow_cache: bool = False,
+        hide_dummy_entity: bool = True,
+        tags: Optional[dict[str, str]] = None,
+    ) -> List[SortedFeatureView]:
+        sorted_feature_views = []
+        for sfv in self._registry.list_sorted_feature_views(
+            self.project, allow_cache=allow_cache, tags=tags
+        ):
+            if hide_dummy_entity and sfv.entities[0] == DUMMY_ENTITY_NAME:
+                sfv.entities = []
+                sfv.entity_columns = []
+            sorted_feature_views.append(sfv)
+        return sorted_feature_views
+
     def list_data_sources(
         self, allow_cache: bool = False, tags: Optional[dict[str, str]] = None
     ) -> List[DataSource]:
@@ -463,6 +480,39 @@ class FeatureStore:
         if hide_dummy_entity and feature_view.entities[0] == DUMMY_ENTITY_NAME:
             feature_view.entities = []
         return feature_view
+
+    def get_sorted_feature_view(
+        self, name: str, allow_registry_cache: bool = False
+    ) -> SortedFeatureView:
+        """
+        Retrieves a sorted feature view.
+
+        Args:
+            name: Name of sorted feature view.
+            allow_registry_cache: (Optional) Whether to allow returning this entity from a cached registry
+
+        Returns:
+            The specified feature view.
+
+        Raises:
+            FeatureViewNotFoundException: The feature view could not be found.
+        """
+        return self._get_sorted_feature_view(
+            name, allow_registry_cache=allow_registry_cache
+        )
+
+    def _get_sorted_feature_view(
+        self,
+        name: str,
+        hide_dummy_entity: bool = True,
+        allow_registry_cache: bool = False,
+    ) -> SortedFeatureView:
+        sorted_feature_view = self._registry.get_sorted_feature_view(
+            name, self.project, allow_cache=allow_registry_cache
+        )
+        if hide_dummy_entity and sorted_feature_view.entities[0] == DUMMY_ENTITY_NAME:
+            sorted_feature_view.entities = []
+        return sorted_feature_view
 
     def get_stream_feature_view(
         self, name: str, allow_registry_cache: bool = False
@@ -667,10 +717,8 @@ class FeatureStore:
                 sfv for sfv in stream_feature_views_to_materialize if sfv.online
             ]
             # Get sorted feature views from the registry and append those that are online.
-            sorted_feature_views_to_materialize = (
-                self._registry.list_sorted_feature_views(
-                    self.project, allow_cache=False, tags={}
-                )
+            sorted_feature_views_to_materialize = self._list_sorted_feature_views(
+                hide_dummy_entity=False
             )
             feature_views_to_materialize += [
                 sfv for sfv in sorted_feature_views_to_materialize if sfv.online
@@ -679,15 +727,15 @@ class FeatureStore:
             for name in feature_views:
                 try:
                     feature_view = self._get_feature_view(name, hide_dummy_entity=False)
-                except FeatureViewNotFoundException:
+                except Exception:
                     try:
                         feature_view = self._get_stream_feature_view(
                             name, hide_dummy_entity=False
                         )
-                    except FeatureViewNotFoundException:
+                    except Exception:
                         # Fallback to sorted feature view lookup.
-                        feature_view = self._registry.get_sorted_feature_view(
-                            name, self.project, allow_cache=False
+                        feature_view = self._get_sorted_feature_view(
+                            name, hide_dummy_entity=False
                         )
 
                 if not feature_view.online:
@@ -1512,9 +1560,14 @@ class FeatureStore:
                 feature_view_name, allow_registry_cache=allow_registry_cache
             )
         except FeatureViewNotFoundException:
-            feature_view = self.get_stream_feature_view(
-                feature_view_name, allow_registry_cache=allow_registry_cache
-            )
+            try:
+                feature_view = self.get_sorted_feature_view(
+                    feature_view_name, allow_registry_cache=allow_registry_cache
+                )
+            except SortedFeatureViewNotFoundException:
+                feature_view = self.get_stream_feature_view(
+                    feature_view_name, allow_registry_cache=allow_registry_cache
+                )
         if df is not None and inputs is not None:
             raise ValueError("Both df and inputs cannot be provided at the same time.")
         if df is None and inputs is not None:

@@ -13,6 +13,7 @@ from feast.infra.offline_stores.offline_store import OfflineStore
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.repo_config import RepoConfig
+from feast.sorted_feature_view import SortedFeatureView
 from feast.stream_feature_view import StreamFeatureView
 
 
@@ -24,7 +25,9 @@ class MaterializationTask:
     """
 
     project: str
-    feature_view: Union[BatchFeatureView, StreamFeatureView, FeatureView]
+    feature_view: Union[
+        BatchFeatureView, StreamFeatureView, FeatureView, SortedFeatureView
+    ]
     start_time: datetime
     end_time: datetime
     tqdm_builder: Callable[[int], tqdm]
@@ -86,10 +89,10 @@ class BatchMaterializationEngine(ABC):
         self,
         project: str,
         views_to_delete: Sequence[
-            Union[BatchFeatureView, StreamFeatureView, FeatureView]
+            Union[BatchFeatureView, StreamFeatureView, FeatureView, SortedFeatureView]
         ],
         views_to_keep: Sequence[
-            Union[BatchFeatureView, StreamFeatureView, FeatureView]
+            Union[BatchFeatureView, StreamFeatureView, FeatureView, SortedFeatureView]
         ],
         entities_to_delete: Sequence[Entity],
         entities_to_keep: Sequence[Entity],
@@ -128,7 +131,9 @@ class BatchMaterializationEngine(ABC):
     def teardown_infra(
         self,
         project: str,
-        fvs: Sequence[Union[BatchFeatureView, StreamFeatureView, FeatureView]],
+        fvs: Sequence[
+            Union[BatchFeatureView, StreamFeatureView, FeatureView, SortedFeatureView]
+        ],
         entities: Sequence[Entity],
     ):
         """

@@ -25,6 +25,7 @@ from feast.infra.offline_stores.offline_store import OfflineStore
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
+from feast.sorted_feature_view import SortedFeatureView
 from feast.stream_feature_view import StreamFeatureView
 from feast.utils import _get_column_names
 from feast.version import get_version
@@ -80,10 +81,10 @@ class LambdaMaterializationEngine(BatchMaterializationEngine):
         self,
         project: str,
         views_to_delete: Sequence[
-            Union[BatchFeatureView, StreamFeatureView, FeatureView]
+            Union[BatchFeatureView, StreamFeatureView, FeatureView, SortedFeatureView]
         ],
         views_to_keep: Sequence[
-            Union[BatchFeatureView, StreamFeatureView, FeatureView]
+            Union[BatchFeatureView, StreamFeatureView, FeatureView, SortedFeatureView]
         ],
         entities_to_delete: Sequence[Entity],
         entities_to_keep: Sequence[Entity],
@@ -114,7 +115,9 @@ class LambdaMaterializationEngine(BatchMaterializationEngine):
     def teardown_infra(
         self,
         project: str,
-        fvs: Sequence[Union[BatchFeatureView, StreamFeatureView, FeatureView]],
+        fvs: Sequence[
+            Union[BatchFeatureView, StreamFeatureView, FeatureView, SortedFeatureView]
+        ],
         entities: Sequence[Entity],
     ):
         # This should be tearing down the lambda function.
@@ -166,7 +169,9 @@ class LambdaMaterializationEngine(BatchMaterializationEngine):
     def _materialize_one(
         self,
         registry: BaseRegistry,
-        feature_view: Union[BatchFeatureView, StreamFeatureView, FeatureView],
+        feature_view: Union[
+            BatchFeatureView, StreamFeatureView, FeatureView, SortedFeatureView
+        ],
         start_date: datetime,
         end_date: datetime,
         project: str,

@@ -22,6 +22,7 @@ from feast.infra.materialization.contrib.spark.spark_materialization_engine impo
     _SparkSerializedArtifacts,
 )
 from feast.infra.provider import get_provider
+from feast.sorted_feature_view import SortedFeatureView
 from feast.stream_feature_view import StreamFeatureView
 
 
@@ -258,11 +259,13 @@ class SparkKafkaProcessor(StreamProcessor):
                 ts_field = self.sfv.timestamp_field
             else:
                 ts_field = self.sfv.stream_source.timestamp_field  # type: ignore
-            rows = (
-                rows.sort_values(by=[*self.join_keys, ts_field], ascending=False)
-                .groupby(self.join_keys)
-                .nth(0)
-            )
+
+            if not isinstance(self.sfv, SortedFeatureView):
+                rows = (
+                    rows.sort_values(by=[*self.join_keys, ts_field], ascending=False)
+                    .groupby(self.join_keys)
+                    .nth(0)
+                )
             # Created column is not used anywhere in the code, but it is added to the dataframe.
             # Commenting this out as it is not used anywhere in the code
             # rows["created"] = pd.to_datetime("now", utc=True)

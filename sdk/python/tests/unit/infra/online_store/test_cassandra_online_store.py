@@ -2,12 +2,17 @@ import textwrap
 
 import pytest
 
-from feast import Entity, FeatureView, Field, ValueType
+from feast import FeatureView
+from feast.entity import Entity
+from feast.field import Field
+from feast.infra.offline_stores.dask import DaskOfflineStoreConfig
 from feast.infra.offline_stores.file_source import FileSource
 from feast.infra.online_stores.contrib.cassandra_online_store.cassandra_online_store import (
     CassandraOnlineStore,
+    CassandraOnlineStoreConfig,
 )
 from feast.protos.feast.core.SortedFeatureView_pb2 import SortOrder
+from feast.repo_config import RepoConfig
 from feast.sorted_feature_view import SortedFeatureView, SortKey
 from feast.types import (
     Array,
@@ -19,6 +24,19 @@ from feast.types import (
     Int64,
     String,
     UnixTimestamp,
+)
+from feast.value_type import ValueType
+from tests.integration.feature_repos.universal.online_store.cassandra import (
+    CassandraOnlineStoreCreator,
+)
+
+REGISTRY = "s3://test_registry/registry.db"
+PROJECT = "test_range_query"
+PROVIDER = "aws"
+REGION = "us-west-2"
+SOURCE = FileSource(
+    path="some path",
+    timestamp_field="event_timestamp",
 )
 
 
@@ -87,6 +105,35 @@ def sorted_feature_view_with_ts(file_source):
 def file_source():
     file_source = FileSource(name="my_file_source", path="test.parquet")
     return file_source
+
+
+@pytest.fixture(scope="session")
+def embedded_cassandra():
+    online_store_creator = CassandraOnlineStoreCreator("cassandra")
+    online_store_config = online_store_creator.create_online_store()
+
+    yield online_store_config
+
+    # Tearing down the Cassandra instance after all tests in the class
+    online_store_creator.teardown()
+
+
+@pytest.fixture(scope="session")
+def cassandra_repo_config(embedded_cassandra):
+    return RepoConfig(
+        registry=REGISTRY,
+        project=PROJECT,
+        provider=PROVIDER,
+        online_store=CassandraOnlineStoreConfig(
+            type=embedded_cassandra["type"],
+            hosts=embedded_cassandra["hosts"],
+            port=embedded_cassandra["port"],
+            keyspace=embedded_cassandra["keyspace"],
+            write_concurrency=100,
+        ),
+        offline_store=DaskOfflineStoreConfig(),
+        entity_key_serialization_version=2,
+    ), embedded_cassandra["container"]
 
 
 def test_fq_table_name_v1_within_limit(file_source):

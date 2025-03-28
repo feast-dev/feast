@@ -11,6 +11,7 @@ from feast.infra.offline_stores.offline_store import OfflineStore
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
+from feast.sorted_feature_view import SortedFeatureView
 from feast.stream_feature_view import StreamFeatureView
 from feast.utils import (
     _convert_arrow_to_proto,
@@ -69,10 +70,10 @@ class LocalMaterializationEngine(BatchMaterializationEngine):
         self,
         project: str,
         views_to_delete: Sequence[
-            Union[BatchFeatureView, StreamFeatureView, FeatureView]
+            Union[BatchFeatureView, StreamFeatureView, FeatureView, SortedFeatureView]
         ],
         views_to_keep: Sequence[
-            Union[BatchFeatureView, StreamFeatureView, FeatureView]
+            Union[BatchFeatureView, StreamFeatureView, FeatureView, SortedFeatureView]
         ],
         entities_to_delete: Sequence[Entity],
         entities_to_keep: Sequence[Entity],
@@ -83,7 +84,9 @@ class LocalMaterializationEngine(BatchMaterializationEngine):
     def teardown_infra(
         self,
         project: str,
-        fvs: Sequence[Union[BatchFeatureView, StreamFeatureView, FeatureView]],
+        fvs: Sequence[
+            Union[BatchFeatureView, StreamFeatureView, FeatureView, SortedFeatureView]
+        ],
         entities: Sequence[Entity],
     ):
         # Nothing to tear down.
@@ -122,7 +125,9 @@ class LocalMaterializationEngine(BatchMaterializationEngine):
     def _materialize_one(
         self,
         registry: BaseRegistry,
-        feature_view: Union[BatchFeatureView, StreamFeatureView, FeatureView],
+        feature_view: Union[
+            BatchFeatureView, StreamFeatureView, FeatureView, SortedFeatureView
+        ],
         start_date: datetime,
         end_date: datetime,
         project: str,
@@ -142,16 +147,27 @@ class LocalMaterializationEngine(BatchMaterializationEngine):
         job_id = f"{feature_view.name}-{start_date}-{end_date}"
 
         try:
-            offline_job = self.offline_store.pull_latest_from_table_or_query(
-                config=self.repo_config,
-                data_source=feature_view.batch_source,
-                join_key_columns=join_key_columns,
-                feature_name_columns=feature_name_columns,
-                timestamp_field=timestamp_field,
-                created_timestamp_column=created_timestamp_column,
-                start_date=start_date,
-                end_date=end_date,
-            )
+            if isinstance(feature_view, SortedFeatureView):
+                offline_job = self.offline_store.pull_all_from_table_or_query(
+                    config=self.repo_config,
+                    data_source=feature_view.batch_source,
+                    join_key_columns=join_key_columns,
+                    feature_name_columns=feature_name_columns,
+                    timestamp_field=timestamp_field,
+                    start_date=start_date,
+                    end_date=end_date,
+                )
+            else:
+                offline_job = self.offline_store.pull_latest_from_table_or_query(
+                    config=self.repo_config,
+                    data_source=feature_view.batch_source,
+                    join_key_columns=join_key_columns,
+                    feature_name_columns=feature_name_columns,
+                    timestamp_field=timestamp_field,
+                    created_timestamp_column=created_timestamp_column,
+                    start_date=start_date,
+                    end_date=end_date,
+                )
 
             table = offline_job.to_arrow()
 

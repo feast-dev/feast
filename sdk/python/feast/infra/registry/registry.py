@@ -481,7 +481,10 @@ class Registry(BaseRegistry):
                     feature_view.created_timestamp = (
                         existing_feature_view.created_timestamp
                     )
-                    if isinstance(feature_view, (FeatureView, StreamFeatureView)):
+                    if isinstance(
+                        feature_view,
+                        (FeatureView, StreamFeatureView, SortedFeatureView),
+                    ):
                         feature_view.update_materialization_intervals(
                             existing_feature_view.materialization_intervals
                         )
@@ -586,6 +589,30 @@ class Registry(BaseRegistry):
                 feature_view_proto.spec.project = project
                 del self.cached_registry_proto.feature_views[idx]
                 self.cached_registry_proto.feature_views.append(feature_view_proto)
+                if commit:
+                    self.commit()
+                return
+
+        for idx, existing_sorted_feature_view_proto in enumerate(
+            self.cached_registry_proto.sorted_feature_views
+        ):
+            if (
+                existing_sorted_feature_view_proto.spec.name == feature_view.name
+                and existing_sorted_feature_view_proto.spec.project == project
+            ):
+                existing_sorted_feature_view = SortedFeatureView.from_proto(
+                    existing_sorted_feature_view_proto
+                )
+                existing_sorted_feature_view.materialization_intervals.append(
+                    (start_date, end_date)
+                )
+                existing_sorted_feature_view.last_updated_timestamp = _utc_now()
+                sorted_feature_view_proto = existing_sorted_feature_view.to_proto()
+                sorted_feature_view_proto.spec.project = project
+                del self.cached_registry_proto.sorted_feature_views[idx]
+                self.cached_registry_proto.sorted_feature_views.append(
+                    sorted_feature_view_proto
+                )
                 if commit:
                     self.commit()
                 return
