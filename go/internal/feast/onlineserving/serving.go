@@ -4,16 +4,14 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
-	"math"
-	"sort"
-	"strings"
-	"time"
-
 	"github.com/apache/arrow/go/v17/arrow"
 	"github.com/apache/arrow/go/v17/arrow/memory"
+	"github.com/golang/protobuf/ptypes/timestamp"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"sort"
+	"strings"
 
 	"github.com/feast-dev/feast/go/internal/feast/model"
 	"github.com/feast-dev/feast/go/internal/feast/onlinestore"
@@ -692,183 +690,19 @@ func TransposeRangeFeatureRowsIntoColumns(
 	vectors := make([]*RangeFeatureVector, 0)
 
 	for featureIndex := 0; featureIndex < numFeatures; featureIndex++ {
-		currentVector := &RangeFeatureVector{
-			Name:            groupRef.AliasedFeatureNames[featureIndex],
-			RangeStatuses:   make([][]serving.FieldStatus, numRows),
-			RangeTimestamps: make([][]*timestamppb.Timestamp, numRows),
-		}
+		currentVector := initializeRangeFeatureVector(groupRef.AliasedFeatureNames[featureIndex], numRows)
 		vectors = append(vectors, currentVector)
+
 		rangeValuesByRow := make([]*prototypes.RepeatedValue, numRows)
 		for i := range rangeValuesByRow {
 			rangeValuesByRow[i] = &prototypes.RepeatedValue{Val: make([]*prototypes.Value, 0)}
 		}
 
 		for rowEntityIndex, outputIndexes := range groupRef.Indices {
-			var rangeValues []*prototypes.Value
-			var rangeStatuses []serving.FieldStatus
-			var rangeTimestamps []*timestamppb.Timestamp
-
-			if featureData2D[rowEntityIndex] == nil || len(featureData2D[rowEntityIndex]) <= featureIndex {
-				rangeValues = make([]*prototypes.Value, 0)
-				rangeStatuses = make([]serving.FieldStatus, 0)
-				rangeTimestamps = make([]*timestamppb.Timestamp, 0)
-			} else {
-				featureData := featureData2D[rowEntityIndex][featureIndex]
-
-				rangeValues = make([]*prototypes.Value, len(featureData.Values))
-				rangeStatuses = make([]serving.FieldStatus, len(featureData.Values))
-				rangeTimestamps = make([]*timestamppb.Timestamp, len(featureData.Values))
-
-				featureViewName := featureData.FeatureView
-				sfv, exists := sfvs[featureViewName]
-				if !exists {
-					return nil, fmt.Errorf("feature view '%s' not found in the provided sorted feature views", featureViewName)
-				}
-
-				for i, val := range featureData.Values {
-					if val == nil {
-						rangeValues[i] = nil
-						rangeStatuses[i] = serving.FieldStatus_NOT_FOUND
-						rangeTimestamps[i] = &timestamppb.Timestamp{}
-						continue
-					}
-
-					protoVal := &prototypes.Value{}
-
-					switch v := val.(type) {
-					case []byte:
-						protoVal.Val = &prototypes.Value_BytesVal{BytesVal: v}
-					case string:
-						protoVal.Val = &prototypes.Value_StringVal{StringVal: v}
-					case int32:
-						protoVal.Val = &prototypes.Value_Int32Val{Int32Val: v}
-					case int64:
-						protoVal.Val = &prototypes.Value_Int64Val{Int64Val: v}
-					case float64:
-						protoVal.Val = &prototypes.Value_DoubleVal{DoubleVal: v}
-					case float32:
-						protoVal.Val = &prototypes.Value_FloatVal{FloatVal: v}
-					case bool:
-						protoVal.Val = &prototypes.Value_BoolVal{BoolVal: v}
-					case time.Time:
-						protoVal.Val = &prototypes.Value_UnixTimestampVal{UnixTimestampVal: v.Unix()}
-					case *timestamppb.Timestamp:
-						protoVal.Val = &prototypes.Value_UnixTimestampVal{UnixTimestampVal: v.GetSeconds()}
-
-					case [][]byte:
-						bytesList := &prototypes.BytesList{Val: v}
-						protoVal.Val = &prototypes.Value_BytesListVal{BytesListVal: bytesList}
-					case prototypes.BytesList:
-						protoVal.Val = &prototypes.Value_BytesListVal{BytesListVal: &v}
-					case *prototypes.BytesList:
-						protoVal.Val = &prototypes.Value_BytesListVal{BytesListVal: v}
-
-					case []string:
-						stringList := &prototypes.StringList{Val: v}
-						protoVal.Val = &prototypes.Value_StringListVal{StringListVal: stringList}
-					case prototypes.StringList:
-						protoVal.Val = &prototypes.Value_StringListVal{StringListVal: &v}
-					case *prototypes.StringList:
-						protoVal.Val = &prototypes.Value_StringListVal{StringListVal: v}
-
-					case []int32:
-						int32List := &prototypes.Int32List{Val: v}
-						protoVal.Val = &prototypes.Value_Int32ListVal{Int32ListVal: int32List}
-					case prototypes.Int32List:
-						protoVal.Val = &prototypes.Value_Int32ListVal{Int32ListVal: &v}
-					case *prototypes.Int32List:
-						protoVal.Val = &prototypes.Value_Int32ListVal{Int32ListVal: v}
-
-					case []int64:
-						int64List := &prototypes.Int64List{Val: v}
-						protoVal.Val = &prototypes.Value_Int64ListVal{Int64ListVal: int64List}
-					case prototypes.Int64List:
-						protoVal.Val = &prototypes.Value_Int64ListVal{Int64ListVal: &v}
-					case *prototypes.Int64List:
-						protoVal.Val = &prototypes.Value_Int64ListVal{Int64ListVal: v}
-
-					case []float64:
-						doubleList := &prototypes.DoubleList{Val: v}
-						protoVal.Val = &prototypes.Value_DoubleListVal{DoubleListVal: doubleList}
-					case prototypes.DoubleList:
-						protoVal.Val = &prototypes.Value_DoubleListVal{DoubleListVal: &v}
-					case *prototypes.DoubleList:
-						protoVal.Val = &prototypes.Value_DoubleListVal{DoubleListVal: v}
-
-					case []float32:
-						floatList := &prototypes.FloatList{Val: v}
-						protoVal.Val = &prototypes.Value_FloatListVal{FloatListVal: floatList}
-					case prototypes.FloatList:
-						protoVal.Val = &prototypes.Value_FloatListVal{FloatListVal: &v}
-					case *prototypes.FloatList:
-						protoVal.Val = &prototypes.Value_FloatListVal{FloatListVal: v}
-
-					case []bool:
-						boolList := &prototypes.BoolList{Val: v}
-						protoVal.Val = &prototypes.Value_BoolListVal{BoolListVal: boolList}
-					case prototypes.BoolList:
-						protoVal.Val = &prototypes.Value_BoolListVal{BoolListVal: &v}
-					case *prototypes.BoolList:
-						protoVal.Val = &prototypes.Value_BoolListVal{BoolListVal: v}
-
-					case []time.Time:
-						timestamps := make([]int64, len(v))
-						for j, t := range v {
-							timestamps[j] = t.Unix()
-						}
-						timestampList := &prototypes.Int64List{Val: timestamps}
-						protoVal.Val = &prototypes.Value_UnixTimestampListVal{UnixTimestampListVal: timestampList}
-
-					case []*timestamppb.Timestamp:
-						timestamps := make([]int64, len(v))
-						for j, t := range v {
-							timestamps[j] = t.GetSeconds()
-						}
-						timestampList := &prototypes.Int64List{Val: timestamps}
-						protoVal.Val = &prototypes.Value_UnixTimestampListVal{UnixTimestampListVal: timestampList}
-
-					case prototypes.Null:
-						protoVal.Val = &prototypes.Value_NullVal{NullVal: prototypes.Null_NULL}
-
-					case *prototypes.Value:
-						protoVal = v
-
-					default:
-						switch {
-						case tryConvertToInt32(&protoVal, v):
-						case tryConvertToInt64(&protoVal, v):
-						case tryConvertToFloat(&protoVal, v):
-						case tryConvertToDouble(&protoVal, v):
-						default:
-							return nil, fmt.Errorf("unsupported value type for feature %s: %T",
-								currentVector.Name, v)
-						}
-					}
-
-					var timestamp *timestamppb.Timestamp
-					if i < len(featureData.EventTimestamps) {
-						ts := &featureData.EventTimestamps[i]
-						if ts.GetSeconds() != 0 || ts.GetNanos() != 0 {
-							timestamp = &timestamppb.Timestamp{
-								Seconds: ts.GetSeconds(),
-								Nanos:   ts.GetNanos(),
-							}
-						} else {
-							timestamp = &timestamppb.Timestamp{}
-						}
-					} else {
-						timestamp = &timestamppb.Timestamp{}
-					}
-
-					if timestamp.GetSeconds() > 0 && checkOutsideTtl(timestamp, timestamppb.Now(), sfv.FeatureView.Ttl) {
-						rangeStatuses[i] = serving.FieldStatus_OUTSIDE_MAX_AGE
-					} else {
-						rangeStatuses[i] = serving.FieldStatus_PRESENT
-					}
-
-					rangeValues[i] = protoVal
-					rangeTimestamps[i] = timestamp
-				}
+			rangeValues, rangeStatuses, rangeTimestamps, err := processFeatureRowData(
+				featureData2D, rowEntityIndex, featureIndex, sfvs)
+			if err != nil {
+				return nil, err
 			}
 
 			for _, rowIndex := range outputIndexes {
@@ -888,72 +722,79 @@ func TransposeRangeFeatureRowsIntoColumns(
 	return vectors, nil
 }
 
-func tryConvertToInt32(protoVal **prototypes.Value, v interface{}) bool {
-	switch num := v.(type) {
-	case int:
-		if num <= math.MaxInt32 && num >= math.MinInt32 {
-			(*protoVal).Val = &prototypes.Value_Int32Val{Int32Val: int32(num)}
-			return true
-		}
-	case int8:
-		(*protoVal).Val = &prototypes.Value_Int32Val{Int32Val: int32(num)}
-		return true
-	case int16:
-		(*protoVal).Val = &prototypes.Value_Int32Val{Int32Val: int32(num)}
-		return true
-	case uint8:
-		(*protoVal).Val = &prototypes.Value_Int32Val{Int32Val: int32(num)}
-		return true
-	case uint16:
-		(*protoVal).Val = &prototypes.Value_Int32Val{Int32Val: int32(num)}
-		return true
-	case uint:
-		if num <= math.MaxInt32 {
-			(*protoVal).Val = &prototypes.Value_Int32Val{Int32Val: int32(num)}
-			return true
-		}
+func initializeRangeFeatureVector(name string, numRows int) *RangeFeatureVector {
+	return &RangeFeatureVector{
+		Name:            name,
+		RangeStatuses:   make([][]serving.FieldStatus, numRows),
+		RangeTimestamps: make([][]*timestamppb.Timestamp, numRows),
 	}
-	return false
 }
 
-func tryConvertToInt64(protoVal **prototypes.Value, v interface{}) bool {
-	switch num := v.(type) {
-	case int:
-		(*protoVal).Val = &prototypes.Value_Int64Val{Int64Val: int64(num)}
-		return true
-	case uint:
-		if num <= math.MaxInt64 {
-			(*protoVal).Val = &prototypes.Value_Int64Val{Int64Val: int64(num)}
-			return true
-		}
-	case uint32:
-		(*protoVal).Val = &prototypes.Value_Int64Val{Int64Val: int64(num)}
-		return true
-	case uint64:
-		if num <= math.MaxInt64 {
-			(*protoVal).Val = &prototypes.Value_Int64Val{Int64Val: int64(num)}
-			return true
-		}
+func processFeatureRowData(
+	featureData2D [][]onlinestore.RangeFeatureData,
+	rowEntityIndex int,
+	featureIndex int,
+	sfvs map[string]*model.SortedFeatureView) ([]*prototypes.Value, []serving.FieldStatus, []*timestamppb.Timestamp, error) {
+
+	if featureData2D[rowEntityIndex] == nil || len(featureData2D[rowEntityIndex]) <= featureIndex {
+		return make([]*prototypes.Value, 0),
+			make([]serving.FieldStatus, 0),
+			make([]*timestamppb.Timestamp, 0),
+			nil
 	}
-	return false
+
+	featureData := featureData2D[rowEntityIndex][featureIndex]
+	featureViewName := featureData.FeatureView
+
+	sfv, exists := sfvs[featureViewName]
+	if !exists {
+		return nil, nil, nil, fmt.Errorf("feature view '%s' not found in the provided sorted feature views", featureViewName)
+	}
+
+	numValues := len(featureData.Values)
+	rangeValues := make([]*prototypes.Value, numValues)
+	rangeStatuses := make([]serving.FieldStatus, numValues)
+	rangeTimestamps := make([]*timestamppb.Timestamp, numValues)
+
+	for i, val := range featureData.Values {
+		if val == nil {
+			rangeValues[i] = nil
+			rangeStatuses[i] = serving.FieldStatus_NOT_FOUND
+			rangeTimestamps[i] = &timestamppb.Timestamp{}
+			continue
+		}
+
+		protoVal, err := types.InterfaceToProtoValue(val)
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("error converting value for feature %s: %v", featureData.FeatureName, err)
+		}
+
+		timestamp := getEventTimestamp(featureData.EventTimestamps, i)
+
+		status := serving.FieldStatus_PRESENT
+		if timestamp.GetSeconds() > 0 && checkOutsideTtl(timestamp, timestamppb.Now(), sfv.FeatureView.Ttl) {
+			status = serving.FieldStatus_OUTSIDE_MAX_AGE
+		}
+
+		rangeValues[i] = protoVal
+		rangeStatuses[i] = status
+		rangeTimestamps[i] = timestamp
+	}
+
+	return rangeValues, rangeStatuses, rangeTimestamps, nil
 }
 
-func tryConvertToFloat(protoVal **prototypes.Value, v interface{}) bool {
-	switch num := v.(type) {
-	case float32:
-		(*protoVal).Val = &prototypes.Value_FloatVal{FloatVal: num}
-		return true
+func getEventTimestamp(timestamps []timestamp.Timestamp, index int) *timestamppb.Timestamp {
+	if index < len(timestamps) {
+		ts := &timestamps[index]
+		if ts.GetSeconds() != 0 || ts.GetNanos() != 0 {
+			return &timestamppb.Timestamp{
+				Seconds: ts.GetSeconds(),
+				Nanos:   ts.GetNanos(),
+			}
+		}
 	}
-	return false
-}
-
-func tryConvertToDouble(protoVal **prototypes.Value, v interface{}) bool {
-	switch num := v.(type) {
-	case float64:
-		(*protoVal).Val = &prototypes.Value_DoubleVal{DoubleVal: num}
-		return true
-	}
-	return false
+	return &timestamppb.Timestamp{}
 }
 
 func KeepOnlyRequestedFeatures(

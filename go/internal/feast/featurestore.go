@@ -85,12 +85,7 @@ func (fs *FeatureStore) GetOnlineFeatures(
 	joinKeyToEntityValues map[string]*prototypes.RepeatedValue,
 	requestData map[string]*prototypes.RepeatedValue,
 	fullFeatureNames bool) ([]*onlineserving.FeatureVector, error) {
-	fvs, sortedFvs, odFvs, err := fs.listAllViews()
-	if err != nil {
-		return nil, err
-	}
-
-	entities, err := fs.ListEntities(false)
+	fvs, sortedFvs, odFvs, entities, err := fs.fetchViewsAndEntities()
 	if err != nil {
 		return nil, err
 	}
@@ -139,21 +134,8 @@ func (fs *FeatureStore) GetOnlineFeatures(
 		index += 1
 	}
 
-	entitylessCase := false
-	for _, featureView := range featureViews {
-		if featureView.HasEntity(model.DUMMY_ENTITY_NAME) {
-			entitylessCase = true
-			break
-		}
-	}
-
-	if entitylessCase {
-		dummyEntityColumn := &prototypes.RepeatedValue{Val: make([]*prototypes.Value, numRows)}
-		for index := 0; index < numRows; index++ {
-			dummyEntityColumn.Val[index] = &model.DUMMY_ENTITY_VALUE
-		}
-		joinKeyToEntityValues[model.DUMMY_ENTITY_ID] = dummyEntityColumn
-	}
+	entitylessCase := checkEntitylessCase(featureViews)
+	addDummyEntityIfNeeded(entitylessCase, joinKeyToEntityValues, numRows)
 
 	groupedRefs, err := onlineserving.GroupFeatureRefs(requestedFeatureViews, joinKeyToEntityValues, entityNameToJoinKeyMap, fullFeatureNames)
 	if err != nil {
@@ -223,12 +205,7 @@ func (fs *FeatureStore) GetOnlineFeaturesRange(
 		requestData = make(map[string]*prototypes.RepeatedValue)
 	}
 
-	fvs, sortedFvs, odFvs, err := fs.listAllViews()
-	if err != nil {
-		return nil, err
-	}
-
-	entities, err := fs.ListEntities(false)
+	fvs, sortedFvs, odFvs, entities, err := fs.fetchViewsAndEntities()
 	if err != nil {
 		return nil, err
 	}
@@ -281,21 +258,8 @@ func (fs *FeatureStore) GetOnlineFeaturesRange(
 		return nil, err
 	}
 
-	entitylessCase := false
-	for _, sfv := range requestedSortedFeatureViews {
-		if onlineserving.HasEntityInSortedFeatureView(sfv.View, model.DUMMY_ENTITY_NAME) {
-			entitylessCase = true
-			break
-		}
-	}
-
-	if entitylessCase {
-		dummyEntityColumn := &prototypes.RepeatedValue{Val: make([]*prototypes.Value, numRows)}
-		for index := 0; index < numRows; index++ {
-			dummyEntityColumn.Val[index] = &model.DUMMY_ENTITY_VALUE
-		}
-		joinKeyToEntityValues[model.DUMMY_ENTITY_ID] = dummyEntityColumn
-	}
+	entitylessCase := checkEntitylessCase(requestedSortedFeatureViews)
+	addDummyEntityIfNeeded(entitylessCase, joinKeyToEntityValues, numRows)
 
 	arrowMemory := memory.NewGoAllocator()
 	entityColumns, err := onlineserving.EntitiesToRangeFeatureVectors(
@@ -411,6 +375,52 @@ func (fs *FeatureStore) listAllViews() (map[string]*model.FeatureView, map[strin
 		odFvs[onDemandFeatureView.Base.Name] = onDemandFeatureView
 	}
 	return fvs, sortedFvs, odFvs, nil
+}
+
+func (fs *FeatureStore) fetchViewsAndEntities() (map[string]*model.FeatureView, map[string]*model.SortedFeatureView, map[string]*model.OnDemandFeatureView, []*model.Entity, error) {
+	fvs, sortedFvs, odFvs, err := fs.listAllViews()
+	if err != nil {
+		return nil, nil, nil, nil, err
+	}
+
+	entities, err := fs.ListEntities(false)
+	if err != nil {
+		return nil, nil, nil, nil, err
+	}
+
+	return fvs, sortedFvs, odFvs, entities, nil
+}
+
+func addDummyEntityIfNeeded(
+	entitylessCase bool,
+	joinKeyToEntityValues map[string]*prototypes.RepeatedValue,
+	numRows int) {
+
+	if entitylessCase {
+		dummyEntityColumn := &prototypes.RepeatedValue{Val: make([]*prototypes.Value, numRows)}
+		for index := 0; index < numRows; index++ {
+			dummyEntityColumn.Val[index] = &model.DUMMY_ENTITY_VALUE
+		}
+		joinKeyToEntityValues[model.DUMMY_ENTITY_ID] = dummyEntityColumn
+	}
+}
+
+func checkEntitylessCase(views interface{}) bool {
+	switch v := views.(type) {
+	case []*model.FeatureView:
+		for _, featureView := range v {
+			if featureView.HasEntity(model.DUMMY_ENTITY_NAME) {
+				return true
+			}
+		}
+	case []*onlineserving.SortedFeatureViewAndRefs:
+		for _, sfv := range v {
+			if onlineserving.HasEntityInSortedFeatureView(sfv.View, model.DUMMY_ENTITY_NAME) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (fs *FeatureStore) ListFeatureViews() ([]*model.FeatureView, error) {
