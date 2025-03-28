@@ -219,6 +219,10 @@ func (fs *FeatureStore) GetOnlineFeaturesRange(
 	requestData map[string]*prototypes.RepeatedValue,
 	fullFeatureNames bool) ([]*onlineserving.RangeFeatureVector, error) {
 
+	if requestData == nil {
+		requestData = make(map[string]*prototypes.RepeatedValue)
+	}
+
 	fvs, sortedFvs, odFvs, err := fs.listAllViews()
 	if err != nil {
 		return nil, err
@@ -254,6 +258,10 @@ func (fs *FeatureStore) GetOnlineFeaturesRange(
 		return nil, err
 	}
 
+	if len(expectedJoinKeysSet) == 0 {
+		return nil, fmt.Errorf("no entity join keys found, check feature view entity definition is well defined")
+	}
+
 	err = onlineserving.ValidateSortedFeatureRefs(requestedSortedFeatureViews, fullFeatureNames)
 	if err != nil {
 		return nil, err
@@ -261,7 +269,11 @@ func (fs *FeatureStore) GetOnlineFeaturesRange(
 
 	numRows, err := onlineserving.ValidateEntityValues(joinKeyToEntityValues, requestData, expectedJoinKeysSet)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("entity validation failed: %w", err)
+	}
+
+	if numRows <= 0 {
+		return nil, fmt.Errorf("invalid number of entity rows: %d", numRows)
 	}
 
 	err = onlineserving.ValidateSortKeyFilters(sortKeyFilters, requestedSortedFeatureViews)
