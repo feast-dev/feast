@@ -3,3 +3,4 @@ docs
 charts
 env
 **/.terraform
+offline_build/
