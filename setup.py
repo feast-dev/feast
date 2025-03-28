@@ -59,6 +59,7 @@ REQUIRED = [
     "psutil",
     "bigtree>=0.19.2",
     "pyjwt",
+    "sqlite-vec==v0.1.7a2",
 ]
 
 GCP_REQUIRED = [
@@ -89,9 +90,6 @@ SPARK_REQUIRED = [
     "pyspark>=3.0.0,<4",
 ]
 
-SQLITE_VEC_REQUIRED = [
-    "sqlite-vec==v0.1.6",
-]
 TRINO_REQUIRED = ["trino>=0.305.0,<0.400.0", "regex"]
 
 POSTGRES_REQUIRED = [
@@ -234,7 +232,6 @@ CI_REQUIRED = (
     + DUCKDB_REQUIRED
     + DELTA_REQUIRED
     + ELASTICSEARCH_REQUIRED
-    + SQLITE_VEC_REQUIRED
     + SINGLESTORE_REQUIRED
     + COUCHBASE_REQUIRED
     + OPENTELEMETRY
@@ -315,7 +312,6 @@ setup(
         "ikv": IKV_REQUIRED,
         "delta": DELTA_REQUIRED,
         "elasticsearch": ELASTICSEARCH_REQUIRED,
-        "sqlite_vec": SQLITE_VEC_REQUIRED,
         "singlestore": SINGLESTORE_REQUIRED,
         "couchbase": COUCHBASE_REQUIRED,
         "opentelemetry": OPENTELEMETRY,
