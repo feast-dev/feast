@@ -16,6 +16,14 @@ type FeatureData struct {
 	Value     types.Value
 }
 
+type RangeFeatureData struct {
+	FeatureView     string
+	FeatureName     string
+	Values          []interface{}
+	Statuses        []serving.FieldStatus
+	EventTimestamps []timestamp.Timestamp
+}
+
 type OnlineStore interface {
 	// OnlineRead reads multiple features (specified in featureReferences) for multiple
 	// entity keys (specified in entityKeys) and returns an array of array of features,
@@ -36,6 +44,7 @@ type OnlineStore interface {
 	// => allocate memory for each field once in OnlineRead
 	// and reuse them in GetOnlineFeaturesResponse?
 	OnlineRead(ctx context.Context, entityKeys []*types.EntityKey, featureViewNames []string, featureNames []string) ([][]FeatureData, error)
+	OnlineReadRange(ctx context.Context, entityRows []*types.EntityKey, featureViewNames []string, featureNames []string, sortKeyFilters []*serving.SortKeyFilter, reverseSortOrder bool, limit int32) ([][]RangeFeatureData, error)
 	// Destruct must be call once user is done using OnlineStore
 	// This is to comply with the Connector since we have to close the plugin
 	Destruct()

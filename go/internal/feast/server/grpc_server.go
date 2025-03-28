@@ -9,6 +9,7 @@ import (
 	prototypes "github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/feast-dev/feast/go/types"
 	"github.com/google/uuid"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 )
 
@@ -104,6 +105,100 @@ func (s *grpcServingServiceServer) GetOnlineFeatures(ctx context.Context, reques
 			fmt.Printf("LoggerImpl error[%s]: %+v", featuresOrService.FeatureService.Name, err)
 		}
 	}
+	return resp, nil
+}
+
+// GetOnlineFeaturesRange Returns an object containing the response to GetOnlineFeaturesRange.
+// Similar to GetOnlineFeatures but returns a range of features for each entity based on sort keys.
+func (s *grpcServingServiceServer) GetOnlineFeaturesRange(ctx context.Context, request *serving.GetOnlineFeaturesRangeRequest) (*serving.GetOnlineFeaturesRangeResponse, error) {
+	span, ctx := tracer.StartSpanFromContext(ctx, "getOnlineFeaturesRange", tracer.ResourceName("ServingService/GetOnlineFeaturesRange"))
+	defer span.Finish()
+
+	logSpanContext := LogWithSpanContext(span)
+
+	featuresOrService, err := s.fs.ParseFeatures(request.GetKind())
+	if err != nil {
+		logSpanContext.Error().Err(err).Msg("Error parsing feature service or feature list from request")
+		return nil, err
+	}
+
+	rangeFeatureVectors, err := s.fs.GetOnlineFeaturesRange(
+		ctx,
+		featuresOrService.FeaturesRefs,
+		featuresOrService.FeatureService,
+		request.GetEntities(),
+		request.GetSortKeyFilters(),
+		request.GetReverseSortOrder(),
+		request.GetLimit(),
+		request.GetRequestContext(),
+		request.GetFullFeatureNames())
+
+	if err != nil {
+		logSpanContext.Error().Err(err).Msg("Error getting online features range")
+		return nil, err
+	}
+
+	resp := &serving.GetOnlineFeaturesRangeResponse{
+		Results: make([]*serving.GetOnlineFeaturesRangeResponse_RangeFeatureVector, 0),
+		Metadata: &serving.GetOnlineFeaturesResponseMetadata{
+			FeatureNames: &serving.FeatureList{Val: make([]string, 0)},
+		},
+		Status: true,
+	}
+
+	for _, vector := range rangeFeatureVectors {
+		resp.Metadata.FeatureNames.Val = append(resp.Metadata.FeatureNames.Val, vector.Name)
+	}
+
+	for _, vector := range rangeFeatureVectors {
+		rangeValues, err := types.ArrowValuesToRepeatedProtoValues(vector.RangeValues)
+		if err != nil {
+			logSpanContext.Error().Err(err).Msg("Error converting Arrow range values to proto values")
+			return nil, err
+		}
+
+		rangeStatuses := make([]*serving.RepeatedFieldStatus, len(rangeValues))
+		for j, _ := range rangeValues {
+			statusValues := make([]serving.FieldStatus, len(vector.RangeStatuses[j]))
+			for k, status := range vector.RangeStatuses[j] {
+				statusValues[k] = status
+			}
+			rangeStatuses[j] = &serving.RepeatedFieldStatus{Status: statusValues}
+		}
+
+		timeValues := make([]*prototypes.RepeatedValue, len(rangeValues))
+		for j, timestamps := range vector.RangeTimestamps {
+			timestampValues := make([]*prototypes.Value, len(timestamps))
+			for k, ts := range timestamps {
+				timestampValues[k] = &prototypes.Value{
+					Val: &prototypes.Value_UnixTimestampVal{
+						UnixTimestampVal: ts.GetSeconds(),
+					},
+				}
+			}
+
+			if len(timestampValues) == 0 {
+				now := timestamppb.Now()
+				timestampValues = []*prototypes.Value{
+					{
+						Val: &prototypes.Value_UnixTimestampVal{
+							UnixTimestampVal: now.GetSeconds(),
+						},
+					},
+				}
+			}
+			timeValues[j] = &prototypes.RepeatedValue{Val: timestampValues}
+		}
+
+		resp.Results = append(resp.Results, &serving.GetOnlineFeaturesRangeResponse_RangeFeatureVector{
+			Values:          rangeValues,
+			Statuses:        rangeStatuses,
+			EventTimestamps: timeValues,
+		})
+	}
+
+	// TODO: Implement logging for GetOnlineFeaturesRange for feature services when support for feature services is added
+
 	return resp, nil
 }
 

@@ -2,11 +2,13 @@ package types
 
 import (
 	"fmt"
+	"google.golang.org/protobuf/types/known/timestamppb"
+	"math"
+	"time"
 
 	"github.com/apache/arrow/go/v17/arrow"
 	"github.com/apache/arrow/go/v17/arrow/array"
 	"github.com/apache/arrow/go/v17/arrow/memory"
-
 	"github.com/feast-dev/feast/go/protos/feast/types"
 )
 
@@ -342,5 +344,355 @@ func ProtoValuesToArrowArray(protoValues []*types.Value, arrowAllocator memory.A
 		return builder.NewArray(), nil
 	} else {
 		return array.NewNull(numRows), nil
+	}
+}
+
+func ArrowValuesToRepeatedProtoValues(arr arrow.Array) ([]*types.RepeatedValue, error) {
+	repeatedValues := make([]*types.RepeatedValue, 0, arr.Len())
+
+	if listArr, ok := arr.(*array.List); ok {
+		listValues := listArr.ListValues()
+		offsets := listArr.Offsets()[1:]
+		pos := 0
+		for i := 0; i < listArr.Len(); i++ {
+			if listArr.IsNull(i) {
+				repeatedValues = append(repeatedValues, &types.RepeatedValue{Val: make([]*types.Value, 0)})
+				continue
+			}
+
+			values := make([]*types.Value, 0, int(offsets[i])-pos)
+
+			for j := pos; j < int(offsets[i]); j++ {
+				var protoVal *types.Value
+
+				switch listValues.DataType() {
+				case arrow.PrimitiveTypes.Int32:
+					protoVal = &types.Value{Val: &types.Value_Int32Val{Int32Val: listValues.(*array.Int32).Value(j)}}
+				case arrow.PrimitiveTypes.Int64:
+					protoVal = &types.Value{Val: &types.Value_Int64Val{Int64Val: listValues.(*array.Int64).Value(j)}}
+				case arrow.PrimitiveTypes.Float32:
+					protoVal = &types.Value{Val: &types.Value_FloatVal{FloatVal: listValues.(*array.Float32).Value(j)}}
+				case arrow.PrimitiveTypes.Float64:
+					protoVal = &types.Value{Val: &types.Value_DoubleVal{DoubleVal: listValues.(*array.Float64).Value(j)}}
+				case arrow.BinaryTypes.Binary:
+					protoVal = &types.Value{Val: &types.Value_BytesVal{BytesVal: listValues.(*array.Binary).Value(j)}}
+				case arrow.BinaryTypes.String:
+					protoVal = &types.Value{Val: &types.Value_StringVal{StringVal: listValues.(*array.String).Value(j)}}
+				case arrow.FixedWidthTypes.Boolean:
+					protoVal = &types.Value{Val: &types.Value_BoolVal{BoolVal: listValues.(*array.Boolean).Value(j)}}
+				case arrow.FixedWidthTypes.Timestamp_s:
+					protoVal = &types.Value{Val: &types.Value_UnixTimestampVal{UnixTimestampVal: int64(listValues.(*array.Timestamp).Value(j))}}
+				default:
+					return nil, fmt.Errorf("unsupported data type in list: %s", listValues.DataType())
+				}
+
+				values = append(values, protoVal)
+			}
+
+			repeatedValues = append(repeatedValues, &types.RepeatedValue{Val: values})
+			// set the end of current element as start of the next
+			pos = int(offsets[i])
+		}
+
+		return repeatedValues, nil
+	}
+
+	protoValues, err := ArrowValuesToProtoValues(arr)
+	if err != nil {
+		return nil, fmt.Errorf("error converting values to proto Values: %v", err)
+	}
+
+	for _, val := range protoValues {
+		repeatedValues = append(repeatedValues, &types.RepeatedValue{Val: []*types.Value{val}})
+	}
+
+	return repeatedValues, nil
+}
+
+func RepeatedProtoValuesToArrowArray(repeatedValues []*types.RepeatedValue, allocator memory.Allocator, numRows int) (arrow.Array, error) {
+	if len(repeatedValues) == 0 {
+		return array.NewNull(numRows), nil
+	}
+
+	var valueType arrow.DataType
+	var protoValue *types.Value
+
+	for _, rv := range repeatedValues {
+		if rv != nil && len(rv.Val) > 0 {
+			for _, val := range rv.Val {
+				if val != nil && val.Val != nil {
+					protoValue = val
+					break
+				}
+			}
+			if protoValue != nil {
+				break
+			}
+		}
+	}
+
+	if protoValue == nil {
+		return array.NewNull(numRows), nil
+	}
+
+	var err error
+	valueType, err = ProtoTypeToArrowType(protoValue)
+	if err != nil {
+		return nil, err
+	}
+
+	listBuilder := array.NewListBuilder(allocator, valueType)
+	defer listBuilder.Release()
+	valueBuilder := listBuilder.ValueBuilder()
+
+	for _, repeatedValue := range repeatedValues {
+		listBuilder.Append(true)
+
+		if repeatedValue == nil || len(repeatedValue.Val) == 0 {
+			continue
+		}
+
+		for _, val := range repeatedValue.Val {
+			if val == nil || val.Val == nil {
+				appendNullByType(valueBuilder)
+				continue
+			}
+
+			switch v := val.Val.(type) {
+			case *types.Value_Int32Val:
+				valueBuilder.(*array.Int32Builder).Append(v.Int32Val)
+			case *types.Value_Int64Val:
+				valueBuilder.(*array.Int64Builder).Append(v.Int64Val)
+			case *types.Value_FloatVal:
+				valueBuilder.(*array.Float32Builder).Append(v.FloatVal)
+			case *types.Value_DoubleVal:
+				valueBuilder.(*array.Float64Builder).Append(v.DoubleVal)
+			case *types.Value_BoolVal:
+				valueBuilder.(*array.BooleanBuilder).Append(v.BoolVal)
+			case *types.Value_StringVal:
+				valueBuilder.(*array.StringBuilder).Append(v.StringVal)
+			case *types.Value_BytesVal:
+				valueBuilder.(*array.BinaryBuilder).Append(v.BytesVal)
+			case *types.Value_UnixTimestampVal:
+				valueBuilder.(*array.TimestampBuilder).Append(arrow.Timestamp(v.UnixTimestampVal))
+			default:
+				appendNullByType(valueBuilder)
+			}
+		}
+	}
+
+	for i := len(repeatedValues); i < numRows; i++ {
+		listBuilder.Append(true)
+	}
+
+	return listBuilder.NewArray(), nil
+}
+
+func InterfaceToProtoValue(val interface{}) (*types.Value, error) {
+	protoVal := &types.Value{}
+
+	if val == nil {
+		return protoVal, nil
+	}
+
+	switch v := val.(type) {
+	case []byte:
+		protoVal.Val = &types.Value_BytesVal{BytesVal: v}
+	case string:
+		protoVal.Val = &types.Value_StringVal{StringVal: v}
+	case int32:
+		protoVal.Val = &types.Value_Int32Val{Int32Val: v}
+	case int64:
+		protoVal.Val = &types.Value_Int64Val{Int64Val: v}
+	case float64:
+		protoVal.Val = &types.Value_DoubleVal{DoubleVal: v}
+	case float32:
+		protoVal.Val = &types.Value_FloatVal{FloatVal: v}
+	case bool:
+		protoVal.Val = &types.Value_BoolVal{BoolVal: v}
+	case time.Time:
+		protoVal.Val = &types.Value_UnixTimestampVal{UnixTimestampVal: v.Unix()}
+	case *timestamppb.Timestamp:
+		protoVal.Val = &types.Value_UnixTimestampVal{UnixTimestampVal: v.GetSeconds()}
+
+	case [][]byte:
+		bytesList := &types.BytesList{Val: v}
+		protoVal.Val = &types.Value_BytesListVal{BytesListVal: bytesList}
+	case types.BytesList:
+		protoVal.Val = &types.Value_BytesListVal{BytesListVal: &v}
+	case *types.BytesList:
+		protoVal.Val = &types.Value_BytesListVal{BytesListVal: v}
+
+	case []string:
+		stringList := &types.StringList{Val: v}
+		protoVal.Val = &types.Value_StringListVal{StringListVal: stringList}
+	case types.StringList:
+		protoVal.Val = &types.Value_StringListVal{StringListVal: &v}
+	case *types.StringList:
+		protoVal.Val = &types.Value_StringListVal{StringListVal: v}
+
+	case []int32:
+		int32List := &types.Int32List{Val: v}
+		protoVal.Val = &types.Value_Int32ListVal{Int32ListVal: int32List}
+	case types.Int32List:
+		protoVal.Val = &types.Value_Int32ListVal{Int32ListVal: &v}
+	case *types.Int32List:
+		protoVal.Val = &types.Value_Int32ListVal{Int32ListVal: v}
+
+	case []int64:
+		int64List := &types.Int64List{Val: v}
+		protoVal.Val = &types.Value_Int64ListVal{Int64ListVal: int64List}
+	case types.Int64List:
+		protoVal.Val = &types.Value_Int64ListVal{Int64ListVal: &v}
+	case *types.Int64List:
+		protoVal.Val = &types.Value_Int64ListVal{Int64ListVal: v}
+
+	case []float64:
+		doubleList := &types.DoubleList{Val: v}
+		protoVal.Val = &types.Value_DoubleListVal{DoubleListVal: doubleList}
+	case types.DoubleList:
+		protoVal.Val = &types.Value_DoubleListVal{DoubleListVal: &v}
+	case *types.DoubleList:
+		protoVal.Val = &types.Value_DoubleListVal{DoubleListVal: v}
+
+	case []float32:
+		floatList := &types.FloatList{Val: v}
+		protoVal.Val = &types.Value_FloatListVal{FloatListVal: floatList}
+	case types.FloatList:
+		protoVal.Val = &types.Value_FloatListVal{FloatListVal: &v}
+	case *types.FloatList:
+		protoVal.Val = &types.Value_FloatListVal{FloatListVal: v}
+
+	case []bool:
+		boolList := &types.BoolList{Val: v}
+		protoVal.Val = &types.Value_BoolListVal{BoolListVal: boolList}
+	case types.BoolList:
+		protoVal.Val = &types.Value_BoolListVal{BoolListVal: &v}
+	case *types.BoolList:
+		protoVal.Val = &types.Value_BoolListVal{BoolListVal: v}
+
+	case []time.Time:
+		timestamps := make([]int64, len(v))
+		for j, t := range v {
+			timestamps[j] = t.Unix()
+		}
+		timestampList := &types.Int64List{Val: timestamps}
+		protoVal.Val = &types.Value_UnixTimestampListVal{UnixTimestampListVal: timestampList}
+
+	case []*timestamppb.Timestamp:
+		timestamps := make([]int64, len(v))
+		for j, t := range v {
+			timestamps[j] = t.GetSeconds()
+		}
+		timestampList := &types.Int64List{Val: timestamps}
+		protoVal.Val = &types.Value_UnixTimestampListVal{UnixTimestampListVal: timestampList}
+
+	case types.Null:
+		protoVal.Val = &types.Value_NullVal{NullVal: types.Null_NULL}
+
+	case *types.Value:
+		protoVal = v
+
+	default:
+		if tryConvertToInt32(&protoVal, v) ||
+			tryConvertToInt64(&protoVal, v) ||
+			tryConvertToFloat(&protoVal, v) ||
+			tryConvertToDouble(&protoVal, v) {
+			return protoVal, nil
+		}
+		return nil, fmt.Errorf("unsupported value type: %T", v)
+	}
+
+	return protoVal, nil
+}
+
+func tryConvertToInt32(protoVal **types.Value, v interface{}) bool {
+	switch num := v.(type) {
+	case int:
+		if num <= math.MaxInt32 && num >= math.MinInt32 {
+			(*protoVal).Val = &types.Value_Int32Val{Int32Val: int32(num)}
+			return true
+		}
+	case int8:
+		(*protoVal).Val = &types.Value_Int32Val{Int32Val: int32(num)}
+		return true
+	case int16:
+		(*protoVal).Val = &types.Value_Int32Val{Int32Val: int32(num)}
+		return true
+	case uint8:
+		(*protoVal).Val = &types.Value_Int32Val{Int32Val: int32(num)}
+		return true
+	case uint16:
+		(*protoVal).Val = &types.Value_Int32Val{Int32Val: int32(num)}
+		return true
+	case uint:
+		if num <= math.MaxInt32 {
+			(*protoVal).Val = &types.Value_Int32Val{Int32Val: int32(num)}
+			return true
+		}
+	}
+	return false
+}
+
+func tryConvertToInt64(protoVal **types.Value, v interface{}) bool {
+	switch num := v.(type) {
+	case int:
+		(*protoVal).Val = &types.Value_Int64Val{Int64Val: int64(num)}
+		return true
+	case uint:
+		if num <= math.MaxInt64 {
+			(*protoVal).Val = &types.Value_Int64Val{Int64Val: int64(num)}
+			return true
+		}
+	case uint32:
+		(*protoVal).Val = &types.Value_Int64Val{Int64Val: int64(num)}
+		return true
+	case uint64:
+		if num <= math.MaxInt64 {
+			(*protoVal).Val = &types.Value_Int64Val{Int64Val: int64(num)}
+			return true
+		}
+	}
+	return false
+}
+
+func tryConvertToFloat(protoVal **types.Value, v interface{}) bool {
+	switch num := v.(type) {
+	case float32:
+		(*protoVal).Val = &types.Value_FloatVal{FloatVal: num}
+		return true
+	}
+	return false
+}
+
+func tryConvertToDouble(protoVal **types.Value, v interface{}) bool {
+	switch num := v.(type) {
+	case float64:
+		(*protoVal).Val = &types.Value_DoubleVal{DoubleVal: num}
+		return true
+	}
+	return false
+}
+
+func appendNullByType(builder array.Builder) {
+	switch builder.Type().ID() {
+	case arrow.INT32:
+		builder.(*array.Int32Builder).AppendNull()
+	case arrow.INT64:
+		builder.(*array.Int64Builder).AppendNull()
+	case arrow.FLOAT32:
+		builder.(*array.Float32Builder).AppendNull()
+	case arrow.FLOAT64:
+		builder.(*array.Float64Builder).AppendNull()
+	case arrow.BOOL:
+		builder.(*array.BooleanBuilder).AppendNull()
+	case arrow.STRING:
+		builder.(*array.StringBuilder).AppendNull()
+	case arrow.BINARY:
+		builder.(*array.BinaryBuilder).AppendNull()
+	case arrow.TIMESTAMP:
+		builder.(*array.TimestampBuilder).AppendNull()
+	default:
+		builder.AppendNull()
 	}
 }

@@ -85,12 +85,7 @@ func (fs *FeatureStore) GetOnlineFeatures(
 	joinKeyToEntityValues map[string]*prototypes.RepeatedValue,
 	requestData map[string]*prototypes.RepeatedValue,
 	fullFeatureNames bool) ([]*onlineserving.FeatureVector, error) {
-	fvs, sortedFvs, odFvs, err := fs.listAllViews()
-	if err != nil {
-		return nil, err
-	}
-
-	entities, err := fs.ListEntities(false)
+	fvs, sortedFvs, odFvs, entities, err := fs.fetchViewsAndEntities()
 	if err != nil {
 		return nil, err
 	}
@@ -139,21 +134,8 @@ func (fs *FeatureStore) GetOnlineFeatures(
 		index += 1
 	}
 
-	entitylessCase := false
-	for _, featureView := range featureViews {
-		if featureView.HasEntity(model.DUMMY_ENTITY_NAME) {
-			entitylessCase = true
-			break
-		}
-	}
-
-	if entitylessCase {
-		dummyEntityColumn := &prototypes.RepeatedValue{Val: make([]*prototypes.Value, numRows)}
-		for index := 0; index < numRows; index++ {
-			dummyEntityColumn.Val[index] = &model.DUMMY_ENTITY_VALUE
-		}
-		joinKeyToEntityValues[model.DUMMY_ENTITY_ID] = dummyEntityColumn
-	}
+	entitylessCase := checkEntitylessCase(featureViews)
+	addDummyEntityIfNeeded(entitylessCase, joinKeyToEntityValues, numRows)
 
 	groupedRefs, err := onlineserving.GroupFeatureRefs(requestedFeatureViews, joinKeyToEntityValues, entityNameToJoinKeyMap, fullFeatureNames)
 	if err != nil {
@@ -208,12 +190,136 @@ func (fs *FeatureStore) GetOnlineFeatures(
 	return result, nil
 }
 
+func (fs *FeatureStore) GetOnlineFeaturesRange(
+	ctx context.Context,
+	featureRefs []string,
+	featureService *model.FeatureService,
+	joinKeyToEntityValues map[string]*prototypes.RepeatedValue,
+	sortKeyFilters []*serving.SortKeyFilter,
+	reverseSortOrder bool,
+	limit int32,
+	requestData map[string]*prototypes.RepeatedValue,
+	fullFeatureNames bool) ([]*onlineserving.RangeFeatureVector, error) {
+
+	if requestData == nil {
+		requestData = make(map[string]*prototypes.RepeatedValue)
+	}
+
+	fvs, sortedFvs, odFvs, entities, err := fs.fetchViewsAndEntities()
+	if err != nil {
+		return nil, err
+	}
+
+	var requestedSortedFeatureViews []*onlineserving.SortedFeatureViewAndRefs
+
+	if featureService != nil {
+		_, requestedSortedFeatureViews, _, err =
+			onlineserving.GetFeatureViewsToUseByService(featureService, fvs, sortedFvs, odFvs)
+	} else {
+		_, requestedSortedFeatureViews, _, err =
+			onlineserving.GetFeatureViewsToUseByFeatureRefs(featureRefs, fvs, sortedFvs, odFvs)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	if len(requestedSortedFeatureViews) == 0 {
+		return nil, fmt.Errorf("no sorted feature views found for the requested features")
+	}
+
+	// Note: We're ignoring on-demand feature views for now.
+
+	entityNameToJoinKeyMap, expectedJoinKeysSet, err := onlineserving.GetEntityMapsForSortedViews(
+		requestedSortedFeatureViews, entities)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(expectedJoinKeysSet) == 0 {
+		return nil, fmt.Errorf("no entity join keys found, check feature view entity definition is well defined")
+	}
+
+	err = onlineserving.ValidateSortedFeatureRefs(requestedSortedFeatureViews, fullFeatureNames)
+	if err != nil {
+		return nil, err
+	}
+
+	numRows, err := onlineserving.ValidateEntityValues(joinKeyToEntityValues, requestData, expectedJoinKeysSet)
+	if err != nil {
+		return nil, fmt.Errorf("entity validation failed: %w", err)
+	}
+
+	if numRows <= 0 {
+		return nil, fmt.Errorf("invalid number of entity rows: %d", numRows)
+	}
+
+	err = onlineserving.ValidateSortKeyFilters(sortKeyFilters, requestedSortedFeatureViews)
+	if err != nil {
+		return nil, err
+	}
+
+	entitylessCase := checkEntitylessCase(requestedSortedFeatureViews)
+	addDummyEntityIfNeeded(entitylessCase, joinKeyToEntityValues, numRows)
+
+	arrowMemory := memory.NewGoAllocator()
+	entityColumns, err := onlineserving.EntitiesToRangeFeatureVectors(
+		joinKeyToEntityValues, arrowMemory, numRows)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]*onlineserving.RangeFeatureVector, 0, len(entityColumns))
+	result = append(result, entityColumns...)
+
+	groupedRangeRefs, err := onlineserving.GroupSortedFeatureRefs(
+		requestedSortedFeatureViews,
+		joinKeyToEntityValues,
+		entityNameToJoinKeyMap,
+		sortKeyFilters,
+		reverseSortOrder,
+		limit,
+		fullFeatureNames)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, groupRef := range groupedRangeRefs {
+		featureData, err := fs.readRangeFromOnlineStore(
+			ctx,
+			groupRef.EntityKeys,
+			groupRef.FeatureViewNames,
+			groupRef.FeatureNames,
+			groupRef.SortKeyFilters,
+			groupRef.ReverseSortOrder,
+			groupRef.Limit)
+		if err != nil {
+			return nil, err
+		}
+
+		vectors, err := onlineserving.TransposeRangeFeatureRowsIntoColumns(
+			featureData,
+			groupRef,
+			requestedSortedFeatureViews,
+			arrowMemory,
+			numRows,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		result = append(result, vectors...)
+	}
+
+	return result, nil
+}
+
 func (fs *FeatureStore) DestructOnlineStore() {
 	fs.onlineStore.Destruct()
 }
 
 // ParseFeatures parses the kind field of a GetOnlineFeaturesRequest protobuf message
 // and populates a Features struct with the result.
+// todo: refactor this function to be more generic and handle range requests and throw an error if a range request is using feature service
 func (fs *FeatureStore) ParseFeatures(kind interface{}) (*Features, error) {
 	if featureList, ok := kind.(*serving.GetOnlineFeaturesRequest_Features); ok {
 		return &Features{FeaturesRefs: featureList.Features.GetVal(), FeatureService: nil}, nil
@@ -269,6 +375,52 @@ func (fs *FeatureStore) listAllViews() (map[string]*model.FeatureView, map[strin
 		odFvs[onDemandFeatureView.Base.Name] = onDemandFeatureView
 	}
 	return fvs, sortedFvs, odFvs, nil
+}
+
+func (fs *FeatureStore) fetchViewsAndEntities() (map[string]*model.FeatureView, map[string]*model.SortedFeatureView, map[string]*model.OnDemandFeatureView, []*model.Entity, error) {
+	fvs, sortedFvs, odFvs, err := fs.listAllViews()
+	if err != nil {
+		return nil, nil, nil, nil, err
+	}
+
+	entities, err := fs.ListEntities(false)
+	if err != nil {
+		return nil, nil, nil, nil, err
+	}
+
+	return fvs, sortedFvs, odFvs, entities, nil
+}
+
+func addDummyEntityIfNeeded(
+	entitylessCase bool,
+	joinKeyToEntityValues map[string]*prototypes.RepeatedValue,
+	numRows int) {
+
+	if entitylessCase {
+		dummyEntityColumn := &prototypes.RepeatedValue{Val: make([]*prototypes.Value, numRows)}
+		for index := 0; index < numRows; index++ {
+			dummyEntityColumn.Val[index] = &model.DUMMY_ENTITY_VALUE
+		}
+		joinKeyToEntityValues[model.DUMMY_ENTITY_ID] = dummyEntityColumn
+	}
+}
+
+func checkEntitylessCase(views interface{}) bool {
+	switch v := views.(type) {
+	case []*model.FeatureView:
+		for _, featureView := range v {
+			if featureView.HasEntity(model.DUMMY_ENTITY_NAME) {
+				return true
+			}
+		}
+	case []*onlineserving.SortedFeatureViewAndRefs:
+		for _, sfv := range v {
+			if onlineserving.HasEntityInSortedFeatureView(sfv.View, model.DUMMY_ENTITY_NAME) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (fs *FeatureStore) ListFeatureViews() ([]*model.FeatureView, error) {
@@ -344,6 +496,37 @@ func (fs *FeatureStore) readFromOnlineStore(ctx context.Context, entityRows []*p
 		entityRowsValue[index] = &prototypes.EntityKey{JoinKeys: entityKey.JoinKeys, EntityValues: entityKey.EntityValues}
 	}
 	return fs.onlineStore.OnlineRead(ctx, entityRowsValue, requestedFeatureViewNames, requestedFeatureNames)
+}
+
+func (fs *FeatureStore) readRangeFromOnlineStore(
+	ctx context.Context,
+	entityRows []*prototypes.EntityKey,
+	requestedFeatureViewNames []string,
+	requestedFeatureNames []string,
+	sortKeyFilters []*serving.SortKeyFilter,
+	reverseSortOrder bool,
+	limit int32) ([][]onlinestore.RangeFeatureData, error) {
+
+	span, _ := tracer.StartSpanFromContext(ctx, "fs.readRangeFromOnlineStore")
+	defer span.Finish()
+
+	numRows := len(entityRows)
+	entityRowsValue := make([]*prototypes.EntityKey, numRows)
+	for index, entityKey := range entityRows {
+		entityRowsValue[index] = &prototypes.EntityKey{
+			JoinKeys:     entityKey.JoinKeys,
+			EntityValues: entityKey.EntityValues,
+		}
+	}
+
+	return fs.onlineStore.OnlineReadRange(
+		ctx,
+		entityRowsValue,
+		requestedFeatureViewNames,
+		requestedFeatureNames,
+		sortKeyFilters,
+		reverseSortOrder,
+		limit)
 }
 
 func (fs *FeatureStore) GetFcosMap() (map[string]*model.Entity, map[string]*model.FeatureView, map[string]*model.SortedFeatureView, map[string]*model.OnDemandFeatureView, error) {

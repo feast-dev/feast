@@ -4,14 +4,14 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
-	"sort"
-	"strings"
-
 	"github.com/apache/arrow/go/v17/arrow"
 	"github.com/apache/arrow/go/v17/arrow/memory"
+	"github.com/golang/protobuf/ptypes/timestamp"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"sort"
+	"strings"
 
 	"github.com/feast-dev/feast/go/internal/feast/model"
 	"github.com/feast-dev/feast/go/internal/feast/onlinestore"
@@ -32,6 +32,19 @@ type FeatureVector struct {
 	Values     arrow.Array
 	Statuses   []serving.FieldStatus
 	Timestamps []*timestamppb.Timestamp
+}
+
+/*
+RangeFeatureVector type represent result of retrieving a range of features for multiple entities.
+It is similar to FeatureVector but contains a list of lists of values, a list of lists of statuses and a list of lists
+of timestamps where each inner list represents the range of values, statuses, timestamps for a single entity.
+Each of these lists are of equal dimensionality.
+*/
+type RangeFeatureVector struct {
+	Name            string
+	RangeValues     arrow.Array
+	RangeStatuses   [][]serving.FieldStatus
+	RangeTimestamps [][]*timestamppb.Timestamp
 }
 
 type FeatureViewAndRefs struct {
@@ -61,6 +74,33 @@ type GroupedFeaturesPerEntitySet struct {
 	EntityKeys []*prototypes.EntityKey
 	// Reversed mapping to project result of retrieval from storage to response
 	Indices [][]int
+}
+
+/*
+We group all features from a single request by entities they attached to.
+Thus, we will be able to call online range retrieval per entity and not per each feature View.
+In this struct we collect all features and views that belongs to a group.
+We store here projected entity keys (only ones that needed to retrieve these features)
+and indexes to map result of retrieval into output response.
+We also store range query parameters like sort key filters, reverse sort order and limit.
+*/
+type GroupedRangeFeatureRefs struct {
+	// A list of requested feature references of the form featureViewName:featureName that share this entity set
+	FeatureNames     []string
+	FeatureViewNames []string
+	// full feature references as they supposed to appear in response
+	AliasedFeatureNames []string
+	// Entity set as a list of EntityKeys to pass to OnlineReadRange
+	EntityKeys []*prototypes.EntityKey
+	// Reversed mapping to project result of retrieval from storage to response
+	Indices [][]int
+
+	// Sort key filters to pass to OnlineReadRange
+	SortKeyFilters []*serving.SortKeyFilter
+	// Reverse sort order to pass to OnlineReadRange
+	ReverseSortOrder bool
+	// Limit to pass to OnlineReadRange
+	Limit int32
 }
 
 /*
@@ -311,6 +351,40 @@ func GetEntityMaps(requestedFeatureViews []*FeatureViewAndRefs, entities []*mode
 	return entityNameToJoinKeyMap, expectedJoinKeysSet, nil
 }
 
+func GetEntityMapsForSortedViews(sortedViews []*SortedFeatureViewAndRefs, entities []*model.Entity) (map[string]string, map[string]interface{}, error) {
+	entityNameToJoinKeyMap := make(map[string]string)
+	expectedJoinKeysSet := make(map[string]interface{})
+
+	entitiesByName := make(map[string]*model.Entity)
+	for _, entity := range entities {
+		entitiesByName[entity.Name] = entity
+	}
+
+	for _, featuresAndView := range sortedViews {
+		featureView := featuresAndView.View
+		var joinKeyToAliasMap map[string]string
+
+		if featureView.Base.Projection != nil && featureView.Base.Projection.JoinKeyMap != nil {
+			joinKeyToAliasMap = featureView.Base.Projection.JoinKeyMap
+		} else {
+			joinKeyToAliasMap = map[string]string{}
+		}
+
+		for _, entityName := range featureView.EntityNames {
+			joinKey := entitiesByName[entityName].JoinKey
+			entityNameToJoinKeyMap[entityName] = joinKey
+
+			if alias, ok := joinKeyToAliasMap[joinKey]; ok {
+				expectedJoinKeysSet[alias] = nil
+			} else {
+				expectedJoinKeysSet[joinKey] = nil
+			}
+		}
+	}
+
+	return entityNameToJoinKeyMap, expectedJoinKeysSet, nil
+}
+
 func ValidateEntityValues(joinKeyValues map[string]*prototypes.RepeatedValue,
 	requestData map[string]*prototypes.RepeatedValue,
 	expectedJoinKeysSet map[string]interface{}) (int, error) {
@@ -385,6 +459,153 @@ func ValidateFeatureRefs(requestedFeatures []*FeatureViewAndRefs, fullFeatureNam
 	return nil
 }
 
+func ValidateSortedFeatureRefs(sortedViews []*SortedFeatureViewAndRefs, fullFeatureNames bool) error {
+	featureRefCounter := make(map[string]int)
+	featureRefs := make([]string, 0)
+
+	for _, viewAndFeatures := range sortedViews {
+		for _, feature := range viewAndFeatures.FeatureRefs {
+			projectedViewName := viewAndFeatures.View.Base.Name
+			if viewAndFeatures.View.Base.Projection != nil {
+				projectedViewName = viewAndFeatures.View.Base.Projection.NameToUse()
+			}
+
+			featureRefs = append(featureRefs,
+				fmt.Sprintf("%s:%s", projectedViewName, feature))
+		}
+	}
+
+	for _, featureRef := range featureRefs {
+		if fullFeatureNames {
+			featureRefCounter[featureRef]++
+		} else {
+			_, featureName, _ := ParseFeatureReference(featureRef)
+			featureRefCounter[featureName]++
+		}
+	}
+
+	for featureName, occurrences := range featureRefCounter {
+		if occurrences == 1 {
+			delete(featureRefCounter, featureName)
+		}
+	}
+
+	if len(featureRefCounter) >= 1 {
+		collidedFeatureRefs := make([]string, 0)
+		for collidedFeatureRef := range featureRefCounter {
+			if fullFeatureNames {
+				collidedFeatureRefs = append(collidedFeatureRefs, collidedFeatureRef)
+			} else {
+				for _, featureRef := range featureRefs {
+					_, featureName, _ := ParseFeatureReference(featureRef)
+					if featureName == collidedFeatureRef {
+						collidedFeatureRefs = append(collidedFeatureRefs, featureRef)
+					}
+				}
+			}
+		}
+		return featureNameCollisionError{collidedFeatureRefs, fullFeatureNames}
+	}
+
+	return nil
+}
+
+func ValidateSortKeyFilters(filters []*serving.SortKeyFilter, sortedViews []*SortedFeatureViewAndRefs) error {
+	sortKeyTypes := make(map[string]prototypes.ValueType_Enum)
+
+	for _, sortedView := range sortedViews {
+		for _, sortKey := range sortedView.View.SortKeys {
+			sortKeyTypes[sortKey.FieldName] = sortKey.ValueType
+		}
+	}
+
+	for _, filter := range filters {
+		expectedType, exists := sortKeyTypes[filter.SortKeyName]
+		if !exists {
+			return fmt.Errorf("sort key '%s' not found in any of the requested sorted feature views",
+				filter.SortKeyName)
+		}
+
+		if filter.RangeStart != nil {
+			if !isValueTypeCompatible(filter.RangeStart, expectedType) {
+				return fmt.Errorf("range_start value for sort key '%s' has incompatible type: expected %s",
+					filter.SortKeyName, valueTypeToString(expectedType))
+			}
+		}
+
+		if filter.RangeEnd != nil {
+			if !isValueTypeCompatible(filter.RangeEnd, expectedType) {
+				return fmt.Errorf("range_end value for sort key '%s' has incompatible type: expected %s",
+					filter.SortKeyName, valueTypeToString(expectedType))
+			}
+		}
+	}
+
+	return nil
+}
+
+func isValueTypeCompatible(value *prototypes.Value, expectedType prototypes.ValueType_Enum) bool {
+	if value == nil {
+		return true
+	}
+
+	if value.Val == nil {
+		return false
+	}
+
+	switch expectedType {
+	case prototypes.ValueType_INT32:
+		_, ok := value.Val.(*prototypes.Value_Int32Val)
+		return ok
+	case prototypes.ValueType_INT64:
+		_, ok := value.Val.(*prototypes.Value_Int64Val)
+		return ok
+	case prototypes.ValueType_FLOAT:
+		_, ok := value.Val.(*prototypes.Value_FloatVal)
+		return ok
+	case prototypes.ValueType_DOUBLE:
+		_, ok := value.Val.(*prototypes.Value_DoubleVal)
+		return ok
+	case prototypes.ValueType_STRING:
+		_, ok := value.Val.(*prototypes.Value_StringVal)
+		return ok
+	case prototypes.ValueType_BOOL:
+		_, ok := value.Val.(*prototypes.Value_BoolVal)
+		return ok
+	case prototypes.ValueType_BYTES:
+		_, ok := value.Val.(*prototypes.Value_BytesVal)
+		return ok
+	case prototypes.ValueType_UNIX_TIMESTAMP:
+		_, ok := value.Val.(*prototypes.Value_UnixTimestampVal)
+		return ok
+	default:
+		return false
+	}
+}
+
+func valueTypeToString(valueType prototypes.ValueType_Enum) string {
+	switch valueType {
+	case prototypes.ValueType_INT32:
+		return "INT32"
+	case prototypes.ValueType_INT64:
+		return "INT64"
+	case prototypes.ValueType_FLOAT:
+		return "FLOAT"
+	case prototypes.ValueType_DOUBLE:
+		return "DOUBLE"
+	case prototypes.ValueType_STRING:
+		return "STRING"
+	case prototypes.ValueType_BOOL:
+		return "BOOL"
+	case prototypes.ValueType_BYTES:
+		return "BYTES"
+	case prototypes.ValueType_UNIX_TIMESTAMP:
+		return "UNIX_TIMESTAMP"
+	default:
+		return fmt.Sprintf("UNKNOWN_TYPE(%d)", int(valueType))
+	}
+}
+
 func TransposeFeatureRowsIntoColumns(featureData2D [][]onlinestore.FeatureData,
 	groupRef *GroupedFeaturesPerEntitySet,
 	requestedFeatureViews []*FeatureViewAndRefs,
@@ -453,6 +674,129 @@ func TransposeFeatureRowsIntoColumns(featureData2D [][]onlinestore.FeatureData,
 
 }
 
+func TransposeRangeFeatureRowsIntoColumns(
+	featureData2D [][]onlinestore.RangeFeatureData,
+	groupRef *GroupedRangeFeatureRefs,
+	sortedViews []*SortedFeatureViewAndRefs,
+	arrowAllocator memory.Allocator,
+	numRows int) ([]*RangeFeatureVector, error) {
+
+	numFeatures := len(groupRef.AliasedFeatureNames)
+	sfvs := make(map[string]*model.SortedFeatureView)
+	for _, viewAndRefs := range sortedViews {
+		sfvs[viewAndRefs.View.Base.Name] = viewAndRefs.View
+	}
+
+	vectors := make([]*RangeFeatureVector, 0)
+
+	for featureIndex := 0; featureIndex < numFeatures; featureIndex++ {
+		currentVector := initializeRangeFeatureVector(groupRef.AliasedFeatureNames[featureIndex], numRows)
+		vectors = append(vectors, currentVector)
+
+		rangeValuesByRow := make([]*prototypes.RepeatedValue, numRows)
+		for i := range rangeValuesByRow {
+			rangeValuesByRow[i] = &prototypes.RepeatedValue{Val: make([]*prototypes.Value, 0)}
+		}
+
+		for rowEntityIndex, outputIndexes := range groupRef.Indices {
+			rangeValues, rangeStatuses, rangeTimestamps, err := processFeatureRowData(
+				featureData2D, rowEntityIndex, featureIndex, sfvs)
+			if err != nil {
+				return nil, err
+			}
+
+			for _, rowIndex := range outputIndexes {
+				rangeValuesByRow[rowIndex] = &prototypes.RepeatedValue{Val: rangeValues}
+				currentVector.RangeStatuses[rowIndex] = rangeStatuses
+				currentVector.RangeTimestamps[rowIndex] = rangeTimestamps
+			}
+		}
+
+		arrowRangeValues, err := types.RepeatedProtoValuesToArrowArray(rangeValuesByRow, arrowAllocator, numRows)
+		if err != nil {
+			return nil, err
+		}
+		currentVector.RangeValues = arrowRangeValues
+	}
+
+	return vectors, nil
+}
+
+func initializeRangeFeatureVector(name string, numRows int) *RangeFeatureVector {
+	return &RangeFeatureVector{
+		Name:            name,
+		RangeStatuses:   make([][]serving.FieldStatus, numRows),
+		RangeTimestamps: make([][]*timestamppb.Timestamp, numRows),
+	}
+}
+
+func processFeatureRowData(
+	featureData2D [][]onlinestore.RangeFeatureData,
+	rowEntityIndex int,
+	featureIndex int,
+	sfvs map[string]*model.SortedFeatureView) ([]*prototypes.Value, []serving.FieldStatus, []*timestamppb.Timestamp, error) {
+
+	if featureData2D[rowEntityIndex] == nil || len(featureData2D[rowEntityIndex]) <= featureIndex {
+		return make([]*prototypes.Value, 0),
+			make([]serving.FieldStatus, 0),
+			make([]*timestamppb.Timestamp, 0),
+			nil
+	}
+
+	featureData := featureData2D[rowEntityIndex][featureIndex]
+	featureViewName := featureData.FeatureView
+
+	sfv, exists := sfvs[featureViewName]
+	if !exists {
+		return nil, nil, nil, fmt.Errorf("feature view '%s' not found in the provided sorted feature views", featureViewName)
+	}
+
+	numValues := len(featureData.Values)
+	rangeValues := make([]*prototypes.Value, numValues)
+	rangeStatuses := make([]serving.FieldStatus, numValues)
+	rangeTimestamps := make([]*timestamppb.Timestamp, numValues)
+
+	for i, val := range featureData.Values {
+		if val == nil {
+			rangeValues[i] = nil
+			rangeStatuses[i] = serving.FieldStatus_NOT_FOUND
+			rangeTimestamps[i] = &timestamppb.Timestamp{}
+			continue
+		}
+
+		protoVal, err := types.InterfaceToProtoValue(val)
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("error converting value for feature %s: %v", featureData.FeatureName, err)
+		}
+
+		timestamp := getEventTimestamp(featureData.EventTimestamps, i)
+
+		status := serving.FieldStatus_PRESENT
+		if timestamp.GetSeconds() > 0 && checkOutsideTtl(timestamp, timestamppb.Now(), sfv.FeatureView.Ttl) {
+			status = serving.FieldStatus_OUTSIDE_MAX_AGE
+		}
+
+		rangeValues[i] = protoVal
+		rangeStatuses[i] = status
+		rangeTimestamps[i] = timestamp
+	}
+
+	return rangeValues, rangeStatuses, rangeTimestamps, nil
+}
+
+func getEventTimestamp(timestamps []timestamp.Timestamp, index int) *timestamppb.Timestamp {
+	if index < len(timestamps) {
+		ts := &timestamps[index]
+		if ts.GetSeconds() != 0 || ts.GetNanos() != 0 {
+			return &timestamppb.Timestamp{
+				Seconds: ts.GetSeconds(),
+				Nanos:   ts.GetNanos(),
+			}
+		}
+	}
+	return &timestamppb.Timestamp{}
+}
+
 func KeepOnlyRequestedFeatures(
 	vectors []*FeatureVector,
 	requestedFeatureRefs []string,
@@ -519,6 +863,40 @@ func EntitiesToFeatureVectors(entityColumns map[string]*prototypes.RepeatedValue
 			Timestamps: timestampVector,
 		})
 	}
+	return vectors, nil
+}
+
+func EntitiesToRangeFeatureVectors(
+	entityColumns map[string]*prototypes.RepeatedValue,
+	arrowAllocator memory.Allocator,
+	numRows int) ([]*RangeFeatureVector, error) {
+
+	vectors := make([]*RangeFeatureVector, 0)
+
+	for entityName, values := range entityColumns {
+		entityRangeValues := make([]*prototypes.RepeatedValue, numRows)
+		rangeStatuses := make([][]serving.FieldStatus, numRows)
+		rangeTimestamps := make([][]*timestamppb.Timestamp, numRows)
+
+		for idx := 0; idx < numRows; idx++ {
+			entityRangeValues[idx] = &prototypes.RepeatedValue{Val: []*prototypes.Value{values.Val[idx]}}
+			rangeStatuses[idx] = []serving.FieldStatus{serving.FieldStatus_PRESENT}
+			rangeTimestamps[idx] = []*timestamppb.Timestamp{timestamppb.Now()}
+		}
+
+		arrowRangeValues, err := types.RepeatedProtoValuesToArrowArray(entityRangeValues, arrowAllocator, numRows)
+		if err != nil {
+			return nil, err
+		}
+
+		vectors = append(vectors, &RangeFeatureVector{
+			Name:            entityName,
+			RangeValues:     arrowRangeValues,
+			RangeStatuses:   rangeStatuses,
+			RangeTimestamps: rangeTimestamps,
+		})
+	}
+
 	return vectors, nil
 }
 
@@ -645,6 +1023,102 @@ func GroupFeatureRefs(requestedFeatureViews []*FeatureViewAndRefs,
 	return groups, nil
 }
 
+func GroupSortedFeatureRefs(
+	sortedViews []*SortedFeatureViewAndRefs,
+	joinKeyValues map[string]*prototypes.RepeatedValue,
+	entityNameToJoinKeyMap map[string]string,
+	sortKeyFilters []*serving.SortKeyFilter,
+	reverseSortOrder bool,
+	limit int32,
+	fullFeatureNames bool) ([]*GroupedRangeFeatureRefs, error) {
+
+	groups := make(map[string]*GroupedRangeFeatureRefs)
+
+	for _, featuresAndView := range sortedViews {
+		joinKeys := make([]string, 0)
+		sfv := featuresAndView.View
+		featureNames := featuresAndView.FeatureRefs
+
+		for _, entityName := range sfv.FeatureView.EntityNames {
+			joinKeys = append(joinKeys, entityNameToJoinKeyMap[entityName])
+		}
+
+		groupKeyBuilder := make([]string, 0)
+		joinKeysValuesProjection := make(map[string]*prototypes.RepeatedValue)
+
+		joinKeyToAliasMap := make(map[string]string)
+		if sfv.Base.Projection != nil && sfv.Base.Projection.JoinKeyMap != nil {
+			joinKeyToAliasMap = sfv.Base.Projection.JoinKeyMap
+		}
+
+		for _, joinKey := range joinKeys {
+			var joinKeyOrAlias string
+
+			if alias, ok := joinKeyToAliasMap[joinKey]; ok {
+				groupKeyBuilder = append(groupKeyBuilder, fmt.Sprintf("%s[%s]", joinKey, alias))
+				joinKeyOrAlias = alias
+			} else {
+				groupKeyBuilder = append(groupKeyBuilder, joinKey)
+				joinKeyOrAlias = joinKey
+			}
+
+			if _, ok := joinKeyValues[joinKeyOrAlias]; !ok {
+				return nil, fmt.Errorf("key %s is missing in provided entity rows", joinKey)
+			}
+			joinKeysValuesProjection[joinKey] = joinKeyValues[joinKeyOrAlias]
+		}
+
+		sort.Strings(groupKeyBuilder)
+		groupKey := strings.Join(groupKeyBuilder, ",")
+
+		aliasedFeatureNames := make([]string, 0)
+		featureViewNames := make([]string, 0)
+		var viewNameToUse string
+		if sfv.Base.Projection != nil {
+			viewNameToUse = sfv.Base.Projection.NameToUse()
+		} else {
+			viewNameToUse = sfv.Base.Name
+		}
+
+		for _, featureName := range featureNames {
+			aliasedFeatureNames = append(aliasedFeatureNames,
+				getQualifiedFeatureName(viewNameToUse, featureName, fullFeatureNames))
+			featureViewNames = append(featureViewNames, sfv.Base.Name)
+		}
+
+		if _, ok := groups[groupKey]; !ok {
+			joinKeysProto := entityKeysToProtos(joinKeysValuesProjection)
+			uniqueEntityRows, mappingIndices, err := getUniqueEntityRows(joinKeysProto)
+			if err != nil {
+				return nil, err
+			}
+
+			groups[groupKey] = &GroupedRangeFeatureRefs{
+				FeatureNames:        featureNames,
+				FeatureViewNames:    featureViewNames,
+				AliasedFeatureNames: aliasedFeatureNames,
+				Indices:             mappingIndices,
+				EntityKeys:          uniqueEntityRows,
+				SortKeyFilters:      sortKeyFilters,
+				ReverseSortOrder:    reverseSortOrder,
+				Limit:               limit,
+			}
+
+		} else {
+			groups[groupKey].FeatureNames = append(groups[groupKey].FeatureNames, featureNames...)
+			groups[groupKey].AliasedFeatureNames = append(groups[groupKey].AliasedFeatureNames, aliasedFeatureNames...)
+			groups[groupKey].FeatureViewNames = append(groups[groupKey].FeatureViewNames, featureViewNames...)
+		}
+	}
+
+	result := make([]*GroupedRangeFeatureRefs, 0, len(groups))
+	for _, group := range groups {
+		result = append(result, group)
+	}
+
+	return result, nil
+}
+
 func getUniqueEntityRows(joinKeysProto []*prototypes.EntityKey) ([]*prototypes.EntityKey, [][]int, error) {
 	uniqueValues := make(map[[sha256.Size]byte]*prototypes.EntityKey, 0)
 	positions := make(map[[sha256.Size]byte][]int, 0)
@@ -673,6 +1147,15 @@ func getUniqueEntityRows(joinKeysProto []*prototypes.EntityKey) ([]*prototypes.E
 		uniqueEntityRows = append(uniqueEntityRows, row)
 	}
 	return uniqueEntityRows, mappingIndices, nil
+}
+
+func HasEntityInSortedFeatureView(view *model.SortedFeatureView, entityName string) bool {
+	for _, name := range view.FeatureView.EntityNames {
+		if name == entityName {
+			return true
+		}
+	}
+	return false
 }
 
 func checkOutsideTtl(featureTimestamp *timestamppb.Timestamp, currentTimestamp *timestamppb.Timestamp, ttl *durationpb.Duration) bool {

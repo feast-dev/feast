@@ -121,6 +121,10 @@ func (s *SqliteOnlineStore) OnlineRead(ctx context.Context, entityKeys []*types.
 	return results, nil
 }
 
+func (s *SqliteOnlineStore) OnlineReadRange(ctx context.Context, entityRows []*types.EntityKey, featureViewNames []string, featureNames []string, sortKeyFilters []*serving.SortKeyFilter, reverseSortOrder bool, limit int32) ([][]RangeFeatureData, error) {
+	return nil, errors.New("not implemented")
+}
+
 // Gets a sqlite connection and sets it to the online store and also returns a pointer to the connection.
 func (s *SqliteOnlineStore) getConnection() (*sql.DB, error) {
 	s.db_mu.Lock()
