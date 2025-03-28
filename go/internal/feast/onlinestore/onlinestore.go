@@ -3,7 +3,7 @@ package onlinestore
 import (
 	"context"
 	"fmt"
-
+	"github.com/feast-dev/feast/go/internal/feast/model"
 	"github.com/feast-dev/feast/go/internal/feast/registry"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/feast-dev/feast/go/protos/feast/types"
@@ -44,7 +44,9 @@ type OnlineStore interface {
 	// => allocate memory for each field once in OnlineRead
 	// and reuse them in GetOnlineFeaturesResponse?
 	OnlineRead(ctx context.Context, entityKeys []*types.EntityKey, featureViewNames []string, featureNames []string) ([][]FeatureData, error)
-	OnlineReadRange(ctx context.Context, entityRows []*types.EntityKey, featureViewNames []string, featureNames []string, sortKeyFilters []*serving.SortKeyFilter, reverseSortOrder bool, limit int32) ([][]RangeFeatureData, error)
+
+	OnlineReadRange(ctx context.Context, entityKeys []*types.EntityKey, featureViewNames []string, featureNames []string, sortKeyFilters []*model.SortKeyFilter, limit int32) ([][]RangeFeatureData, error)
+
 	// Destruct must be call once user is done using OnlineStore
 	// This is to comply with the Connector since we have to close the plugin
 	Destruct()

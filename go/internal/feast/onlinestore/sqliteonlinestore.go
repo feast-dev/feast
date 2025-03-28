@@ -3,6 +3,7 @@ package onlinestore
 import (
 	"database/sql"
 	"errors"
+	"github.com/feast-dev/feast/go/internal/feast/model"
 	"github.com/feast-dev/feast/go/internal/feast/utils"
 	"strings"
 	"sync"
@@ -121,8 +122,8 @@ func (s *SqliteOnlineStore) OnlineRead(ctx context.Context, entityKeys []*types.
 	return results, nil
 }
 
-func (s *SqliteOnlineStore) OnlineReadRange(ctx context.Context, entityRows []*types.EntityKey, featureViewNames []string, featureNames []string, sortKeyFilters []*serving.SortKeyFilter, reverseSortOrder bool, limit int32) ([][]RangeFeatureData, error) {
-	return nil, errors.New("not implemented")
+func (s *SqliteOnlineStore) OnlineReadRange(ctx context.Context, entityRows []*types.EntityKey, featureViewNames []string, featureNames []string, sortKeyFilters []*model.SortKeyFilter, limit int32) ([][]RangeFeatureData, error) {
+	return nil, errors.New("OnlineReadRange is not supported by SqliteOnlineStore")
 }
 
 // Gets a sqlite connection and sets it to the online store and also returns a pointer to the connection.

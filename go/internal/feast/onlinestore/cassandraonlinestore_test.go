@@ -3,6 +3,8 @@ package onlinestore
 import (
 	"context"
 	"fmt"
+	"github.com/feast-dev/feast/go/internal/feast/model"
+	"github.com/feast-dev/feast/go/protos/feast/core"
 	"reflect"
 	"testing"
 
@@ -204,4 +206,112 @@ func BenchmarkGetFqTableName(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		store.getFqTableName(keySpace, project, featureViewNames[i%3], tableNameVersion)
 	}
+}
+
+func TestCassandraOnlineStore_getRangeQueryCQLStatement_singleFilter(t *testing.T) {
+	store := CassandraOnlineStore{}
+	fqTableName := `"scylladb"."dummy_project_dummy_fv"`
+	sortFilter1 := model.SortKeyFilter{
+		SortKeyName:    "sort1",
+		RangeStart:     4,
+		RangeEnd:       12,
+		StartInclusive: true,
+		EndInclusive:   true,
+		Order:          &model.SortOrder{Order: core.SortOrder_ASC},
+	}
+
+	cqlStatement, params := store.getRangeQueryCQLStatement(fqTableName, []string{"feat1", "feat2"}, []*model.SortKeyFilter{&sortFilter1}, 5)
+	assert.Equal(t,
+		`SELECT "entity_key", "event_ts", "feat1", "feat2" FROM "scylladb"."dummy_project_dummy_fv" WHERE "entity_key" = ? AND "sort1" >= ? AND "sort1" <= ? ORDER BY "sort1" ASC LIMIT ?`,
+		cqlStatement,
+	)
+	assert.ElementsMatch(t, []interface{}{4, 12, int32(5)}, params)
+}
+
+func TestCassandraOnlineStore_getRangeQueryCQLStatement_withoutLimit(t *testing.T) {
+	store := CassandraOnlineStore{}
+	fqTableName := `"scylladb"."dummy_project_dummy_fv"`
+	sortFilter1 := model.SortKeyFilter{
+		SortKeyName:  "sort1",
+		RangeEnd:     12,
+		EndInclusive: true,
+		Order:        &model.SortOrder{Order: core.SortOrder_ASC},
+	}
+
+	cqlStatement, params := store.getRangeQueryCQLStatement(fqTableName, []string{"feat1", "feat2"}, []*model.SortKeyFilter{&sortFilter1}, 0)
+	assert.Equal(t,
+		`SELECT "entity_key", "event_ts", "feat1", "feat2" FROM "scylladb"."dummy_project_dummy_fv" WHERE "entity_key" = ? AND "sort1" <= ? ORDER BY "sort1" ASC`,
+		cqlStatement,
+	)
+	assert.ElementsMatch(t, []interface{}{12}, params)
+}
+
+func TestCassandraOnlineStore_getRangeQueryCQLStatement_multipleFilters(t *testing.T) {
+	store := CassandraOnlineStore{}
+	fqTableName := `"scylladb"."dummy_project_dummy_fv"`
+	sortFilter1 := model.SortKeyFilter{
+		SortKeyName:    "sort1",
+		RangeStart:     4,
+		RangeEnd:       12,
+		StartInclusive: false,
+		EndInclusive:   false,
+		Order:          &model.SortOrder{Order: core.SortOrder_ASC},
+	}
+	sortFilter2 := model.SortKeyFilter{
+		SortKeyName:    "sort2",
+		RangeStart:     10,
+		StartInclusive: true,
+		Order:          &model.SortOrder{Order: core.SortOrder_DESC},
+	}
+
+	cqlStatement, params := store.getRangeQueryCQLStatement(fqTableName, []string{"feat1", "feat2"}, []*model.SortKeyFilter{&sortFilter1, &sortFilter2}, 5)
+	assert.Equal(t,
+		`SELECT "entity_key", "event_ts", "feat1", "feat2" FROM "scylladb"."dummy_project_dummy_fv" WHERE "entity_key" = ? AND "sort1" > ? AND "sort1" < ? AND "sort2" >= ? ORDER BY "sort1" ASC, "sort2" DESC LIMIT ?`,
+		cqlStatement,
+	)
+	assert.ElementsMatch(t, []interface{}{4, 12, 10, int32(5)}, params)
+}
+
+func TestCassandraOnlineStore_getRangeQueryCQLStatement_multipleFiltersWithMixOfRanges(t *testing.T) {
+	store := CassandraOnlineStore{}
+	fqTableName := `"scylladb"."dummy_project_dummy_fv"`
+	sortFilter1 := model.SortKeyFilter{
+		SortKeyName:    "sort1",
+		RangeStart:     4,
+		RangeEnd:       12,
+		StartInclusive: true,
+		EndInclusive:   false,
+		Order:          &model.SortOrder{Order: core.SortOrder_ASC},
+	}
+	sortFilter2 := model.SortKeyFilter{
+		SortKeyName:    "sort2",
+		RangeStart:     10,
+		RangeEnd:       20,
+		StartInclusive: false,
+		EndInclusive:   true,
+		Order:          &model.SortOrder{Order: core.SortOrder_DESC},
+	}
+	sortFilter3 := model.SortKeyFilter{
+		SortKeyName: "sort3",
+		Order:       &model.SortOrder{Order: core.SortOrder_ASC},
+	}
+
+	cqlStatement, params := store.getRangeQueryCQLStatement(fqTableName, []string{"feat1", "feat2"}, []*model.SortKeyFilter{&sortFilter1, &sortFilter2, &sortFilter3}, 5)
+	assert.Equal(t,
+		`SELECT "entity_key", "event_ts", "feat1", "feat2" FROM "scylladb"."dummy_project_dummy_fv" WHERE "entity_key" = ? AND "sort1" >= ? AND "sort1" < ? AND "sort2" > ? AND "sort2" <= ? ORDER BY "sort1" ASC, "sort2" DESC, "sort3" ASC LIMIT ?`,
+		cqlStatement,
+	)
+	assert.ElementsMatch(t, []interface{}{4, 12, 10, 20, int32(5)}, params)
+}
+
+func TestCassandraOnlineStore_getRangeQueryCQLStatement_noFilters(t *testing.T) {
+	store := CassandraOnlineStore{}
+	fqTableName := `"scylladb"."dummy_project_dummy_fv"`
+
+	cqlStatement, params := store.getRangeQueryCQLStatement(fqTableName, []string{"feat1", "feat2"}, []*model.SortKeyFilter{}, 5)
+	assert.Equal(t,
+		`SELECT "entity_key", "event_ts", "feat1", "feat2" FROM "scylladb"."dummy_project_dummy_fv" WHERE "entity_key" = ? LIMIT ?`,
+		cqlStatement,
+	)
+	assert.ElementsMatch(t, []interface{}{int32(5)}, params)
 }

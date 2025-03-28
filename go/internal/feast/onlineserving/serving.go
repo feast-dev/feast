@@ -6,18 +6,18 @@ import (
 	"fmt"
 	"github.com/apache/arrow/go/v17/arrow"
 	"github.com/apache/arrow/go/v17/arrow/memory"
+	"github.com/feast-dev/feast/go/internal/feast/model"
+	"github.com/feast-dev/feast/go/internal/feast/onlinestore"
+	"github.com/feast-dev/feast/go/protos/feast/core"
+	"github.com/feast-dev/feast/go/protos/feast/serving"
+	prototypes "github.com/feast-dev/feast/go/protos/feast/types"
+	"github.com/feast-dev/feast/go/types"
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"sort"
 	"strings"
-
-	"github.com/feast-dev/feast/go/internal/feast/model"
-	"github.com/feast-dev/feast/go/internal/feast/onlinestore"
-	"github.com/feast-dev/feast/go/protos/feast/serving"
-	prototypes "github.com/feast-dev/feast/go/protos/feast/types"
-	"github.com/feast-dev/feast/go/types"
 )
 
 /*
@@ -96,9 +96,7 @@ type GroupedRangeFeatureRefs struct {
 	Indices [][]int
 
 	// Sort key filters to pass to OnlineReadRange
-	SortKeyFilters []*serving.SortKeyFilter
-	// Reverse sort order to pass to OnlineReadRange
-	ReverseSortOrder bool
+	SortKeyFilters []*model.SortKeyFilter
 	// Limit to pass to OnlineReadRange
 	Limit int32
 }
@@ -371,7 +369,9 @@ func GetEntityMapsForSortedViews(sortedViews []*SortedFeatureViewAndRefs, entiti
 		}
 
 		for _, entityName := range featureView.EntityNames {
-			joinKey := entitiesByName[entityName].JoinKey
+			entity := entitiesByName[entityName]
+			joinKey := entity.JoinKey
+
 			entityNameToJoinKeyMap[entityName] = joinKey
 
 			if alias, ok := joinKeyToAliasMap[joinKey]; ok {
@@ -1033,6 +1033,10 @@ func GroupSortedFeatureRefs(
 	fullFeatureNames bool) ([]*GroupedRangeFeatureRefs, error) {
 
 	groups := make(map[string]*GroupedRangeFeatureRefs)
+	sortKeyFilterMap := make(map[string]*serving.SortKeyFilter)
+	for _, sortKeyFilter := range sortKeyFilters {
+		sortKeyFilterMap[sortKeyFilter.SortKeyName] = sortKeyFilter
+	}
 
 	for _, featuresAndView := range sortedViews {
 		joinKeys := make([]string, 0)
@@ -1086,6 +1090,35 @@ func GroupSortedFeatureRefs(
 			featureViewNames = append(featureViewNames, sfv.Base.Name)
 		}
 
+		sortKeyFilterModels := make([]*model.SortKeyFilter, 0)
+		sortKeyOrderMap := make(map[string]model.SortOrder)
+		for _, sortKey := range featuresAndView.View.SortKeys {
+			sortKeyOrderMap[sortKey.FieldName] = *sortKey.Order
+		}
+		for _, sortKey := range featuresAndView.View.SortKeys {
+			var sortOrder core.SortOrder_Enum
+			if reverseSortOrder {
+				if *sortKey.Order.Order.Enum() == core.SortOrder_ASC {
+					sortOrder = core.SortOrder_DESC
+				} else {
+					sortOrder = core.SortOrder_ASC
+				}
+			} else {
+				sortOrder = *sortKey.Order.Order.Enum()
+			}
+			var filterModel *model.SortKeyFilter
+			if filter, ok := sortKeyFilterMap[sortKey.FieldName]; ok {
+				filterModel = model.NewSortKeyFilterFromProto(filter, sortOrder)
+			} else {
+				// create empty filter model with only sort order
+				filterModel = &model.SortKeyFilter{
+					SortKeyName: sortKey.FieldName,
+					Order:       model.NewSortOrderFromProto(sortOrder),
+				}
+			}
+			sortKeyFilterModels = append(sortKeyFilterModels, filterModel)
+		}
+
 		if _, ok := groups[groupKey]; !ok {
 			joinKeysProto := entityKeysToProtos(joinKeysValuesProjection)
 			uniqueEntityRows, mappingIndices, err := getUniqueEntityRows(joinKeysProto)
@@ -1099,8 +1132,7 @@ func GroupSortedFeatureRefs(
 				AliasedFeatureNames: aliasedFeatureNames,
 				Indices:             mappingIndices,
 				EntityKeys:          uniqueEntityRows,
-				SortKeyFilters:      sortKeyFilters,
-				ReverseSortOrder:    reverseSortOrder,
+				SortKeyFilters:      sortKeyFilterModels,
 				Limit:               limit,
 			}
 

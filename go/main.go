@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"google.golang.org/grpc/reflection"
 	"net"
 	"net/http"
 	"os"
@@ -139,6 +140,7 @@ func StartGrpcServer(fs *feast.FeatureStore, host string, port int, writeLoggedF
 	serving.RegisterServingServiceServer(grpcServer, ser)
 	healthService := health.NewServer()
 	grpc_health_v1.RegisterHealthServer(grpcServer, healthService)
+	reflection.Register(grpcServer)
 
 	// Running Prometheus metrics endpoint on a separate goroutine
 	go func() {

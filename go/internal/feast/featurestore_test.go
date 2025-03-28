@@ -7,6 +7,7 @@ import (
 	"github.com/feast-dev/feast/go/internal/feast/onlineserving"
 	"github.com/feast-dev/feast/go/internal/feast/onlinestore"
 	"github.com/feast-dev/feast/go/internal/feast/registry"
+	"github.com/feast-dev/feast/go/protos/feast/core"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/golang/protobuf/ptypes/timestamp"
@@ -88,8 +89,8 @@ func (m *MockOnlineStore) OnlineRead(ctx context.Context, entityKeys []*types.En
 	return args.Get(0).([][]onlinestore.FeatureData), args.Error(1)
 }
 
-func (m *MockOnlineStore) OnlineReadRange(ctx context.Context, entityRows []*types.EntityKey, featureViewNames []string, featureNames []string, sortKeyFilters []*serving.SortKeyFilter, reverseSortOrder bool, limit int32) ([][]onlinestore.RangeFeatureData, error) {
-	args := m.Called(ctx, entityRows, featureViewNames, featureNames, sortKeyFilters, reverseSortOrder, limit)
+func (m *MockOnlineStore) OnlineReadRange(ctx context.Context, entityRows []*types.EntityKey, featureViewNames []string, featureNames []string, sortKeyFilters []*model.SortKeyFilter, limit int32) ([][]onlinestore.RangeFeatureData, error) {
+	args := m.Called(ctx, entityRows, featureViewNames, featureNames, sortKeyFilters, limit)
 	return args.Get(0).([][]onlinestore.RangeFeatureData), args.Error(1)
 }
 
@@ -109,6 +110,7 @@ func TestGetOnlineFeaturesRange(t *testing.T) {
 	sortKey := &model.SortKey{
 		FieldName: "event_timestamp",
 		ValueType: types.ValueType_UNIX_TIMESTAMP,
+		Order:     model.NewSortOrderFromProto(core.SortOrder_ASC),
 	}
 
 	sortedFV := &model.SortedFeatureView{
@@ -153,6 +155,9 @@ func TestGetOnlineFeaturesRange(t *testing.T) {
 			StartInclusive: true,
 			EndInclusive:   true,
 		},
+	}
+	sortKeyFilterModels := []*model.SortKeyFilter{
+		model.NewSortKeyFilterFromProto(sortKeyFilters[0], core.SortOrder_ASC),
 	}
 
 	mockRangeFeatureData := [][]onlinestore.RangeFeatureData{
@@ -214,8 +219,7 @@ func TestGetOnlineFeaturesRange(t *testing.T) {
 		mock.AnythingOfType("[]*types.EntityKey"),
 		featureViewNamesMatcher,
 		[]string{"conv_rate", "acc_rate"},
-		sortKeyFilters,
-		false,
+		sortKeyFilterModels,
 		int32(0),
 	).Return(mockRangeFeatureData, nil)
 
@@ -266,16 +270,6 @@ func testGetOnlineFeaturesRange(
 	requestData map[string]*types.RepeatedValue,
 	fullFeatureNames bool) ([]*onlineserving.RangeFeatureVector, error) {
 
-	entityNameToJoinKeyMap := make(map[string]string)
-	for _, entity := range entities {
-		entityNameToJoinKeyMap[entity.Name] = entity.JoinKey
-	}
-
-	expectedJoinKeysSet := make(map[string]interface{})
-	for _, joinKey := range entityNameToJoinKeyMap {
-		expectedJoinKeysSet[joinKey] = nil
-	}
-
 	sortedFeatureViews := make([]*onlineserving.SortedFeatureViewAndRefs, 0)
 	for _, view := range sortedViews {
 		viewFeatures := make([]string, 0)
@@ -292,6 +286,11 @@ func testGetOnlineFeaturesRange(
 				FeatureRefs: viewFeatures,
 			})
 		}
+	}
+	entityNameToJoinKeyMap, expectedJoinKeysSet, err := onlineserving.GetEntityMapsForSortedViews(
+		sortedFeatureViews, entities)
+	if err != nil {
+		return nil, err
 	}
 
 	numRows, err := onlineserving.ValidateEntityValues(joinKeyToEntityValues, requestData, expectedJoinKeysSet)
@@ -333,7 +332,6 @@ func testGetOnlineFeaturesRange(
 			groupRef.FeatureViewNames,
 			groupRef.FeatureNames,
 			groupRef.SortKeyFilters,
-			groupRef.ReverseSortOrder,
 			groupRef.Limit)
 		if err != nil {
 			return nil, err

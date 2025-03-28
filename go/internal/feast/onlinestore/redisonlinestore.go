@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/feast-dev/feast/go/internal/feast/model"
 	"github.com/feast-dev/feast/go/internal/feast/utils"
 	"os"
 	"strconv"
@@ -332,8 +333,9 @@ func (r *RedisOnlineStore) OnlineRead(ctx context.Context, entityKeys []*types.E
 	return results, nil
 }
 
-func (r *RedisOnlineStore) OnlineReadRange(ctx context.Context, entityKeys []*types.EntityKey, featureViewNames []string, featureNames []string, sortKeyFilters []*serving.SortKeyFilter, reverseSortOrder bool, limit int32) ([][]RangeFeatureData, error) {
-	return nil, errors.New("not implemented")
+func (r *RedisOnlineStore) OnlineReadRange(ctx context.Context, entityKeys []*types.EntityKey, featureViewNames []string, featureNames []string, sortKeyFilters []*model.SortKeyFilter, limit int32) ([][]RangeFeatureData, error) {
+	// TODO: Implement OnlineReadRange
+	return nil, errors.New("OnlineReadRange is not supported by RedisOnlineStore")
 }
 
 // Dummy destruct function to conform with plugin OnlineStore interface

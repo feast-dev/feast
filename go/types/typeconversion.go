@@ -696,3 +696,46 @@ func appendNullByType(builder array.Builder) {
 		builder.AppendNull()
 	}
 }
+
+func ValueTypeToGoType(value *types.Value) interface{} {
+	if value == nil || value.Val == nil {
+		return nil
+	}
+
+	switch x := value.Val.(type) {
+	case *types.Value_StringVal:
+		return x.StringVal
+	case *types.Value_BytesVal:
+		return x.BytesVal
+	case *types.Value_Int32Val:
+		return x.Int32Val
+	case *types.Value_Int64Val:
+		return x.Int64Val
+	case *types.Value_FloatVal:
+		return x.FloatVal
+	case *types.Value_DoubleVal:
+		return x.DoubleVal
+	case *types.Value_BoolVal:
+		return x.BoolVal
+	case *types.Value_BoolListVal:
+		return x.BoolListVal.Val
+	case *types.Value_StringListVal:
+		return x.StringListVal.Val
+	case *types.Value_BytesListVal:
+		return x.BytesListVal.Val
+	case *types.Value_Int32ListVal:
+		return x.Int32ListVal.Val
+	case *types.Value_Int64ListVal:
+		return x.Int64ListVal.Val
+	case *types.Value_FloatListVal:
+		return x.FloatListVal.Val
+	case *types.Value_DoubleListVal:
+		return x.DoubleListVal.Val
+	case *types.Value_UnixTimestampVal:
+		return x.UnixTimestampVal
+	case *types.Value_UnixTimestampListVal:
+		return x.UnixTimestampListVal.Val
+	default:
+		return nil
+	}
+}

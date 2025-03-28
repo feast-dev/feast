@@ -388,3 +388,37 @@ func TestProtoValuesToRepeatedConversion(t *testing.T) {
 		}
 	}
 }
+
+func TestValueTypeToGoType(t *testing.T) {
+	timestamp := time.Now().Unix()
+	testCases := []*types.Value{
+		{Val: &types.Value_StringVal{StringVal: "test"}},
+		{Val: &types.Value_BytesVal{BytesVal: []byte{1, 2, 3}}},
+		{Val: &types.Value_Int32Val{Int32Val: 10}},
+		{Val: &types.Value_Int64Val{Int64Val: 10}},
+		{Val: &types.Value_FloatVal{FloatVal: 10.0}},
+		{Val: &types.Value_DoubleVal{DoubleVal: 10.0}},
+		{Val: &types.Value_BoolVal{BoolVal: true}},
+		{Val: &types.Value_UnixTimestampVal{UnixTimestampVal: timestamp}},
+		{Val: &types.Value_NullVal{NullVal: types.Null_NULL}},
+		nil,
+	}
+
+	expectedTypes := []interface{}{
+		"test",
+		[]byte{1, 2, 3},
+		int32(10),
+		int64(10),
+		float32(10.0),
+		float64(10.0),
+		true,
+		timestamp,
+		nil,
+		nil,
+	}
+
+	for i, testCase := range testCases {
+		actual := ValueTypeToGoType(testCase)
+		assert.Equal(t, expectedTypes[i], actual)
+	}
+}

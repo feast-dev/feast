@@ -436,6 +436,7 @@ func TestValidateSortKeyFilters(t *testing.T) {
 
 func TestGroupSortedFeatureRefs(t *testing.T) {
 	sortKey1 := createSortKey("timestamp", core.SortOrder_DESC, types.ValueType_UNIX_TIMESTAMP)
+	sortKey2 := createSortKey("featureF", core.SortOrder_ASC, types.ValueType_DOUBLE)
 	viewA := createSortedFeatureView("viewA", []string{"driver", "customer"},
 		[]*core.SortKey{sortKey1},
 		createFeature("featureA", types.ValueType_DOUBLE),
@@ -451,7 +452,7 @@ func TestGroupSortedFeatureRefs(t *testing.T) {
 		createFeature("featureE", types.ValueType_DOUBLE))
 
 	viewD := createSortedFeatureView("viewD", []string{"customer"},
-		[]*core.SortKey{sortKey1},
+		[]*core.SortKey{sortKey2},
 		createFeature("featureF", types.ValueType_DOUBLE))
 
 	if viewA.Base != nil && viewA.Base.Projection == nil {
@@ -467,6 +468,11 @@ func TestGroupSortedFeatureRefs(t *testing.T) {
 			RangeEnd:       &types.Value{Val: &types.Value_UnixTimestampVal{UnixTimestampVal: 1672531200}},
 			StartInclusive: true,
 			EndInclusive:   false,
+		},
+		{
+			SortKeyName:  "featureF",
+			RangeEnd:     &types.Value{Val: &types.Value_DoubleVal{DoubleVal: 1.5}},
+			EndInclusive: true,
 		},
 	}
 
@@ -514,8 +520,20 @@ func TestGroupSortedFeatureRefs(t *testing.T) {
 	assert.NotEmpty(t, refGroups, "Should return at least one group")
 
 	for _, group := range refGroups {
-		assert.Equal(t, sortKeyFilters, group.SortKeyFilters)
-		assert.Equal(t, false, group.ReverseSortOrder)
+		assert.Equal(t, 1, len(group.SortKeyFilters))
+		if group.SortKeyFilters[0].SortKeyName == "timestamp" {
+			assert.Equal(t, sortKeyFilters[0].SortKeyName, group.SortKeyFilters[0].SortKeyName)
+			assert.Equal(t, sortKeyFilters[0].RangeStart.GetUnixTimestampVal(), group.SortKeyFilters[0].RangeStart)
+			assert.Equal(t, sortKeyFilters[0].RangeEnd.GetUnixTimestampVal(), group.SortKeyFilters[0].RangeEnd)
+			assert.Equal(t, sortKeyFilters[0].StartInclusive, group.SortKeyFilters[0].StartInclusive)
+			assert.Equal(t, sortKeyFilters[0].EndInclusive, group.SortKeyFilters[0].EndInclusive)
+			assert.Equal(t, "DESC", group.SortKeyFilters[0].Order.Order.String())
+		} else {
+			assert.Equal(t, sortKeyFilters[1].SortKeyName, group.SortKeyFilters[0].SortKeyName)
+			assert.Equal(t, sortKeyFilters[1].RangeEnd.GetDoubleVal(), group.SortKeyFilters[0].RangeEnd)
+			assert.Equal(t, sortKeyFilters[1].EndInclusive, group.SortKeyFilters[0].EndInclusive)
+			assert.Equal(t, "ASC", group.SortKeyFilters[0].Order.Order.String())
+		}
 		assert.Equal(t, int32(10), group.Limit)
 	}
 
@@ -540,6 +558,95 @@ func TestGroupSortedFeatureRefs(t *testing.T) {
 	assert.True(t, featureAFound, "Feature A should be present in results")
 	assert.True(t, featureCFound, "Feature C should be present in results")
 	assert.True(t, featureEFound, "Feature E should be present in results")
+}
+
+func TestGroupSortedFeatureRefs_withReverseSortOrder(t *testing.T) {
+	sortKey1 := createSortKey("timestamp", core.SortOrder_DESC, types.ValueType_UNIX_TIMESTAMP)
+	sortKey2 := createSortKey("featureB", core.SortOrder_ASC, types.ValueType_DOUBLE)
+	viewA := createSortedFeatureView("viewA", []string{"driver", "customer"},
+		[]*core.SortKey{sortKey1, sortKey2},
+		createFeature("featureA", types.ValueType_DOUBLE),
+		createFeature("featureB", types.ValueType_DOUBLE))
+
+	sortKeyFilters := []*serving.SortKeyFilter{
+		{
+			SortKeyName:    "timestamp",
+			RangeStart:     &types.Value{Val: &types.Value_UnixTimestampVal{UnixTimestampVal: 1640995200}},
+			RangeEnd:       &types.Value{Val: &types.Value_UnixTimestampVal{UnixTimestampVal: 1672531200}},
+			StartInclusive: true,
+			EndInclusive:   false,
+		},
+	}
+
+	refGroups, err := GroupSortedFeatureRefs(
+		[]*SortedFeatureViewAndRefs{
+			{View: viewA, FeatureRefs: []string{"featureA", "featureB"}},
+		},
+		map[string]*types.RepeatedValue{
+			"driver_id": {Val: []*types.Value{
+				{Val: &types.Value_Int32Val{Int32Val: 0}},
+				{Val: &types.Value_Int32Val{Int32Val: 0}},
+				{Val: &types.Value_Int32Val{Int32Val: 1}},
+				{Val: &types.Value_Int32Val{Int32Val: 1}},
+				{Val: &types.Value_Int32Val{Int32Val: 1}},
+			}},
+			"customer_id": {Val: []*types.Value{
+				{Val: &types.Value_Int32Val{Int32Val: 1}},
+				{Val: &types.Value_Int32Val{Int32Val: 2}},
+				{Val: &types.Value_Int32Val{Int32Val: 3}},
+				{Val: &types.Value_Int32Val{Int32Val: 3}},
+				{Val: &types.Value_Int32Val{Int32Val: 4}},
+			}},
+		},
+		map[string]string{
+			"driver":   "driver_id",
+			"customer": "customer_id",
+		},
+		sortKeyFilters,
+		true,
+		10,
+		true,
+	)
+
+	t.Logf("GroupSortedFeatureRefs returned %d groups", len(refGroups))
+	for i, group := range refGroups {
+		t.Logf("Group %d:", i)
+		t.Logf("  Features: %v", group.FeatureNames)
+		t.Logf("  AliasedNames: %v", group.AliasedFeatureNames)
+	}
+
+	assert.NoError(t, err)
+	assert.NotEmpty(t, refGroups, "Should return at least one group")
+
+	for _, group := range refGroups {
+		assert.Equal(t, 2, len(group.SortKeyFilters))
+		assert.Equal(t, sortKeyFilters[0].SortKeyName, group.SortKeyFilters[0].SortKeyName)
+		assert.Equal(t, sortKeyFilters[0].RangeStart.GetUnixTimestampVal(), group.SortKeyFilters[0].RangeStart)
+		assert.Equal(t, sortKeyFilters[0].RangeEnd.GetUnixTimestampVal(), group.SortKeyFilters[0].RangeEnd)
+		assert.Equal(t, sortKeyFilters[0].StartInclusive, group.SortKeyFilters[0].StartInclusive)
+		assert.Equal(t, sortKeyFilters[0].EndInclusive, group.SortKeyFilters[0].EndInclusive)
+		assert.Equal(t, "ASC", group.SortKeyFilters[0].Order.Order.String())
+
+		// SortKeys missing from the filters should have a default filter with only Order assigned
+		assert.Equal(t, sortKey2.Name, group.SortKeyFilters[1].SortKeyName)
+		assert.Nil(t, group.SortKeyFilters[1].RangeStart)
+		assert.Nil(t, group.SortKeyFilters[1].RangeEnd)
+		assert.Equal(t, "DESC", group.SortKeyFilters[1].Order.Order.String())
+
+		assert.Equal(t, int32(10), group.Limit)
+	}
+
+	featureAFound := false
+
+	for _, group := range refGroups {
+		for _, feature := range group.FeatureNames {
+			if feature == "featureA" {
+				featureAFound = true
+			}
+		}
+	}
+
+	assert.True(t, featureAFound, "Feature A should be present in results")
 }
 
 func TestEntitiesToRangeFeatureVectors(t *testing.T) {
