@@ -25,6 +25,7 @@ import RegistryPathContext from "../../contexts/RegistryPathContext";
 import FeatureViewIndexEmptyState from "./FeatureViewIndexEmptyState";
 import { useFeatureViewTagsAggregation } from "../../hooks/useTagsAggregation";
 import TagSearch from "../../components/TagSearch";
+import ExportButton from "../../components/ExportButton";
 
 const useLoadFeatureViews = () => {
   const registryUrl = useContext(RegistryPathContext);
@@ -117,6 +118,13 @@ const Index = () => {
         restrictWidth
         iconType={FeatureViewIcon}
         pageTitle="Feature Views"
+        rightSideItems={[
+          <ExportButton
+            data={filterResult ?? []}
+            fileName="feature_views"
+            formats={["json"]}
+          />,
+        ]}
       />
       <EuiPageTemplate.Section>
         {isLoading && (

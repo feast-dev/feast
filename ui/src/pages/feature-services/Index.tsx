@@ -24,6 +24,7 @@ import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import RegistryPathContext from "../../contexts/RegistryPathContext";
 import FeatureServiceIndexEmptyState from "./FeatureServiceIndexEmptyState";
 import TagSearch from "../../components/TagSearch";
+import ExportButton from "../../components/ExportButton";
 import { useFeatureServiceTagsAggregation } from "../../hooks/useTagsAggregation";
 import { feast } from "../../protos";
 
@@ -115,6 +116,13 @@ const Index = () => {
         restrictWidth
         iconType={FeatureServiceIcon}
         pageTitle="Feature Services"
+        rightSideItems={[
+          <ExportButton
+            data={filterResult ?? []}
+            fileName="feature_services"
+            formats={["json"]}
+          />,
+        ]}
       />
       <EuiPageTemplate.Section>
         {isLoading && (
