@@ -114,8 +114,8 @@ class MilvusOnlineStore(OnlineStore):
 
     def _get_db_path(self, config: RepoConfig) -> str:
         assert (
-                config.online_store.type == "milvus"
-                or config.online_store.type.endswith("MilvusOnlineStore")
+            config.online_store.type == "milvus"
+            or config.online_store.type.endswith("MilvusOnlineStore")
         )
 
         if config.repo_path and not Path(config.online_store.path).is_absolute():
@@ -140,7 +140,7 @@ class MilvusOnlineStore(OnlineStore):
         return self.client
 
     def _get_or_create_collection(
-            self, config: RepoConfig, table: FeatureView
+        self, config: RepoConfig, table: FeatureView
     ) -> Dict[str, Any]:
         self.client = self._connect(config)
         vector_field_dict = {k.name: k for k in table.schema if k.vector_index}
@@ -199,12 +199,12 @@ class MilvusOnlineStore(OnlineStore):
                 index_params = self.client.prepare_index_params()
                 for vector_field in schema.fields:
                     if (
-                            vector_field.dtype
-                            in [
-                        DataType.FLOAT_VECTOR,
-                        DataType.BINARY_VECTOR,
-                    ]
-                            and vector_field.name in vector_field_dict
+                        vector_field.dtype
+                        in [
+                            DataType.FLOAT_VECTOR,
+                            DataType.BINARY_VECTOR,
+                        ]
+                        and vector_field.name in vector_field_dict
                     ):
                         metric = vector_field_dict[
                             vector_field.name
@@ -229,18 +229,18 @@ class MilvusOnlineStore(OnlineStore):
         return self._collections[collection_name]
 
     def online_write_batch(
-            self,
-            config: RepoConfig,
-            table: FeatureView,
-            data: List[
-                Tuple[
-                    EntityKeyProto,
-                    Dict[str, ValueProto],
-                    datetime,
-                    Optional[datetime],
-                ]
-            ],
-            progress: Optional[Callable[[int], Any]],
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        data: List[
+            Tuple[
+                EntityKeyProto,
+                Dict[str, ValueProto],
+                datetime,
+                Optional[datetime],
+            ]
+        ],
+        progress: Optional[Callable[[int], Any]],
     ) -> None:
         self.client = self._connect(config)
         collection = self._get_or_create_collection(config, table)
@@ -287,8 +287,8 @@ class MilvusOnlineStore(OnlineStore):
                     single_entity_record[field] = ""
             # Store only the latest event timestamp per entity
             if (
-                    entity_key_str not in unique_entities
-                    or unique_entities[entity_key_str]["event_ts"] < timestamp_int
+                entity_key_str not in unique_entities
+                or unique_entities[entity_key_str]["event_ts"] < timestamp_int
             ):
                 unique_entities[entity_key_str] = single_entity_record
 
@@ -302,12 +302,12 @@ class MilvusOnlineStore(OnlineStore):
         )
 
     def online_read(
-            self,
-            config: RepoConfig,
-            table: FeatureView,
-            entity_keys: List[EntityKeyProto],
-            requested_features: Optional[List[str]] = None,
-            full_feature_names: bool = False,
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        entity_keys: List[EntityKeyProto],
+        requested_features: Optional[List[str]] = None,
+        full_feature_names: bool = False,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         self.client = self._connect(config)
         collection_name = _table_id(config.project, table)
@@ -316,9 +316,9 @@ class MilvusOnlineStore(OnlineStore):
         composite_key_name = _get_composite_key_name(table)
 
         output_fields = (
-                [composite_key_name]
-                + (requested_features if requested_features else [])
-                + ["created_ts", "event_ts"]
+            [composite_key_name]
+            + (requested_features if requested_features else [])
+            + ["created_ts", "event_ts"]
         )
         assert all(
             field in [f["name"] for f in collection["fields"]]
@@ -335,9 +335,9 @@ class MilvusOnlineStore(OnlineStore):
             composite_entities.append(entity_key_str)
 
         query_filter_for_entities = (
-                f"{composite_key_name} in ["
-                + ", ".join([f"'{e}'" for e in composite_entities])
-                + "]"
+            f"{composite_key_name} in ["
+            + ", ".join([f"'{e}'" for e in composite_entities])
+            + "]"
         )
         self.client.load_collection(collection_name)
         results = self.client.query(
@@ -441,13 +441,13 @@ class MilvusOnlineStore(OnlineStore):
         return result_list
 
     def update(
-            self,
-            config: RepoConfig,
-            tables_to_delete: Sequence[FeatureView],
-            tables_to_keep: Sequence[FeatureView],
-            entities_to_delete: Sequence[Entity],
-            entities_to_keep: Sequence[Entity],
-            partial: bool,
+        self,
+        config: RepoConfig,
+        tables_to_delete: Sequence[FeatureView],
+        tables_to_keep: Sequence[FeatureView],
+        entities_to_delete: Sequence[Entity],
+        entities_to_keep: Sequence[Entity],
+        partial: bool,
     ):
         self.client = self._connect(config)
         for table in tables_to_keep:
@@ -460,15 +460,15 @@ class MilvusOnlineStore(OnlineStore):
                 self._collections.pop(collection_name, None)
 
     def plan(
-            self, config: RepoConfig, desired_registry_proto: RegistryProto
+        self, config: RepoConfig, desired_registry_proto: RegistryProto
     ) -> List[InfraObject]:
         raise NotImplementedError
 
     def teardown(
-            self,
-            config: RepoConfig,
-            tables: Sequence[FeatureView],
-            entities: Sequence[Entity],
+        self,
+        config: RepoConfig,
+        tables: Sequence[FeatureView],
+        entities: Sequence[Entity],
     ):
         self.client = self._connect(config)
         for table in tables:
@@ -478,14 +478,14 @@ class MilvusOnlineStore(OnlineStore):
                 self._collections.pop(collection_name, None)
 
     def retrieve_online_documents_v2(
-            self,
-            config: RepoConfig,
-            table: FeatureView,
-            requested_features: List[str],
-            embedding: Optional[List[float]],
-            top_k: int,
-            distance_metric: Optional[str] = None,
-            query_string: Optional[str] = None,
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        requested_features: List[str],
+        embedding: Optional[List[float]],
+        top_k: int,
+        distance_metric: Optional[str] = None,
+        query_string: Optional[str] = None,
     ) -> List[
         Tuple[
             Optional[datetime],
@@ -514,7 +514,6 @@ class MilvusOnlineStore(OnlineStore):
         self.client = self._connect(config)
         collection_name = _table_id(config.project, table)
         collection = self._get_or_create_collection(config, table)
-
         if not config.online_store.vector_enabled:
             raise ValueError("Vector search is not enabled in the online store config")
 
@@ -524,9 +523,9 @@ class MilvusOnlineStore(OnlineStore):
         composite_key_name = _get_composite_key_name(table)
 
         output_fields = (
-                [composite_key_name]
-                + (requested_features if requested_features else [])
-                + ["created_ts", "event_ts"]
+            [composite_key_name]
+            + (requested_features if requested_features else [])
+            + ["created_ts", "event_ts"]
         )
         assert all(
             field in [f["name"] for f in collection["fields"]]
@@ -656,14 +655,14 @@ class MilvusOnlineStore(OnlineStore):
                         )
                         res[ann_search_field] = serialized_embedding
                     elif entity_name_feast_primitive_type_map.get(
-                            field, PrimitiveFeastType.INVALID
+                        field, PrimitiveFeastType.INVALID
                     ) in [
                         PrimitiveFeastType.STRING,
                         PrimitiveFeastType.BYTES,
                     ]:
                         res[field] = ValueProto(string_val=str(field_value))
                     elif entity_name_feast_primitive_type_map.get(
-                            field, PrimitiveFeastType.INVALID
+                        field, PrimitiveFeastType.INVALID
                     ) in [
                         PrimitiveFeastType.INT64,
                         PrimitiveFeastType.INT32,
@@ -694,9 +693,9 @@ def _get_composite_key_name(table: FeatureView) -> str:
 
 
 def _extract_proto_values_to_dict(
-        input_dict: Dict[str, Any],
-        vector_cols: List[str],
-        serialize_to_string=False,
+    input_dict: Dict[str, Any],
+    vector_cols: List[str],
+    serialize_to_string=False,
 ) -> Dict[str, Any]:
     numeric_vector_list_types = [
         k
@@ -724,8 +723,8 @@ def _extract_proto_values_to_dict(
                             vector_values = getattr(feature_values, proto_val_type).val
                     else:
                         if (
-                                serialize_to_string
-                                and proto_val_type not in ["string_val"] + numeric_types
+                            serialize_to_string
+                            and proto_val_type not in ["string_val"] + numeric_types
                         ):
                             vector_values = feature_values.SerializeToString().decode()
                         else:
