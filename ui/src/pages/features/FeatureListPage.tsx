@@ -9,6 +9,7 @@ import {
   Pagination,
 } from "@elastic/eui";
 import EuiCustomLink from "../../components/EuiCustomLink";
+import ExportButton from "../../components/ExportButton";
 import { useParams } from "react-router-dom";
 import useLoadRegistry from "../../queries/useLoadRegistry";
 import RegistryPathContext from "../../contexts/RegistryPathContext";
@@ -109,6 +110,9 @@ const FeatureListPage = () => {
         restrictWidth
         iconType={FeatureIcon}
         pageTitle="Feature List"
+        rightSideItems={[
+          <ExportButton data={filteredFeatures} fileName="features" />,
+        ]}
       />
       <EuiPageTemplate.Section>
         {isLoading ? (
