@@ -50,10 +50,10 @@ from .postgres_source import PostgreSQLSource
 
 
 class EntitySelectMode(Enum):
-    """ Use a temporary table to store the entity DataFrame or SQL query when querying feature data """
     temp_table = "temp_table"
-    """ Use the entity SQL query directly when querying feature data """
+    """ Use a temporary table to store the entity DataFrame or SQL query when querying feature data """
     embed_query = "embed_query"
+    """ Use the entity SQL query directly when querying feature data """
 
 
 class PostgreSQLOfflineStoreConfig(PostgreSQLConfig):
