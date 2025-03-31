@@ -480,9 +480,9 @@ entity_dataframe AS (
         {% endfor %}
     FROM
         {% if entity_select_mode == EntitySelectMode.embed_query %}
-            {{ left_table_query_string }}
-        {% else %}
             entity_query
+        {% else %}
+            {{ left_table_query_string }}
         {% endif %}
 ),
 
