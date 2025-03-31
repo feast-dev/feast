@@ -1502,16 +1502,16 @@ def test_milvus_keyword_search() -> None:
         teardown=False,
     ) as store:
         from datetime import timedelta
-    
+
         from feast import Entity, FeatureView, Field, FileSource
         from feast.types import Array, Float32, Int64, String, UnixTimestamp
-    
+
         rag_documents_source = FileSource(
             path="data/embedded_documents.parquet",
             timestamp_field="event_timestamp",
             created_timestamp_column="created_timestamp",
         )
-    
+
         item = Entity(
             name="item_id",
             join_keys=["item_id"],
@@ -1522,7 +1522,7 @@ def test_milvus_keyword_search() -> None:
             join_keys=["author_id"],
             value_type=ValueType.STRING,
         )
-    
+
         document_embeddings = FeatureView(
             name="text_documents",
             entities=[item, author],
@@ -1543,13 +1543,13 @@ def test_milvus_keyword_search() -> None:
             source=rag_documents_source,
             ttl=timedelta(hours=24),
         )
-    
+
         store.apply([rag_documents_source, item, document_embeddings])
-    
+
         # Write some data with specific text content for keyword search
         document_embeddings_fv = store.get_feature_view(name="text_documents")
         provider = store._get_provider()
-    
+
         contents = [
             "Feast is an open source feature store for machine learning",
             "Feature stores solve the problem of coordinating features for training and serving",
@@ -1562,7 +1562,7 @@ def test_milvus_keyword_search() -> None:
             "Offline stores are used for batch feature retrieval during training",
             "Feast enables data scientists to define, manage, and share features",
         ]
-    
+
         titles = [
             "Introduction to Feast",
             "Feature Store Benefits",
@@ -1575,7 +1575,7 @@ def test_milvus_keyword_search() -> None:
             "Offline Training Support",
             "Feast for Data Scientists",
         ]
-    
+
         item_keys = [
             EntityKeyProto(
                 join_keys=["item_id", "author_id"],
@@ -1604,14 +1604,14 @@ def test_milvus_keyword_search() -> None:
                     _utc_now(),
                 )
             )
-    
+
         provider.online_write_batch(
             config=store.config,
             table=document_embeddings_fv,
             data=data,
             progress=None,
         )
-    
+
         # Test keyword search for "Milvus"
         result_milvus = store.retrieve_online_documents_v2(
             features=[
@@ -1621,11 +1621,11 @@ def test_milvus_keyword_search() -> None:
             query_string="Milvus",
             top_k=3,
         ).to_dict()
-        
+
         # Verify that documents containing "Milvus" are returned
         assert len(result_milvus["content"]) > 0
         assert any("Milvus" in content for content in result_milvus["content"])
-        
+
         # Test keyword search for "machine learning"
         result_ml = store.retrieve_online_documents_v2(
             features=[
@@ -1635,11 +1635,13 @@ def test_milvus_keyword_search() -> None:
             query_string="machine learning",
             top_k=3,
         ).to_dict()
-        
+
         # Verify that documents containing "machine learning" are returned
         assert len(result_ml["content"]) > 0
-        assert any("machine learning" in content.lower() for content in result_ml["content"])
-        
+        assert any(
+            "machine learning" in content.lower() for content in result_ml["content"]
+        )
+
         # Test hybrid search (vector + keyword)
         query_embedding = np.random.random(vector_length).tolist()
         result_hybrid = store.retrieve_online_documents_v2(
@@ -1652,7 +1654,7 @@ def test_milvus_keyword_search() -> None:
             query_string="Feast",
             top_k=3,
         ).to_dict()
-        
+
         # Verify hybrid search results
         assert len(result_hybrid["content"]) > 0
         assert any("Feast" in content for content in result_hybrid["content"])

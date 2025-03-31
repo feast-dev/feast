@@ -495,7 +495,6 @@ class MilvusOnlineStore(OnlineStore):
     ]:
         """
         Retrieve documents using vector similarity search or keyword search in Milvus.
-        
         Args:
             config: Feast configuration object
             table: FeatureView object as the table to search
@@ -504,7 +503,6 @@ class MilvusOnlineStore(OnlineStore):
             top_k: Number of items to return
             distance_metric: Distance metric to use (optional)
             query_string: The query string to search for using keyword search (optional)
-            
         Returns:
             List of tuples containing the event timestamp, entity key, and feature values
         """
@@ -539,22 +537,30 @@ class MilvusOnlineStore(OnlineStore):
         if embedding is not None:
             for field in collection["fields"]:
                 if (
-                        field["type"] in [DataType.FLOAT_VECTOR, DataType.BINARY_VECTOR]
-                        and field["name"] in output_fields
+                    field["type"] in [DataType.FLOAT_VECTOR, DataType.BINARY_VECTOR]
+                    and field["name"] in output_fields
                 ):
                     ann_search_field = field["name"]
                     break
 
         self.client.load_collection(collection_name)
 
-        if embedding is not None and query_string is not None and config.online_store.vector_enabled:
+        if (
+            embedding is not None
+            and query_string is not None
+            and config.online_store.vector_enabled
+        ):
             string_field_list = [
-                f.name for f in table.features if
-                isinstance(f.dtype, PrimitiveFeastType) and f.dtype.to_value_type() == ValueType.STRING
+                f.name
+                for f in table.features
+                if isinstance(f.dtype, PrimitiveFeastType)
+                and f.dtype.to_value_type() == ValueType.STRING
             ]
 
             if not string_field_list:
-                raise ValueError("No string fields found in the feature view for text search in hybrid mode")
+                raise ValueError(
+                    "No string fields found in the feature view for text search in hybrid mode"
+                )
 
             # Create a filter expression for text search
             filter_expressions = []
@@ -600,12 +606,16 @@ class MilvusOnlineStore(OnlineStore):
 
         elif query_string is not None:
             string_field_list = [
-                f.name for f in table.features if
-                isinstance(f.dtype, PrimitiveFeastType) and f.dtype.to_value_type() == ValueType.STRING
+                f.name
+                for f in table.features
+                if isinstance(f.dtype, PrimitiveFeastType)
+                and f.dtype.to_value_type() == ValueType.STRING
             ]
 
             if not string_field_list:
-                raise ValueError("No string fields found in the feature view for text search")
+                raise ValueError(
+                    "No string fields found in the feature view for text search"
+                )
 
             filter_expressions = []
             for field in string_field_list:
@@ -615,7 +625,9 @@ class MilvusOnlineStore(OnlineStore):
             filter_expr = " OR ".join(filter_expressions)
 
             if not filter_expr:
-                raise ValueError("No text fields found in requested features for search")
+                raise ValueError(
+                    "No text fields found in requested features for search"
+                )
 
             query_results = self.client.query(
                 collection_name=collection_name,
@@ -624,7 +636,9 @@ class MilvusOnlineStore(OnlineStore):
                 limit=top_k,
             )
 
-            results = [[{"entity": entity, "distance": -1.0}] for entity in query_results]
+            results = [
+                [{"entity": entity, "distance": -1.0}] for entity in query_results
+            ]
         else:
             raise ValueError(
                 "Either vector_enabled must be True for embedding search or query_string must be provided for keyword search"
