@@ -164,7 +164,7 @@ Homepage = "https://github.com/feast-dev/feast"
 name = "Feast"
 
 [project.scripts]
-feast = "feast.cli:cli"
+feast = "feast.cli.cli:cli"
 
 [build-system]
 requires = [
