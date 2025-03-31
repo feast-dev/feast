@@ -455,14 +455,10 @@ def _get_entity_schema(
 # https://github.com/feast-dev/feast/blob/master/sdk/python/feast/infra/offline_stores/redshift.py
 
 MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN = """
-WITH entity_query AS (
-    {% if entity_select_mode == EntitySelectMode.embed_query %}
-        {{ left_table_query_string }}
-    {% else %}
-        SELECT * FROM {{ left_table_query_string }}
-    {% endif %}
-),
-
+WITH
+{% if entity_select_mode == EntitySelectMode.embed_query %}
+    entity_query AS ({{ left_table_query_string }}),
+{% endif %}
 /*
  Compute a deterministic hash for the `left_table_query_string` that will be used throughout
  all the logic as the field to GROUP BY the data
@@ -482,7 +478,12 @@ entity_dataframe AS (
             ,CAST("{{entity_df_event_timestamp_col}}" AS VARCHAR) AS "{{featureview.name}}__entity_row_unique_id"
             {% endif %}
         {% endfor %}
-    FROM entity_query
+    FROM
+        {% if entity_select_mode == EntitySelectMode.embed_query %}
+            {{ left_table_query_string }}
+        {% else %}
+            entity_query
+        {% endif %}
 ),
 
 {% for featureview in featureviews %}
