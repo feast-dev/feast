@@ -1567,7 +1567,6 @@ class FeatureStore:
                     else df.to_dict(orient="list")
                 )
                 if feature_view.singleton:
-                    print("transforming the hard way")
                     transformed_rows = []
 
                     for i, row in df.iterrows():
