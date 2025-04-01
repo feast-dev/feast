@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
@@ -56,8 +56,8 @@ def test_pull_latest_from_table_with_nested_timestamp_or_query(mock_get_conn):
     feature_name_columns = ["feature1", "feature2"]
     timestamp_field = "event_header.event_published_datetime_utc"
     created_timestamp_column = "created_timestamp"
-    start_date = datetime(2021, 1, 1)
-    end_date = datetime(2021, 1, 2)
+    start_date = datetime(2021, 1, 1, tzinfo=timezone.utc)
+    end_date = datetime(2021, 1, 2, tzinfo=timezone.utc)
 
     # Call the method
     retrieval_job = PostgreSQLOfflineStore.pull_latest_from_table_or_query(
@@ -81,7 +81,7 @@ def test_pull_latest_from_table_with_nested_timestamp_or_query(mock_get_conn):
                 SELECT a."key1", a."key2", a."feature1", a."feature2", a."event_header.event_published_datetime_utc", a."created_timestamp",
                 ROW_NUMBER() OVER(PARTITION BY a."key1", a."key2" ORDER BY a."event_header.event_published_datetime_utc" DESC, a."created_timestamp" DESC) AS _feast_row
                 FROM offline_store_database_name.offline_store_table_name a
-                WHERE a."event_header.event_published_datetime_utc" BETWEEN '2021-01-01 00:00:00'::timestamptz AND '2021-01-02 00:00:00'::timestamptz
+                WHERE a."event_header.event_published_datetime_utc" BETWEEN '2021-01-01 00:00:00+00:00'::timestamptz AND '2021-01-02 00:00:00+00:00'::timestamptz
             ) b
             WHERE _feast_row = 1"""  # noqa: W293
 
@@ -123,8 +123,8 @@ def test_pull_latest_from_table_without_nested_timestamp_or_query(mock_get_conn)
     feature_name_columns = ["feature1", "feature2"]
     timestamp_field = "event_published_datetime_utc"
     created_timestamp_column = "created_timestamp"
-    start_date = datetime(2021, 1, 1)
-    end_date = datetime(2021, 1, 2)
+    start_date = datetime(2021, 1, 1, tzinfo=timezone.utc)
+    end_date = datetime(2021, 1, 2, tzinfo=timezone.utc)
 
     # Call the method
     retrieval_job = PostgreSQLOfflineStore.pull_latest_from_table_or_query(
@@ -148,7 +148,7 @@ def test_pull_latest_from_table_without_nested_timestamp_or_query(mock_get_conn)
                 SELECT a."key1", a."key2", a."feature1", a."feature2", a."event_published_datetime_utc", a."created_timestamp",
                 ROW_NUMBER() OVER(PARTITION BY a."key1", a."key2" ORDER BY a."event_published_datetime_utc" DESC, a."created_timestamp" DESC) AS _feast_row
                 FROM offline_store_database_name.offline_store_table_name a
-                WHERE a."event_published_datetime_utc" BETWEEN '2021-01-01 00:00:00'::timestamptz AND '2021-01-02 00:00:00'::timestamptz
+                WHERE a."event_published_datetime_utc" BETWEEN '2021-01-01 00:00:00+00:00'::timestamptz AND '2021-01-02 00:00:00+00:00'::timestamptz
             ) b
             WHERE _feast_row = 1"""  # noqa: W293
 
@@ -189,8 +189,8 @@ def test_pull_all_from_table_or_query(mock_get_conn):
     join_key_columns = ["key1", "key2"]
     feature_name_columns = ["feature1", "feature2"]
     timestamp_field = "event_published_datetime_utc"
-    start_date = datetime(2021, 1, 1)
-    end_date = datetime(2021, 1, 2)
+    start_date = datetime(2021, 1, 1, tzinfo=timezone.utc)
+    end_date = datetime(2021, 1, 2, tzinfo=timezone.utc)
 
     # Call the method
     retrieval_job = PostgreSQLOfflineStore.pull_all_from_table_or_query(
@@ -208,7 +208,7 @@ def test_pull_all_from_table_or_query(mock_get_conn):
 
     expected_query = """SELECT key1, key2, feature1, feature2, event_published_datetime_utc
             FROM offline_store_database_name.offline_store_table_name AS paftoq_alias
-            WHERE "event_published_datetime_utc" BETWEEN '2021-01-01 05:00:00+00:00'::timestamptz AND '2021-01-02 05:00:00+00:00'::timestamptz"""  # noqa: W293
+            WHERE "event_published_datetime_utc" BETWEEN '2021-01-01 00:00:00+00:00'::timestamptz AND '2021-01-02 00:00:00+00:00'::timestamptz"""  # noqa: W293
 
     logger.debug("Expected query:\n%s", expected_query)
 
