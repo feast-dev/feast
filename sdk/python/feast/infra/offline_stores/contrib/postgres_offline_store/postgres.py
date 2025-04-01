@@ -414,7 +414,7 @@ def build_point_in_time_query(
         "featureviews": feature_view_query_contexts,
         "full_feature_names": full_feature_names,
         "final_output_feature_names": final_output_feature_names,
-        "entity_select_mode": entity_select_mode,
+        "entity_select_mode": entity_select_mode.value,
     }
 
     query = template.render(template_context)
@@ -456,7 +456,7 @@ def _get_entity_schema(
 
 MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN = """
 WITH
-{% if entity_select_mode == EntitySelectMode.embed_query %}
+{% if entity_select_mode == "embed_query" %}
     entity_query AS ({{ left_table_query_string }}),
 {% endif %}
 /*
@@ -479,7 +479,7 @@ entity_dataframe AS (
             {% endif %}
         {% endfor %}
     FROM
-        {% if entity_select_mode == EntitySelectMode.embed_query %}
+        {% if entity_select_mode == "embed_query" %}
             entity_query
         {% else %}
             {{ left_table_query_string }}
