@@ -1,9 +1,10 @@
 package server
 
 import (
+	"os"
+
 	"github.com/rs/zerolog"
 	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
-	"os"
 )
 
 func LogWithSpanContext(span tracer.Span) zerolog.Logger {

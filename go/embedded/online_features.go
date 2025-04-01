@@ -383,7 +383,7 @@ func (s *OnlineFeatureService) StartHttpServerWithLogging(host string, port int,
 		log.Println("HTTP server terminated")
 	}()
 
-	return ser.Serve(host, port)
+	return ser.Serve(host, port, server.DefaultHttpHandlers(ser))
 }
 
 func (s *OnlineFeatureService) StopHttpServer() {

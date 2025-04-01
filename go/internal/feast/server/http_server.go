@@ -30,6 +30,14 @@ type httpServer struct {
 	server         *http.Server
 }
 
+// This represents mapping between a path and an http Handler.
+// Note a handler can be created out of any func with type signature
+// func(w http.ResponseWriter, r *http.Request) via HandleFunc()
+type Handler struct {
+	path        string
+	handlerFunc http.Handler
+}
+
 // Some Feast types aren't supported during JSON conversion
 type repeatedValue struct {
 	stringVal     []string
@@ -339,15 +347,17 @@ func recoverMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func (s *httpServer) Serve(host string, port int) error {
+func (s *httpServer) Serve(host string, port int, handlers []Handler) error {
 	if strings.ToLower(os.Getenv("ENABLE_DATADOG_TRACING")) == "true" {
 		tracer.Start(tracer.WithRuntimeMetrics())
 		defer tracer.Stop()
 	}
 	mux := httptrace.NewServeMux()
-	mux.Handle("/get-online-features", recoverMiddleware(http.HandlerFunc(s.getOnlineFeatures)))
-	mux.Handle("/metrics", promhttp.Handler())
-	mux.HandleFunc("/health", healthCheckHandler)
+
+	for _, handler := range handlers {
+		mux.Handle(handler.path, handler.handlerFunc)
+	}
+
 	s.server = &http.Server{Addr: fmt.Sprintf("%s:%d", host, port), Handler: mux, ReadTimeout: 5 * time.Second, WriteTimeout: 10 * time.Second, IdleTimeout: 15 * time.Second}
 	err := s.server.ListenAndServe()
 	// Don't return the error if it's caused by graceful shutdown using Stop()
@@ -356,6 +366,23 @@ func (s *httpServer) Serve(host string, port int) error {
 	}
 	log.Fatal().Stack().Err(err).Msg("Failed to start HTTP server")
 	return err
+}
+
+func DefaultHttpHandlers(s *httpServer) []Handler {
+	return []Handler{
+		{
+			path:        "/get-online-features",
+			handlerFunc: recoverMiddleware(http.HandlerFunc(s.getOnlineFeatures)),
+		},
+		{
+			path:        "/metrics",
+			handlerFunc: promhttp.Handler(),
+		},
+		{
+			path:        "/health",
+			handlerFunc: http.HandlerFunc(healthCheckHandler),
+		},
+	}
 }
 
 func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
