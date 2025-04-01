@@ -104,3 +104,33 @@ jobs:
       - name: Run yarn tests
         working-directory: ./ui
         run: yarn test --watchAll=false
+
+  unit-test-java:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up JDK 11
+        uses: actions/setup-java@v4
+        with:
+          java-version: '11'
+          java-package: jdk
+          architecture: x64
+          distribution: 'temurin'
+      - uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-it-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-it-maven-
+      - uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-ut-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-ut-maven-
+      - name: Test java
+        run: make test-java-with-coverage
+      - uses: actions/upload-artifact@v4
+        with:
+          name: java-coverage-report
+          path: ${{ github.workspace }}/docs/coverage/java/target/site/jacoco-aggregate/

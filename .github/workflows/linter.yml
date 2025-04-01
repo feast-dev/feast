@@ -34,3 +34,9 @@ jobs:
           go-version: 1.22.5
       - name: Lint go
         run: make lint-go
+  lint-java:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lint java
+        run: make lint-java

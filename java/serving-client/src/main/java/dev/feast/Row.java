@@ -62,37 +62,7 @@ public class Row {
   }
 
   public Row set(String fieldName, Object value, FieldStatus status) {
-    String valueType = value.getClass().getCanonicalName();
-    switch (valueType) {
-      case "java.lang.Integer":
-        fields.put(fieldName, Value.newBuilder().setInt32Val((int) value).build());
-        break;
-      case "java.lang.Long":
-        fields.put(fieldName, Value.newBuilder().setInt64Val((long) value).build());
-        break;
-      case "java.lang.Float":
-        fields.put(fieldName, Value.newBuilder().setFloatVal((float) value).build());
-        break;
-      case "java.lang.Double":
-        fields.put(fieldName, Value.newBuilder().setDoubleVal((double) value).build());
-        break;
-      case "java.lang.String":
-        fields.put(fieldName, Value.newBuilder().setStringVal((String) value).build());
-        break;
-      case "byte[]":
-        fields.put(
-            fieldName, Value.newBuilder().setBytesVal(ByteString.copyFrom((byte[]) value)).build());
-        break;
-      case "feast.proto.types.ValueProto.Value":
-        fields.put(fieldName, (Value) value);
-        break;
-      default:
-        throw new IllegalArgumentException(
-            String.format(
-                "Type '%s' is unsupported in Feast. Please use one of these value types: Integer, Long, Float, Double, String, byte[].",
-                valueType));
-    }
-
+    fields.put(fieldName, RequestUtil.objectToValue(value));
     fieldStatuses.put(fieldName, status);
     return this;
   }

@@ -23,6 +23,8 @@ import static org.mockito.Mockito.mock;
 import com.google.protobuf.Timestamp;
 import feast.proto.serving.ServingAPIProto;
 import feast.proto.serving.ServingAPIProto.FieldStatus;
+import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRangeRequest;
+import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRangeResponse;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.proto.serving.ServingServiceGrpc.ServingServiceImplBase;
@@ -59,11 +61,23 @@ public class FeastClientTest {
                 public void getOnlineFeatures(
                     GetOnlineFeaturesRequest request,
                     StreamObserver<GetOnlineFeaturesResponse> responseObserver) {
-                  if (!request.equals(FeastClientTest.getFakeRequest())) {
+                  if (!request.equals(FeastClientTest.getFakeOnlineFeaturesRequest())) {
                     responseObserver.onError(Status.FAILED_PRECONDITION.asRuntimeException());
                   }
 
-                  responseObserver.onNext(FeastClientTest.getFakeResponse());
+                  responseObserver.onNext(FeastClientTest.getFakeOnlineFeaturesResponse());
+                  responseObserver.onCompleted();
+                }
+
+                @Override
+                public void getOnlineFeaturesRange(
+                    GetOnlineFeaturesRangeRequest request,
+                    StreamObserver<GetOnlineFeaturesRangeResponse> responseObserver) {
+                  if (!request.equals(FeastClientTest.getFakeOnlineFeaturesRangeRequest())) {
+                    responseObserver.onError(Status.FAILED_PRECONDITION.asRuntimeException());
+                  }
+
+                  responseObserver.onNext(FeastClientTest.getFakeOnlineFeaturesRangeResponse());
                   responseObserver.onCompleted();
                 }
               }));
@@ -93,6 +107,11 @@ public class FeastClientTest {
   @Test
   public void shouldGetOnlineFeatures() {
     shouldGetOnlineFeaturesWithClient(this.client);
+  }
+
+  @Test
+  public void shouldGetOnlineFeaturesRange() {
+    shouldGetOnlineFeaturesRangeWithClient(this.client);
   }
 
   private void shouldGetOnlineFeaturesWithClient(FeastClient client) {
@@ -125,7 +144,44 @@ public class FeastClientTest {
         });
   }
 
-  private static GetOnlineFeaturesRequest getFakeRequest() {
+  private void shouldGetOnlineFeaturesRangeWithClient(FeastClient client) {
+    List<RangeRow> rows =
+        client.getOnlineFeaturesRange(
+            Arrays.asList("driver:name", "driver:rating", "driver:null_value"),
+            Arrays.asList(Row.create().set("driver_id", 1)),
+            Arrays.asList(new SortKeyFilterModel("sort_key", 2.5f, 5.0f, true, false)),
+            10,
+            false,
+            "driver_project");
+
+    assertEquals(
+        rows.get(0).getEntity(),
+        new HashMap<String, Value>() {
+          {
+            put("driver_id", intValue(1));
+          }
+        });
+    assertEquals(
+        rows.get(0).getFields(),
+        new HashMap<String, List<Value>>() {
+          {
+            put("driver:name", Arrays.asList(strValue("david")));
+            put("driver:rating", Arrays.asList(intValue(3)));
+            put("driver:null_value", Arrays.asList(Value.newBuilder().build()));
+          }
+        });
+    assertEquals(
+        rows.get(0).getStatuses(),
+        new HashMap<String, List<FieldStatus>>() {
+          {
+            put("driver:name", Arrays.asList(FieldStatus.PRESENT));
+            put("driver:rating", Arrays.asList(FieldStatus.PRESENT));
+            put("driver:null_value", Arrays.asList(FieldStatus.NULL_VALUE));
+          }
+        });
+  }
+
+  private static GetOnlineFeaturesRequest getFakeOnlineFeaturesRequest() {
     // setup mock serving service stub
     return GetOnlineFeaturesRequest.newBuilder()
         .setFeatures(
@@ -138,7 +194,7 @@ public class FeastClientTest {
         .build();
   }
 
-  private static GetOnlineFeaturesResponse getFakeResponse() {
+  private static GetOnlineFeaturesResponse getFakeOnlineFeaturesResponse() {
     return GetOnlineFeaturesResponse.newBuilder()
         .addResults(
             GetOnlineFeaturesResponse.FeatureVector.newBuilder()
@@ -169,11 +225,75 @@ public class FeastClientTest {
         .build();
   }
 
+  private static GetOnlineFeaturesRangeRequest getFakeOnlineFeaturesRangeRequest() {
+    return GetOnlineFeaturesRangeRequest.newBuilder()
+        .setFeatures(
+            ServingAPIProto.FeatureList.newBuilder()
+                .addVal("driver:name")
+                .addVal("driver:rating")
+                .addVal("driver:null_value")
+                .build())
+        .putEntities("driver_id", ValueProto.RepeatedValue.newBuilder().addVal(intValue(1)).build())
+        .addSortKeyFilters(
+            ServingAPIProto.SortKeyFilter.newBuilder()
+                .setSortKeyName("sort_key")
+                .setRangeStart(Value.newBuilder().setFloatVal(2.5f).build())
+                .setRangeEnd(Value.newBuilder().setFloatVal(5.0f).build())
+                .setStartInclusive(true)
+                .setEndInclusive(false))
+        .setLimit(10)
+        .setReverseSortOrder(false)
+        .build();
+  }
+
+  private static GetOnlineFeaturesRangeResponse getFakeOnlineFeaturesRangeResponse() {
+    return GetOnlineFeaturesRangeResponse.newBuilder()
+        .addResults(
+            GetOnlineFeaturesRangeResponse.RangeFeatureVector.newBuilder()
+                .addValues(repeatedValue(strValue("david")))
+                .addStatuses(repeatedStatus(FieldStatus.PRESENT))
+                .addEventTimestamps(repeatedValue(timestampValue(0)))
+                .build())
+        .addResults(
+            GetOnlineFeaturesRangeResponse.RangeFeatureVector.newBuilder()
+                .addValues(repeatedValue(intValue(3)))
+                .addStatuses(repeatedStatus(FieldStatus.PRESENT))
+                .addEventTimestamps(repeatedValue(timestampValue(0)))
+                .build())
+        .addResults(
+            GetOnlineFeaturesRangeResponse.RangeFeatureVector.newBuilder()
+                .addValues(repeatedValue(Value.newBuilder().build()))
+                .addStatuses(repeatedStatus(FieldStatus.NULL_VALUE))
+                .addEventTimestamps(repeatedValue(timestampValue(0)))
+                .build())
+        .setMetadata(
+            ServingAPIProto.GetOnlineFeaturesResponseMetadata.newBuilder()
+                .setFeatureNames(
+                    ServingAPIProto.FeatureList.newBuilder()
+                        .addVal("driver:name")
+                        .addVal("driver:rating")
+                        .addVal("driver:null_value"))
+                .build())
+        .build();
+  }
+
   private static Value strValue(String val) {
     return Value.newBuilder().setStringVal(val).build();
   }
 
   private static Value intValue(int val) {
     return Value.newBuilder().setInt32Val(val).build();
+  }
+
+  private static Value timestampValue(long val) {
+    return Value.newBuilder().setUnixTimestampVal(val).build();
+  }
+
+  private static ValueProto.RepeatedValue repeatedValue(Value val) {
+    return ValueProto.RepeatedValue.newBuilder().addVal(val).build();
+  }
+
+  private static ServingAPIProto.RepeatedFieldStatus repeatedStatus(FieldStatus val) {
+    return ServingAPIProto.RepeatedFieldStatus.newBuilder().addStatus(val).build();
   }
 }

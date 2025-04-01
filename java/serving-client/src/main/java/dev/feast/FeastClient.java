@@ -20,6 +20,8 @@ import com.google.common.collect.Lists;
 import feast.proto.serving.ServingAPIProto;
 import feast.proto.serving.ServingAPIProto.GetFeastServingInfoRequest;
 import feast.proto.serving.ServingAPIProto.GetFeastServingInfoResponse;
+import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRangeRequest;
+import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRangeResponse;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.proto.serving.ServingServiceGrpc;
@@ -205,6 +207,10 @@ public class FeastClient implements AutoCloseable {
 
     List<Row> results = Lists.newArrayList();
     if (response.getResultsCount() == 0) {
+      logger.info(
+          "No results returned from Feast for getOnlineFeatures with entities: {} and features: {}",
+          entities,
+          featureRefs);
       return results;
     }
 
@@ -271,6 +277,86 @@ public class FeastClient implements AutoCloseable {
    */
   public List<Row> getOnlineFeatures(List<String> featureRefs, List<Row> rows, String project) {
     return getOnlineFeatures(featureRefs, rows);
+  }
+
+  /**
+   * Get online features range from Feast, without indicating project, will use `default`.
+   *
+   * <p>See {@link #getOnlineFeaturesRange(List, List, List, int, boolean, String)}
+   *
+   * @param featureRefs list of string feature references to retrieve in the following format
+   *     featureTable:feature, where 'featureTable' and 'feature' refer to the FeatureTable and
+   *     Feature names respectively. Only the Feature name is required.
+   * @param entities list of {@link RangeRow} to select the entities to retrieve the features for.
+   * @return list of {@link RangeRow} containing retrieved data fields.
+   */
+  public List<RangeRow> getOnlineFeaturesRange(
+      List<String> featureRefs,
+      List<Row> entities,
+      List<SortKeyFilterModel> sortKeyFilters,
+      int limit,
+      boolean reverseSortOrder) {
+    GetOnlineFeaturesRangeRequest.Builder requestBuilder =
+        GetOnlineFeaturesRangeRequest.newBuilder();
+
+    requestBuilder.setFeatures(
+        ServingAPIProto.FeatureList.newBuilder().addAllVal(featureRefs).build());
+
+    requestBuilder.putAllEntities(getEntityValuesMap(entities));
+
+    requestBuilder.addAllSortKeyFilters(
+        sortKeyFilters.stream().map(SortKeyFilterModel::toProto).collect(Collectors.toList()));
+
+    requestBuilder.setLimit(limit);
+
+    requestBuilder.setReverseSortOrder(reverseSortOrder);
+
+    ServingServiceGrpc.ServingServiceBlockingStub timedStub =
+        requestTimeout != 0 ? stub.withDeadlineAfter(requestTimeout, TimeUnit.MILLISECONDS) : stub;
+
+    GetOnlineFeaturesRangeResponse response =
+        timedStub.getOnlineFeaturesRange(requestBuilder.build());
+
+    List<RangeRow> results = Lists.newArrayList();
+    if (response.getResultsCount() == 0) {
+      logger.info(
+          "No results returned from Feast for getOnlineFeaturesRange with entities: {} and features: {}",
+          entities,
+          featureRefs);
+      return results;
+    }
+
+    for (int rowIdx = 0; rowIdx < response.getResults(0).getValuesCount(); rowIdx++) {
+      RangeRow row = RangeRow.create();
+      for (int featureIdx = 0; featureIdx < response.getResultsCount(); featureIdx++) {
+        row.setWithValues(
+            response.getMetadata().getFeatureNames().getVal(featureIdx),
+            response.getResults(featureIdx).getValues(rowIdx).getValList(),
+            response.getResults(featureIdx).getStatuses(rowIdx).getStatusList());
+
+        row.setEntityTimestamp(
+            response.getResults(featureIdx).getEventTimestamps(rowIdx).getValList().stream()
+                .map(v -> Instant.ofEpochSecond(v.getUnixTimestampVal()))
+                .collect(Collectors.toList()));
+      }
+      for (Map.Entry<String, ValueProto.Value> entry :
+          entities.get(rowIdx).getFields().entrySet()) {
+        row.setEntity(entry.getKey(), entry.getValue());
+      }
+
+      results.add(row);
+    }
+    return results;
+  }
+
+  public List<RangeRow> getOnlineFeaturesRange(
+      List<String> featureRefs,
+      List<Row> rows,
+      List<SortKeyFilterModel> sortKeyFilters,
+      int limit,
+      boolean reverseSortOrder,
+      String project) {
+    return getOnlineFeaturesRange(featureRefs, rows, sortKeyFilters, limit, reverseSortOrder);
   }
 
   protected FeastClient(ManagedChannel channel, Optional<CallCredentials> credentials) {
