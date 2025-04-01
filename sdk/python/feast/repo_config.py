@@ -60,7 +60,7 @@ LEGACY_ONLINE_STORE_CLASS_FOR_TYPE = {
     "feast.infra.online_stores.contrib.ikv_online_store.ikv.IKVOnlineStore": "feast.infra.online_stores.ikv_online_store.ikv.IKVOnlineStore",
     "feast.infra.online_stores.contrib.elasticsearch.ElasticSearchOnlineStore": "feast.infra.online_stores.elasticsearch_online_store.ElasticSearchOnlineStore",
     "feast.infra.online_stores.contrib.singlestore_online_store.singlestore.SingleStoreOnlineStore": "feast.infra.online_stores.singlestore_online_store.singlestore.SingleStoreOnlineStore",
-    "feast.infra.online_stores.contrib.qdrant.QdrantOnlineStore": "feast.infra.online_stores.cqdrant.QdrantOnlineStore",
+    "feast.infra.online_stores.contrib.qdrant.QdrantOnlineStore": "feast.infra.online_stores.qdrant_online_store.qdrant.QdrantOnlineStore",
     "feast.infra.online_stores.contrib.milvus.MilvusOnlineStore": "feast.infra.online_stores.milvus.MilvusOnlineStore",
 }
 
@@ -80,7 +80,7 @@ ONLINE_STORE_CLASS_FOR_TYPE = {
     "elasticsearch": "feast.infra.online_stores.elasticsearch_online_store.ElasticSearchOnlineStore",
     "remote": "feast.infra.online_stores.remote.RemoteOnlineStore",
     "singlestore": "feast.infra.online_stores.singlestore_online_store.singlestore.SingleStoreOnlineStore",
-    "qdrant": "feast.infra.online_stores.cqdrant.QdrantOnlineStore",
+    "qdrant": "feast.infra.online_stores.qdrant_online_store.qdrant.QdrantOnlineStore",
     "couchbase.online": "feast.infra.online_stores.couchbase_online_store.couchbase.CouchbaseOnlineStore",
     "milvus": "feast.infra.online_stores.milvus_online_store.milvus.MilvusOnlineStore",
     **LEGACY_ONLINE_STORE_CLASS_FOR_TYPE,
