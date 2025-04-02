@@ -2,19 +2,13 @@ project: rag
 provider: local
 registry: data/registry.db
 online_store:
-  type: sqlite
+  type: milvus
   path: data/online_store.db
-  vector_enabled: true
-  vector_len: 384
-  # type: milvus
-  # path: data/online_store.db
-  # embedding_dim: 384
-  # index_type: "IVF_FLAT"
-
+  embedding_dim: 384
+  index_type: "FLAT"
 
 offline_store:
   type: file
 entity_key_serialization_version: 3
-# By default, no_auth for authentication and authorization, other possible values kubernetes and oidc. Refer the documentation for more details.
 auth:
     type: no_auth
