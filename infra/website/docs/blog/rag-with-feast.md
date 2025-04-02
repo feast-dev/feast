@@ -233,5 +233,7 @@ transforming unstructured data (e.g., PDFs), (4) an enhanced GenAI focused featu
 more easily ship RAG to production, (4) an out of the box chat UI meant for internal development and fast iteration, 
 and (5) investing in [Milvus]([url](https://milvus.io/intro)) as a fully supported online store.
 
+## Join the Conversation
 
-## 
+Are you interested in learning more about how Feast can help you build and deploy RAG applications to production?
+Reach out to us on Slack or [GitHub](https://github.com/feast-dev/feast), we'd love to hear from you!
