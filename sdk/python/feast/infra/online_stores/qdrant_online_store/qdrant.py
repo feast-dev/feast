@@ -1,17 +1,16 @@
 from __future__ import absolute_import
 
 import base64
-import json
 import logging
 import uuid
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, cast
 
 from qdrant_client import QdrantClient, models
 
 from feast import Entity, FeatureView, RepoConfig
 from feast.infra.key_encoding_utils import (
-    get_list_val_str,
+    deserialize_entity_key,
     serialize_entity_key,
 )
 from feast.infra.online_stores.online_store import OnlineStore
@@ -60,6 +59,10 @@ class QdrantOnlineStoreConfig(FeastConfigBaseModel, VectorStoreConfig):
     # If `true`, each request will explicitly wait for the confirmation of completion. Might be slower.
     # If `false`, each reequest will return immediately after receiving an acknowledgement.
     upload_wait: bool = True
+    # Enable text indexing for faster text searches
+    enable_text_index: bool = True
+    # Search parameters for HNSW
+    hnsw_ef: int = 128
 
 
 class QdrantOnlineStore(OnlineStore):
@@ -107,6 +110,7 @@ class QdrantOnlineStore(OnlineStore):
                 entity_key,
                 entity_key_serialization_version=config.entity_key_serialization_version,
             )
+            entity_key_str = base64.b64encode(entity_key_bin).decode("utf-8")
 
             timestamp = to_naive_utc(timestamp)
             if created_ts is not None:
@@ -115,20 +119,40 @@ class QdrantOnlineStore(OnlineStore):
                 encoded_value = base64.b64encode(value.SerializeToString()).decode(
                     "utf-8"
                 )
-                vector_val = json.loads(get_list_val_str(value))
-                points.append(
-                    models.PointStruct(
-                        id=uuid.uuid4().hex,
-                        payload={
-                            "entity_key": entity_key_bin,
-                            "feature_name": feature_name,
-                            "feature_value": encoded_value,
-                            "timestamp": timestamp,
-                            "created_ts": created_ts,
-                        },
-                        vector={config.online_store.vector_name: vector_val},
+
+                payload = {
+                    "entity_key": entity_key_str,
+                    "feature_name": feature_name,
+                    "feature_value": encoded_value,
+                    "timestamp": timestamp,
+                    "created_ts": created_ts,
+                }
+
+                if config.online_store.enable_text_index and value.HasField(
+                    "string_val"
+                ):
+                    payload["text_value"] = value.string_val
+
+                if feature_name == config.online_store.vector_name:
+                    vector_val = list(value.float_list_val.val)
+                    points.append(
+                        models.PointStruct(
+                            id=uuid.uuid4().hex,
+                            payload=payload,
+                            vector={config.online_store.vector_name: vector_val},
+                        )
                     )
-                )
+                else:
+                    points.append(
+                        models.PointStruct(
+                            id=uuid.uuid4().hex,
+                            payload=payload,
+                            vector={
+                                config.online_store.vector_name: [0.0]
+                                * config.online_store.vector_len
+                            },
+                        )
+                    )
 
         self._get_client(config).upload_points(
             collection_name=table.name,
@@ -216,6 +240,16 @@ class QdrantOnlineStore(OnlineStore):
             field_schema=models.PayloadSchemaType.KEYWORD,
         )
 
+        if config.online_store.enable_text_index:
+            try:
+                client.create_payload_index(
+                    collection_name=table.name,
+                    field_name="text_value",
+                    field_schema=models.PayloadSchemaType.TEXT,
+                )
+            except Exception:
+                logging.warning("Failed to create text index")
+
     def update(
         self,
         config: RepoConfig,
@@ -240,8 +274,8 @@ class QdrantOnlineStore(OnlineStore):
         try:
             for table in tables:
                 self._get_client(config).delete_collection(collection_name=table.name)
-        except Exception as e:
-            logging.exception(f"Error deleting collection in project {project}: {e}")
+        except Exception:
+            logging.exception(f"Error deleting collection in project {project}")
             raise
 
     def retrieve_online_documents(
@@ -309,3 +343,243 @@ class QdrantOnlineStore(OnlineStore):
                 )
             )
         return result
+
+    def retrieve_online_documents_v2(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        requested_features: List[str],
+        embedding: Optional[List[float]],
+        top_k: int,
+        distance_metric: Optional[str] = None,
+        query_string: Optional[str] = None,
+    ) -> List[
+        Tuple[
+            Optional[datetime],
+            Optional[EntityKeyProto],
+            Optional[Dict[str, ValueProto]],
+        ]
+    ]:
+        """
+        Retrieves online feature values for the specified embeddings or query string.
+
+        Args:
+            config: The config for the current feature store.
+            table: The feature view whose feature values should be read.
+            requested_features: The list of features to retrieve.
+            embedding: The embeddings to use for retrieval (optional).
+            top_k: The number of documents to retrieve.
+            distance_metric: Distance metric to use for retrieval (optional).
+            query_string: The query string to search for using keyword search (optional).
+
+        Returns:
+            List of tuples containing the event timestamp, entity key, and a dictionary of
+            feature name to feature values.
+        """
+        if embedding is None and query_string is None:
+            raise ValueError("Either embedding or query_string must be provided")
+
+        if distance_metric and distance_metric.lower() not in DISTANCE_MAPPING:
+            raise ValueError(f"Unsupported distance metric: {distance_metric}")
+
+        client = self._get_client(config)
+        result = []
+
+        # Vector search
+        if embedding is not None:
+            search_params = {}
+            if distance_metric:
+                search_params["search_params"] = models.SearchParams(
+                    hnsw_ef=config.online_store.hnsw_ef, exact=False
+                )
+
+            filter_conditions = None
+            if query_string is not None and config.online_store.enable_text_index:
+                # Use text index for efficient search if available
+                filter_conditions = models.Filter(
+                    must=[
+                        models.FieldCondition(
+                            key="text_value",
+                            match=models.MatchText(text=query_string),
+                        ),
+                        models.Filter(
+                            should=list([
+                                models.FieldCondition(
+                                    key="feature_name",
+                                    match=models.MatchValue(value=feat_name),
+                                )
+                                for feat_name in requested_features
+                            ]),
+                            must_not=None,
+                        ),
+                    ]
+                )
+            elif query_string is not None:
+                # Fallback to filtering by feature name only
+                text_conditions = []
+                for feature_name in requested_features:
+                    text_conditions.append(
+                        models.FieldCondition(
+                            key="feature_name",
+                            match=models.MatchValue(value=feature_name),
+                        )
+                    )
+
+                filter_conditions = models.Filter(
+                    must=[
+                        models.Filter(
+                            should=list(text_conditions),
+                            must_not=None,
+                        )
+                    ]
+                )
+
+            points = client.query_points(
+                collection_name=table.name,
+                query=embedding,
+                query_filter=filter_conditions,
+                limit=top_k,
+                with_payload=True,
+                with_vectors=False,
+                search_params=search_params,
+                using=config.online_store.vector_name or None,
+            ).points
+        elif query_string is not None:
+            if config.online_store.enable_text_index:
+                filter_conditions = models.Filter(
+                    must=[
+                        models.FieldCondition(
+                            key="text_value",
+                            match=models.MatchText(text=query_string),
+                        ),
+                        models.Filter(
+                            should=list([
+                                models.FieldCondition(
+                                    key="feature_name",
+                                    match=models.MatchValue(value=feat_name),
+                                )
+                                for feat_name in requested_features
+                            ]),
+                            must_not=None,
+                        ),
+                    ]
+                )
+
+                points = client.query_points(
+                    collection_name=table.name,
+                    query=[0.0]
+                    * config.online_store.vector_len,  # Dummy vector for text-only search
+                    query_filter=filter_conditions,
+                    limit=top_k,
+                    with_payload=True,
+                    with_vectors=False,
+                    using=config.online_store.vector_name or None,
+                ).points
+            else:
+                # Fallback to scrolling if text index is not enabled
+                points = []
+                next_offset = None
+                stop_scrolling = False
+
+                # Create a filter for specific feature names to reduce data to scan
+                feature_filter = models.Filter(
+                    should=list([
+                        models.FieldCondition(
+                            key="feature_name",
+                            match=models.MatchValue(value=feat_name),
+                        )
+                        for feat_name in requested_features
+                    ])
+                )
+
+                while not stop_scrolling:
+                    records, next_offset = client.scroll(
+                        collection_name=table.name,
+                        limit=SCROLL_SIZE,
+                        offset=next_offset,
+                        with_payload=True,
+                        with_vectors=False,
+                        scroll_filter=feature_filter,
+                    )
+                    stop_scrolling = next_offset is None
+
+                    # Filter records that contain the query string
+                    for record in records:
+                        if record.payload and "feature_name" in record.payload:
+                            # Try to decode the feature value and check if it contains the query string
+                            try:
+                                feature_value = record.payload.get("feature_value", "")
+                                if feature_value is not None:
+                                    decoded_value = base64.b64decode(feature_value).decode(
+                                        "utf-8", errors="ignore"
+                                    )
+                                    if query_string.lower() in decoded_value.lower():
+                                        # Cast to ScoredPoint type for compatibility
+                                        points.append(record)  # type: ignore
+
+                            except Exception:
+                                continue
+
+                    # Limit to top_k results
+                    if len(points) >= top_k:
+                        points = points[:top_k]
+                        break
+
+        # Process and format results
+        for point in points:
+            payload = point.payload or {}
+            
+            # Handle entity_key
+            raw_entity_key = payload.get("entity_key")
+            if not raw_entity_key:
+                continue
+            entity_key_str = cast(str, raw_entity_key)
+                
+            # Handle feature name
+            feature_name = payload.get("feature_name", "")
+            feature_value_encoded = payload.get("feature_value")
+
+            if not all([entity_key_str, feature_name, feature_value_encoded]):
+                continue
+
+            # Handle timestamp
+            timestamp_val = payload.get("timestamp")
+            if timestamp_val is None:
+                continue
+                
+            # Convert to string explicitly with type checking
+            if isinstance(timestamp_val, (str, int, float, datetime)):
+                timestamp_str = str(timestamp_val)
+                if not timestamp_str:
+                    continue
+                    
+                try:
+                    timestamp = datetime.strptime(timestamp_str, "%Y-%m-%dT%H:%M:%S.%f")
+                except ValueError:
+                    continue
+            else:
+                continue
+
+            entity_key_proto = EntityKeyProto()
+            if isinstance(entity_key_str, str):  
+                entity_key_bin = base64.b64decode(entity_key_str)
+                entity_key_proto = deserialize_entity_key(
+                    entity_key_bin,
+                    entity_key_serialization_version=config.entity_key_serialization_version,
+                )
+
+            feature_value_proto = ValueProto()
+            if isinstance(feature_value_encoded, str):
+                feature_value_proto.ParseFromString(base64.b64decode(feature_value_encoded))
+
+            # Create a dictionary with the feature values
+            feature_values = {feature_name: feature_value_proto}
+
+            result.append((timestamp, entity_key_proto, feature_values))
+
+        return_result: List[
+            Tuple[Optional[datetime], Optional[EntityKeyProto], Optional[Dict[str, ValueProto]]]
+        ] = []
+        for entry in result:
+            return_result.append(entry)
+        return return_result
