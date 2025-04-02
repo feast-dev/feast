@@ -1314,7 +1314,7 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
 
         EMBED_MODEL_ID = "sentence-transformers/all-MiniLM-L6-v2"
         VECTOR_LEN = 10
-        MAX_TOKENS = 64  # Small token limit for demonstration
+        MAX_TOKENS = 5  # Small token limit for demonstration
         tokenizer = AutoTokenizer.from_pretrained(EMBED_MODEL_ID)
         chunker = HybridChunker(
             tokenizer=tokenizer, max_tokens=MAX_TOKENS, merge_peers=True
@@ -1421,37 +1421,49 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
                 sample_input
             )
 
-            self.store.apply([docling_transform_docs])
+            sample_inputs = {}
+            for key in sample_input.keys():
+                sample_inputs[key] = [sample_input[key], sample_input_2[key]]
 
             assert docling_output == {
-                "document_id": ["doc_1"],
-                "chunk_id": ["chunk-0"],
-                "vector": [[0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]],
+                "document_id": ["doc_1", "doc_1", "doc_1"],
+                "chunk_id": ["chunk-0", "chunk-1", "chunk-2"],
+                "vector": [
+                    [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],
+                    [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],
+                    [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],
+                ],
                 "chunk_text": [
-                    "Let's have fun with Natural Language Processing on PDFs."
+                    "Let's have fun",
+                    "with Natural Language Processing on",
+                    "PDFs.",
                 ],
             }
 
-            input_df = pd.DataFrame([sample_input])
-            self.store.write_to_online_store("docling_transform_docs", input_df)
+            self.store.apply([docling_transform_docs])
+
+            multiple_inputs_df = pd.DataFrame(sample_inputs)
+            self.store.write_to_online_store(
+                "docling_transform_docs", multiple_inputs_df
+            )
 
             conn = self.store._provider._online_store._conn
             document_table = self.store._provider._online_store._conn.execute(
-                "SELECT name FROM sqlite_master WHERE type='table' and name like '%docling%';"
+                "SELECT name FROM sqlite_master WHERE type='table' and name like '%docling_transform%';"
             ).fetchall()[0][0]
             written_data = pd.read_sql_query(f"select * from {document_table}", conn)
-            assert (
+            assert sorted(
                 written_data[written_data["feature_name"] == "document_id"][
                     "vector_value"
-                ].values[0]
-                == "doc_1"
-            )
-            assert (
-                written_data[written_data["feature_name"] == "chunk_id"][
-                    "vector_value"
-                ].values[0]
-                == "chunk-0"
-            )
+                ]
+                .unique()
+                .tolist()
+            ) == ["doc_1", "doc_2"]
+            assert sorted(
+                written_data[written_data["feature_name"] == "chunk_id"]["vector_value"]
+                .unique()
+                .tolist()
+            ) == ["chunk-0", "chunk-1", "chunk-2"]
 
             online_features = self.store.get_online_features(
                 features=[
@@ -1461,6 +1473,7 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
                 ],
                 entity_rows=[{"document_id": "doc_1", "chunk_id": "chunk-0"}],
             ).to_dict()
+
             online_features == {
                 "document_id": ["doc_1"],
                 "chunk_id": ["chunk-0"],
@@ -1468,7 +1481,3 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
                     "Let's have fun with Natural Language Processing on PDFs."
                 ],
             }
-
-            multiple_inputs_df = pd.DataFrame([sample_input, sample_input_2])
-            # note this test needs to be updated with writing to the online store to verify this behavior works
-            assert multiple_inputs_df is not None

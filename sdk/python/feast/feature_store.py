@@ -1567,14 +1567,20 @@ class FeatureStore:
                     else df.to_dict(orient="list")
                 )
                 if feature_view.singleton:
-                    transformed_data = df.apply(
-                        feature_view.feature_transformation.udf, axis=1
-                    )
-                    transformed_data = pd.DataFrame(
-                        transformed_data.to_list()
-                    ).applymap(
-                        lambda x: x[0] if isinstance(x, list) and len(x) == 1 else x
-                    )
+                    transformed_rows = []
+
+                    for i, row in df.iterrows():
+                        output = feature_view.feature_transformation.udf(row.to_dict())
+                        if i == 0:
+                            transformed_rows = output
+                        else:
+                            for k in output:
+                                if isinstance(output[k], list):
+                                    transformed_rows[k].extend(output[k])
+                                else:
+                                    transformed_rows[k].append(output[k])
+
+                    transformed_data = pd.DataFrame(transformed_rows)
                 else:
                     transformed_data = feature_view.feature_transformation.udf(
                         input_dict
