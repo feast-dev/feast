@@ -620,11 +620,13 @@ build-helm-docs:
 	cd ${ROOT_DIR}/infra/charts/feast-feature-server; helm-docs
 
 # Web UI
+# Note: these require node and yarn to be installed
 
-# Note: requires node and yarn to be installed
 build-ui:
 	cd $(ROOT_DIR)/sdk/python/feast/ui && yarn upgrade @feast-dev/feast-ui --latest && yarn install && npm run build --omit=dev
 
+format-ui:
+	cd $(ROOT_DIR)/ui && NPM_TOKEN= yarn install && NPM_TOKEN= yarn format
 
 
 # Go SDK & embedded

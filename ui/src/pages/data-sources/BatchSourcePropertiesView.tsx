@@ -64,20 +64,22 @@ const BatchSourcePropertiesView = (props: BatchSourcePropertiesViewProps) => {
             )}
             {batchSource.bigqueryOptions && (
               <React.Fragment>
-                <EuiDescriptionListTitle>Source {batchSource.bigqueryOptions.table ? "Table" : "Query"}</EuiDescriptionListTitle>
+                <EuiDescriptionListTitle>
+                  Source {batchSource.bigqueryOptions.table ? "Table" : "Query"}
+                </EuiDescriptionListTitle>
                 {batchSource.bigqueryOptions.table ? (
-                    <EuiDescriptionListDescription>
-                        {batchSource.bigqueryOptions.table}
-                    </EuiDescriptionListDescription>
-                ) : <CopyBlock
-                        text={batchSource.bigqueryOptions.query ?? ""}
-                        language="sql"
-                        showLineNumbers={false}
-                        theme={atomOneDark}
-                        wrapLongLines
-                    />
-                }
-
+                  <EuiDescriptionListDescription>
+                    {batchSource.bigqueryOptions.table}
+                  </EuiDescriptionListDescription>
+                ) : (
+                  <CopyBlock
+                    text={batchSource.bigqueryOptions.query ?? ""}
+                    language="sql"
+                    showLineNumbers={false}
+                    theme={atomOneDark}
+                    wrapLongLines
+                  />
+                )}
               </React.Fragment>
             )}
             {batchSource.meta?.latestEventTimestamp && (
@@ -85,7 +87,7 @@ const BatchSourcePropertiesView = (props: BatchSourcePropertiesViewProps) => {
                 <EuiDescriptionListTitle>Latest Event</EuiDescriptionListTitle>
                 <EuiDescriptionListDescription>
                   {toDate(
-                    batchSource.meta.latestEventTimestamp
+                    batchSource.meta.latestEventTimestamp,
                   ).toLocaleDateString("en-CA")}
                 </EuiDescriptionListDescription>
               </React.Fragment>
@@ -97,7 +99,7 @@ const BatchSourcePropertiesView = (props: BatchSourcePropertiesViewProps) => {
                 </EuiDescriptionListTitle>
                 <EuiDescriptionListDescription>
                   {toDate(
-                    batchSource.meta?.earliestEventTimestamp
+                    batchSource.meta?.earliestEventTimestamp,
                   ).toLocaleDateString("en-CA")}
                 </EuiDescriptionListDescription>
               </React.Fragment>

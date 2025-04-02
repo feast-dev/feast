@@ -294,7 +294,6 @@ class PassthroughProvider(Provider):
         self,
         config: RepoConfig,
         table: FeatureView,
-        requested_feature: Optional[str],
         requested_features: Optional[List[str]],
         query: List[float],
         top_k: int,
@@ -305,7 +304,6 @@ class PassthroughProvider(Provider):
             result = self.online_store.retrieve_online_documents(
                 config,
                 table,
-                requested_feature,
                 requested_features,
                 query,
                 top_k,

@@ -441,3 +441,132 @@ var _ = Describe("FeatureStore Controller - Feast service TLS", func() {
 		})
 	})
 })
+
+var _ = Describe("Test mountCustomCABundle functionality", func() {
+	const resourceName = "test-cabundle"
+	const feastProject = "test_cabundle"
+	const configMapName = "odh-trusted-ca-bundle"
+	const caBundleAnnotation = "config.openshift.io/inject-trusted-cabundle"
+	const tlsPathCustomCABundle = "/etc/pki/tls/custom-certs/ca-bundle.crt"
+
+	ctx := context.Background()
+	nsName := types.NamespacedName{
+		Name:      resourceName,
+		Namespace: "default",
+	}
+
+	fs := &feastdevv1alpha1.FeatureStore{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      resourceName,
+			Namespace: nsName.Namespace,
+		},
+		Spec: feastdevv1alpha1.FeatureStoreSpec{
+			FeastProject: feastProject,
+			Services: &feastdevv1alpha1.FeatureStoreServices{
+				Registry:     &feastdevv1alpha1.Registry{Local: &feastdevv1alpha1.LocalRegistryConfig{Server: &feastdevv1alpha1.ServerConfigs{}}},
+				OnlineStore:  &feastdevv1alpha1.OnlineStore{Server: &feastdevv1alpha1.ServerConfigs{}},
+				OfflineStore: &feastdevv1alpha1.OfflineStore{Server: &feastdevv1alpha1.ServerConfigs{}},
+				UI:           &feastdevv1alpha1.ServerConfigs{},
+			},
+		},
+	}
+
+	AfterEach(func() {
+		By("cleaning up FeatureStore and ConfigMap")
+		_ = k8sClient.Delete(ctx, &feastdevv1alpha1.FeatureStore{ObjectMeta: metav1.ObjectMeta{Name: resourceName, Namespace: nsName.Namespace}})
+		_ = k8sClient.Delete(ctx, &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: configMapName, Namespace: nsName.Namespace}})
+	})
+
+	It("should mount CA bundle volume and mounts in containers when ConfigMap exists", func() {
+		cm := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      configMapName,
+				Namespace: nsName.Namespace,
+				Labels: map[string]string{
+					caBundleAnnotation: "true",
+				},
+			},
+		}
+		Expect(k8sClient.Create(ctx, cm.DeepCopy())).To(Succeed())
+		Expect(k8sClient.Create(ctx, fs.DeepCopy())).To(Succeed())
+
+		controllerReconciler := &FeatureStoreReconciler{
+			Client: k8sClient,
+			Scheme: k8sClient.Scheme(),
+		}
+
+		_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+			NamespacedName: nsName,
+		})
+		Expect(err).NotTo(HaveOccurred())
+
+		resource := &feastdevv1alpha1.FeatureStore{}
+		err = k8sClient.Get(ctx, nsName, resource)
+		Expect(err).NotTo(HaveOccurred())
+
+		feast := services.FeastServices{
+			Handler: handler.FeastHandler{
+				Client:       controllerReconciler.Client,
+				Context:      ctx,
+				Scheme:       controllerReconciler.Scheme,
+				FeatureStore: resource,
+			},
+		}
+
+		deploy := &appsv1.Deployment{}
+		objMeta := feast.GetObjectMeta()
+		err = k8sClient.Get(ctx, types.NamespacedName{
+			Name:      objMeta.Name,
+			Namespace: objMeta.Namespace,
+		}, deploy)
+		Expect(err).NotTo(HaveOccurred())
+
+		Expect(deploy.Spec.Template.Spec.Volumes).To(ContainElement(HaveField("Name", configMapName)))
+		for _, container := range deploy.Spec.Template.Spec.Containers {
+			Expect(container.VolumeMounts).To(ContainElement(SatisfyAll(
+				HaveField("Name", configMapName),
+				HaveField("MountPath", tlsPathCustomCABundle),
+			)))
+		}
+	})
+
+	It("should not mount CA bundle volume or container mounts when ConfigMap is absent", func() {
+		Expect(k8sClient.Create(ctx, fs.DeepCopy())).To(Succeed())
+
+		controllerReconciler := &FeatureStoreReconciler{
+			Client: k8sClient,
+			Scheme: k8sClient.Scheme(),
+		}
+
+		_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+			NamespacedName: nsName,
+		})
+		Expect(err).NotTo(HaveOccurred())
+
+		resource := &feastdevv1alpha1.FeatureStore{}
+		err = k8sClient.Get(ctx, nsName, resource)
+		Expect(err).NotTo(HaveOccurred())
+
+		feast := services.FeastServices{
+			Handler: handler.FeastHandler{
+				Client:       controllerReconciler.Client,
+				Context:      ctx,
+				Scheme:       controllerReconciler.Scheme,
+				FeatureStore: resource,
+			},
+		}
+
+		deploy := &appsv1.Deployment{}
+		objMeta := feast.GetObjectMeta()
+		err = k8sClient.Get(ctx, types.NamespacedName{
+			Name:      objMeta.Name,
+			Namespace: objMeta.Namespace,
+		}, deploy)
+		Expect(err).NotTo(HaveOccurred())
+
+		Expect(deploy.Spec.Template.Spec.Volumes).NotTo(ContainElement(HaveField("Name", configMapName)))
+		for _, container := range deploy.Spec.Template.Spec.Containers {
+			Expect(container.VolumeMounts).NotTo(ContainElement(HaveField("Name", configMapName)))
+		}
+	})
+})

@@ -23,7 +23,10 @@ const FeatureOverviewTab = () => {
 
   const eName = FeatureViewName === undefined ? "" : FeatureViewName;
   const fName = FeatureName === undefined ? "" : FeatureName;
-  const { isLoading, isSuccess, isError, data, featureData } = useLoadFeature(eName, fName);
+  const { isLoading, isSuccess, isError, data, featureData } = useLoadFeature(
+    eName,
+    fName,
+  );
   const isEmpty = data === undefined || featureData === undefined;
 
   return (
@@ -33,8 +36,16 @@ const FeatureOverviewTab = () => {
           <EuiLoadingSpinner size="m" /> Loading
         </React.Fragment>
       )}
-      {isEmpty && <p>No Feature with name {FeatureName} in FeatureView {FeatureViewName}</p>}
-      {isError && <p>Error loading Feature {FeatureName} in FeatureView {FeatureViewName}</p>}
+      {isEmpty && (
+        <p>
+          No Feature with name {FeatureName} in FeatureView {FeatureViewName}
+        </p>
+      )}
+      {isError && (
+        <p>
+          Error loading Feature {FeatureName} in FeatureView {FeatureViewName}
+        </p>
+      )}
       {isSuccess && data && (
         <React.Fragment>
           <EuiFlexGroup>
@@ -77,9 +88,7 @@ const FeatureOverviewTab = () => {
                 </EuiTitle>
                 <EuiHorizontalRule margin="xs" />
                 {featureData?.tags ? (
-                  <TagsDisplay
-                    tags={featureData.tags}
-                  />
+                  <TagsDisplay tags={featureData.tags} />
                 ) : (
                   <EuiText>No Tags specified on this field.</EuiText>
                 )}

@@ -144,6 +144,7 @@
   * [Python feature server](reference/feature-servers/python-feature-server.md)
   * [\[Alpha\] Go feature server](reference/feature-servers/go-feature-server.md)
   * [Offline Feature Server](reference/feature-servers/offline-feature-server.md)
+  * [Registry server](reference/feature-servers/registry-server.md)
 * [\[Beta\] Web UI](reference/alpha-web-ui.md)
 * [\[Beta\] On demand feature view](reference/beta-on-demand-feature-view.md)
 * [\[Alpha\] Vector Database](reference/alpha-vector-database.md)

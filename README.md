@@ -209,6 +209,8 @@ The list below contains the functionality that contributors are planning to deve
   * [x] [Python feature server](https://docs.feast.dev/reference/feature-servers/python-feature-server)
   * [x] [Java feature server (alpha)](https://github.com/feast-dev/feast/blob/master/infra/charts/feast/README.md)
   * [x] [Go feature server (alpha)](https://docs.feast.dev/reference/feature-servers/go-feature-server)
+  * [x] [Offline Feature Server (alpha)](https://docs.feast.dev/reference/feature-servers/offline-feature-server)
+  * [x] [Registry server (alpha)](https://github.com/feast-dev/feast/blob/master/docs/reference/feature-servers/registry-server.md)
 * **Data Quality Management (See [RFC](https://docs.google.com/document/d/110F72d4NTv80p35wDSONxhhPBqWRwbZXG4f9mNEMd98/edit))**
   * [x] Data profiling and validation (Great Expectations)
 * **Feature Discovery and Governance**
@@ -226,6 +228,7 @@ The list below contains the functionality that contributors are planning to deve
 Please refer to the official documentation at [Documentation](https://docs.feast.dev/)
  * [Quickstart](https://docs.feast.dev/getting-started/quickstart)
  * [Tutorials](https://docs.feast.dev/tutorials/tutorials-overview)
+ * [Examples](https://github.com/feast-dev/feast/tree/master/examples)
  * [Running Feast with Snowflake/GCP/AWS](https://docs.feast.dev/how-to-guides/feast-snowflake-gcp-aws)
  * [Change Log](https://github.com/feast-dev/feast/blob/master/CHANGELOG.md)
 

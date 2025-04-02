@@ -70,7 +70,7 @@ top_k = 5
 # the vector to use can be specified in the repo config.
 # Reference: https://qdrant.tech/documentation/concepts/vectors/#named-vectors
 feature_values = feature_store.retrieve_online_documents(
-    feature="my_feature",
+    features=["my_feature"],
     query=query_vector,
     top_k=top_k
 )

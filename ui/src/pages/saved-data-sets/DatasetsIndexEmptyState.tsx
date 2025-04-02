@@ -18,7 +18,7 @@ const DatasetsIndexEmptyState = () => {
           onClick={() => {
             window.open(
               "https://docs.feast.dev/getting-started/concepts/dataset#creating-saved-dataset-from-historical-retrieval",
-              "_blank"
+              "_blank",
             );
           }}
         >

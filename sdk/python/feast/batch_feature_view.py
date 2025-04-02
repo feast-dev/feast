@@ -1,6 +1,9 @@
+import functools
 import warnings
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+
+import dill
 
 from feast import flags_helper
 from feast.data_source import DataSource
@@ -8,6 +11,8 @@ from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.field import Field
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
+from feast.transformation.base import Transformation
+from feast.transformation.mode import TransformationMode
 
 warnings.simplefilter("once", RuntimeWarning)
 
@@ -42,6 +47,7 @@ class BatchFeatureView(FeatureView):
     """
 
     name: str
+    mode: Union[TransformationMode, str]
     entities: List[str]
     ttl: Optional[timedelta]
     source: DataSource
@@ -54,11 +60,15 @@ class BatchFeatureView(FeatureView):
     owner: str
     timestamp_field: str
     materialization_intervals: List[Tuple[datetime, datetime]]
+    udf: Optional[Callable[[Any], Any]]
+    udf_string: Optional[str]
+    feature_transformation: Transformation
 
     def __init__(
         self,
         *,
         name: str,
+        mode: Union[TransformationMode, str] = TransformationMode.PYTHON,
         source: DataSource,
         entities: Optional[List[Entity]] = None,
         ttl: Optional[timedelta] = None,
@@ -67,6 +77,9 @@ class BatchFeatureView(FeatureView):
         description: str = "",
         owner: str = "",
         schema: Optional[List[Field]] = None,
+        udf: Optional[Callable[[Any], Any]],
+        udf_string: Optional[str] = "",
+        feature_transformation: Optional[Transformation] = None,
     ):
         if not flags_helper.is_test():
             warnings.warn(
@@ -84,6 +97,13 @@ class BatchFeatureView(FeatureView):
                 f"or CUSTOM_SOURCE, got {type(source).__name__}: {source.name} instead "
             )
 
+        self.mode = mode
+        self.udf = udf
+        self.udf_string = udf_string
+        self.feature_transformation = (
+            feature_transformation or self.get_feature_transformation()
+        )
+
         super().__init__(
             name=name,
             entities=entities,
@@ -95,3 +115,79 @@ class BatchFeatureView(FeatureView):
             schema=schema,
             source=source,
         )
+
+    def get_feature_transformation(self) -> Transformation:
+        if not self.udf:
+            raise ValueError(
+                "Either a UDF or a feature transformation must be provided for BatchFeatureView"
+            )
+        if self.mode in (
+            TransformationMode.PANDAS,
+            TransformationMode.PYTHON,
+            TransformationMode.SQL,
+        ) or self.mode in ("pandas", "python", "sql"):
+            return Transformation(
+                mode=self.mode, udf=self.udf, udf_string=self.udf_string or ""
+            )
+        else:
+            raise ValueError(
+                f"Unsupported transformation mode: {self.mode} for StreamFeatureView"
+            )
+
+
+def batch_feature_view(
+    *,
+    name: Optional[str] = None,
+    mode: Union[TransformationMode, str] = TransformationMode.PYTHON,
+    entities: Optional[List[str]] = None,
+    ttl: Optional[timedelta] = None,
+    source: Optional[DataSource] = None,
+    tags: Optional[Dict[str, str]] = None,
+    online: bool = True,
+    description: str = "",
+    owner: str = "",
+    schema: Optional[List[Field]] = None,
+):
+    """
+    Args:
+        name:
+        entities:
+        ttl:
+        source:
+        tags:
+        online:
+        description:
+        owner:
+        schema:
+
+    Returns:
+
+    """
+
+    def mainify(obj):
+        # Needed to allow dill to properly serialize the udf. Otherwise, clients will need to have a file with the same
+        # name as the original file defining the sfv.
+        if obj.__module__ != "__main__":
+            obj.__module__ = "__main__"
+
+    def decorator(user_function):
+        udf_string = dill.source.getsource(user_function)
+        mainify(user_function)
+        batch_feature_view_obj = BatchFeatureView(
+            name=name or user_function.__name__,
+            mode=mode,
+            entities=entities,
+            ttl=ttl,
+            source=source,
+            tags=tags,
+            online=online,
+            description=description,
+            owner=owner,
+            schema=schema,
+            udf=user_function,
+            udf_string=udf_string,
+        )
+        functools.update_wrapper(wrapper=batch_feature_view_obj, wrapped=user_function)
+        return batch_feature_view_obj
+
+    return decorator

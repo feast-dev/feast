@@ -35,6 +35,7 @@ See [here](https://github.com/feast-dev/feast/tree/master/examples/python-helm-d
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | affinity | object | `{}` |  |
+| extraEnvs | list | `[]` | Additional environment variables to be set in the container |
 | feast_mode | string | `"online"` | Feast supported deployment modes - online (default), offline, ui and registry |
 | feature_store_yaml_base64 | string | `""` | [required] a base64 encoded version of feature_store.yaml |
 | fullnameOverride | string | `""` |  |
@@ -62,3 +63,5 @@ See [here](https://github.com/feast-dev/feast/tree/master/examples/python-helm-d
 | service.type | string | `"ClusterIP"` |  |
 | serviceAccount.name | string | `""` |  |
 | tolerations | list | `[]` |  |
+| volumeMounts | list | `[]` |  |
+| volumes | list | `[]` |  |

@@ -13,7 +13,7 @@ import {
 // declare which API requests to mock
 const server = setupServer(
   projectsListWithDefaultProject,
-  creditHistoryRegistry
+  creditHistoryRegistry,
 );
 
 // establish API mocking before all tests
@@ -62,7 +62,7 @@ test("in a full App render, it shows the right initial project", async () => {
     // Find and select the Ireland option
     within(topLevelNavigation).getByRole("option", {
       name: "Credit Score Project",
-    })
+    }),
   );
 
   // The selection should updated
@@ -70,7 +70,7 @@ test("in a full App render, it shows the right initial project", async () => {
     within(topLevelNavigation).getByRole("option", {
       name: "Credit Score Project",
       selected: true,
-    })
+    }),
   ).toBeInTheDocument();
 
   // ... and the new heading should appear

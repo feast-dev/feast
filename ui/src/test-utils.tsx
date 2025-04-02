@@ -2,7 +2,7 @@ import React from "react";
 import { render, RenderOptions } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "react-query";
 import { QueryParamProvider } from "use-query-params";
-import { ReactRouter6Adapter } from 'use-query-params/adapters/react-router-6';
+import { ReactRouter6Adapter } from "use-query-params/adapters/react-router-6";
 import { MemoryRouter as Router } from "react-router-dom";
 
 interface ProvidersProps {
@@ -29,7 +29,7 @@ const AllTheProviders = ({ children }: ProvidersProps) => {
 
 const customRender = (
   ui: React.ReactElement,
-  options?: Omit<RenderOptions, 'wrapper'>
+  options?: Omit<RenderOptions, "wrapper">,
 ) => render(ui, { wrapper: AllTheProviders, ...options });
 
 // re-export everything

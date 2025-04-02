@@ -1566,7 +1566,25 @@ class FeatureStore:
                     if feature_view.singleton
                     else df.to_dict(orient="list")
                 )
-                transformed_data = feature_view.feature_transformation.udf(input_dict)
+                if feature_view.singleton:
+                    transformed_rows = []
+
+                    for i, row in df.iterrows():
+                        output = feature_view.feature_transformation.udf(row.to_dict())
+                        if i == 0:
+                            transformed_rows = output
+                        else:
+                            for k in output:
+                                if isinstance(output[k], list):
+                                    transformed_rows[k].extend(output[k])
+                                else:
+                                    transformed_rows[k].append(output[k])
+
+                    transformed_data = pd.DataFrame(transformed_rows)
+                else:
+                    transformed_data = feature_view.feature_transformation.udf(
+                        input_dict
+                    )
                 if feature_view.write_to_online_store:
                     entities = [
                         self.get_entity(entity)
@@ -1574,8 +1592,14 @@ class FeatureStore:
                     ]
                     join_keys = [entity.join_key for entity in entities if entity]
                     join_keys = [k for k in join_keys if k in input_dict.keys()]
-                    transformed_df = pd.DataFrame(transformed_data)
-                    input_df = pd.DataFrame(input_dict)
+                    transformed_df = (
+                        pd.DataFrame(transformed_data)
+                        if not isinstance(transformed_data, pd.DataFrame)
+                        else transformed_data
+                    )
+                    input_df = pd.DataFrame(
+                        [input_dict] if feature_view.singleton else input_dict
+                    )
                     if input_df.shape[0] == transformed_df.shape[0]:
                         for k in input_dict:
                             if k not in transformed_data:
@@ -1813,19 +1837,15 @@ class FeatureStore:
 
     def retrieve_online_documents(
         self,
-        feature: Optional[str],
         query: Union[str, List[float]],
         top_k: int,
-        features: Optional[List[str]] = None,
+        features: List[str],
         distance_metric: Optional[str] = "L2",
     ) -> OnlineResponse:
         """
         Retrieves the top k closest document features. Note, embeddings are a subset of features.
 
         Args:
-            feature: The list of document features that should be retrieved from the online document store. These features can be
-                specified either as a list of string document feature references or as a feature service. String feature
-                references must have format "feature_view:feature", e.g, "document_fv:document_embeddings".
             features: The list of features that should be retrieved from the online store.
             query: The query to retrieve the closest document features for.
             top_k: The number of closest document features to retrieve.
@@ -1835,11 +1855,6 @@ class FeatureStore:
             raise ValueError(
                 "Using embedding functionality is not supported for document retrieval. Please embed the query before calling retrieve_online_documents."
             )
-        feature_list: List[str] = (
-            features
-            if features is not None
-            else ([feature] if feature is not None else [])
-        )
 
         (
             available_feature_views,
@@ -1847,56 +1862,48 @@ class FeatureStore:
         ) = utils._get_feature_views_to_use(
             registry=self._registry,
             project=self.project,
-            features=feature_list,
+            features=features,
             allow_cache=True,
             hide_dummy_entity=False,
         )
-        if features:
-            feature_view_set = set()
-            for feature in features:
-                feature_view_name = feature.split(":")[0]
-                feature_view = self.get_feature_view(feature_view_name)
-                feature_view_set.add(feature_view.name)
-            if len(feature_view_set) > 1:
-                raise ValueError(
-                    "Document retrieval only supports a single feature view."
-                )
-            requested_feature = None
-            requested_features = [
-                f.split(":")[1] for f in features if isinstance(f, str) and ":" in f
-            ]
-        else:
-            requested_feature = (
-                feature.split(":")[1] if isinstance(feature, str) else feature
-            )
-            requested_features = [requested_feature] if requested_feature else []
-
-        requested_feature_view_name = (
-            feature.split(":")[0] if feature else list(feature_view_set)[0]
-        )
+        feature_view_set = set()
+        for _feature in features:
+            feature_view_name = _feature.split(":")[0]
+            feature_view = self.get_feature_view(feature_view_name)
+            feature_view_set.add(feature_view.name)
+        if len(feature_view_set) > 1:
+            raise ValueError("Document retrieval only supports a single feature view.")
+        requested_features = [
+            f.split(":")[1] for f in features if isinstance(f, str) and ":" in f
+        ]
+        requested_feature_view_name = list(feature_view_set)[0]
         for feature_view in available_feature_views:
             if feature_view.name == requested_feature_view_name:
                 requested_feature_view = feature_view
-        if not requested_feature_view:
+                break
+        else:
             raise ValueError(
                 f"Feature view {requested_feature_view} not found in the registry."
             )
-
-        requested_feature_view = available_feature_views[0]
 
         provider = self._get_provider()
         document_features = self._retrieve_from_online_store(
             provider,
             requested_feature_view,
-            requested_feature,
             requested_features,
             query,
             top_k,
             distance_metric,
         )
+
         # TODO currently not return the vector value since it is same as feature value, if embedding is supported,
         # the feature value can be raw text before embedded
-        entity_key_vals = [feature[1] for feature in document_features]
+        def _doc_feature(x):
+            return [feature[x] for feature in document_features]
+
+        entity_key_vals, document_feature_vals, document_feature_distance_vals = map(
+            _doc_feature, (1, 4, 5)
+        )
         join_key_values: Dict[str, List[ValueProto]] = {}
         for entity_key_val in entity_key_vals:
             if entity_key_val is not None:
@@ -1906,18 +1913,25 @@ class FeatureStore:
                     if join_key not in join_key_values:
                         join_key_values[join_key] = []
                     join_key_values[join_key].append(entity_value)
-
-        document_feature_vals = [feature[4] for feature in document_features]
-        document_feature_distance_vals = [feature[5] for feature in document_features]
         online_features_response = GetOnlineFeaturesResponse(results=[])
-        requested_feature = requested_feature or requested_features[0]
+        if vector_field_metadata := _get_feature_view_vector_field_metadata(
+            requested_feature_view
+        ):
+            vector_field_name = vector_field_metadata.name
+        data = {
+            **join_key_values,
+            vector_field_name: document_feature_vals,
+            "distance": document_feature_distance_vals,
+        }
+        _requested_features = [_feature.split(":")[-1] for _feature in features]
+        requested_features_data = {
+            _feature: data[_feature]
+            for _feature in _requested_features
+            if _feature in data
+        }
         utils._populate_result_rows_from_columnar(
             online_features_response=online_features_response,
-            data={
-                **join_key_values,
-                requested_feature: document_feature_vals,
-                "distance": document_feature_distance_vals,
-            },
+            data=requested_features_data,
         )
         return OnlineResponse(online_features_response)
 
@@ -1994,7 +2008,6 @@ class FeatureStore:
         self,
         provider: Provider,
         table: FeatureView,
-        requested_feature: Optional[str],
         requested_features: Optional[List[str]],
         query: List[float],
         top_k: int,
@@ -2014,7 +2027,6 @@ class FeatureStore:
         documents = provider.retrieve_online_documents(
             config=self.config,
             table=table,
-            requested_feature=requested_feature,
             requested_features=requested_features,
             query=query,
             top_k=top_k,

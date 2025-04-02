@@ -4,6 +4,7 @@ import random
 import sqlite3
 import sys
 import time
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -717,7 +718,9 @@ def test_sqlite_get_online_documents() -> None:
             vector_length,
         )
         result = store.retrieve_online_documents(
-            feature="document_embeddings:Embeddings", query=query_embedding, top_k=3
+            query=query_embedding,
+            top_k=3,
+            features=["document_embeddings:Embeddings", "document_embeddings:distance"],
         ).to_dict()
 
         assert "Embeddings" in result
@@ -1056,7 +1059,7 @@ def test_local_milvus() -> None:
     client.drop_collection(collection_name=COLLECTION_NAME)
 
 
-def test_milvus_lite_get_online_documents_v2() -> None:
+def test_milvus_lite_retrieve_online_documents_v2() -> None:
     """
     Test retrieving documents from the online store in local mode.
     """
@@ -1226,6 +1229,199 @@ def test_milvus_lite_get_online_documents_v2() -> None:
         assert len(result["distance"]) == len(results[0])
 
 
+def test_milvus_stored_writes_with_explode() -> None:
+    """
+    Test storing and retrieving exploded document embeddings with Milvus online store.
+    """
+    from feast import (
+        Entity,
+        RequestSource,
+    )
+    from feast.field import Field
+    from feast.on_demand_feature_view import on_demand_feature_view
+    from feast.types import (
+        Array,
+        Bytes,
+        Float32,
+        String,
+        ValueType,
+    )
+
+    random.seed(42)
+    vector_length = 10
+    runner = CliRunner()
+    with runner.local_repo(
+        example_repo_py=get_example_repo("example_rag_feature_repo.py"),
+        offline_store="file",
+        online_store="milvus",
+        apply=False,
+        teardown=False,
+    ) as store:
+        # Define entities and sources
+        chunk = Entity(
+            name="chunk", join_keys=["chunk_id"], value_type=ValueType.STRING
+        )
+        document = Entity(
+            name="document", join_keys=["document_id"], value_type=ValueType.STRING
+        )
+
+        input_explode_request_source = RequestSource(
+            name="document_source",
+            schema=[
+                Field(name="document_id", dtype=String),
+                Field(name="document_text", dtype=String),
+                Field(name="document_bytes", dtype=Bytes),
+            ],
+        )
+
+        @on_demand_feature_view(
+            entities=[chunk, document],
+            sources=[input_explode_request_source],
+            schema=[
+                Field(name="document_id", dtype=String),
+                Field(name="chunk_id", dtype=String),
+                Field(name="chunk_text", dtype=String),
+                Field(
+                    name="vector",
+                    dtype=Array(Float32),
+                    vector_index=True,
+                    vector_search_metric="COSINE",  # Use COSINE like in Milvus test
+                ),
+            ],
+            mode="python",
+            write_to_online_store=True,
+        )
+        def milvus_explode_feature_view(inputs: dict[str, Any]):
+            output: dict[str, Any] = {
+                "document_id": ["doc_1", "doc_1", "doc_2", "doc_2"],
+                "chunk_id": ["chunk-1", "chunk-2", "chunk-1", "chunk-2"],
+                "chunk_text": [
+                    "hello friends",
+                    "how are you?",
+                    "This is a test.",
+                    "Document chunking example.",
+                ],
+                "vector": [
+                    [0.1] * vector_length,
+                    [0.2] * vector_length,
+                    [0.3] * vector_length,
+                    [0.4] * vector_length,
+                ],
+            }
+            return output
+
+        # Apply the feature store configuration
+        store.apply(
+            [
+                chunk,
+                document,
+                input_explode_request_source,
+                milvus_explode_feature_view,
+            ]
+        )
+
+        # Verify feature view registration
+        odfv_applied = store.get_on_demand_feature_view("milvus_explode_feature_view")
+        assert odfv_applied.features[1].vector_index
+        assert odfv_applied.entities == [chunk.name, document.name]
+        assert odfv_applied.entity_columns[0].name == document.join_key
+        assert odfv_applied.entity_columns[1].name == chunk.join_key
+
+        # Write to online store
+        odfv_entity_rows_to_write = [
+            {
+                "document_id": "document_1",
+                "document_text": "Hello world. How are you?",
+            },
+            {
+                "document_id": "document_2",
+                "document_text": "This is a test. Document chunking example.",
+            },
+        ]
+        store.write_to_online_store(
+            feature_view_name="milvus_explode_feature_view",
+            df=odfv_entity_rows_to_write,
+        )
+
+        # Verify feature retrieval
+        fv_entity_rows_to_read = [
+            {
+                "document_id": "doc_1",
+                "chunk_id": "chunk-2",
+            },
+            {
+                "document_id": "doc_2",
+                "chunk_id": "chunk-1",
+            },
+        ]
+
+        online_response = store.get_online_features(
+            entity_rows=fv_entity_rows_to_read,
+            features=[
+                "milvus_explode_feature_view:document_id",
+                "milvus_explode_feature_view:chunk_id",
+                "milvus_explode_feature_view:chunk_text",
+            ],
+        ).to_dict()
+
+        assert sorted(list(online_response.keys())) == sorted(
+            [
+                "chunk_id",
+                "chunk_text",
+                "document_id",
+            ]
+        )
+
+        # Test vector search using Milvus
+        query_embedding = [0.1] * vector_length
+
+        # First get Milvus client and search directly
+        client = store._provider._online_store.client
+        collection_name = client.list_collections()[0]
+        search_params = {
+            "metric_type": "COSINE",
+            "params": {"nprobe": 10},
+        }
+
+        direct_results = client.search(
+            collection_name=collection_name,
+            data=[query_embedding],
+            anns_field="vector",
+            search_params=search_params,
+            limit=2,
+            output_fields=["document_id", "chunk_id", "chunk_text"],
+        )
+
+        # Then use the Feast API
+        feast_results = store.retrieve_online_documents_v2(
+            features=[
+                "milvus_explode_feature_view:document_id",
+                "milvus_explode_feature_view:chunk_id",
+                "milvus_explode_feature_view:chunk_text",
+            ],
+            query=query_embedding,
+            top_k=2,
+        ).to_dict()
+
+        # Validate vector search results
+        assert "document_id" in feast_results
+        assert "chunk_id" in feast_results
+        assert "chunk_text" in feast_results
+        assert "distance" in feast_results
+        assert len(feast_results["distance"]) == 2
+        assert len(feast_results["document_id"]) == 2
+        assert (
+            len(direct_results[0]) == 2
+        )  # Verify both approaches return same number of results
+        del feast_results["distance"]
+
+        assert feast_results == {
+            "document_id": ["doc_2", "doc_1"],
+            "chunk_id": ["chunk-1", "chunk-2"],
+            "chunk_text": ["This is a test.", "how are you?"],
+        }
+
+
 def test_milvus_native_from_feast_data() -> None:
     import random
     from datetime import datetime
@@ -1288,3 +1484,178 @@ def test_milvus_native_from_feast_data() -> None:
 
     # Clean up the collection
     client.drop_collection(collection_name=COLLECTION_NAME)
+
+
+def test_milvus_keyword_search() -> None:
+    """
+    Test retrieving documents from the Milvus online store using keyword search.
+    """
+    random.seed(42)
+    n = 10  # number of samples
+    vector_length = 10
+    runner = CliRunner()
+    with runner.local_repo(
+        example_repo_py=get_example_repo("example_rag_feature_repo.py"),
+        offline_store="file",
+        online_store="milvus",
+        apply=False,
+        teardown=False,
+    ) as store:
+        from datetime import timedelta
+
+        from feast import Entity, FeatureView, Field, FileSource
+        from feast.types import Array, Float32, Int64, String, UnixTimestamp
+
+        rag_documents_source = FileSource(
+            path="data/embedded_documents.parquet",
+            timestamp_field="event_timestamp",
+            created_timestamp_column="created_timestamp",
+        )
+
+        item = Entity(
+            name="item_id",
+            join_keys=["item_id"],
+            value_type=ValueType.INT64,
+        )
+        author = Entity(
+            name="author_id",
+            join_keys=["author_id"],
+            value_type=ValueType.STRING,
+        )
+
+        document_embeddings = FeatureView(
+            name="text_documents",
+            entities=[item, author],
+            schema=[
+                Field(
+                    name="vector",
+                    dtype=Array(Float32),
+                    vector_index=True,
+                    vector_search_metric="COSINE",
+                ),
+                Field(name="item_id", dtype=Int64),
+                Field(name="author_id", dtype=String),
+                Field(name="content", dtype=String),
+                Field(name="title", dtype=String),
+                Field(name="created_timestamp", dtype=UnixTimestamp),
+                Field(name="event_timestamp", dtype=UnixTimestamp),
+            ],
+            source=rag_documents_source,
+            ttl=timedelta(hours=24),
+        )
+
+        store.apply([rag_documents_source, item, document_embeddings])
+
+        # Write some data with specific text content for keyword search
+        document_embeddings_fv = store.get_feature_view(name="text_documents")
+        provider = store._get_provider()
+
+        contents = [
+            "Feast is an open source feature store for machine learning",
+            "Feature stores solve the problem of coordinating features for training and serving",
+            "Milvus is a vector database that can be used with Feast",
+            "Keyword search uses BM25 algorithm for relevance ranking",
+            "Vector search uses embeddings for semantic similarity",
+            "Python is a popular programming language for machine learning",
+            "Feast supports multiple storage backends for online and offline use cases",
+            "Online stores are used for low-latency feature serving",
+            "Offline stores are used for batch feature retrieval during training",
+            "Feast enables data scientists to define, manage, and share features",
+        ]
+
+        titles = [
+            "Introduction to Feast",
+            "Feature Store Benefits",
+            "Using Milvus with Feast",
+            "Keyword Search Fundamentals",
+            "Vector Search Overview",
+            "Python for ML",
+            "Feast Storage Options",
+            "Online Serving with Feast",
+            "Offline Training Support",
+            "Feast for Data Scientists",
+        ]
+
+        item_keys = [
+            EntityKeyProto(
+                join_keys=["item_id", "author_id"],
+                entity_values=[
+                    ValueProto(int64_val=i),
+                    ValueProto(string_val=f"author_{i}"),
+                ],
+            )
+            for i in range(n)
+        ]
+        data = []
+        for i, item_key in enumerate(item_keys):
+            data.append(
+                (
+                    item_key,
+                    {
+                        "vector": ValueProto(
+                            float_list_val=FloatListProto(
+                                val=np.random.random(vector_length)
+                            )
+                        ),
+                        "content": ValueProto(string_val=contents[i]),
+                        "title": ValueProto(string_val=titles[i]),
+                    },
+                    _utc_now(),
+                    _utc_now(),
+                )
+            )
+
+        provider.online_write_batch(
+            config=store.config,
+            table=document_embeddings_fv,
+            data=data,
+            progress=None,
+        )
+
+        # Test keyword search for "Milvus"
+        result_milvus = store.retrieve_online_documents_v2(
+            features=[
+                "text_documents:content",
+                "text_documents:title",
+            ],
+            query_string="Milvus",
+            top_k=3,
+        ).to_dict()
+
+        # Verify that documents containing "Milvus" are returned
+        assert len(result_milvus["content"]) > 0
+        assert any("Milvus" in content for content in result_milvus["content"])
+
+        # Test keyword search for "machine learning"
+        result_ml = store.retrieve_online_documents_v2(
+            features=[
+                "text_documents:content",
+                "text_documents:title",
+            ],
+            query_string="machine learning",
+            top_k=3,
+        ).to_dict()
+
+        # Verify that documents containing "machine learning" are returned
+        assert len(result_ml["content"]) > 0
+        assert any(
+            "machine learning" in content.lower() for content in result_ml["content"]
+        )
+
+        # Test hybrid search (vector + keyword)
+        query_embedding = np.random.random(vector_length).tolist()
+        result_hybrid = store.retrieve_online_documents_v2(
+            features=[
+                "text_documents:content",
+                "text_documents:title",
+                "text_documents:vector",
+            ],
+            query=query_embedding,
+            query_string="Feast",
+            top_k=3,
+        ).to_dict()
+
+        # Verify hybrid search results
+        assert len(result_hybrid["content"]) > 0
+        assert any("Feast" in content for content in result_hybrid["content"])
+        assert len(result_hybrid["vector"]) > 0

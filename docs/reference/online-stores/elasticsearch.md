@@ -68,7 +68,7 @@ top_k = 5
 # Retrieve the top k closest features to the query vector
 
 feature_values = feature_store.retrieve_online_documents(
-    feature="my_feature",
+    features=["my_feature"],
     query=query_vector,
     top_k=top_k
 )

@@ -1,8 +1,10 @@
 import { http, HttpResponse } from "msw";
-import { readFileSync } from 'fs';
+import { readFileSync } from "fs";
 import path from "path";
 
-const registry = readFileSync(path.resolve(__dirname, "../../public/registry.db"));
+const registry = readFileSync(
+  path.resolve(__dirname, "../../public/registry.db"),
+);
 
 const projectsListWithDefaultProject = http.get("/projects-list.json", () =>
   HttpResponse.json({
@@ -15,11 +17,11 @@ const projectsListWithDefaultProject = http.get("/projects-list.json", () =>
         registryPath: "/registry.pb",
       },
     ],
-  })
+  }),
 );
 
 const creditHistoryRegistry = http.get("/registry.pb", () =>
-  HttpResponse.arrayBuffer(registry.buffer)
+  HttpResponse.arrayBuffer(registry.buffer),
 );
 
 export { projectsListWithDefaultProject, creditHistoryRegistry };

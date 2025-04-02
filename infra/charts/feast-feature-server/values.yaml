@@ -75,6 +75,13 @@ readinessProbe:
   initialDelaySeconds: 20
   periodSeconds: 10
 
+volumeMounts: []
+
+# extraEnvs -- Additional environment variables to be set in the container
+extraEnvs: []
+
+volumes: []
+
 # to create OpenShift Route object for UI
 route:
   enabled: false

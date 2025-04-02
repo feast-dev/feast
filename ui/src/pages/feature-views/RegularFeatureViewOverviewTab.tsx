@@ -50,8 +50,8 @@ const RegularFeatureViewOverviewTab = ({
 
   const fsNames = relationshipQuery.data
     ? relationshipQuery.data.filter(whereFSconsumesThisFv(fvName)).map((fs) => {
-      return fs.target.name;
-    })
+        return fs.target.name;
+      })
     : [];
   const numOfFs = fsNames.length;
 
