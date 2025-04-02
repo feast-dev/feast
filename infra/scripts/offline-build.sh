@@ -1,6 +1,9 @@
 # to run -> source ./infra/scripts/offline-build.sh
 # on the build host... requires docker/podman, git, wget
 
+APACHE_ARROW_VERSION="17.0.0"
+SUBSTRAIT_VERSION="0.44.0"
+
 # Get Feast project repository root directory
 PROJECT_ROOT_DIR=$(git rev-parse --show-toplevel)
 OFFLINE_BUILD_DIR=${PROJECT_ROOT_DIR}/offline_build
@@ -15,9 +18,9 @@ docker build \
   -f sdk/python/feast/infra/feature_servers/multicloud/offline/Dockerfile.builder.yum \
   --load sdk/python/feast/infra/feature_servers/multicloud/offline
 
-git clone --branch apache-arrow-17.0.0 https://github.com/apache/arrow ${OFFLINE_BUILD_DIR}/arrow
+git clone --branch apache-arrow-${APACHE_ARROW_VERSION} https://github.com/apache/arrow ${OFFLINE_BUILD_DIR}/arrow
 ${OFFLINE_BUILD_DIR}/arrow/cpp/thirdparty/download_dependencies.sh ${OFFLINE_BUILD_DIR}/arrow/cpp/arrow-thirdparty
-wget https://github.com/substrait-io/substrait/archive/v0.44.0.tar.gz -O ${OFFLINE_BUILD_DIR}/arrow/cpp/arrow-thirdparty/substrait-0.44.0.tar.gz
+wget https://github.com/substrait-io/substrait/archive/v${SUBSTRAIT_VERSION}.tar.gz -O ${OFFLINE_BUILD_DIR}/arrow/cpp/arrow-thirdparty/substrait-${SUBSTRAIT_VERSION}.tar.gz
 
 alias cachi2='docker run --rm -ti -v "$PWD:$PWD:z" -w "$PWD" quay.io/konflux-ci/cachi2:f7a61b067f4446e4982d0e3b9545ce4aa0d8284f'
 cachi2 fetch-deps \
