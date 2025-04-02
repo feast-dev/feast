@@ -20,6 +20,7 @@ In particular, this example expands on the basic RAG demo to show:
 ## 📂 Project Structure
 
 - **`data/`**: Contains the demo data, including Wikipedia summaries of cities with sentence embeddings stored in a Parquet file.
+  - Note, you ahave to use the docling-demo.ipynb to construct the `docling_samples.parquet` file, the `metadata_samples.parquet` file are provided for you.
 - **`example_repo.py`**: Defines the feature views and entity configurations for Feast.
 - **`feature_store.yaml`**: Configures the offline and online stores (using local files and Milvus Lite in this demo).
 
