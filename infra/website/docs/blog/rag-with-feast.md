@@ -1,6 +1,6 @@
 ---
 title: Retrieval Augmented Generation with Feast 
-description: How Feast can empower you to customize your RAG applications for maximum flexibility.
+description: How Feast empowers ML Engineers to ship RAG applications to Production.
 date: 2025-03-17
 authors: ["Francisco Javier Arceo"]
 ---
@@ -9,31 +9,50 @@ authors: ["Francisco Javier Arceo"]
   <img src="/images/blog/space.jpg" alt="Exploring the Possibilities of AI" loading="lazy">
 </div>
 
-# Feast Supports RAG
 
-With the rise of generative AI applications, the need to serve vectors has grown quickly. Feast now has alpha support for vector similarity search to power retrieval augmented generation (RAG) systems in production.
+## Why Feature Stores Make Sense for GenAI
 
-This allows ML Engineers and Data Scientists to leverage the power of their feature store to easily deploy GenAI applications using RAG to production. More importantly, Feast offers the flexibility to customize and scale your production RAG applications through our scalable transformation systems (streaming, request-time, and batch). 
+Feature stores have been developed over the [past decade](./what-is-a-feature-store.md) to address the challenges AI 
+practitioners face in managing, serving, and scaling machine learning models in production.
 
-## The Future of Feast and GenAI
+Some of the key challenges include:
+* Accessing the right raw data
+* Building features from raw data
+* Combining features into training data
+* Calculating and serving features in production
+* Monitoring features in production
 
-Feast will continue to invest in GenAI use cases. 
+Feast was specifically designed to address these challenges.
 
-In particular, we will invest in (1) NLP as a first-class citizen, (2) added support for images, (3) support for transforming unstructured data (e.g., PDFs), (4) an enhanced gen-ai focused feature server to allow our end-users to more easily ship RAG to production, (4) an out of the box chat UI meant for internal development and fast iteration, and (5) investing in [Milvus]([url](https://milvus.io/intro)) as a fully supported online store.
+These same challenges extend naturally to Generative AI (GenAI) applications. While GenAI shares many of the production 
+challenges faced by traditional machine learning models, the key difference is that it starts with a foundation model.
+
+For GenAI use cases, feature stores enable the efficient management of context and metadata, both during 
+training/fine-tuning and at inference time. A key advantage is the ability to treat LLM context, including prompts, 
+as features. This means you can manage not only input context, tokenization, chunking, and embeddings, but also track 
+and version the context used during model inference, ensuring consistency, transparency, and reproducibility across 
+models and iterations.
+
+With Feast, ML engineers can streamline the embedding generation process, ensure consistency across both offline and 
+online environments, and track the lineage of data and transformations. By leveraging a feature store, GenAI 
+applications benefit from enhanced scalability, maintainability, and reproducibility, making them ideal for complex 
+AI applications and enterprise needs.
+
+## Feast Supports Now RAG
+
+With the rise of generative AI applications, the need to serve vectors has grown quickly. Feast now has alpha support 
+for vector similarity search to power retrieval augmented generation (RAG) systems in production.
+
+This allows ML Engineers and Data Scientists to use the power of their feature store to easily deploy GenAI 
+applications using RAG to production. More importantly, Feast offers the flexibility to customize and scale your 
+production RAG applications through our scalable transformation systems (streaming, request-time, and batch). 
 
 <div class="content-image">
   <img src="/images/blog/milvus-rag" alt="Retrieval Augmented Generation with Milvus and Feast" loading="lazy">
 </div>
 
-# Is a Feature Store a good fit for GenAI use cases?
-Yes, a Feature Store is a great fit for GenAI use cases! 
 
-That's because Feature Stores were developed over the last 10 years to explicitly handle the problems AI 
-practitioners faced when working with data. The Feast maintainers will continue to invest in making the GenAI development experience a first-class 
-citizen so that you can rely on Feast to customize your AI applications. If you have thoughts or ideas 
-feel free to reach out!
-
-# What is Retrieval Augmented Generation (RAG)?
+## What is Retrieval Augmented Generation (RAG)?
 [RAG](https://en.wikipedia.org/wiki/Retrieval-augmented_generation) is a technique that combines generative models 
 (e.g., LLMs) with retrieval systems to generate contextually relevant output for a particular goal (e.g., 
 question and answering).
@@ -49,10 +68,10 @@ The typical RAG process involves:
 
 Implicit in (1)-(4) is the potential of scaling to large amounts of data (i.e., using some form of distributed computing),
 orchestrating that scaling through some batch or streaming pipeline, and customization of key transformation decisions
-(e.g., tokenization, model, chunking, data format, etc.).
+(e.g., tokenization, model, chunking, data format, etc.). This is again where Feast shines.
 
-# What is the scope of Retrieval?
-So, the Retrieval in RAG also includes:
+## What's Required to Power RAG Applications?
+To power the Retrieval step of RAG, we need:
 1. Ingestion
 1. Transformation
 1. Indexing
@@ -62,7 +81,7 @@ RAG patterns often use vector similarity search for the retrieval step, but it i
 only retrieval pattern that can be useful. In fact, standard entity-based retrieval can be very powerful for 
 applications where relevant user-context is necessary.
 
-# How does that relate to Feast?
+## How does that relate to Feast?
 Feast is focused on supporting the lifecycle of data for AI/ML applications. Feast was built to support the
 offline training, online serving, and metadata management so that users can successfully scale their production AI
 applications.
@@ -77,7 +96,7 @@ Historically, Feast catered to Data Scientists and ML Engineers who implemented 
 many RAG providers handle this out of the box for you. We will invest in creating extendable implementations to make it easier 
 to customize your applications.
 
-# How might I want to customize retrieval?
+## How might I want to customize retrieval?
 As mentioned, Feast allows you to customize:
 - Chunking
 - Tokenization
@@ -88,9 +107,15 @@ As mentioned, Feast allows you to customize:
 - Reranking mechanisms
 - Fine Tuning embedding, retrieval, and generative models
 
-# Feast Powered by Milvus
+## Feast Powered by Milvus
 
-## Step 0: Configure Milvus
+[Milvus](https://milvus.io/) is a high performance vector database that provides a powerful and efficient way to store 
+and retrieve embeddings. By using Feast with Milvus, you can easily deploy RAG applications to production and scale 
+your retrieval systems on Kubernetes using the Feast Operator or the [Feature Server Helm Chart](https://github.com/feast-dev/feast/tree/master/infra/charts/feast-feature-server).
+
+This tutorial will walk you through building a basic RAG application with Milvus and Feast.
+
+### Step 0: Configure Milvus
 Configure milvus in a simple `yaml` file.
 ```yaml
 project: rag
@@ -103,7 +128,6 @@ online_store:
   embedding_dim: 384
   index_type: "IVF_FLAT"
 
-
 offline_store:
   type: file
 entity_key_serialization_version: 3
@@ -112,8 +136,10 @@ auth:
     type: no_auth
 ```
 
-## Step 1: Define your Data Sources and Views
-You define your data declaratively using Feast's FeatureView and entity objects:
+### Step 1: Define your Data Sources and Views
+You define your data declaratively using Feast's `FeatureView` and `Entity` objects, which are meant to be an easy way
+to give your software engineers and data scientists a common language to define data they want to ship to production.
+Here is an example of how you might define a `FeatureView` for a document embedding
 ```python
 document = Entity(
     name="document_id",
@@ -147,14 +173,22 @@ city_embeddings_feature_view = FeatureView(
 )
 ```
 
-## Step 2: Ingest your Data
+### Step 2: Update your Registry 
+After we have defined our code we use the `feast apply` syntax in the same folder as the `feature_store.yaml` file and 
+update the registry with our metadata.
+```bash
+feast apply
+```
 
+### Step 3: Ingest your Data
+Now that we have defined our metadata, we can ingest our data into Milvus using the following code:
 ```python
 store.write_to_online_store(feature_view_name='city_embeddings', df=df)
 ```
 
-## Step 3: Retrieve your Data
-
+### Step 4: Retrieve your Data
+Now that the data is actually stored in Milvus, we can easily query it using the SDK (and corresponding REST API) to 
+retrieve the most similar documents for a given query embedding.
 ```python
 context_data = store.retrieve_online_documents_v2(
     features=[
@@ -170,7 +204,7 @@ context_data = store.retrieve_online_documents_v2(
 ).to_df()
 ```
 
-## What are the benefits from using Feast?
+### What are the benefits from using Feast?
 You get a lot for free.
 1. Data dictionary/metadata catalog autogenerated from code
 3. UI exposing the metadata catalog 
@@ -181,3 +215,12 @@ You get a lot for free.
 8. Multiple data warehouse providers
 9. Support for different data formats
 10. Support for stream and batch processors  (e.g., Spark and Flink)
+
+## The Future of Feast and GenAI
+
+Feast will continue to invest in GenAI use cases. 
+
+In particular, we will invest in (1) NLP as a first-class citizen, (2) add support for images, (3) support for 
+transforming unstructured data (e.g., PDFs), (4) an enhanced GenAI focused feature server to allow our end-users to 
+more easily ship RAG to production, (4) an out of the box chat UI meant for internal development and fast iteration, 
+and (5) investing in [Milvus]([url](https://milvus.io/intro)) as a fully supported online store.
