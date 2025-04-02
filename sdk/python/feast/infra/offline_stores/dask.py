@@ -3,6 +3,7 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union
+from urllib.parse import urlparse
 
 import dask
 import dask.dataframe as dd
@@ -513,23 +514,25 @@ def _get_entity_df_event_timestamp_range(
 
 def _read_datasource(data_source, repo_path) -> dd.DataFrame:
     storage_options = (
-        {
-            "client_kwargs": {
-                "endpoint_url": data_source.file_options.s3_endpoint_override
-            }
+    {
+        "client_kwargs": {
+            "endpoint_url": data_source.file_options.s3_endpoint_override
         }
-        if data_source.file_options.s3_endpoint_override
-        else None
+    }
+    if data_source.file_options.s3_endpoint_override
+    else None
     )
-
-    if not Path(data_source.path).is_absolute():
-        path = repo_path / data_source.path
+    
+    parsed = urlparse(data_source.file_options.uri)
+    if parsed.scheme and parsed.netloc:
+        path = data_source.file_options.uri 
     else:
-        path = data_source.path
+        path = str(Path(repo_path) / data_source.file_options.uri)
+
     return dd.read_parquet(
         path,
         storage_options=storage_options,
-    )
+)
 
 
 def _run_dask_field_mapping(
