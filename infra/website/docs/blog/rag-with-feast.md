@@ -52,7 +52,7 @@ production RAG applications through our scalable transformation systems (streami
 </div>
 
 
-## What is Retrieval Augmented Generation (RAG)?
+## Retrieval Augmented Generation (RAG)
 [RAG](https://en.wikipedia.org/wiki/Retrieval-augmented_generation) is a technique that combines generative models 
 (e.g., LLMs) with retrieval systems to generate contextually relevant output for a particular goal (e.g., 
 question and answering).
@@ -70,42 +70,41 @@ Implicit in (1)-(4) is the potential of scaling to large amounts of data (i.e., 
 orchestrating that scaling through some batch or streaming pipeline, and customization of key transformation decisions
 (e.g., tokenization, model, chunking, data format, etc.). This is again where Feast shines.
 
-## What's Required to Power RAG Applications?
-To power the Retrieval step of RAG, we need:
+## Powering Retrieval in Production
+To power the Retrieval step of RAG in Production, we need:
 1. Ingestion
 1. Transformation
 1. Indexing
 1. Retrieval
 
-RAG patterns often use vector similarity search for the retrieval step, but it is worth emphasizing that this is not the
+Building high availability software that can handle these steps and scale as your needs and data scales is a 
+non-trivial task. This is a strength of Feast, using the power of Kuberenetes, large scale data frameworks like 
+Spark and Flink, and the ability to ingest and transform data in real-time through the Feast Feature Server is 
+a powerful combination.
+
+## Beyond Vector Similarity Search
+RAG patterns often use vector similarity search for the retrieval step, but this is not the
 only retrieval pattern that can be useful. In fact, standard entity-based retrieval can be very powerful for 
 applications where relevant user-context is necessary.
 
-## How does that relate to Feast?
-Feast is focused on supporting the lifecycle of data for AI/ML applications. Feast was built to support the
-offline training, online serving, and metadata management so that users can successfully scale their production AI
-applications.
+For example, many RAG applications are customer Chat Bots and they benefit significantly from user data (e.g., 
+account balance, location, etc.) to generate contextually relevant output. Feast can help you manage this user data
+using its existing entity based retrieval patterns.
 
-What that means is that Feast can help you not only serve your documents, user data, and other metadata for production 
+## The Benefits of Feast
+Fine tuning is the holy grail to optimize your RAG systems, and by logging the documents/data and context retrieved 
+and during inference, you can ensure that you can fine-tune both the generator and *the retriever* your LLMs for 
+your particular needs.
+
+This means that Feast can help you not only serve your documents, user data, and other metadata for production 
 RAG applications, but it can also help you scale your embeddings on large amounts of data (e.g,. using Spark to embed 
-gigabytes of documents), re-use the same code online and offline, prepare your datasets so you can fine tune your
-embedding, generative, or retrieval models later, and track changes to your transformations, data sources, and 
-RAG-sources to provide you with replayability and data lineage.
+gigabytes of documents), re-use the same code online and offline, track changes to your transformations, data sources, and 
+RAG-sources to provide you with replayability and data lineage, and prepare your datasets so you can fine tune your
+embedding, retrieval, or generator models later.
 
 Historically, Feast catered to Data Scientists and ML Engineers who implemented their own types of data/feature transformations but, now, 
 many RAG providers handle this out of the box for you. We will invest in creating extendable implementations to make it easier 
 to customize your applications.
-
-## How might I want to customize retrieval?
-As mentioned, Feast allows you to customize:
-- Chunking
-- Tokenization
-- Embedding
-- The offline engine to embed huge amounts of documents
-- The metadata you may want to structure or weight differently during retrieval
-- Hybrid Retrieval strategies combining dense and sparse retrieval
-- Reranking mechanisms
-- Fine Tuning embedding, retrieval, and generative models
 
 ## Feast Powered by Milvus
 
@@ -113,9 +112,19 @@ As mentioned, Feast allows you to customize:
 and retrieve embeddings. By using Feast with Milvus, you can easily deploy RAG applications to production and scale 
 your retrieval systems on Kubernetes using the Feast Operator or the [Feature Server Helm Chart](https://github.com/feast-dev/feast/tree/master/infra/charts/feast-feature-server).
 
-This tutorial will walk you through building a basic RAG application with Milvus and Feast.
+This tutorial will walk you through building a basic RAG application with Milvus and Feast; i.e., ingesting embedded 
+documents in Milvus and retrieving the most similar documents for a given query embedding.
 
-### Step 0: Configure Milvus
+This example consists of 5 steps:
+1. Configuring Milvus
+2. Defining your Data Sources and Views
+3. Updating your Registry
+4. Ingesting the Data
+5. Retrieving the Data
+
+The full demo is available on our [GitHub repository](https://github.com/feast-dev/feast/tree/master/examples/rag).
+
+### Step 1: Configure Milvus
 Configure milvus in a simple `yaml` file.
 ```yaml
 project: rag
@@ -136,7 +145,7 @@ auth:
     type: no_auth
 ```
 
-### Step 1: Define your Data Sources and Views
+### Step 2: Define your Data Sources and Views
 You define your data declaratively using Feast's `FeatureView` and `Entity` objects, which are meant to be an easy way
 to give your software engineers and data scientists a common language to define data they want to ship to production.
 Here is an example of how you might define a `FeatureView` for a document embedding
@@ -173,20 +182,20 @@ city_embeddings_feature_view = FeatureView(
 )
 ```
 
-### Step 2: Update your Registry 
+### Step 3: Update your Registry 
 After we have defined our code we use the `feast apply` syntax in the same folder as the `feature_store.yaml` file and 
 update the registry with our metadata.
 ```bash
 feast apply
 ```
 
-### Step 3: Ingest your Data
+### Step 4: Ingest your Data
 Now that we have defined our metadata, we can ingest our data into Milvus using the following code:
 ```python
 store.write_to_online_store(feature_view_name='city_embeddings', df=df)
 ```
 
-### Step 4: Retrieve your Data
+### Step 5: Retrieve your Data
 Now that the data is actually stored in Milvus, we can easily query it using the SDK (and corresponding REST API) to 
 retrieve the most similar documents for a given query embedding.
 ```python
