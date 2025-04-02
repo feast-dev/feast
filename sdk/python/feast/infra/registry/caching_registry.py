@@ -434,9 +434,6 @@ class CachingRegistry(BaseRegistry):
         return self._list_projects(tags)
 
     def refresh(self, project: Optional[str] = None):
-        if self._refresh_lock.locked():
-            logger.info("Skipping refresh if already in progress")
-            return
         try:
             self.cached_registry_proto = self.proto()
             self.cached_registry_proto_created = _utc_now()
