@@ -403,13 +403,15 @@ class QdrantOnlineStore(OnlineStore):
                             match=models.MatchText(text=query_string),
                         ),
                         models.Filter(
-                            should=list([
-                                models.FieldCondition(
-                                    key="feature_name",
-                                    match=models.MatchValue(value=feat_name),
-                                )
-                                for feat_name in requested_features
-                            ]),
+                            should=list(
+                                [
+                                    models.FieldCondition(
+                                        key="feature_name",
+                                        match=models.MatchValue(value=feat_name),
+                                    )
+                                    for feat_name in requested_features
+                                ]
+                            ),
                             must_not=None,
                         ),
                     ]
@@ -453,13 +455,15 @@ class QdrantOnlineStore(OnlineStore):
                             match=models.MatchText(text=query_string),
                         ),
                         models.Filter(
-                            should=list([
-                                models.FieldCondition(
-                                    key="feature_name",
-                                    match=models.MatchValue(value=feat_name),
-                                )
-                                for feat_name in requested_features
-                            ]),
+                            should=list(
+                                [
+                                    models.FieldCondition(
+                                        key="feature_name",
+                                        match=models.MatchValue(value=feat_name),
+                                    )
+                                    for feat_name in requested_features
+                                ]
+                            ),
                             must_not=None,
                         ),
                     ]
@@ -483,13 +487,15 @@ class QdrantOnlineStore(OnlineStore):
 
                 # Create a filter for specific feature names to reduce data to scan
                 feature_filter = models.Filter(
-                    should=list([
-                        models.FieldCondition(
-                            key="feature_name",
-                            match=models.MatchValue(value=feat_name),
-                        )
-                        for feat_name in requested_features
-                    ])
+                    should=list(
+                        [
+                            models.FieldCondition(
+                                key="feature_name",
+                                match=models.MatchValue(value=feat_name),
+                            )
+                            for feat_name in requested_features
+                        ]
+                    )
                 )
 
                 while not stop_scrolling:
@@ -510,9 +516,9 @@ class QdrantOnlineStore(OnlineStore):
                             try:
                                 feature_value = record.payload.get("feature_value", "")
                                 if feature_value is not None:
-                                    decoded_value = base64.b64decode(feature_value).decode(
-                                        "utf-8", errors="ignore"
-                                    )
+                                    decoded_value = base64.b64decode(
+                                        feature_value
+                                    ).decode("utf-8", errors="ignore")
                                     if query_string.lower() in decoded_value.lower():
                                         # Cast to ScoredPoint type for compatibility
                                         points.append(record)  # type: ignore
@@ -528,13 +534,13 @@ class QdrantOnlineStore(OnlineStore):
         # Process and format results
         for point in points:
             payload = point.payload or {}
-            
+
             # Handle entity_key
             raw_entity_key = payload.get("entity_key")
             if not raw_entity_key:
                 continue
             entity_key_str = cast(str, raw_entity_key)
-                
+
             # Handle feature name
             feature_name = payload.get("feature_name", "")
             feature_value_encoded = payload.get("feature_value")
@@ -546,13 +552,13 @@ class QdrantOnlineStore(OnlineStore):
             timestamp_val = payload.get("timestamp")
             if timestamp_val is None:
                 continue
-                
+
             # Convert to string explicitly with type checking
             if isinstance(timestamp_val, (str, int, float, datetime)):
                 timestamp_str = str(timestamp_val)
                 if not timestamp_str:
                     continue
-                    
+
                 try:
                     timestamp = datetime.strptime(timestamp_str, "%Y-%m-%dT%H:%M:%S.%f")
                 except ValueError:
@@ -561,7 +567,7 @@ class QdrantOnlineStore(OnlineStore):
                 continue
 
             entity_key_proto = EntityKeyProto()
-            if isinstance(entity_key_str, str):  
+            if isinstance(entity_key_str, str):
                 entity_key_bin = base64.b64decode(entity_key_str)
                 entity_key_proto = deserialize_entity_key(
                     entity_key_bin,
@@ -570,7 +576,9 @@ class QdrantOnlineStore(OnlineStore):
 
             feature_value_proto = ValueProto()
             if isinstance(feature_value_encoded, str):
-                feature_value_proto.ParseFromString(base64.b64decode(feature_value_encoded))
+                feature_value_proto.ParseFromString(
+                    base64.b64decode(feature_value_encoded)
+                )
 
             # Create a dictionary with the feature values
             feature_values = {feature_name: feature_value_proto}
@@ -578,7 +586,11 @@ class QdrantOnlineStore(OnlineStore):
             result.append((timestamp, entity_key_proto, feature_values))
 
         return_result: List[
-            Tuple[Optional[datetime], Optional[EntityKeyProto], Optional[Dict[str, ValueProto]]]
+            Tuple[
+                Optional[datetime],
+                Optional[EntityKeyProto],
+                Optional[Dict[str, ValueProto]],
+            ]
         ] = []
         for entry in result:
             return_result.append(entry)
