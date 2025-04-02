@@ -483,11 +483,20 @@ class HttpRegistry(BaseRegistry):
             self._send_request("DELETE", url, params=params)
             logger.info(f"Deleted FeatureView {name} from project {project}")
         except FeatureViewNotFoundException as exception:
-            logger.error(
-                f"Requested FeatureView {name} does not exist for deletion: %s",
-                str(exception),
-            )
-            raise httpx.HTTPError(message=f"FeatureView: {name} not found")
+            try:
+                logger.info(
+                    f"Requested FeatureView {name} does not exist for deletion: %s. Checking if a SortedFeatureView "
+                    f"with that name exists..")
+                url = f"{self.base_url}/projects/{project}/sorted_feature_views/{name}"
+                params = {"commit": commit}
+                self._send_request("DELETE", url, params=params)
+                logger.info(f"Deleted SortedFeatureView {name} from project {project}")
+            except FeatureViewNotFoundException as exception:
+                logger.error(
+                    f"Requested FeatureView or SortedFeatureView with name {name} does not exist for deletion: %s",
+                    str(exception),
+                )
+                raise httpx.HTTPError(message=f"Neither FeatureView nor SortedFeatureView with name {name} not found")
         except Exception as exception:
             self._handle_exception(exception)
 
