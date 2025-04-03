@@ -1,0 +1,16 @@
+# EXCEPTIONS
+# we'll need to pip install anything that tries to build/use maturin from source
+############
+# feast
+pydantic_core==2.27.2
+watchfiles==1.0.4
+rpds-py==0.23.1
+# snowflake
+cryptography==44.0.2
+# aws
+aiohttp==3.11.14
+# psycopg - not needed w/ feast 0.48.0+
+psycopg-binary==3.2.5
+# milvus
+milvus-lite==2.4.12
+############

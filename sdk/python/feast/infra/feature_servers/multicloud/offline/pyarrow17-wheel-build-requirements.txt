@@ -1,0 +1,4 @@
+numpy==2.2.4
+cython==3.0.12
+setuptools_scm==8.2.0
+wheel==0.45.1
