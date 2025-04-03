@@ -469,10 +469,10 @@ class DaskOfflineStore(OfflineStore):
 
         file_options = feature_view.batch_source.file_options
 
-        if config.repo_path is not None and not Path(file_options.uri).is_absolute():
-            absolute_path = config.repo_path / file_options.uri
-        else:
-            absolute_path = Path(file_options.uri)
+        absolute_path = FileSource.get_uri_for_file_path(
+            repo_path=config.repo_path,
+            uri=file_options.uri
+        )
 
         filesystem, path = FileSource.create_filesystem_and_path(
             str(absolute_path), file_options.s3_endpoint_override
