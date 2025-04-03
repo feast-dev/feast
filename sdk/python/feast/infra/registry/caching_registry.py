@@ -519,3 +519,5 @@ class CachingRegistry(BaseRegistry):
     def _exit_handler(self):
         logger.info("Exiting, setting stop event for registry cache refresh thread")
         self._stop_event.set()
+        if self.registry_refresh_thread:
+            self.registry_refresh_thread.join(timeout=5)
