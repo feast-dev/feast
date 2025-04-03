@@ -3,7 +3,6 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union
-from urllib.parse import urlparse
 
 import dask
 import dask.dataframe as dd
@@ -522,12 +521,12 @@ def _read_datasource(data_source, repo_path) -> dd.DataFrame:
         if data_source.file_options.s3_endpoint_override
         else None
     )
-    
+
     path = FileSource.get_uri_for_file_path(
         repo_path=repo_path,
         uri=data_source.file_options.uri,
     )
-    
+
     return dd.read_parquet(
         path,
         storage_options=storage_options,
