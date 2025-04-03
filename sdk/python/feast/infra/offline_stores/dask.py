@@ -514,25 +514,24 @@ def _get_entity_df_event_timestamp_range(
 
 def _read_datasource(data_source, repo_path) -> dd.DataFrame:
     storage_options = (
-    {
-        "client_kwargs": {
-            "endpoint_url": data_source.file_options.s3_endpoint_override
+        {
+            "client_kwargs": {
+                "endpoint_url": data_source.file_options.s3_endpoint_override
+            }
         }
-    }
-    if data_source.file_options.s3_endpoint_override
-    else None
+        if data_source.file_options.s3_endpoint_override
+        else None
     )
     
-    parsed = urlparse(data_source.file_options.uri)
-    if parsed.scheme and parsed.netloc:
-        path = data_source.file_options.uri 
-    else:
-        path = str(Path(repo_path) / data_source.file_options.uri)
-
+    path = FileSource.get_uri_for_file_path(
+        repo_path=repo_path,
+        uri=data_source.file_options.uri,
+    )
+    
     return dd.read_parquet(
         path,
         storage_options=storage_options,
-)
+    )
 
 
 def _run_dask_field_mapping(
