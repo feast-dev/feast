@@ -1,13 +1,14 @@
-from enum import Enum
 from dataclasses import dataclass, field
+from enum import Enum
+from typing import Dict, List, Union
+
 import pandas as pd
-from typing import Union, List, Dict
 
 from feast.entity import Entity
+from feast.infra.compute_engines.dag.value import DAGValue
 from feast.infra.offline_stores.offline_store import OfflineStore
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.repo_config import RepoConfig
-from feast.infra.compute_engines.dag.value import DAGValue
 
 
 class DAGFormat(str, Enum):

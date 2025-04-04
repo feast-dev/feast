@@ -1,8 +1,8 @@
 from typing import List
 
+from feast.infra.compute_engines.dag.model import ExecutionContext
 from feast.infra.compute_engines.dag.node import DAGNode
 from feast.infra.compute_engines.dag.value import DAGValue
-from feast.infra.compute_engines.dag.model import ExecutionContext
 
 
 class ExecutionPlan:
@@ -39,6 +39,7 @@ class ExecutionPlan:
     This approach is inspired by execution DAGs in systems like Apache Spark,
     Apache Beam, and Dask — but specialized for Feast’s feature computation domain.
     """
+
     def __init__(self, nodes: List[DAGNode]):
         self.nodes = nodes
 
@@ -60,4 +61,3 @@ class ExecutionPlan:
 
         # Return output of final node
         return node_outputs[self.nodes[-1].name]
-

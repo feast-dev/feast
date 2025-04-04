@@ -1,10 +1,16 @@
 import pyarrow as pa
+
 from feast.infra.compute_engines.base import ComputeEngine, HistoricalRetrievalTask
-from feast.infra.compute_engines.spark.spark_dag_builder import SparkDAGBuilder
-from feast.infra.materialization.batch_materialization_engine import MaterializationTask, MaterializationJob, \
-    MaterializationJobStatus
-from feast.infra.materialization.contrib.spark.spark_materialization_engine import SparkMaterializationJob
 from feast.infra.compute_engines.dag.model import ExecutionContext
+from feast.infra.compute_engines.spark.spark_dag_builder import SparkDAGBuilder
+from feast.infra.materialization.batch_materialization_engine import (
+    MaterializationJob,
+    MaterializationJobStatus,
+    MaterializationTask,
+)
+from feast.infra.materialization.contrib.spark.spark_materialization_engine import (
+    SparkMaterializationJob,
+)
 
 
 class SparkComputeEngine(ComputeEngine):
@@ -22,7 +28,7 @@ class SparkComputeEngine(ComputeEngine):
                 repo_config=self.repo_config,
                 offline_store=self.offline_store,
                 online_store=self.online_store,
-                entity_defs=entities
+                entity_defs=entities,
             )
 
             # ✅ 2. Construct DAG and run it
@@ -35,22 +41,16 @@ class SparkComputeEngine(ComputeEngine):
 
             # ✅ 3. Report success
             return SparkMaterializationJob(
-                job_id=job_id,
-                status=MaterializationJobStatus.SUCCEEDED
+                job_id=job_id, status=MaterializationJobStatus.SUCCEEDED
             )
 
         except Exception as e:
             # 🛑 Handle failure
             return SparkMaterializationJob(
-                job_id=job_id,
-                status=MaterializationJobStatus.ERROR,
-                error=e
+                job_id=job_id, status=MaterializationJobStatus.ERROR, error=e
             )
 
     def get_historical_features(self, task: HistoricalRetrievalTask) -> pa.Table:
-        # ✅ 1. Validate input
-        assert len(task.feature_views) == 1, "Multi-view support not yet implemented"
-        feature_view = task.feature_views[0]
 
         if isinstance(task.entity_df, str):
             raise NotImplementedError("SQL-based entity_df is not yet supported in DAG")
@@ -58,7 +58,7 @@ class SparkComputeEngine(ComputeEngine):
         # ✅ 2. Build typed execution context
         entity_defs = [
             task.registry.get_entity(name, task.config.project)
-            for name in feature_view.entities
+            for name in task.feature_view.entities
         ]
 
         context = ExecutionContext(
@@ -71,7 +71,7 @@ class SparkComputeEngine(ComputeEngine):
         )
 
         # ✅ 3. Construct and execute DAG
-        builder = SparkDAGBuilder(feature_view=feature_view, task=task)
+        builder = SparkDAGBuilder(feature_view=task.feature_view, task=task)
         plan = builder.build()
 
         result = plan.execute(context=context)
