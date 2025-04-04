@@ -103,6 +103,19 @@ Setting up your development environment:
 mvn package -pl sdk/java --also-make -Dmaven.test.skip=true
 ```
 
+2. Developing on Feast Java Client with Maven: 
+
+Note that the feast-datatypes library contains a symlink to the proto definitions, therefore you may need to build this folder to generate proto sources.
+
+Optionally add -Dgpg.skip if you want to skip signing(for local development)
+
+You can do this via: 
+
+```sh
+cd feast/java
+mvn clean --also-make -pl .,datatypes install
+```
+
 ### Unit Tests
 Unit Tests can be used to verify functionality:
 

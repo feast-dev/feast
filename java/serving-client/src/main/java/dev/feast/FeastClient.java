@@ -182,6 +182,33 @@ public class FeastClient implements AutoCloseable {
   }
 
   /**
+   * Get online features from Feast, without indicating project, will use 'default'
+   *
+   * @param featureService string representing the name of the featureService to call. Internally
+   *     this results in a call to the registry which resolves the featureNames.
+   * @param entities list of {@link Row} to select the entities to retrieve the features for.
+   * @return list of {@link Row} containing retrieved data fields.
+   */
+  public List<Row> getOnlineFeatures(String featureService, List<Row> entities) {
+    GetOnlineFeaturesRequest.Builder requestBuilder = GetOnlineFeaturesRequest.newBuilder();
+
+    requestBuilder.setFeatureService(featureService);
+
+    requestBuilder.putAllEntities(getEntityValuesMap(entities));
+
+    List<Row> resp = getOnlineFeatures(requestBuilder.build(), entities);
+
+    if (resp.size() == 0) {
+      logger.info(
+          "Result was empty for getOnlineFeatures call with feature service name: {}, entities: {}",
+          featureService,
+          entities);
+    }
+
+    return resp;
+  }
+
+  /**
    * Get online features from Feast, without indicating project, will use `default`.
    *
    * <p>See {@link #getOnlineFeatures(List, List, String)}
@@ -200,17 +227,27 @@ public class FeastClient implements AutoCloseable {
 
     requestBuilder.putAllEntities(getEntityValuesMap(entities));
 
+    List<Row> resp = getOnlineFeatures(requestBuilder.build(), entities);
+
+    if (resp.size() == 0) {
+      logger.info(
+          "Result was empty for getOnlineFeatures call with featureRefs: {}, entities: {}",
+          featureRefs,
+          entities);
+    }
+
+    return resp;
+  }
+
+  private List<Row> getOnlineFeatures(
+      GetOnlineFeaturesRequest getOnlineFeaturesRequest, List<Row> entities) {
     ServingServiceGrpc.ServingServiceBlockingStub timedStub =
         requestTimeout != 0 ? stub.withDeadlineAfter(requestTimeout, TimeUnit.MILLISECONDS) : stub;
 
-    GetOnlineFeaturesResponse response = timedStub.getOnlineFeatures(requestBuilder.build());
+    GetOnlineFeaturesResponse response = timedStub.getOnlineFeatures(getOnlineFeaturesRequest);
 
     List<Row> results = Lists.newArrayList();
     if (response.getResultsCount() == 0) {
-      logger.info(
-          "No results returned from Feast for getOnlineFeatures with entities: {} and features: {}",
-          entities,
-          featureRefs);
       return results;
     }
 
@@ -253,7 +290,7 @@ public class FeastClient implements AutoCloseable {
   }
 
   /**
-   * Get online features from Feast.
+   * Get online features from Feast via feature reference(s).
    *
    * <p>Example of retrieving online features for the driver FeatureTable, with features driver_id
    * and driver_name
@@ -280,6 +317,32 @@ public class FeastClient implements AutoCloseable {
   }
 
   /**
+   * Get online features from Feast given a feature service name. Internally feature service calls
+   * resolve featureViews via a call to the feature registry.
+   *
+   * <p>Example of retrieving online features for the driver FeatureTable, with features driver_id
+   * and driver_name
+   *
+   * <pre>{@code
+   * FeastClient client = FeastClient.create("localhost", 6566);
+   * List<String> requestedFeatureServiceName = "driver_service"
+   * List<Row> requestedRows =
+   *         Arrays.asList(Row.create().set("driver_id", 123), Row.create().set("driver_id", 456));
+   * List<Row> retrievedFeatures = client.getOnlineFeatures(requestedFeatureServiceName, requestedRows);
+   * retrievedFeatures.forEach(System.out::println);
+   * }</pre>
+   *
+   * @param featureService name of the featureService object
+   * @param rows list of {@link Row} to select the entities to retrieve the features for
+   * @param project {@link String} Specifies the project override. If specified uses the project for
+   *     retrieval. Overrides the projects set in Feature References if also specified.
+   * @return list of {@link Row} containing retrieved data fields.
+   */
+  public List<Row> getOnlineFeatures(String featureService, List<Row> rows, String project) {
+    return getOnlineFeatures(featureService, rows);
+  }
+
+  /**
    * Get online features range from Feast, without indicating project, will use `default`.
    *
    * <p>See {@link #getOnlineFeaturesRange(List, List, List, int, boolean, String)}
@@ -288,6 +351,9 @@ public class FeastClient implements AutoCloseable {
    *     featureTable:feature, where 'featureTable' and 'feature' refer to the FeatureTable and
    *     Feature names respectively. Only the Feature name is required.
    * @param entities list of {@link RangeRow} to select the entities to retrieve the features for.
+   * @param sortKeyFilters
+   * @param limit
+   * @param reverseSortOrder
    * @return list of {@link RangeRow} containing retrieved data fields.
    */
   public List<RangeRow> getOnlineFeaturesRange(

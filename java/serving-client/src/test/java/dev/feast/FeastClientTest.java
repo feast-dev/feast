@@ -61,7 +61,8 @@ public class FeastClientTest {
                 public void getOnlineFeatures(
                     GetOnlineFeaturesRequest request,
                     StreamObserver<GetOnlineFeaturesResponse> responseObserver) {
-                  if (!request.equals(FeastClientTest.getFakeOnlineFeaturesRequest())) {
+                  if (!request.equals(FeastClientTest.getFakeOnlineFeaturesRefRequest())
+                      && !request.equals(FeastClientTest.getFakeOnlineFeaturesServiceRequest())) {
                     responseObserver.onError(Status.FAILED_PRECONDITION.asRuntimeException());
                   }
 
@@ -106,7 +107,12 @@ public class FeastClientTest {
 
   @Test
   public void shouldGetOnlineFeatures() {
-    shouldGetOnlineFeaturesWithClient(this.client);
+    shouldGetOnlineFeaturesFeatureRef(this.client);
+  }
+
+  @Test
+  public void shouldGetOnlineFeaturesFeatureService() {
+    shouldGetOnlineFeaturesFeatureService(this.client);
   }
 
   @Test
@@ -114,10 +120,42 @@ public class FeastClientTest {
     shouldGetOnlineFeaturesRangeWithClient(this.client);
   }
 
-  private void shouldGetOnlineFeaturesWithClient(FeastClient client) {
+  private void shouldGetOnlineFeaturesFeatureRef(FeastClient client) {
     List<Row> rows =
         client.getOnlineFeatures(
             Arrays.asList("driver:name", "driver:rating", "driver:null_value"),
+            Arrays.asList(
+                Row.create().set("driver_id", 1).setEntityTimestamp(Instant.ofEpochSecond(100))),
+            "driver_project");
+
+    assertEquals(
+        rows.get(0).getFields(),
+        new HashMap<String, Value>() {
+          {
+            put("driver_id", intValue(1));
+            put("driver:name", strValue("david"));
+            put("driver:rating", intValue(3));
+            put("driver:null_value", Value.newBuilder().build());
+          }
+        });
+    assertEquals(
+        rows.get(0).getStatuses(),
+        new HashMap<String, FieldStatus>() {
+          {
+            put("driver_id", FieldStatus.PRESENT);
+            put("driver:name", FieldStatus.PRESENT);
+            put("driver:rating", FieldStatus.PRESENT);
+            put("driver:null_value", FieldStatus.NULL_VALUE);
+          }
+        });
+  }
+
+  private void shouldGetOnlineFeaturesFeatureService(FeastClient client) {
+    // Only responbility of the client test is to make sure that the proto message is created
+    // properly/rows are translated properly.
+    List<Row> rows =
+        client.getOnlineFeatures(
+            "driver_service",
             Arrays.asList(
                 Row.create().set("driver_id", 1).setEntityTimestamp(Instant.ofEpochSecond(100))),
             "driver_project");
@@ -181,7 +219,7 @@ public class FeastClientTest {
         });
   }
 
-  private static GetOnlineFeaturesRequest getFakeOnlineFeaturesRequest() {
+  private static GetOnlineFeaturesRequest getFakeOnlineFeaturesRefRequest() {
     // setup mock serving service stub
     return GetOnlineFeaturesRequest.newBuilder()
         .setFeatures(
@@ -190,6 +228,14 @@ public class FeastClientTest {
                 .addVal("driver:rating")
                 .addVal("driver:null_value")
                 .build())
+        .putEntities("driver_id", ValueProto.RepeatedValue.newBuilder().addVal(intValue(1)).build())
+        .build();
+  }
+
+  private static GetOnlineFeaturesRequest getFakeOnlineFeaturesServiceRequest() {
+    // setup mock serving service stub
+    return GetOnlineFeaturesRequest.newBuilder()
+        .setFeatureService("driver_service")
         .putEntities("driver_id", ValueProto.RepeatedValue.newBuilder().addVal(intValue(1)).build())
         .build();
   }
