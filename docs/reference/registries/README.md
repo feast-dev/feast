@@ -1,6 +1,6 @@
 # Registies
 
-Please see [Registry](../../getting-started/architecture-and-components/registry.md) for a conceptual explanation of registries.
+Please see [Registry](../../getting-started/components/registry.md) for a conceptual explanation of registries.
 
 {% content-ref url="local.md" %}
 [local.md](local.md)
