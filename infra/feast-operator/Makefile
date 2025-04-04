@@ -52,6 +52,7 @@ OPERATOR_SDK_VERSION ?= v1.38.0
 # Image URL to use all building/pushing image targets
 IMG ?= $(IMAGE_TAG_BASE):$(VERSION)
 FS_IMG ?= quay.io/feastdev/feature-server:$(VERSION)
+CJ_IMG ?= quay.io/openshift/origin-cli:4.17
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.30.0
 
@@ -365,4 +366,4 @@ catalog-push: ## Push a catalog image.
 
 .PHONY: related-image-fs
 related-image-fs: envsubst
-	FS_IMG=$(FS_IMG) $(ENVSUBST) < config/default/related_image_fs_patch.tmpl > config/default/related_image_fs_patch.yaml
+	FS_IMG=$(FS_IMG) CJ_IMG=$(CJ_IMG) $(ENVSUBST) < config/default/related_image_fs_patch.tmpl > config/default/related_image_fs_patch.yaml
