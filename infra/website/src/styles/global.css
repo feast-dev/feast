@@ -595,9 +595,30 @@ main::before {
     max-width: 130px;
 }
 
+.integration-item img[alt="MSSQL"] {
+    max-height: 46px;
+    width: auto;
+}
+
 .integration-logo:hover {
     opacity: 1;
     filter: grayscale(0%) contrast(1);
+}
+
+.text-logo {
+    font-family: var(--font-mono);
+    font-size: 14px;
+    font-weight: 600;
+    text-align: center;
+    color: #666;
+    opacity: 0.9;
+    transition: opacity 0.2s ease;
+    padding: 8px 0;
+}
+
+.integration-item:hover .text-logo {
+    opacity: 1;
+    color: var(--color-text);
 }
 
 .integration-grid {
