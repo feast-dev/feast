@@ -1,11 +1,11 @@
 from abc import ABC, abstractmethod
 from typing import Union
 
-from feast import BatchFeatureView, StreamFeatureView, FeatureView
+from feast import BatchFeatureView, FeatureView, StreamFeatureView
 from feast.infra.compute_engines.base import HistoricalRetrievalTask
+from feast.infra.compute_engines.dag.node import DAGNode
 from feast.infra.compute_engines.dag.plan import ExecutionPlan
 from feast.infra.materialization.batch_materialization_engine import MaterializationTask
-from feast.infra.compute_engines.dag.node import DAGNode
 
 
 class DAGBuilder(ABC):
@@ -45,13 +45,19 @@ class DAGBuilder(ABC):
     def build(self) -> ExecutionPlan:
         last_node = self.build_source_node()
 
-        if hasattr(self.feature_view, "aggregation") and self.feature_view.aggregation is not None:
+        if (
+            hasattr(self.feature_view, "aggregation")
+            and self.feature_view.aggregation is not None
+        ):
             last_node = self.build_aggregation_node(last_node)
 
         if self._should_join():
             last_node = self.build_join_node(last_node)
 
-        if hasattr(self.feature_view, "feature_transformation") and self.feature_view.feature_transformation:
+        if (
+            hasattr(self.feature_view, "feature_transformation")
+            and self.feature_view.feature_transformation
+        ):
             last_node = self.build_transformation_node(last_node)
 
         if getattr(self.feature_view, "enable_validation", False):

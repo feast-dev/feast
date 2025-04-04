@@ -3,8 +3,12 @@ from datetime import datetime
 from typing import Dict, List, Optional, Union, cast
 
 from aggregation import Aggregation
-from pyspark.sql import functions as F
+from infra.materialization.contrib.spark.spark_materialization_engine import (
+    _map_by_partition,
+    _SparkSerializedArtifacts,
+)
 from pyspark.sql import DataFrame, Window
+from pyspark.sql import functions as F
 
 from feast.infra.compute_engines.base import HistoricalRetrievalTask
 from feast.infra.compute_engines.dag.model import DAGFormat, ExecutionContext
@@ -15,8 +19,6 @@ from feast.infra.offline_stores.contrib.spark_offline_store.spark import (
     SparkRetrievalJob,
 )
 from feast.utils import _get_column_names
-from infra.materialization.contrib.spark.spark_materialization_engine import _map_by_partition, \
-    _SparkSerializedArtifacts
 
 
 @dataclass
@@ -35,15 +37,12 @@ class SparkJoinContext:
 
 class SparkReadNode(DAGNode):
     def __init__(
-            self,
-            name: str,
-            task: Union[MaterializationTask, HistoricalRetrievalTask]
+        self, name: str, task: Union[MaterializationTask, HistoricalRetrievalTask]
     ):
         super().__init__(name)
         self.task = task
 
-    def execute(self,
-                context: ExecutionContext) -> DAGValue:
+    def execute(self, context: ExecutionContext) -> DAGValue:
         offline_store = context.offline_store
         start_time = self.task.start_time
         end_time = self.task.end_time
@@ -83,12 +82,12 @@ class SparkReadNode(DAGNode):
 
 class SparkAggregationNode(DAGNode):
     def __init__(
-            self,
-            name: str,
-            input_node: DAGNode,
-            aggregations: List[Aggregation],
-            group_by_keys: List[str],
-            timestamp_col: str,
+        self,
+        name: str,
+        input_node: DAGNode,
+        aggregations: List[Aggregation],
+        group_by_keys: List[str],
+        timestamp_col: str,
     ):
         super().__init__(name)
         self.add_input(input_node)
@@ -96,8 +95,7 @@ class SparkAggregationNode(DAGNode):
         self.group_by_keys = group_by_keys
         self.timestamp_col = timestamp_col
 
-    def execute(self,
-                context: ExecutionContext) -> DAGValue:
+    def execute(self, context: ExecutionContext) -> DAGValue:
         input_value = context.node_outputs[self.inputs[0].name]
         input_value.assert_format(DAGFormat.SPARK)
         input_df: DataFrame = input_value.data
@@ -135,19 +133,14 @@ class SparkAggregationNode(DAGNode):
 
 class SparkJoinNode(DAGNode):
     def __init__(
-            self,
-            name: str,
-            feature_node: DAGNode,
-            join_keys: List[str],
-            feature_view
+        self, name: str, feature_node: DAGNode, join_keys: List[str], feature_view
     ):
         super().__init__(name)
         self.join_keys = join_keys
         self.add_input(feature_node)
         self.feature_view = feature_view
 
-    def execute(self,
-                context: ExecutionContext) -> DAGValue:
+    def execute(self, context: ExecutionContext) -> DAGValue:
         feature_value = context.node_outputs[self.inputs[1].name]
         feature_value.assert_format(DAGFormat.SPARK)
 
@@ -184,16 +177,12 @@ class SparkJoinNode(DAGNode):
 
 
 class SparkWriteNode(DAGNode):
-    def __init__(self,
-                 name: str,
-                 input_node: DAGNode,
-                 task):
+    def __init__(self, name: str, input_node: DAGNode, task):
         super().__init__(name)
         self.task = task
         self.add_input(input_node)
 
-    def execute(self,
-                context: ExecutionContext) -> DAGValue:
+    def execute(self, context: ExecutionContext) -> DAGValue:
         spark_df: DataFrame = context.node_outputs[self.inputs[0].name].data
         feature_view = self.task.feature_view
 
@@ -225,16 +214,12 @@ class SparkWriteNode(DAGNode):
 
 
 class SparkTransformationNode(DAGNode):
-    def __init__(self,
-                 name: str,
-                 input_node: DAGNode,
-                 udf):
+    def __init__(self, name: str, input_node: DAGNode, udf):
         super().__init__(name)
         self.add_input(input_node)
         self.udf = udf
 
-    def execute(self,
-                context: ExecutionContext) -> DAGValue:
+    def execute(self, context: ExecutionContext) -> DAGValue:
         input_val = context.node_outputs[self.inputs[0].name]
         input_val.assert_format(DAGFormat.SPARK)
 

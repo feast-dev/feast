@@ -51,7 +51,6 @@ class SparkComputeEngine(ComputeEngine):
             )
 
     def get_historical_features(self, task: HistoricalRetrievalTask) -> pa.Table:
-
         if isinstance(task.entity_df, str):
             raise NotImplementedError("SQL-based entity_df is not yet supported in DAG")
 
