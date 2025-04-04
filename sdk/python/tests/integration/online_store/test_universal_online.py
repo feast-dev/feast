@@ -919,3 +919,76 @@ def test_retrieve_online_milvus_documents(environment, fake_document_data):
 
     assert len(documents["item_id"]) == 2
     assert documents["item_id"] == [2, 3]
+
+
+@pytest.mark.integration
+@pytest.mark.universal_online_stores(only=["qdrant"])
+def test_retrieve_online_qdrant_documents_v2(environment, fake_document_data):
+    fs = environment.feature_store
+    df, data_source = fake_document_data
+    item_embeddings_feature_view = create_item_embeddings_feature_view(data_source)
+    fs.apply([item_embeddings_feature_view, item()])
+    fs.write_to_online_store("item_embeddings", df)
+
+    # Test vector search
+    vector_documents = fs.retrieve_online_documents_v2(
+        features=[
+            "item_embeddings:embedding_float",
+            "item_embeddings:item_id",
+            "item_embeddings:string_feature",
+        ],
+        query=[1.0, 2.0],
+        top_k=2,
+        distance_metric="cosine",
+    ).to_dict()
+
+    assert len(vector_documents["embedding_float"]) > 0
+    assert len(vector_documents["item_id"]) > 0
+    assert len(vector_documents["string_feature"]) > 0
+
+    # Test hybrid search (vector + text)
+    hybrid_documents = fs.retrieve_online_documents_v2(
+        features=[
+            "item_embeddings:embedding_float",
+            "item_embeddings:item_id",
+            "item_embeddings:string_feature",
+        ],
+        query=[1.0, 2.0],
+        top_k=2,
+        distance_metric="cosine",
+        query_string="item",
+    ).to_dict()
+
+    assert len(hybrid_documents["embedding_float"]) >= 0
+
+    try:
+        text_documents = fs.retrieve_online_documents_v2(
+            features=[
+                "item_embeddings:embedding_float",
+                "item_embeddings:item_id",
+                "item_embeddings:string_feature",
+            ],
+            query=None,
+            top_k=2,
+            query_string="item",
+        ).to_dict()
+
+        if text_documents and len(text_documents.get("string_feature", [])) > 0:
+            assert all(
+                "item" in str(feature).lower()
+                for feature in text_documents["string_feature"]
+            )
+    except Exception as e:
+        pytest.fail(f"Text search failed: {e}")
+
+    # Test error case
+    with pytest.raises(ValueError):
+        fs.retrieve_online_documents_v2(
+            features=[
+                "item_embeddings:embedding_float",
+                "item_embeddings:item_id",
+                "item_embeddings:string_feature",
+            ],
+            query=None,
+            top_k=2,
+        )

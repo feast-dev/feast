@@ -103,6 +103,23 @@ class CliRunner:
                 entity_key_serialization_version: 3
                 """
                 )
+            elif online_store == "qdrant":
+                yaml_config = dedent(
+                    f"""
+                project: {project_id}
+                registry: {data_path / "registry.db"}
+                provider: local
+                online_store:
+                    type: qdrant
+                    location: ":memory:"
+                    vector_len: 10
+                    similarity: "cosine"
+                    vector_name: "vector"
+                offline_store:
+                    type: {offline_store}
+                entity_key_serialization_version: 3
+                """
+                )
             else:
                 pass
 

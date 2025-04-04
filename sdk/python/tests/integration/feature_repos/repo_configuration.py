@@ -81,6 +81,9 @@ from tests.integration.feature_repos.universal.online_store.dynamodb import (
 from tests.integration.feature_repos.universal.online_store.milvus import (
     MilvusOnlineStoreCreator,
 )
+from tests.integration.feature_repos.universal.online_store.qdrant import (
+    QdrantOnlineStoreCreator,
+)
 from tests.integration.feature_repos.universal.online_store.redis import (
     RedisOnlineStoreCreator,
 )
@@ -149,7 +152,13 @@ if os.getenv("FEAST_IS_LOCAL_TEST", "False") == "True":
 
 AVAILABLE_ONLINE_STORES: Dict[
     str, Tuple[Union[str, Dict[Any, Any]], Optional[Type[OnlineStoreCreator]]]
-] = {"sqlite": ({"type": "sqlite"}, None)}
+] = {
+    "sqlite": ({"type": "sqlite"}, None),
+    "qdrant": (
+        {"type": "qdrant", "vector_len": 2, "similarity": "cosine"},
+        QdrantOnlineStoreCreator,
+    ),
+}
 
 # Only configure Cloud DWH if running full integration tests
 if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
@@ -167,6 +176,10 @@ if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":
     AVAILABLE_ONLINE_STORES["snowflake"] = (SNOWFLAKE_CONFIG, None)
     AVAILABLE_ONLINE_STORES["bigtable"] = (BIGTABLE_CONFIG, None)
     AVAILABLE_ONLINE_STORES["milvus"] = (MILVUS_CONFIG, None)
+    AVAILABLE_ONLINE_STORES["qdrant"] = (
+        {"type": "qdrant", "vector_len": 2, "similarity": "cosine"},
+        QdrantOnlineStoreCreator,
+    )
 
     # Uncomment to test using private IKV account. Currently not enabled as
     # there is no dedicated IKV instance for CI testing and there is no
