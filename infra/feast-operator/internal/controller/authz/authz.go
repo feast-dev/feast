@@ -179,7 +179,8 @@ func (authz *FeastAuthorization) setAuthRole(role *rbacv1.Role) error {
 
 func (authz *FeastAuthorization) getLabels() map[string]string {
 	return map[string]string{
-		services.NameLabelKey: authz.Handler.FeatureStore.Name,
+		services.NameLabelKey:        authz.Handler.FeatureStore.Name,
+		services.ServiceTypeLabelKey: string(services.AuthzFeastType),
 	}
 }
 

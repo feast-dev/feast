@@ -22,6 +22,7 @@ import (
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -59,8 +60,10 @@ type FeatureStoreReconciler struct {
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;create;update;watch;delete
 // +kubebuilder:rbac:groups=core,resources=services;configmaps;persistentvolumeclaims;serviceaccounts,verbs=get;list;create;update;watch;delete
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles;rolebindings,verbs=get;list;create;update;watch;delete
-// +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list
+// +kubebuilder:rbac:groups=core,resources=secrets;pods,verbs=get;list
+// +kubebuilder:rbac:groups=core,resources=pods/exec,verbs=create
 // +kubebuilder:rbac:groups=route.openshift.io,resources=routes,verbs=get;list;create;update;watch;delete
+// +kubebuilder:rbac:groups=batch,resources=cronjobs,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -188,6 +191,7 @@ func (r *FeatureStoreReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&corev1.ServiceAccount{}).
 		Owns(&rbacv1.RoleBinding{}).
 		Owns(&rbacv1.Role{}).
+		Owns(&batchv1.CronJob{}).
 		Watches(&feastdevv1alpha1.FeatureStore{}, handler.EnqueueRequestsFromMapFunc(r.mapFeastRefsToFeastRequests))
 	if services.IsOpenShift() {
 		bldr = bldr.Owns(&routev1.Route{})
