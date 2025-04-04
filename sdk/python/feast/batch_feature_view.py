@@ -55,6 +55,7 @@ class BatchFeatureView(FeatureView):
     entity_columns: List[Field]
     features: List[Field]
     online: bool
+    offline: bool
     description: str
     tags: Dict[str, str]
     owner: str
@@ -74,6 +75,7 @@ class BatchFeatureView(FeatureView):
         ttl: Optional[timedelta] = None,
         tags: Optional[Dict[str, str]] = None,
         online: bool = True,
+        offline: bool = True,
         description: str = "",
         owner: str = "",
         schema: Optional[List[Field]] = None,
@@ -110,6 +112,7 @@ class BatchFeatureView(FeatureView):
             ttl=ttl,
             tags=tags,
             online=online,
+            offline=offline,
             description=description,
             owner=owner,
             schema=schema,
