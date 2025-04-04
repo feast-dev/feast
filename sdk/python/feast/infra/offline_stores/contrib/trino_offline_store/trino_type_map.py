@@ -74,7 +74,7 @@ _TRINO_TO_PA_TYPE_MAP = {
     "double": pa.float64(),
     "binary": pa.binary(),
     "char": pa.string(),
-    "real": pa.float32()
+    "real": pa.float32(),
 }
 
 
