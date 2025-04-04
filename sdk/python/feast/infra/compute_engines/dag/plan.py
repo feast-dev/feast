@@ -1,6 +1,6 @@
 from typing import List
 
-from feast.infra.compute_engines.dag.model import ExecutionContext
+from feast.infra.compute_engines.dag.context import ExecutionContext
 from feast.infra.compute_engines.dag.node import DAGNode
 from feast.infra.compute_engines.dag.value import DAGValue
 

@@ -11,7 +11,8 @@ from pyspark.sql import DataFrame, Window
 from pyspark.sql import functions as F
 
 from feast.infra.compute_engines.base import HistoricalRetrievalTask
-from feast.infra.compute_engines.dag.model import DAGFormat, ExecutionContext
+from feast.infra.compute_engines.dag.context import ExecutionContext
+from feast.infra.compute_engines.dag.model import DAGFormat
 from feast.infra.compute_engines.dag.node import DAGNode
 from feast.infra.compute_engines.dag.value import DAGValue
 from feast.infra.materialization.batch_materialization_engine import MaterializationTask

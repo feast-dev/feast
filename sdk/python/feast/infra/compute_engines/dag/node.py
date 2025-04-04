@@ -3,7 +3,7 @@ from typing import List
 
 from infra.compute_engines.dag.value import DAGValue
 
-from feast.infra.compute_engines.dag.model import ExecutionContext
+from feast.infra.compute_engines.dag.context import ExecutionContext
 
 
 class DAGNode(ABC):
