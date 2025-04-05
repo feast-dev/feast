@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 
 import base64
+import json
 import logging
 import uuid
 from datetime import datetime
@@ -11,6 +12,7 @@ from qdrant_client import QdrantClient, models
 from feast import Entity, FeatureView, RepoConfig
 from feast.infra.key_encoding_utils import (
     deserialize_entity_key,
+    get_list_val_str,
     serialize_entity_key,
 )
 from feast.infra.online_stores.online_store import OnlineStore
@@ -133,26 +135,28 @@ class QdrantOnlineStore(OnlineStore):
                 ):
                     payload["text_value"] = value.string_val
 
-                if feature_name == config.online_store.vector_name:
+                # Extract vector value if this is a vector feature
+                vector_val = get_list_val_str(value)
+                if vector_val:
+                    vector = {config.online_store.vector_name: json.loads(vector_val)}
+                elif feature_name == config.online_store.vector_name:
+                    # Fallback to the previous method if vector_name matches feature_name
                     vector_val = list(value.float_list_val.val)
-                    points.append(
-                        models.PointStruct(
-                            id=uuid.uuid4().hex,
-                            payload=payload,
-                            vector={config.online_store.vector_name: vector_val},
-                        )
-                    )
+                    vector = {config.online_store.vector_name: vector_val}
                 else:
-                    points.append(
-                        models.PointStruct(
-                            id=uuid.uuid4().hex,
-                            payload=payload,
-                            vector={
-                                config.online_store.vector_name: [0.0]
-                                * config.online_store.vector_len
-                            },
-                        )
+                    # Default empty vector for non-vector features
+                    vector = {
+                        config.online_store.vector_name: [0.0]
+                        * config.online_store.vector_len
+                    }
+                
+                points.append(
+                    models.PointStruct(
+                        id=uuid.uuid4().hex,
+                        payload=payload,
+                        vector=vector,
                     )
+                )
 
         self._get_client(config).upload_points(
             collection_name=table.name,

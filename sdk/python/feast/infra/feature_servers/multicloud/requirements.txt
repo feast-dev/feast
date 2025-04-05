@@ -1,2 +1,4 @@
 # keep VERSION on line #2, this is critical to release CI
 feast[aws,gcp,snowflake,redis,go,mysql,postgres,opentelemetry,grpcio,k8s,duckdb,milvus] == 0.47.0
+# the following can be used instead w/ feast 0.48.0+
+# feast[minimal] == 0.48.0
