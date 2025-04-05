@@ -2020,10 +2020,6 @@ class FeatureStore:
         """
         Search and return document features from the online document store.
         """
-        vector_field_metadata = _get_feature_view_vector_field_metadata(table)
-        if vector_field_metadata:
-            distance_metric = vector_field_metadata.vector_search_metric
-
         documents = provider.retrieve_online_documents(
             config=self.config,
             table=table,
