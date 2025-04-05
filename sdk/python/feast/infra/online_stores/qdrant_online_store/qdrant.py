@@ -174,10 +174,20 @@ class QdrantOnlineStore(OnlineStore):
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         conditions: List[models.Condition] = []
         if entity_keys:
+            # Convert entity keys to the string format stored in Qdrant
+            entity_key_strs = []
+            for entity_key in entity_keys:
+                entity_key_bin = serialize_entity_key(
+                    entity_key,
+                    entity_key_serialization_version=config.entity_key_serialization_version,
+                )
+                entity_key_str = base64.b64encode(entity_key_bin).decode("utf-8")
+                entity_key_strs.append(entity_key_str)
+                
             conditions.append(
                 models.FieldCondition(
                     key="entity_key",
-                    match=models.MatchAny(any=entity_keys),  # type: ignore
+                    match=models.MatchAny(any=entity_key_strs),
                 )
             )
 
@@ -325,7 +335,10 @@ class QdrantOnlineStore(OnlineStore):
         )
         for point in points:
             payload = point.payload or {}
-            entity_key = str(payload.get("entity_key"))
+            entity_key_str = payload.get("entity_key")
+            if not entity_key_str:
+                continue
+                
             feature_value = str(payload.get("feature_value"))
             timestamp_str = str(payload.get("timestamp"))
             timestamp = datetime.strptime(timestamp_str, "%Y-%m-%dT%H:%M:%S.%f")
@@ -338,7 +351,7 @@ class QdrantOnlineStore(OnlineStore):
 
             result.append(
                 _build_retrieve_online_document_record(
-                    entity_key,
+                    entity_key_str,
                     base64.b64decode(feature_value),
                     vector_value,
                     distance,
@@ -543,8 +556,9 @@ class QdrantOnlineStore(OnlineStore):
             raw_entity_key = payload.get("entity_key")
             if not raw_entity_key:
                 continue
-            entity_key_str = cast(str, raw_entity_key)
-
+                
+            entity_key_str = raw_entity_key
+            
             # Handle feature name
             feature_name = payload.get("feature_name", "")
             feature_value_encoded = payload.get("feature_value")
