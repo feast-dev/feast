@@ -349,16 +349,27 @@ class QdrantOnlineStore(OnlineStore):
                 else point.vector
             )
 
-            result.append(
-                _build_retrieve_online_document_record(
-                    entity_key_str,
-                    base64.b64decode(feature_value),
-                    vector_value,
-                    distance,
-                    timestamp,
-                    config.entity_key_serialization_version,
-                )
+            # Instead of using _build_retrieve_online_document_record directly, handle the deserialization ourselves
+            # to have more control over the process
+            entity_key_bin = base64.b64decode(entity_key_str)
+            entity_key_proto = deserialize_entity_key(
+                entity_key_bin,
+                entity_key_serialization_version=config.entity_key_serialization_version,
             )
+            
+            feature_value_proto = ValueProto()
+            feature_value_proto.ParseFromString(base64.b64decode(feature_value))
+            
+            vector_proto = ValueProto()
+            vector_proto.float_list_val.val.extend(json.loads(vector_value))
+            
+            distance_proto = ValueProto()
+            distance_proto.double_val = distance
+            
+            result.append(
+                (timestamp, entity_key_proto, feature_value_proto, vector_proto, distance_proto)
+            )
+            
         return result
 
     def retrieve_online_documents_v2(
