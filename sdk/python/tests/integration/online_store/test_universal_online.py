@@ -870,7 +870,7 @@ def test_retrieve_online_documents(environment, fake_document_data):
     fs.write_to_online_store("item_embeddings", df)
 
     documents = fs.retrieve_online_documents(
-        features=["item_embeddings:embedding_float"],
+        features=["item_embeddings:embedding_float", "item_embeddings:item_id"],
         query=[1.0, 2.0],
         top_k=2,
         distance_metric="L2",
