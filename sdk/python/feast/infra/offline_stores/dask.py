@@ -470,8 +470,7 @@ class DaskOfflineStore(OfflineStore):
         file_options = feature_view.batch_source.file_options
 
         absolute_path = FileSource.get_uri_for_file_path(
-            repo_path=config.repo_path,
-            uri=file_options.uri
+            repo_path=config.repo_path, uri=file_options.uri
         )
 
         filesystem, path = FileSource.create_filesystem_and_path(
