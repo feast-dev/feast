@@ -361,7 +361,7 @@ class DaskOfflineStore(OfflineStore):
 
             source_df = source_df[
                 (source_df[timestamp_field] >= start_date)
-                & (source_df[timestamp_field] < end_date)
+                & (source_df[timestamp_field] <= end_date)
             ]
 
             source_df = source_df.persist()
