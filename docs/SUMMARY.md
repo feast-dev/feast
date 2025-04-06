@@ -28,6 +28,7 @@
   * [\[Alpha\] Saved dataset](getting-started/concepts/dataset.md)
   * [Permission](getting-started/concepts/permission.md)
   * [Tags](getting-started/concepts/tags.md)
+* [Use Cases](getting-started/use-cases.md)
 * [Components](getting-started/components/README.md)
   * [Overview](getting-started/components/overview.md)
   * [Registry](getting-started/components/registry.md)
@@ -50,6 +51,7 @@
   * [Driver stats on Snowflake](tutorials/tutorials-overview/driver-stats-on-snowflake.md)
 * [Validating historical features with Great Expectations](tutorials/validating-historical-features.md)
 * [Building streaming features](tutorials/building-streaming-features.md)
+* [Retrieval Augmented Generation (RAG) with Feast](tutorials/rag-with-docling.md)
 
 ## How-to Guides
 
