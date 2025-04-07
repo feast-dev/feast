@@ -21,51 +21,27 @@ import feast.proto.types.ValueProto.Value;
 
 public class SortKeyFilterModel {
   private String sortKeyName;
-  private Value rangeStart;
-  private Value rangeEnd;
-  private boolean startInclusive;
-  private boolean endInclusive;
+  private Value equals;
+  private RangeQueryModel rangeQueryModel;
 
-  public SortKeyFilterModel(
-      String sortKeyName,
-      Object rangeStart,
-      Object rangeEnd,
-      boolean inclusiveStart,
-      boolean inclusiveEnd) {
+  public SortKeyFilterModel(String sortKeyName, RangeQueryModel rangeQueryModel) {
     this.sortKeyName = sortKeyName;
-    this.rangeStart = RequestUtil.objectToValue(rangeStart);
-    this.rangeEnd = RequestUtil.objectToValue(rangeEnd);
-    this.startInclusive = inclusiveStart;
-    this.endInclusive = inclusiveEnd;
+    this.rangeQueryModel = rangeQueryModel;
+  }
+
+  public SortKeyFilterModel(String sortKeyName, Object equals) {
+    this.sortKeyName = sortKeyName;
+    this.equals = RequestUtil.objectToValue(equals);
   }
 
   public SortKeyFilter toProto() {
+    if (equals != null) {
+      return SortKeyFilter.newBuilder().setSortKeyName(sortKeyName).setEquals(equals).build();
+    }
+
     return SortKeyFilter.newBuilder()
         .setSortKeyName(sortKeyName)
-        .setRangeStart(rangeStart)
-        .setRangeEnd(rangeEnd)
-        .setStartInclusive(startInclusive)
-        .setEndInclusive(endInclusive)
+        .setRange(this.rangeQueryModel.toProto())
         .build();
-  }
-
-  public String getSortKeyName() {
-    return sortKeyName;
-  }
-
-  public Value getRangeStart() {
-    return rangeStart;
-  }
-
-  public Value getRangeEnd() {
-    return rangeEnd;
-  }
-
-  public boolean isStartInclusive() {
-    return startInclusive;
-  }
-
-  public boolean isEndInclusive() {
-    return endInclusive;
   }
 }

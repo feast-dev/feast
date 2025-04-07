@@ -20,6 +20,7 @@ import com.google.protobuf.ByteString;
 import feast.proto.serving.ServingAPIProto.FeatureReferenceV2;
 import feast.proto.types.ValueProto;
 import feast.proto.types.ValueProto.Value;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -100,6 +101,19 @@ public class RequestUtil {
         return Value.newBuilder().setBoolVal((boolean) value).build();
       case "feast.proto.types.ValueProto.Value":
         return (Value) value;
+      case "java.time.LocalDateTime":
+        return Value.newBuilder()
+            .setUnixTimestampVal(
+                ((java.time.LocalDateTime) value).toInstant(ZoneOffset.UTC).toEpochMilli())
+            .build();
+      case "java.time.Instant":
+        return Value.newBuilder()
+            .setUnixTimestampVal(((java.time.Instant) value).toEpochMilli())
+            .build();
+      case "java.time.OffsetDateTime":
+        return Value.newBuilder()
+            .setUnixTimestampVal(((java.time.OffsetDateTime) value).toInstant().toEpochMilli())
+            .build();
       case "java.util.Arrays.ArrayList":
         if (((List<?>) value).isEmpty()) {
           throw new IllegalArgumentException("Unsupported empty list type");

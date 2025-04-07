@@ -250,12 +250,9 @@ func TestCassandraOnlineStore_getRangeQueryCQLStatement_multipleFilters(t *testi
 	store := CassandraOnlineStore{}
 	fqTableName := `"scylladb"."dummy_project_dummy_fv"`
 	sortFilter1 := model.SortKeyFilter{
-		SortKeyName:    "sort1",
-		RangeStart:     4,
-		RangeEnd:       12,
-		StartInclusive: false,
-		EndInclusive:   false,
-		Order:          &model.SortOrder{Order: core.SortOrder_ASC},
+		SortKeyName: "sort1",
+		Equals:      4,
+		Order:       &model.SortOrder{Order: core.SortOrder_ASC},
 	}
 	sortFilter2 := model.SortKeyFilter{
 		SortKeyName:    "sort2",
@@ -266,10 +263,10 @@ func TestCassandraOnlineStore_getRangeQueryCQLStatement_multipleFilters(t *testi
 
 	cqlStatement, params := store.getRangeQueryCQLStatement(fqTableName, []string{"feat1", "feat2"}, []*model.SortKeyFilter{&sortFilter1, &sortFilter2}, 5)
 	assert.Equal(t,
-		`SELECT "entity_key", "event_ts", "feat1", "feat2" FROM "scylladb"."dummy_project_dummy_fv" WHERE "entity_key" = ? AND "sort1" > ? AND "sort1" < ? AND "sort2" >= ? ORDER BY "sort1" ASC, "sort2" DESC LIMIT ?`,
+		`SELECT "entity_key", "event_ts", "feat1", "feat2" FROM "scylladb"."dummy_project_dummy_fv" WHERE "entity_key" = ? AND "sort1" = ? AND "sort2" >= ? ORDER BY "sort1" ASC, "sort2" DESC LIMIT ?`,
 		cqlStatement,
 	)
-	assert.ElementsMatch(t, []interface{}{4, 12, 10, int32(5)}, params)
+	assert.ElementsMatch(t, []interface{}{4, 10, int32(5)}, params)
 }
 
 func TestCassandraOnlineStore_getRangeQueryCQLStatement_multipleFiltersWithMixOfRanges(t *testing.T) {

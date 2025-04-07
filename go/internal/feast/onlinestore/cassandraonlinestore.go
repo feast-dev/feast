@@ -693,6 +693,13 @@ func (c *CassandraOnlineStore) OnlineRead(ctx context.Context, entityKeys []*typ
 func (c *CassandraOnlineStore) rangeFilterToCQL(filter *model.SortKeyFilter) (string, []interface{}) {
 	rangeParams := make([]interface{}, 0)
 
+	equality := ""
+	if filter.Equals != nil {
+		equality = fmt.Sprintf(`"%s" = ?`, filter.SortKeyName)
+		rangeParams = append(rangeParams, filter.Equals)
+		return equality, rangeParams
+	}
+
 	rangeStart := ""
 	if filter.RangeStart != nil {
 		if filter.StartInclusive {

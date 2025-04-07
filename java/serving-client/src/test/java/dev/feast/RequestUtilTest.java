@@ -25,6 +25,10 @@ import com.google.common.collect.ImmutableList;
 import com.google.protobuf.TextFormat;
 import feast.proto.serving.ServingAPIProto.FeatureReferenceV2;
 import feast.proto.types.ValueProto;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
@@ -117,6 +121,17 @@ public class RequestUtilTest {
     byte[] bytes = "test".getBytes();
     assertArrayEquals(RequestUtil.objectToValue(bytes).getBytesVal().toByteArray(), bytes);
     assertTrue(RequestUtil.objectToValue(true).getBoolVal());
+    Instant instant = Instant.now();
+    assertEquals(
+        RequestUtil.objectToValue(LocalDateTime.ofInstant(instant, ZoneId.of("UTC")))
+            .getUnixTimestampVal(),
+        instant.toEpochMilli());
+    assertEquals(
+        RequestUtil.objectToValue(
+                OffsetDateTime.ofInstant(instant, ZoneId.of("America/Los_Angeles")))
+            .getUnixTimestampVal(),
+        instant.toEpochMilli());
+    assertEquals(RequestUtil.objectToValue(instant).getUnixTimestampVal(), instant.toEpochMilli());
     assertEquals(RequestUtil.objectToValue(null).getNullVal(), ValueProto.Null.NULL);
     assertEquals(
         RequestUtil.objectToValue(Arrays.asList(1, 2, 3)).getInt32ListVal().getValList(),

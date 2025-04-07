@@ -93,16 +93,25 @@ type SortKeyFilter struct {
 	RangeEnd       interface{}
 	StartInclusive bool
 	EndInclusive   bool
+	Equals         interface{}
 	Order          *SortOrder
 }
 
 func NewSortKeyFilterFromProto(proto *serving.SortKeyFilter, sortOrder core.SortOrder_Enum) *SortKeyFilter {
+	if proto.GetRange() != nil {
+		return &SortKeyFilter{
+			SortKeyName:    proto.GetSortKeyName(),
+			RangeStart:     types2.ValueTypeToGoType(proto.GetRange().GetRangeStart()),
+			RangeEnd:       types2.ValueTypeToGoType(proto.GetRange().GetRangeEnd()),
+			StartInclusive: proto.GetRange().GetStartInclusive(),
+			EndInclusive:   proto.GetRange().GetEndInclusive(),
+			Order:          NewSortOrderFromProto(sortOrder),
+		}
+	}
+
 	return &SortKeyFilter{
-		SortKeyName:    proto.GetSortKeyName(),
-		RangeStart:     types2.ValueTypeToGoType(proto.GetRangeStart()),
-		RangeEnd:       types2.ValueTypeToGoType(proto.GetRangeEnd()),
-		StartInclusive: proto.GetStartInclusive(),
-		EndInclusive:   proto.GetEndInclusive(),
-		Order:          NewSortOrderFromProto(sortOrder),
+		SortKeyName: proto.GetSortKeyName(),
+		Equals:      types2.ValueTypeToGoType(proto.GetEquals()),
+		Order:       NewSortOrderFromProto(sortOrder),
 	}
 }

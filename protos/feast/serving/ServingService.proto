@@ -144,17 +144,24 @@ message SortKeyFilter {
     // Name of the sort key to filter on
     string sort_key_name = 1;
 
-    // Start of the range that the sort key will be bounded by for the query
-    feast.types.Value range_start = 2;
+    message RangeQuery {
+        // Start of the range that the sort key will be bounded by for the query
+        feast.types.Value range_start = 2;
 
-    // End of the range that the sort key will be bounded by for the query
-    feast.types.Value range_end = 3;
+        // End of the range that the sort key will be bounded by for the query
+        feast.types.Value range_end = 3;
 
-    // Whether the start of the range is inclusive
-    bool start_inclusive = 4;
+        // Whether the start of the range is inclusive
+        bool start_inclusive = 4;
 
-    // Whether the end of the range is inclusive
-    bool end_inclusive = 5;
+        // Whether the end of the range is inclusive
+        bool end_inclusive = 5;
+    }
+
+    oneof query {
+        RangeQuery range = 2;
+        feast.types.Value equals = 3;
+    }
 }
 
 message GetOnlineFeaturesRangeRequest {

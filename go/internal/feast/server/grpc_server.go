@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"google.golang.org/grpc/reflection"
 
 	"github.com/feast-dev/feast/go/internal/feast"
 	"github.com/feast-dev/feast/go/internal/feast/server/logging"
@@ -221,6 +222,7 @@ func (s *grpcServingServiceServer) RegisterServices() (*grpc.Server, *health.Ser
 	serving.RegisterServingServiceServer(grpcServer, s)
 	healthService := health.NewServer()
 	grpc_health_v1.RegisterHealthServer(grpcServer, healthService)
+	reflection.Register(grpcServer)
 
 	return grpcServer, healthService
 }

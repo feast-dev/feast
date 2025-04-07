@@ -2,6 +2,7 @@ package feast
 
 import (
 	"context"
+	"github.com/apache/arrow/go/v17/arrow/array"
 	"github.com/apache/arrow/go/v17/arrow/memory"
 	"github.com/feast-dev/feast/go/internal/feast/model"
 	"github.com/feast-dev/feast/go/internal/feast/onlineserving"
@@ -10,6 +11,7 @@ import (
 	"github.com/feast-dev/feast/go/protos/feast/core"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/feast-dev/feast/go/protos/feast/types"
+	types2 "github.com/feast-dev/feast/go/types"
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -142,18 +144,22 @@ func TestGetOnlineFeaturesRange(t *testing.T) {
 	sortKeyFilters := []*serving.SortKeyFilter{
 		{
 			SortKeyName: "event_timestamp",
-			RangeStart: &types.Value{
-				Val: &types.Value_UnixTimestampVal{
-					UnixTimestampVal: oneWeekAgo.Unix(),
+			Query: &serving.SortKeyFilter_Range{
+				Range: &serving.SortKeyFilter_RangeQuery{
+					RangeStart: &types.Value{
+						Val: &types.Value_UnixTimestampVal{
+							UnixTimestampVal: oneWeekAgo.Unix(),
+						},
+					},
+					RangeEnd: &types.Value{
+						Val: &types.Value_UnixTimestampVal{
+							UnixTimestampVal: now.Unix(),
+						},
+					},
+					StartInclusive: true,
+					EndInclusive:   true,
 				},
 			},
-			RangeEnd: &types.Value{
-				Val: &types.Value_UnixTimestampVal{
-					UnixTimestampVal: now.Unix(),
-				},
-			},
-			StartInclusive: true,
-			EndInclusive:   true,
 		},
 	}
 	sortKeyFilterModels := []*model.SortKeyFilter{
@@ -248,9 +254,34 @@ func TestGetOnlineFeaturesRange(t *testing.T) {
 	assert.Equal(t, "driver_id", result[0].Name)
 	assert.Equal(t, "driver_stats__acc_rate", result[1].Name)
 	assert.Equal(t, "driver_stats__conv_rate", result[2].Name)
-	assert.Equal(t, 2, len(result[1].RangeStatuses))
-	assert.Equal(t, 3, len(result[1].RangeStatuses[0]))
-	assert.Equal(t, 2, len(result[1].RangeStatuses[1]))
+	assert.Equal(t, 2, result[0].RangeValues.Len())
+	assert.Equal(t, 2, len(result[0].RangeStatuses))
+	assert.Equal(t, 2, len(result[0].RangeTimestamps))
+
+	for i := 0; i < result[0].RangeValues.Len(); i++ {
+		key := result[0].RangeValues.(*array.List).ListValues().(*array.Int64).Value(i)
+		var expectedLength int
+
+		accRateValues, err := types2.ArrowValuesToProtoValues(result[1].RangeValues)
+		assert.NoError(t, err)
+		convRateValues, err := types2.ArrowValuesToProtoValues(result[2].RangeValues)
+		assert.NoError(t, err)
+
+		if key == 1001 {
+			assert.Equal(t, []float64{0.91, 0.92, 0.94}, accRateValues[i].GetDoubleListVal().Val)
+			assert.Equal(t, []float64{0.85, 0.87, 0.89}, convRateValues[i].GetDoubleListVal().Val)
+			expectedLength = 3
+		} else {
+			assert.Equal(t, []float64{0.85, 0.88}, accRateValues[i].GetDoubleListVal().Val)
+			assert.Equal(t, []float64{0.78, 0.80}, convRateValues[i].GetDoubleListVal().Val)
+			expectedLength = 2
+		}
+
+		assert.Equal(t, expectedLength, len(result[1].RangeStatuses[i]))
+		assert.Equal(t, expectedLength, len(result[2].RangeStatuses[i]))
+		assert.Equal(t, expectedLength, len(result[1].RangeTimestamps[i]))
+		assert.Equal(t, expectedLength, len(result[2].RangeTimestamps[i]))
+	}
 	mockStore.AssertExpectations(t)
 }
 
