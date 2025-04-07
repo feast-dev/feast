@@ -92,9 +92,6 @@ lock-python-dependencies-all:
 		"uv pip compile -p 3.11 --no-strip-extras setup.py --extra pandas-build \
 		--generate-hashes --output-file sdk/python/requirements/py3.11-pandas-requirements.txt"
 	pixi run --environment $(call get_env_name,3.11) --manifest-path infra/scripts/pixi/pixi.toml \
-		"uv pip compile -p 3.11 --no-strip-extras setup.py --extra postgres-source \
-		--output-file sdk/python/requirements/py3.11-postgres-source-requirements.txt"
-	pixi run --environment $(call get_env_name,3.11) --manifest-path infra/scripts/pixi/pixi.toml \
 		"uv pip compile -p 3.11 --no-strip-extras setup.py --extra minimal-sdist-build \
 		--no-emit-package milvus-lite \
 		--output-file sdk/python/requirements/py3.11-sdist-requirements.txt"
