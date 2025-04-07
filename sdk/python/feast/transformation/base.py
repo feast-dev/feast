@@ -84,7 +84,7 @@ class Transformation(ABC):
         self.mode = mode
         self.udf = udf
         self.udf_string = udf_string
-        self.name = name
+        self.name = name or udf.__name__
         self.tags = tags or {}
         self.description = description
         self.owner = owner

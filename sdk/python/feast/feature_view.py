@@ -222,6 +222,7 @@ class FeatureView(BaseFeatureView):
             source=source,
         )
         self.online = online
+        self.offline = offline
         self.materialization_intervals = []
 
     def __hash__(self):

@@ -2,20 +2,21 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Dict, List, Optional, Union, cast
 
-from aggregation import Aggregation
-from infra.materialization.contrib.spark.spark_materialization_engine import (
-    _map_by_partition,
-    _SparkSerializedArtifacts,
-)
 from pyspark.sql import DataFrame, Window
 from pyspark.sql import functions as F
 
+from feast import BatchFeatureView, StreamFeatureView
+from feast.aggregation import Aggregation
 from feast.infra.compute_engines.base import HistoricalRetrievalTask
 from feast.infra.compute_engines.dag.context import ExecutionContext
 from feast.infra.compute_engines.dag.model import DAGFormat
 from feast.infra.compute_engines.dag.node import DAGNode
 from feast.infra.compute_engines.dag.value import DAGValue
 from feast.infra.materialization.batch_materialization_engine import MaterializationTask
+from feast.infra.materialization.contrib.spark.spark_materialization_engine import (
+    _map_by_partition,
+    _SparkSerializedArtifacts,
+)
 from feast.infra.offline_stores.contrib.spark_offline_store.spark import (
     SparkRetrievalJob,
 )
@@ -116,12 +117,13 @@ class SparkAggregationNode(DAGNode):
             time_window = self.aggregations[
                 0
             ].time_window  # assume consistent window size for now
+            if time_window is None:
+                raise ValueError("Aggregation requires time_window but got None.")
+            window_duration_str = f"{int(time_window.total_seconds())} seconds"
+
             grouped = input_df.groupBy(
                 *self.group_by_keys,
-                F.window(
-                    F.col(self.timestamp_col),
-                    f"{int(time_window.total_seconds())} seconds",
-                ),
+                F.window(F.col(self.timestamp_col), window_duration_str),
             ).agg(*agg_exprs)
         else:
             # Simple aggregation
@@ -134,7 +136,11 @@ class SparkAggregationNode(DAGNode):
 
 class SparkJoinNode(DAGNode):
     def __init__(
-        self, name: str, feature_node: DAGNode, join_keys: List[str], feature_view
+        self,
+        name: str,
+        feature_node: DAGNode,
+        join_keys: List[str],
+        feature_view: Union[BatchFeatureView, StreamFeatureView],
     ):
         super().__init__(name)
         self.join_keys = join_keys
@@ -178,28 +184,32 @@ class SparkJoinNode(DAGNode):
 
 
 class SparkWriteNode(DAGNode):
-    def __init__(self, name: str, input_node: DAGNode, task):
+    def __init__(
+        self,
+        name: str,
+        input_node: DAGNode,
+        feature_view: Union[BatchFeatureView, StreamFeatureView],
+    ):
         super().__init__(name)
-        self.task = task
         self.add_input(input_node)
+        self.feature_view = feature_view
 
     def execute(self, context: ExecutionContext) -> DAGValue:
         spark_df: DataFrame = context.node_outputs[self.inputs[0].name].data
-        feature_view = self.task.feature_view
 
         # ✅ 1. Write to offline store (if enabled)
-        if getattr(self.task, "offline", True):
+        if self.feature_view.online:
             context.offline_store.offline_write_batch(
                 config=context.repo_config,
-                feature_view=feature_view,
+                feature_view=self.feature_view,
                 table=spark_df,
                 progress=None,
             )
 
         # ✅ 2. Write to online store (if enabled)
-        if getattr(self.task, "online", False):
+        if self.feature_view.offline:
             spark_serialized_artifacts = _SparkSerializedArtifacts.serialize(
-                feature_view=feature_view, repo_config=context.repo_config
+                feature_view=self.feature_view, repo_config=context.repo_config
             )
             spark_df.mapInPandas(
                 lambda x: _map_by_partition(x, spark_serialized_artifacts), "status int"
@@ -209,7 +219,9 @@ class SparkWriteNode(DAGNode):
             data=spark_df,
             format=DAGFormat.SPARK,
             metadata={
-                "written_to": "online+offline" if self.task.online else "offline"
+                "feature_view": self.feature_view.name,
+                "write_to_online": self.feature_view.online,
+                "write_to_offline": self.feature_view.offline,
             },
         )
 

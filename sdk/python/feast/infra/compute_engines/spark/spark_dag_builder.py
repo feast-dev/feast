@@ -17,25 +17,29 @@ class SparkDAGBuilder(DAGBuilder):
 
     def build_aggregation_node(self, input_node):
         agg_specs = self.feature_view.aggregations
-        node = SparkAggregationNode("agg", input_node, agg_specs)
+        group_by_keys = self.feature_view.entities
+        timestamp_col = self.feature_view.batch_source.timestamp_field
+        node = SparkAggregationNode(
+            "agg", input_node, agg_specs, group_by_keys, timestamp_col
+        )
         self.nodes.append(node)
         return node
 
     def build_join_node(self, input_node):
         join_keys = self.feature_view.entities
-        node = SparkJoinNode("join", input_node, join_keys)
+        node = SparkJoinNode("join", input_node, join_keys, self.feature_view)
         self.nodes.append(node)
         return node
 
     def build_transformation_node(self, input_node):
-        udf_name = self.feature_view.transformation.name
-        udf = self.feature_view.transformation.udf
+        udf_name = self.feature_view.feature_transformation.name
+        udf = self.feature_view.feature_transformation.udf
         node = SparkTransformationNode(udf_name, input_node, udf)
         self.nodes.append(node)
         return node
 
     def build_output_nodes(self, input_node):
-        output_node = SparkWriteNode("output", input_node)
+        output_node = SparkWriteNode("output", input_node, self.feature_view)
         self.nodes.append(output_node)
 
     def build_validation_node(self, input_node):
