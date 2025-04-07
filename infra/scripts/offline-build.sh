@@ -33,9 +33,9 @@ cachi2 fetch-deps \
 ],
   "requirements_build_files": [
 "sdk/python/feast/infra/feature_servers/multicloud/offline/pyarrow17-wheel-build-requirements.txt",
+"sdk/python/feast/infra/feature_servers/multicloud/offline/psycopg3.2.5-wheel-build-requirements.txt",
 "sdk/python/requirements/py3.11-sdist-requirements.txt",
 "sdk/python/requirements/py3.11-pandas-requirements.txt",
-"sdk/python/requirements/py3.11-postgres-source-requirements.txt",
 "sdk/python/requirements/py3.11-addtl-sources-requirements.txt"
 ],
   "allow_binary": "false"
