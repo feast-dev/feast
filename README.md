@@ -1,3 +1,5 @@
+Quick test
+
 <!--Do not modify this file. It is auto-generated from a template (infra/templates/README.md.jinja2)-->
 
 <p align="center">
