@@ -1,11 +1,14 @@
 # Introduction
 
-Feast (**Fea**ture **St**ore) is an [open-source](https://github.com/feast-dev/feast) feature store that helps teams define, manage, validate, and serve machine learning features in production at scale. Whether you are training batch or real-time models, Feast reuses your existing data infrastructure to empower both training and inference workflows.
+Feast (**Fea**ture **St**ore) is an [open-source](https://github.com/feast-dev/feast) feature store that helps teams operate production ML systems at scale by allowing them to define, manage, validate, and serve machine learning features both in batch and real-time environments. Whether you are training batch or real-time models, Feast reuses your existing data infrastructure to empower both training and inference workflows.
 
 ## Why Feast?
-- **Consistent Features**: Manage an offline store (batch training) and an online store (real-time serving) under one feature server.
-- **Avoid Data Leakage**: Generate point-in-time correct feature sets to ensure no future data leaks into model training.
-- **Decouple ML from Data Infra**: Provide a single data access layer that abstracts storage from retrieval, ensuring portability across batch and real-time environments.
+Feast helps ML platform teams improve productivity, reduce duplication, and ship models to production faster by providing:
+- **Consistent features**: Manage an offline store (batch training) and an online store (real-time serving) under one feature server.
+- **Avoid Data leakage**: Generate point-in-time correct feature sets to ensure no future data leaks into model training.
+- **Decouple ML from data Infra**: Provide a single data access layer that abstracts storage from retrieval, ensuring portability across batch and real-time environments.
+- **Serve features at low latency**: Feast is optimized for real-time feature delivery, enabling instant access during inference.
+- **Empower collaboration**: Centralize feature definitions so that data scientists, ML engineers, and data engineers can work from a shared catalog.
 
 ![](assets/feast_marchitecture.png)
 
