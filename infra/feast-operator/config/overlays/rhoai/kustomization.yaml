@@ -1,0 +1,54 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: redhat-ods-applications
+
+
+resources:
+  - ../../default
+
+
+patches:
+  # patch to remove default `system` namespace in ../../manager/manager.yaml
+  - path: delete-namespace.yaml
+
+configMapGenerator:
+  - name:  feast-operator-parameters
+    envs:
+      - params.env
+
+configurations:
+  - params.yaml
+
+replacements:
+  - source:
+      kind: ConfigMap
+      name: feast-operator-parameters
+      version: v1
+      fieldPath: data.RELATED_IMAGE_FEAST_OPERATOR
+    targets:
+      - select:
+          kind: Deployment
+          name: controller-manager
+        fieldPaths:
+          - spec.template.spec.containers.[name=manager].image
+  - source:
+      kind: ConfigMap
+      name: feast-operator-parameters
+      fieldPath: data.RELATED_IMAGE_FEATURE_SERVER
+    targets:
+      - select:
+          kind: Deployment
+          name: controller-manager
+        fieldPaths:
+          - spec.template.spec.containers.[name=manager].env.[name=RELATED_IMAGE_FEATURE_SERVER].value
+  - source:
+      kind: ConfigMap
+      name: feast-operator-parameters
+      fieldPath: data.RELATED_IMAGE_CRON_JOB
+    targets:
+      - select:
+          kind: Deployment
+          name: controller-manager
+        fieldPaths:
+          - spec.template.spec.containers.[name=manager].env.[name=RELATED_IMAGE_CRON_JOB].value
