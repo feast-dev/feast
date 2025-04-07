@@ -172,7 +172,7 @@ docs = ["feast[ci]"]
 # used for the 'feature-server' container image build
 minimal = ["feast[aws, gcp, snowflake, redis, go, mysql, postgres, opentelemetry, grpcio, k8s, duckdb, milvus]"]
 
-# extras for a disconnected build from source (pandas, postgres-source, sdist)
+# extras for a disconnected build from source (pandas, sdist, etc.)
 numpy-build = [
     "meson-python<0.16.0,>=0.15.0",
     "Cython<3.1,>=0.29.34",
@@ -190,10 +190,6 @@ pandas-build = [
     "meson==1.2.1",
     "oldest-supported-numpy>=2022.8.16,<2023.8.3",
     "versioneer[toml]==0.29",
-]
-postgres-source = [
-    "psycopg @ git+https://github.com/psycopg/psycopg@3.2.5#subdirectory=psycopg",
-    "psycopg-pool @ git+https://github.com/psycopg/psycopg@3.2.6#subdirectory=psycopg_pool",
 ]
 addtl-sources = [
     # python-dateutil build deps
