@@ -868,7 +868,8 @@ class FeatureStore:
         views_to_update = [
             ob
             for ob in objects
-            if (
+            if
+            (
                 # BFVs are not handled separately from FVs right now.
                 (isinstance(ob, FeatureView) or isinstance(ob, BatchFeatureView))
                 and not isinstance(ob, StreamFeatureView)
@@ -1955,9 +1956,9 @@ class FeatureStore:
             distance_metric: The distance metric to use for retrieval.
             query_string: The query string to retrieve the closest document features using keyword search (bm25).
         """
-        assert query is not None or query_string is not None, (
-            "Either query or query_string must be provided."
-        )
+        assert (
+            query is not None or query_string is not None
+        ), "Either query or query_string must be provided."
 
         (
             available_feature_views,
@@ -2097,15 +2098,34 @@ class FeatureStore:
                         entity_key_dict[key] = []
                     entity_key_dict[key].append(python_value)
 
+        features_to_request: List[str] = []
+        if requested_features:
+            features_to_request = requested_features + ["distance"]
+            # Add text_rank for text search queries
+            if query_string is not None:
+                features_to_request.append("text_rank")
+        else:
+            features_to_request = ["distance"]
+            # Add text_rank for text search queries
+            if query_string is not None:
+                features_to_request.append("text_rank")
+
+        if not datevals:
+            online_features_response = GetOnlineFeaturesResponse(results=[])
+            for feature in features_to_request:
+                field = online_features_response.results.add()
+                field.values.extend([])
+                field.statuses.extend([])
+                field.event_timestamps.extend([])
+            online_features_response.metadata.feature_names.val.extend(
+                features_to_request
+            )
+            return OnlineResponse(online_features_response)
+
         table_entity_values, idxs, output_len = utils._get_unique_entities_from_values(
             entity_key_dict,
         )
 
-        features_to_request: List[str] = []
-        if requested_features:
-            features_to_request = requested_features + ["distance"]
-        else:
-            features_to_request = ["distance"]
         feature_data = utils._convert_rows_to_protobuf(
             requested_features=features_to_request,
             read_rows=list(zip(datevals, list_of_feature_dicts)),
@@ -2238,9 +2258,9 @@ class FeatureStore:
         if not isinstance(source, FeatureService):
             raise ValueError("Only feature service is currently supported as a source")
 
-        assert source.logging_config is not None, (
-            "Feature service must be configured with logging config in order to use this functionality"
-        )
+        assert (
+            source.logging_config is not None
+        ), "Feature service must be configured with logging config in order to use this functionality"
 
         assert isinstance(logs, (pa.Table, Path))
 
