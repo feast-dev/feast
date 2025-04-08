@@ -940,7 +940,7 @@ def test_postgres_retrieve_online_documents_v2(environment, fake_document_data):
                 f"Document text content {i} with searchable keywords"
                 for i in range(n_rows)
             ],
-            "category": [f"Category-{i%5}" for i in range(n_rows)],
+            "category": [f"Category-{i % 5}" for i in range(n_rows)],
             "event_timestamp": [datetime.now() for _ in range(n_rows)],
         }
     )
