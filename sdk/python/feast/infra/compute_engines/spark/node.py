@@ -2,13 +2,13 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Dict, List, Optional, Union, cast
 
-from pyspark.sql import DataFrame, Window
+from infra.compute_engines.dag.context import ExecutionContext
+from pyspark.sql import DataFrame, SparkSession, Window
 from pyspark.sql import functions as F
 
 from feast import BatchFeatureView, StreamFeatureView
 from feast.aggregation import Aggregation
 from feast.infra.compute_engines.base import HistoricalRetrievalTask
-from feast.infra.compute_engines.dag.context import ExecutionContext
 from feast.infra.compute_engines.dag.model import DAGFormat
 from feast.infra.compute_engines.dag.node import DAGNode
 from feast.infra.compute_engines.dag.value import DAGValue
@@ -19,6 +19,11 @@ from feast.infra.materialization.contrib.spark.spark_materialization_engine impo
 )
 from feast.infra.offline_stores.contrib.spark_offline_store.spark import (
     SparkRetrievalJob,
+    _get_entity_df_event_timestamp_range,
+    _get_entity_schema,
+)
+from feast.infra.offline_stores.offline_utils import (
+    infer_event_timestamp_from_entity_df,
 )
 from feast.utils import _get_column_names
 
@@ -37,7 +42,7 @@ class SparkJoinContext:
     full_feature_names: bool = False  # apply feature view name prefix
 
 
-class SparkReadNode(DAGNode):
+class SparkMaterializationReadNode(DAGNode):
     def __init__(
         self, name: str, task: Union[MaterializationTask, HistoricalRetrievalTask]
     ):
@@ -78,6 +83,73 @@ class SparkReadNode(DAGNode):
                 "created_timestamp_column": created_timestamp_column,
                 "start_date": start_time,
                 "end_date": end_time,
+            },
+        )
+
+
+class SparkHistoricalRetrievalReadNode(DAGNode):
+    def __init__(
+        self, name: str, task: HistoricalRetrievalTask, spark_session: SparkSession
+    ):
+        super().__init__(name)
+        self.task = task
+        self.spark_session = spark_session
+
+    def execute(self, context: ExecutionContext) -> DAGValue:
+        """
+        Read data from the offline store on the Spark engine.
+        TODO: Some functionality is duplicated with SparkMaterializationReadNode and spark get_historical_features.
+        Args:
+            context: SparkExecutionContext
+        Returns: DAGValue
+        """
+        offline_store = context.offline_store
+        fv = self.task.feature_view
+        entity_df = context.entity_df
+        source = fv.batch_source
+        entities = context.entity_defs
+
+        (
+            join_key_columns,
+            feature_name_columns,
+            timestamp_field,
+            _,
+        ) = _get_column_names(fv, entities)
+
+        entity_schema = _get_entity_schema(
+            spark_session=self.spark_session,
+            entity_df=entity_df,
+        )
+        event_timestamp_col = infer_event_timestamp_from_entity_df(
+            entity_schema=entity_schema,
+        )
+        entity_df_event_timestamp_range = _get_entity_df_event_timestamp_range(
+            entity_df,
+            event_timestamp_col,
+            self.spark_session,
+        )
+        min_ts = entity_df_event_timestamp_range[0]
+        max_ts = entity_df_event_timestamp_range[1]
+
+        retrieval_job = offline_store.pull_all_from_table_or_query(
+            config=context.repo_config,
+            data_source=source,
+            join_key_columns=join_key_columns,
+            feature_name_columns=feature_name_columns,
+            timestamp_field=timestamp_field,
+            start_date=min_ts,
+            end_date=max_ts,
+        )
+        spark_df = cast(SparkRetrievalJob, retrieval_job).to_spark_df()
+
+        return DAGValue(
+            data=spark_df,
+            format=DAGFormat.SPARK,
+            metadata={
+                "source": "feature_view_batch_source",
+                "timestamp_field": timestamp_field,
+                "start_date": min_ts,
+                "end_date": max_ts,
             },
         )
 

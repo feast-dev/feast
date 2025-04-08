@@ -9,6 +9,8 @@ from feast.infra.materialization.batch_materialization_engine import Materializa
 
 
 class DAGBuilder(ABC):
+    """ """
+
     def __init__(
         self,
         feature_view: Union[BatchFeatureView, StreamFeatureView, FeatureView],

@@ -61,3 +61,10 @@ class ExecutionPlan:
 
         # Return output of final node
         return node_outputs[self.nodes[-1].name]
+
+    def to_sql(self, context: ExecutionContext) -> str:
+        """
+        Generate SQL query for the entire execution plan.
+        This is a placeholder and should be implemented in subclasses.
+        """
+        raise NotImplementedError("SQL generation is not implemented yet.")

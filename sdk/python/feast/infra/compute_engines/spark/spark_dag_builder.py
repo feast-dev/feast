@@ -1,17 +1,39 @@
+from typing import Union
+
+from pyspark.sql import SparkSession
+
+from feast import BatchFeatureView, FeatureView, StreamFeatureView
+from feast.infra.compute_engines.base import HistoricalRetrievalTask
 from feast.infra.compute_engines.dag.builder import DAGBuilder
 from feast.infra.compute_engines.spark.node import (
     SparkAggregationNode,
+    SparkHistoricalRetrievalReadNode,
     SparkJoinNode,
-    SparkReadNode,
+    SparkMaterializationReadNode,
     SparkTransformationNode,
     SparkWriteNode,
 )
+from feast.infra.materialization.batch_materialization_engine import MaterializationTask
 
 
 class SparkDAGBuilder(DAGBuilder):
+    def __init__(
+        self,
+        spark_session: SparkSession,
+        feature_view: Union[BatchFeatureView, StreamFeatureView, FeatureView],
+        task: Union[MaterializationTask, HistoricalRetrievalTask],
+    ):
+        super().__init__(feature_view, task)
+        self.spark_session = spark_session
+
     def build_source_node(self):
         source_path = self.feature_view.source.path
-        node = SparkReadNode("source", source_path)
+        if isinstance(self.task, MaterializationTask):
+            node = SparkMaterializationReadNode("source", source_path)
+        else:
+            node = SparkHistoricalRetrievalReadNode(
+                "source", source_path, self.spark_session
+            )
         self.nodes.append(node)
         return node
 
