@@ -58,7 +58,7 @@ jobs:
         id: get_versions
         run: |
           CURRENT_VERSION=$(npx -p @semantic-release/changelog -p @semantic-release/git -p @semantic-release/exec -p semantic-release semantic-release --dry-run | grep "associated with version " | sed -E 's/.* version//' | sed -E 's/ on.*//')
-          NEXT_VERSION=$(npx -p @semantic-release/changelog -p @semantic-release/git -p @semantic-release/exec -p semantic-release semantic-release --dry-run | grep 'The next release version is' | sed -E 's/.* ([[:digit:].]+)$/\1/')
+          NEXT_VERSION=0.48.1
           echo ::set-output name=current_version::$CURRENT_VERSION
           echo ::set-output name=next_version::$NEXT_VERSION
           echo "Current version is ${CURRENT_VERSION}"
