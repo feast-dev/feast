@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.48.1](https://github.com/feast-dev/feast/compare/v0.48.0...v0.48.1) (2025-04-08)
+
+
+### Bug Fixes
+
+* Fix milvus online_read ([#5233](https://github.com/feast-dev/feast/issues/5233)) ([4b91f26](https://github.com/feast-dev/feast/commit/4b91f26ded28c709a8aeb220c2a7ce34fbc91a7b))
+* Resolve `no pq wrapper` import issue ([#5240](https://github.com/feast-dev/feast/issues/5240)) ([d5906f1](https://github.com/feast-dev/feast/commit/d5906f13125a4e63e3ae1f3a6c3830dda2c66d51))
+
 # [0.48.0](https://github.com/feast-dev/feast/compare/v0.47.0...v0.48.0) (2025-04-07)
 
 
