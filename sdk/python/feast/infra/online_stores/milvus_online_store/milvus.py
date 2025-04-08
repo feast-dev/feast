@@ -412,16 +412,7 @@ class MilvusOnlineStore(OnlineStore):
                                 "float_list_val",
                                 "double_list_val",
                             ]:
-                                setattr(
-                                    val,
-                                    proto_attr,
-                                    list(
-                                        map(
-                                            type(getattr(val, proto_attr)).__args__[0],
-                                            field_value,
-                                        )
-                                    ),
-                                )
+                                getattr(val, proto_attr).val.extend(field_value)
                             else:
                                 setattr(val, proto_attr, field_value)
                         else:
