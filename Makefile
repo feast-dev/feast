@@ -94,6 +94,7 @@ lock-python-dependencies-all:
 	pixi run --environment $(call get_env_name,3.11) --manifest-path infra/scripts/pixi/pixi.toml \
 		"uv pip compile -p 3.11 --no-strip-extras setup.py --extra minimal-sdist-build \
 		--no-emit-package milvus-lite \
+		--no-emit-package psycopg-binary \
 		--output-file sdk/python/requirements/py3.11-sdist-requirements.txt"
 	$(foreach ver,$(PYTHON_VERSIONS),\
 		pixi run --environment $(call get_env_name,$(ver)) --manifest-path infra/scripts/pixi/pixi.toml \
