@@ -2,6 +2,8 @@
 
 Feast (**Fea**ture **St**ore) is an [open-source](https://github.com/feast-dev/feast) feature store that helps teams operate production ML systems at scale by allowing them to define, manage, validate, and serve machine learning features both in batch and real-time environments. Whether you are training batch or real-time models, Feast reuses your existing data infrastructure to empower both training and inference workflows.
 
+Feast is a configurable operational data system that re-uses existing infrastructure to manage and serve machine learning features to real-time models. For more details, please review our [architecture](getting-started/architecture/overview.md).
+
 ## Why Feast?
 Feast helps ML platform teams improve productivity, reduce duplication, and ship models to production faster by providing:
 - **Consistent features**: Manage an offline store (batch training) and an online store (real-time serving) under one feature server.
