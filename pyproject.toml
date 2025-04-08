@@ -101,13 +101,7 @@ mysql = ["pymysql", "types-PyMySQL"]
 opentelemetry = ["prometheus_client", "psutil"]
 spark = ["pyspark>=3.0.0,<4"]
 trino = ["trino>=0.305.0,<0.400.0", "regex"]
-postgres = [
-    "psycopg[pool]==3.2.5",
-]
-postgres-ci = [
-    "psycopg[binary]==3.2.5",
-    "feast[postgres]",
-]
+postgres = ["psycopg[binary,pool]==3.2.5"]
 pytorch = ["torch==2.2.2", "torchvision>=0.17.2"]
 qdrant = ["qdrant-client>=1.12.0"]
 redis = [
@@ -164,7 +158,7 @@ ci = [
     "types-setuptools",
     "types-tabulate",
     "virtualenv<20.24.2",
-    "feast[aws, azure, cassandra, clickhouse, couchbase, delta, docling, duckdb, elasticsearch, faiss, gcp, ge, go, grpcio, hazelcast, hbase, ibis, ikv, k8s, milvus, mssql, mysql, opentelemetry, spark, trino, postgres-ci, pytorch, qdrant, redis, singlestore, snowflake, sqlite_vec]"
+    "feast[aws, azure, cassandra, clickhouse, couchbase, delta, docling, duckdb, elasticsearch, faiss, gcp, ge, go, grpcio, hazelcast, hbase, ibis, ikv, k8s, milvus, mssql, mysql, opentelemetry, spark, trino, postgres, pytorch, qdrant, redis, singlestore, snowflake, sqlite_vec]"
 ]
 nlp = ["feast[docling, milvus, pytorch]"]
 dev = ["feast[ci]"]
@@ -215,6 +209,7 @@ minimal-sdist-build = [
     "setuptools-rust>=1.4.0",
     "rpds-py==0.23.1",
     "types_psutil<7.0.0.20250401",
+    "meson<1.7.2",
 
     # sqlalchemy[mypy] dep
     "greenlet!=0.4.17",
