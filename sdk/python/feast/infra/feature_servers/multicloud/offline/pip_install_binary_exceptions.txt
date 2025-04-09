@@ -9,7 +9,7 @@ rpds-py==0.23.1
 cryptography==44.0.2
 # aws
 aiohttp==3.11.14
-# psycopg - not needed w/ feast 0.48.0+
+# psycopg
 psycopg-binary==3.2.5
 # milvus
 milvus-lite==2.4.12
