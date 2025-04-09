@@ -142,6 +142,7 @@ ci = [
     "pytest-mock==1.10.4",
     "pytest-env",
     "Sphinx>4.0.0,<7",
+    "sqlglot[rs]>=26.12.1",
     "testcontainers==4.9.0",
     "python-keycloak==4.2.2",
     "pre-commit<3.3.2",

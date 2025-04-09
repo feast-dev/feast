@@ -484,8 +484,10 @@ entity_dataframe AS (
         {% else %}
             {{ left_table_query_string }}
         {% endif %}
-),
-
+)
+{% if featureviews | length > 0 %}
+,
+{% endif %}
 {% for featureview in featureviews %}
 
 "{{ featureview.name }}__entity_dataframe" AS (
