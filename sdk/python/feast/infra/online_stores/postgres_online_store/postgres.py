@@ -536,6 +536,9 @@ class PostgreSQLOnlineStore(OnlineStore):
         table_name = _table_id(config.project, table)
 
         with self._get_conn(config, autocommit=True) as conn, conn.cursor() as cur:
+            query = None
+            params: Any = None
+
             if embedding is not None and query_string is not None and string_fields:
                 # Case 1: Hybrid Search (vector + text)
                 tsquery_str = " & ".join(query_string.split())
