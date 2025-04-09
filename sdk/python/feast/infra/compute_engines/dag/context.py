@@ -12,6 +12,37 @@ from feast.repo_config import RepoConfig
 
 @dataclass
 class ExecutionContext:
+    """
+    ExecutionContext holds all runtime information required to execute a DAG plan
+    within a ComputeEngine. It is passed into each DAGNode during execution and
+    contains shared context such as configuration, registry-backed entities, runtime
+    data (e.g. entity_df), and DAG evaluation state.
+
+    Attributes:
+        project: Feast project name (namespace for features, entities, views).
+
+        repo_config: Resolved RepoConfig containing provider and store configuration.
+
+        offline_store: Reference to the configured OfflineStore implementation.
+            Used for loading raw feature data during materialization or retrieval.
+
+        online_store: Reference to the OnlineStore implementation.
+            Used during materialization to write online features.
+
+        entity_defs: List of Entity definitions fetched from the registry.
+            Used for resolving join keys, inferring timestamp columns, and
+            validating FeatureViews against schema.
+
+        entity_df: A runtime DataFrame of entity rows used during historical
+            retrieval (e.g. for point-in-time join). Includes entity keys and
+            event timestamps. This is not part of the registry and is user-supplied
+            for training dataset generation.
+
+        node_outputs: Internal cache of DAGValue outputs keyed by DAGNode name.
+            Automatically populated during ExecutionPlan execution to avoid redundant
+            computation. Used by downstream nodes to access their input data.
+    """
+
     project: str
     repo_config: RepoConfig
     offline_store: OfflineStore

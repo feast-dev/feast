@@ -2,13 +2,13 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Dict, List, Optional, Union, cast
 
-from infra.compute_engines.dag.context import ExecutionContext
 from pyspark.sql import DataFrame, SparkSession, Window
 from pyspark.sql import functions as F
 
 from feast import BatchFeatureView, StreamFeatureView
 from feast.aggregation import Aggregation
 from feast.infra.compute_engines.base import HistoricalRetrievalTask
+from feast.infra.compute_engines.dag.context import ExecutionContext
 from feast.infra.compute_engines.dag.model import DAGFormat
 from feast.infra.compute_engines.dag.node import DAGNode
 from feast.infra.compute_engines.dag.value import DAGValue
@@ -170,7 +170,7 @@ class SparkAggregationNode(DAGNode):
         self.timestamp_col = timestamp_col
 
     def execute(self, context: ExecutionContext) -> DAGValue:
-        input_value = context.node_outputs[self.inputs[0].name]
+        input_value = self.get_single_input_value(context)
         input_value.assert_format(DAGFormat.SPARK)
         input_df: DataFrame = input_value.data
 
@@ -213,32 +213,52 @@ class SparkJoinNode(DAGNode):
         feature_node: DAGNode,
         join_keys: List[str],
         feature_view: Union[BatchFeatureView, StreamFeatureView],
+        spark_session: SparkSession,
     ):
         super().__init__(name)
         self.join_keys = join_keys
         self.add_input(feature_node)
         self.feature_view = feature_view
+        self.spark_session = spark_session
 
     def execute(self, context: ExecutionContext) -> DAGValue:
-        feature_value = context.node_outputs[self.inputs[1].name]
+        feature_value = self.get_single_input_value(context)
         feature_value.assert_format(DAGFormat.SPARK)
+        feature_df = feature_value.data
 
         entity_df = context.entity_df
-        feature_df = feature_value.data
+        assert entity_df is not None, "entity_df must be set in ExecutionContext"
 
         # Get timestamp fields from feature view
         join_keys, feature_cols, ts_col, created_ts_col = _get_column_names(
             self.feature_view, context.entity_defs
         )
 
-        entity_event_ts_col = "event_timestamp"  # Standardized by SparkEntityLoadNode
+        # Rename entity_df event_timestamp_col to match feature_df
+        entity_schema = _get_entity_schema(
+            spark_session=self.spark_session,
+            entity_df=entity_df,
+        )
+        event_timestamp_col = infer_event_timestamp_from_entity_df(
+            entity_schema=entity_schema,
+        )
+        entity_ts_alias = "__entity_event_timestamp"
+        entity_df = entity_df.withColumnRenamed(event_timestamp_col, entity_ts_alias)
 
         # Perform left join + event timestamp filtering
         joined = feature_df.join(entity_df, on=join_keys, how="left")
-        joined = joined.filter(F.col(ts_col) <= F.col(entity_event_ts_col))
+        joined = joined.filter(F.col(ts_col) <= F.col(entity_ts_alias))
+
+        # Optional TTL filter: feature.ts >= entity.event_timestamp - ttl
+        if self.feature_view.ttl:
+            ttl_seconds = int(self.feature_view.ttl.total_seconds())
+            lower_bound = F.col(entity_ts_alias) - F.expr(
+                f"INTERVAL {ttl_seconds} seconds"
+            )
+            joined = joined.filter(F.col(ts_col) >= lower_bound)
 
         # Dedup with row_number
-        partition_cols = join_keys + [entity_event_ts_col]
+        partition_cols = join_keys + [entity_ts_alias]
         ordering = [F.col(ts_col).desc()]
         if created_ts_col:
             ordering.append(F.col(created_ts_col).desc())
@@ -267,7 +287,7 @@ class SparkWriteNode(DAGNode):
         self.feature_view = feature_view
 
     def execute(self, context: ExecutionContext) -> DAGValue:
-        spark_df: DataFrame = context.node_outputs[self.inputs[0].name].data
+        spark_df: DataFrame = self.get_single_input_value(context).data
 
         # ✅ 1. Write to offline store (if enabled)
         if self.feature_view.online:
@@ -305,7 +325,7 @@ class SparkTransformationNode(DAGNode):
         self.udf = udf
 
     def execute(self, context: ExecutionContext) -> DAGValue:
-        input_val = context.node_outputs[self.inputs[0].name]
+        input_val = self.get_single_input_value(context)
         input_val.assert_format(DAGFormat.SPARK)
 
         transformed_df = self.udf(input_val.data)

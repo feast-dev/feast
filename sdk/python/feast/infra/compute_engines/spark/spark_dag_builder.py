@@ -49,7 +49,9 @@ class SparkDAGBuilder(DAGBuilder):
 
     def build_join_node(self, input_node):
         join_keys = self.feature_view.entities
-        node = SparkJoinNode("join", input_node, join_keys, self.feature_view)
+        node = SparkJoinNode(
+            "join", input_node, join_keys, self.feature_view, self.spark_session
+        )
         self.nodes.append(node)
         return node
 
