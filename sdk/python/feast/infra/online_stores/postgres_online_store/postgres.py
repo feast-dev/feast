@@ -317,8 +317,7 @@ class PostgreSQLOnlineStore(OnlineStore):
                     vector_value_type = "BYTEA"
 
                 has_string_features = any(
-                    f.dtype.to_value_type() == ValueType.STRING 
-                    for f in table.features
+                    f.dtype.to_value_type() == ValueType.STRING for f in table.features
                 )
 
                 cur.execute(
