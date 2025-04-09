@@ -17,8 +17,15 @@ Feast helps ML platform teams improve productivity, reduce duplication, and ship
 ## Core Components
 - **[Offline Store](getting-started/components/offline-store.md)**: Manages historical feature extraction for large-scale batch scoring or model training.
 - **[Online Store](getting-started/components/online-store.md)**: Powers low-latency feature serving for real-time production systems.
-- **Python SDK** and **[Feature Server](reference/feature-servers/README.md)**: Provide feature management and retrieval APIs, plus a service for non-Python consumers.
-- **[UI](reference/alpha-web-ui.md)** and **[CLI tool](reference/feast-cli-commands.md)**: Let you explore and manage feature definitions.
+- **[Feature Server](reference/feature-servers/README.md)**: REST/gRPC interface for online feature retrieval.
+- **[Batch Materialization Engine](getting-started/components/batch-materialization-engine.md)**: Loads features from offline to online stores.
+- **[Provider](getting-started/components/provider.md)**: Acts as a bridge between Feast and infrastructure.
+- **[Authorization Manager](getting-started/components/authorization-manager.md)**: Controls access to features and resources.
+- **[OpenTelemetry Integration](getting-started/components/opentelemetry.md)**: Adds observability and tracing.
+
+## User Interfaces
+- **[CLI](reference/feast-cli-commands.md)**: Command-line interface for managing feature definitions.
+- **[Web UI](reference/alpha-web-ui.md)**: Visual exploration of feature data and metadata.
 
 ## Getting Started
 - **[Quickstart](getting-started/quickstart.md)**: Fastest way to try Feast with a sample project.
