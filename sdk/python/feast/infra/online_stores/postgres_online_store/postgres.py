@@ -20,8 +20,7 @@ from psycopg import AsyncConnection, sql
 from psycopg.connection import Connection
 from psycopg_pool import AsyncConnectionPool, ConnectionPool
 
-from feast import Entity
-from feast.feature_view import FeatureView
+from feast import Entity, FeatureView, ValueType
 from feast.infra.key_encoding_utils import get_list_val_str, serialize_entity_key
 from feast.infra.online_stores.helpers import _to_naive_utc
 from feast.infra.online_stores.online_store import OnlineStore
@@ -318,8 +317,9 @@ class PostgreSQLOnlineStore(OnlineStore):
                     vector_value_type = "BYTEA"
 
                 has_string_features = any(
-                    f.dtype.to_value_type().value == 2 for f in table.features
-                )  # 2 is STRING in ValueType
+                    f.dtype.to_value_type() == ValueType.STRING 
+                    for f in table.features
+                )
 
                 cur.execute(
                     sql.SQL(
