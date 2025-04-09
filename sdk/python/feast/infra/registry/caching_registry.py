@@ -486,7 +486,7 @@ class CachingRegistry(BaseRegistry):
             return
 
         def refresh_loop():
-            while not self._stop_event.wait(cache_ttl_seconds):
+            while not self._stop_event.is_set():
                 if self._refresh_lock.acquire(blocking=False):
                     try:
                         self.refresh()
@@ -503,6 +503,8 @@ class CachingRegistry(BaseRegistry):
                     logger.debug(
                         "Previous refresh still in progress. Skipping this cycle."
                     )
+
+                self._stop_event.wait(cache_ttl_seconds)
 
         try:
             self.registry_refresh_thread = threading.Thread(

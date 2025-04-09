@@ -1,4 +1,3 @@
-import time
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
@@ -209,8 +208,6 @@ def test_refresh_failure_triggers_alert_in_thread_mode(registry):
             registry, "refresh", side_effect=Exception("Mock refresh failure")
         ),
     ):
-        registry._start_thread_async_refresh(cache_ttl_seconds=1)
-
-        time.sleep(2)
+        registry._start_thread_async_refresh(cache_ttl_seconds=2)
 
         mock_handler.assert_called_once()
