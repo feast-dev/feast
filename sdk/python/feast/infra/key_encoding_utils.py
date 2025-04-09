@@ -57,6 +57,52 @@ def serialize_entity_key_prefix(entity_keys: List[str]) -> bytes:
     return b"".join(output)
 
 
+def reserialize_entity_v2_key_to_v3(
+    serialized_key_v2: bytes,
+) -> bytes:
+    """
+    Deserialize version 2 entity key and reserialize it to version 3.
+
+    Args:
+        serialized_key_v2: serialized entity key of version 2
+
+    Returns: bytes of the serialized entity key in version 3
+    """
+    offset = 0
+    keys = []
+    values = []
+    num_keys = 1
+    for _ in range(num_keys):
+        value_type = struct.unpack_from("<I", serialized_key_v2, offset)[0]
+        offset += 4
+        print(f"Value Type: {value_type}")
+
+        fixed_tail_size = 4 + 4 + 8
+        string_end = len(serialized_key_v2) - fixed_tail_size
+
+        key = serialized_key_v2[offset:string_end].decode("utf-8")
+        keys.append(key)
+        offset = string_end
+
+    while offset < len(serialized_key_v2):
+        (value_type,) = struct.unpack_from("<I", serialized_key_v2, offset)
+        offset += 4
+
+        (value_length,) = struct.unpack_from("<I", serialized_key_v2, offset)
+        offset += 4
+
+        # Read the value based on its type and length
+        value_bytes = serialized_key_v2[offset : offset + value_length]
+        value = _deserialize_value(value_type, value_bytes)
+        values.append(value)
+        offset += value_length
+
+    return serialize_entity_key(
+        EntityKeyProto(join_keys=keys, entity_values=values),
+        entity_key_serialization_version=3,
+    )
+
+
 def serialize_entity_key(
     entity_key: EntityKeyProto, entity_key_serialization_version=1
 ) -> bytes:

@@ -264,14 +264,11 @@ class RepoConfig(FeastBaseModel):
                 self.feature_server["type"]
             )(**self.feature_server)
 
-        if self.entity_key_serialization_version <= 1:
+        if self.entity_key_serialization_version <= 2:
             warnings.warn(
-                "`entity_key_serialization_version` is either not specified in the feature_store.yaml, "
-                "or is specified to a value <= 1."
-                "This serialization version may cause errors when trying to write fields with the `Long` data type"
-                " into the online store. Specifying `entity_key_serialization_version` to 2 is recommended for"
-                " new projects. ",
-                RuntimeWarning,
+                "The serialization version 2 and below would be deprecated in the next release. "
+                "Specifying `entity_key_serialization_version` to 3 is recommended.",
+                DeprecationWarning,
             )
 
     @property
