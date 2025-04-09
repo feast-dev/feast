@@ -526,7 +526,13 @@ class PostgreSQLOnlineStore(OnlineStore):
 
         distance_metric_sql = SUPPORTED_DISTANCE_METRICS_DICT[distance_metric]
 
-        string_fields = []
+        string_fields = [
+            feature.name
+            for feature in table.features
+            if feature.dtype.to_value_type().value == 2
+            and feature.name in requested_features
+        ]
+
         for feature in table.features:
             if (
                 feature.dtype.to_value_type().value == 2
