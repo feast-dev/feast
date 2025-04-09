@@ -684,21 +684,10 @@ class PostgreSQLOnlineStore(OnlineStore):
                         entities_dict[key]["text_rank"], float(text_rank)
                     )
 
-            if embedding is not None and query_string is not None:
-
-                def sort_key(x):
-                    return x["vector_distance"]
-            elif embedding is not None:
-
-                def sort_key(x):
-                    return x["vector_distance"]
-            else:  # Text only
-
-                def sort_key(x):
-                    return x["text_rank"]
-
             sorted_entities = sorted(
-                entities_dict.values(), key=sort_key, reverse=(embedding is None)
+                entities_dict.values(), 
+                key=lambda x: x["vector_distance"] if embedding is not None else x["text_rank"],
+                reverse=(embedding is None)
             )[:top_k]
 
             result: List[
