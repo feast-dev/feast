@@ -144,13 +144,13 @@ class PostgreSQLOfflineStore(OfflineStore):
             table_name = offline_utils.get_temp_entity_table_name()
 
             # If using CTE and entity_df is a SQL query, we don't need a table
-            if config.offline_store.entity_select_mode == EntitySelectMode.embed_query:
-                if isinstance(entity_df, str):
-                    left_table_query_string = entity_df
-                else:
-                    raise ValueError(
-                        f"Invalid entity select mode: {config.offline_store.entity_select_mode} cannot be used with entity_df as a DataFrame"
-                    )
+            use_cte = (
+                isinstance(entity_df, str)
+                and config.offline_store.entity_select_mode
+                == EntitySelectMode.embed_query
+            )
+            if use_cte:
+                left_table_query_string = entity_df
             else:
                 left_table_query_string = table_name
                 _upload_entity_df(config, entity_df, table_name)
@@ -187,7 +187,7 @@ class PostgreSQLOfflineStore(OfflineStore):
                     entity_df_columns=entity_schema.keys(),
                     query_template=MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
                     full_feature_names=full_feature_names,
-                    entity_select_mode=config.offline_store.entity_select_mode,
+                    use_cte=use_cte,
                 )
             finally:
                 # Only cleanup if we created a table
@@ -386,7 +386,7 @@ def build_point_in_time_query(
     entity_df_columns: KeysView[str],
     query_template: str,
     full_feature_names: bool = False,
-    entity_select_mode: EntitySelectMode = EntitySelectMode.temp_table,
+    use_cte: bool = False,
 ) -> str:
     """Build point-in-time query between each feature view table and the entity dataframe for PostgreSQL"""
     template = Environment(loader=BaseLoader()).from_string(source=query_template)
@@ -414,7 +414,7 @@ def build_point_in_time_query(
         "featureviews": feature_view_query_contexts,
         "full_feature_names": full_feature_names,
         "final_output_feature_names": final_output_feature_names,
-        "entity_select_mode": entity_select_mode.value,
+        "use_cte": use_cte,
     }
 
     query = template.render(template_context)
@@ -456,7 +456,7 @@ def _get_entity_schema(
 
 MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN = """
 WITH
-{% if entity_select_mode == "embed_query" %}
+{% if use_cte %}
     entity_query AS ({{ left_table_query_string }}),
 {% endif %}
 /*
@@ -479,15 +479,17 @@ entity_dataframe AS (
             {% endif %}
         {% endfor %}
     FROM
-        {% if entity_select_mode == "embed_query" %}
+        {% if use_cte %}
             entity_query
         {% else %}
             {{ left_table_query_string }}
         {% endif %}
 )
+
 {% if featureviews | length > 0 %}
 ,
 {% endif %}
+
 {% for featureview in featureviews %}
 
 "{{ featureview.name }}__entity_dataframe" AS (

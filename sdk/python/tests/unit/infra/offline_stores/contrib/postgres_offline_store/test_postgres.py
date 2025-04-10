@@ -362,6 +362,89 @@ def test_get_historical_features_entity_select_modes_embed_query(
 @patch(
     "feast.infra.offline_stores.contrib.postgres_offline_store.postgres.get_query_schema"
 )
+def test_get_historical_features_entity_select_modes_embed_query(
+    mock_get_query_schema, mock_df_to_postgres_table, mock_get_conn
+):
+    mock_conn = MagicMock()
+    mock_get_conn.return_value.__enter__.return_value = mock_conn
+
+    # Mock the query schema to return a simple schema
+    mock_get_query_schema.return_value = {
+        "event_timestamp": pd.Timestamp,
+        "driver_id": pd.Int64Dtype(),
+    }
+
+    test_repo_config = RepoConfig(
+        project="test_project",
+        registry="test_registry",
+        provider="local",
+        offline_store=PostgreSQLOfflineStoreConfig(
+            type="postgres",
+            host="localhost",
+            port=5432,
+            database="test_db",
+            db_schema="public",
+            user="test_user",
+            password="test_password",
+            entity_select_mode="embed_query",
+        ),
+    )
+
+    test_data_source = PostgreSQLSource(
+        name="test_batch_source",
+        description="test_batch_source",
+        table="offline_store_database_name.offline_store_table_name",
+        timestamp_field="event_published_datetime_utc",
+    )
+
+    test_feature_view = FeatureView(
+        name="test_feature_view",
+        entities=_mock_entity(),
+        schema=[
+            Field(name="feature1", dtype=Float32),
+        ],
+        source=test_data_source,
+    )
+
+    mock_registry = MagicMock()
+    mock_registry.get_feature_view.return_value = test_feature_view
+
+    # Use a DataFrame even though embed_query mode is used
+    entity_df = pd.DataFrame(
+        {"event_timestamp": [datetime(2021, 1, 1)], "driver_id": [1]}
+    )
+
+    retrieval_job = PostgreSQLOfflineStore.get_historical_features(
+        config=test_repo_config,
+        feature_views=[test_feature_view],
+        feature_refs=["test_feature_view:feature1"],
+        entity_df=entity_df,
+        registry=mock_registry,
+        project="test_project",
+    )
+
+    actual_query = retrieval_job.to_sql().strip()
+    logger.debug("Actual query:\n%s", actual_query)
+
+    # Check that the query starts with WITH and contains the expected comment block
+    assert actual_query.startswith("""WITH
+
+/*
+ Compute a deterministic hash for the `left_table_query_string` that will be used throughout
+ all the logic as the field to GROUP BY the data
+*/""")
+
+    sqlglot.parse(actual_query)
+    assert True
+
+
+@patch("feast.infra.offline_stores.contrib.postgres_offline_store.postgres._get_conn")
+@patch(
+    "feast.infra.offline_stores.contrib.postgres_offline_store.postgres.df_to_postgres_table"
+)
+@patch(
+    "feast.infra.offline_stores.contrib.postgres_offline_store.postgres.get_query_schema"
+)
 @patch("feast.on_demand_feature_view.OnDemandFeatureView.get_requested_odfvs")
 def test_get_historical_features_no_feature_view(
     mock_get_requested_odfvs,
