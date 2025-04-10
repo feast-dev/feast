@@ -362,7 +362,7 @@ def test_get_historical_features_entity_select_modes_embed_query(
 @patch(
     "feast.infra.offline_stores.contrib.postgres_offline_store.postgres.get_query_schema"
 )
-def test_get_historical_features_entity_select_modes_embed_query(
+def test_get_historical_features_entity_select_modes_embed_query_with_dataframe(
     mock_get_query_schema, mock_df_to_postgres_table, mock_get_conn
 ):
     mock_conn = MagicMock()
