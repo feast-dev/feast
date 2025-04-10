@@ -64,6 +64,7 @@ class BatchFeatureView(FeatureView):
     udf: Optional[Callable[[Any], Any]]
     udf_string: Optional[str]
     feature_transformation: Transformation
+    batch_engine: Optional[Field]
 
     def __init__(
         self,
@@ -82,6 +83,7 @@ class BatchFeatureView(FeatureView):
         udf: Optional[Callable[[Any], Any]],
         udf_string: Optional[str] = "",
         feature_transformation: Optional[Transformation] = None,
+        batch_engine: Optional[Field] = None,
     ):
         if not flags_helper.is_test():
             warnings.warn(
@@ -105,6 +107,7 @@ class BatchFeatureView(FeatureView):
         self.feature_transformation = (
             feature_transformation or self.get_feature_transformation()
         )
+        self.batch_engine = batch_engine
 
         super().__init__(
             name=name,
@@ -147,6 +150,7 @@ def batch_feature_view(
     source: Optional[DataSource] = None,
     tags: Optional[Dict[str, str]] = None,
     online: bool = True,
+    offline: bool = True,
     description: str = "",
     owner: str = "",
     schema: Optional[List[Field]] = None,
@@ -154,11 +158,13 @@ def batch_feature_view(
     """
     Args:
         name:
+        mode:
         entities:
         ttl:
         source:
         tags:
         online:
+        offline:
         description:
         owner:
         schema:
@@ -184,6 +190,7 @@ def batch_feature_view(
             source=source,
             tags=tags,
             online=online,
+            offline=offline,
             description=description,
             owner=owner,
             schema=schema,

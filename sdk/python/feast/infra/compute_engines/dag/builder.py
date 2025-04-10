@@ -69,7 +69,14 @@ class DAGBuilder(ABC):
         return ExecutionPlan(self.nodes)
 
     def _should_join(self):
-        return (
-            self.feature_view.compute_config.join_strategy == "engine"
-            or self.task.config.compute_engine.get("point_in_time_join") == "engine"
-        )
+        if hasattr(self.feature_view, "batch_engine"):
+            return hasattr(self.feature_view.batch_engine, "join_strategy") and (
+                self.feature_view.batch_engine.join_strategy == "engine"
+                or self.task.config.batch_engine.get("point_in_time_join") == "engine"
+            )
+        if hasattr(self.feature_view, "batch_engine_config"):
+            return hasattr(self.feature_view.stream_engine, "join_strategy") and (
+                self.feature_view.stream_engine.join_strategy == "engine"
+                or self.task.config.stream_engine.get("point_in_time_join") == "engine"
+            )
+        return False

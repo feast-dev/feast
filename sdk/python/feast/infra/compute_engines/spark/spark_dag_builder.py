@@ -27,12 +27,11 @@ class SparkDAGBuilder(DAGBuilder):
         self.spark_session = spark_session
 
     def build_source_node(self):
-        source_path = self.feature_view.source.path
         if isinstance(self.task, MaterializationTask):
-            node = SparkMaterializationReadNode("source", source_path)
+            node = SparkMaterializationReadNode("source", self.task)
         else:
             node = SparkHistoricalRetrievalReadNode(
-                "source", source_path, self.spark_session
+                "source", self.task, self.spark_session
             )
         self.nodes.append(node)
         return node

@@ -83,6 +83,7 @@ class StreamFeatureView(FeatureView):
     udf: Optional[FunctionType]
     udf_string: Optional[str]
     feature_transformation: Optional[Transformation]
+    stream_engine: Optional[Field]
 
     def __init__(
         self,
@@ -103,6 +104,7 @@ class StreamFeatureView(FeatureView):
         udf: Optional[FunctionType] = None,
         udf_string: Optional[str] = "",
         feature_transformation: Optional[Transformation] = None,
+        stream_engine: Optional[Field] = None,
     ):
         if not flags_helper.is_test():
             warnings.warn(
@@ -133,6 +135,7 @@ class StreamFeatureView(FeatureView):
         self.feature_transformation = (
             feature_transformation or self.get_feature_transformation()
         )
+        self.stream_engine = stream_engine
 
         super().__init__(
             name=name,
