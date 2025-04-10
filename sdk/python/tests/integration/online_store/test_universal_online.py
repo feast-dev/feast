@@ -220,7 +220,7 @@ def test_write_to_online_store_event_check(environment):
 
         # writes to online store via datasource (dataframe_source) materialization
         fs.materialize(
-            start_date=datetime.datetime.now() - timedelta(hours=12),
+            start_date=datetime.now() - timedelta(hours=12),
             end_date=_utc_now(),
         )
 
