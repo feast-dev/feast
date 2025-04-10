@@ -1016,6 +1016,7 @@ class FeatureStore:
                 if (
                     (isinstance(ob, FeatureView) or isinstance(ob, BatchFeatureView))
                     and not isinstance(ob, StreamFeatureView)
+                    and not isinstance(ob, SortedFeatureView)
                 )
             ]
             odfvs_to_delete = [
