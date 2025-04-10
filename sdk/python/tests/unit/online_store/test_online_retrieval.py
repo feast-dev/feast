@@ -11,6 +11,7 @@ import pandas as pd
 import pytest
 import sqlite_vec
 from pandas.testing import assert_frame_equal
+from qdrant_client import models
 
 from feast import FeatureStore, RepoConfig
 from feast.errors import FeatureViewNotFoundException
@@ -1659,3 +1660,197 @@ def test_milvus_keyword_search() -> None:
         assert len(result_hybrid["content"]) > 0
         assert any("Feast" in content for content in result_hybrid["content"])
         assert len(result_hybrid["vector"]) > 0
+
+
+def test_qdrant_retrieve_online_documents_v2() -> None:
+    """
+    Test retrieving documents from the online store in local mode.
+    """
+    random.seed(42)
+    n = 10  # number of samples
+    vector_length = 10
+    runner = CliRunner()
+    with runner.local_repo(
+        example_repo_py=get_example_repo("example_rag_feature_repo.py"),
+        offline_store="file",
+        online_store="qdrant",
+        apply=False,
+        teardown=False,
+    ) as store:
+        from datetime import timedelta
+
+        from feast import Entity, FeatureView, Field, FileSource
+        from feast.types import Array, Float32, Int64, String, UnixTimestamp
+
+        rag_documents_source = FileSource(
+            path="data/embedded_documents.parquet",
+            timestamp_field="event_timestamp",
+            created_timestamp_column="created_timestamp",
+        )
+
+        item = Entity(
+            name="item_id",
+            join_keys=["item_id"],
+        )
+        author = Entity(
+            name="author_id",
+            join_keys=["author_id"],
+            value_type=ValueType.STRING,
+        )
+
+        document_embeddings = FeatureView(
+            name="embedded_documents",
+            entities=[item, author],
+            schema=[
+                Field(
+                    name="vector",
+                    dtype=Array(Float32),
+                    vector_index=True,
+                    vector_search_metric="COSINE",
+                ),
+                Field(name="item_id", dtype=Int64),
+                Field(name="author_id", dtype=String),
+                Field(name="created_timestamp", dtype=UnixTimestamp),
+                Field(name="sentence_chunks", dtype=String),
+                Field(name="event_timestamp", dtype=UnixTimestamp),
+            ],
+            source=rag_documents_source,
+            ttl=timedelta(hours=24),
+        )
+
+        store.apply([rag_documents_source, item, document_embeddings])
+
+        document_embeddings_fv = store.get_feature_view(name="embedded_documents")
+
+        provider = store._get_provider()
+
+        item_keys = [
+            EntityKeyProto(
+                join_keys=["item_id", "author_id"],
+                entity_values=[
+                    ValueProto(int64_val=i),
+                    ValueProto(string_val=f"author_{i}"),
+                ],
+            )
+            for i in range(n)
+        ]
+        data = []
+        for i, item_key in enumerate(item_keys):
+            data.append(
+                (
+                    item_key,
+                    {
+                        "vector": ValueProto(
+                            float_list_val=FloatListProto(
+                                val=np.random.random(
+                                    vector_length,
+                                )
+                                + i
+                            )
+                        ),
+                        "sentence_chunks": ValueProto(string_val=f"sentence chunk {i}"),
+                    },
+                    _utc_now(),
+                    _utc_now(),
+                )
+            )
+
+        provider.online_write_batch(
+            config=store.config,
+            table=document_embeddings_fv,
+            data=data,
+            progress=None,
+        )
+        documents_df = pd.DataFrame(
+            {
+                "item_id": [str(i) for i in range(n)],
+                "author_id": [f"author_{i}" for i in range(n)],
+                "vector": [
+                    np.random.random(
+                        vector_length,
+                    )
+                    + i
+                    for i in range(n)
+                ],
+                "sentence_chunks": [f"sentence chunk {i}" for i in range(n)],
+                "event_timestamp": [_utc_now() for _ in range(n)],
+                "created_timestamp": [_utc_now() for _ in range(n)],
+            }
+        )
+
+        store.write_to_online_store(
+            feature_view_name="embedded_documents",
+            df=documents_df,
+        )
+
+        query_embedding = np.random.random(
+            vector_length,
+        )
+
+        # Test direct Qdrant client search
+        client = store._provider._online_store._get_client(store.config)
+        collection_name = document_embeddings_fv.name
+        search_params = models.SearchParams(hnsw_ef=128, exact=False)
+
+        results = client.query_points(
+            collection_name=collection_name,
+            query=query_embedding,
+            limit=3,
+            with_payload=True,
+            with_vectors=False,
+            search_params=search_params,
+            using=store.config.online_store.vector_name or None,
+        ).points
+
+        # Test Feast API
+        result = store.retrieve_online_documents_v2(
+            features=[
+                "embedded_documents:vector",
+                "embedded_documents:item_id",
+                "embedded_documents:author_id",
+                "embedded_documents:sentence_chunks",
+            ],
+            query=query_embedding,
+            top_k=3,
+        ).to_dict()
+
+        # Verify results
+        for k in ["vector", "item_id", "author_id", "sentence_chunks", "distance"]:
+            assert k in result, f"Missing {k} in retrieve_online_documents response"
+        assert len(result["distance"]) == len(results)
+
+        # Test hybrid search (vector + text)
+        hybrid_result = store.retrieve_online_documents_v2(
+            features=[
+                "embedded_documents:vector",
+                "embedded_documents:item_id",
+                "embedded_documents:author_id",
+                "embedded_documents:sentence_chunks",
+            ],
+            query=query_embedding,
+            query_string="sentence",
+            top_k=3,
+        ).to_dict()
+
+        # Verify hybrid results
+        for k in ["vector", "item_id", "author_id", "sentence_chunks", "distance"]:
+            assert k in hybrid_result, f"Missing {k} in hybrid search response"
+        assert len(hybrid_result["distance"]) > 0
+
+        # Test text-only search
+        text_result = store.retrieve_online_documents_v2(
+            features=[
+                "embedded_documents:vector",
+                "embedded_documents:item_id",
+                "embedded_documents:author_id",
+                "embedded_documents:sentence_chunks",
+            ],
+            query=None,
+            query_string="sentence",
+            top_k=3,
+        ).to_dict()
+
+        # Verify text search results
+        for k in ["vector", "item_id", "author_id", "sentence_chunks", "distance"]:
+            assert k in text_result, f"Missing {k} in text search response"
+        assert len(text_result["distance"]) > 0
