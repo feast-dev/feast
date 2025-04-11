@@ -72,6 +72,7 @@ class StreamFeatureView(FeatureView):
     entity_columns: List[Field]
     features: List[Field]
     online: bool
+    offline: bool
     description: str
     tags: Dict[str, str]
     owner: str
@@ -82,6 +83,7 @@ class StreamFeatureView(FeatureView):
     udf: Optional[FunctionType]
     udf_string: Optional[str]
     feature_transformation: Optional[Transformation]
+    stream_engine: Optional[Field]
 
     def __init__(
         self,
@@ -92,6 +94,7 @@ class StreamFeatureView(FeatureView):
         ttl: timedelta = timedelta(days=0),
         tags: Optional[Dict[str, str]] = None,
         online: bool = True,
+        offline: bool = False,
         description: str = "",
         owner: str = "",
         schema: Optional[List[Field]] = None,
@@ -101,6 +104,7 @@ class StreamFeatureView(FeatureView):
         udf: Optional[FunctionType] = None,
         udf_string: Optional[str] = "",
         feature_transformation: Optional[Transformation] = None,
+        stream_engine: Optional[Field] = None,
     ):
         if not flags_helper.is_test():
             warnings.warn(
@@ -131,6 +135,7 @@ class StreamFeatureView(FeatureView):
         self.feature_transformation = (
             feature_transformation or self.get_feature_transformation()
         )
+        self.stream_engine = stream_engine
 
         super().__init__(
             name=name,
@@ -138,6 +143,7 @@ class StreamFeatureView(FeatureView):
             ttl=ttl,
             tags=tags,
             online=online,
+            offline=offline,
             description=description,
             owner=owner,
             schema=schema,

@@ -93,6 +93,7 @@ class FeatureView(BaseFeatureView):
     entity_columns: List[Field]
     features: List[Field]
     online: bool
+    offline: bool
     description: str
     tags: Dict[str, str]
     owner: str
@@ -107,6 +108,7 @@ class FeatureView(BaseFeatureView):
         entities: Optional[List[Entity]] = None,
         ttl: Optional[timedelta] = timedelta(days=0),
         online: bool = True,
+        offline: bool = False,
         description: str = "",
         tags: Optional[Dict[str, str]] = None,
         owner: str = "",
@@ -126,6 +128,8 @@ class FeatureView(BaseFeatureView):
                 this group of features lives forever. Note that large ttl's or a ttl of 0
                 can result in extremely computationally intensive queries.
             online (optional): A boolean indicating whether online retrieval is enabled for
+                this feature view.
+            offline (optional): A boolean indicating whether write to offline store is enabled for
                 this feature view.
             description (optional): A human-readable description.
             tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
@@ -218,6 +222,7 @@ class FeatureView(BaseFeatureView):
             source=source,
         )
         self.online = online
+        self.offline = offline
         self.materialization_intervals = []
 
     def __hash__(self):
