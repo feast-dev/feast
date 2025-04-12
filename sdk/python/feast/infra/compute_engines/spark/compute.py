@@ -1,7 +1,7 @@
 from feast.infra.compute_engines.base import ComputeEngine, HistoricalRetrievalTask
 from feast.infra.compute_engines.dag.context import ExecutionContext
+from feast.infra.compute_engines.spark.feature_builder import SparkFeatureBuilder
 from feast.infra.compute_engines.spark.job import SparkDAGRetrievalJob
-from feast.infra.compute_engines.spark.spark_dag_builder import SparkDAGBuilder
 from feast.infra.compute_engines.spark.utils import get_or_create_new_spark_session
 from feast.infra.materialization.batch_materialization_engine import (
     MaterializationJob,
@@ -50,7 +50,7 @@ class SparkComputeEngine(ComputeEngine):
             )
 
             # ✅ 2. Construct DAG and run it
-            builder = SparkDAGBuilder(
+            builder = SparkFeatureBuilder(
                 spark_session=self.spark_session,
                 feature_view=task.feature_view,
                 task=task,
@@ -89,7 +89,7 @@ class SparkComputeEngine(ComputeEngine):
         )
 
         # ✅ 3. Construct and execute DAG
-        builder = SparkDAGBuilder(
+        builder = SparkFeatureBuilder(
             spark_session=self.spark_session,
             feature_view=task.feature_view,
             task=task,

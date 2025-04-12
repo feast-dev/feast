@@ -4,7 +4,7 @@ from pyspark.sql import SparkSession
 
 from feast import BatchFeatureView, FeatureView, StreamFeatureView
 from feast.infra.compute_engines.base import HistoricalRetrievalTask
-from feast.infra.compute_engines.dag.builder import DAGBuilder
+from feast.infra.compute_engines.feature_builder import FeatureBuilder
 from feast.infra.compute_engines.spark.node import (
     SparkAggregationNode,
     SparkHistoricalRetrievalReadNode,
@@ -16,7 +16,7 @@ from feast.infra.compute_engines.spark.node import (
 from feast.infra.materialization.batch_materialization_engine import MaterializationTask
 
 
-class SparkDAGBuilder(DAGBuilder):
+class SparkFeatureBuilder(FeatureBuilder):
     def __init__(
         self,
         spark_session: SparkSession,
@@ -62,8 +62,9 @@ class SparkDAGBuilder(DAGBuilder):
         return node
 
     def build_output_nodes(self, input_node):
-        output_node = SparkWriteNode("output", input_node, self.feature_view)
-        self.nodes.append(output_node)
+        node = SparkWriteNode("output", input_node, self.feature_view)
+        self.nodes.append(node)
+        return node
 
     def build_validation_node(self, input_node):
         pass

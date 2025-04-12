@@ -8,8 +8,11 @@ from feast.infra.compute_engines.dag.plan import ExecutionPlan
 from feast.infra.materialization.batch_materialization_engine import MaterializationTask
 
 
-class DAGBuilder(ABC):
-    """ """
+class FeatureBuilder(ABC):
+    """
+    Translates a FeatureView definition and execution task into an execution DAG.
+    This builder is engine-specific and returns an ExecutionPlan that ComputeEngine can run.
+    """
 
     def __init__(
         self,
@@ -53,8 +56,7 @@ class DAGBuilder(ABC):
         ):
             last_node = self.build_aggregation_node(last_node)
 
-        if self._should_join():
-            last_node = self.build_join_node(last_node)
+        last_node = self.build_join_node(last_node)
 
         if (
             hasattr(self.feature_view, "feature_transformation")
@@ -67,16 +69,3 @@ class DAGBuilder(ABC):
 
         self.build_output_nodes(last_node)
         return ExecutionPlan(self.nodes)
-
-    def _should_join(self):
-        if hasattr(self.feature_view, "batch_engine"):
-            return hasattr(self.feature_view.batch_engine, "join_strategy") and (
-                self.feature_view.batch_engine.join_strategy == "engine"
-                or self.task.config.batch_engine.get("point_in_time_join") == "engine"
-            )
-        if hasattr(self.feature_view, "batch_engine_config"):
-            return hasattr(self.feature_view.stream_engine, "join_strategy") and (
-                self.feature_view.stream_engine.join_strategy == "engine"
-                or self.task.config.stream_engine.get("point_in_time_join") == "engine"
-            )
-        return False

@@ -16,6 +16,13 @@ driver = Entity(
     description="driver id",
 )
 
+schema = [
+    Field(name="conv_rate", dtype=Float32),
+    Field(name="acc_rate", dtype=Float32),
+    Field(name="avg_daily_trips", dtype=Int64),
+    Field(name="driver_id", dtype=Int32),
+]
+
 
 def transform_feature(df: DataFrame) -> DataFrame:
     df = df.withColumn("conv_rate", df["conv_rate"] * 2)
@@ -42,13 +49,11 @@ driver_hourly_stats_view = BatchFeatureView(
     tags={},
 )
 
-
 global_daily_stats = FileSource(
     path="%PARQUET_PATH_GLOBAL%",  # placeholder to be replaced by the test
     timestamp_field="event_timestamp",
     created_timestamp_column="created",
 )
-
 
 global_stats_feature_view = BatchFeatureView(
     name="global_daily_stats",

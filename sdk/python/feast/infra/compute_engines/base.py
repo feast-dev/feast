@@ -33,7 +33,7 @@ class ComputeEngine(ABC):
     Each engine must implement:
         - materialize(): to generate and persist features
         - get_historical_features(): to perform point-in-time correct joins
-    Engines should use DAGBuilder and DAGNode abstractions to build modular, pluggable workflows.
+    Engines should use FeatureBuilder and DAGNode abstractions to build modular, pluggable workflows.
     """
 
     def __init__(

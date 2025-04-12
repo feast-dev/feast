@@ -19,13 +19,12 @@ from feast.infra.materialization.contrib.spark.spark_materialization_engine impo
 )
 from feast.infra.offline_stores.contrib.spark_offline_store.spark import (
     SparkRetrievalJob,
-    _get_entity_df_event_timestamp_range,
     _get_entity_schema,
 )
 from feast.infra.offline_stores.offline_utils import (
     infer_event_timestamp_from_entity_df,
 )
-from feast.utils import _get_column_names
+from feast.utils import _get_column_names, _get_fields_with_aliases
 
 
 @dataclass
@@ -103,9 +102,7 @@ class SparkHistoricalRetrievalReadNode(DAGNode):
             context: SparkExecutionContext
         Returns: DAGValue
         """
-        offline_store = context.offline_store
         fv = self.task.feature_view
-        entity_df = context.entity_df
         source = fv.batch_source
         entities = context.entity_defs
 
@@ -113,34 +110,38 @@ class SparkHistoricalRetrievalReadNode(DAGNode):
             join_key_columns,
             feature_name_columns,
             timestamp_field,
-            _,
+            created_timestamp_column,
         ) = _get_column_names(fv, entities)
 
-        entity_schema = _get_entity_schema(
-            spark_session=self.spark_session,
-            entity_df=entity_df,
-        )
-        event_timestamp_col = infer_event_timestamp_from_entity_df(
-            entity_schema=entity_schema,
-        )
-        entity_df_event_timestamp_range = _get_entity_df_event_timestamp_range(
-            entity_df,
-            event_timestamp_col,
-            self.spark_session,
-        )
-        min_ts = entity_df_event_timestamp_range[0]
-        max_ts = entity_df_event_timestamp_range[1]
+        # TODO: Use pull_all_from_table_or_query when it supports not filtering by timestamp
+        # retrieval_job = offline_store.pull_all_from_table_or_query(
+        #     config=context.repo_config,
+        #     data_source=source,
+        #     join_key_columns=join_key_columns,
+        #     feature_name_columns=feature_name_columns,
+        #     timestamp_field=timestamp_field,
+        #     start_date=min_ts,
+        #     end_date=max_ts,
+        # )
+        # spark_df = cast(SparkRetrievalJob, retrieval_job).to_spark_df()
 
-        retrieval_job = offline_store.pull_all_from_table_or_query(
-            config=context.repo_config,
-            data_source=source,
-            join_key_columns=join_key_columns,
-            feature_name_columns=feature_name_columns,
-            timestamp_field=timestamp_field,
-            start_date=min_ts,
-            end_date=max_ts,
+        columns = join_key_columns + feature_name_columns + [timestamp_field]
+        if created_timestamp_column:
+            columns.append(created_timestamp_column)
+
+        (fields_with_aliases, aliases) = _get_fields_with_aliases(
+            fields=columns,
+            field_mappings=source.field_mapping,
         )
-        spark_df = cast(SparkRetrievalJob, retrieval_job).to_spark_df()
+        fields_with_alias_string = ", ".join(fields_with_aliases)
+
+        from_expression = source.get_table_query_string()
+
+        query = f"""
+            SELECT {fields_with_alias_string}
+            FROM {from_expression}
+        """
+        spark_df = self.spark_session.sql(query)
 
         return DAGValue(
             data=spark_df,
@@ -148,8 +149,6 @@ class SparkHistoricalRetrievalReadNode(DAGNode):
             metadata={
                 "source": "feature_view_batch_source",
                 "timestamp_field": timestamp_field,
-                "start_date": min_ts,
-                "end_date": max_ts,
             },
         )
 
@@ -243,7 +242,9 @@ class SparkJoinNode(DAGNode):
             entity_schema=entity_schema,
         )
         entity_ts_alias = "__entity_event_timestamp"
-        entity_df = entity_df.withColumnRenamed(event_timestamp_col, entity_ts_alias)
+        entity_df = self.spark_session.createDataFrame(entity_df).withColumnRenamed(
+            event_timestamp_col, entity_ts_alias
+        )
 
         # Perform left join + event timestamp filtering
         joined = feature_df.join(entity_df, on=join_keys, how="left")
@@ -288,21 +289,17 @@ class SparkWriteNode(DAGNode):
 
     def execute(self, context: ExecutionContext) -> DAGValue:
         spark_df: DataFrame = self.get_single_input_value(context).data
+        spark_serialized_artifacts = _SparkSerializedArtifacts.serialize(
+            feature_view=self.feature_view, repo_config=context.repo_config
+        )
 
         # ✅ 1. Write to offline store (if enabled)
-        if self.feature_view.online:
-            context.offline_store.offline_write_batch(
-                config=context.repo_config,
-                feature_view=self.feature_view,
-                table=spark_df,
-                progress=None,
-            )
+        if self.feature_view.offline:
+            # TODO: Update _map_by_partition to be able to write to offline store
+            pass
 
         # ✅ 2. Write to online store (if enabled)
-        if self.feature_view.offline:
-            spark_serialized_artifacts = _SparkSerializedArtifacts.serialize(
-                feature_view=self.feature_view, repo_config=context.repo_config
-            )
+        if self.feature_view.online:
             spark_df.mapInPandas(
                 lambda x: _map_by_partition(x, spark_serialized_artifacts), "status int"
             ).count()

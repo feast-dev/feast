@@ -16,7 +16,7 @@ This system builds and executes DAGs (Directed Acyclic Graphs) of typed operatio
 | Component          | Description                                                        |
 |--------------------|--------------------------------------------------------------------|
 | `ComputeEngine`    | Interface for executing materialization and retrieval tasks        |
-| `DAGBuilder`       | Constructs a DAG for a specific backend                            |
+| `FeatureBuilder`       | Constructs a DAG for a specific backend                            |
 | `DAGNode`          | Represents a logical operation (read, aggregate, join, etc.)       |
 | `ExecutionPlan`    | Executes nodes in dependency order and stores intermediate outputs |
 | `ExecutionContext` | Holds config, registry, stores, entity data, and node outputs      |
@@ -60,9 +60,9 @@ class MyComputeEngine(ComputeEngine):
         ...
 ```
 
-2. Create a DAGBuilder
+2. Create a FeatureBuilder
 ```python
-class MyDAGBuilder(DAGBuilder):
+class MyDAGBuilder(FeatureBuilder):
     def build_source_node(self): ...
     def build_aggregation_node(self, input_node): ...
     def build_join_node(self, input_node): ...

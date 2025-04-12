@@ -44,23 +44,17 @@ class ExecutionPlan:
         self.nodes = nodes
 
     def execute(self, context: ExecutionContext) -> DAGValue:
-        node_outputs: dict[str, DAGValue] = {}
+        context.node_outputs = {}
 
         for node in self.nodes:
-            # Gather input values
             for input_node in node.inputs:
-                if input_node.name not in node_outputs:
-                    node_outputs[input_node.name] = input_node.execute(context)
+                if input_node.name not in context.node_outputs:
+                    context.node_outputs[input_node.name] = input_node.execute(context)
 
-            # Execute this node
             output = node.execute(context)
-            node_outputs[node.name] = output
+            context.node_outputs[node.name] = output
 
-        # Inject into context for downstream access
-        context.node_outputs = node_outputs
-
-        # Return output of final node
-        return node_outputs[self.nodes[-1].name]
+        return context.node_outputs[self.nodes[-1].name]
 
     def to_sql(self, context: ExecutionContext) -> str:
         """
