@@ -2,10 +2,9 @@ name: smoke-tests
 
 on:
   pull_request:
-    paths-ignore:
-      - 'community/**'
-      - 'docs/**'
-      - 'examples/**'
+    paths:
+      - 'sdk/**'
+      - 'ui/**'
 jobs:
   unit-test-python:
     runs-on: ${{ matrix.os }}

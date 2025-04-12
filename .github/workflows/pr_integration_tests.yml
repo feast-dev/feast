@@ -6,10 +6,9 @@ on:
       - opened
       - synchronize
       - labeled
-    paths-ignore:
-      - 'community/**'
-      - 'docs/**'
-      - 'examples/**'
+    paths:
+      - 'sdk/**'
+      - 'ui/**'
 
 # concurrency is currently broken, see details https://github.com/actions/runner/issues/1532
 #concurrency:
