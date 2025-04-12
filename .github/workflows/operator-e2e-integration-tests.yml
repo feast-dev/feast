@@ -10,10 +10,8 @@ on:
       - opened
       - synchronize
       - labeled
-    paths-ignore:
-      - 'community/**'
-      - 'docs/**'
-      - 'examples/**'
+    paths:
+      - 'infra/**'
 
 jobs:
   operator-e2e-tests:

@@ -7,10 +7,9 @@ on:
       - opened
       - synchronize
       - labeled
-    paths-ignore:
-      - 'community/**'
-      - 'docs/**'
-      - 'examples/**'
+    paths:
+      - 'sdk/**'
+      - 'ui/**'
 
 jobs:
   remote-rbac-integration-tests-python:

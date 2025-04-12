@@ -7,10 +7,9 @@ on:
       - opened
       - synchronize
       - labeled
-    paths-ignore:
-      - 'community/**'
-      - 'docs/**'
-      - 'examples/**'
+    paths:
+      - 'sdk/**'
+      - 'ui/**'
 
 jobs:
   integration-test-python-local:
