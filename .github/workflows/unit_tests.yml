@@ -5,6 +5,8 @@ on:
     paths:
       - 'sdk/**'
       - 'ui/**'
+    paths-ignore:
+      - 'docs/**'
 jobs:
   unit-test-python:
     runs-on: ${{ matrix.os }}
