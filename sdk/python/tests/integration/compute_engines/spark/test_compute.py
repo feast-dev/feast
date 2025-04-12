@@ -6,9 +6,9 @@ import pandas as pd
 import pytest
 
 from feast import BatchFeatureView
-from feast.infra.compute_engines.base import HistoricalRetrievalTask
 from feast.infra.compute_engines.spark.compute import SparkComputeEngine
 from feast.infra.compute_engines.spark.job import SparkDAGRetrievalJob
+from feast.infra.compute_engines.tasks import HistoricalRetrievalTask
 from feast.infra.offline_stores.contrib.spark_offline_store.spark import (
     SparkOfflineStore,
 )

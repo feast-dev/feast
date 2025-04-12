@@ -13,13 +13,13 @@ This system builds and executes DAGs (Directed Acyclic Graphs) of typed operatio
 
 ## 🧠 Core Concepts
 
-| Component          | Description                                                        |
-|--------------------|--------------------------------------------------------------------|
-| `ComputeEngine`    | Interface for executing materialization and retrieval tasks        |
-| `FeatureBuilder`       | Constructs a DAG for a specific backend                            |
-| `DAGNode`          | Represents a logical operation (read, aggregate, join, etc.)       |
-| `ExecutionPlan`    | Executes nodes in dependency order and stores intermediate outputs |
-| `ExecutionContext` | Holds config, registry, stores, entity data, and node outputs      |
+| Component          | Description                                                          |
+|--------------------|----------------------------------------------------------------------|
+| `ComputeEngine`    | Interface for executing materialization and retrieval tasks          |
+| `FeatureBuilder`   | Constructs a DAG from Feature View definition for a specific backend |
+| `DAGNode`          | Represents a logical operation (read, aggregate, join, etc.)         |
+| `ExecutionPlan`    | Executes nodes in dependency order and stores intermediate outputs   |
+| `ExecutionContext` | Holds config, registry, stores, entity data, and node outputs        |
 
 ---
 
@@ -52,6 +52,9 @@ To create your own compute engine:
 1. **Implement the interface**
 
 ```python
+from feast.infra.compute_engines.base import ComputeEngine
+from feast.infra.materialization.batch_materialization_engine import MaterializationTask, MaterializationJob
+from feast.infra.compute_engines.tasks import HistoricalRetrievalTask
 class MyComputeEngine(ComputeEngine):
     def materialize(self, task: MaterializationTask) -> MaterializationJob:
         ...
@@ -62,7 +65,9 @@ class MyComputeEngine(ComputeEngine):
 
 2. Create a FeatureBuilder
 ```python
-class MyDAGBuilder(FeatureBuilder):
+from feast.infra.compute_engines.feature_builder import FeatureBuilder
+
+class CustomFeatureBuilder(FeatureBuilder):
     def build_source_node(self): ...
     def build_aggregation_node(self, input_node): ...
     def build_join_node(self, input_node): ...

@@ -1,12 +1,9 @@
 from abc import ABC
-from dataclasses import dataclass
-from datetime import datetime
-from typing import Union
 
-import pandas as pd
 import pyarrow as pa
 
-from feast import BatchFeatureView, RepoConfig, StreamFeatureView
+from feast import RepoConfig
+from feast.infra.compute_engines.tasks import HistoricalRetrievalTask
 from feast.infra.materialization.batch_materialization_engine import (
     MaterializationJob,
     MaterializationTask,
@@ -14,17 +11,6 @@ from feast.infra.materialization.batch_materialization_engine import (
 from feast.infra.offline_stores.offline_store import OfflineStore
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.registry.registry import Registry
-
-
-@dataclass
-class HistoricalRetrievalTask:
-    entity_df: Union[pd.DataFrame, str]
-    feature_view: Union[BatchFeatureView, StreamFeatureView]
-    full_feature_name: bool
-    registry: Registry
-    config: RepoConfig
-    start_time: datetime
-    end_time: datetime
 
 
 class ComputeEngine(ABC):
