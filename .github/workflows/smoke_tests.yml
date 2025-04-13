@@ -2,10 +2,6 @@ name: smoke-tests
 
 on:
   pull_request:
-    paths:
-      - 'sdk/**'
-      - 'ui/**'
-  merge_group:
 
 jobs:
   unit-test-python:

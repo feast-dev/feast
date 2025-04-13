@@ -2,11 +2,6 @@ name: unit-tests
 
 on:
   pull_request:
-    paths:
-      - 'sdk/**'
-      - 'ui/**'
-    paths-ignore:
-      - 'docs/**'
 
 jobs:
   unit-test-python:

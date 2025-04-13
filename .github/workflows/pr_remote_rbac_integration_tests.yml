@@ -7,9 +7,6 @@ on:
       - opened
       - synchronize
       - labeled
-    paths:
-      - 'sdk/**'
-      - 'ui/**'
 
 jobs:
   remote-rbac-integration-tests-python:

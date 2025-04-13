@@ -7,10 +7,6 @@ on:
       - opened
       - synchronize
       - labeled
-    paths:
-      - 'sdk/**'
-      - 'ui/**'
-  merge_group:
 
 jobs:
   integration-test-python-local:
