@@ -7,6 +7,8 @@ from feast.infra.compute_engines.base import HistoricalRetrievalTask
 from feast.infra.compute_engines.feature_builder import FeatureBuilder
 from feast.infra.compute_engines.spark.node import (
     SparkAggregationNode,
+    SparkDedupNode,
+    SparkFilterNode,
     SparkHistoricalRetrievalReadNode,
     SparkJoinNode,
     SparkMaterializationReadNode,
@@ -50,6 +52,21 @@ class SparkFeatureBuilder(FeatureBuilder):
         join_keys = self.feature_view.entities
         node = SparkJoinNode(
             "join", input_node, join_keys, self.feature_view, self.spark_session
+        )
+        self.nodes.append(node)
+        return node
+
+    def build_filter_node(self, input_node):
+        filter_expr = None
+        if hasattr(self.feature_view, "filter"):
+            filter_expr = self.feature_view.filter
+        node = SparkFilterNode("filter", input_node, self.feature_view, filter_expr)
+        self.nodes.append(node)
+        return node
+
+    def build_dedup_node(self, input_node):
+        node = SparkDedupNode(
+            "dedup", input_node, self.feature_view, self.spark_session
         )
         self.nodes.append(node)
         return node

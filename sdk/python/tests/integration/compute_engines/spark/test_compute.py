@@ -6,6 +6,7 @@ import pandas as pd
 import pytest
 
 from feast import BatchFeatureView
+from feast.aggregation import Aggregation
 from feast.infra.compute_engines.spark.compute import SparkComputeEngine
 from feast.infra.compute_engines.spark.job import SparkDAGRetrievalJob
 from feast.infra.compute_engines.tasks import HistoricalRetrievalTask
@@ -59,7 +60,7 @@ def test_spark_compute_engine_get_historical_features():
                 "event_timestamp": yesterday,
                 "created": now - timedelta(hours=2),
                 "conv_rate": 0.8,
-                "acc_rate": 0.95,
+                "acc_rate": 0.5,
                 "avg_daily_trips": 15,
             },
             {
@@ -75,7 +76,15 @@ def test_spark_compute_engine_get_historical_features():
                 "event_timestamp": yesterday,
                 "created": now - timedelta(hours=2),
                 "conv_rate": 0.7,
-                "acc_rate": 0.88,
+                "acc_rate": 0.4,
+                "avg_daily_trips": 12,
+            },
+            {
+                "driver_id": 1002,
+                "event_timestamp": yesterday - timedelta(days=1),
+                "created": now - timedelta(hours=2),
+                "conv_rate": 0.3,
+                "acc_rate": 0.6,
                 "avg_daily_trips": 12,
             },
         ]
@@ -90,9 +99,13 @@ def test_spark_compute_engine_get_historical_features():
         name="driver_hourly_stats",
         entities=[driver],
         mode="python",
+        aggregations=[
+            Aggregation(column="conv_rate", function="sum"),
+            Aggregation(column="acc_rate", function="avg"),
+        ],
         udf=transform_feature,
         udf_string="transform_feature",
-        ttl=timedelta(days=2),
+        ttl=timedelta(days=3),
         schema=schema,
         online=False,
         offline=False,
@@ -112,18 +125,18 @@ def test_spark_compute_engine_get_historical_features():
 
         # 🛠 Build retrieval task
         task = HistoricalRetrievalTask(
+            project=spark_environment.project,
             entity_df=entity_df,
             feature_view=driver_stats_fv,
             full_feature_name=False,
             registry=registry,
-            config=spark_environment.config,
             start_time=now - timedelta(days=1),
             end_time=now,
         )
 
         # 🧪 Run SparkComputeEngine
         engine = SparkComputeEngine(
-            repo_config=task.config,
+            repo_config=spark_environment.config,
             offline_store=SparkOfflineStore(),
             online_store=MagicMock(),
             registry=registry,
@@ -131,12 +144,15 @@ def test_spark_compute_engine_get_historical_features():
 
         spark_dag_retrieval_job = engine.get_historical_features(task)
         spark_df = cast(SparkDAGRetrievalJob, spark_dag_retrieval_job).to_spark_df()
-        df_out = spark_df.to_pandas_on_spark()
+        df_out = spark_df.orderBy("driver_id").to_pandas_on_spark()
 
         # ✅ Assert output
         assert df_out.driver_id.to_list() == [1001, 1002]
-        assert abs(df_out["conv_rate"].to_list()[0] - 1.6) < 1e-6
-        assert abs(df_out["conv_rate"].to_list()[1] - 1.4) < 1e-6
+        assert abs(df_out["sum_conv_rate"].to_list()[0] - 1.6) < 1e-6
+        assert abs(df_out["sum_conv_rate"].to_list()[1] - 2.0) < 1e-6
+        assert abs(df_out["avg_acc_rate"].to_list()[0] - 1.0) < 1e-6
+        assert abs(df_out["avg_acc_rate"].to_list()[1] - 1.0) < 1e-6
+
     finally:
         spark_environment.teardown()
 

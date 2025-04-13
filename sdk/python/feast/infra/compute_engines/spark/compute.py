@@ -36,21 +36,11 @@ class SparkComputeEngine(ComputeEngine):
     def materialize(self, task: MaterializationTask) -> MaterializationJob:
         job_id = f"{task.feature_view.name}-{task.start_time}-{task.end_time}"
 
+        # ✅ 1. Build typed execution context
+        context = self.get_execution_context(task)
+
         try:
-            # ✅ 1. Build typed execution context
-            entities = []
-            for entity_name in task.feature_view.entities:
-                entities.append(self.registry.get_entity(entity_name, task.project))
-
-            context = ExecutionContext(
-                project=task.project,
-                repo_config=self.repo_config,
-                offline_store=self.offline_store,
-                online_store=self.online_store,
-                entity_defs=entities,
-            )
-
-            # ✅ 2. Construct DAG and run it
+            # ✅ 2. Construct Feature Builder and run it
             builder = SparkFeatureBuilder(
                 spark_session=self.spark_session,
                 feature_view=task.feature_view,
@@ -74,33 +64,32 @@ class SparkComputeEngine(ComputeEngine):
         if isinstance(task.entity_df, str):
             raise NotImplementedError("SQL-based entity_df is not yet supported in DAG")
 
-        # ✅ 2. Build typed execution context
-        entity_defs = [
-            task.registry.get_entity(name, task.config.project)
-            for name in task.feature_view.entities
-        ]
+        # ✅ 1. Build typed execution context
+        context = self.get_execution_context(task)
 
-        context = ExecutionContext(
-            project=task.config.project,
-            repo_config=task.config,
-            offline_store=self.offline_store,
-            online_store=self.online_store,
-            entity_defs=entity_defs,
-            entity_df=task.entity_df,
-        )
+        try:
+            # ✅ 2. Construct Feature Builder and run it
+            builder = SparkFeatureBuilder(
+                spark_session=self.spark_session,
+                feature_view=task.feature_view,
+                task=task,
+            )
+            plan = builder.build()
 
-        # ✅ 3. Construct and execute DAG
-        builder = SparkFeatureBuilder(
-            spark_session=self.spark_session,
-            feature_view=task.feature_view,
-            task=task,
-        )
-        plan = builder.build()
-
-        return SparkDAGRetrievalJob(
-            plan=plan,
-            spark_session=self.spark_session,
-            context=context,
-            config=task.config,
-            full_feature_names=task.full_feature_name,
-        )
+            return SparkDAGRetrievalJob(
+                plan=plan,
+                spark_session=self.spark_session,
+                context=context,
+                config=self.repo_config,
+                full_feature_names=task.full_feature_name,
+            )
+        except Exception as e:
+            # 🛑 Handle failure
+            return SparkDAGRetrievalJob(
+                plan=None,
+                spark_session=self.spark_session,
+                context=context,
+                config=self.repo_config,
+                full_feature_names=task.full_feature_name,
+                error=e,
+            )

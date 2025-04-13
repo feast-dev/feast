@@ -16,12 +16,13 @@ class SparkDAGRetrievalJob(SparkRetrievalJob):
     def __init__(
         self,
         spark_session: SparkSession,
-        plan: ExecutionPlan,
         context: ExecutionContext,
         full_feature_names: bool,
         config: RepoConfig,
+        plan: Optional[ExecutionPlan] = None,
         on_demand_feature_views: Optional[List[OnDemandFeatureView]] = None,
         metadata: Optional[RetrievalMetadata] = None,
+        error: Optional[BaseException] = None,
     ):
         super().__init__(
             spark_session=spark_session,
@@ -34,7 +35,11 @@ class SparkDAGRetrievalJob(SparkRetrievalJob):
         self._plan = plan
         self._context = context
         self._metadata = metadata
-        self._spark_df = None  # Will be populated on first access
+        self._spark_df = None
+        self._error = error
+
+    def error(self) -> Optional[BaseException]:
+        return self._error
 
     def _ensure_executed(self):
         if self._spark_df is None:

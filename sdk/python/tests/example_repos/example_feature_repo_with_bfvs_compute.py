@@ -25,8 +25,8 @@ schema = [
 
 
 def transform_feature(df: DataFrame) -> DataFrame:
-    df = df.withColumn("conv_rate", df["conv_rate"] * 2)
-    df = df.withColumn("acc_rate", df["acc_rate"] * 2)
+    df = df.withColumn("sum_conv_rate", df["sum_conv_rate"] * 2)
+    df = df.withColumn("avg_acc_rate", df["avg_acc_rate"] * 2)
     return df
 
 

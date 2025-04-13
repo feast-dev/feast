@@ -6,6 +6,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 import dill
 
 from feast import flags_helper
+from feast.aggregation import Aggregation
 from feast.data_source import DataSource
 from feast.entity import Entity
 from feast.feature_view import FeatureView
@@ -65,6 +66,7 @@ class BatchFeatureView(FeatureView):
     udf_string: Optional[str]
     feature_transformation: Transformation
     batch_engine: Optional[Field]
+    aggregations: Optional[List[Aggregation]]
 
     def __init__(
         self,
@@ -84,6 +86,7 @@ class BatchFeatureView(FeatureView):
         udf_string: Optional[str] = "",
         feature_transformation: Optional[Transformation] = None,
         batch_engine: Optional[Field] = None,
+        aggregations: Optional[List[Aggregation]] = None,
     ):
         if not flags_helper.is_test():
             warnings.warn(
@@ -108,6 +111,7 @@ class BatchFeatureView(FeatureView):
             feature_transformation or self.get_feature_transformation()
         )
         self.batch_engine = batch_engine
+        self.aggregations = aggregations or []
 
         super().__init__(
             name=name,

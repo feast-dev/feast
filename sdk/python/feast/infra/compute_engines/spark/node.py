@@ -24,7 +24,7 @@ from feast.infra.offline_stores.contrib.spark_offline_store.spark import (
 from feast.infra.offline_stores.offline_utils import (
     infer_event_timestamp_from_entity_df,
 )
-from feast.utils import _get_column_names, _get_fields_with_aliases
+from feast.utils import _get_fields_with_aliases
 
 
 @dataclass
@@ -58,7 +58,7 @@ class SparkMaterializationReadNode(DAGNode):
             feature_name_columns,
             timestamp_field,
             created_timestamp_column,
-        ) = _get_column_names(self.task.feature_view, context.entity_defs)
+        ) = context.column_info
 
         # 📥 Reuse Feast's robust query resolver
         retrieval_job = offline_store.pull_latest_from_table_or_query(
@@ -104,14 +104,13 @@ class SparkHistoricalRetrievalReadNode(DAGNode):
         """
         fv = self.task.feature_view
         source = fv.batch_source
-        entities = context.entity_defs
 
         (
             join_key_columns,
             feature_name_columns,
             timestamp_field,
             created_timestamp_column,
-        ) = _get_column_names(fv, entities)
+        ) = context.column_info
 
         # TODO: Use pull_all_from_table_or_query when it supports not filtering by timestamp
         # retrieval_job = offline_store.pull_all_from_table_or_query(
@@ -198,7 +197,9 @@ class SparkAggregationNode(DAGNode):
             ).agg(*agg_exprs)
         else:
             # Simple aggregation
-            grouped = input_df.groupBy(*self.group_by_keys).agg(*agg_exprs)
+            grouped = input_df.groupBy(
+                *self.group_by_keys,
+            ).agg(*agg_exprs)
 
         return DAGValue(
             data=grouped, format=DAGFormat.SPARK, metadata={"aggregated": True}
@@ -223,15 +224,13 @@ class SparkJoinNode(DAGNode):
     def execute(self, context: ExecutionContext) -> DAGValue:
         feature_value = self.get_single_input_value(context)
         feature_value.assert_format(DAGFormat.SPARK)
-        feature_df = feature_value.data
+        feature_df: DataFrame = feature_value.data
 
         entity_df = context.entity_df
         assert entity_df is not None, "entity_df must be set in ExecutionContext"
 
         # Get timestamp fields from feature view
-        join_keys, feature_cols, ts_col, created_ts_col = _get_column_names(
-            self.feature_view, context.entity_defs
-        )
+        join_keys, feature_cols, ts_col, created_ts_col = context.column_info
 
         # Rename entity_df event_timestamp_col to match feature_df
         entity_schema = _get_entity_schema(
@@ -242,13 +241,43 @@ class SparkJoinNode(DAGNode):
             entity_schema=entity_schema,
         )
         entity_ts_alias = "__entity_event_timestamp"
-        entity_df = self.spark_session.createDataFrame(entity_df).withColumnRenamed(
-            event_timestamp_col, entity_ts_alias
-        )
+        if not isinstance(entity_df, DataFrame):
+            entity_df = self.spark_session.createDataFrame(entity_df)
+        entity_df = entity_df.withColumnRenamed(event_timestamp_col, entity_ts_alias)
 
         # Perform left join + event timestamp filtering
         joined = feature_df.join(entity_df, on=join_keys, how="left")
-        joined = joined.filter(F.col(ts_col) <= F.col(entity_ts_alias))
+
+        return DAGValue(
+            data=joined, format=DAGFormat.SPARK, metadata={"joined_on": join_keys}
+        )
+
+
+class SparkFilterNode(DAGNode):
+    def __init__(
+        self,
+        name: str,
+        input_node: DAGNode,
+        feature_view: Union[BatchFeatureView, StreamFeatureView],
+        filter_condition: Optional[str] = None,
+    ):
+        super().__init__(name)
+        self.feature_view = feature_view
+        self.add_input(input_node)
+        self.filter_condition = filter_condition
+
+    def execute(self, context: ExecutionContext) -> DAGValue:
+        input_value = self.get_single_input_value(context)
+        input_value.assert_format(DAGFormat.SPARK)
+        input_df: DataFrame = input_value.data
+
+        # Get timestamp fields from feature view
+        _, _, ts_col, _ = context.column_info
+
+        # Apply filter condition
+        entity_ts_alias = "__entity_event_timestamp"
+        filtered_df = input_df
+        filtered_df = filtered_df.filter(F.col(ts_col) <= F.col(entity_ts_alias))
 
         # Optional TTL filter: feature.ts >= entity.event_timestamp - ttl
         if self.feature_view.ttl:
@@ -256,23 +285,59 @@ class SparkJoinNode(DAGNode):
             lower_bound = F.col(entity_ts_alias) - F.expr(
                 f"INTERVAL {ttl_seconds} seconds"
             )
-            joined = joined.filter(F.col(ts_col) >= lower_bound)
+            filtered_df = filtered_df.filter(F.col(ts_col) >= lower_bound)
 
+        # Optional custom filter condition
+        if self.filter_condition:
+            filtered_df = input_df.filter(self.filter_condition)
+
+        return DAGValue(
+            data=filtered_df,
+            format=DAGFormat.SPARK,
+            metadata={"filter_applied": True},
+        )
+
+
+class SparkDedupNode(DAGNode):
+    def __init__(
+        self,
+        name: str,
+        input_node: DAGNode,
+        feature_view: Union[BatchFeatureView, StreamFeatureView],
+        spark_session: SparkSession,
+    ):
+        super().__init__(name)
+        self.add_input(input_node)
+        self.feature_view = feature_view
+        self.spark_session = spark_session
+
+    def execute(self, context: ExecutionContext) -> DAGValue:
+        input_value = self.get_single_input_value(context)
+        input_value.assert_format(DAGFormat.SPARK)
+        input_df: DataFrame = input_value.data
+
+        # Get timestamp fields from feature view
+        join_keys, _, ts_col, created_ts_col = context.column_info
+
+        # Dedup based on join keys and event timestamp
         # Dedup with row_number
+        entity_ts_alias = "__entity_event_timestamp"
         partition_cols = join_keys + [entity_ts_alias]
         ordering = [F.col(ts_col).desc()]
         if created_ts_col:
             ordering.append(F.col(created_ts_col).desc())
 
         window = Window.partitionBy(*partition_cols).orderBy(*ordering)
-        deduped = (
-            joined.withColumn("row_num", F.row_number().over(window))
+        deduped_df = (
+            input_df.withColumn("row_num", F.row_number().over(window))
             .filter("row_num = 1")
             .drop("row_num")
         )
 
         return DAGValue(
-            data=deduped, format=DAGFormat.SPARK, metadata={"joined_on": join_keys}
+            data=deduped_df,
+            format=DAGFormat.SPARK,
+            metadata={"deduped": True},
         )
 
 

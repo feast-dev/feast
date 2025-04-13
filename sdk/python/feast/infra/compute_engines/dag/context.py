@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Dict, List, Union
+from typing import Dict, List, Optional, Union
 
 import pandas as pd
 
@@ -8,6 +8,20 @@ from feast.infra.compute_engines.dag.value import DAGValue
 from feast.infra.offline_stores.offline_store import OfflineStore
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.repo_config import RepoConfig
+
+
+@dataclass
+class ColumnInfo:
+    join_keys: List[str]
+    feature_cols: List[str]
+    ts_col: str
+    created_ts_col: Optional[str]
+
+    def __iter__(self):
+        yield self.join_keys
+        yield self.feature_cols
+        yield self.ts_col
+        yield self.created_ts_col
 
 
 @dataclass
@@ -47,6 +61,7 @@ class ExecutionContext:
     repo_config: RepoConfig
     offline_store: OfflineStore
     online_store: OnlineStore
+    column_info: ColumnInfo
     entity_defs: List[Entity]
     entity_df: Union[pd.DataFrame, None] = None
     node_outputs: Dict[str, DAGValue] = field(default_factory=dict)

@@ -36,6 +36,14 @@ class FeatureBuilder(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def build_filter_node(self, input_node):
+        raise NotImplementedError
+
+    @abstractmethod
+    def build_dedup_node(self, input_node):
+        raise NotImplementedError
+
+    @abstractmethod
     def build_transformation_node(self, input_node):
         raise NotImplementedError
 
@@ -50,13 +58,17 @@ class FeatureBuilder(ABC):
     def build(self) -> ExecutionPlan:
         last_node = self.build_source_node()
 
+        # PIT join entities to the feature data, and perform filtering
+        last_node = self.build_join_node(last_node)
+        last_node = self.build_filter_node(last_node)
+
         if (
-            hasattr(self.feature_view, "aggregation")
-            and self.feature_view.aggregation is not None
+            hasattr(self.feature_view, "aggregations")
+            and self.feature_view.aggregations is not None
         ):
             last_node = self.build_aggregation_node(last_node)
-
-        last_node = self.build_join_node(last_node)
+        else:
+            last_node = self.build_dedup_node(last_node)
 
         if (
             hasattr(self.feature_view, "feature_transformation")

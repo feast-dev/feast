@@ -1,8 +1,10 @@
 from abc import ABC
+from typing import Union
 
 import pyarrow as pa
 
 from feast import RepoConfig
+from feast.infra.compute_engines.dag.context import ColumnInfo, ExecutionContext
 from feast.infra.compute_engines.tasks import HistoricalRetrievalTask
 from feast.infra.materialization.batch_materialization_engine import (
     MaterializationJob,
@@ -11,6 +13,7 @@ from feast.infra.materialization.batch_materialization_engine import (
 from feast.infra.offline_stores.offline_store import OfflineStore
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.registry.registry import Registry
+from feast.utils import _get_column_names
 
 
 class ComputeEngine(ABC):
@@ -41,3 +44,40 @@ class ComputeEngine(ABC):
 
     def get_historical_features(self, task: HistoricalRetrievalTask) -> pa.Table:
         raise NotImplementedError
+
+    def get_execution_context(
+        self,
+        task: Union[MaterializationTask, HistoricalRetrievalTask],
+    ) -> ExecutionContext:
+        entity_defs = [
+            self.registry.get_entity(name, task.project)
+            for name in task.feature_view.entities
+        ]
+        entity_df = None
+        if task.entity_df is not None:
+            entity_df = task.entity_df
+
+        column_info = self.get_column_info(task)
+        return ExecutionContext(
+            project=task.project,
+            repo_config=self.repo_config,
+            offline_store=self.offline_store,
+            online_store=self.online_store,
+            entity_defs=entity_defs,
+            column_info=column_info,
+            entity_df=entity_df,
+        )
+
+    def get_column_info(
+        self,
+        task: Union[MaterializationTask, HistoricalRetrievalTask],
+    ) -> ColumnInfo:
+        join_keys, feature_cols, ts_col, created_ts_col = _get_column_names(
+            task.feature_view, self.registry.list_entities(task.project)
+        )
+        return ColumnInfo(
+            join_keys=join_keys,
+            feature_cols=feature_cols,
+            ts_col=ts_col,
+            created_ts_col=created_ts_col,
+        )

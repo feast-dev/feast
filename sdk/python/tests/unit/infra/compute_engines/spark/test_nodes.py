@@ -5,11 +5,12 @@ import pytest
 from pyspark.sql import SparkSession
 
 from feast.aggregation import Aggregation
-from feast.infra.compute_engines.dag.context import ExecutionContext
+from feast.infra.compute_engines.dag.context import ColumnInfo, ExecutionContext
 from feast.infra.compute_engines.dag.model import DAGFormat
 from feast.infra.compute_engines.dag.value import DAGValue
 from feast.infra.compute_engines.spark.node import (
     SparkAggregationNode,
+    SparkDedupNode,
     SparkJoinNode,
     SparkTransformationNode,
 )
@@ -183,21 +184,37 @@ def test_spark_join_node_executes_point_in_time_join(spark_session):
         node_outputs={
             "feature_node": feature_val,
         },
+        column_info=ColumnInfo(
+            join_keys=["driver_id"],
+            feature_cols=["conv_rate", "acc_rate", "avg_daily_trips"],
+            ts_col="event_timestamp",
+            created_ts_col="created",
+        ),
     )
 
     # Create the node and add input
-    node = SparkJoinNode(
+    join_node = SparkJoinNode(
         name="join",
         feature_node=MagicMock(name="feature_node"),
         join_keys=["user_id"],
         feature_view=feature_view,
         spark_session=spark_session,
     )
-    node.inputs[0].name = "feature_node"  # must match key in node_outputs
+    join_node.inputs[0].name = "feature_node"  # must match key in node_outputs
 
     # Execute the node
-    output = node.execute(context)
-    result_df = output.data.orderBy("driver_id").collect()
+    output = join_node.execute(context)
+    context.node_outputs["join"] = output
+
+    dedup_node = SparkDedupNode(
+        name="dedup",
+        input_node=join_node,
+        feature_view=feature_view,
+        spark_session=spark_session,
+    )
+    dedup_node.inputs[0].name = "join"  # must match key in node_outputs
+    dedup_output = dedup_node.execute(context)
+    result_df = dedup_output.data.orderBy("driver_id").collect()
 
     # Assertions
     assert output.format == DAGFormat.SPARK
