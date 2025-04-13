@@ -188,6 +188,7 @@ def test_spark_compute_engine_get_historical_features():
         spark_environment.teardown()
 
 
+@pytest.mark.integration
 def test_spark_compute_engine_materialize():
     spark_environment = create_spark_environment()
     fs = spark_environment.feature_store
