@@ -14,6 +14,13 @@ interface FeatureStoreAllData {
   mergedFVMap: Record<string, genericFVType>;
   mergedFVList: genericFVType[];
   indirectRelationships: EntityRelation[];
+  allFeatures: Feature[];
+}
+
+interface Feature {
+  name: string;
+  featureView: string;
+  type: string;
 }
 
 const useLoadRegistry = (url: string) => {
@@ -51,6 +58,18 @@ const useLoadRegistry = (url: string) => {
           //   relationships,
           //   indirectRelationships,
           // });
+          const allFeatures: Feature[] =
+            objects.featureViews?.flatMap(
+              (fv) =>
+                fv?.spec?.features?.map((feature) => ({
+                  name: feature.name ?? "Unknown",
+                  featureView: fv?.spec?.name || "Unknown FeatureView",
+                  type:
+                    feature.valueType != null
+                      ? feast.types.ValueType.Enum[feature.valueType]
+                      : "Unknown Type",
+                })) || [],
+            ) || [];
 
           return {
             project: objects.projects[0].spec?.name!,
@@ -59,6 +78,7 @@ const useLoadRegistry = (url: string) => {
             mergedFVList,
             relationships,
             indirectRelationships,
+            allFeatures,
           };
         });
     },

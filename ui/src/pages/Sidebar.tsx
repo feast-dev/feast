@@ -11,6 +11,7 @@ import { EntityIcon } from "../graphics/EntityIcon";
 import { FeatureViewIcon } from "../graphics/FeatureViewIcon";
 import { FeatureServiceIcon } from "../graphics/FeatureServiceIcon";
 import { DatasetIcon } from "../graphics/DatasetIcon";
+import { FeatureIcon } from "../graphics/FeatureIcon";
 
 const SideNav = () => {
   const registryUrl = useContext(RegistryPathContext);
@@ -38,6 +39,12 @@ const SideNav = () => {
   const featureViewsLabel = `Feature Views ${
     isSuccess && data?.mergedFVList && data?.mergedFVList.length > 0
       ? `(${data?.mergedFVList.length})`
+      : ""
+  }`;
+
+  const featureListLabel = `Features ${
+    isSuccess && data?.allFeatures && data?.allFeatures.length > 0
+      ? `(${data?.allFeatures.length})`
       : ""
   }`;
 
@@ -76,6 +83,13 @@ const SideNav = () => {
           icon: <EuiIcon type={EntityIcon} />,
           renderItem: (props) => <Link {...props} to={`${baseUrl}/entity`} />,
           isSelected: useMatchSubpath(`${baseUrl}/entity`),
+        },
+        {
+          name: featureListLabel,
+          id: htmlIdGenerator("featureList")(),
+          icon: <EuiIcon type={FeatureIcon} />,
+          renderItem: (props) => <Link {...props} to={`${baseUrl}/features`} />,
+          isSelected: useMatchSubpath(`${baseUrl}/features`),
         },
         {
           name: featureViewsLabel,

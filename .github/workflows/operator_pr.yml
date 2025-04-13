@@ -3,6 +3,7 @@ name: operator-pr
 on: [pull_request]
 jobs:
   operator-test:
+    if: ${{ !contains(github.event.pull_request.files, 'docs/') }}  # Skip if docs files changed
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

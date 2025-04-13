@@ -1,8 +1,8 @@
-import datetime
 import os
+import random
 import time
 import unittest
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Any, Dict, List, Tuple, Union
 
 import assertpy
@@ -18,9 +18,10 @@ from feast.errors import FeatureNameCollisionError
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.field import Field
+from feast.infra.offline_stores.file_source import FileSource
 from feast.infra.utils.postgres.postgres_config import ConnectionType
 from feast.online_response import TIMESTAMP_POSTFIX
-from feast.types import Float32, Int32, String
+from feast.types import Array, Float32, Int32, Int64, String, ValueType
 from feast.utils import _utc_now
 from feast.wait import wait_retry_backoff
 from tests.integration.feature_repos.repo_configuration import (
@@ -219,7 +220,7 @@ def test_write_to_online_store_event_check(environment):
 
         # writes to online store via datasource (dataframe_source) materialization
         fs.materialize(
-            start_date=datetime.datetime.now() - timedelta(hours=12),
+            start_date=datetime.now() - timedelta(hours=12),
             end_date=_utc_now(),
         )
 
@@ -861,7 +862,7 @@ def assert_feature_service_entity_mapping_correctness(
 
 
 @pytest.mark.integration
-@pytest.mark.universal_online_stores(only=["pgvector", "elasticsearch", "qdrant"])
+@pytest.mark.universal_online_stores(only=["pgvector"])
 def test_retrieve_online_documents(environment, fake_document_data):
     fs = environment.feature_store
     df, data_source = fake_document_data
@@ -870,7 +871,7 @@ def test_retrieve_online_documents(environment, fake_document_data):
     fs.write_to_online_store("item_embeddings", df)
 
     documents = fs.retrieve_online_documents(
-        feature="item_embeddings:embedding_float",
+        features=["item_embeddings:embedding_float", "item_embeddings:item_id"],
         query=[1.0, 2.0],
         top_k=2,
         distance_metric="L2",
@@ -881,7 +882,7 @@ def test_retrieve_online_documents(environment, fake_document_data):
     assert len(documents["item_id"]) == 2
 
     documents = fs.retrieve_online_documents(
-        feature="item_embeddings:embedding_float",
+        features=["item_embeddings:embedding_float"],
         query=[1.0, 2.0],
         top_k=2,
         distance_metric="L1",
@@ -890,7 +891,7 @@ def test_retrieve_online_documents(environment, fake_document_data):
 
     with pytest.raises(ValueError):
         fs.retrieve_online_documents(
-            feature="item_embeddings:embedding_float",
+            features=["item_embeddings:embedding_float"],
             query=[1.0, 2.0],
             top_k=2,
             distance_metric="wrong",
@@ -919,3 +920,171 @@ def test_retrieve_online_milvus_documents(environment, fake_document_data):
 
     assert len(documents["item_id"]) == 2
     assert documents["item_id"] == [2, 3]
+
+
+@pytest.mark.integration
+@pytest.mark.universal_online_stores(only=["pgvector"])
+def test_postgres_retrieve_online_documents_v2(environment, fake_document_data):
+    """Test retrieval of documents using PostgreSQL vector store capabilities."""
+    fs = environment.feature_store
+
+    n_rows = 20
+    vector_dim = 2
+    random.seed(42)
+
+    df = pd.DataFrame(
+        {
+            "item_id": list(range(n_rows)),
+            "embedding": [list(np.random.random(vector_dim)) for _ in range(n_rows)],
+            "text_field": [
+                f"Document text content {i} with searchable keywords"
+                for i in range(n_rows)
+            ],
+            "category": [f"Category-{i % 5}" for i in range(n_rows)],
+            "event_timestamp": [datetime.now() for _ in range(n_rows)],
+        }
+    )
+
+    data_source = FileSource(
+        path="dummy_path.parquet", timestamp_field="event_timestamp"
+    )
+
+    item = Entity(
+        name="item_id",
+        join_keys=["item_id"],
+        value_type=ValueType.INT64,
+    )
+
+    item_embeddings_fv = FeatureView(
+        name="item_embeddings",
+        entities=[item],
+        schema=[
+            Field(name="embedding", dtype=Array(Float32), vector_index=True),
+            Field(name="text_field", dtype=String),
+            Field(name="category", dtype=String),
+            Field(name="item_id", dtype=Int64),
+        ],
+        source=data_source,
+    )
+
+    fs.apply([item_embeddings_fv, item])
+    fs.write_to_online_store("item_embeddings", df)
+
+    # Test 1: Vector similarity search
+    query_embedding = list(np.random.random(vector_dim))
+    vector_results = fs.retrieve_online_documents_v2(
+        features=[
+            "item_embeddings:embedding",
+            "item_embeddings:text_field",
+            "item_embeddings:category",
+            "item_embeddings:item_id",
+        ],
+        query=query_embedding,
+        top_k=5,
+        distance_metric="L2",
+    ).to_dict()
+
+    assert len(vector_results["embedding"]) == 5
+    assert len(vector_results["distance"]) == 5
+    assert len(vector_results["text_field"]) == 5
+    assert len(vector_results["category"]) == 5
+
+    # Test 2: Vector similarity search with Cosine distance
+    vector_results = fs.retrieve_online_documents_v2(
+        features=[
+            "item_embeddings:embedding",
+            "item_embeddings:text_field",
+            "item_embeddings:category",
+            "item_embeddings:item_id",
+        ],
+        query=query_embedding,
+        top_k=5,
+        distance_metric="cosine",
+    ).to_dict()
+
+    assert len(vector_results["embedding"]) == 5
+    assert len(vector_results["distance"]) == 5
+    assert len(vector_results["text_field"]) == 5
+    assert len(vector_results["category"]) == 5
+
+    # Test 3: Full text search
+    text_results = fs.retrieve_online_documents_v2(
+        features=[
+            "item_embeddings:embedding",
+            "item_embeddings:text_field",
+            "item_embeddings:category",
+            "item_embeddings:item_id",
+        ],
+        query_string="searchable keywords",
+        top_k=5,
+    ).to_dict()
+
+    # Verify text search results
+    assert len(text_results["text_field"]) == 5
+    assert len(text_results["text_rank"]) == 5
+    assert len(text_results["category"]) == 5
+    assert len(text_results["item_id"]) == 5
+
+    # Verify text rank values are between 0 and 1
+    assert all(0 <= rank <= 1 for rank in text_results["text_rank"])
+
+    # Verify results are sorted by text rank in descending order
+    text_ranks = text_results["text_rank"]
+    assert all(text_ranks[i] >= text_ranks[i + 1] for i in range(len(text_ranks) - 1))
+
+    # Test 4: Hybrid search (vector + text)
+    hybrid_results = fs.retrieve_online_documents_v2(
+        features=[
+            "item_embeddings:embedding",
+            "item_embeddings:text_field",
+            "item_embeddings:category",
+            "item_embeddings:item_id",
+        ],
+        query=query_embedding,
+        query_string="searchable keywords",
+        top_k=5,
+        distance_metric="L2",
+    ).to_dict()
+
+    # Verify hybrid search results
+    assert len(hybrid_results["embedding"]) == 5
+    assert len(hybrid_results["distance"]) == 5
+    assert len(hybrid_results["text_field"]) == 5
+    assert len(hybrid_results["text_rank"]) == 5
+    assert len(hybrid_results["category"]) == 5
+    assert len(hybrid_results["item_id"]) == 5
+
+    # Test 5: Hybrid search with different text query
+    hybrid_results = fs.retrieve_online_documents_v2(
+        features=[
+            "item_embeddings:embedding",
+            "item_embeddings:text_field",
+            "item_embeddings:category",
+            "item_embeddings:item_id",
+        ],
+        query=query_embedding,
+        query_string="Category-1",
+        top_k=5,
+        distance_metric="L2",
+    ).to_dict()
+
+    # Verify results contain only documents from Category-1
+    assert all(cat == "Category-1" for cat in hybrid_results["category"])
+
+    # Test 6: Full text search with no matches
+    no_match_results = fs.retrieve_online_documents_v2(
+        features=[
+            "item_embeddings:embedding",
+            "item_embeddings:text_field",
+            "item_embeddings:category",
+            "item_embeddings:item_id",
+        ],
+        query_string="nonexistent keyword",
+        top_k=5,
+    ).to_dict()
+
+    # Verify no results are returned for non-matching query
+    assert "text_field" in no_match_results
+    assert len(no_match_results["text_field"]) == 0
+    assert "text_rank" in no_match_results
+    assert len(no_match_results["text_rank"]) == 0

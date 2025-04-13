@@ -457,7 +457,7 @@ var _ = Describe("FeatureStore Controller", func() {
 
 			err = k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(resource.Status.Conditions).To(HaveLen(3))
+			Expect(resource.Status.Conditions).To(HaveLen(4))
 
 			cond := apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.ReadyType)
 			Expect(cond).ToNot(BeNil())
@@ -481,6 +481,13 @@ var _ = Describe("FeatureStore Controller", func() {
 			Expect(cond.Reason).To(Equal(feastdevv1alpha1.ReadyReason))
 			Expect(cond.Type).To(Equal(feastdevv1alpha1.ClientReadyType))
 			Expect(cond.Message).To(Equal(feastdevv1alpha1.ClientReadyMessage))
+
+			cond = apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.CronJobReadyType)
+			Expect(cond).ToNot(BeNil())
+			Expect(cond.Status).To(Equal(metav1.ConditionTrue))
+			Expect(cond.Reason).To(Equal(feastdevv1alpha1.ReadyReason))
+			Expect(cond.Type).To(Equal(feastdevv1alpha1.CronJobReadyType))
+			Expect(cond.Message).To(Equal(feastdevv1alpha1.CronJobReadyMessage))
 
 			Expect(resource.Status.Phase).To(Equal(feastdevv1alpha1.FailedPhase))
 		})
@@ -1260,7 +1267,7 @@ var _ = Describe("FeatureStore Controller", func() {
 
 			err = k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(resource.Status.Conditions).To(HaveLen(6))
+			Expect(resource.Status.Conditions).To(HaveLen(7))
 
 			cond := apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.ReadyType)
 			Expect(cond).ToNot(BeNil())

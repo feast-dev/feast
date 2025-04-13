@@ -18,6 +18,7 @@ import DataSourceIndexEmptyState from "./DataSourceIndexEmptyState";
 import { DataSourceIcon } from "../../graphics/DataSourceIcon";
 import { useSearchQuery } from "../../hooks/useSearchInputWithTags";
 import { feast } from "../../protos";
+import ExportButton from "../../components/ExportButton";
 
 const useLoadDatasources = () => {
   const registryUrl = useContext(RegistryPathContext);
@@ -65,6 +66,13 @@ const Index = () => {
         restrictWidth
         iconType={DataSourceIcon}
         pageTitle="Data Sources"
+        rightSideItems={[
+          <ExportButton
+            data={filterResult ?? []}
+            fileName="data_sources"
+            formats={["json"]}
+          />,
+        ]}
       />
       <EuiPageTemplate.Section>
         {isLoading && (

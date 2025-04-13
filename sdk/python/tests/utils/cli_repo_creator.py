@@ -8,7 +8,7 @@ from pathlib import Path
 from textwrap import dedent
 from typing import List, Tuple
 
-from feast import cli
+from feast.cli import cli
 from feast.feature_store import FeatureStore
 
 

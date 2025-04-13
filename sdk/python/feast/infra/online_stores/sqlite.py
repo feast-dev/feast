@@ -322,8 +322,7 @@ class SqliteOnlineStore(OnlineStore):
         self,
         config: RepoConfig,
         table: FeatureView,
-        requested_feature: Optional[str],
-        requested_featuers: Optional[List[str]],
+        requested_features: List[str],
         embedding: List[float],
         top_k: int,
         distance_metric: Optional[str] = None,
@@ -341,7 +340,7 @@ class SqliteOnlineStore(OnlineStore):
         Args:
             config: Feast configuration object
             table: FeatureView object as the table to search
-            requested_feature: The requested feature as the column to search
+            requested_features: The list of requested features to retrieve
             embedding: The query embedding to search for
             top_k: The number of items to return
         Returns:

@@ -1,5 +1,4 @@
-import React, { useContext } from "react";
-
+import React, { useContext, useState } from "react";
 import {
   EuiPageTemplate,
   EuiText,
@@ -9,6 +8,7 @@ import {
   EuiSpacer,
   EuiSkeletonText,
   EuiEmptyPrompt,
+  EuiFieldSearch,
 } from "@elastic/eui";
 
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
@@ -16,11 +16,55 @@ import ObjectsCountStats from "../components/ObjectsCountStats";
 import ExplorePanel from "../components/ExplorePanel";
 import useLoadRegistry from "../queries/useLoadRegistry";
 import RegistryPathContext from "../contexts/RegistryPathContext";
+import RegistrySearch from "../components/RegistrySearch";
+import { useParams } from "react-router-dom";
 
 const ProjectOverviewPage = () => {
   useDocumentTitle("Feast Home");
   const registryUrl = useContext(RegistryPathContext);
   const { isLoading, isSuccess, isError, data } = useLoadRegistry(registryUrl);
+
+  const [searchText, setSearchText] = useState("");
+
+  const { projectName } = useParams<{ projectName: string }>();
+
+  const categories = [
+    {
+      name: "Data Sources",
+      data: data?.objects.dataSources || [],
+      getLink: (item: any) => `/p/${projectName}/data-source/${item.name}`,
+    },
+    {
+      name: "Entities",
+      data: data?.objects.entities || [],
+      getLink: (item: any) => `/p/${projectName}/entity/${item.name}`,
+    },
+    {
+      name: "Features",
+      data: data?.allFeatures || [],
+      getLink: (item: any) => {
+        const featureView = item?.featureView;
+        return featureView
+          ? `/p/${projectName}/feature-view/${featureView}/feature/${item.name}`
+          : "#";
+      },
+    },
+    {
+      name: "Feature Views",
+      data: data?.mergedFVList || [],
+      getLink: (item: any) => `/p/${projectName}/feature-view/${item.name}`,
+    },
+    {
+      name: "Feature Services",
+      data: data?.objects.featureServices || [],
+      getLink: (item: any) => {
+        const serviceName = item?.name || item?.spec?.name;
+        return serviceName
+          ? `/p/${projectName}/feature-service/${serviceName}`
+          : "#";
+      },
+    },
+  ];
 
   return (
     <EuiPageTemplate panelled>
@@ -59,8 +103,8 @@ const ProjectOverviewPage = () => {
                 <EuiText>
                   <p>
                     Welcome to your new Feast project. In this UI, you can see
-                    Data Sources, Entities, Feature Views and Feature Services
-                    registered in Feast.
+                    Data Sources, Entities, Features, Feature Views, and Feature
+                    Services registered in Feast.
                   </p>
                   <p>
                     It looks like this project already has some objects
@@ -84,6 +128,9 @@ const ProjectOverviewPage = () => {
             <ExplorePanel />
           </EuiFlexItem>
         </EuiFlexGroup>
+      </EuiPageTemplate.Section>
+      <EuiPageTemplate.Section>
+        {isSuccess && <RegistrySearch categories={categories} />}
       </EuiPageTemplate.Section>
     </EuiPageTemplate>
   );

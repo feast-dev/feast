@@ -32,6 +32,7 @@ offline_store:
   sslkey_path: /path/to/client-key.pem
   sslcert_path: /path/to/client-cert.pem
   sslrootcert_path: /path/to/server-ca.pem
+  entity_select_mode: temp_table
 online_store:
     path: data/online_store.db
 ```
@@ -39,6 +40,8 @@ online_store:
 
 Note that `sslmode`, `sslkey_path`, `sslcert_path`, and `sslrootcert_path` are optional parameters.
 The full set of configuration options is available in [PostgreSQLOfflineStoreConfig](https://rtd.feast.dev/en/master/#feast.infra.offline_stores.contrib.postgres_offline_store.postgres.PostgreSQLOfflineStoreConfig).
+
+Additionally, a new optional parameter `entity_select_mode` was added to tell how Postgres should load the entity data. By default(`temp_table`), a temporary table is created and the entity data frame or sql is loaded into that table. A new value of `embed_query` was added to allow directly loading the SQL query into a CTE, providing improved performance and skipping the need to CREATE and DROP the temporary table.
 
 ## Functionality Matrix
 

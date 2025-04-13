@@ -115,7 +115,11 @@ class QdrantOnlineStore(OnlineStore):
                 encoded_value = base64.b64encode(value.SerializeToString()).decode(
                     "utf-8"
                 )
-                vector_val = json.loads(get_list_val_str(value))
+                vector_val = get_list_val_str(value)
+                if vector_val:
+                    vector = {config.online_store.vector_name: json.loads(vector_val)}
+                else:
+                    vector = {}
                 points.append(
                     models.PointStruct(
                         id=uuid.uuid4().hex,
@@ -126,7 +130,7 @@ class QdrantOnlineStore(OnlineStore):
                             "timestamp": timestamp,
                             "created_ts": created_ts,
                         },
-                        vector={config.online_store.vector_name: vector_val},
+                        vector=vector,
                     )
                 )
 
@@ -248,8 +252,7 @@ class QdrantOnlineStore(OnlineStore):
         self,
         config: RepoConfig,
         table: FeatureView,
-        requested_feature: Optional[str],
-        requested_features: Optional[List[str]],
+        requested_features: List[str],
         embedding: List[float],
         top_k: int,
         distance_metric: Optional[str] = "cosine",

@@ -338,7 +338,7 @@ setup(
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.9",
     ],
-    entry_points={"console_scripts": ["feast=feast.cli:cli"]},
+    entry_points={"console_scripts": ["feast=feast.cli.cli:cli"]},
     use_scm_version=use_scm_version,
     setup_requires=[
         "pybindgen==0.22.0",  # TODO do we need this?

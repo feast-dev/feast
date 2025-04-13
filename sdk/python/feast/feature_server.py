@@ -243,7 +243,6 @@ def get_app(
 
         read_params = dict(
             features=features,
-            entity_rows=request.entities,
             full_feature_names=request.full_feature_names,
             query=request.query_embedding,
             query_string=request.query_string,

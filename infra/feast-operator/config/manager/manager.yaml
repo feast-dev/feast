@@ -73,6 +73,8 @@ spec:
         env:
         - name: RELATED_IMAGE_FEATURE_SERVER
           value: feast:latest
+        - name: RELATED_IMAGE_CRON_JOB
+          value: origin-cli:latest
         livenessProbe:
           httpGet:
             path: /healthz
