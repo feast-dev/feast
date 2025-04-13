@@ -1,5 +1,4 @@
 from feast.infra.compute_engines.base import ComputeEngine
-from feast.infra.compute_engines.dag.context import ExecutionContext
 from feast.infra.compute_engines.spark.feature_builder import SparkFeatureBuilder
 from feast.infra.compute_engines.spark.job import SparkDAGRetrievalJob
 from feast.infra.compute_engines.spark.utils import get_or_create_new_spark_session

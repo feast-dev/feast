@@ -16,10 +16,10 @@ class SparkDAGRetrievalJob(SparkRetrievalJob):
     def __init__(
         self,
         spark_session: SparkSession,
+        plan: Optional[ExecutionPlan],
         context: ExecutionContext,
         full_feature_names: bool,
         config: RepoConfig,
-        plan: Optional[ExecutionPlan] = None,
         on_demand_feature_views: Optional[List[OnDemandFeatureView]] = None,
         metadata: Optional[RetrievalMetadata] = None,
         error: Optional[BaseException] = None,
@@ -52,5 +52,5 @@ class SparkDAGRetrievalJob(SparkRetrievalJob):
         return self._spark_df
 
     def to_sql(self) -> str:
-        self._ensure_executed()
+        assert self._plan is not None, "Execution plan is not set"
         return self._plan.to_sql(self._context)

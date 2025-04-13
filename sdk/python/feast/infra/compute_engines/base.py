@@ -54,7 +54,7 @@ class ComputeEngine(ABC):
             for name in task.feature_view.entities
         ]
         entity_df = None
-        if task.entity_df is not None:
+        if hasattr(task, "entity_df") and task.entity_df is not None:
             entity_df = task.entity_df
 
         column_info = self.get_column_info(task)
