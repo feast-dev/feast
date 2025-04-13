@@ -266,7 +266,7 @@ class RepoConfig(FeastBaseModel):
 
         if self.entity_key_serialization_version <= 2:
             warnings.warn(
-                "The serialization version 2 and below would be deprecated in the next release. "
+                "The serialization version 2 and below will be deprecated in the next release. "
                 "Specifying `entity_key_serialization_version` to 3 is recommended.",
                 DeprecationWarning,
             )
