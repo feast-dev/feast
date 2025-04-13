@@ -7,6 +7,8 @@ on:
       - 'ui/**'
     paths-ignore:
       - 'docs/**'
+  merge_group:
+
 jobs:
   unit-test-python:
     runs-on: ${{ matrix.os }}

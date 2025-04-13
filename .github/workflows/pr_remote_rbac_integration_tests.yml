@@ -10,6 +10,7 @@ on:
     paths:
       - 'sdk/**'
       - 'ui/**'
+  merge_group:
 
 jobs:
   remote-rbac-integration-tests-python:
