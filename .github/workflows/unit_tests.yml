@@ -7,10 +7,10 @@ on:
       - 'ui/**'
     paths-ignore:
       - 'docs/**'
-  merge_group:
 
 jobs:
   unit-test-python:
+    if: ${{ !contains(github.event.pull_request.files, 'docs/') }}  # Skip if docs files changed
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false

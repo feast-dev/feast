@@ -9,7 +9,6 @@ on:
     paths:
       - 'sdk/**'
       - 'ui/**'
-  merge_group:
 
 # concurrency is currently broken, see details https://github.com/actions/runner/issues/1532
 #concurrency:
