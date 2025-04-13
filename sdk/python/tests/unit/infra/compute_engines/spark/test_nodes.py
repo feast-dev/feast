@@ -59,6 +59,12 @@ def test_spark_transformation_node_executes_udf(spark_session):
         online_store=MagicMock(),
         entity_defs=MagicMock(),
         entity_df=None,
+        column_info=ColumnInfo(
+            join_keys=["name"],
+            feature_cols=["age"],
+            ts_col="",
+            created_ts_col="",
+        ),
         node_outputs={"source": input_value},
     )
 
@@ -101,6 +107,12 @@ def test_spark_aggregation_node_executes_correctly(spark_session):
         online_store=MagicMock(),
         entity_defs=[],
         entity_df=None,
+        column_info=ColumnInfo(
+            join_keys=["user_id"],
+            feature_cols=["value"],
+            ts_col="",
+            created_ts_col="",
+        ),
         node_outputs={"source": input_value},
     )
 
