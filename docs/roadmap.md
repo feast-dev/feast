@@ -9,7 +9,7 @@ The list below contains the functionality that contributors are planning to deve
   * [ ] [Enhanced Feature Server and SDK for native support for NLP](https://github.com/feast-dev/feast/issues/4964)
   * [ ] Multimodal Vector Search
   * [ ] Full Text Search
-  * [ ] Hybird Search
+  * [ ] Hybrid Search
 * **Data Sources**
   * [x] [Snowflake source](https://docs.feast.dev/reference/data-sources/snowflake)
   * [x] [Redshift source](https://docs.feast.dev/reference/data-sources/redshift)
