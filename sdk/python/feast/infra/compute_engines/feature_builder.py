@@ -55,28 +55,40 @@ class FeatureBuilder(ABC):
     def build_validation_node(self, input_node):
         raise
 
+    def _should_aggregate(self):
+        return (
+            hasattr(self.feature_view, "aggregations")
+            and self.feature_view.aggregations is not None
+            and len(self.feature_view.aggregations) > 0
+        )
+
+    def _should_transform(self):
+        return (
+            hasattr(self.feature_view, "feature_transformation")
+            and self.feature_view.feature_transformation
+        )
+
+    def _should_validate(self):
+        return getattr(self.feature_view, "enable_validation", False)
+
     def build(self) -> ExecutionPlan:
         last_node = self.build_source_node()
 
         # PIT join entities to the feature data, and perform filtering
-        last_node = self.build_join_node(last_node)
+        if isinstance(self.task, HistoricalRetrievalTask):
+            last_node = self.build_join_node(last_node)
+
         last_node = self.build_filter_node(last_node)
 
-        if (
-            hasattr(self.feature_view, "aggregations")
-            and self.feature_view.aggregations is not None
-        ):
+        if self._should_aggregate():
             last_node = self.build_aggregation_node(last_node)
-        else:
+        elif isinstance(self.task, HistoricalRetrievalTask):
             last_node = self.build_dedup_node(last_node)
 
-        if (
-            hasattr(self.feature_view, "feature_transformation")
-            and self.feature_view.feature_transformation
-        ):
+        if self._should_transform():
             last_node = self.build_transformation_node(last_node)
 
-        if getattr(self.feature_view, "enable_validation", False):
+        if self._should_validate():
             last_node = self.build_validation_node(last_node)
 
         self.build_output_nodes(last_node)

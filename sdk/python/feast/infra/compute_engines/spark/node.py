@@ -26,6 +26,29 @@ from feast.infra.offline_stores.offline_utils import (
 )
 from feast.utils import _get_fields_with_aliases
 
+ENTITY_TS_ALIAS = "__entity_event_timestamp"
+
+
+# Rename entity_df event_timestamp_col to match feature_df
+def rename_entity_ts_column(
+    spark_session: SparkSession, entity_df: DataFrame
+) -> DataFrame:
+    # check if entity_ts_alias already exists
+    if ENTITY_TS_ALIAS in entity_df.columns:
+        return entity_df
+
+    entity_schema = _get_entity_schema(
+        spark_session=spark_session,
+        entity_df=entity_df,
+    )
+    event_timestamp_col = infer_event_timestamp_from_entity_df(
+        entity_schema=entity_schema,
+    )
+    if not isinstance(entity_df, DataFrame):
+        entity_df = spark_session.createDataFrame(entity_df)
+    entity_df = entity_df.withColumnRenamed(event_timestamp_col, ENTITY_TS_ALIAS)
+    return entity_df
+
 
 @dataclass
 class SparkJoinContext:
@@ -233,19 +256,12 @@ class SparkJoinNode(DAGNode):
         join_keys, feature_cols, ts_col, created_ts_col = context.column_info
 
         # Rename entity_df event_timestamp_col to match feature_df
-        entity_schema = _get_entity_schema(
+        entity_df = rename_entity_ts_column(
             spark_session=self.spark_session,
             entity_df=entity_df,
         )
-        event_timestamp_col = infer_event_timestamp_from_entity_df(
-            entity_schema=entity_schema,
-        )
-        entity_ts_alias = "__entity_event_timestamp"
-        if not isinstance(entity_df, DataFrame):
-            entity_df = self.spark_session.createDataFrame(entity_df)
-        entity_df = entity_df.withColumnRenamed(event_timestamp_col, entity_ts_alias)
 
-        # Perform left join + event timestamp filtering
+        # Perform left join on entity df
         joined = feature_df.join(entity_df, on=join_keys, how="left")
 
         return DAGValue(
@@ -257,11 +273,13 @@ class SparkFilterNode(DAGNode):
     def __init__(
         self,
         name: str,
+        spark_session: SparkSession,
         input_node: DAGNode,
         feature_view: Union[BatchFeatureView, StreamFeatureView],
         filter_condition: Optional[str] = None,
     ):
         super().__init__(name)
+        self.spark_session = spark_session
         self.feature_view = feature_view
         self.add_input(input_node)
         self.filter_condition = filter_condition
@@ -274,22 +292,22 @@ class SparkFilterNode(DAGNode):
         # Get timestamp fields from feature view
         _, _, ts_col, _ = context.column_info
 
-        # Apply filter condition
-        entity_ts_alias = "__entity_event_timestamp"
+        # Optional filter: feature.ts <= entity.event_timestamp
         filtered_df = input_df
-        filtered_df = filtered_df.filter(F.col(ts_col) <= F.col(entity_ts_alias))
+        if ENTITY_TS_ALIAS in input_df.columns:
+            filtered_df = filtered_df.filter(F.col(ts_col) <= F.col(ENTITY_TS_ALIAS))
 
         # Optional TTL filter: feature.ts >= entity.event_timestamp - ttl
         if self.feature_view.ttl:
             ttl_seconds = int(self.feature_view.ttl.total_seconds())
-            lower_bound = F.col(entity_ts_alias) - F.expr(
+            lower_bound = F.col(ENTITY_TS_ALIAS) - F.expr(
                 f"INTERVAL {ttl_seconds} seconds"
             )
             filtered_df = filtered_df.filter(F.col(ts_col) >= lower_bound)
 
         # Optional custom filter condition
         if self.filter_condition:
-            filtered_df = input_df.filter(self.filter_condition)
+            filtered_df = filtered_df.filter(self.filter_condition)
 
         return DAGValue(
             data=filtered_df,
@@ -321,8 +339,7 @@ class SparkDedupNode(DAGNode):
 
         # Dedup based on join keys and event timestamp
         # Dedup with row_number
-        entity_ts_alias = "__entity_event_timestamp"
-        partition_cols = join_keys + [entity_ts_alias]
+        partition_cols = join_keys + [ENTITY_TS_ALIAS]
         ordering = [F.col(ts_col).desc()]
         if created_ts_col:
             ordering.append(F.col(created_ts_col).desc())

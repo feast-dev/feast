@@ -271,6 +271,7 @@ def _convert_arrow_fv_to_proto(
     if isinstance(table, pyarrow.Table):
         table = table.to_batches()[0]
 
+    # TODO: This will break if the feature view has aggregations or transformations
     columns = [
         (field.name, field.dtype.to_value_type()) for field in feature_view.features
     ] + list(join_keys.items())
