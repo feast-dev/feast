@@ -41,7 +41,8 @@ class BatchFeatureView(FeatureView):
         schema: The schema of the feature view, including feature, timestamp, and entity
             columns. If not specified, can be inferred from the underlying data source.
         source: The batch source of data where this group of features is stored.
-        online: A boolean indicating whether online retrieval is enabled for this feature view.
+        online: A boolean indicating whether online retrieval and write to online store is enabled for this feature view.
+        offline: A boolean indicating whether offline retrieval and write to offline store is enabled for this feature view.
         description: A human-readable description.
         tags: A dictionary of key-value pairs to store arbitrary metadata.
         owner: The owner of the batch feature view, typically the email of the primary maintainer.
@@ -77,7 +78,7 @@ class BatchFeatureView(FeatureView):
         entities: Optional[List[Entity]] = None,
         ttl: Optional[timedelta] = None,
         tags: Optional[Dict[str, str]] = None,
-        online: bool = True,
+        online: bool = False,
         offline: bool = True,
         description: str = "",
         owner: str = "",

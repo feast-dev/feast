@@ -57,7 +57,8 @@ class StreamFeatureView(FeatureView):
         aggregations: List of aggregations registered with the stream feature view.
         mode: The mode of execution.
         timestamp_field: Must be specified if aggregations are specified. Defines the timestamp column on which to aggregate windows.
-        online: A boolean indicating whether online retrieval is enabled for this feature view.
+        online: A boolean indicating whether online retrieval, and write to online store is enabled for this feature view.
+        offline: A boolean indicating whether offline retrieval, and write to offline store is enabled for this feature view.
         description: A human-readable description.
         tags: A dictionary of key-value pairs to store arbitrary metadata.
         owner: The owner of the stream feature view, typically the email of the primary maintainer.
