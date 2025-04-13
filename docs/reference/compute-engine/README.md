@@ -38,8 +38,33 @@ This system builds and executes DAGs (Directed Acyclic Graphs) of typed operatio
 
 ---
 
-## 🛠️ Example DAG Flow
-`Read → Aggregate → Join → Transform → Write`
+## 🛠️ Feature Builder Flow 
+```markdown
+SourceReadNode
+      |
+      v
+JoinNode (Only for get_historical_features with entity df)
+      |
+      v
+FilterNode (Always included; applies TTL or user-defined filters)
+      |
+      v
+AggregationNode (If aggregations are defined in FeatureView)
+      |
+      v
+DeduplicationNode (If no aggregation is defined for get_historical_features) 
+      |
+      v
+TransformationNode (If feature_transformation is defined)
+      |
+      v
+ValidationNode (If enable_validation = True)
+      |
+      v
+Output
+  ├──> RetrievalOutput (For get_historical_features)
+  └──> OnlineStoreWrite / OfflineStoreWrite (For materialize)
+```
 
 Each step is implemented as a `DAGNode`. An `ExecutionPlan` executes these nodes in topological order, caching `DAGValue` outputs.
 
@@ -59,7 +84,7 @@ class MyComputeEngine(ComputeEngine):
     def materialize(self, task: MaterializationTask) -> MaterializationJob:
         ...
 
-    def get_historical_features(self, task: HistoricalRetrievalTask) -> pa.Table:
+    def get_historical_features(self, task: HistoricalRetrievalTask) -> RetrievalJob:
         ...
 ```
 
@@ -71,6 +96,8 @@ class CustomFeatureBuilder(FeatureBuilder):
     def build_source_node(self): ...
     def build_aggregation_node(self, input_node): ...
     def build_join_node(self, input_node): ...
+    def build_filter_node(self, input_node):
+    def build_dedup_node(self, input_node):
     def build_transformation_node(self, input_node): ...
     def build_output_nodes(self, input_node): ...
 ```
