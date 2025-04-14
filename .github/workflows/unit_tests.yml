@@ -13,7 +13,7 @@ jobs:
     id: check_skip_tests
 
   unit-test-python:
-    if: ${{ steps.check_changes.outputs.skip_tests == 'false' }}
+    if: ${{ steps.check_skip_tests.outputs.skip_tests == 'false' }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -51,7 +51,7 @@ jobs:
         run: uv cache prune --ci
 
   unit-test-ui:
-    if: ${{ steps.check_changes.outputs.skip_tests == 'false' }}
+    if: ${{ steps.check_skip_tests.outputs.skip_tests == 'false' }}
     runs-on: ubuntu-latest
     env:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
