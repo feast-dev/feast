@@ -4,13 +4,12 @@ on:
   pull_request:
 
 jobs:
-  check-changes:
+  check_skip_tests:
     uses: ./.github/workflows/check_skip_tests.yml
     with:
       base-sha: ${{ github.event.pull_request.base.sha }}
       head-sha: ${{ github.event.pull_request.head.sha }}
       excluded-dirs: 'docs/**,tests/**,examples/**'
-    id: check_skip_tests
 
   unit-test-python:
     if: ${{ steps.check_skip_tests.outputs.skip_tests == 'false' }}
