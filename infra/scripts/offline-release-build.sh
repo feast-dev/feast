@@ -1,4 +1,4 @@
-# to run -> source ./infra/scripts/offline-build.sh
+# to run -> source ./infra/scripts/offline-release-build.sh
 # on the build host... requires docker/podman, git, wget
 
 APACHE_ARROW_VERSION="17.0.0"
@@ -15,6 +15,7 @@ mkdir offline_build
 
 # yum builder
 docker build \
+  --build-arg RELEASE=true \
   --tag yum-builder \
   -f sdk/python/feast/infra/feature_servers/multicloud/offline/Dockerfile.builder.yum \
   sdk/python/feast/infra/feature_servers/multicloud/offline
@@ -24,25 +25,6 @@ ${OFFLINE_BUILD_DIR}/arrow/cpp/thirdparty/download_dependencies.sh ${OFFLINE_BUI
 wget https://github.com/substrait-io/substrait/archive/v${SUBSTRAIT_VERSION}.tar.gz -O ${OFFLINE_BUILD_DIR}/arrow/cpp/arrow-thirdparty/substrait-${SUBSTRAIT_VERSION}.tar.gz
 
 alias hermeto='docker run --rm -ti -v "$PWD:$PWD:Z" -w "$PWD" quay.io/konflux-ci/hermeto:0.24.0'
-# not needed for downstream build from release
-###############################
-hermeto fetch-deps \
-  --output ${OFFLINE_BUILD_DIR}/hermeto-yarn-ui-output \
-  '{
-  "type": "yarn",
-  "path": "ui"
-}'
-hermeto generate-env -o ${OFFLINE_BUILD_DIR}/hermeto-yarn-ui.env --for-output-dir /tmp/hermeto-yarn-ui-output ${OFFLINE_BUILD_DIR}/hermeto-yarn-ui-output
-
-hermeto fetch-deps \
-  --output ${OFFLINE_BUILD_DIR}/hermeto-yarn-output \
-  '{
-  "type": "yarn",
-  "path": "sdk/python/feast/ui"
-}'
-hermeto generate-env -o ${OFFLINE_BUILD_DIR}/hermeto-yarn.env --for-output-dir /tmp/hermeto-yarn-output ${OFFLINE_BUILD_DIR}/hermeto-yarn-output
-###############################
-
 hermeto fetch-deps \
   --output ${OFFLINE_BUILD_DIR}/hermeto-output \
   '{
@@ -60,38 +42,17 @@ hermeto fetch-deps \
 hermeto generate-env -o ${OFFLINE_BUILD_DIR}/hermeto.env --for-output-dir /tmp/hermeto-output ${OFFLINE_BUILD_DIR}/hermeto-output
 hermeto inject-files --for-output-dir /tmp/hermeto-output ${OFFLINE_BUILD_DIR}/hermeto-output
 
-# arrow OFFLINE builder
-rm -f ${OFFLINE_BUILD_DIR}/arrow/.dockerignore
+# ibis OFFLINE builder - ibis-framework must build from its own git repo... versioning requirement
+git clone -b ${IBIS_VERSION} https://github.com/ibis-project/ibis ${OFFLINE_BUILD_DIR}/ibis
+
+# feast OFFLINE builder
 docker build \
   --network none \
   --volume ${OFFLINE_BUILD_DIR}/arrow:/tmp/arrow:Z \
   --volume ${OFFLINE_BUILD_DIR}/hermeto-output:/tmp/hermeto-output:Z \
   --volume ${OFFLINE_BUILD_DIR}/hermeto.env:/tmp/hermeto.env:Z \
-  --tag arrow-builder \
-  -f sdk/python/feast/infra/feature_servers/multicloud/offline/Dockerfile.builder.arrow \
-  ${OFFLINE_BUILD_DIR}/arrow
-
-# ibis OFFLINE builder - ibis-framework must build from its own git repo... versioning requirement
-git clone -b ${IBIS_VERSION} https://github.com/ibis-project/ibis ${OFFLINE_BUILD_DIR}/ibis
-docker build \
-  --network none \
-  --volume ${OFFLINE_BUILD_DIR}/hermeto-output:/tmp/hermeto-output:Z \
-  --volume ${OFFLINE_BUILD_DIR}/hermeto.env:/tmp/hermeto.env:Z \
-  --tag ibis-builder \
-  -f sdk/python/feast/infra/feature_servers/multicloud/offline/Dockerfile.builder.ibis \
-  ${OFFLINE_BUILD_DIR}
-
-# feast OFFLINE builder
-docker build \
-  --network none \
-  --volume ${OFFLINE_BUILD_DIR}/hermeto-yarn-ui-output:/tmp/hermeto-yarn-ui-output:Z \
-  --volume ${OFFLINE_BUILD_DIR}/hermeto-yarn-ui.env:/tmp/hermeto-yarn-ui.env:Z \
-  --volume ${OFFLINE_BUILD_DIR}/hermeto-yarn-output:/tmp/hermeto-yarn-output:Z \
-  --volume ${OFFLINE_BUILD_DIR}/hermeto-yarn.env:/tmp/hermeto-yarn.env:Z \
-  --volume ${OFFLINE_BUILD_DIR}/hermeto-output:/tmp/hermeto-output:Z \
-  --volume ${OFFLINE_BUILD_DIR}/hermeto.env:/tmp/hermeto.env:Z \
-  --tag feature-server:sdist-build \
-  -f sdk/python/feast/infra/feature_servers/multicloud/offline/Dockerfile.sdist \
+  --tag feature-server:sdist-release-build \
+  -f sdk/python/feast/infra/feature_servers/multicloud/offline/Dockerfile.sdist.release \
   ${PROJECT_ROOT_DIR}
 
-docker run --rm -ti feature-server:sdist-build feast version
+docker run --rm -ti feature-server:sdist-release-build feast version
