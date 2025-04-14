@@ -3,9 +3,6 @@ name: Check if Tests should be Skipped
 on:
   workflow_call:
     inputs:
-      base-sha:
-        required: true
-        type: string
       head-sha:
         required: true
         type: string
@@ -24,13 +21,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          fetch-depth: 0
           ref: ${{ inputs.head-sha }}
+
+      - name: Fetch base branch
+        run: |
+          git fetch origin ${{ github.base_ref }}:$GITHUB_REF_BASE
+        env:
+          GITHUB_REF_BASE: refs/remotes/origin/${{ github.base_ref }}
 
       - name: Set excluded dirs
         id: set_excluded_dirs
         run: |
-          # If excluded-dirs is provided, split by commas and set them as an array
           EXCLUDED_DIRS="${{ inputs.excluded-dirs }}"
           IFS=',' read -r -a EXCLUDED_DIRS_ARRAY <<< "$EXCLUDED_DIRS"
           echo "Excluded directories: ${EXCLUDED_DIRS_ARRAY[@]}"
@@ -39,15 +41,12 @@ jobs:
       - name: Check for excluded directory changes
         id: check_skip_tests
         run: |
-          # Check if any of the changed files are in the excluded directories
-          CHANGED_FILES=$(git diff --name-only ${{ inputs.base-sha }} ${{ inputs.head-sha }})
+          CHANGED_FILES=$(git diff --name-only $GITHUB_REF_BASE ${{ inputs.head-sha }})
           echo "Changed files:"
           echo "$CHANGED_FILES"
 
           # Build a regex pattern from the excluded directories
           EXCLUDE_PATTERN=$(IFS='|'; echo "${EXCLUDED_DIRS_ARRAY[*]}")
-
-          # Check if any changed file matches the exclusion patterns
           NON_EXCLUDED_CHANGED=$(echo "$CHANGED_FILES" | grep -Ev "^($EXCLUDE_PATTERN)" || true)
 
           if [[ -z "$NON_EXCLUDED_CHANGED" ]]; then
@@ -57,4 +56,3 @@ jobs:
             echo "skip_tests=false" >> "$GITHUB_ENV"
             echo "::set-output name=skip_tests::false"
           fi
-
