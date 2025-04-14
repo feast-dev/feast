@@ -257,6 +257,9 @@ class SqlRegistryConfig(RegistryConfig):
     thread_pool_executor_worker_count: StrictInt = 0
     """ int: Number of worker threads to use for asynchronous caching in SQL Registry. If set to 0, it doesn't use ThreadPoolExecutor. """
 
+    exempt_projects: Optional[List[str]] = None
+    """ List[str]: List of projects to exempt from caching. All associated objects under the project will only be accessible with allow_cache=False. """
+
 
 class SqlRegistry(CachingRegistry):
     def __init__(
@@ -296,6 +299,7 @@ class SqlRegistry(CachingRegistry):
             project=project,
             cache_ttl_seconds=registry_config.cache_ttl_seconds,
             cache_mode=registry_config.cache_mode,
+            exempt_projects=registry_config.exempt_projects,
         )
 
     def _sync_feast_metadata_to_projects_table(self):
@@ -983,14 +987,18 @@ class SqlRegistry(CachingRegistry):
             r.infra.CopyFrom(self.get_infra(project_name).to_proto())
 
         projects_list = self.list_projects(allow_cache=False)
+        filtered_project_list = [
+            p for p in projects_list if p.name not in self.cache_exempt_projects
+        ]
+
         if self.thread_pool_executor_worker_count == 0:
-            for project in projects_list:
+            for project in filtered_project_list:
                 process_project(project)
         else:
             with ThreadPoolExecutor(
                 max_workers=self.thread_pool_executor_worker_count
             ) as executor:
-                executor.map(process_project, projects_list)
+                executor.map(process_project, filtered_project_list)
 
         if last_updated_timestamps:
             r.last_updated.FromDatetime(max(last_updated_timestamps))

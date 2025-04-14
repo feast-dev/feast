@@ -29,13 +29,20 @@ logger = logging.getLogger(__name__)
 
 
 class CachingRegistry(BaseRegistry):
-    def __init__(self, project: str, cache_ttl_seconds: int, cache_mode: str):
+    def __init__(
+        self,
+        project: str,
+        cache_ttl_seconds: int,
+        cache_mode: str,
+        exempt_projects: Optional[List[str]] = None,
+    ):
         self.cache_mode = cache_mode
         self.cached_registry_proto = RegistryProto()
         self._refresh_lock = Lock()
         self.cached_registry_proto_ttl = timedelta(
             seconds=cache_ttl_seconds if cache_ttl_seconds is not None else 0
         )
+        self.cache_exempt_projects = exempt_projects if exempt_projects else []
         self.cached_registry_proto = self.proto()
         self.cached_registry_proto_created = _utc_now()
         logger.info(f"Registry initialized with cache mode: {cache_mode}")
