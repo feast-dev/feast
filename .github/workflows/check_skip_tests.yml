@@ -1,0 +1,50 @@
+name: Check for Changes
+
+on:
+  workflow_call:
+    inputs:
+      base-sha:
+        required: true
+        type: string
+      head-sha:
+        required: true
+        type: string
+      excluded-dirs:
+        required: false
+        type: array
+        default: ['docs/**', 'community/**', 'examples/**']  
+
+jobs:
+  check-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      skip_tests: ${{ steps.check_changes.outputs.skip_tests}}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+          ref: ${{ inputs.head-sha }}
+
+      - name: Check for excluded directory changes
+        id: check_changes
+        run: |
+          CHANGED_FILES=$(git diff --name-only ${{ inputs.base-sha }} ${{ inputs.head-sha }})
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
+
+          # Join the excluded directories into a single pattern
+          EXCLUDE_PATTERN=$(IFS='|'; echo "${{ inputs.excluded-dirs[*] }}")
+
+          # Check if any changed file matches the exclusion patterns
+          NON_EXCLUDED_CHANGED=$(echo "$CHANGED_FILES" | grep -Ev "^($EXCLUDE_PATTERN)" || true)
+
+          if [[ -z "$NON_EXCLUDED_CHANGED" ]]; then
+            echo "skip_tests=true" >> "$GITHUB_ENV"
+            echo "::set-output name=skip_tests::true"
+          else
+            echo "skip_tests=false" >> "$GITHUB_ENV"
+            echo "::set-output name=skip_tests::false"
+          fi
+
