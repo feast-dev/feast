@@ -18,7 +18,7 @@ jobs:
   check-changes:
     runs-on: ubuntu-latest
     outputs:
-      skip_tests: ${{ steps.check_changes.outputs.skip_tests }}
+      skip_tests: ${{ steps.check_skip_tests.outputs.skip_tests }}
 
     steps:
       - name: Checkout code

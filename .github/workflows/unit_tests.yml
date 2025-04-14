@@ -12,7 +12,7 @@ jobs:
       excluded-dirs: 'docs/**,tests/**,examples/**'
 
   unit-test-python:
-    if: ${{ steps.check_skip_tests.outputs.skip_tests == 'false' }}
+    if: ${{ needs.check_skip_tests.outputs.skip_tests == 'false' }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
