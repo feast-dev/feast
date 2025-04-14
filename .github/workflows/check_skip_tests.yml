@@ -1,4 +1,4 @@
-name: Check for Changes
+name: Check if Tests should be Skipped
 
 on:
   workflow_call:
@@ -11,14 +11,14 @@ on:
         type: string
       excluded-dirs:
         required: false
-        type: array
-        default: ['docs/**', 'community/**', 'examples/**']  
+        type: string
+        default: 'docs/**,community/**,examples/**'
 
 jobs:
   check-changes:
     runs-on: ubuntu-latest
     outputs:
-      skip_tests: ${{ steps.check_changes.outputs.skip_tests}}
+      skip_tests: ${{ steps.check_changes.outputs.skip_tests }}
 
     steps:
       - name: Checkout code
@@ -27,15 +27,25 @@ jobs:
           fetch-depth: 2
           ref: ${{ inputs.head-sha }}
 
-      - name: Check for excluded directory changes
-        id: check_changes
+      - name: Set excluded dirs
+        id: set_excluded_dirs
         run: |
+          # If excluded-dirs is provided, split by commas and set them as an array
+          EXCLUDED_DIRS="${{ inputs.excluded-dirs }}"
+          IFS=',' read -r -a EXCLUDED_DIRS_ARRAY <<< "$EXCLUDED_DIRS"
+          echo "Excluded directories: ${EXCLUDED_DIRS_ARRAY[@]}"
+          echo "EXCLUDED_DIRS_ARRAY=${EXCLUDED_DIRS_ARRAY[@]}" >> $GITHUB_ENV
+
+      - name: Check for excluded directory changes
+        id: check_skip_tests
+        run: |
+          # Check if any of the changed files are in the excluded directories
           CHANGED_FILES=$(git diff --name-only ${{ inputs.base-sha }} ${{ inputs.head-sha }})
           echo "Changed files:"
           echo "$CHANGED_FILES"
 
-          # Join the excluded directories into a single pattern
-          EXCLUDE_PATTERN=$(IFS='|'; echo "${{ inputs.excluded-dirs[*] }}")
+          # Build a regex pattern from the excluded directories
+          EXCLUDE_PATTERN=$(IFS='|'; echo "${EXCLUDED_DIRS_ARRAY[*]}")
 
           # Check if any changed file matches the exclusion patterns
           NON_EXCLUDED_CHANGED=$(echo "$CHANGED_FILES" | grep -Ev "^($EXCLUDE_PATTERN)" || true)

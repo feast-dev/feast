@@ -9,11 +9,11 @@ jobs:
     with:
       base-sha: ${{ github.event.pull_request.base.sha }}
       head-sha: ${{ github.event.pull_request.head.sha }}
-      excluded-dirs: ['docs/**', 'community/**', 'examples/**']
-    id: check_changes
+      excluded-dirs: 'docs/**,tests/**,examples/**'
+    id: check_skip_tests
 
   unit-test-python:
-    if: ${{ steps.check_changes.outputs.skip-tests == 'false' }}
+    if: ${{ steps.check_changes.outputs.skip_tests == 'false' }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -51,7 +51,7 @@ jobs:
         run: uv cache prune --ci
 
   unit-test-ui:
-    if: ${{ steps.check_changes.outputs.skip-tests == 'false' }}
+    if: ${{ steps.check_changes.outputs.skip_tests == 'false' }}
     runs-on: ubuntu-latest
     env:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
