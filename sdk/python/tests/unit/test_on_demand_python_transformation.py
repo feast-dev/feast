@@ -874,7 +874,8 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
             assert driver_stats_fv.entity_columns == []
 
             ODFV_STRING_CONSTANT = "guaranteed constant"
-            ODFV_OTHER_STRING_CONSTANT = "somethign else"
+            ODFV_OTHER_STRING_CONSTANT = "something else"
+            ODFV_UNTRANSFORMED_STRING_CONSTANT = "also something else"
 
             @on_demand_feature_view(
                 entities=[driver],
@@ -1069,6 +1070,53 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
             assert online_odfv_python_response["string_constant"] != [
                 ODFV_OTHER_STRING_CONSTANT
             ]
+            odfv_entity_rows_to_write_no_transform = [
+                {
+                    "driver_id": 1003,
+                    "counter": 10,
+                    "conv_rate": 0.25,
+                    "acc_rate": 0.50,
+                    "input_datetime": current_datetime,
+                    "string_constant": ODFV_UNTRANSFORMED_STRING_CONSTANT,
+                }
+            ]
+            odfv_entity_rows_to_read_no_transform = [
+                {
+                    "driver_id": 1003,
+                    "conv_rate_plus_acc": 7,  # note how this is not the correct value and would be calculate on demand
+                    "conv_rate": 0.25,
+                    "acc_rate": 0.50,
+                    "counter": 0,
+                    "input_datetime": current_datetime,
+                    "string_constant": ODFV_UNTRANSFORMED_STRING_CONSTANT,
+                }
+            ]
+            print("storing ODFV features")
+            self.store.write_to_online_store(
+                feature_view_name="python_stored_writes_feature_view",
+                df=odfv_entity_rows_to_write_no_transform,
+                transform_on_write=False,
+            )
+            online_odfv_python_response_no_transform = self.store.get_online_features(
+                entity_rows=odfv_entity_rows_to_read_no_transform,
+                features=[
+                    "python_stored_writes_feature_view:conv_rate_plus_acc",
+                    "python_stored_writes_feature_view:current_datetime",
+                    "python_stored_writes_feature_view:counter",
+                    "python_stored_writes_feature_view:input_datetime",
+                    "python_stored_writes_feature_view:string_constant",
+                ],
+            ).to_dict()
+            assert online_odfv_python_response_no_transform == {
+                'driver_id': [1003],
+                'string_constant': [ODFV_UNTRANSFORMED_STRING_CONSTANT],
+                'counter': [10],
+                'conv_rate_plus_acc': [7],
+                'input_datetime': [current_datetime],
+                'current_datetime': [current_datetime]
+            }
+
+
 
     def test_stored_writes_with_explode(self):
         with tempfile.TemporaryDirectory() as data_dir:

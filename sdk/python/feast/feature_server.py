@@ -61,6 +61,7 @@ class WriteToFeatureStoreRequest(BaseModel):
     feature_view_name: str
     df: dict
     allow_registry_cache: bool = True
+    transform_on_write: bool = True
 
 
 class PushFeaturesRequest(BaseModel):
@@ -68,6 +69,7 @@ class PushFeaturesRequest(BaseModel):
     df: dict
     allow_registry_cache: bool = True
     to: str = "online"
+    transform_on_write: bool = True
 
 
 class MaterializeRequest(BaseModel):
@@ -302,6 +304,7 @@ def get_app(
             df=df,
             allow_registry_cache=request.allow_registry_cache,
             to=to,
+            transform_on_write=request.transform_on_write,
         )
 
         should_push_async = (
@@ -336,6 +339,7 @@ def get_app(
             feature_view_name=feature_view_name,
             df=df,
             allow_registry_cache=allow_registry_cache,
+            transform_on_write=request.transform_on_write,
         )
 
     @app.get("/health")
