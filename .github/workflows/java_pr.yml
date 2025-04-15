@@ -96,6 +96,7 @@ jobs:
         with:
           submodules: 'true'
           persist-credentials: false
+        if: ${{ needs.check_skip_tests.outputs.skip_tests == 'false' }}
       - name: Setup Python
         uses: actions/setup-python@v5
         id: setup-python
