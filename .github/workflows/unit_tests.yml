@@ -30,7 +30,6 @@ jobs:
       OS: ${{ matrix.os }}
       PYTHON: ${{ matrix.python-version }}
     steps:
-      - if: ${{ needs.check_skip_tests.outputs.skip_tests == 'false' }}
       - uses: actions/checkout@v4
       - name: Setup Python
         id: setup-python
