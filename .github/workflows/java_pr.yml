@@ -11,12 +11,18 @@ permissions:
   pull-requests: read
 
 jobs:
+  check_skip_tests:
+    uses: ./.github/workflows/check_skip_tests.yml
+    with:
+      head-sha: ${{ github.event.pull_request.head.sha }}
+      excluded-dirs: 'docs/**,tests/**,examples/**'
+
   lint-java:
     # when using pull_request_target, all jobs MUST have this if check for 'ok-to-test' or 'approved' for security purposes.
     if:
       ((github.event.action == 'labeled' && (github.event.label.name == 'approved' || github.event.label.name == 'lgtm' || github.event.label.name == 'ok-to-test')) ||
       (github.event.action != 'labeled' && (contains(github.event.pull_request.labels.*.name, 'ok-to-test') || contains(github.event.pull_request.labels.*.name, 'approved') || contains(github.event.pull_request.labels.*.name, 'lgtm')))) &&
-      github.repository == 'feast-dev/feast'
+      github.repository == 'feast-dev/feast' && needs.check_skip_tests.outputs.skip_tests == 'false'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -35,7 +41,7 @@ jobs:
     if:
       ((github.event.action == 'labeled' && (github.event.label.name == 'approved' || github.event.label.name == 'lgtm' || github.event.label.name == 'ok-to-test')) ||
       (github.event.action != 'labeled' && (contains(github.event.pull_request.labels.*.name, 'ok-to-test') || contains(github.event.pull_request.labels.*.name, 'approved') || contains(github.event.pull_request.labels.*.name, 'lgtm')))) &&
-      github.repository == 'feast-dev/feast'
+      github.repository == 'feast-dev/feast' && needs.check_skip_tests.outputs.skip_tests == 'false'
     runs-on: ubuntu-latest
     needs: lint-java
     steps:
@@ -113,7 +119,7 @@ jobs:
     if:
       ((github.event.action == 'labeled' && (github.event.label.name == 'approved' || github.event.label.name == 'lgtm' || github.event.label.name == 'ok-to-test')) ||
       (github.event.action != 'labeled' && (contains(github.event.pull_request.labels.*.name, 'ok-to-test') || contains(github.event.pull_request.labels.*.name, 'approved') || contains(github.event.pull_request.labels.*.name, 'lgtm')))) &&
-      github.repository == 'feast-dev/feast'
+      github.repository == 'feast-dev/feast' && needs.check_skip_tests.outputs.skip_tests == 'false'
     runs-on: ubuntu-latest
     needs: unit-test-java
     env:
