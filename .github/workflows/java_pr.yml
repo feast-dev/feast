@@ -16,8 +16,6 @@ jobs:
     with:
       head-sha: ${{ github.event.pull_request.head.sha }}
       excluded-dirs: 'docs/**,tests/**,examples/**'
-    outputs:
-      skip_tests: ${{ needs.check_skip_tests.outputs.skip_tests }}
 
   lint-java:
     # when using pull_request_target, all jobs MUST have this if check for 'ok-to-test' or 'approved' for security purposes.
