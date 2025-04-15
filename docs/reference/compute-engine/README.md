@@ -1,6 +1,6 @@
 # 🧠 ComputeEngine (WIP)
 
-The `ComputeEngine` is Feast’s pluggable abstraction for executing feature pipelines — including transformations, aggregations, joins, and materialization/get_historical_features — on a backend of your choice (e.g., Spark, PyArrow, Pandas, Ray).
+The `ComputeEngine` is Feast’s pluggable abstraction for executing feature pipelines — including transformations, aggregations, joins, and materializations/get_historical_features — on a backend of your choice (e.g., Spark, PyArrow, Pandas, Ray).
 
 It powers both:
 
