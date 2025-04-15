@@ -92,11 +92,11 @@ jobs:
       MAVEN_CACHE: gs://feast-templocation-kf-feast/.m2.2020-08-19.tar
       REGISTRY: quay.io/feastdev-ci
     steps:
-      - if: ${{ needs.check_skip_tests.outputs.skip_tests == 'false' }}
       - uses: actions/checkout@v4
         with:
           submodules: 'true'
           persist-credentials: false
+        if: ${{ needs.check_skip_tests.outputs.skip_tests == 'false' }}
       - name: Setup Python
         uses: actions/setup-python@v5
         id: setup-python
