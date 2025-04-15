@@ -1,0 +1,61 @@
+name: Check if Tests should be Skipped
+description: Determines if tests can be skipped based on changed files
+
+inputs:
+  head-sha:
+    description: 'The SHA of the head commit'
+    required: true
+  excluded-dirs:
+    description: 'Comma-separated list of directories to exclude'
+    required: false
+    default: 'docs/**,community/**,examples/**'
+
+outputs:
+  skip_tests:
+    description: 'Whether tests should be skipped'
+    value: ${{ steps.check_skip_tests.outputs.skip_tests }}
+
+runs:
+  using: composite
+  steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        ref: ${{ inputs.head-sha }}
+
+    - name: Fetch base branch
+      shell: bash
+      run: |
+        git fetch origin ${{ github.base_ref }}:$GITHUB_REF_BASE
+      env:
+        GITHUB_REF_BASE: refs/remotes/origin/${{ github.base_ref }}
+
+    - name: Set excluded dirs
+      id: set_excluded_dirs
+      shell: bash
+      run: |
+        EXCLUDED_DIRS="${{ inputs.excluded-dirs }}"
+        IFS=',' read -r -a EXCLUDED_DIRS_ARRAY <<< "$EXCLUDED_DIRS"
+        echo "Excluded directories: ${EXCLUDED_DIRS_ARRAY[@]}"
+        echo "EXCLUDED_DIRS_ARRAY=${EXCLUDED_DIRS_ARRAY[@]}" >> $GITHUB_ENV
+
+    - name: Check for excluded directory changes
+      id: check_skip_tests
+      shell: bash
+      run: |
+        CHANGED_FILES=$(git diff --name-only $GITHUB_REF_BASE ${{ inputs.head-sha }})
+        echo "Changed files:"
+        echo "$CHANGED_FILES"
+
+        # Build a regex pattern from the excluded directories
+        EXCLUDE_PATTERN=$(IFS='|'; echo "${EXCLUDED_DIRS_ARRAY[*]}")
+        NON_EXCLUDED_CHANGED=$(echo "$CHANGED_FILES" | grep -Ev "^($EXCLUDE_PATTERN)" || true)
+
+        if [[ -z "$NON_EXCLUDED_CHANGED" ]]; then
+          echo "skip_tests=true" >> $GITHUB_ENV
+          echo "skip_tests=true" >> $GITHUB_OUTPUT
+        else
+          echo "skip_tests=false" >> $GITHUB_ENV
+          echo "skip_tests=false" >> $GITHUB_OUTPUT
+        fi
