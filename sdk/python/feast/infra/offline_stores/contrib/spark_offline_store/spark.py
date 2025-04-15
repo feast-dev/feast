@@ -681,7 +681,7 @@ CREATE OR REPLACE TEMPORARY VIEW {{ featureview.name }}__cleaned AS (
         {% if featureview.ttl == 0 %}{% else %}
         AND {{ featureview.timestamp_field }} >= '{{ featureview.min_event_timestamp }}'
         {% if featureview.date_partition_column != "" and featureview.date_partition_column is not none %}
-          AND {{ featureview.date_partition_column }} >= '{{ featureview.min_date_partition_ }}'
+          AND {{ featureview.date_partition_column }} >= '{{ featureview.min_date_partition }}'
         {% endif %}
         {% endif %}
     ),
