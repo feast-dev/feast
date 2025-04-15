@@ -17,7 +17,7 @@ jobs:
       head-sha: ${{ github.event.pull_request.head.sha }}
       excluded-dirs: 'docs/**,tests/**,examples/**'
     outputs:
-      skip_tests: ${{ steps.some_step.outputs.skip_tests }} # ensure this is correctly defined
+      skip_tests: ${{ needs.check_skip_tests.outputs.skip_tests }}
 
   lint-java:
     # when using pull_request_target, all jobs MUST have this if check for 'ok-to-test' or 'approved' for security purposes.
@@ -85,7 +85,7 @@ jobs:
     if:
       ((github.event.action == 'labeled' && (github.event.label.name == 'approved' || github.event.label.name == 'lgtm' || github.event.label.name == 'ok-to-test')) ||
       (github.event.action != 'labeled' && (contains(github.event.pull_request.labels.*.name, 'ok-to-test') || contains(github.event.pull_request.labels.*.name, 'approved') || contains(github.event.pull_request.labels.*.name, 'lgtm')))) &&
-      github.repository == 'feast-dev/feast' && ()
+      github.repository == 'feast-dev/feast'
     runs-on: ubuntu-latest
     strategy:
       matrix:
