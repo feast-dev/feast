@@ -50,7 +50,7 @@ jobs:
         run: uv cache prune --ci
 
   unit-test-ui:
-    if: ${{ steps.check_skip_tests.outputs.skip_tests == 'false' }}
+    if: ${{ needs.check_skip_tests.outputs.skip_tests == 'false' }}
     runs-on: ubuntu-latest
     env:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
