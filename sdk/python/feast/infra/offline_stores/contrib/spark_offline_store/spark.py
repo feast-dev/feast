@@ -56,7 +56,7 @@ class SparkOfflineStoreConfig(FeastConfigBaseModel):
 
 
 @dataclass(frozen=True)
-class SparkFeatureViewQuerContext(offline_utils.FeatureViewQueryContext):
+class SparkFeatureViewQueryContext(offline_utils.FeatureViewQueryContext):
     min_date_partition: Optional[str]
     max_date_partition: str
 
@@ -198,7 +198,7 @@ class SparkOfflineStore(OfflineStore):
         )
 
         spark_query_context = [
-            SparkFeatureViewQuerContext(
+            SparkFeatureViewQueryContext(
                 **asdict(context),
                 min_date_partition=datetime.fromisoformat(
                     context.min_event_timestamp
