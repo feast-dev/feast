@@ -33,6 +33,7 @@ class Field:
         description: A human-readable description.
         tags: User-defined metadata in dictionary form.
         vector_index: If set to True the field will be indexed for vector similarity search.
+        vector_len: The length of the vector if the vector index is set to True.
         vector_search_metric: The metric used for vector similarity search.
     """
 
@@ -41,6 +42,7 @@ class Field:
     description: str
     tags: Dict[str, str]
     vector_index: bool
+    vector_len: int
     vector_search_metric: Optional[str]
 
     def __init__(
@@ -51,6 +53,7 @@ class Field:
         description: str = "",
         tags: Optional[Dict[str, str]] = None,
         vector_index: bool = False,
+        vector_len: int = 0,
         vector_search_metric: Optional[str] = None,
     ):
         """
@@ -69,6 +72,7 @@ class Field:
         self.description = description
         self.tags = tags or {}
         self.vector_index = vector_index
+        self.vector_len = vector_len
         self.vector_search_metric = vector_search_metric
 
     def __eq__(self, other):
@@ -80,6 +84,7 @@ class Field:
             or self.dtype != other.dtype
             or self.description != other.description
             or self.tags != other.tags
+            or self.vector_len != other.vector_len
             # or self.vector_index != other.vector_index
             # or self.vector_search_metric != other.vector_search_metric
         ):
@@ -100,6 +105,7 @@ class Field:
             f"    description={self.description!r},\n"
             f"    tags={self.tags!r}\n"
             f"    vector_index={self.vector_index!r}\n"
+            f"    vector_len={self.vector_len!r}\n"
             f"    vector_search_metric={self.vector_search_metric!r}\n"
             f")"
         )
@@ -117,6 +123,7 @@ class Field:
             description=self.description,
             tags=self.tags,
             vector_index=self.vector_index,
+            vector_len=self.vector_len,
             vector_search_metric=vector_search_metric,
         )
 
@@ -131,12 +138,14 @@ class Field:
         value_type = ValueType(field_proto.value_type)
         vector_search_metric = getattr(field_proto, "vector_search_metric", "")
         vector_index = getattr(field_proto, "vector_index", False)
+        vector_len = getattr(field_proto, "vector_len", 0)
         return cls(
             name=field_proto.name,
             dtype=from_value_type(value_type=value_type),
             tags=dict(field_proto.tags),
             description=field_proto.description,
             vector_index=vector_index,
+            vector_len=vector_len,
             vector_search_metric=vector_search_metric,
         )
 
