@@ -31,7 +31,7 @@ attrs==25.3.0
     #   referencing
 babel==2.17.0
     # via sphinx
-bigtree==0.25.4
+bigtree==0.27.0
     # via feast (setup.py)
 boto3==1.37.1
     # via feast (setup.py)
@@ -119,7 +119,7 @@ google-api-core[grpc]==2.24.2
     #   google-cloud-datastore
     #   google-cloud-storage
     #   pandas-gbq
-google-auth==2.38.0
+google-auth==2.39.0
     # via
     #   google-api-core
     #   google-auth-oauthlib
@@ -150,7 +150,7 @@ google-cloud-core==2.4.3
     #   google-cloud-bigtable
     #   google-cloud-datastore
     #   google-cloud-storage
-google-cloud-datastore==2.20.2
+google-cloud-datastore==2.21.0
     # via feast (setup.py)
 google-cloud-storage==2.19.0
     # via feast (setup.py)
@@ -163,13 +163,13 @@ google-resumable-media==2.7.2
     # via
     #   google-cloud-bigquery
     #   google-cloud-storage
-googleapis-common-protos[grpc]==1.69.2
+googleapis-common-protos[grpc]==1.70.0
     # via
     #   feast (setup.py)
     #   google-api-core
     #   grpc-google-iam-v1
     #   grpcio-status
-greenlet==3.1.1
+greenlet==3.2.0
     # via feast (setup.py)
 grpc-google-iam-v1==0.14.2
     # via google-cloud-bigtable
@@ -259,7 +259,7 @@ meson-python==0.15.0
     # via feast (setup.py)
 mmh3==5.1.0
     # via feast (setup.py)
-multidict==6.3.2
+multidict==6.4.3
     # via
     #   aiobotocore
     #   aiohttp
@@ -520,7 +520,7 @@ sqlalchemy[mypy]==2.0.40
     # via feast (setup.py)
 sqlglot==25.20.2
     # via ibis-framework
-starlette==0.46.1
+starlette==0.46.2
     # via fastapi
 substrait==0.23.0
     # via ibis-substrait
@@ -543,7 +543,7 @@ tqdm==4.67.1
     # via
     #   feast (setup.py)
     #   milvus-lite
-trove-classifiers==2025.3.19.19
+trove-classifiers==2025.4.11.15
     # via hatchling
 typeguard==4.4.2
     # via feast (setup.py)
@@ -553,7 +553,7 @@ types-pymysql==1.1.0.20241103
     # via feast (setup.py)
 types-setuptools==78.1.0.20250329
     # via feast (setup.py)
-typing-extensions==4.13.1
+typing-extensions==4.13.2
     # via
     #   anyio
     #   fastapi
@@ -572,7 +572,7 @@ tzdata==2025.2
     # via pandas
 ujson==5.10.0
     # via pymilvus
-urllib3==2.3.0
+urllib3==2.4.0
     # via
     #   botocore
     #   kubernetes
