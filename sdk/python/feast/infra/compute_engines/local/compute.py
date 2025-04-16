@@ -1,16 +1,16 @@
 from typing import Optional
 
+from feast.infra.common.materialization_job import (
+    MaterializationJobStatus,
+    MaterializationTask,
+)
+from feast.infra.common.retrieval_task import HistoricalRetrievalTask
 from feast.infra.compute_engines.base import ComputeEngine
 from feast.infra.compute_engines.dag.context import ExecutionContext
 from feast.infra.compute_engines.local.backends.base import DataFrameBackend
 from feast.infra.compute_engines.local.backends.factory import BackendFactory
 from feast.infra.compute_engines.local.feature_builder import LocalFeatureBuilder
 from feast.infra.compute_engines.local.job import LocalRetrievalJob
-from feast.infra.compute_engines.tasks import HistoricalRetrievalTask
-from feast.infra.materialization.batch_materialization_engine import (
-    MaterializationJobStatus,
-    MaterializationTask,
-)
 from feast.infra.materialization.local_engine import LocalMaterializationJob
 
 

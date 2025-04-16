@@ -10,13 +10,13 @@ from tqdm import tqdm
 from feast import BatchFeatureView, Entity, Field
 from feast.aggregation import Aggregation
 from feast.data_source import DataSource
-from feast.infra.compute_engines.spark.compute import SparkComputeEngine
-from feast.infra.compute_engines.spark.job import SparkDAGRetrievalJob
-from feast.infra.compute_engines.tasks import HistoricalRetrievalTask
-from feast.infra.materialization.batch_materialization_engine import (
+from feast.infra.common.materialization_job import (
     MaterializationJobStatus,
     MaterializationTask,
 )
+from feast.infra.common.retrieval_job import HistoricalRetrievalTask
+from feast.infra.compute_engines.spark.compute import SparkComputeEngine
+from feast.infra.compute_engines.spark.job import SparkDAGRetrievalJob
 from feast.infra.offline_stores.contrib.spark_offline_store.spark import (
     SparkOfflineStore,
 )

@@ -2,7 +2,8 @@ from typing import Union
 
 from pyspark.sql import SparkSession
 
-from feast.infra.compute_engines.base import HistoricalRetrievalTask
+from feast.infra.common.materialization_job import MaterializationTask
+from feast.infra.common.retrieval_job import HistoricalRetrievalTask
 from feast.infra.compute_engines.feature_builder import FeatureBuilder
 from feast.infra.compute_engines.spark.node import (
     SparkAggregationNode,
@@ -14,7 +15,6 @@ from feast.infra.compute_engines.spark.node import (
     SparkTransformationNode,
     SparkWriteNode,
 )
-from feast.infra.materialization.batch_materialization_engine import MaterializationTask
 
 
 class SparkFeatureBuilder(FeatureBuilder):

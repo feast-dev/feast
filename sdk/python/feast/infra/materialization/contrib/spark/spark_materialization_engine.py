@@ -10,11 +10,13 @@ from tqdm import tqdm
 from feast.batch_feature_view import BatchFeatureView
 from feast.entity import Entity
 from feast.feature_view import FeatureView
+from feast.infra.common.materialization_job import (
+    MaterializationJobStatus,
+    MaterializationTask,
+)
 from feast.infra.materialization.batch_materialization_engine import (
     BatchMaterializationEngine,
     MaterializationJob,
-    MaterializationJobStatus,
-    MaterializationTask,
 )
 from feast.infra.offline_stores.contrib.spark_offline_store.spark import (
     SparkOfflineStore,
