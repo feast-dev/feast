@@ -42,7 +42,6 @@ class SparkComputeEngine(ComputeEngine):
             # ✅ 2. Construct Feature Builder and run it
             builder = SparkFeatureBuilder(
                 spark_session=self.spark_session,
-                feature_view=task.feature_view,
                 task=task,
             )
             plan = builder.build()
@@ -70,7 +69,6 @@ class SparkComputeEngine(ComputeEngine):
             # ✅ 2. Construct Feature Builder and run it
             builder = SparkFeatureBuilder(
                 spark_session=self.spark_session,
-                feature_view=task.feature_view,
                 task=task,
             )
             plan = builder.build()

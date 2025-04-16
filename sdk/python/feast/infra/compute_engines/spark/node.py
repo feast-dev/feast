@@ -179,13 +179,11 @@ class SparkAggregationNode(DAGNode):
     def __init__(
         self,
         name: str,
-        input_node: DAGNode,
         aggregations: List[Aggregation],
         group_by_keys: List[str],
         timestamp_col: str,
     ):
         super().__init__(name)
-        self.add_input(input_node)
         self.aggregations = aggregations
         self.group_by_keys = group_by_keys
         self.timestamp_col = timestamp_col
@@ -233,15 +231,9 @@ class SparkJoinNode(DAGNode):
     def __init__(
         self,
         name: str,
-        feature_node: DAGNode,
-        join_keys: List[str],
-        feature_view: Union[BatchFeatureView, StreamFeatureView],
         spark_session: SparkSession,
     ):
         super().__init__(name)
-        self.join_keys = join_keys
-        self.add_input(feature_node)
-        self.feature_view = feature_view
         self.spark_session = spark_session
 
     def execute(self, context: ExecutionContext) -> DAGValue:
@@ -274,14 +266,12 @@ class SparkFilterNode(DAGNode):
         self,
         name: str,
         spark_session: SparkSession,
-        input_node: DAGNode,
         feature_view: Union[BatchFeatureView, StreamFeatureView],
         filter_condition: Optional[str] = None,
     ):
         super().__init__(name)
         self.spark_session = spark_session
         self.feature_view = feature_view
-        self.add_input(input_node)
         self.filter_condition = filter_condition
 
     def execute(self, context: ExecutionContext) -> DAGValue:
@@ -320,13 +310,9 @@ class SparkDedupNode(DAGNode):
     def __init__(
         self,
         name: str,
-        input_node: DAGNode,
-        feature_view: Union[BatchFeatureView, StreamFeatureView],
         spark_session: SparkSession,
     ):
         super().__init__(name)
-        self.add_input(input_node)
-        self.feature_view = feature_view
         self.spark_session = spark_session
 
     def execute(self, context: ExecutionContext) -> DAGValue:
@@ -398,9 +384,8 @@ class SparkWriteNode(DAGNode):
 
 
 class SparkTransformationNode(DAGNode):
-    def __init__(self, name: str, input_node: DAGNode, udf):
+    def __init__(self, name: str, udf):
         super().__init__(name)
-        self.add_input(input_node)
         self.udf = udf
 
     def execute(self, context: ExecutionContext) -> DAGValue:
