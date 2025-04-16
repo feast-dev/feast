@@ -68,9 +68,7 @@ def test_spark_transformation_node_executes_udf(spark_session):
     )
 
     # Create and run the node
-    node = SparkTransformationNode(
-        "transform", udf=strip_extra_spaces
-    )
+    node = SparkTransformationNode("transform", udf=strip_extra_spaces)
     node.add_input(MagicMock())
     node.inputs[0].name = "source"
     result = node.execute(context)

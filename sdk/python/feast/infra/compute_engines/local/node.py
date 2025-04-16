@@ -18,11 +18,8 @@ class LocalSourceReadNode(LocalNode):
         self.task = task
 
     def execute(self, context: ExecutionContext) -> ArrowTableValue:
-        df = self.feature_view.source.to_pandas()
-        table = pa.Table.from_pandas(df)
-        output = ArrowTableValue(table)
-        context.node_outputs[self.name] = output
-        return output
+        # TODO : Implement the logic to read from offline store
+        return ArrowTableValue(data=pa.Table.from_pandas(context.entity_df))
 
 
 class LocalJoinNode(LocalNode):
