@@ -4,20 +4,7 @@ on:
   pull_request:
 
 jobs:
-  check_skip_tests:
-    runs-on: ubuntu-latest
-    outputs:
-      skip_tests: ${{ steps.check.outputs.skip_tests }}
-    steps:
-      - uses: actions/checkout@v4
-      - id: check
-        uses: ./.github/actions/check-skip-tests
-        with:
-          head-sha: ${{ github.event.pull_request.head.sha || github.sha }}
-
   unit-test-python:
-    needs: [check_skip_tests]
-    if: ${{ needs.check_skip_tests.outputs.skip_tests == 'false' }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -55,7 +42,6 @@ jobs:
         run: uv cache prune --ci
 
   unit-test-ui:
-    if: ${{ needs.check_skip_tests.outputs.skip_tests == 'false' }}
     runs-on: ubuntu-latest
     env:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
