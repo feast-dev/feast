@@ -6,6 +6,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 import dill
 
 from feast import flags_helper
+from feast.aggregation import Aggregation
 from feast.data_source import DataSource
 from feast.entity import Entity
 from feast.feature_view import FeatureView
@@ -40,7 +41,8 @@ class BatchFeatureView(FeatureView):
         schema: The schema of the feature view, including feature, timestamp, and entity
             columns. If not specified, can be inferred from the underlying data source.
         source: The batch source of data where this group of features is stored.
-        online: A boolean indicating whether online retrieval is enabled for this feature view.
+        online: A boolean indicating whether online retrieval and write to online store is enabled for this feature view.
+        offline: A boolean indicating whether offline retrieval and write to offline store is enabled for this feature view.
         description: A human-readable description.
         tags: A dictionary of key-value pairs to store arbitrary metadata.
         owner: The owner of the batch feature view, typically the email of the primary maintainer.
@@ -55,6 +57,7 @@ class BatchFeatureView(FeatureView):
     entity_columns: List[Field]
     features: List[Field]
     online: bool
+    offline: bool
     description: str
     tags: Dict[str, str]
     owner: str
@@ -63,6 +66,8 @@ class BatchFeatureView(FeatureView):
     udf: Optional[Callable[[Any], Any]]
     udf_string: Optional[str]
     feature_transformation: Transformation
+    batch_engine: Optional[Field]
+    aggregations: Optional[List[Aggregation]]
 
     def __init__(
         self,
@@ -73,13 +78,16 @@ class BatchFeatureView(FeatureView):
         entities: Optional[List[Entity]] = None,
         ttl: Optional[timedelta] = None,
         tags: Optional[Dict[str, str]] = None,
-        online: bool = True,
+        online: bool = False,
+        offline: bool = True,
         description: str = "",
         owner: str = "",
         schema: Optional[List[Field]] = None,
         udf: Optional[Callable[[Any], Any]],
         udf_string: Optional[str] = "",
         feature_transformation: Optional[Transformation] = None,
+        batch_engine: Optional[Field] = None,
+        aggregations: Optional[List[Aggregation]] = None,
     ):
         if not flags_helper.is_test():
             warnings.warn(
@@ -103,6 +111,8 @@ class BatchFeatureView(FeatureView):
         self.feature_transformation = (
             feature_transformation or self.get_feature_transformation()
         )
+        self.batch_engine = batch_engine
+        self.aggregations = aggregations or []
 
         super().__init__(
             name=name,
@@ -110,6 +120,7 @@ class BatchFeatureView(FeatureView):
             ttl=ttl,
             tags=tags,
             online=online,
+            offline=offline,
             description=description,
             owner=owner,
             schema=schema,
@@ -144,6 +155,7 @@ def batch_feature_view(
     source: Optional[DataSource] = None,
     tags: Optional[Dict[str, str]] = None,
     online: bool = True,
+    offline: bool = True,
     description: str = "",
     owner: str = "",
     schema: Optional[List[Field]] = None,
@@ -151,11 +163,13 @@ def batch_feature_view(
     """
     Args:
         name:
+        mode:
         entities:
         ttl:
         source:
         tags:
         online:
+        offline:
         description:
         owner:
         schema:
@@ -181,6 +195,7 @@ def batch_feature_view(
             source=source,
             tags=tags,
             online=online,
+            offline=offline,
             description=description,
             owner=owner,
             schema=schema,

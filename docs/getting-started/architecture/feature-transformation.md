@@ -8,7 +8,7 @@ Feature transformations can be executed by three types of "transformation engine
 
 1. The Feast Feature Server
 2. An Offline Store (e.g., Snowflake, BigQuery, DuckDB, Spark, etc.)
-3. A Stream processor (e.g., Flink or Spark Streaming)
+3. [A Compute Engine](../../reference/compute-engine/README.md)
 
 The three transformation engines are coupled with the [communication pattern used for writes](write-patterns.md).
 
