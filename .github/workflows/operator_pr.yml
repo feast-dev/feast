@@ -2,14 +2,7 @@ name: operator-pr
 
 on: [pull_request]
 jobs:
-  check_skip_tests:
-    uses: ./.github/workflows/check_skip_tests.yml
-    with:
-      head-sha: ${{ github.event.pull_request.head.sha }}
-      excluded-dirs: 'docs/**,tests/**,examples/**'
-
   operator-test:
-    if: ${{ needs.check_skip_tests.outputs.skip_tests == 'false' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

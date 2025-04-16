@@ -14,18 +14,12 @@ on:
       - 'infra/**'
 
 jobs:
-  check_skip_tests:
-    uses: ./.github/workflows/check_skip_tests.yml
-    with:
-      head-sha: ${{ github.event.pull_request.head.sha }}
-      excluded-dirs: 'docs/**,tests/**,examples/**'
-
   operator-e2e-tests:
     timeout-minutes: 40
     if:
       ((github.event.action == 'labeled' && (github.event.label.name == 'approved' || github.event.label.name == 'lgtm' || github.event.label.name == 'ok-to-test')) ||
       (github.event.action != 'labeled' && (contains(github.event.pull_request.labels.*.name, 'ok-to-test') || contains(github.event.pull_request.labels.*.name, 'approved') || contains(github.event.pull_request.labels.*.name, 'lgtm')))) &&
-      github.repository == 'feast-dev/feast' && needs.check_skip_tests.outputs.skip_tests == 'false'
+      github.repository == 'feast-dev/feast'
     runs-on: ubuntu-latest
 
     services:
