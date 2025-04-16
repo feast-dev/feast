@@ -7,12 +7,12 @@ from pyspark.sql import functions as F
 
 from feast import BatchFeatureView, StreamFeatureView
 from feast.aggregation import Aggregation
+from feast.infra.common.materialization_job import MaterializationTask
+from feast.infra.common.retrieval_task import HistoricalRetrievalTask
 from feast.infra.compute_engines.dag.context import ExecutionContext
 from feast.infra.compute_engines.dag.model import DAGFormat
 from feast.infra.compute_engines.dag.node import DAGNode
 from feast.infra.compute_engines.dag.value import DAGValue
-from feast.infra.compute_engines.tasks import HistoricalRetrievalTask
-from feast.infra.materialization.batch_materialization_engine import MaterializationTask
 from feast.infra.materialization.contrib.spark.spark_materialization_engine import (
     _map_by_partition,
     _SparkSerializedArtifacts,

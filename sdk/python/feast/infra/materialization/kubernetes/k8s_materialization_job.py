@@ -2,9 +2,9 @@ from typing import Optional
 
 from kubernetes import client
 
-from feast.infra.common.materialization_job import MaterializationJobStatus
-from feast.infra.materialization.batch_materialization_engine import (
+from feast.infra.common.materialization_job import (
     MaterializationJob,
+    MaterializationJobStatus,
 )
 
 

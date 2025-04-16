@@ -3,7 +3,7 @@ from feast.infra.common.materialization_job import (
     MaterializationJobStatus,
     MaterializationTask,
 )
-from feast.infra.common.retrieval_job import HistoricalRetrievalTask
+from feast.infra.common.retrieval_task import HistoricalRetrievalTask
 from feast.infra.compute_engines.base import ComputeEngine
 from feast.infra.compute_engines.spark.feature_builder import SparkFeatureBuilder
 from feast.infra.compute_engines.spark.job import SparkDAGRetrievalJob
