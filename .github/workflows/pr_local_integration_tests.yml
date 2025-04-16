@@ -9,17 +9,11 @@ on:
       - labeled
 
 jobs:
-  check_skip_tests:
-    uses: ./.github/workflows/check_skip_tests.yml
-    with:
-      head-sha: ${{ github.event.pull_request.head.sha }}
-      excluded-dirs: 'docs/**,tests/**,examples/**'
-
   integration-test-python-local:
     if:
       ((github.event.action == 'labeled' && (github.event.label.name == 'approved' || github.event.label.name == 'lgtm' || github.event.label.name == 'ok-to-test')) ||
       (github.event.action != 'labeled' && (contains(github.event.pull_request.labels.*.name, 'ok-to-test') || contains(github.event.pull_request.labels.*.name, 'approved') || contains(github.event.pull_request.labels.*.name, 'lgtm')))) &&
-      github.event.pull_request.base.repo.full_name == 'feast-dev/feast' && needs.check_skip_tests.outputs.skip_tests == 'false'
+      github.event.pull_request.base.repo.full_name == 'feast-dev/feast'
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false

@@ -4,14 +4,7 @@ on:
   pull_request:
 
 jobs:
-  check_skip_tests:
-    uses: ./.github/workflows/check_skip_tests.yml
-    with:
-      head-sha: ${{ github.event.pull_request.head.sha }}
-      excluded-dirs: 'docs/**,tests/**,examples/**'
-
-  unit-test-python:
-    if: ${{ needs.check_skip_tests.outputs.skip_tests == 'false' }}
+  smoke-test-python:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
