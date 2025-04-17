@@ -808,9 +808,7 @@ def start_server(
         server.add_insecure_port(f"[::]:{port}")
     server.start()
     if wait_for_termination:
-        logger.info(
-            f"Grpc server started at {'https' if tls_cert_path and tls_key_path else 'http'}://localhost:{port}"
-        )
+        logger.info(f"Grpc server started at localhost:{port}")
         server.wait_for_termination()
     else:
         return server

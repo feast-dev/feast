@@ -13,7 +13,7 @@ The `path` parameter is a URL with a port (default is 6570) used by the client t
 ```yaml
 registry:
   registry_type: remote
-  path: http://localhost:6570
+  path: localhost:6570
 ```
 {% endcode %}
 
