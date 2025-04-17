@@ -31,6 +31,8 @@ class MaterializationJobStatus(enum.Enum):
     CANCELLING = 5
     CANCELLED = 6
     SUCCEEDED = 7
+    PAUSED = 8
+    RETRYING = 9
 
 
 class MaterializationJob(ABC):
