@@ -14,7 +14,7 @@ from feast.infra.common.materialization_job import (
     MaterializationJobStatus,
     MaterializationTask,
 )
-from feast.infra.common.retrieval_job import HistoricalRetrievalTask
+from feast.infra.common.retrieval_task import HistoricalRetrievalTask
 from feast.infra.compute_engines.spark.compute import SparkComputeEngine
 from feast.infra.compute_engines.spark.job import SparkDAGRetrievalJob
 from feast.infra.offline_stores.contrib.spark_offline_store.spark import (

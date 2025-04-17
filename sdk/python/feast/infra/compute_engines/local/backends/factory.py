@@ -8,6 +8,11 @@ from feast.infra.compute_engines.local.backends.pandas_backend import PandasBack
 
 
 class BackendFactory:
+    """
+    Factory class for constructing DataFrameBackend implementations based on backend name
+    or runtime entity_df type.
+    """
+
     @staticmethod
     def from_name(name: str) -> DataFrameBackend:
         if name == "pandas":

@@ -1,10 +1,10 @@
 from abc import ABC, abstractmethod
 from typing import Union
 
+from feast.infra.common.materialization_job import MaterializationTask
+from feast.infra.common.retrieval_task import HistoricalRetrievalTask
 from feast.infra.compute_engines.dag.node import DAGNode
 from feast.infra.compute_engines.dag.plan import ExecutionPlan
-from feast.infra.compute_engines.tasks import HistoricalRetrievalTask
-from feast.infra.materialization.batch_materialization_engine import MaterializationTask
 
 
 class FeatureBuilder(ABC):
