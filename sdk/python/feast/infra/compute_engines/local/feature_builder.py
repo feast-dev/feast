@@ -5,7 +5,7 @@ from feast.infra.common.retrieval_task import HistoricalRetrievalTask
 from feast.infra.compute_engines.dag.plan import ExecutionPlan
 from feast.infra.compute_engines.feature_builder import FeatureBuilder
 from feast.infra.compute_engines.local.backends.base import DataFrameBackend
-from feast.infra.compute_engines.local.node import (
+from feast.infra.compute_engines.local.nodes import (
     LocalAggregationNode,
     LocalDedupNode,
     LocalFilterNode,
@@ -58,7 +58,7 @@ class LocalFeatureBuilder(FeatureBuilder):
             alias = f"{agg.function}_{agg.column}"
             agg_ops[alias] = (agg.function, agg.column)
         group_by_keys = self.feature_view.entities
-        node = LocalAggregationNode("agg", group_by_keys, agg_ops, self.backend)
+        node = LocalAggregationNode("agg", self.backend, group_by_keys, agg_ops)
         node.add_input(input_node)
         self.nodes.append(node)
         return node

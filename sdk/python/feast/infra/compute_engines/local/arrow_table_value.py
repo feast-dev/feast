@@ -1,6 +1,6 @@
 import pyarrow as pa
-from infra.compute_engines.dag.model import DAGFormat
 
+from feast.infra.compute_engines.dag.model import DAGFormat
 from feast.infra.compute_engines.dag.value import DAGValue
 
 

@@ -7,6 +7,9 @@ from feast.infra.compute_engines.dag.context import ExecutionContext
 from feast.infra.compute_engines.local.arrow_table_value import ArrowTableValue
 from feast.infra.compute_engines.local.backends.base import DataFrameBackend
 from feast.infra.compute_engines.local.local_node import LocalNode
+from feast.infra.offline_stores.offline_utils import (
+    infer_event_timestamp_from_entity_df,
+)
 
 ENTITY_TS_ALIAS = "__entity_event_timestamp"
 
@@ -29,15 +32,26 @@ class LocalJoinNode(LocalNode):
 
     def execute(self, context: ExecutionContext) -> ArrowTableValue:
         feature_table = self.get_single_table(context).data
-        entity_table = pa.Table(context.entity_df)
+
+        if context.entity_df is None:
+            context.node_outputs[self.name] = feature_table
+            return feature_table
+
+        entity_table = pa.Table.from_pandas(context.entity_df)
         feature_df = self.backend.from_arrow(feature_table)
         entity_df = self.backend.from_arrow(entity_table)
 
+        entity_schema = dict(zip(entity_df.columns, entity_df.dtypes))
+        entity_df_event_timestamp_col = infer_event_timestamp_from_entity_df(
+            entity_schema
+        )
+
         join_keys, feature_cols, ts_col, created_ts_col = context.column_info
 
-        # Rename entity timestamp if needed
-        if ENTITY_TS_ALIAS in entity_df.columns and ENTITY_TS_ALIAS != ts_col:
-            entity_df = entity_df.rename(columns={ENTITY_TS_ALIAS: ts_col})
+        entity_df = self.backend.rename_columns(
+            entity_df, {entity_df_event_timestamp_col: ENTITY_TS_ALIAS}
+        )
+
         joined_df = self.backend.join(feature_df, entity_df, on=join_keys, how="left")
         result = self.backend.to_arrow(joined_df)
         output = ArrowTableValue(result)
@@ -56,7 +70,7 @@ class LocalFilterNode(LocalNode):
         super().__init__(name)
         self.backend = backend
         self.filter_expr = filter_expr
-        self.ttl = ttl  # in seconds
+        self.ttl = ttl
 
     def execute(self, context: ExecutionContext) -> ArrowTableValue:
         input_table = self.get_single_table(context).data
@@ -86,11 +100,13 @@ class LocalFilterNode(LocalNode):
 
 
 class LocalAggregationNode(LocalNode):
-    def __init__(self, name: str, group_keys: list[str], agg_ops: dict, backend):
+    def __init__(
+        self, name: str, backend: DataFrameBackend, group_keys: list[str], agg_ops: dict
+    ):
         super().__init__(name)
+        self.backend = backend
         self.group_keys = group_keys
         self.agg_ops = agg_ops
-        self.backend = backend
 
     def execute(self, context: ExecutionContext) -> ArrowTableValue:
         input_table = self.get_single_table(context).data
@@ -170,4 +186,5 @@ class LocalOutputNode(LocalNode):
     def execute(self, context: ExecutionContext) -> ArrowTableValue:
         input_table = self.get_single_table(context).data
         context.node_outputs[self.name] = input_table
+        # TODO: implement the logic to write to offline store
         return input_table

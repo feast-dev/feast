@@ -42,3 +42,6 @@ class PolarsBackend(DataFrameBackend):
         return df.sort(by=sort_by, descending=not ascending).unique(
             subset=keys, keep="first"
         )
+
+    def rename_columns(self, df: pl.DataFrame, columns: dict[str, str]) -> pl.DataFrame:
+        return df.rename(columns)

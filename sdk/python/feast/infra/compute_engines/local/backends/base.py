@@ -27,3 +27,6 @@ class DataFrameBackend(ABC):
     @abstractmethod
     def drop_duplicates(self, df, keys, sort_by, ascending: bool = False):
         pass
+
+    @abstractmethod
+    def rename_columns(self, df, columns: dict[str, str]): ...

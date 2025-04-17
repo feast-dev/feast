@@ -17,7 +17,16 @@ class PandasBackend(DataFrameBackend):
         return left.merge(right, on=on, how=how)
 
     def groupby_agg(self, df, group_keys, agg_ops):
-        return df.groupby(group_keys).agg(agg_ops).reset_index()
+        return (
+            df.groupby(group_keys)
+            .agg(
+                **{
+                    alias: pd.NamedAgg(column=col, aggfunc=func)
+                    for alias, (func, col) in agg_ops.items()
+                }
+            )
+            .reset_index()
+        )
 
     def filter(self, df, expr):
         return df.query(expr)
@@ -32,3 +41,6 @@ class PandasBackend(DataFrameBackend):
         return df.sort_values(by=sort_by, ascending=ascending).drop_duplicates(
             subset=keys
         )
+
+    def rename_columns(self, df, columns: dict[str, str]):
+        return df.rename(columns=columns)
