@@ -1,8 +1,8 @@
-FROM pip-builder:latest
+FROM arrow-builder:latest
 
-# ibis-framework must build from its own git repo... versioning requirement
+COPY --chown=default ibis ${APP_ROOT}/src/ibis
 RUN cd ${APP_ROOT}/src/ibis && \
-    source /tmp/cachi2.env && \
-    pip install --no-binary :all: .[duckdb] && \
+    source /tmp/hermeto.env && \
+    pip install .[duckdb] && \
     cd ${APP_ROOT}/src && \
     rm -rf ${APP_ROOT}/src/ibis

@@ -59,7 +59,7 @@ clickhouse = ["clickhouse-connect>=0.7.19"]
 couchbase = ["couchbase==4.3.2", "couchbase-columnar==1.0.0"]
 delta = ["deltalake"]
 docling = ["docling==2.27.0"]
-duckdb = ["ibis-framework[duckdb]>=9.0.0,<10"]
+duckdb = ["ibis-framework[duckdb]>=9.0.0,<=9.5.0"]
 elasticsearch = ["elasticsearch>=8.13.0"]
 faiss = ["faiss-cpu>=1.7.0,<2"]
 gcp = [
@@ -82,7 +82,7 @@ grpcio = [
 hazelcast = ["hazelcast-python-client>=5.1"]
 hbase = ["happybase>=1.2.0,<3"]
 ibis = [
-    "ibis-framework>=9.0.0,<10",
+    "ibis-framework>=9.0.0,<=9.5.0",
     "ibis-substrait>=4.0.0",
     "poetry-core<2",
     "poetry-dynamic-versioning",
@@ -96,12 +96,15 @@ milvus = [
     "milvus-lite==2.4.12",
     "feast[setuptools]"
 ]
-mssql = ["ibis-framework[mssql]>=9.0.0,<10"]
+mssql = ["ibis-framework[mssql]>=9.0.0,<=9.5.0"]
 mysql = ["pymysql", "types-PyMySQL"]
 opentelemetry = ["prometheus_client", "psutil"]
 spark = ["pyspark>=3.0.0,<4"]
 trino = ["trino>=0.305.0,<0.400.0", "regex"]
 postgres = ["psycopg[binary,pool]==3.2.5"]
+# psycopg[c] install requires a system with a C compiler, python dev headers, & postgresql client dev headers
+# https://www.psycopg.org/psycopg3/docs/basic/install.html#local-installation
+postgres-c = ["psycopg[c,pool]==3.2.5"]
 pytorch = ["torch==2.2.2", "torchvision>=0.17.2"]
 qdrant = ["qdrant-client>=1.12.0"]
 redis = [
@@ -142,7 +145,7 @@ ci = [
     "pytest-mock==1.10.4",
     "pytest-env",
     "Sphinx>4.0.0,<7",
-    "sqlglot[rs]>=26.12.1",
+    "sqlglot[rs]>=23.4",
     "testcontainers==4.9.0",
     "python-keycloak==4.2.2",
     "pre-commit<3.3.2",
@@ -165,10 +168,19 @@ nlp = ["feast[docling, milvus, pytorch]"]
 dev = ["feast[ci]"]
 docs = ["feast[ci]"]
 # used for the 'feature-server' container image build
-minimal = ["feast[aws, gcp, snowflake, redis, go, mysql, postgres, opentelemetry, grpcio, k8s, duckdb, milvus]"]
+minimal = ["feast[aws, gcp, snowflake, redis, go, mysql, postgres-c, opentelemetry, grpcio, k8s, duckdb, milvus]"]
+minimal-sdist-build = [
+    "feast[minimal]",
+    "feast[ibis]",
+    "meson<1.7.2",
+    "pybindgen==0.22.0",
+    "sphinx!=4.0.0",
+    "types_psutil<7.0.0.20250401",
 
-# extras for a disconnected build from source (pandas, sdist, etc.)
-numpy-build = [
+    # sqlalchemy[mypy] dep
+    "greenlet!=0.4.17",
+
+    # numpy deps
     "meson-python<0.16.0,>=0.15.0",
     "Cython<3.1,>=0.29.34",
     "flit_core<4,>=3.8",
@@ -178,55 +190,6 @@ numpy-build = [
     "hatch-vcs==0.4.0",
     "hatchling>=1.6.0,<2",
     "calver<2025.4.1",
-]
-pandas-build = [
-    "pandas==2.2.3",
-    "meson-python==0.13.1",
-    "meson==1.2.1",
-    "oldest-supported-numpy>=2022.8.16,<2023.8.3",
-    "versioneer[toml]==0.29",
-]
-addtl-sources = [
-    # python-dateutil build deps
-    "python-dateutil==2.9.0",
-    "setuptools-scm<8.0",
-    "feast[setuptools]",
-
-    # aiohappyeyeballs build dep
-    "poetry-core>=2.0.0",
-]
-minimal-sdist-build = [
-    "feast[minimal]",
-    "feast[numpy-build]",
-    "feast[ibis]",
-    "pybindgen==0.22.0",
-    "setuptools-scm[toml]>=8",
-    "sphinx!=4.0.0",
-    "wheel==0.45.1",
-    "mypy<=1.14.0,>=1.4.1",
-    "types-psutil",
-    "types-setuptools",
-    "pdm-backend",
-    "setuptools-rust>=1.4.0",
-    "rpds-py==0.23.1",
-    "types_psutil<7.0.0.20250401",
-    "meson<1.7.2",
-
-    # sqlalchemy[mypy] dep
-    "greenlet!=0.4.17",
-
-    # duckdb dep
-    "pybind11>=2.6.0",
-
-    # pymilvus dep
-    "gitpython",
-
-    # maturin deps
-    #"maturin==1.8.3",
-    #"setuptools-rust",
-
-    # other deps
-    "expandvars",
 ]
 setuptools = [
     # https://amitylearning.vercel.app/?question=git-1742419854670&update=1742342400027

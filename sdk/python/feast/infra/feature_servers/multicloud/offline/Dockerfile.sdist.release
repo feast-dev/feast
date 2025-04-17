@@ -1,12 +1,13 @@
 FROM yum-builder:latest
 
+ENV OFFLINE_BUILD_DIR=offline_build
 ENV ARROW_HOME=${APP_ROOT}/arrow-dist
 ENV LD_LIBRARY_PATH=${ARROW_HOME}/lib:$LD_LIBRARY_PATH
 ENV CMAKE_PREFIX_PATH=${ARROW_HOME}:$CMAKE_PREFIX_PATH
 ENV THIRD_PARTY_PATH=/tmp/arrow/cpp/arrow-thirdparty
 
-COPY --chown=default cpp/cmake_modules ${APP_ROOT}/src/arrow/cpp/cmake_modules
-COPY --chown=default python ${APP_ROOT}/src/arrow/python
+COPY --chown=default ${OFFLINE_BUILD_DIR}/arrow/cpp/cmake_modules ${APP_ROOT}/src/arrow/cpp/cmake_modules
+COPY --chown=default ${OFFLINE_BUILD_DIR}/arrow/python ${APP_ROOT}/src/arrow/python
 
 # configured for Arrow version 17.0.0
 RUN mkdir ${ARROW_HOME} ${APP_ROOT}/src/arrow-build
@@ -112,3 +113,17 @@ RUN python -c "import pyarrow.substrait as substrait; print(substrait.__name__)"
 # feast requires "numpy<2", so here we install numpy 1.x, as well as some other packages which will be needed for the feast build.
 RUN source /tmp/hermeto.env && \
     pip install "numpy>=1.16.6,<2"
+
+COPY --chown=default ${OFFLINE_BUILD_DIR}/ibis ${APP_ROOT}/src/ibis
+RUN cd ${APP_ROOT}/src/ibis && \
+    source /tmp/hermeto.env && \
+    pip install .[duckdb] && \
+    cd ${APP_ROOT}/src && \
+    rm -rf ${APP_ROOT}/src/ibis
+
+COPY sdk/python/feast/infra/feature_servers/multicloud/requirements.txt requirements.txt
+RUN source /tmp/hermeto.env && \
+    pip install -r requirements.txt
+
+# modify permissions to support running with a random uid
+RUN chmod g+w $(python -c "import feast.ui as ui; print(ui.__path__)" | tr -d "[']")/build/projects-list.json
