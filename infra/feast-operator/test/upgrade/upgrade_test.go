@@ -33,9 +33,9 @@ var _ = Describe("operator upgrade", Ordered, func() {
 
 	Context("Operator upgrade Tests", func() {
 		runTestDeploySimpleCRFunc := utils.GetTestDeploySimpleCRFunc("/test/upgrade", utils.GetSimplePreviousVerCR(),
-			utils.FeatureStoreName, utils.FeastResourceName, []string{})
+			utils.FeatureStoreName, utils.FeastResourceName, []string{}, "default")
 		runTestWithRemoteRegistryFunction := utils.GetTestWithRemoteRegistryFunc("/test/upgrade", utils.GetSimplePreviousVerCR(),
-			utils.GetRemoteRegistryPreviousVerCR(), utils.FeatureStoreName, utils.FeastResourceName, []string{})
+			utils.GetRemoteRegistryPreviousVerCR(), utils.FeatureStoreName, utils.FeastResourceName, []string{}, "default")
 
 		// Run Test on current version operator with previous version CR
 		It("Should be able to deploy and run a default feature store CR successfully", runTestDeploySimpleCRFunc)
