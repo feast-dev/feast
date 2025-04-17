@@ -19,9 +19,9 @@ from feast.infra.compute_engines.local.nodes import (
 
 class LocalFeatureBuilder(FeatureBuilder):
     def __init__(
-        self,
-        task: Union[MaterializationTask, HistoricalRetrievalTask],
-        backend: DataFrameBackend,
+            self,
+            task: Union[MaterializationTask, HistoricalRetrievalTask],
+            backend: DataFrameBackend,
     ):
         super().__init__(task)
         self.backend = backend
@@ -31,13 +31,15 @@ class LocalFeatureBuilder(FeatureBuilder):
         self.nodes.append(node)
         return node
 
-    def build_join_node(self, input_node):
+    def build_join_node(self,
+                        input_node):
         node = LocalJoinNode("join", self.backend)
         node.add_input(input_node)
         self.nodes.append(node)
         return node
 
-    def build_filter_node(self, input_node):
+    def build_filter_node(self,
+                          input_node):
         filter_expr = None
         if hasattr(self.feature_view, "filter"):
             filter_expr = self.feature_view.filter
@@ -47,29 +49,38 @@ class LocalFeatureBuilder(FeatureBuilder):
         self.nodes.append(node)
         return node
 
-    def build_aggregation_node(self, input_node):
-        agg_specs = self.feature_view.aggregations
+    @staticmethod
+    def _get_aggregate_operations(agg_specs):
         agg_ops = {}
         for agg in agg_specs:
             if agg.time_window is not None:
                 raise ValueError(
-                    "Time window aggregation is not supported in local compute engine. Please use a different compute engine."
+                    "Time window aggregation is not supported in local compute engine. Please use a different compute "
+                    "engine."
                 )
             alias = f"{agg.function}_{agg.column}"
             agg_ops[alias] = (agg.function, agg.column)
+        return agg_ops
+
+    def build_aggregation_node(self,
+                               input_node):
+        agg_specs = self.feature_view.aggregations
+        agg_ops = self._get_aggregate_operations(agg_specs)
         group_by_keys = self.feature_view.entities
         node = LocalAggregationNode("agg", self.backend, group_by_keys, agg_ops)
         node.add_input(input_node)
         self.nodes.append(node)
         return node
 
-    def build_dedup_node(self, input_node):
+    def build_dedup_node(self,
+                         input_node):
         node = LocalDedupNode("dedup", self.backend)
         node.add_input(input_node)
         self.nodes.append(node)
         return node
 
-    def build_transformation_node(self, input_node):
+    def build_transformation_node(self,
+                                  input_node):
         node = LocalTransformationNode(
             "transform", self.feature_view.feature_transformation, self.backend
         )
@@ -77,7 +88,8 @@ class LocalFeatureBuilder(FeatureBuilder):
         self.nodes.append(node)
         return node
 
-    def build_validation_node(self, input_node):
+    def build_validation_node(self,
+                              input_node):
         node = LocalValidationNode(
             "validate", self.feature_view.validation_config, self.backend
         )
@@ -85,7 +97,8 @@ class LocalFeatureBuilder(FeatureBuilder):
         self.nodes.append(node)
         return node
 
-    def build_output_nodes(self, input_node):
+    def build_output_nodes(self,
+                           input_node):
         node = LocalOutputNode("output")
         node.add_input(input_node)
         self.nodes.append(node)

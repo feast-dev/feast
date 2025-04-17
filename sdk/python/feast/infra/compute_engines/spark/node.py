@@ -1,6 +1,5 @@
-from dataclasses import dataclass
-from datetime import datetime
-from typing import Dict, List, Optional, Union, cast
+from datetime import timedelta
+from typing import List, Optional, Union, cast
 
 from pyspark.sql import DataFrame, SparkSession, Window
 from pyspark.sql import functions as F
@@ -48,20 +47,6 @@ def rename_entity_ts_column(
         entity_df = spark_session.createDataFrame(entity_df)
     entity_df = entity_df.withColumnRenamed(event_timestamp_col, ENTITY_TS_ALIAS)
     return entity_df
-
-
-@dataclass
-class SparkJoinContext:
-    name: str  # feature view name or alias
-    join_keys: List[str]
-    feature_columns: List[str]
-    timestamp_field: str
-    created_timestamp_column: Optional[str]
-    ttl_seconds: Optional[int]
-    min_event_timestamp: Optional[datetime]
-    max_event_timestamp: Optional[datetime]
-    field_mapping: Dict[str, str]  # original_column_name -> renamed_column
-    full_feature_names: bool = False  # apply feature view name prefix
 
 
 class SparkMaterializationReadNode(DAGNode):
@@ -266,12 +251,12 @@ class SparkFilterNode(DAGNode):
         self,
         name: str,
         spark_session: SparkSession,
-        feature_view: Union[BatchFeatureView, StreamFeatureView],
+        ttl: Optional[timedelta] = None,
         filter_condition: Optional[str] = None,
     ):
         super().__init__(name)
         self.spark_session = spark_session
-        self.feature_view = feature_view
+        self.ttl = ttl
         self.filter_condition = filter_condition
 
     def execute(self, context: ExecutionContext) -> DAGValue:
@@ -288,8 +273,8 @@ class SparkFilterNode(DAGNode):
             filtered_df = filtered_df.filter(F.col(ts_col) <= F.col(ENTITY_TS_ALIAS))
 
         # Optional TTL filter: feature.ts >= entity.event_timestamp - ttl
-        if self.feature_view.ttl:
-            ttl_seconds = int(self.feature_view.ttl.total_seconds())
+        if self.ttl:
+            ttl_seconds = int(self.ttl.total_seconds())
             lower_bound = F.col(ENTITY_TS_ALIAS) - F.expr(
                 f"INTERVAL {ttl_seconds} seconds"
             )

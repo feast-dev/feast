@@ -55,8 +55,9 @@ class SparkFeatureBuilder(FeatureBuilder):
         filter_expr = None
         if hasattr(self.feature_view, "filter"):
             filter_expr = self.feature_view.filter
+        ttl = self.feature_view.ttl
         node = SparkFilterNode(
-            "filter", self.spark_session, self.feature_view, filter_expr
+            "filter", self.spark_session, ttl, filter_expr
         )
         node.add_input(input_node)
         self.nodes.append(node)
