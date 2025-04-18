@@ -238,14 +238,12 @@ class PostgreSQLOfflineStore(OfflineStore):
             join_key_columns + feature_name_columns + [timestamp_field]
         )
 
-        start_date_str = None
-        if start_date:
-            start_date_str = f"'{start_date}'::timestamptz"
-        end_date_str = None
-        if end_date:
-            end_date_str = f"'{end_date}'::timestamptz"
         timestamp_filter = get_timestamp_filter_sql(
-            start_date_str, end_date_str, timestamp_field, tz=timezone.utc
+            start_date,
+            end_date,
+            timestamp_field,
+            tz=timezone.utc,
+            cast_style="timestamptz",
         )
 
         query = f"""

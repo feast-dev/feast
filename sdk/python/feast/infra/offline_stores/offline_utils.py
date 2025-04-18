@@ -1,7 +1,7 @@
 import uuid
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, KeysView, List, Optional, Set, Tuple, Union
+from typing import Any, Dict, KeysView, List, Literal, Optional, Set, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -274,52 +274,65 @@ def get_timestamp_filter_sql(
     timestamp_field: Optional[str] = DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL,
     date_partition_column: Optional[str] = None,
     tz: Optional[timezone] = None,
+    cast_style: Literal["timestamp_func", "timestamptz", "raw"] = "timestamp_func",
 ) -> str:
     """
-    Returns a SQL WHERE clause with timestamp filter and optional date partition pruning.
+    Returns SQL filter condition (no WHERE) with flexible timestamp casting.
 
-    - Datetime inputs are converted using .isoformat() or .strftime('%Y-%m-%d')
-    - String inputs are passed through as-is (assumed to be preformatted)
-    - Uses TIMESTAMP(...) for timestamp_field
-    - Adds 'AND ...' conditions for partition column if provided
+    Args:
+        start_date: datetime or ISO8601 strings
+        end_date: datetime or ISO8601 strings
+        timestamp_field: main timestamp column
+        date_partition_column: optional partition column (for pruning)
+        tz: optional timezone for datetime inputs
+        cast_style: one of:
+            - "timestamp_func": TIMESTAMP('...')         → Snowflake, BigQuery, Athena
+            - "timestamptz": '...'::timestamptz          → PostgreSQL
+            - "raw": '...'                               → no cast, string only
 
-    Example:
-        WHERE event_timestamp BETWEEN TIMESTAMP('...') AND TIMESTAMP('...')
-        AND ds >= '2023-04-01' AND ds <= '2023-04-05'
+    Returns:
+        SQL filter string without WHERE
     """
 
-    def format_timestamp(val: Union[str, datetime]) -> str:
+    def format_casted_ts(val: Union[str, datetime]) -> str:
         if isinstance(val, datetime):
             if tz:
                 val = val.astimezone(tz)
-            val = val.isoformat()
-        return f"TIMESTAMP('{val}')"
+            val_str = val.isoformat()
+        else:
+            val_str = val
+
+        if cast_style == "timestamp_func":
+            return f"TIMESTAMP('{val_str}')"
+        elif cast_style == "timestamptz":
+            return f"'{val_str}'::timestamptz"
+        else:  # raw
+            return f"'{val_str}'"
 
     def format_date(val: Union[str, datetime]) -> str:
         if isinstance(val, datetime):
             if tz:
                 val = val.astimezone(tz)
             return val.strftime("%Y-%m-%d")
-        return val  # assume already formatted like 'YYYY-MM-DD'
+        return val
 
     filters = []
 
-    # Timestamp filtering
-    ts_start = format_timestamp(start_date) if start_date else None
-    ts_end = format_timestamp(end_date) if end_date else None
+    # Timestamp filters
+    if start_date and end_date:
+        filters.append(
+            f"{timestamp_field} BETWEEN {format_casted_ts(start_date)} AND {format_casted_ts(end_date)}"
+        )
+    elif start_date:
+        filters.append(f"{timestamp_field} >= {format_casted_ts(start_date)}")
+    elif end_date:
+        filters.append(f"{timestamp_field} <= {format_casted_ts(end_date)}")
 
-    if ts_start and ts_end:
-        filters.append(f"{timestamp_field} BETWEEN {ts_start} AND {ts_end}")
-    elif ts_start:
-        filters.append(f"{timestamp_field} >= {ts_start}")
-    elif ts_end:
-        filters.append(f"{timestamp_field} <= {ts_end}")
-
-    # Date partition pruning
+    # Partition pruning
     if date_partition_column:
         if start_date:
             filters.append(f"{date_partition_column} >= '{format_date(start_date)}'")
         if end_date:
             filters.append(f"{date_partition_column} <= '{format_date(end_date)}'")
 
-    return "WHERE " + " AND ".join(filters) if filters else ""
+    return " AND ".join(filters) if filters else ""

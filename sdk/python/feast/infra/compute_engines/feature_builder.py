@@ -72,10 +72,10 @@ class FeatureBuilder(ABC):
     def build(self) -> ExecutionPlan:
         last_node = self.build_source_node()
 
-        # PIT join entities to the feature data, and perform filtering
-        if isinstance(self.task, HistoricalRetrievalTask):
-            last_node = self.build_join_node(last_node)
+        # Join entity_df with source if needed
+        last_node = self.build_join_node(last_node)
 
+        # PIT filter, TTL, and user-defined filter
         last_node = self.build_filter_node(last_node)
 
         if self._should_aggregate():

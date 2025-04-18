@@ -161,7 +161,12 @@ class SparkJoinNode(DAGNode):
         feature_df: DataFrame = feature_value.data
 
         entity_df = context.entity_df
-        assert entity_df is not None, "entity_df must be set in ExecutionContext"
+        if not entity_df:
+            return DAGValue(
+                data=feature_df,
+                format=DAGFormat.SPARK,
+                metadata={"joined_on": None},
+            )
 
         # Get timestamp fields from feature view
         join_keys, feature_cols, ts_col, created_ts_col = context.column_info
