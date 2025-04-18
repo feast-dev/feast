@@ -29,12 +29,12 @@ from feast.infra.offline_stores.offline_store import (
     RetrievalJob,
     RetrievalMetadata,
 )
+from feast.infra.offline_stores.offline_utils import get_timestamp_filter_sql
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 from feast.type_map import spark_schema_to_np_dtypes
 from feast.utils import _get_fields_with_aliases
-from feast.infra.offline_stores.offline_utils import get_timestamp_filter_sql
 
 # Make sure spark warning doesn't raise more than once.
 warnings.simplefilter("once", RuntimeWarning)
@@ -297,7 +297,9 @@ class SparkOfflineStore(OfflineStore):
         fields_with_alias_string = ", ".join(fields_with_aliases)
 
         from_expression = data_source.get_table_query_string()
-        timestamp_filter = get_timestamp_filter_sql(start_date, end_date, timestamp_field, timezone.utc)
+        timestamp_filter = get_timestamp_filter_sql(
+            start_date, end_date, timestamp_field, tz=timezone.utc
+        )
 
         query = f"""
             SELECT {fields_with_alias_string}

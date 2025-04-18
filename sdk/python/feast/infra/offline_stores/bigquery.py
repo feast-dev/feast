@@ -207,7 +207,9 @@ class BigQueryOfflineStore(OfflineStore):
             + BigQueryOfflineStore._escape_query_columns(feature_name_columns)
             + [timestamp_field]
         )
-        timestamp_filter = get_timestamp_filter_sql(start_date, end_date, timestamp_field)
+        timestamp_filter = get_timestamp_filter_sql(
+            start_date, end_date, timestamp_field
+        )
         query = f"""
             SELECT {field_string}
             FROM {from_expression}

@@ -1,7 +1,6 @@
 import uuid
 from dataclasses import asdict, dataclass
-from datetime import datetime, timedelta
-from time import timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, KeysView, List, Optional, Set, Tuple, Union
 
 import numpy as np
@@ -46,9 +45,9 @@ def infer_event_timestamp_from_entity_df(entity_schema: Dict[str, np.dtype]) -> 
 
 
 def assert_expected_columns_in_entity_df(
-        entity_schema: Dict[str, np.dtype],
-        join_keys: Set[str],
-        entity_df_event_timestamp_col: str,
+    entity_schema: Dict[str, np.dtype],
+    join_keys: Set[str],
+    entity_df_event_timestamp_col: str,
 ):
     entity_columns = set(entity_schema.keys())
     expected_columns = join_keys | {entity_df_event_timestamp_col}
@@ -60,9 +59,7 @@ def assert_expected_columns_in_entity_df(
 
 # TODO: Remove project and registry from the interface and call sites.
 def get_expected_join_keys(
-        project: str,
-        feature_views: List[FeatureView],
-        registry: BaseRegistry
+    project: str, feature_views: List[FeatureView], registry: BaseRegistry
 ) -> Set[str]:
     join_keys = set()
     for feature_view in feature_views:
@@ -75,8 +72,7 @@ def get_expected_join_keys(
 
 
 def get_entity_df_timestamp_bounds(
-        entity_df: pd.DataFrame,
-        event_timestamp_col: str
+    entity_df: pd.DataFrame, event_timestamp_col: str
 ) -> Tuple[Timestamp, Timestamp]:
     event_timestamp_series = entity_df[event_timestamp_col]
     return event_timestamp_series.min(), event_timestamp_series.max()
@@ -103,11 +99,11 @@ class FeatureViewQueryContext:
 
 
 def get_feature_view_query_context(
-        feature_refs: List[str],
-        feature_views: List[FeatureView],
-        registry: BaseRegistry,
-        project: str,
-        entity_df_timestamp_range: Tuple[datetime, datetime],
+    feature_refs: List[str],
+    feature_views: List[FeatureView],
+    registry: BaseRegistry,
+    project: str,
+    entity_df_timestamp_range: Tuple[datetime, datetime],
 ) -> List[FeatureViewQueryContext]:
     """
     Build a query context containing all information required to template a BigQuery and
@@ -186,12 +182,12 @@ def get_feature_view_query_context(
 
 
 def build_point_in_time_query(
-        feature_view_query_contexts: List[FeatureViewQueryContext],
-        left_table_query_string: str,
-        entity_df_event_timestamp_col: str,
-        entity_df_columns: KeysView[str],
-        query_template: str,
-        full_feature_names: bool = False,
+    feature_view_query_contexts: List[FeatureViewQueryContext],
+    left_table_query_string: str,
+    entity_df_event_timestamp_col: str,
+    entity_df_columns: KeysView[str],
+    query_template: str,
+    full_feature_names: bool = False,
 ) -> str:
     """Build point-in-time query between each feature view table and the entity dataframe for Bigquery and Redshift"""
     env = Environment(loader=BaseLoader())
@@ -242,9 +238,7 @@ def get_offline_store_from_config(offline_store_config: Any) -> OfflineStore:
 
 
 def get_pyarrow_schema_from_batch_source(
-        config: RepoConfig,
-        batch_source: DataSource,
-        timestamp_unit: str = "us"
+    config: RepoConfig, batch_source: DataSource, timestamp_unit: str = "us"
 ) -> Tuple[pa.Schema, List[str]]:
     """Returns the pyarrow schema and column names for the given batch source."""
     column_names_and_types = batch_source.get_table_column_names_and_types(config)
@@ -278,36 +272,54 @@ def get_timestamp_filter_sql(
     start_date: Optional[Union[datetime, str]] = None,
     end_date: Optional[Union[datetime, str]] = None,
     timestamp_field: Optional[str] = DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL,
+    date_partition_column: Optional[str] = None,
     tz: Optional[timezone] = None,
 ) -> str:
     """
-    Returns a SQL WHERE clause using TIMESTAMP('...') wrapping.
-    - If input is datetime: uses .isoformat()
-    - If input is str: uses it as-is (user responsibility)
+    Returns a SQL WHERE clause with timestamp filter and optional date partition pruning.
+
+    - Datetime inputs are converted using .isoformat() or .strftime('%Y-%m-%d')
+    - String inputs are passed through as-is (assumed to be preformatted)
+    - Uses TIMESTAMP(...) for timestamp_field
+    - Adds 'AND ...' conditions for partition column if provided
 
     Example:
-        WHERE event_timestamp BETWEEN TIMESTAMP('2023-04-01T00:00:00') AND TIMESTAMP('2023-04-02T00:00:00')
+        WHERE event_timestamp BETWEEN TIMESTAMP('...') AND TIMESTAMP('...')
+        AND ds >= '2023-04-01' AND ds <= '2023-04-05'
     """
-    def format_value(val: Union[str, datetime]) -> str:
-        val_str = val
+
+    def format_timestamp(val: Union[str, datetime]) -> str:
         if isinstance(val, datetime):
             if tz:
                 val = val.astimezone(tz)
-            val_str = val.isoformat()
-        return f"TIMESTAMP('{val_str}')"
+            val = val.isoformat()
+        return f"TIMESTAMP('{val}')"
 
-    if start_date:
-        start_date = format_value(start_date)
-    if end_date:
-        end_date = format_value(end_date)
+    def format_date(val: Union[str, datetime]) -> str:
+        if isinstance(val, datetime):
+            if tz:
+                val = val.astimezone(tz)
+            return val.strftime("%Y-%m-%d")
+        return val  # assume already formatted like 'YYYY-MM-DD'
 
-    if start_date and end_date:
-        return f"WHERE {timestamp_field} BETWEEN {start_date} AND {end_date}"
-    elif start_date:
-        return f"WHERE {timestamp_field} >= {start_date}"
-    elif end_date:
-        return f"WHERE {timestamp_field} <= {end_date}"
-    else:
-        return ""
+    filters = []
 
+    # Timestamp filtering
+    ts_start = format_timestamp(start_date) if start_date else None
+    ts_end = format_timestamp(end_date) if end_date else None
 
+    if ts_start and ts_end:
+        filters.append(f"{timestamp_field} BETWEEN {ts_start} AND {ts_end}")
+    elif ts_start:
+        filters.append(f"{timestamp_field} >= {ts_start}")
+    elif ts_end:
+        filters.append(f"{timestamp_field} <= {ts_end}")
+
+    # Date partition pruning
+    if date_partition_column:
+        if start_date:
+            filters.append(f"{date_partition_column} >= '{format_date(start_date)}'")
+        if end_date:
+            filters.append(f"{date_partition_column} <= '{format_date(end_date)}'")
+
+    return "WHERE " + " AND ".join(filters) if filters else ""

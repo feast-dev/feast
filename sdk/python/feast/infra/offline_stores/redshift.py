@@ -33,6 +33,7 @@ from feast.infra.offline_stores.offline_store import (
     RetrievalJob,
     RetrievalMetadata,
 )
+from feast.infra.offline_stores.offline_utils import get_timestamp_filter_sql
 from feast.infra.offline_stores.redshift_source import (
     RedshiftLoggingDestination,
     SavedDatasetRedshiftStorage,
@@ -41,7 +42,6 @@ from feast.infra.registry.base_registry import BaseRegistry
 from feast.infra.utils import aws_utils
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
-from feast.infra.offline_stores.offline_utils import get_timestamp_filter_sql
 
 
 class RedshiftOfflineStoreConfig(FeastConfigBaseModel):
@@ -158,8 +158,8 @@ class RedshiftOfflineStore(OfflineStore):
         join_key_columns: List[str],
         feature_name_columns: List[str],
         timestamp_field: str,
-        start_date: datetime,
-        end_date: datetime,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
     ) -> RetrievalJob:
         assert isinstance(config.offline_store, RedshiftOfflineStoreConfig)
         assert isinstance(data_source, RedshiftSource)
@@ -174,7 +174,9 @@ class RedshiftOfflineStore(OfflineStore):
         )
         s3_resource = aws_utils.get_s3_resource(config.offline_store.region)
 
-        timestamp_filter = get_timestamp_filter_sql(start_date, end_date, timestamp_field, timezone.utc)
+        timestamp_filter = get_timestamp_filter_sql(
+            start_date, end_date, timestamp_field, tz=timezone.utc
+        )
 
         query = f"""
             SELECT {field_string}

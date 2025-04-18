@@ -24,6 +24,7 @@ from typing import (
 import numpy as np
 import pandas as pd
 import pyarrow
+from infra.offline_stores.offline_utils import get_timestamp_filter_sql
 from pydantic import ConfigDict, Field, StrictStr
 
 from feast import OnDemandFeatureView
@@ -62,7 +63,6 @@ from feast.types import (
     String,
     UnixTimestamp,
 )
-from infra.offline_stores.offline_utils import get_timestamp_filter_sql
 
 try:
     from snowflake.connector import SnowflakeConnection
@@ -251,7 +251,9 @@ class SnowflakeOfflineStore(OfflineStore):
         with GetSnowflakeConnection(config.offline_store) as conn:
             snowflake_conn = conn
 
-        timestamp_filter = get_timestamp_filter_sql(start_date, end_date, timestamp_field, timezone.utc)
+        timestamp_filter = get_timestamp_filter_sql(
+            start_date, end_date, timestamp_field, tz=timezone.utc
+        )
 
         query = f"""
             SELECT {field_string}

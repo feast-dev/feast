@@ -268,8 +268,10 @@ def pull_all_from_table_or_query_ibis(
     staging_location_endpoint_override: Optional[str] = None,
 ) -> RetrievalJob:
     fields = join_key_columns + feature_name_columns + [timestamp_field]
-    start_date = start_date.astimezone(tz=timezone.utc)
-    end_date = end_date.astimezone(tz=timezone.utc)
+    if start_date:
+        start_date = start_date.astimezone(tz=timezone.utc)
+    if end_date:
+        end_date = end_date.astimezone(tz=timezone.utc)
 
     table = data_source_reader(data_source, str(config.repo_path))
 

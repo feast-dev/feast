@@ -31,11 +31,11 @@ from feast.infra.offline_stores.offline_store import (
     RetrievalJob,
     RetrievalMetadata,
 )
+from feast.infra.offline_stores.offline_utils import get_timestamp_filter_sql
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
-from feast.infra.offline_stores.offline_utils import get_timestamp_filter_sql
 
 
 class BasicAuthModel(FeastConfigBaseModel):
@@ -418,7 +418,9 @@ class TrinoOfflineStore(OfflineStore):
             join_key_columns + feature_name_columns + [timestamp_field]
         )
 
-        timestamp_filter = get_timestamp_filter_sql(start_date, end_date, timestamp_field)
+        timestamp_filter = get_timestamp_filter_sql(
+            start_date, end_date, timestamp_field
+        )
         query = f"""
             SELECT {field_string}
             FROM {from_expression}

@@ -18,6 +18,7 @@ import numpy as np
 import pandas as pd
 import pyarrow
 import pyarrow as pa
+from infra.offline_stores.offline_utils import get_timestamp_filter_sql
 from pydantic import StrictStr
 
 from feast import OnDemandFeatureView
@@ -40,7 +41,6 @@ from feast.infra.registry.base_registry import BaseRegistry
 from feast.infra.utils import aws_utils
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
-from infra.offline_stores.offline_utils import get_timestamp_filter_sql
 
 
 class AthenaOfflineStoreConfig(FeastConfigBaseModel):
@@ -148,18 +148,25 @@ class AthenaOfflineStore(OfflineStore):
 
         date_partition_column = data_source.date_partition_column
 
+        start_date_str = None
         if start_date:
-            start_date = start_date.astimezone(tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+            start_date_str = start_date.astimezone(tz=timezone.utc).strftime(
+                "%Y-%m-%d %H:%M:%S.%f"
+            )[:-3]
+        end_date_str = None
         if end_date:
-            end_date = end_date.astimezone(tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+            end_date_str = end_date.astimezone(tz=timezone.utc).strftime(
+                "%Y-%m-%d %H:%M:%S.%f"
+            )[:-3]
 
-        timestamp_filter = get_timestamp_filter_sql(start_date, end_date, timestamp_field)
+        timestamp_filter = get_timestamp_filter_sql(
+            start_date_str, end_date_str, timestamp_field, date_partition_column
+        )
 
         query = f"""
             SELECT {field_string}
             FROM {from_expression}
             WHERE {timestamp_filter}
-            {"AND " + date_partition_column + " >= '" + start_date.strftime("%Y-%m-%d") + "' AND " + date_partition_column + " <= '" + end_date.strftime("%Y-%m-%d") + "' " if date_partition_column != "" and date_partition_column is not None else ""}
         """
 
         return AthenaRetrievalJob(

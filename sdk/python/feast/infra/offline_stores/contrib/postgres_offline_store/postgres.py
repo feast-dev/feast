@@ -46,8 +46,8 @@ from feast.repo_config import RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 from feast.type_map import pg_type_code_to_arrow
 
-from .postgres_source import PostgreSQLSource
 from ...offline_utils import get_timestamp_filter_sql
+from .postgres_source import PostgreSQLSource
 
 
 class EntitySelectMode(Enum):
@@ -227,8 +227,8 @@ class PostgreSQLOfflineStore(OfflineStore):
         join_key_columns: List[str],
         feature_name_columns: List[str],
         timestamp_field: str,
-        start_date: datetime,
-        end_date: datetime,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
     ) -> RetrievalJob:
         assert isinstance(config.offline_store, PostgreSQLOfflineStoreConfig)
         assert isinstance(data_source, PostgreSQLSource)
@@ -238,11 +238,15 @@ class PostgreSQLOfflineStore(OfflineStore):
             join_key_columns + feature_name_columns + [timestamp_field]
         )
 
+        start_date_str = None
         if start_date:
-            start_date = f"'{start_date}'::timestamptz"
+            start_date_str = f"'{start_date}'::timestamptz"
+        end_date_str = None
         if end_date:
-            end_date = f"'{end_date}'::timestamptz"
-        timestamp_filter = get_timestamp_filter_sql(start_date, end_date, timestamp_field, timezone.utc)
+            end_date_str = f"'{end_date}'::timestamptz"
+        timestamp_filter = get_timestamp_filter_sql(
+            start_date_str, end_date_str, timestamp_field, tz=timezone.utc
+        )
 
         query = f"""
             SELECT {field_string}

@@ -42,11 +42,11 @@ from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 
 from ... import offline_utils
+from ...offline_utils import get_timestamp_filter_sql
 from .couchbase_source import (
     CouchbaseColumnarSource,
     SavedDatasetCouchbaseColumnarStorage,
 )
-from ...offline_utils import get_timestamp_filter_sql
 
 # Only prints out runtime warnings once.
 warnings.simplefilter("once", RuntimeWarning)
@@ -229,8 +229,8 @@ class CouchbaseColumnarOfflineStore(OfflineStore):
         join_key_columns: List[str],
         feature_name_columns: List[str],
         timestamp_field: str,
-        start_date: datetime,
-        end_date: datetime,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
     ) -> RetrievalJob:
         """
         Fetch all rows from the specified table or query within the time range.
@@ -251,9 +251,7 @@ class CouchbaseColumnarOfflineStore(OfflineStore):
         start_date_normalized = normalize_timestamp(start_date) if start_date else None
         end_date_normalized = normalize_timestamp(end_date) if end_date else None
         timestamp_filter = get_timestamp_filter_sql(
-            start_date_normalized,
-            end_date_normalized,
-            timestamp_field
+            start_date_normalized, end_date_normalized, timestamp_field
         )
 
         query = f"""
