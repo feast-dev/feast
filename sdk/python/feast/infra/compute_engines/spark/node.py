@@ -1,14 +1,12 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import List, Optional, Union, cast
 
 from pyspark.sql import DataFrame, SparkSession, Window
 from pyspark.sql import functions as F
 
-from data_source import DataSource
 from feast import BatchFeatureView, StreamFeatureView
 from feast.aggregation import Aggregation
-from feast.infra.common.materialization_job import MaterializationTask
-from feast.infra.common.retrieval_task import HistoricalRetrievalTask
+from feast.data_source import DataSource
 from feast.infra.compute_engines.dag.context import ExecutionContext
 from feast.infra.compute_engines.dag.model import DAGFormat
 from feast.infra.compute_engines.dag.node import DAGNode
@@ -24,7 +22,6 @@ from feast.infra.offline_stores.contrib.spark_offline_store.spark import (
 from feast.infra.offline_stores.offline_utils import (
     infer_event_timestamp_from_entity_df,
 )
-from feast.utils import _get_fields_with_aliases
 
 ENTITY_TS_ALIAS = "__entity_event_timestamp"
 
@@ -53,10 +50,10 @@ def rename_entity_ts_column(
 class SparkReadNode(DAGNode):
     def __init__(
         self,
-            name: str,
-            source: DataSource,
-            start_time: Optional[timedelta] = None,
-            end_time: Optional[timedelta] = None,
+        name: str,
+        source: DataSource,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
     ):
         super().__init__(name)
         self.source = source

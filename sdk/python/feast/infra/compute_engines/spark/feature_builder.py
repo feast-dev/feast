@@ -10,8 +10,9 @@ from feast.infra.compute_engines.spark.node import (
     SparkDedupNode,
     SparkFilterNode,
     SparkJoinNode,
+    SparkReadNode,
     SparkTransformationNode,
-    SparkWriteNode, SparkReadNode,
+    SparkWriteNode,
 )
 
 

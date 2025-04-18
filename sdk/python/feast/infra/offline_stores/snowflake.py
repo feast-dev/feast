@@ -24,7 +24,6 @@ from typing import (
 import numpy as np
 import pandas as pd
 import pyarrow
-from infra.offline_stores.offline_utils import get_timestamp_filter_sql
 from pydantic import ConfigDict, Field, StrictStr
 
 from feast import OnDemandFeatureView
@@ -38,6 +37,7 @@ from feast.infra.offline_stores.offline_store import (
     RetrievalJob,
     RetrievalMetadata,
 )
+from feast.infra.offline_stores.offline_utils import get_timestamp_filter_sql
 from feast.infra.offline_stores.snowflake_source import (
     SavedDatasetSnowflakeStorage,
     SnowflakeLoggingDestination,
