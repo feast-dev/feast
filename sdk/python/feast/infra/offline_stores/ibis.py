@@ -260,10 +260,10 @@ def pull_all_from_table_or_query_ibis(
     join_key_columns: List[str],
     feature_name_columns: List[str],
     timestamp_field: str,
-    start_date: datetime,
-    end_date: datetime,
     data_source_reader: Callable[[DataSource, str], Table],
     data_source_writer: Callable[[pyarrow.Table, DataSource, str], None],
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
     staging_location: Optional[str] = None,
     staging_location_endpoint_override: Optional[str] = None,
 ) -> RetrievalJob:
@@ -281,8 +281,12 @@ def pull_all_from_table_or_query_ibis(
 
     table = table.filter(
         ibis.and_(
-            table[timestamp_field] >= ibis.literal(start_date),
-            table[timestamp_field] <= ibis.literal(end_date),
+            table[timestamp_field] >= ibis.literal(start_date)
+            if start_date
+            else ibis.literal(True),
+            table[timestamp_field] <= ibis.literal(end_date)
+            if end_date
+            else ibis.literal(True),
         )
     )
 

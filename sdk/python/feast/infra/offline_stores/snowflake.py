@@ -62,6 +62,7 @@ from feast.types import (
     String,
     UnixTimestamp,
 )
+from infra.offline_stores.offline_utils import get_timestamp_filter_sql
 
 try:
     from snowflake.connector import SnowflakeConnection
@@ -229,8 +230,8 @@ class SnowflakeOfflineStore(OfflineStore):
         join_key_columns: List[str],
         feature_name_columns: List[str],
         timestamp_field: str,
-        start_date: datetime,
-        end_date: datetime,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
     ) -> RetrievalJob:
         assert isinstance(config.offline_store, SnowflakeOfflineStoreConfig)
         assert isinstance(data_source, SnowflakeSource)
@@ -250,13 +251,12 @@ class SnowflakeOfflineStore(OfflineStore):
         with GetSnowflakeConnection(config.offline_store) as conn:
             snowflake_conn = conn
 
-        start_date = start_date.astimezone(tz=timezone.utc)
-        end_date = end_date.astimezone(tz=timezone.utc)
+        timestamp_filter = get_timestamp_filter_sql(start_date, end_date, timestamp_field, timezone.utc)
 
         query = f"""
             SELECT {field_string}
             FROM {from_expression}
-            WHERE "{timestamp_field}" BETWEEN TIMESTAMP '{start_date}' AND TIMESTAMP '{end_date}'
+            {timestamp_filter}
         """
 
         return SnowflakeRetrievalJob(

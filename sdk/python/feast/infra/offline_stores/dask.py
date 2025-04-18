@@ -314,8 +314,8 @@ class DaskOfflineStore(OfflineStore):
         feature_name_columns: List[str],
         timestamp_field: str,
         created_timestamp_column: Optional[str],
-        start_date: datetime,
-        end_date: datetime,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
     ) -> RetrievalJob:
         assert isinstance(config.offline_store, DaskOfflineStoreConfig)
         assert isinstance(data_source, FileSource)
@@ -359,10 +359,15 @@ class DaskOfflineStore(OfflineStore):
 
                 source_df = source_df.sort_values(by=timestamp_field, npartitions=1)
 
-            source_df = source_df[
-                (source_df[timestamp_field] >= start_date)
-                & (source_df[timestamp_field] < end_date)
-            ]
+            # TODO: The old implementation is inclusive of start_date and exclusive of end_date.
+            # Which is inconsistent with other offline stores.
+            if start_date or end_date:
+                if start_date and end_date:
+                    source_df = source_df[source_df[timestamp_field].between(start_date, end_date)]
+                elif start_date:
+                    source_df = source_df[source_df[timestamp_field] >= start_date]
+                elif end_date:
+                    source_df = source_df[source_df[timestamp_field] < end_date]
 
             source_df = source_df.persist()
 
@@ -393,8 +398,8 @@ class DaskOfflineStore(OfflineStore):
         join_key_columns: List[str],
         feature_name_columns: List[str],
         timestamp_field: str,
-        start_date: datetime,
-        end_date: datetime,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
     ) -> RetrievalJob:
         assert isinstance(config.offline_store, DaskOfflineStoreConfig)
         assert isinstance(data_source, FileSource)

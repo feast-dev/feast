@@ -40,6 +40,7 @@ from feast.infra.registry.base_registry import BaseRegistry
 from feast.infra.utils import aws_utils
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
+from infra.offline_stores.offline_utils import get_timestamp_filter_sql
 
 
 class AthenaOfflineStoreConfig(FeastConfigBaseModel):
@@ -131,8 +132,8 @@ class AthenaOfflineStore(OfflineStore):
         join_key_columns: List[str],
         feature_name_columns: List[str],
         timestamp_field: str,
-        start_date: datetime,
-        end_date: datetime,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
     ) -> RetrievalJob:
         assert isinstance(config.offline_store, AthenaOfflineStoreConfig)
         assert isinstance(data_source, AthenaSource)
@@ -147,10 +148,17 @@ class AthenaOfflineStore(OfflineStore):
 
         date_partition_column = data_source.date_partition_column
 
+        if start_date:
+            start_date = start_date.astimezone(tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+        if end_date:
+            end_date = end_date.astimezone(tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+
+        timestamp_filter = get_timestamp_filter_sql(start_date, end_date, timestamp_field)
+
         query = f"""
             SELECT {field_string}
             FROM {from_expression}
-            WHERE {timestamp_field} BETWEEN TIMESTAMP '{start_date.astimezone(tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]}' AND TIMESTAMP '{end_date.astimezone(tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]}'
+            WHERE {timestamp_filter}
             {"AND " + date_partition_column + " >= '" + start_date.strftime("%Y-%m-%d") + "' AND " + date_partition_column + " <= '" + end_date.strftime("%Y-%m-%d") + "' " if date_partition_column != "" and date_partition_column is not None else ""}
         """
 

@@ -234,8 +234,8 @@ class RemoteOfflineStore(OfflineStore):
         join_key_columns: List[str],
         feature_name_columns: List[str],
         timestamp_field: str,
-        start_date: datetime,
-        end_date: datetime,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
     ) -> RetrievalJob:
         assert isinstance(config.offline_store, RemoteOfflineStoreConfig)
 
@@ -253,8 +253,8 @@ class RemoteOfflineStore(OfflineStore):
             "join_key_columns": join_key_columns,
             "feature_name_columns": feature_name_columns,
             "timestamp_field": timestamp_field,
-            "start_date": start_date.isoformat(),
-            "end_date": end_date.isoformat(),
+            "start_date": start_date.isoformat() if start_date else None,
+            "end_date": end_date.isoformat() if end_date else None,
         }
 
         return RemoteRetrievalJob(

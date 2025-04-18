@@ -41,6 +41,7 @@ from feast.infra.registry.base_registry import BaseRegistry
 from feast.infra.utils import aws_utils
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
+from feast.infra.offline_stores.offline_utils import get_timestamp_filter_sql
 
 
 class RedshiftOfflineStoreConfig(FeastConfigBaseModel):
@@ -173,13 +174,12 @@ class RedshiftOfflineStore(OfflineStore):
         )
         s3_resource = aws_utils.get_s3_resource(config.offline_store.region)
 
-        start_date = start_date.astimezone(tz=timezone.utc)
-        end_date = end_date.astimezone(tz=timezone.utc)
+        timestamp_filter = get_timestamp_filter_sql(start_date, end_date, timestamp_field, timezone.utc)
 
         query = f"""
             SELECT {field_string}
             FROM {from_expression}
-            WHERE {timestamp_field} BETWEEN TIMESTAMP '{start_date}' AND TIMESTAMP '{end_date}'
+            WHERE {timestamp_filter}
         """
 
         return RedshiftRetrievalJob(

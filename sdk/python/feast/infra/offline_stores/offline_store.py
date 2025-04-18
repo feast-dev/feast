@@ -294,8 +294,8 @@ class OfflineStore(ABC):
         join_key_columns: List[str],
         feature_name_columns: List[str],
         timestamp_field: str,
-        start_date: datetime,
-        end_date: datetime,
+        start_date: Optional[datetime],
+        end_date: Optional[datetime],
     ) -> RetrievalJob:
         """
         Extracts all the entity rows (i.e. the combination of join key columns, feature columns, and
@@ -310,8 +310,8 @@ class OfflineStore(ABC):
             join_key_columns: The columns of the join keys.
             feature_name_columns: The columns of the features.
             timestamp_field: The timestamp column.
-            start_date: The start of the time range.
-            end_date: The end of the time range.
+            start_date (Optional): The start of the time range.
+            end_date (Optional): The end of the time range.
 
         Returns:
             A RetrievalJob that can be executed to get the entity rows.

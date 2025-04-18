@@ -46,6 +46,7 @@ from .couchbase_source import (
     CouchbaseColumnarSource,
     SavedDatasetCouchbaseColumnarStorage,
 )
+from ...offline_utils import get_timestamp_filter_sql
 
 # Only prints out runtime warnings once.
 warnings.simplefilter("once", RuntimeWarning)
@@ -247,13 +248,18 @@ class CouchbaseColumnarOfflineStore(OfflineStore):
             join_key_columns + feature_name_columns + [timestamp_field]
         )
 
-        start_date_normalized = normalize_timestamp(start_date)
-        end_date_normalized = normalize_timestamp(end_date)
+        start_date_normalized = normalize_timestamp(start_date) if start_date else None
+        end_date_normalized = normalize_timestamp(end_date) if end_date else None
+        timestamp_filter = get_timestamp_filter_sql(
+            start_date_normalized,
+            end_date_normalized,
+            timestamp_field
+        )
 
         query = f"""
         SELECT {field_string}
         FROM {from_expression}
-        WHERE `{timestamp_field}` BETWEEN '{start_date_normalized}' AND '{end_date_normalized}'
+        WHERE {timestamp_filter}
         """
 
         return CouchbaseColumnarRetrievalJob(

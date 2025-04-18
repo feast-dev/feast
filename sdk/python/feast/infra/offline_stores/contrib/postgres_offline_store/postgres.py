@@ -47,6 +47,7 @@ from feast.saved_dataset import SavedDatasetStorage
 from feast.type_map import pg_type_code_to_arrow
 
 from .postgres_source import PostgreSQLSource
+from ...offline_utils import get_timestamp_filter_sql
 
 
 class EntitySelectMode(Enum):
@@ -237,13 +238,16 @@ class PostgreSQLOfflineStore(OfflineStore):
             join_key_columns + feature_name_columns + [timestamp_field]
         )
 
-        start_date = start_date.astimezone(tz=timezone.utc)
-        end_date = end_date.astimezone(tz=timezone.utc)
+        if start_date:
+            start_date = f"'{start_date}'::timestamptz"
+        if end_date:
+            end_date = f"'{end_date}'::timestamptz"
+        timestamp_filter = get_timestamp_filter_sql(start_date, end_date, timestamp_field, timezone.utc)
 
         query = f"""
             SELECT {field_string}
             FROM {from_expression} AS paftoq_alias
-            WHERE "{timestamp_field}" BETWEEN '{start_date}'::timestamptz AND '{end_date}'::timestamptz
+            WHERE {timestamp_filter}
         """
 
         return PostgreSQLRetrievalJob(

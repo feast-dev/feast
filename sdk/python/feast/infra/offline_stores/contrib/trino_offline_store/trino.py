@@ -35,6 +35,7 @@ from feast.infra.registry.base_registry import BaseRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
+from feast.infra.offline_stores.offline_utils import get_timestamp_filter_sql
 
 
 class BasicAuthModel(FeastConfigBaseModel):
@@ -405,8 +406,8 @@ class TrinoOfflineStore(OfflineStore):
         join_key_columns: List[str],
         feature_name_columns: List[str],
         timestamp_field: str,
-        start_date: datetime,
-        end_date: datetime,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
     ) -> RetrievalJob:
         assert isinstance(config.offline_store, TrinoOfflineStoreConfig)
         assert isinstance(data_source, TrinoSource)
@@ -416,10 +417,12 @@ class TrinoOfflineStore(OfflineStore):
         field_string = ", ".join(
             join_key_columns + feature_name_columns + [timestamp_field]
         )
+
+        timestamp_filter = get_timestamp_filter_sql(start_date, end_date, timestamp_field)
         query = f"""
             SELECT {field_string}
             FROM {from_expression}
-            WHERE {timestamp_field} BETWEEN TIMESTAMP '{start_date}'  AND TIMESTAMP '{end_date}'
+            WHERE {timestamp_filter}
         """
         return TrinoRetrievalJob(
             query=query,

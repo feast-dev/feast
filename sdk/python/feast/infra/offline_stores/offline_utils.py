@@ -1,7 +1,8 @@
 import uuid
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
-from typing import Any, Dict, KeysView, List, Optional, Set, Tuple
+from time import timezone
+from typing import Any, Dict, KeysView, List, Optional, Set, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -45,9 +46,9 @@ def infer_event_timestamp_from_entity_df(entity_schema: Dict[str, np.dtype]) -> 
 
 
 def assert_expected_columns_in_entity_df(
-    entity_schema: Dict[str, np.dtype],
-    join_keys: Set[str],
-    entity_df_event_timestamp_col: str,
+        entity_schema: Dict[str, np.dtype],
+        join_keys: Set[str],
+        entity_df_event_timestamp_col: str,
 ):
     entity_columns = set(entity_schema.keys())
     expected_columns = join_keys | {entity_df_event_timestamp_col}
@@ -59,7 +60,9 @@ def assert_expected_columns_in_entity_df(
 
 # TODO: Remove project and registry from the interface and call sites.
 def get_expected_join_keys(
-    project: str, feature_views: List[FeatureView], registry: BaseRegistry
+        project: str,
+        feature_views: List[FeatureView],
+        registry: BaseRegistry
 ) -> Set[str]:
     join_keys = set()
     for feature_view in feature_views:
@@ -72,7 +75,8 @@ def get_expected_join_keys(
 
 
 def get_entity_df_timestamp_bounds(
-    entity_df: pd.DataFrame, event_timestamp_col: str
+        entity_df: pd.DataFrame,
+        event_timestamp_col: str
 ) -> Tuple[Timestamp, Timestamp]:
     event_timestamp_series = entity_df[event_timestamp_col]
     return event_timestamp_series.min(), event_timestamp_series.max()
@@ -99,11 +103,11 @@ class FeatureViewQueryContext:
 
 
 def get_feature_view_query_context(
-    feature_refs: List[str],
-    feature_views: List[FeatureView],
-    registry: BaseRegistry,
-    project: str,
-    entity_df_timestamp_range: Tuple[datetime, datetime],
+        feature_refs: List[str],
+        feature_views: List[FeatureView],
+        registry: BaseRegistry,
+        project: str,
+        entity_df_timestamp_range: Tuple[datetime, datetime],
 ) -> List[FeatureViewQueryContext]:
     """
     Build a query context containing all information required to template a BigQuery and
@@ -182,12 +186,12 @@ def get_feature_view_query_context(
 
 
 def build_point_in_time_query(
-    feature_view_query_contexts: List[FeatureViewQueryContext],
-    left_table_query_string: str,
-    entity_df_event_timestamp_col: str,
-    entity_df_columns: KeysView[str],
-    query_template: str,
-    full_feature_names: bool = False,
+        feature_view_query_contexts: List[FeatureViewQueryContext],
+        left_table_query_string: str,
+        entity_df_event_timestamp_col: str,
+        entity_df_columns: KeysView[str],
+        query_template: str,
+        full_feature_names: bool = False,
 ) -> str:
     """Build point-in-time query between each feature view table and the entity dataframe for Bigquery and Redshift"""
     env = Environment(loader=BaseLoader())
@@ -238,7 +242,9 @@ def get_offline_store_from_config(offline_store_config: Any) -> OfflineStore:
 
 
 def get_pyarrow_schema_from_batch_source(
-    config: RepoConfig, batch_source: DataSource, timestamp_unit: str = "us"
+        config: RepoConfig,
+        batch_source: DataSource,
+        timestamp_unit: str = "us"
 ) -> Tuple[pa.Schema, List[str]]:
     """Returns the pyarrow schema and column names for the given batch source."""
     column_names_and_types = batch_source.get_table_column_names_and_types(config)
@@ -266,3 +272,42 @@ def enclose_in_backticks(value):
         return [f"`{v}`" for v in value]
     else:
         return f"`{value}`"
+
+
+def get_timestamp_filter_sql(
+    start_date: Optional[Union[datetime, str]] = None,
+    end_date: Optional[Union[datetime, str]] = None,
+    timestamp_field: Optional[str] = DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL,
+    tz: Optional[timezone] = None,
+) -> str:
+    """
+    Returns a SQL WHERE clause using TIMESTAMP('...') wrapping.
+    - If input is datetime: uses .isoformat()
+    - If input is str: uses it as-is (user responsibility)
+
+    Example:
+        WHERE event_timestamp BETWEEN TIMESTAMP('2023-04-01T00:00:00') AND TIMESTAMP('2023-04-02T00:00:00')
+    """
+    def format_value(val: Union[str, datetime]) -> str:
+        val_str = val
+        if isinstance(val, datetime):
+            if tz:
+                val = val.astimezone(tz)
+            val_str = val.isoformat()
+        return f"TIMESTAMP('{val_str}')"
+
+    if start_date:
+        start_date = format_value(start_date)
+    if end_date:
+        end_date = format_value(end_date)
+
+    if start_date and end_date:
+        return f"WHERE {timestamp_field} BETWEEN {start_date} AND {end_date}"
+    elif start_date:
+        return f"WHERE {timestamp_field} >= {start_date}"
+    elif end_date:
+        return f"WHERE {timestamp_field} <= {end_date}"
+    else:
+        return ""
+
+

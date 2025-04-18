@@ -34,6 +34,7 @@ from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 from feast.type_map import spark_schema_to_np_dtypes
 from feast.utils import _get_fields_with_aliases
+from feast.infra.offline_stores.offline_utils import get_timestamp_filter_sql
 
 # Make sure spark warning doesn't raise more than once.
 warnings.simplefilter("once", RuntimeWarning)
@@ -269,8 +270,8 @@ class SparkOfflineStore(OfflineStore):
         join_key_columns: List[str],
         feature_name_columns: List[str],
         timestamp_field: str,
-        start_date: datetime,
-        end_date: datetime,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
     ) -> RetrievalJob:
         """
         Note that join_key_columns, feature_name_columns, timestamp_field, and
@@ -296,13 +297,12 @@ class SparkOfflineStore(OfflineStore):
         fields_with_alias_string = ", ".join(fields_with_aliases)
 
         from_expression = data_source.get_table_query_string()
-        start_date = start_date.astimezone(tz=timezone.utc)
-        end_date = end_date.astimezone(tz=timezone.utc)
+        timestamp_filter = get_timestamp_filter_sql(start_date, end_date, timestamp_field, timezone.utc)
 
         query = f"""
             SELECT {fields_with_alias_string}
             FROM {from_expression}
-            WHERE {timestamp_field} BETWEEN TIMESTAMP '{start_date}' AND TIMESTAMP '{end_date}'
+            {timestamp_filter}
         """
 
         return SparkRetrievalJob(
