@@ -244,6 +244,7 @@ class PostgreSQLOfflineStore(OfflineStore):
             timestamp_field,
             tz=timezone.utc,
             cast_style="timestamptz",
+            date_time_separator=" ",  # backwards compatibility but inconsistent with other offline stores
         )
 
         query = f"""

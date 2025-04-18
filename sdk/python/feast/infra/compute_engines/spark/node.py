@@ -161,7 +161,7 @@ class SparkJoinNode(DAGNode):
         feature_df: DataFrame = feature_value.data
 
         entity_df = context.entity_df
-        if not entity_df:
+        if entity_df is None:
             return DAGValue(
                 data=feature_df,
                 format=DAGFormat.SPARK,

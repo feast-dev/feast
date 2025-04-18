@@ -247,11 +247,16 @@ class CouchbaseColumnarOfflineStore(OfflineStore):
         field_string = ", ".join(
             join_key_columns + feature_name_columns + [timestamp_field]
         )
-
-        start_date_normalized = normalize_timestamp(start_date) if start_date else None
-        end_date_normalized = normalize_timestamp(end_date) if end_date else None
+        start_date_normalized = (
+            f"`{normalize_timestamp(start_date)}`" if start_date else None
+        )
+        end_date_normalized = f"`{normalize_timestamp(end_date)}`" if end_date else None
         timestamp_filter = get_timestamp_filter_sql(
-            start_date_normalized, end_date_normalized, timestamp_field
+            start_date_normalized,
+            end_date_normalized,
+            timestamp_field,
+            cast_style="raw",
+            quote_fields=False,
         )
 
         query = f"""

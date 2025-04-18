@@ -275,6 +275,8 @@ def get_timestamp_filter_sql(
     date_partition_column: Optional[str] = None,
     tz: Optional[timezone] = None,
     cast_style: Literal["timestamp_func", "timestamptz", "raw"] = "timestamp_func",
+    date_time_separator: str = "T",
+    quote_fields: bool = True,
 ) -> str:
     """
     Returns SQL filter condition (no WHERE) with flexible timestamp casting.
@@ -289,21 +291,33 @@ def get_timestamp_filter_sql(
             - "timestamp_func": TIMESTAMP('...')         → Snowflake, BigQuery, Athena
             - "timestamptz": '...'::timestamptz          → PostgreSQL
             - "raw": '...'                               → no cast, string only
+        date_time_separator: separator for datetime strings (default is "T")
+            (e.g. "2023-10-01T00:00:00" or "2023-10-01 00:00:00")
+        quote_fields: whether to quote the timestamp and partition column names
 
     Returns:
         SQL filter string without WHERE
     """
 
+    def quote_column_if_needed(column: Optional[str]) -> Optional[str]:
+        if not column or not quote_fields:
+            return column
+        return f'"{column}"'
+
     def format_casted_ts(val: Union[str, datetime]) -> str:
         if isinstance(val, datetime):
             if tz:
                 val = val.astimezone(tz)
-        if cast_style == "timestamp_func":
-            return f"TIMESTAMP('{val}')"
-        elif cast_style == "timestamptz":
-            return f"'{val}'::timestamptz"
+            val_str = val.isoformat(sep=date_time_separator)
         else:
-            return f"'{val}'"
+            val_str = val
+
+        if cast_style == "timestamp_func":
+            return f"TIMESTAMP('{val_str}')"
+        elif cast_style == "timestamptz":
+            return f"'{val_str}'::timestamptz"
+        else:
+            return f"'{val_str}'"
 
     def format_date(val: Union[str, datetime]) -> str:
         if isinstance(val, datetime):
@@ -312,23 +326,26 @@ def get_timestamp_filter_sql(
             return val.strftime("%Y-%m-%d")
         return val
 
+    ts_field = quote_column_if_needed(timestamp_field)
+    dp_field = quote_column_if_needed(date_partition_column)
+
     filters = []
 
     # Timestamp filters
     if start_date and end_date:
         filters.append(
-            f'"{timestamp_field}" BETWEEN {format_casted_ts(start_date)} AND {format_casted_ts(end_date)}'
+            f"{ts_field} BETWEEN {format_casted_ts(start_date)} AND {format_casted_ts(end_date)}"
         )
     elif start_date:
-        filters.append(f"{timestamp_field} >= {format_casted_ts(start_date)}")
+        filters.append(f"{ts_field} >= {format_casted_ts(start_date)}")
     elif end_date:
-        filters.append(f"{timestamp_field} <= {format_casted_ts(end_date)}")
+        filters.append(f"{ts_field} <= {format_casted_ts(end_date)}")
 
     # Partition pruning
     if date_partition_column:
         if start_date:
-            filters.append(f"{date_partition_column} >= '{format_date(start_date)}'")
+            filters.append(f"{dp_field} >= '{format_date(start_date)}'")
         if end_date:
-            filters.append(f"{date_partition_column} <= '{format_date(end_date)}'")
+            filters.append(f"{dp_field} <= '{format_date(end_date)}'")
 
     return " AND ".join(filters) if filters else ""

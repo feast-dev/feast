@@ -160,7 +160,12 @@ class AthenaOfflineStore(OfflineStore):
             )[:-3]
 
         timestamp_filter = get_timestamp_filter_sql(
-            start_date_str, end_date_str, timestamp_field, date_partition_column
+            start_date_str,
+            end_date_str,
+            timestamp_field,
+            date_partition_column,
+            cast_style="raw",
+            quote_fields=False,
         )
 
         query = f"""
