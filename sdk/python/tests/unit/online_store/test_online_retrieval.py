@@ -1659,3 +1659,4 @@ def test_milvus_keyword_search() -> None:
         assert len(result_hybrid["content"]) > 0
         assert any("Feast" in content for content in result_hybrid["content"])
         assert len(result_hybrid["vector"]) > 0
+        assert 1 == 2
