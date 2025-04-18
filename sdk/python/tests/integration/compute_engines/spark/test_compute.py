@@ -161,8 +161,6 @@ def test_spark_compute_engine_get_historical_features():
             feature_view=driver_stats_fv,
             full_feature_name=False,
             registry=registry,
-            start_time=now - timedelta(days=1),
-            end_time=now,
         )
 
         # 🧪 Run SparkComputeEngine

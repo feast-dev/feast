@@ -211,13 +211,13 @@ class SparkFilterNode(DAGNode):
         if ENTITY_TS_ALIAS in input_df.columns:
             filtered_df = filtered_df.filter(F.col(ts_col) <= F.col(ENTITY_TS_ALIAS))
 
-        # Optional TTL filter: feature.ts >= entity.event_timestamp - ttl
-        if self.ttl:
-            ttl_seconds = int(self.ttl.total_seconds())
-            lower_bound = F.col(ENTITY_TS_ALIAS) - F.expr(
-                f"INTERVAL {ttl_seconds} seconds"
-            )
-            filtered_df = filtered_df.filter(F.col(ts_col) >= lower_bound)
+            # Optional TTL filter: feature.ts >= entity.event_timestamp - ttl
+            if self.ttl:
+                ttl_seconds = int(self.ttl.total_seconds())
+                lower_bound = F.col(ENTITY_TS_ALIAS) - F.expr(
+                    f"INTERVAL {ttl_seconds} seconds"
+                )
+                filtered_df = filtered_df.filter(F.col(ts_col) >= lower_bound)
 
         # Optional custom filter condition
         if self.filter_condition:
