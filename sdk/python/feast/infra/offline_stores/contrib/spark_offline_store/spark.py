@@ -304,7 +304,7 @@ class SparkOfflineStore(OfflineStore):
         query = f"""
             SELECT {fields_with_alias_string}
             FROM {from_expression}
-            {timestamp_filter}
+            WHERE {timestamp_filter}
         """
 
         return SparkRetrievalJob(

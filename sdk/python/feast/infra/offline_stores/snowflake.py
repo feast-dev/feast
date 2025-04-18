@@ -258,7 +258,7 @@ class SnowflakeOfflineStore(OfflineStore):
         query = f"""
             SELECT {field_string}
             FROM {from_expression}
-            {timestamp_filter}
+            WHERE {timestamp_filter}
         """
 
         return SnowflakeRetrievalJob(
