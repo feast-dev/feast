@@ -294,8 +294,8 @@ class OfflineStore(ABC):
         join_key_columns: List[str],
         feature_name_columns: List[str],
         timestamp_field: str,
-        start_date: Optional[datetime],
-        end_date: Optional[datetime],
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
     ) -> RetrievalJob:
         """
         Extracts all the entity rows (i.e. the combination of join key columns, feature columns, and
