@@ -274,7 +274,9 @@ def get_timestamp_filter_sql(
     timestamp_field: Optional[str] = DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL,
     date_partition_column: Optional[str] = None,
     tz: Optional[timezone] = None,
-    cast_style: Literal["timestamp_func", "timestamp", "timestamptz", "raw"] = "timestamp_func",
+    cast_style: Literal[
+        "timestamp", "timestamp_func", "timestamptz", "raw"
+    ] = "timestamp",
     date_time_separator: str = "T",
     quote_fields: bool = True,
 ) -> str:
@@ -312,9 +314,11 @@ def get_timestamp_filter_sql(
         else:
             val_str = val
 
-        if cast_style == "timestamp_func":
+        if cast_style == "timestamp":
+            return f"TIMESTAMP '{val_str}'"
+        elif cast_style == "timestamp_func":
             return f"TIMESTAMP('{val_str}')"
-        elif cast_style in ("timestamptz", "timestamp"):
+        elif cast_style == "timestamptz":
             return f"'{val_str}'::{cast_style}"
         else:
             return f"'{val_str}'"

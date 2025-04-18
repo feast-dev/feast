@@ -208,7 +208,7 @@ class BigQueryOfflineStore(OfflineStore):
             + [timestamp_field]
         )
         timestamp_filter = get_timestamp_filter_sql(
-            start_date, end_date, timestamp_field, quote_fields=False
+            start_date, end_date, timestamp_field, quote_fields=False, cast_style="timestamp_func"
         )
         query = f"""
             SELECT {field_string}
