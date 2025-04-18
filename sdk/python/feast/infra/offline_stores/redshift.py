@@ -175,7 +175,7 @@ class RedshiftOfflineStore(OfflineStore):
         s3_resource = aws_utils.get_s3_resource(config.offline_store.region)
 
         timestamp_filter = get_timestamp_filter_sql(
-            start_date, end_date, timestamp_field, tz=timezone.utc
+            start_date, end_date, timestamp_field, tz=timezone.utc, cast_style="timestamp"
         )
 
         query = f"""
