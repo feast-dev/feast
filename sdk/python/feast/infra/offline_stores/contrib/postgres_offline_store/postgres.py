@@ -46,7 +46,7 @@ from feast.repo_config import RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 from feast.type_map import pg_type_code_to_arrow
 
-from ...offline_utils import get_timestamp_filter_sql
+from feast.infra.offline_stores.offline_utils import get_timestamp_filter_sql
 from .postgres_source import PostgreSQLSource
 
 
