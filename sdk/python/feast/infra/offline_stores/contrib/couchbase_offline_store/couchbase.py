@@ -229,6 +229,7 @@ class CouchbaseColumnarOfflineStore(OfflineStore):
         join_key_columns: List[str],
         feature_name_columns: List[str],
         timestamp_field: str,
+        created_timestamp_column: Optional[str] = None,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
     ) -> RetrievalJob:
@@ -244,8 +245,11 @@ class CouchbaseColumnarOfflineStore(OfflineStore):
         assert isinstance(data_source, CouchbaseColumnarSource)
         from_expression = data_source.get_table_query_string()
 
+        timestamp_fields = [timestamp_field]
+        if created_timestamp_column:
+            timestamp_fields.append(created_timestamp_column)
         field_string = ", ".join(
-            join_key_columns + feature_name_columns + [timestamp_field]
+            join_key_columns + feature_name_columns + timestamp_fields
         )
         start_date_normalized = (
             f"`{normalize_timestamp(start_date)}`" if start_date else None

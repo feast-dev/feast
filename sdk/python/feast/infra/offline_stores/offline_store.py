@@ -294,6 +294,7 @@ class OfflineStore(ABC):
         join_key_columns: List[str],
         feature_name_columns: List[str],
         timestamp_field: str,
+        created_timestamp_column: Optional[str] = None,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
     ) -> RetrievalJob:
@@ -309,7 +310,8 @@ class OfflineStore(ABC):
             data_source: The data source from which the entity rows will be extracted.
             join_key_columns: The columns of the join keys.
             feature_name_columns: The columns of the features.
-            timestamp_field: The timestamp column.
+            timestamp_field: The timestamp column, used to determine which rows are the most recent.
+            created_timestamp_column (Optional): The column indicating when the row was created, used to break ties.
             start_date (Optional): The start of the time range.
             end_date (Optional): The end of the time range.
 

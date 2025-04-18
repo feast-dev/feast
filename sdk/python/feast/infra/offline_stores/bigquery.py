@@ -189,6 +189,7 @@ class BigQueryOfflineStore(OfflineStore):
         join_key_columns: List[str],
         feature_name_columns: List[str],
         timestamp_field: str,
+        created_timestamp_column: Optional[str] = None,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
     ) -> RetrievalJob:
@@ -202,10 +203,14 @@ class BigQueryOfflineStore(OfflineStore):
             project=project_id,
             location=config.offline_store.location,
         )
+
+        timestamp_fields = [timestamp_field]
+        if created_timestamp_column:
+            timestamp_fields.append(created_timestamp_column)
         field_string = ", ".join(
             BigQueryOfflineStore._escape_query_columns(join_key_columns)
             + BigQueryOfflineStore._escape_query_columns(feature_name_columns)
-            + [timestamp_field]
+            + timestamp_fields
         )
         timestamp_filter = get_timestamp_filter_sql(
             start_date,

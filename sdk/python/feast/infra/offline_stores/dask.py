@@ -402,6 +402,7 @@ class DaskOfflineStore(OfflineStore):
         join_key_columns: List[str],
         feature_name_columns: List[str],
         timestamp_field: str,
+        created_timestamp_column: Optional[str] = None,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
     ) -> RetrievalJob:
@@ -415,7 +416,7 @@ class DaskOfflineStore(OfflineStore):
             + [timestamp_field],  # avoid deduplication
             feature_name_columns=feature_name_columns,
             timestamp_field=timestamp_field,
-            created_timestamp_column=None,
+            created_timestamp_column=created_timestamp_column,
             start_date=start_date,
             end_date=end_date,
         )

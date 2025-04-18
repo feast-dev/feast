@@ -76,6 +76,7 @@ class SparkReadNode(DAGNode):
             join_key_columns=join_key_columns,
             feature_name_columns=feature_name_columns,
             timestamp_field=timestamp_field,
+            created_timestamp_column=created_timestamp_column,
             start_date=self.start_time,
             end_date=self.end_time,
         )

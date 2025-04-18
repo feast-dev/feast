@@ -262,12 +262,16 @@ def pull_all_from_table_or_query_ibis(
     timestamp_field: str,
     data_source_reader: Callable[[DataSource, str], Table],
     data_source_writer: Callable[[pyarrow.Table, DataSource, str], None],
+    created_timestamp_column: Optional[str] = None,
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
     staging_location: Optional[str] = None,
     staging_location_endpoint_override: Optional[str] = None,
 ) -> RetrievalJob:
-    fields = join_key_columns + feature_name_columns + [timestamp_field]
+    timestamp_fields = [timestamp_field]
+    if created_timestamp_column:
+        timestamp_fields.append(created_timestamp_column)
+    fields = join_key_columns + feature_name_columns + timestamp_fields
     if start_date:
         start_date = start_date.astimezone(tz=timezone.utc)
     if end_date:
