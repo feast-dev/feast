@@ -1,7 +1,8 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Optional
 
 import pyarrow as pa
+from data_source import DataSource
 
 from feast.infra.compute_engines.dag.context import ExecutionContext
 from feast.infra.compute_engines.local.arrow_table_value import ArrowTableValue
@@ -15,14 +16,39 @@ ENTITY_TS_ALIAS = "__entity_event_timestamp"
 
 
 class LocalSourceReadNode(LocalNode):
-    def __init__(self, name: str, feature_view, task):
+    def __init__(
+        self,
+        name: str,
+        source: DataSource,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
+    ):
         super().__init__(name)
-        self.feature_view = feature_view
-        self.task = task
+        self.source = source
+        self.start_time = start_time
+        self.end_time = end_time
 
     def execute(self, context: ExecutionContext) -> ArrowTableValue:
-        # TODO : Implement the logic to read from offline store
-        return ArrowTableValue(data=pa.Table.from_pandas(context.entity_df))
+        offline_store = context.offline_store
+        (
+            join_key_columns,
+            feature_name_columns,
+            timestamp_field,
+            created_timestamp_column,
+        ) = context.column_info
+
+        # 📥 Reuse Feast's robust query resolver
+        retrieval_job = offline_store.pull_all_from_table_or_query(
+            config=context.repo_config,
+            data_source=self.source,
+            join_key_columns=join_key_columns,
+            feature_name_columns=feature_name_columns,
+            timestamp_field=timestamp_field,
+            start_date=self.start_time,
+            end_date=self.end_time,
+        )
+        arrow_table = retrieval_job.to_arrow()
+        return ArrowTableValue(data=arrow_table)
 
 
 class LocalJoinNode(LocalNode):
