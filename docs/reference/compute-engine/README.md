@@ -31,10 +31,11 @@ This system builds and executes DAGs (Directed Acyclic Graphs) of typed operatio
 - Supports point-in-time joins and large-scale materialization
 - Integrates with `SparkOfflineStore` and `SparkMaterializationJob`
 
-### 🧪 LocalComputeEngine (WIP)
+### 🧪 LocalComputeEngine
 
-- Runs on Arrow + Pandas (or optionally DuckDB)
+- Runs on Arrow + Specified backend (e.g., Pandas, Polars)
 - Designed for local dev, testing, or lightweight feature generation
+- Supports `LocalMaterializationJob` and `LocalHistoricalRetrievalJob`
 
 ---
 

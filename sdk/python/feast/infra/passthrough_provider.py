@@ -24,11 +24,13 @@ from feast.entity import Entity
 from feast.feature_logging import FeatureServiceLoggingSource
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
+from feast.infra.common.materialization_job import (
+    MaterializationJobStatus,
+    MaterializationTask,
+)
 from feast.infra.infra_object import Infra, InfraObject
 from feast.infra.materialization.batch_materialization_engine import (
     BatchMaterializationEngine,
-    MaterializationJobStatus,
-    MaterializationTask,
 )
 from feast.infra.offline_stores.offline_store import RetrievalJob
 from feast.infra.offline_stores.offline_utils import get_offline_store_from_config

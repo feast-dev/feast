@@ -4,12 +4,12 @@ from typing import Union
 import pyarrow as pa
 
 from feast import RepoConfig
-from feast.infra.compute_engines.dag.context import ColumnInfo, ExecutionContext
-from feast.infra.compute_engines.tasks import HistoricalRetrievalTask
-from feast.infra.materialization.batch_materialization_engine import (
+from feast.infra.common.materialization_job import (
     MaterializationJob,
     MaterializationTask,
 )
+from feast.infra.common.retrieval_task import HistoricalRetrievalTask
+from feast.infra.compute_engines.dag.context import ColumnInfo, ExecutionContext
 from feast.infra.offline_stores.offline_store import OfflineStore
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.registry.registry import Registry

@@ -15,11 +15,13 @@ from feast.batch_feature_view import BatchFeatureView
 from feast.constants import FEATURE_STORE_YAML_ENV_NAME
 from feast.entity import Entity
 from feast.feature_view import FeatureView
-from feast.infra.materialization.batch_materialization_engine import (
-    BatchMaterializationEngine,
+from feast.infra.common.materialization_job import (
     MaterializationJob,
     MaterializationJobStatus,
     MaterializationTask,
+)
+from feast.infra.materialization.batch_materialization_engine import (
+    BatchMaterializationEngine,
 )
 from feast.infra.offline_stores.offline_store import OfflineStore
 from feast.infra.online_stores.online_store import OnlineStore

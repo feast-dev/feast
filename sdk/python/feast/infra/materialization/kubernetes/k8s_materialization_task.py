@@ -1,4 +1,4 @@
-from feast.infra.materialization.batch_materialization_engine import MaterializationTask
+from feast.infra.common.materialization_job import MaterializationTask
 
 
 class KubernetesMaterializationTask(MaterializationTask):

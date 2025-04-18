@@ -1,11 +1,10 @@
 from abc import ABC, abstractmethod
 from typing import Union
 
-from feast import BatchFeatureView, FeatureView, StreamFeatureView
+from feast.infra.common.materialization_job import MaterializationTask
+from feast.infra.common.retrieval_task import HistoricalRetrievalTask
 from feast.infra.compute_engines.dag.node import DAGNode
 from feast.infra.compute_engines.dag.plan import ExecutionPlan
-from feast.infra.compute_engines.tasks import HistoricalRetrievalTask
-from feast.infra.materialization.batch_materialization_engine import MaterializationTask
 
 
 class FeatureBuilder(ABC):
@@ -16,10 +15,9 @@ class FeatureBuilder(ABC):
 
     def __init__(
         self,
-        feature_view: Union[BatchFeatureView, StreamFeatureView, FeatureView],
         task: Union[MaterializationTask, HistoricalRetrievalTask],
     ):
-        self.feature_view = feature_view
+        self.feature_view = task.feature_view
         self.task = task
         self.nodes: list[DAGNode] = []
 

@@ -16,7 +16,6 @@ from feast.infra.compute_engines.spark.node import (
 )
 from tests.example_repos.example_feature_repo_with_bfvs import (
     driver,
-    driver_hourly_stats_view,
 )
 
 
@@ -69,10 +68,8 @@ def test_spark_transformation_node_executes_udf(spark_session):
     )
 
     # Create and run the node
-    node = SparkTransformationNode(
-        "transform", input_node=MagicMock(), udf=strip_extra_spaces
-    )
-
+    node = SparkTransformationNode("transform", udf=strip_extra_spaces)
+    node.add_input(MagicMock())
     node.inputs[0].name = "source"
     result = node.execute(context)
 
@@ -119,11 +116,11 @@ def test_spark_aggregation_node_executes_correctly(spark_session):
     # Create and configure node
     node = SparkAggregationNode(
         name="agg",
-        input_node=MagicMock(),
         aggregations=agg_specs,
         group_by_keys=["user_id"],
         timestamp_col="",
     )
+    node.add_input(MagicMock())
     node.inputs[0].name = "source"
 
     # Execute
@@ -182,9 +179,6 @@ def test_spark_join_node_executes_point_in_time_join(spark_session):
     # Wrap as DAGValues
     feature_val = DAGValue(data=feature_df, format=DAGFormat.SPARK)
 
-    # Setup FeatureView mock with batch_source metadata
-    feature_view = driver_hourly_stats_view
-
     # Set up context
     context = ExecutionContext(
         project="test_project",
@@ -207,12 +201,10 @@ def test_spark_join_node_executes_point_in_time_join(spark_session):
     # Create the node and add input
     join_node = SparkJoinNode(
         name="join",
-        feature_node=MagicMock(name="feature_node"),
-        join_keys=["user_id"],
-        feature_view=feature_view,
         spark_session=spark_session,
     )
-    join_node.inputs[0].name = "feature_node"  # must match key in node_outputs
+    join_node.add_input(MagicMock())
+    join_node.inputs[0].name = "feature_node"
 
     # Execute the node
     output = join_node.execute(context)
@@ -220,11 +212,10 @@ def test_spark_join_node_executes_point_in_time_join(spark_session):
 
     dedup_node = SparkDedupNode(
         name="dedup",
-        input_node=join_node,
-        feature_view=feature_view,
         spark_session=spark_session,
     )
-    dedup_node.inputs[0].name = "join"  # must match key in node_outputs
+    dedup_node.add_input(MagicMock())
+    dedup_node.inputs[0].name = "join"
     dedup_output = dedup_node.execute(context)
     result_df = dedup_output.data.orderBy("driver_id").collect()
 
