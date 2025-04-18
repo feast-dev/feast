@@ -298,16 +298,12 @@ def get_timestamp_filter_sql(
         if isinstance(val, datetime):
             if tz:
                 val = val.astimezone(tz)
-            val_str = val.isoformat()
-        else:
-            val_str = val
-
         if cast_style == "timestamp_func":
-            return f"TIMESTAMP('{val_str}')"
+            return f"TIMESTAMP('{val}')"
         elif cast_style == "timestamptz":
-            return f"'{val_str}'::timestamptz"
-        else:  # raw
-            return f"'{val_str}'"
+            return f"'{val}'::timestamptz"
+        else:
+            return f"'{val}'"
 
     def format_date(val: Union[str, datetime]) -> str:
         if isinstance(val, datetime):
@@ -321,7 +317,7 @@ def get_timestamp_filter_sql(
     # Timestamp filters
     if start_date and end_date:
         filters.append(
-            f"{timestamp_field} BETWEEN {format_casted_ts(start_date)} AND {format_casted_ts(end_date)}"
+            f'"{timestamp_field}" BETWEEN {format_casted_ts(start_date)} AND {format_casted_ts(end_date)}'
         )
     elif start_date:
         filters.append(f"{timestamp_field} >= {format_casted_ts(start_date)}")
