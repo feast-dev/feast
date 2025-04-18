@@ -290,7 +290,8 @@ def get_timestamp_filter_sql(
         date_partition_column: optional partition column (for pruning)
         tz: optional timezone for datetime inputs
         cast_style: one of:
-            - "timestamp_func": TIMESTAMP('...')         → Snowflake, BigQuery, Athena
+            - "timestamp": TIMESTAMP '...'                  → Common Sql engine Snowflake, Redshift etc.
+            - "timestamp_func": TIMESTAMP('...')         → BigQuery, Couchbase etc.
             - "timestamptz": '...'::timestamptz          → PostgreSQL
             - "raw": '...'                               → no cast, string only
         date_time_separator: separator for datetime strings (default is "T")
