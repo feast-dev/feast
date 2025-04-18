@@ -2,8 +2,8 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 import pyarrow as pa
-from data_source import DataSource
 
+from feast.data_source import DataSource
 from feast.infra.compute_engines.dag.context import ExecutionContext
 from feast.infra.compute_engines.local.arrow_table_value import ArrowTableValue
 from feast.infra.compute_engines.local.backends.base import DataFrameBackend

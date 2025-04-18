@@ -18,7 +18,6 @@ import numpy as np
 import pandas as pd
 import pyarrow
 import pyarrow as pa
-from infra.offline_stores.offline_utils import get_timestamp_filter_sql
 from pydantic import StrictStr
 
 from feast import OnDemandFeatureView
@@ -37,6 +36,7 @@ from feast.infra.offline_stores.offline_store import (
     RetrievalJob,
     RetrievalMetadata,
 )
+from feast.infra.offline_stores.offline_utils import get_timestamp_filter_sql
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.infra.utils import aws_utils
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
