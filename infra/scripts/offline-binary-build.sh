@@ -9,9 +9,34 @@ cd ${PROJECT_ROOT_DIR}
 rm -rf ./offline_build
 mkdir offline_build
 
-alias cachi2='docker run --rm -ti -v "$PWD:$PWD:z" -w "$PWD" quay.io/konflux-ci/cachi2:f7a61b067f4446e4982d0e3b9545ce4aa0d8284f'
-cachi2 fetch-deps \
-  --output ${OFFLINE_BUILD_DIR}/cachi2-output \
+alias hermeto='docker run --rm -ti -v "$PWD:$PWD:Z" -w "$PWD" quay.io/konflux-ci/hermeto:0.24.0'
+# not needed for downstream build from release
+###############################
+# yarn builder
+docker build \
+  --tag yarn-builder \
+  -f sdk/python/feast/infra/feature_servers/multicloud/offline/Dockerfile.builder.yarn \
+  sdk/python/feast/infra/feature_servers/multicloud/offline
+
+hermeto fetch-deps \
+  --output ${OFFLINE_BUILD_DIR}/hermeto-yarn-ui-output \
+  '{
+  "type": "yarn",
+  "path": "ui"
+}'
+hermeto generate-env -o ${OFFLINE_BUILD_DIR}/hermeto-yarn-ui.env --for-output-dir /tmp/hermeto-yarn-ui-output ${OFFLINE_BUILD_DIR}/hermeto-yarn-ui-output
+
+hermeto fetch-deps \
+  --output ${OFFLINE_BUILD_DIR}/hermeto-yarn-output \
+  '{
+  "type": "yarn",
+  "path": "sdk/python/feast/ui"
+}'
+hermeto generate-env -o ${OFFLINE_BUILD_DIR}/hermeto-yarn.env --for-output-dir /tmp/hermeto-yarn-output ${OFFLINE_BUILD_DIR}/hermeto-yarn-output
+###############################
+
+hermeto fetch-deps \
+  --output ${OFFLINE_BUILD_DIR}/hermeto-output \
   '{
   "type": "pip",
   "path": ".",
@@ -20,20 +45,24 @@ cachi2 fetch-deps \
 ],
   "requirements_build_files": [
 "sdk/python/requirements/py3.11-minimal-requirements.txt",
-"sdk/python/requirements/py3.11-sdist-requirements.txt"
+"sdk/python/requirements/py3.11-minimal-sdist-requirements.txt",
+"sdk/python/requirements/py3.11-minimal-sdist-requirements-build.txt"
 ],
   "allow_binary": "true"
 }'
-
-cachi2 generate-env ${OFFLINE_BUILD_DIR}/cachi2-output -o ${OFFLINE_BUILD_DIR}/cachi2.env --for-output-dir /tmp/cachi2-output
+hermeto generate-env -o ${OFFLINE_BUILD_DIR}/hermeto.env --for-output-dir /tmp/hermeto-output ${OFFLINE_BUILD_DIR}/hermeto-output
 
 # feast OFFLINE builder
 docker build \
-  --volume ${OFFLINE_BUILD_DIR}/cachi2-output:/tmp/cachi2-output:Z \
-  --volume ${OFFLINE_BUILD_DIR}/cachi2.env:/tmp/cachi2.env:Z \
+  --volume ${OFFLINE_BUILD_DIR}/hermeto-yarn-ui-output:/tmp/hermeto-yarn-ui-output:Z \
+  --volume ${OFFLINE_BUILD_DIR}/hermeto-yarn-ui.env:/tmp/hermeto-yarn-ui.env:Z \
+  --volume ${OFFLINE_BUILD_DIR}/hermeto-yarn-output:/tmp/hermeto-yarn-output:Z \
+  --volume ${OFFLINE_BUILD_DIR}/hermeto-yarn.env:/tmp/hermeto-yarn.env:Z \
+  --volume ${OFFLINE_BUILD_DIR}/hermeto-output:/tmp/hermeto-output:Z \
+  --volume ${OFFLINE_BUILD_DIR}/hermeto.env:/tmp/hermeto.env:Z \
   --network none \
   --tag feature-server:binary-build \
   -f sdk/python/feast/infra/feature_servers/multicloud/offline/Dockerfile.binary \
-  --load sdk/python/feast/infra/feature_servers/multicloud
+  ${PROJECT_ROOT_DIR}
 
 docker run --rm -ti feature-server:binary-build feast version

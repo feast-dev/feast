@@ -1,2 +1,0 @@
-psycopg @ git+https://github.com/psycopg/psycopg@664b2a12d68d9f826b58ea004f05460448e78bca#subdirectory=psycopg
-psycopg-pool @ git+https://github.com/psycopg/psycopg@dfc113613c067600355a14c2e4010d03cbef51bd#subdirectory=psycopg_pool
