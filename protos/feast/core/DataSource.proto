@@ -226,6 +226,9 @@ message DataSource {
 
     // Format of files at `path` (e.g. parquet, avro, etc)
     string file_format = 4;
+
+    // Date Format of date partition column (e.g. %Y-%m-%d)
+    string date_partition_column_format = 5;
   }
 
   // Defines configuration for custom third-party data sources.

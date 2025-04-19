@@ -1,6 +1,10 @@
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
+import pandas as pd
+
+from feast.entity import Entity
+from feast.feature_view import FeatureView, Field
 from feast.infra.offline_stores.contrib.spark_offline_store.spark import (
     SparkOfflineStore,
     SparkOfflineStoreConfig,
@@ -10,6 +14,7 @@ from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import 
 )
 from feast.infra.offline_stores.offline_store import RetrievalJob
 from feast.repo_config import RepoConfig
+from feast.types import Float32, ValueType
 
 
 @patch(
@@ -248,3 +253,89 @@ def test_pull_latest_from_table_without_nested_timestamp_or_query_and_date_parti
 
     assert isinstance(retrieval_job, RetrievalJob)
     assert retrieval_job.query.strip() == expected_query.strip()
+
+
+@patch(
+    "feast.infra.offline_stores.contrib.spark_offline_store.spark.get_spark_session_or_start_new_with_repoconfig"
+)
+def test_get_historical_features(mock_get_spark_session):
+    mock_spark_session = MagicMock()
+    mock_get_spark_session.return_value = mock_spark_session
+
+    test_repo_config = RepoConfig(
+        project="test_project",
+        registry="test_registry",
+        provider="local",
+        offline_store=SparkOfflineStoreConfig(type="spark"),
+    )
+
+    test_data_source1 = SparkSource(
+        name="test_nested_batch_source1",
+        description="test_nested_batch_source",
+        table="offline_store_database_name.offline_store_table_name1",
+        timestamp_field="nested_timestamp",
+        field_mapping={
+            "event_header.event_published_datetime_utc": "nested_timestamp",
+        },
+        date_partition_column="effective_date",
+        date_partition_column_format="%Y%m%d",
+    )
+
+    test_data_source2 = SparkSource(
+        name="test_nested_batch_source2",
+        description="test_nested_batch_source",
+        table="offline_store_database_name.offline_store_table_name2",
+        timestamp_field="nested_timestamp",
+        field_mapping={
+            "event_header.event_published_datetime_utc": "nested_timestamp",
+        },
+        date_partition_column="effective_date",
+    )
+
+    test_feature_view1 = FeatureView(
+        name="test_feature_view1",
+        entities=_mock_entity(),
+        schema=[
+            Field(name="feature1", dtype=Float32),
+        ],
+        source=test_data_source1,
+    )
+
+    test_feature_view2 = FeatureView(
+        name="test_feature_view2",
+        entities=_mock_entity(),
+        schema=[
+            Field(name="feature2", dtype=Float32),
+        ],
+        source=test_data_source2,
+    )
+
+    # Create a DataFrame with the required event_timestamp column
+    entity_df = pd.DataFrame(
+        {"event_timestamp": [datetime(2021, 1, 1)], "driver_id": [1]}
+    )
+
+    mock_registry = MagicMock()
+    retrieval_job = SparkOfflineStore.get_historical_features(
+        config=test_repo_config,
+        feature_views=[test_feature_view2, test_feature_view1],
+        feature_refs=["test_feature_view2:feature2", "test_feature_view1:feature1"],
+        entity_df=entity_df,
+        registry=mock_registry,
+        project="test_project",
+    )
+    query = retrieval_job.query.strip()
+
+    assert "effective_date <= '2021-01-01'" in query
+    assert "effective_date <= '20210101'" in query
+
+
+def _mock_entity():
+    return [
+        Entity(
+            name="driver_id",
+            join_keys=["driver_id"],
+            description="Driver ID",
+            value_type=ValueType.INT64,
+        )
+    ]
