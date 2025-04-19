@@ -66,10 +66,10 @@ top_k = 5
 
 # Retrieve the top k closest features to the query vector
 
-feature_values = feature_store.retrieve_online_documents(
+feature_values = feature_store.retrieve_online_documents_v2(
     features=["my_feature"],
     query=query_vector,
-    top_k=top_k
+    top_k=top_k,
 )
 ```
 {% endcode %}
@@ -79,17 +79,32 @@ Currently, the indexing mapping in the ElasticSearch online store is configured 
 
 {% code title="indexing_mapping" %}
 ```json
-"properties": {
-    "entity_key": {"type": "binary"},
-    "feature_name": {"type": "keyword"},
-    "feature_value": {"type": "binary"},
-    "timestamp": {"type": "date"},
-    "created_ts": {"type": "date"},
-    "vector_value": {
-        "type": "dense_vector",
-        "dims": vector_field_length,
-        "index": "true",
-        "similarity": config.online_store.similarity,
+{
+    "dynamic_templates": [
+        {
+            "feature_objects": {
+                "match_mapping_type": "object",
+                "match": "*",
+                "mapping": {
+                    "type": "object",
+                    "properties": {
+                        "feature_value": {"type": "binary"},
+                        "value_text": {"type": "text"},
+                        "vector_value": {
+                            "type": "dense_vector",
+                            "dims": vector_field_length,
+                            "index": True,
+                            "similarity": config.online_store.similarity,
+                        },
+                    },
+                },
+            }
+        }
+    ],
+    "properties": {
+        "entity_key": {"type": "keyword"},
+        "timestamp": {"type": "date"},
+        "created_ts": {"type": "date"},
     },
 }
 ```
