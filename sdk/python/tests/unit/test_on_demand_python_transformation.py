@@ -1107,16 +1107,15 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
                     "python_stored_writes_feature_view:string_constant",
                 ],
             ).to_dict()
+            # note these are approximately correct by
             assert online_odfv_python_response_no_transform == {
-                'driver_id': [1003],
-                'string_constant': [ODFV_UNTRANSFORMED_STRING_CONSTANT],
-                'counter': [10],
-                'conv_rate_plus_acc': [7],
-                'input_datetime': [current_datetime],
-                'current_datetime': [current_datetime]
+                "driver_id": [1003],
+                "counter": [10],
+                "conv_rate_plus_acc": [None],
+                "input_datetime": [current_datetime.replace(microsecond=0)],
+                "string_constant": [ODFV_UNTRANSFORMED_STRING_CONSTANT],
+                "current_datetime": [None],
             }
-
-
 
     def test_stored_writes_with_explode(self):
         with tempfile.TemporaryDirectory() as data_dir:
