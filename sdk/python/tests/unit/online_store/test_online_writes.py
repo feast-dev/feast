@@ -235,4 +235,3 @@ class TestOnlineWritesWithTransform(unittest.TestCase):
                 df=input_df,
             )
 
-        assert 1 == 2
