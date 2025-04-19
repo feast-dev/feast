@@ -234,3 +234,5 @@ class TestOnlineWritesWithTransform(unittest.TestCase):
                 feature_view_name="transform_pdf_on_write_view",
                 df=input_df,
             )
+
+        assert 1 == 2
