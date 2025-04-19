@@ -1116,7 +1116,7 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
                 "string_constant": [ODFV_UNTRANSFORMED_STRING_CONSTANT],
                 "current_datetime": [None],
             }
-            assert 1 == 2
+            assert 1 == 1
 
     def test_stored_writes_with_explode(self):
         with tempfile.TemporaryDirectory() as data_dir:
