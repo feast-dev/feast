@@ -1,13 +1,13 @@
-from feast.infra.compute_engines.base import ComputeEngine
-from feast.infra.compute_engines.spark.feature_builder import SparkFeatureBuilder
-from feast.infra.compute_engines.spark.job import SparkDAGRetrievalJob
-from feast.infra.compute_engines.spark.utils import get_or_create_new_spark_session
-from feast.infra.compute_engines.tasks import HistoricalRetrievalTask
-from feast.infra.materialization.batch_materialization_engine import (
+from feast.infra.common.materialization_job import (
     MaterializationJob,
     MaterializationJobStatus,
     MaterializationTask,
 )
+from feast.infra.common.retrieval_task import HistoricalRetrievalTask
+from feast.infra.compute_engines.base import ComputeEngine
+from feast.infra.compute_engines.spark.feature_builder import SparkFeatureBuilder
+from feast.infra.compute_engines.spark.job import SparkDAGRetrievalJob
+from feast.infra.compute_engines.spark.utils import get_or_create_new_spark_session
 from feast.infra.materialization.contrib.spark.spark_materialization_engine import (
     SparkMaterializationJob,
 )
@@ -42,7 +42,6 @@ class SparkComputeEngine(ComputeEngine):
             # ✅ 2. Construct Feature Builder and run it
             builder = SparkFeatureBuilder(
                 spark_session=self.spark_session,
-                feature_view=task.feature_view,
                 task=task,
             )
             plan = builder.build()
@@ -70,7 +69,6 @@ class SparkComputeEngine(ComputeEngine):
             # ✅ 2. Construct Feature Builder and run it
             builder = SparkFeatureBuilder(
                 spark_session=self.spark_session,
-                feature_view=task.feature_view,
                 task=task,
             )
             plan = builder.build()

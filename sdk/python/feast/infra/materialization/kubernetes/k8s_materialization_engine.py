@@ -15,11 +15,13 @@ from tqdm import tqdm
 from feast import FeatureView, RepoConfig
 from feast.batch_feature_view import BatchFeatureView
 from feast.entity import Entity
-from feast.infra.materialization.batch_materialization_engine import (
-    BatchMaterializationEngine,
+from feast.infra.common.materialization_job import (
     MaterializationJob,
     MaterializationJobStatus,
     MaterializationTask,
+)
+from feast.infra.materialization.batch_materialization_engine import (
+    BatchMaterializationEngine,
 )
 from feast.infra.offline_stores.offline_store import OfflineStore
 from feast.infra.online_stores.online_store import OnlineStore
