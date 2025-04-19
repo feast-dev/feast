@@ -42,6 +42,7 @@ from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 
 from ... import offline_utils
+from ...offline_utils import get_timestamp_filter_sql
 from .couchbase_source import (
     CouchbaseColumnarSource,
     SavedDatasetCouchbaseColumnarStorage,
@@ -228,8 +229,9 @@ class CouchbaseColumnarOfflineStore(OfflineStore):
         join_key_columns: List[str],
         feature_name_columns: List[str],
         timestamp_field: str,
-        start_date: datetime,
-        end_date: datetime,
+        created_timestamp_column: Optional[str] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
     ) -> RetrievalJob:
         """
         Fetch all rows from the specified table or query within the time range.
@@ -243,17 +245,28 @@ class CouchbaseColumnarOfflineStore(OfflineStore):
         assert isinstance(data_source, CouchbaseColumnarSource)
         from_expression = data_source.get_table_query_string()
 
+        timestamp_fields = [timestamp_field]
+        if created_timestamp_column:
+            timestamp_fields.append(created_timestamp_column)
         field_string = ", ".join(
-            join_key_columns + feature_name_columns + [timestamp_field]
+            join_key_columns + feature_name_columns + timestamp_fields
         )
-
-        start_date_normalized = normalize_timestamp(start_date)
-        end_date_normalized = normalize_timestamp(end_date)
+        start_date_normalized = (
+            f"`{normalize_timestamp(start_date)}`" if start_date else None
+        )
+        end_date_normalized = f"`{normalize_timestamp(end_date)}`" if end_date else None
+        timestamp_filter = get_timestamp_filter_sql(
+            start_date_normalized,
+            end_date_normalized,
+            timestamp_field,
+            cast_style="raw",
+            quote_fields=False,
+        )
 
         query = f"""
         SELECT {field_string}
         FROM {from_expression}
-        WHERE `{timestamp_field}` BETWEEN '{start_date_normalized}' AND '{end_date_normalized}'
+        WHERE {timestamp_filter}
         """
 
         return CouchbaseColumnarRetrievalJob(

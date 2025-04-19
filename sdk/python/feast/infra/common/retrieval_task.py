@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Union
+from typing import Optional, Union
 
 import pandas as pd
 
@@ -15,5 +15,5 @@ class HistoricalRetrievalTask:
     feature_view: Union[BatchFeatureView, StreamFeatureView]
     full_feature_name: bool
     registry: Registry
-    start_time: datetime
-    end_time: datetime
+    start_time: Optional[datetime] = None
+    end_time: Optional[datetime] = None

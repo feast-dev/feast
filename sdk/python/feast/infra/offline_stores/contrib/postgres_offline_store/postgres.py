@@ -34,6 +34,7 @@ from feast.infra.offline_stores.offline_store import (
     RetrievalJob,
     RetrievalMetadata,
 )
+from feast.infra.offline_stores.offline_utils import get_timestamp_filter_sql
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.infra.utils.postgres.connection_utils import (
     _get_conn,
@@ -226,24 +227,34 @@ class PostgreSQLOfflineStore(OfflineStore):
         join_key_columns: List[str],
         feature_name_columns: List[str],
         timestamp_field: str,
-        start_date: datetime,
-        end_date: datetime,
+        created_timestamp_column: Optional[str] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
     ) -> RetrievalJob:
         assert isinstance(config.offline_store, PostgreSQLOfflineStoreConfig)
         assert isinstance(data_source, PostgreSQLSource)
         from_expression = data_source.get_table_query_string()
 
+        timestamp_fields = [timestamp_field]
+        if created_timestamp_column:
+            timestamp_fields.append(created_timestamp_column)
         field_string = ", ".join(
-            join_key_columns + feature_name_columns + [timestamp_field]
+            join_key_columns + feature_name_columns + timestamp_fields
         )
 
-        start_date = start_date.astimezone(tz=timezone.utc)
-        end_date = end_date.astimezone(tz=timezone.utc)
+        timestamp_filter = get_timestamp_filter_sql(
+            start_date,
+            end_date,
+            timestamp_field,
+            tz=timezone.utc,
+            cast_style="timestamptz",
+            date_time_separator=" ",  # backwards compatibility but inconsistent with other offline stores
+        )
 
         query = f"""
             SELECT {field_string}
             FROM {from_expression} AS paftoq_alias
-            WHERE "{timestamp_field}" BETWEEN '{start_date}'::timestamptz AND '{end_date}'::timestamptz
+            WHERE {timestamp_filter}
         """
 
         return PostgreSQLRetrievalJob(

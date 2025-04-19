@@ -161,8 +161,6 @@ def test_spark_compute_engine_get_historical_features():
             feature_view=driver_stats_fv,
             full_feature_name=False,
             registry=registry,
-            start_time=now - timedelta(days=1),
-            end_time=now,
         )
 
         # 🧪 Run SparkComputeEngine
@@ -228,7 +226,7 @@ def test_spark_compute_engine_materialize():
         task = MaterializationTask(
             project=spark_environment.project,
             feature_view=driver_stats_fv,
-            start_time=now - timedelta(days=1),
+            start_time=now - timedelta(days=2),
             end_time=now,
             tqdm_builder=tqdm_builder,
         )

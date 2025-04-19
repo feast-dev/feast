@@ -33,6 +33,7 @@ from feast.infra.offline_stores.offline_store import (
     RetrievalJob,
     RetrievalMetadata,
 )
+from feast.infra.offline_stores.offline_utils import get_timestamp_filter_sql
 from feast.infra.offline_stores.redshift_source import (
     RedshiftLoggingDestination,
     SavedDatasetRedshiftStorage,
@@ -157,15 +158,19 @@ class RedshiftOfflineStore(OfflineStore):
         join_key_columns: List[str],
         feature_name_columns: List[str],
         timestamp_field: str,
-        start_date: datetime,
-        end_date: datetime,
+        created_timestamp_column: Optional[str] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
     ) -> RetrievalJob:
         assert isinstance(config.offline_store, RedshiftOfflineStoreConfig)
         assert isinstance(data_source, RedshiftSource)
         from_expression = data_source.get_table_query_string()
 
+        timestamp_fields = [timestamp_field]
+        if created_timestamp_column:
+            timestamp_fields.append(created_timestamp_column)
         field_string = ", ".join(
-            join_key_columns + feature_name_columns + [timestamp_field]
+            join_key_columns + feature_name_columns + timestamp_fields
         )
 
         redshift_client = aws_utils.get_redshift_data_client(
@@ -173,13 +178,17 @@ class RedshiftOfflineStore(OfflineStore):
         )
         s3_resource = aws_utils.get_s3_resource(config.offline_store.region)
 
-        start_date = start_date.astimezone(tz=timezone.utc)
-        end_date = end_date.astimezone(tz=timezone.utc)
+        timestamp_filter = get_timestamp_filter_sql(
+            start_date,
+            end_date,
+            timestamp_field,
+            tz=timezone.utc,
+        )
 
         query = f"""
             SELECT {field_string}
             FROM {from_expression}
-            WHERE {timestamp_field} BETWEEN TIMESTAMP '{start_date}' AND TIMESTAMP '{end_date}'
+            WHERE {timestamp_filter}
         """
 
         return RedshiftRetrievalJob(
