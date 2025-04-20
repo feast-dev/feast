@@ -91,6 +91,6 @@ class LocalFeatureBuilder(FeatureBuilder):
         return node
 
     def build_output_nodes(self, input_node):
-        node = LocalOutputNode("output")
+        node = LocalOutputNode("output", self.feature_view)
         node.add_input(input_node)
         self.nodes.append(node)

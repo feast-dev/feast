@@ -7,14 +7,12 @@ from pyspark.sql import functions as F
 from feast import BatchFeatureView, StreamFeatureView
 from feast.aggregation import Aggregation
 from feast.data_source import DataSource
+from feast.infra.common.serializer import SerializedArtifacts
 from feast.infra.compute_engines.dag.context import ExecutionContext
 from feast.infra.compute_engines.dag.model import DAGFormat
 from feast.infra.compute_engines.dag.node import DAGNode
 from feast.infra.compute_engines.dag.value import DAGValue
-from feast.infra.materialization.contrib.spark.spark_materialization_engine import (
-    _map_by_partition,
-    _SparkSerializedArtifacts,
-)
+from feast.infra.compute_engines.spark.utils import map_in_arrow
 from feast.infra.offline_stores.contrib.spark_offline_store.spark import (
     SparkRetrievalJob,
     _get_entity_schema,
@@ -282,19 +280,14 @@ class SparkWriteNode(DAGNode):
 
     def execute(self, context: ExecutionContext) -> DAGValue:
         spark_df: DataFrame = self.get_single_input_value(context).data
-        spark_serialized_artifacts = _SparkSerializedArtifacts.serialize(
+        serialized_artifacts = SerializedArtifacts.serialize(
             feature_view=self.feature_view, repo_config=context.repo_config
         )
 
-        # ✅ 1. Write to offline store (if enabled)
-        if self.feature_view.offline:
-            # TODO: Update _map_by_partition to be able to write to offline store
-            pass
-
-        # ✅ 2. Write to online store (if enabled)
-        if self.feature_view.online:
-            spark_df.mapInPandas(
-                lambda x: _map_by_partition(x, spark_serialized_artifacts), "status int"
+        # ✅ 1. Write to online or offline store (if enabled)
+        if self.feature_view.online or self.feature_view.offline:
+            spark_df.mapInArrow(
+                lambda x: map_in_arrow(x, serialized_artifacts), "status int"
             ).count()
 
         return DAGValue(

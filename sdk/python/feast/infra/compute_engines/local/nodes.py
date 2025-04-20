@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 import pyarrow as pa
+from utils import _convert_arrow_to_proto
 
 from feast.data_source import DataSource
 from feast.infra.compute_engines.dag.context import ExecutionContext
@@ -207,11 +208,40 @@ class LocalValidationNode(LocalNode):
 
 
 class LocalOutputNode(LocalNode):
-    def __init__(self, name: str):
+    def __init__(self, name: str, feature_view):
         super().__init__(name)
+        self.feature_view = feature_view
 
     def execute(self, context: ExecutionContext) -> ArrowTableValue:
         input_table = self.get_single_table(context).data
         context.node_outputs[self.name] = input_table
-        # TODO: implement the logic to write to offline store
+
+        if self.feature_view.online:
+            online_store = context.online_store
+
+            join_key_to_value_type = {
+                entity.name: entity.dtype.to_value_type()
+                for entity in self.feature_view.entity_columns
+            }
+
+            rows_to_write = _convert_arrow_to_proto(
+                input_table, self.feature_view, join_key_to_value_type
+            )
+
+            online_store.online_write_batch(
+                config=context.repo_config,
+                table=self.feature_view,
+                data=rows_to_write,
+                progress=lambda x: None,
+            )
+
+        if self.feature_view.offline:
+            offline_store = context.offline_store
+            offline_store.offline_write_batch(
+                config=context.repo_config,
+                feature_view=self.feature_view,
+                table=input_table,
+                progress=lambda x: None,
+            )
+
         return input_table

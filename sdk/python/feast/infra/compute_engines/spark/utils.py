@@ -1,7 +1,11 @@
-from typing import Dict, Optional
+from typing import Dict, Iterable, Optional
 
+import pyarrow as pa
 from pyspark import SparkConf
 from pyspark.sql import SparkSession
+from utils import _convert_arrow_to_proto
+
+from feast.infra.common.serializer import SerializedArtifacts
 
 
 def get_or_create_new_spark_session(
@@ -17,3 +21,43 @@ def get_or_create_new_spark_session(
 
         spark_session = spark_builder.getOrCreate()
     return spark_session
+
+
+def map_in_arrow(
+    iterator: Iterable[pa.RecordBatch],
+    serialized_artifacts: "SerializedArtifacts",
+):
+    table = pa.Table.from_batches(iterator)
+
+    (
+        feature_view,
+        online_store,
+        offline_store,
+        repo_config,
+    ) = serialized_artifacts.unserialize()
+
+    if feature_view.online:
+        join_key_to_value_type = {
+            entity.name: entity.dtype.to_value_type()
+            for entity in feature_view.entity_columns
+        }
+
+        rows_to_write = _convert_arrow_to_proto(
+            table, feature_view, join_key_to_value_type
+        )
+
+        online_store.online_write_batch(
+            config=repo_config,
+            table=feature_view,
+            data=rows_to_write,
+            progress=lambda x: None,
+        )
+    if feature_view.offline:
+        offline_store.offline_write_batch(
+            config=repo_config,
+            feature_view=feature_view,
+            table=table,
+            progress=lambda x: None,
+        )
+
+    yield table
