@@ -53,7 +53,6 @@ class SparkComputeEngine(ComputeEngine):
             )
 
         except Exception as e:
-            raise e
             # 🛑 Handle failure
             return SparkMaterializationJob(
                 job_id=job_id, status=MaterializationJobStatus.ERROR, error=e
