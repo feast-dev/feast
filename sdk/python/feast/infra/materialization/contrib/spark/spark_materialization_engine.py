@@ -14,7 +14,7 @@ from feast.infra.common.materialization_job import (
     MaterializationJobStatus,
     MaterializationTask,
 )
-from feast.infra.common.serializer import SerializedArtifacts
+from feast.infra.common.serde import SerializedArtifacts
 from feast.infra.materialization.batch_materialization_engine import (
     BatchMaterializationEngine,
 )

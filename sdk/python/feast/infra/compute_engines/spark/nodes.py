@@ -7,7 +7,7 @@ from pyspark.sql import functions as F
 from feast import BatchFeatureView, StreamFeatureView
 from feast.aggregation import Aggregation
 from feast.data_source import DataSource
-from feast.infra.common.serializer import SerializedArtifacts
+from feast.infra.common.serde import SerializedArtifacts
 from feast.infra.compute_engines.dag.context import ExecutionContext
 from feast.infra.compute_engines.dag.model import DAGFormat
 from feast.infra.compute_engines.dag.node import DAGNode

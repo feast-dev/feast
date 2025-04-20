@@ -4,7 +4,7 @@ import pyarrow as pa
 from pyspark import SparkConf
 from pyspark.sql import SparkSession
 
-from feast.infra.common.serializer import SerializedArtifacts
+from feast.infra.common.serde import SerializedArtifacts
 from feast.utils import _convert_arrow_to_proto
 
 
