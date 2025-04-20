@@ -2,7 +2,6 @@ from typing import Union
 
 from feast.infra.common.materialization_job import MaterializationTask
 from feast.infra.common.retrieval_task import HistoricalRetrievalTask
-from feast.infra.compute_engines.dag.plan import ExecutionPlan
 from feast.infra.compute_engines.feature_builder import FeatureBuilder
 from feast.infra.compute_engines.local.backends.base import DataFrameBackend
 from feast.infra.compute_engines.local.nodes import (
@@ -95,25 +94,3 @@ class LocalFeatureBuilder(FeatureBuilder):
         node = LocalOutputNode("output")
         node.add_input(input_node)
         self.nodes.append(node)
-
-    def build(self) -> ExecutionPlan:
-        last_node = self.build_source_node()
-
-        if isinstance(self.task, HistoricalRetrievalTask):
-            last_node = self.build_join_node(last_node)
-
-        last_node = self.build_filter_node(last_node)
-
-        if self._should_aggregate():
-            last_node = self.build_aggregation_node(last_node)
-        elif isinstance(self.task, HistoricalRetrievalTask):
-            last_node = self.build_dedup_node(last_node)
-
-        if self._should_transform():
-            last_node = self.build_transformation_node(last_node)
-
-        if self._should_validate():
-            last_node = self.build_validation_node(last_node)
-
-        self.build_output_nodes(last_node)
-        return ExecutionPlan(self.nodes)

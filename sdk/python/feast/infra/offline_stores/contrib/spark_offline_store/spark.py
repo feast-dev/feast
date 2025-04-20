@@ -29,6 +29,7 @@ from feast.infra.offline_stores.offline_store import (
     RetrievalJob,
     RetrievalMetadata,
 )
+from feast.infra.offline_stores.offline_utils import get_timestamp_filter_sql
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
@@ -269,8 +270,9 @@ class SparkOfflineStore(OfflineStore):
         join_key_columns: List[str],
         feature_name_columns: List[str],
         timestamp_field: str,
-        start_date: datetime,
-        end_date: datetime,
+        created_timestamp_column: Optional[str] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
     ) -> RetrievalJob:
         """
         Note that join_key_columns, feature_name_columns, timestamp_field, and
@@ -288,21 +290,26 @@ class SparkOfflineStore(OfflineStore):
         spark_session = get_spark_session_or_start_new_with_repoconfig(
             store_config=config.offline_store
         )
+
+        timestamp_fields = [timestamp_field]
+        if created_timestamp_column:
+            timestamp_fields.append(created_timestamp_column)
         (fields_with_aliases, aliases) = _get_fields_with_aliases(
-            fields=join_key_columns + feature_name_columns + [timestamp_field],
+            fields=join_key_columns + feature_name_columns + timestamp_fields,
             field_mappings=data_source.field_mapping,
         )
 
         fields_with_alias_string = ", ".join(fields_with_aliases)
 
         from_expression = data_source.get_table_query_string()
-        start_date = start_date.astimezone(tz=timezone.utc)
-        end_date = end_date.astimezone(tz=timezone.utc)
+        timestamp_filter = get_timestamp_filter_sql(
+            start_date, end_date, timestamp_field, tz=timezone.utc, quote_fields=False
+        )
 
         query = f"""
             SELECT {fields_with_alias_string}
             FROM {from_expression}
-            WHERE {timestamp_field} BETWEEN TIMESTAMP '{start_date}' AND TIMESTAMP '{end_date}'
+            WHERE {timestamp_filter}
         """
 
         return SparkRetrievalJob(

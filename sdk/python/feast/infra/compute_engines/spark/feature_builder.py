@@ -9,9 +9,8 @@ from feast.infra.compute_engines.spark.node import (
     SparkAggregationNode,
     SparkDedupNode,
     SparkFilterNode,
-    SparkHistoricalRetrievalReadNode,
     SparkJoinNode,
-    SparkMaterializationReadNode,
+    SparkReadNode,
     SparkTransformationNode,
     SparkWriteNode,
 )
@@ -27,12 +26,10 @@ class SparkFeatureBuilder(FeatureBuilder):
         self.spark_session = spark_session
 
     def build_source_node(self):
-        if isinstance(self.task, MaterializationTask):
-            node = SparkMaterializationReadNode("source", self.task)
-        else:
-            node = SparkHistoricalRetrievalReadNode(
-                "source", self.task, self.spark_session
-            )
+        source = self.feature_view.batch_source
+        start_time = self.task.start_time
+        end_time = self.task.end_time
+        node = SparkReadNode("source", source, start_time, end_time)
         self.nodes.append(node)
         return node
 

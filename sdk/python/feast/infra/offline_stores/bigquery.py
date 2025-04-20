@@ -52,6 +52,7 @@ from .bigquery_source import (
     BigQuerySource,
     SavedDatasetBigQueryStorage,
 )
+from .offline_utils import get_timestamp_filter_sql
 
 try:
     from google.api_core import client_info as http_client_info
@@ -188,8 +189,9 @@ class BigQueryOfflineStore(OfflineStore):
         join_key_columns: List[str],
         feature_name_columns: List[str],
         timestamp_field: str,
-        start_date: datetime,
-        end_date: datetime,
+        created_timestamp_column: Optional[str] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
     ) -> RetrievalJob:
         assert isinstance(config.offline_store, BigQueryOfflineStoreConfig)
         assert isinstance(data_source, BigQuerySource)
@@ -201,15 +203,26 @@ class BigQueryOfflineStore(OfflineStore):
             project=project_id,
             location=config.offline_store.location,
         )
+
+        timestamp_fields = [timestamp_field]
+        if created_timestamp_column:
+            timestamp_fields.append(created_timestamp_column)
         field_string = ", ".join(
             BigQueryOfflineStore._escape_query_columns(join_key_columns)
             + BigQueryOfflineStore._escape_query_columns(feature_name_columns)
-            + [timestamp_field]
+            + timestamp_fields
+        )
+        timestamp_filter = get_timestamp_filter_sql(
+            start_date,
+            end_date,
+            timestamp_field,
+            quote_fields=False,
+            cast_style="timestamp_func",
         )
         query = f"""
             SELECT {field_string}
             FROM {from_expression}
-            WHERE {timestamp_field} BETWEEN TIMESTAMP('{start_date}') AND TIMESTAMP('{end_date}')
+            WHERE {timestamp_filter}
         """
         return BigQueryRetrievalJob(
             query=query,

@@ -31,6 +31,7 @@ from feast.infra.offline_stores.offline_store import (
     RetrievalJob,
     RetrievalMetadata,
 )
+from feast.infra.offline_stores.offline_utils import get_timestamp_filter_sql
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
@@ -405,21 +406,30 @@ class TrinoOfflineStore(OfflineStore):
         join_key_columns: List[str],
         feature_name_columns: List[str],
         timestamp_field: str,
-        start_date: datetime,
-        end_date: datetime,
+        created_timestamp_column: Optional[str] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
     ) -> RetrievalJob:
         assert isinstance(config.offline_store, TrinoOfflineStoreConfig)
         assert isinstance(data_source, TrinoSource)
         from_expression = data_source.get_table_query_string()
 
         client = _get_trino_client(config=config)
+
+        timestamp_fields = [timestamp_field]
+        if created_timestamp_column:
+            timestamp_fields.append(created_timestamp_column)
         field_string = ", ".join(
-            join_key_columns + feature_name_columns + [timestamp_field]
+            join_key_columns + feature_name_columns + timestamp_fields
+        )
+
+        timestamp_filter = get_timestamp_filter_sql(
+            start_date, end_date, timestamp_field, quote_fields=False
         )
         query = f"""
             SELECT {field_string}
             FROM {from_expression}
-            WHERE {timestamp_field} BETWEEN TIMESTAMP '{start_date}'  AND TIMESTAMP '{end_date}'
+            WHERE {timestamp_filter}
         """
         return TrinoRetrievalJob(
             query=query,

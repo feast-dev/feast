@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import List, Optional, Union, cast
 
 from pyspark.sql import DataFrame, SparkSession, Window
@@ -6,8 +6,7 @@ from pyspark.sql import functions as F
 
 from feast import BatchFeatureView, StreamFeatureView
 from feast.aggregation import Aggregation
-from feast.infra.common.materialization_job import MaterializationTask
-from feast.infra.common.retrieval_task import HistoricalRetrievalTask
+from feast.data_source import DataSource
 from feast.infra.compute_engines.dag.context import ExecutionContext
 from feast.infra.compute_engines.dag.model import DAGFormat
 from feast.infra.compute_engines.dag.node import DAGNode
@@ -23,7 +22,6 @@ from feast.infra.offline_stores.contrib.spark_offline_store.spark import (
 from feast.infra.offline_stores.offline_utils import (
     infer_event_timestamp_from_entity_df,
 )
-from feast.utils import _get_fields_with_aliases
 
 ENTITY_TS_ALIAS = "__entity_event_timestamp"
 
@@ -49,18 +47,21 @@ def rename_entity_ts_column(
     return entity_df
 
 
-class SparkMaterializationReadNode(DAGNode):
+class SparkReadNode(DAGNode):
     def __init__(
-        self, name: str, task: Union[MaterializationTask, HistoricalRetrievalTask]
+        self,
+        name: str,
+        source: DataSource,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
     ):
         super().__init__(name)
-        self.task = task
+        self.source = source
+        self.start_time = start_time
+        self.end_time = end_time
 
     def execute(self, context: ExecutionContext) -> DAGValue:
         offline_store = context.offline_store
-        start_time = self.task.start_time
-        end_time = self.task.end_time
-
         (
             join_key_columns,
             feature_name_columns,
@@ -69,15 +70,15 @@ class SparkMaterializationReadNode(DAGNode):
         ) = context.column_info
 
         # 📥 Reuse Feast's robust query resolver
-        retrieval_job = offline_store.pull_latest_from_table_or_query(
+        retrieval_job = offline_store.pull_all_from_table_or_query(
             config=context.repo_config,
-            data_source=self.task.feature_view.batch_source,
+            data_source=self.source,
             join_key_columns=join_key_columns,
             feature_name_columns=feature_name_columns,
             timestamp_field=timestamp_field,
             created_timestamp_column=created_timestamp_column,
-            start_date=start_time,
-            end_date=end_time,
+            start_date=self.start_time,
+            end_date=self.end_time,
         )
         spark_df = cast(SparkRetrievalJob, retrieval_job).to_spark_df()
 
@@ -88,74 +89,8 @@ class SparkMaterializationReadNode(DAGNode):
                 "source": "feature_view_batch_source",
                 "timestamp_field": timestamp_field,
                 "created_timestamp_column": created_timestamp_column,
-                "start_date": start_time,
-                "end_date": end_time,
-            },
-        )
-
-
-class SparkHistoricalRetrievalReadNode(DAGNode):
-    def __init__(
-        self, name: str, task: HistoricalRetrievalTask, spark_session: SparkSession
-    ):
-        super().__init__(name)
-        self.task = task
-        self.spark_session = spark_session
-
-    def execute(self, context: ExecutionContext) -> DAGValue:
-        """
-        Read data from the offline store on the Spark engine.
-        TODO: Some functionality is duplicated with SparkMaterializationReadNode and spark get_historical_features.
-        Args:
-            context: SparkExecutionContext
-        Returns: DAGValue
-        """
-        fv = self.task.feature_view
-        source = fv.batch_source
-
-        (
-            join_key_columns,
-            feature_name_columns,
-            timestamp_field,
-            created_timestamp_column,
-        ) = context.column_info
-
-        # TODO: Use pull_all_from_table_or_query when it supports not filtering by timestamp
-        # retrieval_job = offline_store.pull_all_from_table_or_query(
-        #     config=context.repo_config,
-        #     data_source=source,
-        #     join_key_columns=join_key_columns,
-        #     feature_name_columns=feature_name_columns,
-        #     timestamp_field=timestamp_field,
-        #     start_date=min_ts,
-        #     end_date=max_ts,
-        # )
-        # spark_df = cast(SparkRetrievalJob, retrieval_job).to_spark_df()
-
-        columns = join_key_columns + feature_name_columns + [timestamp_field]
-        if created_timestamp_column:
-            columns.append(created_timestamp_column)
-
-        (fields_with_aliases, aliases) = _get_fields_with_aliases(
-            fields=columns,
-            field_mappings=source.field_mapping,
-        )
-        fields_with_alias_string = ", ".join(fields_with_aliases)
-
-        from_expression = source.get_table_query_string()
-
-        query = f"""
-            SELECT {fields_with_alias_string}
-            FROM {from_expression}
-        """
-        spark_df = self.spark_session.sql(query)
-
-        return DAGValue(
-            data=spark_df,
-            format=DAGFormat.SPARK,
-            metadata={
-                "source": "feature_view_batch_source",
-                "timestamp_field": timestamp_field,
+                "start_date": self.start_time,
+                "end_date": self.end_time,
             },
         )
 
@@ -227,7 +162,12 @@ class SparkJoinNode(DAGNode):
         feature_df: DataFrame = feature_value.data
 
         entity_df = context.entity_df
-        assert entity_df is not None, "entity_df must be set in ExecutionContext"
+        if entity_df is None:
+            return DAGValue(
+                data=feature_df,
+                format=DAGFormat.SPARK,
+                metadata={"joined_on": None},
+            )
 
         # Get timestamp fields from feature view
         join_keys, feature_cols, ts_col, created_ts_col = context.column_info
@@ -272,13 +212,13 @@ class SparkFilterNode(DAGNode):
         if ENTITY_TS_ALIAS in input_df.columns:
             filtered_df = filtered_df.filter(F.col(ts_col) <= F.col(ENTITY_TS_ALIAS))
 
-        # Optional TTL filter: feature.ts >= entity.event_timestamp - ttl
-        if self.ttl:
-            ttl_seconds = int(self.ttl.total_seconds())
-            lower_bound = F.col(ENTITY_TS_ALIAS) - F.expr(
-                f"INTERVAL {ttl_seconds} seconds"
-            )
-            filtered_df = filtered_df.filter(F.col(ts_col) >= lower_bound)
+            # Optional TTL filter: feature.ts >= entity.event_timestamp - ttl
+            if self.ttl:
+                ttl_seconds = int(self.ttl.total_seconds())
+                lower_bound = F.col(ENTITY_TS_ALIAS) - F.expr(
+                    f"INTERVAL {ttl_seconds} seconds"
+                )
+                filtered_df = filtered_df.filter(F.col(ts_col) >= lower_bound)
 
         # Optional custom filter condition
         if self.filter_condition:
