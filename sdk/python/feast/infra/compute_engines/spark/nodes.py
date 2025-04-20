@@ -286,8 +286,10 @@ class SparkWriteNode(DAGNode):
 
         # ✅ 1. Write to online or offline store (if enabled)
         if self.feature_view.online or self.feature_view.offline:
+            print("Spark DF count:", spark_df.count())
+            print("Num partitions:", spark_df.rdd.getNumPartitions())
             spark_df.mapInArrow(
-                lambda x: map_in_arrow(x, serialized_artifacts), "status int"
+                lambda x: map_in_arrow(x, serialized_artifacts), spark_df.schema
             ).count()
 
         return DAGValue(

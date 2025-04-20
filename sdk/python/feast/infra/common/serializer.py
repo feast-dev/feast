@@ -1,9 +1,9 @@
 from dataclasses import dataclass
 
 import dill
-from infra.passthrough_provider import PassthroughProvider
 
 from feast import FeatureView
+from feast.infra.passthrough_provider import PassthroughProvider
 from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
 
 
