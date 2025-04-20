@@ -364,7 +364,7 @@ def _convert_arrow_odfv_to_proto(
     for feature in feature_view.features:
         if (
             feature.name in [c[0] for c in columns]
-            and feature.name not in proto_values_by_column
+            # and feature.name not in proto_values_by_column
         ):
             # initializing the column as null
             null_column = pyarrow.array(
@@ -398,6 +398,7 @@ def _convert_arrow_odfv_to_proto(
     feature_dict = {
         feature.name: proto_values_by_column[feature.name]
         for feature in feature_view.features
+        if feature.name in proto_values_by_column
     }
     if feature_view.write_to_online_store:
         table_columns = [col.name for col in table.schema]

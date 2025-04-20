@@ -1464,6 +1464,7 @@ class FeatureStore:
         df: pd.DataFrame,
         allow_registry_cache: bool = True,
         to: PushMode = PushMode.ONLINE,
+        transform_on_write: bool = True,
     ):
         """
         Push features to a push source. This updates all the feature views that have the push source as stream source.
@@ -1473,13 +1474,17 @@ class FeatureStore:
             df: The data being pushed.
             allow_registry_cache: Whether to allow cached versions of the registry.
             to: Whether to push to online or offline store. Defaults to online store only.
+            transform_on_write: Whether to transform the data before pushing.
         """
         for fv in self._fvs_for_push_source_or_raise(
             push_source_name, allow_registry_cache
         ):
             if to == PushMode.ONLINE or to == PushMode.ONLINE_AND_OFFLINE:
                 self.write_to_online_store(
-                    fv.name, df, allow_registry_cache=allow_registry_cache
+                    fv.name,
+                    df,
+                    allow_registry_cache=allow_registry_cache,
+                    transform_on_write=transform_on_write,
                 )
             if to == PushMode.OFFLINE or to == PushMode.ONLINE_AND_OFFLINE:
                 self.write_to_offline_store(
@@ -1521,6 +1526,7 @@ class FeatureStore:
         df: Optional[pd.DataFrame] = None,
         inputs: Optional[Union[Dict[str, List[Any]], pd.DataFrame]] = None,
         allow_registry_cache: bool = True,
+        transform_on_write: bool = True,
     ):
         feature_view_dict = {
             fv_proto.name: fv_proto
@@ -1553,6 +1559,7 @@ class FeatureStore:
         if (
             isinstance(feature_view, OnDemandFeatureView)
             and feature_view.write_to_online_store
+            and transform_on_write
         ):
             if (
                 feature_view.mode == "python"
@@ -1638,6 +1645,7 @@ class FeatureStore:
         df: Optional[pd.DataFrame] = None,
         inputs: Optional[Union[Dict[str, List[Any]], pd.DataFrame]] = None,
         allow_registry_cache: bool = True,
+        transform_on_write: bool = True,
     ):
         """
         Persists a dataframe to the online store.
@@ -1647,6 +1655,7 @@ class FeatureStore:
             df: The dataframe to be persisted.
             inputs: Optional the dictionary object to be written
             allow_registry_cache (optional): Whether to allow retrieving feature views from a cached registry.
+            transform_on_write (optional): Whether to transform the data before pushing.
         """
 
         feature_view, df = self._get_feature_view_and_df_for_online_write(
@@ -1654,6 +1663,7 @@ class FeatureStore:
             df=df,
             inputs=inputs,
             allow_registry_cache=allow_registry_cache,
+            transform_on_write=transform_on_write,
         )
         provider = self._get_provider()
         provider.ingest_df(feature_view, df)
