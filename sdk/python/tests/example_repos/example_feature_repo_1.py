@@ -122,6 +122,7 @@ document_embeddings = FeatureView(
             name="Embeddings",
             dtype=Array(Float32),
             vector_index=True,
+            vector_len=8,
             vector_search_metric="L2",
         ),
         Field(name="item_id", dtype=String),

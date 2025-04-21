@@ -1178,6 +1178,7 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
                         name="vector",
                         dtype=Array(Float32),
                         vector_index=True,
+                        vector_length=5,
                         vector_search_metric="L2",
                     ),
                 ],

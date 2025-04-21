@@ -32,6 +32,7 @@ from feast.errors import (
     FeatureViewNotFoundException,
     RequestDataNotFoundInEntityRowsException,
 )
+from feast.field import Field
 from feast.infra.key_encoding_utils import deserialize_entity_key
 from feast.protos.feast.serving.ServingService_pb2 import (
     FieldStatus,
@@ -45,7 +46,6 @@ from feast.type_map import python_values_to_proto_values
 from feast.types import ComplexFeastType, PrimitiveFeastType, from_feast_to_pyarrow_type
 from feast.value_type import ValueType
 from feast.version import get_version
-from feast.field import Field
 
 if typing.TYPE_CHECKING:
     from feast.base_feature_view import BaseFeatureView
@@ -1409,7 +1409,7 @@ def _build_retrieve_online_document_record(
 
 
 def _get_feature_view_vector_field_metadata(
-    feature_view: FeatureView,
+    feature_view,
 ) -> Optional[Field]:
     vector_fields = [field for field in feature_view.schema if field.vector_index]
     if len(vector_fields) > 1:

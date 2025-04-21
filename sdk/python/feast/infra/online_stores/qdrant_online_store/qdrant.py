@@ -19,7 +19,11 @@ from feast.infra.online_stores.vector_store import VectorStoreConfig
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel
-from feast.utils import _build_retrieve_online_document_record, to_naive_utc, _get_feature_view_vector_field_metadata
+from feast.utils import (
+    _build_retrieve_online_document_record,
+    _get_feature_view_vector_field_metadata,
+    to_naive_utc,
+)
 
 SCROLL_SIZE = 1000
 
@@ -198,7 +202,9 @@ class QdrantOnlineStore(OnlineStore):
             table: FeatureView table for which the index needs to be created.
         """
 
-        vector_field_length = _get_feature_view_vector_field_metadata(table) or 512
+        vector_field_length = getattr(
+            _get_feature_view_vector_field_metadata(table), "vector_len", 512
+        )
 
         client: QdrantClient = self._get_client(config)
 
