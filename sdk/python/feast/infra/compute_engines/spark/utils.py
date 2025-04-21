@@ -37,6 +37,7 @@ def map_in_arrow(
             offline_store,
             repo_config,
         ) = serialized_artifacts.unserialize()
+        print("write_feature_view", feature_view)
 
         if feature_view.online:
             join_key_to_value_type = {
@@ -55,6 +56,7 @@ def map_in_arrow(
                 progress=lambda x: None,
             )
         if feature_view.offline:
+            print("offline_to_write", table)
             offline_store.offline_write_batch(
                 config=repo_config,
                 feature_view=feature_view,

@@ -271,11 +271,9 @@ class SparkWriteNode(DAGNode):
     def __init__(
         self,
         name: str,
-        input_node: DAGNode,
         feature_view: Union[BatchFeatureView, StreamFeatureView],
     ):
         super().__init__(name)
-        self.add_input(input_node)
         self.feature_view = feature_view
 
     def execute(self, context: ExecutionContext) -> DAGValue:
@@ -286,8 +284,6 @@ class SparkWriteNode(DAGNode):
 
         # ✅ 1. Write to online or offline store (if enabled)
         if self.feature_view.online or self.feature_view.offline:
-            print("Spark DF count:", spark_df.count())
-            print("Num partitions:", spark_df.rdd.getNumPartitions())
             spark_df.mapInArrow(
                 lambda x: map_in_arrow(x, serialized_artifacts), spark_df.schema
             ).count()

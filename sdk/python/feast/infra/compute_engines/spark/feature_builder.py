@@ -73,7 +73,8 @@ class SparkFeatureBuilder(FeatureBuilder):
         return node
 
     def build_output_nodes(self, input_node):
-        node = SparkWriteNode("output", input_node, self.feature_view)
+        node = SparkWriteNode("output", self.feature_view)
+        node.add_input(input_node)
         self.nodes.append(node)
         return node
 

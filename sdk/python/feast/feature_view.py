@@ -236,6 +236,7 @@ class FeatureView(BaseFeatureView):
             schema=self.schema,
             tags=self.tags,
             online=self.online,
+            offline=self.offline,
         )
 
         # This is deliberately set outside of the FV initialization as we do not have the Entity objects.
@@ -258,6 +259,7 @@ class FeatureView(BaseFeatureView):
             sorted(self.entities) != sorted(other.entities)
             or self.ttl != other.ttl
             or self.online != other.online
+            or self.offline != other.offline
             or self.batch_source != other.batch_source
             or self.stream_source != other.stream_source
             or sorted(self.entity_columns) != sorted(other.entity_columns)

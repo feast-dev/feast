@@ -194,7 +194,7 @@ def test_local_output_node():
     context = create_context(
         node_outputs={"source": ArrowTableValue(pa.Table.from_pandas(sample_df))}
     )
-    node = LocalOutputNode("output")
+    node = LocalOutputNode("output", MagicMock())
     node.add_input(MagicMock())
     node.inputs[0].name = "source"
     result = node.execute(context)

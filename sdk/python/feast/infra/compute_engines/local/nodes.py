@@ -1,8 +1,9 @@
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, Union
 
 import pyarrow as pa
 
+from feast import BatchFeatureView, StreamFeatureView
 from feast.data_source import DataSource
 from feast.infra.compute_engines.dag.context import ExecutionContext
 from feast.infra.compute_engines.local.arrow_table_value import ArrowTableValue
@@ -208,7 +209,9 @@ class LocalValidationNode(LocalNode):
 
 
 class LocalOutputNode(LocalNode):
-    def __init__(self, name: str, feature_view):
+    def __init__(
+        self, name: str, feature_view: Union[BatchFeatureView, StreamFeatureView]
+    ):
         super().__init__(name)
         self.feature_view = feature_view
 
