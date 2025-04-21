@@ -365,6 +365,7 @@ class FeatureView(BaseFeatureView):
             owner=self.owner,
             ttl=(ttl_duration if ttl_duration is not None else None),
             online=self.online,
+            offline=self.offline,
             batch_source=batch_source_proto,
             stream_source=stream_source_proto,
         )
@@ -414,6 +415,7 @@ class FeatureView(BaseFeatureView):
             tags=dict(feature_view_proto.spec.tags),
             owner=feature_view_proto.spec.owner,
             online=feature_view_proto.spec.online,
+            offline=feature_view_proto.spec.offline,
             ttl=(
                 timedelta(days=0)
                 if feature_view_proto.spec.ttl.ToNanoseconds() == 0
