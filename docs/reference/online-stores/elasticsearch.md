@@ -88,7 +88,7 @@ Currently, the indexing mapping in the ElasticSearch online store is configured 
     "created_ts": {"type": "date"},
     "vector_value": {
         "type": "dense_vector",
-        "dims": config.online_store.vector_len,
+        "dims": vector_field_length,
         "index": "true",
         "similarity": config.online_store.similarity,
     },
