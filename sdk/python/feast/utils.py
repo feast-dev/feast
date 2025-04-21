@@ -45,6 +45,7 @@ from feast.type_map import python_values_to_proto_values
 from feast.types import ComplexFeastType, PrimitiveFeastType, from_feast_to_pyarrow_type
 from feast.value_type import ValueType
 from feast.version import get_version
+from feast.field import Field
 
 if typing.TYPE_CHECKING:
     from feast.base_feature_view import BaseFeatureView
@@ -1405,3 +1406,16 @@ def _build_retrieve_online_document_record(
         vector_value_proto,
         distance_value_proto,
     )
+
+
+def _get_feature_view_vector_field_metadata(
+    feature_view: FeatureView,
+) -> Optional[Field]:
+    vector_fields = [field for field in feature_view.schema if field.vector_index]
+    if len(vector_fields) > 1:
+        raise ValueError(
+            f"Feature view {feature_view.name} has multiple vector fields. Only one vector field per feature view is supported."
+        )
+    if not vector_fields:
+        return None
+    return vector_fields[0]

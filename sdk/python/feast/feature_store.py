@@ -62,7 +62,6 @@ from feast.errors import (
 from feast.feast_object import FeastObject
 from feast.feature_service import FeatureService
 from feast.feature_view import DUMMY_ENTITY, DUMMY_ENTITY_NAME, FeatureView
-from feast.field import Field
 from feast.inference import (
     update_data_sources_with_inferred_event_timestamp_col,
     update_feature_views_with_inferred_features_and_entities,
@@ -91,7 +90,7 @@ from feast.ssl_ca_trust_store_setup import configure_ca_trust_store_env_variable
 from feast.stream_feature_view import StreamFeatureView
 from feast.transformation.pandas_transformation import PandasTransformation
 from feast.transformation.python_transformation import PythonTransformation
-from feast.utils import _utc_now
+from feast.utils import _utc_now, _get_feature_view_vector_field_metadata
 
 warnings.simplefilter("once", DeprecationWarning)
 
@@ -2515,15 +2514,3 @@ def _validate_data_sources(data_sources: List[DataSource]):
         else:
             ds_names.add(case_insensitive_ds_name)
 
-
-def _get_feature_view_vector_field_metadata(
-    feature_view: FeatureView,
-) -> Optional[Field]:
-    vector_fields = [field for field in feature_view.schema if field.vector_index]
-    if len(vector_fields) > 1:
-        raise ValueError(
-            f"Feature view {feature_view.name} has multiple vector fields. Only one vector field per feature view is supported."
-        )
-    if not vector_fields:
-        return None
-    return vector_fields[0]

@@ -45,6 +45,7 @@ from feast.utils import (
     _build_retrieve_online_document_record,
     _serialize_vector_to_float_list,
     to_naive_utc,
+    _get_feature_view_vector_field_metadata,
 )
 
 
@@ -171,8 +172,9 @@ class SqliteOnlineStore(OnlineStore):
                             feature_type_dict.get(feature_name, None)
                             in FEAST_VECTOR_TYPES
                         ):
+                            vector_field_length = _get_feature_view_vector_field_metadata(table).vector_len or 512
                             val_bin = serialize_f32(
-                                val.float_list_val.val, config.online_store.vector_len
+                                val.float_list_val.val, vector_field_length
                             )  # type: ignore
                         else:
                             val_bin = feast_value_type_to_python_type(val)
@@ -354,15 +356,17 @@ class SqliteOnlineStore(OnlineStore):
         conn = self._get_conn(config)
         cur = conn.cursor()
 
+        vector_field_length = _get_feature_view_vector_field_metadata(table).vector_len or 512
+
         # Convert the embedding to a binary format instead of using SerializeToString()
-        query_embedding_bin = serialize_f32(embedding, config.online_store.vector_len)
+        query_embedding_bin = serialize_f32(embedding, vector_field_length)
         table_name = _table_id(project, table)
         vector_field = _get_vector_field(table)
 
         cur.execute(
             f"""
             CREATE VIRTUAL TABLE vec_table using vec0(
-                vector_value float[{config.online_store.vector_len}]
+                vector_value float[{vector_field_length}]
         );
         """
         )
@@ -378,7 +382,7 @@ class SqliteOnlineStore(OnlineStore):
         cur.execute(
             f"""
             CREATE VIRTUAL TABLE IF NOT EXISTS vec_table using vec0(
-                vector_value float[{config.online_store.vector_len}]
+                vector_value float[{vector_field_length}]
             );
             """
         )
