@@ -33,6 +33,7 @@ from tests.integration.feature_repos.repo_configuration import (
 from tests.integration.feature_repos.universal.online_store.redis import (
     RedisOnlineStoreCreator,
 )
+from tests.utils.e2e_test_validation import _check_offline_and_online_features
 
 now = datetime.now()
 today = datetime.today()
@@ -242,6 +243,16 @@ def test_spark_compute_engine_materialize():
         spark_materialize_job = engine.materialize(task)
 
         assert spark_materialize_job.status() == MaterializationJobStatus.SUCCEEDED
+
+        _check_offline_and_online_features(
+            fs=fs,
+            fv=driver_stats_fv,
+            driver_id=1,
+            event_timestamp=now,
+            expected_value=0.3,
+            full_feature_names=True,
+            check_offline_store=True,
+        )
     finally:
         spark_environment.teardown()
 
