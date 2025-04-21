@@ -179,8 +179,9 @@ class DuckDBOfflineStore(OfflineStore):
         join_key_columns: List[str],
         feature_name_columns: List[str],
         timestamp_field: str,
-        start_date: datetime,
-        end_date: datetime,
+        created_timestamp_column: Optional[str] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
     ) -> RetrievalJob:
         return pull_all_from_table_or_query_ibis(
             config=config,
@@ -188,6 +189,7 @@ class DuckDBOfflineStore(OfflineStore):
             join_key_columns=join_key_columns,
             feature_name_columns=feature_name_columns,
             timestamp_field=timestamp_field,
+            created_timestamp_column=created_timestamp_column,
             start_date=start_date,
             end_date=end_date,
             data_source_reader=_read_data_source,
