@@ -101,7 +101,6 @@ class SqliteOnlineStoreConfig(FeastConfigBaseModel, VectorStoreConfig):
     """ (optional) Path to sqlite db """
 
     vector_enabled: bool = False
-    vector_len: Optional[int] = None
     text_search_enabled: bool = False
 
 

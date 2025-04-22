@@ -1127,8 +1127,7 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
                     entity_key_serialization_version=3,
                     online_store=SqliteOnlineStoreConfig(
                         path=os.path.join(data_dir, "online.db"),
-                        vector_enabled=True,
-                        vector_len=5,
+                        vector_enabled=True
                     ),
                 )
             )
@@ -1378,7 +1377,6 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
                     online_store=SqliteOnlineStoreConfig(
                         path=os.path.join(data_dir, "online.db"),
                         vector_enabled=True,
-                        vector_len=VECTOR_LEN,
                     ),
                 )
             )
@@ -1422,6 +1420,7 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
                         name="vector",
                         dtype=Array(Float32),
                         vector_index=True,
+                        vector_len=VECTOR_LEN,
                         vector_search_metric="L2",
                     ),
                 ],
