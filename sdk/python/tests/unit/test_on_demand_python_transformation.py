@@ -1126,8 +1126,7 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
                     provider="local",
                     entity_key_serialization_version=3,
                     online_store=SqliteOnlineStoreConfig(
-                        path=os.path.join(data_dir, "online.db"),
-                        vector_enabled=True
+                        path=os.path.join(data_dir, "online.db"), vector_enabled=True
                     ),
                 )
             )
