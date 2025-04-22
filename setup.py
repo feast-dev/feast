@@ -84,6 +84,8 @@ REDIS_REQUIRED = [
     "hiredis>=2.0.0,<3",
 ]
 
+EG_VALKEY_REQUIRED = ["valkey[libvalkey]>=6.1.0"]
+
 AWS_REQUIRED = ["boto3>=1.17.0,<2", "fsspec<=2024.9.0", "aiobotocore>2,<3"]
 
 KUBERNETES_REQUIRED = ["kubernetes<=20.13.0"]
@@ -219,6 +221,7 @@ CI_REQUIRED = (
     ]
     + GCP_REQUIRED
     + REDIS_REQUIRED
+    + EG_VALKEY_REQUIRED
     + AWS_REQUIRED
     + KUBERNETES_REQUIRED
     + SNOWFLAKE_REQUIRED
@@ -474,6 +477,7 @@ setup(
         "aws": AWS_REQUIRED,
         "k8s": KUBERNETES_REQUIRED,
         "redis": REDIS_REQUIRED,
+        "eg-valkey": EG_VALKEY_REQUIRED,
         "snowflake": SNOWFLAKE_REQUIRED,
         "spark": SPARK_REQUIRED,
         "trino": TRINO_REQUIRED,
