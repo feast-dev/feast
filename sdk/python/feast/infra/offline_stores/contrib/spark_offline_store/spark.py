@@ -3,7 +3,7 @@ import tempfile
 import uuid
 import warnings
 from datetime import datetime, timezone
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union
 
 import numpy as np
 import pandas
@@ -53,6 +53,8 @@ class SparkOfflineStoreConfig(FeastConfigBaseModel):
 
     region: Optional[StrictStr] = None
     """ AWS Region if applicable for s3-based staging locations"""
+
+    mode: Optional[Literal["driver", "worker"]] = "driver"
 
 
 class SparkOfflineStore(OfflineStore):
@@ -218,6 +220,22 @@ class SparkOfflineStore(OfflineStore):
         table: pyarrow.Table,
         progress: Optional[Callable[[int], Any]],
     ):
+        """
+        Write pyarrow table to offline store.
+        This method supports two execution modes:
+        - "driver": Uses Spark to perform schema validation, type casting, and appending the data to the offline store.
+                This mode must run on the Spark driver and supports advanced functionality like schema enforcement.
+        - "worker": A simplified, worker-safe implementation that writes Arrow tables directly to storage.
+                This mode is designed for distributed execution within mapInArrow or other parallel contexts.
+
+        Args:
+            config: RepoConfig
+            feature_view: FeatureView
+            table: pyarrow.Table
+            progress: Callable[[int], Any]
+            mode: Literal["driver", "worker"], default is "driver"
+
+        """
         assert isinstance(config.offline_store, SparkOfflineStoreConfig)
         assert isinstance(feature_view.batch_source, SparkSource)
 
@@ -230,38 +248,55 @@ class SparkOfflineStore(OfflineStore):
                 f"The schema is expected to be {pa_schema} with the columns (in this exact order) to be {column_names}."
             )
 
-        spark_session = get_spark_session_or_start_new_with_repoconfig(
-            store_config=config.offline_store
-        )
+        mode = config.offline_store.mode
 
-        if feature_view.batch_source.path:
-            # write data to disk so that it can be loaded into spark (for preserving column types)
-            with tempfile.NamedTemporaryFile(suffix=".parquet") as tmp_file:
-                print(tmp_file.name)
-                pq.write_table(table, tmp_file.name)
-
-                # load data
-                df_batch = spark_session.read.parquet(tmp_file.name)
-
-                # load existing data to get spark table schema
-                df_existing = spark_session.read.format(
-                    feature_view.batch_source.file_format
-                ).load(feature_view.batch_source.path)
-
-                # cast columns if applicable
-                df_batch = _cast_data_frame(df_batch, df_existing)
-
-                df_batch.write.format(feature_view.batch_source.file_format).mode(
-                    "append"
-                ).save(feature_view.batch_source.path)
-        elif feature_view.batch_source.query:
-            raise NotImplementedError(
-                "offline_write_batch not implemented for batch sources specified by query"
+        if mode == "driver":
+            spark_session = get_spark_session_or_start_new_with_repoconfig(
+                store_config=config.offline_store
             )
+
+            if feature_view.batch_source.path:
+                # write data to disk so that it can be loaded into spark (for preserving column types)
+                with tempfile.NamedTemporaryFile(suffix=".parquet") as tmp_file:
+                    print(tmp_file.name)
+                    pq.write_table(table, tmp_file.name)
+
+                    # load data
+                    df_batch = spark_session.read.parquet(tmp_file.name)
+
+                    # load existing data to get spark table schema
+                    df_existing = spark_session.read.format(
+                        feature_view.batch_source.file_format
+                    ).load(feature_view.batch_source.path)
+
+                    # cast columns if applicable
+                    df_batch = _cast_data_frame(df_batch, df_existing)
+
+                    df_batch.write.format(feature_view.batch_source.file_format).mode(
+                        "append"
+                    ).save(feature_view.batch_source.path)
+            elif feature_view.batch_source.query:
+                raise NotImplementedError(
+                    "offline_write_batch not implemented for batch sources specified by query"
+                )
+            else:
+                raise NotImplementedError(
+                    "offline_write_batch not implemented for batch sources specified by a table"
+                )
+        elif mode == "worker":
+            # Safe worker-side Arrow write
+            if not feature_view.batch_source.path:
+                raise ValueError("Path is required for worker mode.")
+
+            unique_name = f"batch_{uuid.uuid4().hex}.parquet"
+            output_path = os.path.join(feature_view.batch_source.path, unique_name)
+
+            pq.write_table(table, output_path)
+
+            if progress:
+                progress(table.num_rows)
         else:
-            raise NotImplementedError(
-                "offline_write_batch not implemented for batch sources specified by a table"
-            )
+            raise ValueError(f"Unsupported mode: {mode}")
 
     @staticmethod
     def pull_all_from_table_or_query(

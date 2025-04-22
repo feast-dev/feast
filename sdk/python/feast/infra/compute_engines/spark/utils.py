@@ -1,4 +1,4 @@
-from typing import Dict, Iterable, Optional
+from typing import Dict, Iterable, Literal, Optional
 
 import pyarrow as pa
 from pyspark import SparkConf
@@ -27,6 +27,7 @@ def get_or_create_new_spark_session(
 def map_in_arrow(
     iterator: Iterable[pa.RecordBatch],
     serialized_artifacts: "SerializedArtifacts",
+    mode: Literal["online", "offline"] = "online",
 ):
     for batch in iterator:
         table = pa.Table.from_batches([batch])
@@ -37,9 +38,8 @@ def map_in_arrow(
             offline_store,
             repo_config,
         ) = serialized_artifacts.unserialize()
-        print("write_feature_view", feature_view)
 
-        if feature_view.online:
+        if mode == "online":
             join_key_to_value_type = {
                 entity.name: entity.dtype.to_value_type()
                 for entity in feature_view.entity_columns
@@ -55,8 +55,7 @@ def map_in_arrow(
                 data=rows_to_write,
                 progress=lambda x: None,
             )
-        if feature_view.offline:
-            print("offline_to_write", table)
+        if mode == "offline":
             offline_store.offline_write_batch(
                 config=repo_config,
                 feature_view=feature_view,

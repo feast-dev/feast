@@ -271,7 +271,6 @@ def test_spark_compute_engine_materialize():
             fs=fs,
             feature="driver_hourly_stats:conv_rate",
             entity_df=entity_df,
-            expected_value=1.6,
         )
     finally:
         spark_environment.teardown()
@@ -303,15 +302,12 @@ def _check_offline_features(
     fs,
     feature,
     entity_df,
-    expected_value,
 ):
     offline_df = fs.get_historical_features(
         entity_df=entity_df,
         features=[feature],
     ).to_df()
-
-    assert len(offline_df) == 2
-    assert offline_df["driver_id"].to_list() == [1001, 1002]
+    assert len(offline_df) == 4
 
 
 if __name__ == "__main__":

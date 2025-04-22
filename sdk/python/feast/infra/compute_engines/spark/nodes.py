@@ -17,6 +17,9 @@ from feast.infra.offline_stores.contrib.spark_offline_store.spark import (
     SparkRetrievalJob,
     _get_entity_schema,
 )
+from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import (
+    SparkSource,
+)
 from feast.infra.offline_stores.offline_utils import (
     infer_event_timestamp_from_entity_df,
 )
@@ -282,11 +285,29 @@ class SparkWriteNode(DAGNode):
             feature_view=self.feature_view, repo_config=context.repo_config
         )
 
-        # ✅ 1. Write to online or offline store (if enabled)
-        if self.feature_view.online or self.feature_view.offline:
+        # ✅ 1. Write to online store if online enabled
+        if self.feature_view.online:
             spark_df.mapInArrow(
-                lambda x: map_in_arrow(x, serialized_artifacts), spark_df.schema
+                lambda x: map_in_arrow(x, serialized_artifacts, mode="online"),
+                spark_df.schema,
             ).count()
+
+        # ✅ 2. Write to offline store if offline enabled
+        if self.feature_view.offline:
+            if not isinstance(self.feature_view.batch_source, SparkSource):
+                spark_df.mapInArrow(
+                    lambda x: map_in_arrow(x, serialized_artifacts, mode="offline"),
+                    spark_df.schema,
+                ).count()
+            # Directly write spark df to spark offline store without using mapInArrow
+            else:
+                dest_path = self.feature_view.batch_source.path
+                file_format = self.feature_view.batch_source.file_format
+                if not dest_path or not file_format:
+                    raise ValueError(
+                        "Destination path and file format must be specified for SparkSource."
+                    )
+                spark_df.write.format(file_format).mode("append").save(dest_path)
 
         return DAGValue(
             data=spark_df,
