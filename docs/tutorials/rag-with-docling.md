@@ -4,6 +4,9 @@ This tutorial demonstrates how to use Feast with [Docling](https://github.com/do
 
 ## Overview
 
+> [!NOTE]
+> This tutorial is available [on our GitHub here](https://github.com/feast-dev/feast/tree/master/examples/rag-docling)
+
 RAG is a technique that combines generative models (e.g., LLMs) with retrieval systems to generate contextually relevant output for a particular goal (e.g., question and answering). Feast makes it easy to store and retrieve document embeddings for RAG applications by providing integrations with vector databases like Milvus.
 
 The typical RAG process involves:
