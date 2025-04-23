@@ -140,19 +140,20 @@ class DynamoDBOnlineStore(OnlineStore):
 
     @staticmethod
     def _table_tags(online_config, table_instance) -> list[dict[str, str]]:
+        table_instance_tags = table_instance.tags or {}
         online_tags = online_config.tags or {}
+
         common_tags = [
-            {"Key": key, "Value": value} for key, value in online_tags.items()
+            {"Key": key, "Value": table_instance_tags.get(key) or value}
+            for key, value in online_tags.items()
         ]
-        return common_tags + (
-            [
-                {"Key": key, "Value": value}
-                for key, value in table_instance.tags.items()
-                if key not in online_tags
-            ]
-            if table_instance.tags
-            else []
-        )
+        table_tags = [
+            {"Key": key, "Value": value}
+            for key, value in table_instance_tags.items()
+            if key not in online_tags
+        ]
+
+        return common_tags + table_tags
 
     @staticmethod
     def _update_tags(dynamodb_client, table_name: str, new_tags: list[dict[str, str]]):

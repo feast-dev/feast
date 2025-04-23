@@ -36,6 +36,11 @@ class MockFeatureView:
     tags: Optional[dict[str, str]] = None
 
 
+@dataclass
+class MockOnlineConfig:
+    tags: Optional[dict[str, str]] = None
+
+
 @pytest.fixture
 def repo_config():
     return RepoConfig(
@@ -309,6 +314,34 @@ def test_dynamodb_online_store_update_tags(repo_config, dynamodb_online_store):
     )
 
     assert _get_tags(dynamodb_client, existing_tables[0]) == []
+
+
+@mock_dynamodb
+@pytest.mark.parametrize(
+    "global_tags, table_tags, expected",
+    [
+        (None, {"key": "val"}, [{"Key": "key", "Value": "val"}]),
+        ({"key": "val"}, None, [{"Key": "key", "Value": "val"}]),
+        (
+            {"key1": "val1"},
+            {"key2": "val2"},
+            [{"Key": "key1", "Value": "val1"}, {"Key": "key2", "Value": "val2"}],
+        ),
+        (
+            {"key": "val", "key2": "val2"},
+            {"key": "new-val"},
+            [{"Key": "key", "Value": "new-val"}, {"Key": "key2", "Value": "val2"}],
+        ),
+    ],
+)
+def test_dynamodb_online_store_tag_priority(
+    global_tags, table_tags, expected, dynamodb_online_store
+):
+    actual = dynamodb_online_store._table_tags(
+        MockOnlineConfig(tags=global_tags),
+        MockFeatureView(name="table", tags=table_tags),
+    )
+    assert actual == expected
 
 
 @mock_dynamodb
