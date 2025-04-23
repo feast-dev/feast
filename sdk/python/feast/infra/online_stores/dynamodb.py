@@ -155,7 +155,7 @@ class DynamoDBOnlineStore(OnlineStore):
         )
 
     @staticmethod
-    def _update_tags(dynamodb_client, table_name, new_tags):
+    def _update_tags(dynamodb_client, table_name: str, new_tags: list[dict[str, str]]):
         table_arn = dynamodb_client.describe_table(TableName=table_name)["Table"][
             "TableArn"
         ]
@@ -163,10 +163,12 @@ class DynamoDBOnlineStore(OnlineStore):
             "Tags"
         )
         if current_tags:
+            new_tags_dict = {nt["Key"]: nt["Value"] for nt in new_tags}
             remove_keys = [
                 tag["Key"]
                 for tag in current_tags
-                if tag["Key"] not in new_tags or tag["Value"] != new_tags[tag["Key"]]
+                if tag["Key"] not in new_tags_dict
+                or tag["Value"] != new_tags_dict[tag["Key"]]
             ]
             if remove_keys:
                 dynamodb_client.untag_resource(
