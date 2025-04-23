@@ -166,7 +166,7 @@ class ElasticSearchOnlineStore(OnlineStore):
             table: FeatureView table for which the index needs to be created.
         """
         vector_field_length = getattr(
-            _get_feature_view_vector_field_metadata(table), "vector_len", 512
+            _get_feature_view_vector_field_metadata(table), "vector_length", 512
         )
 
         index_mapping = {

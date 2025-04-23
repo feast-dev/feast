@@ -20,7 +20,6 @@ online_store:
     type: qdrant
     host: localhost
     port: 6333
-    vector_len: 384
     write_batch_size: 100
 ```
 

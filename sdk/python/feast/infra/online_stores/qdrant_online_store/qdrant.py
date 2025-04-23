@@ -203,7 +203,7 @@ class QdrantOnlineStore(OnlineStore):
         """
 
         vector_field_length = getattr(
-            _get_feature_view_vector_field_metadata(table), "vector_len", 512
+            _get_feature_view_vector_field_metadata(table), "vector_length", 512
         )
 
         client: QdrantClient = self._get_client(config)

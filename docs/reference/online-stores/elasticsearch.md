@@ -21,7 +21,6 @@ online_store:
     port: ES_PORT
     user: ES_USERNAME
     password: ES_PASSWORD
-    vector_len: 512
     write_batch_size: 1000
 ```
 {% endcode %}

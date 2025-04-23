@@ -173,7 +173,7 @@ class SqliteOnlineStore(OnlineStore):
                         ):
                             vector_field_length = getattr(
                                 _get_feature_view_vector_field_metadata(table),
-                                "vector_len",
+                                "vector_length",
                                 512,
                             )
                             val_bin = serialize_f32(
@@ -360,7 +360,7 @@ class SqliteOnlineStore(OnlineStore):
         cur = conn.cursor()
 
         vector_field_length = getattr(
-            _get_feature_view_vector_field_metadata(table), "vector_len", 512
+            _get_feature_view_vector_field_metadata(table), "vector_length", 512
         )
 
         # Convert the embedding to a binary format instead of using SerializeToString()
@@ -486,7 +486,7 @@ class SqliteOnlineStore(OnlineStore):
         cur = conn.cursor()
 
         vector_field_length = getattr(
-            _get_feature_view_vector_field_metadata(table), "vector_len", 512
+            _get_feature_view_vector_field_metadata(table), "vector_length", 512
         )
 
         table_name = _table_id(config.project, table)

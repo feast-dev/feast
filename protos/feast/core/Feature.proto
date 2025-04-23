@@ -44,5 +44,5 @@ message FeatureSpecV2 {
     string vector_search_metric = 6;
 
     // Field indicating the vector length
-    int32 vector_len = 7;
+    int32 vector_length = 7;
 }
