@@ -23,7 +23,7 @@ import logging
 import string
 import time
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import partial
 from queue import Queue
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union
@@ -235,6 +235,11 @@ class CassandraOnlineStoreConfig(FeastConfigBaseModel):
     Table names should be quoted to make them case sensitive.
     """
 
+    apply_ttl_on_write: Optional[bool] = False
+    """
+    If True, the expiration time is always calculated as now() on the Coordinator + TTL where, now() is the wall clock during the corresponding write operation.
+    """
+
 
 class CassandraOnlineStore(OnlineStore):
     """
@@ -406,7 +411,10 @@ class CassandraOnlineStore(OnlineStore):
 
         project = config.project
 
-        ttl = online_store_config.key_ttl_seconds or 0
+        ttl_feature_view = table.ttl or timedelta(seconds=0)
+        ttl_online_store_config = online_store_config.key_ttl_seconds or timedelta(
+            seconds=0
+        )
         write_concurrency = online_store_config.write_concurrency
         write_rate_limit = online_store_config.write_rate_limit
         concurrent_queue: Queue = Queue(maxsize=write_concurrency)
@@ -425,6 +433,7 @@ class CassandraOnlineStore(OnlineStore):
         session: Session = self._get_session(config)
         keyspace: str = self._keyspace
         table_name_version = online_store_config.table_name_format_version
+        batch = BatchStatement(batch_type=BatchType.UNLOGGED)
         fqtable = CassandraOnlineStore._fq_table_name(
             keyspace, project, table, table_name_version
         )
@@ -465,45 +474,53 @@ class CassandraOnlineStore(OnlineStore):
             feature_names_str = ", ".join(feature_names)
             params_str = ", ".join(["?"] * (len(feature_names) + 2))
 
-            insert_cql = self._get_cql_statement(
-                config,
-                "insert_sorted_features",
-                fqtable=fqtable,
-                ttl=ttl,
-                session=session,
-                feature_names_str=feature_names_str,
-                params_str=params_str,
-            )
-
             # Write each batch with same entity key in to the online store
             timestamp_field_name = table.batch_source.timestamp_field
             sort_key_names = [sort_key.name for sort_key in table.sort_keys]
             if timestamp_field_name in sort_key_names:
                 for entity_key_bin, batch_to_write in entity_dict.items():
-                    batch = BatchStatement(batch_type=BatchType.UNLOGGED)
                     for entity_key, feat_dict, timestamp, created_ts in batch_to_write:
-                        feature_values: tuple = ()
-                        for feature_name, valProto in feat_dict.items():
-                            # When the event timestamp is added as a feature, it is converted in to UNIX_TIMESTAMP
-                            # feast type. Hence, its value must be reassigned before inserting in to online store
-                            if feature_name == timestamp_field_name:
-                                feature_value = timestamp
-                            else:
-                                feast_value_type = valProto.WhichOneof("val")
-                                if feast_value_type is None:
-                                    feature_value = None
-                                elif feast_value_type in feast_array_types:
-                                    feature_value = getattr(
-                                        valProto, str(feast_value_type)
-                                    ).val
+                        ttl = CassandraOnlineStore._get_ttl(
+                            online_store_config.apply_ttl_on_write,
+                            ttl_feature_view,
+                            ttl_online_store_config,
+                            timestamp,
+                        )
+                        if ttl >= 0:
+                            feature_values: tuple = ()
+                            for feature_name, valProto in feat_dict.items():
+                                # When the event timestamp is added as a feature, it is converted in to UNIX_TIMESTAMP
+                                # feast type. Hence, its value must be reassigned before inserting in to online store
+                                if feature_name == timestamp_field_name:
+                                    feature_value = timestamp
                                 else:
-                                    feature_value = getattr(
-                                        valProto, str(feast_value_type)
-                                    )
-                            feature_values += (feature_value,)
+                                    feast_value_type = valProto.WhichOneof("val")
+                                    if feast_value_type is None:
+                                        feature_value = None
+                                    elif feast_value_type in feast_array_types:
+                                        feature_value = getattr(
+                                            valProto, str(feast_value_type)
+                                        ).val
+                                    else:
+                                        feature_value = getattr(
+                                            valProto, str(feast_value_type)
+                                        )
+                                feature_values += (feature_value,)
 
-                        feature_values = feature_values + (entity_key_bin, timestamp)
-                        batch.add(insert_cql, feature_values)
+                            feature_values = feature_values + (
+                                entity_key_bin,
+                                timestamp,
+                            )
+                            insert_cql = self._get_cql_statement(
+                                config,
+                                "insert_sorted_features",
+                                fqtable=fqtable,
+                                ttl=int(ttl),
+                                session=session,
+                                feature_names_str=feature_names_str,
+                                params_str=params_str,
+                            )
+                            batch.add(insert_cql, feature_values)
                     CassandraOnlineStore._apply_batch(
                         rate_limiter,
                         batch,
@@ -515,26 +532,43 @@ class CassandraOnlineStore(OnlineStore):
                     )
             else:
                 for entity_key_bin, batch_to_write in entity_dict.items():
-                    batch = BatchStatement(batch_type=BatchType.UNLOGGED)
                     for entity_key, feat_dict, timestamp, created_ts in batch_to_write:
-                        feature_values_tuple: tuple = ()
-                        for valProto in feat_dict.values():
-                            feast_value_type = valProto.WhichOneof("val")
-                            if feast_value_type is None:
-                                feature_value = None
-                            elif feast_value_type in feast_array_types:
-                                feature_value = getattr(
-                                    valProto, str(feast_value_type)
-                                ).val
-                            else:
-                                feature_value = getattr(valProto, str(feast_value_type))
-                            feature_values_tuple += (feature_value,)
-
-                        feature_values_tuple = feature_values_tuple + (
-                            entity_key_bin,
+                        ttl = CassandraOnlineStore._get_ttl(
+                            online_store_config.apply_ttl_on_write,
+                            ttl_feature_view,
+                            ttl_online_store_config,
                             timestamp,
                         )
-                        batch.add(insert_cql, feature_values_tuple)
+                        if ttl >= 0:
+                            feature_values_tuple: tuple = ()
+                            for valProto in feat_dict.values():
+                                feast_value_type = valProto.WhichOneof("val")
+                                if feast_value_type is None:
+                                    feature_value = None
+                                elif feast_value_type in feast_array_types:
+                                    feature_value = getattr(
+                                        valProto, str(feast_value_type)
+                                    ).val
+                                else:
+                                    feature_value = getattr(
+                                        valProto, str(feast_value_type)
+                                    )
+                                feature_values_tuple += (feature_value,)
+
+                            feature_values_tuple = feature_values_tuple + (
+                                entity_key_bin,
+                                timestamp,
+                            )
+                            insert_cql = self._get_cql_statement(
+                                config,
+                                "insert_sorted_features",
+                                fqtable=fqtable,
+                                ttl=int(ttl),
+                                session=session,
+                                feature_names_str=feature_names_str,
+                                params_str=params_str,
+                            )
+                            batch.add(insert_cql, feature_values_tuple)
                     CassandraOnlineStore._apply_batch(
                         rate_limiter,
                         batch,
@@ -545,38 +579,43 @@ class CassandraOnlineStore(OnlineStore):
                         on_failure,
                     )
         else:
-            insert_cql = self._get_cql_statement(
-                config,
-                "insert4",
-                fqtable=fqtable,
-                ttl=ttl,
-                session=session,
-            )
-
             for entity_key, values, timestamp, created_ts in data:
-                batch = BatchStatement(batch_type=BatchType.UNLOGGED)
-                entity_key_bin = serialize_entity_key(
-                    entity_key,
-                    entity_key_serialization_version=config.entity_key_serialization_version,
-                ).hex()
-                for feature_name, val in values.items():
-                    params: Tuple[str, bytes, str, datetime] = (
-                        feature_name,
-                        val.SerializeToString(),
-                        entity_key_bin,
-                        timestamp,
-                    )
-                    batch.add(insert_cql, params)
-
-                CassandraOnlineStore._apply_batch(
-                    rate_limiter,
-                    batch,
-                    progress,
-                    session,
-                    concurrent_queue,
-                    on_success,
-                    on_failure,
+                ttl = CassandraOnlineStore._get_ttl(
+                    online_store_config.apply_ttl_on_write,
+                    ttl_feature_view,
+                    ttl_online_store_config,
+                    timestamp,
                 )
+                if ttl >= 0:
+                    entity_key_bin = serialize_entity_key(
+                        entity_key,
+                        entity_key_serialization_version=config.entity_key_serialization_version,
+                    ).hex()
+                    for feature_name, val in values.items():
+                        params: Tuple[str, bytes, str, datetime] = (
+                            feature_name,
+                            val.SerializeToString(),
+                            entity_key_bin,
+                            timestamp,
+                        )
+                        insert_cql = self._get_cql_statement(
+                            config,
+                            "insert4",
+                            fqtable=fqtable,
+                            ttl=int(ttl),
+                            session=session,
+                        )
+                        batch.add(insert_cql, params)
+
+                    CassandraOnlineStore._apply_batch(
+                        rate_limiter,
+                        batch,
+                        progress,
+                        session,
+                        concurrent_queue,
+                        on_success,
+                        on_failure,
+                    )
 
         if not concurrent_queue.empty():
             logger.warning(
@@ -959,6 +998,40 @@ class CassandraOnlineStore(OnlineStore):
         # this happens N-1 times, will be corrected outside:
         if progress:
             progress(1)
+
+    @staticmethod
+    def _get_ttl(
+        apply_ttl_on_write: bool,
+        ttl_feature_view: timedelta,
+        ttl_online_store_config: timedelta,
+        timestamp: datetime,
+    ) -> int:
+        """
+        Calculate TTL based on different settings (like apply_ttl_on_write and ttl settings in feature view and online store config)
+        """
+        ttl_feature_view_in_secs = int(ttl_feature_view.total_seconds())
+        ttl_online_store_config_in_secs = int(ttl_online_store_config.total_seconds())
+
+        # If ttl is configured in both online store config and feature view, feature view ttl is considered.
+        # Otherwise, which ever is configured is considered.
+        # If ttl is configured neither in online store config or feature view, then it will be 0 which means there is no expiry.
+        # TODO: TTL from online store config should be either deprecated later or be used for only for backward compatibility if not deprecated.
+        ttl_configured = (
+            ttl_feature_view_in_secs
+            if ttl_feature_view_in_secs != 0
+            else ttl_online_store_config_in_secs
+        )
+
+        if apply_ttl_on_write:
+            ttl = ttl_configured
+        else:
+            if ttl_configured == 0:
+                ttl = 0
+            else:
+                ttl_elapsed = datetime.utcnow() - timestamp
+                ttl_remaining = ttl_configured - int(ttl_elapsed.total_seconds())
+                ttl = ttl_remaining if ttl_remaining > 0 else -1
+        return ttl
 
     def _get_cql_type(
         self, value_type: Union[ComplexFeastType, PrimitiveFeastType]

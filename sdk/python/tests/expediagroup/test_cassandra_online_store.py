@@ -1,5 +1,6 @@
 import textwrap
-from datetime import datetime
+import time
+from datetime import datetime, timedelta
 
 import pytest
 from cassandra.cluster import Cluster
@@ -281,6 +282,68 @@ class TestCassandraOnlineStore:
         count = [row.count for row in result]
         assert count[0] == 10
 
+    def test_cassandra_online_write_batch_ttl(
+        self,
+        cassandra_session,
+        repo_config: RepoConfig,
+        online_store: CassandraOnlineStore,
+    ):
+        session, keyspace = cassandra_session
+        (
+            feature_view,
+            data,
+        ) = self._create_n_test_sample_features()
+        constructed_table_name_in_cassandra = online_store._fq_table_name(
+            keyspace,
+            repo_config.project,
+            feature_view,
+            repo_config.online_store.table_name_format_version,
+        )
+
+        constructed_table_name = constructed_table_name_in_cassandra.split(".")[
+            1
+        ].strip('"')
+
+        online_store._create_table(repo_config, repo_config.project, feature_view)
+        online_store.online_write_batch(
+            config=repo_config,
+            table=feature_view,
+            data=data,
+            progress=None,
+        )
+        # Wait until the records expire before querying
+        time.sleep(15)
+        result = session.execute(
+            f"SELECT COUNT(*) from {keyspace}.{constructed_table_name};"
+        )
+        count = [row.count for row in result]
+        # Number of records should be 0 as they were expired
+        assert count[0] == 0
+
+    def test_ttl_when_apply_ttl_on_write_true(
+        self,
+        online_store: CassandraOnlineStore,
+    ):
+        ttl = online_store._get_ttl(
+            True,
+            timedelta(seconds=10),
+            timedelta(seconds=15),
+            datetime.utcnow() - timedelta(seconds=300),
+        )
+        assert ttl == 10
+
+    def test_only_ttl_online_store_config_is_configured(
+        self,
+        online_store: CassandraOnlineStore,
+    ):
+        ttl = online_store._get_ttl(
+            False,
+            timedelta(0),
+            timedelta(seconds=30),
+            datetime.utcnow() - timedelta(seconds=15),
+        )
+        assert ttl == 15
+
     def test_cassandra_online_write_batch_all_datatypes(
         self,
         cassandra_session,
@@ -379,6 +442,7 @@ class TestCassandraOnlineStore:
                 timestamp_field="event_timestamp",
             ),
             entities=[Entity(name="id")],
+            ttl=timedelta(seconds=10),
             sort_keys=[
                 SortKey(
                     name="int",
