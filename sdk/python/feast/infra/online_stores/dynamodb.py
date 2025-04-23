@@ -159,21 +159,13 @@ class DynamoDBOnlineStore(OnlineStore):
         table_arn = dynamodb_client.describe_table(TableName=table_name)["Table"][
             "TableArn"
         ]
-        current_tags = dynamodb_client.list_tags_of_resource(ResourceArn=table_arn).get(
+        current_tags = dynamodb_client.list_tags_of_resource(ResourceArn=table_arn)[
             "Tags"
-        )
+        ]
         if current_tags:
-            new_tags_dict = {nt["Key"]: nt["Value"] for nt in new_tags}
-            remove_keys = [
-                tag["Key"]
-                for tag in current_tags
-                if tag["Key"] not in new_tags_dict
-                or tag["Value"] != new_tags_dict[tag["Key"]]
-            ]
-            if remove_keys:
-                dynamodb_client.untag_resource(
-                    ResourceArn=table_arn, TagKeys=remove_keys
-                )
+            remove_keys = [tag["Key"] for tag in current_tags]
+            dynamodb_client.untag_resource(ResourceArn=table_arn, TagKeys=remove_keys)
+
         if new_tags:
             dynamodb_client.tag_resource(ResourceArn=table_arn, Tags=new_tags)
 

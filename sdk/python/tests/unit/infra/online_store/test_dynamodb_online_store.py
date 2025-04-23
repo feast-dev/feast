@@ -262,7 +262,11 @@ def test_dynamodb_online_store_update_tags(repo_config, dynamodb_online_store):
     dynamodb_online_store.update(
         config=repo_config,
         tables_to_delete=[],
-        tables_to_keep=[MockFeatureView(name=table_name, tags={"some": "tag"})],
+        tables_to_keep=[
+            MockFeatureView(
+                name=table_name, tags={"key1": "val1", "key2": "val2", "key3": "val3"}
+            )
+        ],
         entities_to_delete=[],
         entities_to_keep=[],
         partial=None,
@@ -273,7 +277,10 @@ def test_dynamodb_online_store_update_tags(repo_config, dynamodb_online_store):
         config=repo_config,
         tables_to_delete=[],
         tables_to_keep=[
-            MockFeatureView(name=table_name, tags={"some": "new-tag", "another": "tag"})
+            MockFeatureView(
+                name=table_name,
+                tags={"key1": "new-val1", "key2": "val2", "key4": "val4"},
+            )
         ],
         entities_to_delete=[],
         entities_to_keep=[],
@@ -285,8 +292,9 @@ def test_dynamodb_online_store_update_tags(repo_config, dynamodb_online_store):
     existing_tables = dynamodb_client.list_tables().get("TableNames", None)
 
     expected_tags = [
-        {"Key": "some", "Value": "new-tag"},
-        {"Key": "another", "Value": "tag"},
+        {"Key": "key1", "Value": "new-val1"},
+        {"Key": "key2", "Value": "val2"},
+        {"Key": "key4", "Value": "val4"},
     ]
     assert _get_tags(dynamodb_client, existing_tables[0]) == expected_tags
 
