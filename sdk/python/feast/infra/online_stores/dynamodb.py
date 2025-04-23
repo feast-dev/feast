@@ -167,19 +167,27 @@ class DynamoDBOnlineStore(OnlineStore):
             online_config.endpoint_url,
             online_config.session_based_auth,
         )
-        # Add Tags attribute to creation request only if configured to prevent
-        # TagResource permission issues, even with an empty Tags array.
-        kwargs = (
-            {
-                "Tags": [
-                    {"Key": key, "Value": value}
-                    for key, value in online_config.tags.items()
-                ]
-            }
-            if online_config.tags
-            else {}
-        )
+
+        online_tags = online_config.tags or {}
+        common_tags = [
+            {"Key": key, "Value": value}
+            for key, value in online_tags.items()
+        ]
+
         for table_instance in tables_to_keep:
+            table_tags = common_tags + (
+                [
+                    {"Key": key, "Value": value}
+                    for key, value in table_instance.tags.items()
+                    if key not in online_tags
+                ]
+                if table_instance.tags
+                else []
+            )
+
+            # Add Tags attribute to creation request only if configured to prevent
+            # TagResource permission issues, even with an empty Tags array.
+            kwargs = {"Tags": table_tags} if table_tags else {}
             try:
                 dynamodb_resource.create_table(
                     TableName=_get_table_name(online_config, config, table_instance),
