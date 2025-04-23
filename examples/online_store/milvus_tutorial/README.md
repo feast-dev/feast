@@ -4,7 +4,7 @@ This tutorial demonstrates how to use Milvus as a vector database backend for Fe
 
 ## Prerequisites
 
-- Python 3.8+
+- Python 3.10+
 - Docker (for running Milvus)
 - Feast installed (`pip install 'feast[milvus]'`)
 
