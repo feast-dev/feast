@@ -1,0 +1,18 @@
+project: pgvector_tutorial
+provider: local
+registry: data/registry.db
+online_store:
+  type: postgres
+  host: localhost
+  port: 5432
+  database: feast
+  db_schema: public
+  user: feast
+  password: feast
+  vector_enabled: true  
+  vector_len: 384  
+
+offline_store:
+  type: file
+
+entity_key_serialization_version: 3

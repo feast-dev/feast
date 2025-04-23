@@ -1,0 +1,22 @@
+version: '3'
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: postgres-pgvector
+    environment:
+      POSTGRES_USER: feast
+      POSTGRES_PASSWORD: feast
+      POSTGRES_DB: feast
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U feast"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres-data:
