@@ -34,7 +34,6 @@ docker exec -it postgres-pgvector psql -U feast -c "CREATE EXTENSION IF NOT EXIS
 pgvector_tutorial/
 ├── README.md
 ├── feature_store.yaml    # Feast configuration
-├── example_repo.py       # Feature definitions
 ├── data/                 # Data directory
 │   └── sample_data.parquet  # Sample data with embeddings
 └── pgvector_example.py   # Example script
