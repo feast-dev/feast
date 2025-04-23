@@ -463,6 +463,7 @@ class OnDemandFeatureView(BaseFeatureView):
                     name=feature.name,
                     dtype=from_value_type(ValueType(feature.value_type)),
                     vector_index=feature.vector_index,
+                    vector_length=feature.vector_length,
                     vector_search_metric=feature.vector_search_metric,
                 )
                 for feature in on_demand_feature_view_proto.spec.features
