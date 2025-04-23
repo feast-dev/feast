@@ -1126,9 +1126,7 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
                     provider="local",
                     entity_key_serialization_version=3,
                     online_store=SqliteOnlineStoreConfig(
-                        path=os.path.join(data_dir, "online.db"),
-                        vector_enabled=True,
-                        vector_len=5,
+                        path=os.path.join(data_dir, "online.db"), vector_enabled=True
                     ),
                 )
             )
@@ -1178,6 +1176,7 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
                         name="vector",
                         dtype=Array(Float32),
                         vector_index=True,
+                        vector_length=5,
                         vector_search_metric="L2",
                     ),
                 ],
@@ -1360,7 +1359,7 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
         from transformers import AutoTokenizer
 
         EMBED_MODEL_ID = "sentence-transformers/all-MiniLM-L6-v2"
-        VECTOR_LEN = 10
+        VECTOR_LENGTH = 10
         MAX_TOKENS = 5  # Small token limit for demonstration
         tokenizer = AutoTokenizer.from_pretrained(EMBED_MODEL_ID)
         chunker = HybridChunker(
@@ -1377,7 +1376,6 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
                     online_store=SqliteOnlineStoreConfig(
                         path=os.path.join(data_dir, "online.db"),
                         vector_enabled=True,
-                        vector_len=VECTOR_LEN,
                     ),
                 )
             )
@@ -1397,7 +1395,7 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
             )
 
             def embed_chunk(input_string) -> dict[str, list[float]]:
-                output = {"query_embedding": [0.5] * VECTOR_LEN}
+                output = {"query_embedding": [0.5] * VECTOR_LENGTH}
                 return output
 
             input_request_pdf = RequestSource(
@@ -1421,6 +1419,7 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
                         name="vector",
                         dtype=Array(Float32),
                         vector_index=True,
+                        vector_length=VECTOR_LENGTH,
                         vector_search_metric="L2",
                     ),
                 ],

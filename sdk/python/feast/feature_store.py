@@ -62,7 +62,6 @@ from feast.errors import (
 from feast.feast_object import FeastObject
 from feast.feature_service import FeatureService
 from feast.feature_view import DUMMY_ENTITY, DUMMY_ENTITY_NAME, FeatureView
-from feast.field import Field
 from feast.inference import (
     update_data_sources_with_inferred_event_timestamp_col,
     update_feature_views_with_inferred_features_and_entities,
@@ -91,7 +90,7 @@ from feast.ssl_ca_trust_store_setup import configure_ca_trust_store_env_variable
 from feast.stream_feature_view import StreamFeatureView
 from feast.transformation.pandas_transformation import PandasTransformation
 from feast.transformation.python_transformation import PythonTransformation
-from feast.utils import _utc_now
+from feast.utils import _get_feature_view_vector_field_metadata, _utc_now
 
 warnings.simplefilter("once", DeprecationWarning)
 
@@ -856,7 +855,6 @@ class FeatureStore:
         if not isinstance(objects, Iterable):
             objects = [objects]
         assert isinstance(objects, list)
-
         if not objects_to_delete:
             objects_to_delete = []
 
@@ -1554,6 +1552,18 @@ class FeatureStore:
                     df = pd.DataFrame(df)
                 except Exception as _:
                     raise DataFrameSerializationError(df)
+
+        if feature_view.features[0].vector_index and df is not None:
+            fv_vector_feature_name = feature_view.features[0].name
+            df_vector_feature_index = df.columns.get_loc(fv_vector_feature_name)
+            if feature_view.features[0].vector_length != 0:
+                if (
+                    df.shape[df_vector_feature_index]
+                    > feature_view.features[0].vector_length
+                ):
+                    raise ValueError(
+                        f"The dataframe for {fv_vector_feature_name} column has {df.shape[1]} vectors which is greater than expected (i.e {feature_view.features[0].vector_length}) by feature view {feature_view.name}."
+                    )
 
         # # Apply transformations if this is an OnDemandFeatureView with write_to_online_store=True
         if (
@@ -2502,16 +2512,3 @@ def _validate_data_sources(data_sources: List[DataSource]):
             raise DataSourceRepeatNamesException(case_insensitive_ds_name)
         else:
             ds_names.add(case_insensitive_ds_name)
-
-
-def _get_feature_view_vector_field_metadata(
-    feature_view: FeatureView,
-) -> Optional[Field]:
-    vector_fields = [field for field in feature_view.schema if field.vector_index]
-    if len(vector_fields) > 1:
-        raise ValueError(
-            f"Feature view {feature_view.name} has multiple vector fields. Only one vector field per feature view is supported."
-        )
-    if not vector_fields:
-        return None
-    return vector_fields[0]
