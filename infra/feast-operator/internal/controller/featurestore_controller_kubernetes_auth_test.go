@@ -200,7 +200,7 @@ var _ = Describe("FeatureStore Controller-Kubernetes authorization", func() {
 				Namespace: objMeta.Namespace,
 			}, deploy)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(deploy.Spec.Replicas).To(Equal(&services.DefaultReplicas))
+			Expect(deploy.Spec.Replicas).To(Equal(int32Ptr(1)))
 			Expect(controllerutil.HasControllerReference(deploy)).To(BeTrue())
 			Expect(deploy.Spec.Template.Spec.Containers).To(HaveLen(4))
 			Expect(deploy.Spec.Template.Spec.Volumes).To(HaveLen(1))

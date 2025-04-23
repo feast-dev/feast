@@ -331,9 +331,11 @@ func (feast *FeastServices) createPVC(pvcCreate *feastdevv1alpha1.PvcCreate, fea
 }
 
 func (feast *FeastServices) setDeployment(deploy *appsv1.Deployment) error {
+	replicas := deploy.Spec.Replicas
+
 	deploy.Labels = feast.getLabels()
 	deploy.Spec = appsv1.DeploymentSpec{
-		Replicas: &DefaultReplicas,
+		Replicas: replicas,
 		Selector: metav1.SetAsLabelSelector(deploy.GetLabels()),
 		Strategy: feast.getDeploymentStrategy(),
 		Template: corev1.PodTemplateSpec{
