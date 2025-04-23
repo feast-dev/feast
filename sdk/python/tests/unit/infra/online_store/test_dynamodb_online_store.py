@@ -1,6 +1,7 @@
 from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Optional
 
 import boto3
 import pytest
@@ -32,6 +33,7 @@ REGION = "us-west-2"
 @dataclass
 class MockFeatureView:
     name: str
+    tags: Optional[dict[str, str]] = None
 
 
 @pytest.fixture
@@ -209,6 +211,13 @@ def test_dynamodb_online_store_online_write_batch(
     assert [item[1] for item in stored_items] == list(features)
 
 
+def _get_tags(dynamodb_client, table_name):
+    table_arn = dynamodb_client.describe_table(TableName=table_name)["Table"][
+        "TableArn"
+    ]
+    return dynamodb_client.list_tags_of_resource(ResourceArn=table_arn).get("Tags")
+
+
 @mock_dynamodb
 def test_dynamodb_online_store_update(repo_config, dynamodb_online_store):
     """Test DynamoDBOnlineStore update method."""
@@ -222,7 +231,7 @@ def test_dynamodb_online_store_update(repo_config, dynamodb_online_store):
     dynamodb_online_store.update(
         config=repo_config,
         tables_to_delete=[MockFeatureView(name=db_table_delete_name)],
-        tables_to_keep=[MockFeatureView(name=db_table_keep_name)],
+        tables_to_keep=[MockFeatureView(name=db_table_keep_name, tags={"some": "tag"})],
         entities_to_delete=None,
         entities_to_keep=None,
         partial=None,
@@ -236,6 +245,62 @@ def test_dynamodb_online_store_update(repo_config, dynamodb_online_store):
     assert existing_tables is not None
     assert len(existing_tables) == 1
     assert existing_tables[0] == f"test_aws.{db_table_keep_name}"
+
+    assert _get_tags(dynamodb_client, existing_tables[0]) == [
+        {"Key": "some", "Value": "tag"}
+    ]
+
+
+@mock_dynamodb
+def test_dynamodb_online_store_update_tags(repo_config, dynamodb_online_store):
+    """Test DynamoDBOnlineStore update method."""
+    # create dummy table to update with new tags and tag values
+    table_name = f"{TABLE_NAME}_keep_update_tags"
+    create_test_table(PROJECT, table_name, REGION)
+
+    # add tags on update
+    dynamodb_online_store.update(
+        config=repo_config,
+        tables_to_delete=[],
+        tables_to_keep=[MockFeatureView(name=table_name, tags={"some": "tag"})],
+        entities_to_delete=[],
+        entities_to_keep=[],
+        partial=None,
+    )
+
+    # update tags
+    dynamodb_online_store.update(
+        config=repo_config,
+        tables_to_delete=[],
+        tables_to_keep=[
+            MockFeatureView(name=table_name, tags={"some": "new-tag", "another": "tag"})
+        ],
+        entities_to_delete=[],
+        entities_to_keep=[],
+        partial=None,
+    )
+
+    # check only db_table_keep_name exists
+    dynamodb_client = dynamodb_online_store._get_dynamodb_client(REGION)
+    existing_tables = dynamodb_client.list_tables().get("TableNames", None)
+
+    expected_tags = [
+        {"Key": "some", "Value": "new-tag"},
+        {"Key": "another", "Value": "tag"},
+    ]
+    assert _get_tags(dynamodb_client, existing_tables[0]) == expected_tags
+
+    # and then remove all tags
+    dynamodb_online_store.update(
+        config=repo_config,
+        tables_to_delete=[],
+        tables_to_keep=[MockFeatureView(name=table_name, tags=None)],
+        entities_to_delete=[],
+        entities_to_keep=[],
+        partial=None,
+    )
+
+    assert _get_tags(dynamodb_client, existing_tables[0]) == []
 
 
 @mock_dynamodb

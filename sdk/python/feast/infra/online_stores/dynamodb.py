@@ -138,6 +138,43 @@ class DynamoDBOnlineStore(OnlineStore):
     def async_supported(self) -> SupportedAsyncMethods:
         return SupportedAsyncMethods(read=True, write=True)
 
+    @staticmethod
+    def _table_tags(online_config, table_instance) -> list[dict[str, str]]:
+        online_tags = online_config.tags or {}
+        common_tags = [
+            {"Key": key, "Value": value} for key, value in online_tags.items()
+        ]
+        return common_tags + (
+            [
+                {"Key": key, "Value": value}
+                for key, value in table_instance.tags.items()
+                if key not in online_tags
+            ]
+            if table_instance.tags
+            else []
+        )
+
+    @staticmethod
+    def _update_tags(dynamodb_client, table_name, new_tags):
+        table_arn = dynamodb_client.describe_table(TableName=table_name)["Table"][
+            "TableArn"
+        ]
+        current_tags = dynamodb_client.list_tags_of_resource(ResourceArn=table_arn).get(
+            "Tags"
+        )
+        if current_tags:
+            remove_keys = [
+                tag["Key"]
+                for tag in current_tags
+                if tag["Key"] not in new_tags or tag["Value"] != new_tags[tag["Key"]]
+            ]
+            if remove_keys:
+                dynamodb_client.untag_resource(
+                    ResourceArn=table_arn, TagKeys=remove_keys
+                )
+        if new_tags:
+            dynamodb_client.tag_resource(ResourceArn=table_arn, Tags=new_tags)
+
     def update(
         self,
         config: RepoConfig,
@@ -168,26 +205,12 @@ class DynamoDBOnlineStore(OnlineStore):
             online_config.session_based_auth,
         )
 
-        online_tags = online_config.tags or {}
-        common_tags = [
-            {"Key": key, "Value": value}
-            for key, value in online_tags.items()
-        ]
-
         for table_instance in tables_to_keep:
-            table_tags = common_tags + (
-                [
-                    {"Key": key, "Value": value}
-                    for key, value in table_instance.tags.items()
-                    if key not in online_tags
-                ]
-                if table_instance.tags
-                else []
-            )
-
             # Add Tags attribute to creation request only if configured to prevent
             # TagResource permission issues, even with an empty Tags array.
+            table_tags = self._table_tags(online_config, table_instance)
             kwargs = {"Tags": table_tags} if table_tags else {}
+
             try:
                 dynamodb_resource.create_table(
                     TableName=_get_table_name(online_config, config, table_instance),
@@ -206,9 +229,12 @@ class DynamoDBOnlineStore(OnlineStore):
                     raise
 
         for table_instance in tables_to_keep:
-            dynamodb_client.get_waiter("table_exists").wait(
-                TableName=_get_table_name(online_config, config, table_instance)
-            )
+            table_name = _get_table_name(online_config, config, table_instance)
+            dynamodb_client.get_waiter("table_exists").wait(TableName=table_name)
+            # once table is confirmed to exist, update the tags.
+            # tags won't be updated in the create_table call if the table already exists
+            tags = self._table_tags(online_config, table_instance)
+            self._update_tags(dynamodb_client, table_name, tags)
 
         for table_to_delete in tables_to_delete:
             _delete_table_idempotent(
