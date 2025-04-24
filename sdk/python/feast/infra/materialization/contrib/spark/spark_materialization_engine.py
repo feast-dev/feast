@@ -2,7 +2,6 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Callable, List, Literal, Optional, Sequence, Union, cast
 
-import dill
 import pandas as pd
 import pyarrow
 from tqdm import tqdm
@@ -15,6 +14,7 @@ from feast.infra.common.materialization_job import (
     MaterializationJobStatus,
     MaterializationTask,
 )
+from feast.infra.common.serde import SerializedArtifacts
 from feast.infra.materialization.batch_materialization_engine import (
     BatchMaterializationEngine,
 )
@@ -23,10 +23,8 @@ from feast.infra.offline_stores.contrib.spark_offline_store.spark import (
     SparkRetrievalJob,
 )
 from feast.infra.online_stores.online_store import OnlineStore
-from feast.infra.passthrough_provider import PassthroughProvider
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
-from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.stream_feature_view import StreamFeatureView
 from feast.utils import (
@@ -171,7 +169,7 @@ class SparkMaterializationEngine(BatchMaterializationEngine):
                 ),
             )
 
-            spark_serialized_artifacts = _SparkSerializedArtifacts.serialize(
+            serialized_artifacts = SerializedArtifacts.serialize(
                 feature_view=feature_view, repo_config=self.repo_config
             )
 
@@ -182,7 +180,7 @@ class SparkMaterializationEngine(BatchMaterializationEngine):
                 )
 
             spark_df.mapInPandas(
-                lambda x: _map_by_partition(x, spark_serialized_artifacts), "status int"
+                lambda x: _map_by_partition(x, serialized_artifacts), "status int"
             ).count()  # dummy action to force evaluation
 
             return SparkMaterializationJob(
@@ -194,40 +192,7 @@ class SparkMaterializationEngine(BatchMaterializationEngine):
             )
 
 
-@dataclass
-class _SparkSerializedArtifacts:
-    """Class to assist with serializing unpicklable artifacts to the spark workers"""
-
-    feature_view_proto: str
-    repo_config_byte: str
-
-    @classmethod
-    def serialize(cls, feature_view, repo_config):
-        # serialize to proto
-        feature_view_proto = feature_view.to_proto().SerializeToString()
-
-        # serialize repo_config to disk. Will be used to instantiate the online store
-        repo_config_byte = dill.dumps(repo_config)
-
-        return _SparkSerializedArtifacts(
-            feature_view_proto=feature_view_proto, repo_config_byte=repo_config_byte
-        )
-
-    def unserialize(self):
-        # unserialize
-        proto = FeatureViewProto()
-        proto.ParseFromString(self.feature_view_proto)
-        feature_view = FeatureView.from_proto(proto)
-
-        # load
-        repo_config = dill.loads(self.repo_config_byte)
-
-        provider = PassthroughProvider(repo_config)
-        online_store = provider.online_store
-        return feature_view, online_store, repo_config
-
-
-def _map_by_partition(iterator, spark_serialized_artifacts: _SparkSerializedArtifacts):
+def _map_by_partition(iterator, serialized_artifacts: SerializedArtifacts):
     for pdf in iterator:
         if pdf.shape[0] == 0:
             print("Skipping")
@@ -238,8 +203,9 @@ def _map_by_partition(iterator, spark_serialized_artifacts: _SparkSerializedArti
         (
             feature_view,
             online_store,
+            _,
             repo_config,
-        ) = spark_serialized_artifacts.unserialize()
+        ) = serialized_artifacts.unserialize()
 
         if feature_view.batch_source.field_mapping is not None:
             # Spark offline store does the field mapping in pull_latest_from_table_or_query() call

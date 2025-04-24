@@ -188,6 +188,20 @@ def test_spark_compute_engine_get_historical_features():
 
 @pytest.mark.integration
 def test_spark_compute_engine_materialize():
+    """
+    Test the SparkComputeEngine materialize method.
+    For the current feature view driver_hourly_stats, The below execution plan:
+    1. feature data from create_feature_dataset
+    2. filter by start_time and end_time, that is, the last 2 days
+        for the driver_id 1001, the data left is row 0
+        for the driver_id 1002, the data left is row 2
+    3. apply the transform_feature function to the data
+        for all features, the value is multiplied by 2
+    4. write the data to the online store and offline store
+
+    Returns:
+
+    """
     spark_environment = create_spark_environment()
     fs = spark_environment.feature_store
     registry = fs.registry
@@ -212,7 +226,7 @@ def test_spark_compute_engine_materialize():
             Field(name="driver_id", dtype=Int32),
         ],
         online=True,
-        offline=False,
+        offline=True,
         source=data_source,
     )
 
@@ -242,8 +256,58 @@ def test_spark_compute_engine_materialize():
         spark_materialize_job = engine.materialize(task)
 
         assert spark_materialize_job.status() == MaterializationJobStatus.SUCCEEDED
+
+        _check_online_features(
+            fs=fs,
+            driver_id=1001,
+            feature="driver_hourly_stats:conv_rate",
+            expected_value=1.6,
+            full_feature_names=True,
+        )
+
+        entity_df = create_entity_df()
+
+        _check_offline_features(
+            fs=fs,
+            feature="driver_hourly_stats:conv_rate",
+            entity_df=entity_df,
+        )
     finally:
         spark_environment.teardown()
+
+
+def _check_online_features(
+    fs,
+    driver_id,
+    feature,
+    expected_value,
+    full_feature_names: bool = True,
+):
+    online_response = fs.get_online_features(
+        features=[feature],
+        entity_rows=[{"driver_id": driver_id}],
+        full_feature_names=full_feature_names,
+    ).to_dict()
+
+    feature_ref = "__".join(feature.split(":"))
+
+    assert len(online_response["driver_id"]) == 1
+    assert online_response["driver_id"][0] == driver_id
+    assert abs(online_response[feature_ref][0] - expected_value < 1e-6), (
+        "Transformed result"
+    )
+
+
+def _check_offline_features(
+    fs,
+    feature,
+    entity_df,
+):
+    offline_df = fs.get_historical_features(
+        entity_df=entity_df,
+        features=[feature],
+    ).to_df()
+    assert len(offline_df) == 4
 
 
 if __name__ == "__main__":

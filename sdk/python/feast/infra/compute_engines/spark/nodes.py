@@ -7,17 +7,18 @@ from pyspark.sql import functions as F
 from feast import BatchFeatureView, StreamFeatureView
 from feast.aggregation import Aggregation
 from feast.data_source import DataSource
+from feast.infra.common.serde import SerializedArtifacts
 from feast.infra.compute_engines.dag.context import ExecutionContext
 from feast.infra.compute_engines.dag.model import DAGFormat
 from feast.infra.compute_engines.dag.node import DAGNode
 from feast.infra.compute_engines.dag.value import DAGValue
-from feast.infra.materialization.contrib.spark.spark_materialization_engine import (
-    _map_by_partition,
-    _SparkSerializedArtifacts,
-)
+from feast.infra.compute_engines.spark.utils import map_in_arrow
 from feast.infra.offline_stores.contrib.spark_offline_store.spark import (
     SparkRetrievalJob,
     _get_entity_schema,
+)
+from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import (
+    SparkSource,
 )
 from feast.infra.offline_stores.offline_utils import (
     infer_event_timestamp_from_entity_df,
@@ -273,29 +274,40 @@ class SparkWriteNode(DAGNode):
     def __init__(
         self,
         name: str,
-        input_node: DAGNode,
         feature_view: Union[BatchFeatureView, StreamFeatureView],
     ):
         super().__init__(name)
-        self.add_input(input_node)
         self.feature_view = feature_view
 
     def execute(self, context: ExecutionContext) -> DAGValue:
         spark_df: DataFrame = self.get_single_input_value(context).data
-        spark_serialized_artifacts = _SparkSerializedArtifacts.serialize(
+        serialized_artifacts = SerializedArtifacts.serialize(
             feature_view=self.feature_view, repo_config=context.repo_config
         )
 
-        # ✅ 1. Write to offline store (if enabled)
-        if self.feature_view.offline:
-            # TODO: Update _map_by_partition to be able to write to offline store
-            pass
-
-        # ✅ 2. Write to online store (if enabled)
+        # ✅ 1. Write to online store if online enabled
         if self.feature_view.online:
-            spark_df.mapInPandas(
-                lambda x: _map_by_partition(x, spark_serialized_artifacts), "status int"
+            spark_df.mapInArrow(
+                lambda x: map_in_arrow(x, serialized_artifacts, mode="online"),
+                spark_df.schema,
             ).count()
+
+        # ✅ 2. Write to offline store if offline enabled
+        if self.feature_view.offline:
+            if not isinstance(self.feature_view.batch_source, SparkSource):
+                spark_df.mapInArrow(
+                    lambda x: map_in_arrow(x, serialized_artifacts, mode="offline"),
+                    spark_df.schema,
+                ).count()
+            # Directly write spark df to spark offline store without using mapInArrow
+            else:
+                dest_path = self.feature_view.batch_source.path
+                file_format = self.feature_view.batch_source.file_format
+                if not dest_path or not file_format:
+                    raise ValueError(
+                        "Destination path and file format must be specified for SparkSource."
+                    )
+                spark_df.write.format(file_format).mode("append").save(dest_path)
 
         return DAGValue(
             data=spark_df,

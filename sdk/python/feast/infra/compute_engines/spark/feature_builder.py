@@ -5,7 +5,7 @@ from pyspark.sql import SparkSession
 from feast.infra.common.materialization_job import MaterializationTask
 from feast.infra.common.retrieval_task import HistoricalRetrievalTask
 from feast.infra.compute_engines.feature_builder import FeatureBuilder
-from feast.infra.compute_engines.spark.node import (
+from feast.infra.compute_engines.spark.nodes import (
     SparkAggregationNode,
     SparkDedupNode,
     SparkFilterNode,
@@ -73,7 +73,8 @@ class SparkFeatureBuilder(FeatureBuilder):
         return node
 
     def build_output_nodes(self, input_node):
-        node = SparkWriteNode("output", input_node, self.feature_view)
+        node = SparkWriteNode("output", self.feature_view)
+        node.add_input(input_node)
         self.nodes.append(node)
         return node
 
