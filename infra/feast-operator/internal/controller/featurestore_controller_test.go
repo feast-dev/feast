@@ -201,12 +201,16 @@ var _ = Describe("FeatureStore Controller", func() {
 				Namespace: objMeta.Namespace,
 			}, deploy)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(deploy.Spec.Replicas).To(Equal(&services.DefaultReplicas))
+			Expect(deploy.Spec.Replicas).To(Equal(int32Ptr(1)))
 			Expect(controllerutil.HasControllerReference(deploy)).To(BeTrue())
 			Expect(deploy.Spec.Template.Spec.ServiceAccountName).To(Equal(deploy.Name))
 			Expect(deploy.Spec.Template.Spec.InitContainers).To(HaveLen(1))
 			Expect(deploy.Spec.Template.Spec.InitContainers[0].Args[0]).To(ContainSubstring("feast init"))
 			Expect(deploy.Spec.Template.Spec.Containers).To(HaveLen(1))
+
+			deploy.Spec.Replicas = int32Ptr(3)
+			err = k8sClient.Update(ctx, deploy)
+			Expect(err).NotTo(HaveOccurred())
 
 			svc := &corev1.Service{}
 			err = k8sClient.Get(ctx, types.NamespacedName{
@@ -253,6 +257,7 @@ var _ = Describe("FeatureStore Controller", func() {
 				Namespace: objMeta.Namespace,
 			}, deploy)
 			Expect(err).NotTo(HaveOccurred())
+			Expect(deploy.Spec.Replicas).To(Equal(int32Ptr(3)))
 			Expect(deploy.Spec.Template.Spec.InitContainers).To(HaveLen(1))
 			Expect(deploy.Spec.Template.Spec.InitContainers[0].Args[0]).To(ContainSubstring("git -c http.sslVerify=false clone"))
 			Expect(deploy.Spec.Template.Spec.InitContainers[0].Args[0]).To(ContainSubstring("git checkout " + ref))
@@ -650,7 +655,7 @@ var _ = Describe("FeatureStore Controller", func() {
 				Namespace: objMeta.Namespace,
 			}, deploy)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(deploy.Spec.Replicas).To(Equal(&services.DefaultReplicas))
+			Expect(deploy.Spec.Replicas).To(Equal(int32Ptr(1)))
 			Expect(controllerutil.HasControllerReference(deploy)).To(BeTrue())
 			Expect(deploy.Spec.Template.Spec.ServiceAccountName).To(Equal(deploy.Name))
 			Expect(deploy.Spec.Template.Spec.Containers).To(HaveLen(4))
@@ -1393,4 +1398,12 @@ func areEnvVarArraysEqual(arr1 []corev1.EnvVar, arr2 []corev1.EnvVar) bool {
 	}
 
 	return true
+}
+
+func strPtr(str string) *string {
+	return &str
+}
+
+func int32Ptr(value int32) *int32 {
+	return &value
 }
