@@ -311,7 +311,7 @@ class PostgreSQLOnlineStore(OnlineStore):
             for table in tables_to_keep:
                 table_name = _table_id(project, table)
                 if config.online_store.vector_enabled:
-                    vector_value_type = f"vector({config.online_store.vector_len})"
+                    vector_value_type = "vector"
                 else:
                     # keep the vector_value_type as BYTEA if pgvector is not enabled, to maintain compatibility
                     vector_value_type = "BYTEA"

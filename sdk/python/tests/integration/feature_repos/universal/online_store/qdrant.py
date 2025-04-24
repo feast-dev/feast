@@ -20,7 +20,7 @@ class QdrantOnlineStoreCreator(OnlineStoreCreator):
             "host": self.container.get_container_host_ip(),
             "type": "qdrant",
             "port": self.container.exposed_rest_port,
-            "vector_len": 2,
+            "vector_length": 2,
             "similarity": "cosine",
         }
 

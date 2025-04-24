@@ -31,7 +31,6 @@ online_store:
     sslcert_path: /path/to/client-cert.pem
     sslrootcert_path: /path/to/server-ca.pem
     vector_enabled: false
-    vector_len: 512
 ```
 {% endcode %}
 
@@ -67,7 +66,7 @@ To compare this set of functionality against other online stores, please see the
 The Postgres online store supports the use of [PGVector](https://github.com/pgvector/pgvector) for storing feature values.
 To enable PGVector, set `vector_enabled: true` in the online store configuration. 
 
-The `vector_len` parameter can be used to specify the length of the vector. The default value is 512.
+The `vector_length` parameter can be used to specify the length of the vector in the Field.
 
 Please make sure to follow the instructions in the repository, which, as the time of this writing, requires you to 
 run `CREATE EXTENSION vector;` in the database.
