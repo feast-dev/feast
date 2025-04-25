@@ -236,6 +236,7 @@ class FeatureView(BaseFeatureView):
             schema=self.schema,
             tags=self.tags,
             online=self.online,
+            offline=self.offline,
         )
 
         # This is deliberately set outside of the FV initialization as we do not have the Entity objects.
@@ -258,6 +259,7 @@ class FeatureView(BaseFeatureView):
             sorted(self.entities) != sorted(other.entities)
             or self.ttl != other.ttl
             or self.online != other.online
+            or self.offline != other.offline
             or self.batch_source != other.batch_source
             or self.stream_source != other.stream_source
             or sorted(self.entity_columns) != sorted(other.entity_columns)
@@ -363,6 +365,7 @@ class FeatureView(BaseFeatureView):
             owner=self.owner,
             ttl=(ttl_duration if ttl_duration is not None else None),
             online=self.online,
+            offline=self.offline,
             batch_source=batch_source_proto,
             stream_source=stream_source_proto,
         )
@@ -412,6 +415,7 @@ class FeatureView(BaseFeatureView):
             tags=dict(feature_view_proto.spec.tags),
             owner=feature_view_proto.spec.owner,
             online=feature_view_proto.spec.online,
+            offline=feature_view_proto.spec.offline,
             ttl=(
                 timedelta(days=0)
                 if feature_view_proto.spec.ttl.ToNanoseconds() == 0

@@ -8,7 +8,7 @@ from feast.aggregation import Aggregation
 from feast.infra.compute_engines.dag.context import ColumnInfo, ExecutionContext
 from feast.infra.compute_engines.dag.model import DAGFormat
 from feast.infra.compute_engines.dag.value import DAGValue
-from feast.infra.compute_engines.spark.node import (
+from feast.infra.compute_engines.spark.nodes import (
     SparkAggregationNode,
     SparkDedupNode,
     SparkJoinNode,

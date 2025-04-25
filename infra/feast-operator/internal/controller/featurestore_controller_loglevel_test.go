@@ -171,7 +171,7 @@ var _ = Describe("FeatureStore Controller - Feast service LogLevel", func() {
 				Namespace: objMeta.Namespace,
 			}, deploy)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(deploy.Spec.Replicas).To(Equal(&services.DefaultReplicas))
+			Expect(deploy.Spec.Replicas).To(Equal(int32Ptr(1)))
 			Expect(controllerutil.HasControllerReference(deploy)).To(BeTrue())
 			Expect(deploy.Spec.Template.Spec.Containers).To(HaveLen(4))
 			command := services.GetRegistryContainer(*deploy).Command
@@ -244,7 +244,3 @@ var _ = Describe("FeatureStore Controller - Feast service LogLevel", func() {
 
 	})
 })
-
-func strPtr(str string) *string {
-	return &str
-}
