@@ -131,7 +131,7 @@ func TestBuildValkeyKeys(t *testing.T) {
 func TestParseConnectionString(t *testing.T) {
 	t.Run("Default connection string", func(t *testing.T) {
 		onlineStoreConfig := map[string]interface{}{}
-		clientOption, err := parseConnectionString(onlineStoreConfig)
+		clientOption, err := parseConnectionString(onlineStoreConfig, valkeyNode)
 		assert.NoError(t, err)
 		assert.Equal(t, []string{"localhost:6379"}, clientOption.InitAddress)
 	})
@@ -140,16 +140,68 @@ func TestParseConnectionString(t *testing.T) {
 		onlineStoreConfig := map[string]interface{}{
 			"connection_string": "127.0.0.1:6379,192.168.1.1:6380",
 		}
-		clientOption, err := parseConnectionString(onlineStoreConfig)
+		clientOption, err := parseConnectionString(onlineStoreConfig, valkeyCluster)
 		assert.NoError(t, err)
 		assert.Equal(t, []string{"127.0.0.1:6379", "192.168.1.1:6380"}, clientOption.InitAddress)
+	})
+
+	t.Run("Valid connection string with replica addresses for Standalone cluster", func(t *testing.T) {
+		onlineStoreConfig := map[string]interface{}{
+			"connection_string": "127.0.0.1:6379,192.168.1.1:6380",
+			"replica_address":   "127.0.0.1:6380",
+		}
+		clientOption, err := parseConnectionString(onlineStoreConfig, valkeyNode)
+		assert.NoError(t, err)
+		assert.Equal(t, []string{"127.0.0.1:6379", "192.168.1.1:6380"}, clientOption.InitAddress)
+		assert.Equal(t, []string{"127.0.0.1:6380"}, clientOption.Standalone.ReplicaAddress)
+	})
+
+	t.Run("Valid connection string with muliple replica addresses for Standalone cluster", func(t *testing.T) {
+		onlineStoreConfig := map[string]interface{}{
+			"connection_string": "127.0.0.1:6379,192.168.1.1:6380",
+			"replica_address":   "127.0.0.1:6380,127.0.0.1:6381",
+		}
+		clientOption, err := parseConnectionString(onlineStoreConfig, valkeyNode)
+		assert.NoError(t, err)
+		assert.Equal(t, []string{"127.0.0.1:6379", "192.168.1.1:6380"}, clientOption.InitAddress)
+		assert.Equal(t, []string{"127.0.0.1:6380", "127.0.0.1:6381"}, clientOption.Standalone.ReplicaAddress)
+	})
+
+	t.Run("Invalid replica addresses for Standalone cluster", func(t *testing.T) {
+		onlineStoreConfig := map[string]interface{}{
+			"connection_string": "127.0.0.1:6379,192.168.1.1:6380",
+			"replica_address":   "127.0.0.1:6380,replicaonly",
+		}
+		_, err := parseConnectionString(onlineStoreConfig, valkeyNode)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "unable to parse part of replica_address")
+	})
+
+	t.Run("Invalid replica addresses for Standalone cluster", func(t *testing.T) {
+		onlineStoreConfig := map[string]interface{}{
+			"connection_string": "127.0.0.1:6379,192.168.1.1:6380",
+			"replica_address":   "127.0.0.1:6380,replicaonly",
+		}
+		_, err := parseConnectionString(onlineStoreConfig, valkeyNode)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "unable to parse part of replica_address")
+	})
+
+	t.Run("Invalid replica addresses type for Standalone cluster", func(t *testing.T) {
+		onlineStoreConfig := map[string]interface{}{
+			"connection_string": "127.0.0.1:6379,192.168.1.1:6380",
+			"replica_address":   12345,
+		}
+		_, err := parseConnectionString(onlineStoreConfig, valkeyNode)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to convert replica_address to string")
 	})
 
 	t.Run("Connection string with password", func(t *testing.T) {
 		onlineStoreConfig := map[string]interface{}{
 			"connection_string": "127.0.0.1:6379,password=secret",
 		}
-		clientOption, err := parseConnectionString(onlineStoreConfig)
+		clientOption, err := parseConnectionString(onlineStoreConfig, valkeyNode)
 		assert.NoError(t, err)
 		assert.Equal(t, "secret", clientOption.Password)
 	})
@@ -158,7 +210,7 @@ func TestParseConnectionString(t *testing.T) {
 		onlineStoreConfig := map[string]interface{}{
 			"connection_string": "127.0.0.1:6379,ssl=true",
 		}
-		clientOption, err := parseConnectionString(onlineStoreConfig)
+		clientOption, err := parseConnectionString(onlineStoreConfig, valkeyCluster)
 		assert.NoError(t, err)
 		assert.NotNil(t, clientOption.TLSConfig)
 	})
@@ -167,7 +219,7 @@ func TestParseConnectionString(t *testing.T) {
 		onlineStoreConfig := map[string]interface{}{
 			"connection_string": "127.0.0.1:6379,db=1",
 		}
-		clientOption, err := parseConnectionString(onlineStoreConfig)
+		clientOption, err := parseConnectionString(onlineStoreConfig, valkeyCluster)
 		assert.NoError(t, err)
 		assert.Equal(t, 1, clientOption.SelectDB)
 	})
@@ -176,7 +228,7 @@ func TestParseConnectionString(t *testing.T) {
 		onlineStoreConfig := map[string]interface{}{
 			"connection_string": "127.0.0.1:6379,invalid_option",
 		}
-		_, err := parseConnectionString(onlineStoreConfig)
+		_, err := parseConnectionString(onlineStoreConfig, valkeyCluster)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "unable to parse part of connection_string")
 	})
@@ -185,7 +237,7 @@ func TestParseConnectionString(t *testing.T) {
 		onlineStoreConfig := map[string]interface{}{
 			"connection_string": "127.0.0.1:6379,unknown=option",
 		}
-		_, err := parseConnectionString(onlineStoreConfig)
+		_, err := parseConnectionString(onlineStoreConfig, valkeyCluster)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "unrecognized option in connection_string")
 	})
@@ -194,7 +246,7 @@ func TestParseConnectionString(t *testing.T) {
 		onlineStoreConfig := map[string]interface{}{
 			"connection_string": "127.0.0.1:6379,ssl=invalid",
 		}
-		_, err := parseConnectionString(onlineStoreConfig)
+		_, err := parseConnectionString(onlineStoreConfig, valkeyCluster)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid syntax")
 	})
@@ -203,7 +255,7 @@ func TestParseConnectionString(t *testing.T) {
 		onlineStoreConfig := map[string]interface{}{
 			"connection_string": "127.0.0.1:6379,db=invalid",
 		}
-		_, err := parseConnectionString(onlineStoreConfig)
+		_, err := parseConnectionString(onlineStoreConfig, valkeyCluster)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid syntax")
 	})
@@ -212,7 +264,7 @@ func TestParseConnectionString(t *testing.T) {
 		onlineStoreConfig := map[string]interface{}{
 			"connection_string": 12345,
 		}
-		_, err := parseConnectionString(onlineStoreConfig)
+		_, err := parseConnectionString(onlineStoreConfig, valkeyCluster)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to convert connection_string to string")
 	})

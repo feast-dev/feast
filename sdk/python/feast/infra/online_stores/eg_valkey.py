@@ -73,6 +73,14 @@ class EGValkeyOnlineStoreConfig(FeastConfigBaseModel):
     """Connection string containing the host, port, and configuration parameters for Valkey
      format: host:port,parameter1,parameter2 eg. valkey:6379,db=0 """
 
+    replica_address: Optional[StrictStr] = None
+    """
+    (Optional) Address of the replica node used for read operations.
+    If not provided, the master node will be used for both read and write operations.
+    Used by GO Feature server. An example use case is the reader endpoint provided by cloud vendors.
+    Example: "host1:port1,host2:port2"
+    """
+
     key_ttl_seconds: Optional[int] = None
     """(Optional) valkey key bin ttl (in seconds) for expiring entities. Value None means No TTL. Value 0 means expire in 0 seconds."""
 

@@ -27,6 +27,8 @@ import (
 	// valkeytrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/valkey-go"
 )
 
+const defaultConnectionString = "localhost:6379"
+
 type valkeyType int
 
 const (
@@ -48,21 +50,42 @@ type ValkeyOnlineStore struct {
 	config *registry.RepoConfig
 }
 
-func parseConnectionString(onlineStoreConfig map[string]interface{}) (valkey.ClientOption, error) {
+func parseConnectionString(onlineStoreConfig map[string]interface{}, valkeyStoreType valkeyType) (valkey.ClientOption, error) {
 	var clientOption valkey.ClientOption
 
 	clientOption.SendToReplicas = func(cmd valkey.Completed) bool {
 		return cmd.IsReadOnly()
 	}
 
-	valkeyConnJson, ok := onlineStoreConfig["connection_string"]
-	if !ok {
-		valkeyConnJson = "localhost:6379" // Default connection string
+	if valkeyStoreType == valkeyNode {
+		replicaAddressJsonValue, ok := onlineStoreConfig["replica_address"]
+		if !ok {
+			log.Warn().Msg("define replica_address or reader endpoint to read from cluster replicas")
+		} else {
+			replicaAddress, ok := replicaAddressJsonValue.(string)
+			if !ok {
+				return clientOption, fmt.Errorf("failed to convert replica_address to string: %+v", replicaAddressJsonValue)
+			}
+
+			parts := strings.Split(replicaAddress, ",")
+			for _, part := range parts {
+				if strings.Contains(part, ":") {
+					clientOption.Standalone.ReplicaAddress = append(clientOption.Standalone.ReplicaAddress, part)
+				} else {
+					return clientOption, fmt.Errorf("unable to parse part of replica_address: %s", part)
+				}
+			}
+		}
 	}
 
-	valkeyConnStr, ok := valkeyConnJson.(string)
+	valkeyConnJsonValue, ok := onlineStoreConfig["connection_string"]
 	if !ok {
-		return clientOption, fmt.Errorf("failed to convert connection_string to string: %+v", valkeyConnJson)
+		valkeyConnJsonValue = defaultConnectionString
+	}
+
+	valkeyConnStr, ok := valkeyConnJsonValue.(string)
+	if !ok {
+		return clientOption, fmt.Errorf("failed to convert connection_string to string: %+v", valkeyConnJsonValue)
 	}
 
 	parts := strings.Split(valkeyConnStr, ",")
@@ -136,7 +159,7 @@ func NewValkeyOnlineStore(project string, config *registry.RepoConfig, onlineSto
 	store.t = valkeyStoreType
 
 	// Parse connection string
-	clientOption, err := parseConnectionString(onlineStoreConfig)
+	clientOption, err := parseConnectionString(onlineStoreConfig, valkeyStoreType)
 	if err != nil {
 		return nil, err
 	}
@@ -154,12 +177,12 @@ func NewValkeyOnlineStore(project string, config *registry.RepoConfig, onlineSto
 func getValkeyType(onlineStoreConfig map[string]interface{}) (valkeyType, error) {
 	var t valkeyType
 
-	valkeyTypeJson, ok := onlineStoreConfig["valkey_type"]
+	valkeyTypeJsonValue, ok := onlineStoreConfig["valkey_type"]
 	if !ok {
 		// Default to "valkey"
-		valkeyTypeJson = "valkey"
-	} else if valkeyTypeStr, ok := valkeyTypeJson.(string); !ok {
-		return -1, fmt.Errorf("failed to convert valkey_type to string: %+v", valkeyTypeJson)
+		valkeyTypeJsonValue = "valkey"
+	} else if valkeyTypeStr, ok := valkeyTypeJsonValue.(string); !ok {
+		return -1, fmt.Errorf("failed to convert valkey_type to string: %+v", valkeyTypeJsonValue)
 	} else {
 		if valkeyTypeStr == "valkey" {
 			t = valkeyNode
