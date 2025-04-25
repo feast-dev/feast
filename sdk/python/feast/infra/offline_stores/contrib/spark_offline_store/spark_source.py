@@ -46,6 +46,7 @@ class SparkSource(DataSource):
         owner: Optional[str] = "",
         timestamp_field: Optional[str] = None,
         date_partition_column: Optional[str] = None,
+        date_partition_column_format: Optional[str] = "%Y-%m-%d",
     ):
         """Creates a SparkSource object.
 
@@ -97,6 +98,7 @@ class SparkSource(DataSource):
             query=query,
             path=path,
             file_format=file_format,
+            date_partition_column_format=date_partition_column_format,
         )
 
     @property
@@ -127,6 +129,13 @@ class SparkSource(DataSource):
         """
         return self.spark_options.file_format
 
+    @property
+    def date_partition_column_format(self):
+        """
+        Returns the date partition column format of this feature data source.
+        """
+        return self.spark_options.date_partition_column_format
+
     @staticmethod
     def from_proto(data_source: DataSourceProto) -> Any:
         assert data_source.HasField("spark_options")
@@ -139,6 +148,7 @@ class SparkSource(DataSource):
             query=spark_options.query,
             path=spark_options.path,
             file_format=spark_options.file_format,
+            date_partition_column_format=spark_options.date_partition_column_format,
             date_partition_column=data_source.date_partition_column,
             timestamp_field=data_source.timestamp_field,
             created_timestamp_column=data_source.created_timestamp_column,
@@ -240,6 +250,7 @@ class SparkOptions:
         query: Optional[str],
         path: Optional[str],
         file_format: Optional[str],
+        date_partition_column_format: Optional[str] = "%Y-%m-%d",
     ):
         # Check that only one of the ways to load a spark dataframe can be used. We have
         # to treat empty string and null the same due to proto (de)serialization.
@@ -261,6 +272,7 @@ class SparkOptions:
         self._query = query
         self._path = path
         self._file_format = file_format
+        self._date_partition_column_format = date_partition_column_format
 
     @property
     def table(self):
@@ -294,6 +306,14 @@ class SparkOptions:
     def file_format(self, file_format):
         self._file_format = file_format
 
+    @property
+    def date_partition_column_format(self):
+        return self._date_partition_column_format
+
+    @date_partition_column_format.setter
+    def date_partition_column_format(self, date_partition_column_format):
+        self._date_partition_column_format = date_partition_column_format
+
     @classmethod
     def from_proto(cls, spark_options_proto: DataSourceProto.SparkOptions):
         """
@@ -308,6 +328,7 @@ class SparkOptions:
             query=spark_options_proto.query,
             path=spark_options_proto.path,
             file_format=spark_options_proto.file_format,
+            date_partition_column_format=spark_options_proto.date_partition_column_format,
         )
 
         return spark_options
@@ -323,6 +344,7 @@ class SparkOptions:
             query=self.query,
             path=self.path,
             file_format=self.file_format,
+            date_partition_column_format=self.date_partition_column_format,
         )
 
         return spark_options_proto
