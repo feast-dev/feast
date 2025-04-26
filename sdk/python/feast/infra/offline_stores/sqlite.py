@@ -1,4 +1,3 @@
-import os
 import sqlite3
 from datetime import datetime
 from pathlib import Path
@@ -9,10 +8,8 @@ import pandas as pd
 import pyarrow
 from pydantic import StrictStr
 
-from feast import Entity
 from feast.data_source import DataSource
 from feast.errors import InvalidEntityType
-from feast.feature_logging import LoggingConfig, LoggingSource
 from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_VAL, FeatureView
 from feast.infra.offline_stores import offline_utils
 from feast.infra.offline_stores.offline_store import (
@@ -22,7 +19,6 @@ from feast.infra.offline_stores.offline_store import (
 )
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
-from feast.saved_dataset import SavedDatasetStorage
 from feast.utils import _get_requested_feature_views_to_features_dict
 
 
@@ -99,7 +95,9 @@ class SqliteSource(DataSource):
         Returns:
             SqliteSource object
         """
-        raise NotImplementedError("Conversion from proto not implemented for SQLiteSource")
+        raise NotImplementedError(
+            "Conversion from proto not implemented for SQLiteSource"
+        )
 
     def to_proto(self) -> Any:
         """
@@ -108,7 +106,9 @@ class SqliteSource(DataSource):
         Returns:
             Proto object
         """
-        raise NotImplementedError("Conversion to proto not implemented for SQLiteSource")
+        raise NotImplementedError(
+            "Conversion to proto not implemented for SQLiteSource"
+        )
 
     def validate(self, config: RepoConfig):
         """
@@ -429,9 +429,13 @@ class SqliteOfflineStore(OfflineStore):
             query=query,
             database_path=database_path,
             full_feature_names=full_feature_names,
-            on_demand_feature_views=list(_get_requested_feature_views_to_features_dict(
-                feature_refs, feature_views, registry.list_on_demand_feature_views(project)
-            )[1].keys()),
+            on_demand_feature_views=list(
+                _get_requested_feature_views_to_features_dict(
+                    feature_refs,
+                    feature_views,
+                    registry.list_on_demand_feature_views(project),
+                )[1].keys()
+            ),
             metadata=RetrievalMetadata(
                 features=feature_refs,
                 keys=list(entity_schema.keys() - {entity_df_event_timestamp_col}),
@@ -489,14 +493,14 @@ def _get_database_path(config: RepoConfig) -> str:
         Path to the SQLite database file
     """
     assert isinstance(config.offline_store, SqliteOfflineStoreConfig)
-    
+
     store_path = config.offline_store.path or "data/offline.db"
-    
+
     if config.repo_path and not Path(store_path).is_absolute():
         db_path = str(config.repo_path / store_path)
     else:
         db_path = store_path
-    
+
     return str(db_path)
 
 
