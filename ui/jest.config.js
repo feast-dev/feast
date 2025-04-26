@@ -31,6 +31,7 @@ module.exports = {
     "^react-native$": "react-native-web",
     "^.+\\.module\\.(css|sass|scss)$": "identity-obj-proxy",
     "chroma-js": "<rootDir>/node_modules/chroma-js/dist/chroma.min.cjs",
+    "^reactflow/dist/style\\.css$": "identity-obj-proxy",
   },
   moduleFileExtensions: [
     "web.js",
