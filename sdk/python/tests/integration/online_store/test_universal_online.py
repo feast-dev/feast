@@ -923,10 +923,11 @@ def test_retrieve_online_milvus_documents(environment, fake_document_data):
 
 
 @pytest.mark.integration
-@pytest.mark.universal_online_stores(only=["pgvector"])
-def test_postgres_retrieve_online_documents_v2(environment, fake_document_data):
-    """Test retrieval of documents using PostgreSQL vector store capabilities."""
+@pytest.mark.universal_online_stores(only=["pgvector", "elasticsearch"])
+def test_retrieve_online_documents_v2(environment, fake_document_data):
+    """Test retrieval of documents using vector store capabilities."""
     fs = environment.feature_store
+    fs.config.online_store.vector_enabled = True
 
     n_rows = 20
     vector_dim = 2
