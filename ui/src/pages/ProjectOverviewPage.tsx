@@ -41,7 +41,6 @@ const ProjectOverviewPage = () => {
       disabled: false,
     },
   ];
-  ca;
 
   const onSelectedTabChanged = (id: string) => {
     setSelectedTabId(id);
