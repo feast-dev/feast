@@ -12,7 +12,13 @@ import ReactFlow, {
 import "reactflow/dist/style.css";
 import dagre from "dagre";
 
-import { EuiPanel, EuiTitle, EuiSpacer, EuiText, EuiLoadingSpinner } from "@elastic/eui";
+import {
+  EuiPanel,
+  EuiTitle,
+  EuiSpacer,
+  EuiText,
+  EuiLoadingSpinner,
+} from "@elastic/eui";
 import { FEAST_FCO_TYPES } from "../parsers/types";
 import { EntityRelation } from "../parsers/parseEntityRelationships";
 import { feast } from "../protos";
@@ -59,7 +65,11 @@ const nodeTypes = {
   custom: CustomNode,
 };
 
-const getLayoutedElements = (nodes: Node[], edges: Edge[], direction = "TB") => {
+const getLayoutedElements = (
+  nodes: Node[],
+  edges: Edge[],
+  direction = "TB",
+) => {
   const dagreGraph = new dagre.graphlib.Graph();
   dagreGraph.setDefaultEdgeLabel(() => ({}));
   dagreGraph.setGraph({ rankdir: direction });
@@ -90,7 +100,7 @@ const getLayoutedElements = (nodes: Node[], edges: Edge[], direction = "TB") => 
 
 const registryToFlow = (
   objects: feast.core.Registry,
-  relationships: EntityRelation[]
+  relationships: EntityRelation[],
 ) => {
   const nodes: Node[] = [];
   const edges: Edge[] = [];
@@ -161,13 +171,13 @@ const registryToFlow = (
   });
 
   const dataSources = new Set<string>();
-  
+
   objects.featureViews?.forEach((fv) => {
     if (fv.spec?.batchSource?.name) {
       dataSources.add(fv.spec.batchSource.name);
     }
   });
-  
+
   objects.streamFeatureViews?.forEach((sfv) => {
     if (sfv.spec?.batchSource?.name) {
       dataSources.add(sfv.spec.batchSource.name);
@@ -193,7 +203,7 @@ const registryToFlow = (
   relationships.forEach((rel, index) => {
     const sourcePrefix = getNodePrefix(rel.source.type);
     const targetPrefix = getNodePrefix(rel.target.type);
-    
+
     edges.push({
       id: `edge-${index}`,
       source: `${sourcePrefix}-${rel.source.name}`,
@@ -240,18 +250,15 @@ const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
   useEffect(() => {
     if (registryData && relationships) {
       setLoading(true);
-      
+
       const { nodes: initialNodes, edges: initialEdges } = registryToFlow(
         registryData,
-        [...relationships, ...indirectRelationships]
+        [...relationships, ...indirectRelationships],
       );
-      
-      const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
-        initialNodes,
-        initialEdges,
-        direction
-      );
-      
+
+      const { nodes: layoutedNodes, edges: layoutedEdges } =
+        getLayoutedElements(initialNodes, initialEdges, direction);
+
       setNodes(layoutedNodes);
       setEdges(layoutedEdges);
       setLoading(false);
@@ -268,7 +275,7 @@ const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
         <h2>Registry Visualization</h2>
       </EuiTitle>
       <EuiSpacer size="m" />
-      
+
       {loading ? (
         <div style={{ display: "flex", justifyContent: "center", padding: 50 }}>
           <EuiLoadingSpinner size="xl" />
@@ -294,7 +301,7 @@ const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
           </ReactFlow>
         </div>
       )}
-      
+
       <EuiSpacer size="m" />
       <EuiText size="s">
         <p>
@@ -302,7 +309,10 @@ const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
         </p>
         <div style={{ display: "flex", gap: 10 }}>
           {Object.entries(nodeColors).map(([type, color]) => (
-            <div key={type} style={{ display: "flex", alignItems: "center", marginRight: 15 }}>
+            <div
+              key={type}
+              style={{ display: "flex", alignItems: "center", marginRight: 15 }}
+            >
               <div
                 style={{
                   width: 20,

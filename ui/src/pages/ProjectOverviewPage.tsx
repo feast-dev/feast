@@ -26,26 +26,27 @@ const ProjectOverviewPage = () => {
   useDocumentTitle("Feast Home");
   const registryUrl = useContext(RegistryPathContext);
   const { isLoading, isSuccess, isError, data } = useLoadRegistry(registryUrl);
-  
-  const [selectedTabId, setSelectedTabId] = useState('overview');
-  
+
+  const [selectedTabId, setSelectedTabId] = useState("overview");
+
   const tabs = [
     {
-      id: 'overview',
-      name: 'Overview',
+      id: "overview",
+      name: "Overview",
       disabled: false,
     },
     {
-      id: 'visualization',
-      name: 'Registry Visualization',
+      id: "visualization",
+      name: "Registry Visualization",
       disabled: false,
     },
   ];
-  
+  ca;
+
   const onSelectedTabChanged = (id: string) => {
     setSelectedTabId(id);
   };
-  
+
   const renderTabs = () => {
     return tabs.map((tab, index) => (
       <EuiTab
@@ -111,11 +112,11 @@ const ProjectOverviewPage = () => {
           </h1>
         </EuiTitle>
         <EuiSpacer />
-        
+
         <EuiTabs>{renderTabs()}</EuiTabs>
         <EuiSpacer />
-        
-        {selectedTabId === 'overview' && (
+
+        {selectedTabId === "overview" && (
           <EuiFlexGroup>
             <EuiFlexItem grow={2}>
               {isLoading && <EuiSkeletonText lines={4} />}
@@ -142,8 +143,8 @@ const ProjectOverviewPage = () => {
                   <EuiText>
                     <p>
                       Welcome to your new Feast project. In this UI, you can see
-                      Data Sources, Entities, Features, Feature Views, and Feature
-                      Services registered in Feast.
+                      Data Sources, Entities, Features, Feature Views, and
+                      Feature Services registered in Feast.
                     </p>
                     <p>
                       It looks like this project already has some objects
@@ -168,10 +169,8 @@ const ProjectOverviewPage = () => {
             </EuiFlexItem>
           </EuiFlexGroup>
         )}
-        
-        {selectedTabId === 'visualization' && (
-          <RegistryVisualizationTab />
-        )}
+
+        {selectedTabId === "visualization" && <RegistryVisualizationTab />}
       </EuiPageTemplate.Section>
       <EuiPageTemplate.Section>
         {isSuccess && <RegistrySearch categories={categories} />}
