@@ -295,7 +295,7 @@ const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
             <Background />
             <Controls />
             <Panel position="top-right">
-              <button 
+              <button
                 onClick={toggleDirection}
                 className="euiButton euiButton--primary"
                 style={{
@@ -307,7 +307,7 @@ const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
                   cursor: "pointer",
                   fontSize: "14px",
                   fontWeight: "500",
-                  boxShadow: "0 2px 2px -1px rgba(152, 162, 179, 0.3)"
+                  boxShadow: "0 2px 2px -1px rgba(152, 162, 179, 0.3)",
                 }}
               >
                 {direction === "TB" ? "Horizontal Layout" : "Vertical Layout"}
