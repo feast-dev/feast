@@ -9,6 +9,9 @@ import {
   useEdgesState,
   ConnectionLineType,
   Panel,
+  MarkerType,
+  Handle,
+  Position,
 } from "reactflow";
 import "reactflow/dist/style.css";
 import dagre from "dagre";
@@ -54,10 +57,23 @@ const CustomNode = ({ data }: { data: NodeData }) => {
         display: "flex",
         flexDirection: "column",
         justifyContent: "center",
+        position: "relative",
       }}
     >
+      <Handle
+        type="target"
+        position={Position.Top}
+        id="target"
+        style={{ background: "#555" }}
+      />
       <div style={{ fontWeight: "bold" }}>{data.label}</div>
       <div style={{ fontSize: "0.8em" }}>{data.type}</div>
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        id="source"
+        style={{ background: "#555" }}
+      />
     </div>
   );
 };
@@ -93,6 +109,8 @@ const getLayoutedElements = (
         x: nodeWithPosition.x - nodeWidth / 2,
         y: nodeWithPosition.y - nodeHeight / 2,
       },
+      sourcePosition: direction === 'TB' ? Position.Bottom : Position.Right,
+      targetPosition: direction === 'TB' ? Position.Top : Position.Left,
     };
   });
 
@@ -208,9 +226,18 @@ const registryToFlow = (
     edges.push({
       id: `edge-${index}`,
       source: `${sourcePrefix}-${rel.source.name}`,
+      sourceHandle: "source",
       target: `${targetPrefix}-${rel.target.name}`,
+      targetHandle: "target",
       animated: true,
-      type: "smoothstep",
+      style: { strokeWidth: 2, stroke: '#666', strokeDasharray: '0' },
+      type: "default",
+      markerEnd: {
+        type: MarkerType.ArrowClosed,
+        width: 25,
+        height: 25,
+        color: '#666',
+      },
     });
   });
 
@@ -264,7 +291,7 @@ const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
       setEdges(layoutedEdges);
       setLoading(false);
     }
-  }, [registryData, relationships, indirectRelationships, direction]);
+  }, [registryData, relationships, indirectRelationships, direction, setNodes, setEdges]);
 
   const toggleDirection = useCallback(() => {
     setDirection((dir) => (dir === "TB" ? "LR" : "TB"));
