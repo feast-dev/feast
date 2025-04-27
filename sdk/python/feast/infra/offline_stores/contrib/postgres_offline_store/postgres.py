@@ -1,6 +1,7 @@
 import contextlib
 from dataclasses import asdict
 from datetime import datetime, timezone
+from enum import Enum
 from typing import (
     Any,
     Callable,
@@ -33,6 +34,7 @@ from feast.infra.offline_stores.offline_store import (
     RetrievalJob,
     RetrievalMetadata,
 )
+from feast.infra.offline_stores.offline_utils import get_timestamp_filter_sql
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.infra.utils.postgres.connection_utils import (
     _get_conn,
@@ -48,8 +50,16 @@ from feast.type_map import pg_type_code_to_arrow
 from .postgres_source import PostgreSQLSource
 
 
+class EntitySelectMode(Enum):
+    temp_table = "temp_table"
+    """ Use a temporary table to store the entity DataFrame or SQL query when querying feature data """
+    embed_query = "embed_query"
+    """ Use the entity SQL query directly when querying feature data """
+
+
 class PostgreSQLOfflineStoreConfig(PostgreSQLConfig):
     type: Literal["postgres"] = "postgres"
+    entity_select_mode: EntitySelectMode = EntitySelectMode.temp_table
 
 
 class PostgreSQLOfflineStore(OfflineStore):
@@ -134,7 +144,17 @@ class PostgreSQLOfflineStore(OfflineStore):
         def query_generator() -> Iterator[str]:
             table_name = offline_utils.get_temp_entity_table_name()
 
-            _upload_entity_df(config, entity_df, table_name)
+            # If using CTE and entity_df is a SQL query, we don't need a table
+            use_cte = (
+                isinstance(entity_df, str)
+                and config.offline_store.entity_select_mode
+                == EntitySelectMode.embed_query
+            )
+            if use_cte:
+                left_table_query_string = entity_df
+            else:
+                left_table_query_string = table_name
+                _upload_entity_df(config, entity_df, table_name)
 
             expected_join_keys = offline_utils.get_expected_join_keys(
                 project, feature_views, registry
@@ -163,14 +183,19 @@ class PostgreSQLOfflineStore(OfflineStore):
             try:
                 yield build_point_in_time_query(
                     query_context_dict,
-                    left_table_query_string=table_name,
+                    left_table_query_string=left_table_query_string,
                     entity_df_event_timestamp_col=entity_df_event_timestamp_col,
                     entity_df_columns=entity_schema.keys(),
                     query_template=MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
                     full_feature_names=full_feature_names,
+                    use_cte=use_cte,
                 )
             finally:
-                if table_name:
+                # Only cleanup if we created a table
+                if (
+                    config.offline_store.entity_select_mode
+                    == EntitySelectMode.temp_table
+                ):
                     with _get_conn(config.offline_store) as conn, conn.cursor() as cur:
                         cur.execute(
                             sql.SQL(
@@ -202,24 +227,34 @@ class PostgreSQLOfflineStore(OfflineStore):
         join_key_columns: List[str],
         feature_name_columns: List[str],
         timestamp_field: str,
-        start_date: datetime,
-        end_date: datetime,
+        created_timestamp_column: Optional[str] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
     ) -> RetrievalJob:
         assert isinstance(config.offline_store, PostgreSQLOfflineStoreConfig)
         assert isinstance(data_source, PostgreSQLSource)
         from_expression = data_source.get_table_query_string()
 
+        timestamp_fields = [timestamp_field]
+        if created_timestamp_column:
+            timestamp_fields.append(created_timestamp_column)
         field_string = ", ".join(
-            join_key_columns + feature_name_columns + [timestamp_field]
+            join_key_columns + feature_name_columns + timestamp_fields
         )
 
-        start_date = start_date.astimezone(tz=timezone.utc)
-        end_date = end_date.astimezone(tz=timezone.utc)
+        timestamp_filter = get_timestamp_filter_sql(
+            start_date,
+            end_date,
+            timestamp_field,
+            tz=timezone.utc,
+            cast_style="timestamptz",
+            date_time_separator=" ",  # backwards compatibility but inconsistent with other offline stores
+        )
 
         query = f"""
             SELECT {field_string}
             FROM {from_expression} AS paftoq_alias
-            WHERE "{timestamp_field}" BETWEEN '{start_date}'::timestamptz AND '{end_date}'::timestamptz
+            WHERE {timestamp_filter}
         """
 
         return PostgreSQLRetrievalJob(
@@ -362,6 +397,7 @@ def build_point_in_time_query(
     entity_df_columns: KeysView[str],
     query_template: str,
     full_feature_names: bool = False,
+    use_cte: bool = False,
 ) -> str:
     """Build point-in-time query between each feature view table and the entity dataframe for PostgreSQL"""
     template = Environment(loader=BaseLoader()).from_string(source=query_template)
@@ -389,6 +425,7 @@ def build_point_in_time_query(
         "featureviews": feature_view_query_contexts,
         "full_feature_names": full_feature_names,
         "final_output_feature_names": final_output_feature_names,
+        "use_cte": use_cte,
     }
 
     query = template.render(template_context)
@@ -429,11 +466,15 @@ def _get_entity_schema(
 # https://github.com/feast-dev/feast/blob/master/sdk/python/feast/infra/offline_stores/redshift.py
 
 MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN = """
+WITH
+{% if use_cte %}
+    entity_query AS ({{ left_table_query_string }}),
+{% endif %}
 /*
  Compute a deterministic hash for the `left_table_query_string` that will be used throughout
  all the logic as the field to GROUP BY the data
 */
-WITH entity_dataframe AS (
+entity_dataframe AS (
     SELECT *,
         {{entity_df_event_timestamp_col}} AS entity_timestamp
         {% for featureview in featureviews %}
@@ -448,8 +489,17 @@ WITH entity_dataframe AS (
             ,CAST("{{entity_df_event_timestamp_col}}" AS VARCHAR) AS "{{featureview.name}}__entity_row_unique_id"
             {% endif %}
         {% endfor %}
-    FROM {{ left_table_query_string }}
-),
+    FROM
+        {% if use_cte %}
+            entity_query
+        {% else %}
+            {{ left_table_query_string }}
+        {% endif %}
+)
+
+{% if featureviews | length > 0 %}
+,
+{% endif %}
 
 {% for featureview in featureviews %}
 

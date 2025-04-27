@@ -42,7 +42,7 @@ There are two ways the client can write *feature values* to the online store:
 Precomputed transformations can happen outside of Feast (e.g., via some batch job or streaming application) or inside of the Feast feature server when writing to the online store via the `push` or `write-to-online-store` api. 
 
 ### 2. Computing Transformations On Demand
-On Demand transformations can only happen inside of Feast at either (1) the time of the client's request or (2) when the data producer writes to the online store.
+On Demand transformations can only happen inside of Feast at either (1) the time of the client's request or (2) when the data producer writes to the online store. With the `transform_on_write` parameter, you can control whether transformations are applied during write operations, allowing you to skip transformations for pre-processed data while still enabling transformations during API calls.
 
 ### 3. Hybrid (Precomputed + On Demand)
 The hybrid approach allows for precomputed transformations to happen inside or outside of Feast and have the On Demand transformations happen at client request time. This is particularly convenient for "Time Since Last" types of features (e.g., time since purchase).

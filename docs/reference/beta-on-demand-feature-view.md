@@ -236,6 +236,42 @@ online_response = store.get_online_features(
 ).to_dict()
 ```
 
+### Materializing Pre-transformed Data
+
+In some scenarios, you may have already transformed your data in batch (e.g., using Spark or another batch processing framework) and want to directly materialize the pre-transformed features without applying transformations during ingestion. Feast supports this through the `transform_on_write` parameter.
+
+When using `write_to_online_store=True` with On Demand Feature Views, you can set `transform_on_write=False` to skip transformations during the write operation. This is particularly useful for optimizing performance when working with large pre-transformed datasets.
+
+```python
+from feast import FeatureStore
+import pandas as pd
+
+store = FeatureStore(repo_path=".")
+
+# Pre-transformed data (transformations already applied)
+pre_transformed_data = pd.DataFrame({
+    "driver_id": [1001],
+    "event_timestamp": [pd.Timestamp.now()],
+    "conv_rate": [0.5],
+    # Pre-calculated values for the transformed features
+    "conv_rate_adjusted": [0.55],  # Already contains the adjusted value
+})
+
+# Write to online store, skipping transformations
+store.write_to_online_store(
+    feature_view_name="transformed_conv_rate",
+    df=pre_transformed_data,
+    transform_on_write=False  # Skip transformation during write
+)
+```
+
+This approach allows for a hybrid workflow where you can:
+1. Transform data in batch using powerful distributed processing tools
+2. Materialize the pre-transformed data without reapplying transformations
+3. Still use the Feature Server to execute transformations during API calls when needed
+
+Even when features are materialized with transformations skipped (`transform_on_write=False`), the feature server can still apply transformations during API calls for any missing values or for features that require real-time computation.
+
 ## CLI Commands
 There are new CLI commands to manage on demand feature views:
 

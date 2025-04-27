@@ -3,3 +3,8 @@
   value:
     name: RELATED_IMAGE_FEATURE_SERVER
     value: ${FS_IMG}
+- op: replace
+  path: "/spec/template/spec/containers/0/env/1"
+  value:
+    name: RELATED_IMAGE_CRON_JOB
+    value: ${CJ_IMG}

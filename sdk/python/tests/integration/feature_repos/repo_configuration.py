@@ -565,9 +565,12 @@ def construct_test_environment(
             cache_ttl_seconds=1,
         )
 
-    if isinstance(
-        test_repo_config.online_store, dict
-    ) and test_repo_config.online_store.get("type") in ["milvus", "pgvector", "qdrant"]:
+    online_store = (
+        test_repo_config.online_store.get("type")
+        if isinstance(test_repo_config.online_store, dict)
+        else test_repo_config.online_store
+    )
+    if online_store in ["milvus", "pgvector", "qdrant", "elasticsearch"]:
         entity_key_serialization_version = 3
 
     environment_params = {

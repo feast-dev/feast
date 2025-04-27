@@ -1,0 +1,10 @@
+FROM registry.access.redhat.com/ubi8/python-311:1
+ARG RELEASE
+
+USER 0
+RUN yum install -y ninja-build llvm-devel llvm-libs llvm-toolset ncurses-devel rust cargo
+RUN if [[ -z "$RELEASE" ]] ; then npm install -g yarn yalc && rm -rf .npm ; fi
+USER 1001
+
+# milvus dep
+RUN pip install milvus-lite==2.4.12

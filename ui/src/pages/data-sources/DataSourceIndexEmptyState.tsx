@@ -18,7 +18,7 @@ const DataSourceIndexEmptyState = () => {
           onClick={() => {
             window.open(
               "https://docs.feast.dev/getting-started/concepts/data-source",
-              "_blank"
+              "_blank",
             );
           }}
         >

@@ -33,16 +33,28 @@ features = store.get_online_features(
         "product_features:price"
     ],
     entity_rows=[{"customer_id": "C123", "product_id": "P456"}]
-).to_dict()`;
+).to_dict()
+
+# Retrieve your documents using vector similarity search for RAG
+features = store.retrieve_online_documents(
+    features=[
+        "corpus:document_id",
+        "corpus:chunk_id",
+        "corpus:chunk_text",
+        "corpus:chunk_embedding",
+    ],
+    query="What is the biggest city in the USA?"
+).to_dict()
+`;
 ---
 
-<BaseLayout>
+<BaseLayout title="Feast - The Open Source Feature Store for Machine Learning">
   <Navigation />
   
   <div class="bordered-container">
     <section class="hero-section">
       <div class="max-width-wrapper">
-        <h1 class="hero-title text-smooth">Feature Serving for Production AI</h1>
+        <h1 class="hero-title text-smooth">Serving Data for Production AI</h1>
         <p class="hero-subtitle text-smooth text-center">
           Feast is an open source feature store that delivers structured data to AI and LLM applications at high scale during training and inference
         </p>
@@ -183,6 +195,15 @@ features = store.get_online_features(
               <div class="integration-item">
                 <img src="/images/logos/azure_synapse.png" alt="Azure Synapse" class="integration-logo">
               </div>
+              <div class="integration-item">
+                <img src="/images/logos/dask.svg" alt="Dask" class="integration-logo">
+              </div>
+              <div class="integration-item">
+                <img src="/images/logos/ClickHouse.svg" alt="ClickHouse" class="integration-logo">
+              </div>
+              <div class="integration-item">
+                <img src="/images/logos/MSSQL.svg" alt="MSSQL" class="integration-logo">
+              </div>
             </div>
           </div>
           
@@ -218,6 +239,24 @@ features = store.get_online_features(
               </div>
               <div class="integration-item">
                 <img src="/images/logos/singlestore.png" alt="SingleStore" class="integration-logo">
+              </div>
+              <div class="integration-item">
+                <div class="text-logo">IKV</div>
+              </div>
+              <div class="integration-item">
+                <img src="/images/logos/hazelcast.png" alt="Hazelcast" class="integration-logo">
+              </div>
+              <div class="integration-item">
+                <img src="/images/logos/scylladb.svg" alt="ScyllaDB" class="integration-logo">
+              </div>
+              <div class="integration-item">
+                <img src="/images/logos/milvus.png" alt="Milvus" class="integration-logo">
+              </div>
+              <div class="integration-item">
+                <img src="/images/logos/qdrant.svg" alt="Qdrant" class="integration-logo">
+              </div>
+              <div class="integration-item">
+                <img src="/images/logos/couchbase.svg" alt="Couchbase" class="integration-logo">
               </div>
             </div>
           </div>

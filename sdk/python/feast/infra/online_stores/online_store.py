@@ -392,8 +392,7 @@ class OnlineStore(ABC):
         self,
         config: RepoConfig,
         table: FeatureView,
-        requested_feature: Optional[str],
-        requested_features: Optional[List[str]],
+        requested_features: List[str],
         embedding: List[float],
         top_k: int,
         distance_metric: Optional[str] = None,
@@ -413,7 +412,6 @@ class OnlineStore(ABC):
             distance_metric: distance metric to use for retrieval.
             config: The config for the current feature store.
             table: The feature view whose feature values should be read.
-            requested_feature: The name of the feature whose embeddings should be used for retrieval.
             requested_features: The list of features whose embeddings should be used for retrieval.
             embedding: The embeddings to use for retrieval.
             top_k: The number of documents to retrieve.
@@ -423,10 +421,8 @@ class OnlineStore(ABC):
             where the first item is the event timestamp for the row, and the second item is a dict of feature
             name to embeddings.
         """
-        if not requested_feature and not requested_features:
-            raise ValueError(
-                "Either requested_feature or requested_features must be specified"
-            )
+        if not requested_features:
+            raise ValueError("Requested_features must be specified")
         raise NotImplementedError(
             f"Online store {self.__class__.__name__} does not support online retrieval"
         )

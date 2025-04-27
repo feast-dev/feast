@@ -10,15 +10,15 @@ const useLoadFeature = (featureViewName: string, featureName: string) => {
     registryQuery.data === undefined
       ? undefined
       : registryQuery.data.objects.featureViews?.find((fv) => {
-        return fv?.spec?.name === featureViewName;
-      });
+          return fv?.spec?.name === featureViewName;
+        });
 
   const featureData =
     data === undefined
       ? undefined
       : data?.spec?.features?.find((f) => {
-        return f.name === featureName;
-      });
+          return f.name === featureName;
+        });
 
   return {
     ...registryQuery,

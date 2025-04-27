@@ -4,6 +4,7 @@ from feast.infra.key_encoding_utils import (
     _deserialize_value,
     _serialize_val,
     deserialize_entity_key,
+    reserialize_entity_v2_key_to_v3,
     serialize_entity_key,
 )
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
@@ -115,3 +116,26 @@ def test_deserialize_value():
 
     v = _deserialize_value(ValueType.INT64, b"\x01\x00\x00\x00\x00\x00\x00\x00")
     assert v.int64_val == 1
+
+
+def test_reserialize_entity_v2_key_to_v3():
+    entity_key_proto_v2 = EntityKeyProto(
+        join_keys=["user"],
+        entity_values=[ValueProto(int64_val=int(2**15))],
+    )
+    serialized_key_v2 = serialize_entity_key(
+        entity_key_proto_v2,
+        entity_key_serialization_version=2,
+    )
+
+    serialized_key_v3 = reserialize_entity_v2_key_to_v3(serialized_key_v2)
+
+    deserialized_key_v3 = deserialize_entity_key(
+        serialized_key_v3,
+        entity_key_serialization_version=3,
+    )
+
+    assert deserialized_key_v3 == EntityKeyProto(
+        join_keys=["user"],
+        entity_values=[ValueProto(int64_val=int(2**15))],
+    )

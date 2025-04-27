@@ -136,6 +136,9 @@ func (feast *FeastServices) Deploy() error {
 	if err := feast.deployClient(); err != nil {
 		return err
 	}
+	if err := feast.deployCronJob(); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -328,9 +331,11 @@ func (feast *FeastServices) createPVC(pvcCreate *feastdevv1alpha1.PvcCreate, fea
 }
 
 func (feast *FeastServices) setDeployment(deploy *appsv1.Deployment) error {
+	replicas := deploy.Spec.Replicas
+
 	deploy.Labels = feast.getLabels()
 	deploy.Spec = appsv1.DeploymentSpec{
-		Replicas: &DefaultReplicas,
+		Replicas: replicas,
 		Selector: metav1.SetAsLabelSelector(deploy.GetLabels()),
 		Strategy: feast.getDeploymentStrategy(),
 		Template: corev1.PodTemplateSpec{
@@ -384,49 +389,59 @@ func (feast *FeastServices) setContainers(podSpec *corev1.PodSpec) error {
 
 func (feast *FeastServices) setContainer(containers *[]corev1.Container, feastType FeastServiceType, fsYamlB64 string) {
 	if serverConfigs := feast.getServerConfigs(feastType); serverConfigs != nil {
-		defaultCtrConfigs := serverConfigs.ContainerConfigs.DefaultCtrConfigs
+		name := string(feastType)
+		workingDir := feast.getFeatureRepoDir()
+		cmd := feast.getContainerCommand(feastType)
+		container := getContainer(name, workingDir, cmd, serverConfigs.ContainerConfigs, fsYamlB64)
 		tls := feast.getTlsConfigs(feastType)
 		probeHandler := getProbeHandler(feastType, tls)
-		container := &corev1.Container{
-			Name:       string(feastType),
-			Image:      *defaultCtrConfigs.Image,
-			WorkingDir: feast.getFeatureRepoDir(),
-			Command:    feast.getContainerCommand(feastType),
-			Ports: []corev1.ContainerPort{
-				{
-					Name:          string(feastType),
-					ContainerPort: getTargetPort(feastType, tls),
-					Protocol:      corev1.ProtocolTCP,
-				},
-			},
-			Env: []corev1.EnvVar{
-				{
-					Name:  TmpFeatureStoreYamlEnvVar,
-					Value: fsYamlB64,
-				},
-			},
-			StartupProbe: &corev1.Probe{
-				ProbeHandler:     probeHandler,
-				PeriodSeconds:    3,
-				FailureThreshold: 40,
-			},
-			LivenessProbe: &corev1.Probe{
-				ProbeHandler:     probeHandler,
-				PeriodSeconds:    20,
-				FailureThreshold: 6,
-			},
-			ReadinessProbe: &corev1.Probe{
-				ProbeHandler:  probeHandler,
-				PeriodSeconds: 10,
+		container.Ports = []corev1.ContainerPort{
+			{
+				Name:          name,
+				ContainerPort: getTargetPort(feastType, tls),
+				Protocol:      corev1.ProtocolTCP,
 			},
 		}
-		applyOptionalCtrConfigs(container, serverConfigs.ContainerConfigs.OptionalCtrConfigs)
+		container.StartupProbe = &corev1.Probe{
+			ProbeHandler:     probeHandler,
+			PeriodSeconds:    3,
+			FailureThreshold: 40,
+		}
+		container.LivenessProbe = &corev1.Probe{
+			ProbeHandler:     probeHandler,
+			PeriodSeconds:    20,
+			FailureThreshold: 6,
+		}
+		container.ReadinessProbe = &corev1.Probe{
+			ProbeHandler:  probeHandler,
+			PeriodSeconds: 10,
+		}
 		volumeMounts := feast.getVolumeMounts(feastType)
 		if len(volumeMounts) > 0 {
 			container.VolumeMounts = append(container.VolumeMounts, volumeMounts...)
 		}
 		*containers = append(*containers, *container)
 	}
+}
+
+func getContainer(name, workingDir string, cmd []string, containerConfigs feastdevv1alpha1.ContainerConfigs, fsYamlB64 string) *corev1.Container {
+	container := &corev1.Container{
+		Name:    name,
+		Command: cmd,
+	}
+	if len(workingDir) > 0 {
+		container.WorkingDir = workingDir
+	}
+	if len(fsYamlB64) > 0 {
+		container.Env = []corev1.EnvVar{
+			{
+				Name:  TmpFeatureStoreYamlEnvVar,
+				Value: fsYamlB64,
+			},
+		}
+	}
+	applyCtrConfigs(container, containerConfigs)
+	return container
 }
 
 func (feast *FeastServices) mountUserDefinedVolumes(podSpec *corev1.PodSpec) {
@@ -870,18 +885,20 @@ func (feast *FeastServices) initRoute(feastType FeastServiceType) *routev1.Route
 	return route
 }
 
-func applyOptionalCtrConfigs(container *corev1.Container, optionalConfigs feastdevv1alpha1.OptionalCtrConfigs) {
-	if optionalConfigs.Env != nil {
-		container.Env = envOverride(container.Env, *optionalConfigs.Env)
+func applyCtrConfigs(container *corev1.Container, containerConfigs feastdevv1alpha1.ContainerConfigs) {
+	container.Image = *containerConfigs.DefaultCtrConfigs.Image
+	// apply optional container configs
+	if containerConfigs.OptionalCtrConfigs.Env != nil {
+		container.Env = envOverride(container.Env, *containerConfigs.OptionalCtrConfigs.Env)
 	}
-	if optionalConfigs.EnvFrom != nil {
-		container.EnvFrom = *optionalConfigs.EnvFrom
+	if containerConfigs.OptionalCtrConfigs.EnvFrom != nil {
+		container.EnvFrom = *containerConfigs.OptionalCtrConfigs.EnvFrom
 	}
-	if optionalConfigs.ImagePullPolicy != nil {
-		container.ImagePullPolicy = *optionalConfigs.ImagePullPolicy
+	if containerConfigs.OptionalCtrConfigs.ImagePullPolicy != nil {
+		container.ImagePullPolicy = *containerConfigs.OptionalCtrConfigs.ImagePullPolicy
 	}
-	if optionalConfigs.Resources != nil {
-		container.Resources = *optionalConfigs.Resources
+	if containerConfigs.OptionalCtrConfigs.Resources != nil {
+		container.Resources = *containerConfigs.OptionalCtrConfigs.Resources
 	}
 }
 

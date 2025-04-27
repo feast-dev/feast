@@ -24,6 +24,7 @@ import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import RegistryPathContext from "../../contexts/RegistryPathContext";
 import FeatureServiceIndexEmptyState from "./FeatureServiceIndexEmptyState";
 import TagSearch from "../../components/TagSearch";
+import ExportButton from "../../components/ExportButton";
 import { useFeatureServiceTagsAggregation } from "../../hooks/useTagsAggregation";
 import { feast } from "../../protos";
 
@@ -44,7 +45,7 @@ const useLoadFeatureServices = () => {
 
 const shouldIncludeFSsGivenTokenGroups = (
   entry: feast.core.IFeatureService,
-  tagTokenGroups: tagTokenGroupsType
+  tagTokenGroups: tagTokenGroupsType,
 ) => {
   return Object.entries(tagTokenGroups).every(([key, values]) => {
     const entryTagValue = entry?.spec?.tags ? entry.spec.tags[key] : undefined;
@@ -61,7 +62,7 @@ const shouldIncludeFSsGivenTokenGroups = (
 
 const filterFn = (
   data: feast.core.IFeatureService[],
-  filterInput: filterInputInterface
+  filterInput: filterInputInterface,
 ) => {
   let filteredByTags = data;
 
@@ -69,7 +70,7 @@ const filterFn = (
     filteredByTags = data.filter((entry) => {
       return shouldIncludeFSsGivenTokenGroups(
         entry,
-        filterInput.tagTokenGroups
+        filterInput.tagTokenGroups,
       );
     });
   }
@@ -115,6 +116,13 @@ const Index = () => {
         restrictWidth
         iconType={FeatureServiceIcon}
         pageTitle="Feature Services"
+        rightSideItems={[
+          <ExportButton
+            data={filterResult ?? []}
+            fileName="feature_services"
+            formats={["json"]}
+          />,
+        ]}
       />
       <EuiPageTemplate.Section>
         {isLoading && (

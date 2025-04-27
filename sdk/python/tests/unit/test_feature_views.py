@@ -36,6 +36,8 @@ def test_create_batch_feature_view():
         entities=[],
         ttl=timedelta(days=30),
         source=batch_source,
+        mode="python",
+        udf=lambda x: x,
     )
 
     with pytest.raises(TypeError):
@@ -54,6 +56,8 @@ def test_create_batch_feature_view():
     with pytest.raises(ValueError):
         BatchFeatureView(
             name="test batch feature view",
+            mode="python",
+            udf=lambda x: x,
             entities=[],
             ttl=timedelta(days=30),
             source=stream_source,

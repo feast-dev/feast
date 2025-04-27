@@ -1,12 +1,10 @@
 import copy
 import functools
-import inspect
 import warnings
 from types import FunctionType
-from typing import Any, List, Optional, Union, get_type_hints
+from typing import Any, List, Optional, Union, cast
 
 import dill
-import pandas as pd
 import pyarrow
 from typeguard import typechecked
 
@@ -31,6 +29,8 @@ from feast.protos.feast.core.Transformation_pb2 import (
 from feast.protos.feast.core.Transformation_pb2 import (
     UserDefinedFunctionV2 as UserDefinedFunctionProto,
 )
+from feast.transformation.base import Transformation
+from feast.transformation.mode import TransformationMode
 from feast.transformation.pandas_transformation import PandasTransformation
 from feast.transformation.python_transformation import PythonTransformation
 from feast.transformation.substrait_transformation import SubstraitTransformation
@@ -66,15 +66,15 @@ class OnDemandFeatureView(BaseFeatureView):
     features: List[Field]
     source_feature_view_projections: dict[str, FeatureViewProjection]
     source_request_sources: dict[str, RequestSource]
-    feature_transformation: Union[
-        PandasTransformation, PythonTransformation, SubstraitTransformation
-    ]
+    feature_transformation: Transformation
     mode: str
     description: str
     tags: dict[str, str]
     owner: str
     write_to_online_store: bool
     singleton: bool
+    udf: Optional[FunctionType]
+    udf_string: Optional[str]
 
     def __init__(  # noqa: C901
         self,
@@ -90,10 +90,8 @@ class OnDemandFeatureView(BaseFeatureView):
             ]
         ],
         udf: Optional[FunctionType] = None,
-        udf_string: str = "",
-        feature_transformation: Union[
-            PandasTransformation, PythonTransformation, SubstraitTransformation
-        ],
+        udf_string: Optional[str] = "",
+        feature_transformation: Optional[Transformation] = None,
         mode: str = "pandas",
         description: str = "",
         tags: Optional[dict[str, str]] = None,
@@ -112,9 +110,9 @@ class OnDemandFeatureView(BaseFeatureView):
             sources: A map from input source names to the actual input sources, which may be
                 feature views, or request data sources. These sources serve as inputs to the udf,
                 which will refer to them by name.
-            udf (deprecated): The user defined transformation function, which must take pandas
+            udf: The user defined transformation function, which must take pandas
                 dataframes as inputs.
-            udf_string (deprecated): The source code version of the udf (for diffing and displaying in Web UI)
+            udf_string: The source code version of the udf (for diffing and displaying in Web UI)
             feature_transformation: The user defined transformation.
             mode: Mode of execution (e.g., Pandas or Python native)
             description (optional): A human-readable description.
@@ -136,29 +134,10 @@ class OnDemandFeatureView(BaseFeatureView):
 
         schema = schema or []
         self.entities = [e.name for e in entities] if entities else [DUMMY_ENTITY_NAME]
+        self.sources = sources
         self.mode = mode.lower()
-
-        if self.mode not in {"python", "pandas", "substrait"}:
-            raise ValueError(
-                f"Unknown mode {self.mode}. OnDemandFeatureView only supports python or pandas UDFs and substrait."
-            )
-
-        if not feature_transformation:
-            if udf:
-                warnings.warn(
-                    "udf and udf_string parameters are deprecated. Please use transformation=PandasTransformation(udf, udf_string) instead.",
-                    DeprecationWarning,
-                )
-                # Note inspecting the return signature won't work with isinstance so this is the best alternative
-                if self.mode == "pandas":
-                    feature_transformation = PandasTransformation(udf, udf_string)
-                elif self.mode == "python":
-                    feature_transformation = PythonTransformation(udf, udf_string)
-            else:
-                raise ValueError(
-                    "OnDemandFeatureView needs to be initialized with either feature_transformation or udf arguments"
-                )
-
+        self.udf = udf
+        self.udf_string = udf_string
         self.source_feature_view_projections: dict[str, FeatureViewProjection] = {}
         self.source_request_sources: dict[str, RequestSource] = {}
         for odfv_source in sources:
@@ -206,11 +185,32 @@ class OnDemandFeatureView(BaseFeatureView):
                 features.append(field)
 
         self.features = features
-        self.feature_transformation = feature_transformation
+        self.feature_transformation = (
+            feature_transformation or self.get_feature_transformation()
+        )
         self.write_to_online_store = write_to_online_store
         self.singleton = singleton
         if self.singleton and self.mode != "python":
             raise ValueError("Singleton is only supported for Python mode.")
+
+    def get_feature_transformation(self) -> Transformation:
+        if not self.udf:
+            raise ValueError(
+                "Either udf or feature_transformation must be provided to create an OnDemandFeatureView"
+            )
+        if self.mode in (
+            TransformationMode.PANDAS,
+            TransformationMode.PYTHON,
+        ) or self.mode in ("pandas", "python"):
+            return Transformation(
+                mode=self.mode, udf=self.udf, udf_string=self.udf_string or ""
+            )
+        elif self.mode == TransformationMode.SUBSTRAIT or self.mode == "substrait":
+            return SubstraitTransformation.from_ibis(self.udf, self.sources)
+        else:
+            raise ValueError(
+                f"Unsupported transformation mode: {self.mode} for OnDemandFeatureView"
+            )
 
     @property
     def proto_class(self) -> type[OnDemandFeatureViewProto]:
@@ -312,16 +312,25 @@ class OnDemandFeatureView(BaseFeatureView):
                 request_data_source=request_sources.to_proto()
             )
 
-        feature_transformation = FeatureTransformationProto(
-            user_defined_function=self.feature_transformation.to_proto()
+        user_defined_function_proto = cast(
+            UserDefinedFunctionProto,
+            self.feature_transformation.to_proto()
             if isinstance(
                 self.feature_transformation,
                 (PandasTransformation, PythonTransformation),
             )
             else None,
-            substrait_transformation=self.feature_transformation.to_proto()
+        )
+
+        substrait_transformation_proto = (
+            self.feature_transformation.to_proto()
             if isinstance(self.feature_transformation, SubstraitTransformation)
-            else None,
+            else None
+        )
+
+        feature_transformation = FeatureTransformationProto(
+            user_defined_function=user_defined_function_proto,
+            substrait_transformation=substrait_transformation_proto,
         )
         spec = OnDemandFeatureViewSpec(
             name=self.name,
@@ -454,6 +463,7 @@ class OnDemandFeatureView(BaseFeatureView):
                     name=feature.name,
                     dtype=from_value_type(ValueType(feature.value_type)),
                     vector_index=feature.vector_index,
+                    vector_length=feature.vector_length,
                     vector_search_metric=feature.vector_search_metric,
                 )
                 for feature in on_demand_feature_view_proto.spec.features
@@ -678,6 +688,9 @@ class OnDemandFeatureView(BaseFeatureView):
     ) -> dict[str, Union[list[Any], Any]]:
         rand_dict_value: dict[ValueType, Union[list[Any], Any]] = {
             ValueType.BYTES: [str.encode("hello world")],
+            ValueType.PDF_BYTES: [
+                b"%PDF-1.3\n3 0 obj\n<</Type /Page\n/Parent 1 0 R\n/Resources 2 0 R\n/Contents 4 0 R>>\nendobj\n4 0 obj\n<</Filter /FlateDecode /Length 115>>\nstream\nx\x9c\x15\xcc1\x0e\x820\x18@\xe1\x9dS\xbcM]jk$\xd5\xd5(\x83!\x86\xa1\x17\xf8\xa3\xa5`LIh+\xd7W\xc6\xf7\r\xef\xc0\xbd\xd2\xaa\xb6,\xd5\xc5\xb1o\x0c\xa6VZ\xe3znn%\xf3o\xab\xb1\xe7\xa3:Y\xdc\x8bm\xeb\xf3&1\xc8\xd7\xd3\x97\xc82\xe6\x81\x87\xe42\xcb\x87Vb(\x12<\xdd<=}Jc\x0cL\x91\xee\xda$\xb5\xc3\xbd\xd7\xe9\x0f\x8d\x97 $\nendstream\nendobj\n1 0 obj\n<</Type /Pages\n/Kids [3 0 R ]\n/Count 1\n/MediaBox [0 0 595.28 841.89]\n>>\nendobj\n5 0 obj\n<</Type /Font\n/BaseFont /Helvetica\n/Subtype /Type1\n/Encoding /WinAnsiEncoding\n>>\nendobj\n2 0 obj\n<<\n/ProcSet [/PDF /Text /ImageB /ImageC /ImageI]\n/Font <<\n/F1 5 0 R\n>>\n/XObject <<\n>>\n>>\nendobj\n6 0 obj\n<<\n/Producer (PyFPDF 1.7.2 http://pyfpdf.googlecode.com/)\n/Title (This is a sample title.)\n/Author (Francisco Javier Arceo)\n/CreationDate (D:20250312165548)\n>>\nendobj\n7 0 obj\n<<\n/Type /Catalog\n/Pages 1 0 R\n/OpenAction [3 0 R /FitH null]\n/PageLayout /OneColumn\n>>\nendobj\nxref\n0 8\n0000000000 65535 f \n0000000272 00000 n \n0000000455 00000 n \n0000000009 00000 n \n0000000087 00000 n \n0000000359 00000 n \n0000000559 00000 n \n0000000734 00000 n \ntrailer\n<<\n/Size 8\n/Root 7 0 R\n/Info 6 0 R\n>>\nstartxref\n837\n%%EOF\n"
+            ],
             ValueType.STRING: ["hello world"],
             ValueType.INT32: [1],
             ValueType.INT64: [1],
@@ -783,31 +796,13 @@ def on_demand_feature_view(
             obj.__module__ = "__main__"
 
     def decorator(user_function):
-        return_annotation = get_type_hints(user_function).get("return", inspect._empty)
         udf_string = dill.source.getsource(user_function)
         mainify(user_function)
-        if mode == "pandas":
-            if return_annotation not in (inspect._empty, pd.DataFrame):
-                raise TypeError(
-                    f"return signature for {user_function} is {return_annotation} but should be pd.DataFrame"
-                )
-            transformation = PandasTransformation(user_function, udf_string)
-        elif mode == "python":
-            transformation = PythonTransformation(user_function, udf_string)
-        elif mode == "substrait":
-            from ibis.expr.types.relations import Table
-
-            if return_annotation not in (inspect._empty, Table):
-                raise TypeError(
-                    f"return signature for {user_function} is {return_annotation} but should be ibis.expr.types.relations.Table"
-                )
-            transformation = SubstraitTransformation.from_ibis(user_function, sources)
 
         on_demand_feature_view_obj = OnDemandFeatureView(
             name=name if name is not None else user_function.__name__,
             sources=sources,
             schema=schema,
-            feature_transformation=transformation,
             mode=mode,
             description=description,
             tags=tags,
@@ -815,6 +810,8 @@ def on_demand_feature_view(
             write_to_online_store=write_to_online_store,
             entities=entities,
             singleton=singleton,
+            udf=user_function,
+            udf_string=udf_string,
         )
         functools.update_wrapper(
             wrapper=on_demand_feature_view_obj, wrapped=user_function

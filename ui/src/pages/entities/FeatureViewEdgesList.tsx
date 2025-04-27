@@ -80,7 +80,11 @@ const FeatureViewEdgesList = ({ fvNames }: FeatureViewEdgesListInterace) => {
   };
 
   return (
-    <EuiBasicTable columns={columns} items={fvNames.map(name => ({ name }))} rowProps={getRowProps} />
+    <EuiBasicTable
+      columns={columns}
+      items={fvNames.map((name) => ({ name }))}
+      rowProps={getRowProps}
+    />
   );
 };
 

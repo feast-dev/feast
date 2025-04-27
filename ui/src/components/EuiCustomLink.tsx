@@ -2,7 +2,7 @@ import React from "react";
 import { EuiLink, type EuiLinkAnchorProps } from "@elastic/eui";
 import { useNavigate, useHref, type To } from "react-router-dom";
 
-interface EuiCustomLinkProps extends Omit<EuiLinkAnchorProps, 'href'> {
+interface EuiCustomLinkProps extends Omit<EuiLinkAnchorProps, "href"> {
   to: To;
 }
 
@@ -39,7 +39,7 @@ export default function EuiCustomLink({ to, ...rest }: EuiCustomLinkProps) {
 
     // Push the route to the history.
     navigate(to);
-  }
+  };
 
   // Generate the correct link href (with basename accounted for)
   const href = useHref(to);

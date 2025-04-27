@@ -9,7 +9,7 @@ image:
   repository: quay.io/feastdev/feature-server
   pullPolicy: IfNotPresent
   # image.tag -- The Docker image tag (can be overwritten if custom feature server deps are needed for on demand transforms)
-  tag: 0.47.0
+  tag: 0.48.1
 
 logLevel: "WARNING"  # Set log level DEBUG, INFO, WARNING, ERROR, and CRITICAL (case-insensitive)
 
@@ -74,6 +74,13 @@ livenessProbe:
 readinessProbe:
   initialDelaySeconds: 20
   periodSeconds: 10
+
+volumeMounts: []
+
+# extraEnvs -- Additional environment variables to be set in the container
+extraEnvs: []
+
+volumes: []
 
 # to create OpenShift Route object for UI
 route:

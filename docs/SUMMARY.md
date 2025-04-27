@@ -28,6 +28,7 @@
   * [\[Alpha\] Saved dataset](getting-started/concepts/dataset.md)
   * [Permission](getting-started/concepts/permission.md)
   * [Tags](getting-started/concepts/tags.md)
+* [Use Cases](getting-started/use-cases.md)
 * [Components](getting-started/components/README.md)
   * [Overview](getting-started/components/overview.md)
   * [Registry](getting-started/components/registry.md)
@@ -50,6 +51,7 @@
   * [Driver stats on Snowflake](tutorials/tutorials-overview/driver-stats-on-snowflake.md)
 * [Validating historical features with Great Expectations](tutorials/validating-historical-features.md)
 * [Building streaming features](tutorials/building-streaming-features.md)
+* [Retrieval Augmented Generation (RAG) with Feast](tutorials/rag-with-docling.md)
 
 ## How-to Guides
 
@@ -144,6 +146,7 @@
   * [Python feature server](reference/feature-servers/python-feature-server.md)
   * [\[Alpha\] Go feature server](reference/feature-servers/go-feature-server.md)
   * [Offline Feature Server](reference/feature-servers/offline-feature-server.md)
+  * [Registry server](reference/feature-servers/registry-server.md)
 * [\[Beta\] Web UI](reference/alpha-web-ui.md)
 * [\[Beta\] On demand feature view](reference/beta-on-demand-feature-view.md)
 * [\[Alpha\] Vector Database](reference/alpha-vector-database.md)

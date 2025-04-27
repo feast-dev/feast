@@ -37,6 +37,7 @@ from feast.infra.offline_stores.offline_store import (
     RetrievalJob,
     RetrievalMetadata,
 )
+from feast.infra.offline_stores.offline_utils import get_timestamp_filter_sql
 from feast.infra.offline_stores.snowflake_source import (
     SavedDatasetSnowflakeStorage,
     SnowflakeLoggingDestination,
@@ -229,8 +230,9 @@ class SnowflakeOfflineStore(OfflineStore):
         join_key_columns: List[str],
         feature_name_columns: List[str],
         timestamp_field: str,
-        start_date: datetime,
-        end_date: datetime,
+        created_timestamp_column: Optional[str] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
     ) -> RetrievalJob:
         assert isinstance(config.offline_store, SnowflakeOfflineStoreConfig)
         assert isinstance(data_source, SnowflakeSource)
@@ -241,22 +243,26 @@ class SnowflakeOfflineStore(OfflineStore):
         if not data_source.database and data_source.schema and data_source.table:
             from_expression = f'"{config.offline_store.database}".{from_expression}'
 
+        timestamp_fields = [timestamp_field]
+        if created_timestamp_column:
+            timestamp_fields.append(created_timestamp_column)
         field_string = (
             '"'
-            + '", "'.join(join_key_columns + feature_name_columns + [timestamp_field])
+            + '", "'.join(join_key_columns + feature_name_columns + timestamp_fields)
             + '"'
         )
 
         with GetSnowflakeConnection(config.offline_store) as conn:
             snowflake_conn = conn
 
-        start_date = start_date.astimezone(tz=timezone.utc)
-        end_date = end_date.astimezone(tz=timezone.utc)
+        timestamp_filter = get_timestamp_filter_sql(
+            start_date, end_date, timestamp_field, tz=timezone.utc
+        )
 
         query = f"""
             SELECT {field_string}
             FROM {from_expression}
-            WHERE "{timestamp_field}" BETWEEN TIMESTAMP '{start_date}' AND TIMESTAMP '{end_date}'
+            WHERE {timestamp_filter}
         """
 
         return SnowflakeRetrievalJob(

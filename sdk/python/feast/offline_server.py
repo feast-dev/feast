@@ -354,13 +354,15 @@ class OfflineServer(fl.FlightServerBase):
         assert_permissions(data_source, actions=[AuthzedAction.READ_OFFLINE])
 
         return self.offline_store.pull_all_from_table_or_query(
-            self.store.config,
-            data_source,
-            command["join_key_columns"],
-            command["feature_name_columns"],
-            command["timestamp_field"],
-            utils.make_tzaware(datetime.fromisoformat(command["start_date"])),
-            utils.make_tzaware(datetime.fromisoformat(command["end_date"])),
+            config=self.store.config,
+            data_source=data_source,
+            join_key_columns=command["join_key_columns"],
+            feature_name_columns=command["feature_name_columns"],
+            timestamp_field=command["timestamp_field"],
+            start_date=utils.make_tzaware(
+                datetime.fromisoformat(command["start_date"])
+            ),
+            end_date=utils.make_tzaware(datetime.fromisoformat(command["end_date"])),
         )
 
     def _validate_pull_latest_from_table_or_query_parameters(self, command: dict):

@@ -2,8 +2,9 @@ import os
 import tempfile
 import uuid
 import warnings
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union, cast
 
 import numpy as np
 import pandas
@@ -29,6 +30,7 @@ from feast.infra.offline_stores.offline_store import (
     RetrievalJob,
     RetrievalMetadata,
 )
+from feast.infra.offline_stores.offline_utils import get_timestamp_filter_sql
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
@@ -52,6 +54,12 @@ class SparkOfflineStoreConfig(FeastConfigBaseModel):
 
     region: Optional[StrictStr] = None
     """ AWS Region if applicable for s3-based staging locations"""
+
+
+@dataclass(frozen=True)
+class SparkFeatureViewQueryContext(offline_utils.FeatureViewQueryContext):
+    min_date_partition: Optional[str]
+    max_date_partition: str
 
 
 class SparkOfflineStore(OfflineStore):
@@ -100,6 +108,7 @@ class SparkOfflineStore(OfflineStore):
         aliases_as_string = ", ".join(aliases)
 
         date_partition_column = data_source.date_partition_column
+        date_partition_column_format = data_source.date_partition_column_format
 
         start_date_str = _format_datetime(start_date)
         end_date_str = _format_datetime(end_date)
@@ -111,7 +120,7 @@ class SparkOfflineStore(OfflineStore):
                     SELECT {fields_as_string},
                     ROW_NUMBER() OVER({partition_by_join_key_string} ORDER BY {timestamp_desc_string}) AS feast_row_
                     FROM {from_expression} t1
-                    WHERE {timestamp_field} BETWEEN TIMESTAMP('{start_date_str}') AND TIMESTAMP('{end_date_str}'){" AND " + date_partition_column + " >= '" + start_date.strftime("%Y-%m-%d") + "' AND " + date_partition_column + " <= '" + end_date.strftime("%Y-%m-%d") + "' " if date_partition_column != "" and date_partition_column is not None else ""}
+                    WHERE {timestamp_field} BETWEEN TIMESTAMP('{start_date_str}') AND TIMESTAMP('{end_date_str}'){" AND " + date_partition_column + " >= '" + start_date.strftime(date_partition_column_format) + "' AND " + date_partition_column + " <= '" + end_date.strftime(date_partition_column_format) + "' " if date_partition_column != "" and date_partition_column is not None else ""}
                 ) t2
                 WHERE feast_row_ = 1
                 """
@@ -135,8 +144,12 @@ class SparkOfflineStore(OfflineStore):
         full_feature_names: bool = False,
     ) -> RetrievalJob:
         assert isinstance(config.offline_store, SparkOfflineStoreConfig)
+        date_partition_column_formats = []
         for fv in feature_views:
             assert isinstance(fv.batch_source, SparkSource)
+            date_partition_column_formats.append(
+                fv.batch_source.date_partition_column_format
+            )
 
         warnings.warn(
             "The spark offline store is an experimental feature in alpha development. "
@@ -185,8 +198,27 @@ class SparkOfflineStore(OfflineStore):
             entity_df_event_timestamp_range,
         )
 
+        spark_query_context = [
+            SparkFeatureViewQueryContext(
+                **asdict(context),
+                min_date_partition=datetime.fromisoformat(
+                    context.min_event_timestamp
+                ).strftime(date_format)
+                if context.min_event_timestamp is not None
+                else None,
+                max_date_partition=datetime.fromisoformat(
+                    context.max_event_timestamp
+                ).strftime(date_format),
+            )
+            for date_format, context in zip(
+                date_partition_column_formats, query_context
+            )
+        ]
+
         query = offline_utils.build_point_in_time_query(
-            feature_view_query_contexts=query_context,
+            feature_view_query_contexts=cast(
+                List[offline_utils.FeatureViewQueryContext], spark_query_context
+            ),
             left_table_query_string=tmp_entity_df_table_name,
             entity_df_event_timestamp_col=event_timestamp_col,
             entity_df_columns=entity_schema.keys(),
@@ -269,8 +301,9 @@ class SparkOfflineStore(OfflineStore):
         join_key_columns: List[str],
         feature_name_columns: List[str],
         timestamp_field: str,
-        start_date: datetime,
-        end_date: datetime,
+        created_timestamp_column: Optional[str] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
     ) -> RetrievalJob:
         """
         Note that join_key_columns, feature_name_columns, timestamp_field, and
@@ -288,21 +321,26 @@ class SparkOfflineStore(OfflineStore):
         spark_session = get_spark_session_or_start_new_with_repoconfig(
             store_config=config.offline_store
         )
+
+        timestamp_fields = [timestamp_field]
+        if created_timestamp_column:
+            timestamp_fields.append(created_timestamp_column)
         (fields_with_aliases, aliases) = _get_fields_with_aliases(
-            fields=join_key_columns + feature_name_columns + [timestamp_field],
+            fields=join_key_columns + feature_name_columns + timestamp_fields,
             field_mappings=data_source.field_mapping,
         )
 
         fields_with_alias_string = ", ".join(fields_with_aliases)
 
         from_expression = data_source.get_table_query_string()
-        start_date = start_date.astimezone(tz=timezone.utc)
-        end_date = end_date.astimezone(tz=timezone.utc)
+        timestamp_filter = get_timestamp_filter_sql(
+            start_date, end_date, timestamp_field, tz=timezone.utc, quote_fields=False
+        )
 
         query = f"""
             SELECT {fields_with_alias_string}
             FROM {from_expression}
-            WHERE {timestamp_field} BETWEEN TIMESTAMP '{start_date}' AND TIMESTAMP '{end_date}'
+            WHERE {timestamp_filter}
         """
 
         return SparkRetrievalJob(
@@ -644,13 +682,13 @@ CREATE OR REPLACE TEMPORARY VIEW {{ featureview.name }}__cleaned AS (
         FROM {{ featureview.table_subquery }}
         WHERE {{ featureview.timestamp_field }} <= '{{ featureview.max_event_timestamp }}'
         {% if featureview.date_partition_column != "" and featureview.date_partition_column is not none %}
-        AND {{ featureview.date_partition_column }} <= '{{ featureview.max_event_timestamp[:10] }}'
+        AND {{ featureview.date_partition_column }} <= '{{ featureview.max_date_partition }}'
         {% endif %}
 
         {% if featureview.ttl == 0 %}{% else %}
         AND {{ featureview.timestamp_field }} >= '{{ featureview.min_event_timestamp }}'
         {% if featureview.date_partition_column != "" and featureview.date_partition_column is not none %}
-          AND {{ featureview.date_partition_column }} >= '{{ featureview.min_event_timestamp[:10] }}'
+          AND {{ featureview.date_partition_column }} >= '{{ featureview.min_date_partition }}'
         {% endif %}
         {% endif %}
     ),

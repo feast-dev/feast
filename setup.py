@@ -97,6 +97,9 @@ TRINO_REQUIRED = ["trino>=0.305.0,<0.400.0", "regex"]
 POSTGRES_REQUIRED = [
     "psycopg[binary,pool]>=3.0.0,<4",
 ]
+POSTGRES_C_REQUIRED = [
+    "psycopg[c,pool]>=3.0.0,<4",
+]
 
 OPENTELEMETRY = ["prometheus_client", "psutil"]
 
@@ -245,6 +248,20 @@ CI_REQUIRED = (
     + TORCH_REQUIRED
     + CLICKHOUSE_REQUIRED
 )
+MINIMAL_REQUIRED = (
+    GCP_REQUIRED
+    + AWS_REQUIRED
+    + REDIS_REQUIRED
+    + KUBERNETES_REQUIRED
+    + SNOWFLAKE_REQUIRED
+    + POSTGRES_C_REQUIRED
+    + MYSQL_REQUIRED
+    + GO_REQUIRED
+    + GRPCIO_REQUIRED
+    + DUCKDB_REQUIRED
+    + OPENTELEMETRY
+    + MILVUS_REQUIRED
+)
 NLP_REQUIRED = (
     DOCLING_REQUIRED
     + MILVUS_REQUIRED
@@ -293,6 +310,7 @@ setup(
     extras_require={
         "dev": DEV_REQUIRED,
         "ci": CI_REQUIRED,
+        "minimal": MINIMAL_REQUIRED,
         "gcp": GCP_REQUIRED,
         "aws": AWS_REQUIRED,
         "k8s": KUBERNETES_REQUIRED,
@@ -301,6 +319,7 @@ setup(
         "spark": SPARK_REQUIRED,
         "trino": TRINO_REQUIRED,
         "postgres": POSTGRES_REQUIRED,
+        "postgres-c": POSTGRES_C_REQUIRED,
         "azure": AZURE_REQUIRED,
         "mysql": MYSQL_REQUIRED,
         "mssql": MSSQL_REQUIRED,
@@ -338,7 +357,7 @@ setup(
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.9",
     ],
-    entry_points={"console_scripts": ["feast=feast.cli:cli"]},
+    entry_points={"console_scripts": ["feast=feast.cli.cli:cli"]},
     use_scm_version=use_scm_version,
     setup_requires=[
         "pybindgen==0.22.0",  # TODO do we need this?

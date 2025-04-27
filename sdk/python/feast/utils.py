@@ -32,6 +32,7 @@ from feast.errors import (
     FeatureViewNotFoundException,
     RequestDataNotFoundInEntityRowsException,
 )
+from feast.field import Field
 from feast.infra.key_encoding_utils import deserialize_entity_key
 from feast.protos.feast.serving.ServingService_pb2 import (
     FieldStatus,
@@ -271,6 +272,7 @@ def _convert_arrow_fv_to_proto(
     if isinstance(table, pyarrow.Table):
         table = table.to_batches()[0]
 
+    # TODO: This will break if the feature view has aggregations or transformations
     columns = [
         (field.name, field.dtype.to_value_type()) for field in feature_view.features
     ] + list(join_keys.items())
@@ -397,6 +399,7 @@ def _convert_arrow_odfv_to_proto(
     feature_dict = {
         feature.name: proto_values_by_column[feature.name]
         for feature in feature_view.features
+        if feature.name in proto_values_by_column
     }
     if feature_view.write_to_online_store:
         table_columns = [col.name for col in table.schema]
@@ -1403,3 +1406,16 @@ def _build_retrieve_online_document_record(
         vector_value_proto,
         distance_value_proto,
     )
+
+
+def _get_feature_view_vector_field_metadata(
+    feature_view,
+) -> Optional[Field]:
+    vector_fields = [field for field in feature_view.schema if field.vector_index]
+    if len(vector_fields) > 1:
+        raise ValueError(
+            f"Feature view {feature_view.name} has multiple vector fields. Only one vector field per feature view is supported."
+        )
+    if not vector_fields:
+        return None
+    return vector_fields[0]

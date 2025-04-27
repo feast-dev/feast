@@ -1,0 +1,8 @@
+FROM arrow-builder:latest
+
+COPY --chown=default ibis ${APP_ROOT}/src/ibis
+RUN cd ${APP_ROOT}/src/ibis && \
+    source /tmp/hermeto.env && \
+    pip install .[duckdb] && \
+    cd ${APP_ROOT}/src && \
+    rm -rf ${APP_ROOT}/src/ibis

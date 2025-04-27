@@ -13,6 +13,7 @@ import DatasourceIndex from "./pages/data-sources/Index";
 import DatasetIndex from "./pages/saved-data-sets/Index";
 import EntityIndex from "./pages/entities/Index";
 import EntityInstance from "./pages/entities/EntityInstance";
+import FeatureListPage from "./pages/features/FeatureListPage";
 import FeatureInstance from "./pages/features/FeatureInstance";
 import FeatureServiceIndex from "./pages/feature-services/Index";
 import FeatureViewIndex from "./pages/feature-views/Index";
@@ -63,7 +64,10 @@ const FeastUISansProviders = ({
           projectsListPromise: feastUIConfigs?.projectListPromise,
           isCustom: true,
         }
-      : { projectsListPromise: defaultProjectListPromise(basename), isCustom: false };
+      : {
+          projectsListPromise: defaultProjectListPromise(basename),
+          isCustom: false,
+        };
 
   return (
     <EuiProvider colorMode="light">
@@ -85,16 +89,19 @@ const FeastUISansProviders = ({
                       path="data-source/:dataSourceName/*"
                       element={<DataSourceInstance />}
                     />
+                    <Route path="features/" element={<FeatureListPage />} />
                     <Route
                       path="feature-view/"
                       element={<FeatureViewIndex />}
                     />
-                    <Route path="feature-view/:featureViewName/*" element={<FeatureViewInstance />}>
-                    </Route>
                     <Route
-                        path="feature-view/:FeatureViewName/feature/:FeatureName/*"
-                        element={<FeatureInstance />}
-                      />
+                      path="feature-view/:featureViewName/*"
+                      element={<FeatureViewInstance />}
+                    ></Route>
+                    <Route
+                      path="feature-view/:FeatureViewName/feature/:FeatureName/*"
+                      element={<FeatureInstance />}
+                    />
                     <Route
                       path="feature-service/"
                       element={<FeatureServiceIndex />}

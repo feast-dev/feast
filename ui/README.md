@@ -6,7 +6,7 @@ This project was bootstrapped with [Create React App](https://github.com/faceboo
 
 ## Usage
 
-There are three modes of usage: 
+There are three modes of usage:
 - via the `feast ui` CLI to view the current feature repository
 - importing the UI as a module
 - running the entire build as a React app.
@@ -117,8 +117,17 @@ const tabsRegistry = {
 
 Examples of custom tabs can be found in the `/custom-tabs` folder.
 
-## On React and Create React App
+## Development
+
+### On React and Create React App
 
 This project was bootstrapped with Create React App, and uses its scripts to simplify UI development. You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
 
 To learn React, check out the [React documentation](https://reactjs.org/).
+
+### Code Formatting
+
+The code is formatted using [Prettier](https://prettier.io/). IDEs typically have Prettier addons or extensions that you can use for formatting, but you can also run:
+
+- `yarn format` to format all files
+- `yarn format:check` to check if files are formatted correctly without modifying them (used in GitHub Actions checks)

@@ -569,15 +569,22 @@ main::before {
     color: var(--color-text);
 }
 
-.integration-item {
+.integration-grid {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 40px;
-    text-align: center;
+    flex-wrap: wrap;
+    gap: 24px 20px;
     margin: 0 auto;
+    justify-content: center;
     width: 100%;
-    max-width: 140px;
+    max-width: 900px;
+}
+
+.integration-item {
+    flex: 0 0 150px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 0 10px;
 }
 
 .integration-logo {
@@ -595,19 +602,30 @@ main::before {
     max-width: 130px;
 }
 
+.integration-item img[alt="MSSQL"] {
+    max-height: 46px;
+    width: auto;
+}
+
 .integration-logo:hover {
     opacity: 1;
     filter: grayscale(0%) contrast(1);
 }
 
-.integration-grid {
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: 24px 20px;
-    margin: 0 auto;
-    justify-content: center;
-    width: 100%;
-    max-width: 900px;
+.text-logo {
+    font-family: var(--font-mono);
+    font-size: 14px;
+    font-weight: 600;
+    text-align: center;
+    color: #666;
+    opacity: 0.9;
+    transition: opacity 0.2s ease;
+    padding: 8px 0;
+}
+
+.integration-item:hover .text-logo {
+    opacity: 1;
+    color: var(--color-text);
 }
 
 /* Code section */

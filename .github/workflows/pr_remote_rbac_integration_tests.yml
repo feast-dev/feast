@@ -7,10 +7,6 @@ on:
       - opened
       - synchronize
       - labeled
-    paths-ignore:
-      - 'community/**'
-      - 'docs/**'
-      - 'examples/**'
 
 jobs:
   remote-rbac-integration-tests-python:
@@ -40,19 +36,14 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           architecture: x64
-      - name: Install uv
-        run: curl -LsSf https://astral.sh/uv/install.sh | sh
-      - name: Get uv cache dir
-        id: uv-cache
-        run: |
-          echo "dir=$(uv cache dir)" >> $GITHUB_OUTPUT
-      - name: uv cache
-        uses: actions/cache@v4
+      - name: Install the latest version of uv
+        uses: astral-sh/setup-uv@v5
         with:
-          path: ${{ steps.uv-cache.outputs.dir }}
-          key: ${{ runner.os }}-${{ matrix.python-version }}-uv-${{ hashFiles(format('**/py{0}-ci-requirements.txt', matrix.python-version)) }}
+          enable-cache: true
       - name: Install dependencies
         run: make install-python-dependencies-ci
       - name: Test rbac and remote feature integration tests
         if: ${{ always() }}  # this will guarantee that step won't be canceled and resources won't leak
         run: make test-python-integration-rbac-remote
+      - name: Minimize uv cache
+        run: uv cache prune --ci

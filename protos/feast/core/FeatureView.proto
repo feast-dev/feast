@@ -74,7 +74,11 @@ message FeatureViewSpec {
     DataSource stream_source = 9;
 
     // Whether these features should be served online or not
+    // This is also used to determine whether the features should be written to the online store
     bool online = 8;
+
+    // Whether these features should be written to the offline store
+    bool offline = 13;
 }
 
 message FeatureViewMeta {

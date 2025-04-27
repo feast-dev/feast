@@ -54,8 +54,12 @@ build: protos build-java build-docker
 # formerly install-python-ci-dependencies-uv-venv
 # editable install
 install-python-dependencies-dev:
-	uv pip sync sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt
+	uv pip sync --require-hashes sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt
 	uv pip install --no-deps -e .
+
+install-python-dependencies-minimal:
+	uv pip sync --require-hashes sdk/python/requirements/py$(PYTHON_VERSION)-minimal-requirements.txt
+	uv pip install --no-deps -e .[minimal]
 
 # Python SDK - system
 # the --system flag installs dependencies in the global python context
@@ -81,16 +85,26 @@ lock-python-dependencies-all:
 	# Remove all existing requirements because we noticed the lock file is not always updated correctly.
 	# Removing and running the command again ensures that the lock file is always up to date.
 	rm -rf sdk/python/requirements/* 2>/dev/null || true
-
 	$(foreach ver,$(PYTHON_VERSIONS),\
 		pixi run --environment $(call get_env_name,$(ver)) --manifest-path infra/scripts/pixi/pixi.toml \
-			"uv pip compile -p $(ver) --system --no-strip-extras setup.py \
-			--output-file sdk/python/requirements/py$(ver)-requirements.txt" && \
+			"uv pip compile -p $(ver) --no-strip-extras setup.py --extra ci \
+			--generate-hashes --output-file sdk/python/requirements/py$(ver)-ci-requirements.txt" && \
 		pixi run --environment $(call get_env_name,$(ver)) --manifest-path infra/scripts/pixi/pixi.toml \
-			"uv pip compile -p $(ver) --system --no-strip-extras setup.py --extra ci \
-			--output-file sdk/python/requirements/py$(ver)-ci-requirements.txt" && \
+			"uv pip compile -p $(ver) --no-strip-extras setup.py \
+			--generate-hashes --output-file sdk/python/requirements/py$(ver)-requirements.txt" && \
+		pixi run --environment $(call get_env_name,$(ver)) --manifest-path infra/scripts/pixi/pixi.toml \
+			"uv pip compile -p $(ver) --no-strip-extras setup.py --extra minimal \
+			--generate-hashes --output-file sdk/python/requirements/py$(ver)-minimal-requirements.txt" && \
+		pixi run --environment $(call get_env_name,$(ver)) --manifest-path infra/scripts/pixi/pixi.toml \
+			"uv pip compile -p $(ver) --no-strip-extras setup.py --extra minimal-sdist-build \
+			--no-emit-package milvus-lite \
+			--generate-hashes --output-file sdk/python/requirements/py$(ver)-minimal-sdist-requirements.txt" && \
+		pixi run --environment $(call get_env_name,$(ver)) --manifest-path infra/scripts/pixi/pixi.toml \
+			"uv pip install -p $(ver) pybuild-deps==0.5.0 && \
+			pybuild-deps compile --generate-hashes \
+			-o sdk/python/requirements/py$(ver)-minimal-sdist-requirements-build.txt \
+			sdk/python/requirements/py$(ver)-minimal-sdist-requirements.txt" && \
 	) true
-
 
 compile-protos-python:
 	python infra/scripts/generate_protos.py
@@ -620,11 +634,13 @@ build-helm-docs:
 	cd ${ROOT_DIR}/infra/charts/feast-feature-server; helm-docs
 
 # Web UI
+# Note: these require node and yarn to be installed
 
-# Note: requires node and yarn to be installed
 build-ui:
 	cd $(ROOT_DIR)/sdk/python/feast/ui && yarn upgrade @feast-dev/feast-ui --latest && yarn install && npm run build --omit=dev
 
+format-ui:
+	cd $(ROOT_DIR)/ui && NPM_TOKEN= yarn install && NPM_TOKEN= yarn format
 
 
 # Go SDK & embedded

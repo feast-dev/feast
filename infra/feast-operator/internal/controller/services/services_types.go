@@ -27,6 +27,7 @@ import (
 const (
 	TmpFeatureStoreYamlEnvVar = "TMP_FEATURE_STORE_YAML_BASE64"
 	feastServerImageVar       = "RELATED_IMAGE_FEATURE_SERVER"
+	cronJobImageVar           = "RELATED_IMAGE_CRON_JOB"
 	FeatureStoreYamlCmKey     = "feature_store.yaml"
 	EphemeralPath             = "/feast-data"
 	FeatureRepoDir            = "feature_repo"
@@ -34,23 +35,29 @@ const (
 	DefaultOnlineStorePath    = "online_store.db"
 	svcDomain                 = ".svc.cluster.local"
 
-	HttpPort      = 80
-	HttpsPort     = 443
-	HttpScheme    = "http"
-	HttpsScheme   = "https"
-	tlsPath       = "/tls/"
-	tlsNameSuffix = "-tls"
+	HttpPort              = 80
+	HttpsPort             = 443
+	HttpScheme            = "http"
+	HttpsScheme           = "https"
+	tlsPath               = "/tls/"
+	tlsPathCustomCABundle = "/etc/pki/tls/custom-certs/ca-bundle.crt"
+	tlsNameSuffix         = "-tls"
+
+	caBundleAnnotation = "config.openshift.io/inject-trusted-cabundle"
+	caBundleName       = "odh-trusted-ca-bundle"
 
 	DefaultOfflineStorageRequest  = "20Gi"
 	DefaultOnlineStorageRequest   = "5Gi"
 	DefaultRegistryStorageRequest = "5Gi"
 
+	AuthzFeastType    FeastServiceType = "authorization"
 	OfflineFeastType  FeastServiceType = "offline"
 	OnlineFeastType   FeastServiceType = "online"
 	RegistryFeastType FeastServiceType = "registry"
 	UIFeastType       FeastServiceType = "ui"
 	ClientFeastType   FeastServiceType = "client"
 	ClientCaFeastType FeastServiceType = "client-ca"
+	CronJobFeastType  FeastServiceType = "cronjob"
 
 	OfflineRemoteConfigType                 OfflineConfigType = "remote"
 	OfflineFilePersistenceDaskConfigType    OfflineConfigType = "dask"
@@ -84,7 +91,7 @@ const (
 
 var (
 	DefaultImage          = "quay.io/feastdev/feature-server:" + feastversion.FeastVersion
-	DefaultReplicas       = int32(1)
+	DefaultCronJobImage   = "quay.io/openshift/origin-cli:4.17"
 	DefaultPVCAccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}
 	NameLabelKey          = feastdevv1alpha1.GroupVersion.Group + "/name"
 	ServiceTypeLabelKey   = feastdevv1alpha1.GroupVersion.Group + "/service-type"
@@ -165,7 +172,6 @@ var (
 				Reason: feastdevv1alpha1.UIFailedReason,
 			},
 		},
-
 		ClientFeastType: {
 			metav1.ConditionTrue: {
 				Type:    feastdevv1alpha1.ClientReadyType,
@@ -177,6 +183,19 @@ var (
 				Type:   feastdevv1alpha1.ClientReadyType,
 				Status: metav1.ConditionFalse,
 				Reason: feastdevv1alpha1.ClientFailedReason,
+			},
+		},
+		CronJobFeastType: {
+			metav1.ConditionTrue: {
+				Type:    feastdevv1alpha1.CronJobReadyType,
+				Status:  metav1.ConditionTrue,
+				Reason:  feastdevv1alpha1.ReadyReason,
+				Message: feastdevv1alpha1.CronJobReadyMessage,
+			},
+			metav1.ConditionFalse: {
+				Type:   feastdevv1alpha1.CronJobReadyType,
+				Status: metav1.ConditionFalse,
+				Reason: feastdevv1alpha1.CronJobFailedReason,
 			},
 		},
 	}
@@ -267,4 +286,11 @@ type deploymentSettings struct {
 	Args            []string
 	TargetHttpPort  int32
 	TargetHttpsPort int32
+}
+
+// CustomCertificatesBundle represents a custom CA bundle configuration
+type CustomCertificatesBundle struct {
+	IsDefined     bool
+	VolumeName    string
+	ConfigMapName string
 }

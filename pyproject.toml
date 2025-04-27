@@ -23,8 +23,8 @@ dependencies = [
     "mmh3",
     "numpy>=1.22,<2",
     "pandas>=1.4.3,<3",
-    "pyarrow<18.1.0",
-    "pydantic>=2.0.0",
+    "pyarrow<=17.0.0",
+    "pydantic==2.10.6",
     "pygments>=2.12.0,<3",
     "PyYAML>=5.4.0,<7",
     "requests",
@@ -35,7 +35,7 @@ dependencies = [
     "tqdm>=4,<5",
     "typeguard>=4.0.0",
     "fastapi>=0.68.0",
-    "uvicorn[standard]>=0.14.0,<1",
+    "uvicorn[standard]==0.34.0",
     "uvicorn-worker",
     "gunicorn; platform_system != 'Windows'",
     "dask[dataframe]>=2024.2.1",
@@ -52,14 +52,14 @@ azure = [
     "azure-identity>=1.6.1",
     "SQLAlchemy>=1.4.19",
     "pyodbc>=4.0.30",
-    "pymssql"
+    "pymssql<2.3.3"
 ]
 cassandra = ["cassandra-driver>=3.24.0,<4"]
 clickhouse = ["clickhouse-connect>=0.7.19"]
 couchbase = ["couchbase==4.3.2", "couchbase-columnar==1.0.0"]
 delta = ["deltalake"]
-docling = ["docling>=2.23.0"]
-duckdb = ["ibis-framework[duckdb]>=9.0.0,<10"]
+docling = ["docling==2.27.0"]
+duckdb = ["ibis-framework[duckdb]>=9.0.0,<=9.5.0"]
 elasticsearch = ["elasticsearch>=8.13.0"]
 faiss = ["faiss-cpu>=1.7.0,<2"]
 gcp = [
@@ -82,20 +82,29 @@ grpcio = [
 hazelcast = ["hazelcast-python-client>=5.1"]
 hbase = ["happybase>=1.2.0,<3"]
 ibis = [
-    "ibis-framework>=9.0.0,<10",
+    "ibis-framework>=9.0.0,<=9.5.0",
     "ibis-substrait>=4.0.0",
+    "poetry-core<2",
+    "poetry-dynamic-versioning",
 ]
 ikv = [
     "ikvpy>=0.0.36",
 ]
 k8s = ["kubernetes<=20.13.0"]
-milvus = ["pymilvus"]
-mssql = ["ibis-framework[mssql]>=9.0.0,<10"]
+milvus = [
+    "pymilvus==2.4.9",
+    "milvus-lite==2.4.12",
+    "feast[setuptools]"
+]
+mssql = ["ibis-framework[mssql]>=9.0.0,<=9.5.0"]
 mysql = ["pymysql", "types-PyMySQL"]
 opentelemetry = ["prometheus_client", "psutil"]
 spark = ["pyspark>=3.0.0,<4"]
 trino = ["trino>=0.305.0,<0.400.0", "regex"]
-postgres = ["psycopg[binary,pool]>=3.0.0,<4"]
+postgres = ["psycopg[binary,pool]==3.2.5"]
+# psycopg[c] install requires a system with a C compiler, python dev headers, & postgresql client dev headers
+# https://www.psycopg.org/psycopg3/docs/basic/install.html#local-installation
+postgres-c = ["psycopg[c,pool]==3.2.5"]
 pytorch = ["torch==2.2.2", "torchvision>=0.17.2"]
 qdrant = ["qdrant-client>=1.12.0"]
 redis = [
@@ -136,13 +145,15 @@ ci = [
     "pytest-mock==1.10.4",
     "pytest-env",
     "Sphinx>4.0.0,<7",
+    "sqlglot[rs]>=23.4",
     "testcontainers==4.9.0",
     "python-keycloak==4.2.2",
     "pre-commit<3.3.2",
     "assertpy==1.1",
     "pip-tools",
-    "pybindgen",
+    "pybindgen==0.22.0",
     "types-protobuf~=3.19.22",
+    "python-dateutil==2.9.0",
     "types-python-dateutil",
     "types-pytz",
     "types-PyYAML",
@@ -156,6 +167,34 @@ ci = [
 nlp = ["feast[docling, milvus, pytorch]"]
 dev = ["feast[ci]"]
 docs = ["feast[ci]"]
+# used for the 'feature-server' container image build
+minimal = ["feast[aws, gcp, snowflake, redis, go, mysql, postgres-c, opentelemetry, grpcio, k8s, duckdb, milvus]"]
+minimal-sdist-build = [
+    "feast[minimal]",
+    "feast[ibis]",
+    "meson<1.7.2",
+    "pybindgen==0.22.0",
+    "sphinx!=4.0.0",
+    "types_psutil<7.0.0.20250401",
+
+    # sqlalchemy[mypy] dep
+    "greenlet!=0.4.17",
+
+    # numpy deps
+    "meson-python<0.16.0,>=0.15.0",
+    "Cython<3.1,>=0.29.34",
+    "flit_core<4,>=3.8",
+    "patchelf>=0.11.0",
+    "scikit-build-core>=0.10",
+    "hatch-fancy-pypi-readme>=23.2.0",
+    "hatch-vcs==0.4.0",
+    "hatchling>=1.6.0,<2",
+    "calver<2025.4.1",
+]
+setuptools = [
+    # https://amitylearning.vercel.app/?question=git-1742419854670&update=1742342400027
+    "setuptools>=60,<77",
+]
 
 [project.urls]
 Homepage = "https://github.com/feast-dev/feast"
@@ -164,12 +203,13 @@ Homepage = "https://github.com/feast-dev/feast"
 name = "Feast"
 
 [project.scripts]
-feast = "feast.cli:cli"
+feast = "feast.cli.cli:cli"
 
 [build-system]
 requires = [
   "pybindgen==0.22.0",
-  "setuptools>=60",
+  # https://amitylearning.vercel.app/?question=git-1742419854670&update=1742342400027
+  "setuptools>=60,<77",
   "setuptools_scm>=6.2",
   "sphinx!=4.0.0",
   "wheel",

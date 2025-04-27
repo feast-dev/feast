@@ -95,6 +95,7 @@ class MilvusOnlineStoreConfig(FeastConfigBaseModel, VectorStoreConfig):
     metric_type: Optional[str] = "COSINE"
     embedding_dim: Optional[int] = 128
     vector_enabled: Optional[bool] = True
+    text_search_enabled: Optional[bool] = False
     nlist: Optional[int] = 128
     username: Optional[StrictStr] = ""
     password: Optional[StrictStr] = ""
@@ -354,6 +355,10 @@ class MilvusOnlineStore(OnlineStore):
         feature_name_feast_primitive_type_map = {
             f.name: f.dtype for f in table.features
         }
+        if getattr(table, "write_to_online_store", False):
+            feature_name_feast_primitive_type_map.update(
+                {f.name: f.dtype for f in table.schema}
+            )
         # Build a dictionary mapping composite key -> (res_ts, res)
         results_dict: Dict[
             str, Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]
@@ -394,6 +399,7 @@ class MilvusOnlineStore(OnlineStore):
                                 "int64_val",
                                 "float_val",
                                 "double_val",
+                                "string_val",
                             ]:
                                 setattr(
                                     val,
@@ -406,21 +412,12 @@ class MilvusOnlineStore(OnlineStore):
                                 "float_list_val",
                                 "double_list_val",
                             ]:
-                                setattr(
-                                    val,
-                                    proto_attr,
-                                    list(
-                                        map(
-                                            type(getattr(val, proto_attr)).__args__[0],
-                                            field_value,
-                                        )
-                                    ),
-                                )
+                                getattr(val, proto_attr).val.extend(field_value)
                             else:
                                 setattr(val, proto_attr, field_value)
                         else:
                             raise ValueError(
-                                f"Unsupported ValueType: {feature_feast_primitive_type} with feature view value {field_value} for feature {field} with value {field_value}"
+                                f"Unsupported ValueType: {feature_feast_primitive_type} with feature view value {field_value} for feature {field} with value type {proto_attr}"
                             )
                         # res[field] = val
                         key_to_use = field.split(":", 1)[-1] if ":" in field else field
@@ -487,7 +484,19 @@ class MilvusOnlineStore(OnlineStore):
             Optional[Dict[str, ValueProto]],
         ]
     ]:
-        assert embedding is not None, "Key Word Search not yet implemented for Milvus"
+        """
+        Retrieve documents using vector similarity search or keyword search in Milvus.
+        Args:
+            config: Feast configuration object
+            table: FeatureView object as the table to search
+            requested_features: List of requested features to retrieve
+            embedding: Query embedding to search for (optional)
+            top_k: Number of items to return
+            distance_metric: Distance metric to use (optional)
+            query_string: The query string to search for using keyword search (optional)
+        Returns:
+            List of tuples containing the event timestamp, entity key, and feature values
+        """
         entity_name_feast_primitive_type_map = {
             k.name: k.dtype for k in table.entity_columns
         }
@@ -497,10 +506,8 @@ class MilvusOnlineStore(OnlineStore):
         if not config.online_store.vector_enabled:
             raise ValueError("Vector search is not enabled in the online store config")
 
-        search_params = {
-            "metric_type": distance_metric or config.online_store.metric_type,
-            "params": {"nprobe": 10},
-        }
+        if embedding is None and query_string is None:
+            raise ValueError("Either embedding or query_string must be provided")
 
         composite_key_name = _get_composite_key_name(table)
 
@@ -515,25 +522,118 @@ class MilvusOnlineStore(OnlineStore):
         ), (
             f"field(s) [{[field for field in output_fields if field not in [f['name'] for f in collection['fields']]]}] not found in collection schema"
         )
-        # Note we choose the first vector field as the field to search on. Not ideal but it's something.
+
+        # Find the vector search field if we need it
         ann_search_field = None
-        for field in collection["fields"]:
-            if (
-                field["type"] in [DataType.FLOAT_VECTOR, DataType.BINARY_VECTOR]
-                and field["name"] in output_fields
-            ):
-                ann_search_field = field["name"]
-                break
+        if embedding is not None:
+            for field in collection["fields"]:
+                if (
+                    field["type"] in [DataType.FLOAT_VECTOR, DataType.BINARY_VECTOR]
+                    and field["name"] in output_fields
+                ):
+                    ann_search_field = field["name"]
+                    break
 
         self.client.load_collection(collection_name)
-        results = self.client.search(
-            collection_name=collection_name,
-            data=[embedding],
-            anns_field=ann_search_field,
-            search_params=search_params,
-            limit=top_k,
-            output_fields=output_fields,
-        )
+
+        if (
+            embedding is not None
+            and query_string is not None
+            and config.online_store.vector_enabled
+        ):
+            string_field_list = [
+                f.name
+                for f in table.features
+                if isinstance(f.dtype, PrimitiveFeastType)
+                and f.dtype.to_value_type() == ValueType.STRING
+            ]
+
+            if not string_field_list:
+                raise ValueError(
+                    "No string fields found in the feature view for text search in hybrid mode"
+                )
+
+            # Create a filter expression for text search
+            filter_expressions = []
+            for field in string_field_list:
+                if field in output_fields:
+                    filter_expressions.append(f"{field} LIKE '%{query_string}%'")
+
+            # Combine filter expressions with OR
+            filter_expr = " OR ".join(filter_expressions) if filter_expressions else ""
+
+            # Vector search with text filter
+            search_params = {
+                "metric_type": distance_metric or config.online_store.metric_type,
+                "params": {"nprobe": 10},
+            }
+
+            # For hybrid search, use filter parameter instead of expr
+            results = self.client.search(
+                collection_name=collection_name,
+                data=[embedding],
+                anns_field=ann_search_field,
+                search_params=search_params,
+                limit=top_k,
+                output_fields=output_fields,
+                filter=filter_expr if filter_expr else None,
+            )
+
+        elif embedding is not None and config.online_store.vector_enabled:
+            # Vector search only
+            search_params = {
+                "metric_type": distance_metric or config.online_store.metric_type,
+                "params": {"nprobe": 10},
+            }
+
+            results = self.client.search(
+                collection_name=collection_name,
+                data=[embedding],
+                anns_field=ann_search_field,
+                search_params=search_params,
+                limit=top_k,
+                output_fields=output_fields,
+            )
+
+        elif query_string is not None:
+            string_field_list = [
+                f.name
+                for f in table.features
+                if isinstance(f.dtype, PrimitiveFeastType)
+                and f.dtype.to_value_type() == ValueType.STRING
+            ]
+
+            if not string_field_list:
+                raise ValueError(
+                    "No string fields found in the feature view for text search"
+                )
+
+            filter_expressions = []
+            for field in string_field_list:
+                if field in output_fields:
+                    filter_expressions.append(f"{field} LIKE '%{query_string}%'")
+
+            filter_expr = " OR ".join(filter_expressions)
+
+            if not filter_expr:
+                raise ValueError(
+                    "No text fields found in requested features for search"
+                )
+
+            query_results = self.client.query(
+                collection_name=collection_name,
+                filter=filter_expr,
+                output_fields=output_fields,
+                limit=top_k,
+            )
+
+            results = [
+                [{"entity": entity, "distance": -1.0}] for entity in query_results
+            ]
+        else:
+            raise ValueError(
+                "Either vector_enabled must be True for embedding search or query_string must be provided for keyword search"
+            )
 
         result_list = []
         for hits in results:
@@ -554,7 +654,7 @@ class MilvusOnlineStore(OnlineStore):
                     # entity_key_proto = None
                     if field in ["created_ts", "event_ts"]:
                         res_ts = datetime.fromtimestamp(field_value / 1e6)
-                    elif field == ann_search_field:
+                    elif field == ann_search_field and embedding is not None:
                         serialized_embedding = _serialize_vector_to_float_list(
                             embedding
                         )

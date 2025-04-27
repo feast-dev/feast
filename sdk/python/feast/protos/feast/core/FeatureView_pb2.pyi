@@ -90,6 +90,7 @@ class FeatureViewSpec(google.protobuf.message.Message):
     BATCH_SOURCE_FIELD_NUMBER: builtins.int
     STREAM_SOURCE_FIELD_NUMBER: builtins.int
     ONLINE_FIELD_NUMBER: builtins.int
+    OFFLINE_FIELD_NUMBER: builtins.int
     name: builtins.str
     """Name of the feature view. Must be unique. Not updated."""
     project: builtins.str
@@ -124,7 +125,11 @@ class FeatureViewSpec(google.protobuf.message.Message):
     def stream_source(self) -> feast.core.DataSource_pb2.DataSource:
         """Streaming DataSource from where this view can consume "online" feature data."""
     online: builtins.bool
-    """Whether these features should be served online or not"""
+    """Whether these features should be served online or not
+    This is also used to determine whether the features should be written to the online store
+    """
+    offline: builtins.bool
+    """Whether these features should be written to the offline store"""
     def __init__(
         self,
         *,
@@ -140,9 +145,10 @@ class FeatureViewSpec(google.protobuf.message.Message):
         batch_source: feast.core.DataSource_pb2.DataSource | None = ...,
         stream_source: feast.core.DataSource_pb2.DataSource | None = ...,
         online: builtins.bool = ...,
+        offline: builtins.bool = ...,
     ) -> None: ...
     def HasField(self, field_name: typing_extensions.Literal["batch_source", b"batch_source", "stream_source", b"stream_source", "ttl", b"ttl"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["batch_source", b"batch_source", "description", b"description", "entities", b"entities", "entity_columns", b"entity_columns", "features", b"features", "name", b"name", "online", b"online", "owner", b"owner", "project", b"project", "stream_source", b"stream_source", "tags", b"tags", "ttl", b"ttl"]) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["batch_source", b"batch_source", "description", b"description", "entities", b"entities", "entity_columns", b"entity_columns", "features", b"features", "name", b"name", "offline", b"offline", "online", b"online", "owner", b"owner", "project", b"project", "stream_source", b"stream_source", "tags", b"tags", "ttl", b"ttl"]) -> None: ...
 
 global___FeatureViewSpec = FeatureViewSpec
 
