@@ -14,7 +14,6 @@ import {
 } from "reactflow";
 import "reactflow/dist/style.css";
 import dagre from "dagre";
-
 import {
   EuiPanel,
   EuiTitle,
@@ -25,8 +24,19 @@ import { FEAST_FCO_TYPES } from "../parsers/types";
 import { EntityRelation } from "../parsers/parseEntityRelationships";
 import { feast } from "../protos";
 
-const nodeWidth = 200;
-const nodeHeight = 50;
+const edgeAnimationStyle = `
+  @keyframes dashdraw {
+    0% {
+      stroke-dashoffset: 10;
+    }
+    100% {
+      stroke-dashoffset: 0;
+    }
+  }
+`;
+
+const nodeWidth = 250;
+const nodeHeight = 60;
 
 interface NodeData {
   label: string;
@@ -222,7 +232,12 @@ const registryToFlow = (
       target: `${targetPrefix}-${rel.target.name}`,
       targetHandle: "target",
       animated: true,
-      style: { strokeWidth: 2, stroke: '#999', strokeDasharray: '5 5' },
+      style: { 
+        strokeWidth: 2, 
+        stroke: '#999', 
+        strokeDasharray: '5 5',
+        animation: 'dashdraw 0.5s linear infinite',
+      },
       type: "smoothstep",
       markerEnd: {
         type: MarkerType.ArrowClosed,
@@ -287,8 +302,9 @@ const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
 
   return (
     <EuiPanel>
+      <style>{edgeAnimationStyle}</style>
       <EuiTitle size="s">
-        <h2>Registry Visualization</h2>
+        <h2>Lineage</h2>
       </EuiTitle>
       <EuiSpacer size="m" />
 

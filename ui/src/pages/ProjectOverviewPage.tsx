@@ -37,7 +37,7 @@ const ProjectOverviewPage = () => {
     },
     {
       id: "visualization",
-      name: "Registry Visualization",
+      name: "Lineage",
       disabled: false,
     },
   ];
