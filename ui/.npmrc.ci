@@ -1,2 +1,0 @@
-# NPM configuration for CI environment
-# This file should be used in CI to bypass NPM token authentication
