@@ -97,11 +97,11 @@ const CustomNode = ({ data }: { data: NodeData }) => {
   return (
     <div
       style={{
-        background: "#ffffff",
+        background: lightColor,
         borderRadius: 8,
         width: nodeWidth,
         height: nodeHeight,
-        border: "1px solid #d3d3d3",
+        border: `1px solid ${color}`,
         display: "flex",
         alignItems: "stretch",
         position: "relative",
@@ -115,15 +115,15 @@ const CustomNode = ({ data }: { data: NodeData }) => {
         style={{ background: "#999", width: 10, height: 10 }}
       />
       <div style={{ 
-        backgroundColor: lightColor,
+        backgroundColor: color,
         width: "40px",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        borderRight: "1px solid #d3d3d3",
+        borderRight: `1px solid ${color}`,
       }}>
         <div style={{ 
-          color: color, 
+          color: "#ffffff", 
           fontSize: "20px", 
         }}>
           {icon}
@@ -137,6 +137,7 @@ const CustomNode = ({ data }: { data: NodeData }) => {
         padding: "0 10px",
         fontSize: "16px",
         fontWeight: "500",
+        color: "#333333",
       }}>
         {data.label}
       </div>
