@@ -1519,9 +1519,9 @@ class FeatureStore:
             await run_in_threadpool(_offline_write)
 
     def _validate_and_convert_input_data(
-            self,
-            df: Optional[pd.DataFrame],
-            inputs: Optional[Union[Dict[str, List[Any]], pd.DataFrame]]
+        self,
+        df: Optional[pd.DataFrame],
+        inputs: Optional[Union[Dict[str, List[Any]], pd.DataFrame]],
     ) -> Optional[pd.DataFrame]:
         """
         Validates input parameters and converts them to a pandas DataFrame.
@@ -1663,7 +1663,10 @@ class FeatureStore:
             df_vector_feature_index = df.columns.get_loc(fv_vector_feature_name)
 
             if feature_view.features[0].vector_length != 0:
-                if df.shape[df_vector_feature_index] > feature_view.features[0].vector_length:
+                if (
+                    df.shape[df_vector_feature_index]
+                    > feature_view.features[0].vector_length
+                ):
                     raise ValueError(
                         f"The dataframe for {fv_vector_feature_name} column has {df.shape[1]} vectors "
                         f"which is greater than expected (i.e {feature_view.features[0].vector_length}) "
