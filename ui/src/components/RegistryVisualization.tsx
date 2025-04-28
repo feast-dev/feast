@@ -102,14 +102,16 @@ const CustomNode = ({ data }: { data: NodeData }) => {
         style={{ background: "#999", width: 10, height: 10 }}
       />
       <div style={{ 
-        color: color, 
+        color: "#ffffff", 
+        backgroundColor: color,
         fontSize: "20px", 
         marginRight: "10px",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         width: "24px",
-        height: "24px"
+        height: "24px",
+        borderRadius: "4px"
       }}>
         {icon}
       </div>
