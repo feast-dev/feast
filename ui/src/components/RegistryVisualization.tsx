@@ -59,6 +59,21 @@ const getNodeColor = (type: FEAST_FCO_TYPES) => {
   }
 };
 
+const getLightNodeColor = (type: FEAST_FCO_TYPES) => {
+  switch (type) {
+    case FEAST_FCO_TYPES.featureService:
+      return "#e6f3ff"; // Light blue
+    case FEAST_FCO_TYPES.featureView:
+      return "#e6ffe6"; // Light green
+    case FEAST_FCO_TYPES.entity:
+      return "#fff2e6"; // Light orange
+    case FEAST_FCO_TYPES.dataSource:
+      return "#ffe6e6"; // Light red
+    default:
+      return "#f0f0f0"; // Light gray
+  }
+};
+
 const getNodeIcon = (type: FEAST_FCO_TYPES) => {
   switch (type) {
     case FEAST_FCO_TYPES.featureService:
@@ -76,23 +91,21 @@ const getNodeIcon = (type: FEAST_FCO_TYPES) => {
 
 const CustomNode = ({ data }: { data: NodeData }) => {
   const color = getNodeColor(data.type);
+  const lightColor = getLightNodeColor(data.type);
   const icon = getNodeIcon(data.type);
   
   return (
     <div
       style={{
         background: "#ffffff",
-        padding: "10px 20px",
         borderRadius: 8,
         width: nodeWidth,
         height: nodeHeight,
-        border: "2px solid #e0e0e0",
+        border: "1px solid #d3d3d3",
         display: "flex",
-        alignItems: "center",
-        justifyContent: "flex-start",
+        alignItems: "stretch",
         position: "relative",
-        fontSize: "16px",
-        fontWeight: "500",
+        overflow: "hidden",
       }}
     >
       <Handle
@@ -102,20 +115,31 @@ const CustomNode = ({ data }: { data: NodeData }) => {
         style={{ background: "#999", width: 10, height: 10 }}
       />
       <div style={{ 
-        color: "#ffffff", 
-        backgroundColor: color,
-        fontSize: "20px", 
-        marginRight: "10px",
+        backgroundColor: lightColor,
+        width: "40px",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        width: "24px",
-        height: "24px",
-        borderRadius: "4px"
+        borderRight: "1px solid #d3d3d3",
       }}>
-        {icon}
+        <div style={{ 
+          color: color, 
+          fontSize: "20px", 
+        }}>
+          {icon}
+        </div>
       </div>
-      <div style={{ flex: 1, textAlign: "center" }}>{data.label}</div>
+      <div style={{ 
+        flex: 1, 
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "0 10px",
+        fontSize: "16px",
+        fontWeight: "500",
+      }}>
+        {data.label}
+      </div>
       <Handle
         type="source"
         position={Position.Right}
