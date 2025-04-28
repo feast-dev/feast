@@ -44,16 +44,33 @@ interface NodeData {
   metadata: any;
 }
 
+const getNodeColor = (type: FEAST_FCO_TYPES) => {
+  switch (type) {
+    case FEAST_FCO_TYPES.featureService:
+      return { background: "#e6f3ff", border: "#0066cc" }; // Light blue
+    case FEAST_FCO_TYPES.featureView:
+      return { background: "#e6ffe6", border: "#009900" }; // Light green
+    case FEAST_FCO_TYPES.entity:
+      return { background: "#fff2e6", border: "#ff8000" }; // Light orange
+    case FEAST_FCO_TYPES.dataSource:
+      return { background: "#ffe6e6", border: "#cc0000" }; // Light red
+    default:
+      return { background: "#f0f0f0", border: "#666666" }; // Light gray
+  }
+};
+
 const CustomNode = ({ data }: { data: NodeData }) => {
+  const colors = getNodeColor(data.type);
+  
   return (
     <div
       style={{
-        background: "#ffffff",
+        background: colors.background,
         padding: "10px 20px",
         borderRadius: 8,
         width: nodeWidth,
         height: nodeHeight,
-        border: "2px solid #000",
+        border: `2px solid ${colors.border}`,
         textAlign: "center",
         display: "flex",
         alignItems: "center",
@@ -67,14 +84,14 @@ const CustomNode = ({ data }: { data: NodeData }) => {
         type="target"
         position={Position.Left}
         id="target"
-        style={{ background: "#000", width: 10, height: 10 }}
+        style={{ background: colors.border, width: 10, height: 10 }}
       />
       <div>{data.label}</div>
       <Handle
         type="source"
         position={Position.Right}
         id="source"
-        style={{ background: "#000", width: 10, height: 10 }}
+        style={{ background: colors.border, width: 10, height: 10 }}
       />
     </div>
   );
