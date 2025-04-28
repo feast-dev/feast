@@ -14,12 +14,7 @@ import {
 } from "reactflow";
 import "reactflow/dist/style.css";
 import dagre from "dagre";
-import {
-  EuiPanel,
-  EuiTitle,
-  EuiSpacer,
-  EuiLoadingSpinner,
-} from "@elastic/eui";
+import { EuiPanel, EuiTitle, EuiSpacer, EuiLoadingSpinner } from "@elastic/eui";
 import { FEAST_FCO_TYPES } from "../parsers/types";
 import { EntityRelation } from "../parsers/parseEntityRelationships";
 import { feast } from "../protos";
@@ -107,7 +102,7 @@ const CustomNode = ({ data }: { data: NodeData }) => {
   const color = getNodeColor(data.type);
   const lightColor = getLightNodeColor(data.type);
   const icon = getNodeIcon(data.type);
-  
+
   return (
     <div
       style={{
@@ -128,31 +123,37 @@ const CustomNode = ({ data }: { data: NodeData }) => {
         id="target"
         style={{ background: "#999", width: 10, height: 10 }}
       />
-      <div style={{ 
-        backgroundColor: color,
-        width: "40px",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        borderRight: `1px solid ${color}`,
-      }}>
-        <div style={{ 
-          color: "#ffffff", 
-          fontSize: "20px", 
-        }}>
+      <div
+        style={{
+          backgroundColor: color,
+          width: "40px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          borderRight: `1px solid ${color}`,
+        }}
+      >
+        <div
+          style={{
+            color: "#ffffff",
+            fontSize: "20px",
+          }}
+        >
           {icon}
         </div>
       </div>
-      <div style={{ 
-        flex: 1, 
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "0 10px",
-        fontSize: "16px",
-        fontWeight: "500",
-        color: "#333333",
-      }}>
+      <div
+        style={{
+          flex: 1,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "0 10px",
+          fontSize: "16px",
+          fontWeight: "500",
+          color: "#333333",
+        }}
+      >
         {data.label}
       </div>
       <Handle
@@ -176,10 +177,10 @@ const getLayoutedElements = (
 ) => {
   const dagreGraph = new dagre.graphlib.Graph();
   dagreGraph.setDefaultEdgeLabel(() => ({}));
-  dagreGraph.setGraph({ 
+  dagreGraph.setGraph({
     rankdir: direction,
-    nodesep: 100,  // Increased horizontal spacing between nodes
-    ranksep: 150,  // Increased vertical spacing between ranks
+    nodesep: 100, // Increased horizontal spacing between nodes
+    ranksep: 150, // Increased vertical spacing between ranks
     marginx: 50,
     marginy: 50,
   });
@@ -202,8 +203,8 @@ const getLayoutedElements = (
         x: nodeWithPosition.x - nodeWidth / 2,
         y: nodeWithPosition.y - nodeHeight / 2,
       },
-      sourcePosition: direction === 'TB' ? Position.Bottom : Position.Right,
-      targetPosition: direction === 'TB' ? Position.Top : Position.Left,
+      sourcePosition: direction === "TB" ? Position.Bottom : Position.Right,
+      targetPosition: direction === "TB" ? Position.Top : Position.Left,
     };
   });
 
@@ -323,18 +324,18 @@ const registryToFlow = (
       target: `${targetPrefix}-${rel.target.name}`,
       targetHandle: "target",
       animated: true,
-      style: { 
-        strokeWidth: 3, 
-        stroke: '#999', 
-        strokeDasharray: '10 5',
-        animation: 'dataflow 2s linear infinite',
+      style: {
+        strokeWidth: 3,
+        stroke: "#999",
+        strokeDasharray: "10 5",
+        animation: "dataflow 2s linear infinite",
       },
       type: "smoothstep",
       markerEnd: {
         type: MarkerType.ArrowClosed,
         width: 20,
         height: 20,
-        color: '#999',
+        color: "#999",
       },
     });
   });
@@ -419,8 +420,6 @@ const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
           </ReactFlow>
         </div>
       )}
-
-
     </EuiPanel>
   );
 };
