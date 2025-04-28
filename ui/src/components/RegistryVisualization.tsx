@@ -47,34 +47,49 @@ interface NodeData {
 const getNodeColor = (type: FEAST_FCO_TYPES) => {
   switch (type) {
     case FEAST_FCO_TYPES.featureService:
-      return { background: "#e6f3ff", border: "#0066cc" }; // Light blue
+      return "#0066cc"; // Blue
     case FEAST_FCO_TYPES.featureView:
-      return { background: "#e6ffe6", border: "#009900" }; // Light green
+      return "#009900"; // Green
     case FEAST_FCO_TYPES.entity:
-      return { background: "#fff2e6", border: "#ff8000" }; // Light orange
+      return "#ff8000"; // Orange
     case FEAST_FCO_TYPES.dataSource:
-      return { background: "#ffe6e6", border: "#cc0000" }; // Light red
+      return "#cc0000"; // Red
     default:
-      return { background: "#f0f0f0", border: "#666666" }; // Light gray
+      return "#666666"; // Gray
+  }
+};
+
+const getNodeIcon = (type: FEAST_FCO_TYPES) => {
+  switch (type) {
+    case FEAST_FCO_TYPES.featureService:
+      return "●"; // Circle for feature service
+    case FEAST_FCO_TYPES.featureView:
+      return "■"; // Square for feature view
+    case FEAST_FCO_TYPES.entity:
+      return "▲"; // Triangle for entity
+    case FEAST_FCO_TYPES.dataSource:
+      return "◆"; // Diamond for data source
+    default:
+      return "●"; // Default circle
   }
 };
 
 const CustomNode = ({ data }: { data: NodeData }) => {
-  const colors = getNodeColor(data.type);
+  const color = getNodeColor(data.type);
+  const icon = getNodeIcon(data.type);
   
   return (
     <div
       style={{
-        background: colors.background,
+        background: "#ffffff",
         padding: "10px 20px",
         borderRadius: 8,
         width: nodeWidth,
         height: nodeHeight,
-        border: `2px solid ${colors.border}`,
-        textAlign: "center",
+        border: "2px solid #e0e0e0",
         display: "flex",
         alignItems: "center",
-        justifyContent: "center",
+        justifyContent: "flex-start",
         position: "relative",
         fontSize: "16px",
         fontWeight: "500",
@@ -84,14 +99,26 @@ const CustomNode = ({ data }: { data: NodeData }) => {
         type="target"
         position={Position.Left}
         id="target"
-        style={{ background: colors.border, width: 10, height: 10 }}
+        style={{ background: "#999", width: 10, height: 10 }}
       />
-      <div>{data.label}</div>
+      <div style={{ 
+        color: color, 
+        fontSize: "20px", 
+        marginRight: "10px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        width: "24px",
+        height: "24px"
+      }}>
+        {icon}
+      </div>
+      <div style={{ flex: 1, textAlign: "center" }}>{data.label}</div>
       <Handle
         type="source"
         position={Position.Right}
         id="source"
-        style={{ background: colors.border, width: 10, height: 10 }}
+        style={{ background: "#999", width: 10, height: 10 }}
       />
     </div>
   );
