@@ -33,6 +33,20 @@ const edgeAnimationStyle = `
       stroke-dashoffset: 0;
     }
   }
+  
+  @keyframes dataflow {
+    0% {
+      stroke-dashoffset: 20;
+      stroke: #999;
+    }
+    50% {
+      stroke: #00cc00;
+    }
+    100% {
+      stroke-dashoffset: 0;
+      stroke: #999;
+    }
+  }
 `;
 
 const nodeWidth = 250;
@@ -162,7 +176,13 @@ const getLayoutedElements = (
 ) => {
   const dagreGraph = new dagre.graphlib.Graph();
   dagreGraph.setDefaultEdgeLabel(() => ({}));
-  dagreGraph.setGraph({ rankdir: direction });
+  dagreGraph.setGraph({ 
+    rankdir: direction,
+    nodesep: 100,  // Increased horizontal spacing between nodes
+    ranksep: 150,  // Increased vertical spacing between ranks
+    marginx: 50,
+    marginy: 50,
+  });
 
   nodes.forEach((node) => {
     dagreGraph.setNode(node.id, { width: nodeWidth, height: nodeHeight });
@@ -304,10 +324,10 @@ const registryToFlow = (
       targetHandle: "target",
       animated: true,
       style: { 
-        strokeWidth: 2, 
+        strokeWidth: 3, 
         stroke: '#999', 
-        strokeDasharray: '5 5',
-        animation: 'dashdraw 0.5s linear infinite',
+        strokeDasharray: '10 5',
+        animation: 'dataflow 2s linear infinite',
       },
       type: "smoothstep",
       markerEnd: {
