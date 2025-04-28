@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ReactFlow,
   Node,
@@ -8,7 +8,6 @@ import {
   useNodesState,
   useEdgesState,
   ConnectionLineType,
-  Panel,
   MarkerType,
   Handle,
   Position,
@@ -20,22 +19,14 @@ import {
   EuiPanel,
   EuiTitle,
   EuiSpacer,
-  EuiText,
   EuiLoadingSpinner,
 } from "@elastic/eui";
 import { FEAST_FCO_TYPES } from "../parsers/types";
 import { EntityRelation } from "../parsers/parseEntityRelationships";
 import { feast } from "../protos";
 
-const nodeColors = {
-  [FEAST_FCO_TYPES.dataSource]: "#D6EAF8", // Light blue
-  [FEAST_FCO_TYPES.entity]: "#D5F5E3", // Light green
-  [FEAST_FCO_TYPES.featureView]: "#FCF3CF", // Light yellow
-  [FEAST_FCO_TYPES.featureService]: "#FADBD8", // Light red
-};
-
-const nodeWidth = 180;
-const nodeHeight = 40;
+const nodeWidth = 200;
+const nodeHeight = 50;
 
 interface NodeData {
   label: string;
@@ -47,32 +38,33 @@ const CustomNode = ({ data }: { data: NodeData }) => {
   return (
     <div
       style={{
-        background: nodeColors[data.type] || "#ffffff",
-        padding: 10,
-        borderRadius: 5,
-        width: nodeWidth - 20,
-        height: nodeHeight - 20,
-        border: "1px solid #ddd",
+        background: "#ffffff",
+        padding: "10px 20px",
+        borderRadius: 8,
+        width: nodeWidth,
+        height: nodeHeight,
+        border: "2px solid #000",
         textAlign: "center",
         display: "flex",
-        flexDirection: "column",
+        alignItems: "center",
         justifyContent: "center",
         position: "relative",
+        fontSize: "16px",
+        fontWeight: "500",
       }}
     >
       <Handle
         type="target"
-        position={Position.Top}
+        position={Position.Left}
         id="target"
-        style={{ background: "#555" }}
+        style={{ background: "#000", width: 10, height: 10 }}
       />
-      <div style={{ fontWeight: "bold" }}>{data.label}</div>
-      <div style={{ fontSize: "0.8em" }}>{data.type}</div>
+      <div>{data.label}</div>
       <Handle
         type="source"
-        position={Position.Bottom}
+        position={Position.Right}
         id="source"
-        style={{ background: "#555" }}
+        style={{ background: "#000", width: 10, height: 10 }}
       />
     </div>
   );
@@ -230,13 +222,13 @@ const registryToFlow = (
       target: `${targetPrefix}-${rel.target.name}`,
       targetHandle: "target",
       animated: true,
-      style: { strokeWidth: 2, stroke: '#666', strokeDasharray: '0' },
-      type: "default",
+      style: { strokeWidth: 2, stroke: '#999', strokeDasharray: '5 5' },
+      type: "smoothstep",
       markerEnd: {
         type: MarkerType.ArrowClosed,
-        width: 25,
-        height: 25,
-        color: '#666',
+        width: 20,
+        height: 20,
+        color: '#999',
       },
     });
   });
@@ -273,7 +265,7 @@ const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [loading, setLoading] = useState(true);
-  const [direction, setDirection] = useState<"TB" | "LR">("TB");
+  const direction = "LR";
 
   useEffect(() => {
     if (registryData && relationships) {
@@ -291,11 +283,7 @@ const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
       setEdges(layoutedEdges);
       setLoading(false);
     }
-  }, [registryData, relationships, indirectRelationships, direction, setNodes, setEdges]);
-
-  const toggleDirection = useCallback(() => {
-    setDirection((dir) => (dir === "TB" ? "LR" : "TB"));
-  }, []);
+  }, [registryData, relationships, indirectRelationships, setNodes, setEdges]);
 
   return (
     <EuiPanel>
@@ -319,56 +307,13 @@ const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
             connectionLineType={ConnectionLineType.SmoothStep}
             fitView
           >
-            <Background />
+            <Background color="#f0f0f0" gap={16} />
             <Controls />
-            <Panel position="top-right">
-              <button
-                onClick={toggleDirection}
-                className="euiButton euiButton--primary"
-                style={{
-                  padding: "8px 12px",
-                  backgroundColor: "#006BB4",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "4px",
-                  cursor: "pointer",
-                  fontSize: "14px",
-                  fontWeight: "500",
-                  boxShadow: "0 2px 2px -1px rgba(152, 162, 179, 0.3)",
-                }}
-              >
-                {direction === "TB" ? "Horizontal Layout" : "Vertical Layout"}
-              </button>
-            </Panel>
           </ReactFlow>
         </div>
       )}
 
-      <EuiSpacer size="m" />
-      <EuiText size="s">
-        <p>
-          <strong>Legend:</strong>
-        </p>
-        <div style={{ display: "flex", gap: 10 }}>
-          {Object.entries(nodeColors).map(([type, color]) => (
-            <div
-              key={type}
-              style={{ display: "flex", alignItems: "center", marginRight: 15 }}
-            >
-              <div
-                style={{
-                  width: 20,
-                  height: 20,
-                  backgroundColor: color,
-                  marginRight: 5,
-                  border: "1px solid #ddd",
-                }}
-              />
-              <span>{type}</span>
-            </div>
-          ))}
-        </div>
-      </EuiText>
+
     </EuiPanel>
   );
 };
