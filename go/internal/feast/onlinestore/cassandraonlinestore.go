@@ -730,50 +730,94 @@ func (c *CassandraOnlineStore) rangeFilterToCQL(filter *model.SortKeyFilter) (st
 	}
 }
 
-func (c *CassandraOnlineStore) getRangeQueryCQLStatement(tableName string, featureNames []string, sortKeyFilters []*model.SortKeyFilter, limit int32) (string, []interface{}) {
-	// this prevents fetching unnecessary features
-	quotedFeatureNames := make([]string, len(featureNames))
-	for i, featureName := range featureNames {
-		quotedFeatureNames[i] = fmt.Sprintf(`"%s"`, featureName)
+func (c *CassandraOnlineStore) buildRangeQueryCQL(
+	tableName string,
+	featureNames []string,
+	numKeys int,
+	sortKeyFilters []*model.SortKeyFilter,
+	limit int32,
+	perPartitionLimit bool,
+) (string, []interface{}) {
+	quotedFeatures := make([]string, len(featureNames))
+	for i, name := range featureNames {
+		quotedFeatures[i] = fmt.Sprintf(`"%s"`, name)
 	}
 
-	rangeFilterString := ""
-	orderByString := ""
+	keyPlaceholders := make([]string, numKeys)
+	for i := range keyPlaceholders {
+		keyPlaceholders[i] = "?"
+	}
+
+	whereClause := ""
+	orderByClause := ""
 	params := make([]interface{}, 0)
+
 	if len(sortKeyFilters) > 0 {
 		rangeFilters := make([]string, 0)
 		orderBy := make([]string, 0)
-		for _, filter := range sortKeyFilters {
-			filterString, filterParams := c.rangeFilterToCQL(filter)
-			if filterString != "" {
-				rangeFilters = append(rangeFilters, filterString)
+
+		for _, f := range sortKeyFilters {
+			filterStr, filterParams := c.rangeFilterToCQL(f)
+			if filterStr != "" {
+				rangeFilters = append(rangeFilters, filterStr)
 			}
-			orderBy = append(orderBy, fmt.Sprintf(`"%s" %s`, filter.SortKeyName, filter.Order.String()))
+			orderBy = append(orderBy, fmt.Sprintf(`"%s" %s`, f.SortKeyName, f.Order.String()))
 			params = append(params, filterParams...)
 		}
+
 		if len(rangeFilters) > 0 {
-			rangeFilterString = fmt.Sprintf(" AND %s", strings.Join(rangeFilters, " AND "))
+			whereClause = " AND " + strings.Join(rangeFilters, " AND ")
 		}
-		orderByString = fmt.Sprintf(" ORDER BY %s", strings.Join(orderBy, ", "))
+
+		// Only add ORDER BY if single key and not using per partition limit
+		if numKeys == 1 && !perPartitionLimit {
+			orderByClause = " ORDER BY " + strings.Join(orderBy, ", ")
+		}
 	}
 
-	limitString := ""
+	limitClause := ""
 	if limit > 0 {
-		limitString = " LIMIT ?"
+		if perPartitionLimit {
+			limitClause = " PER PARTITION LIMIT ?"
+		} else {
+			limitClause = " LIMIT ?"
+		}
 		params = append(params, limit)
 	}
 
-	return fmt.Sprintf(
-		`SELECT "entity_key", "event_ts", %s FROM %s WHERE "entity_key" = ?%s%s%s`,
-		strings.Join(quotedFeatureNames, ", "),
+	var keyCondition string
+	if numKeys == 1 {
+		keyCondition = `"entity_key" = ?`
+	} else {
+		keyCondition = fmt.Sprintf(`"entity_key" IN (%s)`, strings.Join(keyPlaceholders, ", "))
+	}
+
+	cql := fmt.Sprintf(
+		`SELECT "entity_key", "event_ts", %s FROM %s WHERE %s%s%s%s`,
+		strings.Join(quotedFeatures, ", "),
 		tableName,
-		rangeFilterString,
-		orderByString,
-		limitString,
-	), params
+		keyCondition,
+		whereClause,
+		orderByClause,
+		limitClause,
+	)
+
+	return cql, params
 }
 
-func (c *CassandraOnlineStore) OnlineReadRange(ctx context.Context, entityKeys []*types.EntityKey, featureViewNames []string, featureNames []string, sortKeyFilters []*model.SortKeyFilter, limit int32) ([][]RangeFeatureData, error) {
+type preparedRangeReadContext struct {
+	serializedEntityKeys       []any
+	serializedEntityKeyToIndex map[string]int
+	featureNamesToIdx          map[string]int
+	tableName                  string
+	featureViewName            string
+}
+
+func (c *CassandraOnlineStore) prepareOnlineRangeRead(
+	entityKeys []*types.EntityKey,
+	featureViewNames []string,
+	featureNames []string,
+) (*preparedRangeReadContext, error) {
 	if err := c.validateUniqueFeatureNames(featureViewNames); err != nil {
 		return nil, err
 	}
@@ -782,9 +826,11 @@ func (c *CassandraOnlineStore) OnlineReadRange(ctx context.Context, entityKeys [
 	if err != nil {
 		return nil, fmt.Errorf("error when serializing entity keys for Cassandra: %v", err)
 	}
-	results := make([][]RangeFeatureData, len(entityKeys))
-	for i := range results {
-		results[i] = make([]RangeFeatureData, len(featureNames))
+
+	featureViewName := featureViewNames[0]
+	tableName, err := c.getFqTableName(c.clusterConfigs.Keyspace, c.project, featureViewName, c.tableNameFormatVersion)
+	if err != nil {
+		return nil, err
 	}
 
 	featureNamesToIdx := make(map[string]int)
@@ -792,36 +838,208 @@ func (c *CassandraOnlineStore) OnlineReadRange(ctx context.Context, entityKeys [
 		featureNamesToIdx[name] = idx
 	}
 
-	featureViewName := featureViewNames[0]
+	return &preparedRangeReadContext{
+		serializedEntityKeys:       serializedEntityKeys,
+		serializedEntityKeyToIndex: serializedEntityKeyToIndex,
+		featureNamesToIdx:          featureNamesToIdx,
+		tableName:                  tableName,
+		featureViewName:            featureViewName,
+	}, nil
+}
 
-	// Prepare the query
-	tableName, err := c.getFqTableName(c.clusterConfigs.Keyspace, c.project, featureViewName, c.tableNameFormatVersion)
+func (c *CassandraOnlineStore) OnlineReadRange(
+	ctx context.Context,
+	entityKeys []*types.EntityKey,
+	featureViewNames []string,
+	featureNames []string,
+	sortKeyFilters []*model.SortKeyFilter,
+	limit int32,
+) ([][]RangeFeatureData, error) {
+	// TODO: Check if the Sort Key Order is reverse the default sort key order, if so, use UnbatchedKeysOnlineReadRange.
+	if c.keyBatchSize == 1 {
+		return c.UnbatchedKeysOnlineReadRange(ctx, entityKeys, featureViewNames, featureNames, sortKeyFilters, limit)
+	} else {
+		return c.BatchedKeysOnlineReadRange(ctx, entityKeys, featureViewNames, featureNames, sortKeyFilters, limit)
+	}
+}
+
+func (c *CassandraOnlineStore) BatchedKeysOnlineReadRange(
+	ctx context.Context,
+	entityKeys []*types.EntityKey,
+	featureViewNames []string,
+	featureNames []string,
+	sortKeyFilters []*model.SortKeyFilter,
+	limit int32,
+) ([][]RangeFeatureData, error) {
+	prepCtx, err := c.prepareOnlineRangeRead(entityKeys, featureViewNames, featureNames)
 	if err != nil {
 		return nil, err
 	}
 
-	cqlStatement, rangeParams := c.getRangeQueryCQLStatement(tableName, featureNames, sortKeyFilters, limit)
+	results := make([][]RangeFeatureData, len(entityKeys))
+	for i := range results {
+		results[i] = make([]RangeFeatureData, len(featureNames))
+	}
+
+	batchSize := c.keyBatchSize
+	nBatches := int(math.Ceil(float64(len(prepCtx.serializedEntityKeys)) / float64(batchSize)))
 
 	var waitGroup sync.WaitGroup
-	waitGroup.Add(len(serializedEntityKeys))
+	errorsChannel := make(chan error, nBatches)
 
-	errorsChannel := make(chan error, len(serializedEntityKeys))
-	for _, serializedEntityKey := range serializedEntityKeys {
-		go func(serEntityKey any) {
+	for i := 0; i < nBatches; i++ {
+		start := i * batchSize
+		end := int(math.Min(float64(start+batchSize), float64(len(prepCtx.serializedEntityKeys))))
+		keyBatch := prepCtx.serializedEntityKeys[start:end]
+
+		cqlStatement, rangeParams := c.buildRangeQueryCQL(
+			prepCtx.tableName, featureNames, len(keyBatch), sortKeyFilters, limit, true,
+		)
+
+		queryParams := append([]interface{}{}, keyBatch...)
+		queryParams = append(queryParams, rangeParams...)
+		seenKeys := make(map[string]bool)
+
+		waitGroup.Add(1)
+		go func(stmt string, params []interface{}, batchKeys []any) {
 			defer waitGroup.Done()
 
-			queryParams := append([]interface{}{serEntityKey}, rangeParams...)
-			iter := c.session.Query(cqlStatement, queryParams...).WithContext(ctx).Iter()
-			rowIdx := serializedEntityKeyToIndex[serializedEntityKey.(string)]
+			iter := c.session.Query(stmt, params...).WithContext(ctx).Iter()
+			readValues := make(map[string]interface{})
 
-			// fill the row with nulls if not found
+			for iter.MapScan(readValues) {
+				entityKey := readValues["entity_key"].(string)
+				eventTs := readValues["event_ts"].(time.Time)
+
+				rowIdx, ok := prepCtx.serializedEntityKeyToIndex[entityKey]
+				if !ok {
+					continue
+				}
+
+				rowData := results[rowIdx]
+
+				for _, featName := range featureNames {
+					idx := prepCtx.featureNamesToIdx[featName]
+					val, exists := readValues[featName]
+
+					var status serving.FieldStatus
+					if !exists {
+						status = serving.FieldStatus_NOT_FOUND
+						val = nil
+					} else if val == nil {
+						status = serving.FieldStatus_NULL_VALUE
+					} else {
+						status = serving.FieldStatus_PRESENT
+					}
+
+					appendRangeFeature(&rowData[idx], featName, prepCtx.featureViewName, val, status, eventTs)
+				}
+
+				seenKeys[entityKey] = true
+				for k := range readValues {
+					delete(readValues, k)
+				}
+			}
+
+			if err := iter.Close(); err != nil {
+				errorsChannel <- fmt.Errorf("query error: %w", err)
+				return
+			}
+
+			for _, serializedEntityKey := range batchKeys {
+				keyString := serializedEntityKey.(string)
+				rowIdx := prepCtx.serializedEntityKeyToIndex[keyString]
+
+				if !seenKeys[keyString] {
+					for _, featName := range featureNames {
+						results[rowIdx][prepCtx.featureNamesToIdx[featName]] = RangeFeatureData{
+							FeatureView: prepCtx.featureViewName,
+							FeatureName: featName,
+							Values:      []interface{}{nil},
+							Statuses:    []serving.FieldStatus{serving.FieldStatus_NOT_FOUND},
+							EventTimestamps: []timestamppb.Timestamp{
+								{Seconds: 0, Nanos: 0},
+							},
+						}
+					}
+				}
+			}
+
+		}(cqlStatement, queryParams, keyBatch)
+	}
+
+	waitGroup.Wait()
+	close(errorsChannel)
+
+	var allErrors []error
+	for err := range errorsChannel {
+		if err != nil {
+			allErrors = append(allErrors, err)
+		}
+	}
+
+	if len(allErrors) > 0 {
+		return nil, errors.Join(allErrors...)
+	}
+
+	return results, nil
+}
+
+func appendRangeFeature(row *RangeFeatureData, featName, view string, val interface{}, status serving.FieldStatus, ts time.Time) {
+	row.FeatureView = view
+	row.FeatureName = featName
+	row.Values = append(row.Values, val)
+	row.Statuses = append(row.Statuses, status)
+	row.EventTimestamps = append(row.EventTimestamps, timestamppb.Timestamp{
+		Seconds: ts.Unix(),
+		Nanos:   int32(ts.Nanosecond()),
+	})
+}
+
+func (c *CassandraOnlineStore) UnbatchedKeysOnlineReadRange(
+	ctx context.Context,
+	entityKeys []*types.EntityKey,
+	featureViewNames []string,
+	featureNames []string,
+	sortKeyFilters []*model.SortKeyFilter,
+	limit int32,
+) ([][]RangeFeatureData, error) {
+	prepCtx, err := c.prepareOnlineRangeRead(entityKeys, featureViewNames, featureNames)
+	if err != nil {
+		return nil, err
+	}
+
+	results := make([][]RangeFeatureData, len(entityKeys))
+	for i := range results {
+		results[i] = make([]RangeFeatureData, len(featureNames))
+	}
+
+	var waitGroup sync.WaitGroup
+	errorsChannel := make(chan error, len(prepCtx.serializedEntityKeys))
+
+	for _, serializedEntityKey := range prepCtx.serializedEntityKeys {
+		waitGroup.Add(1)
+		go func(key any) {
+			defer waitGroup.Done()
+
+			cqlStatement, rangeParams := c.buildRangeQueryCQL(
+				prepCtx.tableName, featureNames, 1, sortKeyFilters, limit, false,
+			)
+
+			queryParams := append([]interface{}{key}, rangeParams...)
+			iter := c.session.Query(cqlStatement, queryParams...).WithContext(ctx).Iter()
+			rowIdx := prepCtx.serializedEntityKeyToIndex[key.(string)]
+
 			if iter.NumRows() == 0 {
 				for _, featName := range featureNames {
-					results[rowIdx][featureNamesToIdx[featName]] = RangeFeatureData{
-						FeatureView: featureViewName,
+					results[rowIdx][prepCtx.featureNamesToIdx[featName]] = RangeFeatureData{
+						FeatureView: prepCtx.featureViewName,
 						FeatureName: featName,
 						Values:      []interface{}{nil},
 						Statuses:    []serving.FieldStatus{serving.FieldStatus_NOT_FOUND},
+						EventTimestamps: []timestamppb.Timestamp{
+							{Seconds: 0, Nanos: 0},
+						},
 					}
 				}
 				return
@@ -832,59 +1050,33 @@ func (c *CassandraOnlineStore) OnlineReadRange(ctx context.Context, entityKeys [
 				iter.MapScan(readValues)
 				eventTs := readValues["event_ts"].(time.Time)
 
-				rowFeatures := results[rowIdx]
-				for _, featName := range featureNames {
-					if val, ok := readValues[featName]; ok {
-						var status serving.FieldStatus
-						if val == nil {
-							status = serving.FieldStatus_NULL_VALUE
-						} else {
-							status = serving.FieldStatus_PRESENT
-						}
+				rowData := results[rowIdx]
 
-						if featureData := &rowFeatures[featureNamesToIdx[featName]]; featureData != nil {
-							rowFeatures[featureNamesToIdx[featName]] = RangeFeatureData{
-								FeatureView:     featureViewName,
-								FeatureName:     featName,
-								Values:          append(featureData.Values, val),
-								Statuses:        append(featureData.Statuses, status),
-								EventTimestamps: append(featureData.EventTimestamps, timestamppb.Timestamp{Seconds: eventTs.Unix(), Nanos: int32(eventTs.Nanosecond())}),
-							}
-						} else {
-							rowFeatures[featureNamesToIdx[featName]] = RangeFeatureData{
-								FeatureView:     featureViewName,
-								FeatureName:     featName,
-								Values:          []interface{}{val},
-								Statuses:        []serving.FieldStatus{status},
-								EventTimestamps: []timestamppb.Timestamp{{Seconds: eventTs.Unix(), Nanos: int32(eventTs.Nanosecond())}},
-							}
-						}
+				for _, featName := range featureNames {
+					idx := prepCtx.featureNamesToIdx[featName]
+					val, exists := readValues[featName]
+
+					var status serving.FieldStatus
+					if !exists {
+						status = serving.FieldStatus_NOT_FOUND
+						val = nil
+					} else if val == nil {
+						status = serving.FieldStatus_NULL_VALUE
 					} else {
-						if featureData := &rowFeatures[featureNamesToIdx[featName]]; featureData != nil {
-							rowFeatures[featureNamesToIdx[featName]] = RangeFeatureData{
-								FeatureView:     featureViewName,
-								FeatureName:     featName,
-								Values:          append(featureData.Values, nil),
-								Statuses:        append(featureData.Statuses, serving.FieldStatus_NOT_FOUND),
-								EventTimestamps: append(featureData.EventTimestamps, timestamppb.Timestamp{Seconds: eventTs.Unix(), Nanos: int32(eventTs.Nanosecond())}),
-							}
-						} else {
-							rowFeatures[featureNamesToIdx[featName]] = RangeFeatureData{
-								FeatureView:     featureViewName,
-								FeatureName:     featName,
-								Values:          []interface{}{nil},
-								Statuses:        []serving.FieldStatus{serving.FieldStatus_NOT_FOUND},
-								EventTimestamps: []timestamppb.Timestamp{{Seconds: eventTs.Unix(), Nanos: int32(eventTs.Nanosecond())}},
-							}
-						}
+						status = serving.FieldStatus_PRESENT
 					}
+
+					appendRangeFeature(&rowData[idx], featName, prepCtx.featureViewName, val, status, eventTs)
 				}
-				results[rowIdx] = rowFeatures
 			}
+
+			if err := iter.Close(); err != nil {
+				errorsChannel <- fmt.Errorf("query error: %w", err)
+			}
+
 		}(serializedEntityKey)
 	}
 
-	// wait until all concurrent single-key queries are done
 	waitGroup.Wait()
 	close(errorsChannel)
 
