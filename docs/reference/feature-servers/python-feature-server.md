@@ -10,7 +10,7 @@ There is a CLI command that starts the server: `feast serve`. By default, Feast 
 
 ## Deploying as a service
 
-See [this](../../how-to-guides/running-feast-in-production.md#42-deploy-feast-feature-servers-on-kubernetes) for an example on how to run Feast on Kubernetes using the Operator.
+See [this](../../how-to-guides/running-feast-in-production.md#id-4.2.-deploy-feast-feature-servers-on-kubernetes) for an example on how to run Feast on Kubernetes using the Operator.
 
 ## Example
 
