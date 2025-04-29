@@ -1,5 +1,5 @@
 # Build the manager binary
-FROM registry.access.redhat.com/ubi8/go-toolset:1.22.9 AS builder
+FROM registry.access.redhat.com/ubi9/go-toolset:1.22.9 AS builder
 ARG TARGETOS
 ARG TARGETARCH
 
@@ -22,7 +22,7 @@ COPY internal/controller/ internal/controller/
 # by leaving it empty we can ensure that the container and binary shipped on it will have the same platform.
 RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -a -o manager cmd/main.go
 
-FROM registry.access.redhat.com/ubi8/ubi-micro:8.10
+FROM registry.access.redhat.com/ubi9/ubi-minimal:9.5
 WORKDIR /
 COPY --from=builder /opt/app-root/src/manager .
 USER 65532:65532
