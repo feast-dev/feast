@@ -183,8 +183,8 @@ const getLayoutedElements = (
     connectedNodeIds.add(edge.target);
   });
 
-  const connectedNodes = nodes.filter(node => connectedNodeIds.has(node.id));
-  const isolatedNodes = nodes.filter(node => !connectedNodeIds.has(node.id));
+  const connectedNodes = nodes.filter((node) => connectedNodeIds.has(node.id));
+  const isolatedNodes = nodes.filter((node) => !connectedNodeIds.has(node.id));
 
   // Layout connected nodes with dagre
   const dagreGraph = new dagre.graphlib.Graph();
@@ -240,13 +240,16 @@ const getLayoutedElements = (
   if (!showIsolatedNodes) {
     return {
       nodes: layoutedConnectedNodes,
-      edges
+      edges,
     };
   }
 
   // Rest of the function for handling isolated nodes
-  let minX = Infinity, maxX = -Infinity, maxY = -Infinity, minY = Infinity;
-  layoutedConnectedNodes.forEach(node => {
+  let minX = Infinity,
+    maxX = -Infinity,
+    maxY = -Infinity,
+    minY = Infinity;
+  layoutedConnectedNodes.forEach((node) => {
     minX = Math.min(minX, node.position.x);
     maxX = Math.max(maxX, node.position.x + nodeWidth);
     minY = Math.min(minY, node.position.y);
@@ -269,7 +272,7 @@ const getLayoutedElements = (
     [FEAST_FCO_TYPES.featureService]: [],
   };
 
-  isolatedNodes.forEach(node => {
+  isolatedNodes.forEach((node) => {
     const nodeType = node.data.type as FEAST_FCO_TYPES;
     if (Object.values(FEAST_FCO_TYPES).includes(nodeType)) {
       groupedIsolatedNodes[nodeType].push(node);
@@ -305,12 +308,15 @@ const getLayoutedElements = (
 
     layoutedIsolatedNodes.push(...layoutedTypeNodes);
     // Add spacing between different types of nodes
-    currentY += Math.ceil(typeNodes.length / nodesPerRow) * (nodeHeight + isolatedNodesPadding) + 100;
+    currentY +=
+      Math.ceil(typeNodes.length / nodesPerRow) *
+        (nodeHeight + isolatedNodesPadding) +
+      100;
   });
 
   return {
     nodes: [...layoutedConnectedNodes, ...layoutedIsolatedNodes],
-    edges
+    edges,
   };
 };
 const Legend = () => {
@@ -322,32 +328,41 @@ const Legend = () => {
   ];
 
   return (
-    <div style={{
-      position: "absolute",
-      left: 10,
-      top: 10,
-      background: "white",
-      border: "1px solid #ddd",
-      borderRadius: 5,
-      padding: 10,
-      zIndex: 10,
-      boxShadow: "0 2px 5px rgba(0,0,0,0.1)"
-    }}>
-      <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 5 }}>Legend</div>
+    <div
+      style={{
+        position: "absolute",
+        left: 10,
+        top: 10,
+        background: "white",
+        border: "1px solid #ddd",
+        borderRadius: 5,
+        padding: 10,
+        zIndex: 10,
+        boxShadow: "0 2px 5px rgba(0,0,0,0.1)",
+      }}
+    >
+      <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 5 }}>
+        Legend
+      </div>
       {types.map((item) => (
-        <div key={item.type} style={{ display: "flex", alignItems: "center", marginBottom: 5 }}>
-          <div style={{
-            width: 20,
-            height: 20,
-            backgroundColor: getNodeColor(item.type),
-            borderRadius: 4,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            marginRight: 8,
-            color: "white",
-            fontSize: 14
-          }}>
+        <div
+          key={item.type}
+          style={{ display: "flex", alignItems: "center", marginBottom: 5 }}
+        >
+          <div
+            style={{
+              width: 20,
+              height: 20,
+              backgroundColor: getNodeColor(item.type),
+              borderRadius: 4,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              marginRight: 8,
+              color: "white",
+              fontSize: 14,
+            }}
+          >
             {getNodeIcon(item.type)}
           </div>
           <div style={{ fontSize: 12 }}>{item.label}</div>
@@ -518,7 +533,8 @@ const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [loading, setLoading] = useState(true);
-  const [showIndirectRelationships, setShowIndirectRelationships] = useState(false);
+  const [showIndirectRelationships, setShowIndirectRelationships] =
+    useState(false);
   const [showIsolatedNodes, setShowIsolatedNodes] = useState(false);
   const direction = "LR";
 
@@ -532,7 +548,7 @@ const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
         : relationships;
 
       // Filter out invalid relationships
-      const validRelationships = relationshipsToShow.filter(rel => {
+      const validRelationships = relationshipsToShow.filter((rel) => {
         // Add additional validation as needed for your use case
         return rel.source && rel.target && rel.source.name && rel.target.name;
       });
@@ -543,66 +559,85 @@ const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
       );
 
       const { nodes: layoutedNodes, edges: layoutedEdges } =
-        getLayoutedElements(initialNodes, initialEdges, direction, showIsolatedNodes);
+        getLayoutedElements(
+          initialNodes,
+          initialEdges,
+          direction,
+          showIsolatedNodes,
+        );
 
       setNodes(layoutedNodes);
       setEdges(layoutedEdges);
       setLoading(false);
     }
-  }, [registryData, relationships, indirectRelationships, showIndirectRelationships, showIsolatedNodes, setNodes, setEdges]);
+  }, [
+    registryData,
+    relationships,
+    indirectRelationships,
+    showIndirectRelationships,
+    showIsolatedNodes,
+    setNodes,
+    setEdges,
+  ]);
 
   return (
-      <EuiPanel>
-        <style>{edgeAnimationStyle}</style>
-        <div style={{display: "flex", justifyContent: "space-between", alignItems: "center"}}>
-          <EuiTitle size="s">
-            <h2>Lineage</h2>
-          </EuiTitle>
-          <div style={{display: "flex", gap: "20px"}}>
-            <label>
-              <input
-                  type="checkbox"
-                  checked={showIndirectRelationships}
-                  onChange={(e) => setShowIndirectRelationships(e.target.checked)}
-              />
-              {" Show Indirect Relationships"}
-            </label>
-            <label>
-              <input
-                  type="checkbox"
-                  checked={showIsolatedNodes}
-                  onChange={(e) => setShowIsolatedNodes(e.target.checked)}
-              />
-              {" Show Objects Without Relationships"}
-            </label>
-          </div>
+    <EuiPanel>
+      <style>{edgeAnimationStyle}</style>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
+        <EuiTitle size="s">
+          <h2>Lineage</h2>
+        </EuiTitle>
+        <div style={{ display: "flex", gap: "20px" }}>
+          <label>
+            <input
+              type="checkbox"
+              checked={showIndirectRelationships}
+              onChange={(e) => setShowIndirectRelationships(e.target.checked)}
+            />
+            {" Show Indirect Relationships"}
+          </label>
+          <label>
+            <input
+              type="checkbox"
+              checked={showIsolatedNodes}
+              onChange={(e) => setShowIsolatedNodes(e.target.checked)}
+            />
+            {" Show Objects Without Relationships"}
+          </label>
         </div>
-        <EuiSpacer size="m"/>
+      </div>
+      <EuiSpacer size="m" />
 
-        {loading ? (
-            <div style={{display: "flex", justifyContent: "center", padding: 50}}>
-              <EuiLoadingSpinner size="xl"/>
-            </div>
-        ) : (
-            <div style={{height: 600, border: "1px solid #ddd"}}>
-              <ReactFlow
-                  nodes={nodes}
-                  edges={edges}
-                  onNodesChange={onNodesChange}
-                  onEdgesChange={onEdgesChange}
-                  nodeTypes={nodeTypes}
-                  connectionLineType={ConnectionLineType.SmoothStep}
-                  fitView
-                  minZoom={0.1}
-                  maxZoom={8}
-              >
-                <Background color="#f0f0f0" gap={16}/>
-                <Controls/>
-                <Legend/>
-              </ReactFlow>
-            </div>
-        )}
-      </EuiPanel>
+      {loading ? (
+        <div style={{ display: "flex", justifyContent: "center", padding: 50 }}>
+          <EuiLoadingSpinner size="xl" />
+        </div>
+      ) : (
+        <div style={{ height: 600, border: "1px solid #ddd" }}>
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            nodeTypes={nodeTypes}
+            connectionLineType={ConnectionLineType.SmoothStep}
+            fitView
+            minZoom={0.1}
+            maxZoom={8}
+          >
+            <Background color="#f0f0f0" gap={16} />
+            <Controls />
+            <Legend />
+          </ReactFlow>
+        </div>
+      )}
+    </EuiPanel>
   );
 };
 
