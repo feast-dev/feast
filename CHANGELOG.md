@@ -1,5 +1,63 @@
 # Changelog
 
+# [0.49.0](https://github.com/feast-dev/feast/compare/v0.48.0...v0.49.0) (2025-04-29)
+
+
+### Bug Fixes
+
+* Adding brackets to unit tests ([c46fea3](https://github.com/feast-dev/feast/commit/c46fea36254f011c7a8e63b35971bde78e963d92))
+* Adding logic back for a step ([2bb240b](https://github.com/feast-dev/feast/commit/2bb240b1540db589563a9e34e37965101799f587))
+* Adjustment for unit test action ([a6f78ae](https://github.com/feast-dev/feast/commit/a6f78ae919d8cd78493bb46d35b8bed57a07596a))
+* Allow get_historical_features with only On Demand Feature View ([#5256](https://github.com/feast-dev/feast/issues/5256)) ([0752795](https://github.com/feast-dev/feast/commit/0752795895842bc2555f170b64bbaa2452e0f60c))
+* CI adjustment ([3850643](https://github.com/feast-dev/feast/commit/3850643c02e72ac6df833e703fee00905b7db089))
+* Embed Query configuration breaks when switching between DataFrame and SQL ([#5257](https://github.com/feast-dev/feast/issues/5257)) ([32375a5](https://github.com/feast-dev/feast/commit/32375a532193703b4ba306b27a12d25736a16665))
+* Fix for proto issue in utils ([1b291b2](https://github.com/feast-dev/feast/commit/1b291b219545e07bef633923141421f37bc15c7a))
+* Fix milvus online_read ([#5233](https://github.com/feast-dev/feast/issues/5233)) ([4b91f26](https://github.com/feast-dev/feast/commit/4b91f26ded28c709a8aeb220c2a7ce34fbc91a7b))
+* Fix tests ([431d9b8](https://github.com/feast-dev/feast/commit/431d9b80ade7d8dd5beb560407336b928518ad6f))
+* Fixed Permissions object parameter in example ([#5259](https://github.com/feast-dev/feast/issues/5259)) ([045c100](https://github.com/feast-dev/feast/commit/045c1000295e40b387e1d7b10798a606c91b37eb))
+* Java CI [#12](https://github.com/feast-dev/feast/issues/12) ([d7e44ac](https://github.com/feast-dev/feast/commit/d7e44acdde8fd7cb0f6827a4cdad3dcb8985601f))
+* Java PR [#15](https://github.com/feast-dev/feast/issues/15) ([a5da3bb](https://github.com/feast-dev/feast/commit/a5da3bbd9fb8b9e8acf729fd8df01a496f134d80))
+* Java PR [#16](https://github.com/feast-dev/feast/issues/16) ([e0320fe](https://github.com/feast-dev/feast/commit/e0320fe9dcc867f313ec6e60a3a4be4ec42519bd))
+* Java PR [#17](https://github.com/feast-dev/feast/issues/17) ([49da810](https://github.com/feast-dev/feast/commit/49da810edc466d1380e0348df84f8a38946164e3))
+* Materialization logs ([#5243](https://github.com/feast-dev/feast/issues/5243)) ([4aa2f49](https://github.com/feast-dev/feast/commit/4aa2f49201ba5490b641d52d9c2f7710a245bd3e))
+* Moving to custom github action for checking skip tests ([caf312e](https://github.com/feast-dev/feast/commit/caf312e35c07102f626a78eb5217aacf279369f0))
+* Operator - remove default replicas setting from Feast Deployment ([#5294](https://github.com/feast-dev/feast/issues/5294)) ([e416d01](https://github.com/feast-dev/feast/commit/e416d0111c24434dca8c1655d3d38abc7c82afd3))
+* Patch java pr [#14](https://github.com/feast-dev/feast/issues/14) ([592526c](https://github.com/feast-dev/feast/commit/592526c9e2e9e421b9d7617e6b14bf7d461ec72a))
+* Patch update for test ([a3e8967](https://github.com/feast-dev/feast/commit/a3e8967ef5462457aa951efa56aff2e924b00689))
+* Remove conditional from steps ([995307f](https://github.com/feast-dev/feast/commit/995307ff1769b67cf5164ddc63026b09f7296a9e))
+* Remove misleading HTTP prefix from gRPC endpoints in logs and doc ([#5280](https://github.com/feast-dev/feast/issues/5280)) ([0ee3a1e](https://github.com/feast-dev/feast/commit/0ee3a1ea22846217fd4324a1cf3623c35a44a853))
+* removing id ([268ade2](https://github.com/feast-dev/feast/commit/268ade28e3065556ec6da30f01596d39565a07b7))
+* Renaming workflow file ([5f46279](https://github.com/feast-dev/feast/commit/5f462796263a89a77413eea9c3202166cc1fa6c9))
+* Resolve `no pq wrapper` import issue ([#5240](https://github.com/feast-dev/feast/issues/5240)) ([d5906f1](https://github.com/feast-dev/feast/commit/d5906f13125a4e63e3ae1f3a6c3830dda2c66d51))
+* Update actions to remove check skip tests ([#5275](https://github.com/feast-dev/feast/issues/5275)) ([b976f27](https://github.com/feast-dev/feast/commit/b976f272928b93b964b86362a37ffe77d84204cc))
+* Update docling demo ([446efea](https://github.com/feast-dev/feast/commit/446efead36cf51a0471d49eda44be0c8cd220b51))
+* Update java pr [#13](https://github.com/feast-dev/feast/issues/13) ([fda7db7](https://github.com/feast-dev/feast/commit/fda7db749b695eac869a48d12ce5e64c458f7d2e))
+* Update java_pr ([fa138f4](https://github.com/feast-dev/feast/commit/fa138f421f0645db569455c0829676b1b9b8b4a7))
+* Update repo_config.py ([6a59815](https://github.com/feast-dev/feast/commit/6a59815907b6f1424d529bcdd7fc45ad5a6a0504))
+* Update unit tests workflow ([06486a0](https://github.com/feast-dev/feast/commit/06486a00573c8a29f55debd0634a6c3026abfc79))
+* Updated docs for docling demo ([768e6cc](https://github.com/feast-dev/feast/commit/768e6cc256590be3054fd181a0a3097b4c14029c))
+* Updating action for unit tests ([0996c28](https://github.com/feast-dev/feast/commit/0996c28a0061f65bee49f51a1704739b5a543f6f))
+* Updating github actions to filter at job level ([0a09622](https://github.com/feast-dev/feast/commit/0a096229a1c8251578c4cbfc55f96c78fd6f76c4))
+* Updating Java CI ([c7c3a3c](https://github.com/feast-dev/feast/commit/c7c3a3c7b57d5143c2b988a78c86f23e60d43af3))
+* Updating java pr to skip tests ([e997dd9](https://github.com/feast-dev/feast/commit/e997dd919e1d5d204265a62fa54e75ccbaf930ee))
+* Updating workflows ([c66bcd2](https://github.com/feast-dev/feast/commit/c66bcd24186f502720627e790da555be6ce2c5d5))
+
+
+### Features
+
+* Add date_partition_column_format for spark source ([#5273](https://github.com/feast-dev/feast/issues/5273)) ([7a61d6f](https://github.com/feast-dev/feast/commit/7a61d6faaa8be4d1e2c25a453628a3bcdc5aa8a2))
+* Add Milvus tutorial with Feast integration ([#5292](https://github.com/feast-dev/feast/issues/5292)) ([a1388a5](https://github.com/feast-dev/feast/commit/a1388a5f7e174f578264a52478bacea14856a88a))
+* Add pgvector tutorial with PostgreSQL integration ([#5290](https://github.com/feast-dev/feast/issues/5290)) ([bb1cbea](https://github.com/feast-dev/feast/commit/bb1cbeae658bc79122b5f29d7bb9dc2b7c539eb5))
+* Add ReactFlow visualization for Feast registry metadata ([#5297](https://github.com/feast-dev/feast/issues/5297)) ([9768970](https://github.com/feast-dev/feast/commit/9768970e270b235a3657c92c6b8891977e8ed486))
+* Add retrieve online documents v2 method into  pgvector  ([#5253](https://github.com/feast-dev/feast/issues/5253)) ([6770ee6](https://github.com/feast-dev/feast/commit/6770ee65a7b79880331e0409b00bbc2cd3a272bc))
+* Compute Engine Initial Implementation ([#5223](https://github.com/feast-dev/feast/issues/5223)) ([64bdafd](https://github.com/feast-dev/feast/commit/64bdafdddfac43cac61a3e31354966fccec6dc0f))
+* Enable write node for compute engine ([#5287](https://github.com/feast-dev/feast/issues/5287)) ([f9baf97](https://github.com/feast-dev/feast/commit/f9baf974cd334e8758e3b1b8e5b8222463a3cdc8))
+* Local compute engine ([#5278](https://github.com/feast-dev/feast/issues/5278)) ([8e06dfe](https://github.com/feast-dev/feast/commit/8e06dfe839152f5ee2a6b8e63494e15ceaa67910))
+* Make transform on writes configurable for ingestion ([#5283](https://github.com/feast-dev/feast/issues/5283)) ([ecad170](https://github.com/feast-dev/feast/commit/ecad1708c9989782cbc9a200d21d0c021e4693ff))
+* Offline store update pull_all_from_table_or_query to make timestampfield optional ([#5281](https://github.com/feast-dev/feast/issues/5281)) ([4b94608](https://github.com/feast-dev/feast/commit/4b94608f400a3c379b37ce7ea0bdb969eee1527d))
+* Serialization version 2 deprecation notice ([#5248](https://github.com/feast-dev/feast/issues/5248)) ([327d99d](https://github.com/feast-dev/feast/commit/327d99d0f8c3ae303b9d47199ebc590a5f1dd7f6))
+* Vector length definition moved to Feature View from Config  ([#5289](https://github.com/feast-dev/feast/issues/5289)) ([d8f1c97](https://github.com/feast-dev/feast/commit/d8f1c979f6ec44c3c3bcacb943b0959df732eb58))
+
 ## [0.48.1](https://github.com/feast-dev/feast/compare/v0.48.0...v0.48.1) (2025-04-08)
 
 

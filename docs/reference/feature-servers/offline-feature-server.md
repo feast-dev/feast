@@ -13,7 +13,7 @@ There is a CLI command that starts the Offline feature server: `feast serve_offl
 
 ## Deploying as a service on Kubernetes
 
-See [this](../../how-to-guides/running-feast-in-production.md#42-deploy-feast-feature-servers-on-kubernetes) for an example on how to run Feast on Kubernetes using the Operator.
+See [this](../../how-to-guides/running-feast-in-production.md#id-4.2.-deploy-feast-feature-servers-on-kubernetes) for an example on how to run Feast on Kubernetes using the Operator.
 
 The Offline feature server can be deployed with a slight modification of the FeatureStore CR -
 ```yaml
@@ -27,7 +27,7 @@ spec:
     offlineStore:
       server: {}
 ```
-{% hint style="success" %} More advanced FeatureStore CR examples can be found in the feast-operator [samples directory](../../../infra/feast-operator/config/samples). {% endhint %}
+> _More advanced FeatureStore CR examples can be found in the feast-operator [samples directory](../../../infra/feast-operator/config/samples)._
 
 ## Server Example
 
