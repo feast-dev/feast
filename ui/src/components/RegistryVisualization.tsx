@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import {
   ReactFlow,
   Node,
@@ -99,9 +100,33 @@ const getNodeIcon = (type: FEAST_FCO_TYPES) => {
 };
 
 const CustomNode = ({ data }: { data: NodeData }) => {
+  const navigate = useNavigate();
+  const { projectName } = useParams<{ projectName: string }>();
   const color = getNodeColor(data.type);
   const lightColor = getLightNodeColor(data.type);
   const icon = getNodeIcon(data.type);
+  const [isHovered, setIsHovered] = useState(false);
+
+  const handleClick = () => {
+    let path;
+    switch (data.type) {
+      case FEAST_FCO_TYPES.dataSource:
+        path = `/p/${projectName}/data-source/${data.label}`;
+        break;
+      case FEAST_FCO_TYPES.entity:
+        path = `/p/${projectName}/entity/${data.label}`;
+        break;
+      case FEAST_FCO_TYPES.featureView:
+        path = `/p/${projectName}/feature-view/${data.label}`;
+        break;
+      case FEAST_FCO_TYPES.featureService:
+        path = `/p/${projectName}/feature-service/${data.label}`;
+        break;
+      default:
+        return;
+    }
+    navigate(path);
+  };
 
   return (
     <div
@@ -115,8 +140,32 @@ const CustomNode = ({ data }: { data: NodeData }) => {
         alignItems: "stretch",
         position: "relative",
         overflow: "hidden",
+        cursor: "pointer",
+        boxShadow: isHovered ? `0 0 8px ${color}` : "none",
+        transition: "box-shadow 0.2s ease-in-out",
       }}
+      onClick={handleClick}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
+      {isHovered && (
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            right: 0,
+            backgroundColor: color,
+            color: "white",
+            padding: "2px 8px",
+            fontSize: "12px",
+            borderBottomLeftRadius: "6px",
+            zIndex: 5,
+          }}
+        >
+          View Details
+        </div>
+      )}
+
       <Handle
         type="target"
         position={Position.Left}
