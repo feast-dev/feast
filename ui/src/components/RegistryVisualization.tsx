@@ -174,18 +174,30 @@ const getLayoutedElements = (
   nodes: Node[],
   edges: Edge[],
   direction = "TB",
+  showIsolatedNodes = false,
 ) => {
+  // Identify connected and isolated nodes
+  const connectedNodeIds = new Set<string>();
+  edges.forEach((edge) => {
+    connectedNodeIds.add(edge.source);
+    connectedNodeIds.add(edge.target);
+  });
+
+  const connectedNodes = nodes.filter(node => connectedNodeIds.has(node.id));
+  const isolatedNodes = nodes.filter(node => !connectedNodeIds.has(node.id));
+
+  // Layout connected nodes with dagre
   const dagreGraph = new dagre.graphlib.Graph();
   dagreGraph.setDefaultEdgeLabel(() => ({}));
   dagreGraph.setGraph({
     rankdir: direction,
-    nodesep: 100, // Increased horizontal spacing between nodes
-    ranksep: 150, // Increased vertical spacing between ranks
+    nodesep: 100,
+    ranksep: 150,
     marginx: 50,
     marginy: 50,
   });
 
-  nodes.forEach((node) => {
+  connectedNodes.forEach((node) => {
     dagreGraph.setNode(node.id, { width: nodeWidth, height: nodeHeight });
   });
 
@@ -195,20 +207,154 @@ const getLayoutedElements = (
 
   dagre.layout(dagreGraph);
 
-  const layoutedNodes = nodes.map((node) => {
+  // Position connected nodes according to dagre layout with type-specific adjustments
+  const layoutedConnectedNodes = connectedNodes.map((node) => {
     const nodeWithPosition = dagreGraph.node(node.id);
+
+    // Apply type-specific position adjustments
+    let xOffset = 0;
+    let yOffset = 0;
+
+    if (node.data.type === FEAST_FCO_TYPES.dataSource) {
+      // Move data sources to the left/top
+      xOffset = direction === "LR" ? -200 : 0;
+      yOffset = direction === "TB" ? -200 : 0;
+    } else if (node.data.type === FEAST_FCO_TYPES.entity) {
+      // Move entities to the right/bottom
+      xOffset = direction === "LR" ? 100 : 0;
+      yOffset = direction === "TB" ? 100 : 0;
+    }
+
     return {
       ...node,
       position: {
-        x: nodeWithPosition.x - nodeWidth / 2,
-        y: nodeWithPosition.y - nodeHeight / 2,
+        x: nodeWithPosition.x - nodeWidth / 2 + xOffset,
+        y: nodeWithPosition.y - nodeHeight / 2 + yOffset,
       },
       sourcePosition: direction === "TB" ? Position.Bottom : Position.Right,
       targetPosition: direction === "TB" ? Position.Top : Position.Left,
     };
   });
 
-  return { nodes: layoutedNodes, edges };
+  // If we don't want to show isolated nodes, just return connected nodes
+  if (!showIsolatedNodes) {
+    return {
+      nodes: layoutedConnectedNodes,
+      edges
+    };
+  }
+
+  // Rest of the function for handling isolated nodes
+  let minX = Infinity, maxX = -Infinity, maxY = -Infinity, minY = Infinity;
+  layoutedConnectedNodes.forEach(node => {
+    minX = Math.min(minX, node.position.x);
+    maxX = Math.max(maxX, node.position.x + nodeWidth);
+    minY = Math.min(minY, node.position.y);
+    maxY = Math.max(maxY, node.position.y + nodeHeight);
+  });
+
+  // Default if graph is empty
+  if (minX === Infinity) {
+    minX = 0;
+    minY = 0;
+    maxX = 0;
+    maxY = 0;
+  }
+
+  // Group isolated nodes by type
+  const groupedIsolatedNodes: Record<FEAST_FCO_TYPES, Node[]> = {
+    [FEAST_FCO_TYPES.dataSource]: [],
+    [FEAST_FCO_TYPES.entity]: [],
+    [FEAST_FCO_TYPES.featureView]: [],
+    [FEAST_FCO_TYPES.featureService]: [],
+  };
+
+  isolatedNodes.forEach(node => {
+    const nodeType = node.data.type as FEAST_FCO_TYPES;
+    if (Object.values(FEAST_FCO_TYPES).includes(nodeType)) {
+      groupedIsolatedNodes[nodeType].push(node);
+    } else {
+      groupedIsolatedNodes[FEAST_FCO_TYPES.featureView].push(node);
+    }
+  });
+
+  // Place isolated nodes, separated by type
+  const layoutedIsolatedNodes: Node[] = [];
+  const isolatedNodesPadding = 50;
+  const isolatedNodesStartX = minX;
+  let currentY = maxY + 200;
+  const nodesPerRow = 3;
+
+  Object.entries(groupedIsolatedNodes).forEach(([type, typeNodes]) => {
+    if (typeNodes.length === 0) return;
+
+    const layoutedTypeNodes = typeNodes.map((node, index) => {
+      const row = Math.floor(index / nodesPerRow);
+      const col = index % nodesPerRow;
+
+      return {
+        ...node,
+        position: {
+          x: isolatedNodesStartX + col * (nodeWidth + isolatedNodesPadding),
+          y: currentY + row * (nodeHeight + isolatedNodesPadding),
+        },
+        sourcePosition: direction === "TB" ? Position.Bottom : Position.Right,
+        targetPosition: direction === "TB" ? Position.Top : Position.Left,
+      };
+    });
+
+    layoutedIsolatedNodes.push(...layoutedTypeNodes);
+    // Add spacing between different types of nodes
+    currentY += Math.ceil(typeNodes.length / nodesPerRow) * (nodeHeight + isolatedNodesPadding) + 100;
+  });
+
+  return {
+    nodes: [...layoutedConnectedNodes, ...layoutedIsolatedNodes],
+    edges
+  };
+};
+const Legend = () => {
+  const types = [
+    { type: FEAST_FCO_TYPES.featureService, label: "Feature Service" },
+    { type: FEAST_FCO_TYPES.featureView, label: "Feature View" },
+    { type: FEAST_FCO_TYPES.entity, label: "Entity" },
+    { type: FEAST_FCO_TYPES.dataSource, label: "Data Source" },
+  ];
+
+  return (
+    <div style={{
+      position: "absolute",
+      left: 10,
+      top: 10,
+      background: "white",
+      border: "1px solid #ddd",
+      borderRadius: 5,
+      padding: 10,
+      zIndex: 10,
+      boxShadow: "0 2px 5px rgba(0,0,0,0.1)"
+    }}>
+      <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 5 }}>Legend</div>
+      {types.map((item) => (
+        <div key={item.type} style={{ display: "flex", alignItems: "center", marginBottom: 5 }}>
+          <div style={{
+            width: 20,
+            height: 20,
+            backgroundColor: getNodeColor(item.type),
+            borderRadius: 4,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            marginRight: 8,
+            color: "white",
+            fontSize: 14
+          }}>
+            {getNodeIcon(item.type)}
+          </div>
+          <div style={{ fontSize: 12 }}>{item.label}</div>
+        </div>
+      ))}
+    </div>
+  );
 };
 
 const registryToFlow = (
@@ -372,55 +518,91 @@ const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [loading, setLoading] = useState(true);
+  const [showIndirectRelationships, setShowIndirectRelationships] = useState(false);
+  const [showIsolatedNodes, setShowIsolatedNodes] = useState(false);
   const direction = "LR";
 
   useEffect(() => {
     if (registryData && relationships) {
       setLoading(true);
 
+      // Only include indirect relationships if the toggle is on
+      const relationshipsToShow = showIndirectRelationships
+        ? [...relationships, ...indirectRelationships]
+        : relationships;
+
+      // Filter out invalid relationships
+      const validRelationships = relationshipsToShow.filter(rel => {
+        // Add additional validation as needed for your use case
+        return rel.source && rel.target && rel.source.name && rel.target.name;
+      });
+
       const { nodes: initialNodes, edges: initialEdges } = registryToFlow(
         registryData,
-        [...relationships, ...indirectRelationships],
+        validRelationships,
       );
 
       const { nodes: layoutedNodes, edges: layoutedEdges } =
-        getLayoutedElements(initialNodes, initialEdges, direction);
+        getLayoutedElements(initialNodes, initialEdges, direction, showIsolatedNodes);
 
       setNodes(layoutedNodes);
       setEdges(layoutedEdges);
       setLoading(false);
     }
-  }, [registryData, relationships, indirectRelationships, setNodes, setEdges]);
+  }, [registryData, relationships, indirectRelationships, showIndirectRelationships, showIsolatedNodes, setNodes, setEdges]);
 
   return (
-    <EuiPanel>
-      <style>{edgeAnimationStyle}</style>
-      <EuiTitle size="s">
-        <h2>Lineage</h2>
-      </EuiTitle>
-      <EuiSpacer size="m" />
+      <EuiPanel>
+        <style>{edgeAnimationStyle}</style>
+        <div style={{display: "flex", justifyContent: "space-between", alignItems: "center"}}>
+          <EuiTitle size="s">
+            <h2>Lineage</h2>
+          </EuiTitle>
+          <div style={{display: "flex", gap: "20px"}}>
+            <label>
+              <input
+                  type="checkbox"
+                  checked={showIndirectRelationships}
+                  onChange={(e) => setShowIndirectRelationships(e.target.checked)}
+              />
+              {" Show Indirect Relationships"}
+            </label>
+            <label>
+              <input
+                  type="checkbox"
+                  checked={showIsolatedNodes}
+                  onChange={(e) => setShowIsolatedNodes(e.target.checked)}
+              />
+              {" Show Objects Without Relationships"}
+            </label>
+          </div>
+        </div>
+        <EuiSpacer size="m"/>
 
-      {loading ? (
-        <div style={{ display: "flex", justifyContent: "center", padding: 50 }}>
-          <EuiLoadingSpinner size="xl" />
-        </div>
-      ) : (
-        <div style={{ height: 600, border: "1px solid #ddd" }}>
-          <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            nodeTypes={nodeTypes}
-            connectionLineType={ConnectionLineType.SmoothStep}
-            fitView
-          >
-            <Background color="#f0f0f0" gap={16} />
-            <Controls />
-          </ReactFlow>
-        </div>
-      )}
-    </EuiPanel>
+        {loading ? (
+            <div style={{display: "flex", justifyContent: "center", padding: 50}}>
+              <EuiLoadingSpinner size="xl"/>
+            </div>
+        ) : (
+            <div style={{height: 600, border: "1px solid #ddd"}}>
+              <ReactFlow
+                  nodes={nodes}
+                  edges={edges}
+                  onNodesChange={onNodesChange}
+                  onEdgesChange={onEdgesChange}
+                  nodeTypes={nodeTypes}
+                  connectionLineType={ConnectionLineType.SmoothStep}
+                  fitView
+                  minZoom={0.1}
+                  maxZoom={8}
+              >
+                <Background color="#f0f0f0" gap={16}/>
+                <Controls/>
+                <Legend/>
+              </ReactFlow>
+            </div>
+        )}
+      </EuiPanel>
   );
 };
 

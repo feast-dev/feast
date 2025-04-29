@@ -11,7 +11,7 @@ const RegistryVisualizationTab = () => {
   return (
     <>
       {isLoading && (
-        <div style={{ display: "flex", justifyContent: "center", padding: 50 }}>
+        <div style={{ display: "flex", justifyContent: "center", padding: 25 }}>
           <EuiLoadingSpinner size="xl" />
         </div>
       )}
