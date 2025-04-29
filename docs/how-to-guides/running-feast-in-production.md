@@ -238,11 +238,11 @@ metadata:
 spec:
   feastProject: my_project
 ```
-{% hint style="success" %} More advanced FeatureStore CR examples can be found in the feast-operator [samples directory](../../infra/feast-operator/config/samples). {% endhint %}
+> _More advanced FeatureStore CR examples can be found in the feast-operator [samples directory](../../infra/feast-operator/config/samples)._
 
 For first-time Operator users, it may be a good exercise to try the [Feast Operator Quickstart](../../examples/operator-quickstart). The quickstart will demonstrate some of the Operator's built-in features, e.g. git repos, `feast apply` jobs, etc.
 
-{% hint style="success" %} Important note: [Scaling a Feature Store Deployment](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#scaling-a-deployment) should only be done if the configured data store(s) will support it.
+{% hint style="success" %} Important note: Scaling a Feature Store Deployment should only be done if the configured data store(s) will support it.
 
 Please check the how-to guide for some specific recommendations on [how to scale Feast](./scaling-feast.md). {% endhint %}
 
