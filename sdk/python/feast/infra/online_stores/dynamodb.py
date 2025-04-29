@@ -15,7 +15,7 @@ import asyncio
 import contextlib
 import itertools
 import logging
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union
 
@@ -138,6 +138,38 @@ class DynamoDBOnlineStore(OnlineStore):
     def async_supported(self) -> SupportedAsyncMethods:
         return SupportedAsyncMethods(read=True, write=True)
 
+    @staticmethod
+    def _table_tags(online_config, table_instance) -> list[dict[str, str]]:
+        table_instance_tags = table_instance.tags or {}
+        online_tags = online_config.tags or {}
+
+        common_tags = [
+            {"Key": key, "Value": table_instance_tags.get(key) or value}
+            for key, value in online_tags.items()
+        ]
+        table_tags = [
+            {"Key": key, "Value": value}
+            for key, value in table_instance_tags.items()
+            if key not in online_tags
+        ]
+
+        return common_tags + table_tags
+
+    @staticmethod
+    def _update_tags(dynamodb_client, table_name: str, new_tags: list[dict[str, str]]):
+        table_arn = dynamodb_client.describe_table(TableName=table_name)["Table"][
+            "TableArn"
+        ]
+        current_tags = dynamodb_client.list_tags_of_resource(ResourceArn=table_arn)[
+            "Tags"
+        ]
+        if current_tags:
+            remove_keys = [tag["Key"] for tag in current_tags]
+            dynamodb_client.untag_resource(ResourceArn=table_arn, TagKeys=remove_keys)
+
+        if new_tags:
+            dynamodb_client.tag_resource(ResourceArn=table_arn, Tags=new_tags)
+
     def update(
         self,
         config: RepoConfig,
@@ -167,22 +199,18 @@ class DynamoDBOnlineStore(OnlineStore):
             online_config.endpoint_url,
             online_config.session_based_auth,
         )
-        # Add Tags attribute to creation request only if configured to prevent
-        # TagResource permission issues, even with an empty Tags array.
-        kwargs = (
-            {
-                "Tags": [
-                    {"Key": key, "Value": value}
-                    for key, value in online_config.tags.items()
-                ]
-            }
-            if online_config.tags
-            else {}
-        )
+
+        do_tag_updates = defaultdict(bool)
         for table_instance in tables_to_keep:
+            # Add Tags attribute to creation request only if configured to prevent
+            # TagResource permission issues, even with an empty Tags array.
+            table_tags = self._table_tags(online_config, table_instance)
+            kwargs = {"Tags": table_tags} if table_tags else {}
+
+            table_name = _get_table_name(online_config, config, table_instance)
             try:
                 dynamodb_resource.create_table(
-                    TableName=_get_table_name(online_config, config, table_instance),
+                    TableName=table_name,
                     KeySchema=[{"AttributeName": "entity_id", "KeyType": "HASH"}],
                     AttributeDefinitions=[
                         {"AttributeName": "entity_id", "AttributeType": "S"}
@@ -190,7 +218,10 @@ class DynamoDBOnlineStore(OnlineStore):
                     BillingMode="PAY_PER_REQUEST",
                     **kwargs,
                 )
+
             except ClientError as ce:
+                do_tag_updates[table_name] = True
+
                 # If the table creation fails with ResourceInUseException,
                 # it means the table already exists or is being created.
                 # Otherwise, re-raise the exception
@@ -198,9 +229,13 @@ class DynamoDBOnlineStore(OnlineStore):
                     raise
 
         for table_instance in tables_to_keep:
-            dynamodb_client.get_waiter("table_exists").wait(
-                TableName=_get_table_name(online_config, config, table_instance)
-            )
+            table_name = _get_table_name(online_config, config, table_instance)
+            dynamodb_client.get_waiter("table_exists").wait(TableName=table_name)
+            # once table is confirmed to exist, update the tags.
+            # tags won't be updated in the create_table call if the table already exists
+            if do_tag_updates[table_name]:
+                tags = self._table_tags(online_config, table_instance)
+                self._update_tags(dynamodb_client, table_name, tags)
 
         for table_to_delete in tables_to_delete:
             _delete_table_idempotent(
