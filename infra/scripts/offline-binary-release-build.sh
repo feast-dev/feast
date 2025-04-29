@@ -9,13 +9,6 @@ cd ${PROJECT_ROOT_DIR}
 rm -rf ./offline_build
 mkdir offline_build
 
-# yarn builder
-docker build \
-  --build-arg RELEASE=true \
-  --tag yarn-builder \
-  -f sdk/python/feast/infra/feature_servers/multicloud/offline/Dockerfile.builder.yarn \
-  sdk/python/feast/infra/feature_servers/multicloud/offline
-
 alias hermeto='docker run --rm -ti -v "$PWD:$PWD:Z" -w "$PWD" quay.io/konflux-ci/hermeto:0.24.0'
 hermeto fetch-deps \
   --output ${OFFLINE_BUILD_DIR}/hermeto-output \
