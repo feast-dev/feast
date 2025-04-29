@@ -60,6 +60,7 @@ The list below contains the functionality that contributors are planning to deve
 * **Feature Serving**
   * [x] Python Client
   * [x] [Python feature server](https://docs.feast.dev/reference/feature-servers/python-feature-server)
+  * [x] [Feast Operator (alpha)](https://github.com/feast-dev/feast/blob/master/infra/feast-operator/README.md)
   * [x] [Java feature server (alpha)](https://github.com/feast-dev/feast/blob/master/infra/charts/feast/README.md)
   * [x] [Go feature server (alpha)](https://docs.feast.dev/reference/feature-servers/go-feature-server)
   * [x] [Offline Feature Server (alpha)](https://docs.feast.dev/reference/feature-servers/offline-feature-server)

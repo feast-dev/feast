@@ -203,27 +203,48 @@ feature_vector = fs.get_online_features(
 ).to_dict()
 ```
 
-### 4.2. Deploy Feast feature servers on Kubernetes (Deprecated replaced by [feast-operator](../../infra/feast-operator/README.md))
+### 4.2. Deploy Feast feature servers on Kubernetes
 
-To deploy a Feast feature server on Kubernetes, you can use the included [helm chart + tutorial](https://github.com/feast-dev/feast/tree/master/infra/charts/feast-feature-server) (which also has detailed instructions and an example tutorial).
+To deploy a Feast feature server on Kubernetes, you should use the included [feast-operator](../../infra/feast-operator).
 
 **Basic steps**
-1. Install [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/) and [helm 3](https://helm.sh/)
-2. Add the Feast Helm repository and download the latest charts:
+1. Install [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
+2. Install the Operator
 
-```
-helm repo add feast-charts https://feast-helm-charts.storage.googleapis.com
-helm repo update
-```
+```sh
+### Install the latest release -
+$ kubectl apply -f https://raw.githubusercontent.com/feast-dev/feast/refs/heads/stable/infra/feast-operator/dist/install.yaml
 
-3. Run Helm Install
-
-```
-helm install feast-release feast-charts/feast-feature-server \
-    --set feature_store_yaml_base64=$(base64 feature_store.yaml)    
+### OR, install a specific version -
+# kubectl apply -f https://raw.githubusercontent.com/feast-dev/feast/refs/tags/<version>/infra/feast-operator/dist/install.yaml
 ```
 
-This will deploy a single service. The service must have read access to the registry file on cloud storage and to the online store (e.g. via [podAnnotations](https://kubernetes-on-aws.readthedocs.io/en/latest/user-guide/iam-roles.html)). It will keep a copy of the registry in their memory and periodically refresh it, so expect some delays in update propagation in exchange for better performance. 
+3. Deploy a Feature Store
+
+```sh
+$ kubectl apply -f https://raw.githubusercontent.com/feast-dev/feast/refs/heads/stable/infra/feast-operator/config/samples/v1alpha1_featurestore.yaml
+
+$ kubectl get feast
+NAME     STATUS   AGE
+sample   Ready    2m21s
+```
+
+The above will install a simple [FeatureStore CR](../../infra/feast-operator/docs/api/markdown/ref.md) like the following. By default, it will run the [Online Store feature server](../reference/feature-servers/python-feature-server.md) -
+```yaml
+apiVersion: feast.dev/v1alpha1
+kind: FeatureStore
+metadata:
+  name: sample
+spec:
+  feastProject: my_project
+```
+{% hint style="success" %} More advanced FeatureStore CR examples can be found in the feast-operator [samples directory](../../infra/feast-operator/config/samples). {% endhint %}
+
+For first-time Operator users, it may be a good exercise to try the [Feast Operator Quickstart](../../examples/operator-quickstart). The quickstart will demonstrate some of the Operator's built-in features, e.g. git repos, `feast apply` jobs, etc.
+
+{% hint style="success" %} Important note: [Scaling a Feature Store Deployment](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#scaling-a-deployment) should only be done if the configured data store(s) will support it.
+
+Please check the how-to guide for some specific recommendations on [how to scale Feast](./scaling-feast.md). {% endhint %}
 
 ## 5. Using environment variables in your yaml configuration
 
