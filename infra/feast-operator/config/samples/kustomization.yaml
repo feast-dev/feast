@@ -1,5 +1,6 @@
 ## Append samples of your project ##
 resources:
 - v1alpha1_featurestore.yaml
-- v1alpha1_featurestore_all_servers.yaml
+- v1alpha1_featurestore_with_ui.yaml
+- v1alpha1_featurestore_all_remote_servers.yaml
 #+kubebuilder:scaffold:manifestskustomizesamples
