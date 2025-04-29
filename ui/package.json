@@ -27,6 +27,8 @@
     "@elastic/eui": "^95.12.0",
     "@emotion/css": "^11.13.0",
     "@emotion/react": "^11.13.3",
+    "@types/dagre": "^0.7.52",
+    "dagre": "^0.8.5",
     "inter-ui": "^3.19.3",
     "long": "^5.2.3",
     "moment": "^2.29.1",
@@ -36,6 +38,7 @@
     "react-code-blocks": "^0.1.6",
     "react-query": "^3.39.3",
     "react-router-dom": "^6.28.0",
+    "reactflow": "^11.11.4",
     "tslib": "^2.3.1",
     "use-query-params": "^2.2.1",
     "zod": "^3.11.6"
@@ -48,7 +51,7 @@
     "test": "npm run generate-protos && node scripts/test.js",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "generate-protos": "pbjs --no-encode -o src/protos.js -w commonjs -t static-module `find ../protos/feast/ -iname *.proto` && pbts -n protos -o src/protos.d.ts src/protos.js"
+    "generate-protos": "pbjs --no-encode -o src/protos.js -w commonjs -t static-module --path ../protos `find ../protos/feast/ -iname *.proto` && pbts -n protos -o src/protos.d.ts src/protos.js"
   },
   "browserslist": [
     "defaults"
