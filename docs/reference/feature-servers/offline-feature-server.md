@@ -27,7 +27,7 @@ spec:
     offlineStore:
       server: {}
 ```
-{% hint style="success" %} More advanced FeatureStore CR examples can be found in the feast-operator [samples directory](../../../infra/feast-operator/config/samples). {% endhint %}
+> _More advanced FeatureStore CR examples can be found in the feast-operator [samples directory](../../../infra/feast-operator/config/samples)._
 
 ## Server Example
 
