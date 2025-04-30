@@ -6,6 +6,7 @@ import { FeatureViewIcon } from "../../graphics/FeatureViewIcon";
 
 import { useMatchExact, useMatchSubpath } from "../../hooks/useMatchSubpath";
 import RegularFeatureViewOverviewTab from "./RegularFeatureViewOverviewTab";
+import FeatureViewLineageTab from "./FeatureViewLineageTab";
 
 import {
   useRegularFeatureViewCustomTabs,
@@ -32,6 +33,14 @@ const RegularFeatureInstance = ({ data }: RegularFeatureInstanceProps) => {
       },
     },
   ];
+
+  tabs.push({
+    label: "Lineage",
+    isSelected: useMatchSubpath("lineage"),
+    onClick: () => {
+      navigate("lineage");
+    },
+  });
 
   let statisticsIsSelected = useMatchSubpath("statistics");
   if (enabledFeatureStatistics) {
@@ -61,6 +70,10 @@ const RegularFeatureInstance = ({ data }: RegularFeatureInstanceProps) => {
           <Route
             path="/"
             element={<RegularFeatureViewOverviewTab data={data} />}
+          />
+          <Route
+            path="/lineage"
+            element={<FeatureViewLineageTab data={data} />}
           />
           {TabRoutes}
         </Routes>
