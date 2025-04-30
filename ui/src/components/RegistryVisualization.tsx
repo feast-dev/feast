@@ -572,6 +572,7 @@ interface RegistryVisualizationProps {
   registryData: feast.core.Registry;
   relationships: EntityRelation[];
   indirectRelationships: EntityRelation[];
+  filterNode?: { type: FEAST_FCO_TYPES; name: string };
 }
 
 const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
@@ -592,9 +593,19 @@ const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
       setLoading(true);
 
       // Only include indirect relationships if the toggle is on
-      const relationshipsToShow = showIndirectRelationships
+      let relationshipsToShow = showIndirectRelationships
         ? [...relationships, ...indirectRelationships]
         : relationships;
+        
+      // Filter relationships based on filterNode if provided
+      if (filterNode) {
+        relationshipsToShow = relationshipsToShow.filter((rel) => {
+          return (
+            (rel.source.type === filterNode.type && rel.source.name === filterNode.name) ||
+            (rel.target.type === filterNode.type && rel.target.name === filterNode.name)
+          );
+        });
+      }
 
       // Filter out invalid relationships
       const validRelationships = relationshipsToShow.filter((rel) => {
