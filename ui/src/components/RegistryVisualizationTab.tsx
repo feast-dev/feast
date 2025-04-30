@@ -1,5 +1,13 @@
 import React, { useContext, useState } from "react";
-import { EuiEmptyPrompt, EuiLoadingSpinner, EuiSpacer, EuiSelect, EuiFormRow, EuiFlexGroup, EuiFlexItem } from "@elastic/eui";
+import {
+  EuiEmptyPrompt,
+  EuiLoadingSpinner,
+  EuiSpacer,
+  EuiSelect,
+  EuiFormRow,
+  EuiFlexGroup,
+  EuiFlexItem,
+} from "@elastic/eui";
 import useLoadRegistry from "../queries/useLoadRegistry";
 import RegistryPathContext from "../contexts/RegistryPathContext";
 import RegistryVisualization from "./RegistryVisualization";
@@ -10,25 +18,33 @@ const RegistryVisualizationTab = () => {
   const { isLoading, isSuccess, isError, data } = useLoadRegistry(registryUrl);
   const [selectedObjectType, setSelectedObjectType] = useState("");
   const [selectedObjectName, setSelectedObjectName] = useState("");
-  
+
   const getObjectOptions = (objects: any, type: string) => {
     switch (type) {
       case "dataSource":
         const dataSources = new Set<string>();
         objects.featureViews?.forEach((fv: any) => {
-          if (fv.spec?.batchSource?.name) dataSources.add(fv.spec.batchSource.name);
+          if (fv.spec?.batchSource?.name)
+            dataSources.add(fv.spec.batchSource.name);
         });
         objects.streamFeatureViews?.forEach((sfv: any) => {
-          if (sfv.spec?.batchSource?.name) dataSources.add(sfv.spec.batchSource.name);
-          if (sfv.spec?.streamSource?.name) dataSources.add(sfv.spec.streamSource.name);
+          if (sfv.spec?.batchSource?.name)
+            dataSources.add(sfv.spec.batchSource.name);
+          if (sfv.spec?.streamSource?.name)
+            dataSources.add(sfv.spec.streamSource.name);
         });
         return Array.from(dataSources);
       case "entity":
         return objects.entities?.map((entity: any) => entity.spec?.name) || [];
       case "featureView":
-        return [...(objects.featureViews?.map((fv: any) => fv.spec?.name) || []),
-                ...(objects.onDemandFeatureViews?.map((odfv: any) => odfv.spec?.name) || []),
-                ...(objects.streamFeatureViews?.map((sfv: any) => sfv.spec?.name) || [])];
+        return [
+          ...(objects.featureViews?.map((fv: any) => fv.spec?.name) || []),
+          ...(objects.onDemandFeatureViews?.map(
+            (odfv: any) => odfv.spec?.name,
+          ) || []),
+          ...(objects.streamFeatureViews?.map((sfv: any) => sfv.spec?.name) ||
+            []),
+        ];
       case "featureService":
         return objects.featureServices?.map((fs: any) => fs.spec?.name) || [];
       default:
@@ -84,10 +100,12 @@ const RegistryVisualizationTab = () => {
                 <EuiSelect
                   options={[
                     { value: "", text: "All" },
-                    ...getObjectOptions(data.objects, selectedObjectType).map((name) => ({
-                      value: name,
-                      text: name,
-                    })),
+                    ...getObjectOptions(data.objects, selectedObjectType).map(
+                      (name: string) => ({
+                        value: name,
+                        text: name,
+                      }),
+                    ),
                   ]}
                   value={selectedObjectName}
                   onChange={(e) => setSelectedObjectName(e.target.value)}
