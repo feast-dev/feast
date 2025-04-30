@@ -180,7 +180,7 @@ CI_REQUIRED = (
         "cryptography>=43.0,<44",
         "ruff>=0.8.0",
         "mypy-protobuf>=3.1",
-        "grpcio-tools>=1.56.2,<2",
+        "grpcio-tools>=1.56.2,<1.62.3",
         "grpcio-testing>=1.56.2,<2",
         # FastAPI does not correctly pull starlette dependency on httpx see thread(https://github.com/tiangolo/fastapi/issues/5656).
         "httpx==0.27.2",
