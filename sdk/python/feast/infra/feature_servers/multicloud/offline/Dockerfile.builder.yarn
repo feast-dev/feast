@@ -1,6 +1,5 @@
-FROM registry.access.redhat.com/ubi8/python-311:1
-ARG RELEASE
+FROM registry.access.redhat.com/ubi9/python-311:1
 
 USER 0
-RUN if [[ -z "$RELEASE" ]] ; then npm install -g yarn yalc && rm -rf .npm ; fi
+RUN npm install -g yarn yalc && rm -rf .npm
 USER 1001

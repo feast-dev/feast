@@ -1,4 +1,4 @@
-FROM yarn-builder:latest
+FROM registry.access.redhat.com/ubi9/python-311:1
 
 COPY requirements.txt requirements.txt
 RUN source /tmp/hermeto.env && \

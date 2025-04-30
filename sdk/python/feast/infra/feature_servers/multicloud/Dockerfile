@@ -1,4 +1,4 @@
-FROM registry.access.redhat.com/ubi8/python-311:1
+FROM registry.access.redhat.com/ubi9/python-311:1
 
 COPY requirements.txt requirements.txt
 RUN pip install -r requirements.txt
