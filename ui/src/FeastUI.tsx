@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "react-query";
 import { QueryParamProvider } from "use-query-params";
 import { ReactRouter6Adapter } from "use-query-params/adapters/react-router-6";
 import FeastUISansProviders, { FeastUIConfigs } from "./FeastUISansProviders";
+import { ThemeProvider } from "./contexts/ThemeContext";
 
 interface FeastUIProps {
   reactQueryClient?: QueryClient;
@@ -25,10 +26,12 @@ const FeastUI = ({ reactQueryClient, feastUIConfigs }: FeastUIProps) => {
     >
       <QueryClientProvider client={queryClient}>
         <QueryParamProvider adapter={ReactRouter6Adapter}>
-          <FeastUISansProviders
-            basename={basename}
-            feastUIConfigs={feastUIConfigs}
-          />
+          <ThemeProvider>
+            <FeastUISansProviders
+              basename={basename}
+              feastUIConfigs={feastUIConfigs}
+            />
+          </ThemeProvider>
         </QueryParamProvider>
       </QueryClientProvider>
     </BrowserRouter>

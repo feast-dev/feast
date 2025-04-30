@@ -1,10 +1,10 @@
-import React from "react";
+import React, { useEffect } from "react";
 
-import "@elastic/eui/dist/eui_theme_light.css";
 import "./index.css";
 
 import { Routes, Route } from "react-router-dom";
 import { EuiProvider, EuiErrorBoundary } from "@elastic/eui";
+import { useTheme } from "./contexts/ThemeContext";
 
 import ProjectOverviewPage from "./pages/ProjectOverviewPage";
 import Layout from "./pages/Layout";
@@ -69,8 +69,25 @@ const FeastUISansProviders = ({
           isCustom: false,
         };
 
+  const { colorMode } = useTheme();
+
+  useEffect(() => {
+    const existingLink = document.getElementById("theme-stylesheet");
+    if (existingLink) {
+      existingLink.remove();
+    }
+    
+    const link = document.createElement("link");
+    link.id = "theme-stylesheet";
+    link.rel = "stylesheet";
+    link.href = colorMode === "dark" 
+      ? "/node_modules/@elastic/eui/dist/eui_theme_dark.css" 
+      : "/node_modules/@elastic/eui/dist/eui_theme_light.css";
+    document.head.appendChild(link);
+  }, [colorMode]);
+
   return (
-    <EuiProvider colorMode="light">
+    <EuiProvider colorMode={colorMode}>
       <EuiErrorBoundary>
         <TabsRegistryContext.Provider
           value={feastUIConfigs?.tabsRegistry || {}}

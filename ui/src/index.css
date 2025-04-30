@@ -10,6 +10,13 @@ html {
   background-attachment: fixed;
 }
 
+body.euiTheme--dark html {
+  background: url("assets/feast-icon-grey.svg") no-repeat -6vh 56vh;
+  background-size: 50vh;
+  background-attachment: fixed;
+  opacity: 0.5;
+}
+
 body {
   margin: 0;
   font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto",

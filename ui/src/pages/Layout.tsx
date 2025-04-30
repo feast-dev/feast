@@ -17,6 +17,8 @@ import { useLoadProjectsList } from "../contexts/ProjectListContext";
 import ProjectSelector from "../components/ProjectSelector";
 import Sidebar from "./Sidebar";
 import FeastWordMark from "../graphics/FeastWordMark";
+import ThemeToggle from "../components/ThemeToggle";
+import FloatingLineageTab from "../components/FloatingLineageTab";
 
 const Layout = () => {
   // Registry Path Context has to be inside Layout
@@ -41,7 +43,10 @@ const Layout = () => {
           role={"navigation"}
           aria-label={"Top Level"}
         >
-          <FeastWordMark />
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <FeastWordMark />
+            <ThemeToggle />
+          </div>
           <EuiSpacer size="s" />
           <ProjectSelector />
           {registryPath && (
@@ -57,6 +62,7 @@ const Layout = () => {
             <Outlet />
           </EuiErrorBoundary>
         </EuiPageBody>
+        <FloatingLineageTab />
       </EuiPage>
     </RegistryPathContext.Provider>
   );

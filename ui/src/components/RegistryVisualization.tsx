@@ -19,6 +19,7 @@ import { EuiPanel, EuiTitle, EuiSpacer, EuiLoadingSpinner } from "@elastic/eui";
 import { FEAST_FCO_TYPES } from "../parsers/types";
 import { EntityRelation } from "../parsers/parseEntityRelationships";
 import { feast } from "../protos";
+import { useTheme } from "../contexts/ThemeContext";
 
 const edgeAnimationStyle = `
   @keyframes dashdraw {
@@ -579,6 +580,9 @@ const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
   relationships,
   indirectRelationships,
 }) => {
+  const { colorMode } = useTheme();
+  const isDarkMode = colorMode === "dark";
+  
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [loading, setLoading] = useState(true);
@@ -668,7 +672,7 @@ const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
           <EuiLoadingSpinner size="xl" />
         </div>
       ) : (
-        <div style={{ height: 600, border: "1px solid #ddd" }}>
+        <div style={{ height: 600, border: `1px solid ${isDarkMode ? '#444' : '#ddd'}` }}>
           <ReactFlow
             nodes={nodes}
             edges={edges}
@@ -680,7 +684,7 @@ const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
             minZoom={0.1}
             maxZoom={8}
           >
-            <Background color="#f0f0f0" gap={16} />
+            <Background color={isDarkMode ? "#333" : "#f0f0f0"} gap={16} />
             <Controls />
             <Legend />
           </ReactFlow>
