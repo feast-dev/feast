@@ -35,6 +35,7 @@ from feast.version import get_version
 
 DEFAULT_BATCH_SIZE = 10_000
 DEFAULT_TIMEOUT = 600
+LAMBDA_TIMEOUT_RETRIES = 5
 
 logger = logging.getLogger(__name__)
 
@@ -225,7 +226,7 @@ class LambdaMaterializationEngine(BatchMaterializationEngine):
                 logger.info("Invoking materialization for %s", path)
                 futures.append(
                     executor.submit(
-                        self.lambda_client.invoke,
+                        self.invoke_with_retries,
                         FunctionName=self.lambda_name,
                         InvocationType="RequestResponse",
                         Payload=json.dumps(payload),
@@ -253,3 +254,20 @@ class LambdaMaterializationEngine(BatchMaterializationEngine):
                 if not not_done
                 else MaterializationJobStatus.ERROR,
             )
+
+    def invoke_with_retries(self, **kwargs):
+        """Invoke the Lambda function and retry if it times out.
+
+        The Lambda function may time out initially if many values are updated
+        and DynamoDB throttles requests. As soon as the DynamoDB tables
+        are scaled up, the Lambda function can succeed upon retry with higher
+        throughput.
+
+        """
+        retries = 0
+        while retries < LAMBDA_TIMEOUT_RETRIES:
+            response = self.lambda_client.invoke(**kwargs)
+            if "Task timed out after" not in json.loads(response["Payload"].read()):
+                break
+            retries += 1
+        return response
