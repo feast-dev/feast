@@ -135,7 +135,6 @@ const Layout = () => {
                   <span role="img" aria-label="search">
                     🔍
                   </span>
-                  <span style={{ marginLeft: "4px" }}>Search (⌘K)</span>
                 </button>
               </div>
             </React.Fragment>
