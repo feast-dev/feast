@@ -73,11 +73,6 @@ const RegistrySearch = forwardRef<RegistrySearchRef, RegistrySearchProps>(
           }}
           aria-label="Search registry"
           compressed
-          append={
-            <EuiText size="xs" color="subdued">
-              <span style={{ whiteSpace: "nowrap" }}>⌘K</span>
-            </EuiText>
-          }
         />
         <EuiSpacer size="s" />
         {searchText && (
