@@ -115,27 +115,11 @@ const Layout = () => {
               <div
                 style={{
                   display: "flex",
-                  justifyContent: "space-between",
+                  justifyContent: "center",
                   alignItems: "center",
                 }}
               >
                 <ThemeToggle />
-                <button
-                  onClick={handleSearchOpen}
-                  style={{
-                    background: "none",
-                    border: "none",
-                    cursor: "pointer",
-                    padding: "8px",
-                    borderRadius: "4px",
-                    display: "flex",
-                    alignItems: "center",
-                  }}
-                >
-                  <span role="img" aria-label="search">
-                    🔍
-                  </span>
-                </button>
               </div>
             </React.Fragment>
           )}
