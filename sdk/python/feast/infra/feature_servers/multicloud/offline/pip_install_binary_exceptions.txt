@@ -1,2 +1,0 @@
-# EXCEPTION for milvus
-milvus-lite==2.4.12

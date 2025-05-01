@@ -1,4 +1,4 @@
-# to run -> source ./infra/scripts/offline-binary-release-build.sh
+# to run -> source ./sdk/python/feast/infra/feature_servers/multicloud/offline/offline-binary-release-build.sh
 # on the build host... requires docker/podman
 
 # Get Feast project repository root directory
