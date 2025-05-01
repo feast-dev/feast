@@ -17,6 +17,7 @@ import { useLoadProjectsList } from "../contexts/ProjectListContext";
 import ProjectSelector from "../components/ProjectSelector";
 import Sidebar from "./Sidebar";
 import FeastWordMark from "../graphics/FeastWordMark";
+import ThemeToggle from "../components/ThemeToggle";
 
 const Layout = () => {
   // Registry Path Context has to be inside Layout
@@ -48,6 +49,9 @@ const Layout = () => {
             <React.Fragment>
               <EuiHorizontalRule margin="s" />
               <Sidebar />
+              <EuiSpacer size="l" />
+              <EuiHorizontalRule margin="s" />
+              <ThemeToggle />
             </React.Fragment>
           )}
         </EuiPageSidebar>
