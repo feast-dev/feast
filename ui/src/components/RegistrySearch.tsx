@@ -1,5 +1,15 @@
-import React, { useState } from "react";
-import { EuiText, EuiFieldSearch, EuiSpacer } from "@elastic/eui";
+import React, {
+  useState,
+  useRef,
+  forwardRef,
+  useImperativeHandle,
+} from "react";
+import {
+  EuiText,
+  EuiFieldSearch,
+  EuiSpacer,
+  EuiHorizontalRule,
+} from "@elastic/eui";
 import EuiCustomLink from "./EuiCustomLink";
 
 interface RegistrySearchProps {
@@ -10,81 +20,124 @@ interface RegistrySearchProps {
   }[];
 }
 
-const RegistrySearch: React.FC<RegistrySearchProps> = ({ categories }) => {
-  const [searchText, setSearchText] = useState("");
+export interface RegistrySearchRef {
+  focusSearchInput: () => void;
+}
 
-  const searchResults = categories.map(({ name, data, getLink }) => {
-    const filteredItems = searchText
-      ? data.filter((item) => {
-          const itemName =
-            "name" in item
-              ? String(item.name)
-              : "spec" in item && item.spec && "name" in item.spec
-                ? String(item.spec.name ?? "Unknown")
-                : "Unknown";
+const RegistrySearch = forwardRef<RegistrySearchRef, RegistrySearchProps>(
+  ({ categories }, ref) => {
+    const [searchText, setSearchText] = useState("");
+    const inputRef = useRef<HTMLInputElement | null>(null);
 
-          return itemName.toLowerCase().includes(searchText.toLowerCase());
-        })
-      : [];
+    const focusSearchInput = () => {
+      if (inputRef.current) {
+        inputRef.current.focus();
+      }
+    };
 
-    return { name, items: filteredItems, getLink };
-  });
+    useImperativeHandle(
+      ref,
+      () => ({
+        focusSearchInput,
+      }),
+      [focusSearchInput],
+    );
 
-  return (
-    <>
-      <EuiSpacer size="l" />
-      <EuiText>
-        <h3>Search in registry</h3>
-      </EuiText>
-      <EuiSpacer size="s" />
-      <EuiFieldSearch
-        placeholder="Search across Feature Views, Features, Entities, etc."
-        value={searchText}
-        onChange={(e) => setSearchText(e.target.value)}
-        isClearable
-        fullWidth
-      />
-      <EuiSpacer size="m" />
+    const searchResults = categories.map(({ name, data, getLink }) => {
+      const filteredItems = searchText
+        ? data.filter((item) => {
+            const itemName =
+              "name" in item
+                ? String(item.name)
+                : "spec" in item && item.spec && "name" in item.spec
+                  ? String(item.spec.name ?? "Unknown")
+                  : "Unknown";
 
-      {searchText && (
-        <EuiText>
-          <h3>Search Results</h3>
-          {searchResults.some(({ items }) => items.length > 0) ? (
-            searchResults.map(({ name, items, getLink }, index) =>
-              items.length > 0 ? (
-                <div key={index}>
-                  <h4>{name}</h4>
-                  <ul>
-                    {items.map((item, idx) => {
-                      const itemName =
-                        "name" in item
-                          ? item.name
-                          : "spec" in item
-                            ? item.spec?.name
-                            : "Unknown";
+            return itemName.toLowerCase().includes(searchText.toLowerCase());
+          })
+        : [];
 
-                      const itemLink = getLink(item);
+      return { name, items: filteredItems, getLink };
+    });
 
-                      return (
-                        <li key={idx}>
-                          <EuiCustomLink to={itemLink}>
-                            {itemName}
-                          </EuiCustomLink>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                  <EuiSpacer size="m" />
+    return (
+      <>
+        <EuiFieldSearch
+          placeholder="Search across Feature Views, Features, Entities, etc."
+          value={searchText}
+          onChange={(e) => setSearchText(e.target.value)}
+          isClearable
+          fullWidth
+          inputRef={(node) => {
+            inputRef.current = node;
+          }}
+          aria-label="Search registry"
+          compressed
+          append={
+            <EuiText size="xs" color="subdued">
+              <span style={{ whiteSpace: "nowrap" }}>⌘K</span>
+            </EuiText>
+          }
+        />
+        <EuiSpacer size="s" />
+        {searchText && (
+          <>
+            <EuiText>
+              <h4>Search Results</h4>
+            </EuiText>
+            <EuiSpacer size="xs" />
+            {searchResults.some(({ items }) => items.length > 0) ? (
+              <div className="euiPanel euiPanel--borderRadiusMedium euiPanel--plain euiPanel--hasShadow">
+                {searchResults.map(({ name, items, getLink }, index) =>
+                  items.length > 0 ? (
+                    <div key={index} className="euiPanel__body">
+                      <EuiText>
+                        <h5>{name}</h5>
+                      </EuiText>
+                      <EuiSpacer size="xs" />
+                      <ul
+                        style={{ listStyleType: "none", padding: 0, margin: 0 }}
+                      >
+                        {items.map((item, idx) => {
+                          const itemName =
+                            "name" in item
+                              ? item.name
+                              : "spec" in item
+                                ? item.spec?.name
+                                : "Unknown";
+
+                          const itemLink = getLink(item);
+
+                          return (
+                            <li key={idx} style={{ margin: "8px 0" }}>
+                              <EuiCustomLink to={itemLink}>
+                                {itemName}
+                              </EuiCustomLink>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                      {index <
+                        searchResults.filter(
+                          (result) => result.items.length > 0,
+                        ).length -
+                          1 && <EuiHorizontalRule margin="m" />}
+                    </div>
+                  ) : null,
+                )}
+              </div>
+            ) : (
+              <div className="euiPanel euiPanel--borderRadiusMedium euiPanel--plain euiPanel--hasShadow">
+                <div className="euiPanel__body">
+                  <p>No matches found.</p>
                 </div>
-              ) : null,
-            )
-          ) : (
-            <p>No matches found.</p>
-          )}
-        </EuiText>
-      )}
-    </>
-  );
-};
+              </div>
+            )}
+          </>
+        )}
+      </>
+    );
+  },
+);
 
 export default RegistrySearch;
