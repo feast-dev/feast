@@ -18,16 +18,17 @@ The fastest way to add custom logic to Feast is to extend an existing materializ
 
 #### Step 1: Define an Engine class
 
-The first step is to define a custom materialization engine class. We've created the `MyCustomEngine` below.
+The first step is to define a custom materialization engine class. We've created the `MyCustomEngine` below. This python file can be placed in your `feature_repo` directory if you're following the Quickstart guide.
 
 ```python
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+from typing import List, Sequence, Union
 
 from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.batch_feature_view import BatchFeatureView
 from feast.stream_feature_view import StreamFeatureView
-from feast.infra.materialization import LocalMaterializationEngine, LocalMaterializationJob, MaterializationTask
+from feast.infra.materialization.local_engine import LocalMaterializationJob, LocalMaterializationEngine
+from feast.infra.common.materialization_job import MaterializationTask
 from feast.infra.offline_stores.offline_store import OfflineStore
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.repo_config import RepoConfig
