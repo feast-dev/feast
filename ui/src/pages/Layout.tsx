@@ -112,22 +112,30 @@ const Layout = () => {
               <Sidebar />
               <EuiSpacer size="l" />
               <EuiHorizontalRule margin="s" />
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
                 <ThemeToggle />
-                <button 
+                <button
                   onClick={handleSearchOpen}
-                  style={{ 
-                    background: 'none', 
-                    border: 'none', 
-                    cursor: 'pointer',
-                    padding: '8px',
-                    borderRadius: '4px',
-                    display: 'flex',
-                    alignItems: 'center'
+                  style={{
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    padding: "8px",
+                    borderRadius: "4px",
+                    display: "flex",
+                    alignItems: "center",
                   }}
                 >
-                  <span role="img" aria-label="search">🔍</span>
-                  <span style={{ marginLeft: '4px' }}>Search (⌘K)</span>
+                  <span role="img" aria-label="search">
+                    🔍
+                  </span>
+                  <span style={{ marginLeft: "4px" }}>Search (⌘K)</span>
                 </button>
               </div>
             </React.Fragment>
