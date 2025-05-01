@@ -46,8 +46,17 @@ const FloatingLineageTab: React.FC = () => {
           }}
         />
       ) : (
-        <EuiPanel paddingSize="m" style={{ height: "100%", overflow: "hidden" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <EuiPanel
+          paddingSize="m"
+          style={{ height: "100%", overflow: "hidden" }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
             <EuiTitle size="s">
               <h2>Lineage View</h2>
             </EuiTitle>

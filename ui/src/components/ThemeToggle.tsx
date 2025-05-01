@@ -4,12 +4,14 @@ import { useTheme } from "../contexts/ThemeContext";
 
 const ThemeToggle: React.FC = () => {
   const { colorMode, toggleColorMode } = useTheme();
-  
+
   return (
-    <EuiToolTip content={`Switch to ${colorMode === 'light' ? 'dark' : 'light'} mode`}>
+    <EuiToolTip
+      content={`Switch to ${colorMode === "light" ? "dark" : "light"} mode`}
+    >
       <EuiButtonIcon
         color="text"
-        iconType={colorMode === 'light' ? 'moon' : 'sun'}
+        iconType={colorMode === "light" ? "moon" : "sun"}
         onClick={toggleColorMode}
         aria-label="Toggle theme"
       />

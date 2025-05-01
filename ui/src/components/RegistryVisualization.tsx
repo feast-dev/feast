@@ -582,7 +582,7 @@ const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
 }) => {
   const { colorMode } = useTheme();
   const isDarkMode = colorMode === "dark";
-  
+
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [loading, setLoading] = useState(true);
@@ -672,7 +672,12 @@ const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
           <EuiLoadingSpinner size="xl" />
         </div>
       ) : (
-        <div style={{ height: 600, border: `1px solid ${isDarkMode ? '#444' : '#ddd'}` }}>
+        <div
+          style={{
+            height: 600,
+            border: `1px solid ${isDarkMode ? "#444" : "#ddd"}`,
+          }}
+        >
           <ReactFlow
             nodes={nodes}
             edges={edges}

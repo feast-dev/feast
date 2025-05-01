@@ -76,13 +76,14 @@ const FeastUISansProviders = ({
     if (existingLink) {
       existingLink.remove();
     }
-    
+
     const link = document.createElement("link");
     link.id = "theme-stylesheet";
     link.rel = "stylesheet";
-    link.href = colorMode === "dark" 
-      ? "/node_modules/@elastic/eui/dist/eui_theme_dark.css" 
-      : "/node_modules/@elastic/eui/dist/eui_theme_light.css";
+    link.href =
+      colorMode === "dark"
+        ? "/node_modules/@elastic/eui/dist/eui_theme_dark.css"
+        : "/node_modules/@elastic/eui/dist/eui_theme_light.css";
     document.head.appendChild(link);
   }, [colorMode]);
 
