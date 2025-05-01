@@ -16,11 +16,11 @@ export interface RegistrySearchRef {
 
 const RegistrySearch = forwardRef<RegistrySearchRef, RegistrySearchProps>(({ categories }, ref) => {
   const [searchText, setSearchText] = useState("");
-  const [inputElement, setInputElement] = useState<HTMLInputElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
 
   const focusSearchInput = () => {
-    if (inputElement) {
-      inputElement.focus();
+    if (inputRef.current) {
+      inputRef.current.focus();
     }
   };
   
@@ -29,7 +29,7 @@ const RegistrySearch = forwardRef<RegistrySearchRef, RegistrySearchProps>(({ cat
     () => ({
       focusSearchInput,
     }),
-    [inputElement]
+    [focusSearchInput]
   );
 
   const searchResults = categories.map(({ name, data, getLink }) => {
@@ -57,7 +57,7 @@ const RegistrySearch = forwardRef<RegistrySearchRef, RegistrySearchProps>(({ cat
         onChange={(e) => setSearchText(e.target.value)}
         isClearable
         fullWidth
-        inputRef={(node) => setInputElement(node)}
+        inputRef={(node) => { inputRef.current = node; }}
         aria-label="Search registry"
         compressed
         append={
