@@ -1,5 +1,6 @@
 import React from "react";
 
+import "@elastic/eui/dist/eui_theme_light.css";
 import "./index.css";
 
 import { Routes, Route } from "react-router-dom";
@@ -91,13 +92,6 @@ const FeastUISansProvidersInner = ({
 }) => {
   const { colorMode } = useTheme();
   
-  React.useEffect(() => {
-    if (colorMode === "dark") {
-      import("@elastic/eui/dist/eui_theme_dark.css");
-    } else {
-      import("@elastic/eui/dist/eui_theme_light.css");
-    }
-  }, [colorMode]);
 
   return (
     <EuiProvider colorMode={colorMode}>
