@@ -615,13 +615,37 @@ const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
 
       // Filter relationships based on filterNode if provided
       if (filterNode) {
+        const connectedNodes = new Set<string>();
+        
+        const filterNodeId = `${getNodePrefix(filterNode.type)}-${filterNode.name}`;
+        connectedNodes.add(filterNodeId);
+        
+        // Function to recursively find all connected nodes
+        const findConnectedNodes = (nodeId: string, isDownstream: boolean) => {
+          relationshipsToShow.forEach((rel) => {
+            const sourceId = `${getNodePrefix(rel.source.type)}-${rel.source.name}`;
+            const targetId = `${getNodePrefix(rel.target.type)}-${rel.target.name}`;
+            
+            if (isDownstream && sourceId === nodeId && !connectedNodes.has(targetId)) {
+              connectedNodes.add(targetId);
+              findConnectedNodes(targetId, isDownstream);
+            }
+            
+            if (!isDownstream && targetId === nodeId && !connectedNodes.has(sourceId)) {
+              connectedNodes.add(sourceId);
+              findConnectedNodes(sourceId, isDownstream);
+            }
+          });
+        };
+        
+        findConnectedNodes(filterNodeId, true);
+        
+        findConnectedNodes(filterNodeId, false);
+        
         relationshipsToShow = relationshipsToShow.filter((rel) => {
-          return (
-            (rel.source.type === filterNode.type &&
-              rel.source.name === filterNode.name) ||
-            (rel.target.type === filterNode.type &&
-              rel.target.name === filterNode.name)
-          );
+          const sourceId = `${getNodePrefix(rel.source.type)}-${rel.source.name}`;
+          const targetId = `${getNodePrefix(rel.target.type)}-${rel.target.name}`;
+          return connectedNodes.has(sourceId) && connectedNodes.has(targetId);
         });
       }
 
