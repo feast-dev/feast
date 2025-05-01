@@ -72,10 +72,10 @@ const FeastUISansProviders = ({
 
   return (
     <ThemeProvider>
-      <FeastUISansProvidersInner 
-        basename={basename} 
-        projectListContext={projectListContext} 
-        feastUIConfigs={feastUIConfigs} 
+      <FeastUISansProvidersInner
+        basename={basename}
+        projectListContext={projectListContext}
+        feastUIConfigs={feastUIConfigs}
       />
     </ThemeProvider>
   );
@@ -91,7 +91,6 @@ const FeastUISansProvidersInner = ({
   feastUIConfigs?: FeastUIConfigs;
 }) => {
   const { colorMode } = useTheme();
-  
 
   return (
     <EuiProvider colorMode={colorMode}>

@@ -382,8 +382,8 @@ const Legend = () => {
   const backgroundColor = isDarkMode ? "#1D1E24" : "white";
   const borderColor = isDarkMode ? "#343741" : "#ddd";
   const textColor = isDarkMode ? "#DFE5EF" : "#333";
-  const boxShadow = isDarkMode 
-    ? "0 2px 5px rgba(0,0,0,0.3)" 
+  const boxShadow = isDarkMode
+    ? "0 2px 5px rgba(0,0,0,0.3)"
     : "0 2px 5px rgba(0,0,0,0.1)";
 
   return (
@@ -400,12 +400,14 @@ const Legend = () => {
         boxShadow: boxShadow,
       }}
     >
-      <div style={{ 
-        fontSize: 14, 
-        fontWeight: 600, 
-        marginBottom: 5,
-        color: textColor 
-      }}>
+      <div
+        style={{
+          fontSize: 14,
+          fontWeight: 600,
+          marginBottom: 5,
+          color: textColor,
+        }}
+      >
         Legend
       </div>
       {types.map((item) => (
@@ -616,32 +618,40 @@ const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
       // Filter relationships based on filterNode if provided
       if (filterNode) {
         const connectedNodes = new Set<string>();
-        
+
         const filterNodeId = `${getNodePrefix(filterNode.type)}-${filterNode.name}`;
         connectedNodes.add(filterNodeId);
-        
+
         // Function to recursively find all connected nodes
         const findConnectedNodes = (nodeId: string, isDownstream: boolean) => {
           relationshipsToShow.forEach((rel) => {
             const sourceId = `${getNodePrefix(rel.source.type)}-${rel.source.name}`;
             const targetId = `${getNodePrefix(rel.target.type)}-${rel.target.name}`;
-            
-            if (isDownstream && sourceId === nodeId && !connectedNodes.has(targetId)) {
+
+            if (
+              isDownstream &&
+              sourceId === nodeId &&
+              !connectedNodes.has(targetId)
+            ) {
               connectedNodes.add(targetId);
               findConnectedNodes(targetId, isDownstream);
             }
-            
-            if (!isDownstream && targetId === nodeId && !connectedNodes.has(sourceId)) {
+
+            if (
+              !isDownstream &&
+              targetId === nodeId &&
+              !connectedNodes.has(sourceId)
+            ) {
               connectedNodes.add(sourceId);
               findConnectedNodes(sourceId, isDownstream);
             }
           });
         };
-        
+
         findConnectedNodes(filterNodeId, true);
-        
+
         findConnectedNodes(filterNodeId, false);
-        
+
         relationshipsToShow = relationshipsToShow.filter((rel) => {
           const sourceId = `${getNodePrefix(rel.source.type)}-${rel.source.name}`;
           const targetId = `${getNodePrefix(rel.target.type)}-${rel.target.name}`;

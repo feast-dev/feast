@@ -14,8 +14,8 @@ const ThemeContext = createContext<ThemeContextType>({
   toggleColorMode: () => {},
 });
 
-export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ 
-  children 
+export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
 }) => {
   const [colorMode, setColorMode] = useState<ThemeMode>(() => {
     const savedTheme = localStorage.getItem("feast-theme");
@@ -24,7 +24,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
 
   useEffect(() => {
     localStorage.setItem("feast-theme", colorMode);
-    
+
     if (colorMode === "dark") {
       document.body.classList.add("euiTheme--dark");
     } else {
@@ -33,13 +33,11 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [colorMode]);
 
   const toggleColorMode = () => {
-    setColorMode(prevMode => (prevMode === "light" ? "dark" : "light"));
+    setColorMode((prevMode) => (prevMode === "light" ? "dark" : "light"));
   };
 
   return (
-    <ThemeContext.Provider 
-      value={{ colorMode, setColorMode, toggleColorMode }}
-    >
+    <ThemeContext.Provider value={{ colorMode, setColorMode, toggleColorMode }}>
       {children}
     </ThemeContext.Provider>
   );
