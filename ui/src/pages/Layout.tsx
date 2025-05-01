@@ -154,8 +154,8 @@ const Layout = () => {
                   borderBottom: "1px solid #D3DAE6",
                 }}
               >
-                <EuiFlexGroup>
-                  <EuiFlexItem>
+                <EuiFlexGroup justifyContent="center">
+                  <EuiFlexItem grow={false} style={{ width: "600px", maxWidth: "90%" }}>
                     <RegistrySearch ref={searchRef} categories={categories} />
                   </EuiFlexItem>
                 </EuiFlexGroup>
