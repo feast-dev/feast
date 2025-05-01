@@ -22,7 +22,7 @@ import ProjectSelector from "../components/ProjectSelector";
 import Sidebar from "./Sidebar";
 import FeastWordMark from "../graphics/FeastWordMark";
 import ThemeToggle from "../components/ThemeToggle";
-import RegistrySearch from "../components/RegistrySearch";
+import RegistrySearch, { RegistrySearchRef } from "../components/RegistrySearch";
 import GlobalSearchShortcut from "../components/GlobalSearchShortcut";
 
 const Layout = () => {
@@ -31,7 +31,7 @@ const Layout = () => {
   // in order to use useParams
   let { projectName } = useParams();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const searchRef = useRef(null);
+  const searchRef = useRef<RegistrySearchRef>(null);
 
   const { data: projectsData } = useLoadProjectsList();
 
@@ -47,17 +47,17 @@ const Layout = () => {
         {
           name: "Data Sources",
           data: data.objects.dataSources || [],
-          getLink: (item) => `/p/${projectName}/data-source/${item.name}`,
+          getLink: (item: any) => `/p/${projectName}/data-source/${item.name}`,
         },
         {
           name: "Entities",
           data: data.objects.entities || [],
-          getLink: (item) => `/p/${projectName}/entity/${item.name}`,
+          getLink: (item: any) => `/p/${projectName}/entity/${item.name}`,
         },
         {
           name: "Features",
           data: data.allFeatures || [],
-          getLink: (item) => {
+          getLink: (item: any) => {
             const featureView = item?.featureView;
             return featureView
               ? `/p/${projectName}/feature-view/${featureView}/feature/${item.name}`
@@ -67,12 +67,12 @@ const Layout = () => {
         {
           name: "Feature Views",
           data: data.mergedFVList || [],
-          getLink: (item) => `/p/${projectName}/feature-view/${item.name}`,
+          getLink: (item: any) => `/p/${projectName}/feature-view/${item.name}`,
         },
         {
           name: "Feature Services",
           data: data.objects.featureServices || [],
-          getLink: (item) => {
+          getLink: (item: any) => {
             const serviceName = item?.name || item?.spec?.name;
             return serviceName
               ? `/p/${projectName}/feature-service/${serviceName}`
@@ -120,8 +120,7 @@ const Layout = () => {
             {isSearchOpen && data && (
               <EuiPageHeader
                 paddingSize="l"
-                sticky
-                bottomBorder
+                style={{ position: 'sticky', top: 0, zIndex: 100, borderBottom: '1px solid #D3DAE6' }}
               >
                 <EuiFlexGroup>
                   <EuiFlexItem>
