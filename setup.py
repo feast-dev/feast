@@ -159,7 +159,7 @@ COUCHBASE_REQUIRED = [
 
 MSSQL_REQUIRED = ["ibis-framework[mssql]>=9.0.0,<10"]
 
-FAISS_REQUIRED = ["faiss-cpu>=1.7.0,<2"]
+FAISS_REQUIRED = ["faiss-cpu>=1.7.0,<=1.10.0"]
 QDRANT_REQUIRED = ["qdrant-client>=1.12.0"]
 
 GO_REQUIRED = ["cffi>=1.15.0"]
