@@ -171,9 +171,6 @@ const ProjectOverviewPage = () => {
 
         {selectedTabId === "visualization" && <RegistryVisualizationTab />}
       </EuiPageTemplate.Section>
-      <EuiPageTemplate.Section>
-        {isSuccess && <RegistrySearch categories={categories} />}
-      </EuiPageTemplate.Section>
     </EuiPageTemplate>
   );
 };
