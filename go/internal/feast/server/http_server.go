@@ -185,14 +185,17 @@ func (u *repeatedValue) ToProto() *prototypes.RepeatedValue {
 
 func (filter sortKeyFilter) ToProto() (*serving.SortKeyFilter, error) {
 	proto := &serving.SortKeyFilter{
-		SortKeyName:    filter.SortKeyName,
+		SortKeyName: filter.SortKeyName,
+	}
+
+	rangeQuery := &serving.SortKeyFilter_RangeQuery{
 		StartInclusive: filter.StartInclusive,
 		EndInclusive:   filter.EndInclusive,
 	}
 
 	if filter.RangeStart != nil {
 		var err error
-		proto.RangeStart, err = parseValueFromJSON(filter.RangeStart)
+		rangeQuery.RangeStart, err = parseValueFromJSON(filter.RangeStart)
 		if err != nil {
 			return nil, fmt.Errorf("error parsing range_start: %w", err)
 		}
@@ -200,10 +203,14 @@ func (filter sortKeyFilter) ToProto() (*serving.SortKeyFilter, error) {
 
 	if filter.RangeEnd != nil {
 		var err error
-		proto.RangeEnd, err = parseValueFromJSON(filter.RangeEnd)
+		rangeQuery.RangeEnd, err = parseValueFromJSON(filter.RangeEnd)
 		if err != nil {
 			return nil, fmt.Errorf("error parsing range_end: %w", err)
 		}
+	}
+
+	proto.Query = &serving.SortKeyFilter_Range{
+		Range: rangeQuery,
 	}
 
 	return proto, nil
