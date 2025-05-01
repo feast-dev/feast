@@ -72,8 +72,8 @@ const FloatingLineageTab: React.FC = () => {
             {isSuccess && data && (
               <RegistryVisualization
                 registryData={data}
-                relationships={data.entityRelationships || []}
-                indirectRelationships={data.indirectEntityRelationships || []}
+                relationships={data.relationships || []}
+                indirectRelationships={data.indirectRelationships || []}
               />
             )}
             {isLoading && <div>Loading...</div>}
