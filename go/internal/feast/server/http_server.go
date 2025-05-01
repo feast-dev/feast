@@ -625,3 +625,5 @@ func (s *httpServer) Stop() error {
 	}
 	return nil
 }
+
+// new line
