@@ -32,7 +32,7 @@ const Layout = () => {
   // because it has to be under routes
   // in order to use useParams
   let { projectName } = useParams();
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const setIsSearchOpen = useState(false);
   const searchRef = useRef<RegistrySearchRef>(null);
 
   const { data: projectsData } = useLoadProjectsList();
@@ -85,7 +85,6 @@ const Layout = () => {
     : [];
 
   const handleSearchOpen = () => {
-    setIsSearchOpen(true);
     setTimeout(() => {
       if (searchRef.current) {
         searchRef.current.focusSearchInput();
@@ -127,11 +126,11 @@ const Layout = () => {
 
         <EuiPageBody>
           <EuiErrorBoundary>
-            {isSearchOpen && data && (
+            {data && (
               <EuiPageHeader
                 paddingSize="l"
                 style={{
-                  position: "sticky",
+                  // position: "sticky",
                   top: 0,
                   zIndex: 100,
                   borderBottom: "1px solid #D3DAE6",
