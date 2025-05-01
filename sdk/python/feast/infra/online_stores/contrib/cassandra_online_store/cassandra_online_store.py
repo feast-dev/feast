@@ -412,9 +412,7 @@ class CassandraOnlineStore(OnlineStore):
         project = config.project
 
         ttl_feature_view = table.ttl or timedelta(seconds=0)
-        ttl_online_store_config = online_store_config.key_ttl_seconds or timedelta(
-            seconds=0
-        )
+        ttl_online_store_config = online_store_config.key_ttl_seconds or 0
         write_concurrency = online_store_config.write_concurrency
         write_rate_limit = online_store_config.write_rate_limit
         concurrent_queue: Queue = Queue(maxsize=write_concurrency)
@@ -579,43 +577,38 @@ class CassandraOnlineStore(OnlineStore):
                         on_failure,
                     )
         else:
-            for entity_key, values, timestamp, created_ts in data:
-                ttl = CassandraOnlineStore._get_ttl(
-                    online_store_config.apply_ttl_on_write,
-                    ttl_feature_view,
-                    ttl_online_store_config,
-                    timestamp,
-                )
-                if ttl >= 0:
-                    entity_key_bin = serialize_entity_key(
-                        entity_key,
-                        entity_key_serialization_version=config.entity_key_serialization_version,
-                    ).hex()
-                    for feature_name, val in values.items():
-                        params: Tuple[str, bytes, str, datetime] = (
-                            feature_name,
-                            val.SerializeToString(),
-                            entity_key_bin,
-                            timestamp,
-                        )
-                        insert_cql = self._get_cql_statement(
-                            config,
-                            "insert4",
-                            fqtable=fqtable,
-                            ttl=int(ttl),
-                            session=session,
-                        )
-                        batch.add(insert_cql, params)
+            insert_cql = self._get_cql_statement(
+                config,
+                "insert4",
+                fqtable=fqtable,
+                ttl=ttl_online_store_config,
+                session=session,
+            )
 
-                    CassandraOnlineStore._apply_batch(
-                        rate_limiter,
-                        batch,
-                        progress,
-                        session,
-                        concurrent_queue,
-                        on_success,
-                        on_failure,
+            for entity_key, values, timestamp, created_ts in data:
+                batch = BatchStatement(batch_type=BatchType.UNLOGGED)
+                entity_key_bin = serialize_entity_key(
+                    entity_key,
+                    entity_key_serialization_version=config.entity_key_serialization_version,
+                ).hex()
+                for feature_name, val in values.items():
+                    params: Tuple[str, bytes, str, datetime] = (
+                        feature_name,
+                        val.SerializeToString(),
+                        entity_key_bin,
+                        timestamp,
                     )
+                    batch.add(insert_cql, params)
+
+                CassandraOnlineStore._apply_batch(
+                    rate_limiter,
+                    batch,
+                    progress,
+                    session,
+                    concurrent_queue,
+                    on_success,
+                    on_failure,
+                )
 
         if not concurrent_queue.empty():
             logger.warning(
@@ -1003,14 +996,14 @@ class CassandraOnlineStore(OnlineStore):
     def _get_ttl(
         apply_ttl_on_write: bool,
         ttl_feature_view: timedelta,
-        ttl_online_store_config: timedelta,
+        ttl_online_store_config: int,
         timestamp: datetime,
     ) -> int:
         """
         Calculate TTL based on different settings (like apply_ttl_on_write and ttl settings in feature view and online store config)
         """
         ttl_feature_view_in_secs = int(ttl_feature_view.total_seconds())
-        ttl_online_store_config_in_secs = int(ttl_online_store_config.total_seconds())
+        ttl_online_store_config_in_secs = ttl_online_store_config
 
         # If ttl is configured in both online store config and feature view, feature view ttl is considered.
         # Otherwise, which ever is configured is considered.
