@@ -19,6 +19,7 @@ import { EuiPanel, EuiTitle, EuiSpacer, EuiLoadingSpinner } from "@elastic/eui";
 import { FEAST_FCO_TYPES } from "../parsers/types";
 import { EntityRelation } from "../parsers/parseEntityRelationships";
 import { feast } from "../protos";
+import { useTheme } from "../contexts/ThemeContext";
 
 const edgeAnimationStyle = `
   @keyframes dashdraw {
@@ -369,6 +370,7 @@ const getLayoutedElements = (
   };
 };
 const Legend = () => {
+  const { colorMode } = useTheme();
   const types = [
     { type: FEAST_FCO_TYPES.featureService, label: "Feature Service" },
     { type: FEAST_FCO_TYPES.featureView, label: "Feature View" },
@@ -376,21 +378,36 @@ const Legend = () => {
     { type: FEAST_FCO_TYPES.dataSource, label: "Data Source" },
   ];
 
+  const isDarkMode = colorMode === "dark";
+  const backgroundColor = isDarkMode ? "#1D1E24" : "white";
+  const borderColor = isDarkMode ? "#343741" : "#ddd";
+  const textColor = isDarkMode ? "#DFE5EF" : "#333";
+  const boxShadow = isDarkMode
+    ? "0 2px 5px rgba(0,0,0,0.3)"
+    : "0 2px 5px rgba(0,0,0,0.1)";
+
   return (
     <div
       style={{
         position: "absolute",
         left: 10,
         top: 10,
-        background: "white",
-        border: "1px solid #ddd",
+        background: backgroundColor,
+        border: `1px solid ${borderColor}`,
         borderRadius: 5,
         padding: 10,
         zIndex: 10,
-        boxShadow: "0 2px 5px rgba(0,0,0,0.1)",
+        boxShadow: boxShadow,
       }}
     >
-      <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 5 }}>
+      <div
+        style={{
+          fontSize: 14,
+          fontWeight: 600,
+          marginBottom: 5,
+          color: textColor,
+        }}
+      >
         Legend
       </div>
       {types.map((item) => (
@@ -414,7 +431,7 @@ const Legend = () => {
           >
             {getNodeIcon(item.type)}
           </div>
-          <div style={{ fontSize: 12 }}>{item.label}</div>
+          <div style={{ fontSize: 12, color: textColor }}>{item.label}</div>
         </div>
       ))}
     </div>
@@ -600,13 +617,45 @@ const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
 
       // Filter relationships based on filterNode if provided
       if (filterNode) {
+        const connectedNodes = new Set<string>();
+
+        const filterNodeId = `${getNodePrefix(filterNode.type)}-${filterNode.name}`;
+        connectedNodes.add(filterNodeId);
+
+        // Function to recursively find all connected nodes
+        const findConnectedNodes = (nodeId: string, isDownstream: boolean) => {
+          relationshipsToShow.forEach((rel) => {
+            const sourceId = `${getNodePrefix(rel.source.type)}-${rel.source.name}`;
+            const targetId = `${getNodePrefix(rel.target.type)}-${rel.target.name}`;
+
+            if (
+              isDownstream &&
+              sourceId === nodeId &&
+              !connectedNodes.has(targetId)
+            ) {
+              connectedNodes.add(targetId);
+              findConnectedNodes(targetId, isDownstream);
+            }
+
+            if (
+              !isDownstream &&
+              targetId === nodeId &&
+              !connectedNodes.has(sourceId)
+            ) {
+              connectedNodes.add(sourceId);
+              findConnectedNodes(sourceId, isDownstream);
+            }
+          });
+        };
+
+        findConnectedNodes(filterNodeId, true);
+
+        findConnectedNodes(filterNodeId, false);
+
         relationshipsToShow = relationshipsToShow.filter((rel) => {
-          return (
-            (rel.source.type === filterNode.type &&
-              rel.source.name === filterNode.name) ||
-            (rel.target.type === filterNode.type &&
-              rel.target.name === filterNode.name)
-          );
+          const sourceId = `${getNodePrefix(rel.source.type)}-${rel.source.name}`;
+          const targetId = `${getNodePrefix(rel.target.type)}-${rel.target.name}`;
+          return connectedNodes.has(sourceId) && connectedNodes.has(targetId);
         });
       }
 

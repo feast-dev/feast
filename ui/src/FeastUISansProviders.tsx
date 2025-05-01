@@ -5,6 +5,7 @@ import "./index.css";
 
 import { Routes, Route } from "react-router-dom";
 import { EuiProvider, EuiErrorBoundary } from "@elastic/eui";
+import { ThemeProvider, useTheme } from "./contexts/ThemeContext";
 
 import ProjectOverviewPage from "./pages/ProjectOverviewPage";
 import Layout from "./pages/Layout";
@@ -70,7 +71,29 @@ const FeastUISansProviders = ({
         };
 
   return (
-    <EuiProvider colorMode="light">
+    <ThemeProvider>
+      <FeastUISansProvidersInner
+        basename={basename}
+        projectListContext={projectListContext}
+        feastUIConfigs={feastUIConfigs}
+      />
+    </ThemeProvider>
+  );
+};
+
+const FeastUISansProvidersInner = ({
+  basename,
+  projectListContext,
+  feastUIConfigs,
+}: {
+  basename: string;
+  projectListContext: ProjectsListContextInterface;
+  feastUIConfigs?: FeastUIConfigs;
+}) => {
+  const { colorMode } = useTheme();
+
+  return (
+    <EuiProvider colorMode={colorMode}>
       <EuiErrorBoundary>
         <TabsRegistryContext.Provider
           value={feastUIConfigs?.tabsRegistry || {}}
