@@ -22,7 +22,9 @@ import ProjectSelector from "../components/ProjectSelector";
 import Sidebar from "./Sidebar";
 import FeastWordMark from "../graphics/FeastWordMark";
 import ThemeToggle from "../components/ThemeToggle";
-import RegistrySearch, { RegistrySearchRef } from "../components/RegistrySearch";
+import RegistrySearch, {
+  RegistrySearchRef,
+} from "../components/RegistrySearch";
 import GlobalSearchShortcut from "../components/GlobalSearchShortcut";
 
 const Layout = () => {
@@ -120,7 +122,12 @@ const Layout = () => {
             {isSearchOpen && data && (
               <EuiPageHeader
                 paddingSize="l"
-                style={{ position: 'sticky', top: 0, zIndex: 100, borderBottom: '1px solid #D3DAE6' }}
+                style={{
+                  position: "sticky",
+                  top: 0,
+                  zIndex: 100,
+                  borderBottom: "1px solid #D3DAE6",
+                }}
               >
                 <EuiFlexGroup>
                   <EuiFlexItem>

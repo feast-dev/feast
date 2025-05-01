@@ -4,7 +4,9 @@ interface GlobalSearchShortcutProps {
   onOpen: () => void;
 }
 
-const GlobalSearchShortcut: React.FC<GlobalSearchShortcutProps> = ({ onOpen }) => {
+const GlobalSearchShortcut: React.FC<GlobalSearchShortcutProps> = ({
+  onOpen,
+}) => {
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key === "k") {
