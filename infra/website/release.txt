@@ -1,0 +1,934 @@
+[12:40:54 PM] [semantic-release] › ℹ  Running semantic-release version 24.2.3
+[12:40:54 PM] [semantic-release] › ✔  Loaded plugin "verifyConditions" from "@semantic-release/npm"
+[12:40:54 PM] [semantic-release] › ✔  Loaded plugin "verifyConditions" from "@semantic-release/github"
+[12:40:54 PM] [semantic-release] › ✔  Loaded plugin "analyzeCommits" from "@semantic-release/commit-analyzer"
+[12:40:54 PM] [semantic-release] › ✔  Loaded plugin "generateNotes" from "@semantic-release/release-notes-generator"
+[12:40:54 PM] [semantic-release] › ✔  Loaded plugin "prepare" from "@semantic-release/npm"
+[12:40:54 PM] [semantic-release] › ✔  Loaded plugin "publish" from "@semantic-release/npm"
+[12:40:54 PM] [semantic-release] › ✔  Loaded plugin "publish" from "@semantic-release/github"
+[12:40:54 PM] [semantic-release] › ✔  Loaded plugin "addChannel" from "@semantic-release/npm"
+[12:40:54 PM] [semantic-release] › ✔  Loaded plugin "addChannel" from "@semantic-release/github"
+[12:40:54 PM] [semantic-release] › ✔  Loaded plugin "success" from "@semantic-release/github"
+[12:40:54 PM] [semantic-release] › ✔  Loaded plugin "fail" from "@semantic-release/github"
+[12:41:11 PM] [semantic-release] › ✔  Allowed to push to the Git repository
+[12:41:11 PM] [semantic-release] › ℹ  Start step "verifyConditions" of plugin "@semantic-release/npm"
+[12:41:11 PM] [semantic-release] › ✔  Completed step "verifyConditions" of plugin "@semantic-release/npm"
+[12:41:11 PM] [semantic-release] › ℹ  Start step "verifyConditions" of plugin "@semantic-release/github"
+[12:41:11 PM] [semantic-release] [@semantic-release/github] › ℹ  Verify GitHub authentication
+[12:41:11 PM] [semantic-release] › ✔  Completed step "verifyConditions" of plugin "@semantic-release/github"
+[12:41:11 PM] [semantic-release] › ℹ  Found git tag v0.47.0 associated with version 0.47.0 on branch master
+[12:41:12 PM] [semantic-release] › ℹ  Found 58 commits since last release
+[12:41:12 PM] [semantic-release] › ℹ  Start step "analyzeCommits" of plugin "@semantic-release/commit-analyzer"
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix: Fix milvus online_read (#5233)
+
+Signed-off-by: ntkathole <nikhilkathole2683@gmail.com>
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: chore: In operator `rhoai` overlay, use digest for cronjob image declaration (#5241)
+
+in operator rhoai overlay, use digest for cronjob image declaration
+
+Signed-off-by: Tommy Hughes <tohughes@redhat.com>
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix: Resolve `no pq wrapper` import issue (#5240)
+
+fix: Resolve "no pq wrapper" issue
+
+Signed-off-by: Tommy Hughes <tohughes@redhat.com>
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: ci: Remove psycopg direct dependency as `extra`, move requirements file to offline build dir  (#5234)
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: chore(release): release 0.48.0
+
+# [0.48.0](https://github.com/feast-dev/feast/compare/v0.47.0...v0.48.0) (2025-04-07)
+
+### Bug Fixes
+
+* Enhance integration logos display and styling in the UI ([#5221](https://github.com/feast-dev/feast/issues/5221)) ([5799257](https://github.com/feast-dev/feast/commit/57992574fd87ebe9d24f7a7e837f5bf4e0c21651))
+* Fix space typo in push.md docs ([#5184](https://github.com/feast-dev/feast/issues/5184)) ([81677b2](https://github.com/feast-dev/feast/commit/81677b2197438fc5f5994e40b10421bce8b3f25c))
+* Fixed integration tests for qdrant and milvus ([#5224](https://github.com/feast-dev/feast/issues/5224)) ([d6b080d](https://github.com/feast-dev/feast/commit/d6b080d06b1fd27a8f4835d523e93209eea8b9fd))
+* Formatting trino ([760ec0e](https://github.com/feast-dev/feast/commit/760ec0ee7e628cdecc9289d56c1d1915f33a4f75))
+* Multiple fixes in retrieval of online documents ([#5168](https://github.com/feast-dev/feast/issues/5168)) ([66ddd3e](https://github.com/feast-dev/feast/commit/66ddd3ef376044fc79d7edf64281b8ff85c46647))
+* Operator route creation for Feast UI in OpenShift ([e3946b4](https://github.com/feast-dev/feast/commit/e3946b4ad8392440afbf70f9724206bf09a51a9f))
+* Remove entity_rows parameter from retrieve_online_documents_v2 call ([#5225](https://github.com/feast-dev/feast/issues/5225)) ([2a2e304](https://github.com/feast-dev/feast/commit/2a2e3047b238db38fcd3129a6cbb1f9f9b9110fb))
+* Styling ([#5222](https://github.com/feast-dev/feast/issues/5222)) ([34c393c](https://github.com/feast-dev/feast/commit/34c393cedde6e42b5d0cab118b508cb4de515f1f))
+* typo in the chart ([bd3448b](https://github.com/feast-dev/feast/commit/bd3448b969348adfa1945395859a101b65f4f555))
+* Update milvus-quickstart and feature_store.yaml with correct Milvus Config ([#5200](https://github.com/feast-dev/feast/issues/5200)) ([306acca](https://github.com/feast-dev/feast/commit/306acca510fb90f51ed3de431cfe20f76dc4c971))
+* Update Qdrant online store paths in repo_config.py ([#5207](https://github.com/feast-dev/feast/issues/5207)) ([ab35b0b](https://github.com/feast-dev/feast/commit/ab35b0bf09a3c0185940078b5f52c56af5c5dcc3)), closes [#5206](https://github.com/feast-dev/feast/issues/5206)
+* Update the doc ([#5194](https://github.com/feast-dev/feast/issues/5194)) ([726464e](https://github.com/feast-dev/feast/commit/726464e889083fa8f0eadcb42fd466bd6bc64594))
+* Updated the operator-rabc example to test RBAC from a Kubernete pod ([#5147](https://github.com/feast-dev/feast/issues/5147)) ([d23a1a5](https://github.com/feast-dev/feast/commit/d23a1a573119b3add54bdfa071ecce2fa2d16c97))
+
+### Features
+
+* add `real`(float32) type for trino offline store ([#4749](https://github.com/feast-dev/feast/issues/4749)) ([0947f96](https://github.com/feast-dev/feast/commit/0947f969dbf49700e8adf85ac23659241c1c2601))
+* Add async DynamoDB timeout and retry configuration ([#5178](https://github.com/feast-dev/feast/issues/5178)) ([2f3bcf5](https://github.com/feast-dev/feast/commit/2f3bcf5f0ccbe109bec6bc10cd7c33d6f70cab84))
+* Add CronJob capability to the Operator (feast apply & materialize-incremental) ([#5217](https://github.com/feast-dev/feast/issues/5217)) ([285c0dc](https://github.com/feast-dev/feast/commit/285c0dc94365710230985821ada510872e99b084))
+* Add RAG tutorial and Use Cases documentation ([#5226](https://github.com/feast-dev/feast/issues/5226)) ([99f4004](https://github.com/feast-dev/feast/commit/99f40047645fd820e4b741d19d20958c03ac9dae))
+* Added CLI for features, get historical and online features ([#5197](https://github.com/feast-dev/feast/issues/5197)) ([4ab9f74](https://github.com/feast-dev/feast/commit/4ab9f746050daa0cee10badd5c537bbcc598933b))
+* Added export support in feast UI ([#5198](https://github.com/feast-dev/feast/issues/5198)) ([b079553](https://github.com/feast-dev/feast/commit/b0795533b83c984d897179e2b1caa459cf79f7e0))
+* Added global registry search support in Feast UI ([#5195](https://github.com/feast-dev/feast/issues/5195)) ([f09ea49](https://github.com/feast-dev/feast/commit/f09ea4958b7cc2ec2c1d3095e538aea278d934fc))
+* Added UI for Features list ([#5192](https://github.com/feast-dev/feast/issues/5192)) ([cc7fd47](https://github.com/feast-dev/feast/commit/cc7fd474113871f92747b1b9ca5aa6441fe860f4))
+* Adding blog on RAG with Milvus ([#5161](https://github.com/feast-dev/feast/issues/5161)) ([b9e2e6c](https://github.com/feast-dev/feast/commit/b9e2e6cdd9fb425fbe5839285c7f5a61620e63de))
+* Adding Docling RAG demo ([#5109](https://github.com/feast-dev/feast/issues/5109)) ([569404b](https://github.com/feast-dev/feast/commit/569404b01d761dd49fd1930143e618f5be6612e1))
+* Allow transformations on writes to output list of entities ([#5209](https://github.com/feast-dev/feast/issues/5209)) ([955521a](https://github.com/feast-dev/feast/commit/955521acc949e8bb314e68bcc95ce56cdbf74d11))
+* Cache get_any_feature_view results ([#5175](https://github.com/feast-dev/feast/issues/5175)) ([924b8a3](https://github.com/feast-dev/feast/commit/924b8a384f7f8da903f281004f44506a42cd5e13))
+* Clickhouse offline store ([#4725](https://github.com/feast-dev/feast/issues/4725)) ([86794c2](https://github.com/feast-dev/feast/commit/86794c22f7b9768da52eeab9d0d50e4f6e673179))
+* Enable keyword search for Milvus ([#5199](https://github.com/feast-dev/feast/issues/5199)) ([ac44967](https://github.com/feast-dev/feast/commit/ac449671cb5f59d2b8040f37b665c0cb0bc1235d))
+* Enable transformations on PDFs ([#5172](https://github.com/feast-dev/feast/issues/5172)) ([3674971](https://github.com/feast-dev/feast/commit/367497161313dc0984fe815f8be740873c8c8a8c))
+* Enable users to use Entity Query as CTE during historical retrieval ([#5202](https://github.com/feast-dev/feast/issues/5202)) ([fe69eaf](https://github.com/feast-dev/feast/commit/fe69eaff7eb9cbc5d2725f113f9ce1bd4539859a))
+* helm support more deployment config ([d575372](https://github.com/feast-dev/feast/commit/d575372f54c29ced8bfd6e6df15defa461830136))
+* Improved CLI file structuring ([#5201](https://github.com/feast-dev/feast/issues/5201)) ([972ed34](https://github.com/feast-dev/feast/commit/972ed344a39705ad8c4501cf35c59aa502100ac8))
+* Kickoff Transformation implementationtransformation code base ([#5181](https://github.com/feast-dev/feast/issues/5181)) ([0083303](https://github.com/feast-dev/feast/commit/00833033eda041d8f8146b322145b6f1d8ff7d1c))
+* Make keep-alive timeout configurable for async DynamoDB connections ([#5167](https://github.com/feast-dev/feast/issues/5167)) ([7f3e528](https://github.com/feast-dev/feast/commit/7f3e528f4493e306201e46dfd5bfbda5a59d3ef7))
+* Operator mounts the odh-trusted-ca-bundle configmap when deployed on RHOAI or ODH ([d4d7b0d](https://github.com/feast-dev/feast/commit/d4d7b0d2a7ecf2d8daa79c51ecc70e8bba8106f3))
+* Spark Transformation ([#5185](https://github.com/feast-dev/feast/issues/5185)) ([be3d85c](https://github.com/feast-dev/feast/commit/be3d85c5048cf469e65264b5dd465e2e585b67b8))
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix: Updated the operator-rabc example to test RBAC from a Kubernete pod (#5147)
+
+fix: Updated the operator-rabc example to test RBAC from a Kubernetes pod
+
+Signed-off-by: Abdul Hameed <ahameed@redhat.com>
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: chore: Add kustomize overlay to Operator for RHOAI install support
+
+Signed-off-by: Tommy Hughes <tohughes@redhat.com>
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat: Add RAG tutorial and Use Cases documentation (#5226)
+
+Co-authored-by: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix: Remove entity_rows parameter from retrieve_online_documents_v2 call (#5225)
+
+Fix: Remove entity_rows parameter from retrieve_online_documents_v2 call
+
+Co-authored-by: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix: Fixed integration tests for qdrant and milvus (#5224)
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix: Styling (#5222)
+
+fix styling
+
+Signed-off-by: yassinnouh21 <yassinnouh21@gmail.com>
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix: Enhance integration logos display and styling in the UI (#5221)
+
+* feat: Enhance integration logos display and styling in the UI
+
+Signed-off-by: yassinnouh21 <yassinnouh21@gmail.com>
+
+* feat: add qdrant svg
+
+Signed-off-by: yassinnouh21 <yassinnouh21@gmail.com>
+
+---------
+
+Signed-off-by: yassinnouh21 <yassinnouh21@gmail.com>
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix: Formatting trino
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat: add `real`(float32) type for trino offline store (#4749)
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat: Add CronJob capability to the Operator (feast apply & materialize-incremental) (#5217)
+
+feast cronJob
+
+Signed-off-by: Tommy Hughes <tohughes@redhat.com>
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Fix broken link to registry documentation (#5219)
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: ci: Revert matrix changes to linter GH Action (#5218)
+
+ci: Revert matrix changes to linter gh action
+
+Signed-off-by: Tommy Hughes <tohughes@redhat.com>
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: chore: Support "offline" source builds of the `feature-server` image (#5193)
+
+* support offline source builds for feature-server image
+
+Signed-off-by: Tommy Hughes <tohughes@redhat.com>
+
+* offline build review changes
+
+Signed-off-by: Tommy Hughes <tohughes@redhat.com>
+
+---------
+
+Signed-off-by: Tommy Hughes <tohughes@redhat.com>
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat: Adding blog on RAG with Milvus (#5161)
+
+* feat: Adding blog on RAG with Milvus
+
+Signed-off-by: Francisco Javier Arceo <arceofrancisco@gmail.com>
+
+* minor changes
+
+Signed-off-by: Francisco Javier Arceo <arceofrancisco@gmail.com>
+
+* Adding diagram
+
+* Rename image.png to milvus-rag.png
+
+* Update retrieval-augmentation-with-feast.md
+
+* incorporating Willem's feedback
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+
+* adjust blog and image
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+
+* updated copy
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+
+* adding github link
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+
+* finished blog post, good enough
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+
+---------
+
+Signed-off-by: Francisco Javier Arceo <arceofrancisco@gmail.com>
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat: Adding Docling RAG demo (#5109)
+
+* feat: Adding Docling RAG demo
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+
+* updated demo
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+
+* cleaned up notebook
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+
+* adding chunk id
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+
+* adding quickstart demo that is WIP and updating docling-demo to export unique chunk-id
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+
+* adding current tentative exmaple repo
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+
+* adding current temporary work
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+
+* updating demo script to rename things
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+
+* updated quickstart
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+
+* added comment
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+
+* checking in progress
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+
+* checking in progress for now, still have some issues with vector retrieval
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+
+* okay think i have most things working
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+
+* removing commenting and unnecessary code
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+
+* uploading demo
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+
+* uploading other files
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+
+* updated repo exaxmple
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+
+* checking in current notebook, almost there
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+
+* fixed linter
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+
+* fixed transformation logic:
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+
+* removed print
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+
+* added README with description
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+
+* removing print
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+
+* updating
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+
+* updating metadata file
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+
+* updated readme and adding dataset
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+
+---------
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat: Allow transformations on writes to output list of entities (#5209)
+
+* feat: Adding Docling RAG demo
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+
+* updated demo
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+
+* cleaned up notebook
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+
+* adding chunk id
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+
+* adding quickstart demo that is WIP and updating docling-demo to export unique chunk-id
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+
+* adding current tentative exmaple repo
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+
+* adding current temporary work
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+
+* updating demo script to rename things
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+
+* updated quickstart
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+
+* added comment
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+
+* checking in progress
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+
+* checking in progress for now, still have some issues with vector retrieval
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+
+* okay think i have most things working
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+
+* removing commenting and unnecessary code
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+
+* uploading demo
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+
+* uploading other files
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+
+* updated repo exaxmple
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+
+* checking in current notebook, almost there
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+
+* fixed linter
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+
+* fixed transformation logic:
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+
+* removed print
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+
+* added README with description
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+
+* removing print
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+
+* updating
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+
+* updating metadata file
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+
+* updated readme and adding dataset
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+
+* removing files
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+
+---------
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix: Update Qdrant online store paths in repo_config.py (#5207)
+
+Fixes incorrect module paths for Qdrant online store in both LEGACY_ONLINE_STORE_CLASS_FOR_TYPE and ONLINE_STORE_CLASS_FOR_TYPE dictionaries. Updates paths from non-existent module to correct location at feast.infra.online_stores.qdrant_online_store.qdrant.QdrantOnlineStore.
+
+Fixes #5206
+
+Signed-off-by: Yassin Nouh <70436855+YassinNouh21@users.noreply.github.com>
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat: Enable users to use Entity Query as CTE during historical retrieval (#5202)
+
+* entity query as cte
+
+Signed-off-by: Blake <blaketastic2@gmail.com>
+
+* formatting
+
+Signed-off-by: Blake <blaketastic2@gmail.com>
+
+* backward compatible
+
+Signed-off-by: Blake <blaketastic2@gmail.com>
+
+* updated docs
+
+Signed-off-by: Blake <blaketastic2@gmail.com>
+
+* jinja2 template fix
+
+Signed-off-by: Blake <blaketastic2@gmail.com>
+
+* test data
+
+Signed-off-by: Blake <blaketastic2@gmail.com>
+
+---------
+
+Signed-off-by: Blake <blaketastic2@gmail.com>
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat: Improved CLI file structuring (#5201)
+
+Signed-off-by: ntkathole <nikhilkathole2683@gmail.com>
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat: Enable keyword search for Milvus (#5199)
+
+* feat: Add support for hybrid search with vector and text queries in Milvus
+
+Signed-off-by: Yassin Nouh <70436855+YassinNouh21@users.noreply.github.com>
+Signed-off-by: yassinnouh21 <yassinnouh21@gmail.com>
+
+* test: Add keyword and hybrid search tests for Milvus online store
+
+Signed-off-by: Yassin Nouh <70436855+YassinNouh21@users.noreply.github.com>
+Signed-off-by: yassinnouh21 <yassinnouh21@gmail.com>
+
+* fix linter
+
+Signed-off-by: Yassin Nouh <70436855+YassinNouh21@users.noreply.github.com>
+Signed-off-by: yassinnouh21 <yassinnouh21@gmail.com>
+
+* fix linter 2
+
+Signed-off-by: yassinnouh21 <yassinnouh21@gmail.com>
+
+---------
+
+Signed-off-by: Yassin Nouh <70436855+YassinNouh21@users.noreply.github.com>
+Signed-off-by: yassinnouh21 <yassinnouh21@gmail.com>
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix: Update milvus-quickstart and feature_store.yaml with correct Milvus Config (#5200)
+
+fix: update milvus-quickstart and feature_store.yaml with correct Milvus configuration
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat: Added export support in feast UI (#5198)
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat: Added CLI for features, get historical and online features (#5197)
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix: Update the doc (#5194)
+
+fix: update the doc
+
+Signed-off-by: Abdul Hameed <ahameed@redhat.com>
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat: Added global registry search support in Feast UI (#5195)
+
+* feat: Added global search feature at UI homepage
+
+Signed-off-by: ntkathole <nikhilkathole2683@gmail.com>
+
+* feat: Made searched items linkable
+
+Signed-off-by: ntkathole <nikhilkathole2683@gmail.com>
+
+* feat: RegistrySearch component
+
+Signed-off-by: ntkathole <nikhilkathole2683@gmail.com>
+
+* fix: fix load elements only after registry load
+
+Signed-off-by: ntkathole <nikhilkathole2683@gmail.com>
+
+---------
+
+Signed-off-by: ntkathole <nikhilkathole2683@gmail.com>
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix: Multiple fixes in retrieval of online documents (#5168)
+
+* Fixed Retrive online documents for serialization ver 3
+
+Signed-off-by: jyejare <jyejare@redhat.com>
+
+* Dynamic vector field name
+
+Signed-off-by: jyejare <jyejare@redhat.com>
+
+* Requested only features with values
+
+Signed-off-by: jyejare <jyejare@redhat.com>
+
+* Removing the singular feature parameter for doc retrieval
+
+Signed-off-by: jyejare <jyejare@redhat.com>
+
+* Documentation and other DBs test fixes
+
+Signed-off-by: jyejare <jyejare@redhat.com>
+
+* Review Fixes
+
+Signed-off-by: jyejare <jyejare@redhat.com>
+
+---------
+
+Signed-off-by: jyejare <jyejare@redhat.com>
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat: Added UI for Features list (#5192)
+
+Signed-off-by: ntkathole <nikhilkathole2683@gmail.com>
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix: typo in the chart
+
+Signed-off-by: Mustahsan1 <mustahsanmustafa@gmail.com>
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix: Fix space typo in push.md docs (#5184)
+
+fix: Update push.md to fix space typo
+
+Signed-off-by: Hyunwoo Kim <qrlagusdn@naver.com>
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat: Spark Transformation (#5185)
+
+* add spark transformation
+
+Signed-off-by: HaoXuAI <sduxuhao@gmail.com>
+
+* fix lint
+
+Signed-off-by: HaoXuAI <sduxuhao@gmail.com>
+
+* fix lint issue
+
+Signed-off-by: HaoXuAI <sduxuhao@gmail.com>
+
+* fix unit test
+
+Signed-off-by: HaoXuAI <sduxuhao@gmail.com>
+
+* add doc
+
+Signed-off-by: HaoXuAI <sduxuhao@gmail.com>
+
+* add doc
+
+Signed-off-by: HaoXuAI <sduxuhao@gmail.com>
+
+---------
+
+Signed-off-by: HaoXuAI <sduxuhao@gmail.com>
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: chore: Add format-ui Makefile target
+
+This was requested in #5149.
+
+Signed-off-by: Harri Lehtola <peruukki@hotmail.com>
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: chore: Add compiled go test binary in github release assets
+
+Signed-off-by: ntkathole <nikhilkathole2683@gmail.com>
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat: Operator mounts the odh-trusted-ca-bundle configmap when deployed on RHOAI or ODH
+
+Signed-off-by: Abdul Hameed <ahameed@redhat.com>
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat: Add async DynamoDB timeout and retry configuration (#5178)
+
+* Add async DynamoDB timeout and retry configuration
+
+Signed-off-by: Sebastian Jäger <sebastjaeger@gmail.com>
+
+* Use union sytnax
+
+Signed-off-by: Sebastian Jäger <sebastjaeger@gmail.com>
+
+* Move retry configutation into top level, remove max_attempts
+
+Signed-off-by: Sebastian Jäger <sebastjaeger@gmail.com>
+
+* Add explicity type hint to retries dict
+
+Signed-off-by: Sebastian Jäger <sebastjaeger@gmail.com>
+
+* Update docstrings
+
+Signed-off-by: Sebastian Jäger <sebastjaeger@gmail.com>
+
+* Fix docstrings
+
+Signed-off-by: Sebastian Jäger <sebastjaeger@gmail.com>
+
+* Update doc string, use None as retries default
+
+Signed-off-by: Sebastian Jäger <sebastjaeger@gmail.com>
+
+---------
+
+Signed-off-by: Sebastian Jäger <sebastjaeger@gmail.com>
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: docs: Removed ref to unused kind (#5183)
+
+removed ref to unused kind
+
+Signed-off-by: dandawg <12484302+dandawg@users.noreply.github.com>
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat: Kickoff Transformation implementationtransformation code base (#5181)
+
+* transformation code base
+
+Signed-off-by: HaoXuAI <sduxuhao@gmail.com>
+
+* add back master change to resovle unit test error
+
+Signed-off-by: HaoXuAI <sduxuhao@gmail.com>
+
+* add back master change to resovle unit test error
+
+Signed-off-by: HaoXuAI <sduxuhao@gmail.com>
+
+* fix linthing
+
+Signed-off-by: HaoXuAI <sduxuhao@gmail.com>
+
+* fix linthing
+
+Signed-off-by: HaoXuAI <sduxuhao@gmail.com>
+
+* add back master change to resovle unit test error
+
+Signed-off-by: HaoXuAI <sduxuhao@gmail.com>
+
+---------
+
+Signed-off-by: HaoXuAI <sduxuhao@gmail.com>
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: ci: Ensure consistent code formatting in /ui with Prettier (#5149)
+
+I tried some Prettier options (https://prettier.io/docs/options), but the
+defaults seem perfectly fine for this project (see also Prettier's option
+philosophy in https://prettier.io/docs/option-philosophy):
+
+- most changes are in unifying quotes to double quotes, which we mostly use
+  in src/, but have single quotes in the files in config/ that were auto
+  generated when ejecting create-react-app
+
+- we mostly had es5 style trailing commas (https://prettier.io/docs/options#trailing-commas)
+  in src/, but inserting trailing commas wherever possible minimizes
+  changed lines when adding items to multi-line lists
+
+All formatting changes in code or config files were the result of running
+`yarn format`.
+
+Signed-off-by: Harri Lehtola <peruukki@hotmail.com>
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat: Cache get_any_feature_view results (#5175)
+
+Cache get_any_feature_view results
+
+Signed-off-by: Sebastian Jäger <sebastjaeger@gmail.com>
+Co-authored-by: Sebastian Jäger <sebastian.jaeger@ratepay.com>
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat: Enable transformations on PDFs (#5172)
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat: Make keep-alive timeout configurable for async DynamoDB connections (#5167)
+
+Make keepalive_timeout configurable
+
+Signed-off-by: Sebastian Jäger <sebastjaeger@gmail.com>
+Co-authored-by: Sebastian Jäger <sebastian.jaeger@ratepay.com>
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: chore: Create TRIAGE_LIST.md
+
+Creating triage list to help manage issues.
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: chore: fix feast website title
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat: helm support more deployment config
+
+Signed-off-by: maodahua <maodahua@outlook.com>
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: chore: fix broken blog post links and CSS
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: chore: Add new website (#5150)
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat: Clickhouse offline store (#4725)
+
+* Clickhouse offline store - initial working version
+
+Signed-off-by: Tomasz Wrona <tomasz@cast.ai>
+
+* Remove untested `pull_all_from_table_or_query`
+
+Signed-off-by: Tomasz Wrona <tomasz@cast.ai>
+
+* Reorder functions
+
+Signed-off-by: Tomasz Wrona <tomasz@cast.ai>
+
+* Remove commented line
+
+Signed-off-by: Tomasz Wrona <tomasz@cast.ai>
+
+* Fix frozen mypy errors
+
+Signed-off-by: Tomasz Wrona <tomasz@cast.ai>
+
+* mypy fixes; remove online source creator
+
+Signed-off-by: Tomasz Wrona <tomasz@cast.ai>
+
+* Remove commented code
+
+Signed-off-by: Tomasz Wrona <tomasz@cast.ai>
+
+* Added docs
+
+Signed-off-by: Tomasz Wrona <tomasz@cast.ai>
+
+* Python 3.9 deps
+
+Signed-off-by: Tomasz Wrona <tomasz@cast.ai>
+
+* Python 3.10 deps
+
+Signed-off-by: Tomasz Wrona <tomasz@cast.ai>
+
+* Python 3.11 deps (updated)
+
+Signed-off-by: Tomasz Wrona <tomasz@cast.ai>
+
+* Remove unused ClickhouseOnlineStoreConfig
+
+Signed-off-by: Tomasz Wrona <tomasz@cast.ai>
+
+* Regenerate requirements.txt files
+
+Signed-off-by: Tomasz Wrona <tomasz@cast.ai>
+
+* Lint & format fixes
+
+Signed-off-by: Tomasz Wrona <tomasz@cast.ai>
+
+* Regenerate requirements.txt files
+
+Signed-off-by: Tomasz Wrona <tomasz@cast.ai>
+
+* Add clickhouse to pyproject.toml
+
+Signed-off-by: Tomasz Wrona <tomasz@cast.ai>
+
+* Fix dependencies
+
+Signed-off-by: Tomasz Wrona <tomasz@cast.ai>
+
+* Simplify names
+
+Signed-off-by: Tomasz Wrona <tomasz@cast.ai>
+
+* Skip problematic Clickhouse tests
+
+Signed-off-by: Tomasz Wrona <tomasz@cast.ai>
+
+* format & lint
+
+Signed-off-by: Tomasz Wrona <tomasz@cast.ai>
+
+* Post-merge `make lock-python-dependencies-all`
+
+Signed-off-by: Tomasz Wrona <tomasz@cast.ai>
+
+* Pin torch to 2.2.2
+
+Signed-off-by: Tomasz Wrona <tomasz@cast.ai>
+
+---------
+
+Signed-off-by: Tomasz Wrona <tomasz@cast.ai>
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: chore: Decommission the feast-helm-operator (#5139)
+
+chore: Decommision the feast-helm-operator
+
+Signed-off-by: Tommy Hughes <tohughes@redhat.com>
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix: Operator route creation for Feast UI in OpenShift
+
+Signed-off-by: Abdul Hameed <ahameed@redhat.com>
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: test: Fix for integration tests (#5126)
+
+* chore: Fixing Milvus integration test configuration
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+
+* chore: Fix Milvus integration tests
+
+Signed-off-by: ntkathole <nikhilkathole2683@gmail.com>
+
+* Make sure all entities have values
+
+Signed-off-by: ntkathole <nikhilkathole2683@gmail.com>
+
+* Fixed test_retrieve_online_milvus_documents
+
+Signed-off-by: ntkathole <nikhilkathole2683@gmail.com>
+
+---------
+
+Signed-off-by: Francisco Javier Arceo <farceo@redhat.com>
+Signed-off-by: ntkathole <nikhilkathole2683@gmail.com>
+Co-authored-by: Francisco Javier Arceo <farceo@redhat.com>
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: add multicloud requirements file to release CI
+
+Signed-off-by: Tommy Hughes <tohughes@redhat.com>
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: ci: Increase available VM storage for `master_only` & `build_wheels` workflows (#5131)
+
+chore: Increase available VM storage for master_only action
+
+Signed-off-by: Tommy Hughes <tohughes@redhat.com>
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: ci: Load docker build for helm-operator (cherry-pick) (#5134)
+
+load helm-operator docker build
+
+Signed-off-by: Tommy Hughes <tohughes@redhat.com>
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Update publish_helm_charts.yml
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[12:41:12 PM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analysis of 58 commits complete: minor release
+[12:41:12 PM] [semantic-release] › ✔  Completed step "analyzeCommits" of plugin "@semantic-release/commit-analyzer"
+[12:41:12 PM] [semantic-release] › ℹ  The next release version is 0.48.0
+[12:41:12 PM] [semantic-release] › ℹ  Start step "generateNotes" of plugin "@semantic-release/release-notes-generator"
+[12:41:12 PM] [semantic-release] › ✔  Completed step "generateNotes" of plugin "@semantic-release/release-notes-generator"
+[12:41:12 PM] [semantic-release] › ✔  Published release 0.48.0 on default channel
+[12:41:12 PM] [semantic-release] › ℹ  Release note for version 0.48.0:
+# 0.48.0 (https://github.com/feast-dev/feast/compare/v0.47.0...v0.48.0) (2025-04-08)
+
+### Bug Fixes
+
+    * Enhance integration logos display and styling in the UI (#5221 (https://github.com/feast-dev/feast/issues/5221)) (5799257 (https://github.com/feast-dev/feast/commit/57992574fd87ebe9d24f7a7e837f5bf4e0c21651))
+    * Fix milvus online_read (#5233 (https://github.com/feast-dev/feast/issues/5233)) (4b91f26 (https://github.com/feast-dev/feast/commit/4b91f26ded28c709a8aeb220c2a7ce34fbc91a7b))
+    * Fix space typo in push.md docs (#5184 (https://github.com/feast-dev/feast/issues/5184)) (81677b2 (https://github.com/feast-dev/feast/commit/81677b2197438fc5f5994e40b10421bce8b3f25c))
+    * Fixed integration tests for qdrant and milvus (#5224 (https://github.com/feast-dev/feast/issues/5224)) (d6b080d (https://github.com/feast-dev/feast/commit/d6b080d06b1fd27a8f4835d523e93209eea8b9fd))
+    * Formatting trino (760ec0e (https://github.com/feast-dev/feast/commit/760ec0ee7e628cdecc9289d56c1d1915f33a4f75))
+    * Multiple fixes in retrieval of online documents (#5168 (https://github.com/feast-dev/feast/issues/5168)) (66ddd3e (https://github.com/feast-dev/feast/commit/66ddd3ef376044fc79d7edf64281b8ff85c46647))
+    * Operator route creation for Feast UI in OpenShift (e3946b4 (https://github.com/feast-dev/feast/commit/e3946b4ad8392440afbf70f9724206bf09a51a9f))
+    * Remove entity_rows parameter from retrieve_online_documents_v2 call (#5225 (https://github.com/feast-dev/feast/issues/5225)) (2a2e304 (https://github.com/feast-dev/feast/commit/2a2e3047b238db38fcd3129a6cbb1f9f9b9110fb))
+    * Resolve no pq wrapper import issue (#5240 (https://github.com/feast-dev/feast/issues/5240)) (d5906f1 (https://github.com/feast-dev/feast/commit/d5906f13125a4e63e3ae1f3a6c3830dda2c66d51))
+    * Styling (#5222 (https://github.com/feast-dev/feast/issues/5222)) (34c393c (https://github.com/feast-dev/feast/commit/34c393cedde6e42b5d0cab118b508cb4de515f1f))
+    * typo in the chart (bd3448b (https://github.com/feast-dev/feast/commit/bd3448b969348adfa1945395859a101b65f4f555))
+    * Update milvus-quickstart and feature_store.yaml with correct Milvus Config (#5200 (https://github.com/feast-dev/feast/issues/5200)) (306acca (https://github.com/feast-dev/feast/commit/306acca510fb90f51ed3de431cfe20f76dc4c971))
+    * Update Qdrant online store paths in repo_config.py (#5207 (https://github.com/feast-dev/feast/issues/5207)) (ab35b0b (https://github.com/feast-dev/feast/commit/ab35b0bf09a3c0185940078b5f52c56af5c5dcc3)), closes #5206 (https://github.com/feast-dev/feast/issues/5206)
+    * Update the doc (#5194 (https://github.com/feast-dev/feast/issues/5194)) (726464e (https://github.com/feast-dev/feast/commit/726464e889083fa8f0eadcb42fd466bd6bc64594))
+    * Updated the operator-rabc example to test RBAC from a Kubernete pod (#5147 (https://github.com/feast-dev/feast/issues/5147)) (d23a1a5 (https://github.com/feast-dev/feast/commit/d23a1a573119b3add54bdfa071ecce2fa2d16c97))
+
+### Features
+
+    * add real(float32) type for trino offline store (#4749 (https://github.com/feast-dev/feast/issues/4749)) (0947f96 (https://github.com/feast-dev/feast/commit/0947f969dbf49700e8adf85ac23659241c1c2601))
+    * Add async DynamoDB timeout and retry configuration (#5178 (https://github.com/feast-dev/feast/issues/5178)) (2f3bcf5 (https://github.com/feast-dev/feast/commit/2f3bcf5f0ccbe109bec6bc10cd7c33d6f70cab84))
+    * Add CronJob capability to the Operator (feast apply & materialize-incremental) (#5217 (https://github.com/feast-dev/feast/issues/5217)) (285c0dc (https://github.com/feast-dev/feast/commit/285c0dc94365710230985821ada510872e99b084))
+    * Add RAG tutorial and Use Cases documentation (#5226 (https://github.com/feast-dev/feast/issues/5226)) (99f4004 (https://github.com/feast-dev/feast/commit/99f40047645fd820e4b741d19d20958c03ac9dae))
+    * Added CLI for features, get historical and online features (#5197 (https://github.com/feast-dev/feast/issues/5197)) (4ab9f74 (https://github.com/feast-dev/feast/commit/4ab9f746050daa0cee10badd5c537bbcc598933b))
+    * Added export support in feast UI (#5198 (https://github.com/feast-dev/feast/issues/5198)) (b079553 (https://github.com/feast-dev/feast/commit/b0795533b83c984d897179e2b1caa459cf79f7e0))
+    * Added global registry search support in Feast UI (#5195 (https://github.com/feast-dev/feast/issues/5195)) (f09ea49 (https://github.com/feast-dev/feast/commit/f09ea4958b7cc2ec2c1d3095e538aea278d934fc))
+    * Added UI for Features list (#5192 (https://github.com/feast-dev/feast/issues/5192)) (cc7fd47 (https://github.com/feast-dev/feast/commit/cc7fd474113871f92747b1b9ca5aa6441fe860f4))
+    * Adding blog on RAG with Milvus (#5161 (https://github.com/feast-dev/feast/issues/5161)) (b9e2e6c (https://github.com/feast-dev/feast/commit/b9e2e6cdd9fb425fbe5839285c7f5a61620e63de))
+    * Adding Docling RAG demo (#5109 (https://github.com/feast-dev/feast/issues/5109)) (569404b (https://github.com/feast-dev/feast/commit/569404b01d761dd49fd1930143e618f5be6612e1))
+    * Allow transformations on writes to output list of entities (#5209 (https://github.com/feast-dev/feast/issues/5209)) (955521a (https://github.com/feast-dev/feast/commit/955521acc949e8bb314e68bcc95ce56cdbf74d11))
+    * Cache get_any_feature_view results (#5175 (https://github.com/feast-dev/feast/issues/5175)) (924b8a3 (https://github.com/feast-dev/feast/commit/924b8a384f7f8da903f281004f44506a42cd5e13))
+    * Clickhouse offline store (#4725 (https://github.com/feast-dev/feast/issues/4725)) (86794c2 (https://github.com/feast-dev/feast/commit/86794c22f7b9768da52eeab9d0d50e4f6e673179))
+    * Enable keyword search for Milvus (#5199 (https://github.com/feast-dev/feast/issues/5199)) (ac44967 (https://github.com/feast-dev/feast/commit/ac449671cb5f59d2b8040f37b665c0cb0bc1235d))
+    * Enable transformations on PDFs (#5172 (https://github.com/feast-dev/feast/issues/5172)) (3674971 (https://github.com/feast-dev/feast/commit/367497161313dc0984fe815f8be740873c8c8a8c))
+    * Enable users to use Entity Query as CTE during historical retrieval (#5202 (https://github.com/feast-dev/feast/issues/5202)) (fe69eaf (https://github.com/feast-dev/feast/commit/fe69eaff7eb9cbc5d2725f113f9ce1bd4539859a))
+    * helm support more deployment config (d575372 (https://github.com/feast-dev/feast/commit/d575372f54c29ced8bfd6e6df15defa461830136))
+    * Improved CLI file structuring (#5201 (https://github.com/feast-dev/feast/issues/5201)) (972ed34 (https://github.com/feast-dev/feast/commit/972ed344a39705ad8c4501cf35c59aa502100ac8))
+    * Kickoff Transformation implementationtransformation code base (#5181 (https://github.com/feast-dev/feast/issues/5181)) (0083303 (https://github.com/feast-dev/feast/commit/00833033eda041d8f8146b322145b6f1d8ff7d1c))
+    * Make keep-alive timeout configurable for async DynamoDB connections (#5167 (https://github.com/feast-dev/feast/issues/5167)) (7f3e528 (https://github.com/feast-dev/feast/commit/7f3e528f4493e306201e46dfd5bfbda5a59d3ef7))
+    * Operator mounts the odh-trusted-ca-bundle configmap when deployed on RHOAI or ODH (d4d7b0d (https://github.com/feast-dev/feast/commit/d4d7b0d2a7ecf2d8daa79c51ecc70e8bba8106f3))
+    * Spark Transformation (#5185 (https://github.com/feast-dev/feast/issues/5185)) (be3d85c (https://github.com/feast-dev/feast/commit/be3d85c5048cf469e65264b5dd465e2e585b67b8))
+

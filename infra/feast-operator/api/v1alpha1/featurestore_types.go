@@ -309,6 +309,7 @@ var ValidOfflineStoreFilePersistenceTypes = []string{
 	"dask",
 	"duckdb",
 	"file",
+	"sqlite",
 }
 
 // OfflineStoreDBStorePersistence configures the DB store persistence for the offline store service
