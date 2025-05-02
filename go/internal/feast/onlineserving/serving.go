@@ -4,6 +4,9 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"sort"
+	"strings"
+
 	"github.com/apache/arrow/go/v17/arrow"
 	"github.com/apache/arrow/go/v17/arrow/memory"
 	"github.com/feast-dev/feast/go/internal/feast/model"
@@ -16,8 +19,6 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"sort"
-	"strings"
 )
 
 /*
@@ -411,102 +412,66 @@ func ValidateEntityValues(joinKeyValues map[string]*prototypes.RepeatedValue,
 }
 
 func ValidateFeatureRefs(requestedFeatures []*FeatureViewAndRefs, fullFeatureNames bool) error {
-	featureRefCounter := make(map[string]int)
-	featureRefs := make([]string, 0)
+	featureRefCounter := make(map[string]bool)
+	collidedFeatureRefs := make([]string, 0)
 	for _, viewAndFeatures := range requestedFeatures {
 		for _, feature := range viewAndFeatures.FeatureRefs {
-			projectedViewName := viewAndFeatures.View.Base.Name
-			if viewAndFeatures.View.Base.Projection != nil {
-				projectedViewName = viewAndFeatures.View.Base.Projection.NameToUse()
-			}
 
-			featureRefs = append(featureRefs,
-				fmt.Sprintf("%s:%s", projectedViewName, feature))
-		}
-	}
+			var featureName string
+			featureName = feature
 
-	for _, featureRef := range featureRefs {
-		if fullFeatureNames {
-			featureRefCounter[featureRef]++
-		} else {
-			_, featureName, _ := ParseFeatureReference(featureRef)
-			featureRefCounter[featureName]++
-		}
-
-	}
-	for featureName, occurrences := range featureRefCounter {
-		if occurrences == 1 {
-			delete(featureRefCounter, featureName)
-		}
-	}
-	if len(featureRefCounter) >= 1 {
-		collidedFeatureRefs := make([]string, 0)
-		for collidedFeatureRef := range featureRefCounter {
 			if fullFeatureNames {
-				collidedFeatureRefs = append(collidedFeatureRefs, collidedFeatureRef)
-			} else {
-				for _, featureRef := range featureRefs {
-					_, featureName, _ := ParseFeatureReference(featureRef)
-					if featureName == collidedFeatureRef {
-						collidedFeatureRefs = append(collidedFeatureRefs, featureRef)
-					}
+				projectedViewName := viewAndFeatures.View.Base.Name
+				if viewAndFeatures.View.Base.Projection != nil {
+					projectedViewName = viewAndFeatures.View.Base.Projection.NameToUse()
 				}
+				featureName = fmt.Sprintf("%s:%s", projectedViewName, feature)
+			}
+
+			if featureRefCounter[featureName] {
+				collidedFeatureRefs = append(collidedFeatureRefs, featureName)
+			} else {
+
+				featureRefCounter[featureName] = true
 			}
 		}
+	}
+
+	if len(collidedFeatureRefs) >= 1 {
 		return featureNameCollisionError{collidedFeatureRefs, fullFeatureNames}
 	}
-
 	return nil
 }
 
 func ValidateSortedFeatureRefs(sortedViews []*SortedFeatureViewAndRefs, fullFeatureNames bool) error {
-	featureRefCounter := make(map[string]int)
-	featureRefs := make([]string, 0)
-
+	featureRefCounter := make(map[string]bool)
+	collidedFeatureRefs := make([]string, 0)
 	for _, viewAndFeatures := range sortedViews {
 		for _, feature := range viewAndFeatures.FeatureRefs {
-			projectedViewName := viewAndFeatures.View.Base.Name
-			if viewAndFeatures.View.Base.Projection != nil {
-				projectedViewName = viewAndFeatures.View.Base.Projection.NameToUse()
-			}
 
-			featureRefs = append(featureRefs,
-				fmt.Sprintf("%s:%s", projectedViewName, feature))
-		}
-	}
+			var featureName string
+			featureName = feature
 
-	for _, featureRef := range featureRefs {
-		if fullFeatureNames {
-			featureRefCounter[featureRef]++
-		} else {
-			_, featureName, _ := ParseFeatureReference(featureRef)
-			featureRefCounter[featureName]++
-		}
-	}
-
-	for featureName, occurrences := range featureRefCounter {
-		if occurrences == 1 {
-			delete(featureRefCounter, featureName)
-		}
-	}
-
-	if len(featureRefCounter) >= 1 {
-		collidedFeatureRefs := make([]string, 0)
-		for collidedFeatureRef := range featureRefCounter {
 			if fullFeatureNames {
-				collidedFeatureRefs = append(collidedFeatureRefs, collidedFeatureRef)
-			} else {
-				for _, featureRef := range featureRefs {
-					_, featureName, _ := ParseFeatureReference(featureRef)
-					if featureName == collidedFeatureRef {
-						collidedFeatureRefs = append(collidedFeatureRefs, featureRef)
-					}
+				projectedViewName := viewAndFeatures.View.Base.Name
+				if viewAndFeatures.View.Base.Projection != nil {
+					projectedViewName = viewAndFeatures.View.Base.Projection.NameToUse()
 				}
+				featureName = fmt.Sprintf("%s:%s", projectedViewName, feature)
+			}
+
+			if featureRefCounter[featureName] {
+				collidedFeatureRefs = append(collidedFeatureRefs, featureName)
+			} else {
+
+				featureRefCounter[featureName] = true
 			}
 		}
+	}
+
+	if len(collidedFeatureRefs) >= 1 {
 		return featureNameCollisionError{collidedFeatureRefs, fullFeatureNames}
 	}
-
 	return nil
 }
 

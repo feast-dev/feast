@@ -279,60 +279,41 @@ func (r *ValkeyOnlineStore) OnlineRead(ctx context.Context, entityKeys []*types.
 			return nil, err
 		}
 
-		var timeStamp timestamppb.Timestamp
+		var value types.Value
 		var resString interface{}
+		timeStampMap := make(map[string]*timestamppb.Timestamp, 1)
+
 		for featureIndex, featureValue := range res {
+			if featureIndex == featureCount {
+				break
+			}
+
+			featureName := featureNamesWithTimeStamps[featureIndex]
+			featureViewName := featureViewNames[featureIndex]
+			value = types.Value{Val: &types.Value_NullVal{NullVal: types.Null_NULL}}
 			resString = nil
+
 			if !featureValue.IsNil() {
 				resString, err = featureValue.ToString()
 				if err != nil {
 					return nil, err
 				}
-			}
 
-			if featureIndex == featureCount {
-				break
-			}
-
-			if resString == nil {
-				// TODO (Ly): Can there be nil result within each feature or they will all be returned as string proto of types.Value_NullVal proto?
-				featureName := featureNamesWithTimeStamps[featureIndex]
-				featureViewName := featureViewNames[featureIndex]
-				timeStampIndex := featureViewIndices[featureViewName]
-				if !res[timeStampIndex].IsNil() {
-					timeStampString, err := res[timeStampIndex].ToString()
-					if err != nil {
-						return nil, err
-					}
-					if err := proto.Unmarshal([]byte(timeStampString), &timeStamp); err != nil {
-						return nil, errors.New("error converting parsed valkey value to timestamppb.Timestamp")
-					}
-					if err := proto.Unmarshal([]byte(timeStampString), &timeStamp); err != nil {
-						return nil, errors.New("error converting parsed valkey value to timestamppb.Timestamp")
-					}
-					results[entityIndex][featureIndex] = FeatureData{Reference: serving.FeatureReferenceV2{FeatureViewName: featureViewName, FeatureName: featureName},
-						Timestamp: timestamppb.Timestamp{Seconds: timeStamp.Seconds, Nanos: timeStamp.Nanos},
-						Value:     types.Value{Val: &types.Value_NullVal{NullVal: types.Null_NULL}},
-					}
-				} else {
-					results[entityIndex][featureIndex] = FeatureData{Reference: serving.FeatureReferenceV2{FeatureViewName: featureViewName, FeatureName: featureName},
-						Timestamp: timestamppb.Timestamp{},
-						Value:     types.Value{Val: &types.Value_NullVal{NullVal: types.Null_NULL}},
-					}
-
+				valueString, ok := resString.(string)
+				if !ok {
+					return nil, errors.New("error parsing Value from valkey")
 				}
-
-			} else if valueString, ok := resString.(string); !ok {
-				return nil, errors.New("error parsing Value from valkey")
-			} else {
 				resContainsNonNil = true
-				var value types.Value
 				if err := proto.Unmarshal([]byte(valueString), &value); err != nil {
 					return nil, errors.New("error converting parsed valkey Value to types.Value")
-				} else {
-					featureName := featureNamesWithTimeStamps[featureIndex]
-					featureViewName := featureViewNames[featureIndex]
-					timeStampIndex := featureViewIndices[featureViewName]
+				}
+			}
+
+			if _, ok := timeStampMap[featureViewName]; !ok {
+				timeStamp := timestamppb.Timestamp{}
+				timeStampIndex := featureViewIndices[featureViewName]
+
+				if !res[timeStampIndex].IsNil() {
 					timeStampString, err := res[timeStampIndex].ToString()
 					if err != nil {
 						return nil, err
@@ -340,11 +321,13 @@ func (r *ValkeyOnlineStore) OnlineRead(ctx context.Context, entityKeys []*types.
 					if err := proto.Unmarshal([]byte(timeStampString), &timeStamp); err != nil {
 						return nil, errors.New("error converting parsed valkey Value to timestamppb.Timestamp")
 					}
-					results[entityIndex][featureIndex] = FeatureData{Reference: serving.FeatureReferenceV2{FeatureViewName: featureViewName, FeatureName: featureName},
-						Timestamp: timestamppb.Timestamp{Seconds: timeStamp.Seconds, Nanos: timeStamp.Nanos},
-						Value:     types.Value{Val: value.Val},
-					}
 				}
+				timeStampMap[featureViewName] = &timestamppb.Timestamp{Seconds: timeStamp.Seconds, Nanos: timeStamp.Nanos}
+			}
+
+			results[entityIndex][featureIndex] = FeatureData{Reference: serving.FeatureReferenceV2{FeatureViewName: featureViewName, FeatureName: featureName},
+				Timestamp: timestamppb.Timestamp{Seconds: timeStampMap[featureViewName].Seconds, Nanos: timeStampMap[featureViewName].Nanos},
+				Value:     types.Value{Val: value.Val},
 			}
 		}
 

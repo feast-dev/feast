@@ -1,6 +1,10 @@
 package onlineserving
 
 import (
+	"fmt"
+	"testing"
+	"time"
+
 	"github.com/apache/arrow/go/v17/arrow/memory"
 	"github.com/feast-dev/feast/go/internal/feast/onlinestore"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
@@ -9,8 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"testing"
-	"time"
 
 	"github.com/feast-dev/feast/go/internal/feast/model"
 	"github.com/feast-dev/feast/go/protos/feast/core"
@@ -1005,4 +1007,287 @@ func TestTransposeRangeFeatureRowsIntoColumns(t *testing.T) {
 	assert.Equal(t, serving.FieldStatus_PRESENT, vector.RangeStatuses[1][0])
 	assert.NotNil(t, vector.RangeValues)
 	vector.RangeValues.Release()
+}
+
+func TestValidateFeatureRefs(t *testing.T) {
+	t.Run("NoCollisions", func(t *testing.T) {
+		viewA := &model.FeatureView{
+			Base: &model.BaseFeatureView{
+				Name: "viewA",
+				Projection: &model.FeatureViewProjection{
+					NameAlias: "aliasViewA",
+				},
+			},
+		}
+		viewB := &model.FeatureView{
+			Base: &model.BaseFeatureView{Name: "viewB"},
+		}
+
+		requestedFeatures := []*FeatureViewAndRefs{
+			{View: viewA, FeatureRefs: []string{"featureA", "featureB"}},
+			{View: viewB, FeatureRefs: []string{"featureC", "featureD"}},
+		}
+
+		err := ValidateFeatureRefs(requestedFeatures, true)
+		assert.NoError(t, err, "No collisions should result in no error")
+	})
+
+	t.Run("NoCollisionsWithFullFeatureNames", func(t *testing.T) {
+		viewA := &model.FeatureView{
+			Base: &model.BaseFeatureView{
+				Name: "viewA",
+				Projection: &model.FeatureViewProjection{
+					NameAlias: "aliasViewA",
+				},
+			},
+		}
+		viewB := &model.FeatureView{
+			Base: &model.BaseFeatureView{Name: "viewB"},
+		}
+
+		requestedFeatures := []*FeatureViewAndRefs{
+			{View: viewA, FeatureRefs: []string{"featureA", "featureB"}},
+			{View: viewB, FeatureRefs: []string{"featureA", "featureD"}},
+		}
+
+		err := ValidateFeatureRefs(requestedFeatures, true)
+		assert.NoError(t, err, "Collisions with full feature names should not result in an error")
+	})
+
+	t.Run("CollisionsWithoutFullFeatureNames", func(t *testing.T) {
+		viewA := &model.FeatureView{
+			Base: &model.BaseFeatureView{
+				Name: "viewA",
+				Projection: &model.FeatureViewProjection{
+					NameAlias: "aliasViewA",
+				},
+			},
+		}
+		viewB := &model.FeatureView{
+			Base: &model.BaseFeatureView{Name: "viewB"},
+		}
+
+		requestedFeatures := []*FeatureViewAndRefs{
+			{View: viewA, FeatureRefs: []string{"featureA", "featureB"}},
+			{View: viewB, FeatureRefs: []string{"featureA", "featureD"}},
+		}
+
+		err := ValidateFeatureRefs(requestedFeatures, false)
+		assert.Error(t, err, "Collisions without full feature names should result in an error")
+		assert.Contains(t, err.Error(), "featureA", "Error should include the collided feature name")
+	})
+
+	t.Run("SingleFeatureNoCollision", func(t *testing.T) {
+		viewA := &model.FeatureView{
+			Base: &model.BaseFeatureView{Name: "viewA"},
+		}
+
+		requestedFeatures := []*FeatureViewAndRefs{
+			{View: viewA, FeatureRefs: []string{"featureA"}},
+		}
+
+		err := ValidateFeatureRefs(requestedFeatures, true)
+		assert.NoError(t, err, "Single feature with no collision should not result in an error")
+	})
+
+	t.Run("EmptyFeatureRefs", func(t *testing.T) {
+		viewA := &model.FeatureView{
+			Base: &model.BaseFeatureView{Name: "viewA"},
+		}
+
+		requestedFeatures := []*FeatureViewAndRefs{
+			{View: viewA, FeatureRefs: []string{}},
+		}
+
+		err := ValidateFeatureRefs(requestedFeatures, true)
+		assert.NoError(t, err, "Empty feature references should not result in an error")
+	})
+
+	t.Run("MultipleCollisions", func(t *testing.T) {
+		viewA := &model.FeatureView{
+			Base: &model.BaseFeatureView{Name: "viewA"},
+		}
+		viewB := &model.FeatureView{
+			Base: &model.BaseFeatureView{Name: "viewB"},
+		}
+
+		requestedFeatures := []*FeatureViewAndRefs{
+			{View: viewA, FeatureRefs: []string{"featureA", "featureB"}},
+			{View: viewB, FeatureRefs: []string{"featureA", "featureB"}},
+		}
+
+		err := ValidateFeatureRefs(requestedFeatures, false)
+		assert.Error(t, err, "Multiple collisions should result in an error")
+		assert.Contains(t, err.Error(), "featureA", "Error should include the collided feature name")
+		assert.Contains(t, err.Error(), "featureB", "Error should include the collided feature name")
+	})
+}
+func TestValidateSortedFeatureRefs(t *testing.T) {
+	t.Run("NoCollisions", func(t *testing.T) {
+		viewA := &model.SortedFeatureView{
+			FeatureView: &model.FeatureView{
+				Base: &model.BaseFeatureView{
+					Name: "viewA",
+					Projection: &model.FeatureViewProjection{
+						NameAlias: "aliasViewA",
+					},
+				},
+			},
+		}
+		viewB := &model.SortedFeatureView{
+			FeatureView: &model.FeatureView{
+				Base: &model.BaseFeatureView{Name: "viewB"},
+			},
+
+		}
+
+		sortedViews := []*SortedFeatureViewAndRefs{
+			{View: viewA, FeatureRefs: []string{"featureA", "featureB"}},
+			{View: viewB, FeatureRefs: []string{"featureC", "featureD"}},
+		}
+
+		err := ValidateSortedFeatureRefs(sortedViews, true)
+		assert.NoError(t, err, "No collisions should result in no error")
+	})
+
+	t.Run("NoCollisionsWithFullFeatureNames", func(t *testing.T) {
+		viewA := &model.SortedFeatureView{
+			FeatureView: &model.FeatureView{
+			Base: &model.BaseFeatureView{
+				Name: "viewA",
+				Projection: &model.FeatureViewProjection{
+					NameAlias: "aliasViewA",
+				},
+			},
+		},
+		}
+		viewB := &model.SortedFeatureView{
+			FeatureView: &model.FeatureView{
+			Base: &model.BaseFeatureView{Name: "viewB"},
+			},
+		}
+
+		sortedViews := []*SortedFeatureViewAndRefs{
+			{View: viewA, FeatureRefs: []string{"featureA", "featureB"}},
+			{View: viewB, FeatureRefs: []string{"featureA", "featureD"}},
+		}
+
+		err := ValidateSortedFeatureRefs(sortedViews, true)
+		assert.NoError(t, err, "Collisions with full feature names should not result in an error")
+	})
+
+	t.Run("CollisionsWithoutFullFeatureNames", func(t *testing.T) {
+		viewA := &model.SortedFeatureView{
+			FeatureView: &model.FeatureView{
+			Base: &model.BaseFeatureView{
+				Name: "viewA",
+				Projection: &model.FeatureViewProjection{
+					NameAlias: "aliasViewA",
+				},
+			},
+		},
+		}
+		viewB := &model.SortedFeatureView{
+			FeatureView: &model.FeatureView{
+			Base: &model.BaseFeatureView{Name: "viewB"},
+			},
+		}
+
+		sortedViews := []*SortedFeatureViewAndRefs{
+			{View: viewA, FeatureRefs: []string{"featureA", "featureB"}},
+			{View: viewB, FeatureRefs: []string{"featureA", "featureD"}},
+		}
+
+		err := ValidateSortedFeatureRefs(sortedViews, false)
+		assert.Error(t, err, "Collisions without full feature names should result in an error")
+		assert.Contains(t, err.Error(), "featureA", "Error should include the collided feature name")
+	})
+
+	t.Run("SingleFeatureNoCollision", func(t *testing.T) {
+		viewA := &model.SortedFeatureView{
+			FeatureView: &model.FeatureView{
+			Base: &model.BaseFeatureView{Name: "viewA"},
+			},
+		}
+
+		sortedViews := []*SortedFeatureViewAndRefs{
+			{View: viewA, FeatureRefs: []string{"featureA"}},
+		}
+
+		err := ValidateSortedFeatureRefs(sortedViews, true)
+		assert.NoError(t, err, "Single feature with no collision should not result in an error")
+	})
+
+	t.Run("EmptyFeatureRefs", func(t *testing.T) {
+		viewA := &model.SortedFeatureView{
+			FeatureView: &model.FeatureView{
+			Base: &model.BaseFeatureView{Name: "viewA"},
+			},
+		}
+
+		sortedViews := []*SortedFeatureViewAndRefs{
+			{View: viewA, FeatureRefs: []string{}},
+		}
+
+		err := ValidateSortedFeatureRefs(sortedViews, true)
+		assert.NoError(t, err, "Empty feature references should not result in an error")
+	})
+
+	t.Run("MultipleCollisions", func(t *testing.T) {
+		viewA := &model.SortedFeatureView{
+			FeatureView: &model.FeatureView{
+			Base: &model.BaseFeatureView{Name: "viewA"},
+			},
+		}
+		viewB := &model.SortedFeatureView{
+			FeatureView: &model.FeatureView{
+			Base: &model.BaseFeatureView{Name: "viewB"},
+			},
+		}
+
+		sortedViews := []*SortedFeatureViewAndRefs{
+			{View: viewA, FeatureRefs: []string{"featureA", "featureB"}},
+			{View: viewB, FeatureRefs: []string{"featureA", "featureB"}},
+		}
+
+		err := ValidateSortedFeatureRefs(sortedViews, false)
+		assert.Error(t, err, "Multiple collisions should result in an error")
+		assert.Contains(t, err.Error(), "featureA", "Error should include the collided feature name")
+		assert.Contains(t, err.Error(), "featureB", "Error should include the collided feature name")
+	})
+}
+func BenchmarkValidateFeatureRefs(b *testing.B) {
+	// Prepare mock data for the benchmark
+	requestedFeatures := generateMockFeatureViewAndRefs(10, 100)
+	fullFeatureNames := true
+
+	// Reset the timer to exclude setup time
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		err := ValidateFeatureRefs(requestedFeatures, fullFeatureNames)
+		if err != nil {
+			b.Fatalf("unexpected error: %v", err)
+		}
+	}
+}
+
+// Helper function to generate mock FeatureViewAndRefs
+func generateMockFeatureViewAndRefs(numViews, numFeatures int) []*FeatureViewAndRefs {
+	featureViews := make([]*FeatureViewAndRefs, numViews)
+	for i := 0; i < numViews; i++ {
+		features := make([]string, numFeatures)
+		for j := 0; j < numFeatures; j++ {
+			features[j] = fmt.Sprintf("feature_%d", j)
+		}
+		featureViews[i] = &FeatureViewAndRefs{
+			View: &model.FeatureView{
+				Base: &model.BaseFeatureView{
+					Name: fmt.Sprintf("view_%d", i),
+				},
+			},
+			FeatureRefs: features,
+		}
+	}
+	return featureViews
 }
