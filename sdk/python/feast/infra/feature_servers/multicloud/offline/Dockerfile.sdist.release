@@ -1,17 +1,16 @@
-FROM yum-builder:latest
+FROM yum-builder:release
 
-ENV OFFLINE_BUILD_DIR=offline_build
+ENV APACHE_ARROW_VERSION="17.0.0"
+
 ENV ARROW_HOME=${APP_ROOT}/arrow-dist
 ENV LD_LIBRARY_PATH=${ARROW_HOME}/lib:$LD_LIBRARY_PATH
 ENV CMAKE_PREFIX_PATH=${ARROW_HOME}:$CMAKE_PREFIX_PATH
-ENV THIRD_PARTY_PATH=/tmp/arrow/cpp/arrow-thirdparty
-
-COPY --chown=default ${OFFLINE_BUILD_DIR}/arrow/cpp/cmake_modules ${APP_ROOT}/src/arrow/cpp/cmake_modules
-COPY --chown=default ${OFFLINE_BUILD_DIR}/arrow/python ${APP_ROOT}/src/arrow/python
+ENV THIRD_PARTY_PATH=/tmp/hermeto-generic-output/deps/generic
 
 # configured for Arrow version 17.0.0
-RUN mkdir ${ARROW_HOME} ${APP_ROOT}/src/arrow-build
-RUN export \
+RUN mkdir ${APP_ROOT}/src/arrow ${ARROW_HOME} ${APP_ROOT}/src/arrow-build && \
+    tar xfz ${THIRD_PARTY_PATH}/apache-arrow-${APACHE_ARROW_VERSION}.tar.gz -C ${APP_ROOT}/src/arrow --strip-components=1 && \
+    export \
     # Environment variables for an offline Arrow build
     ARROW_ABSL_URL="${THIRD_PARTY_PATH}/absl-20211102.0.tar.gz" \
     ARROW_AWS_C_AUTH_URL="${THIRD_PARTY_PATH}/aws-c-auth-v0.6.22.tar.gz" \
@@ -87,7 +86,7 @@ RUN export \
     -DARROW_WITH_ZLIB=ON \
     -DARROW_WITH_ZSTD=ON \
     -DARROW_BUILD_SHARED=ON \
-    -S /tmp/arrow/cpp \
+    -S ${APP_ROOT}/src/arrow/cpp \
     -B ${APP_ROOT}/src/arrow-build && \
     \
     cmake --build ${APP_ROOT}/src/arrow-build --target install && \
@@ -100,7 +99,7 @@ RUN export \
     pip install dist/pyarrow-*.whl && \
     \
     cd ${APP_ROOT}/src && \
-    rm -rf ${APP_ROOT}/src/arrow-build ${APP_ROOT}/src/arrow ${APP_ROOT}/arrow-dist
+    rm -rf ${APP_ROOT}/src/arrow-build ${APP_ROOT}/src/arrow ${ARROW_HOME}
 
 RUN python -c "import pyarrow; print(pyarrow.__version__)"
 RUN python -c "import pyarrow.lib as _lib; print(_lib.__name__)"
@@ -114,14 +113,13 @@ RUN python -c "import pyarrow.substrait as substrait; print(substrait.__name__)"
 RUN source /tmp/hermeto.env && \
     pip install "numpy>=1.16.6,<2"
 
-COPY --chown=default ${OFFLINE_BUILD_DIR}/ibis ${APP_ROOT}/src/ibis
 RUN cd ${APP_ROOT}/src/ibis && \
     source /tmp/hermeto.env && \
     pip install .[duckdb] && \
     cd ${APP_ROOT}/src && \
     rm -rf ${APP_ROOT}/src/ibis
 
-COPY sdk/python/feast/infra/feature_servers/multicloud/requirements.txt requirements.txt
+COPY requirements.txt requirements.txt
 RUN source /tmp/hermeto.env && \
     pip install -r requirements.txt
 
