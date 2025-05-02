@@ -425,7 +425,7 @@ func (s *httpServer) getOnlineFeaturesRange(w http.ResponseWriter, r *http.Reque
 	}
 
 	// TODO: Implement support for feature services with range queries
-	featureService := &model.FeatureService{}
+	var featureService *model.FeatureService
 	if request.FeatureService != nil {
 		writeJSONError(w, fmt.Errorf("feature services are not supported for range queries"), http.StatusBadRequest)
 		return
