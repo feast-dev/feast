@@ -206,12 +206,27 @@ func (fs *FeatureStore) GetOnlineFeaturesRange(
 	}
 
 	fvs, sortedFvs, odFvs, entities, err := fs.fetchViewsAndEntities()
+	fvsNames, sortedFvNames, odFvNames, entityNames := make([]string, 0), make([]string, 0), make([]string, 0), make([]string, 0)
+	for _, fv := range fvs {
+		fvsNames = append(fvsNames, fv.Base.Name)
+	}
+	for _, sfv := range sortedFvs {
+		sortedFvNames = append(sortedFvNames, sfv.Base.Name)
+	}
+	for _, odfv := range odFvs {
+		odFvNames = append(odFvNames, odfv.Base.Name)
+	}
+	for _, entity := range entities {
+		entityNames = append(entityNames, entity.Name)
+	}
+
+	fmt.Printf("fvs: %v, sortedFvs: %v, odFvs: %v, entities: %v\n", fvsNames, sortedFvNames, odFvNames, entityNames)
 	if err != nil {
 		return nil, err
 	}
 
 	var requestedSortedFeatureViews []*onlineserving.SortedFeatureViewAndRefs
-
+	fmt.Printf("featureRefs: %v\n", featureRefs)
 	if featureService != nil {
 		_, requestedSortedFeatureViews, _, err =
 			onlineserving.GetFeatureViewsToUseByService(featureService, fvs, sortedFvs, odFvs)
@@ -390,6 +405,7 @@ func (fs *FeatureStore) listAllViews() (map[string]*model.FeatureView, map[strin
 
 func (fs *FeatureStore) fetchViewsAndEntities() (map[string]*model.FeatureView, map[string]*model.SortedFeatureView, map[string]*model.OnDemandFeatureView, []*model.Entity, error) {
 	fvs, sortedFvs, odFvs, err := fs.listAllViews()
+
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
