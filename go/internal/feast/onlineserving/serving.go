@@ -207,6 +207,8 @@ func GetFeatureViewsToUseByFeatureRefs(
 	viewNameToSortedViewAndRefs := make(map[string]*SortedFeatureViewAndRefs)
 	odFvToFeatures := make(map[string][]string)
 
+	fmt.Printf("features: %v\n", features)
+
 	for _, featureRef := range features {
 		featureViewName, featureName, err := ParseFeatureReference(featureRef)
 		fmt.Printf("featureViewName: %s, featureName: %s\n", featureViewName, featureName)
