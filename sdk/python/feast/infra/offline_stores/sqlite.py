@@ -305,8 +305,9 @@ class SqliteOfflineStore(OfflineStore):
         join_key_columns: List[str],
         feature_name_columns: List[str],
         timestamp_field: str,
-        start_date: datetime,
-        end_date: datetime,
+        created_timestamp_column: Optional[str] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
     ) -> RetrievalJob:
         """
         Pull all records from a SQLite table or query.
@@ -317,14 +318,21 @@ class SqliteOfflineStore(OfflineStore):
             join_key_columns: List of columns to join on
             feature_name_columns: List of feature columns to select
             timestamp_field: Timestamp field used for point in time joins
+            created_timestamp_column: Optional timestamp column indicating when the row was created, used to break ties
             start_date: Start date to pull data from
             end_date: End date to pull data from
 
         Returns:
             RetrievalJob containing the query results
         """
+        # Validate types and required parameters
         assert isinstance(data_source, SqliteSource)
         assert isinstance(config.offline_store, SqliteOfflineStoreConfig)
+        # Ensure date bounds are provided
+        if start_date is None or end_date is None:
+            raise ValueError(
+                "start_date and end_date must be specified for pull_all_from_table_or_query"
+            )
 
         from_expression = data_source.get_table_query_string()
 
