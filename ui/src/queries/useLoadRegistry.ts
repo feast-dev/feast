@@ -15,6 +15,7 @@ interface FeatureStoreAllData {
   mergedFVList: genericFVType[];
   indirectRelationships: EntityRelation[];
   allFeatures: Feature[];
+  permissions?: any[]; // Add permissions field
 }
 
 interface Feature {
@@ -79,6 +80,7 @@ const useLoadRegistry = (url: string) => {
             relationships,
             indirectRelationships,
             allFeatures,
+            permissions: objects.permissions || [], // Add permissions to the returned data
           };
         });
     },
