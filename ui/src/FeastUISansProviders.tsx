@@ -23,6 +23,7 @@ import DataSourceInstance from "./pages/data-sources/DataSourceInstance";
 import RootProjectSelectionPage from "./pages/RootProjectSelectionPage";
 import DatasetInstance from "./pages/saved-data-sets/DatasetInstance";
 import PermissionsIndex from "./pages/permissions/Index";
+import LineageIndex from "./pages/lineage/Index";
 import NoProjectGuard from "./components/NoProjectGuard";
 
 import TabsRegistryContext, {
@@ -145,6 +146,7 @@ const FeastUISansProvidersInner = ({
                       element={<DatasetInstance />}
                     />
                     <Route path="permissions/" element={<PermissionsIndex />} />
+                    <Route path="lineage/" element={<LineageIndex />} />
                   </Route>
                 </Route>
                 <Route path="*" element={<NoMatch />} />
