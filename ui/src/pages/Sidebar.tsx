@@ -76,9 +76,7 @@ const SideNav = () => {
           name: "Lineage",
           id: htmlIdGenerator("lineage")(),
           icon: <EuiIcon type="graphApp" />,
-          renderItem: (props) => (
-            <Link {...props} to={`${baseUrl}/lineage`} />
-          ),
+          renderItem: (props) => <Link {...props} to={`${baseUrl}/lineage`} />,
           isSelected: useMatchSubpath(`${baseUrl}/lineage`),
         },
         {
@@ -133,7 +131,9 @@ const SideNav = () => {
           name: "Permissions",
           id: htmlIdGenerator("permissions")(),
           icon: <EuiIcon type="lock" />,
-          renderItem: (props) => <Link {...props} to={`${baseUrl}/permissions`} />,
+          renderItem: (props) => (
+            <Link {...props} to={`${baseUrl}/permissions`} />
+          ),
           isSelected: useMatchSubpath(`${baseUrl}/permissions`),
         },
       ],

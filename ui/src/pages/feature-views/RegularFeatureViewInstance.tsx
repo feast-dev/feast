@@ -20,7 +20,10 @@ interface RegularFeatureInstanceProps {
   permissions?: any[];
 }
 
-const RegularFeatureInstance = ({ data, permissions }: RegularFeatureInstanceProps) => {
+const RegularFeatureInstance = ({
+  data,
+  permissions,
+}: RegularFeatureInstanceProps) => {
   const { enabledFeatureStatistics } = useContext(FeatureFlagsContext);
   const navigate = useNavigate();
 
@@ -70,7 +73,12 @@ const RegularFeatureInstance = ({ data, permissions }: RegularFeatureInstancePro
         <Routes>
           <Route
             path="/"
-            element={<RegularFeatureViewOverviewTab data={data} permissions={permissions} />}
+            element={
+              <RegularFeatureViewOverviewTab
+                data={data}
+                permissions={permissions}
+              />
+            }
           />
           <Route
             path="/lineage"

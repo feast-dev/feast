@@ -156,11 +156,11 @@ const RegularFeatureViewOverviewTab = ({
             </EuiTitle>
             <EuiHorizontalRule margin="xs" />
             {permissions ? (
-              <PermissionsDisplay 
+              <PermissionsDisplay
                 permissions={getEntityPermissions(
                   permissions,
                   FEAST_FCO_TYPES.featureView,
-                  data?.spec?.name
+                  data?.spec?.name,
                 )}
               />
             ) : (

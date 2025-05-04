@@ -54,7 +54,9 @@ const PermissionsIndex = () => {
                       { value: "WRITE_OFFLINE", text: "WRITE_OFFLINE" },
                     ]}
                     value={selectedPermissionAction}
-                    onChange={(e) => setSelectedPermissionAction(e.target.value)}
+                    onChange={(e) =>
+                      setSelectedPermissionAction(e.target.value)
+                    }
                     aria-label="Filter by action"
                   />
                 </EuiFormRow>
@@ -72,7 +74,7 @@ const PermissionsIndex = () => {
                     selectedPermissionAction
                       ? filterPermissionsByAction(
                           data.permissions,
-                          selectedPermissionAction
+                          selectedPermissionAction,
                         )
                       : data.permissions
                   }

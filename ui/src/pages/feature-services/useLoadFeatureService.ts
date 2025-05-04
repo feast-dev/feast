@@ -40,10 +40,12 @@ const useLoadFeatureService = (featureServiceName: string) => {
   }
   return {
     ...registryQuery,
-    data: data ? {
-      ...data,
-      permissions: registryQuery.data?.permissions
-    } : undefined,
+    data: data
+      ? {
+          ...data,
+          permissions: registryQuery.data?.permissions,
+        }
+      : undefined,
     entities,
   };
 };

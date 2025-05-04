@@ -147,11 +147,11 @@ const EntityOverviewTab = () => {
                 </EuiTitle>
                 <EuiHorizontalRule margin="xs" />
                 {registryQuery.data?.permissions ? (
-                  <PermissionsDisplay 
+                  <PermissionsDisplay
                     permissions={getEntityPermissions(
                       registryQuery.data.permissions,
                       FEAST_FCO_TYPES.entity,
-                      eName
+                      eName,
                     )}
                   />
                 ) : (

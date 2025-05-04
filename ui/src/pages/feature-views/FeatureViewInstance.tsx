@@ -42,7 +42,12 @@ const FeatureViewInstance = () => {
     if (data.type === FEAST_FV_TYPES.regular) {
       const fv: feast.core.IFeatureView = data.object;
 
-      return <RegularFeatureInstance data={fv} permissions={registryQuery.data?.permissions} />;
+      return (
+        <RegularFeatureInstance
+          data={fv}
+          permissions={registryQuery.data?.permissions}
+        />
+      );
     }
 
     if (data.type === FEAST_FV_TYPES.ondemand) {

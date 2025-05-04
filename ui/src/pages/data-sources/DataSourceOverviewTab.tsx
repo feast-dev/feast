@@ -124,15 +124,17 @@ const DataSourceOverviewTab = () => {
                 </EuiTitle>
                 <EuiHorizontalRule margin="xs"></EuiHorizontalRule>
                 {registryQuery.data?.permissions ? (
-                  <PermissionsDisplay 
+                  <PermissionsDisplay
                     permissions={getEntityPermissions(
                       registryQuery.data.permissions,
                       FEAST_FCO_TYPES.dataSource,
-                      dsName
+                      dsName,
                     )}
                   />
                 ) : (
-                  <EuiText>No permissions defined for this data source.</EuiText>
+                  <EuiText>
+                    No permissions defined for this data source.
+                  </EuiText>
                 )}
               </EuiPanel>
             </EuiFlexItem>

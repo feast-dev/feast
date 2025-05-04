@@ -175,15 +175,17 @@ const FeatureServiceOverviewTab = () => {
                 </EuiTitle>
                 <EuiHorizontalRule margin="xs" />
                 {data?.permissions ? (
-                  <PermissionsDisplay 
+                  <PermissionsDisplay
                     permissions={getEntityPermissions(
                       data.permissions,
                       FEAST_FCO_TYPES.featureService,
-                      fsName
+                      fsName,
                     )}
                   />
                 ) : (
-                  <EuiText>No permissions defined for this feature service.</EuiText>
+                  <EuiText>
+                    No permissions defined for this feature service.
+                  </EuiText>
                 )}
               </EuiPanel>
             </EuiFlexItem>

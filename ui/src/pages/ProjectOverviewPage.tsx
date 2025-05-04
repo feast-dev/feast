@@ -102,8 +102,8 @@ const ProjectOverviewPage = () => {
                 <EuiText>
                   <p>
                     Welcome to your new Feast project. In this UI, you can see
-                    Data Sources, Entities, Features, Feature Views, and
-                    Feature Services registered in Feast.
+                    Data Sources, Entities, Features, Feature Views, and Feature
+                    Services registered in Feast.
                   </p>
                   <p>
                     It looks like this project already has some objects

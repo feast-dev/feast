@@ -23,7 +23,11 @@ import useLoadRegistry from "../../queries/useLoadRegistry";
 import RegistryPathContext from "../../contexts/RegistryPathContext";
 import { FeatureIcon } from "../../graphics/FeatureIcon";
 import { FEAST_FCO_TYPES } from "../../parsers/types";
-import { getEntityPermissions, formatPermissions, filterPermissionsByAction } from "../../utils/permissionUtils";
+import {
+  getEntityPermissions,
+  formatPermissions,
+  filterPermissionsByAction,
+} from "../../utils/permissionUtils";
 
 interface Feature {
   name: string;
@@ -49,18 +53,23 @@ const FeatureListPage = () => {
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(100);
 
-  const featuresWithPermissions: Feature[] = (data?.allFeatures || []).map(feature => {
-    return {
-      ...feature,
-      permissions: getEntityPermissions(
-        selectedPermissionAction 
-          ? filterPermissionsByAction(data?.permissions, selectedPermissionAction)
-          : data?.permissions,
-        FEAST_FCO_TYPES.featureView,
-        feature.featureView
-      )
-    };
-  });
+  const featuresWithPermissions: Feature[] = (data?.allFeatures || []).map(
+    (feature) => {
+      return {
+        ...feature,
+        permissions: getEntityPermissions(
+          selectedPermissionAction
+            ? filterPermissionsByAction(
+                data?.permissions,
+                selectedPermissionAction,
+              )
+            : data?.permissions,
+          FEAST_FCO_TYPES.featureView,
+          feature.featureView,
+        ),
+      };
+    },
+  );
 
   const features: Feature[] = featuresWithPermissions;
 
@@ -114,17 +123,22 @@ const FeatureListPage = () => {
         return hasPermissions ? (
           <EuiToolTip
             position="top"
-            content={<pre style={{ margin: 0 }}>{formatPermissions(permissions)}</pre>}
+            content={
+              <pre style={{ margin: 0 }}>{formatPermissions(permissions)}</pre>
+            }
           >
             <div style={{ display: "flex", alignItems: "center" }}>
               <EuiIcon type="lock" color="#5a7be0" />
               <EuiText size="xs" style={{ marginLeft: "4px" }}>
-                {permissions.length} permission{permissions.length !== 1 ? "s" : ""}
+                {permissions.length} permission
+                {permissions.length !== 1 ? "s" : ""}
               </EuiText>
             </div>
           </EuiToolTip>
         ) : (
-          <EuiText size="xs" color="subdued">None</EuiText>
+          <EuiText size="xs" color="subdued">
+            None
+          </EuiText>
         );
       },
     },
@@ -193,7 +207,9 @@ const FeatureListPage = () => {
                       { value: "WRITE_OFFLINE", text: "WRITE_OFFLINE" },
                     ]}
                     value={selectedPermissionAction}
-                    onChange={(e) => setSelectedPermissionAction(e.target.value)}
+                    onChange={(e) =>
+                      setSelectedPermissionAction(e.target.value)
+                    }
                     aria-label="Filter by permission action"
                   />
                 </EuiFormRow>
