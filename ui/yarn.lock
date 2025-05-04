@@ -1236,11 +1236,22 @@
   dependencies:
     tslib "^1.9.3"
 
-"@elastic/eui@^95.12.0":
-  version "95.12.0"
-  resolved "https://registry.yarnpkg.com/@elastic/eui/-/eui-95.12.0.tgz#862f2be8b72248a62b40704b9e62f2f5d7d43853"
-  integrity sha512-SW4ru97FY2VitSqyCgURrM5OMk1W+Ww12b6S+VZN5ex50aNT296DfED/ByidlYaAoVihqjZuoB3HlQBBXydFpA==
+"@elastic/eui-theme-common@1.0.0":
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/@elastic/eui-theme-common/-/eui-theme-common-1.0.0.tgz#c5e7b7597c4ebe71fc533b18458415a14a93794d"
+  integrity sha512-9+P21npVm05OmFr0OPkA5DSdts9teOo/OEotbJFAVkqBLkNf+Eevv6q89B8eQ6r383RnVwTl7vBzb6M9PnULJg==
   dependencies:
+    "@types/lodash" "^4.14.202"
+    chroma-js "^2.4.2"
+    lodash "^4.17.21"
+
+"@elastic/eui@^102.0.0":
+  version "102.0.0"
+  resolved "https://registry.yarnpkg.com/@elastic/eui/-/eui-102.0.0.tgz#dda965d92eb46bf061aac8d0219218779aea28bb"
+  integrity sha512-o4BuXdyGLTAJOBMIUVovDaDmmW+RJgKG6XdIDds7aJyQFlcqIOHgM59yCorzEHhpPAuaYparShJE/vug2dJAIQ==
+  dependencies:
+    "@elastic/eui-theme-common" "1.0.0"
+    "@elastic/prismjs-esql" "^1.1.0"
     "@hello-pangea/dnd" "^16.6.0"
     "@types/lodash" "^4.14.202"
     "@types/numeral" "^2.0.5"
@@ -1274,6 +1285,11 @@
     url-parse "^1.5.10"
     uuid "^8.3.0"
     vfile "^4.2.1"
+
+"@elastic/prismjs-esql@^1.1.0":
+  version "1.1.0"
+  resolved "https://registry.yarnpkg.com/@elastic/prismjs-esql/-/prismjs-esql-1.1.0.tgz#c7f84de21bb453831df7e8565be7430b1b078836"
+  integrity sha512-k2zZfCL4l+qCXfmc9jrnDdEWW2jDPFAHlCq1JAh3x7zWN6Eyc6ACn3oj9oy49xsuAO+BAhQ345uueL8K/3UIKg==
 
 "@emotion/babel-plugin@^11.13.5":
   version "11.13.5"
