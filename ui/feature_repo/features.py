@@ -5,6 +5,9 @@ import pandas as pd
 from feast import Entity, FeatureService, FeatureView, Field, FileSource
 from feast.data_source import RequestSource
 from feast.on_demand_feature_view import on_demand_feature_view
+from feast.permissions.action import AuthzedAction, READ
+from feast.permissions.permission import Permission
+from feast.permissions.policy import RoleBasedPolicy
 from feast.types import Bool, Int64, String
 
 zipcode = Entity(
@@ -198,4 +201,36 @@ zipcode_model_v2 = FeatureService(
     ],
     tags={"owner": "amanda@feast.ai", "stage": "dev"},
     description="Location model",
+)
+
+zipcode_features_permission = Permission(
+    name="zipcode-features-reader",
+    types=[FeatureView],
+    name_patterns=["zipcode_features"],
+    policy=RoleBasedPolicy(roles=["analyst", "data_scientist"]),
+    actions=[AuthzedAction.DESCRIBE, *READ],
+)
+
+zipcode_source_permission = Permission(
+    name="zipcode-source-writer",
+    types=[FileSource],
+    name_patterns=["zipcode"],
+    policy=RoleBasedPolicy(roles=["admin", "data_engineer"]),
+    actions=[AuthzedAction.CREATE, AuthzedAction.UPDATE, AuthzedAction.WRITE_OFFLINE],
+)
+
+model_v1_permission = Permission(
+    name="credit-score-v1-reader",
+    types=[FeatureService],
+    name_patterns=["credit_score_v1"],
+    policy=RoleBasedPolicy(roles=["model_user", "data_scientist"]),
+    actions=[AuthzedAction.DESCRIBE, AuthzedAction.READ_ONLINE],
+)
+
+risky_features_permission = Permission(
+    name="risky-features-reader",
+    types=[FeatureView, FeatureService],
+    required_tags={"stage": "prod"},
+    policy=RoleBasedPolicy(roles=["trusted_analyst"]),
+    actions=[AuthzedAction.READ_OFFLINE],
 )
