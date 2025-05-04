@@ -64,22 +64,15 @@ const SideNav = () => {
 
   const sideNav: React.ComponentProps<typeof EuiSideNav>["items"] = [
     {
-      name: "Home | Lineage",
+      name: (
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <Link to={`${baseUrl}/`} style={{ marginRight: '5px' }}>Home</Link>
+          <span>|</span>
+          <Link to={`${baseUrl}?tab=visualization`} style={{ marginLeft: '5px' }}>Lineage</Link>
+        </div>
+      ),
       id: htmlIdGenerator("homeLineage")(),
-      items: [
-        {
-          name: "Home",
-          id: htmlIdGenerator("home")(),
-          renderItem: (props) => <Link {...props} to={`${baseUrl}/`} />,
-          isSelected: useMatchSubpath(`${baseUrl}$`),
-        },
-        {
-          name: "Lineage",
-          id: htmlIdGenerator("lineage")(),
-          renderItem: (props) => <Link {...props} to={`${baseUrl}?tab=visualization`} />,
-          isSelected: useMatchSubpath(`${baseUrl}?tab=visualization`),
-        },
-      ],
+      isSelected: useMatchSubpath(`${baseUrl}`) || useMatchSubpath(`${baseUrl}?tab=visualization`),
     },
     {
       name: "Resources",
