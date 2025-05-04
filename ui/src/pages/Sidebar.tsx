@@ -68,7 +68,7 @@ const SideNav = () => {
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <Link to={`${baseUrl}/`} style={{ marginRight: '5px' }}>Home</Link>
           <span>|</span>
-          <Link to={`${baseUrl}?tab=visualization`} style={{ marginLeft: '5px' }}>Lineage</Link>
+          <Link to={`${baseUrl}/feature-service/credit_score_v2/fs-demo-tab`} style={{ marginLeft: '5px' }}>Lineage</Link>
         </div>
       ),
       id: htmlIdGenerator("homeLineage")(),
