@@ -72,7 +72,7 @@ const SideNav = () => {
         </div>
       ),
       id: htmlIdGenerator("homeLineage")(),
-      isSelected: useMatchSubpath(`${baseUrl}`) || useMatchSubpath(`${baseUrl}?tab=visualization`),
+      isSelected: useMatchSubpath(`${baseUrl}`),
     },
     {
       name: "Resources",
