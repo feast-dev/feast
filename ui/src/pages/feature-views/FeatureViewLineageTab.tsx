@@ -29,18 +29,11 @@ const FeatureViewLineageTab = ({ data }: FeatureViewLineageTabProps) => {
     data: registryData,
   } = useLoadRegistry(registryUrl);
   const { featureViewName } = useParams();
-  const [selectedEntityName, setSelectedEntityName] = useState("");
   const [selectedPermissionAction, setSelectedPermissionAction] = useState("");
 
-  const getEntityOptions = (objects: any) => {
-    return objects?.entities?.map((entity: any) => entity.spec?.name) || [];
-  };
-
   const filterNode = {
-    type: selectedEntityName
-      ? FEAST_FCO_TYPES.entity
-      : FEAST_FCO_TYPES.featureView,
-    name: selectedEntityName || featureViewName || data.spec?.name || "",
+    type: FEAST_FCO_TYPES.featureView,
+    name: featureViewName || data.spec?.name || "",
   };
 
   return (
@@ -67,24 +60,6 @@ const FeatureViewLineageTab = ({ data }: FeatureViewLineageTabProps) => {
         <>
           <EuiSpacer size="l" />
           <EuiFlexGroup style={{ marginBottom: 16 }}>
-            <EuiFlexItem grow={false} style={{ width: 300 }}>
-              <EuiFormRow label="Filter by entity">
-                <EuiSelect
-                  options={[
-                    { value: "", text: "All (View by Feature View)" },
-                    ...getEntityOptions(registryData.objects).map(
-                      (name: string) => ({
-                        value: name,
-                        text: name,
-                      }),
-                    ),
-                  ]}
-                  value={selectedEntityName}
-                  onChange={(e) => setSelectedEntityName(e.target.value)}
-                  aria-label="Filter by entity"
-                />
-              </EuiFormRow>
-            </EuiFlexItem>
             <EuiFlexItem grow={false} style={{ width: 300 }}>
               <EuiFormRow label="Filter by permissions">
                 <EuiSelect
