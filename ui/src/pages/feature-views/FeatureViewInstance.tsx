@@ -10,9 +10,13 @@ import useLoadFeatureView from "./useLoadFeatureView";
 import OnDemandFeatureInstance from "./OnDemandFeatureViewInstance";
 import StreamFeatureInstance from "./StreamFeatureViewInstance";
 import { feast } from "../../protos";
+import useLoadRegistry from "../../queries/useLoadRegistry";
+import RegistryPathContext from "../../contexts/RegistryPathContext";
 
 const FeatureViewInstance = () => {
   const { featureViewName } = useParams();
+  const registryUrl = React.useContext(RegistryPathContext);
+  const registryQuery = useLoadRegistry(registryUrl);
 
   const fvName = featureViewName === undefined ? "" : featureViewName;
 
@@ -38,7 +42,12 @@ const FeatureViewInstance = () => {
     if (data.type === FEAST_FV_TYPES.regular) {
       const fv: feast.core.IFeatureView = data.object;
 
-      return <RegularFeatureInstance data={fv} />;
+      return (
+        <RegularFeatureInstance
+          data={fv}
+          permissions={registryQuery.data?.permissions}
+        />
+      );
     }
 
     if (data.type === FEAST_FV_TYPES.ondemand) {

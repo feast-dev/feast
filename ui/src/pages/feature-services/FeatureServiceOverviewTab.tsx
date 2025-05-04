@@ -15,11 +15,14 @@ import React from "react";
 import { useParams } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
 import FeaturesInServiceList from "../../components/FeaturesInServiceDisplay";
+import PermissionsDisplay from "../../components/PermissionsDisplay";
 import TagsDisplay from "../../components/TagsDisplay";
 import { encodeSearchQueryString } from "../../hooks/encodeSearchQueryString";
 import FeatureViewEdgesList from "../entities/FeatureViewEdgesList";
 import useLoadFeatureService from "./useLoadFeatureService";
 import { toDate } from "../../utils/timestamp";
+import { getEntityPermissions } from "../../utils/permissionUtils";
+import { FEAST_FCO_TYPES } from "../../parsers/types";
 
 const FeatureServiceOverviewTab = () => {
   let { featureServiceName, projectName } = useParams();
@@ -163,6 +166,26 @@ const FeatureServiceOverviewTab = () => {
                   />
                 ) : (
                   <EuiText>No feature views in this feature service</EuiText>
+                )}
+              </EuiPanel>
+              <EuiSpacer size="m" />
+              <EuiPanel hasBorder={true}>
+                <EuiTitle size="xs">
+                  <h3>Permissions</h3>
+                </EuiTitle>
+                <EuiHorizontalRule margin="xs" />
+                {data?.permissions ? (
+                  <PermissionsDisplay
+                    permissions={getEntityPermissions(
+                      data.permissions,
+                      FEAST_FCO_TYPES.featureService,
+                      fsName,
+                    )}
+                  />
+                ) : (
+                  <EuiText>
+                    No permissions defined for this feature service.
+                  </EuiText>
                 )}
               </EuiPanel>
             </EuiFlexItem>

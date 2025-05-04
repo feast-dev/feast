@@ -13,11 +13,13 @@ import React from "react";
 
 import { useNavigate, useParams } from "react-router-dom";
 import FeaturesListDisplay from "../../components/FeaturesListDisplay";
+import PermissionsDisplay from "../../components/PermissionsDisplay";
 import TagsDisplay from "../../components/TagsDisplay";
 import { encodeSearchQueryString } from "../../hooks/encodeSearchQueryString";
 import { EntityRelation } from "../../parsers/parseEntityRelationships";
 import { FEAST_FCO_TYPES } from "../../parsers/types";
 import useLoadRelationshipData from "../../queries/useLoadRelationshipsData";
+import { getEntityPermissions } from "../../utils/permissionUtils";
 import BatchSourcePropertiesView from "../data-sources/BatchSourcePropertiesView";
 import ConsumingFeatureServicesList from "./ConsumingFeatureServicesList";
 import { feast } from "../../protos";
@@ -34,10 +36,12 @@ const whereFSconsumesThisFv = (fvName: string) => {
 
 interface RegularFeatureViewOverviewTabProps {
   data: feast.core.IFeatureView;
+  permissions?: any[];
 }
 
 const RegularFeatureViewOverviewTab = ({
   data,
+  permissions,
 }: RegularFeatureViewOverviewTabProps) => {
   const navigate = useNavigate();
 
@@ -143,6 +147,24 @@ const RegularFeatureViewOverviewTab = ({
               />
             ) : (
               <EuiText>No Tags specified on this feature view.</EuiText>
+            )}
+          </EuiPanel>
+          <EuiSpacer size="m" />
+          <EuiPanel hasBorder={true}>
+            <EuiTitle size="xs">
+              <h3>Permissions</h3>
+            </EuiTitle>
+            <EuiHorizontalRule margin="xs" />
+            {permissions ? (
+              <PermissionsDisplay
+                permissions={getEntityPermissions(
+                  permissions,
+                  FEAST_FCO_TYPES.featureView,
+                  data?.spec?.name,
+                )}
+              />
+            ) : (
+              <EuiText>No permissions defined for this feature view.</EuiText>
             )}
           </EuiPanel>
         </EuiFlexItem>
