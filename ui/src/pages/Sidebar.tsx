@@ -66,7 +66,6 @@ const SideNav = () => {
     {
       name: "Home",
       id: htmlIdGenerator("home")(),
-      renderItem: (props) => <Link {...props} to={`${baseUrl}/`} />,
       isSelected: useMatchSubpath(`${baseUrl}`),
     },
     {

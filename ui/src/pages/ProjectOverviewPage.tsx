@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useContext } from "react";
 import {
   EuiPageTemplate,
   EuiText,
@@ -8,8 +8,6 @@ import {
   EuiSpacer,
   EuiSkeletonText,
   EuiEmptyPrompt,
-  EuiTabs,
-  EuiTab,
   EuiFieldSearch,
 } from "@elastic/eui";
 
@@ -26,40 +24,6 @@ const ProjectOverviewPage = () => {
   useDocumentTitle("Feast Home");
   const registryUrl = useContext(RegistryPathContext);
   const { isLoading, isSuccess, isError, data } = useLoadRegistry(registryUrl);
-
-  const [selectedTabId, setSelectedTabId] = useState("overview");
-
-  const tabs = [
-    {
-      id: "overview",
-      name: "Overview",
-      disabled: false,
-    },
-    {
-      id: "visualization",
-      name: "Lineage",
-      disabled: false,
-    },
-  ];
-
-  const onSelectedTabChanged = (id: string) => {
-    setSelectedTabId(id);
-  };
-
-  const renderTabs = () => {
-    return tabs.map((tab, index) => (
-      <EuiTab
-        key={index}
-        onClick={() => onSelectedTabChanged(tab.id)}
-        isSelected={tab.id === selectedTabId}
-        disabled={tab.disabled}
-      >
-        {tab.name}
-      </EuiTab>
-    ));
-  };
-
-  const [searchText, setSearchText] = useState("");
 
   const { projectName } = useParams<{ projectName: string }>();
 
@@ -112,64 +76,57 @@ const ProjectOverviewPage = () => {
         </EuiTitle>
         <EuiSpacer />
 
-        <EuiTabs>{renderTabs()}</EuiTabs>
-        <EuiSpacer />
-
-        {selectedTabId === "overview" && (
-          <EuiFlexGroup>
-            <EuiFlexItem grow={2}>
-              {isLoading && <EuiSkeletonText lines={4} />}
-              {isError && (
-                <EuiEmptyPrompt
-                  iconType="alert"
-                  color="danger"
-                  title={<h2>Error Loading Project Configs</h2>}
-                  body={
-                    <p>
-                      There was an error loading the Project Configurations.
-                      Please check that <code>feature_store.yaml</code> file is
-                      available and well-formed.
-                    </p>
-                  }
-                />
-              )}
-              {isSuccess &&
-                (data?.description ? (
-                  <EuiText>
-                    <pre>{data.description}</pre>
-                  </EuiText>
-                ) : (
-                  <EuiText>
-                    <p>
-                      Welcome to your new Feast project. In this UI, you can see
-                      Data Sources, Entities, Features, Feature Views, and
-                      Feature Services registered in Feast.
-                    </p>
-                    <p>
-                      It looks like this project already has some objects
-                      registered. If you are new to this project, we suggest
-                      starting by exploring the Feature Services, as they
-                      represent the collection of Feature Views serving a
-                      particular model.
-                    </p>
-                    <p>
-                      <strong>Note</strong>: We encourage you to replace this
-                      welcome message with more suitable content for your team.
-                      You can do so by specifying a{" "}
-                      <code>project_description</code> in your{" "}
-                      <code>feature_store.yaml</code> file.
-                    </p>
-                  </EuiText>
-                ))}
-              <ObjectsCountStats />
-            </EuiFlexItem>
-            <EuiFlexItem grow={1}>
-              <ExplorePanel />
-            </EuiFlexItem>
-          </EuiFlexGroup>
-        )}
-
-        {selectedTabId === "visualization" && <RegistryVisualizationTab />}
+        <EuiFlexGroup>
+          <EuiFlexItem grow={2}>
+            {isLoading && <EuiSkeletonText lines={4} />}
+            {isError && (
+              <EuiEmptyPrompt
+                iconType="alert"
+                color="danger"
+                title={<h2>Error Loading Project Configs</h2>}
+                body={
+                  <p>
+                    There was an error loading the Project Configurations.
+                    Please check that <code>feature_store.yaml</code> file is
+                    available and well-formed.
+                  </p>
+                }
+              />
+            )}
+            {isSuccess &&
+              (data?.description ? (
+                <EuiText>
+                  <pre>{data.description}</pre>
+                </EuiText>
+              ) : (
+                <EuiText>
+                  <p>
+                    Welcome to your new Feast project. In this UI, you can see
+                    Data Sources, Entities, Features, Feature Views, and
+                    Feature Services registered in Feast.
+                  </p>
+                  <p>
+                    It looks like this project already has some objects
+                    registered. If you are new to this project, we suggest
+                    starting by exploring the Feature Services, as they
+                    represent the collection of Feature Views serving a
+                    particular model.
+                  </p>
+                  <p>
+                    <strong>Note</strong>: We encourage you to replace this
+                    welcome message with more suitable content for your team.
+                    You can do so by specifying a{" "}
+                    <code>project_description</code> in your{" "}
+                    <code>feature_store.yaml</code> file.
+                  </p>
+                </EuiText>
+              ))}
+            <ObjectsCountStats />
+          </EuiFlexItem>
+          <EuiFlexItem grow={1}>
+            <ExplorePanel />
+          </EuiFlexItem>
+        </EuiFlexGroup>
       </EuiPageTemplate.Section>
       <EuiPageTemplate.Section>
         {isSuccess && <RegistrySearch categories={categories} />}
