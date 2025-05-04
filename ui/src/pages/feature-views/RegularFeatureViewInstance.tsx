@@ -17,9 +17,10 @@ import { feast } from "../../protos";
 
 interface RegularFeatureInstanceProps {
   data: feast.core.IFeatureView;
+  permissions?: any[];
 }
 
-const RegularFeatureInstance = ({ data }: RegularFeatureInstanceProps) => {
+const RegularFeatureInstance = ({ data, permissions }: RegularFeatureInstanceProps) => {
   const { enabledFeatureStatistics } = useContext(FeatureFlagsContext);
   const navigate = useNavigate();
 
@@ -69,7 +70,7 @@ const RegularFeatureInstance = ({ data }: RegularFeatureInstanceProps) => {
         <Routes>
           <Route
             path="/"
-            element={<RegularFeatureViewOverviewTab data={data} />}
+            element={<RegularFeatureViewOverviewTab data={data} permissions={permissions} />}
           />
           <Route
             path="/lineage"
