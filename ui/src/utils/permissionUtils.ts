@@ -11,9 +11,9 @@ import { feast } from "../protos";
 export const getEntityPermissions = (
   permissions: any[] | undefined,
   entityType: FEAST_FCO_TYPES,
-  entityName: string,
+  entityName: string | null | undefined,
 ): any[] => {
-  if (!permissions || permissions.length === 0) {
+  if (!permissions || permissions.length === 0 || !entityName) {
     return [];
   }
 
