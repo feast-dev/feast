@@ -1,6 +1,5 @@
 import React from "react";
 
-import "@elastic/eui/dist/eui_theme_light.css";
 import "./index.css";
 
 import { Routes, Route } from "react-router-dom";
