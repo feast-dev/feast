@@ -11,7 +11,7 @@ import { feast } from "../protos";
 export const getEntityPermissions = (
   permissions: any[] | undefined,
   entityType: FEAST_FCO_TYPES,
-  entityName: string
+  entityName: string,
 ): any[] => {
   if (!permissions || permissions.length === 0) {
     return [];
@@ -19,7 +19,7 @@ export const getEntityPermissions = (
 
   return permissions.filter((permission) => {
     const matchesType = permission.spec?.types?.includes(
-      getPermissionType(entityType)
+      getPermissionType(entityType),
     );
 
     const matchesName =
@@ -96,7 +96,7 @@ const getActionName = (action: number): string => {
  */
 export const filterPermissionsByAction = (
   permissions: any[] | undefined,
-  action: string
+  action: string,
 ): any[] => {
   if (!permissions || permissions.length === 0) {
     return [];
@@ -104,7 +104,7 @@ export const filterPermissionsByAction = (
 
   return permissions.filter((permission) => {
     return permission.spec?.actions?.some(
-      (a: number) => getActionName(a) === action
+      (a: number) => getActionName(a) === action,
     );
   });
 };

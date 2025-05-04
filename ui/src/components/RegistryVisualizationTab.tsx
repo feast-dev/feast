@@ -143,7 +143,10 @@ const RegistryVisualizationTab = () => {
             indirectRelationships={data.indirectRelationships}
             permissions={
               selectedPermissionAction
-                ? filterPermissionsByAction(data.permissions, selectedPermissionAction)
+                ? filterPermissionsByAction(
+                    data.permissions,
+                    selectedPermissionAction,
+                  )
                 : data.permissions
             }
             filterNode={

@@ -15,12 +15,21 @@ import {
 } from "reactflow";
 import "reactflow/dist/style.css";
 import dagre from "dagre";
-import { EuiPanel, EuiTitle, EuiSpacer, EuiLoadingSpinner, EuiToolTip } from "@elastic/eui";
+import {
+  EuiPanel,
+  EuiTitle,
+  EuiSpacer,
+  EuiLoadingSpinner,
+  EuiToolTip,
+} from "@elastic/eui";
 import { FEAST_FCO_TYPES } from "../parsers/types";
 import { EntityRelation } from "../parsers/parseEntityRelationships";
 import { feast } from "../protos";
 import { useTheme } from "../contexts/ThemeContext";
-import { formatPermissions, getEntityPermissions } from "../utils/permissionUtils";
+import {
+  formatPermissions,
+  getEntityPermissions,
+} from "../utils/permissionUtils";
 
 const edgeAnimationStyle = `
   @keyframes dashdraw {
@@ -132,8 +141,8 @@ const CustomNode = ({ data }: { data: NodeData }) => {
     navigate(path);
   };
 
-  const permissionsTooltipContent = hasPermissions 
-    ? formatPermissions(data.permissions) 
+  const permissionsTooltipContent = hasPermissions
+    ? formatPermissions(data.permissions)
     : "No permissions set";
 
   return (
@@ -472,7 +481,7 @@ const Legend = () => {
 const registryToFlow = (
   objects: feast.core.Registry,
   relationships: EntityRelation[],
-  permissions?: any[]
+  permissions?: any[],
 ) => {
   const nodes: Node[] = [];
   const edges: Edge[] = [];
@@ -485,11 +494,13 @@ const registryToFlow = (
         label: fs.spec?.name,
         type: FEAST_FCO_TYPES.featureService,
         metadata: fs,
-        permissions: permissions ? getEntityPermissions(
-          permissions, 
-          FEAST_FCO_TYPES.featureService, 
-          fs.spec?.name
-        ) : [],
+        permissions: permissions
+          ? getEntityPermissions(
+              permissions,
+              FEAST_FCO_TYPES.featureService,
+              fs.spec?.name,
+            )
+          : [],
       },
       position: { x: 0, y: 0 },
     });
@@ -503,11 +514,13 @@ const registryToFlow = (
         label: fv.spec?.name,
         type: FEAST_FCO_TYPES.featureView,
         metadata: fv,
-        permissions: permissions ? getEntityPermissions(
-          permissions, 
-          FEAST_FCO_TYPES.featureView, 
-          fv.spec?.name
-        ) : [],
+        permissions: permissions
+          ? getEntityPermissions(
+              permissions,
+              FEAST_FCO_TYPES.featureView,
+              fv.spec?.name,
+            )
+          : [],
       },
       position: { x: 0, y: 0 },
     });
@@ -521,11 +534,13 @@ const registryToFlow = (
         label: odfv.spec?.name,
         type: FEAST_FCO_TYPES.featureView,
         metadata: odfv,
-        permissions: permissions ? getEntityPermissions(
-          permissions, 
-          FEAST_FCO_TYPES.featureView, 
-          odfv.spec?.name
-        ) : [],
+        permissions: permissions
+          ? getEntityPermissions(
+              permissions,
+              FEAST_FCO_TYPES.featureView,
+              odfv.spec?.name,
+            )
+          : [],
       },
       position: { x: 0, y: 0 },
     });
@@ -539,11 +554,13 @@ const registryToFlow = (
         label: sfv.spec?.name,
         type: FEAST_FCO_TYPES.featureView,
         metadata: sfv,
-        permissions: permissions ? getEntityPermissions(
-          permissions, 
-          FEAST_FCO_TYPES.featureView, 
-          sfv.spec?.name
-        ) : [],
+        permissions: permissions
+          ? getEntityPermissions(
+              permissions,
+              FEAST_FCO_TYPES.featureView,
+              sfv.spec?.name,
+            )
+          : [],
       },
       position: { x: 0, y: 0 },
     });
@@ -557,11 +574,13 @@ const registryToFlow = (
         label: entity.spec?.name,
         type: FEAST_FCO_TYPES.entity,
         metadata: entity,
-        permissions: permissions ? getEntityPermissions(
-          permissions, 
-          FEAST_FCO_TYPES.entity, 
-          entity.spec?.name
-        ) : [],
+        permissions: permissions
+          ? getEntityPermissions(
+              permissions,
+              FEAST_FCO_TYPES.entity,
+              entity.spec?.name,
+            )
+          : [],
       },
       position: { x: 0, y: 0 },
     });
@@ -592,11 +611,13 @@ const registryToFlow = (
         label: dsName,
         type: FEAST_FCO_TYPES.dataSource,
         metadata: { name: dsName },
-        permissions: permissions ? getEntityPermissions(
-          permissions, 
-          FEAST_FCO_TYPES.dataSource, 
-          dsName
-        ) : [],
+        permissions: permissions
+          ? getEntityPermissions(
+              permissions,
+              FEAST_FCO_TYPES.dataSource,
+              dsName,
+            )
+          : [],
       },
       position: { x: 0, y: 0 },
     });
@@ -732,7 +753,7 @@ const RegistryVisualization: React.FC<RegistryVisualizationProps> = ({
       const { nodes: initialNodes, edges: initialEdges } = registryToFlow(
         registryData,
         validRelationships,
-        permissions
+        permissions,
       );
 
       const { nodes: layoutedNodes, edges: layoutedEdges } =
