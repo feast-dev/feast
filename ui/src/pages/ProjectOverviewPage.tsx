@@ -104,23 +104,12 @@ const ProjectOverviewPage = () => {
   return (
     <EuiPageTemplate panelled>
       <EuiPageTemplate.Section>
-        <EuiFlexGroup alignItems="center">
-          <EuiFlexItem>
-            <EuiTitle size="l">
-              <h1>
-                {isLoading && <EuiSkeletonText lines={1} />}
-                {isSuccess && data?.project && `Project: ${data.project}`}
-              </h1>
-            </EuiTitle>
-          </EuiFlexItem>
-          <EuiFlexItem grow={false}>
-            <EuiText>
-              <p>
-                <a href={`/p/${projectName}/`}>Home</a> | <a href={`/p/${projectName}?tab=visualization`}>Lineage</a>
-              </p>
-            </EuiText>
-          </EuiFlexItem>
-        </EuiFlexGroup>
+        <EuiTitle size="l">
+          <h1>
+            {isLoading && <EuiSkeletonText lines={1} />}
+            {isSuccess && data?.project && `Project: ${data.project}`}
+          </h1>
+        </EuiTitle>
         <EuiSpacer />
 
         <EuiTabs>{renderTabs()}</EuiTabs>
