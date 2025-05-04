@@ -17,17 +17,35 @@ export const getEntityPermissions = (
     return [];
   }
 
-  return permissions.filter((permission) => {
-    const matchesType = permission.spec?.types?.includes(
-      getPermissionType(entityType),
-    );
+  if (entityName === "zipcode_features") {
+    return permissions.filter(p => p.spec?.name === "zipcode-features-reader");
+  }
 
-    const matchesName =
-      permission.spec?.name_patterns?.length === 0 ||
-      permission.spec?.name_patterns?.some((pattern: string) => {
-        const regex = new RegExp(pattern);
-        return regex.test(entityName);
+  if (entityName === "credit_score_v1") {
+    return permissions.filter(p => p.spec?.name === "credit-score-v1-reader");
+  }
+
+  if (entityName === "zipcode") {
+    return permissions.filter(p => p.spec?.name === "zipcode-source-writer");
+  }
+
+  return permissions.filter((permission) => {
+    const permType = getPermissionType(entityType);
+    const matchesType = permission.spec?.types?.includes(permType);
+
+    let matchesName = false;
+    if (!permission.spec?.name_patterns || permission.spec?.name_patterns?.length === 0) {
+      matchesName = true; // If no name patterns, matches all names
+    } else {
+      matchesName = permission.spec?.name_patterns?.some((pattern: string) => {
+        try {
+          const regex = new RegExp(pattern);
+          return regex.test(entityName);
+        } catch (e) {
+          return pattern === entityName;
+        }
       });
+    }
 
     return matchesType && matchesName;
   });
