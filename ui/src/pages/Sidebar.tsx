@@ -116,6 +116,13 @@ const SideNav = () => {
           renderItem: (props) => <Link {...props} to={`${baseUrl}/data-set`} />,
           isSelected: useMatchSubpath(`${baseUrl}/data-set`),
         },
+        {
+          name: "Permissions",
+          id: htmlIdGenerator("permissions")(),
+          icon: <EuiIcon type="lock" />,
+          renderItem: (props) => <Link {...props} to={`${baseUrl}/permissions`} />,
+          isSelected: useMatchSubpath(`${baseUrl}/permissions`),
+        },
       ],
     },
   ];

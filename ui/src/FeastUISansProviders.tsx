@@ -23,6 +23,7 @@ import FeatureServiceInstance from "./pages/feature-services/FeatureServiceInsta
 import DataSourceInstance from "./pages/data-sources/DataSourceInstance";
 import RootProjectSelectionPage from "./pages/RootProjectSelectionPage";
 import DatasetInstance from "./pages/saved-data-sets/DatasetInstance";
+import PermissionsIndex from "./pages/permissions/Index";
 import NoProjectGuard from "./components/NoProjectGuard";
 
 import TabsRegistryContext, {
@@ -144,6 +145,7 @@ const FeastUISansProvidersInner = ({
                       path="data-set/:datasetName/*"
                       element={<DatasetInstance />}
                     />
+                    <Route path="permissions/" element={<PermissionsIndex />} />
                   </Route>
                 </Route>
                 <Route path="*" element={<NoMatch />} />
