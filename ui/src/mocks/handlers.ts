@@ -14,14 +14,22 @@ const projectsListWithDefaultProject = http.get("/projects-list.json", () =>
         name: "Credit Score Project",
         description: "Project for credit scoring team and associated models.",
         id: "credit_score_project",
-        registryPath: "/registry.db",
+        registryPath: "/registry.pb",
       },
     ],
   }),
 );
 
-const creditHistoryRegistry = http.get("/registry.db", () => {
+const creditHistoryRegistryPB = http.get("/registry.pb", () => {
   return HttpResponse.arrayBuffer(registry.buffer);
 });
 
-export { projectsListWithDefaultProject, creditHistoryRegistry };
+const creditHistoryRegistryDB = http.get("/registry.db", () => {
+  return HttpResponse.arrayBuffer(registry.buffer);
+});
+
+export { 
+  projectsListWithDefaultProject, 
+  creditHistoryRegistryPB as creditHistoryRegistry,
+  creditHistoryRegistryDB
+};
