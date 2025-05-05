@@ -13,6 +13,7 @@ import FeastUISansProviders from "./FeastUISansProviders";
 import {
   projectsListWithDefaultProject,
   creditHistoryRegistry,
+  creditHistoryRegistryDB
 } from "./mocks/handlers";
 
 import { readFileSync } from "fs";
@@ -23,6 +24,7 @@ import path from "path";
 const server = setupServer(
   projectsListWithDefaultProject,
   creditHistoryRegistry,
+  creditHistoryRegistryDB
 );
 const registry = readFileSync(path.resolve(__dirname, "../public/registry.db"));
 const parsedRegistry = feast.core.Registry.decode(registry);
