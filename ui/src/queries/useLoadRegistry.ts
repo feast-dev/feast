@@ -34,12 +34,23 @@ const useLoadRegistry = (url: string) => {
         },
       })
         .then((res) => {
-          return res.arrayBuffer();
+          const contentType = res.headers.get("content-type");
+          if (contentType && contentType.includes("application/json")) {
+            return res.json();
+          } else {
+            return res.arrayBuffer();
+          }
         })
-        .then<FeatureStoreAllData>((arrayBuffer) => {
-          const objects = feast.core.Registry.decode(
-            new Uint8Array(arrayBuffer),
-          );
+        .then<FeatureStoreAllData>((data) => {
+          let objects;
+          
+          if (data instanceof ArrayBuffer) {
+            objects = feast.core.Registry.decode(
+              new Uint8Array(data),
+            );
+          } else {
+            objects = data;
+          }
           // const objects = FeastRegistrySchema.parse(json);
 
           const { mergedFVMap, mergedFVList } = mergedFVTypes(objects);
@@ -61,8 +72,8 @@ const useLoadRegistry = (url: string) => {
           // });
           const allFeatures: Feature[] =
             objects.featureViews?.flatMap(
-              (fv) =>
-                fv?.spec?.features?.map((feature) => ({
+              (fv: any) =>
+                fv?.spec?.features?.map((feature: any) => ({
                   name: feature.name ?? "Unknown",
                   featureView: fv?.spec?.name || "Unknown FeatureView",
                   type:
@@ -73,7 +84,7 @@ const useLoadRegistry = (url: string) => {
             ) || [];
 
           return {
-            project: objects.projects[0].spec?.name!,
+            project: objects.projects?.[0]?.spec?.name || objects.project || "unknown",
             objects,
             mergedFVMap,
             mergedFVList,
