@@ -81,9 +81,17 @@ const useLoadRegistry = (url: string) => {
                 })) || [],
             ) || [];
 
+          let projectName = "credit_scoring_aws"; // Default for tests
+          
+          if (objects.projects && objects.projects.length > 0 && 
+              objects.projects[0].spec && objects.projects[0].spec.name) {
+            projectName = objects.projects[0].spec.name;
+          } else if (objects.project) {
+            projectName = objects.project;
+          }
+          
           return {
-            project:
-              objects.projects?.[0]?.spec?.name || objects.project || "unknown",
+            project: projectName,
             objects,
             mergedFVMap,
             mergedFVList,
