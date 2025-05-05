@@ -22,7 +22,13 @@
           }
         ],
         "entities": ["document"],
-        "description": "Document embeddings for RAG"
+        "description": "Document embeddings for RAG",
+        "batchSource": {
+          "name": "rag_document_source",
+          "type": 1,
+          "dataSourceClassType": "feast.infra.offline_stores.file_source.FileSource",
+          "description": "Source for RAG documents"
+        }
       }
     },
     {
@@ -39,7 +45,13 @@
           }
         ],
         "entities": ["query"],
-        "description": "Query embeddings for RAG"
+        "description": "Query embeddings for RAG",
+        "batchSource": {
+          "name": "rag_query_source",
+          "type": 1,
+          "dataSourceClassType": "feast.infra.offline_stores.file_source.FileSource",
+          "description": "Source for RAG queries"
+        }
       }
     },
     {
@@ -60,7 +72,13 @@
           }
         ],
         "entities": ["document"],
-        "description": "Document metadata for RAG"
+        "description": "Document metadata for RAG",
+        "batchSource": {
+          "name": "rag_document_source",
+          "type": 1,
+          "dataSourceClassType": "feast.infra.offline_stores.file_source.FileSource",
+          "description": "Source for RAG documents"
+        }
       }
     }
   ],
@@ -84,6 +102,7 @@
     {
       "name": "rag_document_source",
       "type": 1,
+      "dataSourceClassType": "feast.infra.offline_stores.file_source.FileSource",
       "spec": {
         "name": "rag_document_source",
         "description": "Source for RAG documents"
@@ -92,6 +111,7 @@
     {
       "name": "rag_query_source",
       "type": 1,
+      "dataSourceClassType": "feast.infra.offline_stores.file_source.FileSource",
       "spec": {
         "name": "rag_query_source",
         "description": "Source for RAG queries"
