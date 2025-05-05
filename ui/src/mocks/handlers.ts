@@ -20,8 +20,8 @@ const projectsListWithDefaultProject = http.get("/projects-list.json", () =>
   }),
 );
 
-const creditHistoryRegistry = http.get("/registry.pb", () =>
-  HttpResponse.arrayBuffer(registry.buffer),
-);
+const creditHistoryRegistry = http.get("/registry.pb", () => {
+  return HttpResponse.arrayBuffer(registry.buffer);
+});
 
 export { projectsListWithDefaultProject, creditHistoryRegistry };
