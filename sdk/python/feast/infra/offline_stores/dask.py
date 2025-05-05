@@ -365,13 +365,13 @@ class DaskOfflineStore(OfflineStore):
                 if start_date and end_date:
                     source_df = source_df[
                         source_df[timestamp_field].between(
-                            start_date, end_date, inclusive="left"
+                            start_date, end_date, inclusive="both"
                         )
                     ]
                 elif start_date:
                     source_df = source_df[source_df[timestamp_field] >= start_date]
                 elif end_date:
-                    source_df = source_df[source_df[timestamp_field] < end_date]
+                    source_df = source_df[source_df[timestamp_field] <= end_date]
 
             source_df = source_df.persist()
 
