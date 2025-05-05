@@ -1,5 +1,12 @@
 {
-  "project": "rag_project",
+  "projects": [
+    {
+      "spec": {
+        "name": "rag_project",
+        "description": "Project for Retrieval Augmented Generation"
+      }
+    }
+  ],
   "featureViews": [
     {
       "spec": {
@@ -7,11 +14,11 @@
         "features": [
           {
             "name": "document_embedding",
-            "valueType": "FLOAT_VECTOR"
+            "valueType": 11
           },
           {
             "name": "document_id",
-            "valueType": "STRING"
+            "valueType": 2
           }
         ],
         "entities": ["document"],
@@ -24,11 +31,11 @@
         "features": [
           {
             "name": "query_embedding",
-            "valueType": "FLOAT_VECTOR"
+            "valueType": 11
           },
           {
             "name": "query_id",
-            "valueType": "STRING"
+            "valueType": 2
           }
         ],
         "entities": ["query"],
@@ -41,15 +48,15 @@
         "features": [
           {
             "name": "document_title",
-            "valueType": "STRING"
+            "valueType": 2
           },
           {
             "name": "document_source",
-            "valueType": "STRING"
+            "valueType": 2
           },
           {
             "name": "document_date",
-            "valueType": "UNIX_TIMESTAMP"
+            "valueType": 6
           }
         ],
         "entities": ["document"],
@@ -62,14 +69,28 @@
       "spec": {
         "name": "document",
         "description": "Document entity for RAG",
-        "valueType": "STRING"
+        "valueType": 2
       }
     },
     {
       "spec": {
         "name": "query",
         "description": "Query entity for RAG",
-        "valueType": "STRING"
+        "valueType": 2
+      }
+    }
+  ],
+  "dataSources": [
+    {
+      "spec": {
+        "name": "rag_document_source",
+        "description": "Source for RAG documents"
+      }
+    },
+    {
+      "spec": {
+        "name": "rag_query_source",
+        "description": "Source for RAG queries"
       }
     }
   ]
