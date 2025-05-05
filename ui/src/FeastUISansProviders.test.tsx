@@ -29,6 +29,11 @@ const server = setupServer(
 const registry = readFileSync(path.resolve(__dirname, "../public/registry.db"));
 const parsedRegistry = feast.core.Registry.decode(registry);
 
+console.log("Registry Feature Views:", parsedRegistry.featureViews?.length);
+if (parsedRegistry.featureViews && parsedRegistry.featureViews.length > 0) {
+  console.log("First Feature View Name:", parsedRegistry.featureViews[0].spec?.name);
+}
+
 // establish API mocking before all tests
 beforeAll(() => server.listen());
 // reset any request handlers that are declared as a part of our tests
