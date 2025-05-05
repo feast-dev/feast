@@ -7,16 +7,16 @@
       "registryPath": "/registry.db"
     },
     {
-      "name": "Empty Registry",
-      "description": "Testing how things look when the registry is empty",
-      "id": "empty_registry",
-      "registryPath": "/empty_registry.json"
-    },
-    {
       "name": "RAG Project",
       "description": "Project for Retrieval Augmented Generation",
       "id": "rag_project",
       "registryPath": "/rag_registry.json"
+    },
+    {
+      "name": "Empty Registry",
+      "description": "Testing how things look when the registry is empty",
+      "id": "empty_registry",
+      "registryPath": "/empty_registry.json"
     }
   ]
 }

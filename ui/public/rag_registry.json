@@ -82,12 +82,16 @@
   ],
   "dataSources": [
     {
+      "name": "rag_document_source",
+      "type": 1,
       "spec": {
         "name": "rag_document_source",
         "description": "Source for RAG documents"
       }
     },
     {
+      "name": "rag_query_source",
+      "type": 1,
       "spec": {
         "name": "rag_query_source",
         "description": "Source for RAG queries"
