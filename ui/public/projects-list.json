@@ -16,7 +16,7 @@
       "name": "RAG Project",
       "description": "Project for Retrieval Augmented Generation",
       "id": "rag_project",
-      "registryPath": "/rag_registry.json"
+      "registryPath": "/rag_registry.db"
     }
   ]
 }
