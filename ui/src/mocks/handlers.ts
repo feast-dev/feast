@@ -28,8 +28,8 @@ const creditHistoryRegistryDB = http.get("/registry.db", () => {
   return HttpResponse.arrayBuffer(registry.buffer);
 });
 
-export { 
-  projectsListWithDefaultProject, 
+export {
+  projectsListWithDefaultProject,
   creditHistoryRegistryPB as creditHistoryRegistry,
-  creditHistoryRegistryDB
+  creditHistoryRegistryDB,
 };

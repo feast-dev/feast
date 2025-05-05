@@ -54,24 +54,32 @@ const useLoadRegistry = (url: string) => {
           if (!objects.featureViews) {
             objects.featureViews = [];
           }
-          
-          if (process.env.NODE_ENV === "test" && objects.featureViews.length === 0) {
+
+          if (
+            process.env.NODE_ENV === "test" &&
+            objects.featureViews.length === 0
+          ) {
             try {
-              const fs = require('fs');
-              const path = require('path');
-              const { feast } = require('../protos');
-              
-              const registry = fs.readFileSync(path.resolve(__dirname, "../../public/registry.db"));
+              const fs = require("fs");
+              const path = require("path");
+              const { feast } = require("../protos");
+
+              const registry = fs.readFileSync(
+                path.resolve(__dirname, "../../public/registry.db"),
+              );
               const parsedRegistry = feast.core.Registry.decode(registry);
-              
-              if (parsedRegistry.featureViews && parsedRegistry.featureViews.length > 0) {
+
+              if (
+                parsedRegistry.featureViews &&
+                parsedRegistry.featureViews.length > 0
+              ) {
                 objects.featureViews = parsedRegistry.featureViews;
               }
             } catch (e) {
               console.error("Error loading test registry:", e);
             }
           }
-          
+
           const { mergedFVMap, mergedFVList } = mergedFVTypes(objects);
 
           const relationships = parseEntityRelationships(objects);
@@ -102,15 +110,18 @@ const useLoadRegistry = (url: string) => {
                 })) || [],
             ) || [];
 
-          let projectName = process.env.NODE_ENV === "test" 
-            ? "credit_scoring_aws" 
-            : (objects.projects && objects.projects.length > 0 && 
-               objects.projects[0].spec && objects.projects[0].spec.name)
+          let projectName =
+            process.env.NODE_ENV === "test"
+              ? "credit_scoring_aws"
+              : objects.projects &&
+                  objects.projects.length > 0 &&
+                  objects.projects[0].spec &&
+                  objects.projects[0].spec.name
                 ? objects.projects[0].spec.name
-                : objects.project 
-                  ? objects.project 
+                : objects.project
+                  ? objects.project
                   : "credit_scoring_aws";
-          
+
           return {
             project: projectName,
             objects,
