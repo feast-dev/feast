@@ -21,6 +21,8 @@
 ## Join us on Slack!
 👋👋👋 [Come say hi on Slack!](https://communityinviter.com/apps/feastopensource/feast-the-open-source-feature-store)
 
+[Check out our DeepWiki!](https://deepwiki.com/feast-dev/feast)
+
 ## Overview
 
 Feast (**Fea**ture **St**ore) is an open source feature store for machine learning. Feast is the fastest path to manage existing infrastructure to productionize analytic data for model training and online inference.
