@@ -12,12 +12,14 @@ import useLoadRegistry from "../queries/useLoadRegistry";
 import RegistryPathContext from "../contexts/RegistryPathContext";
 import RegistryVisualization from "./RegistryVisualization";
 import { FEAST_FCO_TYPES } from "../parsers/types";
+import { filterPermissionsByAction } from "../utils/permissionUtils";
 
 const RegistryVisualizationTab = () => {
   const registryUrl = useContext(RegistryPathContext);
   const { isLoading, isSuccess, isError, data } = useLoadRegistry(registryUrl);
   const [selectedObjectType, setSelectedObjectType] = useState("");
   const [selectedObjectName, setSelectedObjectName] = useState("");
+  const [selectedPermissionAction, setSelectedPermissionAction] = useState("");
 
   const getObjectOptions = (objects: any, type: string) => {
     switch (type) {
@@ -114,11 +116,39 @@ const RegistryVisualizationTab = () => {
                 />
               </EuiFormRow>
             </EuiFlexItem>
+            <EuiFlexItem grow={false} style={{ width: 300 }}>
+              <EuiFormRow label="Filter by permissions">
+                <EuiSelect
+                  options={[
+                    { value: "", text: "All" },
+                    { value: "CREATE", text: "CREATE" },
+                    { value: "DESCRIBE", text: "DESCRIBE" },
+                    { value: "UPDATE", text: "UPDATE" },
+                    { value: "DELETE", text: "DELETE" },
+                    { value: "READ_ONLINE", text: "READ_ONLINE" },
+                    { value: "READ_OFFLINE", text: "READ_OFFLINE" },
+                    { value: "WRITE_ONLINE", text: "WRITE_ONLINE" },
+                    { value: "WRITE_OFFLINE", text: "WRITE_OFFLINE" },
+                  ]}
+                  value={selectedPermissionAction}
+                  onChange={(e) => setSelectedPermissionAction(e.target.value)}
+                  aria-label="Filter by permissions"
+                />
+              </EuiFormRow>
+            </EuiFlexItem>
           </EuiFlexGroup>
           <RegistryVisualization
             registryData={data.objects}
             relationships={data.relationships}
             indirectRelationships={data.indirectRelationships}
+            permissions={
+              selectedPermissionAction
+                ? filterPermissionsByAction(
+                    data.permissions,
+                    selectedPermissionAction,
+                  )
+                : data.permissions
+            }
             filterNode={
               selectedObjectType && selectedObjectName
                 ? {

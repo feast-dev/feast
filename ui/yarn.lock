@@ -1236,6 +1236,11 @@
   dependencies:
     tslib "^1.9.3"
 
+"@elastic/eui-theme-borealis@1.0.0":
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/@elastic/eui-theme-borealis/-/eui-theme-borealis-1.0.0.tgz#f85679d2d72dfc43a620241cbf4161d4e4e81841"
+  integrity sha512-Zf3ZX5siUhF+TNOdP0FZ3PNEpVmfe3DDXFm5biAKFlGp4e5yrR1FKPYOzkOdJtPWlOoNaedawnALXNVjp1UH8w==
+
 "@elastic/eui@^95.12.0":
   version "95.12.0"
   resolved "https://registry.yarnpkg.com/@elastic/eui/-/eui-95.12.0.tgz#862f2be8b72248a62b40704b9e62f2f5d7d43853"
