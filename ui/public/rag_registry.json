@@ -1,0 +1,76 @@
+{
+  "project": "rag_project",
+  "featureViews": [
+    {
+      "spec": {
+        "name": "rag_document_embeddings",
+        "features": [
+          {
+            "name": "document_embedding",
+            "valueType": "FLOAT_VECTOR"
+          },
+          {
+            "name": "document_id",
+            "valueType": "STRING"
+          }
+        ],
+        "entities": ["document"],
+        "description": "Document embeddings for RAG"
+      }
+    },
+    {
+      "spec": {
+        "name": "rag_query_embeddings",
+        "features": [
+          {
+            "name": "query_embedding",
+            "valueType": "FLOAT_VECTOR"
+          },
+          {
+            "name": "query_id",
+            "valueType": "STRING"
+          }
+        ],
+        "entities": ["query"],
+        "description": "Query embeddings for RAG"
+      }
+    },
+    {
+      "spec": {
+        "name": "rag_document_metadata",
+        "features": [
+          {
+            "name": "document_title",
+            "valueType": "STRING"
+          },
+          {
+            "name": "document_source",
+            "valueType": "STRING"
+          },
+          {
+            "name": "document_date",
+            "valueType": "UNIX_TIMESTAMP"
+          }
+        ],
+        "entities": ["document"],
+        "description": "Document metadata for RAG"
+      }
+    }
+  ],
+  "entities": [
+    {
+      "spec": {
+        "name": "document",
+        "description": "Document entity for RAG",
+        "valueType": "STRING"
+      }
+    },
+    {
+      "spec": {
+        "name": "query",
+        "description": "Query entity for RAG",
+        "valueType": "STRING"
+      }
+    }
+  ]
+}
