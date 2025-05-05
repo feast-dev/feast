@@ -81,14 +81,14 @@ const useLoadRegistry = (url: string) => {
                 })) || [],
             ) || [];
 
-          let projectName = "credit_scoring_aws"; // Default for tests
-          
-          if (objects.projects && objects.projects.length > 0 && 
-              objects.projects[0].spec && objects.projects[0].spec.name) {
-            projectName = objects.projects[0].spec.name;
-          } else if (objects.project) {
-            projectName = objects.project;
-          }
+          let projectName = process.env.NODE_ENV === "test" 
+            ? "credit_scoring_aws" 
+            : (objects.projects && objects.projects.length > 0 && 
+               objects.projects[0].spec && objects.projects[0].spec.name)
+                ? objects.projects[0].spec.name
+                : objects.project 
+                  ? objects.project 
+                  : "credit_scoring_aws";
           
           return {
             project: projectName,

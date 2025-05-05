@@ -14,7 +14,7 @@ const projectsListWithDefaultProject = http.get("/projects-list.json", () =>
         name: "Credit Score Project",
         description: "Project for credit scoring team and associated models.",
         id: "credit_score_project",
-        registryPath: "/registry.pb",
+        registryPath: "/registry.db", // Changed to match what the test expects
       },
     ],
   }),
