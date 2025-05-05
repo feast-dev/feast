@@ -43,11 +43,9 @@ const useLoadRegistry = (url: string) => {
         })
         .then<FeatureStoreAllData>((data) => {
           let objects;
-          
+
           if (data instanceof ArrayBuffer) {
-            objects = feast.core.Registry.decode(
-              new Uint8Array(data),
-            );
+            objects = feast.core.Registry.decode(new Uint8Array(data));
           } else {
             objects = data;
           }
@@ -84,7 +82,8 @@ const useLoadRegistry = (url: string) => {
             ) || [];
 
           return {
-            project: objects.projects?.[0]?.spec?.name || objects.project || "unknown",
+            project:
+              objects.projects?.[0]?.spec?.name || objects.project || "unknown",
             objects,
             mergedFVMap,
             mergedFVList,
