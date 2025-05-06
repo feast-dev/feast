@@ -26,13 +26,14 @@ import RegistrySearch, {
   RegistrySearchRef,
 } from "../components/RegistrySearch";
 import GlobalSearchShortcut from "../components/GlobalSearchShortcut";
+import CommandPalette from "../components/CommandPalette";
 
 const Layout = () => {
   // Registry Path Context has to be inside Layout
   // because it has to be under routes
   // in order to use useParams
   let { projectName } = useParams();
-  const setIsSearchOpen = useState(false);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const searchRef = useRef<RegistrySearchRef>(null);
 
   const { data: projectsData } = useLoadProjectsList();
@@ -85,16 +86,19 @@ const Layout = () => {
     : [];
 
   const handleSearchOpen = () => {
-    setTimeout(() => {
-      if (searchRef.current) {
-        searchRef.current.focusSearchInput();
-      }
-    }, 100);
+    setIsCommandPaletteOpen(true);
   };
 
   return (
     <RegistryPathContext.Provider value={registryPath}>
       <GlobalSearchShortcut onOpen={handleSearchOpen} />
+      {data && (
+        <CommandPalette
+          isOpen={isCommandPaletteOpen}
+          onClose={() => setIsCommandPaletteOpen(false)}
+          categories={categories}
+        />
+      )}
       <EuiPage paddingSize="none" style={{ background: "transparent" }}>
         <EuiPageSidebar
           paddingSize="l"
