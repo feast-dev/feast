@@ -174,14 +174,16 @@ const RegistrySearch = forwardRef<RegistrySearchRef, RegistrySearchProps>(
                         >
                           <EuiFlexGroup>
                             <EuiFlexItem>
-                              <EuiCustomLink 
-                                to={item.link} 
+                              <EuiCustomLink
+                                to={item.link}
                                 onClick={() => setSearchText("")}
                               >
                                 <strong>{item.name}</strong>
                               </EuiCustomLink>
                               {item.description && (
-                                <div style={searchResultsStyles.itemDescription}>
+                                <div
+                                  style={searchResultsStyles.itemDescription}
+                                >
                                   {item.description}
                                 </div>
                               )}
