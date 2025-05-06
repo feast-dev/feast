@@ -7,7 +7,6 @@ import {
   EuiErrorBoundary,
   EuiHorizontalRule,
   EuiSpacer,
-  EuiPageHeader,
   EuiFlexGroup,
   EuiFlexItem,
 } from "@elastic/eui";
@@ -155,29 +154,37 @@ const Layout = () => {
 
         <EuiPageBody>
           <EuiErrorBoundary>
-            {data && (
-              <EuiPageHeader
-                paddingSize="l"
-                style={{
-                  position: "sticky",
-                  top: 0,
-                  zIndex: 100,
-                  backgroundColor: "inherit",
+            <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
+              {data && (
+                <div style={{ 
+                  position: "sticky", 
+                  top: 0, 
+                  zIndex: 100, 
+                  backgroundColor: "var(--euiPageBackgroundColor)", 
                   borderBottom: "1px solid #D3DAE6",
                   boxShadow: "0px 1px 5px rgba(0, 0, 0, 0.05)",
-                }}
-              >
-                <EuiFlexGroup justifyContent="center">
-                  <EuiFlexItem
-                    grow={false}
-                    style={{ width: "600px", maxWidth: "90%" }}
-                  >
-                    <RegistrySearch ref={searchRef} categories={categories} />
-                  </EuiFlexItem>
-                </EuiFlexGroup>
-              </EuiPageHeader>
-            )}
-            <Outlet />
+                  padding: "16px",
+                  width: "100%"
+                }}>
+                  <EuiFlexGroup justifyContent="center">
+                    <EuiFlexItem
+                      grow={false}
+                      style={{ width: "600px", maxWidth: "90%" }}
+                    >
+                      <RegistrySearch ref={searchRef} categories={categories} />
+                    </EuiFlexItem>
+                  </EuiFlexGroup>
+                </div>
+              )}
+              <div style={{ 
+                flexGrow: 1, 
+                overflow: "auto", 
+                padding: "16px", 
+                height: "calc(100vh - 70px)" 
+              }}>
+                <Outlet />
+              </div>
+            </div>
           </EuiErrorBoundary>
         </EuiPageBody>
       </EuiPage>
