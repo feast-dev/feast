@@ -13,7 +13,6 @@ import {
   EuiFlexItem,
   EuiBadge,
   EuiTitle,
-  EuiOverlayMask,
 } from "@elastic/eui";
 import EuiCustomLink from "./EuiCustomLink";
 
