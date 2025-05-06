@@ -17,28 +17,28 @@ import {
 } from "@elastic/eui";
 import EuiCustomLink from "./EuiCustomLink";
 
-/** @jsxImportSource @emotion/react */
 import { css } from "@emotion/react";
 
 const searchResultsStyles = {
-  searchResults: css`
-    margin-top: 8px;
-  `,
-  categoryGroup: css`
-    margin-bottom: 8px;
-  `,
-  searchResultItem: css`
-    padding: 8px 0;
-    border-bottom: 1px solid #eee;
-    &:last-child {
-      border-bottom: none;
-    }
-  `,
-  itemDescription: css`
-    font-size: 0.85em;
-    color: #666;
-    margin-top: 4px;
-  `,
+  searchResults: {
+    marginTop: "8px",
+  },
+  categoryGroup: {
+    marginBottom: "8px",
+  },
+  searchResultItem: {
+    padding: "8px 0",
+    borderBottom: "1px solid #eee",
+  },
+  searchResultItemLast: {
+    padding: "8px 0",
+    borderBottom: "none",
+  },
+  itemDescription: {
+    fontSize: "0.85em",
+    color: "#666",
+    marginTop: "4px",
+  },
 };
 
 interface RegistrySearchProps {
@@ -142,7 +142,7 @@ const RegistrySearch = forwardRef<RegistrySearchRef, RegistrySearchProps>(
         />
         <EuiSpacer size="s" />
         {searchText && (
-          <div css={searchResultsStyles.searchResults}>
+          <div style={searchResultsStyles.searchResults}>
             <EuiText>
               <h4>Search Results</h4>
             </EuiText>
@@ -154,7 +154,7 @@ const RegistrySearch = forwardRef<RegistrySearchRef, RegistrySearchProps>(
                 .map((result) => (
                   <div
                     key={result.title}
-                    css={searchResultsStyles.categoryGroup}
+                    style={searchResultsStyles.categoryGroup}
                   >
                     <EuiPanel hasBorder={true} paddingSize="m">
                       <EuiTitle size="xs">
@@ -163,10 +163,14 @@ const RegistrySearch = forwardRef<RegistrySearchRef, RegistrySearchProps>(
                         </h3>
                       </EuiTitle>
                       <EuiHorizontalRule margin="xs" />
-                      {result.items.map((item) => (
+                      {result.items.map((item, idx) => (
                         <div
                           key={item.name}
-                          css={searchResultsStyles.searchResultItem}
+                          style={
+                            idx === result.items.length - 1
+                              ? searchResultsStyles.searchResultItemLast
+                              : searchResultsStyles.searchResultItem
+                          }
                         >
                           <EuiFlexGroup>
                             <EuiFlexItem>
@@ -174,7 +178,7 @@ const RegistrySearch = forwardRef<RegistrySearchRef, RegistrySearchProps>(
                                 <strong>{item.name}</strong>
                               </EuiCustomLink>
                               {item.description && (
-                                <div css={searchResultsStyles.itemDescription}>
+                                <div style={searchResultsStyles.itemDescription}>
                                   {item.description}
                                 </div>
                               )}
