@@ -162,7 +162,9 @@ const Layout = () => {
                   position: "sticky",
                   top: 0,
                   zIndex: 100,
+                  backgroundColor: "inherit",
                   borderBottom: "1px solid #D3DAE6",
+                  boxShadow: "0px 1px 5px rgba(0, 0, 0, 0.05)",
                 }}
               >
                 <EuiFlexGroup justifyContent="center">
