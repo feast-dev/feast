@@ -3,18 +3,20 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"google.golang.org/grpc/health"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
 
 var defaultCheckTimeout = 2 * time.Second
 
 // Register default HTTP handlers specific to the hybrid server configuration.
-func DefaultHybridHandlers(s *httpServer, hs *health.Server) []Handler {
+func DefaultHybridHandlers(s *httpServer, port int) []Handler {
 	return []Handler{
 		{
 			path:        "/get-online-features",
@@ -26,25 +28,36 @@ func DefaultHybridHandlers(s *httpServer, hs *health.Server) []Handler {
 		},
 		{
 			path:        "/health",
-			handlerFunc: http.HandlerFunc(combinedHealthCheck(hs)),
+			handlerFunc: http.HandlerFunc(combinedHealthCheck(port)),
 		},
 	}
 }
 
 // This function wraps an http.Handler that is registered during hybrid server creation.
 // Calls the grpc.server healthcheck check endpoint
-func combinedHealthCheck(hs *health.Server) http.HandlerFunc {
+func combinedHealthCheck(port int) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), defaultCheckTimeout)
 		defer cancel()
 
-		req := &healthpb.HealthCheckRequest{
-			Service: "", // Empty string means that it will simply check overall servingStatus
-		}
+		target := fmt.Sprintf("localhost:%d", port)
+		conn, err := grpc.DialContext(
+			ctx,
+			target,
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
+			grpc.WithBlock(),
+		)
 
-		resp, err := hs.Check(ctx, req)
 		if err != nil {
-			http.Error(w, "gRPC health check failed", http.StatusInternalServerError)
+			http.Error(w, fmt.Sprintf("gRPC server connectivity check failed: %v", err), http.StatusServiceUnavailable)
+			return
+		}
+		defer conn.Close()
+
+		hc := healthpb.NewHealthClient(conn)
+		resp, err := hc.Check(ctx, &healthpb.HealthCheckRequest{Service: ""})
+		if err != nil {
+			http.Error(w, fmt.Sprintf("gRPC health check failed: %v", err), http.StatusInternalServerError)
 			return
 		}
 

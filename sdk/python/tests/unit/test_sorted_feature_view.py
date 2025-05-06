@@ -423,3 +423,61 @@ def test_sorted_feature_view_duplicate_features():
             schema=schema,
             sort_keys=[sort_key],
         )
+
+
+def test_sorted_feature_view_duplicate_sort_keys():
+    """
+    Test that a SortedFeatureView fails validation if duplicate sort key names are present.
+    """
+    source = FileSource(path="some path")
+    entity = Entity(name="entity1", join_keys=["entity1_id"])
+    # Schema with duplicate feature names.
+    schema = [
+        Field(name="dup_field", dtype=Int64),
+    ]
+    sort_key_1 = SortKey(
+        name="dup_field",
+        value_type=ValueType.INT64,
+        default_sort_order=SortOrder.ASC,
+    )
+    sort_key_2 = SortKey(
+        name="dup_field",
+        value_type=ValueType.INT64,
+        default_sort_order=SortOrder.ASC,
+    )
+    with pytest.raises(ValueError, match="Duplicate sort key found: 'dup_field'."):
+        SortedFeatureView(
+            name="invalid_sorted_feature_view",
+            source=source,
+            entities=[entity],
+            schema=schema,
+            sort_keys=[sort_key_1, sort_key_2],
+        )
+
+
+def test_sorted_feature_view_invalid_sort_key_order_str():
+    """
+    Test that a SortedFeatureView fails validation if default_sort_order is incorrect.
+    """
+
+    with pytest.raises(ValueError, match="default_sort_order must be 'ASC' or 'DESC'"):
+        SortKey(
+            name="dup_field",
+            value_type=ValueType.INT64,
+            default_sort_order="99",
+        )
+
+
+def test_sorted_feature_view_invalid_sort_key_order_int():
+    """
+    Test that a SortedFeatureView fails validation if default_sort_order is incorrect.
+    """
+
+    with pytest.raises(
+        ValueError, match="default_sort_order must be SortOrder.ASC or SortOrder.DESC"
+    ):
+        SortKey(
+            name="dup_field",
+            value_type=ValueType.INT64,
+            default_sort_order=99,
+        )

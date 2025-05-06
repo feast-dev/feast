@@ -1,5 +1,5 @@
 import warnings
-from typing import Dict, Optional
+from typing import Dict, Optional, Union
 
 from typeguard import typechecked
 
@@ -30,10 +30,19 @@ class SortKey:
         self,
         name: str,
         value_type: ValueType,
-        default_sort_order: SortOrder.Enum.ValueType = SortOrder.ASC,
+        default_sort_order: Union[str, SortOrder.Enum.ValueType] = SortOrder.ASC,
         tags: Optional[Dict[str, str]] = None,
         description: str = "",
     ):
+        if isinstance(default_sort_order, str):
+            try:
+                default_sort_order = SortOrder.Enum.Value(default_sort_order.upper())
+            except ValueError:
+                raise ValueError("default_sort_order must be 'ASC' or 'DESC'")
+        if default_sort_order not in (SortOrder.ASC, SortOrder.DESC):
+            raise ValueError(
+                "default_sort_order must be SortOrder.ASC or SortOrder.DESC"
+            )
         self.name = name
         # TODO: Handle ValueType conversion, user should be able to pass in a dtype instead of ValueType
         self.value_type = value_type
