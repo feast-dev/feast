@@ -14,7 +14,6 @@ import {
   EuiBadge,
   EuiTitle,
   EuiOverlayMask,
-  EuiKeyboardAccessible,
 } from "@elastic/eui";
 import EuiCustomLink from "./EuiCustomLink";
 
@@ -26,7 +25,7 @@ const commandPaletteStyles = {
   searchResults: {
     marginTop: "8px",
     maxHeight: "60vh",
-    overflowY: "auto",
+    overflowY: "auto" as const,
   },
   categoryGroup: {
     marginBottom: "8px",
@@ -136,7 +135,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
   if (!isOpen) return null;
 
   return (
-    <EuiOverlayMask onClick={onClose}>
+    <EuiOverlayMask>
       <EuiModal
         onClose={onClose}
         style={commandPaletteStyles.modal}
@@ -160,7 +159,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
           />
           <EuiSpacer size="s" />
           {searchText ? (
-            <div style={commandPaletteStyles.searchResults}>
+            <div style={commandPaletteStyles.searchResults as React.CSSProperties}>
               {searchResults.filter((result) => result.items.length > 0)
                 .length > 0 ? (
                 searchResults
@@ -182,8 +181,8 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
                             key={item.name}
                             style={
                               idx === result.items.length - 1
-                                ? commandPaletteStyles.searchResultItemLast
-                                : commandPaletteStyles.searchResultItem
+                                ? commandPaletteStyles.searchResultItemLast as React.CSSProperties
+                                : commandPaletteStyles.searchResultItem as React.CSSProperties
                             }
                           >
                             <EuiFlexGroup>
@@ -199,7 +198,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
                                 </EuiCustomLink>
                                 {item.description && (
                                   <div
-                                    style={commandPaletteStyles.itemDescription}
+                                    style={commandPaletteStyles.itemDescription as React.CSSProperties}
                                   >
                                     {item.description}
                                   </div>
