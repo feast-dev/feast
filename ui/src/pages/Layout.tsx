@@ -86,19 +86,18 @@ const Layout = () => {
     : [];
 
   const handleSearchOpen = () => {
+    console.log("Opening command palette"); // Debug log
     setIsCommandPaletteOpen(true);
   };
 
   return (
     <RegistryPathContext.Provider value={registryPath}>
       <GlobalSearchShortcut onOpen={handleSearchOpen} />
-      {data && (
-        <CommandPalette
-          isOpen={isCommandPaletteOpen}
-          onClose={() => setIsCommandPaletteOpen(false)}
-          categories={categories}
-        />
-      )}
+      <CommandPalette
+        isOpen={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+        categories={categories}
+      />
       <EuiPage paddingSize="none" style={{ background: "transparent" }}>
         <EuiPageSidebar
           paddingSize="l"
@@ -146,12 +145,6 @@ const Layout = () => {
                     style={{ width: "600px", maxWidth: "90%" }}
                   >
                     <RegistrySearch ref={searchRef} categories={categories} />
-                    <button
-                      onClick={() => setIsCommandPaletteOpen(true)}
-                      style={{ marginTop: "10px" }}
-                    >
-                      Open Command Palette (Test)
-                    </button>
                   </EuiFlexItem>
                 </EuiFlexGroup>
               </EuiPageHeader>

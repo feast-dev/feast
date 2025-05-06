@@ -142,35 +142,54 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
     };
   });
 
+  console.log("CommandPalette isOpen:", isOpen); // Debug log
+
   if (!isOpen) return null;
 
   return (
-    <div 
+    <div
       style={{
         position: "fixed",
         top: 0,
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: "rgba(0, 0, 0, 0.5)",
-        zIndex: 1000,
+        backgroundColor: "rgba(0, 0, 0, 0.7)",
+        zIndex: 9999,
         display: "flex",
         alignItems: "center",
-        justifyContent: "center"
+        justifyContent: "center",
       }}
       onClick={onClose}
     >
-      <EuiModal
-        onClose={onClose}
-        style={commandPaletteStyles.modal as React.CSSProperties}
-        onKeyDown={handleKeyDown}
+      <div
+        style={
+          {
+            width: "600px",
+            maxWidth: "90vw",
+            maxHeight: "80vh",
+            backgroundColor: "white",
+            borderRadius: "8px",
+            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
+            overflow: "hidden",
+            display: "flex",
+            flexDirection: "column",
+          } as React.CSSProperties
+        }
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={handleKeyDown}
       >
-        <EuiModalHeader>
-          <EuiModalHeaderTitle>Search Registry</EuiModalHeaderTitle>
-        </EuiModalHeader>
-        <EuiModalBody
-          style={commandPaletteStyles.modalBody as React.CSSProperties}
+        <div style={{ padding: "16px", borderBottom: "1px solid #D3DAE6" }}>
+          <h2 style={{ margin: 0 }}>Search Registry</h2>
+        </div>
+        <div
+          style={
+            {
+              padding: "0 16px 16px",
+              maxHeight: "calc(80vh - 60px)",
+              overflowY: "auto",
+            } as React.CSSProperties
+          }
         >
           <EuiFieldSearch
             placeholder="Search across Feature Views, Features, Entities, etc."
@@ -186,18 +205,13 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
           />
           <EuiSpacer size="s" />
           {searchText ? (
-            <div
-              style={commandPaletteStyles.searchResults as React.CSSProperties}
-            >
+            <div style={{ marginTop: "8px" }}>
               {searchResults.filter((result) => result.items.length > 0)
                 .length > 0 ? (
                 searchResults
                   .filter((result) => result.items.length > 0)
                   .map((result) => (
-                    <div
-                      key={result.title}
-                      style={commandPaletteStyles.categoryGroup}
-                    >
+                    <div key={result.title} style={{ marginBottom: "8px" }}>
                       <EuiPanel hasBorder={true} paddingSize="m">
                         <EuiTitle size="xs">
                           <h3>
@@ -208,11 +222,13 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
                         {result.items.map((item, idx) => (
                           <div
                             key={item.name}
-                            style={
-                              idx === result.items.length - 1
-                                ? (commandPaletteStyles.searchResultItemLast as React.CSSProperties)
-                                : (commandPaletteStyles.searchResultItem as React.CSSProperties)
-                            }
+                            style={{
+                              padding: "8px 0",
+                              borderBottom:
+                                idx === result.items.length - 1
+                                  ? "none"
+                                  : "1px solid #eee",
+                            }}
                           >
                             <EuiFlexGroup>
                               <EuiFlexItem>
@@ -227,9 +243,11 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
                                 </EuiCustomLink>
                                 {item.description && (
                                   <div
-                                    style={
-                                      commandPaletteStyles.itemDescription as React.CSSProperties
-                                    }
+                                    style={{
+                                      fontSize: "0.85em",
+                                      color: "#666",
+                                      marginTop: "4px",
+                                    }}
                                   >
                                     {item.description}
                                   </div>
@@ -260,8 +278,8 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
               <p>Start typing to search...</p>
             </EuiText>
           )}
-        </EuiModalBody>
-      </EuiModal>
+        </div>
+      </div>
     </div>
   );
 };
