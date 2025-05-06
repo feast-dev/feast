@@ -90,10 +90,17 @@ const Layout = () => {
     setIsCommandPaletteOpen(true);
     console.log("Command palette state should be updated to true");
   };
-  
+
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      console.log("Layout key pressed:", event.key, "metaKey:", event.metaKey, "ctrlKey:", event.ctrlKey);
+      console.log(
+        "Layout key pressed:",
+        event.key,
+        "metaKey:",
+        event.metaKey,
+        "ctrlKey:",
+        event.ctrlKey,
+      );
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         console.log("Layout detected Cmd+K, preventing default");
         event.preventDefault();
@@ -164,7 +171,10 @@ const Layout = () => {
                     style={{ width: "600px", maxWidth: "90%" }}
                   >
                     <RegistrySearch ref={searchRef} categories={categories} />
-                    <button onClick={handleSearchOpen} style={{ marginTop: "10px" }}>
+                    <button
+                      onClick={handleSearchOpen}
+                      style={{ marginTop: "10px" }}
+                    >
                       Open Command Palette (Test)
                     </button>
                   </EuiFlexItem>

@@ -9,7 +9,14 @@ const GlobalSearchShortcut: React.FC<GlobalSearchShortcutProps> = ({
 }) => {
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      console.log("Key pressed:", event.key, "metaKey:", event.metaKey, "ctrlKey:", event.ctrlKey);
+      console.log(
+        "Key pressed:",
+        event.key,
+        "metaKey:",
+        event.metaKey,
+        "ctrlKey:",
+        event.ctrlKey,
+      );
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         console.log("Cmd+K detected, preventing default and calling onOpen");
         event.preventDefault();

@@ -27,7 +27,7 @@ const commandPaletteStyles: Record<string, React.CSSProperties> = {
     zIndex: 9999,
     display: "flex",
     alignItems: "center",
-    justifyContent: "center"
+    justifyContent: "center",
   },
   modal: {
     width: "600px",
@@ -38,7 +38,7 @@ const commandPaletteStyles: Record<string, React.CSSProperties> = {
     boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
     overflow: "hidden",
     display: "flex",
-    flexDirection: "column"
+    flexDirection: "column",
   },
   modalHeader: {
     padding: "16px",
@@ -46,32 +46,32 @@ const commandPaletteStyles: Record<string, React.CSSProperties> = {
     position: "sticky",
     top: 0,
     backgroundColor: "white",
-    zIndex: 1
+    zIndex: 1,
   },
   modalBody: {
     padding: "0 16px 16px",
     maxHeight: "calc(80vh - 60px)",
-    overflowY: "auto"
+    overflowY: "auto",
   },
   searchResults: {
-    marginTop: "8px"
+    marginTop: "8px",
   },
   categoryGroup: {
-    marginBottom: "8px"
+    marginBottom: "8px",
   },
   searchResultItem: {
     padding: "8px 0",
-    borderBottom: "1px solid #eee"
+    borderBottom: "1px solid #eee",
   },
   searchResultItemLast: {
     padding: "8px 0",
-    borderBottom: "none"
+    borderBottom: "none",
   },
   itemDescription: {
     fontSize: "0.85em",
     color: "#666",
-    marginTop: "4px"
-  }
+    marginTop: "4px",
+  },
 };
 
 interface CommandPaletteProps {
@@ -161,7 +161,12 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
     };
   });
 
-  console.log("CommandPalette isOpen:", isOpen, "categories:", categories.length); // Debug log
+  console.log(
+    "CommandPalette isOpen:",
+    isOpen,
+    "categories:",
+    categories.length,
+  ); // Debug log
 
   if (!isOpen) {
     console.log("CommandPalette not rendering due to isOpen=false");
@@ -169,10 +174,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
   }
 
   return (
-    <div
-      style={commandPaletteStyles.overlay}
-      onClick={onClose}
-    >
+    <div style={commandPaletteStyles.overlay} onClick={onClose}>
       <div
         style={commandPaletteStyles.modal}
         onClick={(e) => e.stopPropagation()}
@@ -181,9 +183,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
         <div style={commandPaletteStyles.modalHeader}>
           <h2 style={{ margin: 0 }}>Search Registry</h2>
         </div>
-        <div
-          style={commandPaletteStyles.modalBody}
-        >
+        <div style={commandPaletteStyles.modalBody}>
           <EuiFieldSearch
             placeholder="Search across Feature Views, Features, Entities, etc."
             value={searchText}
@@ -204,7 +204,10 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
                 searchResults
                   .filter((result) => result.items.length > 0)
                   .map((result) => (
-                    <div key={result.title} style={commandPaletteStyles.categoryGroup}>
+                    <div
+                      key={result.title}
+                      style={commandPaletteStyles.categoryGroup}
+                    >
                       <EuiPanel hasBorder={true} paddingSize="m">
                         <EuiTitle size="xs">
                           <h3>
@@ -233,7 +236,10 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
                                       window.location.href = item.link;
                                     }, 50);
                                   }}
-                                  style={{ color: '#0077cc', textDecoration: 'none' }}
+                                  style={{
+                                    color: "#0077cc",
+                                    textDecoration: "none",
+                                  }}
                                 >
                                   <strong>{item.name}</strong>
                                 </a>
