@@ -9,8 +9,37 @@ import {
   EuiFieldSearch,
   EuiSpacer,
   EuiHorizontalRule,
+  EuiPanel,
+  EuiFlexGroup,
+  EuiFlexItem,
+  EuiBadge,
+  EuiTitle,
 } from "@elastic/eui";
 import EuiCustomLink from "./EuiCustomLink";
+
+import { css } from "@emotion/react";
+
+const searchResultsStyles = {
+  searchResults: {
+    marginTop: "8px",
+  },
+  categoryGroup: {
+    marginBottom: "8px",
+  },
+  searchResultItem: {
+    padding: "8px 0",
+    borderBottom: "1px solid #eee",
+  },
+  searchResultItemLast: {
+    padding: "8px 0",
+    borderBottom: "none",
+  },
+  itemDescription: {
+    fontSize: "0.85em",
+    color: "#666",
+    marginTop: "4px",
+  },
+};
 
 interface RegistrySearchProps {
   categories: {
@@ -23,6 +52,16 @@ interface RegistrySearchProps {
 export interface RegistrySearchRef {
   focusSearchInput: () => void;
 }
+
+const getItemType = (item: any, category: string): string | undefined => {
+  if (category === "Features" && "valueType" in item) {
+    return item.valueType;
+  }
+  if (category === "Feature Views" && "type" in item) {
+    return item.type;
+  }
+  return undefined;
+};
 
 const RegistrySearch = forwardRef<RegistrySearchRef, RegistrySearchProps>(
   ({ categories }, ref) => {
@@ -57,7 +96,29 @@ const RegistrySearch = forwardRef<RegistrySearchRef, RegistrySearchProps>(
           })
         : [];
 
-      return { name, items: filteredItems, getLink };
+      const items = filteredItems.map((item) => {
+        const itemName =
+          "name" in item
+            ? String(item.name)
+            : "spec" in item && item.spec && "name" in item.spec
+              ? String(item.spec.name ?? "Unknown")
+              : "Unknown";
+
+        return {
+          name: itemName,
+          link: getLink(item),
+          description:
+            "spec" in item && item.spec && "description" in item.spec
+              ? String(item.spec.description || "")
+              : "",
+          type: getItemType(item, name),
+        };
+      });
+
+      return {
+        title: name,
+        items,
+      };
     });
 
     return (
@@ -81,59 +142,72 @@ const RegistrySearch = forwardRef<RegistrySearchRef, RegistrySearchProps>(
         />
         <EuiSpacer size="s" />
         {searchText && (
-          <>
+          <div style={searchResultsStyles.searchResults}>
             <EuiText>
               <h4>Search Results</h4>
             </EuiText>
             <EuiSpacer size="xs" />
-            {searchResults.some(({ items }) => items.length > 0) ? (
-              <div className="euiPanel euiPanel--borderRadiusMedium euiPanel--plain euiPanel--hasShadow">
-                {searchResults.map(({ name, items, getLink }, index) =>
-                  items.length > 0 ? (
-                    <div key={index} className="euiPanel__body">
-                      <EuiText>
-                        <h5>{name}</h5>
-                      </EuiText>
-                      <EuiSpacer size="xs" />
-                      <ul
-                        style={{ listStyleType: "none", padding: 0, margin: 0 }}
-                      >
-                        {items.map((item, idx) => {
-                          const itemName =
-                            "name" in item
-                              ? item.name
-                              : "spec" in item
-                                ? item.spec?.name
-                                : "Unknown";
-
-                          const itemLink = getLink(item);
-
-                          return (
-                            <li key={idx} style={{ margin: "8px 0" }}>
-                              <EuiCustomLink to={itemLink}>
-                                {itemName}
+            {searchResults.filter((result) => result.items.length > 0).length >
+            0 ? (
+              searchResults
+                .filter((result) => result.items.length > 0)
+                .map((result) => (
+                  <div
+                    key={result.title}
+                    style={searchResultsStyles.categoryGroup}
+                  >
+                    <EuiPanel hasBorder={true} paddingSize="m">
+                      <EuiTitle size="xs">
+                        <h3>
+                          {result.title} ({result.items.length})
+                        </h3>
+                      </EuiTitle>
+                      <EuiHorizontalRule margin="xs" />
+                      {result.items.map((item, idx) => (
+                        <div
+                          key={item.name}
+                          style={
+                            idx === result.items.length - 1
+                              ? searchResultsStyles.searchResultItemLast
+                              : searchResultsStyles.searchResultItem
+                          }
+                        >
+                          <EuiFlexGroup>
+                            <EuiFlexItem>
+                              <EuiCustomLink
+                                to={item.link}
+                                onClick={() => setSearchText("")}
+                              >
+                                <strong>{item.name}</strong>
                               </EuiCustomLink>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                      {index <
-                        searchResults.filter(
-                          (result) => result.items.length > 0,
-                        ).length -
-                          1 && <EuiHorizontalRule margin="m" />}
-                    </div>
-                  ) : null,
-                )}
-              </div>
+                              {item.description && (
+                                <div
+                                  style={searchResultsStyles.itemDescription}
+                                >
+                                  {item.description}
+                                </div>
+                              )}
+                            </EuiFlexItem>
+                            {item.type && (
+                              <EuiFlexItem grow={false}>
+                                <EuiBadge>{item.type}</EuiBadge>
+                              </EuiFlexItem>
+                            )}
+                          </EuiFlexGroup>
+                        </div>
+                      ))}
+                    </EuiPanel>
+                    <EuiSpacer size="m" />
+                  </div>
+                ))
             ) : (
-              <div className="euiPanel euiPanel--borderRadiusMedium euiPanel--plain euiPanel--hasShadow">
-                <div className="euiPanel__body">
-                  <p>No matches found.</p>
-                </div>
-              </div>
+              <EuiPanel hasBorder={true} paddingSize="m" color="subdued">
+                <EuiText textAlign="center">
+                  <p>No matches found for "{searchText}"</p>
+                </EuiText>
+              </EuiPanel>
             )}
-          </>
+          </div>
         )}
       </>
     );

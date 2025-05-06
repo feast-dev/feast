@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 
 import {
   EuiPage,
@@ -26,13 +26,14 @@ import RegistrySearch, {
   RegistrySearchRef,
 } from "../components/RegistrySearch";
 import GlobalSearchShortcut from "../components/GlobalSearchShortcut";
+import CommandPalette from "../components/CommandPalette";
 
 const Layout = () => {
   // Registry Path Context has to be inside Layout
   // because it has to be under routes
   // in order to use useParams
   let { projectName } = useParams();
-  const setIsSearchOpen = useState(false);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const searchRef = useRef<RegistrySearchRef>(null);
 
   const { data: projectsData } = useLoadProjectsList();
@@ -85,16 +86,44 @@ const Layout = () => {
     : [];
 
   const handleSearchOpen = () => {
-    setTimeout(() => {
-      if (searchRef.current) {
-        searchRef.current.focusSearchInput();
-      }
-    }, 100);
+    console.log("Opening command palette - before state update"); // Debug log
+    setIsCommandPaletteOpen(true);
+    console.log("Command palette state should be updated to true");
   };
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      console.log(
+        "Layout key pressed:",
+        event.key,
+        "metaKey:",
+        event.metaKey,
+        "ctrlKey:",
+        event.ctrlKey,
+      );
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        console.log("Layout detected Cmd+K, preventing default");
+        event.preventDefault();
+        event.stopPropagation();
+        handleSearchOpen();
+      }
+    };
+
+    console.log("Layout adding keydown event listener");
+    window.addEventListener("keydown", handleKeyDown, true);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown, true);
+    };
+  }, []);
 
   return (
     <RegistryPathContext.Provider value={registryPath}>
       <GlobalSearchShortcut onOpen={handleSearchOpen} />
+      <CommandPalette
+        isOpen={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+        categories={categories}
+      />
       <EuiPage paddingSize="none" style={{ background: "transparent" }}>
         <EuiPageSidebar
           paddingSize="l"
@@ -130,7 +159,7 @@ const Layout = () => {
               <EuiPageHeader
                 paddingSize="l"
                 style={{
-                  // position: "sticky",
+                  position: "sticky",
                   top: 0,
                   zIndex: 100,
                   borderBottom: "1px solid #D3DAE6",
