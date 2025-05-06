@@ -134,7 +134,7 @@ const Layout = () => {
               <EuiPageHeader
                 paddingSize="l"
                 style={{
-                  // position: "sticky",
+                  position: "sticky",
                   top: 0,
                   zIndex: 100,
                   borderBottom: "1px solid #D3DAE6",
@@ -146,6 +146,12 @@ const Layout = () => {
                     style={{ width: "600px", maxWidth: "90%" }}
                   >
                     <RegistrySearch ref={searchRef} categories={categories} />
+                    <button
+                      onClick={() => setIsCommandPaletteOpen(true)}
+                      style={{ marginTop: "10px" }}
+                    >
+                      Open Command Palette (Test)
+                    </button>
                   </EuiFlexItem>
                 </EuiFlexGroup>
               </EuiPageHeader>

@@ -22,10 +22,15 @@ const commandPaletteStyles = {
     width: "600px",
     maxWidth: "90vw",
     maxHeight: "80vh", // Limit modal height to prevent it from going off-screen
+    position: "fixed",
+    top: "50%",
+    left: "50%",
+    transform: "translate(-50%, -50%)",
+    zIndex: 1000,
   },
   modalBody: {
     padding: "0 16px 16px", // Add padding to prevent content from touching the edges
-    maxHeight: "calc(80vh - 60px)", // Account for header height
+    maxHeight: "calc(80vh - 80px)", // Account for header height
     overflowY: "auto" as const, // Single scrollable element
   },
   searchResults: {
@@ -141,16 +146,33 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
   if (!isOpen) return null;
 
   return (
-    <EuiOverlayMask>
+    <div 
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: "rgba(0, 0, 0, 0.5)",
+        zIndex: 1000,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center"
+      }}
+      onClick={onClose}
+    >
       <EuiModal
         onClose={onClose}
         style={commandPaletteStyles.modal as React.CSSProperties}
         onKeyDown={handleKeyDown}
+        onClick={(e) => e.stopPropagation()}
       >
         <EuiModalHeader>
           <EuiModalHeaderTitle>Search Registry</EuiModalHeaderTitle>
         </EuiModalHeader>
-        <EuiModalBody style={commandPaletteStyles.modalBody as React.CSSProperties}>
+        <EuiModalBody
+          style={commandPaletteStyles.modalBody as React.CSSProperties}
+        >
           <EuiFieldSearch
             placeholder="Search across Feature Views, Features, Entities, etc."
             value={searchText}
@@ -165,7 +187,9 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
           />
           <EuiSpacer size="s" />
           {searchText ? (
-            <div style={commandPaletteStyles.searchResults as React.CSSProperties}>
+            <div
+              style={commandPaletteStyles.searchResults as React.CSSProperties}
+            >
               {searchResults.filter((result) => result.items.length > 0)
                 .length > 0 ? (
                 searchResults
@@ -187,8 +211,8 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
                             key={item.name}
                             style={
                               idx === result.items.length - 1
-                                ? commandPaletteStyles.searchResultItemLast as React.CSSProperties
-                                : commandPaletteStyles.searchResultItem as React.CSSProperties
+                                ? (commandPaletteStyles.searchResultItemLast as React.CSSProperties)
+                                : (commandPaletteStyles.searchResultItem as React.CSSProperties)
                             }
                           >
                             <EuiFlexGroup>
@@ -204,7 +228,9 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
                                 </EuiCustomLink>
                                 {item.description && (
                                   <div
-                                    style={commandPaletteStyles.itemDescription as React.CSSProperties}
+                                    style={
+                                      commandPaletteStyles.itemDescription as React.CSSProperties
+                                    }
                                   >
                                     {item.description}
                                   </div>
@@ -237,7 +263,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
           )}
         </EuiModalBody>
       </EuiModal>
-    </EuiOverlayMask>
+    </div>
   );
 };
 
