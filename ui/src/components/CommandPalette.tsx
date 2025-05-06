@@ -21,11 +21,17 @@ const commandPaletteStyles = {
   modal: {
     width: "600px",
     maxWidth: "90vw",
+    maxHeight: "80vh", // Limit modal height to prevent it from going off-screen
+  },
+  modalBody: {
+    padding: "0 16px 16px", // Add padding to prevent content from touching the edges
+    maxHeight: "calc(80vh - 60px)", // Account for header height
+    overflowY: "auto" as const, // Single scrollable element
   },
   searchResults: {
     marginTop: "8px",
-    maxHeight: "60vh",
-    overflowY: "auto" as const,
+    height: "auto", // Let content determine height
+    overflowY: "visible" as const, // Remove nested scrolling
   },
   categoryGroup: {
     marginBottom: "8px",
@@ -138,13 +144,13 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
     <EuiOverlayMask>
       <EuiModal
         onClose={onClose}
-        style={commandPaletteStyles.modal}
+        style={commandPaletteStyles.modal as React.CSSProperties}
         onKeyDown={handleKeyDown}
       >
         <EuiModalHeader>
           <EuiModalHeaderTitle>Search Registry</EuiModalHeaderTitle>
         </EuiModalHeader>
-        <EuiModalBody>
+        <EuiModalBody style={commandPaletteStyles.modalBody as React.CSSProperties}>
           <EuiFieldSearch
             placeholder="Search across Feature Views, Features, Entities, etc."
             value={searchText}
