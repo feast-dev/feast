@@ -1407,3 +1407,7 @@ func strPtr(str string) *string {
 func int32Ptr(value int32) *int32 {
 	return &value
 }
+
+func int64Ptr(value int64) *int64 {
+	return &value
+}
