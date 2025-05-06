@@ -227,12 +227,15 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
                                   href={item.link}
                                   onClick={(e) => {
                                     e.preventDefault();
-                                    console.log("Search result clicked:", item.name);
-                                    
+                                    console.log(
+                                      "Search result clicked:",
+                                      item.name,
+                                    );
+
                                     onClose();
-                                    
+
                                     setSearchText("");
-                                    
+
                                     console.log("Navigating to:", item.link);
                                     navigate(item.link);
                                   }}
