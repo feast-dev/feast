@@ -11,6 +11,12 @@ APACHE_ARCHIVE_SHA256_CHECKSUM="8379554d89f19f2c8db63620721cabade62541f47a4e706d
 SUBSTRAIT_VERSION="0.44.0"
 SUBSTRAIT_ARCHIVE_SHA256_CHECKSUM="f989a862f694e7dbb695925ddb7c4ce06aa6c51aca945105c075139aed7e55a2"
 
+MILVUS_LITE_VERSION="2.4.12"
+MILVUS_LITE_ARCHIVE_SHA256_CHECKSUM="334037ebbab60243b5d8b43d54ca2f835d81d48c3cda0c6a462605e588deb05d"
+
+IBIS_VERSION="9.5.0"
+IBIS_ARCHIVE_SHA256_CHECKSUM="145fe30d94f111cff332580c275ce77725c5ff7086eede93af0b371649d009c0"
+
 PROJECT_ROOT_DIR=$(git rev-parse --show-toplevel)
 DESTDIR=${PROJECT_ROOT_DIR}/sdk/python/feast/infra/feature_servers/multicloud/offline
 artifacts_file=${DESTDIR}/artifacts.lock.yaml
@@ -45,6 +51,8 @@ metadata:
   version: "1.0"
 artifacts:' > ${artifacts_file}
 
+  set_dependency "https://files.pythonhosted.org/packages/44/43/b3f6e9defd1f3927b972beac7abe3d5b4a3bdb287e3bad69618e2e76cf0a/milvus_lite-${MILVUS_LITE_VERSION}-py3-none-manylinux2014_x86_64.whl" "${MILVUS_LITE_ARCHIVE_SHA256_CHECKSUM}" "milvus_lite-${MILVUS_LITE_VERSION}-py3-none-manylinux2014_x86_64.whl"
+  set_dependency "https://files.pythonhosted.org/packages/dd/a9/899888a3b49ee07856a0bab673652a82ea89999451a51fba4d99e65868f7/ibis_framework-${IBIS_VERSION}-py3-none-any.whl" "${IBIS_ARCHIVE_SHA256_CHECKSUM}" "ibis_framework-${IBIS_VERSION}-py3-none-any.whl"
   set_dependency "https://github.com/apache/arrow/archive/${ARROW_ARCHIVE}" "${APACHE_ARCHIVE_SHA256_CHECKSUM}" "${ARROW_ARCHIVE}"
 
   source ${versions_file}
