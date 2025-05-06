@@ -16,43 +16,62 @@ import {
 } from "@elastic/eui";
 import EuiCustomLink from "./EuiCustomLink";
 
-const commandPaletteStyles = {
+const commandPaletteStyles: Record<string, React.CSSProperties> = {
+  overlay: {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    zIndex: 9999,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center"
+  },
   modal: {
     width: "600px",
     maxWidth: "90vw",
-    maxHeight: "80vh", // Limit modal height to prevent it from going off-screen
-    position: "fixed",
-    top: "50%",
-    left: "50%",
-    transform: "translate(-50%, -50%)",
-    zIndex: 1000,
+    maxHeight: "80vh",
+    backgroundColor: "white",
+    borderRadius: "8px",
+    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
+    overflow: "hidden",
+    display: "flex",
+    flexDirection: "column"
+  },
+  modalHeader: {
+    padding: "16px",
+    borderBottom: "1px solid #D3DAE6",
+    position: "sticky",
+    top: 0,
+    backgroundColor: "white",
+    zIndex: 1
   },
   modalBody: {
-    padding: "0 16px 16px", // Add padding to prevent content from touching the edges
-    maxHeight: "calc(80vh - 80px)", // Account for header height
-    overflowY: "auto" as const, // Single scrollable element
+    padding: "0 16px 16px",
+    maxHeight: "calc(80vh - 60px)",
+    overflowY: "auto"
   },
   searchResults: {
-    marginTop: "8px",
-    height: "auto", // Let content determine height
-    overflowY: "visible" as const, // Remove nested scrolling
+    marginTop: "8px"
   },
   categoryGroup: {
-    marginBottom: "8px",
+    marginBottom: "8px"
   },
   searchResultItem: {
     padding: "8px 0",
-    borderBottom: "1px solid #eee",
+    borderBottom: "1px solid #eee"
   },
   searchResultItemLast: {
     padding: "8px 0",
-    borderBottom: "none",
+    borderBottom: "none"
   },
   itemDescription: {
     fontSize: "0.85em",
     color: "#666",
-    marginTop: "4px",
-  },
+    marginTop: "4px"
+  }
 };
 
 interface CommandPaletteProps {
@@ -142,54 +161,28 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
     };
   });
 
-  console.log("CommandPalette isOpen:", isOpen); // Debug log
+  console.log("CommandPalette isOpen:", isOpen, "categories:", categories.length); // Debug log
 
-  if (!isOpen) return null;
+  if (!isOpen) {
+    console.log("CommandPalette not rendering due to isOpen=false");
+    return null;
+  }
 
   return (
     <div
-      style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: "rgba(0, 0, 0, 0.7)",
-        zIndex: 9999,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-      }}
+      style={commandPaletteStyles.overlay}
       onClick={onClose}
     >
       <div
-        style={
-          {
-            width: "600px",
-            maxWidth: "90vw",
-            maxHeight: "80vh",
-            backgroundColor: "white",
-            borderRadius: "8px",
-            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
-            overflow: "hidden",
-            display: "flex",
-            flexDirection: "column",
-          } as React.CSSProperties
-        }
+        style={commandPaletteStyles.modal}
         onClick={(e) => e.stopPropagation()}
         onKeyDown={handleKeyDown}
       >
-        <div style={{ padding: "16px", borderBottom: "1px solid #D3DAE6" }}>
+        <div style={commandPaletteStyles.modalHeader}>
           <h2 style={{ margin: 0 }}>Search Registry</h2>
         </div>
         <div
-          style={
-            {
-              padding: "0 16px 16px",
-              maxHeight: "calc(80vh - 60px)",
-              overflowY: "auto",
-            } as React.CSSProperties
-          }
+          style={commandPaletteStyles.modalBody}
         >
           <EuiFieldSearch
             placeholder="Search across Feature Views, Features, Entities, etc."
@@ -205,13 +198,13 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
           />
           <EuiSpacer size="s" />
           {searchText ? (
-            <div style={{ marginTop: "8px" }}>
+            <div style={commandPaletteStyles.searchResults}>
               {searchResults.filter((result) => result.items.length > 0)
                 .length > 0 ? (
                 searchResults
                   .filter((result) => result.items.length > 0)
                   .map((result) => (
-                    <div key={result.title} style={{ marginBottom: "8px" }}>
+                    <div key={result.title} style={commandPaletteStyles.categoryGroup}>
                       <EuiPanel hasBorder={true} paddingSize="m">
                         <EuiTitle size="xs">
                           <h3>
@@ -222,32 +215,31 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
                         {result.items.map((item, idx) => (
                           <div
                             key={item.name}
-                            style={{
-                              padding: "8px 0",
-                              borderBottom:
-                                idx === result.items.length - 1
-                                  ? "none"
-                                  : "1px solid #eee",
-                            }}
+                            style={
+                              idx === result.items.length - 1
+                                ? commandPaletteStyles.searchResultItemLast
+                                : commandPaletteStyles.searchResultItem
+                            }
                           >
                             <EuiFlexGroup>
                               <EuiFlexItem>
-                                <EuiCustomLink
-                                  to={item.link}
-                                  onClick={() => {
+                                <a
+                                  href={item.link}
+                                  onClick={(e) => {
+                                    e.preventDefault();
                                     setSearchText("");
                                     onClose();
+                                    setTimeout(() => {
+                                      window.location.href = item.link;
+                                    }, 50);
                                   }}
+                                  style={{ color: '#0077cc', textDecoration: 'none' }}
                                 >
                                   <strong>{item.name}</strong>
-                                </EuiCustomLink>
+                                </a>
                                 {item.description && (
                                   <div
-                                    style={{
-                                      fontSize: "0.85em",
-                                      color: "#666",
-                                      marginTop: "4px",
-                                    }}
+                                    style={commandPaletteStyles.itemDescription}
                                   >
                                     {item.description}
                                   </div>

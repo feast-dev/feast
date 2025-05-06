@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 
 import {
   EuiPage,
@@ -86,9 +86,28 @@ const Layout = () => {
     : [];
 
   const handleSearchOpen = () => {
-    console.log("Opening command palette"); // Debug log
+    console.log("Opening command palette - before state update"); // Debug log
     setIsCommandPaletteOpen(true);
+    console.log("Command palette state should be updated to true");
   };
+  
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      console.log("Layout key pressed:", event.key, "metaKey:", event.metaKey, "ctrlKey:", event.ctrlKey);
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        console.log("Layout detected Cmd+K, preventing default");
+        event.preventDefault();
+        event.stopPropagation();
+        handleSearchOpen();
+      }
+    };
+
+    console.log("Layout adding keydown event listener");
+    window.addEventListener("keydown", handleKeyDown, true);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown, true);
+    };
+  }, []);
 
   return (
     <RegistryPathContext.Provider value={registryPath}>
@@ -145,6 +164,9 @@ const Layout = () => {
                     style={{ width: "600px", maxWidth: "90%" }}
                   >
                     <RegistrySearch ref={searchRef} categories={categories} />
+                    <button onClick={handleSearchOpen} style={{ marginTop: "10px" }}>
+                      Open Command Palette (Test)
+                    </button>
                   </EuiFlexItem>
                 </EuiFlexGroup>
               </EuiPageHeader>
