@@ -171,12 +171,6 @@ const Layout = () => {
                     style={{ width: "600px", maxWidth: "90%" }}
                   >
                     <RegistrySearch ref={searchRef} categories={categories} />
-                    <button
-                      onClick={handleSearchOpen}
-                      style={{ marginTop: "10px" }}
-                    >
-                      Open Command Palette (Test)
-                    </button>
                   </EuiFlexItem>
                 </EuiFlexGroup>
               </EuiPageHeader>
