@@ -1,9 +1,6 @@
 import React, { useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
-  EuiModal,
-  EuiModalHeader,
-  EuiModalHeaderTitle,
-  EuiModalBody,
   EuiFieldSearch,
   EuiText,
   EuiSpacer,
@@ -14,7 +11,6 @@ import {
   EuiBadge,
   EuiTitle,
 } from "@elastic/eui";
-import EuiCustomLink from "./EuiCustomLink";
 
 const commandPaletteStyles: Record<string, React.CSSProperties> = {
   overlay: {
@@ -101,6 +97,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
 }) => {
   const [searchText, setSearchText] = React.useState("");
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (isOpen && inputRef.current) {
@@ -230,11 +227,14 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
                                   href={item.link}
                                   onClick={(e) => {
                                     e.preventDefault();
-                                    setSearchText("");
+                                    console.log("Search result clicked:", item.name);
+                                    
                                     onClose();
-                                    setTimeout(() => {
-                                      window.location.href = item.link;
-                                    }, 50);
+                                    
+                                    setSearchText("");
+                                    
+                                    console.log("Navigating to:", item.link);
+                                    navigate(item.link);
                                   }}
                                   style={{
                                     color: "#0077cc",
