@@ -37,6 +37,7 @@
     "query-string": "^7.1.1",
     "react-app-polyfill": "^3.0.0",
     "react-code-blocks": "^0.1.6",
+    "react-markdown": "^10.1.0",
     "react-query": "^3.39.3",
     "react-router-dom": "^6.28.0",
     "reactflow": "^11.11.4",
