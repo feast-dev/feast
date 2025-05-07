@@ -68,7 +68,7 @@ func NewRegistry(registryConfig *RegistryConfig, repoPath string, project string
 func (r *Registry) InitializeRegistry() error {
 	_, err := r.getRegistryProto()
 	if err != nil {
-		if _, ok := r.registryStore.(*FileRegistryStore); ok { // S3에는 굳이 연동할 필요 없어 보임. 오히려 이로 인해 정상적이던 s3 내의 레지스트리 파일이 초기화된 파일로 덮어쓰기 될 수도 있지 않음?
+		if _, ok := r.registryStore.(*FileRegistryStore); ok {
 			log.Error().Err(err).Msg("Registry Initialization Failed")
 			return err
 		}
