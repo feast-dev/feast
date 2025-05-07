@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   EuiPageTemplate,
   EuiTabs,
@@ -14,8 +14,15 @@ import "./styles.css";
 
 const DocumentationIndex = () => {
   useDocumentTitle("Feast Documentation");
-  const { projectName, tab = "cli" } = useParams();
+  const { projectName, tab } = useParams();
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<string>("cli");
+
+  useEffect(() => {
+    if (tab && ["cli", "sdk", "api"].includes(tab)) {
+      setActiveTab(tab);
+    }
+  }, [tab]);
 
   const tabs = [
     {
@@ -35,22 +42,22 @@ const DocumentationIndex = () => {
     },
   ];
 
-  const selectedTabId = tab;
-  const selectedTabConfig = tabs.find((t) => t.id === selectedTabId) || tabs[0];
+  const selectedTabConfig = tabs.find((t) => t.id === activeTab) || tabs[0];
   const TabContent = selectedTabConfig.content;
 
   const onSelectedTabChanged = (id: string) => {
+    setActiveTab(id);
     navigate(`/p/${projectName}/documentation/${id}`);
   };
 
   const renderTabs = () => {
-    return tabs.map((tab, index) => (
+    return tabs.map((tabItem, index) => (
       <EuiTab
         key={index}
-        onClick={() => onSelectedTabChanged(tab.id)}
-        isSelected={tab.id === selectedTabId}
+        onClick={() => onSelectedTabChanged(tabItem.id)}
+        isSelected={tabItem.id === activeTab}
       >
-        {tab.name}
+        {tabItem.name}
       </EuiTab>
     ));
   };
