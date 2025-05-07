@@ -12,6 +12,7 @@ import { FeatureViewIcon } from "../graphics/FeatureViewIcon";
 import { FeatureServiceIcon } from "../graphics/FeatureServiceIcon";
 import { DatasetIcon } from "../graphics/DatasetIcon";
 import { FeatureIcon } from "../graphics/FeatureIcon";
+import { HomeIcon } from "../graphics/HomeIcon";
 
 const SideNav = () => {
   const registryUrl = useContext(RegistryPathContext);
@@ -66,7 +67,7 @@ const SideNav = () => {
     {
       name: "Home",
       id: htmlIdGenerator("home")(),
-      icon: <EuiIcon type="home" />,
+      icon: <EuiIcon type={HomeIcon} />,
       renderItem: (props) => <Link {...props} to={`${baseUrl}`} />,
       isSelected: useMatchSubpath(`${baseUrl}$`),
     },
