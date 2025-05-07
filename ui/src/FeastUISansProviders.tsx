@@ -148,13 +148,13 @@ const FeastUISansProvidersInner = ({
                     />
                     <Route path="permissions/" element={<PermissionsIndex />} />
                     <Route path="lineage/" element={<LineageIndex />} />
-                    <Route 
-                      path="documentation/" 
-                      element={<DocumentationIndex />} 
+                    <Route
+                      path="documentation/"
+                      element={<DocumentationIndex />}
                     />
-                    <Route 
-                      path="documentation/:tab" 
-                      element={<DocumentationIndex />} 
+                    <Route
+                      path="documentation/:tab"
+                      element={<DocumentationIndex />}
                     />
                   </Route>
                 </Route>

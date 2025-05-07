@@ -1,5 +1,13 @@
 import React from "react";
-import { EuiPageTemplate, EuiTabs, EuiTab, EuiSpacer, EuiTitle, EuiText, EuiSkeletonText } from "@elastic/eui";
+import {
+  EuiPageTemplate,
+  EuiTabs,
+  EuiTab,
+  EuiSpacer,
+  EuiTitle,
+  EuiText,
+  EuiSkeletonText,
+} from "@elastic/eui";
 import { useParams, useNavigate } from "react-router-dom";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import "./styles.css";
@@ -8,7 +16,7 @@ const DocumentationIndex = () => {
   useDocumentTitle("Feast Documentation");
   const { projectName, tab = "cli" } = useParams();
   const navigate = useNavigate();
-  
+
   const tabs = [
     {
       id: "cli",
@@ -26,15 +34,15 @@ const DocumentationIndex = () => {
       content: React.lazy(() => import("./APIDocumentation")),
     },
   ];
-  
+
   const selectedTabId = tab;
   const selectedTabConfig = tabs.find((t) => t.id === selectedTabId) || tabs[0];
   const TabContent = selectedTabConfig.content;
-  
+
   const onSelectedTabChanged = (id: string) => {
     navigate(`/p/${projectName}/documentation/${id}`);
   };
-  
+
   const renderTabs = () => {
     return tabs.map((tab, index) => (
       <EuiTab
@@ -46,7 +54,7 @@ const DocumentationIndex = () => {
       </EuiTab>
     ));
   };
-  
+
   return (
     <EuiPageTemplate panelled>
       <EuiPageTemplate.Section>

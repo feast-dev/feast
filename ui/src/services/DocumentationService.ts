@@ -68,7 +68,7 @@ feast serve
       return "# Error\nFailed to load CLI documentation.";
     }
   },
-  
+
   async fetchSDKDocumentation(): Promise<string> {
     try {
       return `# Feast SDK Reference
@@ -130,7 +130,7 @@ driver = Entity(
       return "# Error\nFailed to load SDK documentation.";
     }
   },
-  
+
   async fetchAPIDocumentation(): Promise<string> {
     try {
       return `# Feast REST API Reference
