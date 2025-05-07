@@ -66,8 +66,9 @@ const SideNav = () => {
     {
       name: "Home",
       id: htmlIdGenerator("home")(),
-      isSelected: useMatchSubpath(`${baseUrl}`),
-      renderItem: () => <div />,
+      icon: <EuiIcon type="home" />,
+      renderItem: (props) => <Link {...props} to={`${baseUrl}`} />,
+      isSelected: useMatchSubpath(`${baseUrl}$`),
     },
     {
       name: "Resources",
