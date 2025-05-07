@@ -331,6 +331,7 @@ func (feast *FeastServices) createPVC(pvcCreate *feastdevv1alpha1.PvcCreate, fea
 }
 
 func (feast *FeastServices) setDeployment(deploy *appsv1.Deployment) error {
+	cr := feast.Handler.FeatureStore
 	replicas := deploy.Spec.Replicas
 
 	deploy.Labels = feast.getLabels()
@@ -344,13 +345,14 @@ func (feast *FeastServices) setDeployment(deploy *appsv1.Deployment) error {
 			},
 			Spec: corev1.PodSpec{
 				ServiceAccountName: feast.initFeastSA().Name,
+				SecurityContext:    cr.Status.Applied.Services.SecurityContext,
 			},
 		},
 	}
 	if err := feast.setPod(&deploy.Spec.Template.Spec); err != nil {
 		return err
 	}
-	return controllerutil.SetControllerReference(feast.Handler.FeatureStore, deploy, feast.Handler.Scheme)
+	return controllerutil.SetControllerReference(cr, deploy, feast.Handler.Scheme)
 }
 
 func (feast *FeastServices) setPod(podSpec *corev1.PodSpec) error {

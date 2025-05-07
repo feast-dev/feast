@@ -199,6 +199,7 @@ _Appears in:_
 | `registry` _[Registry](#registry)_ |  |
 | `ui` _[ServerConfigs](#serverconfigs)_ | Creates a UI server container |
 | `deploymentStrategy` _[DeploymentStrategy](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#deploymentstrategy-v1-apps)_ |  |
+| `securityContext` _[PodSecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#podsecuritycontext-v1-core)_ |  |
 | `disableInitContainers` _boolean_ | Disable the 'feast repo initialization' initContainer |
 | `volumes` _[Volume](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#volume-v1-core) array_ | Volumes specifies the volumes to mount in the FeatureStore deployment. A corresponding `VolumeMount` should be added to whichever feast service(s) require access to said volume(s). |
 
