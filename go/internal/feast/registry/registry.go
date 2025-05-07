@@ -68,7 +68,7 @@ func NewRegistry(registryConfig *RegistryConfig, repoPath string, project string
 func (r *Registry) InitializeRegistry() error {
 	_, err := r.getRegistryProto()
 	if err != nil {
-		if _, ok := r.registryStore.(*FileRegistryStore); ok {
+		if _, ok := r.registryStore.(*FileRegistryStore); ok { // S3에는 굳이 연동할 필요 없어 보임. 오히려 이로 인해 정상적이던 s3 내의 레지스트리 파일이 초기화된 파일로 덮어쓰기 될 수도 있지 않음?
 			log.Error().Err(err).Msg("Registry Initialization Failed")
 			return err
 		}
@@ -364,6 +364,8 @@ func getRegistryStoreFromType(registryStoreType string, registryConfig *Registry
 	switch registryStoreType {
 	case "FileRegistryStore":
 		return NewFileRegistryStore(registryConfig, repoPath), nil
+	case "S3RegistryStore":
+		return NewS3RegistryStore(registryConfig, repoPath), nil
 	}
 	return nil, errors.New("only FileRegistryStore as a RegistryStore is supported at this moment")
 }
