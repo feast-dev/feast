@@ -44,7 +44,7 @@ const rollupConfig = [
         banner,
         exports: "default",
         inlineDynamicImports: true,
-      }
+      },
     ],
     external: [
       ...Object.keys(pkg.dependencies || {}),
@@ -73,7 +73,7 @@ const rollupConfig = [
         targets: [{ src: "src/assets/**/*", dest: "dist/assets/" }],
       }),
     ],
-  }
+  },
 ];
 
 export default rollupConfig;
