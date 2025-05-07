@@ -18,6 +18,8 @@ feast apply
 
 - \`--skip-source-validation\`: Skip validation of data sources.
 
+---
+
 ## feast materialize
 
 Materialize features from an offline store into an online store.
@@ -32,6 +34,8 @@ feast materialize START_TS END_TS
 
 - \`--views\`: Feature views to materialize.
 
+---
+
 ## feast registry-dump
 
 Dump registry contents to local file.
@@ -41,6 +45,8 @@ Dump registry contents to local file.
 \`\`\`
 feast registry-dump REGISTRY_PATH
 \`\`\`
+
+---
 
 ## feast serve
 
