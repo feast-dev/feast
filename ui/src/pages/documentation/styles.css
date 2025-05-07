@@ -1,0 +1,61 @@
+.documentation-content {
+  line-height: 1.6;
+  font-size: 16px;
+}
+
+.documentation-content h1,
+.documentation-content h2,
+.documentation-content h3,
+.documentation-content h4,
+.documentation-content h5,
+.documentation-content h6 {
+  margin-top: 24px;
+  margin-bottom: 16px;
+  font-weight: 600;
+}
+
+.documentation-content h1 {
+  font-size: 32px;
+}
+
+.documentation-content h2 {
+  font-size: 24px;
+}
+
+.documentation-content h3 {
+  font-size: 20px;
+}
+
+.documentation-content code {
+  padding: 0.2em 0.4em;
+  background-color: rgba(0, 0, 0, 0.05);
+  border-radius: 3px;
+}
+
+.documentation-content pre {
+  padding: 16px;
+  background-color: rgba(0, 0, 0, 0.05);
+  border-radius: 3px;
+  overflow: auto;
+}
+
+.documentation-content pre code {
+  background-color: transparent;
+  padding: 0;
+}
+
+.documentation-content table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 16px 0;
+}
+
+.documentation-content th,
+.documentation-content td {
+  border: 1px solid #ddd;
+  padding: 8px;
+}
+
+.documentation-content th {
+  background-color: rgba(0, 0, 0, 0.05);
+}

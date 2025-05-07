@@ -23,16 +23,27 @@ const banner = `
 `;
 
 const rollupConfig = [
-  // ES
   {
     input: inputFileName,
     output: [
       {
-        file: pkg.module,
+        dir: "dist",
+        entryFileNames: path.basename(pkg.module),
         format: "es",
         sourcemap: "inline",
         banner,
         exports: "named",
+        inlineDynamicImports: true,
+      },
+      // CommonJS
+      {
+        dir: "dist",
+        entryFileNames: path.basename(pkg.main),
+        format: "cjs",
+        sourcemap: "inline",
+        banner,
+        exports: "default",
+        inlineDynamicImports: true,
       },
     ],
     external: [
@@ -53,48 +64,14 @@ const rollupConfig = [
       }),
       css({
         output: "feast-ui.css",
+        minify: true,
+        inject: false,
       }),
       svg(),
       json(),
       copy({
         targets: [{ src: "src/assets/**/*", dest: "dist/assets/" }],
       }),
-    ],
-  },
-
-  // CommonJS
-  {
-    input: inputFileName,
-    output: [
-      {
-        file: pkg.main,
-        format: "cjs",
-        sourcemap: "inline",
-        banner,
-        exports: "default",
-      },
-    ],
-    external: [
-      ...Object.keys(pkg.dependencies || {}),
-      ...Object.keys(pkg.devDependencies || {}),
-    ],
-    plugins: [
-      pluginTypescript(),
-      pluginCommonjs({
-        extensions: [".js", ".ts"],
-      }),
-      babel({
-        babelHelpers: "bundled",
-        configFile: path.resolve(__dirname, ".babelrc.js"),
-      }),
-      pluginNodeResolve({
-        browser: false,
-      }),
-      css({
-        output: "feast-ui.css",
-      }),
-      svg(),
-      json(),
     ],
   },
 ];
