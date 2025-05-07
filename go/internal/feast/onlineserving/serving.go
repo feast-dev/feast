@@ -207,16 +207,12 @@ func GetFeatureViewsToUseByFeatureRefs(
 	viewNameToSortedViewAndRefs := make(map[string]*SortedFeatureViewAndRefs)
 	odFvToFeatures := make(map[string][]string)
 
-	fmt.Printf("features: %v\n", features)
-
 	for _, featureRef := range features {
 		featureViewName, featureName, err := ParseFeatureReference(featureRef)
-		fmt.Printf("featureViewName: %s, featureName: %s\n", featureViewName, featureName)
 		if err != nil {
 			return nil, nil, nil, err
 		}
 		if fv, ok := featureViews[featureViewName]; ok {
-			fmt.Printf("fv: %s\n", fv)
 			if viewAndRef, ok := viewNameToViewAndRefs[fv.Base.Name]; ok {
 				viewAndRef.FeatureRefs = addStringIfNotContains(viewAndRef.FeatureRefs, featureName)
 			} else {
@@ -226,7 +222,6 @@ func GetFeatureViewsToUseByFeatureRefs(
 				}
 			}
 		} else if sortedFv, ok := sortedFeatureViews[featureViewName]; ok {
-			fmt.Printf("sortedFv: %s\n", sortedFv)
 			if viewAndRef, ok := viewNameToSortedViewAndRefs[sortedFv.Base.Name]; ok {
 				viewAndRef.FeatureRefs = addStringIfNotContains(viewAndRef.FeatureRefs, featureName)
 			} else {
