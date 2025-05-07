@@ -13,7 +13,6 @@ import { FeatureServiceIcon } from "../graphics/FeatureServiceIcon";
 import { DatasetIcon } from "../graphics/DatasetIcon";
 import { FeatureIcon } from "../graphics/FeatureIcon";
 import { HomeIcon } from "../graphics/HomeIcon";
-import { LineageIcon } from "../graphics/LineageIcon";
 import { PermissionsIcon } from "../graphics/PermissionsIcon";
 
 const SideNav = () => {
@@ -80,7 +79,7 @@ const SideNav = () => {
         {
           name: "Lineage",
           id: htmlIdGenerator("lineage")(),
-          icon: <EuiIcon type={LineageIcon} />,
+          icon: <EuiIcon type="graphApp" />,
           renderItem: (props) => <Link {...props} to={`${baseUrl}/lineage`} />,
           isSelected: useMatchSubpath(`${baseUrl}/lineage`),
         },
