@@ -9,7 +9,7 @@ cd ${PROJECT_ROOT_DIR}
 rm -rf ./offline_build
 mkdir offline_build
 
-alias hermeto='docker run --rm -ti -v "$PWD:$PWD:Z" -w "$PWD" quay.io/konflux-ci/hermeto:0.24.0'
+alias hermeto='docker run --rm -ti -v "$PWD:$PWD:Z" -w "$PWD" quay.io/konflux-ci/hermeto:0.25.0'
 # not needed for downstream build from release
 ###############################
 # yarn builder

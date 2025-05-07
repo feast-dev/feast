@@ -9,13 +9,19 @@ cd ${PROJECT_ROOT_DIR}
 rm -rf ./offline_build
 mkdir offline_build
 
-# yum builder
+# yarn builder
 docker build \
-  --tag yum-builder:dev \
-  -f sdk/python/feast/infra/feature_servers/multicloud/offline/Dockerfile.builder.yum \
+  --tag yarn-builder \
+  -f sdk/python/feast/infra/feature_servers/multicloud/offline/Dockerfile.builder.yarn \
   sdk/python/feast/infra/feature_servers/multicloud/offline
 
-alias hermeto='docker run --rm -ti -v "$PWD:$PWD:Z" -w "$PWD" quay.io/konflux-ci/hermeto:0.24.0'
+alias hermeto='docker run --rm -ti -v "$PWD:$PWD:Z" -w "$PWD" quay.io/konflux-ci/hermeto:0.25.0'
+hermeto fetch-deps \
+  --source sdk/python/feast/infra/feature_servers/multicloud/offline \
+  --output ${OFFLINE_BUILD_DIR}/hermeto-rpm-output \
+  --dev-package-managers \
+  rpm
+
 hermeto fetch-deps \
   --source sdk/python/feast/infra/feature_servers/multicloud/offline \
   --output ${OFFLINE_BUILD_DIR}/hermeto-generic-output \
@@ -67,6 +73,7 @@ docker build \
   --volume ${OFFLINE_BUILD_DIR}/hermeto-output:/tmp/hermeto-output:Z \
   --volume ${OFFLINE_BUILD_DIR}/hermeto.env:/tmp/hermeto.env:Z \
   --volume ${OFFLINE_BUILD_DIR}/hermeto-generic-output:/tmp/hermeto-generic-output:Z \
+  --volume ${OFFLINE_BUILD_DIR}/hermeto-rpm-output:/tmp/hermeto-rpm-output:Z \
   --tag feature-server:sdist-build \
   -f sdk/python/feast/infra/feature_servers/multicloud/offline/Dockerfile.sdist \
   ${PROJECT_ROOT_DIR}
