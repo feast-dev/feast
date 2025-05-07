@@ -13,6 +13,8 @@ import { FeatureServiceIcon } from "../graphics/FeatureServiceIcon";
 import { DatasetIcon } from "../graphics/DatasetIcon";
 import { FeatureIcon } from "../graphics/FeatureIcon";
 import { HomeIcon } from "../graphics/HomeIcon";
+import { LineageIcon } from "../graphics/LineageIcon";
+import { PermissionsIcon } from "../graphics/PermissionsIcon";
 
 const SideNav = () => {
   const registryUrl = useContext(RegistryPathContext);
@@ -78,7 +80,7 @@ const SideNav = () => {
         {
           name: "Lineage",
           id: htmlIdGenerator("lineage")(),
-          icon: <EuiIcon type="graphApp" />,
+          icon: <EuiIcon type={LineageIcon} />,
           renderItem: (props) => <Link {...props} to={`${baseUrl}/lineage`} />,
           isSelected: useMatchSubpath(`${baseUrl}/lineage`),
         },
@@ -133,7 +135,7 @@ const SideNav = () => {
         {
           name: "Permissions",
           id: htmlIdGenerator("permissions")(),
-          icon: <EuiIcon type="lock" />,
+          icon: <EuiIcon type={PermissionsIcon} />,
           renderItem: (props) => (
             <Link {...props} to={`${baseUrl}/permissions`} />
           ),
