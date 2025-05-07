@@ -98,6 +98,7 @@ OFFLINE_STORE_CLASS_FOR_TYPE = {
     "athena": "feast.infra.offline_stores.contrib.athena_offline_store.athena.AthenaOfflineStore",
     "mssql": "feast.infra.offline_stores.contrib.mssql_offline_store.mssql.MsSqlServerOfflineStore",
     "duckdb": "feast.infra.offline_stores.duckdb.DuckDBOfflineStore",
+    "sqlite": "feast.infra.offline_stores.sqlite.SqliteOfflineStore",
     "remote": "feast.infra.offline_stores.remote.RemoteOfflineStore",
     "couchbase.offline": "feast.infra.offline_stores.contrib.couchbase_offline_store.couchbase.CouchbaseColumnarOfflineStore",
 }
