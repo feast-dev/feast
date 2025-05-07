@@ -483,8 +483,12 @@ func (s *httpServer) getOnlineFeaturesRange(w http.ResponseWriter, r *http.Reque
 			writeJSONError(w, fmt.Errorf("error converting Arrow range values to proto values: %w", err), http.StatusInternalServerError)
 			return
 		}
+		simplifiedValues := make([]interface{}, len(rangeValues))
+		for i, repeatedValue := range rangeValues {
+			simplifiedValues[i] = extractSimpleValues(repeatedValue)
+		}
+		result["values"] = simplifiedValues
 
-		result["values"] = rangeValues
 		if status {
 			statuses := make([][]string, len(vector.RangeStatuses))
 			for i, entityStatuses := range vector.RangeStatuses {
@@ -524,6 +528,58 @@ func (s *httpServer) getOnlineFeaturesRange(w http.ResponseWriter, r *http.Reque
 	}
 
 	go releaseCGORangeMemory(rangeFeatureVectors)
+}
+
+func extractSimpleValues(repeatedValue *prototypes.RepeatedValue) interface{} {
+	if repeatedValue == nil || repeatedValue.Val == nil {
+		return []interface{}{}
+	}
+
+	if len(repeatedValue.Val) == 1 {
+		return extractSingleValue(repeatedValue.Val[0])
+	}
+
+	result := make([]interface{}, len(repeatedValue.Val))
+	for i, val := range repeatedValue.Val {
+		result[i] = extractSingleValue(val)
+	}
+	return result
+}
+
+func extractSingleValue(value *prototypes.Value) interface{} {
+	if value == nil || value.Val == nil {
+		return nil
+	}
+	switch v := value.Val.(type) {
+	case *prototypes.Value_BoolVal:
+		return v.BoolVal
+	case *prototypes.Value_StringVal:
+		return v.StringVal
+	case *prototypes.Value_Int32Val:
+		return v.Int32Val
+	case *prototypes.Value_Int64Val:
+		return v.Int64Val
+	case *prototypes.Value_FloatVal:
+		return v.FloatVal
+	case *prototypes.Value_DoubleVal:
+		return v.DoubleVal
+	case *prototypes.Value_UnixTimestampVal:
+		return v.UnixTimestampVal
+	case *prototypes.Value_StringListVal:
+		return v.StringListVal.Val
+	case *prototypes.Value_Int32ListVal:
+		return v.Int32ListVal.Val
+	case *prototypes.Value_Int64ListVal:
+		return v.Int64ListVal.Val
+	case *prototypes.Value_FloatListVal:
+		return v.FloatListVal.Val
+	case *prototypes.Value_DoubleListVal:
+		return v.DoubleListVal.Val
+	case *prototypes.Value_BoolListVal:
+		return v.BoolListVal.Val
+	default:
+		return nil
+	}
 }
 
 func releaseCGOMemory(featureVectors []*onlineserving.FeatureVector) {
@@ -632,5 +688,3 @@ func (s *httpServer) Stop() error {
 	}
 	return nil
 }
-
-// new line
