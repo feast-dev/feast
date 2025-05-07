@@ -24,7 +24,6 @@ import RootProjectSelectionPage from "./pages/RootProjectSelectionPage";
 import DatasetInstance from "./pages/saved-data-sets/DatasetInstance";
 import PermissionsIndex from "./pages/permissions/Index";
 import LineageIndex from "./pages/lineage/Index";
-import DocumentationIndex from "./pages/documentation/Index";
 import NoProjectGuard from "./components/NoProjectGuard";
 
 import TabsRegistryContext, {
@@ -148,14 +147,6 @@ const FeastUISansProvidersInner = ({
                     />
                     <Route path="permissions/" element={<PermissionsIndex />} />
                     <Route path="lineage/" element={<LineageIndex />} />
-                    <Route
-                      path="documentation/"
-                      element={<DocumentationIndex />}
-                    />
-                    <Route
-                      path="documentation/:tab"
-                      element={<DocumentationIndex />}
-                    />
                   </Route>
                 </Route>
                 <Route path="*" element={<NoMatch />} />
