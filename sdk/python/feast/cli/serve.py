@@ -165,21 +165,29 @@ def serve_transformations_command(ctx: click.Context, port: int):
     show_default=False,
     help="path to TLS certificate public key. You need to pass --key as well to start server in TLS mode",
 )
+@click.option(
+    "--rest-api",
+    "-r",
+    is_flag=True,
+    show_default=True,
+    help="Start a REST API Server",
+)
 @click.pass_context
 def serve_registry_command(
     ctx: click.Context,
     port: int,
     tls_key_path: str,
     tls_cert_path: str,
+    rest_api: bool,
 ):
-    """Start a registry server locally on a given port."""
+    """Start a gRPC or REST api registry server locally on a given port (gRPC by default)."""
     if (tls_key_path and not tls_cert_path) or (not tls_key_path and tls_cert_path):
         raise click.BadParameter(
             "Please pass --cert and --key args to start the registry server in TLS mode."
         )
     store = create_feature_store(ctx)
 
-    store.serve_registry(port, tls_key_path, tls_cert_path)
+    store.serve_registry(port, tls_key_path, tls_cert_path, rest_api)
 
 
 @click.command("serve_offline")
