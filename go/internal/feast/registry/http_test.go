@@ -151,19 +151,15 @@ func TestLoadProtobufMessages_Error(t *testing.T) {
 	assert.Equal(t, "test error", err.Error())
 }
 
-func TestLoadEntities(t *testing.T) {
+func TestGetEntity(t *testing.T) {
 	// Create a mock HTTP server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Create a dummy EntityList
-		entityList := &core.EntityList{
-			Entities: []*core.Entity{
-				{Spec: &core.EntitySpecV2{Name: "test_entity"}},
-			},
-		}
+		entity := &core.Entity{Spec: &core.EntitySpecV2{Name: "test_entity"}}
 		// Marshal it to protobuf
-		data, err := proto.Marshal(entityList)
+		data, err := proto.Marshal(entity)
 		if err != nil {
-			log.Fatal().Err(err).Msg("Failed to marshal EntityList")
+			log.Fatal().Err(err).Msg("Failed to marshal Entity")
 		}
 		// Write the protobuf data to the response
 		w.Write(data)
@@ -177,67 +173,21 @@ func TestLoadEntities(t *testing.T) {
 		project:  "test_project",
 	}
 
-	// Create a new empty Registry
-	registry := &core.Registry{}
-
 	// Call the method under test
-	err := store.loadEntities(registry)
+	result, err := store.getEntity("test_entity", true)
 
 	// Assert that there was no error and that the registry now contains the entity
 	assert.Nil(t, err)
-	assert.Equal(t, 1, len(registry.Entities))
-	assert.Equal(t, "test_entity", registry.Entities[0].Spec.Name)
+	assert.Equal(t, "test_entity", result.Spec.Name)
 }
 
-func TestLoadDatasources(t *testing.T) {
-	// Create a mock HTTP server
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Create a dummy DataSourceList
-		dataSourceList := &core.DataSourceList{
-			Datasources: []*core.DataSource{
-				{Name: "test_datasource"},
-			},
-		}
-		// Marshal it to protobuf
-		data, err := proto.Marshal(dataSourceList)
-		if err != nil {
-			log.Fatal().Err(err).Msg("Failed to marshal DataSourceList")
-		}
-		// Write the protobuf data to the response
-		w.Write(data)
-	}))
-	// Close the server when test finishes
-	defer server.Close()
-
-	// Create a new HttpRegistryStore with the mock server's URL as the endpoint
-	store := &HttpRegistryStore{
-		endpoint: server.URL,
-		project:  "test_project",
-	}
-
-	// Create a new empty Registry
-	registry := &core.Registry{}
-
-	// Call the method under test
-	err := store.loadDatasources(registry)
-
-	// Assert that there was no error and that the registry now contains the datasource
-	assert.Nil(t, err)
-	assert.Equal(t, 1, len(registry.DataSources))
-	assert.Equal(t, "test_datasource", registry.DataSources[0].Name)
-}
-
-func TestLoadFeatureViews(t *testing.T) {
+func TestGetFeatureView(t *testing.T) {
 	// Create a mock HTTP server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Create a dummy FeatureViewList
-		featureViewList := &core.FeatureViewList{
-			Featureviews: []*core.FeatureView{
-				{Spec: &core.FeatureViewSpec{Name: "test_feature_view"}},
-			},
-		}
+		featureView := &core.FeatureView{Spec: &core.FeatureViewSpec{Name: "test_feature_view"}}
 		// Marshal it to protobuf
-		data, err := proto.Marshal(featureViewList)
+		data, err := proto.Marshal(featureView)
 		if err != nil {
 			log.Fatal().Err(err).Msg("Failed to marshal FeatureViewList")
 		}
@@ -253,29 +203,21 @@ func TestLoadFeatureViews(t *testing.T) {
 		project:  "test_project",
 	}
 
-	// Create a new empty Registry
-	registry := &core.Registry{}
-
 	// Call the method under test
-	err := store.loadFeatureViews(registry)
+	result, err := store.getFeatureView("test_feature_view", true)
 
 	// Assert that there was no error and that the registry now contains the feature view
 	assert.Nil(t, err)
-	assert.Equal(t, 1, len(registry.FeatureViews))
-	assert.Equal(t, "test_feature_view", registry.FeatureViews[0].Spec.Name)
+	assert.Equal(t, "test_feature_view", result.Spec.Name)
 }
 
-func TestLoadOnDemandFeatureViews(t *testing.T) {
+func TestGetOnDemandFeatureView(t *testing.T) {
 	// Create a mock HTTP server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Create a dummy OnDemandFeatureViewList
-		odFeatureViewList := &core.OnDemandFeatureViewList{
-			Ondemandfeatureviews: []*core.OnDemandFeatureView{
-				{Spec: &core.OnDemandFeatureViewSpec{Name: "test_view"}},
-			},
-		}
+		odFeatureView := &core.OnDemandFeatureView{Spec: &core.OnDemandFeatureViewSpec{Name: "test_view"}}
 		// Marshal it to protobuf
-		data, err := proto.Marshal(odFeatureViewList)
+		data, err := proto.Marshal(odFeatureView)
 		if err != nil {
 			log.Fatal().Err(err).Msg("Failed to marshal OnDemandFeatureViewList")
 		}
@@ -291,29 +233,21 @@ func TestLoadOnDemandFeatureViews(t *testing.T) {
 		project:  "test_project",
 	}
 
-	// Create a new empty Registry
-	registry := &core.Registry{}
-
 	// Call the method under test
-	err := store.loadOnDemandFeatureViews(registry)
+	result, err := store.getOnDemandFeatureView("test_view", true)
 
 	// Assert that there was no error and that the registry now contains the on-demand feature view
 	assert.Nil(t, err)
-	assert.Equal(t, 1, len(registry.OnDemandFeatureViews))
-	assert.Equal(t, "test_view", registry.OnDemandFeatureViews[0].Spec.Name)
+	assert.Equal(t, "test_view", result.Spec.Name)
 }
 
-func TestLoadFeatureServices(t *testing.T) {
+func TestGetFeatureService(t *testing.T) {
 	// Create a mock HTTP server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Create a dummy FeatureServiceList
-		featureServiceList := &core.FeatureServiceList{
-			Featureservices: []*core.FeatureService{
-				{Spec: &core.FeatureServiceSpec{Name: "test_feature_service"}},
-			},
-		}
+		featureService := &core.FeatureService{Spec: &core.FeatureServiceSpec{Name: "test_feature_service"}}
 		// Marshal it to protobuf
-		data, err := proto.Marshal(featureServiceList)
+		data, err := proto.Marshal(featureService)
 		if err != nil {
 			log.Fatal().Err(err).Msg("Failed to marshal FeatureServiceList")
 		}
@@ -329,104 +263,27 @@ func TestLoadFeatureServices(t *testing.T) {
 		project:  "test_project",
 	}
 
-	// Create a new empty Registry
-	registry := &core.Registry{}
-
 	// Call the method under test
-	err := store.loadFeatureServices(registry)
+	result, err := store.getFeatureService("test_feature_service", true)
 
 	// Assert that there was no error and that the registry now contains the feature service
 	assert.Nil(t, err)
-	assert.Equal(t, 1, len(registry.FeatureServices))
-	assert.Equal(t, "test_feature_service", registry.FeatureServices[0].Spec.Name)
+	assert.Equal(t, "test_feature_service", result.Spec.Name)
 }
 
 func TestGetRegistryProto(t *testing.T) {
-	// Create a mock HTTP server
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var data []byte
-		var err error
-
-		switch r.URL.Path {
-		case "/projects/test_project/entities":
-			entityList := &core.EntityList{
-				Entities: []*core.Entity{
-					{Spec: &core.EntitySpecV2{Name: "test_entity"}},
-				},
-			}
-			data, err = proto.Marshal(entityList)
-		case "/projects/test_project/data_sources":
-			dataSourceList := &core.DataSourceList{
-				Datasources: []*core.DataSource{
-					{Name: "test_datasource"},
-				},
-			}
-			data, err = proto.Marshal(dataSourceList)
-		case "/projects/test_project/feature_views":
-			featureViewList := &core.FeatureViewList{
-				Featureviews: []*core.FeatureView{
-					{Spec: &core.FeatureViewSpec{Name: "test_feature_view"}},
-				},
-			}
-			data, err = proto.Marshal(featureViewList)
-		case "/projects/test_project/sorted_feature_views":
-			sortedFeatureViewList := &core.SortedFeatureViewList{
-				SortedFeatureViews: []*core.SortedFeatureView{
-					{Spec: &core.SortedFeatureViewSpec{Name: "test_sorted_feature_view"}},
-				},
-			}
-			data, err = proto.Marshal(sortedFeatureViewList)
-		case "/projects/test_project/on_demand_feature_views":
-			odFeatureViewList := &core.OnDemandFeatureViewList{
-				Ondemandfeatureviews: []*core.OnDemandFeatureView{
-					{Spec: &core.OnDemandFeatureViewSpec{Name: "test_view"}},
-				},
-			}
-			data, err = proto.Marshal(odFeatureViewList)
-		case "/projects/test_project/feature_services":
-			featureServiceList := &core.FeatureServiceList{
-				Featureservices: []*core.FeatureService{
-					{Spec: &core.FeatureServiceSpec{Name: "test_feature_service"}},
-				},
-			}
-			data, err = proto.Marshal(featureServiceList)
-		default:
-			t.Fatalf("Unexpected path: %s", r.URL.Path)
-		}
-
-		if err != nil {
-			log.Fatal().Err(err).Msg("Failed to marshal list")
-		}
-
-		// Write the protobuf data to the response
-		w.Write(data)
-	}))
-	// Close the server when test finishes
-	defer server.Close()
-
 	// Create a new HttpRegistryStore with the mock server's URL as the endpoint
 	store := &HttpRegistryStore{
-		endpoint: server.URL,
+		endpoint: "http://localhost",
 		project:  "test_project",
 	}
 
 	// Call the method under test
 	registry, err := store.GetRegistryProto()
 
-	// Assert that there was no error and that the registry now contains the expected data
+	// Assert that there was no error and that an empty registry is created
 	assert.Nil(t, err)
-	assert.Equal(t, 1, len(registry.Entities))
-	assert.Equal(t, "test_entity", registry.Entities[0].Spec.Name)
-	assert.Equal(t, 1, len(registry.DataSources))
-	assert.Equal(t, "test_datasource", registry.DataSources[0].Name)
-	assert.Equal(t, 1, len(registry.FeatureViews))
-	assert.Equal(t, "test_feature_view", registry.FeatureViews[0].Spec.Name)
-	assert.Equal(t, 1, len(registry.SortedFeatureViews))
-	assert.Equal(t, "test_sorted_feature_view", registry.SortedFeatureViews[0].Spec.Name)
-	assert.Equal(t, 1, len(registry.OnDemandFeatureViews))
-	assert.Equal(t, "test_view", registry.OnDemandFeatureViews[0].Spec.Name)
-	assert.Equal(t, 1, len(registry.FeatureServices))
-	assert.Equal(t, "test_feature_service", registry.FeatureServices[0].Spec.Name)
+	assert.IsType(t, &core.Registry{}, registry)
 }
 
 func TestUpdateRegistryProto(t *testing.T) {

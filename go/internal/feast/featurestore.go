@@ -85,27 +85,23 @@ func (fs *FeatureStore) GetOnlineFeatures(
 	joinKeyToEntityValues map[string]*prototypes.RepeatedValue,
 	requestData map[string]*prototypes.RepeatedValue,
 	fullFeatureNames bool) ([]*onlineserving.FeatureVector, error) {
-	fvs, sortedFvs, odFvs, entities, err := fs.fetchViewsAndEntities()
-	if err != nil {
-		return nil, err
-	}
-
+	var err error
 	var requestedFeatureViews []*onlineserving.FeatureViewAndRefs
 	var requestedOnDemandFeatureViews []*model.OnDemandFeatureView
 
 	// TODO: currently ignores SortedFeatureViews, need to either implement get for them or throw some kind of error/warning
 	if featureService != nil {
 		requestedFeatureViews, _, requestedOnDemandFeatureViews, err =
-			onlineserving.GetFeatureViewsToUseByService(featureService, fvs, sortedFvs, odFvs)
+			onlineserving.GetFeatureViewsToUseByService(featureService, fs.registry, fs.config.Project)
 	} else {
 		requestedFeatureViews, _, requestedOnDemandFeatureViews, err =
-			onlineserving.GetFeatureViewsToUseByFeatureRefs(featureRefs, fvs, sortedFvs, odFvs)
+			onlineserving.GetFeatureViewsToUseByFeatureRefs(featureRefs, fs.registry, fs.config.Project)
 	}
 	if err != nil {
 		return nil, err
 	}
 
-	entityNameToJoinKeyMap, expectedJoinKeysSet, err := onlineserving.GetEntityMaps(requestedFeatureViews, entities)
+	entityNameToJoinKeyMap, expectedJoinKeysSet, err := onlineserving.GetEntityMaps(requestedFeatureViews, fs.registry, fs.config.Project)
 	if err != nil {
 		return nil, err
 	}
@@ -205,19 +201,15 @@ func (fs *FeatureStore) GetOnlineFeaturesRange(
 		requestData = make(map[string]*prototypes.RepeatedValue)
 	}
 
-	fvs, sortedFvs, odFvs, entities, err := fs.fetchViewsAndEntities()
-	if err != nil {
-		return nil, err
-	}
-
+	var err error
 	var requestedSortedFeatureViews []*onlineserving.SortedFeatureViewAndRefs
 
 	if featureService != nil {
 		_, requestedSortedFeatureViews, _, err =
-			onlineserving.GetFeatureViewsToUseByService(featureService, fvs, sortedFvs, odFvs)
+			onlineserving.GetFeatureViewsToUseByService(featureService, fs.registry, fs.config.Project)
 	} else {
 		_, requestedSortedFeatureViews, _, err =
-			onlineserving.GetFeatureViewsToUseByFeatureRefs(featureRefs, fvs, sortedFvs, odFvs)
+			onlineserving.GetFeatureViewsToUseByFeatureRefs(featureRefs, fs.registry, fs.config.Project)
 	}
 	if err != nil {
 		return nil, err
@@ -230,7 +222,7 @@ func (fs *FeatureStore) GetOnlineFeaturesRange(
 	// Note: We're ignoring on-demand feature views for now.
 
 	entityNameToJoinKeyMap, expectedJoinKeysSet, err := onlineserving.GetEntityMapsForSortedViews(
-		requestedSortedFeatureViews, entities)
+		requestedSortedFeatureViews, fs.registry, fs.config.Project)
 	if err != nil {
 		return nil, err
 	}
@@ -349,59 +341,6 @@ func (fs *FeatureStore) GetFeatureService(name string) (*model.FeatureService, e
 	return fs.registry.GetFeatureService(fs.config.Project, name)
 }
 
-func (fs *FeatureStore) listAllViews() (map[string]*model.FeatureView, map[string]*model.SortedFeatureView, map[string]*model.OnDemandFeatureView, error) {
-	fvs := make(map[string]*model.FeatureView)
-	sortedFvs := make(map[string]*model.SortedFeatureView)
-	odFvs := make(map[string]*model.OnDemandFeatureView)
-
-	featureViews, err := fs.ListFeatureViews()
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	for _, featureView := range featureViews {
-		fvs[featureView.Base.Name] = featureView
-	}
-
-	sortedFeatureViews, err := fs.ListSortedFeatureViews()
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	for _, sortedFeatureView := range sortedFeatureViews {
-		sortedFvs[sortedFeatureView.Base.Name] = sortedFeatureView
-	}
-
-	streamFeatureViews, err := fs.ListStreamFeatureViews()
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	for _, streamFeatureView := range streamFeatureViews {
-		fvs[streamFeatureView.Base.Name] = streamFeatureView
-	}
-
-	onDemandFeatureViews, err := fs.registry.ListOnDemandFeatureViews(fs.config.Project)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	for _, onDemandFeatureView := range onDemandFeatureViews {
-		odFvs[onDemandFeatureView.Base.Name] = onDemandFeatureView
-	}
-	return fvs, sortedFvs, odFvs, nil
-}
-
-func (fs *FeatureStore) fetchViewsAndEntities() (map[string]*model.FeatureView, map[string]*model.SortedFeatureView, map[string]*model.OnDemandFeatureView, []*model.Entity, error) {
-	fvs, sortedFvs, odFvs, err := fs.listAllViews()
-	if err != nil {
-		return nil, nil, nil, nil, err
-	}
-
-	entities, err := fs.ListEntities(false)
-	if err != nil {
-		return nil, nil, nil, nil, err
-	}
-
-	return fvs, sortedFvs, odFvs, entities, nil
-}
-
 func addDummyEntityIfNeeded(
 	entitylessCase bool,
 	joinKeyToEntityValues map[string]*prototypes.RepeatedValue,
@@ -432,49 +371,6 @@ func checkEntitylessCase(views interface{}) bool {
 		}
 	}
 	return false
-}
-
-func (fs *FeatureStore) ListFeatureViews() ([]*model.FeatureView, error) {
-	featureViews, err := fs.registry.ListFeatureViews(fs.config.Project)
-	if err != nil {
-		return featureViews, err
-	}
-	return featureViews, nil
-}
-
-func (fs *FeatureStore) ListSortedFeatureViews() ([]*model.SortedFeatureView, error) {
-	sortedFeatureViews, err := fs.registry.ListSortedFeatureViews(fs.config.Project)
-	if err != nil {
-		return sortedFeatureViews, err
-	}
-	return sortedFeatureViews, nil
-}
-
-func (fs *FeatureStore) ListStreamFeatureViews() ([]*model.FeatureView, error) {
-	streamFeatureViews, err := fs.registry.ListStreamFeatureViews(fs.config.Project)
-	if err != nil {
-		return streamFeatureViews, err
-	}
-	return streamFeatureViews, nil
-}
-
-func (fs *FeatureStore) ListEntities(hideDummyEntity bool) ([]*model.Entity, error) {
-
-	allEntities, err := fs.registry.ListEntities(fs.config.Project)
-	if err != nil {
-		return allEntities, err
-	}
-	entities := make([]*model.Entity, 0)
-	for _, entity := range allEntities {
-		if entity.Name != model.DUMMY_ENTITY_NAME || !hideDummyEntity {
-			entities = append(entities, entity)
-		}
-	}
-	return entities, nil
-}
-
-func (fs *FeatureStore) ListOnDemandFeatureViews() ([]*model.OnDemandFeatureView, error) {
-	return fs.registry.ListOnDemandFeatureViews(fs.config.Project)
 }
 
 /*
@@ -538,39 +434,46 @@ func (fs *FeatureStore) readRangeFromOnlineStore(
 		limit)
 }
 
-func (fs *FeatureStore) GetFcosMap() (map[string]*model.Entity, map[string]*model.FeatureView, map[string]*model.SortedFeatureView, map[string]*model.OnDemandFeatureView, error) {
-	odfvs, err := fs.ListOnDemandFeatureViews()
+func (fs *FeatureStore) GetFcosMap(featureServiceName string) (*model.FeatureService, map[string]*model.Entity, map[string]*model.FeatureView, map[string]*model.SortedFeatureView, map[string]*model.OnDemandFeatureView, error) {
+	featureService, err := fs.GetFeatureService(featureServiceName)
 	if err != nil {
-		return nil, nil, nil, nil, err
-	}
-	fvs, err := fs.ListFeatureViews()
-	if err != nil {
-		return nil, nil, nil, nil, err
-	}
-	sortedFvs, err := fs.ListSortedFeatureViews()
-	if err != nil {
-		return nil, nil, nil, nil, err
-	}
-	entities, err := fs.ListEntities(true)
-	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, nil, nil, err
 	}
 
-	entityMap := make(map[string]*model.Entity)
-	for _, entity := range entities {
-		entityMap[entity.Name] = entity
-	}
 	fvMap := make(map[string]*model.FeatureView)
-	for _, fv := range fvs {
-		fvMap[fv.Base.Name] = fv
-	}
 	sortedFvMap := make(map[string]*model.SortedFeatureView)
-	for _, sortedFv := range sortedFvs {
-		sortedFvMap[sortedFv.Base.Name] = sortedFv
-	}
 	odfvMap := make(map[string]*model.OnDemandFeatureView)
-	for _, odfv := range odfvs {
-		odfvMap[odfv.Base.Name] = odfv
+	entityNames := make(map[string]bool)
+	entityMap := make(map[string]*model.Entity)
+
+	for _, featureProjection := range featureService.Projections {
+		// Create copies of FeatureView that may contains the same *FeatureView but
+		// each differentiated by a *FeatureViewProjection
+		featureViewName := featureProjection.Name
+		if fv, ok := fs.registry.GetFeatureView(fs.config.Project, featureViewName); ok == nil {
+			fvMap[fv.Base.Name] = fv
+
+			for _, e := range fv.EntityNames {
+				entityMap[e] = nil
+			}
+		} else if sortedFv, ok := fs.registry.GetSortedFeatureView(fs.config.Project, featureViewName); ok == nil {
+			sortedFvMap[sortedFv.Base.Name] = sortedFv
+
+			for _, e := range fv.EntityNames {
+				entityMap[e] = nil
+			}
+		} else if odFv, err := fs.registry.GetOnDemandFeatureView(fs.config.Project, featureViewName); err == nil {
+			odfvMap[odFv.Base.Name] = odFv
+		}
 	}
-	return entityMap, fvMap, sortedFvMap, odfvMap, nil
+
+	for entityName := range entityNames {
+		if entity, err := fs.registry.GetEntity(fs.config.Project, entityName); err != nil {
+			entityMap[entityName] = entity
+		} else {
+			return nil, nil, nil, nil, nil, fmt.Errorf("entity %s not found in registry", entityName)
+		}
+	}
+
+	return featureService, entityMap, fvMap, sortedFvMap, odfvMap, nil
 }

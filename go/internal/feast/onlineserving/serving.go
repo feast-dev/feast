@@ -8,11 +8,13 @@ import (
 	"github.com/apache/arrow/go/v17/arrow/memory"
 	"github.com/feast-dev/feast/go/internal/feast/model"
 	"github.com/feast-dev/feast/go/internal/feast/onlinestore"
+	"github.com/feast-dev/feast/go/internal/feast/registry"
 	"github.com/feast-dev/feast/go/protos/feast/core"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	prototypes "github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/feast-dev/feast/go/types"
 	"github.com/golang/protobuf/ptypes/timestamp"
+	"github.com/rs/zerolog/log"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -111,9 +113,8 @@ existed in the registry
 */
 func GetFeatureViewsToUseByService(
 	featureService *model.FeatureService,
-	featureViews map[string]*model.FeatureView,
-	sortedFeatureViews map[string]*model.SortedFeatureView,
-	onDemandFeatureViews map[string]*model.OnDemandFeatureView) ([]*FeatureViewAndRefs, []*SortedFeatureViewAndRefs, []*model.OnDemandFeatureView, error) {
+	registry *registry.Registry,
+	projectName string) ([]*FeatureViewAndRefs, []*SortedFeatureViewAndRefs, []*model.OnDemandFeatureView, error) {
 
 	viewNameToViewAndRefs := make(map[string]*FeatureViewAndRefs)
 	viewNameToSortedViewAndRefs := make(map[string]*SortedFeatureViewAndRefs)
@@ -123,7 +124,7 @@ func GetFeatureViewsToUseByService(
 		// Create copies of FeatureView that may contains the same *FeatureView but
 		// each differentiated by a *FeatureViewProjection
 		featureViewName := featureProjection.Name
-		if fv, ok := featureViews[featureViewName]; ok {
+		if fv, fvErr := registry.GetFeatureView(projectName, featureViewName); fvErr == nil {
 			base, err := fv.Base.WithProjection(featureProjection)
 			if err != nil {
 				return nil, nil, nil, err
@@ -141,7 +142,7 @@ func GetFeatureViewsToUseByService(
 						feature.Name)
 			}
 
-		} else if sortedFv, ok := sortedFeatureViews[featureViewName]; ok {
+		} else if sortedFv, sortedFvErr := registry.GetSortedFeatureView(projectName, featureViewName); sortedFvErr == nil {
 			base, err := sortedFv.Base.WithProjection(featureProjection)
 			if err != nil {
 				return nil, nil, nil, err
@@ -158,7 +159,7 @@ func GetFeatureViewsToUseByService(
 					addStringIfNotContains(viewNameToSortedViewAndRefs[featureProjection.NameToUse()].FeatureRefs,
 						feature.Name)
 			}
-		} else if odFv, ok := onDemandFeatureViews[featureViewName]; ok {
+		} else if odFv, odFvErr := registry.GetOnDemandFeatureView(projectName, featureViewName); odFvErr == nil {
 			projectedOdFv, err := odFv.NewWithProjection(featureProjection)
 			if err != nil {
 				return nil, nil, nil, err
@@ -166,12 +167,14 @@ func GetFeatureViewsToUseByService(
 			odFvsToUse = append(odFvsToUse, projectedOdFv)
 			err = extractOdFvDependencies(
 				projectedOdFv,
-				featureViews,
+				registry,
+				projectName,
 				viewNameToViewAndRefs)
 			if err != nil {
 				return nil, nil, nil, err
 			}
 		} else {
+			log.Error().Errs("any feature view", []error{fvErr, sortedFvErr, odFvErr}).Msgf("Feature view %s not found", featureViewName)
 			return nil, nil, nil, fmt.Errorf("the provided feature service %s contains a reference to a feature View"+
 				"%s which doesn't exist, please make sure that you have created the feature View"+
 				"%s and that you have registered it by running \"apply\"", featureService.Name, featureViewName, featureViewName)
@@ -200,19 +203,19 @@ existed in the registry
 */
 func GetFeatureViewsToUseByFeatureRefs(
 	features []string,
-	featureViews map[string]*model.FeatureView,
-	sortedFeatureViews map[string]*model.SortedFeatureView,
-	onDemandFeatureViews map[string]*model.OnDemandFeatureView) ([]*FeatureViewAndRefs, []*SortedFeatureViewAndRefs, []*model.OnDemandFeatureView, error) {
+	registry *registry.Registry,
+	projectName string) ([]*FeatureViewAndRefs, []*SortedFeatureViewAndRefs, []*model.OnDemandFeatureView, error) {
 	viewNameToViewAndRefs := make(map[string]*FeatureViewAndRefs)
 	viewNameToSortedViewAndRefs := make(map[string]*SortedFeatureViewAndRefs)
 	odFvToFeatures := make(map[string][]string)
+	odFvToProjectWithFeatures := make(map[string]*model.OnDemandFeatureView)
 
 	for _, featureRef := range features {
 		featureViewName, featureName, err := ParseFeatureReference(featureRef)
 		if err != nil {
 			return nil, nil, nil, err
 		}
-		if fv, ok := featureViews[featureViewName]; ok {
+		if fv, err := registry.GetFeatureView(projectName, featureViewName); err == nil {
 			if viewAndRef, ok := viewNameToViewAndRefs[fv.Base.Name]; ok {
 				viewAndRef.FeatureRefs = addStringIfNotContains(viewAndRef.FeatureRefs, featureName)
 			} else {
@@ -221,7 +224,7 @@ func GetFeatureViewsToUseByFeatureRefs(
 					FeatureRefs: []string{featureName},
 				}
 			}
-		} else if sortedFv, ok := sortedFeatureViews[featureViewName]; ok {
+		} else if sortedFv, err := registry.GetSortedFeatureView(projectName, featureViewName); err == nil {
 			if viewAndRef, ok := viewNameToSortedViewAndRefs[sortedFv.Base.Name]; ok {
 				viewAndRef.FeatureRefs = addStringIfNotContains(viewAndRef.FeatureRefs, featureName)
 			} else {
@@ -230,13 +233,14 @@ func GetFeatureViewsToUseByFeatureRefs(
 					FeatureRefs: []string{featureName},
 				}
 			}
-		} else if odfv, ok := onDemandFeatureViews[featureViewName]; ok {
+		} else if odfv, err := registry.GetOnDemandFeatureView(projectName, featureViewName); err == nil {
 			if _, ok := odFvToFeatures[odfv.Base.Name]; !ok {
 				odFvToFeatures[odfv.Base.Name] = []string{featureName}
 			} else {
 				odFvToFeatures[odfv.Base.Name] = append(
 					odFvToFeatures[odfv.Base.Name], featureName)
 			}
+			odFvToProjectWithFeatures[odfv.Base.Name] = odfv
 		} else {
 			return nil, nil, nil, fmt.Errorf("feature View %s doesn't exist, please make sure that you have created the"+
 				" feature View %s and that you have registered it by running \"apply\"", featureViewName, featureViewName)
@@ -246,14 +250,15 @@ func GetFeatureViewsToUseByFeatureRefs(
 	odFvsToUse := make([]*model.OnDemandFeatureView, 0)
 
 	for odFvName, featureNames := range odFvToFeatures {
-		projectedOdFv, err := onDemandFeatureViews[odFvName].ProjectWithFeatures(featureNames)
+		projectedOdFv, err := odFvToProjectWithFeatures[odFvName].ProjectWithFeatures(featureNames)
 		if err != nil {
 			return nil, nil, nil, err
 		}
 
 		err = extractOdFvDependencies(
 			projectedOdFv,
-			featureViews,
+			registry,
+			projectName,
 			viewNameToViewAndRefs)
 		if err != nil {
 			return nil, nil, nil, err
@@ -275,12 +280,16 @@ func GetFeatureViewsToUseByFeatureRefs(
 
 func extractOdFvDependencies(
 	odFv *model.OnDemandFeatureView,
-	sourceFvs map[string]*model.FeatureView,
+	registry *registry.Registry,
+	projectName string,
 	requestedFeatures map[string]*FeatureViewAndRefs,
 ) error {
 
 	for _, sourceFvProjection := range odFv.SourceFeatureViewProjections {
-		fv := sourceFvs[sourceFvProjection.Name]
+		fv, err := registry.GetFeatureView(projectName, sourceFvProjection.Name)
+		if err != nil {
+			return err
+		}
 		base, err := fv.Base.WithProjection(sourceFvProjection)
 		if err != nil {
 			return err
@@ -316,15 +325,9 @@ func addStringIfNotContains(slice []string, element string) []string {
 	return slice
 }
 
-func GetEntityMaps(requestedFeatureViews []*FeatureViewAndRefs, entities []*model.Entity) (map[string]string, map[string]interface{}, error) {
+func GetEntityMaps(requestedFeatureViews []*FeatureViewAndRefs, registry *registry.Registry, projectName string) (map[string]string, map[string]interface{}, error) {
 	entityNameToJoinKeyMap := make(map[string]string)
 	expectedJoinKeysSet := make(map[string]interface{})
-
-	entitiesByName := make(map[string]*model.Entity)
-
-	for _, entity := range entities {
-		entitiesByName[entity.Name] = entity
-	}
 
 	for _, featuresAndView := range requestedFeatureViews {
 		featureView := featuresAndView.View
@@ -336,27 +339,25 @@ func GetEntityMaps(requestedFeatureViews []*FeatureViewAndRefs, entities []*mode
 		}
 
 		for _, entityName := range featureView.EntityNames {
-			joinKey := entitiesByName[entityName].JoinKey
-			entityNameToJoinKeyMap[entityName] = joinKey
+			entity, err := registry.GetEntity(projectName, entityName)
+			if err != nil {
+				return nil, nil, fmt.Errorf("entity %s doesn't exist in the registry", entityName)
+			}
+			entityNameToJoinKeyMap[entityName] = entity.JoinKey
 
-			if alias, ok := joinKeyToAliasMap[joinKey]; ok {
+			if alias, ok := joinKeyToAliasMap[entity.JoinKey]; ok {
 				expectedJoinKeysSet[alias] = nil
 			} else {
-				expectedJoinKeysSet[joinKey] = nil
+				expectedJoinKeysSet[entity.JoinKey] = nil
 			}
 		}
 	}
 	return entityNameToJoinKeyMap, expectedJoinKeysSet, nil
 }
 
-func GetEntityMapsForSortedViews(sortedViews []*SortedFeatureViewAndRefs, entities []*model.Entity) (map[string]string, map[string]interface{}, error) {
+func GetEntityMapsForSortedViews(sortedViews []*SortedFeatureViewAndRefs, registry *registry.Registry, projectName string) (map[string]string, map[string]interface{}, error) {
 	entityNameToJoinKeyMap := make(map[string]string)
 	expectedJoinKeysSet := make(map[string]interface{})
-
-	entitiesByName := make(map[string]*model.Entity)
-	for _, entity := range entities {
-		entitiesByName[entity.Name] = entity
-	}
 
 	for _, featuresAndView := range sortedViews {
 		featureView := featuresAndView.View
@@ -369,15 +370,16 @@ func GetEntityMapsForSortedViews(sortedViews []*SortedFeatureViewAndRefs, entiti
 		}
 
 		for _, entityName := range featureView.EntityNames {
-			entity := entitiesByName[entityName]
-			joinKey := entity.JoinKey
+			entity, err := registry.GetEntity(projectName, entityName)
+			if err != nil {
+				return nil, nil, fmt.Errorf("entity %s doesn't exist in the registry", entityName)
+			}
+			entityNameToJoinKeyMap[entityName] = entity.JoinKey
 
-			entityNameToJoinKeyMap[entityName] = joinKey
-
-			if alias, ok := joinKeyToAliasMap[joinKey]; ok {
+			if alias, ok := joinKeyToAliasMap[entity.JoinKey]; ok {
 				expectedJoinKeysSet[alias] = nil
 			} else {
-				expectedJoinKeysSet[joinKey] = nil
+				expectedJoinKeysSet[entity.JoinKey] = nil
 			}
 		}
 	}
