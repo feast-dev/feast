@@ -586,9 +586,10 @@ func (feast *FeastServices) setInitContainer(podSpec *corev1.PodSpec, fsYamlB64 
 func (feast *FeastServices) setService(svc *corev1.Service, feastType FeastServiceType) error {
 	svc.Labels = feast.getFeastTypeLabels(feastType)
 	if feast.isOpenShiftTls(feastType) {
-		svc.Annotations = map[string]string{
-			"service.beta.openshift.io/serving-cert-secret-name": svc.Name + tlsNameSuffix,
+		if len(svc.Annotations) == 0 {
+			svc.Annotations = map[string]string{}
 		}
+		svc.Annotations["service.beta.openshift.io/serving-cert-secret-name"] = svc.Name + tlsNameSuffix
 	}
 
 	var port int32 = HttpPort
