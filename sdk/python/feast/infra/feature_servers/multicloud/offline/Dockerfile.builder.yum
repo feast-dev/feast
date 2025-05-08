@@ -2,15 +2,11 @@ FROM registry.access.redhat.com/ubi9/python-311:1
 ARG RELEASE
 
 ENV IBIS_VERSION="9.5.0"
-ENV MILVUS_LITE_VERSION="2.4.12"
 
 USER 0
 RUN yum install -y ninja-build llvm-devel cmake llvm-toolset ncurses-devel rust cargo
 RUN if [[ -z "$RELEASE" ]] ; then npm install -g yarn yalc && rm -rf .npm ; fi
 USER 1001
-
-# milvus dep
-RUN pip install milvus-lite==${MILVUS_LITE_VERSION}
 
 # ibis-framework must build from a clone of its git repo... versioning requirement
 ## RuntimeError: Unable to detect version control system. Checked: Git. Not installed: Mercurial, Darcs, Subversion, Bazaar, Fossil, Pijul.

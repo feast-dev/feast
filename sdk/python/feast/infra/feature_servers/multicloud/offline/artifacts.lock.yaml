@@ -2,6 +2,12 @@
 metadata:
   version: "1.0"
 artifacts:
+  - download_url: "https://files.pythonhosted.org/packages/44/43/b3f6e9defd1f3927b972beac7abe3d5b4a3bdb287e3bad69618e2e76cf0a/milvus_lite-2.4.12-py3-none-manylinux2014_x86_64.whl"
+    checksum: "sha256:334037ebbab60243b5d8b43d54ca2f835d81d48c3cda0c6a462605e588deb05d"
+    filename: "milvus_lite-2.4.12-py3-none-manylinux2014_x86_64.whl"
+  - download_url: "https://files.pythonhosted.org/packages/dd/a9/899888a3b49ee07856a0bab673652a82ea89999451a51fba4d99e65868f7/ibis_framework-9.5.0-py3-none-any.whl"
+    checksum: "sha256:145fe30d94f111cff332580c275ce77725c5ff7086eede93af0b371649d009c0"
+    filename: "ibis_framework-9.5.0-py3-none-any.whl"
   - download_url: "https://github.com/apache/arrow/archive/apache-arrow-17.0.0.tar.gz"
     checksum: "sha256:8379554d89f19f2c8db63620721cabade62541f47a4e706dfb0a401f05a713ef"
     filename: "apache-arrow-17.0.0.tar.gz"
