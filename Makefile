@@ -655,6 +655,9 @@ PB_ARCH := $(shell uname -m)
 ifeq ($(PB_ARCH), arm64)
 	PB_ARCH=aarch_64
 endif
+ifeq ($(PB_ARCH), aarch64)
+	PB_ARCH=aarch_64
+endif
 PB_PROTO_FOLDERS=core registry serving types storage
 
 $(TOOL_DIR)/protoc-$(PB_VERSION)-$(OS)-$(PB_ARCH).zip: $(TOOL_DIR)
