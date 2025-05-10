@@ -364,6 +364,8 @@ func getRegistryStoreFromType(registryStoreType string, registryConfig *Registry
 	switch registryStoreType {
 	case "FileRegistryStore":
 		return NewFileRegistryStore(registryConfig, repoPath), nil
+	case "S3RegistryStore":
+		return NewS3RegistryStore(registryConfig, repoPath), nil
 	}
 	return nil, errors.New("only FileRegistryStore as a RegistryStore is supported at this moment")
 }
