@@ -15,10 +15,16 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+// S3ClientInterface define interface of s3.Client for making mocking s3 client and testing it
+type S3ClientInterface interface {
+	GetObject(ctx context.Context, params *s3.GetObjectInput, optFns ...func(*s3.Options)) (*s3.GetObjectOutput, error)
+	DeleteObject(ctx context.Context, params *s3.DeleteObjectInput, optFns ...func(*s3.Options)) (*s3.DeleteObjectOutput, error)
+}
+
 // A S3RegistryStore is a S3 object storage-based implementation of the RegistryStore interface
 type S3RegistryStore struct {
 	filePath string
-	s3Client *s3.Client
+	s3Client S3ClientInterface
 }
 
 // NewS3RegistryStore creates a S3RegistryStore with the given configuration
@@ -55,7 +61,7 @@ func (r *S3RegistryStore) GetRegistryProto() (*core.Registry, error) {
 			Key:    aws.String(key),
 		})
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
 	defer output.Body.Close()
 
@@ -88,7 +94,7 @@ func (r *S3RegistryStore) Teardown() error {
 			Key:    aws.String(key),
 		})
 	if err != nil {
-		return err
+		panic(err)
 	}
 	return nil
 }
