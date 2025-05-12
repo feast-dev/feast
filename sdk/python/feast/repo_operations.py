@@ -14,8 +14,6 @@ from typing import List, Optional, Set, Union
 
 import click
 from click.exceptions import BadParameter
-from pyfiglet import Figlet
-from rich.console import Console
 
 from feast import PushSource
 from feast.batch_feature_view import BatchFeatureView
@@ -249,23 +247,23 @@ def _get_repo_contents(repo_path, project_name: Optional[str] = None):
 
     if len(repo.projects) < 1:
         if project_name:
-            console.print(
+            print(
                 f"No project found in the repository. Using project name {project_name} defined in feature_store.yaml"
             )
             repo.projects.append(Project(name=project_name))
         else:
-            console.print(
+            print(
                 "No project found in the repository. Either define Project in repository or define a project in feature_store.yaml"
             )
             sys.exit(1)
     elif len(repo.projects) == 1:
         if repo.projects[0].name != project_name:
-            console.print(
+            print(
                 "Project object name should match with the project name defined in feature_store.yaml"
             )
             sys.exit(1)
     else:
-        console.print(
+        print(
             "Multiple projects found in the repository. Currently no support for multiple projects"
         )
         sys.exit(1)
@@ -378,7 +376,7 @@ def create_feature_store(
     # If we received a base64 encoded version of feature_store.yaml, use that
     config_base64 = os.getenv(FEATURE_STORE_YAML_ENV_NAME)
     if config_base64:
-        console.print("Received base64 encoded feature_store.yaml")
+        print("Received base64 encoded feature_store.yaml")
         config_bytes = base64.b64decode(config_base64)
         # Create a new unique directory for writing feature_store.yaml
         repo_path = Path(tempfile.mkdtemp())
@@ -398,13 +396,13 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
         repo_config.project = project.name
         store, registry = _get_store_and_registry(repo_config)
         if not is_valid_name(project.name):
-            console.print(
+            print(
                 f"{project.name} is not valid. Project name should only have "
                 f"alphanumerical values and underscores but not start with an underscore."
             )
             sys.exit(1)
         # TODO: When we support multiple projects in a single repo, we should filter repo contents by project. Currently there is no way to associate Feast objects to project.
-        console.print(f"Applying changes for project {project.name}")
+        print(f"Applying changes for project {project.name}")
         apply_total_with_repo_instance(
             store, project.name, registry, repo, skip_source_validation
         )
@@ -433,7 +431,7 @@ def registry_dump(repo_config: RepoConfig, repo_path: Path) -> str:
 def cli_check_repo(repo_path: Path, fs_yaml_file: Path):
     sys.path.append(str(repo_path))
     if not fs_yaml_file.exists():
-        console.print(
+        print(
             f"Can't find feature repo configuration file at {fs_yaml_file}. "
             "Make sure you're running feast from an initialized feast repository."
         )
@@ -459,11 +457,11 @@ def init_repo(repo_name: str, template: str):
     if repo_config_path.exists():
         new_directory = os.path.relpath(repo_path, os.getcwd())
 
-        console.print(
+        print(
             f"The directory {Style.BRIGHT + Fore.GREEN}{new_directory}{Style.RESET_ALL} contains an existing feature "
             f"store repository that may cause a conflict"
         )
-        console.print()
+        print()
         sys.exit(1)
 
     # Copy template directory
