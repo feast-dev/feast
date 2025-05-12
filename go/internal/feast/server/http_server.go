@@ -188,25 +188,37 @@ func (filter sortKeyFilter) ToProto() (*serving.SortKeyFilter, error) {
 		SortKeyName: filter.SortKeyName,
 	}
 
+	if filter.Equals != nil {
+		value, err := parseValueFromJSON(filter.Equals)
+		if err != nil {
+			return nil, fmt.Errorf("error parsing equals filter: %w", err)
+		}
+
+		proto.Query = &serving.SortKeyFilter_Equals{
+			Equals: value,
+		}
+		return proto, nil
+	}
+
 	rangeQuery := &serving.SortKeyFilter_RangeQuery{
 		StartInclusive: filter.StartInclusive,
 		EndInclusive:   filter.EndInclusive,
 	}
 
 	if filter.RangeStart != nil {
-		var err error
-		rangeQuery.RangeStart, err = parseValueFromJSON(filter.RangeStart)
+		value, err := parseValueFromJSON(filter.RangeStart)
 		if err != nil {
 			return nil, fmt.Errorf("error parsing range_start: %w", err)
 		}
+		rangeQuery.RangeStart = value
 	}
 
 	if filter.RangeEnd != nil {
-		var err error
-		rangeQuery.RangeEnd, err = parseValueFromJSON(filter.RangeEnd)
+		value, err := parseValueFromJSON(filter.RangeEnd)
 		if err != nil {
 			return nil, fmt.Errorf("error parsing range_end: %w", err)
 		}
+		rangeQuery.RangeEnd = value
 	}
 
 	proto.Query = &serving.SortKeyFilter_Range{
@@ -230,6 +242,7 @@ func NewHttpServer(fs *feast.FeatureStore, loggingService *logging.LoggingServic
 
 func (s *httpServer) getOnlineFeatures(w http.ResponseWriter, r *http.Request) {
 	var err error
+	var featureVectors []*onlineserving.FeatureVector
 
 	span, ctx := tracer.StartSpanFromContext(r.Context(), "getOnlineFeatures", tracer.ResourceName("/get-online-features"))
 	defer span.Finish(tracer.WithError(err))
@@ -279,13 +292,19 @@ func (s *httpServer) getOnlineFeatures(w http.ResponseWriter, r *http.Request) {
 		requestContextProto[key] = value.ToProto()
 	}
 
-	featureVectors, err := s.fs.GetOnlineFeatures(
+	featureVectors, err = s.fs.GetOnlineFeatures(
 		ctx,
 		request.Features,
 		featureService,
 		entitiesProto,
 		requestContextProto,
 		request.FullFeatureNames)
+
+	defer func() {
+		if featureVectors != nil {
+			go releaseCGOMemory(featureVectors)
+		}
+	}()
 
 	if err != nil {
 		logSpanContext.Error().Err(err).Msg("Error getting feature vector")
@@ -368,8 +387,6 @@ func (s *httpServer) getOnlineFeatures(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-
-	go releaseCGOMemory(featureVectors)
 }
 
 type getOnlineFeaturesRangeRequest struct {
@@ -387,6 +404,7 @@ type sortKeyFilter struct {
 	SortKeyName    string          `json:"sort_key_name"`
 	RangeStart     json.RawMessage `json:"range_start"`
 	RangeEnd       json.RawMessage `json:"range_end"`
+	Equals         json.RawMessage `json:"equals"`
 	StartInclusive bool            `json:"start_inclusive"`
 	EndInclusive   bool            `json:"end_inclusive"`
 }
@@ -465,6 +483,12 @@ func (s *httpServer) getOnlineFeaturesRange(w http.ResponseWriter, r *http.Reque
 		requestContextProto,
 		request.FullFeatureNames)
 
+	defer func() {
+		if rangeFeatureVectors != nil {
+			go releaseCGORangeMemory(rangeFeatureVectors)
+		}
+	}()
+
 	if err != nil {
 		logSpanContext.Error().Err(err).Msg("Error getting range feature vectors")
 		writeJSONError(w, fmt.Errorf("error getting range feature vectors: %w", err), http.StatusInternalServerError)
@@ -526,8 +550,6 @@ func (s *httpServer) getOnlineFeaturesRange(w http.ResponseWriter, r *http.Reque
 		writeJSONError(w, fmt.Errorf("error encoding response: %w", err), http.StatusInternalServerError)
 		return
 	}
-
-	go releaseCGORangeMemory(rangeFeatureVectors)
 }
 
 func extractSimpleValues(repeatedValue *prototypes.RepeatedValue) interface{} {
@@ -536,50 +558,14 @@ func extractSimpleValues(repeatedValue *prototypes.RepeatedValue) interface{} {
 	}
 
 	if len(repeatedValue.Val) == 1 {
-		return extractSingleValue(repeatedValue.Val[0])
+		return types.ValueTypeToGoType(repeatedValue.Val[0])
 	}
 
 	result := make([]interface{}, len(repeatedValue.Val))
 	for i, val := range repeatedValue.Val {
-		result[i] = extractSingleValue(val)
+		result[i] = types.ValueTypeToGoType(val)
 	}
 	return result
-}
-
-func extractSingleValue(value *prototypes.Value) interface{} {
-	if value == nil || value.Val == nil {
-		return nil
-	}
-	switch v := value.Val.(type) {
-	case *prototypes.Value_BoolVal:
-		return v.BoolVal
-	case *prototypes.Value_StringVal:
-		return v.StringVal
-	case *prototypes.Value_Int32Val:
-		return v.Int32Val
-	case *prototypes.Value_Int64Val:
-		return v.Int64Val
-	case *prototypes.Value_FloatVal:
-		return v.FloatVal
-	case *prototypes.Value_DoubleVal:
-		return v.DoubleVal
-	case *prototypes.Value_UnixTimestampVal:
-		return v.UnixTimestampVal
-	case *prototypes.Value_StringListVal:
-		return v.StringListVal.Val
-	case *prototypes.Value_Int32ListVal:
-		return v.Int32ListVal.Val
-	case *prototypes.Value_Int64ListVal:
-		return v.Int64ListVal.Val
-	case *prototypes.Value_FloatListVal:
-		return v.FloatListVal.Val
-	case *prototypes.Value_DoubleListVal:
-		return v.DoubleListVal.Val
-	case *prototypes.Value_BoolListVal:
-		return v.BoolListVal.Val
-	default:
-		return nil
-	}
 }
 
 func releaseCGOMemory(featureVectors []*onlineserving.FeatureVector) {
