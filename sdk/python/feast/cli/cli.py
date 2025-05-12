@@ -174,7 +174,7 @@ def delete(ctx: click.Context, object_id: str):
 
     for getter, obj_type_str in object_getters_and_types:
         try:
-            potential_e = getter(object_id)
+            potential_e = getter(object_id)  # type: ignore[operator]
             if potential_e:
                 e = potential_e
                 object_type = obj_type_str
