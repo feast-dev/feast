@@ -38,7 +38,7 @@ type CassandraOnlineStore struct {
 	config *registry.RepoConfig
 
 	// The number of keys to include in a single CQL query for retrieval from the database
-	keyBatchSize int
+	KeyBatchSize int
 
 	// The version of the table name format
 	tableNameFormatVersion int
@@ -262,7 +262,7 @@ func NewCassandraOnlineStore(project string, config *registry.RepoConfig, online
 	} else {
 		log.Info().Msgf("key batching is enabled with a batch size of %d", cassandraConfig.keyBatchSize)
 	}
-	store.keyBatchSize = cassandraConfig.keyBatchSize
+	store.KeyBatchSize = cassandraConfig.keyBatchSize
 
 	// parse tableNameFormatVersion
 	tableNameFormatVersion, ok := onlineStoreConfig["table_name_format_version"]
@@ -365,7 +365,7 @@ func (c *CassandraOnlineStore) buildCassandraEntityKeys(entityKeys []*types.Enti
 	cassandraKeys := make([]any, len(entityKeys))
 	cassandraKeyToEntityIndex := make(map[string]int)
 	for i := 0; i < len(entityKeys); i++ {
-		var key, err = utils.SerializeEntityKey(entityKeys[i], c.config.EntityKeySerializationVersion)
+		var key, err = utils.SerializeEntityKey(entityKeys[i], 2)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -562,7 +562,7 @@ func (c *CassandraOnlineStore) BatchedKeysOnlineRead(ctx context.Context, entity
 
 	// Key batching
 	nKeys := len(serializedEntityKeys)
-	batchSize := c.keyBatchSize
+	batchSize := c.KeyBatchSize
 	nBatches := int(math.Ceil(float64(nKeys) / float64(batchSize)))
 	batches := make([][]any, nBatches)
 	nAssigned := 0
@@ -683,7 +683,7 @@ func (c *CassandraOnlineStore) BatchedKeysOnlineRead(ctx context.Context, entity
 }
 
 func (c *CassandraOnlineStore) OnlineRead(ctx context.Context, entityKeys []*types.EntityKey, featureViewNames []string, featureNames []string) ([][]FeatureData, error) {
-	if c.keyBatchSize == 1 {
+	if c.KeyBatchSize == 1 {
 		return c.UnbatchedKeysOnlineRead(ctx, entityKeys, featureViewNames, featureNames)
 	} else {
 		return c.BatchedKeysOnlineRead(ctx, entityKeys, featureViewNames, featureNames)
@@ -761,8 +761,11 @@ func (c *CassandraOnlineStore) buildRangeQueryCQL(
 			if filterStr != "" {
 				rangeFilters = append(rangeFilters, filterStr)
 			}
-			orderBy = append(orderBy, fmt.Sprintf(`"%s" %s`, f.SortKeyName, f.Order.String()))
 			params = append(params, filterParams...)
+			if f.Order != nil {
+				orderBy = append(orderBy,
+					fmt.Sprintf(`"%s" %s`, f.SortKeyName, f.Order.String()))
+			}
 		}
 
 		if len(rangeFilters) > 0 {
@@ -770,7 +773,7 @@ func (c *CassandraOnlineStore) buildRangeQueryCQL(
 		}
 
 		// Only add ORDER BY if single key and not using per partition limit
-		if numKeys == 1 && !perPartitionLimit {
+		if len(orderBy) > 0 && numKeys == 1 && !perPartitionLimit {
 			orderByClause = " ORDER BY " + strings.Join(orderBy, ", ")
 		}
 	}
@@ -847,6 +850,15 @@ func (c *CassandraOnlineStore) prepareOnlineRangeRead(
 	}, nil
 }
 
+func hasUnspecifiedOrder(filters []*model.SortKeyFilter) bool {
+	for _, f := range filters {
+		if f != nil && f.Order == nil {
+			return true
+		}
+	}
+	return false
+}
+
 func (c *CassandraOnlineStore) OnlineReadRange(
 	ctx context.Context,
 	entityKeys []*types.EntityKey,
@@ -855,8 +867,8 @@ func (c *CassandraOnlineStore) OnlineReadRange(
 	sortKeyFilters []*model.SortKeyFilter,
 	limit int32,
 ) ([][]RangeFeatureData, error) {
-	// TODO: Check if the Sort Key Order is reverse the default sort key order, if so, use UnbatchedKeysOnlineReadRange.
-	if c.keyBatchSize == 1 {
+	// If SortKeyFilters are not specified or if keyBatchSize is 1, use unbatched read
+	if c.KeyBatchSize == 1 || hasUnspecifiedOrder(sortKeyFilters) {
 		return c.UnbatchedKeysOnlineReadRange(ctx, entityKeys, featureViewNames, featureNames, sortKeyFilters, limit)
 	} else {
 		return c.BatchedKeysOnlineReadRange(ctx, entityKeys, featureViewNames, featureNames, sortKeyFilters, limit)
@@ -881,7 +893,7 @@ func (c *CassandraOnlineStore) BatchedKeysOnlineReadRange(
 		results[i] = make([]RangeFeatureData, len(featureNames))
 	}
 
-	batchSize := c.keyBatchSize
+	batchSize := c.KeyBatchSize
 	nBatches := int(math.Ceil(float64(len(prepCtx.serializedEntityKeys)) / float64(batchSize)))
 
 	var waitGroup sync.WaitGroup

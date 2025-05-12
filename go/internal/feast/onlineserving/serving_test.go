@@ -761,14 +761,14 @@ func TestGroupSortedFeatureRefs(t *testing.T) {
 			assert.Equal(t, sortKeyFilters[0].GetEquals().GetUnixTimestampVal(), group.SortKeyFilters[0].Equals)
 			assert.Nil(t, group.SortKeyFilters[0].RangeStart)
 			assert.Nil(t, group.SortKeyFilters[0].RangeEnd)
-			assert.Equal(t, "DESC", group.SortKeyFilters[0].Order.Order.String())
+			assert.Nil(t, group.SortKeyFilters[0].Order)
 		} else {
 			assert.Equal(t, sortKeyFilters[1].SortKeyName, group.SortKeyFilters[0].SortKeyName)
 			assert.Equal(t, sortKeyFilters[1].GetRange().RangeEnd.GetDoubleVal(), group.SortKeyFilters[0].RangeEnd)
 			assert.Equal(t, sortKeyFilters[1].GetRange().EndInclusive, group.SortKeyFilters[0].EndInclusive)
 			assert.Nil(t, group.SortKeyFilters[0].RangeStart)
 			assert.Nil(t, group.SortKeyFilters[0].Equals)
-			assert.Equal(t, "ASC", group.SortKeyFilters[0].Order.Order.String())
+			assert.Nil(t, group.SortKeyFilters[0].Order)
 		}
 		assert.Equal(t, int32(10), group.Limit)
 	}

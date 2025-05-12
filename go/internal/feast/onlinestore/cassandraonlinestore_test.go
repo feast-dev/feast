@@ -359,3 +359,33 @@ func TestCassandraOnlineStore_buildRangeQueryCQL_batchedKeysWithoutFilters(t *te
 
 	assert.ElementsMatch(t, []interface{}{int32(10)}, params)
 }
+
+func TestCassandraOnlineStore_buildRangeQueryCQL_orderNil_skipsOrderBy(t *testing.T) {
+	store := CassandraOnlineStore{}
+	fqTableName := `"scylladb"."dummy_project_dummy_fv"`
+
+	sortFilter := model.SortKeyFilter{
+		SortKeyName: "sort1",
+		Equals:      42,
+		Order:       nil,
+	}
+
+	cql, params := store.buildRangeQueryCQL(
+		fqTableName,
+		[]string{"feat1"},
+		// one entity key is eligible for unbatched query
+		1,
+		[]*model.SortKeyFilter{&sortFilter},
+		0,
+		false,
+	)
+
+	expectedCQL :=
+		`SELECT "entity_key", "event_ts", "feat1" ` +
+			`FROM "scylladb"."dummy_project_dummy_fv" ` +
+			`WHERE "entity_key" = ? AND "sort1" = ?`
+
+	assert.Equal(t, expectedCQL, cql)
+	assert.ElementsMatch(t, []interface{}{42}, params)
+	assert.NotContains(t, cql, "ORDER BY", "ORDER BY should be omitted when all SortKeyFilters have Order == nil")
+}

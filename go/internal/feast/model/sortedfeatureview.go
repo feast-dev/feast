@@ -97,7 +97,13 @@ type SortKeyFilter struct {
 	Order          *SortOrder
 }
 
-func NewSortKeyFilterFromProto(proto *serving.SortKeyFilter, sortOrder core.SortOrder_Enum) *SortKeyFilter {
+func NewSortKeyFilterFromProto(
+	proto *serving.SortKeyFilter,
+	sortOrderPtr *core.SortOrder_Enum,
+) *SortKeyFilter {
+
+	order := NewSortOrderFromProtoPtr(sortOrderPtr)
+
 	if proto.GetRange() != nil {
 		return &SortKeyFilter{
 			SortKeyName:    proto.GetSortKeyName(),
@@ -105,13 +111,20 @@ func NewSortKeyFilterFromProto(proto *serving.SortKeyFilter, sortOrder core.Sort
 			RangeEnd:       types2.ValueTypeToGoType(proto.GetRange().GetRangeEnd()),
 			StartInclusive: proto.GetRange().GetStartInclusive(),
 			EndInclusive:   proto.GetRange().GetEndInclusive(),
-			Order:          NewSortOrderFromProto(sortOrder),
+			Order:          order,
 		}
 	}
 
 	return &SortKeyFilter{
 		SortKeyName: proto.GetSortKeyName(),
 		Equals:      types2.ValueTypeToGoType(proto.GetEquals()),
-		Order:       NewSortOrderFromProto(sortOrder),
+		Order:       order,
 	}
+}
+
+func NewSortOrderFromProtoPtr(ptr *core.SortOrder_Enum) *SortOrder {
+	if ptr == nil {
+		return nil
+	}
+	return &SortOrder{Order: *ptr}
 }

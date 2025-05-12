@@ -2,6 +2,7 @@ package feast
 
 import (
 	"context"
+	"fmt"
 	"github.com/apache/arrow/go/v17/arrow/array"
 	"github.com/apache/arrow/go/v17/arrow/memory"
 	"github.com/feast-dev/feast/go/internal/feast/model"
@@ -141,30 +142,41 @@ func TestGetOnlineFeaturesRange(t *testing.T) {
 	now := time.Now()
 	oneWeekAgo := now.AddDate(0, 0, -7)
 
-	sortKeyFilters := []*serving.SortKeyFilter{
-		{
-			SortKeyName: "event_timestamp",
-			Query: &serving.SortKeyFilter_Range{
-				Range: &serving.SortKeyFilter_RangeQuery{
-					RangeStart: &types.Value{
-						Val: &types.Value_UnixTimestampVal{
-							UnixTimestampVal: oneWeekAgo.Unix(),
-						},
-					},
-					RangeEnd: &types.Value{
-						Val: &types.Value_UnixTimestampVal{
-							UnixTimestampVal: now.Unix(),
-						},
-					},
-					StartInclusive: true,
-					EndInclusive:   true,
+	sortKeyProto := &serving.SortKeyFilter{
+		SortKeyName: "event_timestamp",
+		Query: &serving.SortKeyFilter_Range{
+			Range: &serving.SortKeyFilter_RangeQuery{
+				RangeStart: &types.Value{
+					Val: &types.Value_UnixTimestampVal{UnixTimestampVal: oneWeekAgo.Unix()},
 				},
+				RangeEnd: &types.Value{
+					Val: &types.Value_UnixTimestampVal{UnixTimestampVal: now.Unix()},
+				},
+				StartInclusive: true,
+				EndInclusive:   true,
 			},
 		},
 	}
-	sortKeyFilterModels := []*model.SortKeyFilter{
-		model.NewSortKeyFilterFromProto(sortKeyFilters[0], core.SortOrder_ASC),
-	}
+
+	expectedFilter := model.NewSortKeyFilterFromProto(sortKeyProto, nil)
+	filterMatcher := mock.MatchedBy(func(fs []*model.SortKeyFilter) bool {
+		if len(fs) != 1 {
+			return false
+		}
+		f := fs[0]
+		sameBase :=
+			f.SortKeyName == expectedFilter.SortKeyName &&
+				f.StartInclusive == expectedFilter.StartInclusive &&
+				f.EndInclusive == expectedFilter.EndInclusive &&
+				fmt.Sprint(f.RangeStart) == fmt.Sprint(expectedFilter.RangeStart) &&
+				fmt.Sprint(f.RangeEnd) == fmt.Sprint(expectedFilter.RangeEnd)
+
+		if f.Order == nil && expectedFilter.Order == nil {
+			return sameBase
+		}
+		return sameBase && f.Order != nil && expectedFilter.Order != nil &&
+			f.Order.Order == expectedFilter.Order.Order
+	})
 
 	mockRangeFeatureData := [][]onlinestore.RangeFeatureData{
 		{
@@ -225,7 +237,7 @@ func TestGetOnlineFeaturesRange(t *testing.T) {
 		mock.AnythingOfType("[]*types.EntityKey"),
 		featureViewNamesMatcher,
 		[]string{"conv_rate", "acc_rate"},
-		sortKeyFilterModels,
+		filterMatcher,
 		int32(0),
 	).Return(mockRangeFeatureData, nil)
 
@@ -236,7 +248,7 @@ func TestGetOnlineFeaturesRange(t *testing.T) {
 		[]*model.Entity{testEntity},
 		[]*model.SortedFeatureView{sortedFV},
 		entityValues,
-		sortKeyFilters,
+		[]*serving.SortKeyFilter{sortKeyProto},
 		false,
 		0,
 		nil,

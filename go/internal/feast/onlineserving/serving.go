@@ -1127,31 +1127,30 @@ func GroupSortedFeatureRefs(
 		}
 
 		sortKeyFilterModels := make([]*model.SortKeyFilter, 0)
-		sortKeyOrderMap := make(map[string]model.SortOrder)
 		for _, sortKey := range featuresAndView.View.SortKeys {
-			sortKeyOrderMap[sortKey.FieldName] = *sortKey.Order
-		}
-		for _, sortKey := range featuresAndView.View.SortKeys {
-			var sortOrder core.SortOrder_Enum
+			var sortOrder *core.SortOrder_Enum
 			if reverseSortOrder {
-				if *sortKey.Order.Order.Enum() == core.SortOrder_ASC {
-					sortOrder = core.SortOrder_DESC
-				} else {
-					sortOrder = core.SortOrder_ASC
+				flipped := core.SortOrder_DESC
+				if *sortKey.Order.Order.Enum() == core.SortOrder_DESC {
+					flipped = core.SortOrder_ASC
 				}
-			} else {
-				sortOrder = *sortKey.Order.Order.Enum()
+				sortOrder = &flipped // non-nil only when sort key order is reversed
 			}
+
 			var filterModel *model.SortKeyFilter
 			if filter, ok := sortKeyFilterMap[sortKey.FieldName]; ok {
 				filterModel = model.NewSortKeyFilterFromProto(filter, sortOrder)
 			} else {
-				// create empty filter model with only sort order
+				var orderPtr *model.SortOrder
+				if sortOrder != nil {
+					orderPtr = model.NewSortOrderFromProto(*sortOrder)
+				}
 				filterModel = &model.SortKeyFilter{
 					SortKeyName: sortKey.FieldName,
-					Order:       model.NewSortOrderFromProto(sortOrder),
+					Order:       orderPtr, // nil unless reverseSortOrder == true
 				}
 			}
+
 			sortKeyFilterModels = append(sortKeyFilterModels, filterModel)
 		}
 
