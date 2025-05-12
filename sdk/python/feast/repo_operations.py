@@ -39,7 +39,6 @@ from feast.stream_feature_view import StreamFeatureView
 
 logger = logging.getLogger(__name__)
 console = Console()
-fig = Figlet(font="starwars")
 
 
 def py_path_to_module(path: Path) -> str:
