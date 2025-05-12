@@ -138,7 +138,61 @@ def version():
     """
     Display Feast SDK version
     """
-    print(f'Feast SDK Version: "{importlib_version("feast")}"')
+    print(
+        f'{Style.BRIGHT + Fore.BLUE}Feast SDK Version: {Style.BRIGHT + Fore.GREEN}"{importlib_version("feast")}"'
+    )
+
+
+@cli.command()
+@click.argument("object_id")
+@click.pass_context
+def delete(ctx: click.Context, object_id: str):
+    """
+    Delete Feast Object
+    """
+    repo = ctx.obj["CHDIR"]
+    fs_yaml_file = ctx.obj["FS_YAML_FILE"]
+    cli_check_repo(repo, fs_yaml_file)
+    store = create_feature_store(ctx)
+
+    e = None
+    object_type = None
+
+    # Order matters if names can overlap between types,
+    # though typically they shouldn't in a well-structured feature store.
+    object_getters_and_types = [
+        (store.get_entity, "Entity"),
+        (store.get_feature_view, "FeatureView"),
+        (store.get_feature_service, "FeatureService"),
+        (store.get_data_source, "DataSource"),
+        (store.get_saved_dataset, "SavedDataset"),
+        (store.get_validation_reference, "ValidationReference"),
+        (store.get_stream_feature_view, "StreamFeatureView"),
+        (store.get_on_demand_feature_view, "OnDemandFeatureView"),
+        # Add other get_* methods here if needed
+    ]
+
+    for getter, obj_type_str in object_getters_and_types:
+        try:
+            potential_e = getter(object_id)  # type: ignore[operator]
+            if potential_e:
+                e = potential_e
+                object_type = obj_type_str
+                break
+        except Exception:
+            pass
+
+    if isinstance(e, list):
+        e = e[0]
+    if e:
+        store.apply([e], objects_to_delete=[e], partial=False)
+        print(
+            f"{Style.BRIGHT + Fore.RED}Deleted {Style.BRIGHT + Fore.GREEN}{object_type} {Fore.YELLOW}{object_id} from {Fore.GREEN}{store.project}.{Style.RESET_ALL}"
+        )
+    else:
+        print(
+            f"{Style.BRIGHT + Fore.GREEN}Object not found. Deletion skipped.{Style.RESET_ALL}"
+        )
 
 
 @cli.command()
