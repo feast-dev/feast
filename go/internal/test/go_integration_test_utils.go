@@ -72,125 +72,125 @@ func ReadParquet(filePath string) ([]*Row, error) {
 }
 
 func ReadParquetDynamically(filePath string) ([]map[string]interface{}, error) {
-    allocator := memory.NewGoAllocator()
-    pqfile, err := file.OpenParquetFile(filePath, false)
-    if err != nil {
-        return nil, err
-    }
-    defer pqfile.Close()
+	allocator := memory.NewGoAllocator()
+	pqfile, err := file.OpenParquetFile(filePath, false)
+	if err != nil {
+		return nil, err
+	}
+	defer pqfile.Close()
 
-    reader, err := pqarrow.NewFileReader(pqfile, pqarrow.ArrowReadProperties{}, allocator)
-    if err != nil {
-        return nil, err
-    }
+	reader, err := pqarrow.NewFileReader(pqfile, pqarrow.ArrowReadProperties{}, allocator)
+	if err != nil {
+		return nil, err
+	}
 
-    table, err := reader.ReadTable(context.Background())
-    if err != nil {
-        return nil, err
-    }
-    defer table.Release()
+	table, err := reader.ReadTable(context.Background())
+	if err != nil {
+		return nil, err
+	}
+	defer table.Release()
 
-    // Create a map of column names to their data arrays
-    columns := make(map[string]arrow.Array)
-    fields := table.Schema().Fields()
-    for idx, field := range fields {
-        columns[field.Name] = table.Column(idx).Data().Chunk(0)
-    }
+	// Create a map of column names to their data arrays
+	columns := make(map[string]arrow.Array)
+	fields := table.Schema().Fields()
+	for idx, field := range fields {
+		columns[field.Name] = table.Column(idx).Data().Chunk(0)
+	}
 
-    // Read rows dynamically
-    rows := make([]map[string]interface{}, 0)
-    for rowIdx := 0; rowIdx < int(table.NumRows()); rowIdx++ {
-        row := make(map[string]interface{})
-        for _, field := range fields {
-            column := columns[field.Name]
+	// Read rows dynamically
+	rows := make([]map[string]interface{}, 0)
+	for rowIdx := 0; rowIdx < int(table.NumRows()); rowIdx++ {
+		row := make(map[string]interface{})
+		for _, field := range fields {
+			column := columns[field.Name]
 			if column.IsNull(rowIdx) {
-                row[field.Name] = nil // Set nil for null values
-                continue
-            }
-            switch col := column.(type) {
-            case *array.Int32:
-                row[field.Name] = col.Value(rowIdx)
-            case *array.Int64:
-                row[field.Name] = col.Value(rowIdx)
-            case *array.Float32:
-                row[field.Name] = col.Value(rowIdx)
-            case *array.Float64:
-                row[field.Name] = col.Value(rowIdx)
-            case *array.String:
-                row[field.Name] = col.Value(rowIdx)
+				row[field.Name] = nil // Set nil for null values
+				continue
+			}
+			switch col := column.(type) {
+			case *array.Int32:
+				row[field.Name] = col.Value(rowIdx)
+			case *array.Int64:
+				row[field.Name] = col.Value(rowIdx)
+			case *array.Float32:
+				row[field.Name] = col.Value(rowIdx)
+			case *array.Float64:
+				row[field.Name] = col.Value(rowIdx)
+			case *array.String:
+				row[field.Name] = col.Value(rowIdx)
 			case *array.Boolean:
 				row[field.Name] = col.Value(rowIdx)
 			case *array.Binary:
 				row[field.Name] = col.Value(rowIdx)
-            case *array.Timestamp:
+			case *array.Timestamp:
 				nanoseconds := int64(col.Value(rowIdx).ToTime(arrow.Second).Unix())
 				t := time.Unix(0, nanoseconds)
-                row[field.Name] = t.Unix() 
+				row[field.Name] = t.Unix()
 			case *array.List:
-                // Handle array (list) types
-                listValues := []interface{}{}
-                list := col.ListValues()
-                for i := col.Offsets()[rowIdx]; i < col.Offsets()[rowIdx+1]; i++ {
-                    switch childCol := list.(type) {
-                    case *array.Int32:
-                        listValues = append(listValues, childCol.Value(int(i)))
-                    case *array.Int64:
-                        listValues = append(listValues, childCol.Value(int(i)))
-                    case *array.Float32:
-                        listValues = append(listValues, childCol.Value(int(i)))
-                    case *array.Float64:
-                        listValues = append(listValues, childCol.Value(int(i)))
-                    case *array.String:
-                        listValues = append(listValues, childCol.Value(int(i)))
-                    case *array.Boolean:
-                        listValues = append(listValues, childCol.Value(int(i)))
+				// Handle array (list) types
+				listValues := []interface{}{}
+				list := col.ListValues()
+				for i := col.Offsets()[rowIdx]; i < col.Offsets()[rowIdx+1]; i++ {
+					switch childCol := list.(type) {
+					case *array.Int32:
+						listValues = append(listValues, childCol.Value(int(i)))
+					case *array.Int64:
+						listValues = append(listValues, childCol.Value(int(i)))
+					case *array.Float32:
+						listValues = append(listValues, childCol.Value(int(i)))
+					case *array.Float64:
+						listValues = append(listValues, childCol.Value(int(i)))
+					case *array.String:
+						listValues = append(listValues, childCol.Value(int(i)))
+					case *array.Boolean:
+						listValues = append(listValues, childCol.Value(int(i)))
 					case *array.Binary:
-                        listValues = append(listValues, childCol.Value(int(i)))
+						listValues = append(listValues, childCol.Value(int(i)))
 					case *array.Timestamp:
 						nanoseconds := int64(childCol.Value(int(i)).ToTime(arrow.Second).Unix())
 						t := time.Unix(0, nanoseconds)
 						listValues = append(listValues, t.Unix())
-                    default:
-                        listValues = append(listValues, nil) // Handle unsupported types
-                    }
-                }
-                row[field.Name] = listValues
-            default:
+					default:
+						listValues = append(listValues, nil) // Handle unsupported types
+					}
+				}
+				row[field.Name] = listValues
+			default:
 				fmt.Println("Unsupported type:", field.Name, field.Type, col)
-                row[field.Name] = nil // Handle unsupported types
-            }
-        }
-        rows = append(rows, row)
-    }
+				row[field.Name] = nil // Handle unsupported types
+			}
+		}
+		rows = append(rows, row)
+	}
 
-    return rows, nil
+	return rows, nil
 }
 
 func FilterRowsByColumn(rows []map[string]interface{}, columnName string, value interface{}) []map[string]interface{} {
-    filteredRows := []map[string]interface{}{}
-    for _, row := range rows {
-        if row[columnName] == value {
-            filteredRows = append(filteredRows, row)
-        }
-    }
-    return filteredRows
+	filteredRows := []map[string]interface{}{}
+	for _, row := range rows {
+		if row[columnName] == value {
+			filteredRows = append(filteredRows, row)
+		}
+	}
+	return filteredRows
 }
 
 func FilterRowsByMultiColumns(rows []map[string]interface{}, filters map[string]interface{}) []map[string]interface{} {
-    filteredRows := []map[string]interface{}{}
-    for _, row := range rows {
-        matches := true
-        for columnName, value := range filters {
-            if row[columnName] != value {
-                matches = false
-                break
-            }
-        }
-        if matches {
-            filteredRows = append(filteredRows, row)
-        }
-    }
-    return filteredRows
+	filteredRows := []map[string]interface{}{}
+	for _, row := range rows {
+		matches := true
+		for columnName, value := range filters {
+			if row[columnName] != value {
+				matches = false
+				break
+			}
+		}
+		if matches {
+			filteredRows = append(filteredRows, row)
+		}
+	}
+	return filteredRows
 }
 
 func GetLatestFeatures(Rows []*Row, entities map[int64]bool) map[int64]*Row {
@@ -296,7 +296,7 @@ func CleanUpInitializedRepo(basePath string) {
 			log.Fatal(err)
 		}
 	}
-	
+
 	if _, err := os.Stat(filepath.Join(featureRepoPath, "data", "online_store.db")); err == nil {
 		err = os.Remove(filepath.Join(featureRepoPath, "data", "online_store.db"))
 		if err != nil {

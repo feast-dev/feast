@@ -139,9 +139,6 @@ func initializeValkeyClient(clientOption valkey.ClientOption, serviceName string
 		// return valkeytrace.NewClient(clientOption, valkeytrace.WithServiceName(serviceName))
 	}
 
-	// TODO: Validate requests are routed to Replicas
-	// without Reader endpoint specified for Standalone clusters
-
 	return valkey.NewClient(clientOption)
 }
 

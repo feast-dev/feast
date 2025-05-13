@@ -412,13 +412,11 @@ func ValidateEntityValues(joinKeyValues map[string]*prototypes.RepeatedValue,
 }
 
 func ValidateFeatureRefs(requestedFeatures []*FeatureViewAndRefs, fullFeatureNames bool) error {
-	featureRefCounter := make(map[string]bool)
+	uniqueFeatureRefs := make(map[string]bool)
 	collidedFeatureRefs := make([]string, 0)
 	for _, viewAndFeatures := range requestedFeatures {
 		for _, feature := range viewAndFeatures.FeatureRefs {
-
-			var featureName string
-			featureName = feature
+			featureName := feature
 
 			if fullFeatureNames {
 				projectedViewName := viewAndFeatures.View.Base.Name
@@ -428,11 +426,10 @@ func ValidateFeatureRefs(requestedFeatures []*FeatureViewAndRefs, fullFeatureNam
 				featureName = fmt.Sprintf("%s:%s", projectedViewName, feature)
 			}
 
-			if featureRefCounter[featureName] {
+			if uniqueFeatureRefs[featureName] {
 				collidedFeatureRefs = append(collidedFeatureRefs, featureName)
 			} else {
-
-				featureRefCounter[featureName] = true
+				uniqueFeatureRefs[featureName] = true
 			}
 		}
 	}
@@ -444,13 +441,11 @@ func ValidateFeatureRefs(requestedFeatures []*FeatureViewAndRefs, fullFeatureNam
 }
 
 func ValidateSortedFeatureRefs(sortedViews []*SortedFeatureViewAndRefs, fullFeatureNames bool) error {
-	featureRefCounter := make(map[string]bool)
+	uniqueFeatureRefs := make(map[string]bool)
 	collidedFeatureRefs := make([]string, 0)
 	for _, viewAndFeatures := range sortedViews {
 		for _, feature := range viewAndFeatures.FeatureRefs {
-
-			var featureName string
-			featureName = feature
+			featureName := feature
 
 			if fullFeatureNames {
 				projectedViewName := viewAndFeatures.View.Base.Name
@@ -460,11 +455,10 @@ func ValidateSortedFeatureRefs(sortedViews []*SortedFeatureViewAndRefs, fullFeat
 				featureName = fmt.Sprintf("%s:%s", projectedViewName, feature)
 			}
 
-			if featureRefCounter[featureName] {
+			if uniqueFeatureRefs[featureName] {
 				collidedFeatureRefs = append(collidedFeatureRefs, featureName)
 			} else {
-
-				featureRefCounter[featureName] = true
+				uniqueFeatureRefs[featureName] = true
 			}
 		}
 	}
@@ -613,14 +607,11 @@ func TransposeFeatureRowsIntoColumns(featureData2D [][]onlinestore.FeatureData,
 		fvs[viewAndRefs.View.Base.Name] = viewAndRefs.View
 	}
 
-	var value *prototypes.Value
-	var status serving.FieldStatus
-	var eventTimeStamp *timestamppb.Timestamp
 	var featureData *onlinestore.FeatureData
 	var fv *model.FeatureView
 	var featureViewName string
 
-	vectors := make([]*FeatureVector, 0)
+	vectors := make([]*FeatureVector, numFeatures)
 
 	for featureIndex := 0; featureIndex < numFeatures; featureIndex++ {
 		currentVector := &FeatureVector{
@@ -628,10 +619,16 @@ func TransposeFeatureRowsIntoColumns(featureData2D [][]onlinestore.FeatureData,
 			Statuses:   make([]serving.FieldStatus, numRows),
 			Timestamps: make([]*timestamppb.Timestamp, numRows),
 		}
-		vectors = append(vectors, currentVector)
+		vectors[featureIndex] = currentVector
 		protoValues := make([]*prototypes.Value, numRows)
 
 		for rowEntityIndex, outputIndexes := range groupRef.Indices {
+
+			var (
+				value          *prototypes.Value
+				status         serving.FieldStatus
+				eventTimeStamp *timestamppb.Timestamp
+			)
 			if featureData2D[rowEntityIndex] == nil {
 				value = nil
 				status = serving.FieldStatus_NOT_FOUND
@@ -682,11 +679,11 @@ func TransposeRangeFeatureRowsIntoColumns(
 		sfvs[viewAndRefs.View.Base.Name] = viewAndRefs.View
 	}
 
-	vectors := make([]*RangeFeatureVector, 0)
+	vectors := make([]*RangeFeatureVector, numFeatures)
 
 	for featureIndex := 0; featureIndex < numFeatures; featureIndex++ {
 		currentVector := initializeRangeFeatureVector(groupRef.AliasedFeatureNames[featureIndex], numRows)
-		vectors = append(vectors, currentVector)
+		vectors[featureIndex] = currentVector
 
 		rangeValuesByRow := make([]*prototypes.RepeatedValue, numRows)
 		for i := range rangeValuesByRow {

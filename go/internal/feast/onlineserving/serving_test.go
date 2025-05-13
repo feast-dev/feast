@@ -2,6 +2,7 @@ package onlineserving
 
 import (
 	"fmt"
+	"strconv"
 	"testing"
 	"time"
 
@@ -1138,7 +1139,6 @@ func TestValidateSortedFeatureRefs(t *testing.T) {
 			FeatureView: &model.FeatureView{
 				Base: &model.BaseFeatureView{Name: "viewB"},
 			},
-
 		}
 
 		sortedViews := []*SortedFeatureViewAndRefs{
@@ -1153,17 +1153,17 @@ func TestValidateSortedFeatureRefs(t *testing.T) {
 	t.Run("NoCollisionsWithFullFeatureNames", func(t *testing.T) {
 		viewA := &model.SortedFeatureView{
 			FeatureView: &model.FeatureView{
-			Base: &model.BaseFeatureView{
-				Name: "viewA",
-				Projection: &model.FeatureViewProjection{
-					NameAlias: "aliasViewA",
+				Base: &model.BaseFeatureView{
+					Name: "viewA",
+					Projection: &model.FeatureViewProjection{
+						NameAlias: "aliasViewA",
+					},
 				},
 			},
-		},
 		}
 		viewB := &model.SortedFeatureView{
 			FeatureView: &model.FeatureView{
-			Base: &model.BaseFeatureView{Name: "viewB"},
+				Base: &model.BaseFeatureView{Name: "viewB"},
 			},
 		}
 
@@ -1179,17 +1179,17 @@ func TestValidateSortedFeatureRefs(t *testing.T) {
 	t.Run("CollisionsWithoutFullFeatureNames", func(t *testing.T) {
 		viewA := &model.SortedFeatureView{
 			FeatureView: &model.FeatureView{
-			Base: &model.BaseFeatureView{
-				Name: "viewA",
-				Projection: &model.FeatureViewProjection{
-					NameAlias: "aliasViewA",
+				Base: &model.BaseFeatureView{
+					Name: "viewA",
+					Projection: &model.FeatureViewProjection{
+						NameAlias: "aliasViewA",
+					},
 				},
 			},
-		},
 		}
 		viewB := &model.SortedFeatureView{
 			FeatureView: &model.FeatureView{
-			Base: &model.BaseFeatureView{Name: "viewB"},
+				Base: &model.BaseFeatureView{Name: "viewB"},
 			},
 		}
 
@@ -1206,7 +1206,7 @@ func TestValidateSortedFeatureRefs(t *testing.T) {
 	t.Run("SingleFeatureNoCollision", func(t *testing.T) {
 		viewA := &model.SortedFeatureView{
 			FeatureView: &model.FeatureView{
-			Base: &model.BaseFeatureView{Name: "viewA"},
+				Base: &model.BaseFeatureView{Name: "viewA"},
 			},
 		}
 
@@ -1221,7 +1221,7 @@ func TestValidateSortedFeatureRefs(t *testing.T) {
 	t.Run("EmptyFeatureRefs", func(t *testing.T) {
 		viewA := &model.SortedFeatureView{
 			FeatureView: &model.FeatureView{
-			Base: &model.BaseFeatureView{Name: "viewA"},
+				Base: &model.BaseFeatureView{Name: "viewA"},
 			},
 		}
 
@@ -1236,12 +1236,12 @@ func TestValidateSortedFeatureRefs(t *testing.T) {
 	t.Run("MultipleCollisions", func(t *testing.T) {
 		viewA := &model.SortedFeatureView{
 			FeatureView: &model.FeatureView{
-			Base: &model.BaseFeatureView{Name: "viewA"},
+				Base: &model.BaseFeatureView{Name: "viewA"},
 			},
 		}
 		viewB := &model.SortedFeatureView{
 			FeatureView: &model.FeatureView{
-			Base: &model.BaseFeatureView{Name: "viewB"},
+				Base: &model.BaseFeatureView{Name: "viewB"},
 			},
 		}
 
@@ -1290,4 +1290,59 @@ func generateMockFeatureViewAndRefs(numViews, numFeatures int) []*FeatureViewAnd
 		}
 	}
 	return featureViews
+}
+
+func BenchmarkTransposeFeatureRowsIntoColumns(b *testing.B) {
+	// Mock Data
+	numRows := 1000
+	numFeatures := 100
+
+	featureData2D := make([][]onlinestore.FeatureData, numRows)
+	for i := 0; i < numRows; i++ {
+		featureData2D[i] = make([]onlinestore.FeatureData, numFeatures)
+		for j := 0; j < numFeatures; j++ {
+			featureData2D[i][j] = onlinestore.FeatureData{
+				Value: types.Value{Val: &types.Value_Int64Val{Int64Val: int64(i * j)}},
+				Timestamp: timestamppb.Timestamp{
+					Seconds: int64(i * j),
+				},
+				Reference: serving.FeatureReferenceV2{
+					FeatureViewName: "feature_view",
+					FeatureName:     "feature_" + strconv.Itoa(j),
+				},
+			}
+		}
+	}
+
+	groupRef := &GroupedFeaturesPerEntitySet{
+		AliasedFeatureNames: make([]string, numFeatures),
+		Indices:             make([][]int, numRows),
+	}
+	for i := 0; i < numFeatures; i++ {
+		groupRef.AliasedFeatureNames[i] = "feature_" + strconv.Itoa(i)
+	}
+	for i := 0; i < numRows; i++ {
+		groupRef.Indices[i] = []int{i}
+	}
+
+	requestedFeatureViews := []*FeatureViewAndRefs{
+		{
+			View: &model.FeatureView{
+				Base: &model.BaseFeatureView{
+					Name: "feature_view",
+				},
+				Ttl: &durationpb.Duration{Seconds: 0, Nanos: 0},
+			},
+		},
+	}
+
+	arrowAllocator := memory.NewGoAllocator()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := TransposeFeatureRowsIntoColumns(featureData2D, groupRef, requestedFeatureViews, arrowAllocator, numRows)
+		if err != nil {
+			b.Fatalf("Error during TransposeFeatureRowsIntoColumns: %v", err)
+		}
+	}
 }
