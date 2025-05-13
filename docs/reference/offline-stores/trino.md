@@ -18,58 +18,34 @@ In order to use this offline store, you'll need to run `pip install 'feast[trino
 {% code title="feature_store.yaml" %}
 ```yaml
 project: feature_repo
-registry: data/registry.db
+project_description: This Feast project is a Trino Offline Store demo.
 provider: local
+registry: data/registry.db
 offline_store:
-    type: feast_trino.trino.TrinoOfflineStore
-    host: localhost
-    port: 8080
-    catalog: memory
-    connector:
-        type: memory
-    user: trino
-    source: feast-trino-offline-store
-    http-scheme: https
-    ssl-verify: false
-    x-trino-extra-credential-header: foo=bar, baz=qux
-
-    # enables authentication in Trino connections, pick the one you need
-    # if you don't need authentication, you can safely remove the whole auth block
-    auth:
-        # Basic Auth
-        type: basic
-        config:
-            username: foo
-            password: $FOO
-
-        # Certificate
-        type: certificate
-        config:
-            cert-file: /path/to/cert/file
-            key-file: /path/to/key/file
-
-        # JWT
-        type: jwt
-        config:
-            token: $JWT_TOKEN
-
-        # OAuth2 (no config required)
-        type: oauth2
-
-        # Kerberos
-        type: kerberos
-        config:
-            config-file: /path/to/kerberos/config/file
-            service-name: foo
-            mutual-authentication: true
-            force-preemptive: true
-            hostname-override: custom-hostname
-            sanitize-mutual-error-response: true
-            principal: principal-name
-            delegate: true
-            ca_bundle: /path/to/ca/bundle/file
+	type: trino
+	host: ${TRINO_HOST}
+	port: ${TRINO_PORT}
+	http-scheme: http
+	ssl-verify: false
+	catalog: hive
+	dataset: ${DATASET_NAME}
+    # Hive connection as example
+	connector:
+		type: hive
+		file_format: parquet
+	user: trino
+	auth:
+		type: basic
+		config:
+			username: ${TRINO_USER}
+			password: ${TRINO_PWD}
 online_store:
-    path: data/online_store.db
+	path: data/online_store.db
+# Prevents "Unsupported Hive type: timestamp(3) with time zone" TrinoUserError
+coerce_tz_aware: false
+entity_key_serialization_version: 3
+auth:
+	type: no_auth
 ```
 {% endcode %}
 
