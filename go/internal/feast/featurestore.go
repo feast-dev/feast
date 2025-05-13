@@ -211,7 +211,6 @@ func (fs *FeatureStore) GetOnlineFeaturesRange(
 	}
 
 	var requestedSortedFeatureViews []*onlineserving.SortedFeatureViewAndRefs
-
 	if featureService != nil {
 		_, requestedSortedFeatureViews, _, err =
 			onlineserving.GetFeatureViewsToUseByService(featureService, fvs, sortedFvs, odFvs)
