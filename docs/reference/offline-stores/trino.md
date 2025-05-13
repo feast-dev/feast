@@ -34,11 +34,40 @@ offline_store:
 		type: hive
 		file_format: parquet
 	user: trino
-	auth:
-		type: basic
-		config:
-			username: ${TRINO_USER}
-			password: ${TRINO_PWD}
+		# Enables authentication in Trino connections, pick the one you need
+    auth:
+        # Basic Auth
+        type: basic
+        config:
+            username: ${TRINO_USER}
+            password: ${TRINO_PWD}
+
+        # Certificate
+        type: certificate
+        config:
+            cert-file: /path/to/cert/file
+            key-file: /path/to/key/file
+
+        # JWT
+        type: jwt
+        config:
+            token: ${JWT_TOKEN}
+
+        # OAuth2 (no config required)
+        type: oauth2
+
+        # Kerberos
+        type: kerberos
+        config:
+            config-file: /path/to/kerberos/config/file
+            service-name: foo
+            mutual-authentication: true
+            force-preemptive: true
+            hostname-override: custom-hostname
+            sanitize-mutual-error-response: true
+            principal: principal-name
+            delegate: true
+            ca_bundle: /path/to/ca/bundle/file
 online_store:
 	path: data/online_store.db
 # Prevents "Unsupported Hive type: timestamp(3) with time zone" TrinoUserError
