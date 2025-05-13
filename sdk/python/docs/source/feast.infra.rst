@@ -7,6 +7,8 @@ Subpackages
 .. toctree::
    :maxdepth: 4
 
+   feast.infra.common
+   feast.infra.compute_engines
    feast.infra.contrib
    feast.infra.feature_servers
    feast.infra.materialization

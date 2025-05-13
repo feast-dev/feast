@@ -7,6 +7,8 @@ Subpackages
 .. toctree::
    :maxdepth: 4
 
+   feast.api
+   feast.cli
    feast.diff
    feast.dqm
    feast.embedded_go
@@ -48,22 +50,6 @@ feast.batch\_feature\_view module
 ---------------------------------
 
 .. automodule:: feast.batch_feature_view
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-feast.cli module
-----------------
-
-.. automodule:: feast.cli
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-feast.cli\_utils module
------------------------
-
-.. automodule:: feast.cli_utils
    :members:
    :undoc-members:
    :show-inheritance:
@@ -232,6 +218,14 @@ feast.names module
 ------------------
 
 .. automodule:: feast.names
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+feast.nlp\_test\_data module
+----------------------------
+
+.. automodule:: feast.nlp_test_data
    :members:
    :undoc-members:
    :show-inheritance:
