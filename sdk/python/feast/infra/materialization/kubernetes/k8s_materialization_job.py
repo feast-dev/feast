@@ -37,13 +37,13 @@ class KubernetesMaterializationJob(MaterializationJob):
             else:
                 if (
                     job_status.completion_time is not None
-                    and job_status.conditions[0].type == "Complete"
+                    and job_status.conditions[0].type in ["Complete","SuccessCriteriaMet"]
                 ):
                     return MaterializationJobStatus.SUCCEEDED
 
                 if (
                     job_status.conditions is not None
-                    and job_status.conditions[0].type == "Failed"
+                    and job_status.conditions[0].type in ["Failed","FailureTarget"]
                 ):
                     self._error = Exception(
                         f"Job {self.job_id()} failed with reason: "
