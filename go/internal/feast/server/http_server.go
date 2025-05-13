@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"os"
 	"runtime"
@@ -99,38 +100,33 @@ func (u *repeatedValue) UnmarshalJSON(data []byte) error {
 }
 
 func parseValueFromJSON(data json.RawMessage) (*prototypes.Value, error) {
-	var result prototypes.Value
-
-	var stringVal string
-	if err := json.Unmarshal(data, &stringVal); err == nil {
-		result.Val = &prototypes.Value_StringVal{StringVal: stringVal}
-		return &result, nil
-	}
-
-	var intVal int64
-	if err := json.Unmarshal(data, &intVal); err == nil {
-		result.Val = &prototypes.Value_Int64Val{Int64Val: intVal}
-		return &result, nil
-	}
-
+	// Try float first to correctly handle the precision
 	var floatVal float64
 	if err := json.Unmarshal(data, &floatVal); err == nil {
-		result.Val = &prototypes.Value_DoubleVal{DoubleVal: floatVal}
-		return &result, nil
+		if math.Abs(floatVal) <= math.MaxFloat32 && floatVal != 0 {
+			return &prototypes.Value{Val: &prototypes.Value_FloatVal{FloatVal: float32(floatVal)}}, nil
+		} else {
+			return &prototypes.Value{Val: &prototypes.Value_DoubleVal{DoubleVal: floatVal}}, nil
+		}
 	}
-
+	var stringVal string
+	if err := json.Unmarshal(data, &stringVal); err == nil {
+		return &prototypes.Value{Val: &prototypes.Value_StringVal{StringVal: stringVal}}, nil
+	}
+	var intVal int64
+	if err := json.Unmarshal(data, &intVal); err == nil {
+		return &prototypes.Value{Val: &prototypes.Value_Int64Val{Int64Val: intVal}}, nil
+	}
 	var boolVal bool
 	if err := json.Unmarshal(data, &boolVal); err == nil {
-		result.Val = &prototypes.Value_BoolVal{BoolVal: boolVal}
-		return &result, nil
+		return &prototypes.Value{Val: &prototypes.Value_BoolVal{BoolVal: boolVal}}, nil
 	}
 
 	var valueObj map[string]interface{}
 	if err := json.Unmarshal(data, &valueObj); err == nil {
 		if timestampVal, ok := valueObj["unix_timestamp_val"]; ok {
 			if ts, ok := timestampVal.(float64); ok {
-				result.Val = &prototypes.Value_UnixTimestampVal{UnixTimestampVal: int64(ts)}
-				return &result, nil
+				return &prototypes.Value{Val: &prototypes.Value_UnixTimestampVal{UnixTimestampVal: int64(ts)}}, nil
 			}
 		}
 	}
@@ -577,15 +573,11 @@ func extractSimpleValues(repeatedValue *prototypes.RepeatedValue) interface{} {
 		return []interface{}{}
 	}
 
-	if len(repeatedValue.Val) == 1 {
-		return types.ValueTypeToGoType(repeatedValue.Val[0])
-	}
-
-	result := make([]interface{}, len(repeatedValue.Val))
+	values := make([]interface{}, len(repeatedValue.Val))
 	for i, val := range repeatedValue.Val {
-		result[i] = types.ValueTypeToGoType(val)
+		values[i] = types.ValueTypeToGoType(val)
 	}
-	return result
+	return []interface{}{values}
 }
 
 func releaseCGOMemory(featureVectors []*onlineserving.FeatureVector) {
