@@ -19,6 +19,8 @@
 import os
 import sys
 
+import sphinx_rtd_theme
+
 sys.path.insert(0, os.path.abspath("../../feast"))
 sys.path.insert(0, os.path.abspath("../.."))
 
@@ -30,6 +32,7 @@ sys.path.insert(0, os.path.abspath("../.."))
 # example where the Python protos did not build, which subsequently broke
 # the RTD build. In order to fix this, we manually compile the protos.
 import subprocess
+
 from pathlib import Path
 
 # cwd will be feast/sdk/python/docs/source
