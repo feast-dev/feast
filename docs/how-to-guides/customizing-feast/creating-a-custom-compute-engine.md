@@ -1,20 +1,20 @@
-# Adding a custom batch materialization engine
+# Adding a custom batch compute engine
 
 ### Overview
 
-Feast batch materialization operations (`materialize` and `materialize-incremental`) execute through a `BatchMaterializationEngine`.
+Feast batch materialization operations (`materialize` and `materialize-incremental`) execute through a `ComputeEngine`.
 
-Custom batch materialization engines allow Feast users to extend Feast to customize the materialization process. Examples include:
+Custom batch compute engines allow Feast users to extend Feast to customize the materialization process. Examples include:
 
 * Setting up custom materialization-specific infrastructure during `feast apply` (e.g. setting up Spark clusters or Lambda Functions)
 * Launching custom batch ingestion (materialization) jobs (Spark, Beam, AWS Lambda)
 * Tearing down custom materialization-specific infrastructure during `feast teardown` (e.g. tearing down Spark clusters, or deleting Lambda Functions)
 
-Feast comes with built-in materialization engines, e.g, `LocalMaterializationEngine`, and an experimental `LambdaMaterializationEngine`. However, users can develop their own materialization engines by creating a class that implements the contract in the [BatchMaterializationEngine class](https://github.com/feast-dev/feast/blob/6d7b38a39024b7301c499c20cf4e7aef6137c47c/sdk/python/feast/infra/materialization/batch\_materialization\_engine.py#L72).
+Feast comes with built-in materialization engines, e.g, `LocalComputeEngine`, and an experimental `LambdaComputeEngine`. However, users can develop their own materialization engines by creating a class that implements the contract in the [BatchMaterializationEngine class](https://github.com/feast-dev/feast/blob/6d7b38a39024b7301c499c20cf4e7aef6137c47c/sdk/python/feast/infra/materialization/batch\_materialization\_engine.py#L72).
 
 ### Guide
 
-The fastest way to add custom logic to Feast is to extend an existing materialization engine. The most generic engine is the `LocalMaterializationEngine` which contains no cloud-specific logic. The guide that follows will extend the `LocalProvider` with operations that print text to the console. It is up to you as a developer to add your custom code to the engine methods, but the guide below will provide the necessary scaffolding to get you started.
+The fastest way to add custom logic to Feast is to extend an existing materialization engine. The most generic engine is the `LocalComputeEngine` which contains no cloud-specific logic. The guide that follows will extend the `LocalProvider` with operations that print text to the console. It is up to you as a developer to add your custom code to the engine methods, but the guide below will provide the necessary scaffolding to get you started.
 
 #### Step 1: Define an Engine class
 
@@ -27,14 +27,15 @@ from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.batch_feature_view import BatchFeatureView
 from feast.stream_feature_view import StreamFeatureView
-from feast.infra.materialization.local_engine import LocalMaterializationJob, LocalMaterializationEngine
+from feast.infra.compute_engines.local.job import LocalMaterializationJob
+from feast.infra.compute_engines.local.compute import LocalComputeEngine 
 from feast.infra.common.materialization_job import MaterializationTask
 from feast.infra.offline_stores.offline_store import OfflineStore
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.repo_config import RepoConfig
 
 
-class MyCustomEngine(LocalMaterializationEngine):
+class MyCustomEngine(LocalComputeEngine):
     def __init__(
             self,
             *,
@@ -82,7 +83,7 @@ class MyCustomEngine(LocalMaterializationEngine):
         ]
 ```
 
-Notice how in the above engine we have only overwritten two of the methods on the `LocalMaterializatinEngine`, namely `update` and `materialize`. These two methods are convenient to replace if you are planning to launch custom batch jobs.
+Notice how in the above engine we have only overwritten two of the methods on the `LocalComputeEngine`, namely `update` and `materialize`. These two methods are convenient to replace if you are planning to launch custom batch jobs.
 
 #### Step 2: Configuring Feast to use the engine
 

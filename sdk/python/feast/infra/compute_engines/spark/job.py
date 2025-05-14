@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import List, Optional
 
 import pyspark
@@ -10,6 +11,7 @@ from feast.infra.offline_stores.contrib.spark_offline_store.spark import (
     SparkRetrievalJob,
 )
 from feast.infra.offline_stores.offline_store import RetrievalMetadata
+from feast.infra.common.materialization_job import MaterializationJob, MaterializationJobStatus
 
 
 class SparkDAGRetrievalJob(SparkRetrievalJob):
@@ -54,3 +56,29 @@ class SparkDAGRetrievalJob(SparkRetrievalJob):
     def to_sql(self) -> str:
         assert self._plan is not None, "Execution plan is not set"
         return self._plan.to_sql(self._context)
+
+
+@dataclass
+class SparkMaterializationJob(MaterializationJob):
+    def __init__(
+        self,
+        job_id: str,
+        status: MaterializationJobStatus,
+        error: Optional[BaseException] = None,
+    ) -> None:
+        super().__init__()
+        self._job_id: str = job_id
+        self._status: MaterializationJobStatus = status
+        self._error: Optional[BaseException] = error
+
+    def status(self) -> MaterializationJobStatus:
+        return self._status
+
+    def error(self) -> Optional[BaseException]:
+        return self._error
+
+    def should_be_retried(self) -> bool:
+        return False
+
+    def job_id(self) -> str:
+        return self._job_id
