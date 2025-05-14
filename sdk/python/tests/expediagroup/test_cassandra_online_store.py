@@ -327,7 +327,7 @@ class TestCassandraOnlineStore:
         ttl = online_store._get_ttl(
             True,
             timedelta(seconds=10),
-            timedelta(seconds=15),
+            15,
             datetime.utcnow() - timedelta(seconds=300),
         )
         assert ttl == 10
@@ -339,7 +339,7 @@ class TestCassandraOnlineStore:
         ttl = online_store._get_ttl(
             False,
             timedelta(0),
-            timedelta(seconds=30),
+            30,
             datetime.utcnow() - timedelta(seconds=15),
         )
         assert ttl == 15
