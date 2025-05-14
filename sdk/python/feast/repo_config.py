@@ -56,6 +56,7 @@ ONLINE_STORE_CLASS_FOR_TYPE = {
     "sqlite": "feast.infra.online_stores.sqlite.SqliteOnlineStore",
     "datastore": "feast.infra.online_stores.datastore.DatastoreOnlineStore",
     "redis": "feast.infra.online_stores.redis.RedisOnlineStore",
+    "eg-valkey": "feast.infra.online_stores.eg_valkey.EGValkeyOnlineStore",
     "dynamodb": "feast.infra.online_stores.dynamodb.DynamoDBOnlineStore",
     "snowflake.online": "feast.infra.online_stores.snowflake.SnowflakeOnlineStore",
     "bigtable": "feast.infra.online_stores.bigtable.BigtableOnlineStore",

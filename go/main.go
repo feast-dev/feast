@@ -137,7 +137,7 @@ func StartGrpcServer(fs *feast.FeatureStore, host string, port int, loggingServi
 		return err
 	}
 
-	grpcServer, _ := ser.RegisterServices()
+	grpcServer := ser.RegisterServices()
 
 	// Running Prometheus metrics endpoint on a separate goroutine
 	go func() {
@@ -206,7 +206,7 @@ func StartHybridServer(fs *feast.FeatureStore, host string, httpPort int, grpcPo
 		return err
 	}
 
-	grpcSer, healthService := ser.RegisterServices()
+	grpcSer := ser.RegisterServices()
 
 	if err != nil {
 		return err
@@ -235,7 +235,11 @@ func StartHybridServer(fs *feast.FeatureStore, host string, httpPort int, grpcPo
 		log.Info().Msg("HTTP and gRPC servers terminated")
 	}()
 
-	err = httpSer.Serve(host, httpPort, server.DefaultHybridHandlers(httpSer, healthService))
+	go func() {
+		if err := httpSer.Serve(host, httpPort, server.DefaultHybridHandlers(httpSer, grpcPort)); err != nil && err != http.ErrServerClosed {
+			log.Error().Err(err).Msg("HTTP server failed")
+		}
+	}()
 
 	if err != nil {
 		return err

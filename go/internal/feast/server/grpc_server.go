@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+
 	"google.golang.org/grpc/reflection"
 
 	"github.com/feast-dev/feast/go/internal/feast"
@@ -212,7 +213,7 @@ func (s *grpcServingServiceServer) GetOnlineFeaturesRange(ctx context.Context, r
 }
 
 // Register services used by the grpcServingServiceServer.
-func (s *grpcServingServiceServer) RegisterServices() (*grpc.Server, *health.Server) {
+func (s *grpcServingServiceServer) RegisterServices() *grpc.Server {
 	grpcPromMetrics := grpcPrometheus.NewServerMetrics()
 	prometheus.MustRegister(grpcPromMetrics)
 	grpcServer := grpc.NewServer(
@@ -224,7 +225,7 @@ func (s *grpcServingServiceServer) RegisterServices() (*grpc.Server, *health.Ser
 	grpc_health_v1.RegisterHealthServer(grpcServer, healthService)
 	reflection.Register(grpcServer)
 
-	return grpcServer, healthService
+	return grpcServer
 }
 
 func GenerateRequestId() string {
