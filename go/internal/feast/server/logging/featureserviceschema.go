@@ -18,12 +18,7 @@ type FeatureServiceSchema struct {
 }
 
 func GenerateSchemaFromFeatureService(fs FeatureStore, featureServiceName string) (*FeatureServiceSchema, error) {
-	entityMap, fvMap, sortedFvMap, odFvMap, err := fs.GetFcosMap()
-	if err != nil {
-		return nil, err
-	}
-
-	featureService, err := fs.GetFeatureService(featureServiceName)
+	featureService, entityMap, fvMap, sortedFvMap, odFvMap, err := fs.GetFcosMap(featureServiceName)
 	if err != nil {
 		return nil, err
 	}
@@ -31,6 +26,7 @@ func GenerateSchemaFromFeatureService(fs FeatureStore, featureServiceName string
 	return generateSchema(featureService, entityMap, fvMap, sortedFvMap, odFvMap)
 }
 
+// TODO: This function duplicates a lot of the processing done in GetFcosMap
 func generateSchema(
 	featureService *model.FeatureService,
 	entityMap map[string]*model.Entity,
