@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from typing import Optional
+
 from feast.infra.common.materialization_job import (
     MaterializationJob,
     MaterializationJobStatus,
@@ -9,10 +10,10 @@ from feast.infra.common.materialization_job import (
 @dataclass
 class SnowflakeMaterializationJob(MaterializationJob):
     def __init__(
-            self,
-            job_id: str,
-            status: MaterializationJobStatus,
-            error: Optional[BaseException] = None,
+        self,
+        job_id: str,
+        status: MaterializationJobStatus,
+        error: Optional[BaseException] = None,
     ) -> None:
         super().__init__()
         self._job_id: str = job_id

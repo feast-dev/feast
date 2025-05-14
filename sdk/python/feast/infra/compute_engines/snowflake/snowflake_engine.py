@@ -1,7 +1,7 @@
 import os
 import shutil
-from datetime import datetime, timezone
-from typing import Callable, List, Literal, Optional, Sequence, Union
+from datetime import timezone
+from typing import Literal, Optional, Sequence, Union
 
 import click
 import pandas as pd
@@ -15,12 +15,17 @@ from feast.batch_feature_view import BatchFeatureView
 from feast.entity import Entity
 from feast.feature_view import DUMMY_ENTITY_ID, FeatureView
 from feast.infra.common.materialization_job import (
-    MaterializationJob,
     MaterializationJobStatus,
     MaterializationTask,
 )
+from feast.infra.common.retrieval_task import HistoricalRetrievalTask
+from feast.infra.compute_engines.base import ComputeEngine
+from feast.infra.compute_engines.snowflake.snowflake_materialization_job import (
+    SnowflakeMaterializationJob,
+)
 from feast.infra.offline_stores.offline_store import OfflineStore
 from feast.infra.online_stores.online_store import OnlineStore
+from feast.infra.registry.base_registry import BaseRegistry
 from feast.infra.utils.snowflake.snowflake_utils import (
     GetSnowflakeConnection,
     _run_snowflake_field_mapping,
@@ -36,10 +41,6 @@ from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.stream_feature_view import StreamFeatureView
 from feast.type_map import _convert_value_name_to_snowflake_udf
 from feast.utils import _coerce_datetime, _get_column_names
-from feast.infra.compute_engines.base import ComputeEngine
-from feast.infra.common.retrieval_task import HistoricalRetrievalTask
-from feast.infra.compute_engines.snowflake.snowflake_materialization_job import SnowflakeMaterializationJob
-from feast.infra.registry.base_registry import BaseRegistry
 
 
 class SnowflakeComputeEngineConfig(FeastConfigBaseModel):
@@ -90,9 +91,9 @@ class SnowflakeComputeEngineConfig(FeastConfigBaseModel):
 
 
 class SnowflakeComputeEngine(ComputeEngine):
-    def get_historical_features(self,
-                                registry: BaseRegistry,
-                                task: HistoricalRetrievalTask) -> pa.Table:
+    def get_historical_features(
+        self, registry: BaseRegistry, task: HistoricalRetrievalTask
+    ) -> pa.Table:
         raise NotImplementedError(
             "SnowflakeComputeEngine does not support get_historical_features"
         )
@@ -197,30 +198,17 @@ class SnowflakeComputeEngine(ComputeEngine):
             **kwargs,
         )
 
-    def materialize(
-        self, registry: BaseRegistry, tasks: List[MaterializationTask]
-    ) -> List[MaterializationJob]:
-        return [
-            self._materialize_one(
-                registry,
-                task.feature_view,
-                task.start_time,
-                task.end_time,
-                task.project,
-                task.tqdm_builder,
-            )
-            for task in tasks
-        ]
-
     def _materialize_one(
         self,
         registry: BaseRegistry,
-        feature_view: Union[BatchFeatureView, StreamFeatureView, FeatureView],
-        start_date: datetime,
-        end_date: datetime,
-        project: str,
-        tqdm_builder: Callable[[int], tqdm],
+        task: MaterializationTask,
     ):
+        feature_view = task.feature_view
+        start_date = task.start_time
+        end_date = task.end_time
+        project = task.project
+        tqdm_builder = task.tqdm_builder
+
         assert isinstance(feature_view, BatchFeatureView) or isinstance(
             feature_view, FeatureView
         ), (

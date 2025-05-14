@@ -28,10 +28,10 @@ from feast.infra.common.materialization_job import (
     MaterializationJobStatus,
     MaterializationTask,
 )
-from feast.infra.infra_object import Infra, InfraObject
 from feast.infra.compute_engines.base import (
     ComputeEngine,
 )
+from feast.infra.infra_object import Infra, InfraObject
 from feast.infra.offline_stores.offline_store import RetrievalJob
 from feast.infra.offline_stores.offline_utils import get_offline_store_from_config
 from feast.infra.online_stores.helpers import get_online_store_from_config
@@ -439,9 +439,10 @@ class PassthroughProvider(Provider):
             end_time=end_date,
             tqdm_builder=tqdm_builder,
         )
-        job = self.batch_engine.materialize(registry, task)
-        if job.status() == MaterializationJobStatus.ERROR and job.error():
-            e = job.error()
+        jobs = self.batch_engine.materialize(registry, task)
+        assert len(jobs) == 1
+        if jobs[0].status() == MaterializationJobStatus.ERROR and jobs[0].error():
+            e = jobs[0].error()
             assert e
             raise e
 

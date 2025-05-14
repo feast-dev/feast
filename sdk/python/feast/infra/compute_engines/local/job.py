@@ -1,32 +1,30 @@
-from typing import cast
+from dataclasses import dataclass
+from typing import List, Optional, cast
 
 import pandas as pd
 import pyarrow
-
-from feast.infra.compute_engines.dag.context import ExecutionContext
-from feast.infra.compute_engines.dag.plan import ExecutionPlan
-from feast.infra.compute_engines.local.arrow_table_value import ArrowTableValue
-from feast.infra.offline_stores.offline_store import RetrievalJob, RetrievalMetadata
-from feast.saved_dataset import SavedDatasetStorage
-from dataclasses import dataclass
-from typing import List, Optional
 
 from feast.infra.common.materialization_job import (
     MaterializationJob,
     MaterializationJobStatus,
 )
+from feast.infra.compute_engines.dag.context import ExecutionContext
+from feast.infra.compute_engines.dag.plan import ExecutionPlan
+from feast.infra.compute_engines.local.arrow_table_value import ArrowTableValue
+from feast.infra.offline_stores.offline_store import RetrievalJob, RetrievalMetadata
 from feast.on_demand_feature_view import OnDemandFeatureView
+from feast.saved_dataset import SavedDatasetStorage
 
 
 class LocalRetrievalJob(RetrievalJob):
     def __init__(
-            self,
-            plan: Optional[ExecutionPlan],
-            context: ExecutionContext,
-            full_feature_names: bool = True,
-            on_demand_feature_views: Optional[List[OnDemandFeatureView]] = None,
-            metadata: Optional[RetrievalMetadata] = None,
-            error: Optional[BaseException] = None,
+        self,
+        plan: Optional[ExecutionPlan],
+        context: ExecutionContext,
+        full_feature_names: bool = True,
+        on_demand_feature_views: Optional[List[OnDemandFeatureView]] = None,
+        metadata: Optional[RetrievalMetadata] = None,
+        error: Optional[BaseException] = None,
     ):
         self._plan = plan
         self._context = context
@@ -44,14 +42,12 @@ class LocalRetrievalJob(RetrievalJob):
             result = cast(ArrowTableValue, self._plan.execute(self._context))
             self._arrow_table = result.data
 
-    def _to_df_internal(self,
-                        timeout: Optional[int] = None) -> pd.DataFrame:
+    def _to_df_internal(self, timeout: Optional[int] = None) -> pd.DataFrame:
         self._ensure_executed()
         assert self._arrow_table is not None
         return self._arrow_table.to_pandas()
 
-    def _to_arrow_internal(self,
-                           timeout: Optional[int] = None) -> pyarrow.Table:
+    def _to_arrow_internal(self, timeout: Optional[int] = None) -> pyarrow.Table:
         self._ensure_executed()
         return self._arrow_table
 
@@ -64,10 +60,10 @@ class LocalRetrievalJob(RetrievalJob):
         return self._on_demand_feature_views
 
     def persist(
-            self,
-            storage: SavedDatasetStorage,
-            allow_overwrite: bool = False,
-            timeout: Optional[int] = None,
+        self,
+        storage: SavedDatasetStorage,
+        allow_overwrite: bool = False,
+        timeout: Optional[int] = None,
     ):
         pass
 
@@ -89,10 +85,10 @@ class LocalRetrievalJob(RetrievalJob):
 @dataclass
 class LocalMaterializationJob(MaterializationJob):
     def __init__(
-            self,
-            job_id: str,
-            status: MaterializationJobStatus,
-            error: Optional[BaseException] = None,
+        self,
+        job_id: str,
+        status: MaterializationJobStatus,
+        error: Optional[BaseException] = None,
     ) -> None:
         super().__init__()
         self._job_id: str = job_id

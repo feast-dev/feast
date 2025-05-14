@@ -5,13 +5,16 @@ import pyspark
 from pyspark.sql import SparkSession
 
 from feast import OnDemandFeatureView, RepoConfig
+from feast.infra.common.materialization_job import (
+    MaterializationJob,
+    MaterializationJobStatus,
+)
 from feast.infra.compute_engines.dag.context import ExecutionContext
 from feast.infra.compute_engines.dag.plan import ExecutionPlan
 from feast.infra.offline_stores.contrib.spark_offline_store.spark import (
     SparkRetrievalJob,
 )
 from feast.infra.offline_stores.offline_store import RetrievalMetadata
-from feast.infra.common.materialization_job import MaterializationJob, MaterializationJobStatus
 
 
 class SparkDAGRetrievalJob(SparkRetrievalJob):
@@ -60,6 +63,9 @@ class SparkDAGRetrievalJob(SparkRetrievalJob):
 
 @dataclass
 class SparkMaterializationJob(MaterializationJob):
+    def url(self) -> Optional[str]:
+        pass
+
     def __init__(
         self,
         job_id: str,

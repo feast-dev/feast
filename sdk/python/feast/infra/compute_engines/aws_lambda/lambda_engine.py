@@ -3,13 +3,12 @@ import json
 import logging
 from concurrent.futures import ThreadPoolExecutor, wait
 from dataclasses import dataclass
-from datetime import datetime
-from typing import Callable, List, Literal, Optional, Sequence, Union
+from typing import Literal, Optional, Sequence, Union
 
 import boto3
 import pyarrow as pa
+from infra.common.retrieval_task import HistoricalRetrievalTask
 from pydantic import StrictStr
-from tqdm import tqdm
 
 from feast import utils
 from feast.batch_feature_view import BatchFeatureView
@@ -21,6 +20,7 @@ from feast.infra.common.materialization_job import (
     MaterializationJobStatus,
     MaterializationTask,
 )
+from feast.infra.compute_engines.base import ComputeEngine
 from feast.infra.offline_stores.offline_store import OfflineStore
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.registry.base_registry import BaseRegistry
@@ -29,8 +29,6 @@ from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.stream_feature_view import StreamFeatureView
 from feast.utils import _get_column_names
 from feast.version import get_version
-from feast.infra.compute_engines.base import ComputeEngine
-from infra.common.retrieval_task import HistoricalRetrievalTask
 
 DEFAULT_BATCH_SIZE = 10_000
 
@@ -52,9 +50,7 @@ class LambdaComputeEngineConfig(FeastConfigBaseModel):
 
 @dataclass
 class LambdaMaterializationJob(MaterializationJob):
-    def __init__(self,
-                 job_id: str,
-                 status: MaterializationJobStatus) -> None:
+    def __init__(self, job_id: str, status: MaterializationJobStatus) -> None:
         super().__init__()
         self._job_id: str = job_id
         self._status = status
@@ -81,24 +77,24 @@ class LambdaComputeEngine(ComputeEngine):
     WARNING: This engine should be considered "Alpha" functionality.
     """
 
-    def get_historical_features(self,
-                                registry: BaseRegistry,
-                                task: HistoricalRetrievalTask) -> pa.Table:
+    def get_historical_features(
+        self, registry: BaseRegistry, task: HistoricalRetrievalTask
+    ) -> pa.Table:
         raise NotImplementedError(
             "Lambda Compute Engine does not support get_historical_features"
         )
 
     def update(
-            self,
-            project: str,
-            views_to_delete: Sequence[
-                Union[BatchFeatureView, StreamFeatureView, FeatureView, OnDemandFeatureView]
-            ],
-            views_to_keep: Sequence[
-                Union[BatchFeatureView, StreamFeatureView, FeatureView, OnDemandFeatureView]
-            ],
-            entities_to_delete: Sequence[Entity],
-            entities_to_keep: Sequence[Entity],
+        self,
+        project: str,
+        views_to_delete: Sequence[
+            Union[BatchFeatureView, StreamFeatureView, FeatureView, OnDemandFeatureView]
+        ],
+        views_to_keep: Sequence[
+            Union[BatchFeatureView, StreamFeatureView, FeatureView, OnDemandFeatureView]
+        ],
+        entities_to_delete: Sequence[Entity],
+        entities_to_keep: Sequence[Entity],
     ):
         # This should be setting up the lambda function.
         r = self.lambda_client.create_function(
@@ -124,10 +120,10 @@ class LambdaComputeEngine(ComputeEngine):
         waiter.wait(FunctionName=self.lambda_name)
 
     def teardown_infra(
-            self,
-            project: str,
-            fvs: Sequence[Union[BatchFeatureView, StreamFeatureView, FeatureView]],
-            entities: Sequence[Entity],
+        self,
+        project: str,
+        fvs: Sequence[Union[BatchFeatureView, StreamFeatureView, FeatureView]],
+        entities: Sequence[Entity],
     ):
         # This should be tearing down the lambda function.
         logger.info("Tearing down lambda %s", self.lambda_name)
@@ -135,12 +131,12 @@ class LambdaComputeEngine(ComputeEngine):
         logger.info("Finished tearing down lambda %s: %s", self.lambda_name, r)
 
     def __init__(
-            self,
-            *,
-            repo_config: RepoConfig,
-            offline_store: OfflineStore,
-            online_store: OnlineStore,
-            **kwargs,
+        self,
+        *,
+        repo_config: RepoConfig,
+        offline_store: OfflineStore,
+        online_store: OnlineStore,
+        **kwargs,
     ):
         super().__init__(
             repo_config=repo_config,
@@ -160,32 +156,16 @@ class LambdaComputeEngine(ComputeEngine):
             self.lambda_name = self.lambda_name[:64]
         self.lambda_client = boto3.client("lambda")
 
-    def materialize(
-            self,
-            registry: BaseRegistry,
-            tasks: List[MaterializationTask]
-    ) -> List[MaterializationJob]:
-        return [
-            self._materialize_one(
-                registry,
-                task.feature_view,
-                task.start_time,
-                task.end_time,
-                task.project,
-                task.tqdm_builder,
-            )
-            for task in tasks
-        ]
-
     def _materialize_one(
-            self,
-            registry: BaseRegistry,
-            feature_view: Union[BatchFeatureView, StreamFeatureView, FeatureView],
-            start_date: datetime,
-            end_date: datetime,
-            project: str,
-            tqdm_builder: Callable[[int], tqdm],
+        self,
+        registry: BaseRegistry,
+        task: MaterializationTask,
     ):
+        feature_view = task.feature_view
+        start_date = task.start_time
+        end_date = task.end_time
+        project = task.project
+
         entities = []
         for entity_name in feature_view.entities:
             entities.append(registry.get_entity(entity_name, project))

@@ -1,25 +1,24 @@
 from abc import ABC, abstractmethod
-from typing import Union
+from typing import List, Sequence, Union
 
 import pyarrow as pa
-from typing import Sequence, Union
+
 from feast import RepoConfig
+from feast.batch_feature_view import BatchFeatureView
+from feast.entity import Entity
+from feast.feature_view import FeatureView
 from feast.infra.common.materialization_job import (
     MaterializationJob,
     MaterializationTask,
 )
-from feast.entity import Entity
 from feast.infra.common.retrieval_task import HistoricalRetrievalTask
 from feast.infra.compute_engines.dag.context import ColumnInfo, ExecutionContext
 from feast.infra.offline_stores.offline_store import OfflineStore
 from feast.infra.online_stores.online_store import OnlineStore
-from feast.infra.registry.registry import Registry
-from feast.utils import _get_column_names
-from feast.feature_view import FeatureView
+from feast.infra.registry.base_registry import BaseRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.stream_feature_view import StreamFeatureView
-from feast.batch_feature_view import BatchFeatureView
-from feast.infra.registry.base_registry import BaseRegistry
+from feast.utils import _get_column_names
 
 
 class ComputeEngine(ABC):
@@ -87,14 +86,27 @@ class ComputeEngine(ABC):
         """
         pass
 
-    def materialize(self,
-                    registry: BaseRegistry,
-                    task: MaterializationTask) -> MaterializationJob:
-        raise NotImplementedError
+    def materialize(
+        self,
+        registry: BaseRegistry,
+        tasks: Union[MaterializationTask, List[MaterializationTask]],
+    ) -> List[MaterializationJob]:
+        if isinstance(tasks, MaterializationTask):
+            tasks = [tasks]
+        return [self._materialize_one(registry, task) for task in tasks]
 
-    def get_historical_features(self,
-                                registry: BaseRegistry,
-                                task: HistoricalRetrievalTask) -> pa.Table:
+    def _materialize_one(
+        self,
+        registry: BaseRegistry,
+        task: MaterializationTask,
+    ) -> MaterializationJob:
+        raise NotImplementedError(
+            "Materialization is not implemented for this compute engine."
+        )
+
+    def get_historical_features(
+        self, registry: BaseRegistry, task: HistoricalRetrievalTask
+    ) -> pa.Table:
         raise NotImplementedError
 
     def get_execution_context(

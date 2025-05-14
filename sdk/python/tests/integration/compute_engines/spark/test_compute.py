@@ -253,9 +253,11 @@ def test_spark_compute_engine_materialize():
             registry=registry,
         )
 
-        spark_materialize_job = engine.materialize(task)
+        spark_materialize_jobs = engine.materialize(registry, task)
 
-        assert spark_materialize_job.status() == MaterializationJobStatus.SUCCEEDED
+        assert len(spark_materialize_jobs) == 1
+
+        assert spark_materialize_jobs[0].status() == MaterializationJobStatus.SUCCEEDED
 
         _check_online_features(
             fs=fs,

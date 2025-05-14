@@ -1,6 +1,12 @@
 from typing import Optional, Sequence, Union
 
-from feast import BatchFeatureView, StreamFeatureView, FeatureView, Entity, OnDemandFeatureView
+from feast import (
+    BatchFeatureView,
+    Entity,
+    FeatureView,
+    OnDemandFeatureView,
+    StreamFeatureView,
+)
 from feast.infra.common.materialization_job import (
     MaterializationJobStatus,
     MaterializationTask,
@@ -11,38 +17,42 @@ from feast.infra.compute_engines.dag.context import ExecutionContext
 from feast.infra.compute_engines.local.backends.base import DataFrameBackend
 from feast.infra.compute_engines.local.backends.factory import BackendFactory
 from feast.infra.compute_engines.local.feature_builder import LocalFeatureBuilder
-from feast.infra.compute_engines.local.job import LocalRetrievalJob, LocalMaterializationJob
+from feast.infra.compute_engines.local.job import (
+    LocalMaterializationJob,
+    LocalRetrievalJob,
+)
 from feast.infra.registry.base_registry import BaseRegistry
 
 
 class LocalComputeEngine(ComputeEngine):
-    def update(self,
-               project: str,
-               views_to_delete: Sequence[
-                   Union[BatchFeatureView, StreamFeatureView, FeatureView]
-               ],
-               views_to_keep: Sequence[
-                   Union[BatchFeatureView, StreamFeatureView, FeatureView, OnDemandFeatureView]
-               ],
-               entities_to_delete: Sequence[Entity],
-               entities_to_keep: Sequence[Entity]):
+    def update(
+        self,
+        project: str,
+        views_to_delete: Sequence[
+            Union[BatchFeatureView, StreamFeatureView, FeatureView]
+        ],
+        views_to_keep: Sequence[
+            Union[BatchFeatureView, StreamFeatureView, FeatureView, OnDemandFeatureView]
+        ],
+        entities_to_delete: Sequence[Entity],
+        entities_to_keep: Sequence[Entity],
+    ):
         pass
 
-    def teardown_infra(self,
-                       project: str,
-                       fvs: Sequence[Union[BatchFeatureView, StreamFeatureView, FeatureView]],
-                       entities: Sequence[Entity]):
+    def teardown_infra(
+        self,
+        project: str,
+        fvs: Sequence[Union[BatchFeatureView, StreamFeatureView, FeatureView]],
+        entities: Sequence[Entity],
+    ):
         pass
 
-    def __init__(self,
-                 backend: Optional[str] = None,
-                 **kwargs):
+    def __init__(self, backend: Optional[str] = None, **kwargs):
         super().__init__(**kwargs)
         self.backend_name = backend
         self._backend = BackendFactory.from_name(backend) if backend else None
 
-    def _get_backend(self,
-                     context: ExecutionContext) -> DataFrameBackend:
+    def _get_backend(self, context: ExecutionContext) -> DataFrameBackend:
         if self._backend:
             return self._backend
         backend = BackendFactory.infer_from_entity_df(context.entity_df)
@@ -50,9 +60,9 @@ class LocalComputeEngine(ComputeEngine):
             return backend
         raise ValueError("Could not infer backend from context.entity_df")
 
-    def materialize(self,
-                    registry: BaseRegistry,
-                    task: MaterializationTask) -> LocalMaterializationJob:
+    def _materialize_one(
+        self, registry: BaseRegistry, task: MaterializationTask
+    ) -> LocalMaterializationJob:
         job_id = f"{task.feature_view.name}-{task.start_time}-{task.end_time}"
         context = self.get_execution_context(registry, task)
         backend = self._get_backend(context)
@@ -74,9 +84,7 @@ class LocalComputeEngine(ComputeEngine):
             )
 
     def get_historical_features(
-            self,
-            registry: BaseRegistry,
-            task: HistoricalRetrievalTask
+        self, registry: BaseRegistry, task: HistoricalRetrievalTask
     ) -> LocalRetrievalJob:
         context = self.get_execution_context(registry, task)
         backend = self._get_backend(context)
