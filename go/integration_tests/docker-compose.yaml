@@ -1,0 +1,7 @@
+services:
+  valkey:
+    image: artifactory-edge.expedia.biz/all-docker-virtual/valkey/valkey:latest
+    container_name: valkey
+    ports:
+      - "6390:6379"
+      
