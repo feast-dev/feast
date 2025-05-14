@@ -1921,18 +1921,110 @@ def test_registry_cache_overwrite(test_registry):
     # Register data source and feature view
     test_registry.apply_data_source(batch_source, project)
     test_registry.apply_feature_view(fv1, project)
-    assert len(test_registry.cached_registry_proto.feature_views) == 0
-    assert len(test_registry.cached_registry_proto.data_sources) == 0
-    registry_feature_views = test_registry.list_feature_views(project, allow_cache=True)
-    registry_data_sources = test_registry.list_data_sources(project, allow_cache=True)
-    # Not refreshed cache, so fallback retrieves data and sets cache
-    assert len(registry_feature_views) == 1
-    assert len(registry_data_sources) == 1
-    assert len(test_registry.cached_registry_proto.feature_views) == 1
-    assert len(test_registry.cached_registry_proto.data_sources) == 1
-    registry_feature_view = registry_feature_views[0]
-    assert registry_feature_view.batch_source == batch_source
-    registry_data_source = registry_data_sources[0]
-    assert registry_data_source == batch_source
+    # during apply_* methods, get_project is called which creates the project in the all cache maps
+    assert len(test_registry.cached_feature_view_map) == 1
+    assert len(test_registry.cached_data_source_map) == 1
+    assert project in test_registry.cached_feature_view_map
+    assert project in test_registry.cached_data_source_map
+    assert len(test_registry.cached_feature_view_map[project]) == 0
+    assert len(test_registry.cached_data_source_map[project]) == 0
+
+    registry_feature_view = test_registry.get_feature_view(
+        fv1.name, project, allow_cache=True
+    )
+    registry_data_source = test_registry.get_data_source(
+        batch_source.name, project, allow_cache=True
+    )
+
+    assert registry_feature_view is not None
+    assert registry_data_source is not None
+    assert len(test_registry.cached_feature_views.cache_map) == 1
+    assert len(test_registry.cached_data_sources.cache_map) == 1
+    cached_fv = test_registry.cached_feature_views.get(project, fv1.name)
+    assert cached_fv is not None
+    assert cached_fv == fv1
+    cached_batch_source = test_registry.cached_data_sources.get(
+        project, batch_source.name
+    )
+    assert cached_batch_source is not None
+    assert cached_batch_source == batch_source
+
+    test_registry.teardown()
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "test_registry",
+    sql_fallback_fixtures,
+)
+def test_registry_cache_expiration(test_registry):
+    # Create Feature Views
+    batch_source = FileSource(
+        name="test_source",
+        file_format=ParquetFormat(),
+        path="file://feast/*",
+        timestamp_field="ts_col",
+        created_timestamp_column="timestamp",
+        tags={"team": "matchmaking"},
+    )
+
+    entity = Entity(name="fs1_my_entity_1", join_keys=["test"])
+
+    fv1 = FeatureView(
+        name="my_feature_view_1",
+        schema=[
+            Field(name="test", dtype=Int64),
+            Field(name="fs1_my_feature_1", dtype=Int64),
+            Field(name="fs1_my_feature_2", dtype=String),
+            Field(name="fs1_my_feature_3", dtype=Array(String)),
+            Field(name="fs1_my_feature_4", dtype=Array(Bytes)),
+        ],
+        entities=[entity],
+        tags={"team": "matchmaking"},
+        source=batch_source,
+        ttl=timedelta(minutes=5),
+    )
+
+    project = "project"
+
+    # Register data source and feature view
+    test_registry.apply_data_source(batch_source, project)
+    test_registry.apply_feature_view(fv1, project)
+    registry_feature_view = test_registry.get_feature_view(
+        fv1.name, project, allow_cache=True
+    )
+    registry_data_source = test_registry.get_data_source(
+        batch_source.name, project, allow_cache=True
+    )
+
+    assert registry_feature_view is not None
+    assert registry_data_source is not None
+    assert len(test_registry.cached_feature_views.cache_map) == 1
+    assert len(test_registry.cached_data_sources.cache_map) == 1
+    cached_fv = test_registry.cached_feature_views.get(project, fv1.name)
+    assert cached_fv is not None
+    assert cached_fv.name == fv1.name
+    cached_batch_source = test_registry.cached_data_sources.get(
+        project, batch_source.name
+    )
+    assert cached_batch_source is not None
+    assert cached_batch_source.name == batch_source.name
+
+    batch_source.description = "new description"
+    test_registry.apply_data_source(batch_source, project)
+    # Expire ttls and refresh cache
+    time.sleep(3)
+    test_registry.refresh()
+    # Deleted feature view is removed from cache
+    test_registry.delete_feature_view(fv1.name, project)
+
+    assert len(test_registry.cached_feature_views.cache_map) == 1
+    assert len(test_registry.cached_data_sources.cache_map) == 1
+    assert test_registry.cached_feature_views.get(project, fv1.name) is None
+    assert test_registry.cached_data_sources.get(project, batch_source.name) is not None
+    assert (
+        batch_source.description
+        == test_registry.cached_data_sources.get(project, batch_source.name).description
+    )
 
     test_registry.teardown()
