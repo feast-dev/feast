@@ -11,8 +11,10 @@ import {
   EuiHorizontalRule,
   EuiSelect,
   EuiFormRow,
+  EuiButton,
 } from "@elastic/eui";
 import { useContext, useState } from "react";
+import { useParams } from "react-router-dom";
 import RegistryPathContext from "../../contexts/RegistryPathContext";
 import useLoadRegistry from "../../queries/useLoadRegistry";
 import PermissionsDisplay from "../../components/PermissionsDisplay";
@@ -28,6 +30,17 @@ const PermissionsIndex = () => {
       <EuiPageTemplate.Header
         pageTitle="Permissions"
         description="View and manage permissions for Feast resources"
+        rightSideItems={[
+          <EuiButton
+            iconType="plusInCircle"
+            onClick={() => {
+              const { projectName } = useParams();
+              window.location.href = `/p/${projectName}/permissions/create`;
+            }}
+          >
+            Create Permission
+          </EuiButton>,
+        ]}
       />
       <EuiPageTemplate.Section>
         {isLoading && (

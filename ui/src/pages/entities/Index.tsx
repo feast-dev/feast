@@ -1,6 +1,6 @@
 import React, { useContext } from "react";
-
-import { EuiPageTemplate, EuiLoadingSpinner } from "@elastic/eui";
+import { useParams } from "react-router-dom";
+import { EuiPageTemplate, EuiLoadingSpinner, EuiButton } from "@elastic/eui";
 
 import { EntityIcon } from "../../graphics/EntityIcon";
 
@@ -43,6 +43,15 @@ const Index = () => {
             fileName="entities"
             formats={["json"]}
           />,
+          <EuiButton
+            iconType="plusInCircle"
+            onClick={() => {
+              const { projectName } = useParams();
+              window.location.href = `/p/${projectName}/entity/create`;
+            }}
+          >
+            Create Entity
+          </EuiButton>,
         ]}
       />
       <EuiPageTemplate.Section>

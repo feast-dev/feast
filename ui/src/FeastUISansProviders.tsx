@@ -25,6 +25,11 @@ import DatasetInstance from "./pages/saved-data-sets/DatasetInstance";
 import PermissionsIndex from "./pages/permissions/Index";
 import LineageIndex from "./pages/lineage/Index";
 import NoProjectGuard from "./components/NoProjectGuard";
+import CreateEntityPage from "./pages/entities/CreateEntityPage";
+import CreateDataSourcePage from "./pages/data-sources/CreateDataSourcePage";
+import CreateFeatureViewPage from "./pages/feature-views/CreateFeatureViewPage";
+import CreateFeatureServicePage from "./pages/feature-services/CreateFeatureServicePage";
+import CreatePermissionPage from "./pages/permissions/CreatePermissionPage";
 
 import TabsRegistryContext, {
   FeastTabsRegistryInterface,
@@ -110,6 +115,13 @@ const FeastUISansProvidersInner = ({
                     <Route index element={<ProjectOverviewPage />} />
                     <Route path="data-source/" element={<DatasourceIndex />} />
                     <Route
+                      path="data-source/create"
+                      element={
+                        <React.Suspense fallback={<div>Loading...</div>}>
+                          <CreateDataSourcePage />
+                        </React.Suspense>
+                      } />
+                    <Route
                       path="data-source/:dataSourceName/*"
                       element={<DataSourceInstance />}
                     />
@@ -118,6 +130,13 @@ const FeastUISansProvidersInner = ({
                       path="feature-view/"
                       element={<FeatureViewIndex />}
                     />
+                    <Route
+                      path="feature-view/create"
+                      element={
+                        <React.Suspense fallback={<div>Loading...</div>}>
+                          <CreateFeatureViewPage />
+                        </React.Suspense>
+                      } />
                     <Route
                       path="feature-view/:featureViewName/*"
                       element={<FeatureViewInstance />}
@@ -131,10 +150,24 @@ const FeastUISansProvidersInner = ({
                       element={<FeatureServiceIndex />}
                     />
                     <Route
+                      path="feature-service/create"
+                      element={
+                        <React.Suspense fallback={<div>Loading...</div>}>
+                          <CreateFeatureServicePage />
+                        </React.Suspense>
+                      } />
+                    <Route
                       path="feature-service/:featureServiceName/*"
                       element={<FeatureServiceInstance />}
                     />
                     <Route path="entity/" element={<EntityIndex />} />
+                    <Route
+                      path="entity/create"
+                      element={
+                        <React.Suspense fallback={<div>Loading...</div>}>
+                          <CreateEntityPage />
+                        </React.Suspense>
+                      } />
                     <Route
                       path="entity/:entityName/*"
                       element={<EntityInstance />}
@@ -146,6 +179,13 @@ const FeastUISansProvidersInner = ({
                       element={<DatasetInstance />}
                     />
                     <Route path="permissions/" element={<PermissionsIndex />} />
+                    <Route
+                      path="permissions/create"
+                      element={
+                        <React.Suspense fallback={<div>Loading...</div>}>
+                          <CreatePermissionPage />
+                        </React.Suspense>
+                      } />
                     <Route path="lineage/" element={<LineageIndex />} />
                   </Route>
                 </Route>

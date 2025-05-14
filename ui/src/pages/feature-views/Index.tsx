@@ -1,4 +1,5 @@
 import React, { useContext } from "react";
+import { useParams } from "react-router-dom";
 
 import {
   EuiPageTemplate,
@@ -8,6 +9,7 @@ import {
   EuiFieldSearch,
   EuiFlexGroup,
   EuiFlexItem,
+  EuiButton,
 } from "@elastic/eui";
 
 import { FeatureViewIcon } from "../../graphics/FeatureViewIcon";
@@ -124,6 +126,15 @@ const Index = () => {
             fileName="feature_views"
             formats={["json"]}
           />,
+          <EuiButton
+            iconType="plusInCircle"
+            onClick={() => {
+              const { projectName } = useParams();
+              window.location.href = `/p/${projectName}/feature-view/create`;
+            }}
+          >
+            Create Feature View
+          </EuiButton>,
         ]}
       />
       <EuiPageTemplate.Section>
