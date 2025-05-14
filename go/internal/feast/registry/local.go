@@ -1,11 +1,11 @@
 package registry
 
 import (
-	"github.com/google/uuid"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 
+	"github.com/google/uuid"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
