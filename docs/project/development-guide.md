@@ -135,10 +135,19 @@ Note that this means if you are midway through working through a PR and rebase, 
 - activate the venv: `source venv/bin/activate`
 - Install dependencies `make install-python-dependencies-dev`
 
-### building the UI
+### Building the UI
+To build the UI from the latest released NPM package (hosted under @feast-dev/feast-ui):
+
 ```sh
 make build-ui
 ```
+
+If you want to test backend and frontend together using 'feast ui' command and with a locally built Feast UI package, you can build using:
+
+```sh
+make build-ui-local
+```
+Use this when you are making changes to the React UI code and want to see them live via the backend.
 
 ### Recompiling python lock files
 Recompile python lock files. This only needs to be run when you make changes to requirements or simply want to update python lock files to reflect latest versions.
