@@ -644,6 +644,11 @@ build-helm-docs:
 build-ui:
 	cd $(ROOT_DIR)/sdk/python/feast/ui && yarn upgrade @feast-dev/feast-ui --latest && yarn install && npm run build --omit=dev
 
+build-ui-local:
+	cd $(ROOT_DIR)/ui && yarn install && npm run build --omit=dev
+	rm -rf $(ROOT_DIR)/sdk/python/feast/ui/build
+	cp -r $(ROOT_DIR)/ui/build $(ROOT_DIR)/sdk/python/feast/ui/
+	
 format-ui:
 	cd $(ROOT_DIR)/ui && NPM_TOKEN= yarn install && NPM_TOKEN= yarn format
 
