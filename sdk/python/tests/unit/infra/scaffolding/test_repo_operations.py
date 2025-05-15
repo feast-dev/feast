@@ -30,7 +30,7 @@ def feature_repo(feastignore_contents: Optional[str]):
         (repo_root / "bar/subdir1/subdir2").mkdir()
 
         (repo_root / "a.py").touch()
-        (repo_root / ".ipynb_checkpoints/test-checkpoint.ipynb").touch()
+        (repo_root / ".ipynb_checkpoints/test-checkpoint.py").touch()
         (repo_root / "foo/b.py").touch()
         (repo_root / "foo1/c.py").touch()
         (repo_root / "foo1/bar/d.py").touch()

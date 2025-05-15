@@ -69,7 +69,7 @@ def read_feastignore(repo_root: Path) -> List[str]:
 def get_ignore_files(repo_root: Path, ignore_paths: List[str]) -> Set[Path]:
     """Get all ignore files that match any of the user-defined ignore paths"""
     ignore_files = set()
-    for ignore_path in ignore_paths:
+    for ignore_path in set(ignore_paths):
         # ignore_path may contains matchers (* or **). Use glob() to match user-defined path to actual paths
         for matched_path in repo_root.glob(ignore_path):
             if matched_path.is_file():
@@ -88,9 +88,7 @@ def get_ignore_files(repo_root: Path, ignore_paths: List[str]) -> Set[Path]:
 def get_repo_files(repo_root: Path) -> List[Path]:
     """Get the list of all repo files, ignoring undesired files & directories specified in .feastignore"""
     # Read ignore paths from .feastignore and create a set of all files that match any of these paths
-    ignore_paths = read_feastignore(repo_root)
-    ignore_files = get_ignore_files(repo_root, ignore_paths)
-    ignore_paths += [
+    ignore_paths = read_feastignore(repo_root) + [
         ".git",
         ".feastignore",
         ".venv",
@@ -98,6 +96,7 @@ def get_repo_files(repo_root: Path) -> List[Path]:
         "__pycache__",
         ".ipynb_checkpoints",
     ]
+    ignore_files = get_ignore_files(repo_root, ignore_paths)
 
     # List all Python files in the root directory (recursively)
     repo_files = {
