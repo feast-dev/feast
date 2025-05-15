@@ -650,12 +650,9 @@ format-ui:
 
 # Go SDK & embedded
 PB_REL = https://github.com/protocolbuffers/protobuf/releases
-PB_VERSION = 30.2
+PB_VERSION = 3.11.2
 PB_ARCH := $(shell uname -m)
 ifeq ($(PB_ARCH), arm64)
-	PB_ARCH=aarch_64
-endif
-ifeq ($(PB_ARCH), aarch64)
 	PB_ARCH=aarch_64
 endif
 PB_PROTO_FOLDERS=core registry serving types storage
@@ -672,7 +669,6 @@ install-go-proto-dependencies: $(TOOL_DIR)/protoc-$(PB_VERSION)-$(OS)-$(PB_ARCH)
 
 .PHONY: compile-protos-go
 compile-protos-go: install-go-proto-dependencies
-	mkdir -p $(ROOT_DIR)/go/protos
 	$(foreach folder,$(PB_PROTO_FOLDERS), \
 		protoc --proto_path=$(ROOT_DIR)/protos \
 			--go_out=$(ROOT_DIR)/go/protos \
