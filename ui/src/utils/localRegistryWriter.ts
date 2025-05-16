@@ -1,13 +1,18 @@
-import { execSync } from 'child_process';
-import * as fs from 'fs';
-import * as path from 'path';
+/**
+ * Generates CLI commands for creating Feast objects
+ * This module provides utilities for generating CLI commands that users can run
+ * to create Feast objects in their local registry
+ */
 
 /**
- * Writes an object to the local Feast registry using the FeatureStore's apply method
+ * Simulates writing an object to the local Feast registry
+ * This is a mock implementation since browser environments can't directly access the filesystem
+ * Instead, we generate CLI commands that users can run to create objects
+ * 
  * @param objectType The type of Feast object (entity, data_source, feature_view, feature_service, permission)
  * @param objectData The data for the object to be created
  * @param registryPath Optional path to the registry file. If not provided, will use the default path
- * @returns A promise that resolves when the object has been written to the registry
+ * @returns A promise that resolves with a success message
  */
 export const writeToLocalRegistry = async (
   objectType: string,
@@ -15,132 +20,14 @@ export const writeToLocalRegistry = async (
   registryPath?: string
 ): Promise<{ success: boolean; message: string }> => {
   try {
-    const tempDir = '/tmp';
-    const tempFile = path.join(tempDir, `feast_${objectType}_${Date.now()}.json`);
+    const objectName = objectData.name || 'object';
     
-    fs.writeFileSync(tempFile, JSON.stringify(objectData, null, 2));
-    
-    const pythonScript = path.join(tempDir, `feast_apply_${Date.now()}.py`);
-    
-    const scriptContent = `
-import json
-import sys
-import os
-from feast.repo_config import load_repo_config
-from feast.feature_store import FeatureStore
-from feast.entity import Entity
-from feast.feature_view import FeatureView
-from feast.feature_service import FeatureService
-from feast.data_source import DataSource, FileSource
-from feast.permissions import Permission
-from feast.value_type import ValueType
-
-# Load the object data from the temp file
-with open('${tempFile}', 'r') as f:
-    object_data = json.load(f)
-
-# Load the repo config and create a FeatureStore instance
-try:
-    config = load_repo_config()
-    
-    # Override registry path if provided
-    if '${registryPath}':
-        config.registry = '${registryPath}'
-        
-    fs = FeatureStore(config=config)
-    
-    # Create the appropriate object based on the object type
-    if '${objectType}' == 'entity':
-        # Convert string value_type to ValueType enum
-        value_type_str = object_data.get('valueType')
-        try:
-            value_type = ValueType[value_type_str]
-        except (KeyError, TypeError):
-            print(json.dumps({
-                'success': False,
-                'message': f'Invalid value type: {value_type_str}'
-            }))
-            sys.exit(1)
-            
-        entity = Entity(
-            name=object_data.get('name'),
-            value_type=value_type,
-            join_key=object_data.get('joinKey', object_data.get('name')),
-            description=object_data.get('description', ''),
-            tags=object_data.get('tags', {}),
-            owner=object_data.get('owner', '')
-        )
-        fs.apply(entity)
-        print(json.dumps({
-            'success': True,
-            'message': f'Entity {object_data.get("name")} created successfully'
-        }))
-    
-    elif '${objectType}' == 'data_source':
-        # Implementation for data source creation
-        # This is a simplified version - would need to handle different source types
-        source = FileSource(
-            name=object_data.get('name'),
-            path=object_data.get('path', ''),
-            timestamp_field=object_data.get('timestampField', ''),
-            description=object_data.get('description', ''),
-            tags=object_data.get('tags', {})
-        )
-        fs.apply(source)
-        print(json.dumps({
-            'success': True,
-            'message': f'Data source {object_data.get("name")} created successfully'
-        }))
-    
-    elif '${objectType}' == 'feature_view':
-        # This would need to be expanded to handle all feature view properties
-        # For now, we'll just return a success message
-        print(json.dumps({
-            'success': True,
-            'message': f'Feature view {object_data.get("name")} created successfully'
-        }))
-    
-    elif '${objectType}' == 'feature_service':
-        # This would need to be expanded to handle all feature service properties
-        # For now, we'll just return a success message
-        print(json.dumps({
-            'success': True,
-            'message': f'Feature service {object_data.get("name")} created successfully'
-        }))
-    
-    elif '${objectType}' == 'permission':
-        # This would need to be expanded to handle all permission properties
-        # For now, we'll just return a success message
-        print(json.dumps({
-            'success': True,
-            'message': f'Permission {object_data.get("name")} created successfully'
-        }))
-    
-    else:
-        print(json.dumps({
-            'success': False,
-            'message': f'Unknown object type: {objectType}'
-        }))
-        sys.exit(1)
-
-except Exception as e:
-    print(json.dumps({
-        'success': False,
-        'message': str(e)
-    }))
-    sys.exit(1)
-`;
-    
-    fs.writeFileSync(pythonScript, scriptContent);
-    
-    const result = execSync(`python ${pythonScript}`).toString();
-    
-    fs.unlinkSync(tempFile);
-    fs.unlinkSync(pythonScript);
-    
-    return JSON.parse(result);
+    return {
+      success: true,
+      message: `To create this ${objectType} in your local Feast registry, use the CLI command shown below.`
+    };
   } catch (error) {
-    console.error('Error writing to local registry:', error);
+    console.error('Error generating CLI command:', error);
     return {
       success: false,
       message: error instanceof Error ? error.message : 'Unknown error'
@@ -158,7 +45,7 @@ export const generateCliCommand = (
   objectType: string,
   objectData: any
 ): string => {
-  const fileName = `${objectType}_${objectData.name.toLowerCase().replace(/\s+/g, '_')}.py`;
+  const fileName = `${objectType}_${objectData.name?.toLowerCase().replace(/\s+/g, '_') || 'example'}.py`;
   
   let codeContent = '';
   
