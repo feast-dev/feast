@@ -208,9 +208,9 @@ class SnowflakeMaterializationEngine(BatchMaterializationEngine):
         online_store: OnlineStore,
         **kwargs,
     ):
-        assert repo_config.offline_store.type == "snowflake.offline", (
-            "To use SnowflakeMaterializationEngine, you must use Snowflake as an offline store."
-        )
+        assert (
+            repo_config.offline_store.type == "snowflake.offline"
+        ), "To use SnowflakeMaterializationEngine, you must use Snowflake as an offline store."
 
         super().__init__(
             repo_config=repo_config,
@@ -243,11 +243,10 @@ class SnowflakeMaterializationEngine(BatchMaterializationEngine):
         project: str,
         tqdm_builder: Callable[[int], tqdm],
     ):
-        assert isinstance(feature_view, BatchFeatureView) or isinstance(
-            feature_view, FeatureView
-        ), (
-            "Snowflake can only materialize FeatureView & BatchFeatureView feature view types."
-        )
+        assert (
+            isinstance(feature_view, BatchFeatureView)
+            or isinstance(feature_view, FeatureView)
+        ), "Snowflake can only materialize FeatureView & BatchFeatureView feature view types."
 
         entities = []
         for entity_name in feature_view.entities:

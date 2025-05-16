@@ -1,4 +1,5 @@
 import React, { useContext } from "react";
+import { useParams } from "react-router-dom";
 
 import {
   EuiPageTemplate,
@@ -8,6 +9,7 @@ import {
   EuiFieldSearch,
   EuiFlexGroup,
   EuiFlexItem,
+  EuiButton,
 } from "@elastic/eui";
 
 import { FeatureViewIcon } from "../../graphics/FeatureViewIcon";
@@ -91,6 +93,7 @@ const filterFn = (data: genericFVType[], filterInput: filterInputInterface) => {
 const Index = () => {
   const { isLoading, isSuccess, isError, data } = useLoadFeatureViews();
   const tagAggregationQuery = useFeatureViewTagsAggregation();
+  const { projectName } = useParams();
 
   useDocumentTitle(`Feature Views | Feast`);
 
@@ -124,6 +127,14 @@ const Index = () => {
             fileName="feature_views"
             formats={["json"]}
           />,
+          <EuiButton
+            iconType="plusInCircle"
+            onClick={() => {
+              window.location.href = `/p/${projectName}/feature-view/create`;
+            }}
+          >
+            Create Feature View
+          </EuiButton>,
         ]}
       />
       <EuiPageTemplate.Section>

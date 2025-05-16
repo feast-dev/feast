@@ -1,4 +1,5 @@
 import React, { useContext } from "react";
+import { useParams } from "react-router-dom";
 
 import {
   EuiPageTemplate,
@@ -8,6 +9,7 @@ import {
   EuiTitle,
   EuiFieldSearch,
   EuiSpacer,
+  EuiButton,
 } from "@elastic/eui";
 
 import useLoadRegistry from "../../queries/useLoadRegistry";
@@ -53,6 +55,7 @@ const filterFn = (data: feast.core.IDataSource[], searchTokens: string[]) => {
 
 const Index = () => {
   const { isLoading, isSuccess, isError, data } = useLoadDatasources();
+  const { projectName } = useParams();
 
   useDocumentTitle(`Data Sources | Feast`);
 
@@ -72,6 +75,14 @@ const Index = () => {
             fileName="data_sources"
             formats={["json"]}
           />,
+          <EuiButton
+            iconType="plusInCircle"
+            onClick={() => {
+              window.location.href = `/p/${projectName}/data-source/create`;
+            }}
+          >
+            Create Data Source
+          </EuiButton>,
         ]}
       />
       <EuiPageTemplate.Section>
