@@ -1,15 +1,13 @@
 import logging
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict
 
-from fastapi import APIRouter, Depends, Query, Body
+from fastapi import APIRouter, Body, Depends, Query
 
 from feast.api.registry.rest.rest_utils import grpc_call, parse_tags
-from feast.registry_server import RegistryServer_pb2
-from feast.feature_view import FeatureView
 from feast.feature_store import FeatureStore
+from feast.feature_view import FeatureView
+from feast.registry_server import RegistryServer_pb2
 from feast.repo_config import load_repo_config
-from feast.data_source import DataSource
-from feast.entity import Entity
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +41,7 @@ def get_feature_view_router(grpc_handler) -> APIRouter:
             tags=tags,
         )
         return grpc_call(grpc_handler.ListAllFeatureViews, req)
-    
+
     @router.post("/feature-views")
     def create_feature_view(
         feature_view_data: Dict[str, Any] = Body(...),
@@ -55,28 +53,32 @@ def get_feature_view_router(grpc_handler) -> APIRouter:
             owner = feature_view_data.get("owner", "")
             project = feature_view_data.get("project", "default")
             ttl = feature_view_data.get("ttl")
-            
+
             entity_names = feature_view_data.get("entities", [])
-            
+
             data_source_name = feature_view_data.get("dataSource")
-            
+
             features_data = feature_view_data.get("features", [])
-            
+
             repo_config = load_repo_config()
             fs = FeatureStore(config=repo_config)
-            
+
             entities = []
             for entity_name in entity_names:
                 entity = fs.get_entity(entity_name, project)
                 if entity:
                     entities.append(entity)
                 else:
-                    raise ValueError(f"Entity {entity_name} not found in project {project}")
-            
+                    raise ValueError(
+                        f"Entity {entity_name} not found in project {project}"
+                    )
+
             data_source = fs.get_data_source(data_source_name, project)
             if not data_source:
-                raise ValueError(f"Data source {data_source_name} not found in project {project}")
-            
+                raise ValueError(
+                    f"Data source {data_source_name} not found in project {project}"
+                )
+
             features = []
             for feature_data in features_data:
                 feature_name = feature_data.get("name")
@@ -87,7 +89,7 @@ def get_feature_view_router(grpc_handler) -> APIRouter:
                         dtype=feature_type,
                     )
                 )
-            
+
             feature_view = FeatureView(
                 name=name,
                 entities=entities,
@@ -98,10 +100,13 @@ def get_feature_view_router(grpc_handler) -> APIRouter:
                 owner=owner,
                 description=description,
             )
-            
+
             fs.apply(feature_view)
-            
-            return {"status": "success", "message": f"Feature view {name} created successfully"}
+
+            return {
+                "status": "success",
+                "message": f"Feature view {name} created successfully",
+            }
         except Exception as e:
             logger.exception(f"Error creating feature view: {str(e)}")
             return {"status": "error", "detail": str(e)}

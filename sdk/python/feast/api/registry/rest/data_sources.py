@@ -1,19 +1,18 @@
 import logging
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict
 
-from fastapi import APIRouter, Depends, Query, Body
+from fastapi import APIRouter, Body, Depends, Query
 
 from feast.api.registry.rest.rest_utils import grpc_call, parse_tags
-from feast.protos.feast.registry import RegistryServer_pb2
 from feast.data_source import (
-    DataSource,
-    FileSource,
     BigQuerySource,
+    FileSource,
     KafkaSource,
     KinesisSource,
     PushSource,
 )
 from feast.feature_store import FeatureStore
+from feast.protos.feast.registry import RegistryServer_pb2
 from feast.repo_config import load_repo_config
 
 logger = logging.getLogger(__name__)
@@ -48,7 +47,7 @@ def get_data_source_router(grpc_handler) -> APIRouter:
             allow_cache=allow_cache,
         )
         return grpc_call(grpc_handler.GetDataSource, req)
-    
+
     @router.post("/data-sources")
     def create_data_source(
         data_source_data: Dict[str, Any] = Body(...),
@@ -58,18 +57,19 @@ def get_data_source_router(grpc_handler) -> APIRouter:
             description = data_source_data.get("description", "")
             tags = data_source_data.get("tags", {})
             owner = data_source_data.get("owner", "")
-            project = data_source_data.get("project", "default")
             source_type = data_source_data.get("type")
-            
+
             data_source = None
-            
+
             if source_type == "file":
                 file_options = data_source_data.get("file_options", {})
                 data_source = FileSource(
                     name=name,
                     path=file_options.get("path"),
                     timestamp_field=file_options.get("timestamp_field"),
-                    created_timestamp_column=file_options.get("created_timestamp_column"),
+                    created_timestamp_column=file_options.get(
+                        "created_timestamp_column"
+                    ),
                     event_timestamp_column=file_options.get("event_timestamp_column"),
                     description=description,
                     tags=tags,
@@ -120,12 +120,15 @@ def get_data_source_router(grpc_handler) -> APIRouter:
                 )
             else:
                 raise ValueError(f"Unsupported data source type: {source_type}")
-            
+
             repo_config = load_repo_config()
             fs = FeatureStore(config=repo_config)
             fs.apply(data_source)
-            
-            return {"status": "success", "message": f"Data source {name} created successfully"}
+
+            return {
+                "status": "success",
+                "message": f"Data source {name} created successfully",
+            }
         except Exception as e:
             logger.exception(f"Error creating data source: {str(e)}")
             return {"status": "error", "detail": str(e)}
