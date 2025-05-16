@@ -13,11 +13,13 @@ import {
   EuiFlexItem,
   EuiAccordion,
   EuiPanel,
+  EuiSwitch,
 } from "@elastic/eui";
 import { useNavigate, useParams } from "react-router-dom";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import RegistryPathContext from "../../contexts/RegistryPathContext";
 import useLoadRegistry from "../../queries/useLoadRegistry";
+import { writeToLocalRegistry, generateCliCommand } from "../../utils/localRegistryWriter";
 
 const CreatePermissionPage = () => {
   const { projectName } = useParams<{ projectName: string }>();
@@ -38,6 +40,7 @@ const CreatePermissionPage = () => {
   const [tags, setTags] = useState("");
   const [owner, setOwner] = useState("");
   const [cliCommandDisplay, setCliCommandDisplay] = useState("");
+  const [writeToRegistry, setWriteToRegistry] = useState(false);
 
   const registryQuery = useLoadRegistry(registryUrl);
 
@@ -80,47 +83,31 @@ const CreatePermissionPage = () => {
 
       console.log("Creating permission with data:", permissionData);
       
-      const cliCommand = `# Create a Python file named permission_${name.toLowerCase().replace(/\s+/g, '_')}.py with the following content:
-
-from feast import Permission
-from feast.permissions.action import Action
-
-permission = Permission(
-    name="${name}",
-    principal="${principal}",
-    resource="${resource}",
-    action=Action.${action},
-    description="${description}",
-    tags=${JSON.stringify(tagsObject)},
-    owner="${owner}"
-)
-
-# Then apply it using the Feast CLI:
-# feast apply permission_${name.toLowerCase().replace(/\s+/g, '_')}.py`;
+      const cliCommand = generateCliCommand("permission", permissionData);
       
       console.log("CLI Command to create this permission:");
       console.log(cliCommand);
       
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
       setCliCommandDisplay(cliCommand);
       
-      /* 
-      const response = await fetch(`${registryUrl}/api/permissions`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(permissionData),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || "Failed to create permission");
+      if (writeToRegistry) {
+        try {
+          const result = await writeToLocalRegistry("permission", permissionData, registryUrl);
+          
+          if (result.success) {
+            setSuccess(true);
+            console.log("Permission written to registry:", result.message);
+          } else {
+            throw new Error(result.message);
+          }
+        } catch (err) {
+          console.error("Error writing to registry:", err);
+          throw err;
+        }
+      } else {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        setSuccess(true);
       }
-      */
-
-      setSuccess(true);
       setName("");
       setDescription("");
       setPrincipal("");
@@ -249,6 +236,18 @@ permission = Permission(
           </EuiAccordion>
 
           <EuiSpacer />
+          
+          <EuiFormRow>
+            <EuiSwitch
+              label="Write directly to registry"
+              checked={writeToRegistry}
+              onChange={(e) => setWriteToRegistry(e.target.checked)}
+              disabled={isSubmitting}
+              data-test-subj="writeToRegistrySwitch"
+            />
+          </EuiFormRow>
+          
+          <EuiSpacer />
 
           <EuiFlexGroup>
             <EuiFlexItem grow={false}>
@@ -264,7 +263,7 @@ permission = Permission(
                   !action
                 }
               >
-                Create Permission
+                {writeToRegistry ? 'Create Permission in Registry' : 'Generate CLI Command'}
               </EuiButton>
             </EuiFlexItem>
             <EuiFlexItem grow={false}>
