@@ -16,12 +16,14 @@ import {
   EuiFieldNumber,
   EuiAccordion,
   EuiPanel,
+  EuiSwitch,
 } from "@elastic/eui";
 import { useNavigate, useParams } from "react-router-dom";
 import { FeatureViewIcon } from "../../graphics/FeatureViewIcon";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import RegistryPathContext from "../../contexts/RegistryPathContext";
 import useLoadRegistry from "../../queries/useLoadRegistry";
+import { writeToLocalRegistry, generateCliCommand } from "../../utils/localRegistryWriter";
 
 const valueTypeOptions = [
   { value: "INT32", text: "INT32" },
@@ -51,6 +53,7 @@ const CreateFeatureViewPage = () => {
   const [tags, setTags] = useState("");
   const [owner, setOwner] = useState("");
   const [cliCommandDisplay, setCliCommandDisplay] = useState("");
+  const [writeToRegistry, setWriteToRegistry] = useState(false);
   
   const [ttlSeconds, setTtlSeconds] = useState("86400");
   
@@ -139,65 +142,31 @@ const CreateFeatureViewPage = () => {
 
       console.log("Creating feature view with data:", featureViewData);
       
-      const featuresCode = features.map(f => 
-        `    Feature(name="${f.name}", dtype=${f.valueType})`
-      ).join(",\n");
-      
-      const entitiesCode = selectedEntities.map(e => 
-        `"${e.label}"`
-      ).join(", ");
-      
-      const cliCommand = `# Create a Python file named feature_view_${name.toLowerCase().replace(/\s+/g, '_')}.py with the following content:
-
-from feast import FeatureView, Feature
-from feast.value_type import ValueType
-from datetime import timedelta
-
-# You'll need to get references to your entities and data source
-# This is a simplified example - you may need to adjust based on your actual setup
-data_source = feast.get_data_source("${selectedDataSource?.label || ''}")
-entities = [feast.get_entity(e) for e in [${entitiesCode}]]
-
-feature_view = FeatureView(
-    name="${name}",
-    entities=entities,
-    ttl=timedelta(seconds=${ttlSeconds}),
-    features=[
-${featuresCode}
-    ],
-    online=True,
-    source=data_source,
-    tags=${JSON.stringify(tagsObject)},
-    owner="${owner}",
-    description="${description}"
-)
-
-# Then apply it using the Feast CLI:
-# feast apply feature_view_${name.toLowerCase().replace(/\s+/g, '_')}.py`;
+      const cliCommand = generateCliCommand("feature_view", featureViewData);
       
       console.log("CLI Command to create this feature view:");
       console.log(cliCommand);
       
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
       setCliCommandDisplay(cliCommand);
       
-      /* 
-      const response = await fetch(`${registryUrl}/api/feature-views`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(featureViewData),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || "Failed to create feature view");
+      if (writeToRegistry) {
+        try {
+          const result = await writeToLocalRegistry("feature_view", featureViewData, registryUrl);
+          
+          if (result.success) {
+            setSuccess(true);
+            console.log("Feature view written to registry:", result.message);
+          } else {
+            throw new Error(result.message);
+          }
+        } catch (err) {
+          console.error("Error writing to registry:", err);
+          throw err;
+        }
+      } else {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        setSuccess(true);
       }
-      */
-
-      setSuccess(true);
       setName("");
       setDescription("");
       setTags("");
@@ -392,6 +361,18 @@ feature_view = FeatureView(
           </EuiAccordion>
 
           <EuiSpacer />
+          
+          <EuiFormRow>
+            <EuiSwitch
+              label="Write directly to registry"
+              checked={writeToRegistry}
+              onChange={(e) => setWriteToRegistry(e.target.checked)}
+              disabled={isSubmitting}
+              data-test-subj="writeToRegistrySwitch"
+            />
+          </EuiFormRow>
+          
+          <EuiSpacer />
 
           <EuiFlexGroup>
             <EuiFlexItem grow={false}>
@@ -408,7 +389,7 @@ feature_view = FeatureView(
                   features.some(f => !f.name)
                 }
               >
-                Create Feature View
+                {writeToRegistry ? 'Create Feature View in Registry' : 'Generate CLI Command'}
               </EuiButton>
             </EuiFlexItem>
             <EuiFlexItem grow={false}>
