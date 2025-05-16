@@ -51,7 +51,6 @@ const CreateDataSourcePage = () => {
   const [tags, setTags] = useState("");
   const [owner, setOwner] = useState("");
   const [cliCommandDisplay, setCliCommandDisplay] = useState("");
-  const [writeToRegistry, setWriteToRegistry] = useState(false);
 
   const [kafkaBootstrapServers, setKafkaBootstrapServers] = useState("");
   const [kafkaTopic, setKafkaTopic] = useState("");
@@ -135,27 +134,8 @@ const CreateDataSourcePage = () => {
       
       setCliCommandDisplay(cliCommand);
       
-      if (writeToRegistry) {
-        try {
-          const result = await writeToLocalRegistry("data_source", {
-            ...dataSourceData,
-            sourceType
-          }, registryUrl);
-          
-          if (result.success) {
-            setSuccess(true);
-            console.log("Data source written to registry:", result.message);
-          } else {
-            throw new Error(result.message);
-          }
-        } catch (err) {
-          console.error("Error writing to registry:", err);
-          throw err;
-        }
-      } else {
-        await new Promise(resolve => setTimeout(resolve, 500));
-        setSuccess(true);
-      }
+      await new Promise(resolve => setTimeout(resolve, 500));
+      setSuccess(true);
       setName("");
       setDescription("");
       setSourceType(dataSourceTypeOptions[0].value);
@@ -380,18 +360,6 @@ source = FileSource(
           </EuiAccordion>
 
           <EuiSpacer />
-          
-          <EuiFormRow>
-            <EuiSwitch
-              label="Write directly to registry"
-              checked={writeToRegistry}
-              onChange={(e) => setWriteToRegistry(e.target.checked)}
-              disabled={isSubmitting}
-              data-test-subj="writeToRegistrySwitch"
-            />
-          </EuiFormRow>
-          
-          <EuiSpacer />
 
           <EuiFlexGroup>
             <EuiFlexItem grow={false}>
@@ -401,7 +369,7 @@ source = FileSource(
                 isLoading={isSubmitting}
                 disabled={isSubmitting || !name || !sourceType || !timestampField}
               >
-                {writeToRegistry ? 'Create Data Source in Registry' : 'Generate CLI Command'}
+                Generate CLI Command
               </EuiButton>
             </EuiFlexItem>
             <EuiFlexItem grow={false}>
