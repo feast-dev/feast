@@ -392,8 +392,8 @@ var ValidOnlineStoreDBStorePersistenceTypes = []string{
 // LocalRegistryConfig configures the registry service
 type LocalRegistryConfig struct {
 	// Creates a registry server container
-	Server      *ServerConfigs       `json:"server,omitempty"`
-	Persistence *RegistryPersistence `json:"persistence,omitempty"`
+	Server      *RegistryServerConfigs `json:"server,omitempty"`
+	Persistence *RegistryPersistence   `json:"persistence,omitempty"`
 }
 
 // RegistryPersistence configures the persistence settings for the registry service
@@ -500,6 +500,14 @@ type ServerConfigs struct {
 	// required by the Feast components. Ensure that each volume mount has a corresponding
 	// volume definition in the Volumes field.
 	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitempty"`
+}
+
+// RegistryServerConfigs creates a registry server for the feast service, with specified container configurations.
+type RegistryServerConfigs struct {
+	ServerConfigs `json:",inline"`
+	// RestAPIEnabled determines if the registry should serve using the REST API instead of gRPC.
+	// +kubebuilder:default=true
+	RestAPIEnabled bool `json:"restAPIEnabled,omitempty"`
 }
 
 // CronJobContainerConfigs k8s container settings for the CronJob

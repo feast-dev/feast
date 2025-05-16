@@ -499,6 +499,13 @@ func (feast *FeastServices) getContainerCommand(feastType FeastServiceType) []st
 	deploySettings := FeastServiceConstants[feastType]
 	targetPort := deploySettings.TargetHttpPort
 	tls := feast.getTlsConfigs(feastType)
+
+	if feastType == RegistryFeastType {
+		registry := feast.Handler.FeatureStore.Spec.Services.Registry
+		if registry != nil && registry.Local != nil && registry.Local.Server != nil && registry.Local.Server.RestAPIEnabled {
+			deploySettings.Args = append(deploySettings.Args, "--rest-api")
+		}
+	}
 	if tls.IsTLS() {
 		targetPort = deploySettings.TargetHttpsPort
 		feastTlsPath := GetTlsPath(feastType)
@@ -645,8 +652,10 @@ func (feast *FeastServices) getServerConfigs(feastType FeastServiceType) *feastd
 			return appliedServices.OnlineStore.Server
 		}
 	case RegistryFeastType:
-		if feast.isLocalRegistry() {
-			return appliedServices.Registry.Local.Server
+		if feast.isLocalRegistry() && appliedServices.Registry != nil &&
+			appliedServices.Registry.Local != nil &&
+			appliedServices.Registry.Local.Server != nil {
+			return &appliedServices.Registry.Local.Server.ServerConfigs
 		}
 	case UIFeastType:
 		return appliedServices.UI
