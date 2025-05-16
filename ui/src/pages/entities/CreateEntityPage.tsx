@@ -46,7 +46,6 @@ const CreateEntityPage = () => {
   const [tags, setTags] = useState("");
   const [owner, setOwner] = useState("");
   const [cliCommandDisplay, setCliCommandDisplay] = useState("");
-  const [writeToRegistry, setWriteToRegistry] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,24 +81,8 @@ const CreateEntityPage = () => {
       
       setCliCommandDisplay(cliCommand);
       
-      if (writeToRegistry) {
-        try {
-          const result = await writeToLocalRegistry("entity", entityData, registryUrl);
-          
-          if (result.success) {
-            setSuccess(true);
-            console.log("Entity written to registry:", result.message);
-          } else {
-            throw new Error(result.message);
-          }
-        } catch (err) {
-          console.error("Error writing to registry:", err);
-          throw err;
-        }
-      } else {
-        await new Promise(resolve => setTimeout(resolve, 500));
-        setSuccess(true);
-      }
+      await new Promise(resolve => setTimeout(resolve, 500));
+      setSuccess(true);
       
       setName("");
       setValueType(valueTypeOptions[0].value);
@@ -231,18 +214,6 @@ entity = Entity(
           </EuiFormRow>
 
           <EuiSpacer />
-          
-          <EuiFormRow>
-            <EuiSwitch
-              label="Write directly to registry"
-              checked={writeToRegistry}
-              onChange={(e) => setWriteToRegistry(e.target.checked)}
-              disabled={isSubmitting}
-              data-test-subj="writeToRegistrySwitch"
-            />
-          </EuiFormRow>
-          
-          <EuiSpacer />
 
           <EuiFlexGroup>
             <EuiFlexItem grow={false}>
@@ -252,7 +223,7 @@ entity = Entity(
                 isLoading={isSubmitting}
                 disabled={isSubmitting || !name || !valueType}
               >
-                {writeToRegistry ? 'Create Entity in Registry' : 'Generate CLI Command'}
+                Generate CLI Command
               </EuiButton>
             </EuiFlexItem>
             <EuiFlexItem grow={false}>
