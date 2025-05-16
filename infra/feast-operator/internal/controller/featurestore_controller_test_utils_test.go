@@ -130,7 +130,9 @@ func createFeatureStoreResource(resourceName string, image string, pullPolicy co
 				},
 				Registry: &feastdevv1alpha1.Registry{
 					Local: &feastdevv1alpha1.LocalRegistryConfig{
-						Server: &feastdevv1alpha1.ServerConfigs{},
+						Server: &feastdevv1alpha1.RegistryServerConfigs{
+							ServerConfigs: feastdevv1alpha1.ServerConfigs{},
+						},
 					},
 				},
 				UI: &feastdevv1alpha1.ServerConfigs{
