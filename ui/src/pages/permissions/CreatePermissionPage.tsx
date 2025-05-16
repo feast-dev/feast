@@ -40,7 +40,6 @@ const CreatePermissionPage = () => {
   const [tags, setTags] = useState("");
   const [owner, setOwner] = useState("");
   const [cliCommandDisplay, setCliCommandDisplay] = useState("");
-  const [writeToRegistry, setWriteToRegistry] = useState(false);
 
   const registryQuery = useLoadRegistry(registryUrl);
 
@@ -90,24 +89,8 @@ const CreatePermissionPage = () => {
       
       setCliCommandDisplay(cliCommand);
       
-      if (writeToRegistry) {
-        try {
-          const result = await writeToLocalRegistry("permission", permissionData, registryUrl);
-          
-          if (result.success) {
-            setSuccess(true);
-            console.log("Permission written to registry:", result.message);
-          } else {
-            throw new Error(result.message);
-          }
-        } catch (err) {
-          console.error("Error writing to registry:", err);
-          throw err;
-        }
-      } else {
-        await new Promise(resolve => setTimeout(resolve, 500));
-        setSuccess(true);
-      }
+      await new Promise(resolve => setTimeout(resolve, 500));
+      setSuccess(true);
       setName("");
       setDescription("");
       setPrincipal("");
@@ -236,18 +219,6 @@ permission = Permission(
           </EuiAccordion>
 
           <EuiSpacer />
-          
-          <EuiFormRow>
-            <EuiSwitch
-              label="Write directly to registry"
-              checked={writeToRegistry}
-              onChange={(e) => setWriteToRegistry(e.target.checked)}
-              disabled={isSubmitting}
-              data-test-subj="writeToRegistrySwitch"
-            />
-          </EuiFormRow>
-          
-          <EuiSpacer />
 
           <EuiFlexGroup>
             <EuiFlexItem grow={false}>
@@ -263,7 +234,7 @@ permission = Permission(
                   !action
                 }
               >
-                {writeToRegistry ? 'Create Permission in Registry' : 'Generate CLI Command'}
+                Generate CLI Command
               </EuiButton>
             </EuiFlexItem>
             <EuiFlexItem grow={false}>
