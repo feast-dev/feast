@@ -237,7 +237,7 @@ def get_app(
     async def retrieve_online_documents(
         request: GetOnlineFeaturesRequest,
     ) -> Dict[str, Any]:
-        logger.warn(
+        logger.warning(
             "This endpoint is in alpha and will be moved to /get-online-features when stable."
         )
         # Initialize parameters for FeatureStore.retrieve_online_documents_v2(...) call
