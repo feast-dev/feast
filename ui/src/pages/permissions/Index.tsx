@@ -24,6 +24,7 @@ const PermissionsIndex = () => {
   const registryUrl = useContext(RegistryPathContext);
   const { isLoading, isSuccess, isError, data } = useLoadRegistry(registryUrl);
   const [selectedPermissionAction, setSelectedPermissionAction] = useState("");
+  const { projectName } = useParams();
 
   return (
     <EuiPageTemplate restrictWidth>
@@ -34,7 +35,6 @@ const PermissionsIndex = () => {
           <EuiButton
             iconType="plusInCircle"
             onClick={() => {
-              const { projectName } = useParams();
               window.location.href = `/p/${projectName}/permissions/create`;
             }}
           >

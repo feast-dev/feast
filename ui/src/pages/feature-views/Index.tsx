@@ -93,6 +93,7 @@ const filterFn = (data: genericFVType[], filterInput: filterInputInterface) => {
 const Index = () => {
   const { isLoading, isSuccess, isError, data } = useLoadFeatureViews();
   const tagAggregationQuery = useFeatureViewTagsAggregation();
+  const { projectName } = useParams();
 
   useDocumentTitle(`Feature Views | Feast`);
 
@@ -129,7 +130,6 @@ const Index = () => {
           <EuiButton
             iconType="plusInCircle"
             onClick={() => {
-              const { projectName } = useParams();
               window.location.href = `/p/${projectName}/feature-view/create`;
             }}
           >

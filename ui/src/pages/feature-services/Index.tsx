@@ -91,6 +91,7 @@ const filterFn = (
 const Index = () => {
   const { isLoading, isSuccess, isError, data } = useLoadFeatureServices();
   const tagAggregationQuery = useFeatureServiceTagsAggregation();
+  const { projectName } = useParams();
 
   useDocumentTitle(`Feature Services | Feast`);
 
@@ -127,7 +128,6 @@ const Index = () => {
           <EuiButton
             iconType="plusInCircle"
             onClick={() => {
-              const { projectName } = useParams();
               window.location.href = `/p/${projectName}/feature-service/create`;
             }}
           >

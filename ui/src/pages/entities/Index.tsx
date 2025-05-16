@@ -28,6 +28,7 @@ const useLoadEntities = () => {
 
 const Index = () => {
   const { isLoading, isSuccess, isError, data } = useLoadEntities();
+  const { projectName } = useParams();
 
   useDocumentTitle(`Entities | Feast`);
 
@@ -46,7 +47,6 @@ const Index = () => {
           <EuiButton
             iconType="plusInCircle"
             onClick={() => {
-              const { projectName } = useParams();
               window.location.href = `/p/${projectName}/entity/create`;
             }}
           >

@@ -55,6 +55,7 @@ const filterFn = (data: feast.core.IDataSource[], searchTokens: string[]) => {
 
 const Index = () => {
   const { isLoading, isSuccess, isError, data } = useLoadDatasources();
+  const { projectName } = useParams();
 
   useDocumentTitle(`Data Sources | Feast`);
 
@@ -77,7 +78,6 @@ const Index = () => {
           <EuiButton
             iconType="plusInCircle"
             onClick={() => {
-              const { projectName } = useParams();
               window.location.href = `/p/${projectName}/data-source/create`;
             }}
           >
