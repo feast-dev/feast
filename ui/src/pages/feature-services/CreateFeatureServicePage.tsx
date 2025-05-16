@@ -21,12 +21,14 @@ import {
   EuiBadge,
   EuiIcon,
   EuiText,
+  EuiSwitch,
 } from "@elastic/eui";
 import { useNavigate, useParams } from "react-router-dom";
 import { FeatureServiceIcon } from "../../graphics/FeatureServiceIcon";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import RegistryPathContext from "../../contexts/RegistryPathContext";
 import useLoadRegistry from "../../queries/useLoadRegistry";
+import { writeToLocalRegistry, generateCliCommand } from "../../utils/localRegistryWriter";
 
 const CreateFeatureServicePage = () => {
   const { projectName } = useParams<{ projectName: string }>();
@@ -44,6 +46,7 @@ const CreateFeatureServicePage = () => {
   const [tags, setTags] = useState("");
   const [owner, setOwner] = useState("");
   const [cliCommandDisplay, setCliCommandDisplay] = useState("");
+  const [writeToRegistry, setWriteToRegistry] = useState(false);
   
   const [featureViewOptions, setFeatureViewOptions] = useState<Array<{ label: string, features: string[] }>>([]);
   const [selectedFeatures, setSelectedFeatures] = useState<Array<{ featureView: string, feature: string }>>([]);
@@ -140,51 +143,40 @@ const CreateFeatureServicePage = () => {
 
       console.log("Creating feature service with data:", featureServiceData);
       
-      const featureReferenceCode = Object.entries(featuresByView).map(([featureView, features]) => {
-        const featuresStr = features.map(f => `"${f}"`).join(", ");
-        return `    FeatureReference(name="${featureView}", features=[${featuresStr}])`;
-      }).join(",\n");
+      const featureServiceDataForCli = {
+        name,
+        description,
+        tags: tagsObject,
+        owner,
+        featureReferences: featuresByView,
+        project: projectName,
+      };
       
-      const cliCommand = `# Create a Python file named feature_service_${name.toLowerCase().replace(/\s+/g, '_')}.py with the following content:
-
-from feast import FeatureService, FeatureReference
-
-feature_service = FeatureService(
-    name="${name}",
-    features=[
-${featureReferenceCode}
-    ],
-    tags=${JSON.stringify(tagsObject)},
-    owner="${owner}",
-    description="${description}"
-)
-
-# Then apply it using the Feast CLI:
-# feast apply feature_service_${name.toLowerCase().replace(/\s+/g, '_')}.py`;
+      const cliCommand = generateCliCommand("feature_service", featureServiceDataForCli);
       
       console.log("CLI Command to create this feature service:");
       console.log(cliCommand);
       
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
       setCliCommandDisplay(cliCommand);
       
-      /* 
-      const response = await fetch(`${registryUrl}/api/feature-services`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(featureServiceData),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || "Failed to create feature service");
+      if (writeToRegistry) {
+        try {
+          const result = await writeToLocalRegistry("feature_service", featureServiceDataForCli, registryUrl);
+          
+          if (result.success) {
+            setSuccess(true);
+            console.log("Feature service written to registry:", result.message);
+          } else {
+            throw new Error(result.message);
+          }
+        } catch (err) {
+          console.error("Error writing to registry:", err);
+          throw err;
+        }
+      } else {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        setSuccess(true);
       }
-      */
-
-      setSuccess(true);
       setName("");
       setDescription("");
       setTags("");
@@ -361,6 +353,18 @@ feature_service = FeatureService(
           </EuiAccordion>
 
           <EuiSpacer />
+          
+          <EuiFormRow>
+            <EuiSwitch
+              label="Write directly to registry"
+              checked={writeToRegistry}
+              onChange={(e) => setWriteToRegistry(e.target.checked)}
+              disabled={isSubmitting}
+              data-test-subj="writeToRegistrySwitch"
+            />
+          </EuiFormRow>
+          
+          <EuiSpacer />
 
           <EuiFlexGroup>
             <EuiFlexItem grow={false}>
@@ -374,7 +378,7 @@ feature_service = FeatureService(
                   selectedFeatures.length === 0
                 }
               >
-                Create Feature Service
+                {writeToRegistry ? 'Create Feature Service in Registry' : 'Generate CLI Command'}
               </EuiButton>
             </EuiFlexItem>
             <EuiFlexItem grow={false}>
