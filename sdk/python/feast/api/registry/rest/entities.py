@@ -42,12 +42,18 @@ def get_entity_router(grpc_handler) -> APIRouter:
     ):
         try:
             name = entity_data.get("name")
-            value_type = entity_data.get("valueType")
+            value_type_str = entity_data.get("valueType")
             join_key = entity_data.get("joinKey", name)
             description = entity_data.get("description", "")
             tags = entity_data.get("tags", {})
             owner = entity_data.get("owner", "")
             project = entity_data.get("project", "default")
+            
+            from feast.value_type import ValueType
+            try:
+                value_type = ValueType[value_type_str]
+            except (KeyError, TypeError):
+                return {"status": "error", "detail": f"Invalid value type: {value_type_str}"}
             
             entity = Entity(
                 name=name,
