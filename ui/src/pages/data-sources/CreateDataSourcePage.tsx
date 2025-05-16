@@ -20,7 +20,10 @@ import { useNavigate, useParams } from "react-router-dom";
 import { DataSourceIcon } from "../../graphics/DataSourceIcon";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import RegistryPathContext from "../../contexts/RegistryPathContext";
-import { writeToLocalRegistry, generateCliCommand } from "../../utils/localRegistryWriter";
+import {
+  writeToLocalRegistry,
+  generateCliCommand,
+} from "../../utils/localRegistryWriter";
 
 const dataSourceTypeOptions = [
   { value: "file", text: "File Source" },
@@ -123,18 +126,18 @@ const CreateDataSourcePage = () => {
       }
 
       console.log("Creating data source with data:", dataSourceData);
-      
+
       const cliCommand = generateCliCommand("data_source", {
         ...dataSourceData,
-        sourceType
+        sourceType,
       });
-      
+
       console.log("CLI Command to create this data source:");
       console.log(cliCommand);
-      
+
       setCliCommandDisplay(cliCommand);
-      
-      await new Promise(resolve => setTimeout(resolve, 500));
+
+      await new Promise((resolve) => setTimeout(resolve, 500));
       setSuccess(true);
       setName("");
       setDescription("");
@@ -151,7 +154,9 @@ const CreateDataSourcePage = () => {
       setKinesisStreamName("");
       setBigqueryTable("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An unknown error occurred");
+      setError(
+        err instanceof Error ? err.message : "An unknown error occurred",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -255,10 +260,25 @@ const CreateDataSourcePage = () => {
         )}
         {success && (
           <>
-            <EuiCallOut title="Data source creation instructions" color="success">
-              <p>To create this data source in your local Feast registry, use the following CLI command:</p>
-              <pre style={{ marginTop: '10px', backgroundColor: '#f5f5f5', padding: '10px', borderRadius: '4px', overflowX: 'auto' }}>
-                {cliCommandDisplay || `# Create a Python file named datasource_example.py with the following content:
+            <EuiCallOut
+              title="Data source creation instructions"
+              color="success"
+            >
+              <p>
+                To create this data source in your local Feast registry, use the
+                following CLI command:
+              </p>
+              <pre
+                style={{
+                  marginTop: "10px",
+                  backgroundColor: "#f5f5f5",
+                  padding: "10px",
+                  borderRadius: "4px",
+                  overflowX: "auto",
+                }}
+              >
+                {cliCommandDisplay ||
+                  `# Create a Python file named datasource_example.py with the following content:
 
 from feast import FileSource
 from feast.data_format import ParquetFormat
@@ -329,7 +349,10 @@ source = FileSource(
                 />
               </EuiFormRow>
 
-              <EuiFormRow label="Description" helpText="Human-readable description">
+              <EuiFormRow
+                label="Description"
+                helpText="Human-readable description"
+              >
                 <EuiTextArea
                   name="description"
                   value={description}
@@ -349,7 +372,10 @@ source = FileSource(
                 />
               </EuiFormRow>
 
-              <EuiFormRow label="Owner" helpText="Email of the primary maintainer">
+              <EuiFormRow
+                label="Owner"
+                helpText="Email of the primary maintainer"
+              >
                 <EuiFieldText
                   name="owner"
                   value={owner}
@@ -367,7 +393,9 @@ source = FileSource(
                 type="submit"
                 fill
                 isLoading={isSubmitting}
-                disabled={isSubmitting || !name || !sourceType || !timestampField}
+                disabled={
+                  isSubmitting || !name || !sourceType || !timestampField
+                }
               >
                 Generate CLI Command
               </EuiButton>

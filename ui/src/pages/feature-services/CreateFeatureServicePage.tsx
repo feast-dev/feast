@@ -28,7 +28,10 @@ import { FeatureServiceIcon } from "../../graphics/FeatureServiceIcon";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import RegistryPathContext from "../../contexts/RegistryPathContext";
 import useLoadRegistry from "../../queries/useLoadRegistry";
-import { writeToLocalRegistry, generateCliCommand } from "../../utils/localRegistryWriter";
+import {
+  writeToLocalRegistry,
+  generateCliCommand,
+} from "../../utils/localRegistryWriter";
 
 const CreateFeatureServicePage = () => {
   const { projectName } = useParams<{ projectName: string }>();
@@ -46,39 +49,47 @@ const CreateFeatureServicePage = () => {
   const [tags, setTags] = useState("");
   const [owner, setOwner] = useState("");
   const [cliCommandDisplay, setCliCommandDisplay] = useState("");
-  
-  const [featureViewOptions, setFeatureViewOptions] = useState<Array<{ label: string, features: string[] }>>([]);
-  const [selectedFeatures, setSelectedFeatures] = useState<Array<{ featureView: string, feature: string }>>([]);
-  
+
+  const [featureViewOptions, setFeatureViewOptions] = useState<
+    Array<{ label: string; features: string[] }>
+  >([]);
+  const [selectedFeatures, setSelectedFeatures] = useState<
+    Array<{ featureView: string; feature: string }>
+  >([]);
+
   const registryQuery = useLoadRegistry(registryUrl);
-  
+
   useEffect(() => {
     if (registryQuery.isSuccess && registryQuery.data) {
       const featureViews = registryQuery.data.mergedFVList || [];
       const options = featureViews
         .filter((fv: any) => fv.type === "regular")
         .map((fv: any) => {
-          const features = fv.object?.spec?.features?.map((f: any) => f.name) || [];
+          const features =
+            fv.object?.spec?.features?.map((f: any) => f.name) || [];
           return {
             label: fv.name,
-            features
+            features,
           };
         });
-      
+
       setFeatureViewOptions(options);
     }
   }, [registryQuery.isSuccess, registryQuery.data]);
 
-  const handleFeatureViewSelect = (selectedOptions: Array<{ label: string }>, featureView: { label: string, features: string[] }) => {
+  const handleFeatureViewSelect = (
+    selectedOptions: Array<{ label: string }>,
+    featureView: { label: string; features: string[] },
+  ) => {
     if (selectedOptions.length === 0) {
       return;
     }
-    
-    const newFeatures = selectedOptions.map(option => ({
+
+    const newFeatures = selectedOptions.map((option) => ({
       featureView: featureView.label,
-      feature: option.label
+      feature: option.label,
     }));
-    
+
     setSelectedFeatures([...selectedFeatures, ...newFeatures]);
   };
 
@@ -116,8 +127,9 @@ const CreateFeatureServicePage = () => {
       });
 
       if (!name) throw new Error("Name is required");
-      if (selectedFeatures.length === 0) throw new Error("At least one feature is required");
-      
+      if (selectedFeatures.length === 0)
+        throw new Error("At least one feature is required");
+
       const featuresByView: Record<string, string[]> = {};
       selectedFeatures.forEach(({ featureView, feature }) => {
         if (!featuresByView[featureView]) {
@@ -125,11 +137,13 @@ const CreateFeatureServicePage = () => {
         }
         featuresByView[featureView].push(feature);
       });
-      
-      const featureReferences = Object.entries(featuresByView).map(([featureView, features]) => ({
-        feature_view_name: featureView,
-        feature_names: features
-      }));
+
+      const featureReferences = Object.entries(featuresByView).map(
+        ([featureView, features]) => ({
+          feature_view_name: featureView,
+          feature_names: features,
+        }),
+      );
 
       const featureServiceData = {
         name,
@@ -141,7 +155,7 @@ const CreateFeatureServicePage = () => {
       };
 
       console.log("Creating feature service with data:", featureServiceData);
-      
+
       const featureServiceDataForCli = {
         name,
         description,
@@ -150,15 +164,18 @@ const CreateFeatureServicePage = () => {
         featureReferences: featuresByView,
         project: projectName,
       };
-      
-      const cliCommand = generateCliCommand("feature_service", featureServiceDataForCli);
-      
+
+      const cliCommand = generateCliCommand(
+        "feature_service",
+        featureServiceDataForCli,
+      );
+
       console.log("CLI Command to create this feature service:");
       console.log(cliCommand);
-      
+
       setCliCommandDisplay(cliCommand);
-      
-      await new Promise(resolve => setTimeout(resolve, 500));
+
+      await new Promise((resolve) => setTimeout(resolve, 500));
       setSuccess(true);
       setName("");
       setDescription("");
@@ -166,7 +183,9 @@ const CreateFeatureServicePage = () => {
       setOwner("");
       setSelectedFeatures([]);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An unknown error occurred");
+      setError(
+        err instanceof Error ? err.message : "An unknown error occurred",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -190,10 +209,25 @@ const CreateFeatureServicePage = () => {
         )}
         {success && (
           <>
-            <EuiCallOut title="Feature service creation instructions" color="success">
-              <p>To create this feature service in your local Feast registry, use the following CLI command:</p>
-              <pre style={{ marginTop: '10px', backgroundColor: '#f5f5f5', padding: '10px', borderRadius: '4px', overflowX: 'auto' }}>
-                {cliCommandDisplay || `# Create a Python file named feature_service_example.py with the following content:
+            <EuiCallOut
+              title="Feature service creation instructions"
+              color="success"
+            >
+              <p>
+                To create this feature service in your local Feast registry, use
+                the following CLI command:
+              </p>
+              <pre
+                style={{
+                  marginTop: "10px",
+                  backgroundColor: "#f5f5f5",
+                  padding: "10px",
+                  borderRadius: "4px",
+                  overflowX: "auto",
+                }}
+              >
+                {cliCommandDisplay ||
+                  `# Create a Python file named feature_service_example.py with the following content:
 
 from feast import FeatureService, FeatureReference
 
@@ -215,7 +249,10 @@ feature_service = FeatureService(
           </>
         )}
         <EuiForm component="form" onSubmit={handleSubmit}>
-          <EuiFormRow label="Name" helpText="Unique name for the feature service">
+          <EuiFormRow
+            label="Name"
+            helpText="Unique name for the feature service"
+          >
             <EuiFieldText
               name="name"
               value={name}
@@ -247,8 +284,10 @@ feature_service = FeatureService(
             >
               <EuiComboBox
                 placeholder="Select features"
-                options={featureView.features.map(f => ({ label: f }))}
-                onChange={(selected) => handleFeatureViewSelect(selected, featureView)}
+                options={featureView.features.map((f) => ({ label: f }))}
+                onChange={(selected) =>
+                  handleFeatureViewSelect(selected, featureView)
+                }
                 isClearable={true}
               />
             </EuiFormRow>
@@ -262,7 +301,9 @@ feature_service = FeatureService(
 
           {selectedFeatures.length === 0 ? (
             <EuiCallOut title="No features selected" color="warning">
-              <p>Please select at least one feature to include in this service.</p>
+              <p>
+                Please select at least one feature to include in this service.
+              </p>
             </EuiCallOut>
           ) : (
             <EuiDragDropContext onDragEnd={onDragEnd}>
@@ -283,9 +324,14 @@ feature_service = FeatureService(
                         </EuiFlexItem>
                         <EuiFlexItem>
                           <EuiPanel>
-                            <EuiFlexGroup alignItems="center" justifyContent="spaceBetween">
+                            <EuiFlexGroup
+                              alignItems="center"
+                              justifyContent="spaceBetween"
+                            >
                               <EuiFlexItem>
-                                <EuiBadge color="primary">{feature.featureView}</EuiBadge>
+                                <EuiBadge color="primary">
+                                  {feature.featureView}
+                                </EuiBadge>
                                 <EuiSpacer size="xs" />
                                 <EuiText size="s">{feature.feature}</EuiText>
                               </EuiFlexItem>
@@ -325,7 +371,10 @@ feature_service = FeatureService(
                 />
               </EuiFormRow>
 
-              <EuiFormRow label="Owner" helpText="Email of the primary maintainer">
+              <EuiFormRow
+                label="Owner"
+                helpText="Email of the primary maintainer"
+              >
                 <EuiFieldText
                   name="owner"
                   value={owner}
@@ -344,9 +393,7 @@ feature_service = FeatureService(
                 fill
                 isLoading={isSubmitting}
                 disabled={
-                  isSubmitting ||
-                  !name ||
-                  selectedFeatures.length === 0
+                  isSubmitting || !name || selectedFeatures.length === 0
                 }
               >
                 Generate CLI Command

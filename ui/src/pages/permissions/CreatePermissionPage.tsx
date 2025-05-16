@@ -19,7 +19,10 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import RegistryPathContext from "../../contexts/RegistryPathContext";
 import useLoadRegistry from "../../queries/useLoadRegistry";
-import { writeToLocalRegistry, generateCliCommand } from "../../utils/localRegistryWriter";
+import {
+  writeToLocalRegistry,
+  generateCliCommand,
+} from "../../utils/localRegistryWriter";
 
 const CreatePermissionPage = () => {
   const { projectName } = useParams<{ projectName: string }>();
@@ -81,15 +84,15 @@ const CreatePermissionPage = () => {
       };
 
       console.log("Creating permission with data:", permissionData);
-      
+
       const cliCommand = generateCliCommand("permission", permissionData);
-      
+
       console.log("CLI Command to create this permission:");
       console.log(cliCommand);
-      
+
       setCliCommandDisplay(cliCommand);
-      
-      await new Promise(resolve => setTimeout(resolve, 500));
+
+      await new Promise((resolve) => setTimeout(resolve, 500));
       setSuccess(true);
       setName("");
       setDescription("");
@@ -99,7 +102,9 @@ const CreatePermissionPage = () => {
       setTags("");
       setOwner("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An unknown error occurred");
+      setError(
+        err instanceof Error ? err.message : "An unknown error occurred",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -123,10 +128,25 @@ const CreatePermissionPage = () => {
         )}
         {success && (
           <>
-            <EuiCallOut title="Permission creation instructions" color="success">
-              <p>To create this permission in your local Feast registry, use the following CLI command:</p>
-              <pre style={{ marginTop: '10px', backgroundColor: '#f5f5f5', padding: '10px', borderRadius: '4px', overflowX: 'auto' }}>
-                {cliCommandDisplay || `# Create a Python file named permission_example.py with the following content:
+            <EuiCallOut
+              title="Permission creation instructions"
+              color="success"
+            >
+              <p>
+                To create this permission in your local Feast registry, use the
+                following CLI command:
+              </p>
+              <pre
+                style={{
+                  marginTop: "10px",
+                  backgroundColor: "#f5f5f5",
+                  padding: "10px",
+                  borderRadius: "4px",
+                  overflowX: "auto",
+                }}
+              >
+                {cliCommandDisplay ||
+                  `# Create a Python file named permission_example.py with the following content:
 
 from feast import Permission
 from feast.permissions.action import Action
@@ -158,7 +178,10 @@ permission = Permission(
             />
           </EuiFormRow>
 
-          <EuiFormRow label="Principal" helpText="User or role that is granted the permission">
+          <EuiFormRow
+            label="Principal"
+            helpText="User or role that is granted the permission"
+          >
             <EuiFieldText
               name="principal"
               value={principal}
@@ -167,7 +190,10 @@ permission = Permission(
             />
           </EuiFormRow>
 
-          <EuiFormRow label="Resource" helpText="Resource that the permission applies to">
+          <EuiFormRow
+            label="Resource"
+            helpText="Resource that the permission applies to"
+          >
             <EuiFieldText
               name="resource"
               value={resource}
@@ -208,7 +234,10 @@ permission = Permission(
                 />
               </EuiFormRow>
 
-              <EuiFormRow label="Owner" helpText="Email of the primary maintainer">
+              <EuiFormRow
+                label="Owner"
+                helpText="Email of the primary maintainer"
+              >
                 <EuiFieldText
                   name="owner"
                   value={owner}
@@ -227,11 +256,7 @@ permission = Permission(
                 fill
                 isLoading={isSubmitting}
                 disabled={
-                  isSubmitting ||
-                  !name ||
-                  !principal ||
-                  !resource ||
-                  !action
+                  isSubmitting || !name || !principal || !resource || !action
                 }
               >
                 Generate CLI Command

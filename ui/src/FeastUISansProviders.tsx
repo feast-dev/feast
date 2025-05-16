@@ -120,7 +120,8 @@ const FeastUISansProvidersInner = ({
                         <React.Suspense fallback={<div>Loading...</div>}>
                           <CreateDataSourcePage />
                         </React.Suspense>
-                      } />
+                      }
+                    />
                     <Route
                       path="data-source/:dataSourceName/*"
                       element={<DataSourceInstance />}
@@ -136,7 +137,8 @@ const FeastUISansProvidersInner = ({
                         <React.Suspense fallback={<div>Loading...</div>}>
                           <CreateFeatureViewPage />
                         </React.Suspense>
-                      } />
+                      }
+                    />
                     <Route
                       path="feature-view/:featureViewName/*"
                       element={<FeatureViewInstance />}
@@ -155,7 +157,8 @@ const FeastUISansProvidersInner = ({
                         <React.Suspense fallback={<div>Loading...</div>}>
                           <CreateFeatureServicePage />
                         </React.Suspense>
-                      } />
+                      }
+                    />
                     <Route
                       path="feature-service/:featureServiceName/*"
                       element={<FeatureServiceInstance />}
@@ -167,7 +170,8 @@ const FeastUISansProvidersInner = ({
                         <React.Suspense fallback={<div>Loading...</div>}>
                           <CreateEntityPage />
                         </React.Suspense>
-                      } />
+                      }
+                    />
                     <Route
                       path="entity/:entityName/*"
                       element={<EntityInstance />}
@@ -185,7 +189,8 @@ const FeastUISansProvidersInner = ({
                         <React.Suspense fallback={<div>Loading...</div>}>
                           <CreatePermissionPage />
                         </React.Suspense>
-                      } />
+                      }
+                    />
                     <Route path="lineage/" element={<LineageIndex />} />
                   </Route>
                 </Route>

@@ -23,7 +23,10 @@ import { FeatureViewIcon } from "../../graphics/FeatureViewIcon";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import RegistryPathContext from "../../contexts/RegistryPathContext";
 import useLoadRegistry from "../../queries/useLoadRegistry";
-import { writeToLocalRegistry, generateCliCommand } from "../../utils/localRegistryWriter";
+import {
+  writeToLocalRegistry,
+  generateCliCommand,
+} from "../../utils/localRegistryWriter";
 
 const valueTypeOptions = [
   { value: "INT32", text: "INT32" },
@@ -53,33 +56,41 @@ const CreateFeatureViewPage = () => {
   const [tags, setTags] = useState("");
   const [owner, setOwner] = useState("");
   const [cliCommandDisplay, setCliCommandDisplay] = useState("");
-  
+
   const [ttlSeconds, setTtlSeconds] = useState("86400");
-  
+
   const [features, setFeatures] = useState([{ name: "", valueType: "FLOAT" }]);
-  
-  const [selectedEntities, setSelectedEntities] = useState<Array<{ label: string }>>([]);
-  const [entityOptions, setEntityOptions] = useState<Array<{ label: string }>>([]);
-  
-  const [selectedDataSource, setSelectedDataSource] = useState<{ label: string } | null>(null);
-  const [dataSourceOptions, setDataSourceOptions] = useState<Array<{ label: string }>>([]);
-  
+
+  const [selectedEntities, setSelectedEntities] = useState<
+    Array<{ label: string }>
+  >([]);
+  const [entityOptions, setEntityOptions] = useState<Array<{ label: string }>>(
+    [],
+  );
+
+  const [selectedDataSource, setSelectedDataSource] = useState<{
+    label: string;
+  } | null>(null);
+  const [dataSourceOptions, setDataSourceOptions] = useState<
+    Array<{ label: string }>
+  >([]);
+
   const registryQuery = useLoadRegistry(registryUrl);
-  
+
   useEffect(() => {
     if (registryQuery.isSuccess && registryQuery.data) {
       const entities = registryQuery.data.objects.entities || [];
       setEntityOptions(
         entities.map((entity: any) => ({
           label: entity.spec?.name || "",
-        }))
+        })),
       );
-      
+
       const dataSources = registryQuery.data.objects.dataSources || [];
       setDataSourceOptions(
         dataSources.map((ds: any) => ({
           label: ds.name || "",
-        }))
+        })),
       );
     }
   }, [registryQuery.isSuccess, registryQuery.data]);
@@ -117,9 +128,11 @@ const CreateFeatureViewPage = () => {
 
       if (!name) throw new Error("Name is required");
       if (!selectedDataSource) throw new Error("Data source is required");
-      if (selectedEntities.length === 0) throw new Error("At least one entity is required");
-      if (features.length === 0) throw new Error("At least one feature is required");
-      
+      if (selectedEntities.length === 0)
+        throw new Error("At least one entity is required");
+      if (features.length === 0)
+        throw new Error("At least one feature is required");
+
       for (const feature of features) {
         if (!feature.name) throw new Error("All features must have a name");
       }
@@ -130,25 +143,25 @@ const CreateFeatureViewPage = () => {
         tags: tagsObject,
         owner,
         ttl_seconds: parseInt(ttlSeconds),
-        entities: selectedEntities.map(e => e.label),
-        features: features.map(f => ({
+        entities: selectedEntities.map((e) => e.label),
+        features: features.map((f) => ({
           name: f.name,
-          value_type: f.valueType
+          value_type: f.valueType,
         })),
         data_source: selectedDataSource.label,
         project: projectName,
       };
 
       console.log("Creating feature view with data:", featureViewData);
-      
+
       const cliCommand = generateCliCommand("feature_view", featureViewData);
-      
+
       console.log("CLI Command to create this feature view:");
       console.log(cliCommand);
-      
+
       setCliCommandDisplay(cliCommand);
-      
-      await new Promise(resolve => setTimeout(resolve, 500));
+
+      await new Promise((resolve) => setTimeout(resolve, 500));
       setSuccess(true);
       setName("");
       setDescription("");
@@ -159,7 +172,9 @@ const CreateFeatureViewPage = () => {
       setSelectedEntities([]);
       setSelectedDataSource(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An unknown error occurred");
+      setError(
+        err instanceof Error ? err.message : "An unknown error occurred",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -183,10 +198,25 @@ const CreateFeatureViewPage = () => {
         )}
         {success && (
           <>
-            <EuiCallOut title="Feature view creation instructions" color="success">
-              <p>To create this feature view in your local Feast registry, use the following CLI command:</p>
-              <pre style={{ marginTop: '10px', backgroundColor: '#f5f5f5', padding: '10px', borderRadius: '4px', overflowX: 'auto' }}>
-                {cliCommandDisplay || `# Create a Python file named feature_view_example.py with the following content:
+            <EuiCallOut
+              title="Feature view creation instructions"
+              color="success"
+            >
+              <p>
+                To create this feature view in your local Feast registry, use
+                the following CLI command:
+              </p>
+              <pre
+                style={{
+                  marginTop: "10px",
+                  backgroundColor: "#f5f5f5",
+                  padding: "10px",
+                  borderRadius: "4px",
+                  overflowX: "auto",
+                }}
+              >
+                {cliCommandDisplay ||
+                  `# Create a Python file named feature_view_example.py with the following content:
 
 from feast import FeatureView, Feature
 from feast.value_type import ValueType
@@ -263,7 +293,9 @@ feature_view = FeatureView(
               placeholder="Select data source"
               options={dataSourceOptions}
               selectedOptions={selectedDataSource ? [selectedDataSource] : []}
-              onChange={(selected) => setSelectedDataSource(selected[0] || null)}
+              onChange={(selected) =>
+                setSelectedDataSource(selected[0] || null)
+              }
               singleSelection={{ asPlainText: true }}
               isClearable={true}
               isInvalid={isSubmitting && !selectedDataSource}
@@ -282,7 +314,9 @@ feature_view = FeatureView(
                 <EuiFormRow label="Feature Name">
                   <EuiFieldText
                     value={feature.name}
-                    onChange={(e) => updateFeature(index, "name", e.target.value)}
+                    onChange={(e) =>
+                      updateFeature(index, "name", e.target.value)
+                    }
                     required
                   />
                 </EuiFormRow>
@@ -292,7 +326,9 @@ feature_view = FeatureView(
                   <EuiSelect
                     options={valueTypeOptions}
                     value={feature.valueType}
-                    onChange={(e) => updateFeature(index, "valueType", e.target.value)}
+                    onChange={(e) =>
+                      updateFeature(index, "valueType", e.target.value)
+                    }
                     required
                   />
                 </EuiFormRow>
@@ -333,7 +369,10 @@ feature_view = FeatureView(
                 />
               </EuiFormRow>
 
-              <EuiFormRow label="Owner" helpText="Email of the primary maintainer">
+              <EuiFormRow
+                label="Owner"
+                helpText="Email of the primary maintainer"
+              >
                 <EuiFieldText
                   name="owner"
                   value={owner}
@@ -357,7 +396,7 @@ feature_view = FeatureView(
                   !ttlSeconds ||
                   selectedEntities.length === 0 ||
                   !selectedDataSource ||
-                  features.some(f => !f.name)
+                  features.some((f) => !f.name)
                 }
               >
                 Generate CLI Command

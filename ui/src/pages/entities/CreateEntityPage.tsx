@@ -19,7 +19,10 @@ import { EntityIcon } from "../../graphics/EntityIcon";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import RegistryPathContext from "../../contexts/RegistryPathContext";
 import { feast } from "../../protos";
-import { writeToLocalRegistry, generateCliCommand } from "../../utils/localRegistryWriter";
+import {
+  writeToLocalRegistry,
+  generateCliCommand,
+} from "../../utils/localRegistryWriter";
 
 const valueTypeOptions = Object.keys(feast.types.ValueType.Enum)
   .filter((key) => isNaN(Number(key)))
@@ -54,7 +57,6 @@ const CreateEntityPage = () => {
     setSuccess(false);
 
     try {
-      
       const tagsObject: Record<string, string> = {};
       tags.split(",").forEach((tag) => {
         const [key, value] = tag.trim().split(":");
@@ -74,23 +76,23 @@ const CreateEntityPage = () => {
       };
 
       console.log("Creating entity with data:", entityData);
-      
+
       const cliCommand = generateCliCommand("entity", entityData);
       console.log("CLI Command to create this entity:");
       console.log(cliCommand);
-      
+
       setCliCommandDisplay(cliCommand);
-      
-      await new Promise(resolve => setTimeout(resolve, 500));
+
+      await new Promise((resolve) => setTimeout(resolve, 500));
       setSuccess(true);
-      
+
       setName("");
       setValueType(valueTypeOptions[0].value);
       setJoinKey("");
       setDescription("");
       setTags("");
       setOwner("");
-      
+
       /* 
       const response = await fetch(`${registryUrl}/api/entities`, {
         method: "POST",
@@ -105,9 +107,10 @@ const CreateEntityPage = () => {
         throw new Error(errorData.detail || "Failed to create entity");
       }
       */
-      
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An unknown error occurred");
+      setError(
+        err instanceof Error ? err.message : "An unknown error occurred",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -132,9 +135,21 @@ const CreateEntityPage = () => {
         {success && (
           <>
             <EuiCallOut title="Entity creation instructions" color="success">
-              <p>To create this entity in your local Feast registry, use the following CLI command:</p>
-              <pre style={{ marginTop: '10px', backgroundColor: '#f5f5f5', padding: '10px', borderRadius: '4px', overflowX: 'auto' }}>
-                {cliCommandDisplay || `# Create a Python file named entity_example.py with the following content:
+              <p>
+                To create this entity in your local Feast registry, use the
+                following CLI command:
+              </p>
+              <pre
+                style={{
+                  marginTop: "10px",
+                  backgroundColor: "#f5f5f5",
+                  padding: "10px",
+                  borderRadius: "4px",
+                  overflowX: "auto",
+                }}
+              >
+                {cliCommandDisplay ||
+                  `# Create a Python file named entity_example.py with the following content:
 
 from feast import Entity
 from feast.value_type import ValueType
