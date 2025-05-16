@@ -37,6 +37,7 @@ const CreatePermissionPage = () => {
   const [action, setAction] = useState("READ");
   const [tags, setTags] = useState("");
   const [owner, setOwner] = useState("");
+  const [cliCommandDisplay, setCliCommandDisplay] = useState("");
 
   const registryQuery = useLoadRegistry(registryUrl);
 
@@ -77,6 +78,34 @@ const CreatePermissionPage = () => {
         project: projectName,
       };
 
+      console.log("Creating permission with data:", permissionData);
+      
+      const cliCommand = `# Create a Python file named permission_${name.toLowerCase().replace(/\s+/g, '_')}.py with the following content:
+
+from feast import Permission
+from feast.permissions.action import Action
+
+permission = Permission(
+    name="${name}",
+    principal="${principal}",
+    resource="${resource}",
+    action=Action.${action},
+    description="${description}",
+    tags=${JSON.stringify(tagsObject)},
+    owner="${owner}"
+)
+
+# Then apply it using the Feast CLI:
+# feast apply permission_${name.toLowerCase().replace(/\s+/g, '_')}.py`;
+      
+      console.log("CLI Command to create this permission:");
+      console.log(cliCommand);
+      
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      setCliCommandDisplay(cliCommand);
+      
+      /* 
       const response = await fetch(`${registryUrl}/api/permissions`, {
         method: "POST",
         headers: {
@@ -89,6 +118,7 @@ const CreatePermissionPage = () => {
         const errorData = await response.json();
         throw new Error(errorData.detail || "Failed to create permission");
       }
+      */
 
       setSuccess(true);
       setName("");
@@ -123,8 +153,27 @@ const CreatePermissionPage = () => {
         )}
         {success && (
           <>
-            <EuiCallOut title="Permission created successfully" color="success">
-              <p>The permission has been created successfully.</p>
+            <EuiCallOut title="Permission creation instructions" color="success">
+              <p>To create this permission in your local Feast registry, use the following CLI command:</p>
+              <pre style={{ marginTop: '10px', backgroundColor: '#f5f5f5', padding: '10px', borderRadius: '4px', overflowX: 'auto' }}>
+                {cliCommandDisplay || `# Create a Python file named permission_example.py with the following content:
+
+from feast import Permission
+from feast.permissions.action import Action
+
+permission = Permission(
+    name="example_permission",
+    principal="user:example@example.com",
+    resource="project:default:entity:*",
+    action=Action.READ,
+    description="",
+    tags={},
+    owner=""
+)
+
+# Then apply it using the Feast CLI:
+# feast apply permission_example.py`}
+              </pre>
             </EuiCallOut>
             <EuiSpacer />
           </>

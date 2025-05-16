@@ -48,6 +48,7 @@ const CreateDataSourcePage = () => {
   const [eventTimestampColumn, setEventTimestampColumn] = useState("");
   const [tags, setTags] = useState("");
   const [owner, setOwner] = useState("");
+  const [cliCommandDisplay, setCliCommandDisplay] = useState("");
 
   const [kafkaBootstrapServers, setKafkaBootstrapServers] = useState("");
   const [kafkaTopic, setKafkaTopic] = useState("");
@@ -119,6 +120,112 @@ const CreateDataSourcePage = () => {
           break;
       }
 
+      console.log("Creating data source with data:", dataSourceData);
+      
+      let cliCommand = "";
+      
+      switch (sourceType) {
+        case "file":
+          cliCommand = `# Create a Python file named datasource_${name.toLowerCase().replace(/\s+/g, '_')}.py with the following content:
+
+from feast import FileSource
+from feast.data_format import ParquetFormat
+
+source = FileSource(
+    name="${name}",
+    path="${path}",
+    timestamp_field="${timestampField}",
+    created_timestamp_column="${createdTimestampColumn}",
+    description="${description}",
+    tags=${JSON.stringify(tagsObject)}
+)
+
+# Then apply it using the Feast CLI:
+# feast apply datasource_${name.toLowerCase().replace(/\s+/g, '_')}.py`;
+          break;
+          
+        case "bigquery":
+          cliCommand = `# Create a Python file named datasource_${name.toLowerCase().replace(/\s+/g, '_')}.py with the following content:
+
+from feast import BigQuerySource
+
+source = BigQuerySource(
+    name="${name}",
+    table="${bigqueryTable}",
+    timestamp_field="${timestampField}",
+    created_timestamp_column="${createdTimestampColumn}",
+    description="${description}",
+    tags=${JSON.stringify(tagsObject)}
+)
+
+# Then apply it using the Feast CLI:
+# feast apply datasource_${name.toLowerCase().replace(/\s+/g, '_')}.py`;
+          break;
+          
+        case "kafka":
+          cliCommand = `# Create a Python file named datasource_${name.toLowerCase().replace(/\s+/g, '_')}.py with the following content:
+
+from feast import KafkaSource
+from feast.data_format import AvroFormat
+
+source = KafkaSource(
+    name="${name}",
+    bootstrap_servers="${kafkaBootstrapServers}",
+    topic="${kafkaTopic}",
+    timestamp_field="${timestampField}",
+    description="${description}",
+    tags=${JSON.stringify(tagsObject)}
+)
+
+# Then apply it using the Feast CLI:
+# feast apply datasource_${name.toLowerCase().replace(/\s+/g, '_')}.py`;
+          break;
+          
+        case "kinesis":
+          cliCommand = `# Create a Python file named datasource_${name.toLowerCase().replace(/\s+/g, '_')}.py with the following content:
+
+from feast import KinesisSource
+from feast.data_format import AvroFormat
+
+source = KinesisSource(
+    name="${name}",
+    region="${kinesisRegion}",
+    stream_name="${kinesisStreamName}",
+    timestamp_field="${timestampField}",
+    description="${description}",
+    tags=${JSON.stringify(tagsObject)}
+)
+
+# Then apply it using the Feast CLI:
+# feast apply datasource_${name.toLowerCase().replace(/\s+/g, '_')}.py`;
+          break;
+          
+        case "push":
+          cliCommand = `# Create a Python file named datasource_${name.toLowerCase().replace(/\s+/g, '_')}.py with the following content:
+
+from feast import PushSource
+
+source = PushSource(
+    name="${name}",
+    batch_source=None,  # You'll need to define a batch source
+    timestamp_field="${timestampField}",
+    description="${description}",
+    tags=${JSON.stringify(tagsObject)}
+)
+
+# Then apply it using the Feast CLI:
+# feast apply datasource_${name.toLowerCase().replace(/\s+/g, '_')}.py`;
+          break;
+      }
+      
+      console.log("CLI Command to create this data source:");
+      console.log(cliCommand);
+      
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      setCliCommandDisplay(cliCommand);
+      
+      /* 
       const response = await fetch(`${registryUrl}/api/data-sources`, {
         method: "POST",
         headers: {
@@ -131,6 +238,7 @@ const CreateDataSourcePage = () => {
         const errorData = await response.json();
         throw new Error(errorData.detail || "Failed to create data source");
       }
+      */
 
       setSuccess(true);
       setName("");
@@ -252,8 +360,25 @@ const CreateDataSourcePage = () => {
         )}
         {success && (
           <>
-            <EuiCallOut title="Data source created successfully" color="success">
-              <p>The data source has been created successfully.</p>
+            <EuiCallOut title="Data source creation instructions" color="success">
+              <p>To create this data source in your local Feast registry, use the following CLI command:</p>
+              <pre style={{ marginTop: '10px', backgroundColor: '#f5f5f5', padding: '10px', borderRadius: '4px', overflowX: 'auto' }}>
+                {cliCommandDisplay || `# Create a Python file named datasource_example.py with the following content:
+
+from feast import FileSource
+from feast.data_format import ParquetFormat
+
+source = FileSource(
+    name="example_source",
+    path="/path/to/data.parquet",
+    timestamp_field="event_timestamp",
+    description="",
+    tags={}
+)
+
+# Then apply it using the Feast CLI:
+# feast apply datasource_example.py`}
+              </pre>
             </EuiCallOut>
             <EuiSpacer />
           </>

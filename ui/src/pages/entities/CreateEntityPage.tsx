@@ -43,6 +43,7 @@ const CreateEntityPage = () => {
   const [description, setDescription] = useState("");
   const [tags, setTags] = useState("");
   const [owner, setOwner] = useState("");
+  const [cliCommandDisplay, setCliCommandDisplay] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,6 +52,7 @@ const CreateEntityPage = () => {
     setSuccess(false);
 
     try {
+      
       const tagsObject: Record<string, string> = {};
       tags.split(",").forEach((tag) => {
         const [key, value] = tag.trim().split(":");
@@ -69,6 +71,41 @@ const CreateEntityPage = () => {
         project: projectName,
       };
 
+      console.log("Creating entity with data:", entityData);
+      
+      const cliCommand = `# Create a Python file named entity_${name.toLowerCase().replace(/\s+/g, '_')}.py with the following content:
+
+from feast import Entity
+from feast.value_type import ValueType
+
+entity = Entity(
+    name="${name}",
+    value_type=ValueType.${valueType},
+    join_key="${joinKey || name}",
+    description="${description}",
+    tags=${JSON.stringify(tagsObject)},
+    owner="${owner}"
+)
+
+# Then apply it using the Feast CLI:
+# feast apply entity_${name.toLowerCase().replace(/\s+/g, '_')}.py`;
+      
+      console.log("CLI Command to create this entity:");
+      console.log(cliCommand);
+      
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      setCliCommandDisplay(cliCommand);
+      setSuccess(true);
+      
+      setName("");
+      setValueType(valueTypeOptions[0].value);
+      setJoinKey("");
+      setDescription("");
+      setTags("");
+      setOwner("");
+      
+      /* 
       const response = await fetch(`${registryUrl}/api/entities`, {
         method: "POST",
         headers: {
@@ -81,14 +118,8 @@ const CreateEntityPage = () => {
         const errorData = await response.json();
         throw new Error(errorData.detail || "Failed to create entity");
       }
-
-      setSuccess(true);
-      setName("");
-      setValueType(valueTypeOptions[0].value);
-      setJoinKey("");
-      setDescription("");
-      setTags("");
-      setOwner("");
+      */
+      
     } catch (err) {
       setError(err instanceof Error ? err.message : "An unknown error occurred");
     } finally {
@@ -114,8 +145,26 @@ const CreateEntityPage = () => {
         )}
         {success && (
           <>
-            <EuiCallOut title="Entity created successfully" color="success">
-              <p>The entity has been created successfully.</p>
+            <EuiCallOut title="Entity creation instructions" color="success">
+              <p>To create this entity in your local Feast registry, use the following CLI command:</p>
+              <pre style={{ marginTop: '10px', backgroundColor: '#f5f5f5', padding: '10px', borderRadius: '4px', overflowX: 'auto' }}>
+                {cliCommandDisplay || `# Create a Python file named entity_example.py with the following content:
+
+from feast import Entity
+from feast.value_type import ValueType
+
+entity = Entity(
+    name="example_entity",
+    value_type=ValueType.${valueTypeOptions[0].value},
+    join_key="example_entity",
+    description="",
+    tags={},
+    owner=""
+)
+
+# Then apply it using the Feast CLI:
+# feast apply entity_example.py`}
+              </pre>
             </EuiCallOut>
             <EuiSpacer />
           </>

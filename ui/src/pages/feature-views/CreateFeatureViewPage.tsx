@@ -50,6 +50,7 @@ const CreateFeatureViewPage = () => {
   const [description, setDescription] = useState("");
   const [tags, setTags] = useState("");
   const [owner, setOwner] = useState("");
+  const [cliCommandDisplay, setCliCommandDisplay] = useState("");
   
   const [ttlSeconds, setTtlSeconds] = useState("86400");
   
@@ -136,6 +137,52 @@ const CreateFeatureViewPage = () => {
         project: projectName,
       };
 
+      console.log("Creating feature view with data:", featureViewData);
+      
+      const featuresCode = features.map(f => 
+        `    Feature(name="${f.name}", dtype=${f.valueType})`
+      ).join(",\n");
+      
+      const entitiesCode = selectedEntities.map(e => 
+        `"${e.label}"`
+      ).join(", ");
+      
+      const cliCommand = `# Create a Python file named feature_view_${name.toLowerCase().replace(/\s+/g, '_')}.py with the following content:
+
+from feast import FeatureView, Feature
+from feast.value_type import ValueType
+from datetime import timedelta
+
+# You'll need to get references to your entities and data source
+# This is a simplified example - you may need to adjust based on your actual setup
+data_source = feast.get_data_source("${selectedDataSource?.label || ''}")
+entities = [feast.get_entity(e) for e in [${entitiesCode}]]
+
+feature_view = FeatureView(
+    name="${name}",
+    entities=entities,
+    ttl=timedelta(seconds=${ttlSeconds}),
+    features=[
+${featuresCode}
+    ],
+    online=True,
+    source=data_source,
+    tags=${JSON.stringify(tagsObject)},
+    owner="${owner}",
+    description="${description}"
+)
+
+# Then apply it using the Feast CLI:
+# feast apply feature_view_${name.toLowerCase().replace(/\s+/g, '_')}.py`;
+      
+      console.log("CLI Command to create this feature view:");
+      console.log(cliCommand);
+      
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      setCliCommandDisplay(cliCommand);
+      
+      /* 
       const response = await fetch(`${registryUrl}/api/feature-views`, {
         method: "POST",
         headers: {
@@ -148,6 +195,7 @@ const CreateFeatureViewPage = () => {
         const errorData = await response.json();
         throw new Error(errorData.detail || "Failed to create feature view");
       }
+      */
 
       setSuccess(true);
       setName("");
@@ -183,8 +231,37 @@ const CreateFeatureViewPage = () => {
         )}
         {success && (
           <>
-            <EuiCallOut title="Feature view created successfully" color="success">
-              <p>The feature view has been created successfully.</p>
+            <EuiCallOut title="Feature view creation instructions" color="success">
+              <p>To create this feature view in your local Feast registry, use the following CLI command:</p>
+              <pre style={{ marginTop: '10px', backgroundColor: '#f5f5f5', padding: '10px', borderRadius: '4px', overflowX: 'auto' }}>
+                {cliCommandDisplay || `# Create a Python file named feature_view_example.py with the following content:
+
+from feast import FeatureView, Feature
+from feast.value_type import ValueType
+from datetime import timedelta
+
+# You'll need to get references to your entities and data source
+# This is a simplified example - you may need to adjust based on your actual setup
+data_source = feast.get_data_source("example_source")
+entities = [feast.get_entity(e) for e in ["example_entity"]]
+
+feature_view = FeatureView(
+    name="example_feature_view",
+    entities=entities,
+    ttl=timedelta(seconds=86400),
+    features=[
+        Feature(name="example_feature", dtype=FLOAT)
+    ],
+    online=True,
+    source=data_source,
+    tags={},
+    owner="",
+    description=""
+)
+
+# Then apply it using the Feast CLI:
+# feast apply feature_view_example.py`}
+              </pre>
             </EuiCallOut>
             <EuiSpacer />
           </>

@@ -43,6 +43,7 @@ const CreateFeatureServicePage = () => {
   const [description, setDescription] = useState("");
   const [tags, setTags] = useState("");
   const [owner, setOwner] = useState("");
+  const [cliCommandDisplay, setCliCommandDisplay] = useState("");
   
   const [featureViewOptions, setFeatureViewOptions] = useState<Array<{ label: string, features: string[] }>>([]);
   const [selectedFeatures, setSelectedFeatures] = useState<Array<{ featureView: string, feature: string }>>([]);
@@ -137,6 +138,38 @@ const CreateFeatureServicePage = () => {
         project: projectName,
       };
 
+      console.log("Creating feature service with data:", featureServiceData);
+      
+      const featureReferenceCode = Object.entries(featuresByView).map(([featureView, features]) => {
+        const featuresStr = features.map(f => `"${f}"`).join(", ");
+        return `    FeatureReference(name="${featureView}", features=[${featuresStr}])`;
+      }).join(",\n");
+      
+      const cliCommand = `# Create a Python file named feature_service_${name.toLowerCase().replace(/\s+/g, '_')}.py with the following content:
+
+from feast import FeatureService, FeatureReference
+
+feature_service = FeatureService(
+    name="${name}",
+    features=[
+${featureReferenceCode}
+    ],
+    tags=${JSON.stringify(tagsObject)},
+    owner="${owner}",
+    description="${description}"
+)
+
+# Then apply it using the Feast CLI:
+# feast apply feature_service_${name.toLowerCase().replace(/\s+/g, '_')}.py`;
+      
+      console.log("CLI Command to create this feature service:");
+      console.log(cliCommand);
+      
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      setCliCommandDisplay(cliCommand);
+      
+      /* 
       const response = await fetch(`${registryUrl}/api/feature-services`, {
         method: "POST",
         headers: {
@@ -149,6 +182,7 @@ const CreateFeatureServicePage = () => {
         const errorData = await response.json();
         throw new Error(errorData.detail || "Failed to create feature service");
       }
+      */
 
       setSuccess(true);
       setName("");
@@ -181,8 +215,26 @@ const CreateFeatureServicePage = () => {
         )}
         {success && (
           <>
-            <EuiCallOut title="Feature service created successfully" color="success">
-              <p>The feature service has been created successfully.</p>
+            <EuiCallOut title="Feature service creation instructions" color="success">
+              <p>To create this feature service in your local Feast registry, use the following CLI command:</p>
+              <pre style={{ marginTop: '10px', backgroundColor: '#f5f5f5', padding: '10px', borderRadius: '4px', overflowX: 'auto' }}>
+                {cliCommandDisplay || `# Create a Python file named feature_service_example.py with the following content:
+
+from feast import FeatureService, FeatureReference
+
+feature_service = FeatureService(
+    name="example_service",
+    features=[
+        FeatureReference(name="example_feature_view", features=["example_feature"])
+    ],
+    tags={},
+    owner="",
+    description=""
+)
+
+# Then apply it using the Feast CLI:
+# feast apply feature_service_example.py`}
+              </pre>
             </EuiCallOut>
             <EuiSpacer />
           </>
