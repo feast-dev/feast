@@ -499,6 +499,10 @@ func (feast *FeastServices) getContainerCommand(feastType FeastServiceType) []st
 	deploySettings := FeastServiceConstants[feastType]
 	targetPort := deploySettings.TargetHttpPort
 	tls := feast.getTlsConfigs(feastType)
+	mode := feast.getModeForType(feastType)
+	if mode == "rest" {
+		deploySettings.Args = append(deploySettings.Args, "--rest-api")
+	}
 	if tls.IsTLS() {
 		targetPort = deploySettings.TargetHttpsPort
 		feastTlsPath := GetTlsPath(feastType)

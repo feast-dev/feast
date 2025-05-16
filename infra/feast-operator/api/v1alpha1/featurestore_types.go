@@ -499,6 +499,9 @@ type ServerConfigs struct {
 	// required by the Feast components. Ensure that each volume mount has a corresponding
 	// volume definition in the Volumes field.
 	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitempty"`
+	// Mode specifies the registry API serving mode.
+	// Allowed values: "grpc", "rest".
+	Mode string `json:"mode,omitempty"`
 }
 
 // CronJobContainerConfigs k8s container settings for the CronJob

@@ -1022,6 +1022,11 @@ spec:
                             - error
                             - critical
                             type: string
+                          mode:
+                            description: |-
+                              Mode specifies the registry API serving mode.
+                              Allowed values: "grpc", "rest".
+                            type: string
                           resources:
                             description: ResourceRequirements describes the compute
                               resource requirements.
@@ -1476,6 +1481,11 @@ spec:
                             - warning
                             - error
                             - critical
+                            type: string
+                          mode:
+                            description: |-
+                              Mode specifies the registry API serving mode.
+                              Allowed values: "grpc", "rest".
                             type: string
                           resources:
                             description: ResourceRequirements describes the compute
@@ -1938,6 +1948,11 @@ spec:
                                 - warning
                                 - error
                                 - critical
+                                type: string
+                              mode:
+                                description: |-
+                                  Mode specifies the registry API serving mode.
+                                  Allowed values: "grpc", "rest".
                                 type: string
                               resources:
                                 description: ResourceRequirements describes the compute
@@ -2427,6 +2442,11 @@ spec:
                         - warning
                         - error
                         - critical
+                        type: string
+                      mode:
+                        description: |-
+                          Mode specifies the registry API serving mode.
+                          Allowed values: "grpc", "rest".
                         type: string
                       resources:
                         description: ResourceRequirements describes the compute resource
@@ -4978,6 +4998,11 @@ spec:
                                 - error
                                 - critical
                                 type: string
+                              mode:
+                                description: |-
+                                  Mode specifies the registry API serving mode.
+                                  Allowed values: "grpc", "rest".
+                                type: string
                               resources:
                                 description: ResourceRequirements describes the compute
                                   resource requirements.
@@ -5440,6 +5465,11 @@ spec:
                                 - warning
                                 - error
                                 - critical
+                                type: string
+                              mode:
+                                description: |-
+                                  Mode specifies the registry API serving mode.
+                                  Allowed values: "grpc", "rest".
                                 type: string
                               resources:
                                 description: ResourceRequirements describes the compute
@@ -5914,6 +5944,11 @@ spec:
                                     - warning
                                     - error
                                     - critical
+                                    type: string
+                                  mode:
+                                    description: |-
+                                      Mode specifies the registry API serving mode.
+                                      Allowed values: "grpc", "rest".
                                     type: string
                                   resources:
                                     description: ResourceRequirements describes the
@@ -6411,6 +6446,11 @@ spec:
                             - warning
                             - error
                             - critical
+                            type: string
+                          mode:
+                            description: |-
+                              Mode specifies the registry API serving mode.
+                              Allowed values: "grpc", "rest".
                             type: string
                           resources:
                             description: ResourceRequirements describes the compute
