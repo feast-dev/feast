@@ -53,7 +53,6 @@ const CreateFeatureViewPage = () => {
   const [tags, setTags] = useState("");
   const [owner, setOwner] = useState("");
   const [cliCommandDisplay, setCliCommandDisplay] = useState("");
-  const [writeToRegistry, setWriteToRegistry] = useState(false);
   
   const [ttlSeconds, setTtlSeconds] = useState("86400");
   
@@ -149,24 +148,8 @@ const CreateFeatureViewPage = () => {
       
       setCliCommandDisplay(cliCommand);
       
-      if (writeToRegistry) {
-        try {
-          const result = await writeToLocalRegistry("feature_view", featureViewData, registryUrl);
-          
-          if (result.success) {
-            setSuccess(true);
-            console.log("Feature view written to registry:", result.message);
-          } else {
-            throw new Error(result.message);
-          }
-        } catch (err) {
-          console.error("Error writing to registry:", err);
-          throw err;
-        }
-      } else {
-        await new Promise(resolve => setTimeout(resolve, 500));
-        setSuccess(true);
-      }
+      await new Promise(resolve => setTimeout(resolve, 500));
+      setSuccess(true);
       setName("");
       setDescription("");
       setTags("");
@@ -361,18 +344,6 @@ feature_view = FeatureView(
           </EuiAccordion>
 
           <EuiSpacer />
-          
-          <EuiFormRow>
-            <EuiSwitch
-              label="Write directly to registry"
-              checked={writeToRegistry}
-              onChange={(e) => setWriteToRegistry(e.target.checked)}
-              disabled={isSubmitting}
-              data-test-subj="writeToRegistrySwitch"
-            />
-          </EuiFormRow>
-          
-          <EuiSpacer />
 
           <EuiFlexGroup>
             <EuiFlexItem grow={false}>
@@ -389,7 +360,7 @@ feature_view = FeatureView(
                   features.some(f => !f.name)
                 }
               >
-                {writeToRegistry ? 'Create Feature View in Registry' : 'Generate CLI Command'}
+                Generate CLI Command
               </EuiButton>
             </EuiFlexItem>
             <EuiFlexItem grow={false}>
