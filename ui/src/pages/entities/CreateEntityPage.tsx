@@ -142,10 +142,13 @@ const CreateEntityPage = () => {
               <pre
                 style={{
                   marginTop: "10px",
-                  backgroundColor: "#f5f5f5",
-                  padding: "10px",
+                  backgroundColor: "#2d2d2d",
+                  color: "#f8f8f8",
+                  padding: "15px",
                   borderRadius: "4px",
                   overflowX: "auto",
+                  border: "1px solid #444",
+                  fontFamily: "monospace",
                 }}
               >
                 {cliCommandDisplay ||
