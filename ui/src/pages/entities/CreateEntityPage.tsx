@@ -12,12 +12,14 @@ import {
   EuiCallOut,
   EuiFlexGroup,
   EuiFlexItem,
+  EuiSwitch,
 } from "@elastic/eui";
 import { useNavigate, useParams } from "react-router-dom";
 import { EntityIcon } from "../../graphics/EntityIcon";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import RegistryPathContext from "../../contexts/RegistryPathContext";
 import { feast } from "../../protos";
+import { writeToLocalRegistry, generateCliCommand } from "../../utils/localRegistryWriter";
 
 const valueTypeOptions = Object.keys(feast.types.ValueType.Enum)
   .filter((key) => isNaN(Number(key)))
@@ -44,6 +46,7 @@ const CreateEntityPage = () => {
   const [tags, setTags] = useState("");
   const [owner, setOwner] = useState("");
   const [cliCommandDisplay, setCliCommandDisplay] = useState("");
+  const [writeToRegistry, setWriteToRegistry] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,30 +76,30 @@ const CreateEntityPage = () => {
 
       console.log("Creating entity with data:", entityData);
       
-      const cliCommand = `# Create a Python file named entity_${name.toLowerCase().replace(/\s+/g, '_')}.py with the following content:
-
-from feast import Entity
-from feast.value_type import ValueType
-
-entity = Entity(
-    name="${name}",
-    value_type=ValueType.${valueType},
-    join_key="${joinKey || name}",
-    description="${description}",
-    tags=${JSON.stringify(tagsObject)},
-    owner="${owner}"
-)
-
-# Then apply it using the Feast CLI:
-# feast apply entity_${name.toLowerCase().replace(/\s+/g, '_')}.py`;
-      
+      const cliCommand = generateCliCommand("entity", entityData);
       console.log("CLI Command to create this entity:");
       console.log(cliCommand);
       
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
       setCliCommandDisplay(cliCommand);
-      setSuccess(true);
+      
+      if (writeToRegistry) {
+        try {
+          const result = await writeToLocalRegistry("entity", entityData, registryUrl);
+          
+          if (result.success) {
+            setSuccess(true);
+            console.log("Entity written to registry:", result.message);
+          } else {
+            throw new Error(result.message);
+          }
+        } catch (err) {
+          console.error("Error writing to registry:", err);
+          throw err;
+        }
+      } else {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        setSuccess(true);
+      }
       
       setName("");
       setValueType(valueTypeOptions[0].value);
@@ -228,6 +231,18 @@ entity = Entity(
           </EuiFormRow>
 
           <EuiSpacer />
+          
+          <EuiFormRow>
+            <EuiSwitch
+              label="Write directly to registry"
+              checked={writeToRegistry}
+              onChange={(e) => setWriteToRegistry(e.target.checked)}
+              disabled={isSubmitting}
+              data-test-subj="writeToRegistrySwitch"
+            />
+          </EuiFormRow>
+          
+          <EuiSpacer />
 
           <EuiFlexGroup>
             <EuiFlexItem grow={false}>
@@ -237,7 +252,7 @@ entity = Entity(
                 isLoading={isSubmitting}
                 disabled={isSubmitting || !name || !valueType}
               >
-                Create Entity
+                {writeToRegistry ? 'Create Entity in Registry' : 'Generate CLI Command'}
               </EuiButton>
             </EuiFlexItem>
             <EuiFlexItem grow={false}>
