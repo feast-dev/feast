@@ -2,13 +2,13 @@
 name = "feast"
 description = "Python SDK for Feast"
 readme = "README.md"
-requires-python = ">=3.9.0"
+requires-python = ">=3.10.0"
 license = {file = "LICENSE"}
 classifiers = [
     "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9"
+    "Programming Language :: Python :: 3.10"
 ]
 dynamic = [
     "version",
@@ -227,7 +227,7 @@ tag_regex = "^(?:[\\/\\w-]+)?(?P<version>[vV]?\\d+(?:\\.\\d+){0,2}[^\\+]*)(?:\\+
 
 [tool.ruff]
 line-length = 88
-target-version = "py39"
+target-version = "py310"
 include = ["*.py", "*.pyi"]
 
 [tool.ruff.format]

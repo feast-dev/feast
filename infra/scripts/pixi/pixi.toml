@@ -17,7 +17,11 @@ python = "~=3.10.0"
 [feature.py311.dependencies]
 python = "~=3.11.0"
 
+[feature.py312.dependencies]
+python = "~=3.12.0"
+
 [environments]
 py39 = ["py39"]
 py310 = ["py310"]
 py311 = ["py311"]
+py312 = ["py312"]
