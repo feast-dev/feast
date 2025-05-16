@@ -19,6 +19,8 @@ import {
   EuiDroppable,
   EuiCard,
   EuiBadge,
+  EuiIcon,
+  EuiText,
 } from "@elastic/eui";
 import { useNavigate, useParams } from "react-router-dom";
 import { FeatureServiceIcon } from "../../graphics/FeatureServiceIcon";
@@ -186,7 +188,7 @@ const CreateFeatureServicePage = () => {
           </>
         )}
         <EuiForm component="form" onSubmit={handleSubmit}>
-          <EuiFormRow label="Name" helpText="Unique name for the feature service" required>
+          <EuiFormRow label="Name" helpText="Unique name for the feature service">
             <EuiFieldText
               name="name"
               value={name}

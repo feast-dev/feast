@@ -159,7 +159,7 @@ const CreateDataSourcePage = () => {
       case "file":
         return (
           <>
-            <EuiFormRow label="File Path" required>
+            <EuiFormRow label="File Path">
               <EuiFieldText
                 name="path"
                 value={path}
@@ -172,7 +172,7 @@ const CreateDataSourcePage = () => {
       case "bigquery":
         return (
           <>
-            <EuiFormRow label="BigQuery Table" required>
+            <EuiFormRow label="BigQuery Table">
               <EuiFieldText
                 name="bigqueryTable"
                 value={bigqueryTable}
@@ -186,7 +186,7 @@ const CreateDataSourcePage = () => {
       case "kafka":
         return (
           <>
-            <EuiFormRow label="Bootstrap Servers" required>
+            <EuiFormRow label="Bootstrap Servers">
               <EuiFieldText
                 name="kafkaBootstrapServers"
                 value={kafkaBootstrapServers}
@@ -195,7 +195,7 @@ const CreateDataSourcePage = () => {
                 placeholder="localhost:9092"
               />
             </EuiFormRow>
-            <EuiFormRow label="Topic" required>
+            <EuiFormRow label="Topic">
               <EuiFieldText
                 name="kafkaTopic"
                 value={kafkaTopic}
@@ -208,7 +208,7 @@ const CreateDataSourcePage = () => {
       case "kinesis":
         return (
           <>
-            <EuiFormRow label="Region" required>
+            <EuiFormRow label="Region">
               <EuiFieldText
                 name="kinesisRegion"
                 value={kinesisRegion}
@@ -217,7 +217,7 @@ const CreateDataSourcePage = () => {
                 placeholder="us-west-1"
               />
             </EuiFormRow>
-            <EuiFormRow label="Stream Name" required>
+            <EuiFormRow label="Stream Name">
               <EuiFieldText
                 name="kinesisStreamName"
                 value={kinesisStreamName}
@@ -259,7 +259,7 @@ const CreateDataSourcePage = () => {
           </>
         )}
         <EuiForm component="form" onSubmit={handleSubmit}>
-          <EuiFormRow label="Name" helpText="Unique name for the data source" required>
+          <EuiFormRow label="Name" helpText="Unique name for the data source">
             <EuiFieldText
               name="name"
               value={name}
@@ -268,7 +268,7 @@ const CreateDataSourcePage = () => {
             />
           </EuiFormRow>
 
-          <EuiFormRow label="Source Type" required>
+          <EuiFormRow label="Source Type">
             <EuiSelect
               options={dataSourceTypeOptions}
               value={sourceType}
@@ -279,7 +279,7 @@ const CreateDataSourcePage = () => {
 
           {renderSourceSpecificFields()}
 
-          <EuiFormRow label="Timestamp Field" required>
+          <EuiFormRow label="Timestamp Field">
             <EuiFieldText
               name="timestampField"
               value={timestampField}

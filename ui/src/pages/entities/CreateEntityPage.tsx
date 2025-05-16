@@ -121,7 +121,7 @@ const CreateEntityPage = () => {
           </>
         )}
         <EuiForm component="form" onSubmit={handleSubmit}>
-          <EuiFormRow label="Name" helpText="Unique name for the entity" required>
+          <EuiFormRow label="Name" helpText="Unique name for the entity">
             <EuiFieldText
               name="name"
               value={name}
@@ -130,7 +130,7 @@ const CreateEntityPage = () => {
             />
           </EuiFormRow>
 
-          <EuiFormRow label="Value Type" helpText="The type of the entity" required>
+          <EuiFormRow label="Value Type" helpText="The type of the entity">
             <EuiSelect
               options={valueTypeOptions}
               value={valueType}

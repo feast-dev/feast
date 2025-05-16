@@ -190,7 +190,7 @@ const CreateFeatureViewPage = () => {
           </>
         )}
         <EuiForm component="form" onSubmit={handleSubmit}>
-          <EuiFormRow label="Name" helpText="Unique name for the feature view" required>
+          <EuiFormRow label="Name" helpText="Unique name for the feature view">
             <EuiFieldText
               name="name"
               value={name}
@@ -208,7 +208,7 @@ const CreateFeatureViewPage = () => {
             />
           </EuiFormRow>
 
-          <EuiFormRow label="TTL (seconds)" helpText="Time to live in seconds" required>
+          <EuiFormRow label="TTL (seconds)" helpText="Time to live in seconds">
             <EuiFieldNumber
               name="ttlSeconds"
               value={ttlSeconds}
@@ -218,7 +218,7 @@ const CreateFeatureViewPage = () => {
             />
           </EuiFormRow>
 
-          <EuiFormRow label="Entities" helpText="Select one or more entities" required>
+          <EuiFormRow label="Entities" helpText="Select one or more entities">
             <EuiComboBox
               placeholder="Select entities"
               options={entityOptions}
@@ -229,7 +229,7 @@ const CreateFeatureViewPage = () => {
             />
           </EuiFormRow>
 
-          <EuiFormRow label="Data Source" helpText="Select a data source" required>
+          <EuiFormRow label="Data Source" helpText="Select a data source">
             <EuiComboBox
               placeholder="Select data source"
               options={dataSourceOptions}
@@ -250,7 +250,7 @@ const CreateFeatureViewPage = () => {
           {features.map((feature, index) => (
             <EuiFlexGroup key={index} alignItems="center">
               <EuiFlexItem>
-                <EuiFormRow label="Feature Name" required>
+                <EuiFormRow label="Feature Name">
                   <EuiFieldText
                     value={feature.name}
                     onChange={(e) => updateFeature(index, "name", e.target.value)}
@@ -259,7 +259,7 @@ const CreateFeatureViewPage = () => {
                 </EuiFormRow>
               </EuiFlexItem>
               <EuiFlexItem>
-                <EuiFormRow label="Value Type" required>
+                <EuiFormRow label="Value Type">
                   <EuiSelect
                     options={valueTypeOptions}
                     value={feature.valueType}

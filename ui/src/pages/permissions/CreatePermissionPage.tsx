@@ -130,7 +130,7 @@ const CreatePermissionPage = () => {
           </>
         )}
         <EuiForm component="form" onSubmit={handleSubmit}>
-          <EuiFormRow label="Name" helpText="Unique name for the permission" required>
+          <EuiFormRow label="Name" helpText="Unique name for the permission">
             <EuiFieldText
               name="name"
               value={name}
@@ -139,7 +139,7 @@ const CreatePermissionPage = () => {
             />
           </EuiFormRow>
 
-          <EuiFormRow label="Principal" helpText="User or role that is granted the permission" required>
+          <EuiFormRow label="Principal" helpText="User or role that is granted the permission">
             <EuiFieldText
               name="principal"
               value={principal}
@@ -148,7 +148,7 @@ const CreatePermissionPage = () => {
             />
           </EuiFormRow>
 
-          <EuiFormRow label="Resource" helpText="Resource that the permission applies to" required>
+          <EuiFormRow label="Resource" helpText="Resource that the permission applies to">
             <EuiFieldText
               name="resource"
               value={resource}
@@ -157,7 +157,7 @@ const CreatePermissionPage = () => {
             />
           </EuiFormRow>
 
-          <EuiFormRow label="Action" helpText="Type of access granted" required>
+          <EuiFormRow label="Action" helpText="Type of access granted">
             <EuiSelect
               options={actionOptions}
               value={action}
