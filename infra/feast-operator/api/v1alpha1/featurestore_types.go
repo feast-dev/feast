@@ -105,7 +105,7 @@ type GitCloneOptions struct {
 type FeastInitOptions struct {
 	Minimal bool `json:"minimal,omitempty"`
 	// Template for the created project
-	// +kubebuilder:validation:Enum=local;gcp;aws;snowflake;spark;postgres;hbase;cassandra;hazelcast;ikv;couchbase
+	// +kubebuilder:validation:Enum=local;gcp;aws;snowflake;spark;postgres;hbase;cassandra;hazelcast;ikv;couchbase;clickhouse
 	Template string `json:"template,omitempty"`
 }
 
@@ -315,7 +315,7 @@ var ValidOfflineStoreFilePersistenceTypes = []string{
 // OfflineStoreDBStorePersistence configures the DB store persistence for the offline store service
 type OfflineStoreDBStorePersistence struct {
 	// Type of the persistence type you want to use.
-	// +kubebuilder:validation:Enum=snowflake.offline;bigquery;redshift;spark;postgres;trino;athena;mssql;couchbase.offline
+	// +kubebuilder:validation:Enum=snowflake.offline;bigquery;redshift;spark;postgres;trino;athena;mssql;couchbase.offline;clickhouse
 	Type string `json:"type"`
 	// Data store parameters should be placed as-is from the "feature_store.yaml" under the secret key. "registry_type" & "type" fields should be removed.
 	SecretRef corev1.LocalObjectReference `json:"secretRef"`
@@ -333,6 +333,7 @@ var ValidOfflineStoreDBStorePersistenceTypes = []string{
 	"athena",
 	"mssql",
 	"couchbase.offline",
+	"clickhouse",
 }
 
 // OnlineStore configures the online store service
