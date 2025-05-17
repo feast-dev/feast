@@ -176,7 +176,7 @@ class ClickhouseOfflineStore(OfflineStore):
             FROM (
                 SELECT {a_field_string},
                 ROW_NUMBER() OVER({partition_by_join_key_string} ORDER BY {timestamp_desc_string}) AS _feast_row
-                FROM ({from_expression}) a
+                FROM {from_expression} a
                 WHERE a."{timestamp_field}"
                     BETWEEN toDateTime64('{start_date.replace(tzinfo=None)!s}', 6, '{start_date.tzinfo!s}')
                     AND toDateTime64('{end_date.replace(tzinfo=None)!s}', 6, '{end_date.tzinfo!s}')
