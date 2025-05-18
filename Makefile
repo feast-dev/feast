@@ -99,17 +99,12 @@ lock-python-dependencies-all:
 			"uv pip compile -p $(ver) --no-strip-extras setup.py --extra minimal-sdist-build \
 			--no-emit-package milvus-lite \
 			--generate-hashes --output-file sdk/python/requirements/py$(ver)-minimal-sdist-requirements.txt" && \
+		pixi run --environment $(call get_env_name,$(ver)) --manifest-path infra/scripts/pixi/pixi.toml \
+			"uv pip install -p $(ver) pybuild-deps==0.5.0 pip==25.0.1 && \
+			pybuild-deps compile --generate-hashes \
+			-o sdk/python/requirements/py$(ver)-minimal-sdist-requirements-build.txt \
+			sdk/python/requirements/py$(ver)-minimal-sdist-requirements.txt" && \
 	) true
-	pixi run --environment $(call get_env_name,3.10) --manifest-path infra/scripts/pixi/pixi.toml \
-		"uv pip install -p 3.10 pybuild-deps==0.5.0 pip==25.0.1 && \
-		pybuild-deps compile --generate-hashes \
-		-o sdk/python/requirements/py3.10-minimal-sdist-requirements-build.txt \
-		sdk/python/requirements/py3.10-minimal-sdist-requirements.txt"
-	pixi run --environment $(call get_env_name,3.11) --manifest-path infra/scripts/pixi/pixi.toml \
-		"uv pip install -p 3.11 pybuild-deps==0.5.0 pip==25.0.1 && \
-		pybuild-deps compile --generate-hashes \
-		-o sdk/python/requirements/py3.11-minimal-sdist-requirements-build.txt \
-		sdk/python/requirements/py3.11-minimal-sdist-requirements.txt"
 
 compile-protos-python:
 	python infra/scripts/generate_protos.py
