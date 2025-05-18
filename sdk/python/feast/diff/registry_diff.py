@@ -18,6 +18,7 @@ from feast.protos.feast.core.FeatureService_pb2 import (
     FeatureService as FeatureServiceProto,
 )
 from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
+from feast.protos.feast.core.Model_pb2 import ModelMetadata as ModelMetadataProto
 from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
     OnDemandFeatureView as OnDemandFeatureViewProto,
 )
@@ -115,6 +116,7 @@ FeastObjectProto = TypeVar(
     ValidationReferenceProto,
     SavedDatasetProto,
     PermissionProto,
+    ModelMetadataProto,
 )
 
 
@@ -133,8 +135,10 @@ def diff_registry_objects(
     current_spec: FeastObjectSpecProto
     new_spec: FeastObjectSpecProto
     if isinstance(
-        current_proto, (DataSourceProto, ValidationReferenceProto)
-    ) or isinstance(new_proto, (DataSourceProto, ValidationReferenceProto)):
+        current_proto, (DataSourceProto, ValidationReferenceProto, ModelMetadataProto)
+    ) or isinstance(
+        new_proto, (DataSourceProto, ValidationReferenceProto, ModelMetadataProto)
+    ):
         assert type(current_proto) == type(new_proto)
         current_spec = cast(DataSourceProto, current_proto)
         new_spec = cast(DataSourceProto, new_proto)

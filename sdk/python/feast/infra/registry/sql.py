@@ -42,6 +42,7 @@ from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.infra.infra_object import Infra
 from feast.infra.registry.caching_registry import CachingRegistry
+from feast.model import ModelMetadata
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.permissions.permission import Permission
 from feast.project import Project
@@ -1256,3 +1257,41 @@ class SqlRegistry(CachingRegistry):
             return
 
         raise ProjectNotFoundException(name)
+
+    def _apply_model(self, model: ModelMetadata, project: str, commit: bool = True):
+        raise NotImplementedError("Model support not implemented in SqlRegistry yet.")
+
+    def _delete_model(self, name: str, project: str, commit: bool = True):
+        raise NotImplementedError("Model support not implemented in SqlRegistry yet.")
+
+    def _get_model(
+        self, name: str, project: str, allow_cache: bool = False
+    ) -> ModelMetadata:
+        raise NotImplementedError("Model support not implemented in SqlRegistry yet.")
+
+    def _list_models(
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[Dict[str, str]] = None,
+    ) -> List[ModelMetadata]:
+        raise NotImplementedError("Model support not implemented in SqlRegistry yet.")
+
+    def apply_model(self, model: ModelMetadata, project: str, commit: bool = True):
+        raise NotImplementedError("Model support not implemented in SqlRegistry yet.")
+
+    def delete_model(self, name: str, project: str, commit: bool = True):
+        raise NotImplementedError("Model support not implemented in SqlRegistry yet.")
+
+    def get_model(
+        self, name: str, project: str, allow_cache: bool = False
+    ) -> ModelMetadata:
+        raise NotImplementedError("Model support not implemented in SqlRegistry yet.")
+
+    def list_models(
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[Dict[str, str]] = None,
+    ) -> List[ModelMetadata]:
+        raise NotImplementedError("Model support not implemented in SqlRegistry yet.")

@@ -43,6 +43,7 @@ from feast.infra.infra_object import Infra
 from feast.infra.registry import proto_registry_utils
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.infra.registry.registry_store import NoopRegistryStore
+from feast.model import ModelMetadata
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.permissions.auth_model import AuthConfig, NoAuthConfig
 from feast.permissions.permission import Permission
@@ -1088,3 +1089,47 @@ class Registry(BaseRegistry):
                     self.commit()
                 return
         raise ProjectNotFoundException(name)
+
+    def apply_model(
+        self,
+        model_metadata: ModelMetadata,
+        project: str,
+        commit: bool = True,
+    ):
+        registry_proto = self._get_registry_proto(project=project, allow_cache=False)
+        proto_registry_utils.apply_model(registry_proto, model_metadata)
+        if commit:
+            self.commit()
+
+    def get_model(
+        self,
+        name: str,
+        project: str,
+        allow_cache: bool = False,
+    ) -> ModelMetadata:
+        registry_proto = self._get_registry_proto(
+            project=project, allow_cache=allow_cache
+        )
+        return proto_registry_utils.get_model(registry_proto, name, project)
+
+    def list_models(
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
+    ) -> List[ModelMetadata]:
+        registry_proto = self._get_registry_proto(
+            project=project, allow_cache=allow_cache
+        )
+        return proto_registry_utils.list_models(registry_proto, project, tags)
+
+    def delete_model(
+        self,
+        name: str,
+        project: str,
+        commit: bool = True,
+    ):
+        registry_proto = self._get_registry_proto(project=project, allow_cache=False)
+        proto_registry_utils.delete_model(registry_proto, name, project)
+        if commit:
+            self.commit()

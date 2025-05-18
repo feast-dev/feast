@@ -24,6 +24,7 @@ import feast.core.FeatureService_pb2
 import feast.core.FeatureTable_pb2
 import feast.core.FeatureView_pb2
 import feast.core.InfraObject_pb2
+import feast.core.Model_pb2
 import feast.core.OnDemandFeatureView_pb2
 import feast.core.Permission_pb2
 import feast.core.Project_pb2
@@ -44,7 +45,7 @@ else:
 DESCRIPTOR: google.protobuf.descriptor.FileDescriptor
 
 class Registry(google.protobuf.message.Message):
-    """Next id: 18"""
+    """Next id: 19"""
 
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -64,6 +65,7 @@ class Registry(google.protobuf.message.Message):
     LAST_UPDATED_FIELD_NUMBER: builtins.int
     PERMISSIONS_FIELD_NUMBER: builtins.int
     PROJECTS_FIELD_NUMBER: builtins.int
+    MODEL_METADATA_FIELD_NUMBER: builtins.int
     @property
     def entities(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.core.Entity_pb2.Entity]: ...
     @property
@@ -97,6 +99,8 @@ class Registry(google.protobuf.message.Message):
     def permissions(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.core.Permission_pb2.Permission]: ...
     @property
     def projects(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.core.Project_pb2.Project]: ...
+    @property
+    def model_metadata(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.core.Model_pb2.ModelMetadata]: ...
     def __init__(
         self,
         *,
@@ -116,9 +120,10 @@ class Registry(google.protobuf.message.Message):
         last_updated: google.protobuf.timestamp_pb2.Timestamp | None = ...,
         permissions: collections.abc.Iterable[feast.core.Permission_pb2.Permission] | None = ...,
         projects: collections.abc.Iterable[feast.core.Project_pb2.Project] | None = ...,
+        model_metadata: collections.abc.Iterable[feast.core.Model_pb2.ModelMetadata] | None = ...,
     ) -> None: ...
     def HasField(self, field_name: typing_extensions.Literal["infra", b"infra", "last_updated", b"last_updated"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["data_sources", b"data_sources", "entities", b"entities", "feature_services", b"feature_services", "feature_tables", b"feature_tables", "feature_views", b"feature_views", "infra", b"infra", "last_updated", b"last_updated", "on_demand_feature_views", b"on_demand_feature_views", "permissions", b"permissions", "project_metadata", b"project_metadata", "projects", b"projects", "registry_schema_version", b"registry_schema_version", "saved_datasets", b"saved_datasets", "stream_feature_views", b"stream_feature_views", "validation_references", b"validation_references", "version_id", b"version_id"]) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["data_sources", b"data_sources", "entities", b"entities", "feature_services", b"feature_services", "feature_tables", b"feature_tables", "feature_views", b"feature_views", "infra", b"infra", "last_updated", b"last_updated", "model_metadata", b"model_metadata", "on_demand_feature_views", b"on_demand_feature_views", "permissions", b"permissions", "project_metadata", b"project_metadata", "projects", b"projects", "registry_schema_version", b"registry_schema_version", "saved_datasets", b"saved_datasets", "stream_feature_views", b"stream_feature_views", "validation_references", b"validation_references", "version_id", b"version_id"]) -> None: ...
 
 global___Registry = Registry
 

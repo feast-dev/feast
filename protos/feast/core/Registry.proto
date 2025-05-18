@@ -34,8 +34,9 @@ import "feast/core/ValidationProfile.proto";
 import "google/protobuf/timestamp.proto";
 import "feast/core/Permission.proto";
 import "feast/core/Project.proto";
+import "feast/core/Model.proto";
 
-// Next id: 18
+// Next id: 19
 message Registry {
     repeated Entity entities = 1;
     repeated FeatureTable feature_tables = 2;
@@ -55,6 +56,7 @@ message Registry {
     google.protobuf.Timestamp last_updated = 5;
     repeated Permission permissions = 16;
     repeated Project projects = 17;
+    repeated ModelMetadata model_metadata = 18; 
 }
 
 message ProjectMetadata {

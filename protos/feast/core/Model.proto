@@ -1,0 +1,34 @@
+syntax = "proto3";
+package feast.core;
+
+option go_package = "github.com/feast-dev/feast/go/protos/feast/core";
+option java_outer_classname = "ModelMetadataProto";
+option java_package = "feast.proto.core";
+
+import "google/protobuf/timestamp.proto";
+
+message ModelMetadata {
+  // Required: Unique model name
+  string name = 1;
+
+  // Optional: Associated feature view name (if used)
+  repeated string feature_view = 2;
+
+  // Optional: Associated feature service name (if used)
+  repeated string feature_service = 3;
+
+  // Optional: Direct list of fully qualified feature references
+  repeated string features = 4;
+
+  // Project this model belongs to
+  string project = 5;
+
+  // Metadata (e.g., model purpose, version, tags)
+  map<string, string> tags = 6;
+
+  // Timestamp when model was trained
+  google.protobuf.Timestamp training_timestamp = 7;
+
+  // Optional: Description of the model
+  string description = 8;
+}
