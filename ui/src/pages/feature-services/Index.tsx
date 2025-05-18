@@ -1,4 +1,5 @@
 import React, { useContext } from "react";
+import { useParams } from "react-router-dom";
 
 import {
   EuiPageTemplate,
@@ -8,6 +9,7 @@ import {
   EuiFlexGroup,
   EuiFlexItem,
   EuiFieldSearch,
+  EuiButton,
 } from "@elastic/eui";
 
 import { FeatureServiceIcon } from "../../graphics/FeatureServiceIcon";
@@ -89,6 +91,7 @@ const filterFn = (
 const Index = () => {
   const { isLoading, isSuccess, isError, data } = useLoadFeatureServices();
   const tagAggregationQuery = useFeatureServiceTagsAggregation();
+  const { projectName } = useParams();
 
   useDocumentTitle(`Feature Services | Feast`);
 
@@ -122,6 +125,14 @@ const Index = () => {
             fileName="feature_services"
             formats={["json"]}
           />,
+          <EuiButton
+            iconType="plusInCircle"
+            onClick={() => {
+              window.location.href = `/p/${projectName}/feature-service/create`;
+            }}
+          >
+            Create Feature Service
+          </EuiButton>,
         ]}
       />
       <EuiPageTemplate.Section>

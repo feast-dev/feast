@@ -775,12 +775,12 @@ def _get_vector_field(table: FeatureView) -> str:
     vector_fields: List[Field] = [
         f for f in table.features if getattr(f, "vector_index", None)
     ]
-    assert len(vector_fields) > 0, (
-        f"No vector field found, please update feature view = {table.name} to declare a vector field"
-    )
-    assert len(vector_fields) < 2, (
-        "Only one vector field is supported, please update feature view = {table.name} to declare one vector field"
-    )
+    assert (
+        len(vector_fields) > 0
+    ), f"No vector field found, please update feature view = {table.name} to declare a vector field"
+    assert (
+        len(vector_fields) < 2
+    ), "Only one vector field is supported, please update feature view = {table.name} to declare one vector field"
     vector_field: str = vector_fields[0].name
     return vector_field
 
