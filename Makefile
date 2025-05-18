@@ -29,7 +29,7 @@ endif
 TRINO_VERSION ?= 376
 PYTHON_VERSION = ${shell python --version | grep -Eo '[0-9]\.[0-9]+'}
 
-PYTHON_VERSIONS := 3.9 3.10 3.11
+PYTHON_VERSIONS := 3.10 3.11 3.12
 
 define get_env_name
 $(subst .,,py$(1))
