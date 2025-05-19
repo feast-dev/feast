@@ -235,14 +235,17 @@ class LambdaMaterializationEngine(BatchMaterializationEngine):
 
             done, not_done = wait(futures)
             logger.info("Done: %s Not Done: %s", done, not_done)
+            errors = False
             for f in done:
                 response = f.result()
-                output = json.loads(response["Payload"].read())
+                output: dict = json.loads(response["Payload"].read())
 
                 logger.info(
                     f"Ingested task; request id {response['ResponseMetadata']['RequestId']}, "
                     f"Output: {output}"
                 )
+                if "errorMessage" in output.keys():
+                    errors = True
 
             for f in not_done:
                 response = f.result()
@@ -251,7 +254,7 @@ class LambdaMaterializationEngine(BatchMaterializationEngine):
             return LambdaMaterializationJob(
                 job_id=job_id,
                 status=MaterializationJobStatus.SUCCEEDED
-                if not not_done
+                if (not not_done and not errors)
                 else MaterializationJobStatus.ERROR,
             )
 
