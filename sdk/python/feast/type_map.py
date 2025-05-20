@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import decimal
 import json
 import logging
 from collections import defaultdict
@@ -310,7 +311,11 @@ PYTHON_SCALAR_VALUE_TYPE_TO_PROTO_VALUE: Dict[
         None,
     ),
     ValueType.FLOAT: ("float_val", lambda x: float(x), None),
-    ValueType.DOUBLE: ("double_val", lambda x: x, {float, np.float64, int, np.int_}),
+    ValueType.DOUBLE: (
+        "double_val",
+        lambda x: x,
+        {float, np.float64, int, np.int_, decimal.Decimal},
+    ),
     ValueType.STRING: ("string_val", lambda x: str(x), None),
     ValueType.BYTES: ("bytes_val", lambda x: x, {bytes}),
     ValueType.BOOL: ("bool_val", lambda x: x, {bool, np.bool_, int, np.int_}),
@@ -457,7 +462,7 @@ def _python_value_to_proto_value(
             if (sample == 0 or sample == 0.0) and feast_value_type != ValueType.BOOL:
                 # Numpy convert 0 to int. However, in the feature view definition, the type of column may be a float.
                 # So, if value is 0, type validation must pass if scalar_types are either int or float.
-                allowed_types = {np.int64, int, np.float64, float}
+                allowed_types = {np.int64, int, np.float64, float, decimal.Decimal}
                 assert type(sample) in allowed_types, (
                     f"Type `{type(sample)}` not in {allowed_types}"
                 )
