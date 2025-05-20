@@ -55,11 +55,16 @@ class LambdaMaterializationEngineConfig(FeastConfigBaseModel):
 
 @dataclass
 class LambdaMaterializationJob(MaterializationJob):
-    def __init__(self, job_id: str, status: MaterializationJobStatus) -> None:
+    def __init__(
+        self,
+        job_id: str,
+        status: MaterializationJobStatus,
+        error: Optional[BaseException] = None,
+    ) -> None:
         super().__init__()
         self._job_id: str = job_id
         self._status = status
-        self._error = None
+        self._error = error
 
     def status(self) -> MaterializationJobStatus:
         return self._status
@@ -235,28 +240,33 @@ class LambdaMaterializationEngine(BatchMaterializationEngine):
 
             done, not_done = wait(futures)
             logger.info("Done: %s Not Done: %s", done, not_done)
-            errors = False
+            errors = []
             for f in done:
-                response = f.result()
-                output: dict = json.loads(response["Payload"].read())
+                response, payload = f.result()
 
                 logger.info(
                     f"Ingested task; request id {response['ResponseMetadata']['RequestId']}, "
-                    f"Output: {output}"
+                    f"Output: {payload}"
                 )
-                if "errorMessage" in output.keys():
-                    errors = True
+                if "errorMessage" in payload.keys():
+                    errors.append(payload["errorMessage"])
 
             for f in not_done:
-                response = f.result()
-                logger.error(f"Ingestion failed: {response}")
+                response, payload = f.result()
+                logger.error(f"Ingestion failed: {response=}, {payload=}")
 
-            return LambdaMaterializationJob(
-                job_id=job_id,
-                status=MaterializationJobStatus.SUCCEEDED
-                if (not not_done and not errors)
-                else MaterializationJobStatus.ERROR,
-            )
+            if len(not_done) == 0 and len(errors) == 0:
+                return LambdaMaterializationJob(
+                    job_id=job_id, status=MaterializationJobStatus.SUCCEEDED
+                )
+            else:
+                return LambdaMaterializationJob(
+                    job_id=job_id,
+                    status=MaterializationJobStatus.ERROR,
+                    error=RuntimeError(
+                        f"Lambda functions did not finish successfully: {errors}"
+                    ),
+                )
 
     def invoke_with_retries(self, **kwargs):
         """Invoke the Lambda function and retry if it times out.
@@ -270,7 +280,12 @@ class LambdaMaterializationEngine(BatchMaterializationEngine):
         retries = 0
         while retries < LAMBDA_TIMEOUT_RETRIES:
             response = self.lambda_client.invoke(**kwargs)
-            if "Task timed out after" not in json.loads(response["Payload"].read()):
+            payload = json.loads(response["Payload"].read()) or {}
+            if "Task timed out after" not in payload.get("errorMessage", ""):
                 break
             retries += 1
-        return response
+            logger.warning(
+                "Retrying lambda function after lambda timeout in request"
+                f"{response['ResponseMetadata']['RequestId']}"
+            )
+        return response, payload
