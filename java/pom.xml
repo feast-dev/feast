@@ -42,7 +42,7 @@
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <project.custom.groupId>dev.feast</project.custom.groupId>
 
-        <grpc.version>1.30.2</grpc.version>
+        <grpc.version>1.53.0</grpc.version>
         <protoc.version>3.12.2</protoc.version>
         <protobuf.version>3.16.1</protobuf.version>
         <com.google.cloud.version>1.111.1</com.google.cloud.version>
