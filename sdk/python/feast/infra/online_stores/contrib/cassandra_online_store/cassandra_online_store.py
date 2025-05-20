@@ -398,14 +398,19 @@ class CassandraOnlineStore(OnlineStore):
                       rows is written to the online store. Can be used to
                       display progress.
         """
+        is_error: bool = False
+        ex: BaseException
 
         def on_success(result, concurrent_queue):
             concurrent_queue.get_nowait()
 
         def on_failure(exc, concurrent_queue):
+            nonlocal is_error
+            nonlocal ex
+            is_error = True
+            ex = exc
             concurrent_queue.get_nowait()
             logger.exception(f"Error writing a batch: {exc}")
-            raise Exception("Exception raised while writing a batch") from exc
 
         online_store_config = config.online_store
 
@@ -623,6 +628,8 @@ class CassandraOnlineStore(OnlineStore):
             )
             while not concurrent_queue.empty():
                 time.sleep(0.001)
+            if is_error:
+                raise ex
             # Spark materialization engine doesn't log info messages
             # so we print the message to stdout
             print("Completed writing all futures.")
