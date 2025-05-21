@@ -1213,6 +1213,51 @@ var _ = Describe("FeatureStore Controller", func() {
 			Expect(cond.Message).To(Equal("Error: Remote feast registry of referenced FeatureStore '" + referencedRegistry.Name + "' is not ready"))
 		})
 
+		It("should handle local registry with REST API enabled", func() {
+			By("By properly setting RestAPI registry in status")
+
+			controllerReconciler := &FeatureStoreReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+			}
+
+			name := "rest-registry-featurestore"
+			namespace := "default"
+			nsName := types.NamespacedName{
+				Name:      name,
+				Namespace: namespace,
+			}
+
+			resource := &feastdevv1alpha1.FeatureStore{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      name,
+					Namespace: namespace,
+				},
+				Spec: feastdevv1alpha1.FeatureStoreSpec{
+					FeastProject: feastProject,
+					Services: &feastdevv1alpha1.FeatureStoreServices{
+						Registry: &feastdevv1alpha1.Registry{
+							Local: &feastdevv1alpha1.LocalRegistryConfig{
+								Server: &feastdevv1alpha1.RegistryServerConfigs{
+									RestAPI: true,
+								},
+							},
+						},
+					},
+				},
+			}
+			resource.SetGroupVersionKind(feastdevv1alpha1.GroupVersion.WithKind("FeatureStore"))
+			err := k8sClient.Create(ctx, resource)
+			Expect(err).NotTo(HaveOccurred())
+			_, err = controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: nsName,
+			})
+			Expect(err).NotTo(HaveOccurred())
+			err = k8sClient.Get(ctx, nsName, resource)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(resource.Status.Applied.Services.Registry.Local.Server.RestAPI).To(BeTrue())
+		})
+
 		It("should error on reconcile", func() {
 			By("Trying to set the controller OwnerRef of a Deployment that already has a controller")
 			controllerReconciler := &FeatureStoreReconciler{
