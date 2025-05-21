@@ -13,7 +13,10 @@ from feast.infra.compute_engines.dag.model import DAGFormat
 from feast.infra.compute_engines.dag.node import DAGNode
 from feast.infra.compute_engines.dag.value import DAGValue
 from feast.infra.compute_engines.spark.utils import map_in_arrow
-from feast.infra.compute_engines.utils import get_partition_columns
+from feast.infra.compute_engines.utils import (
+    create_offline_store_retrieval_job,
+    get_partition_columns,
+)
 from feast.infra.offline_stores.contrib.spark_offline_store.spark import (
     SparkRetrievalJob,
     _get_entity_schema,
@@ -63,19 +66,12 @@ class SparkReadNode(DAGNode):
         self.end_time = end_time
 
     def execute(self, context: ExecutionContext) -> DAGValue:
-        offline_store = context.offline_store
         column_info = context.column_info
-
-        # 📥 Reuse Feast's robust query resolver
-        retrieval_job = offline_store.pull_all_from_table_or_query(
-            config=context.repo_config,
+        retrieval_job = create_offline_store_retrieval_job(
             data_source=self.source,
-            join_key_columns=column_info.join_keys,
-            feature_name_columns=column_info.feature_cols,
-            timestamp_field=column_info.ts_col,
-            created_timestamp_column=column_info.created_ts_col,
-            start_date=self.start_time,
-            end_date=self.end_time,
+            context=context,
+            start_time=self.start_time,
+            end_time=self.end_time,
         )
         spark_df = cast(SparkRetrievalJob, retrieval_job).to_spark_df()
 

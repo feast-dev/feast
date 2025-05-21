@@ -23,10 +23,10 @@ from feast.utils import _get_column_names
 
 class ComputeEngine(ABC):
     """
-    The interface that Feast uses to control the compute system that handles materialization and get_historical_features.
+    The interface that Feast uses to control to compute system that handles materialization and get_historical_features.
     Each engine must implement:
         - materialize(): to generate and persist features
-        - get_historical_features(): to perform point-in-time correct joins
+        - get_historical_features(): to perform historical retrieval of features
     Engines should use FeatureBuilder and DAGNode abstractions to build modular, pluggable workflows.
     """
 

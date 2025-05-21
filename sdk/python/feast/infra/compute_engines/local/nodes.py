@@ -9,6 +9,10 @@ from feast.infra.compute_engines.dag.context import ExecutionContext
 from feast.infra.compute_engines.local.arrow_table_value import ArrowTableValue
 from feast.infra.compute_engines.local.backends.base import DataFrameBackend
 from feast.infra.compute_engines.local.local_node import LocalNode
+from feast.infra.compute_engines.utils import (
+    create_offline_store_retrieval_job,
+    get_partition_columns,
+)
 from feast.infra.offline_stores.offline_utils import (
     infer_event_timestamp_from_entity_df,
 )
@@ -31,24 +35,11 @@ class LocalSourceReadNode(LocalNode):
         self.end_time = end_time
 
     def execute(self, context: ExecutionContext) -> ArrowTableValue:
-        offline_store = context.offline_store
-        (
-            join_key_columns,
-            feature_name_columns,
-            timestamp_field,
-            created_timestamp_column,
-        ) = context.column_info
-
-        # 📥 Reuse Feast's robust query resolver
-        retrieval_job = offline_store.pull_all_from_table_or_query(
-            config=context.repo_config,
+        retrieval_job = create_offline_store_retrieval_job(
             data_source=self.source,
-            join_key_columns=join_key_columns,
-            feature_name_columns=feature_name_columns,
-            timestamp_field=timestamp_field,
-            created_timestamp_column=created_timestamp_column,
-            start_date=self.start_time,
-            end_date=self.end_time,
+            context=context,
+            start_time=self.start_time,
+            end_time=self.end_time,
         )
         arrow_table = retrieval_job.to_arrow()
         return ArrowTableValue(data=arrow_table)
@@ -63,8 +54,9 @@ class LocalJoinNode(LocalNode):
         feature_table = self.get_single_table(context).data
 
         if context.entity_df is None:
-            context.node_outputs[self.name] = feature_table
-            return feature_table
+            output = ArrowTableValue(feature_table)
+            context.node_outputs[self.name] = output
+            return output
 
         entity_table = pa.Table.from_pandas(context.entity_df)
         feature_df = self.backend.from_arrow(feature_table)
@@ -105,18 +97,18 @@ class LocalFilterNode(LocalNode):
         input_table = self.get_single_table(context).data
         df = self.backend.from_arrow(input_table)
 
-        _, _, ts_col, _ = context.column_info
+        timestamp_column = context.column_info.timestamp_column
 
         if ENTITY_TS_ALIAS in self.backend.columns(df):
             # filter where feature.ts <= entity.event_timestamp
-            df = df[df[ts_col] <= df[ENTITY_TS_ALIAS]]
+            df = df[df[timestamp_column] <= df[ENTITY_TS_ALIAS]]
 
             # TTL: feature.ts >= entity.event_timestamp - ttl
             if self.ttl:
                 lower_bound = df[ENTITY_TS_ALIAS] - self.backend.to_timedelta_value(
                     self.ttl
                 )
-                df = df[df[ts_col] >= lower_bound]
+                df = df[df[timestamp_column] >= lower_bound]
 
         # Optional user-defined filter expression (e.g., "value > 0")
         if self.filter_expr:
@@ -157,14 +149,14 @@ class LocalDedupNode(LocalNode):
         df = self.backend.from_arrow(input_table)
 
         # Extract join_keys, timestamp, and created_ts from context
-        join_keys, _, ts_col, created_ts_col = context.column_info
+        column_info = context.column_info
 
         # Dedup strategy: sort and drop_duplicates
-        sort_keys = [ts_col]
-        if created_ts_col:
-            sort_keys.append(created_ts_col)
+        dedup_keys = get_partition_columns(context)
+        sort_keys = [column_info.timestamp_column]
+        if column_info.created_timestamp_column:
+            sort_keys.append(column_info.created_timestamp_column)
 
-        dedup_keys = join_keys + [ENTITY_TS_ALIAS]
         df = self.backend.drop_duplicates(
             df, keys=dedup_keys, sort_by=sort_keys, ascending=False
         )
