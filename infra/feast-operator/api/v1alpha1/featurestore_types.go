@@ -505,9 +505,8 @@ type ServerConfigs struct {
 // RegistryServerConfigs creates a registry server for the feast service, with specified container configurations.
 type RegistryServerConfigs struct {
 	ServerConfigs `json:",inline"`
-	// RestAPIEnabled determines if the registry should serve using the REST API instead of gRPC.
-	// +kubebuilder:default=true
-	RestAPIEnabled bool `json:"restAPIEnabled,omitempty"`
+	// RestAPI determines if the registry should serve using the REST API instead of gRPC.
+	RestAPI bool `json:"restAPI,omitempty"`
 }
 
 // CronJobContainerConfigs k8s container settings for the CronJob

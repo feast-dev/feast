@@ -695,7 +695,7 @@ Allowed values: "debug", "info", "warning", "error", "critical". |
 This allows attaching persistent storage, config files, secrets, or other resources
 required by the Feast components. Ensure that each volume mount has a corresponding
 volume definition in the Volumes field. |
-| `restAPIEnabled` _boolean_ | RestAPIEnabled determines if the registry should serve using the REST API instead of gRPC. |
+| `restAPI` _boolean_ | RestAPI determines if the registry should serve using the REST API instead of gRPC. |
 
 
 #### RemoteRegistryConfig
