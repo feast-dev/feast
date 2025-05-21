@@ -52,7 +52,7 @@ test: test-python-unit ## Run unit tests for Python
 
 protos: compile-protos-python compile-protos-docs ## Compile protobufs for Python SDK and generate docs
 
-build: protos build-docker ## Build protobufs, Java code, and Docker images
+build: protos build-docker ## Build protobufs and Docker images
 
 format-python: ## Format Python code
 	cd ${ROOT_DIR}/sdk/python; python -m ruff check --fix feast/ tests/
