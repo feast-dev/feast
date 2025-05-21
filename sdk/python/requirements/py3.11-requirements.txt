@@ -512,9 +512,9 @@ partd==1.4.2 \
     --hash=sha256:978e4ac767ec4ba5b86c6eaa52e5a2a3bc748a2ca839e8cc798f1cc6ce6efb0f \
     --hash=sha256:d022c33afbdc8405c226621b015e8067888173d85f7f5ecebb3cafed9a20f02c
     # via dask
-prometheus-client==0.21.1 \
-    --hash=sha256:252505a722ac04b0456be05c05f75f45d760c2911ffc45f2a06bcaed9f3ae3fb \
-    --hash=sha256:594b45c410d6f4f8888940fe80b5cc2521b305a1fafe1c58609ef715a001f301
+prometheus-client==0.22.0 \
+    --hash=sha256:18da1d2241ac2d10c8d2110f13eedcd5c7c0c8af18c926e8731f04fc10cd575c \
+    --hash=sha256:c8951bbe64e62b96cd8e8f5d917279d1b9b91ab766793f33d4dce6c228558713
     # via feast (setup.py)
 protobuf==6.31.0 \
     --hash=sha256:00a873c06efdfb854145d9ded730b09cf57d206075c38132674093370e2edabb \
