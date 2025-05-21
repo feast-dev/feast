@@ -1256,6 +1256,29 @@ var _ = Describe("FeatureStore Controller", func() {
 			err = k8sClient.Get(ctx, nsName, resource)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(resource.Status.Applied.Services.Registry.Local.Server.RestAPI).To(BeTrue())
+			By("checking the registry container command include --rest-api")
+			feast := services.FeastServices{
+				Handler: handler.FeastHandler{
+					Client:       controllerReconciler.Client,
+					Context:      ctx,
+					Scheme:       controllerReconciler.Scheme,
+					FeatureStore: resource,
+				},
+			}
+
+			// check deployment
+			deploy := &appsv1.Deployment{}
+			objMeta := feast.GetObjectMeta()
+			err = k8sClient.Get(ctx, types.NamespacedName{
+				Name:      objMeta.Name,
+				Namespace: objMeta.Namespace,
+			}, deploy)
+			Expect(err).NotTo(HaveOccurred())
+
+			registryContainer := services.GetRegistryContainer(*deploy)
+			Expect(registryContainer).NotTo(BeNil())
+			Expect(registryContainer.Command).To(ContainElement("--rest-api"),
+				"expected --rest-api to be present in registry container command: %v", registryContainer.Command)
 		})
 
 		It("should error on reconcile", func() {
