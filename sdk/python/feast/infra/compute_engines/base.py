@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List, Sequence, Union
+from typing import List, Optional, Sequence, Union
 
 import pyarrow as pa
 
@@ -90,15 +90,17 @@ class ComputeEngine(ABC):
         self,
         registry: BaseRegistry,
         tasks: Union[MaterializationTask, List[MaterializationTask]],
+        **kwargs,
     ) -> List[MaterializationJob]:
         if isinstance(tasks, MaterializationTask):
             tasks = [tasks]
-        return [self._materialize_one(registry, task) for task in tasks]
+        return [self._materialize_one(registry, task, **kwargs) for task in tasks]
 
     def _materialize_one(
         self,
         registry: BaseRegistry,
         task: MaterializationTask,
+        **kwargs,
     ) -> MaterializationJob:
         raise NotImplementedError(
             "Materialization is not implemented for this compute engine."
@@ -141,9 +143,29 @@ class ComputeEngine(ABC):
         join_keys, feature_cols, ts_col, created_ts_col = _get_column_names(
             task.feature_view, registry.list_entities(task.project)
         )
+        field_mapping = self.get_field_mapping(task.feature_view)
+
         return ColumnInfo(
             join_keys=join_keys,
             feature_cols=feature_cols,
             ts_col=ts_col,
             created_ts_col=created_ts_col,
+            field_mapping=field_mapping,
         )
+
+    def get_field_mapping(
+        self, feature_view: Union[BatchFeatureView, StreamFeatureView, FeatureView]
+    ) -> Optional[dict]:
+        """
+        Get the field mapping for a feature view.
+        Args:
+            feature_view: The feature view to get the field mapping for.
+
+        Returns:
+            A dictionary mapping field names to column names.
+        """
+        if feature_view.stream_source:
+            return feature_view.stream_source.field_mapping
+        if feature_view.batch_source:
+            return feature_view.batch_source.field_mapping
+        return None

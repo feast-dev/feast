@@ -125,6 +125,7 @@ class KubernetesComputeEngine(ComputeEngine):
         self,
         registry: BaseRegistry,
         task: MaterializationTask,
+        **kwargs,
     ):
         feature_view = task.feature_view
         start_date = task.start_time

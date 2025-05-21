@@ -202,12 +202,13 @@ class SnowflakeComputeEngine(ComputeEngine):
         self,
         registry: BaseRegistry,
         task: MaterializationTask,
+        **kwargs,
     ):
         feature_view = task.feature_view
         start_date = task.start_time
         end_date = task.end_time
         project = task.project
-        tqdm_builder = task.tqdm_builder
+        tqdm_builder = task.tqdm_builder if task.tqdm_builder else tqdm
 
         assert isinstance(feature_view, BatchFeatureView) or isinstance(
             feature_view, FeatureView

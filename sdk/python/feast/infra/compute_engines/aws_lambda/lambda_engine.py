@@ -157,9 +157,7 @@ class LambdaComputeEngine(ComputeEngine):
         self.lambda_client = boto3.client("lambda")
 
     def _materialize_one(
-        self,
-        registry: BaseRegistry,
-        task: MaterializationTask,
+        self, registry: BaseRegistry, task: MaterializationTask, **kwargs
     ):
         feature_view = task.feature_view
         start_date = task.start_time

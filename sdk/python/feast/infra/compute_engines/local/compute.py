@@ -61,7 +61,7 @@ class LocalComputeEngine(ComputeEngine):
         raise ValueError("Could not infer backend from context.entity_df")
 
     def _materialize_one(
-        self, registry: BaseRegistry, task: MaterializationTask
+        self, registry: BaseRegistry, task: MaterializationTask, **kwargs
     ) -> LocalMaterializationJob:
         job_id = f"{task.feature_view.name}-{task.start_time}-{task.end_time}"
         context = self.get_execution_context(registry, task)
