@@ -40,15 +40,15 @@ endef
 $(TOOL_DIR):
 	mkdir -p $@/bin
 
-format: format-python format-java
+format: format-python 
 
-lint: lint-python lint-java
+lint: lint-python 
 
-test: test-python-unit test-java
+test: test-python-unit 
 
 protos: compile-protos-python compile-protos-docs
 
-build: protos build-java build-docker
+build: protos build-docker
 
 # Python SDK - local
 # formerly install-python-ci-dependencies-uv-venv
