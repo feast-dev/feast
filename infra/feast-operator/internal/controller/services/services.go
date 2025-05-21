@@ -502,7 +502,7 @@ func (feast *FeastServices) getContainerCommand(feastType FeastServiceType) []st
 
 	if feastType == RegistryFeastType && feast.isRegistryServer() {
 		registry := feast.Handler.FeatureStore.Status.Applied.Services.Registry
-		if registry.Local.Server.RestAPIEnabled {
+		if registry.Local.Server.RestAPI {
 			deploySettings.Args = append(deploySettings.Args, "--rest-api")
 		}
 	}

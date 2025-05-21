@@ -1995,10 +1995,9 @@ spec:
                                       of compute resources required.
                                     type: object
                                 type: object
-                              restAPIEnabled:
-                                default: true
-                                description: RestAPIEnabled determines if the registry
-                                  should serve using the REST API instead of gRPC.
+                              restAPI:
+                                description: RestAPI determines if the registry should
+                                  serve using the REST API instead of gRPC.
                                 type: boolean
                               tls:
                                 description: TlsConfigs configures server TLS for
@@ -5978,11 +5977,9 @@ spec:
                                           amount of compute resources required.
                                         type: object
                                     type: object
-                                  restAPIEnabled:
-                                    default: true
-                                    description: RestAPIEnabled determines if the
-                                      registry should serve using the REST API instead
-                                      of gRPC.
+                                  restAPI:
+                                    description: RestAPI determines if the registry
+                                      should serve using the REST API instead of gRPC.
                                     type: boolean
                                   tls:
                                     description: TlsConfigs configures server TLS
