@@ -676,6 +676,7 @@ spec:
                         - hazelcast
                         - ikv
                         - couchbase
+                        - clickhouse
                         type: string
                     type: object
                 type: object
@@ -848,6 +849,7 @@ spec:
                                 - athena
                                 - mssql
                                 - couchbase.offline
+                                - clickhouse
                                 type: string
                             required:
                             - secretRef
@@ -4626,6 +4628,7 @@ spec:
                             - hazelcast
                             - ikv
                             - couchbase
+                            - clickhouse
                             type: string
                         type: object
                     type: object
@@ -4800,6 +4803,7 @@ spec:
                                     - athena
                                     - mssql
                                     - couchbase.offline
+                                    - clickhouse
                                     type: string
                                 required:
                                 - secretRef

@@ -27,7 +27,7 @@ NAME = "feast"
 DESCRIPTION = "Python SDK for Feast"
 URL = "https://github.com/feast-dev/feast"
 AUTHOR = "Feast"
-REQUIRES_PYTHON = ">=3.9.0"
+REQUIRES_PYTHON = ">=3.10.0"
 
 REQUIRED = [
     "click>=7.0.0,<9.0.0",
@@ -137,9 +137,9 @@ IBIS_REQUIRED = [
 ]
 
 GRPCIO_REQUIRED = [
-    "grpcio>=1.56.2,<2",
-    "grpcio-reflection>=1.56.2,<2",
-    "grpcio-health-checking>=1.56.2,<2",
+    "grpcio>=1.56.2,<=1.62.3",
+    "grpcio-reflection>=1.56.2,<=1.62.3",
+    "grpcio-health-checking>=1.56.2,<=1.62.3",
 ]
 
 DUCKDB_REQUIRED = ["ibis-framework[duckdb]>=9.0.0,<10"]
@@ -159,7 +159,7 @@ COUCHBASE_REQUIRED = [
 
 MSSQL_REQUIRED = ["ibis-framework[mssql]>=9.0.0,<10"]
 
-FAISS_REQUIRED = ["faiss-cpu>=1.7.0,<2"]
+FAISS_REQUIRED = ["faiss-cpu>=1.7.0,<=1.10.0"]
 QDRANT_REQUIRED = ["qdrant-client>=1.12.0"]
 
 GO_REQUIRED = ["cffi>=1.15.0"]
@@ -180,8 +180,8 @@ CI_REQUIRED = (
         "cryptography>=43.0,<44",
         "ruff>=0.8.0",
         "mypy-protobuf>=3.1",
-        "grpcio-tools>=1.56.2,<2",
-        "grpcio-testing>=1.56.2,<2",
+        "grpcio-tools>=1.56.2,<=1.62.3",
+        "grpcio-testing>=1.56.2,<=1.62.3",
         # FastAPI does not correctly pull starlette dependency on httpx see thread(https://github.com/tiangolo/fastapi/issues/5656).
         "httpx==0.27.2",
         "minio==7.2.11",
@@ -355,7 +355,7 @@ setup(
         "License :: OSI Approved :: Apache Software License",
         "Programming Language :: Python",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
     ],
     entry_points={"console_scripts": ["feast=feast.cli.cli:cli"]},
     use_scm_version=use_scm_version,
