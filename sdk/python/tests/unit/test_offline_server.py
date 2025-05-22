@@ -7,7 +7,6 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.flight as flight
 import pytest
-import torch
 
 from feast import FeatureStore, FeatureView, FileSource
 from feast.errors import FeatureViewNotFoundException
@@ -18,6 +17,7 @@ from feast.infra.offline_stores.remote import (
 )
 from feast.offline_server import OfflineServer, _init_auth_manager
 from feast.repo_config import RepoConfig
+from feast.torch_wrapper import get_torch
 from tests.utils.cli_repo_creator import CliRunner
 
 PROJECT_NAME = "test_remote_offline"
@@ -218,7 +218,7 @@ def _test_get_historical_features_to_tensor(fs: FeatureStore):
 
     assertpy.assert_that(tensor_data).is_not_none()
     assertpy.assert_that(tensor_data["driver_id"].shape[0]).is_equal_to(3)
-
+    torch = get_torch()
     for key, values in tensor_data.items():
         if isinstance(values, torch.Tensor):
             assertpy.assert_that(values.shape[0]).is_equal_to(3)
@@ -280,6 +280,7 @@ def _test_get_historical_features_to_tensor_with_nan(fs: FeatureStore):
     assert "conv_rate" in tensor_data
     values = tensor_data["conv_rate"]
     # conv_rate is a float feature, missing values should be NaN
+    torch = get_torch()
     for val in values:
         assert isinstance(val, torch.Tensor) or torch.is_tensor(val)
         assertpy.assert_that(torch.isnan(val).item()).is_true()
