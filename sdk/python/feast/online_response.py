@@ -12,10 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Union
 
 import pandas as pd
 import pyarrow as pa
+import torch
 
 from feast.feature_view import DUMMY_ENTITY_ID
 from feast.protos.feast.serving.ServingService_pb2 import GetOnlineFeaturesResponse
@@ -88,3 +89,46 @@ class OnlineResponse:
         """
 
         return pa.Table.from_pydict(self.to_dict(include_event_timestamps))
+
+    def to_tensor(
+        self,
+        kind: str = "torch",
+        default_value: Any = float("nan"),
+    ) -> Dict[str, Union[torch.Tensor, List[Any]]]:
+        """
+        Converts GetOnlineFeaturesResponse features into a dictionary of tensors or lists.
+
+        - Numeric features (int, float, bool) -> torch.Tensor
+        - Non-numeric features (e.g., strings) -> list[Any]
+
+        Args:
+            kind: Backend tensor type. Currently only "torch" is supported.
+            default_value: Value to substitute for missing (None) entries.
+
+        Returns:
+            Dict[str, Union[torch.Tensor, List[Any]]]: Mapping of feature names to tensors or lists.
+        """
+        if kind != "torch":
+            raise ValueError(
+                f"Unsupported tensor kind: {kind}. Only 'torch' is supported currently."
+            )
+
+        feature_dict = self.to_dict(include_event_timestamps=False)
+        feature_keys = set(self.proto.metadata.feature_names.val)
+        tensor_dict: Dict[str, Union[torch.Tensor, List[Any]]] = {}
+        for key in feature_keys:
+            raw_values = feature_dict[key]
+            values = [v if v is not None else default_value for v in raw_values]
+            first_valid = next((v for v in values if v is not None), None)
+            if isinstance(first_valid, (int, float, bool)):
+                try:
+                    tensor_dict[key] = torch.tensor(values)
+                except Exception as e:
+                    raise ValueError(
+                        f"Failed to convert values for '{key}' to tensor: {e}"
+                    )
+            else:
+                tensor_dict[key] = (
+                    values  # Return as-is for strings or unsupported types
+                )
+        return tensor_dict
