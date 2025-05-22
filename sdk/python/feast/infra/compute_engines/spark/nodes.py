@@ -15,7 +15,6 @@ from feast.infra.compute_engines.dag.value import DAGValue
 from feast.infra.compute_engines.spark.utils import map_in_arrow
 from feast.infra.compute_engines.utils import (
     create_offline_store_retrieval_job,
-    get_partition_columns,
 )
 from feast.infra.offline_stores.contrib.spark_offline_store.spark import (
     SparkRetrievalJob,
@@ -248,17 +247,19 @@ class SparkDedupNode(DAGNode):
 
         # Dedup based on join keys and event timestamp column
         # Dedup with row_number
-        partition_cols = get_partition_columns(context)
-        ordering = [F.col(colmun_info.timestamp_column).desc()]
-        if colmun_info.created_timestamp_column:
-            ordering.append(F.col(colmun_info.created_timestamp_column).desc())
+        partition_cols = context.column_info.join_keys
+        deduped_df = input_df
+        if partition_cols:
+            ordering = [F.col(colmun_info.timestamp_column).desc()]
+            if colmun_info.created_timestamp_column:
+                ordering.append(F.col(colmun_info.created_timestamp_column).desc())
 
-        window = Window.partitionBy(*partition_cols).orderBy(*ordering)
-        deduped_df = (
-            input_df.withColumn("row_num", F.row_number().over(window))
-            .filter("row_num = 1")
-            .drop("row_num")
-        )
+            window = Window.partitionBy(*partition_cols).orderBy(*ordering)
+            deduped_df = (
+                input_df.withColumn("row_num", F.row_number().over(window))
+                .filter("row_num = 1")
+                .drop("row_num")
+            )
 
         return DAGValue(
             data=deduped_df,

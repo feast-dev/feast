@@ -140,8 +140,12 @@ class ComputeEngine(ABC):
         registry: BaseRegistry,
         task: Union[MaterializationTask, HistoricalRetrievalTask],
     ) -> ColumnInfo:
+        entities = []
+        for entity_name in task.feature_view.entities:
+            entities.append(registry.get_entity(entity_name, task.project))
+
         join_keys, feature_cols, ts_col, created_ts_col = _get_column_names(
-            task.feature_view, registry.list_entities(task.project)
+            task.feature_view, entities
         )
         field_mapping = self.get_field_mapping(task.feature_view)
 

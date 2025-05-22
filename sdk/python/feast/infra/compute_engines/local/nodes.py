@@ -11,7 +11,6 @@ from feast.infra.compute_engines.local.backends.base import DataFrameBackend
 from feast.infra.compute_engines.local.local_node import LocalNode
 from feast.infra.compute_engines.utils import (
     create_offline_store_retrieval_job,
-    get_partition_columns,
 )
 from feast.infra.offline_stores.offline_utils import (
     infer_event_timestamp_from_entity_df,
@@ -67,13 +66,15 @@ class LocalJoinNode(LocalNode):
             entity_schema
         )
 
-        join_keys, feature_cols, ts_col, created_ts_col = context.column_info
+        column_info = context.column_info
 
         entity_df = self.backend.rename_columns(
             entity_df, {entity_df_event_timestamp_col: ENTITY_TS_ALIAS}
         )
 
-        joined_df = self.backend.join(feature_df, entity_df, on=join_keys, how="left")
+        joined_df = self.backend.join(
+            feature_df, entity_df, on=column_info.join_keys, how="left"
+        )
         result = self.backend.to_arrow(joined_df)
         output = ArrowTableValue(result)
         context.node_outputs[self.name] = output
@@ -152,14 +153,15 @@ class LocalDedupNode(LocalNode):
         column_info = context.column_info
 
         # Dedup strategy: sort and drop_duplicates
-        dedup_keys = get_partition_columns(context)
-        sort_keys = [column_info.timestamp_column]
-        if column_info.created_timestamp_column:
-            sort_keys.append(column_info.created_timestamp_column)
+        dedup_keys = context.column_info.join_keys
+        if dedup_keys:
+            sort_keys = [column_info.timestamp_column]
+            if column_info.created_timestamp_column:
+                sort_keys.append(column_info.created_timestamp_column)
 
-        df = self.backend.drop_duplicates(
-            df, keys=dedup_keys, sort_by=sort_keys, ascending=False
-        )
+            df = self.backend.drop_duplicates(
+                df, keys=dedup_keys, sort_by=sort_keys, ascending=False
+            )
         result = self.backend.to_arrow(df)
         output = ArrowTableValue(result)
         context.node_outputs[self.name] = output
