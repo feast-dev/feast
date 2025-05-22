@@ -358,13 +358,13 @@ class DaskOfflineStore(OfflineStore):
     @staticmethod
     def evaluate_offline_job(
         config: RepoConfig,
-        data_source: DataSource,
+        data_source: FileSource,
         join_key_columns: List[str],
         timestamp_field: str,
         created_timestamp_column: Optional[str] = None,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
-    ) -> dd:
+    ) -> dd.DataFrame:
         # Create lazy function that is only called from the RetrievalJob object
         source_df = _read_datasource(data_source, config.repo_path)
 
@@ -680,7 +680,7 @@ def _merge(
 def _normalize_timestamp(
     df_to_join: dd.DataFrame,
     timestamp_field: str,
-    created_timestamp_column: str,
+    created_timestamp_column: Optional[str] = None,
 ) -> dd.DataFrame:
     df_to_join_types = df_to_join.dtypes
     timestamp_field_type = df_to_join_types[timestamp_field]
