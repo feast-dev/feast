@@ -241,6 +241,36 @@ func TestGetOnDemandFeatureView(t *testing.T) {
 	assert.Equal(t, "test_view", result.Spec.Name)
 }
 
+func TestGetSortedFeatureView(t *testing.T) {
+	// Create a mock HTTP server
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Create a dummy SortedFeatureViewList
+		sortedFeatureView := &core.SortedFeatureView{Spec: &core.SortedFeatureViewSpec{Name: "test_sorted_view"}}
+		// Marshal it to protobuf
+		data, err := proto.Marshal(sortedFeatureView)
+		if err != nil {
+			log.Fatal().Err(err).Msg("Failed to marshal SortedFeatureViewList")
+		}
+		// Write the protobuf data to the response
+		w.Write(data)
+	}))
+	// Close the server when test finishes
+	defer server.Close()
+
+	// Create a new HttpRegistryStore with the mock server's URL as the endpoint
+	store := &HttpRegistryStore{
+		endpoint: server.URL,
+		project:  "test_project",
+	}
+
+	// Call the method under test
+	result, err := store.getSortedFeatureView("test_sorted_view", true)
+
+	// Assert that there was no error and that the registry now contains the sorted feature view
+	assert.Nil(t, err)
+	assert.Equal(t, "test_sorted_view", result.Spec.Name)
+}
+
 func TestGetFeatureService(t *testing.T) {
 	// Create a mock HTTP server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
