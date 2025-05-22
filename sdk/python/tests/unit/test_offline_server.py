@@ -7,6 +7,7 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.flight as flight
 import pytest
+import torch
 
 from feast import FeatureStore, FeatureView, FileSource
 from feast.errors import FeatureViewNotFoundException
@@ -115,7 +116,9 @@ def test_remote_offline_store_apis():
         fs = remote_feature_store(server)
 
         _test_get_historical_features_returns_data(fs)
+        _test_get_historical_features_to_tensor(fs)
         _test_get_historical_features_returns_nan(fs)
+        _test_get_historical_features_to_tensor_with_nan(fs)
         _test_offline_write_batch(str(temp_dir), fs)
         _test_write_logged_features(str(temp_dir), fs)
         _test_pull_latest_from_table_or_query(str(temp_dir), fs)
@@ -187,6 +190,44 @@ def _test_get_historical_features_returns_data(fs: FeatureStore):
             assertpy.assert_that(value).is_not_nan()
 
 
+def _test_get_historical_features_to_tensor(fs: FeatureStore):
+    entity_df = pd.DataFrame.from_dict(
+        {
+            "driver_id": [1001, 1002, 1003],
+            "event_timestamp": [
+                datetime(2021, 4, 12, 10, 59, 42),
+                datetime(2021, 4, 12, 8, 12, 10),
+                datetime(2021, 4, 12, 16, 40, 26),
+            ],
+            "label_driver_reported_satisfaction": [1, 5, 3],
+            "val_to_add": [1, 2, 3],
+            "val_to_add_2": [10, 20, 30],
+        }
+    )
+
+    features = [
+        "driver_hourly_stats:conv_rate",
+        "driver_hourly_stats:acc_rate",
+        "driver_hourly_stats:avg_daily_trips",
+        "transformed_conv_rate:conv_rate_plus_val1",
+        "transformed_conv_rate:conv_rate_plus_val2",
+    ]
+
+    job = fs.get_historical_features(entity_df, features)
+    tensor_data = job.to_tensor()
+
+    assertpy.assert_that(tensor_data).is_not_none()
+    assertpy.assert_that(tensor_data["driver_id"].shape[0]).is_equal_to(3)
+
+    for key, values in tensor_data.items():
+        if isinstance(values, torch.Tensor):
+            assertpy.assert_that(values.shape[0]).is_equal_to(3)
+            for val in values:
+                val_float = val.item()
+                assertpy.assert_that(val_float).is_instance_of((float, int))
+                assertpy.assert_that(val_float).is_not_nan()
+
+
 def _test_get_historical_features_returns_nan(fs: FeatureStore):
     entity_df = pd.DataFrame.from_dict(
         {
@@ -221,6 +262,27 @@ def _test_get_historical_features_returns_nan(fs: FeatureStore):
             column_id = feature.split(":")[1]
             value = training_df[column_id][index]
             assertpy.assert_that(value).is_nan()
+
+
+def _test_get_historical_features_to_tensor_with_nan(fs: FeatureStore):
+    entity_df = pd.DataFrame.from_dict(
+        {
+            "driver_id": [9991, 9992],  # IDs with no matching features
+            "event_timestamp": [
+                datetime(2021, 4, 12, 10, 59, 42),
+                datetime(2021, 4, 12, 10, 59, 42),
+            ],
+        }
+    )
+    features = ["driver_hourly_stats:conv_rate"]
+    job = fs.get_historical_features(entity_df, features)
+    tensor_data = job.to_tensor()
+    assert "conv_rate" in tensor_data
+    values = tensor_data["conv_rate"]
+    # conv_rate is a float feature, missing values should be NaN
+    for val in values:
+        assert isinstance(val, torch.Tensor) or torch.is_tensor(val)
+        assertpy.assert_that(torch.isnan(val).item()).is_true()
 
 
 def _test_offline_write_batch(temp_dir, fs: FeatureStore):
