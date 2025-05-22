@@ -29,7 +29,6 @@ from typing import (
 
 import pandas as pd
 import pyarrow
-import torch
 
 from feast import flags_helper
 from feast.data_source import DataSource
@@ -40,6 +39,7 @@ from feast.infra.registry.base_registry import BaseRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
+from feast.torch_wrapper import get_torch
 
 if TYPE_CHECKING:
     from feast.saved_dataset import ValidationReference
@@ -160,13 +160,15 @@ class RetrievalJob(ABC):
             raise ValueError(
                 f"Unsupported tensor kind: {kind}. Only 'torch' is supported."
             )
+        torch = get_torch()
+        device = "cuda" if torch.cuda.is_available() else "cpu"
         df = self.to_df(timeout=timeout)
         tensor_dict = {}
         for column in df.columns:
             values = df[column].fillna(default_value).tolist()
             first_non_null = next((v for v in values if v is not None), None)
             if isinstance(first_non_null, (int, float, bool)):
-                tensor_dict[column] = torch.tensor(values)
+                tensor_dict[column] = torch.tensor(values, device=device)
             else:
                 tensor_dict[column] = values
         return tensor_dict

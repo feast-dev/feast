@@ -12,15 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, List, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Union
 
 import pandas as pd
 import pyarrow as pa
-import torch
 
 from feast.feature_view import DUMMY_ENTITY_ID
 from feast.protos.feast.serving.ServingService_pb2 import GetOnlineFeaturesResponse
+from feast.torch_wrapper import get_torch
 from feast.type_map import feast_value_type_to_python_type
+
+if TYPE_CHECKING:
+    import torch
+
+    TorchTensor = torch.Tensor
+else:
+    TorchTensor = Any
 
 TIMESTAMP_POSTFIX: str = "__ts"
 
@@ -94,7 +101,7 @@ class OnlineResponse:
         self,
         kind: str = "torch",
         default_value: Any = float("nan"),
-    ) -> Dict[str, Union[torch.Tensor, List[Any]]]:
+    ) -> Dict[str, Union[TorchTensor, List[Any]]]:
         """
         Converts GetOnlineFeaturesResponse features into a dictionary of tensors or lists.
 
@@ -112,17 +119,18 @@ class OnlineResponse:
             raise ValueError(
                 f"Unsupported tensor kind: {kind}. Only 'torch' is supported currently."
             )
-
+        torch = get_torch()
         feature_dict = self.to_dict(include_event_timestamps=False)
         feature_keys = set(self.proto.metadata.feature_names.val)
-        tensor_dict: Dict[str, Union[torch.Tensor, List[Any]]] = {}
+        tensor_dict: Dict[str, Union[TorchTensor, List[Any]]] = {}
         for key in feature_keys:
             raw_values = feature_dict[key]
             values = [v if v is not None else default_value for v in raw_values]
             first_valid = next((v for v in values if v is not None), None)
             if isinstance(first_valid, (int, float, bool)):
                 try:
-                    tensor_dict[key] = torch.tensor(values)
+                    device = "cuda" if torch.cuda.is_available() else "cpu"
+                    tensor_dict[key] = torch.tensor(values, device=device)
                 except Exception as e:
                     raise ValueError(
                         f"Failed to convert values for '{key}' to tensor: {e}"
