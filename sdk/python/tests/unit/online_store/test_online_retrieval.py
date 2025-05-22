@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import pytest
 import sqlite_vec
+import torch
 from pandas.testing import assert_frame_equal
 
 from feast import FeatureStore, RepoConfig
@@ -129,6 +130,35 @@ def test_get_online_features() -> None:
         assert result["name"] == ["John", "John"]
         assert result["trips"] == [7, 7]
 
+        tensor_result = store.get_online_features(
+            features=[
+                "driver_locations:lon",
+                "customer_profile:avg_orders_day",
+                "customer_profile:name",
+                "customer_driver_combined:trips",
+            ],
+            entity_rows=[
+                {"driver_id": 1, "customer_id": "5"},
+                {"driver_id": 1, "customer_id": 5},
+            ],
+            full_feature_names=False,
+        ).to_tensor()
+
+        assert "lon" in tensor_result
+        assert "avg_orders_day" in tensor_result
+        assert "name" in tensor_result
+        assert "trips" in tensor_result
+
+        # Entity values
+        assert torch.equal(tensor_result["driver_id"], torch.tensor([1, 1]))
+        assert tensor_result["customer_id"] == ["5", "5"]
+
+        # Feature values
+        assert tensor_result["lon"] == ["1.0", "1.0"]  # String -> not tensor
+        assert torch.equal(tensor_result["avg_orders_day"], torch.tensor([1.0, 1.0]))
+        assert tensor_result["name"] == ["John", "John"]
+        assert torch.equal(tensor_result["trips"], torch.tensor([7, 7]))
+
         # Ensure features are still in result when keys not found
         result = store.get_online_features(
             features=["customer_driver_combined:trips"],
@@ -137,6 +167,15 @@ def test_get_online_features() -> None:
         ).to_dict()
 
         assert "trips" in result
+
+        result = store.get_online_features(
+            features=["customer_driver_combined:trips"],
+            entity_rows=[{"driver_id": 0, "customer_id": 0}],
+            full_feature_names=False,
+        ).to_tensor()
+
+        assert "trips" in result
+        assert isinstance(result["trips"], torch.Tensor)
 
         with pytest.raises(KeyError) as excinfo:
             _ = store.get_online_features(
