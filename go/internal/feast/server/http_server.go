@@ -188,6 +188,14 @@ func (filter sortKeyFilter) ToProto() (*serving.SortKeyFilter, error) {
 		SortKeyName: filter.SortKeyName,
 	}
 
+	if filter.Equals == nil && filter.Range.RangeStart == nil && filter.Range.RangeEnd == nil {
+		return nil, fmt.Errorf("SortKeyFilter must have either equals or range")
+	}
+
+	if filter.Equals != nil && (filter.Range.RangeStart != nil || filter.Range.RangeEnd != nil) {
+		return nil, fmt.Errorf("SortKeyFilter must have either equals or range, but not both")
+	}
+
 	if filter.Equals != nil {
 		value, err := parseValueFromJSON(filter.Equals)
 		if err != nil {
@@ -201,20 +209,20 @@ func (filter sortKeyFilter) ToProto() (*serving.SortKeyFilter, error) {
 	}
 
 	rangeQuery := &serving.SortKeyFilter_RangeQuery{
-		StartInclusive: filter.StartInclusive,
-		EndInclusive:   filter.EndInclusive,
+		StartInclusive: filter.Range.StartInclusive,
+		EndInclusive:   filter.Range.EndInclusive,
 	}
 
-	if filter.RangeStart != nil {
-		value, err := parseValueFromJSON(filter.RangeStart)
+	if filter.Range.RangeStart != nil {
+		value, err := parseValueFromJSON(filter.Range.RangeStart)
 		if err != nil {
 			return nil, fmt.Errorf("error parsing range_start: %w", err)
 		}
 		rangeQuery.RangeStart = value
 	}
 
-	if filter.RangeEnd != nil {
-		value, err := parseValueFromJSON(filter.RangeEnd)
+	if filter.Range.RangeEnd != nil {
+		value, err := parseValueFromJSON(filter.Range.RangeEnd)
 		if err != nil {
 			return nil, fmt.Errorf("error parsing range_end: %w", err)
 		}
@@ -401,12 +409,28 @@ type getOnlineFeaturesRangeRequest struct {
 }
 
 type sortKeyFilter struct {
-	SortKeyName    string          `json:"sort_key_name"`
+	SortKeyName string          `json:"sort_key_name"`
+	Range       rangeQuery      `json:"range"`
+	Equals      json.RawMessage `json:"equals"`
+}
+
+type rangeQuery struct {
 	RangeStart     json.RawMessage `json:"range_start"`
 	RangeEnd       json.RawMessage `json:"range_end"`
-	Equals         json.RawMessage `json:"equals"`
 	StartInclusive bool            `json:"start_inclusive"`
 	EndInclusive   bool            `json:"end_inclusive"`
+}
+
+func getSortKeyFiltersProto(filters []sortKeyFilter) ([]*serving.SortKeyFilter, error) {
+	sortKeyFiltersProto := make([]*serving.SortKeyFilter, len(filters))
+	for i, filter := range filters {
+		protoFilter, err := filter.ToProto()
+		if err != nil {
+			return nil, err
+		}
+		sortKeyFiltersProto[i] = protoFilter
+	}
+	return sortKeyFiltersProto, nil
 }
 
 func (s *httpServer) getOnlineFeaturesRange(w http.ResponseWriter, r *http.Request) {
@@ -461,15 +485,11 @@ func (s *httpServer) getOnlineFeaturesRange(w http.ResponseWriter, r *http.Reque
 		}
 	}
 
-	sortKeyFiltersProto := make([]*serving.SortKeyFilter, len(request.SortKeyFilters))
-	for i, filter := range request.SortKeyFilters {
-		protoFilter, err := filter.ToProto()
-		if err != nil {
-			logSpanContext.Error().Err(err).Msg("Error converting sort key filter to protobuf")
-			writeJSONError(w, fmt.Errorf("error converting sort key filter to protobuf: %w", err), http.StatusInternalServerError)
-			return
-		}
-		sortKeyFiltersProto[i] = protoFilter
+	sortKeyFiltersProto, err := getSortKeyFiltersProto(request.SortKeyFilters)
+	if err != nil {
+		logSpanContext.Error().Err(err).Msg("Error converting sort key filter to protobuf")
+		writeJSONError(w, fmt.Errorf("error converting sort key filter to protobuf: %w", err), http.StatusInternalServerError)
+		return
 	}
 
 	rangeFeatureVectors, err := s.fs.GetOnlineFeaturesRange(
