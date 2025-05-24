@@ -40,6 +40,23 @@ The typical RAG workflow with Feast involves:
 └─────────────┘     └─────────────┘     └─────────────┘     └─────────────┘
 ```
 
+### Transforming Unstructured Data to Structured Data
+
+Feast provides powerful capabilities for transforming unstructured data (like PDFs, text documents, and images) into structured embeddings that can be used for RAG applications:
+
+* **Document Processing Pipelines**: Integrate with document processing tools like Docling to extract text from PDFs and other document formats
+* **Chunking and Embedding Generation**: Process documents into smaller chunks and generate embeddings using models like Sentence Transformers
+* **On-Demand Transformations**: Use `@on_demand_feature_view` decorator to transform raw documents into embeddings in real-time
+* **Batch Processing with Spark**: Scale document processing for large datasets using Spark integration
+
+The transformation workflow typically involves:
+
+1. **Document Ingestion**: Load documents from various sources (file systems, databases, etc.)
+2. **Text Extraction**: Extract text content from unstructured documents
+3. **Chunking**: Split documents into smaller, semantically meaningful chunks
+4. **Embedding Generation**: Convert text chunks into vector embeddings
+5. **Storage**: Store embeddings and metadata in Feast's feature store
+
 ### Feature Transformation for LLMs
 
 Feast supports on-demand transformations that can be used to:
@@ -47,6 +64,7 @@ Feast supports on-demand transformations that can be used to:
 * Process raw text into embeddings
 * Chunk documents for more effective retrieval
 * Normalize and preprocess features before serving to LLMs
+* Apply custom transformations to adapt features for specific LLM requirements
 
 ## Getting Started with Feast for GenAI
 
@@ -166,10 +184,44 @@ Implement semantic search by:
 2. Converting search queries to embeddings
 3. Finding semantically similar documents using vector search
 
+### Scaling with Spark Integration
+
+Feast integrates with Apache Spark to enable large-scale processing of unstructured data for GenAI applications:
+
+* **Spark Data Source**: Load data from Spark tables, files, or SQL queries for feature generation
+* **Spark Offline Store**: Process large document collections and generate embeddings at scale
+* **Spark Batch Materialization**: Efficiently materialize features from offline to online stores
+* **Distributed Processing**: Handle gigabytes of documents and millions of embeddings
+
+To use Feast with Spark:
+
+```python
+# Configure Spark in feature_store.yaml
+offline_store:
+  type: spark
+  spark_conf:
+    spark.master: "local[*]"
+    spark.sql.session.timeZone: "UTC"
+
+# Use Spark for batch materialization
+batch_engine:
+  type: spark.engine
+  partitions: 10  # Adjust based on your data size
+```
+
+This integration enables:
+- Processing large document collections in parallel
+- Generating embeddings for millions of text chunks
+- Efficiently materializing features to vector databases
+- Scaling RAG applications to enterprise-level document repositories
+
 ## Learn More
 
 For more detailed information and examples:
 
-* [Vector Database Reference](reference/alpha-vector-database.md)
-* [RAG Tutorial with Docling](tutorials/rag-with-docling.md)
+* [Vector Database Reference](../reference/alpha-vector-database.md)
+* [RAG Tutorial with Docling](../tutorials/rag-with-docling.md)
 * [Milvus Quickstart Example](https://github.com/feast-dev/feast/tree/master/examples/rag/milvus-quickstart.ipynb)
+* [Spark Data Source](../reference/data-sources/spark.md)
+* [Spark Offline Store](../reference/offline-stores/spark.md)
+* [Spark Batch Materialization](../reference/batch-materialization/spark.md)
