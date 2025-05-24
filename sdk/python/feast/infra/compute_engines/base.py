@@ -13,7 +13,7 @@ from feast.infra.common.materialization_job import (
 )
 from feast.infra.common.retrieval_task import HistoricalRetrievalTask
 from feast.infra.compute_engines.dag.context import ColumnInfo, ExecutionContext
-from feast.infra.offline_stores.offline_store import OfflineStore
+from feast.infra.offline_stores.offline_store import OfflineStore, RetrievalJob
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
@@ -108,7 +108,7 @@ class ComputeEngine(ABC):
 
     def get_historical_features(
         self, registry: BaseRegistry, task: HistoricalRetrievalTask
-    ) -> pa.Table:
+    ) -> Union[RetrievalJob, pa.Table]:
         raise NotImplementedError
 
     def get_execution_context(
