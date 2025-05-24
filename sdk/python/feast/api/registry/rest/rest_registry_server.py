@@ -28,6 +28,7 @@ class RestRegistryServer:
             dependencies=[Depends(inject_user_details)],
             version="1.0.0",
             openapi_url="/openapi.json",
+            openapi_prefix="/api/v1",
             docs_url="/",
             redoc_url="/docs",
             default_status_code=status.HTTP_200_OK,

@@ -1987,6 +1987,10 @@ spec:
                                       of compute resources required.
                                     type: object
                                 type: object
+                              restAPI:
+                                description: RestAPI determines if the registry should
+                                  serve using the REST API instead of gRPC.
+                                type: boolean
                               tls:
                                 description: TlsConfigs configures server TLS for
                                   a feast service.
@@ -5965,6 +5969,10 @@ spec:
                                           amount of compute resources required.
                                         type: object
                                     type: object
+                                  restAPI:
+                                    description: RestAPI determines if the registry
+                                      should serve using the REST API instead of gRPC.
+                                    type: boolean
                                   tls:
                                     description: TlsConfigs configures server TLS
                                       for a feast service.
