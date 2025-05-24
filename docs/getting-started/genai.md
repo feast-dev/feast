@@ -56,6 +56,7 @@ The transformation workflow typically involves:
 3. **Chunking**: Split documents into smaller, semantically meaningful chunks
 4. **Embedding Generation**: Convert text chunks into vector embeddings
 5. **Storage**: Store embeddings and metadata in Feast's feature store
+
 ### Feature Transformation for LLMs
 
 Feast supports transformations that can be used to:
@@ -158,6 +159,7 @@ context_data = store.retrieve_online_documents_v2(
     distance_metric='COSINE',
 ).to_df()
 ```
+
 ## Use Cases
 
 ### Document Question-Answering
@@ -196,6 +198,7 @@ This integration enables:
 - Generating embeddings for millions of text chunks
 - Efficiently materializing features to vector databases
 - Scaling RAG applications to enterprise-level document repositories
+
 ## Learn More
 
 For more detailed information and examples:
