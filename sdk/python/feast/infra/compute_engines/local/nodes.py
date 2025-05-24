@@ -213,6 +213,9 @@ class LocalOutputNode(LocalNode):
         input_table = self.get_single_table(context).data
         context.node_outputs[self.name] = input_table
 
+        if input_table.num_rows == 0:
+            return input_table
+
         if self.feature_view.online:
             online_store = context.online_store
 
