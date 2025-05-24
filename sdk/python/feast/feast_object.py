@@ -8,12 +8,14 @@ from .data_source import DataSource
 from .entity import Entity
 from .feature_service import FeatureService
 from .feature_view import FeatureView
+from .model import ModelMetadata
 from .on_demand_feature_view import OnDemandFeatureView
 from .permissions.permission import Permission
 from .protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from .protos.feast.core.Entity_pb2 import EntitySpecV2
 from .protos.feast.core.FeatureService_pb2 import FeatureServiceSpec
 from .protos.feast.core.FeatureView_pb2 import FeatureViewSpec
+from .protos.feast.core.Model_pb2 import ModelMetadata as ModelMetadataProto
 from .protos.feast.core.OnDemandFeatureView_pb2 import OnDemandFeatureViewSpec
 from .protos.feast.core.Permission_pb2 import PermissionSpec as PermissionSpec
 from .protos.feast.core.SavedDataset_pb2 import SavedDatasetSpec
@@ -37,6 +39,7 @@ FeastObject = Union[
     ValidationReference,
     SavedDataset,
     Permission,
+    ModelMetadata,
 ]
 
 FeastObjectSpecProto = Union[
@@ -50,6 +53,7 @@ FeastObjectSpecProto = Union[
     ValidationReferenceProto,
     SavedDatasetSpec,
     PermissionSpec,
+    ModelMetadataProto,
 ]
 
 ALL_RESOURCE_TYPES = list(get_args(FeastObject))
