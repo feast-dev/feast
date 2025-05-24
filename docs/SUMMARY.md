@@ -9,7 +9,7 @@
 ## Getting started
 
 * [Quickstart](getting-started/quickstart.md)
-* [Feast for Generative AI](getting-started/genai.md)
+* [GenAI](getting-started/genai.md)
 * [Architecture](getting-started/architecture/README.md)
   * [Overview](getting-started/architecture/overview.md)
   * [Language](getting-started/architecture/language.md)
