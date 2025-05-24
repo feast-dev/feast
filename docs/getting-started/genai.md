@@ -17,7 +17,7 @@ Feast integrates with popular vector databases to store and retrieve embedding v
 * **Qdrant**: Purpose-built vector database integration
 
 These integrations allow you to:
-- Store document embeddings as features
+- Store embeddings as features
 - Perform vector similarity search to find relevant context
 - Retrieve both vector embeddings and traditional features in a single API call
 
