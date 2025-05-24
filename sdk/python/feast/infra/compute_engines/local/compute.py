@@ -1,5 +1,12 @@
-from typing import Optional
+from typing import Optional, Sequence, Union
 
+from feast import (
+    BatchFeatureView,
+    Entity,
+    FeatureView,
+    OnDemandFeatureView,
+    StreamFeatureView,
+)
 from feast.infra.common.materialization_job import (
     MaterializationJobStatus,
     MaterializationTask,
@@ -10,11 +17,36 @@ from feast.infra.compute_engines.dag.context import ExecutionContext
 from feast.infra.compute_engines.local.backends.base import DataFrameBackend
 from feast.infra.compute_engines.local.backends.factory import BackendFactory
 from feast.infra.compute_engines.local.feature_builder import LocalFeatureBuilder
-from feast.infra.compute_engines.local.job import LocalRetrievalJob
-from feast.infra.materialization.local_engine import LocalMaterializationJob
+from feast.infra.compute_engines.local.job import (
+    LocalMaterializationJob,
+    LocalRetrievalJob,
+)
+from feast.infra.registry.base_registry import BaseRegistry
 
 
 class LocalComputeEngine(ComputeEngine):
+    def update(
+        self,
+        project: str,
+        views_to_delete: Sequence[
+            Union[BatchFeatureView, StreamFeatureView, FeatureView]
+        ],
+        views_to_keep: Sequence[
+            Union[BatchFeatureView, StreamFeatureView, FeatureView, OnDemandFeatureView]
+        ],
+        entities_to_delete: Sequence[Entity],
+        entities_to_keep: Sequence[Entity],
+    ):
+        pass
+
+    def teardown_infra(
+        self,
+        project: str,
+        fvs: Sequence[Union[BatchFeatureView, StreamFeatureView, FeatureView]],
+        entities: Sequence[Entity],
+    ):
+        pass
+
     def __init__(self, backend: Optional[str] = None, **kwargs):
         super().__init__(**kwargs)
         self.backend_name = backend
@@ -28,9 +60,11 @@ class LocalComputeEngine(ComputeEngine):
             return backend
         raise ValueError("Could not infer backend from context.entity_df")
 
-    def materialize(self, task: MaterializationTask) -> LocalMaterializationJob:
+    def _materialize_one(
+        self, registry: BaseRegistry, task: MaterializationTask, **kwargs
+    ) -> LocalMaterializationJob:
         job_id = f"{task.feature_view.name}-{task.start_time}-{task.end_time}"
-        context = self.get_execution_context(task)
+        context = self.get_execution_context(registry, task)
         backend = self._get_backend(context)
 
         try:
@@ -50,9 +84,9 @@ class LocalComputeEngine(ComputeEngine):
             )
 
     def get_historical_features(
-        self, task: HistoricalRetrievalTask
+        self, registry: BaseRegistry, task: HistoricalRetrievalTask
     ) -> LocalRetrievalJob:
-        context = self.get_execution_context(task)
+        context = self.get_execution_context(registry, task)
         backend = self._get_backend(context)
 
         try:
