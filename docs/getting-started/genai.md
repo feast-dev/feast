@@ -51,12 +51,11 @@ Feast provides powerful capabilities for transforming unstructured data (like PD
 
 The transformation workflow typically involves:
 
-1. **Raw Data Ingestion**: Load documents or other data from various sources (file systems, databases, etc.)
+1. **Document Ingestion**: Load documents from various sources (file systems, databases, etc.)
 2. **Text Extraction**: Extract text content from unstructured documents
 3. **Chunking**: Split documents into smaller, semantically meaningful chunks
 4. **Embedding Generation**: Convert text chunks into vector embeddings
 5. **Storage**: Store embeddings and metadata in Feast's feature store
-
 ### Feature Transformation for LLMs
 
 Feast supports transformations that can be used to:
@@ -193,12 +192,27 @@ Feast integrates with Apache Spark to enable large-scale processing of unstructu
 * **Spark Batch Materialization**: Efficiently materialize features from offline to online stores
 * **Distributed Processing**: Handle gigabytes of documents and millions of embeddings
 
+To use Feast with Spark:
+
+```python
+# Configure Spark in feature_store.yaml
+offline_store:
+  type: spark
+  spark_conf:
+    spark.master: "local[*]"
+    spark.sql.session.timeZone: "UTC"
+
+# Use Spark for batch materialization
+batch_engine:
+  type: spark.engine
+  partitions: 10  # Adjust based on your data size
+```
+
 This integration enables:
 - Processing large document collections in parallel
 - Generating embeddings for millions of text chunks
 - Efficiently materializing features to vector databases
 - Scaling RAG applications to enterprise-level document repositories
-
 ## Learn More
 
 For more detailed information and examples:
