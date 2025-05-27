@@ -208,7 +208,7 @@ class TrinoRetrievalJob(RetrievalJob):
     def _to_arrow_internal(self, timeout: Optional[int] = None) -> pyarrow.Table:
         """Return payrrow dataset as synchronously including on demand transforms"""
         return pyarrow.Table.from_pandas(
-            self._to_df_internal(timeout=timeout), schema=self.pyarrow_schema
+            self._to_df_internal(timeout=timeout)
         )
 
     def to_sql(self) -> str:
