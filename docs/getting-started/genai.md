@@ -51,7 +51,7 @@ Feast provides powerful capabilities for transforming unstructured data (like PD
 
 The transformation workflow typically involves:
 
-1. **Document Ingestion**: Load documents from various sources (file systems, databases, etc.)
+1. **Raw Data Ingestion**: Load documents or other data from various sources (file systems, databases, etc.)
 2. **Text Extraction**: Extract text content from unstructured documents
 3. **Chunking**: Split documents into smaller, semantically meaningful chunks
 4. **Embedding Generation**: Convert text chunks into vector embeddings
@@ -65,100 +65,6 @@ Feast supports transformations that can be used to:
 * Chunk documents for more effective retrieval
 * Normalize and preprocess features before serving to LLMs
 * Apply custom transformations to adapt features for specific LLM requirements
-
-## Getting Started with Feast for GenAI
-
-### Installation
-
-To use Feast with vector database support, install with the appropriate extras:
-
-```bash
-# For Milvus support
-pip install feast[milvus,nlp]
-
-# For Elasticsearch support
-pip install feast[elasticsearch]
-
-# For Qdrant support
-pip install feast[qdrant]
-
-# For SQLite support (Python 3.10 only)
-pip install feast[sqlite_vec]
-```
-
-### Configuration
-
-Configure your feature store to use a vector database as the online store:
-
-```yaml
-project: genai-project
-provider: local
-registry: data/registry.db
-online_store:
-  type: milvus
-  path: data/online_store.db
-  vector_enabled: true
-  embedding_dim: 384  # Adjust based on your embedding model
-  index_type: "IVF_FLAT"
-
-offline_store:
-  type: file
-entity_key_serialization_version: 3
-```
-
-### Defining Vector Features
-
-Create feature views with vector index support:
-
-```python
-from feast import FeatureView, Field, Entity
-from feast.types import Array, Float32, String
-
-document = Entity(
-    name="document_id",
-    description="Document identifier",
-    join_keys=["document_id"],
-)
-
-document_embeddings = FeatureView(
-    name="document_embeddings",
-    entities=[document],
-    schema=[
-        Field(
-            name="vector",
-            dtype=Array(Float32),
-            vector_index=True,  # Enable vector search
-            vector_search_metric="COSINE",  # Similarity metric
-        ),
-        Field(name="document_id", dtype=String),
-        Field(name="content", dtype=String),
-    ],
-    source=document_source,
-    ttl=timedelta(days=30),
-)
-```
-
-### Retrieving Similar Documents
-
-Use the `retrieve_online_documents_v2` method to find similar documents:
-
-```python
-# Generate query embedding
-query = "How does Feast support vector databases?"
-query_embedding = embed_text(query)  # Your embedding function
-
-# Retrieve similar documents
-context_data = store.retrieve_online_documents_v2(
-    features=[
-        "document_embeddings:vector",
-        "document_embeddings:document_id",
-        "document_embeddings:content",
-    ],
-    query=query_embedding,
-    top_k=3,
-    distance_metric='COSINE',
-).to_df()
-```
 
 ## Use Cases
 
@@ -192,22 +98,6 @@ Feast integrates with Apache Spark to enable large-scale processing of unstructu
 * **Spark Offline Store**: Process large document collections and generate embeddings at scale
 * **Spark Batch Materialization**: Efficiently materialize features from offline to online stores
 * **Distributed Processing**: Handle gigabytes of documents and millions of embeddings
-
-To use Feast with Spark:
-
-```python
-# Configure Spark in feature_store.yaml
-offline_store:
-  type: spark
-  spark_conf:
-    spark.master: "local[*]"
-    spark.sql.session.timeZone: "UTC"
-
-# Use Spark for batch materialization
-batch_engine:
-  type: spark.engine
-  partitions: 10  # Adjust based on your data size
-```
 
 This integration enables:
 - Processing large document collections in parallel
