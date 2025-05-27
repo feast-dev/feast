@@ -23,7 +23,11 @@ class BackendFactory:
 
     @staticmethod
     def infer_from_entity_df(entity_df) -> Optional[DataFrameBackend]:
-        if isinstance(entity_df, pyarrow.Table) or isinstance(entity_df, pd.DataFrame):
+        if (
+            not entity_df
+            or isinstance(entity_df, pyarrow.Table)
+            or isinstance(entity_df, pd.DataFrame)
+        ):
             return PandasBackend()
 
         if BackendFactory._is_polars(entity_df):

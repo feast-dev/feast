@@ -79,7 +79,7 @@ class BatchFeatureView(FeatureView):
         ttl: Optional[timedelta] = None,
         tags: Optional[Dict[str, str]] = None,
         online: bool = False,
-        offline: bool = True,
+        offline: bool = False,
         description: str = "",
         owner: str = "",
         schema: Optional[List[Field]] = None,

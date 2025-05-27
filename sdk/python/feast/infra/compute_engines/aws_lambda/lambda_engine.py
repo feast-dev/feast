@@ -3,12 +3,12 @@ import json
 import logging
 from concurrent.futures import ThreadPoolExecutor, wait
 from dataclasses import dataclass
-from datetime import datetime
-from typing import Callable, List, Literal, Optional, Sequence, Union
+from typing import Literal, Optional, Sequence, Union
 
 import boto3
+import pyarrow as pa
+from infra.common.retrieval_task import HistoricalRetrievalTask
 from pydantic import StrictStr
-from tqdm import tqdm
 
 from feast import utils
 from feast.batch_feature_view import BatchFeatureView
@@ -20,9 +20,7 @@ from feast.infra.common.materialization_job import (
     MaterializationJobStatus,
     MaterializationTask,
 )
-from feast.infra.materialization.batch_materialization_engine import (
-    BatchMaterializationEngine,
-)
+from feast.infra.compute_engines.base import ComputeEngine
 from feast.infra.offline_stores.offline_store import OfflineStore
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.registry.base_registry import BaseRegistry
@@ -37,8 +35,8 @@ DEFAULT_BATCH_SIZE = 10_000
 logger = logging.getLogger(__name__)
 
 
-class LambdaMaterializationEngineConfig(FeastConfigBaseModel):
-    """Batch Materialization Engine config for lambda based engine"""
+class LambdaComputeEngineConfig(FeastConfigBaseModel):
+    """Batch Compute Engine config for lambda based engine"""
 
     type: Literal["lambda"] = "lambda"
     """ Type selector"""
@@ -74,10 +72,17 @@ class LambdaMaterializationJob(MaterializationJob):
         return None
 
 
-class LambdaMaterializationEngine(BatchMaterializationEngine):
+class LambdaComputeEngine(ComputeEngine):
     """
     WARNING: This engine should be considered "Alpha" functionality.
     """
+
+    def get_historical_features(
+        self, registry: BaseRegistry, task: HistoricalRetrievalTask
+    ) -> pa.Table:
+        raise NotImplementedError(
+            "Lambda Compute Engine does not support get_historical_features"
+        )
 
     def update(
         self,
@@ -151,30 +156,14 @@ class LambdaMaterializationEngine(BatchMaterializationEngine):
             self.lambda_name = self.lambda_name[:64]
         self.lambda_client = boto3.client("lambda")
 
-    def materialize(
-        self, registry, tasks: List[MaterializationTask]
-    ) -> List[MaterializationJob]:
-        return [
-            self._materialize_one(
-                registry,
-                task.feature_view,
-                task.start_time,
-                task.end_time,
-                task.project,
-                task.tqdm_builder,
-            )
-            for task in tasks
-        ]
-
     def _materialize_one(
-        self,
-        registry: BaseRegistry,
-        feature_view: Union[BatchFeatureView, StreamFeatureView, FeatureView],
-        start_date: datetime,
-        end_date: datetime,
-        project: str,
-        tqdm_builder: Callable[[int], tqdm],
+        self, registry: BaseRegistry, task: MaterializationTask, **kwargs
     ):
+        feature_view = task.feature_view
+        start_date = task.start_time
+        end_date = task.end_time
+        project = task.project
+
         entities = []
         for entity_name in feature_view.entities:
             entities.append(registry.get_entity(entity_name, project))

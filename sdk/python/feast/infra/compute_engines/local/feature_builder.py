@@ -26,7 +26,10 @@ class LocalFeatureBuilder(FeatureBuilder):
         self.backend = backend
 
     def build_source_node(self):
-        node = LocalSourceReadNode("source", self.feature_view, self.task)
+        source = self.feature_view.batch_source
+        start_time = self.task.start_time
+        end_time = self.task.end_time
+        node = LocalSourceReadNode("source", source, start_time, end_time)
         self.nodes.append(node)
         return node
 

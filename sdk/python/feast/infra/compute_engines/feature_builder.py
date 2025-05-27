@@ -69,6 +69,9 @@ class FeatureBuilder(ABC):
     def _should_validate(self):
         return getattr(self.feature_view, "enable_validation", False)
 
+    def _should_dedupe(self, task):
+        return isinstance(task, HistoricalRetrievalTask) or task.only_latest
+
     def build(self) -> ExecutionPlan:
         last_node = self.build_source_node()
 
@@ -80,7 +83,9 @@ class FeatureBuilder(ABC):
 
         if self._should_aggregate():
             last_node = self.build_aggregation_node(last_node)
-        elif isinstance(self.task, HistoricalRetrievalTask):
+
+        # Dedupe only if not aggregated
+        elif self._should_dedupe(self.task):
             last_node = self.build_dedup_node(last_node)
 
         if self._should_transform():
