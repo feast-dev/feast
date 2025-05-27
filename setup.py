@@ -77,7 +77,7 @@ REDIS_REQUIRED = [
     "hiredis>=2.0.0,<3",
 ]
 
-AWS_REQUIRED = ["boto3>=1.17.0,<2", "fsspec<=2024.9.0", "aiobotocore>2,<3"]
+AWS_REQUIRED = ["boto3==1.38.27", "fsspec<=2024.9.0", "aiobotocore>2,<3"]
 
 KUBERNETES_REQUIRED = ["kubernetes<=20.13.0"]
 
@@ -175,6 +175,11 @@ CLICKHOUSE_REQUIRED = ["clickhouse-connect>=0.7.19"]
 
 MCP_REQUIRED = ["fastapi_mcp"]
 
+RAG_REQUIRED = [
+    "transformers>=4.36.0",
+    "datasets>=3.6.0",
+]
+
 CI_REQUIRED = (
     [
         "build",
@@ -188,7 +193,7 @@ CI_REQUIRED = (
         "httpx==0.27.2",
         "minio==7.2.11",
         "mock==2.0.0",
-        "moto<5",
+        "moto==4.2.14",
         "mypy>=1.4.1,<1.11.3",
         "urllib3>=1.25.4,<3",
         "psutil==5.9.0",
@@ -250,6 +255,7 @@ CI_REQUIRED = (
     + TORCH_REQUIRED
     + CLICKHOUSE_REQUIRED
     + MCP_REQUIRED
+    + RAG_REQUIRED
 )
 MINIMAL_REQUIRED = (
     GCP_REQUIRED
@@ -350,6 +356,7 @@ setup(
         "nlp": NLP_REQUIRED,
         "clickhouse": CLICKHOUSE_REQUIRED,
         "mcp": MCP_REQUIRED,
+        "rag": RAG_REQUIRED,
     },
     include_package_data=True,
     license="Apache",

@@ -658,6 +658,7 @@ setuptools-scm==8.3.1 \
     #   tqdm
     #   typeguard
     #   ujson
+    #   urllib3
 smmap==5.0.2 \
     --hash=sha256:26ea65a03958fa0c8a1c7e8c7a58fdc77221b8910f6be2131affade476898ad5 \
     --hash=sha256:b30115f0def7d7531d22a0fb6502488d879e75b260a9db4d0819cfb25403af5e
@@ -768,6 +769,7 @@ setuptools==80.9.0 \
     #   anyio
     #   cachetools
     #   calver
+    #   certifi
     #   cffi
     #   charset-normalizer
     #   cryptography

@@ -30,12 +30,6 @@ jobs:
         uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
-      - name: Install torch (platform-specific)
-        run: |
-          if [[ "$RUNNER_OS" == "Linux" ]]; then
-            pip install torch torchvision \
-              --index-url https://download.pytorch.org/whl/cpu
-          fi
       - name: Install dependencies
         run: make install-python-dependencies-ci
       - name: Test Python

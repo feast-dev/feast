@@ -131,6 +131,7 @@ document_embeddings = FeatureView(
     ],
     source=rag_documents_source,
     ttl=timedelta(hours=24),
+    online=True,
 )
 
 
