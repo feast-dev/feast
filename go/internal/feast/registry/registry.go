@@ -35,8 +35,8 @@ type cacheMap[T any] struct {
 	mu    sync.RWMutex
 }
 
-func newCacheMap[T any]() *cacheMap[T] {
-	return &cacheMap[T]{cache: make(map[string]map[string]*model.ModelTTL[T])}
+func newCacheMap[T any](ttl time.Duration) *cacheMap[T] {
+	return &cacheMap[T]{cache: make(map[string]map[string]*model.ModelTTL[T]), ttl: ttl}
 }
 
 func (m *cacheMap[T]) get(project string, key string) (T, bool) {
@@ -74,7 +74,7 @@ func (m *cacheMap[T]) getOrLoad(project string, key string, load func(string, st
 	item, err := load(key, project)
 	if err != nil {
 		var null T
-		return null, fmt.Errorf("no cached item %s found for project %s", key, project)
+		return null, err
 	}
 	m.cache[project][key] = model.NewModelTTLWithExpiration(item, m.ttl)
 	return item, nil
@@ -144,14 +144,16 @@ type Registry struct {
 func NewRegistry(registryConfig *RegistryConfig, repoPath string, project string) (*Registry, error) {
 	registryStoreType := registryConfig.RegistryStoreType
 	registryPath := registryConfig.Path
+	ttl := time.Duration(registryConfig.CacheTtlSeconds) * time.Second
+
 	r := &Registry{
 		project:                    project,
-		cachedRegistryProtoTtl:     time.Duration(registryConfig.CacheTtlSeconds) * time.Second,
-		cachedFeatureServices:      newCacheMap[*model.FeatureService](),
-		cachedEntities:             newCacheMap[*model.Entity](),
-		cachedFeatureViews:         newCacheMap[*model.FeatureView](),
-		cachedSortedFeatureViews:   newCacheMap[*model.SortedFeatureView](),
-		cachedOnDemandFeatureViews: newCacheMap[*model.OnDemandFeatureView](),
+		cachedFeatureServices:      newCacheMap[*model.FeatureService](ttl),
+		cachedEntities:             newCacheMap[*model.Entity](ttl),
+		cachedFeatureViews:         newCacheMap[*model.FeatureView](ttl),
+		cachedSortedFeatureViews:   newCacheMap[*model.SortedFeatureView](ttl),
+		cachedOnDemandFeatureViews: newCacheMap[*model.OnDemandFeatureView](ttl),
+		cachedRegistryProtoTtl:     ttl,
 	}
 
 	if len(registryStoreType) == 0 {
