@@ -2,7 +2,7 @@
 
 ## Overview
 
-Feast provides robust support for Generative AI applications, enabling teams to build, deploy, and manage feature infrastructure for Large Language Models (LLMs) and other generative AI systems. With Feast's vector database integrations and feature management capabilities, teams can implement production-ready Retrieval Augmented Generation (RAG) systems and other GenAI applications with the same reliability and operational excellence as traditional ML systems.
+Feast provides robust support for Generative AI applications, enabling teams to build, deploy, and manage feature infrastructure for Large Language Models (LLMs) and other Generative AI (GenAI) applications. With Feast's vector database integrations and feature management capabilities, teams can implement production-ready Retrieval Augmented Generation (RAG) systems and other GenAI applications with the same reliability and operational excellence as traditional ML systems.
 
 ## Key Capabilities for GenAI
 
@@ -25,9 +25,9 @@ These integrations allow you to:
 
 Feast simplifies building RAG applications by providing:
 
-1. **Document embedding storage**: Store and version document embeddings alongside your other features
-2. **Vector similarity search**: Find the most relevant documents for a given query
-3. **Feature retrieval**: Combine document embeddings with structured features for richer context
+1. **Embedding storage**: Store and version embeddings alongside your other features
+2. **Vector similarity search**: Find the most relevant data/documents for a given query
+3. **Feature retrieval**: Combine embeddings with structured features for richer context
 4. **Versioning and governance**: Track changes to your document repository over time
 
 The typical RAG workflow with Feast involves:
@@ -51,23 +51,23 @@ Feast provides powerful capabilities for transforming unstructured data (like PD
 
 The transformation workflow typically involves:
 
-1. **Document Ingestion**: Load documents from various sources (file systems, databases, etc.)
+1. **Raw Data Ingestion**: Load documents or other data from various sources (file systems, databases, etc.)
 2. **Text Extraction**: Extract text content from unstructured documents
 3. **Chunking**: Split documents into smaller, semantically meaningful chunks
 4. **Embedding Generation**: Convert text chunks into vector embeddings
 5. **Storage**: Store embeddings and metadata in Feast's feature store
 ### Feature Transformation for LLMs
 
-Feast supports on-demand transformations that can be used to:
+Feast supports transformations that can be used to:
 
 * Process raw text into embeddings
 * Chunk documents for more effective retrieval
 * Normalize and preprocess features before serving to LLMs
 * Apply custom transformations to adapt features for specific LLM requirements
 
-### Getting Started with Feast for GenAI
+## Getting Started with Feast for GenAI
 
-#### Installation
+### Installation
 
 To use Feast with vector database support, install with the appropriate extras:
 
@@ -85,7 +85,7 @@ pip install feast[qdrant]
 pip install feast[sqlite_vec]
 ```
 
-#### Configuration
+### Configuration
 
 Configure your feature store to use a vector database as the online store:
 
@@ -105,7 +105,7 @@ offline_store:
 entity_key_serialization_version: 3
 ```
 
-#### Defining Vector Features
+### Defining Vector Features
 
 Create feature views with vector index support:
 
@@ -137,7 +137,7 @@ document_embeddings = FeatureView(
 )
 ```
 
-#### Retrieving Similar Documents
+### Retrieving Similar Documents
 
 Use the `retrieve_online_documents_v2` method to find similar documents:
 
@@ -158,7 +158,6 @@ context_data = store.retrieve_online_documents_v2(
     distance_metric='COSINE',
 ).to_df()
 ```
-
 ## Use Cases
 
 ### Document Question-Answering
@@ -191,22 +190,6 @@ Feast integrates with Apache Spark to enable large-scale processing of unstructu
 * **Spark Offline Store**: Process large document collections and generate embeddings at scale
 * **Spark Batch Materialization**: Efficiently materialize features from offline to online stores
 * **Distributed Processing**: Handle gigabytes of documents and millions of embeddings
-
-To use Feast with Spark:
-
-```python
-# Configure Spark in feature_store.yaml
-offline_store:
-  type: spark
-  spark_conf:
-    spark.master: "local[*]"
-    spark.sql.session.timeZone: "UTC"
-
-# Use Spark for batch materialization
-batch_engine:
-  type: spark.engine
-  partitions: 10  # Adjust based on your data size
-```
 
 This integration enables:
 - Processing large document collections in parallel
