@@ -28,4 +28,4 @@ Below is a matrix indicating which data sources support which types.
 | `float64`   | yes | yes | yes       | yes | yes | yes | yes | yes |
 | `bool`      | yes | yes | yes       | yes | yes | yes | yes | yes |
 | `timestamp` | yes | yes | yes       | yes | yes | yes | yes | yes |
-| array types | yes | yes | yes       | no  | yes | yes | no  | no  |
+| array types | yes | yes | yes       | no  | yes | yes | yes | no  |
