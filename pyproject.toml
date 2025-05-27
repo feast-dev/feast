@@ -21,7 +21,7 @@ dependencies = [
     "Jinja2>=2,<4",
     "jsonschema",
     "mmh3",
-    "numpy==2.2.6",
+    "numpy>=2.0.0",
     "pandas>=1.4.3,<3",
     "pyarrow<=17.0.0",
     "pydantic==2.10.6",
@@ -99,7 +99,7 @@ milvus = [
 mssql = ["ibis-framework[mssql]>=9.0.0,<=9.5.0"]
 mysql = ["pymysql", "types-PyMySQL"]
 opentelemetry = ["prometheus_client", "psutil"]
-spark = ["pyspark>=3.0.0,<4"]
+spark = ["pyspark>=4.0.0"]
 trino = ["trino>=0.305.0,<0.400.0", "regex"]
 postgres = ["psycopg[binary,pool]==3.2.5"]
 # psycopg[c] install requires a system with a C compiler, python dev headers, & postgresql client dev headers

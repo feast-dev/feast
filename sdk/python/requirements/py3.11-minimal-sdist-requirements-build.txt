@@ -77,10 +77,10 @@ cffi==1.17.1 \
     --hash=sha256:f7f5baafcc48261359e14bcd6d9bff6d4b28d9103847c9e136694cb0501aef87 \
     --hash=sha256:fc48c783f9c87e60831201f2cce7f3b2e4846bf4d8728eabe54d60700b318a0b
     # via cryptography
-coherent-licensed==0.4.0 \
-    --hash=sha256:1928da8d217139f09aa2dbeff482ff2bc0127adb53b59cd3a7648370e404d74c \
-    --hash=sha256:419e7471b794e529c82b112768af6b48a6909deda35d328578725660b66d7680
-    # via setuptools
+coherent-licensed==0.4.1 \
+    --hash=sha256:8ce06acba9cc78726ab9a46977212b10c982a306083e688d19717383144c04b7 \
+    --hash=sha256:bb28482f2fad5e71ed3e333e0b7389e2c3d960869de825dfefc519aeebc69cc7
+    # via zipp
 cython==3.0.12 \
     --hash=sha256:0038c9bae46c459669390e53a1ec115f8096b2e4647ae007ff1bf4e6dee92806 \
     --hash=sha256:0faa5e39e5c8cdf6f9c3b1c3f24972826e45911e7f5b99cf99453fca5432f45e \
@@ -467,6 +467,10 @@ pdm-backend==2.4.4 \
     --hash=sha256:87f85f65c208956a8adbcc01b8878ab29a97d0494cde56b733d961d4b5a48acf \
     --hash=sha256:f72551eeb319f74ca25856c24fb4026684eeb0dddd9df68482901ab0dc481258
     # via fastapi
+pkgconfig==1.5.5 \
+    --hash=sha256:d20023bbeb42ee6d428a0fac6e0904631f545985a10cdd71a20aa58bc47a4209 \
+    --hash=sha256:deb4163ef11f75b520d822d9505c1f462761b4309b1bb713d08689759ea8b899
+    # via aiohttp
 pluggy==1.6.0 \
     --hash=sha256:7dcc130b76258d33b90f61b658791dede3486c3e6bfb003ee5c9bfb396dd22f3 \
     --hash=sha256:e920276dd6813095e9377c0bc5566d94c932c33b27a3e3945d8389c374dd4746
@@ -478,6 +482,7 @@ poetry-core==1.9.1 \
     #   dunamai
     #   ibis-framework
     #   ibis-substrait
+    #   pkgconfig
     #   poetry-dynamic-versioning
     #   rich
     #   rsa
@@ -557,9 +562,9 @@ types-psutil==7.0.0.20250218 \
     --hash=sha256:1447a30c282aafefcf8941ece854e1100eee7b0296a9d9be9977292f0269b121 \
     --hash=sha256:1e642cdafe837b240295b23b1cbd4691d80b08a07d29932143cbbae30eb0db9c
     # via mypy
-types-setuptools==80.7.0.20250516 \
-    --hash=sha256:57274b58e05434de42088a86074c9e630e5786f759cf9cc1e3015e886297ca21 \
-    --hash=sha256:c1da6c11698139c8307c6df5987592df940e956912c204e42d844ba821dd2741
+types-setuptools==80.8.0.20250521 \
+    --hash=sha256:7360b33b1ed3cda6e5a1f379701a61ec9dbee6e59e8bda072b88226157d8da80 \
+    --hash=sha256:737cd1f54aade1f68fece1381871ea563b622b3ff28393ad65a9d4ed30d6454e
     # via mypy
 typing-extensions==4.13.2 \
     --hash=sha256:a439e7c04b49fec3e5d3e2beaa21755cadbbdc391694e28ccdd36ca4a1408f8c \
@@ -669,11 +674,11 @@ setuptools==76.1.0 \
     #   websockets
     #   wrapt
     #   yarl
-    #   zipp
-setuptools==80.8.0 \
-    --hash=sha256:49f7af965996f26d43c8ae34539c8d99c5042fbff34302ea151eaa9c207cd257 \
-    --hash=sha256:95a60484590d24103af13b686121328cc2736bee85de8936383111e421b9edc0
+setuptools==80.9.0 \
+    --hash=sha256:062d34222ad13e0cc312a4c02d73f059e86a4acbfbdea8f8f76b28c99f306922 \
+    --hash=sha256:f36b47402ecde768dbfafc46e8e4207b4360c654f1f3bb84475f0a28628fb19c
     # via
     #   python-dateutil
     #   types-pymysql
     #   types-setuptools
+    #   zipp
