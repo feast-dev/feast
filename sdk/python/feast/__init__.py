@@ -22,6 +22,8 @@ from .project import Project
 from .repo_config import RepoConfig
 from .stream_feature_view import StreamFeatureView
 from .value_type import ValueType
+from .rag_retriever import FeastRAGRetriever, FeastIndex
+from .vector_store import VectorStore, FeastVectorStore
 
 try:
     __version__ = _version("feast")
@@ -51,4 +53,8 @@ __all__ = [
     "RequestSource",
     "AthenaSource",
     "Project",
+    "FeastIndex",
+    "FeastRAGRetriever",
+    "VectorStore",
+    "FeastVectorStore",
 ]
