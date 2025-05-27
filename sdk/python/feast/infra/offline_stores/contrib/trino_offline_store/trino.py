@@ -207,9 +207,7 @@ class TrinoRetrievalJob(RetrievalJob):
 
     def _to_arrow_internal(self, timeout: Optional[int] = None) -> pyarrow.Table:
         """Return payrrow dataset as synchronously including on demand transforms"""
-        return pyarrow.Table.from_pandas(
-            self._to_df_internal(timeout=timeout)
-        )
+        return pyarrow.Table.from_pandas(self._to_df_internal(timeout=timeout))
 
     def to_sql(self) -> str:
         """Returns the SQL query that will be executed in Trino to build the historical feature table"""
