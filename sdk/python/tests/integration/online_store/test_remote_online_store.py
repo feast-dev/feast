@@ -260,7 +260,7 @@ def _overwrite_remote_client_feature_store_yaml(
 ):
     repo_config = os.path.join(repo_path, "feature_store.yaml")
 
-    config_content = "entity_key_serialization_version: 2\n" + auth_config
+    config_content = "entity_key_serialization_version: 3\n" + auth_config
     config_content += dedent(
         f"""
     project: {PROJECT_NAME}
