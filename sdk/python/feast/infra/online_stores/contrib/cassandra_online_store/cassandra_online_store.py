@@ -399,7 +399,7 @@ class CassandraOnlineStore(OnlineStore):
                       display progress.
         """
         is_error: bool = False
-        ex: BaseException
+        ex: Exception = Exception("Exception raised while writing a batch")
 
         def on_success(result, concurrent_queue):
             concurrent_queue.get_nowait()
