@@ -284,10 +284,10 @@ class TestCassandraOnlineStore:
         assert count[0] == 10
 
     def test_validate_invalid_request_error_when_sort_keys_are_null(
-            self,
-            cassandra_session,
-            repo_config: RepoConfig,
-            online_store: CassandraOnlineStore,
+        self,
+        cassandra_session,
+        repo_config: RepoConfig,
+        online_store: CassandraOnlineStore,
     ):
         (
             feature_view,
@@ -303,7 +303,10 @@ class TestCassandraOnlineStore:
                 data=data,
                 progress=None,
             )
-        assert str(excinfo.value) == 'Error from server: code=2200 [Invalid query] message="Invalid null value in condition for column int"'
+        assert (
+            str(excinfo.value)
+            == 'Error from server: code=2200 [Invalid query] message="Invalid null value in condition for column int"'
+        )
 
     def test_cassandra_online_write_batch_ttl(
         self,
@@ -560,7 +563,7 @@ class TestCassandraOnlineStore:
                 },
                 datetime.utcnow(),
                 None,
-            )
+            ),
         ]
 
     def _create_n_test_sample_features_all_datatypes(self, n=10):
