@@ -32,6 +32,7 @@ class MilvusOnlineStoreCreator(OnlineStoreCreator):
             "type": "milvus",
             "host": host,
             "port": int(port),
+            "path": "online_store.db",
             "index_type": "IVF_FLAT",
             "metric_type": "L2",
             "embedding_dim": 2,
