@@ -1,7 +1,7 @@
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import Dict, List, Optional, Union
 
 import grpc
 from google.protobuf.empty_pb2 import Empty
@@ -15,6 +15,7 @@ from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.infra.infra_object import Infra
 from feast.infra.registry.base_registry import BaseRegistry
+from feast.model import ModelMetadata
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.permissions.auth_model import AuthConfig, NoAuthConfig
 from feast.permissions.client.grpc_client_auth_interceptor import (
@@ -592,3 +593,30 @@ class RemoteRegistry(BaseRegistry):
 
     def teardown(self):
         pass
+
+    def apply_model(self, model: ModelMetadata, project: str, commit: bool = True):
+        raise NotImplementedError(
+            "Model support not implemented in remote registry yet."
+        )
+
+    def delete_model(self, name: str, project: str, commit: bool = True):
+        raise NotImplementedError(
+            "Model support not implemented in remote registry yet."
+        )
+
+    def get_model(
+        self, name: str, project: str, allow_cache: bool = False
+    ) -> ModelMetadata:
+        raise NotImplementedError(
+            "Model support not implemented in remote registry yet."
+        )
+
+    def list_models(
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[Dict[str, str]] = None,
+    ) -> List[ModelMetadata]:
+        raise NotImplementedError(
+            "Model support not implemented in remote registry yet."
+        )

@@ -87,6 +87,7 @@ class PermissionSpec(google.protobuf.message.Message):
         SAVED_DATASET: PermissionSpec._Type.ValueType  # 8
         PERMISSION: PermissionSpec._Type.ValueType  # 9
         PROJECT: PermissionSpec._Type.ValueType  # 10
+        MODEL_METADATA: PermissionSpec._Type.ValueType  # 11
 
     class Type(_Type, metaclass=_TypeEnumTypeWrapper): ...
     FEATURE_VIEW: PermissionSpec.Type.ValueType  # 0
@@ -100,6 +101,7 @@ class PermissionSpec(google.protobuf.message.Message):
     SAVED_DATASET: PermissionSpec.Type.ValueType  # 8
     PERMISSION: PermissionSpec.Type.ValueType  # 9
     PROJECT: PermissionSpec.Type.ValueType  # 10
+    MODEL_METADATA: PermissionSpec.Type.ValueType  # 11
 
     class RequiredTagsEntry(google.protobuf.message.Message):
         DESCRIPTOR: google.protobuf.descriptor.Descriptor
