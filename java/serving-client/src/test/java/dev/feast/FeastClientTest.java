@@ -16,6 +16,7 @@
  */
 package dev.feast;
 
+import static org.junit.Assert.assertNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.AdditionalAnswers.delegatesTo;
 import static org.mockito.Mockito.mock;
@@ -38,6 +39,7 @@ import io.grpc.testing.GrpcCleanupRule;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
@@ -63,7 +65,9 @@ public class FeastClientTest {
                     GetOnlineFeaturesRequest request,
                     StreamObserver<GetOnlineFeaturesResponse> responseObserver) {
                   if (!request.equals(FeastClientTest.getFakeOnlineFeaturesRefRequest())
-                      && !request.equals(FeastClientTest.getFakeOnlineFeaturesServiceRequest())) {
+                      && !request.equals(FeastClientTest.getFakeOnlineFeaturesServiceRequest())
+                      && !request.equals(
+                          FeastClientTest.getFakeOnlineFeaturesRefRequestWithoutStatus())) {
                     responseObserver.onError(Status.FAILED_PRECONDITION.asRuntimeException());
                   }
 
@@ -114,6 +118,11 @@ public class FeastClientTest {
   @Test
   public void shouldGetOnlineFeaturesFeatureService() {
     shouldGetOnlineFeaturesFeatureService(this.client);
+  }
+
+  @Test
+  public void shouldGetOnlineFeaturesWithoutStatus() {
+    shouldGetOnlineFeaturesWithoutStatus(this.client);
   }
 
   @Test
@@ -183,6 +192,31 @@ public class FeastClientTest {
         });
   }
 
+  private void shouldGetOnlineFeaturesWithoutStatus(FeastClient client) {
+
+    List<Row> rows =
+        client.getOnlineFeatures(
+            getFakeOnlineFeaturesRefRequestWithoutStatus(),
+            Collections.singletonList(Row.create().set("driver_id", 1)),
+            "driver_project");
+
+    assertEquals(
+        rows.get(0).getFields(),
+        new HashMap<String, Value>() {
+          {
+            put("driver_id", intValue(1));
+            put("driver:name", strValue("david"));
+            put("driver:rating", intValue(3));
+            put("driver:null_value", Value.newBuilder().build());
+          }
+        });
+
+    for (String fieldName : rows.get(0).getFields().keySet()) {
+      assertNull(
+          "Field " + fieldName + " should not have a status", rows.get(0).getStatus(fieldName));
+    }
+  }
+
   private void shouldGetOnlineFeaturesRangeWithClient(FeastClient client) {
     List<RangeRow> rows =
         client.getOnlineFeaturesRange(
@@ -232,6 +266,20 @@ public class FeastClientTest {
                 .addVal("driver:null_value")
                 .build())
         .putEntities("driver_id", ValueProto.RepeatedValue.newBuilder().addVal(intValue(1)).build())
+        .build();
+  }
+
+  private static GetOnlineFeaturesRequest getFakeOnlineFeaturesRefRequestWithoutStatus() {
+    // setup mock serving service stub
+    return GetOnlineFeaturesRequest.newBuilder()
+        .setFeatures(
+            ServingAPIProto.FeatureList.newBuilder()
+                .addVal("driver:name")
+                .addVal("driver:rating")
+                .addVal("driver:null_value")
+                .build())
+        .putEntities("driver_id", ValueProto.RepeatedValue.newBuilder().addVal(intValue(1)).build())
+        .setOmitStatus(true)
         .build();
   }
 

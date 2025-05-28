@@ -3,6 +3,7 @@ package onlinestore
 import (
 	"context"
 	"fmt"
+
 	"github.com/feast-dev/feast/go/internal/feast/model"
 	"github.com/feast-dev/feast/go/internal/feast/registry"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
@@ -71,6 +72,9 @@ func NewOnlineStore(config *registry.RepoConfig) (OnlineStore, error) {
 		return onlineStore, err
 	} else if onlineStoreType == "redis" {
 		onlineStore, err := NewRedisOnlineStore(config.Project, config, config.OnlineStore)
+		return onlineStore, err
+	} else if onlineStoreType == "eg-valkey" {
+		onlineStore, err := NewValkeyOnlineStore(config.Project, config, config.OnlineStore)
 		return onlineStore, err
 	} else if onlineStoreType == "cassandra" || onlineStoreType == "scylladb" {
 		onlineStore, err := NewCassandraOnlineStore(config.Project, config, config.OnlineStore)

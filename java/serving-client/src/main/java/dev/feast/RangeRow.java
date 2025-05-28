@@ -81,7 +81,13 @@ public class RangeRow {
     return this;
   }
 
-  public RangeRow setWithValues(String fieldName, List<Value> values, List<FieldStatus> statuses) {
+  public RangeRow setWithValues(String fieldName, List<Value> values) {
+    fields.put(fieldName, values);
+    return this;
+  }
+
+  public RangeRow setWithValuesWithFieldStatus(
+      String fieldName, List<Value> values, List<FieldStatus> statuses) {
     fields.put(fieldName, values);
     fieldStatuses.put(fieldName, statuses);
     return this;

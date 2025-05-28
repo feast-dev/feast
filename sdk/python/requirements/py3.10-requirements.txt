@@ -2,16 +2,16 @@
 #    uv pip compile -p 3.10 --system --no-strip-extras setup.py --output-file sdk/python/requirements/py3.10-requirements.txt
 annotated-types==0.7.0
     # via pydantic
-anyio==4.8.0
+anyio==4.9.0
     # via
     #   httpx
     #   starlette
     #   watchfiles
-attrs==25.1.0
+attrs==25.3.0
     # via
     #   jsonschema
     #   referencing
-bigtree==0.25.0
+bigtree==0.25.4
     # via eg-feast (setup.py)
 certifi==2025.1.31
     # via
@@ -29,15 +29,15 @@ cloudpickle==3.1.1
     # via dask
 colorama==0.4.6
     # via eg-feast (setup.py)
-dask[dataframe]==2025.2.0
+dask[dataframe]==2025.3.0
     # via eg-feast (setup.py)
 dill==0.3.9
     # via eg-feast (setup.py)
 exceptiongroup==1.2.2
     # via anyio
-fastapi==0.115.8
+fastapi==0.115.12
     # via eg-feast (setup.py)
-fsspec==2025.2.0
+fsspec==2025.3.2
     # via dask
 gunicorn==23.0.0
     # via eg-feast (setup.py)
@@ -45,7 +45,7 @@ h11==0.14.0
     # via
     #   httpcore
     #   uvicorn
-httpcore==1.0.7
+httpcore==1.0.8
     # via httpx
 httptools==0.6.4
     # via uvicorn
@@ -58,7 +58,7 @@ idna==3.10
     #   requests
 importlib-metadata==8.6.1
     # via dask
-jinja2==3.1.5
+jinja2==3.1.6
     # via eg-feast (setup.py)
 jsonschema==4.23.0
     # via eg-feast (setup.py)
@@ -99,11 +99,11 @@ pyarrow==19.0.1
     # via
     #   eg-feast (setup.py)
     #   dask
-pydantic==2.10.6
+pydantic==2.11.3
     # via
     #   eg-feast (setup.py)
     #   fastapi
-pydantic-core==2.27.2
+pydantic-core==2.33.1
     # via pydantic
 pygments==2.19.1
     # via eg-feast (setup.py)
@@ -111,9 +111,9 @@ pyjwt==2.10.1
     # via eg-feast (setup.py)
 python-dateutil==2.9.0.post0
     # via pandas
-python-dotenv==1.0.1
+python-dotenv==1.1.0
     # via uvicorn
-pytz==2025.1
+pytz==2025.2
     # via pandas
 pyyaml==6.0.2
     # via
@@ -126,7 +126,7 @@ referencing==0.36.2
     #   jsonschema-specifications
 requests==2.32.3
     # via eg-feast (setup.py)
-rpds-py==0.23.1
+rpds-py==0.24.0
     # via
     #   jsonschema
     #   referencing
@@ -134,9 +134,9 @@ six==1.17.0
     # via python-dateutil
 sniffio==1.3.1
     # via anyio
-sqlalchemy[mypy]==2.0.38
+sqlalchemy[mypy]==2.0.40
     # via eg-feast (setup.py)
-starlette==0.45.3
+starlette==0.46.1
     # via fastapi
 tabulate==0.9.0
     # via eg-feast (setup.py)
@@ -154,7 +154,7 @@ tqdm==4.67.1
     # via eg-feast (setup.py)
 typeguard==4.4.2
     # via eg-feast (setup.py)
-typing-extensions==4.12.2
+typing-extensions==4.13.2
     # via
     #   anyio
     #   fastapi
@@ -164,18 +164,21 @@ typing-extensions==4.12.2
     #   referencing
     #   sqlalchemy
     #   typeguard
+    #   typing-inspection
     #   uvicorn
-tzdata==2025.1
+typing-inspection==0.4.0
+    # via pydantic
+tzdata==2025.2
     # via pandas
-urllib3==2.3.0
+urllib3==2.4.0
     # via requests
 uvicorn[standard]==0.34.0
     # via eg-feast (setup.py)
 uvloop==0.21.0
     # via uvicorn
-watchfiles==1.0.4
+watchfiles==1.0.5
     # via uvicorn
-websockets==15.0
+websockets==15.0.1
     # via uvicorn
 zipp==3.21.0
     # via importlib-metadata

@@ -330,10 +330,14 @@ func testGetOnlineFeaturesRange(
 			})
 		}
 	}
-	entityNameToJoinKeyMap, expectedJoinKeysSet, err := onlineserving.GetEntityMapsForSortedViews(
-		sortedFeatureViews, entities)
-	if err != nil {
-		return nil, err
+
+	entityNameToJoinKeyMap := make(map[string]string)
+	for _, entity := range entities {
+		entityNameToJoinKeyMap[entity.Name] = entity.JoinKey
+	}
+	expectedJoinKeysSet := make(map[string]interface{})
+	for _, joinKey := range entityNameToJoinKeyMap {
+		expectedJoinKeysSet[joinKey] = nil
 	}
 
 	numRows, err := onlineserving.ValidateEntityValues(joinKeyToEntityValues, requestData, expectedJoinKeysSet)

@@ -1,16 +1,23 @@
 package onlineserving
 
 import (
+	"fmt"
+	"path/filepath"
+	"runtime"
+	"strconv"
+	"testing"
+	"time"
+
 	"github.com/apache/arrow/go/v17/arrow/memory"
 	"github.com/feast-dev/feast/go/internal/feast/onlinestore"
+	"github.com/feast-dev/feast/go/internal/feast/registry"
+	"github.com/feast-dev/feast/go/internal/test"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"testing"
-	"time"
 
 	"github.com/feast-dev/feast/go/internal/feast/model"
 	"github.com/feast-dev/feast/go/protos/feast/core"
@@ -189,125 +196,54 @@ func TestGroupingFeatureRefsWithMissingKey(t *testing.T) {
 	assert.Errorf(t, err, "key destination_id is missing in provided entity rows for view viewA")
 }
 
-func createFeature(name string, valueType types.ValueType_Enum) *core.FeatureSpecV2 {
-	return &core.FeatureSpecV2{
-		Name:      name,
-		ValueType: valueType,
+func createRegistry(project string) (*registry.Registry, error) {
+	// Return absolute path to the test_repo registry regardless of the working directory
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		panic("couldn't find file path of the test file")
 	}
-}
-
-func createFeatureView(name string, entities []string, features ...*core.FeatureSpecV2) *model.FeatureView {
-	viewProto := core.FeatureView{
-		Spec: &core.FeatureViewSpec{
-			Name:     name,
-			Entities: entities,
-			Features: features,
-			Ttl:      &durationpb.Duration{},
-		},
+	path := filepath.Join(filename, "..", "..", "..", "feature_repo/data/registry.db")
+	r, err := registry.NewRegistry(&registry.RegistryConfig{Path: path}, path, project)
+	if err != nil {
+		return nil, err
 	}
-	return model.NewFeatureViewFromProto(&viewProto)
-}
-
-func createSortKey(name string, order core.SortOrder_Enum, valueType types.ValueType_Enum) *core.SortKey {
-	return &core.SortKey{
-		Name:             name,
-		DefaultSortOrder: order,
-		ValueType:        valueType,
-	}
-}
-
-func createSortedFeatureView(name string, entities []string, sortKeys []*core.SortKey, features ...*core.FeatureSpecV2) *model.SortedFeatureView {
-	viewProto := core.SortedFeatureView{
-		Spec: &core.SortedFeatureViewSpec{
-			Name:     name,
-			Entities: entities,
-			Features: features,
-			SortKeys: sortKeys,
-			Ttl:      &durationpb.Duration{},
-		},
-	}
-	return model.NewSortedFeatureViewFromProto(&viewProto)
-}
-
-func createFeatureService(viewProjections map[string][]*core.FeatureSpecV2) *model.FeatureService {
-	projections := make([]*core.FeatureViewProjection, 0)
-	for name, features := range viewProjections {
-		projections = append(projections, &core.FeatureViewProjection{
-			FeatureViewName: name,
-			FeatureColumns:  features,
-			JoinKeyMap:      map[string]string{},
-		})
-	}
-
-	fsProto := core.FeatureService{
-		Spec: &core.FeatureServiceSpec{
-			Features: projections,
-		},
-		Meta: &core.FeatureServiceMeta{
-			LastUpdatedTimestamp: timestamppb.Now(),
-			CreatedTimestamp:     timestamppb.Now(),
-		},
-	}
-
-	return model.NewFeatureServiceFromProto(&fsProto)
-}
-
-func createOnDemandFeatureView(name string, featureSources map[string][]*core.FeatureSpecV2, features ...*core.FeatureSpecV2) *model.OnDemandFeatureView {
-	sources := make(map[string]*core.OnDemandSource)
-	for viewName, features := range featureSources {
-		sources[viewName] = &core.OnDemandSource{
-			Source: &core.OnDemandSource_FeatureViewProjection{
-				FeatureViewProjection: &core.FeatureViewProjection{
-					FeatureViewName: viewName,
-					FeatureColumns:  features,
-					JoinKeyMap:      map[string]string{},
-				},
-			},
-		}
-	}
-
-	proto := &core.OnDemandFeatureView{
-		Spec: &core.OnDemandFeatureViewSpec{
-			Name:     name,
-			Sources:  sources,
-			Features: features,
-		},
-	}
-	return model.NewOnDemandFeatureViewFromProto(proto)
+	return r, nil
 }
 
 func TestUnpackFeatureService(t *testing.T) {
-	featASpec := createFeature("featA", types.ValueType_INT32)
-	featBSpec := createFeature("featB", types.ValueType_INT32)
-	featCSpec := createFeature("featC", types.ValueType_INT32)
-	featDSpec := createFeature("featD", types.ValueType_INT32)
-	featESpec := createFeature("featE", types.ValueType_FLOAT)
-	onDemandFeature1 := createFeature("featF", types.ValueType_FLOAT)
-	onDemandFeature2 := createFeature("featG", types.ValueType_FLOAT)
-	featSSpec := createFeature("featS", types.ValueType_FLOAT)
-	sortKeyA := createSortKey("featS", core.SortOrder_DESC, types.ValueType_FLOAT)
+	projectName := "test_project"
+	testRegistry, err := createRegistry(projectName)
+	assert.NoError(t, err)
 
-	viewA := createFeatureView("viewA", []string{"entity"}, featASpec, featBSpec)
-	viewB := createFeatureView("viewB", []string{"entity"}, featCSpec, featDSpec)
-	viewC := createFeatureView("viewC", []string{"entity"}, featESpec)
-	viewS := createSortedFeatureView("viewS", []string{"entity"}, []*core.SortKey{sortKeyA}, featSSpec)
-	onDemandView := createOnDemandFeatureView(
+	featASpec := test.CreateFeature("featA", types.ValueType_INT32)
+	featBSpec := test.CreateFeature("featB", types.ValueType_INT32)
+	featCSpec := test.CreateFeature("featC", types.ValueType_INT32)
+	featDSpec := test.CreateFeature("featD", types.ValueType_INT32)
+	featESpec := test.CreateFeature("featE", types.ValueType_FLOAT)
+	onDemandFeature1 := test.CreateFeature("featF", types.ValueType_FLOAT)
+	onDemandFeature2 := test.CreateFeature("featG", types.ValueType_FLOAT)
+	featSSpec := test.CreateFeature("featS", types.ValueType_FLOAT)
+	sortKeyA := test.CreateSortKeyProto("featS", core.SortOrder_DESC, types.ValueType_FLOAT)
+
+	entities := []*core.Entity{test.CreateEntityProto("entity", types.ValueType_INT32, "entity")}
+	viewA := test.CreateFeatureViewProto("viewA", entities, featASpec, featBSpec)
+	viewB := test.CreateFeatureViewProto("viewB", entities, featCSpec, featDSpec)
+	viewC := test.CreateFeatureViewProto("viewC", entities, featESpec)
+	viewS := test.CreateSortedFeatureViewProto("viewS", entities, []*core.SortKey{sortKeyA}, featSSpec)
+	onDemandView := test.CreateOnDemandFeatureViewProto(
 		"odfv",
 		map[string][]*core.FeatureSpecV2{"viewB": {featCSpec}, "viewC": {featESpec}},
 		onDemandFeature1, onDemandFeature2)
 
-	fs := createFeatureService(map[string][]*core.FeatureSpecV2{
+	fs := test.CreateFeatureService("service", map[string][]*core.FeatureSpecV2{
 		"viewA": {featASpec, featBSpec},
 		"viewB": {featCSpec},
 		"odfv":  {onDemandFeature2},
 		"viewS": {featSSpec},
 	})
+	testRegistry.SetModels([]*core.FeatureService{}, []*core.Entity{}, []*core.FeatureView{viewA, viewB, viewC}, []*core.SortedFeatureView{viewS}, []*core.OnDemandFeatureView{onDemandView})
 
-	fvs, sortedFvs, odfvs, err := GetFeatureViewsToUseByService(
-		fs,
-		map[string]*model.FeatureView{"viewA": viewA, "viewB": viewB, "viewC": viewC},
-		map[string]*model.SortedFeatureView{"viewS": viewS},
-		map[string]*model.OnDemandFeatureView{"odfv": onDemandView})
+	fvs, sortedFvs, odfvs, err := GetFeatureViewsToUseByService(fs, testRegistry, projectName)
 
 	assertCorrectUnpacking(t, fvs, sortedFvs, odfvs, err)
 }
@@ -339,24 +275,30 @@ func assertCorrectUnpacking(t *testing.T, fvs []*FeatureViewAndRefs, sortedFvs [
 }
 
 func TestUnpackFeatureViewsByReferences(t *testing.T) {
-	featASpec := createFeature("featA", types.ValueType_INT32)
-	featBSpec := createFeature("featB", types.ValueType_INT32)
-	featCSpec := createFeature("featC", types.ValueType_INT32)
-	featDSpec := createFeature("featD", types.ValueType_INT32)
-	featESpec := createFeature("featE", types.ValueType_FLOAT)
-	onDemandFeature1 := createFeature("featF", types.ValueType_FLOAT)
-	onDemandFeature2 := createFeature("featG", types.ValueType_FLOAT)
-	featSSpec := createFeature("featS", types.ValueType_FLOAT)
-	sortKeyA := createSortKey("featS", core.SortOrder_DESC, types.ValueType_FLOAT)
+	projectName := "test_project"
+	testRegistry, err := createRegistry(projectName)
+	assert.NoError(t, err)
 
-	viewA := createFeatureView("viewA", []string{"entity"}, featASpec, featBSpec)
-	viewB := createFeatureView("viewB", []string{"entity"}, featCSpec, featDSpec)
-	viewC := createFeatureView("viewC", []string{"entity"}, featESpec)
-	viewS := createSortedFeatureView("viewS", []string{"entity"}, []*core.SortKey{sortKeyA}, featSSpec)
-	onDemandView := createOnDemandFeatureView(
+	featASpec := test.CreateFeature("featA", types.ValueType_INT32)
+	featBSpec := test.CreateFeature("featB", types.ValueType_INT32)
+	featCSpec := test.CreateFeature("featC", types.ValueType_INT32)
+	featDSpec := test.CreateFeature("featD", types.ValueType_INT32)
+	featESpec := test.CreateFeature("featE", types.ValueType_FLOAT)
+	onDemandFeature1 := test.CreateFeature("featF", types.ValueType_FLOAT)
+	onDemandFeature2 := test.CreateFeature("featG", types.ValueType_FLOAT)
+	featSSpec := test.CreateFeature("featS", types.ValueType_FLOAT)
+	sortKeyA := test.CreateSortKeyProto("featS", core.SortOrder_DESC, types.ValueType_FLOAT)
+
+	entities := []*core.Entity{test.CreateEntityProto("entity", types.ValueType_INT32, "entity")}
+	viewA := test.CreateFeatureViewProto("viewA", entities, featASpec, featBSpec)
+	viewB := test.CreateFeatureViewProto("viewB", entities, featCSpec, featDSpec)
+	viewC := test.CreateFeatureViewProto("viewC", entities, featESpec)
+	viewS := test.CreateSortedFeatureViewProto("viewS", entities, []*core.SortKey{sortKeyA}, featSSpec)
+	onDemandView := test.CreateOnDemandFeatureViewProto(
 		"odfv",
 		map[string][]*core.FeatureSpecV2{"viewB": {featCSpec}, "viewC": {featESpec}},
 		onDemandFeature1, onDemandFeature2)
+	testRegistry.SetModels([]*core.FeatureService{}, []*core.Entity{}, []*core.FeatureView{viewA, viewB, viewC}, []*core.SortedFeatureView{viewS}, []*core.OnDemandFeatureView{onDemandView})
 
 	fvs, sortedFvs, odfvs, err := GetFeatureViewsToUseByFeatureRefs(
 		[]string{
@@ -366,25 +308,25 @@ func TestUnpackFeatureViewsByReferences(t *testing.T) {
 			"odfv:featG",
 			"viewS:featS",
 		},
-		map[string]*model.FeatureView{"viewA": viewA, "viewB": viewB, "viewC": viewC},
-		map[string]*model.SortedFeatureView{"viewS": viewS},
-		map[string]*model.OnDemandFeatureView{"odfv": onDemandView})
+		testRegistry, projectName)
 
 	assertCorrectUnpacking(t, fvs, sortedFvs, odfvs, err)
 }
 
 func TestValidateSortKeyFilters_ValidFilters(t *testing.T) {
-	sortKey1 := createSortKey("timestamp", core.SortOrder_DESC, types.ValueType_UNIX_TIMESTAMP)
-	sortKey2 := createSortKey("price", core.SortOrder_ASC, types.ValueType_DOUBLE)
-	sortKey3 := createSortKey("name", core.SortOrder_ASC, types.ValueType_STRING)
+	sortKey1 := test.CreateSortKeyProto("timestamp", core.SortOrder_DESC, types.ValueType_UNIX_TIMESTAMP)
+	sortKey2 := test.CreateSortKeyProto("price", core.SortOrder_ASC, types.ValueType_DOUBLE)
+	sortKey3 := test.CreateSortKeyProto("name", core.SortOrder_ASC, types.ValueType_STRING)
 
-	sfv1 := createSortedFeatureView("sfv1", []string{"driver"},
+	entity1 := test.CreateEntityProto("driver", types.ValueType_INT64, "driver")
+	entity2 := test.CreateEntityProto("customer", types.ValueType_STRING, "customer")
+	sfv1 := test.CreateSortedFeatureViewModel("sfv1", []*core.Entity{entity1},
 		[]*core.SortKey{sortKey1, sortKey2},
-		createFeature("f1", types.ValueType_DOUBLE))
+		test.CreateFeature("f1", types.ValueType_DOUBLE))
 
-	sfv2 := createSortedFeatureView("sfv2", []string{"customer"},
+	sfv2 := test.CreateSortedFeatureViewModel("sfv2", []*core.Entity{entity2},
 		[]*core.SortKey{sortKey3},
-		createFeature("f2", types.ValueType_STRING))
+		test.CreateFeature("f2", types.ValueType_STRING))
 
 	sortedViews := []*SortedFeatureViewAndRefs{
 		{View: sfv1, FeatureRefs: []string{"f1"}},
@@ -414,9 +356,9 @@ func TestValidateSortKeyFilters_ValidFilters(t *testing.T) {
 	err := ValidateSortKeyFilters(validFilters, sortedViews)
 	assert.NoError(t, err, "Valid filters should not produce an error")
 
-	sfv3 := createSortedFeatureView("sfv2", []string{"customer"},
+	sfv3 := test.CreateSortedFeatureViewModel("sfv2", []*core.Entity{entity2},
 		[]*core.SortKey{sortKey1, sortKey3, sortKey2},
-		createFeature("f3", types.ValueType_STRING))
+		test.CreateFeature("f3", types.ValueType_STRING))
 
 	sortedViews = []*SortedFeatureViewAndRefs{
 		{View: sfv3, FeatureRefs: []string{"f3"}},
@@ -453,17 +395,19 @@ func TestValidateSortKeyFilters_ValidFilters(t *testing.T) {
 }
 
 func TestValidateSortKeyFilters_NonExistentKey(t *testing.T) {
-	sortKey1 := createSortKey("timestamp", core.SortOrder_DESC, types.ValueType_UNIX_TIMESTAMP)
-	sortKey2 := createSortKey("price", core.SortOrder_ASC, types.ValueType_DOUBLE)
-	sortKey3 := createSortKey("name", core.SortOrder_ASC, types.ValueType_STRING)
+	sortKey1 := test.CreateSortKeyProto("timestamp", core.SortOrder_DESC, types.ValueType_UNIX_TIMESTAMP)
+	sortKey2 := test.CreateSortKeyProto("price", core.SortOrder_ASC, types.ValueType_DOUBLE)
+	sortKey3 := test.CreateSortKeyProto("name", core.SortOrder_ASC, types.ValueType_STRING)
 
-	sfv1 := createSortedFeatureView("sfv1", []string{"driver"},
+	entity1 := test.CreateEntityProto("driver", types.ValueType_INT64, "driver")
+	entity2 := test.CreateEntityProto("customer", types.ValueType_STRING, "customer")
+	sfv1 := test.CreateSortedFeatureViewModel("sfv1", []*core.Entity{entity1},
 		[]*core.SortKey{sortKey1, sortKey2},
-		createFeature("f1", types.ValueType_DOUBLE))
+		test.CreateFeature("f1", types.ValueType_DOUBLE))
 
-	sfv2 := createSortedFeatureView("sfv2", []string{"customer"},
+	sfv2 := test.CreateSortedFeatureViewModel("sfv2", []*core.Entity{entity2},
 		[]*core.SortKey{sortKey3},
-		createFeature("f2", types.ValueType_STRING))
+		test.CreateFeature("f2", types.ValueType_STRING))
 
 	sortedViews := []*SortedFeatureViewAndRefs{
 		{View: sfv1, FeatureRefs: []string{"f1"}},
@@ -487,17 +431,19 @@ func TestValidateSortKeyFilters_NonExistentKey(t *testing.T) {
 }
 
 func TestValidateSortKeyFilters_TypeMismatch(t *testing.T) {
-	sortKey1 := createSortKey("timestamp", core.SortOrder_DESC, types.ValueType_UNIX_TIMESTAMP)
-	sortKey2 := createSortKey("price", core.SortOrder_ASC, types.ValueType_DOUBLE)
-	sortKey3 := createSortKey("name", core.SortOrder_ASC, types.ValueType_STRING)
+	sortKey1 := test.CreateSortKeyProto("timestamp", core.SortOrder_DESC, types.ValueType_UNIX_TIMESTAMP)
+	sortKey2 := test.CreateSortKeyProto("price", core.SortOrder_ASC, types.ValueType_DOUBLE)
+	sortKey3 := test.CreateSortKeyProto("name", core.SortOrder_ASC, types.ValueType_STRING)
 
-	sfv1 := createSortedFeatureView("sfv1", []string{"driver"},
+	entity1 := test.CreateEntityProto("driver", types.ValueType_INT64, "driver")
+	entity2 := test.CreateEntityProto("customer", types.ValueType_STRING, "customer")
+	sfv1 := test.CreateSortedFeatureViewModel("sfv1", []*core.Entity{entity1},
 		[]*core.SortKey{sortKey1, sortKey2},
-		createFeature("f1", types.ValueType_DOUBLE))
+		test.CreateFeature("f1", types.ValueType_DOUBLE))
 
-	sfv2 := createSortedFeatureView("sfv2", []string{"customer"},
+	sfv2 := test.CreateSortedFeatureViewModel("sfv2", []*core.Entity{entity2},
 		[]*core.SortKey{sortKey3},
-		createFeature("f2", types.ValueType_STRING))
+		test.CreateFeature("f2", types.ValueType_STRING))
 
 	sortedViews := []*SortedFeatureViewAndRefs{
 		{View: sfv1, FeatureRefs: []string{"f1"}},
@@ -521,17 +467,19 @@ func TestValidateSortKeyFilters_TypeMismatch(t *testing.T) {
 }
 
 func TestValidateSortKeyFilters_InvalidRangeFilter(t *testing.T) {
-	sortKey1 := createSortKey("timestamp", core.SortOrder_DESC, types.ValueType_UNIX_TIMESTAMP)
-	sortKey2 := createSortKey("price", core.SortOrder_ASC, types.ValueType_DOUBLE)
-	sortKey3 := createSortKey("name", core.SortOrder_ASC, types.ValueType_STRING)
+	sortKey1 := test.CreateSortKeyProto("timestamp", core.SortOrder_DESC, types.ValueType_UNIX_TIMESTAMP)
+	sortKey2 := test.CreateSortKeyProto("price", core.SortOrder_ASC, types.ValueType_DOUBLE)
+	sortKey3 := test.CreateSortKeyProto("name", core.SortOrder_ASC, types.ValueType_STRING)
 
-	sfv1 := createSortedFeatureView("sfv1", []string{"driver"},
+	entity1 := test.CreateEntityProto("driver", types.ValueType_INT64, "driver")
+	entity2 := test.CreateEntityProto("customer", types.ValueType_STRING, "customer")
+	sfv1 := test.CreateSortedFeatureViewModel("sfv1", []*core.Entity{entity1},
 		[]*core.SortKey{sortKey1, sortKey2},
-		createFeature("f1", types.ValueType_DOUBLE))
+		test.CreateFeature("f1", types.ValueType_DOUBLE))
 
-	sfv2 := createSortedFeatureView("sfv2", []string{"customer"},
+	sfv2 := test.CreateSortedFeatureViewModel("sfv2", []*core.Entity{entity2},
 		[]*core.SortKey{sortKey1, sortKey2, sortKey3},
-		createFeature("f2", types.ValueType_STRING))
+		test.CreateFeature("f2", types.ValueType_STRING))
 
 	sortedViews := []*SortedFeatureViewAndRefs{
 		{View: sfv1, FeatureRefs: []string{"f1"}},
@@ -593,12 +541,13 @@ func TestValidateSortKeyFilters_InvalidRangeFilter(t *testing.T) {
 }
 
 func TestValidateSortKeyFilters_InvalidEqualsFilter(t *testing.T) {
-	sortKey1 := createSortKey("timestamp", core.SortOrder_DESC, types.ValueType_UNIX_TIMESTAMP)
-	sortKey2 := createSortKey("price", core.SortOrder_ASC, types.ValueType_DOUBLE)
+	sortKey1 := test.CreateSortKeyProto("timestamp", core.SortOrder_DESC, types.ValueType_UNIX_TIMESTAMP)
+	sortKey2 := test.CreateSortKeyProto("price", core.SortOrder_ASC, types.ValueType_DOUBLE)
 
-	sfv1 := createSortedFeatureView("sfv1", []string{"driver"},
+	entity1 := test.CreateEntityProto("driver", types.ValueType_INT64, "driver")
+	sfv1 := test.CreateSortedFeatureViewModel("sfv1", []*core.Entity{entity1},
 		[]*core.SortKey{sortKey1, sortKey2},
-		createFeature("f1", types.ValueType_DOUBLE))
+		test.CreateFeature("f1", types.ValueType_DOUBLE))
 
 	sortedViews := []*SortedFeatureViewAndRefs{
 		{View: sfv1, FeatureRefs: []string{"f1"}},
@@ -627,17 +576,19 @@ func TestValidateSortKeyFilters_InvalidEqualsFilter(t *testing.T) {
 }
 
 func TestValidateSortKeyFilters_MissingFilter(t *testing.T) {
-	sortKey1 := createSortKey("timestamp", core.SortOrder_DESC, types.ValueType_UNIX_TIMESTAMP)
-	sortKey2 := createSortKey("price", core.SortOrder_ASC, types.ValueType_DOUBLE)
-	sortKey3 := createSortKey("name", core.SortOrder_ASC, types.ValueType_STRING)
+	sortKey1 := test.CreateSortKeyProto("timestamp", core.SortOrder_DESC, types.ValueType_UNIX_TIMESTAMP)
+	sortKey2 := test.CreateSortKeyProto("price", core.SortOrder_ASC, types.ValueType_DOUBLE)
+	sortKey3 := test.CreateSortKeyProto("name", core.SortOrder_ASC, types.ValueType_STRING)
 
-	sfv1 := createSortedFeatureView("sfv1", []string{"driver"},
+	entity1 := test.CreateEntityProto("driver", types.ValueType_INT64, "driver")
+	entity2 := test.CreateEntityProto("customer", types.ValueType_STRING, "customer")
+	sfv1 := test.CreateSortedFeatureViewModel("sfv1", []*core.Entity{entity1},
 		[]*core.SortKey{sortKey1, sortKey2, sortKey3},
-		createFeature("f1", types.ValueType_DOUBLE))
+		test.CreateFeature("f1", types.ValueType_DOUBLE))
 
-	sfv2 := createSortedFeatureView("sfv2", []string{"customer"},
+	sfv2 := test.CreateSortedFeatureViewModel("sfv2", []*core.Entity{entity2},
 		[]*core.SortKey{sortKey3},
-		createFeature("f2", types.ValueType_STRING))
+		test.CreateFeature("f2", types.ValueType_STRING))
 
 	sortedViews := []*SortedFeatureViewAndRefs{
 		{View: sfv1, FeatureRefs: []string{"f1"}},
@@ -667,25 +618,27 @@ func TestValidateSortKeyFilters_MissingFilter(t *testing.T) {
 }
 
 func TestGroupSortedFeatureRefs(t *testing.T) {
-	sortKey1 := createSortKey("timestamp", core.SortOrder_DESC, types.ValueType_UNIX_TIMESTAMP)
-	sortKey2 := createSortKey("featureF", core.SortOrder_ASC, types.ValueType_DOUBLE)
-	viewA := createSortedFeatureView("viewA", []string{"driver", "customer"},
+	sortKey1 := test.CreateSortKeyProto("timestamp", core.SortOrder_DESC, types.ValueType_UNIX_TIMESTAMP)
+	sortKey2 := test.CreateSortKeyProto("featureF", core.SortOrder_ASC, types.ValueType_DOUBLE)
+	entity1 := test.CreateEntityProto("driver", types.ValueType_INT64, "driver")
+	entity2 := test.CreateEntityProto("customer", types.ValueType_STRING, "customer")
+	viewA := test.CreateSortedFeatureViewModel("viewA", []*core.Entity{entity1, entity2},
 		[]*core.SortKey{sortKey1},
-		createFeature("featureA", types.ValueType_DOUBLE),
-		createFeature("featureB", types.ValueType_DOUBLE))
+		test.CreateFeature("featureA", types.ValueType_DOUBLE),
+		test.CreateFeature("featureB", types.ValueType_DOUBLE))
 
-	viewB := createSortedFeatureView("viewB", []string{"driver", "customer"},
+	viewB := test.CreateSortedFeatureViewModel("viewB", []*core.Entity{entity1, entity2},
 		[]*core.SortKey{sortKey1},
-		createFeature("featureC", types.ValueType_DOUBLE),
-		createFeature("featureD", types.ValueType_DOUBLE))
+		test.CreateFeature("featureC", types.ValueType_DOUBLE),
+		test.CreateFeature("featureD", types.ValueType_DOUBLE))
 
-	viewC := createSortedFeatureView("viewC", []string{"driver"},
+	viewC := test.CreateSortedFeatureViewModel("viewC", []*core.Entity{entity1},
 		[]*core.SortKey{sortKey1},
-		createFeature("featureE", types.ValueType_DOUBLE))
+		test.CreateFeature("featureE", types.ValueType_DOUBLE))
 
-	viewD := createSortedFeatureView("viewD", []string{"customer"},
+	viewD := test.CreateSortedFeatureViewModel("viewD", []*core.Entity{entity2},
 		[]*core.SortKey{sortKey2},
-		createFeature("featureF", types.ValueType_DOUBLE))
+		test.CreateFeature("featureF", types.ValueType_DOUBLE))
 
 	if viewA.Base != nil && viewA.Base.Projection == nil {
 		viewA.Base.Projection = &model.FeatureViewProjection{
@@ -797,12 +750,14 @@ func TestGroupSortedFeatureRefs(t *testing.T) {
 }
 
 func TestGroupSortedFeatureRefs_withReverseSortOrder(t *testing.T) {
-	sortKey1 := createSortKey("timestamp", core.SortOrder_DESC, types.ValueType_UNIX_TIMESTAMP)
-	sortKey2 := createSortKey("featureB", core.SortOrder_ASC, types.ValueType_DOUBLE)
-	viewA := createSortedFeatureView("viewA", []string{"driver", "customer"},
+	sortKey1 := test.CreateSortKeyProto("timestamp", core.SortOrder_DESC, types.ValueType_UNIX_TIMESTAMP)
+	sortKey2 := test.CreateSortKeyProto("featureB", core.SortOrder_ASC, types.ValueType_DOUBLE)
+	entity1 := test.CreateEntityProto("driver", types.ValueType_INT64, "driver")
+	entity2 := test.CreateEntityProto("customer", types.ValueType_STRING, "customer")
+	viewA := test.CreateSortedFeatureViewModel("viewA", []*core.Entity{entity1, entity2},
 		[]*core.SortKey{sortKey1, sortKey2},
-		createFeature("featureA", types.ValueType_DOUBLE),
-		createFeature("featureB", types.ValueType_DOUBLE))
+		test.CreateFeature("featureA", types.ValueType_DOUBLE),
+		test.CreateFeature("featureB", types.ValueType_DOUBLE))
 
 	sortKeyFilters := []*serving.SortKeyFilter{
 		{
@@ -947,9 +902,10 @@ func TestTransposeRangeFeatureRowsIntoColumns(t *testing.T) {
 	arrowAllocator := memory.NewGoAllocator()
 	numRows := 2
 
-	sortKey1 := createSortKey("timestamp", core.SortOrder_DESC, types.ValueType_UNIX_TIMESTAMP)
-	sfv := createSortedFeatureView("testView", []string{"driver"}, []*core.SortKey{sortKey1},
-		createFeature("f1", types.ValueType_DOUBLE))
+	sortKey1 := test.CreateSortKeyProto("timestamp", core.SortOrder_DESC, types.ValueType_UNIX_TIMESTAMP)
+	entity1 := test.CreateEntityProto("driver", types.ValueType_INT64, "driver")
+	sfv := test.CreateSortedFeatureViewModel("testView", []*core.Entity{entity1}, []*core.SortKey{sortKey1},
+		test.CreateFeature("f1", types.ValueType_DOUBLE))
 
 	sortedViews := []*SortedFeatureViewAndRefs{
 		{View: sfv, FeatureRefs: []string{"f1"}},
@@ -1005,4 +961,341 @@ func TestTransposeRangeFeatureRowsIntoColumns(t *testing.T) {
 	assert.Equal(t, serving.FieldStatus_PRESENT, vector.RangeStatuses[1][0])
 	assert.NotNil(t, vector.RangeValues)
 	vector.RangeValues.Release()
+}
+
+func TestValidateFeatureRefs(t *testing.T) {
+	t.Run("NoCollisions", func(t *testing.T) {
+		viewA := &model.FeatureView{
+			Base: &model.BaseFeatureView{
+				Name: "viewA",
+				Projection: &model.FeatureViewProjection{
+					NameAlias: "aliasViewA",
+				},
+			},
+		}
+		viewB := &model.FeatureView{
+			Base: &model.BaseFeatureView{Name: "viewB"},
+		}
+
+		requestedFeatures := []*FeatureViewAndRefs{
+			{View: viewA, FeatureRefs: []string{"featureA", "featureB"}},
+			{View: viewB, FeatureRefs: []string{"featureC", "featureD"}},
+		}
+
+		err := ValidateFeatureRefs(requestedFeatures, true)
+		assert.NoError(t, err, "No collisions should result in no error")
+	})
+
+	t.Run("NoCollisionsWithFullFeatureNames", func(t *testing.T) {
+		viewA := &model.FeatureView{
+			Base: &model.BaseFeatureView{
+				Name: "viewA",
+				Projection: &model.FeatureViewProjection{
+					NameAlias: "aliasViewA",
+				},
+			},
+		}
+		viewB := &model.FeatureView{
+			Base: &model.BaseFeatureView{Name: "viewB"},
+		}
+
+		requestedFeatures := []*FeatureViewAndRefs{
+			{View: viewA, FeatureRefs: []string{"featureA", "featureB"}},
+			{View: viewB, FeatureRefs: []string{"featureA", "featureD"}},
+		}
+
+		err := ValidateFeatureRefs(requestedFeatures, true)
+		assert.NoError(t, err, "Collisions with full feature names should not result in an error")
+	})
+
+	t.Run("CollisionsWithoutFullFeatureNames", func(t *testing.T) {
+		viewA := &model.FeatureView{
+			Base: &model.BaseFeatureView{
+				Name: "viewA",
+				Projection: &model.FeatureViewProjection{
+					NameAlias: "aliasViewA",
+				},
+			},
+		}
+		viewB := &model.FeatureView{
+			Base: &model.BaseFeatureView{Name: "viewB"},
+		}
+
+		requestedFeatures := []*FeatureViewAndRefs{
+			{View: viewA, FeatureRefs: []string{"featureA", "featureB"}},
+			{View: viewB, FeatureRefs: []string{"featureA", "featureD"}},
+		}
+
+		err := ValidateFeatureRefs(requestedFeatures, false)
+		assert.Error(t, err, "Collisions without full feature names should result in an error")
+		assert.Contains(t, err.Error(), "featureA", "Error should include the collided feature name")
+	})
+
+	t.Run("SingleFeatureNoCollision", func(t *testing.T) {
+		viewA := &model.FeatureView{
+			Base: &model.BaseFeatureView{Name: "viewA"},
+		}
+
+		requestedFeatures := []*FeatureViewAndRefs{
+			{View: viewA, FeatureRefs: []string{"featureA"}},
+		}
+
+		err := ValidateFeatureRefs(requestedFeatures, true)
+		assert.NoError(t, err, "Single feature with no collision should not result in an error")
+	})
+
+	t.Run("EmptyFeatureRefs", func(t *testing.T) {
+		viewA := &model.FeatureView{
+			Base: &model.BaseFeatureView{Name: "viewA"},
+		}
+
+		requestedFeatures := []*FeatureViewAndRefs{
+			{View: viewA, FeatureRefs: []string{}},
+		}
+
+		err := ValidateFeatureRefs(requestedFeatures, true)
+		assert.NoError(t, err, "Empty feature references should not result in an error")
+	})
+
+	t.Run("MultipleCollisions", func(t *testing.T) {
+		viewA := &model.FeatureView{
+			Base: &model.BaseFeatureView{Name: "viewA"},
+		}
+		viewB := &model.FeatureView{
+			Base: &model.BaseFeatureView{Name: "viewB"},
+		}
+
+		requestedFeatures := []*FeatureViewAndRefs{
+			{View: viewA, FeatureRefs: []string{"featureA", "featureB"}},
+			{View: viewB, FeatureRefs: []string{"featureA", "featureB"}},
+		}
+
+		err := ValidateFeatureRefs(requestedFeatures, false)
+		assert.Error(t, err, "Multiple collisions should result in an error")
+		assert.Contains(t, err.Error(), "featureA", "Error should include the collided feature name")
+		assert.Contains(t, err.Error(), "featureB", "Error should include the collided feature name")
+	})
+}
+func TestValidateSortedFeatureRefs(t *testing.T) {
+	t.Run("NoCollisions", func(t *testing.T) {
+		viewA := &model.SortedFeatureView{
+			FeatureView: &model.FeatureView{
+				Base: &model.BaseFeatureView{
+					Name: "viewA",
+					Projection: &model.FeatureViewProjection{
+						NameAlias: "aliasViewA",
+					},
+				},
+			},
+		}
+		viewB := &model.SortedFeatureView{
+			FeatureView: &model.FeatureView{
+				Base: &model.BaseFeatureView{Name: "viewB"},
+			},
+		}
+
+		sortedViews := []*SortedFeatureViewAndRefs{
+			{View: viewA, FeatureRefs: []string{"featureA", "featureB"}},
+			{View: viewB, FeatureRefs: []string{"featureC", "featureD"}},
+		}
+
+		err := ValidateSortedFeatureRefs(sortedViews, true)
+		assert.NoError(t, err, "No collisions should result in no error")
+	})
+
+	t.Run("NoCollisionsWithFullFeatureNames", func(t *testing.T) {
+		viewA := &model.SortedFeatureView{
+			FeatureView: &model.FeatureView{
+				Base: &model.BaseFeatureView{
+					Name: "viewA",
+					Projection: &model.FeatureViewProjection{
+						NameAlias: "aliasViewA",
+					},
+				},
+			},
+		}
+		viewB := &model.SortedFeatureView{
+			FeatureView: &model.FeatureView{
+				Base: &model.BaseFeatureView{Name: "viewB"},
+			},
+		}
+
+		sortedViews := []*SortedFeatureViewAndRefs{
+			{View: viewA, FeatureRefs: []string{"featureA", "featureB"}},
+			{View: viewB, FeatureRefs: []string{"featureA", "featureD"}},
+		}
+
+		err := ValidateSortedFeatureRefs(sortedViews, true)
+		assert.NoError(t, err, "Collisions with full feature names should not result in an error")
+	})
+
+	t.Run("CollisionsWithoutFullFeatureNames", func(t *testing.T) {
+		viewA := &model.SortedFeatureView{
+			FeatureView: &model.FeatureView{
+				Base: &model.BaseFeatureView{
+					Name: "viewA",
+					Projection: &model.FeatureViewProjection{
+						NameAlias: "aliasViewA",
+					},
+				},
+			},
+		}
+		viewB := &model.SortedFeatureView{
+			FeatureView: &model.FeatureView{
+				Base: &model.BaseFeatureView{Name: "viewB"},
+			},
+		}
+
+		sortedViews := []*SortedFeatureViewAndRefs{
+			{View: viewA, FeatureRefs: []string{"featureA", "featureB"}},
+			{View: viewB, FeatureRefs: []string{"featureA", "featureD"}},
+		}
+
+		err := ValidateSortedFeatureRefs(sortedViews, false)
+		assert.Error(t, err, "Collisions without full feature names should result in an error")
+		assert.Contains(t, err.Error(), "featureA", "Error should include the collided feature name")
+	})
+
+	t.Run("SingleFeatureNoCollision", func(t *testing.T) {
+		viewA := &model.SortedFeatureView{
+			FeatureView: &model.FeatureView{
+				Base: &model.BaseFeatureView{Name: "viewA"},
+			},
+		}
+
+		sortedViews := []*SortedFeatureViewAndRefs{
+			{View: viewA, FeatureRefs: []string{"featureA"}},
+		}
+
+		err := ValidateSortedFeatureRefs(sortedViews, true)
+		assert.NoError(t, err, "Single feature with no collision should not result in an error")
+	})
+
+	t.Run("EmptyFeatureRefs", func(t *testing.T) {
+		viewA := &model.SortedFeatureView{
+			FeatureView: &model.FeatureView{
+				Base: &model.BaseFeatureView{Name: "viewA"},
+			},
+		}
+
+		sortedViews := []*SortedFeatureViewAndRefs{
+			{View: viewA, FeatureRefs: []string{}},
+		}
+
+		err := ValidateSortedFeatureRefs(sortedViews, true)
+		assert.NoError(t, err, "Empty feature references should not result in an error")
+	})
+
+	t.Run("MultipleCollisions", func(t *testing.T) {
+		viewA := &model.SortedFeatureView{
+			FeatureView: &model.FeatureView{
+				Base: &model.BaseFeatureView{Name: "viewA"},
+			},
+		}
+		viewB := &model.SortedFeatureView{
+			FeatureView: &model.FeatureView{
+				Base: &model.BaseFeatureView{Name: "viewB"},
+			},
+		}
+
+		sortedViews := []*SortedFeatureViewAndRefs{
+			{View: viewA, FeatureRefs: []string{"featureA", "featureB"}},
+			{View: viewB, FeatureRefs: []string{"featureA", "featureB"}},
+		}
+
+		err := ValidateSortedFeatureRefs(sortedViews, false)
+		assert.Error(t, err, "Multiple collisions should result in an error")
+		assert.Contains(t, err.Error(), "featureA", "Error should include the collided feature name")
+		assert.Contains(t, err.Error(), "featureB", "Error should include the collided feature name")
+	})
+}
+func BenchmarkValidateFeatureRefs(b *testing.B) {
+	// Prepare mock data for the benchmark
+	requestedFeatures := generateMockFeatureViewAndRefs(10, 100)
+	fullFeatureNames := true
+
+	// Reset the timer to exclude setup time
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		err := ValidateFeatureRefs(requestedFeatures, fullFeatureNames)
+		if err != nil {
+			b.Fatalf("unexpected error: %v", err)
+		}
+	}
+}
+
+// Helper function to generate mock FeatureViewAndRefs
+func generateMockFeatureViewAndRefs(numViews, numFeatures int) []*FeatureViewAndRefs {
+	featureViews := make([]*FeatureViewAndRefs, numViews)
+	for i := 0; i < numViews; i++ {
+		features := make([]string, numFeatures)
+		for j := 0; j < numFeatures; j++ {
+			features[j] = fmt.Sprintf("feature_%d", j)
+		}
+		featureViews[i] = &FeatureViewAndRefs{
+			View: &model.FeatureView{
+				Base: &model.BaseFeatureView{
+					Name: fmt.Sprintf("view_%d", i),
+				},
+			},
+			FeatureRefs: features,
+		}
+	}
+	return featureViews
+}
+
+func BenchmarkTransposeFeatureRowsIntoColumns(b *testing.B) {
+	// Mock Data
+	numRows := 1000
+	numFeatures := 100
+
+	featureData2D := make([][]onlinestore.FeatureData, numRows)
+	for i := 0; i < numRows; i++ {
+		featureData2D[i] = make([]onlinestore.FeatureData, numFeatures)
+		for j := 0; j < numFeatures; j++ {
+			featureData2D[i][j] = onlinestore.FeatureData{
+				Value: types.Value{Val: &types.Value_Int64Val{Int64Val: int64(i * j)}},
+				Timestamp: timestamppb.Timestamp{
+					Seconds: int64(i * j),
+				},
+				Reference: serving.FeatureReferenceV2{
+					FeatureViewName: "feature_view",
+					FeatureName:     "feature_" + strconv.Itoa(j),
+				},
+			}
+		}
+	}
+
+	groupRef := &GroupedFeaturesPerEntitySet{
+		AliasedFeatureNames: make([]string, numFeatures),
+		Indices:             make([][]int, numRows),
+	}
+	for i := 0; i < numFeatures; i++ {
+		groupRef.AliasedFeatureNames[i] = "feature_" + strconv.Itoa(i)
+	}
+	for i := 0; i < numRows; i++ {
+		groupRef.Indices[i] = []int{i}
+	}
+
+	requestedFeatureViews := []*FeatureViewAndRefs{
+		{
+			View: &model.FeatureView{
+				Base: &model.BaseFeatureView{
+					Name: "feature_view",
+				},
+				Ttl: &durationpb.Duration{Seconds: 0, Nanos: 0},
+			},
+		},
+	}
+
+	arrowAllocator := memory.NewGoAllocator()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := TransposeFeatureRowsIntoColumns(featureData2D, groupRef, requestedFeatureViews, arrowAllocator, numRows)
+		if err != nil {
+			b.Fatalf("Error during TransposeFeatureRowsIntoColumns: %v", err)
+		}
+	}
 }

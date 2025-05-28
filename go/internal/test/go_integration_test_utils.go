@@ -3,6 +3,7 @@ package test
 import (
 	"context"
 	"fmt"
+	"github.com/feast-dev/feast/go/protos/feast/core"
 	"log"
 
 	"github.com/apache/arrow/go/v17/arrow/memory"
@@ -69,6 +70,128 @@ func ReadParquet(filePath string) ([]*Row, error) {
 	}
 
 	return rows, nil
+}
+
+func ReadParquetDynamically(filePath string) ([]map[string]interface{}, error) {
+	allocator := memory.NewGoAllocator()
+	pqfile, err := file.OpenParquetFile(filePath, false)
+	if err != nil {
+		return nil, err
+	}
+	defer pqfile.Close()
+
+	reader, err := pqarrow.NewFileReader(pqfile, pqarrow.ArrowReadProperties{}, allocator)
+	if err != nil {
+		return nil, err
+	}
+
+	table, err := reader.ReadTable(context.Background())
+	if err != nil {
+		return nil, err
+	}
+	defer table.Release()
+
+	// Create a map of column names to their data arrays
+	columns := make(map[string]arrow.Array)
+	fields := table.Schema().Fields()
+	for idx, field := range fields {
+		columns[field.Name] = table.Column(idx).Data().Chunk(0)
+	}
+
+	// Read rows dynamically
+	rows := make([]map[string]interface{}, 0)
+	for rowIdx := 0; rowIdx < int(table.NumRows()); rowIdx++ {
+		row := make(map[string]interface{})
+		for _, field := range fields {
+			column := columns[field.Name]
+			if column.IsNull(rowIdx) {
+				row[field.Name] = nil // Set nil for null values
+				continue
+			}
+			switch col := column.(type) {
+			case *array.Int32:
+				row[field.Name] = col.Value(rowIdx)
+			case *array.Int64:
+				row[field.Name] = col.Value(rowIdx)
+			case *array.Float32:
+				row[field.Name] = col.Value(rowIdx)
+			case *array.Float64:
+				row[field.Name] = col.Value(rowIdx)
+			case *array.String:
+				row[field.Name] = col.Value(rowIdx)
+			case *array.Boolean:
+				row[field.Name] = col.Value(rowIdx)
+			case *array.Binary:
+				row[field.Name] = col.Value(rowIdx)
+			case *array.Timestamp:
+				nanoseconds := int64(col.Value(rowIdx).ToTime(arrow.Second).Unix())
+				t := time.Unix(0, nanoseconds)
+				row[field.Name] = t.Unix()
+			case *array.List:
+				// Handle array (list) types
+				listValues := []interface{}{}
+				list := col.ListValues()
+				for i := col.Offsets()[rowIdx]; i < col.Offsets()[rowIdx+1]; i++ {
+					switch childCol := list.(type) {
+					case *array.Int32:
+						listValues = append(listValues, childCol.Value(int(i)))
+					case *array.Int64:
+						listValues = append(listValues, childCol.Value(int(i)))
+					case *array.Float32:
+						listValues = append(listValues, childCol.Value(int(i)))
+					case *array.Float64:
+						listValues = append(listValues, childCol.Value(int(i)))
+					case *array.String:
+						listValues = append(listValues, childCol.Value(int(i)))
+					case *array.Boolean:
+						listValues = append(listValues, childCol.Value(int(i)))
+					case *array.Binary:
+						listValues = append(listValues, childCol.Value(int(i)))
+					case *array.Timestamp:
+						nanoseconds := int64(childCol.Value(int(i)).ToTime(arrow.Second).Unix())
+						t := time.Unix(0, nanoseconds)
+						listValues = append(listValues, t.Unix())
+					default:
+						listValues = append(listValues, nil) // Handle unsupported types
+					}
+				}
+				row[field.Name] = listValues
+			default:
+				fmt.Println("Unsupported type:", field.Name, field.Type, col)
+				row[field.Name] = nil // Handle unsupported types
+			}
+		}
+		rows = append(rows, row)
+	}
+
+	return rows, nil
+}
+
+func FilterRowsByColumn(rows []map[string]interface{}, columnName string, value interface{}) []map[string]interface{} {
+	filteredRows := []map[string]interface{}{}
+	for _, row := range rows {
+		if row[columnName] == value {
+			filteredRows = append(filteredRows, row)
+		}
+	}
+	return filteredRows
+}
+
+func FilterRowsByMultiColumns(rows []map[string]interface{}, filters map[string]interface{}) []map[string]interface{} {
+	filteredRows := []map[string]interface{}{}
+	for _, row := range rows {
+		matches := true
+		for columnName, value := range filters {
+			if row[columnName] != value {
+				matches = false
+				break
+			}
+		}
+		if matches {
+			filteredRows = append(filteredRows, row)
+		}
+	}
+	return filteredRows
 }
 
 func GetLatestFeatures(Rows []*Row, entities map[int64]bool) map[int64]*Row {
@@ -168,13 +291,18 @@ func CleanUpInitializedRepo(basePath string) {
 		log.Fatal(err)
 	}
 
-	err = os.Remove(filepath.Join(featureRepoPath, "data", "registry.db"))
-	if err != nil {
-		log.Fatal(err)
+	if _, err := os.Stat(filepath.Join(featureRepoPath, "data", "registry.db")); err == nil {
+		err = os.Remove(filepath.Join(featureRepoPath, "data", "registry.db"))
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
-	err = os.Remove(filepath.Join(featureRepoPath, "data", "online_store.db"))
-	if err != nil {
-		log.Fatal(err)
+
+	if _, err := os.Stat(filepath.Join(featureRepoPath, "data", "online_store.db")); err == nil {
+		err = os.Remove(filepath.Join(featureRepoPath, "data", "online_store.db"))
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
@@ -248,4 +376,127 @@ func CreateSortedFeatureView(base *model.BaseFeatureView, ttl *durationpb.Durati
 		FeatureView: CreateFeatureView(base, ttl, entities, entityColumns),
 		SortKeys:    sortKeys,
 	}
+}
+
+func CreateEntityProto(name string, valueType types.ValueType_Enum, joinKey string) *core.Entity {
+	return &core.Entity{
+		Spec: &core.EntitySpecV2{
+			Name:      name,
+			ValueType: valueType,
+			JoinKey:   joinKey,
+		},
+	}
+}
+
+func CreateFeature(name string, valueType types.ValueType_Enum) *core.FeatureSpecV2 {
+	return &core.FeatureSpecV2{
+		Name:      name,
+		ValueType: valueType,
+	}
+}
+
+func CreateFeatureViewProto(name string, entities []*core.Entity, features ...*core.FeatureSpecV2) *core.FeatureView {
+	entityNames, entityColumns := getEntityNamesAndColumns(entities)
+	viewProto := core.FeatureView{
+		Spec: &core.FeatureViewSpec{
+			Name:          name,
+			Entities:      entityNames,
+			Features:      features,
+			Ttl:           &durationpb.Duration{},
+			EntityColumns: entityColumns,
+		},
+	}
+	return &viewProto
+}
+
+func CreateSortKeyProto(name string, order core.SortOrder_Enum, valueType types.ValueType_Enum) *core.SortKey {
+	return &core.SortKey{
+		Name:             name,
+		DefaultSortOrder: order,
+		ValueType:        valueType,
+	}
+}
+
+func CreateSortedFeatureViewProto(name string, entities []*core.Entity, sortKeys []*core.SortKey, features ...*core.FeatureSpecV2) *core.SortedFeatureView {
+	entityNames, entityColumns := getEntityNamesAndColumns(entities)
+	viewProto := core.SortedFeatureView{
+		Spec: &core.SortedFeatureViewSpec{
+			Name:          name,
+			Entities:      entityNames,
+			Features:      features,
+			SortKeys:      sortKeys,
+			Ttl:           &durationpb.Duration{},
+			EntityColumns: entityColumns,
+		},
+	}
+	return &viewProto
+}
+
+func CreateSortedFeatureViewModel(name string, entities []*core.Entity, sortKeys []*core.SortKey, features ...*core.FeatureSpecV2) *model.SortedFeatureView {
+	viewProto := CreateSortedFeatureViewProto(name, entities, sortKeys, features...)
+	return model.NewSortedFeatureViewFromProto(viewProto)
+}
+
+func CreateFeatureServiceProto(name string, viewProjections map[string][]*core.FeatureSpecV2) *core.FeatureService {
+	projections := make([]*core.FeatureViewProjection, 0)
+	for name, features := range viewProjections {
+		projections = append(projections, &core.FeatureViewProjection{
+			FeatureViewName: name,
+			FeatureColumns:  features,
+			JoinKeyMap:      map[string]string{},
+		})
+	}
+
+	return &core.FeatureService{
+		Spec: &core.FeatureServiceSpec{
+			Name:     name,
+			Features: projections,
+		},
+		Meta: &core.FeatureServiceMeta{
+			CreatedTimestamp:     timestamppb.Now(),
+			LastUpdatedTimestamp: timestamppb.Now(),
+		},
+	}
+}
+
+func CreateFeatureService(serviceName string, viewProjections map[string][]*core.FeatureSpecV2) *model.FeatureService {
+	fsProto := CreateFeatureServiceProto(serviceName, viewProjections)
+	return model.NewFeatureServiceFromProto(fsProto)
+}
+
+func CreateOnDemandFeatureViewProto(name string, featureSources map[string][]*core.FeatureSpecV2, features ...*core.FeatureSpecV2) *core.OnDemandFeatureView {
+	sources := make(map[string]*core.OnDemandSource)
+	for viewName, featureColumn := range featureSources {
+		sources[viewName] = &core.OnDemandSource{
+			Source: &core.OnDemandSource_FeatureViewProjection{
+				FeatureViewProjection: &core.FeatureViewProjection{
+					FeatureViewName: viewName,
+					FeatureColumns:  featureColumn,
+					JoinKeyMap:      map[string]string{},
+				},
+			},
+		}
+	}
+
+	proto := &core.OnDemandFeatureView{
+		Spec: &core.OnDemandFeatureViewSpec{
+			Name:     name,
+			Sources:  sources,
+			Features: features,
+		},
+	}
+	return proto
+}
+
+func getEntityNamesAndColumns(entities []*core.Entity) ([]string, []*core.FeatureSpecV2) {
+	entityNames := make([]string, len(entities))
+	entityColumns := make([]*core.FeatureSpecV2, len(entities))
+	for i, entity := range entities {
+		entityNames[i] = entity.Spec.Name
+		entityColumns[i] = &core.FeatureSpecV2{
+			Name:      entity.Spec.JoinKey,
+			ValueType: entity.Spec.ValueType,
+		}
+	}
+	return entityNames, entityColumns
 }

@@ -440,6 +440,11 @@ build-go: compile-protos-go
 test-go: compile-protos-go compile-protos-python install-feast-ci-locally
 	CGO_ENABLED=1 go test -coverprofile=coverage.out ./... && go tool cover -html=coverage.out -o coverage.html
 
+test-go-integration: compile-protos-go compile-protos-python install-feast-ci-locally
+	docker compose -f go/integration_tests/docker-compose.yaml up -d
+	go test -tags=integration ./...
+	docker compose -f go/integration_tests/docker-compose.yaml down
+
 format-go:
 	gofmt -s -w go/
 

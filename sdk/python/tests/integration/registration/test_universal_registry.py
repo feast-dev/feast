@@ -40,6 +40,10 @@ from feast.infra.registry.base_registry import BaseRegistry
 from feast.infra.registry.registry import Registry
 from feast.infra.registry.remote import RemoteRegistry, RemoteRegistryConfig
 from feast.infra.registry.sql import SqlRegistry, SqlRegistryConfig
+from feast.infra.registry.sql_fallback import (
+    SqlFallbackRegistry,
+    SqlFallbackRegistryConfig,
+)
 from feast.on_demand_feature_view import on_demand_feature_view
 from feast.permissions.action import AuthzedAction
 from feast.permissions.permission import Permission
@@ -278,6 +282,29 @@ def sqlite_registry():
     yield SqlRegistry(registry_config, "project", None)
 
 
+@pytest.fixture(scope="function")
+def mysql_fallback_registry(mysql_server):
+    db_name = "".join(random.choices(string.ascii_lowercase, k=10))
+
+    _create_mysql_database(mysql_server, db_name)
+
+    connection_url = (
+        "/".join(mysql_server.get_connection_url().split("/")[:-1]) + f"/{db_name}"
+    )
+
+    registry_config = SqlFallbackRegistryConfig(
+        registry_type="sql-fallback",
+        path=connection_url,
+        cache_ttl_seconds=2,
+        cache_mode="sync",
+        sqlalchemy_config_kwargs={"echo": False, "pool_pre_ping": True},
+        thread_pool_executor_worker_count=0,
+        purge_feast_metadata=False,
+    )
+
+    yield SqlFallbackRegistry(registry_config, "project", None)
+
+
 class GrpcMockChannel:
     def __init__(self, service, servicer):
         self.service = service
@@ -345,6 +372,10 @@ else:
         ),
         lazy_fixture("sqlite_registry"),
         lazy_fixture("mock_remote_registry"),
+        pytest.param(
+            lazy_fixture("mysql_fallback_registry"),
+            marks=pytest.mark.xdist_group(name="mysql_fallback_registry"),
+        ),
     ]
 
 sql_fixtures = [
@@ -356,6 +387,10 @@ sql_fixtures = [
         marks=pytest.mark.xdist_group(name="mysql_registry"),
     ),
     lazy_fixture("sqlite_registry"),
+    pytest.param(
+        lazy_fixture("mysql_fallback_registry"),
+        marks=pytest.mark.xdist_group(name="mysql_fallback_registry"),
+    ),
 ]
 
 async_sql_fixtures = [
@@ -366,6 +401,24 @@ async_sql_fixtures = [
     pytest.param(
         lazy_fixture("mysql_registry_async"),
         marks=pytest.mark.xdist_group(name="mysql_registry"),
+    ),
+]
+
+sql_cache_fixtures = [
+    pytest.param(
+        lazy_fixture("pg_registry"), marks=pytest.mark.xdist_group(name="pg_registry")
+    ),
+    pytest.param(
+        lazy_fixture("mysql_registry"),
+        marks=pytest.mark.xdist_group(name="mysql_registry"),
+    ),
+    lazy_fixture("sqlite_registry"),
+]
+
+sql_fallback_fixtures = [
+    pytest.param(
+        lazy_fixture("mysql_fallback_registry"),
+        marks=pytest.mark.xdist_group(name="mysql_fallback_registry"),
     ),
 ]
 
@@ -1061,7 +1114,7 @@ def test_update_infra(test_registry):
 @pytest.mark.integration
 @pytest.mark.parametrize(
     "test_registry",
-    sql_fixtures,
+    sql_cache_fixtures,
 )
 def test_registry_cache(test_registry):
     # Create Feature Views
@@ -1827,4 +1880,151 @@ def test_apply_entity_to_sql_registry_and_reinitialize_sql_registry(test_registr
     assert len(entities) == 0
 
     updated_test_registry.teardown()
+    test_registry.teardown()
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "test_registry",
+    sql_fallback_fixtures,
+)
+def test_registry_cache_overwrite(test_registry):
+    # Create Feature Views
+    batch_source = FileSource(
+        name="test_source",
+        file_format=ParquetFormat(),
+        path="file://feast/*",
+        timestamp_field="ts_col",
+        created_timestamp_column="timestamp",
+        tags={"team": "matchmaking"},
+    )
+
+    entity = Entity(name="fs1_my_entity_1", join_keys=["test"])
+
+    fv1 = FeatureView(
+        name="my_feature_view_1",
+        schema=[
+            Field(name="test", dtype=Int64),
+            Field(name="fs1_my_feature_1", dtype=Int64),
+            Field(name="fs1_my_feature_2", dtype=String),
+            Field(name="fs1_my_feature_3", dtype=Array(String)),
+            Field(name="fs1_my_feature_4", dtype=Array(Bytes)),
+        ],
+        entities=[entity],
+        tags={"team": "matchmaking"},
+        source=batch_source,
+        ttl=timedelta(minutes=5),
+    )
+
+    project = "project"
+
+    # Register data source and feature view
+    test_registry.apply_data_source(batch_source, project)
+    test_registry.apply_feature_view(fv1, project)
+    # during apply_* methods, get_project is called which creates the project in the all cache maps
+    assert len(test_registry.cached_feature_view_map) == 1
+    assert len(test_registry.cached_data_source_map) == 1
+    assert project in test_registry.cached_feature_view_map
+    assert project in test_registry.cached_data_source_map
+    assert len(test_registry.cached_feature_view_map[project]) == 0
+    assert len(test_registry.cached_data_source_map[project]) == 0
+
+    registry_feature_view = test_registry.get_feature_view(
+        fv1.name, project, allow_cache=True
+    )
+    registry_data_source = test_registry.get_data_source(
+        batch_source.name, project, allow_cache=True
+    )
+
+    assert registry_feature_view is not None
+    assert registry_data_source is not None
+    assert len(test_registry.cached_feature_views.cache_map) == 1
+    assert len(test_registry.cached_data_sources.cache_map) == 1
+    cached_fv = test_registry.cached_feature_views.get(project, fv1.name)
+    assert cached_fv is not None
+    assert cached_fv == fv1
+    cached_batch_source = test_registry.cached_data_sources.get(
+        project, batch_source.name
+    )
+    assert cached_batch_source is not None
+    assert cached_batch_source == batch_source
+
+    test_registry.teardown()
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "test_registry",
+    sql_fallback_fixtures,
+)
+def test_registry_cache_expiration(test_registry):
+    # Create Feature Views
+    batch_source = FileSource(
+        name="test_source",
+        file_format=ParquetFormat(),
+        path="file://feast/*",
+        timestamp_field="ts_col",
+        created_timestamp_column="timestamp",
+        tags={"team": "matchmaking"},
+    )
+
+    entity = Entity(name="fs1_my_entity_1", join_keys=["test"])
+
+    fv1 = FeatureView(
+        name="my_feature_view_1",
+        schema=[
+            Field(name="test", dtype=Int64),
+            Field(name="fs1_my_feature_1", dtype=Int64),
+            Field(name="fs1_my_feature_2", dtype=String),
+            Field(name="fs1_my_feature_3", dtype=Array(String)),
+            Field(name="fs1_my_feature_4", dtype=Array(Bytes)),
+        ],
+        entities=[entity],
+        tags={"team": "matchmaking"},
+        source=batch_source,
+        ttl=timedelta(minutes=5),
+    )
+
+    project = "project"
+
+    # Register data source and feature view
+    test_registry.apply_data_source(batch_source, project)
+    test_registry.apply_feature_view(fv1, project)
+    registry_feature_view = test_registry.get_feature_view(
+        fv1.name, project, allow_cache=True
+    )
+    registry_data_source = test_registry.get_data_source(
+        batch_source.name, project, allow_cache=True
+    )
+
+    assert registry_feature_view is not None
+    assert registry_data_source is not None
+    assert len(test_registry.cached_feature_views.cache_map) == 1
+    assert len(test_registry.cached_data_sources.cache_map) == 1
+    cached_fv = test_registry.cached_feature_views.get(project, fv1.name)
+    assert cached_fv is not None
+    assert cached_fv.name == fv1.name
+    cached_batch_source = test_registry.cached_data_sources.get(
+        project, batch_source.name
+    )
+    assert cached_batch_source is not None
+    assert cached_batch_source.name == batch_source.name
+
+    batch_source.description = "new description"
+    test_registry.apply_data_source(batch_source, project)
+    # Expire ttls and refresh cache
+    time.sleep(3)
+    test_registry.refresh()
+    # Deleted feature view is removed from cache
+    test_registry.delete_feature_view(fv1.name, project)
+
+    assert len(test_registry.cached_feature_views.cache_map) == 1
+    assert len(test_registry.cached_data_sources.cache_map) == 1
+    assert test_registry.cached_feature_views.get(project, fv1.name) is None
+    assert test_registry.cached_data_sources.get(project, batch_source.name) is not None
+    assert (
+        batch_source.description
+        == test_registry.cached_data_sources.get(project, batch_source.name).description
+    )
+
     test_registry.teardown()
