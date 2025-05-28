@@ -491,6 +491,7 @@ poetry-core==1.9.1 \
     #   dunamai
     #   ibis-framework
     #   ibis-substrait
+    #   pkgconfig
     #   poetry-dynamic-versioning
     #   rich
     #   rsa
@@ -599,6 +600,7 @@ tomli==2.2.1 \
     # via
     #   flit-scm
     #   frozenlist
+    #   hatch-fancy-pypi-readme
     #   hatchling
     #   maturin
     #   meson-python
