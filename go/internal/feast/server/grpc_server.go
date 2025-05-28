@@ -94,11 +94,16 @@ func (s *grpcServingServiceServer) GetOnlineFeatures(ctx context.Context, reques
 			entityValuesMap[vector.Name] = values
 		}
 
-		resp.Results = append(resp.Results, &serving.GetOnlineFeaturesResponse_FeatureVector{
-			Values:          values,
-			Statuses:        vector.Statuses,
-			EventTimestamps: vector.Timestamps,
-		})
+		featureVector := &serving.GetOnlineFeaturesResponse_FeatureVector{
+			Values: values,
+		}
+
+		if !request.GetOmitStatus() {
+			featureVector.Statuses = vector.Statuses
+			featureVector.EventTimestamps = vector.Timestamps
+		}
+
+		resp.Results = append(resp.Results, featureVector)
 	}
 
 	featureService := featuresOrService.FeatureService
@@ -141,7 +146,8 @@ func (s *grpcServingServiceServer) GetOnlineFeaturesRange(ctx context.Context, r
 		request.GetReverseSortOrder(),
 		request.GetLimit(),
 		request.GetRequestContext(),
-		request.GetFullFeatureNames())
+		request.GetFullFeatureNames(),
+	)
 
 	if err != nil {
 		logSpanContext.Error().Err(err).Msg("Error getting online features range")
@@ -200,11 +206,16 @@ func (s *grpcServingServiceServer) GetOnlineFeaturesRange(ctx context.Context, r
 			timeValues[j] = &prototypes.RepeatedValue{Val: timestampValues}
 		}
 
-		resp.Results = append(resp.Results, &serving.GetOnlineFeaturesRangeResponse_RangeFeatureVector{
-			Values:          rangeValues,
-			Statuses:        rangeStatuses,
-			EventTimestamps: timeValues,
-		})
+		featureVector := &serving.GetOnlineFeaturesRangeResponse_RangeFeatureVector{
+			Values: rangeValues,
+		}
+
+		if !request.GetOmitStatus() {
+			featureVector.Statuses = rangeStatuses
+			featureVector.EventTimestamps = timeValues
+		}
+
+		resp.Results = append(resp.Results, featureVector)
 	}
 
 	// TODO: Implement logging for GetOnlineFeaturesRange for feature services when support for feature services is added

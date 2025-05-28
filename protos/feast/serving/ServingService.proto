@@ -93,6 +93,9 @@ message GetOnlineFeaturesRequest {
     // (was moved to dedicated parameter to avoid unnecessary separation logic on serving side)
     // A map of variable name -> list of values
     map<string, feast.types.RepeatedValue> request_context = 5;
+
+    // Used to omit the timestamp/status from the response
+    bool omit_status = 6;
 }
 
 message GetOnlineFeaturesResponse {
@@ -182,6 +185,9 @@ message GetOnlineFeaturesRangeRequest {
     // Context for OnDemand Feature Transformation
     // A map of variable name -> list of values
     map<string, feast.types.RepeatedValue> request_context = 8;
+
+    // Used to omit the timestamp/status from the response
+    bool omit_status = 9;
 }
 
 message GetOnlineFeaturesRangeResponse {
