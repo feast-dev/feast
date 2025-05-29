@@ -600,7 +600,6 @@ tomli==2.2.1 \
     # via
     #   flit-scm
     #   frozenlist
-    #   hatch-fancy-pypi-readme
     #   hatchling
     #   maturin
     #   meson-python
