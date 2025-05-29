@@ -96,7 +96,7 @@ def _write_data_source(
             prev_schema = (
                 DeltaTable(file_options.uri, storage_options=storage_options)
                 .schema()
-                .to_pyarrow()
+                .to_arrow()
             )
             table = table.cast(ibis.Schema.from_pyarrow(prev_schema))
             write_mode = "append"
