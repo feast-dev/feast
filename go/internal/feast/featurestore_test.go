@@ -19,7 +19,6 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 	"path/filepath"
 	"runtime"
-	"sort"
 	"testing"
 	"time"
 )
@@ -255,44 +254,61 @@ func TestGetOnlineFeaturesRange(t *testing.T) {
 		true,
 	)
 
-	// Sort the result by name, so we can assert by index consistently
-	sort.Slice(result, func(i, j int) bool {
-		return result[i].Name < result[j].Name
-	})
-
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.Equal(t, 3, len(result), "Should have 3 vectors (1 entity + 2 features)")
-	assert.Equal(t, "driver_id", result[0].Name)
-	assert.Equal(t, "driver_stats__acc_rate", result[1].Name)
-	assert.Equal(t, "driver_stats__conv_rate", result[2].Name)
-	assert.Equal(t, 2, result[0].RangeValues.Len())
-	assert.Equal(t, 2, len(result[0].RangeStatuses))
-	assert.Equal(t, 2, len(result[0].RangeTimestamps))
 
-	for i := 0; i < result[0].RangeValues.Len(); i++ {
-		key := result[0].RangeValues.(*array.List).ListValues().(*array.Int64).Value(i)
+	var driverIdVector, accRateVector, convRateVector *onlineserving.RangeFeatureVector
+	for _, r := range result {
+		switch r.Name {
+		case "driver_id":
+			driverIdVector = r
+		case "driver_stats__acc_rate":
+			accRateVector = r
+		case "driver_stats__conv_rate":
+			convRateVector = r
+		}
+	}
+
+	assert.NotNil(t, driverIdVector, "Should have driver_id vector")
+	assert.NotNil(t, accRateVector, "Should have acc_rate vector")
+	assert.NotNil(t, convRateVector, "Should have conv_rate vector")
+
+	assert.Equal(t, 2, driverIdVector.RangeValues.Len())
+	assert.Equal(t, 2, len(driverIdVector.RangeStatuses))
+	assert.Equal(t, 2, len(driverIdVector.RangeTimestamps))
+
+	for i := 0; i < driverIdVector.RangeValues.Len(); i++ {
+		key := driverIdVector.RangeValues.(*array.List).ListValues().(*array.Int64).Value(i)
+		accRateValues, err := types2.ArrowValuesToProtoValues(accRateVector.RangeValues)
+		assert.NoError(t, err)
+		convRateValues, err := types2.ArrowValuesToProtoValues(convRateVector.RangeValues)
+		assert.NoError(t, err)
+
+		var expectedAccRate []float64
+		var expectedConvRate []float64
 		var expectedLength int
 
-		accRateValues, err := types2.ArrowValuesToProtoValues(result[1].RangeValues)
-		assert.NoError(t, err)
-		convRateValues, err := types2.ArrowValuesToProtoValues(result[2].RangeValues)
-		assert.NoError(t, err)
-
 		if key == 1001 {
-			assert.Equal(t, []float64{0.91, 0.92, 0.94}, accRateValues[i].GetDoubleListVal().Val)
-			assert.Equal(t, []float64{0.85, 0.87, 0.89}, convRateValues[i].GetDoubleListVal().Val)
+			expectedAccRate = []float64{0.91, 0.92, 0.94}
+			expectedConvRate = []float64{0.85, 0.87, 0.89}
 			expectedLength = 3
-		} else {
-			assert.Equal(t, []float64{0.85, 0.88}, accRateValues[i].GetDoubleListVal().Val)
-			assert.Equal(t, []float64{0.78, 0.80}, convRateValues[i].GetDoubleListVal().Val)
+		} else if key == 1002 {
+			expectedAccRate = []float64{0.85, 0.88}
+			expectedConvRate = []float64{0.78, 0.80}
 			expectedLength = 2
+		} else {
+			t.Fatalf("Unexpected entity key: %d", key)
 		}
 
-		assert.Equal(t, expectedLength, len(result[1].RangeStatuses[i]))
-		assert.Equal(t, expectedLength, len(result[2].RangeStatuses[i]))
-		assert.Equal(t, expectedLength, len(result[1].RangeTimestamps[i]))
-		assert.Equal(t, expectedLength, len(result[2].RangeTimestamps[i]))
+		assert.Equal(t, expectedAccRate, accRateValues[i].GetDoubleListVal().Val,
+			"acc_rate values for entity %d", key)
+		assert.Equal(t, expectedConvRate, convRateValues[i].GetDoubleListVal().Val,
+			"conv_rate values for entity %d", key)
+		assert.Equal(t, expectedLength, len(accRateVector.RangeStatuses[i]))
+		assert.Equal(t, expectedLength, len(convRateVector.RangeStatuses[i]))
+		assert.Equal(t, expectedLength, len(accRateVector.RangeTimestamps[i]))
+		assert.Equal(t, expectedLength, len(convRateVector.RangeTimestamps[i]))
 	}
 	mockStore.AssertExpectations(t)
 }
