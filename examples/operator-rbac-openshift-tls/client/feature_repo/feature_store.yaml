@@ -1,0 +1,19 @@
+project: feast_rbac
+provider: local
+offline_store:
+    host: feast-sample-kubernetes-auth-offline.feast.svc.cluster.local
+    type: remote
+    port: 443
+    scheme: https
+    cert: /etc/pki/tls/custom-certs/service-ca.crt
+online_store:
+    path: https://feast-sample-kubernetes-auth-online.feast.svc.cluster.local:443
+    type: remote
+    cert: /etc/pki/tls/custom-certs/service-ca.crt
+registry:
+    path: feast-sample-kubernetes-auth-registry.feast.svc.cluster.local:443
+    registry_type: remote
+    cert: /etc/pki/tls/custom-certs/service-ca.crt
+auth:
+    type: kubernetes
+entity_key_serialization_version: 3
