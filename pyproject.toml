@@ -105,7 +105,7 @@ postgres = ["psycopg[binary,pool]==3.2.5"]
 # psycopg[c] install requires a system with a C compiler, python dev headers, & postgresql client dev headers
 # https://www.psycopg.org/psycopg3/docs/basic/install.html#local-installation
 postgres-c = ["psycopg[c,pool]==3.2.5"]
-pytorch = ["torch>=2.7.0", "torchvision>=0.17.2"]
+pytorch = ["torch==2.7.0", "torchvision>=0.17.2"]
 qdrant = ["qdrant-client>=1.12.0"]
 redis = [
     "redis>=4.2.2,<5",
