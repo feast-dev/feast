@@ -167,7 +167,7 @@ GO_REQUIRED = ["cffi>=1.15.0"]
 MILVUS_REQUIRED = ["pymilvus"]
 
 TORCH_REQUIRED = [
-    "torch>=2.3.0",
+    "torch>=2.7.0",
     "torchvision>=0.17.2",
 ]
 
