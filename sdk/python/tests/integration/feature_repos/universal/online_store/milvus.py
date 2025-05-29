@@ -26,7 +26,7 @@ class MilvusOnlineStoreCreator(OnlineStoreCreator):
         wait_for_logs(
             container=self.container, predicate=log_string_to_wait_for, timeout=30
         )
-        host = "localhost"
+        host = "http://localhost"
         port = self.container.get_exposed_port(self.fixed_port)
         return {
             "type": "milvus",
