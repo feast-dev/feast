@@ -37,7 +37,8 @@ REQUIRED = [
     "Jinja2>=2,<4",
     "jsonschema",
     "mmh3",
-    "numpy>=2.0.0",
+    'numpy (>=1.24.4,<3.0.0) ; sys_platform != "darwin" or platform_machine != "x86_64"',
+    'numpy (>=1.24.4,<2.0.0) ; sys_platform == "darwin" and platform_machine == "x86_64"',
     "pandas>=1.4.3,<3",
     "pyarrow<18.1.0",
     "pydantic>=2.0.0",
@@ -86,7 +87,7 @@ SNOWFLAKE_REQUIRED = [
 ]
 
 SPARK_REQUIRED = [
-    "pyspark>=4.0.0",
+    "pyspark>=3.0.0,<4",
 ]
 
 SQLITE_VEC_REQUIRED = [
@@ -144,9 +145,9 @@ GRPCIO_REQUIRED = [
 
 DUCKDB_REQUIRED = ["ibis-framework[duckdb]>=9.0.0,<10"]
 
-DELTA_REQUIRED = ["deltalake"]
+DELTA_REQUIRED = ["deltalake<1"]
 
-DOCLING_REQUIRED = ["docling>=2.23.0"]
+DOCLING_REQUIRED = ["docling>=2.34.0"]
 
 ELASTICSEARCH_REQUIRED = ["elasticsearch>=8.13.0"]
 
@@ -167,8 +168,8 @@ GO_REQUIRED = ["cffi>=1.15.0"]
 MILVUS_REQUIRED = ["pymilvus"]
 
 TORCH_REQUIRED = [
-    "torch==2.7.0",
-    "torchvision>=0.17.2",
+    "torch>=2.2.2,<3.0.0",
+    "torchvision>=0.17.2,<1",
 ]
 
 CLICKHOUSE_REQUIRED = ["clickhouse-connect>=0.7.19"]
