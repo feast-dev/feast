@@ -38,9 +38,9 @@ var _ = Describe("previous version operator", Ordered, func() {
 		}
 
 		runTestDeploySimpleCRFunc := utils.GetTestDeploySimpleCRFunc("/test/upgrade", utils.GetSimplePreviousVerCR(),
-			utils.FeatureStoreName, utils.FeastResourceName, feastK8sResourceNames)
+			utils.FeatureStoreName, utils.FeastResourceName, feastK8sResourceNames, "default")
 		runTestWithRemoteRegistryFunction := utils.GetTestWithRemoteRegistryFunc("/test/upgrade", utils.GetSimplePreviousVerCR(),
-			utils.GetRemoteRegistryPreviousVerCR(), utils.FeatureStoreName, utils.FeastResourceName, feastK8sResourceNames)
+			utils.GetRemoteRegistryPreviousVerCR(), utils.FeatureStoreName, utils.FeastResourceName, feastK8sResourceNames, "default")
 
 		// Run Test on previous version operator
 		It("Should be able to deploy and run a default feature store CR successfully", runTestDeploySimpleCRFunc)
