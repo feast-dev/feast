@@ -88,7 +88,7 @@ class MilvusOnlineStoreConfig(FeastConfigBaseModel, VectorStoreConfig):
     """
 
     type: Literal["milvus"] = "milvus"
-    path: Optional[StrictStr] = ""
+    path: Optional[StrictStr] = "online_store.db"
     host: Optional[StrictStr] = "localhost"
     port: Optional[int] = 19530
     index_type: Optional[str] = "FLAT"
@@ -126,16 +126,13 @@ class MilvusOnlineStore(OnlineStore):
 
     def _connect(self, config: RepoConfig) -> MilvusClient:
         if not self.client:
-            if config.provider == "local" and config.online_store.path:
+            if config.provider == "local":
                 db_path = self._get_db_path(config)
                 print(f"Connecting to Milvus in local mode using {db_path}")
                 self.client = MilvusClient(db_path)
             else:
-                print(
-                    f"Connecting to Milvus remotely at {config.online_store.host}:{config.online_store.port}"
-                )
                 self.client = MilvusClient(
-                    uri=f"{config.online_store.host}:{config.online_store.port}",
+                    url=f"{config.online_store.host}:{config.online_store.port}",
                     token=f"{config.online_store.username}:{config.online_store.password}"
                     if config.online_store.username and config.online_store.password
                     else "",
