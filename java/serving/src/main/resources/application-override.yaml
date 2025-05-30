@@ -15,7 +15,7 @@ logging:
     # Log level configuration for different components
     logLevel:
       root: INFO
-      feast.serving: DEBUG  # Detailed logs for serving component
+      feast.serving: DEBUG  # Detailed logs for serving componenta
       feast.stores: TRACE  # Trace logs for store interaction, for more granular tracking
       feast.utils: WARN  # Log warnings for utils-related components
     logFile:
