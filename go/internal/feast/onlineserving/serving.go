@@ -1151,9 +1151,9 @@ func GroupSortedFeatureRefs(
 }
 
 func getUniqueEntityRows(joinKeysProto []*prototypes.EntityKey) ([]*prototypes.EntityKey, [][]int, error) {
-	uniqueValues := make(map[[sha256.Size]byte]*prototypes.EntityKey)
-	positions := make(map[[sha256.Size]byte][]int)
-	orderedHashes := make([][sha256.Size]byte, 0) // to maintain order of first occurrences
+	seen := make(map[[sha256.Size]byte]int)
+	uniqueEntityRows := make([]*prototypes.EntityKey, 0)
+	mappingIndices := make([][]int, 0)
 
 	for index, entityKey := range joinKeysProto {
 		serializedRow, err := proto.Marshal(entityKey)
@@ -1162,22 +1162,14 @@ func getUniqueEntityRows(joinKeysProto []*prototypes.EntityKey) ([]*prototypes.E
 		}
 
 		rowHash := sha256.Sum256(serializedRow)
-		if _, ok := uniqueValues[rowHash]; !ok {
-			uniqueValues[rowHash] = entityKey
-			positions[rowHash] = []int{index}
-			orderedHashes = append(orderedHashes, rowHash)
+		if existingIndex, exists := seen[rowHash]; exists {
+			mappingIndices[existingIndex] = append(mappingIndices[existingIndex], index)
 		} else {
-			positions[rowHash] = append(positions[rowHash], index)
+			newIndex := len(uniqueEntityRows)
+			seen[rowHash] = newIndex
+			uniqueEntityRows = append(uniqueEntityRows, entityKey)
+			mappingIndices = append(mappingIndices, []int{index})
 		}
-	}
-
-	// Build results in deterministic order based on first occurrence
-	mappingIndices := make([][]int, len(orderedHashes))
-	uniqueEntityRows := make([]*prototypes.EntityKey, len(orderedHashes))
-
-	for i, rowHash := range orderedHashes {
-		mappingIndices[i] = positions[rowHash]
-		uniqueEntityRows[i] = uniqueValues[rowHash]
 	}
 
 	return uniqueEntityRows, mappingIndices, nil
