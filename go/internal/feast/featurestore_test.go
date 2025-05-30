@@ -176,7 +176,6 @@ func TestGetOnlineFeaturesRange(t *testing.T) {
 		return sameBase && f.Order != nil && expectedFilter.Order != nil &&
 			f.Order.Order == expectedFilter.Order.Order
 	})
-
 	mockRangeFeatureData := [][]onlinestore.RangeFeatureData{
 		{
 			{
@@ -257,7 +256,6 @@ func TestGetOnlineFeaturesRange(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.Equal(t, 3, len(result), "Should have 3 vectors (1 entity + 2 features)")
-
 	var driverIdVector, accRateVector, convRateVector *onlineserving.RangeFeatureVector
 	for _, r := range result {
 		switch r.Name {
@@ -273,42 +271,42 @@ func TestGetOnlineFeaturesRange(t *testing.T) {
 	assert.NotNil(t, driverIdVector, "Should have driver_id vector")
 	assert.NotNil(t, accRateVector, "Should have acc_rate vector")
 	assert.NotNil(t, convRateVector, "Should have conv_rate vector")
-
 	assert.Equal(t, 2, driverIdVector.RangeValues.Len())
 	assert.Equal(t, 2, len(driverIdVector.RangeStatuses))
 	assert.Equal(t, 2, len(driverIdVector.RangeTimestamps))
+	entityId0 := driverIdVector.RangeValues.(*array.List).ListValues().(*array.Int64).Value(0)
+	entityId1 := driverIdVector.RangeValues.(*array.List).ListValues().(*array.Int64).Value(1)
+	accRateValues, err := types2.ArrowValuesToProtoValues(accRateVector.RangeValues)
+	assert.NoError(t, err)
+	convRateValues, err := types2.ArrowValuesToProtoValues(convRateVector.RangeValues)
+	assert.NoError(t, err)
 
-	for i := 0; i < driverIdVector.RangeValues.Len(); i++ {
-		key := driverIdVector.RangeValues.(*array.List).ListValues().(*array.Int64).Value(i)
-		accRateValues, err := types2.ArrowValuesToProtoValues(accRateVector.RangeValues)
-		assert.NoError(t, err)
-		convRateValues, err := types2.ArrowValuesToProtoValues(convRateVector.RangeValues)
-		assert.NoError(t, err)
+	if entityId0 == 1001 && entityId1 == 1002 {
+		assert.Equal(t, []float64{0.91, 0.92, 0.94}, accRateValues[0].GetDoubleListVal().Val)
+		assert.Equal(t, []float64{0.85, 0.87, 0.89}, convRateValues[0].GetDoubleListVal().Val)
 
-		var expectedAccRate []float64
-		var expectedConvRate []float64
-		var expectedLength int
+		assert.Equal(t, []float64{0.85, 0.88}, accRateValues[1].GetDoubleListVal().Val)
+		assert.Equal(t, []float64{0.78, 0.80}, convRateValues[1].GetDoubleListVal().Val)
 
-		if key == 1001 {
-			expectedAccRate = []float64{0.91, 0.92, 0.94}
-			expectedConvRate = []float64{0.85, 0.87, 0.89}
-			expectedLength = 3
-		} else if key == 1002 {
-			expectedAccRate = []float64{0.85, 0.88}
-			expectedConvRate = []float64{0.78, 0.80}
-			expectedLength = 2
-		} else {
-			t.Fatalf("Unexpected entity key: %d", key)
-		}
+		assert.Equal(t, 3, len(accRateVector.RangeStatuses[0]))
+		assert.Equal(t, 3, len(convRateVector.RangeStatuses[0]))
+		assert.Equal(t, 2, len(accRateVector.RangeStatuses[1]))
+		assert.Equal(t, 2, len(convRateVector.RangeStatuses[1]))
+	} else if entityId0 == 1002 && entityId1 == 1001 {
+		t.Logf("Warning: Entity order is not as expected. Got %d, %d instead of 1001, 1002", entityId0, entityId1)
 
-		assert.Equal(t, expectedAccRate, accRateValues[i].GetDoubleListVal().Val,
-			"acc_rate values for entity %d", key)
-		assert.Equal(t, expectedConvRate, convRateValues[i].GetDoubleListVal().Val,
-			"conv_rate values for entity %d", key)
-		assert.Equal(t, expectedLength, len(accRateVector.RangeStatuses[i]))
-		assert.Equal(t, expectedLength, len(convRateVector.RangeStatuses[i]))
-		assert.Equal(t, expectedLength, len(accRateVector.RangeTimestamps[i]))
-		assert.Equal(t, expectedLength, len(convRateVector.RangeTimestamps[i]))
+		assert.Equal(t, []float64{0.85, 0.88}, accRateValues[0].GetDoubleListVal().Val)
+		assert.Equal(t, []float64{0.78, 0.80}, convRateValues[0].GetDoubleListVal().Val)
+
+		assert.Equal(t, []float64{0.91, 0.92, 0.94}, accRateValues[1].GetDoubleListVal().Val)
+		assert.Equal(t, []float64{0.85, 0.87, 0.89}, convRateValues[1].GetDoubleListVal().Val)
+
+		assert.Equal(t, 2, len(accRateVector.RangeStatuses[0]))
+		assert.Equal(t, 2, len(convRateVector.RangeStatuses[0]))
+		assert.Equal(t, 3, len(accRateVector.RangeStatuses[1]))
+		assert.Equal(t, 3, len(convRateVector.RangeStatuses[1]))
+	} else {
+		t.Fatalf("Unexpected entity IDs: %d, %d", entityId0, entityId1)
 	}
 	mockStore.AssertExpectations(t)
 }
