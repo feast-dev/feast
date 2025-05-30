@@ -4,6 +4,15 @@
 
 The Registry server supports both gRPC and REST interfaces for interacting with feature metadata. While gRPC remains the default protocol—enabling clients in any language with gRPC support—the REST API allows users to interact with the registry over standard HTTP using any REST-capable tool or language.
 
+Feast supports running the Registry Server in three distinct modes:
+
+| Mode        | Command Example                             | Description                            |
+| ----------- | ------------------------------------------- | -------------------------------------- |
+| gRPC only   | `feast serve_registry`                      | Default behavior for SDK and clients   |
+| REST + gRPC | `feast serve_registry --rest-api`           | Enables both interfaces                |
+| REST only   | `feast serve_registry --rest-api --no-grpc` | Used for REST-only clients like the UI |
+
+
 ## How to configure the server
 
 ## CLI
@@ -12,9 +21,15 @@ There is a CLI command that starts the Registry server: `feast serve_registry`. 
 To start the Registry Server in TLS mode, you need to provide the private and public keys using the `--key` and `--cert` arguments.
 More info about TLS mode can be found in [feast-client-connecting-to-remote-registry-sever-started-in-tls-mode](../../how-to-guides/starting-feast-servers-tls-mode.md#starting-feast-registry-server-in-tls-mode)
 
-To enable REST API support, start the registry server with REST mode enabled : 
+To enable REST API support along with gRPC, start the registry server with REST mode enabled : 
 
 `feast serve_registry --rest-api`
+
+This launches both the gRPC and REST servers concurrently. The REST server listens on port 6572 by default.
+
+To run a REST-only server (no gRPC):
+
+`feast serve_registry --rest-api --no-grpc`
 
 
 ## How to configure the client
