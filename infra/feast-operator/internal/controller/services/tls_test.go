@@ -56,7 +56,9 @@ var _ = Describe("TLS Config", func() {
 			feast.Handler.FeatureStore.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
 				Registry: &feastdevv1alpha1.Registry{
 					Local: &feastdevv1alpha1.LocalRegistryConfig{
-						Server: &feastdevv1alpha1.ServerConfigs{},
+						Server: &feastdevv1alpha1.RegistryServerConfigs{
+							ServerConfigs: feastdevv1alpha1.ServerConfigs{},
+						},
 					},
 				},
 			}
@@ -85,7 +87,9 @@ var _ = Describe("TLS Config", func() {
 			feast.Handler.FeatureStore.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
 				Registry: &feastdevv1alpha1.Registry{
 					Local: &feastdevv1alpha1.LocalRegistryConfig{
-						Server: &feastdevv1alpha1.ServerConfigs{},
+						Server: &feastdevv1alpha1.RegistryServerConfigs{
+							ServerConfigs: feastdevv1alpha1.ServerConfigs{},
+						},
 					},
 				},
 			}
@@ -190,11 +194,13 @@ var _ = Describe("TLS Config", func() {
 				},
 				Registry: &feastdevv1alpha1.Registry{
 					Local: &feastdevv1alpha1.LocalRegistryConfig{
-						Server: &feastdevv1alpha1.ServerConfigs{
-							TLS: &feastdevv1alpha1.TlsConfigs{
-								SecretRef: &corev1.LocalObjectReference{},
-								SecretKeyNames: feastdevv1alpha1.SecretKeyNames{
-									TlsCrt: "test.crt",
+						Server: &feastdevv1alpha1.RegistryServerConfigs{
+							ServerConfigs: feastdevv1alpha1.ServerConfigs{
+								TLS: &feastdevv1alpha1.TlsConfigs{
+									SecretRef: &corev1.LocalObjectReference{},
+									SecretKeyNames: feastdevv1alpha1.SecretKeyNames{
+										TlsCrt: "test.crt",
+									},
 								},
 							},
 						},
@@ -244,9 +250,11 @@ var _ = Describe("TLS Config", func() {
 			}
 			feast.Handler.FeatureStore.Spec.Services.Registry = &feastdevv1alpha1.Registry{
 				Local: &feastdevv1alpha1.LocalRegistryConfig{
-					Server: &feastdevv1alpha1.ServerConfigs{
-						TLS: &feastdevv1alpha1.TlsConfigs{
-							Disable: &disable,
+					Server: &feastdevv1alpha1.RegistryServerConfigs{
+						ServerConfigs: feastdevv1alpha1.ServerConfigs{
+							TLS: &feastdevv1alpha1.TlsConfigs{
+								Disable: &disable,
+							},
 						},
 					},
 				},

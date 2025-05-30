@@ -61,8 +61,10 @@ var _ = Describe("FeatureStore Controller - Feast service LogLevel", func() {
 						Services: &feastdevv1alpha1.FeatureStoreServices{
 							Registry: &feastdevv1alpha1.Registry{
 								Local: &feastdevv1alpha1.LocalRegistryConfig{
-									Server: &feastdevv1alpha1.ServerConfigs{
-										LogLevel: strPtr("error"),
+									Server: &feastdevv1alpha1.RegistryServerConfigs{
+										ServerConfigs: feastdevv1alpha1.ServerConfigs{
+											LogLevel: strPtr("error"),
+										},
 									},
 								},
 							},
@@ -196,7 +198,9 @@ var _ = Describe("FeatureStore Controller - Feast service LogLevel", func() {
 			resource.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
 				Registry: &feastdevv1alpha1.Registry{
 					Local: &feastdevv1alpha1.LocalRegistryConfig{
-						Server: &feastdevv1alpha1.ServerConfigs{},
+						Server: &feastdevv1alpha1.RegistryServerConfigs{
+							ServerConfigs: feastdevv1alpha1.ServerConfigs{},
+						},
 					},
 				},
 				OfflineStore: &feastdevv1alpha1.OfflineStore{},
