@@ -1,0 +1,80 @@
+feast:
+  project: "feast_java_optimized_demo"
+  registry: "java/serving/src/main/resources/registry.pb" # Path to the registry file (can be local or GCS/S3 URI)
+  registryRefreshInterval: 60 # Refresh registry from source every 60 seconds. 0 to disable.
+  entityKeySerializationVersion: 2 # Use V2 for Redis key serialization (more efficient)
+  retrieverThreadPoolSize: 16 # Number of threads for the OptimizedRedisOnlineRetriever's executor service. 0 for auto (CPU cores).
+
+  # Indicates the active store. Only a single store in the list can be active at one time.
+  activeStore: "online_cluster_optimized" # Example: using the optimized cluster store by default
+
+  # List of store configurations
+  stores:
+    - name: "online_redis_optimized" # Name of the store (referenced by activeStore)
+      type: REDIS # Type of the store. REDIS or REDIS_CLUSTER
+      config: # Store specific configuration.
+        host: "localhost" # Replace with your Redis host
+        port: 6379 # Replace with your Redis port
+        password: "" # Optional: Your Redis password
+        ssl: false # Optional: Enable SSL for Redis connection
+        sslVerifyPeer: true # Optional: Verify peer certificate if SSL is enabled
+        database: 0 # Optional: Redis database number
+        # Connection timeouts
+        connectTimeoutMs: 2000 # Connection attempt timeout in milliseconds (e.g., 2000ms)
+        timeoutMs: 1000 # Operation timeout in milliseconds (e.g., 1000ms)
+        # Connection Pool Settings (for OptimizedRedisClientAdapter)
+        poolMaxTotal: 50 # Max total connections in the pool
+        poolMaxIdle: 20 # Max idle connections in the pool
+        poolMinIdle: 5 # Min idle connections to maintain
+        poolTestOnBorrow: true # Validate connections when borrowing from pool
+        poolBlockWhenExhausted: true # Block if pool is exhausted, otherwise throw exception
+
+    - name: "online_cluster_optimized"
+      type: REDIS_CLUSTER
+      config: # Store specific configuration.
+        # Connection string specifies the host:port of Redis instances in the redis cluster.
+        connection_string: "localhost:7000,localhost:7001,localhost:7002" # Replace with your cluster nodes
+        password: "" # Optional: Password if your cluster nodes require it
+        ssl: false # Optional: Enable SSL for cluster connections
+        sslVerifyPeer: true # Optional
+        read_from: "REPLICA_PREFERRED" # Optimize reads: MASTER, UPSTREAM, NEAREST, REPLICA, REPLICA_PREFERRED, ANY_REPLICA, ANY
+        # Connection timeouts
+        connectTimeoutMs: 2000 # Connection attempt timeout in milliseconds
+        timeoutMs: 1000 # Operation timeout in milliseconds
+        clusterRefreshPeriodSec: 30 # How often to refresh cluster topology (seconds)
+        # Connection Pool Settings
+        poolMaxTotal: 100 # Typically larger pool for cluster environments
+        poolMaxIdle: 40
+        poolMinIdle: 10
+        poolTestOnBorrow: true
+        poolBlockWhenExhausted: true
+
+  tracing:
+    # If true, Feast will provide tracing data (using OpenTracing API) for various RPC method calls
+    # which can be useful to debug performance issues and perform benchmarking
+    enabled: true # Set to true for production monitoring
+    # Only Jaeger tracer is supported currently via Micrometer Tracing (or direct OpenTracing integration)
+    tracerName: "jaeger" # This name might be conceptual; actual setup depends on tracing library
+    # The service name identifier for the tracing data
+    serviceName: "feast_serving_optimized"
+
+  # Feature Caching (Conceptual - actual config is in FeatureCacheManager.java for Caffeine)
+  # The following are illustrative if you were to make Caffeine settings configurable via YAML.
+  # As of the current FeatureCacheManager, these are hardcoded defaults.
+  # caffeineCache:
+  #   maxSize: 100000 # Max number of entries in the cache
+  #   expireAfterWriteMinutes: 5 # Expire entries 5 minutes after write
+
+grpc:
+  server:
+    # The port number Feast Serving GRPC service should listen on
+    port: 6566
+    # Other gRPC server settings (e.g., thread pools, keepalive) are typically configured
+    # in the ServerModule.java or via gRPC's ServerBuilder directly.
+
+# Logging (Conceptual - actual logging is configured via log4j2.xml or another logging framework)
+# logging:
+#   level:
+#     feast: INFO # Set Feast's own logging level
+#     io.lettuce.core: WARN # Reduce verbosity from Lettuce client
+#     com.github.benmanes.caffeine: WARN # Reduce verbosity from Caffeine cache
