@@ -10,13 +10,14 @@ This example demonstrates how to enable MCP (Model Context Protocol) support in 
 
 ## Installation
 
-1. Install Feast if you haven't already:
+1. Install Feast with MCP support:
 ```bash
-pip install feast
+pip install feast[mcp]
 ```
 
-2. Install the MCP dependencies:
+Alternatively, you can install the dependencies separately:
 ```bash
+pip install feast
 pip install fastapi_mcp
 ```
 
@@ -35,12 +36,6 @@ This will create a `data` subdirectory and a `feature_repo` subdirectory if they
 
 3. Apply the feature store configuration:
 ```bash
-# Make sure you are in the directory where feature_store.yaml is located
-# (examples/mcp_feature_store after running 'feast init .')
-# Then, navigate into the 'feature_repo' directory created by 'feast init'
-# This is where your feature definitions would typically reside.
-# For this example, we don't have separate feature definition files yet,
-# but 'feast apply' still needs to be run from within a Feast project context.
 cd feature_repo 
 feast apply
 cd .. # Go back to examples/mcp_feature_store for the next steps
@@ -62,43 +57,11 @@ INFO:feast.feature_server:MCP support has been enabled for the Feast feature ser
 
 ## Available MCP Tools
 
-The server exposes the following MCP tools that can be used by AI agents:
+The fastapi_mcp integration automatically exposes your Feast feature server's FastAPI endpoints as MCP tools. This means AI assistants can:
 
-- `get_online_features`: Retrieve feature values for entities
-- `list_feature_views`: List all available feature views
-- `list_feature_services`: List all available feature services  
-- `get_feature_store_info`: Get information about the feature store
+- **Call `/get-online-features`** to retrieve features from the feature store
+- **Use `/health`** to check server status  
 
-## Available MCP Resources
-
-- `feast://feature-views`: JSON resource with all feature views
-- `feast://feature-services`: JSON resource with all feature services
-
-## Testing MCP Functionality
-
-You can test the MCP functionality by connecting an MCP-compatible client to the server endpoint. The exact method depends on your MCP client.
-
-## Example MCP Client Interaction
-
-```python
-# Example of how an MCP client might interact with the server
-# (This would be implemented by your MCP client library)
-
-# Get feature store information
-store_info = await mcp_client.call_tool("get_feature_store_info")
-print(f"Feature store: {store_info}")
-
-# List available feature views
-feature_views = await mcp_client.call_tool("list_feature_views") 
-print(f"Available feature views: {feature_views}")
-
-# Get features for specific entities
-features = await mcp_client.call_tool("get_online_features", {
-    "entities": {"driver_id": [1001, 1002]},
-    "features": ["driver_hourly_stats:conv_rate", "driver_hourly_stats:acc_rate"]
-})
-print(f"Features: {features}")
-```
 
 ## Configuration Details
 
