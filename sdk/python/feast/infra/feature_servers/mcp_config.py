@@ -24,4 +24,4 @@ class McpFeatureServerConfig(BaseFeatureServerConfig):
     mcp_transport: Optional[StrictStr] = None
 
     # The endpoint definition for transformation_service (inherited from base)
-    transformation_service_endpoint: StrictStr = "localhost:6569"
+    transformation_service_endpoint: StrictStr = "localhost:6566"
