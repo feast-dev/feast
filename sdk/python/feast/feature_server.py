@@ -463,7 +463,7 @@ def _add_mcp_support_if_enabled(app, store: "feast.FeatureStore"):
             and store.config.feature_server.type == "mcp"
             and getattr(store.config.feature_server, "mcp_enabled", False)
         ):
-            from feast.infra.feature_servers.mcp_server import add_mcp_support_to_app
+            from feast.infra.mcp_servers.mcp_server import add_mcp_support_to_app
 
             mcp_server = add_mcp_support_to_app(app, store, store.config.feature_server)
 

@@ -1,7 +1,7 @@
 from unittest.mock import Mock, patch
 
 from feast.feature_store import FeatureStore
-from feast.infra.feature_servers.mcp_config import McpFeatureServerConfig
+from feast.infra.mcp_servers.mcp_config import McpFeatureServerConfig
 
 
 class TestMcpFeatureServerConfig:
@@ -39,14 +39,14 @@ class TestMcpFeatureServerConfig:
         assert config.transformation_service_endpoint == "custom-host:8080"
 
 
-@patch("feast.infra.feature_servers.mcp_server.MCP_AVAILABLE", True)
+@patch("feast.infra.mcp_servers.mcp_server.MCP_AVAILABLE", True)
 class TestMCPIntegration:
     """Test MCP integration functionality."""
 
-    @patch("feast.infra.feature_servers.mcp_server.FastApiMCP")
+    @patch("feast.infra.mcp_servers.mcp_server.FastApiMCP")
     def test_add_mcp_support_success(self, mock_fast_api_mcp):
         """Test successful MCP support addition."""
-        from feast.infra.feature_servers.mcp_server import add_mcp_support_to_app
+        from feast.infra.mcp_servers.mcp_server import add_mcp_support_to_app
 
         mock_app = Mock()
         mock_store = Mock(spec=FeatureStore)
@@ -73,10 +73,10 @@ class TestMCPIntegration:
         # Verify the result
         assert result == mock_mcp_instance
 
-    @patch("feast.infra.feature_servers.mcp_server.FastApiMCP")
+    @patch("feast.infra.mcp_servers.mcp_server.FastApiMCP")
     def test_add_mcp_support_with_defaults(self, mock_fast_api_mcp):
         """Test MCP support addition with default configuration values."""
-        from feast.infra.feature_servers.mcp_server import add_mcp_support_to_app
+        from feast.infra.mcp_servers.mcp_server import add_mcp_support_to_app
 
         mock_app = Mock()
         mock_store = Mock(spec=FeatureStore)
@@ -99,13 +99,13 @@ class TestMCPIntegration:
         assert result == mock_mcp_instance
 
 
-@patch("feast.infra.feature_servers.mcp_server.MCP_AVAILABLE", False)
+@patch("feast.infra.mcp_servers.mcp_server.MCP_AVAILABLE", False)
 class TestMCPNotAvailable:
     """Test behavior when MCP is not available."""
 
     def test_add_mcp_support_mcp_not_available(self):
         """Test add_mcp_support_to_app when MCP is not available."""
-        from feast.infra.feature_servers.mcp_server import add_mcp_support_to_app
+        from feast.infra.mcp_servers.mcp_server import add_mcp_support_to_app
 
         mock_app = Mock()
         mock_store = Mock()
@@ -132,7 +132,7 @@ class TestFeatureServerIntegration:
 
         # Mock the import to raise an exception
         with patch(
-            "feast.infra.feature_servers.mcp_server.add_mcp_support_to_app",
+            "feast.infra.mcp_servers.mcp_server.add_mcp_support_to_app",
             side_effect=Exception("Test error"),
         ):
             _add_mcp_support_if_enabled(mock_app, mock_store)
