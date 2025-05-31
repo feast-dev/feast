@@ -22,25 +22,28 @@ pip install fastapi_mcp
 
 ## Setup
 
-1. Initialize the Feast repository:
+1. Navigate to this example directory within your cloned Feast repository:
 ```bash
-feast init feast_mcp_example
-cd feast_mcp_example
+cd examples/mcp_feature_store
 ```
 
-2. Replace the default `feature_store.yaml` with the MCP-enabled configuration:
+2. Initialize a Feast repository in this directory. We'll use the existing `feature_store.yaml` that's already configured for MCP:
 ```bash
-cp ../feature_store.yaml .
+feast init . 
 ```
+This will create a `data` subdirectory and a `feature_repo` subdirectory if they don't exist, and will use the `feature_store.yaml` present in the current directory (`examples/mcp_feature_store`).
 
 3. Apply the feature store configuration:
 ```bash
+# Make sure you are in the directory where feature_store.yaml is located
+# (examples/mcp_feature_store after running 'feast init .')
+# Then, navigate into the 'feature_repo' directory created by 'feast init'
+# This is where your feature definitions would typically reside.
+# For this example, we don't have separate feature definition files yet,
+# but 'feast apply' still needs to be run from within a Feast project context.
+cd feature_repo 
 feast apply
-```
-
-4. Materialize some sample data (optional):
-```bash
-feast materialize-incremental $(date +%Y-%m-%d)
+cd .. # Go back to examples/mcp_feature_store for the next steps
 ```
 
 ## Starting the MCP-Enabled Feature Server
@@ -109,34 +112,3 @@ feature_server:
     mcp_server_name: "feast-feature-store"
     mcp_server_version: "1.0.0"
 ```
-
-## Troubleshooting
-
-### MCP not working
-- Ensure `fastapi_mcp` is installed: `pip list | grep fastapi_mcp`
-- Check that `mcp_enabled: true` in your `feature_store.yaml`
-- Look for error messages in the server logs
-
-### Server starts but no MCP support
-- Verify the feature server type is set to "mcp"
-- Check that both `enabled: true` and `mcp_enabled: true` are set
-- Make sure the fastapi_mcp library is properly installed
-
-### Dependencies missing
-If you see warnings about missing dependencies:
-```bash
-pip install fastapi_mcp
-```
-
-Then restart the server.
-
-## Next Steps
-
-1. Integrate with your preferred MCP client
-2. Customize the MCP server configuration for your use case
-3. Add authentication and security as needed for production deployment
-4. Explore additional MCP tools and resources as they become available
-
-## Security Note
-
-In production environments, ensure proper authentication and authorization are configured for your Feast deployment when exposing MCP endpoints. 
