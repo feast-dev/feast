@@ -457,12 +457,14 @@ def _add_mcp_support_if_enabled(app, store: "feast.FeatureStore"):
     """Add MCP support to the FastAPI app if enabled in configuration."""
     try:
         # Check if MCP is enabled in feature server config
-        if (store.config.feature_server and
-            hasattr(store.config.feature_server, 'type') and
-            store.config.feature_server.type == "mcp" and
-            getattr(store.config.feature_server, 'mcp_enabled', False)):
-
+        if (
+            store.config.feature_server
+            and hasattr(store.config.feature_server, "type")
+            and store.config.feature_server.type == "mcp"
+            and getattr(store.config.feature_server, "mcp_enabled", False)
+        ):
             from feast.infra.feature_servers.mcp_server import add_mcp_support_to_app
+
             mcp_server = add_mcp_support_to_app(app, store, store.config.feature_server)
 
             if mcp_server:

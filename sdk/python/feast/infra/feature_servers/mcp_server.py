@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 try:
     from fastapi_mcp import FastMCPIntegration
+
     MCP_AVAILABLE = True
 except ImportError:
     logger.warning(
@@ -30,7 +31,12 @@ except ImportError:
 class FeastMCPServer:
     """MCP Server implementation for Feast."""
 
-    def __init__(self, store: FeatureStore, server_name: str = "feast-mcp-server", version: str = "1.0.0"):
+    def __init__(
+        self,
+        store: FeatureStore,
+        server_name: str = "feast-mcp-server",
+        version: str = "1.0.0",
+    ):
         self.store = store
         self.server_name = server_name
         self.version = version
@@ -50,8 +56,7 @@ class FeastMCPServer:
         try:
             # Initialize MCP integration
             mcp_integration = FastMCPIntegration(
-                server_name=self.server_name,
-                server_version=self.version
+                server_name=self.server_name, server_version=self.version
             )
 
             # Register MCP tools
@@ -64,7 +69,9 @@ class FeastMCPServer:
             mcp_integration.attach_to_app(app)
 
             self._mcp_integration = mcp_integration
-            logger.info(f"MCP integration initialized for {self.server_name} v{self.version}")
+            logger.info(
+                f"MCP integration initialized for {self.server_name} v{self.version}"
+            )
 
             return mcp_integration
 
@@ -80,7 +87,7 @@ class FeastMCPServer:
             entities: Dict[str, List[Any]],
             features: Optional[List[str]] = None,
             feature_service: Optional[str] = None,
-            full_feature_names: bool = False
+            full_feature_names: bool = False,
         ) -> Dict[str, Any]:
             """
             Get online features from Feast feature store.
@@ -99,17 +106,21 @@ class FeastMCPServer:
                 if feature_service:
                     fs_obj = self.store.get_feature_service(feature_service)
                     if not fs_obj:
-                        raise ValueError(f"FeatureService '{feature_service}' not found.")
+                        raise ValueError(
+                            f"FeatureService '{feature_service}' not found."
+                        )
                     features_to_get = fs_obj
                 elif features:
                     features_to_get = features
                 else:
-                    raise ValueError("Either 'features' or 'feature_service' must be provided.")
+                    raise ValueError(
+                        "Either 'features' or 'feature_service' must be provided."
+                    )
 
                 result = self.store.get_online_features(
                     features=features_to_get,
                     entity_rows=entities,
-                    full_feature_names=full_feature_names
+                    full_feature_names=full_feature_names,
                 )
 
                 return result.to_dict()
@@ -125,7 +136,9 @@ class FeastMCPServer:
                 return [
                     {
                         "name": fv.name,
-                        "entities": [e.name if hasattr(e, 'name') else e for e in fv.entities],
+                        "entities": [
+                            e.name if hasattr(e, "name") else e for e in fv.entities
+                        ],
                         "features": [f.name for f in fv.features],
                         "ttl": fv.ttl.total_seconds() if fv.ttl else None,
                         "online": fv.online,
@@ -156,8 +169,8 @@ class FeastMCPServer:
                             for proj in fs.feature_view_projections
                             for feat in proj.features
                         ],
-                        "description": getattr(fs, 'description', None),
-                        "tags": getattr(fs, 'tags', {}),
+                        "description": getattr(fs, "description", None),
+                        "tags": getattr(fs, "tags", {}),
                     }
                     for fs in feature_services
                 ]
@@ -177,8 +190,12 @@ class FeastMCPServer:
                 return {
                     "project": self.store.project,
                     "provider": self.store.config.provider,
-                    "online_store_type": getattr(self.store.config.online_store, 'type', 'unknown'),
-                    "registry_type": getattr(self.store.config.registry, 'registry_type', 'unknown'),
+                    "online_store_type": getattr(
+                        self.store.config.online_store, "type", "unknown"
+                    ),
+                    "registry_type": getattr(
+                        self.store.config.registry, "registry_type", "unknown"
+                    ),
                     "version": feast.__version__,
                 }
             except Exception as e:
@@ -196,6 +213,7 @@ class FeastMCPServer:
             try:
                 feature_views = await self._get_tool_handler("list_feature_views")()
                 import json
+
                 return json.dumps(feature_views, indent=2)
             except Exception as e:
                 logger.error(f"Error getting feature views resource: {e}")
@@ -207,8 +225,11 @@ class FeastMCPServer:
             Resource containing all feature services in JSON format.
             """
             try:
-                feature_services = await self._get_tool_handler("list_feature_services")()
+                feature_services = await self._get_tool_handler(
+                    "list_feature_services"
+                )()
                 import json
+
                 return json.dumps(feature_services, indent=2)
             except Exception as e:
                 logger.error(f"Error getting feature services resource: {e}")
@@ -216,12 +237,14 @@ class FeastMCPServer:
 
     def _get_tool_handler(self, tool_name: str):
         """Get a tool handler by name."""
-        if self._mcp_integration and hasattr(self._mcp_integration, '_tools'):
+        if self._mcp_integration and hasattr(self._mcp_integration, "_tools"):
             return self._mcp_integration._tools.get(tool_name)
         return None
 
 
-def add_mcp_support_to_app(app, store: FeatureStore, config) -> Optional[FeastMCPServer]:
+def add_mcp_support_to_app(
+    app, store: FeatureStore, config
+) -> Optional[FeastMCPServer]:
     """
     Add MCP support to a FastAPI application.
 
@@ -233,7 +256,7 @@ def add_mcp_support_to_app(app, store: FeatureStore, config) -> Optional[FeastMC
     Returns:
         FeastMCPServer instance if successful, None otherwise
     """
-    if not config or not getattr(config, 'mcp_enabled', False):
+    if not config or not getattr(config, "mcp_enabled", False):
         logger.info("MCP support is disabled")
         return None
 
@@ -242,8 +265,8 @@ def add_mcp_support_to_app(app, store: FeatureStore, config) -> Optional[FeastMC
         return None
 
     try:
-        server_name = getattr(config, 'mcp_server_name', 'feast-mcp-server')
-        version = getattr(config, 'mcp_server_version', '1.0.0')
+        server_name = getattr(config, "mcp_server_name", "feast-mcp-server")
+        version = getattr(config, "mcp_server_version", "1.0.0")
 
         mcp_server = FeastMCPServer(store, server_name, version)
         mcp_integration = mcp_server.create_mcp_integration(app)
