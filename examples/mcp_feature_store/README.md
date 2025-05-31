@@ -1,6 +1,6 @@
  # Feast MCP Feature Server Example
 
-This example demonstrates how to enable MCP (Model Context Protocol) support in Feast, allowing AI agents and applications to interact with your feature store through standardized MCP interfaces.
+This example demonstrates how to enable MCP (Model Context Protocol) support in Feast, allowing AI agents and applications to interact with your features through standardized MCP interfaces.
 
 ## Prerequisites
 

@@ -53,7 +53,7 @@
 * [Validating historical features with Great Expectations](tutorials/validating-historical-features.md)
 * [Building streaming features](tutorials/building-streaming-features.md)
 * [Retrieval Augmented Generation (RAG) with Feast](tutorials/rag-with-docling.md)
-* [MCP Feature Store Example - AI Agent Integration](../examples/mcp_feature_store/README.md)
+* [MCP - AI Agent Example](../examples/mcp_feature_store/README.md)
 
 ## How-to Guides
 
