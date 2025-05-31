@@ -27,27 +27,6 @@ def run_demo():
     print("\n--- Online features retrieved (instead) through a feature service---")
     fetch_online_features(store, use_feature_service=True)
 
-    print("\n--- Simulate a stream event ingestion of the hourly stats df ---")
-    event_df = pd.DataFrame.from_dict(
-        {
-            "driver_id": [1001],
-            "event_timestamp": [
-                datetime(2021, 5, 13, 10, 59, 42),
-            ],
-            "created": [
-                datetime(2021, 5, 13, 10, 59, 42),
-            ],
-            "conv_rate": [1.0],
-            "acc_rate": [1.0],
-            "avg_daily_trips": [1000],
-        }
-    )
-    print(event_df)
-    store.push("driver_stats_push_source", event_df, to=PushMode.ONLINE)
-
-    print("\n--- Online features again with updated values from a stream push---")
-    fetch_online_features(store, use_feature_service=True)
-
     print("\n--- Run feast teardown ---")
     subprocess.run(["feast", "teardown"])
 
@@ -92,17 +71,19 @@ def fetch_online_features(store, use_feature_service: bool):
         # {join_key: entity_value}
         {
             "driver_id": 1001,
+            "customer_id": 201,
             "val_to_add": 1000,
             "val_to_add_2": 2000,
         },
         {
             "driver_id": 1002,
+            "customer_id": 202,
             "val_to_add": 1001,
             "val_to_add_2": 2002,
         },
     ]
     if use_feature_service:
-        features_to_fetch = store.get_feature_service("driver_activity_v1")
+        features_to_fetch = store.get_feature_service("driver_activity")
     else:
         features_to_fetch = [
             "driver_hourly_stats:acc_rate",
