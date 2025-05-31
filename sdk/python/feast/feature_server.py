@@ -164,7 +164,6 @@ def get_app(
     - `/materialize-incremental`: Materialize features incrementally
     - `/chat`: Chat UI
     - `/ws/chat`: WebSocket endpoint for chat
-    
     MCP Support:
     - If MCP is enabled in feature server configuration, MCP endpoints will be added automatically
     """
