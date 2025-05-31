@@ -6,22 +6,16 @@ to expose Feast functionality through the Model Context Protocol.
 """
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import feast
+from feast.feature_service import FeatureService
 from feast.feature_store import FeatureStore
 
 logger = logging.getLogger(__name__)
 
 try:
     from fastapi_mcp import FastMCPIntegration
-    from mcp.server.models import (
-        InitializeRequest,
-        Resource,
-        ResourceTemplate,
-        Tool,
-    )
-    from mcp.types import JSONRPCRequest, JSONRPCResponse
     MCP_AVAILABLE = True
 except ImportError:
     logger.warning(
@@ -90,30 +84,33 @@ class FeastMCPServer:
         ) -> Dict[str, Any]:
             """
             Get online features from Feast feature store.
-            
+
             Args:
                 entities: Dictionary of entity values
                 features: List of feature references (optional if feature_service is provided)
                 feature_service: Name of feature service (optional if features is provided)
                 full_feature_names: Whether to return full feature names
-            
+
             Returns:
                 Dictionary containing feature values
             """
             try:
+                features_to_get: Union[List[str], FeatureService]
                 if feature_service:
-                    fs = self.store.get_feature_service(feature_service)
-                    result = self.store.get_online_features(
-                        features=fs,
-                        entity_rows=entities,
-                        full_feature_names=full_feature_names
-                    )
+                    fs_obj = self.store.get_feature_service(feature_service)
+                    if not fs_obj:
+                        raise ValueError(f"FeatureService '{feature_service}' not found.")
+                    features_to_get = fs_obj
+                elif features:
+                    features_to_get = features
                 else:
-                    result = self.store.get_online_features(
-                        features=features,
-                        entity_rows=entities,
-                        full_feature_names=full_feature_names
-                    )
+                    raise ValueError("Either 'features' or 'feature_service' must be provided.")
+
+                result = self.store.get_online_features(
+                    features=features_to_get,
+                    entity_rows=entities,
+                    full_feature_names=full_feature_names
+                )
 
                 return result.to_dict()
             except Exception as e:
@@ -121,22 +118,19 @@ class FeastMCPServer:
                 raise
 
         @mcp_integration.tool()
-        async def list_feature_views() -> List[Dict[str, Any]]:
-            """
-            List all feature views in the feature store.
-            
-            Returns:
-                List of feature view information
-            """
+        async def list_feature_views(self) -> List[Dict[str, Any]]:
+            """List all Feature Views in the Feast feature store."""
             try:
                 feature_views = self.store.list_feature_views()
                 return [
                     {
                         "name": fv.name,
+                        "entities": [e.name if hasattr(e, 'name') else e for e in fv.entities],
                         "features": [f.name for f in fv.features],
-                        "entities": [e.name for e in fv.entities],
-                        "description": getattr(fv, 'description', None),
-                        "tags": getattr(fv, 'tags', {}),
+                        "ttl": fv.ttl.total_seconds() if fv.ttl else None,
+                        "online": fv.online,
+                        "description": fv.description,
+                        # Add other relevant FeatureView attributes as needed
                     }
                     for fv in feature_views
                 ]
@@ -148,7 +142,7 @@ class FeastMCPServer:
         async def list_feature_services() -> List[Dict[str, Any]]:
             """
             List all feature services in the feature store.
-            
+
             Returns:
                 List of feature service information
             """
@@ -175,7 +169,7 @@ class FeastMCPServer:
         async def get_feature_store_info() -> Dict[str, Any]:
             """
             Get information about the Feast feature store.
-            
+
             Returns:
                 Dictionary containing feature store information
             """
@@ -230,12 +224,12 @@ class FeastMCPServer:
 def add_mcp_support_to_app(app, store: FeatureStore, config) -> Optional[FeastMCPServer]:
     """
     Add MCP support to a FastAPI application.
-    
+
     Args:
         app: FastAPI application instance
         store: Feast FeatureStore instance
         config: MCP configuration
-    
+
     Returns:
         FeastMCPServer instance if successful, None otherwise
     """
