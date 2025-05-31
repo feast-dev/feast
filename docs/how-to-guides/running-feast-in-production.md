@@ -207,6 +207,8 @@ feature_vector = fs.get_online_features(
 
 To deploy a Feast feature server on Kubernetes, you should use the included [feast-operator](../../infra/feast-operator).
 
+{% embed url="https://www.youtube.com/playlist?list=PLPzVNzik7rsAN-amQLZckd0so3cIr7blX" %}
+
 **Basic steps**
 1. Install [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
 2. Install the Operator

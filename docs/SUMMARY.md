@@ -131,6 +131,7 @@
   * [GCS](reference/registries/gcs.md)
   * [SQL](reference/registries/sql.md)
   * [Snowflake](reference/registries/snowflake.md)
+  * [Remote](reference/registries/remote.md)
 * [Providers](reference/providers/README.md)
   * [Local](reference/providers/local.md)
   * [Google Cloud Platform](reference/providers/google-cloud-platform.md)
