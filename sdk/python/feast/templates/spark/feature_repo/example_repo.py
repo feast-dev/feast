@@ -16,14 +16,8 @@ CURRENT_DIR = Path(__file__).parent
 
 
 # Entity definitions
-driver = Entity(
-    name="driver",
-    description="driver id",
-)
-customer = Entity(
-    name="customer",
-    description="customer id",
-)
+driver = Entity(name="driver", description="driver id", join_keys=["driver_id"])
+customer = Entity(name="customer", description="customer id", join_keys=["customer_id"])
 
 # Sources
 driver_hourly_stats = SparkSource(
