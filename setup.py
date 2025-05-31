@@ -173,6 +173,8 @@ TORCH_REQUIRED = [
 
 CLICKHOUSE_REQUIRED = ["clickhouse-connect>=0.7.19"]
 
+MCP_REQUIRED = ["fastapi_mcp"]
+
 CI_REQUIRED = (
     [
         "build",
@@ -247,6 +249,7 @@ CI_REQUIRED = (
     + DOCLING_REQUIRED
     + TORCH_REQUIRED
     + CLICKHOUSE_REQUIRED
+    + MCP_REQUIRED
 )
 MINIMAL_REQUIRED = (
     GCP_REQUIRED
@@ -346,6 +349,7 @@ setup(
         "pytorch": TORCH_REQUIRED,
         "nlp": NLP_REQUIRED,
         "clickhouse": CLICKHOUSE_REQUIRED,
+        "mcp": MCP_REQUIRED,
     },
     include_package_data=True,
     license="Apache",
