@@ -156,7 +156,7 @@ class LocalDedupNode(LocalNode):
         dedup_keys = context.column_info.join_keys
         if dedup_keys:
             sort_keys = [column_info.timestamp_column]
-            if column_info.created_timestamp_column:
+            if column_info.created_timestamp_column and column_info.created_timestamp_column in df.columns:
                 sort_keys.append(column_info.created_timestamp_column)
 
             df = self.backend.drop_duplicates(

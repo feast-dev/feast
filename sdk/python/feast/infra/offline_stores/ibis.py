@@ -296,6 +296,12 @@ def pull_all_from_table_or_query_ibis(
         )
     )
 
+    if data_source.field_mapping:
+        for old_field_name in data_source.field_mapping:
+            table = table.rename(
+                {data_source.field_mapping[old_field_name]: old_field_name}
+            )
+
     return IbisRetrievalJob(
         table=table,
         on_demand_feature_views=[],
