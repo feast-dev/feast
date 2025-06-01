@@ -29,7 +29,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        component: [ feature-server, feature-server-java, feature-transformation-server, feast-operator ]
+        component: [ feature-server, feature-transformation-server, feast-operator ]
     env:
       MAVEN_CACHE: gs://feast-templocation-kf-feast/.m2.2020-08-19.tar
       REGISTRY: quay.io/feastdev

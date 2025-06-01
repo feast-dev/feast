@@ -21,3 +21,7 @@ Please see [Registry](../../getting-started/components/registry.md) for a concep
 {% content-ref url="snowflake.md" %}
 [snowflake.md](snowflake.md)
 {% endcontent-ref %}
+
+{% content-ref url="remote.md" %}
+[remote.md](remote.md)
+{% endcontent-ref %}
