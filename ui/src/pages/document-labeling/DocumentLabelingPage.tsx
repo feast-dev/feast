@@ -39,9 +39,7 @@ interface DocumentLabel {
 }
 
 const DocumentLabelingPage = () => {
-  const [filePath, setFilePath] = useState(
-    "/home/ubuntu/repos/feast/ui/src/test-document.txt",
-  );
+  const [filePath, setFilePath] = useState("./src/test-document.txt");
   const [selectedText, setSelectedText] = useState<TextSelection | null>(null);
   const [labelingMode, setLabelingMode] = useState("relevant");
   const [labels, setLabels] = useState<DocumentLabel[]>([]);
@@ -57,7 +55,7 @@ const DocumentLabelingPage = () => {
     setError(null);
 
     try {
-      if (filePath === "/home/ubuntu/repos/feast/ui/src/test-document.txt") {
+      if (filePath === "./src/test-document.txt") {
         const testContent = `This is a sample document for testing the document labeling functionality in Feast UI.
 
 The document contains multiple paragraphs and sections that can be used to test the text highlighting and labeling features.
@@ -74,7 +72,7 @@ The final paragraph contains information about feature stores and real-time mach
         });
       } else {
         throw new Error(
-          "Document not found. Please use the test document path: /home/ubuntu/repos/feast/ui/src/test-document.txt",
+          "Document not found. Please use the test document path: ./src/test-document.txt",
         );
       }
     } catch (err) {
@@ -95,27 +93,24 @@ The final paragraph contains information about feature stores and real-time mach
       const range = selection.getRangeAt(0);
 
       const textContent = documentContent.content;
-      const startIndex = textContent.indexOf(selectedTextContent);
-      const endIndex = startIndex + selectedTextContent.length;
 
-      setSelectedText({
-        text: selectedTextContent,
-        start: startIndex,
-        end: endIndex,
-      });
+      let startIndex = -1;
+      let endIndex = -1;
 
-      if (range) {
-        const span = document.createElement("span");
-        span.style.backgroundColor = "#add8e6"; // Light blue
-        span.style.padding = "2px 4px";
-        span.style.borderRadius = "3px";
-        span.style.border = "1px solid #87ceeb";
-        span.setAttribute("data-temp-highlight", "true");
-        try {
-          range.surroundContents(span);
-        } catch (e) {
-          selection.removeAllRanges();
+      const rangeText = range.toString();
+      if (rangeText) {
+        startIndex = textContent.indexOf(rangeText);
+        if (startIndex !== -1) {
+          endIndex = startIndex + rangeText.length;
         }
+      }
+
+      if (startIndex !== -1 && endIndex !== -1) {
+        setSelectedText({
+          text: selectedTextContent,
+          start: startIndex,
+          end: endIndex,
+        });
       }
     }
   };
@@ -137,20 +132,6 @@ The final paragraph contains information about feature stores and real-time mach
       if (selection) {
         selection.removeAllRanges();
       }
-
-      const tempHighlights = document.querySelectorAll(
-        'span[data-temp-highlight="true"]',
-      );
-      tempHighlights.forEach((span) => {
-        const parent = span.parentNode;
-        if (parent) {
-          parent.replaceChild(
-            document.createTextNode(span.textContent || ""),
-            span,
-          );
-          parent.normalize();
-        }
-      });
     }
   };
 
@@ -161,34 +142,62 @@ The final paragraph contains information about feature stores and real-time mach
   const renderDocumentWithHighlights = (
     content: string,
   ): (string | React.ReactElement)[] => {
-    if (labels.length === 0) {
+    const allHighlights = [...labels];
+
+    if (selectedText) {
+      allHighlights.push({
+        text: selectedText.text,
+        start: selectedText.start,
+        end: selectedText.end,
+        label: "temp-selection",
+        timestamp: 0,
+      });
+    }
+
+    if (allHighlights.length === 0) {
       return [content];
     }
 
-    const sortedLabels = [...labels].sort((a, b) => a.start - b.start);
+    const sortedHighlights = [...allHighlights].sort(
+      (a, b) => a.start - b.start,
+    );
     const result: (string | React.ReactElement)[] = [];
     let lastIndex = 0;
 
-    sortedLabels.forEach((label, index) => {
-      result.push(content.slice(lastIndex, label.start));
+    sortedHighlights.forEach((highlight, index) => {
+      result.push(content.slice(lastIndex, highlight.start));
 
-      const highlightColor = label.label === "relevant" ? "#d4edda" : "#f8d7da";
+      let highlightColor = "#d4edda";
+      let borderColor = "#c3e6cb";
+
+      if (highlight.label === "temp-selection") {
+        highlightColor = "#add8e6";
+        borderColor = "#87ceeb";
+      } else if (highlight.label === "irrelevant") {
+        highlightColor = "#f8d7da";
+        borderColor = "#f5c6cb";
+      }
+
       result.push(
         <span
-          key={index}
+          key={`highlight-${index}`}
           style={{
             backgroundColor: highlightColor,
             padding: "2px 4px",
             borderRadius: "3px",
-            border: `1px solid ${label.label === "relevant" ? "#c3e6cb" : "#f5c6cb"}`,
+            border: `1px solid ${borderColor}`,
           }}
-          title={`Label: ${label.label}`}
+          title={
+            highlight.label === "temp-selection"
+              ? "Selected text"
+              : `Label: ${highlight.label}`
+          }
         >
-          {label.text}
+          {highlight.text}
         </span>,
       );
 
-      lastIndex = label.end;
+      lastIndex = highlight.end;
     });
 
     result.push(content.slice(lastIndex));
@@ -235,7 +244,7 @@ The final paragraph contains information about feature stores and real-time mach
               <EuiFlexItem>
                 <EuiFormRow label="Document file path">
                   <EuiFieldText
-                    placeholder="/path/to/your/document.txt"
+                    placeholder="./src/your-document.txt"
                     value={filePath}
                     onChange={(e) => setFilePath(e.target.value)}
                   />
