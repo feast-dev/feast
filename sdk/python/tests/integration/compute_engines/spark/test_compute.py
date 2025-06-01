@@ -293,9 +293,9 @@ def _check_online_features(
 
     assert len(online_response["driver_id"]) == 1
     assert online_response["driver_id"][0] == driver_id
-    assert abs(
-        online_response[feature_ref][0] - expected_value < 1e-6
-    ), "Transformed result"
+    assert abs(online_response[feature_ref][0] - expected_value < 1e-6), (
+        "Transformed result"
+    )
 
 
 def _check_offline_features(

@@ -460,9 +460,9 @@ class OnlineStore(ABC):
             where the first item is the event timestamp for the row, and the second item is a dict of feature
             name to embeddings.
         """
-        assert (
-            embedding is not None or query_string is not None
-        ), "Either embedding or query_string must be specified"
+        assert embedding is not None or query_string is not None, (
+            "Either embedding or query_string must be specified"
+        )
         raise NotImplementedError(
             f"Online store {self.__class__.__name__} does not support online retrieval"
         )
