@@ -89,7 +89,7 @@ class MilvusOnlineStoreConfig(FeastConfigBaseModel, VectorStoreConfig):
 
     type: Literal["milvus"] = "milvus"
     path: Optional[StrictStr] = ""
-    host: Optional[StrictStr] = "localhost"
+    host: Optional[StrictStr] = "http://localhost"
     port: Optional[int] = 19530
     index_type: Optional[str] = "FLAT"
     metric_type: Optional[str] = "COSINE"

@@ -89,7 +89,7 @@ from tests.integration.feature_repos.universal.online_store_creator import (
 )
 
 DYNAMO_CONFIG = {"type": "dynamodb", "region": "us-west-2"}
-MILVUS_CONFIG = {"type": "milvus", "embedding_dim": "2"}
+MILVUS_CONFIG = {"type": "milvus", "embedding_dim": 2, "path": "online_store.db"}
 REDIS_CONFIG = {"type": "redis", "connection_string": "localhost:6379,db=0"}
 REDIS_CLUSTER_CONFIG = {
     "type": "redis",

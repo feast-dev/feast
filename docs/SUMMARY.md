@@ -9,6 +9,7 @@
 ## Getting started
 
 * [Quickstart](getting-started/quickstart.md)
+* [GenAI](getting-started/genai.md)
 * [Architecture](getting-started/architecture/README.md)
   * [Overview](getting-started/architecture/overview.md)
   * [Language](getting-started/architecture/language.md)
@@ -130,6 +131,7 @@
   * [GCS](reference/registries/gcs.md)
   * [SQL](reference/registries/sql.md)
   * [Snowflake](reference/registries/snowflake.md)
+  * [Remote](reference/registries/remote.md)
 * [Providers](reference/providers/README.md)
   * [Local](reference/providers/local.md)
   * [Google Cloud Platform](reference/providers/google-cloud-platform.md)
