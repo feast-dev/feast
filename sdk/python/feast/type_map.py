@@ -463,9 +463,9 @@ def _python_value_to_proto_value(
                 # Numpy convert 0 to int. However, in the feature view definition, the type of column may be a float.
                 # So, if value is 0, type validation must pass if scalar_types are either int or float.
                 allowed_types = {np.int64, int, np.float64, float, decimal.Decimal}
-                assert type(sample) in allowed_types, (
-                    f"Type `{type(sample)}` not in {allowed_types}"
-                )
+                assert (
+                    type(sample) in allowed_types
+                ), f"Type `{type(sample)}` not in {allowed_types}"
             else:
                 assert (
                     type(sample) in valid_scalar_types
