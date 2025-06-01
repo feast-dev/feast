@@ -88,6 +88,7 @@ def fetch_online_features(store, use_feature_service: bool):
         features_to_fetch = [
             "driver_hourly_stats:acc_rate",
             "driver_hourly_stats:avg_daily_trips",
+            "transformed_conv_rate:conv_rate_plus_val1",
         ]
     returned_features = store.get_online_features(
         features=features_to_fetch,
