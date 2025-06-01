@@ -7,7 +7,6 @@ from typing import Literal, Optional, Sequence, Union
 
 import boto3
 import pyarrow as pa
-from feast.infra.common.retrieval_task import HistoricalRetrievalTask
 from botocore.config import Config
 from pydantic import StrictStr
 
@@ -21,6 +20,7 @@ from feast.infra.common.materialization_job import (
     MaterializationJobStatus,
     MaterializationTask,
 )
+from feast.infra.common.retrieval_task import HistoricalRetrievalTask
 from feast.infra.compute_engines.base import ComputeEngine
 from feast.infra.offline_stores.offline_store import OfflineStore
 from feast.infra.online_stores.online_store import OnlineStore
