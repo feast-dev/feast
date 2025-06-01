@@ -1,11 +1,17 @@
+import logging
+import multiprocessing
+
 import click
 
 from feast.constants import (
     DEFAULT_FEATURE_TRANSFORMATION_SERVER_PORT,
     DEFAULT_OFFLINE_SERVER_PORT,
+    DEFAULT_REGISTRY_REST_SERVER_PORT,
     DEFAULT_REGISTRY_SERVER_PORT,
 )
 from feast.repo_operations import create_feature_store
+
+logging.basicConfig(level=logging.INFO)
 
 
 @click.command("serve")
@@ -148,6 +154,13 @@ def serve_transformations_command(ctx: click.Context, port: int):
     help="Specify a port for the server",
 )
 @click.option(
+    "--rest-port",
+    type=click.INT,
+    default=DEFAULT_REGISTRY_REST_SERVER_PORT,
+    show_default=True,
+    help="Specify a port for the REST API server (if enabled).",
+)
+@click.option(
     "--key",
     "-k",
     "tls_key_path",
@@ -166,11 +179,19 @@ def serve_transformations_command(ctx: click.Context, port: int):
     help="path to TLS certificate public key. You need to pass --key as well to start server in TLS mode",
 )
 @click.option(
+    "--grpc/--no-grpc",
+    is_flag=True,
+    default=True,
+    show_default=True,
+    help="Start a gRPC Registry Server. Enabled by default.",
+)
+@click.option(
     "--rest-api",
     "-r",
     is_flag=True,
+    default=False,
     show_default=True,
-    help="Start a REST API Server",
+    help="Start a REST API Registry Server",
 )
 @click.pass_context
 def serve_registry_command(
@@ -178,16 +199,67 @@ def serve_registry_command(
     port: int,
     tls_key_path: str,
     tls_cert_path: str,
+    grpc: bool,
     rest_api: bool,
+    rest_port: int,
 ):
-    """Start a gRPC or REST api registry server locally on a given port (gRPC by default)."""
+    """Start Feast Registry server (gRPC by default, REST opt-in)."""
     if (tls_key_path and not tls_cert_path) or (not tls_key_path and tls_cert_path):
         raise click.BadParameter(
             "Please pass --cert and --key args to start the registry server in TLS mode."
         )
     store = create_feature_store(ctx)
 
-    store.serve_registry(port, tls_key_path, tls_cert_path, rest_api)
+    if grpc and rest_api:
+        repo_path = store.repo_path
+        multiprocessing.set_start_method("spawn", force=True)
+        servers = [
+            multiprocessing.Process(
+                target=_serve_grpc_registry,
+                args=(repo_path, port, tls_key_path, tls_cert_path),
+                name="grpc_registry_server",
+            ),
+            multiprocessing.Process(
+                target=_serve_rest_registry,
+                args=(repo_path, rest_port, tls_key_path, tls_cert_path),
+                name="rest_registry_server",
+            ),
+        ]
+        logging.info("Starting Feast Registry servers (gRPC + REST)...")
+        for p in servers:
+            logging.info(f"Starting {p.name}")
+            p.start()
+        for p in servers:
+            p.join()
+    else:
+        store.serve_registry(port, tls_key_path, tls_cert_path, rest_api)
+
+
+def _serve_grpc_registry(
+    repo_path: str, port: int, tls_key_path: str, tls_cert_path: str
+):
+    from feast import FeatureStore
+
+    store = FeatureStore(repo_path=repo_path)
+    store.serve_registry(
+        port=port,
+        tls_key_path=tls_key_path,
+        tls_cert_path=tls_cert_path,
+    )
+
+
+def _serve_rest_registry(
+    repo_path: str, port: int, tls_key_path: str, tls_cert_path: str
+):
+    from feast import FeatureStore
+
+    store = FeatureStore(repo_path=repo_path)
+    store.serve_registry(
+        port=port,
+        tls_key_path=tls_key_path,
+        tls_cert_path=tls_cert_path,
+        rest_api=True,
+    )
 
 
 @click.command("serve_offline")

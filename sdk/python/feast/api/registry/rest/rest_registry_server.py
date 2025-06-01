@@ -15,6 +15,7 @@ from feast.permissions.server.utils import (
 from feast.registry_server import RegistryServer
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 class RestRegistryServer:
@@ -28,6 +29,7 @@ class RestRegistryServer:
             dependencies=[Depends(inject_user_details)],
             version="1.0.0",
             openapi_url="/openapi.json",
+            root_path="/api/v1",
             docs_url="/",
             redoc_url="/docs",
             default_status_code=status.HTTP_200_OK,
@@ -86,7 +88,7 @@ class RestRegistryServer:
 
         if tls_key_path and tls_cert_path:
             logger.info("Starting REST registry server in TLS(SSL) mode")
-            print(f"REST registry server listening on https://localhost:{port}")
+            logger.info(f"REST registry server listening on https://localhost:{port}")
             uvicorn.run(
                 self.app,
                 host="0.0.0.0",
@@ -95,8 +97,8 @@ class RestRegistryServer:
                 ssl_certfile=tls_cert_path,
             )
         else:
-            print("Starting REST registry server in non-TLS(SSL) mode")
-            print(f"REST registry server listening on http://localhost:{port}")
+            logger.info("Starting REST registry server in non-TLS(SSL) mode")
+            logger.info(f"REST registry server listening on http://localhost:{port}")
             uvicorn.run(
                 self.app,
                 host="0.0.0.0",
