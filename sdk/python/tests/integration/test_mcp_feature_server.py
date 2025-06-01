@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 from fastapi import FastAPI
@@ -19,7 +19,7 @@ class TestMCPFeatureServerIntegration(unittest.TestCase):
             mcp_enabled=True,
             mcp_server_name="integration-test-server",
             mcp_server_version="2.1.0",
-            mcp_transport="sse"
+            mcp_transport="sse",
         )
 
         # Verify configuration is properly structured for MCP integration
@@ -32,19 +32,21 @@ class TestMCPFeatureServerIntegration(unittest.TestCase):
     def test_mcp_server_functionality_with_mock_store(self):
         """Test MCP server functionality with a mock feature store."""
         with patch("feast.infra.mcp_servers.mcp_server.MCP_AVAILABLE", True):
-            with patch("feast.infra.mcp_servers.mcp_server.FastApiMCP") as mock_fast_api_mcp:
+            with patch(
+                "feast.infra.mcp_servers.mcp_server.FastApiMCP"
+            ) as mock_fast_api_mcp:
                 from feast.infra.mcp_servers.mcp_server import add_mcp_support_to_app
 
                 # Create a more realistic mock feature store
                 mock_store = MagicMock(spec=FeatureStore)
                 mock_store.list_feature_views.return_value = []
                 mock_store.list_data_sources.return_value = []
-                
+
                 mock_app = FastAPI()
                 config = McpFeatureServerConfig(
                     mcp_enabled=True,
                     mcp_server_name="test-feast-server",
-                    mcp_server_version="1.0.0"
+                    mcp_server_version="1.0.0",
                 )
 
                 mock_mcp_instance = Mock()
@@ -72,7 +74,7 @@ class TestMCPFeatureServerIntegration(unittest.TestCase):
             mcp_enabled=True,
             mcp_server_name="e2e-test-server",
             mcp_server_version="1.0.0",
-            transformation_service_endpoint="localhost:6566"
+            transformation_service_endpoint="localhost:6566",
         )
 
         mock_mcp_instance = Mock()
@@ -93,40 +95,42 @@ class TestMCPFeatureServerIntegration(unittest.TestCase):
 
     @pytest.mark.skipif(
         condition=True,  # Skip until fastapi_mcp is available
-        reason="Requires fastapi_mcp package to be installed"
+        reason="Requires fastapi_mcp package to be installed",
     )
     def test_real_mcp_integration(self):
         """Test real MCP integration with actual FastAPI app."""
         try:
             from feast.infra.mcp_servers.mcp_server import add_mcp_support_to_app
-            
+
             # Create a real FastAPI app
             app = FastAPI()
-            
+
             # Mock feature store for this test
             mock_store = MagicMock(spec=FeatureStore)
             mock_store.list_feature_views.return_value = []
             mock_store.list_data_sources.return_value = []
-            
+
             config = McpFeatureServerConfig(
                 enabled=True,
                 mcp_enabled=True,
                 mcp_server_name="real-integration-test",
-                mcp_server_version="1.0.0"
+                mcp_server_version="1.0.0",
             )
-            
+
             # This would require fastapi_mcp to be installed
             result = add_mcp_support_to_app(app, mock_store, config)
-            
+
             if result is not None:
                 # Test that the app has MCP endpoints
                 client = TestClient(app)
                 # The exact endpoints would depend on fastapi_mcp implementation
+                # Verify the client can be created and the result is valid
+                self.assertIsNotNone(client)
                 self.assertIsNotNone(result)
             else:
                 # If fastapi_mcp is not available, result should be None
                 self.assertIsNone(result)
-                
+
         except ImportError:
             # Expected if fastapi_mcp is not installed
             self.skipTest("fastapi_mcp not available")
@@ -134,16 +138,16 @@ class TestMCPFeatureServerIntegration(unittest.TestCase):
     def test_feature_server_with_mcp_config(self):
         """Test feature server startup with MCP configuration."""
         from feast.feature_server import _add_mcp_support_if_enabled
-        
+
         app = FastAPI()
         mock_store = Mock()
         mock_store.config.feature_server = McpFeatureServerConfig(
             enabled=True,
             mcp_enabled=True,
             mcp_server_name="feature-server-test",
-            mcp_server_version="1.0.0"
+            mcp_server_version="1.0.0",
         )
-        
+
         # This should not raise an exception even if MCP is not available
         try:
             _add_mcp_support_if_enabled(app, mock_store)
@@ -160,28 +164,30 @@ class TestMCPFeatureServerIntegration(unittest.TestCase):
                 "mcp_enabled": True,
                 "mcp_server_name": "test-server-1",
                 "mcp_server_version": "1.0.0",
-                "mcp_transport": "sse"
+                "mcp_transport": "sse",
             },
             {
                 "enabled": True,
                 "mcp_enabled": True,
                 "mcp_server_name": "test-server-2",
                 "mcp_server_version": "2.0.0",
-                "mcp_transport": "websocket"
+                "mcp_transport": "websocket",
             },
             {
                 "enabled": False,
                 "mcp_enabled": False,
                 "mcp_server_name": "disabled-server",
                 "mcp_server_version": "1.0.0",
-                "mcp_transport": None
-            }
+                "mcp_transport": None,
+            },
         ]
-        
+
         for config_dict in test_configs:
             config = McpFeatureServerConfig(**config_dict)
             self.assertEqual(config.enabled, config_dict["enabled"])
             self.assertEqual(config.mcp_enabled, config_dict["mcp_enabled"])
             self.assertEqual(config.mcp_server_name, config_dict["mcp_server_name"])
-            self.assertEqual(config.mcp_server_version, config_dict["mcp_server_version"])
+            self.assertEqual(
+                config.mcp_server_version, config_dict["mcp_server_version"]
+            )
             self.assertEqual(config.mcp_transport, config_dict["mcp_transport"])

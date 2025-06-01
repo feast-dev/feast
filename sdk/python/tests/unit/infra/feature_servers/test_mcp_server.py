@@ -51,8 +51,8 @@ class TestMcpFeatureServerConfig(unittest.TestCase):
         """Test that McpFeatureServerConfig properly inherits from BaseFeatureServerConfig."""
         config = McpFeatureServerConfig()
         # Verify it has the base configuration attributes
-        self.assertTrue(hasattr(config, 'type'))
-        self.assertTrue(hasattr(config, 'enabled'))
+        self.assertTrue(hasattr(config, "type"))
+        self.assertTrue(hasattr(config, "enabled"))
 
 
 @patch("feast.infra.mcp_servers.mcp_server.MCP_AVAILABLE", True)
@@ -132,9 +132,11 @@ class TestMCPServerUnit(unittest.TestCase):
 
         # Verify the result is None when exception occurs
         self.assertIsNone(result)
-        
+
         # Verify error was logged
-        mock_logger.error.assert_called_once_with("Failed to initialize MCP integration: MCP initialization failed")
+        mock_logger.error.assert_called_once_with(
+            "Failed to initialize MCP integration: MCP initialization failed"
+        )
 
     @patch("feast.infra.mcp_servers.mcp_server.FastApiMCP")
     def test_add_mcp_support_mount_exception(self, mock_fast_api_mcp):
@@ -172,7 +174,9 @@ class TestMCPNotAvailable(unittest.TestCase):
         result = add_mcp_support_to_app(mock_app, mock_store, mock_config)
 
         self.assertIsNone(result)
-        mock_logger.warning.assert_called_once_with("MCP support requested but fastapi_mcp is not available")
+        mock_logger.warning.assert_called_once_with(
+            "MCP support requested but fastapi_mcp is not available"
+        )
 
 
 class TestFeatureServerMCPHooks(unittest.TestCase):
