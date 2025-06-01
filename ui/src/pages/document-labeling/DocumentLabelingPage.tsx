@@ -103,6 +103,20 @@ The final paragraph contains information about feature stores and real-time mach
         start: startIndex,
         end: endIndex,
       });
+
+      if (range) {
+        const span = document.createElement('span');
+        span.style.backgroundColor = '#add8e6'; // Light blue
+        span.style.padding = '2px 4px';
+        span.style.borderRadius = '3px';
+        span.style.border = '1px solid #87ceeb';
+        span.setAttribute('data-temp-highlight', 'true');
+        try {
+          range.surroundContents(span);
+        } catch (e) {
+          selection.removeAllRanges();
+        }
+      }
     }
   };
 
@@ -115,11 +129,23 @@ The final paragraph contains information about feature stores and real-time mach
         label: labelingMode,
         timestamp: Date.now(),
       };
-
+      
       setLabels([...labels, newLabel]);
       setSelectedText(null);
-
-      window.getSelection()?.removeAllRanges();
+      
+      const selection = window.getSelection();
+      if (selection) {
+        selection.removeAllRanges();
+      }
+      
+      const tempHighlights = document.querySelectorAll('span[data-temp-highlight="true"]');
+      tempHighlights.forEach(span => {
+        const parent = span.parentNode;
+        if (parent) {
+          parent.replaceChild(document.createTextNode(span.textContent || ''), span);
+          parent.normalize();
+        }
+      });
     }
   };
 
