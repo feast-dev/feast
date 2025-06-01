@@ -124,8 +124,10 @@ class TestMCPFeatureServerIntegration(unittest.TestCase):
                 # Test that the app has MCP endpoints
                 client = TestClient(app)
                 # The exact endpoints would depend on fastapi_mcp implementation
-                # Verify the client can be created and the result is valid
-                self.assertIsNotNone(client)
+                # Verify the client can be created and make a basic request
+                response = client.get("/health", follow_redirects=False)
+                # We expect this to either work or return a 404, but not crash
+                self.assertIn(response.status_code, [200, 404])
                 self.assertIsNotNone(result)
             else:
                 # If fastapi_mcp is not available, result should be None
