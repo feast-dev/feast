@@ -101,6 +101,10 @@ class ChatRequest(BaseModel):
     messages: List[ChatMessage]
 
 
+class ReadDocumentRequest(BaseModel):
+    file_path: str
+
+
 def _get_features(request: GetOnlineFeaturesRequest, store: "feast.FeatureStore"):
     if request.feature_service:
         feature_service = store.get_feature_service(
@@ -355,6 +359,21 @@ def get_app(
         # Process the chat request
         # For now, just return dummy text
         return {"response": "This is a dummy response from the Feast feature server."}
+
+    @app.post("/read-document")
+    async def read_document_endpoint(request: ReadDocumentRequest):
+        try:
+            import os
+
+            if not os.path.exists(request.file_path):
+                return {"error": f"File not found: {request.file_path}"}
+
+            with open(request.file_path, "r", encoding="utf-8") as file:
+                content = file.read()
+
+            return {"content": content, "file_path": request.file_path}
+        except Exception as e:
+            return {"error": str(e)}
 
     @app.get("/chat")
     async def chat_ui():

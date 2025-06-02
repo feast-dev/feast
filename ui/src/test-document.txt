@@ -1,0 +1,9 @@
+This is a sample document for testing the document labeling functionality in Feast UI.
+
+The document contains multiple paragraphs and sections that can be used to test the text highlighting and labeling features.
+
+This paragraph discusses machine learning and artificial intelligence concepts. It covers topics like neural networks, deep learning, and natural language processing. Users should be able to select and label relevant portions of this text for RAG retrieval systems.
+
+Another section focuses on data engineering and ETL pipelines. This content explains how to process large datasets and build scalable data infrastructure. The labeling system should allow users to mark this as relevant or irrelevant for their specific use cases.
+
+The final paragraph contains information about feature stores and real-time machine learning systems. This text can be used to test the highlighting functionality and ensure that labels are properly stored and displayed in the user interface.
