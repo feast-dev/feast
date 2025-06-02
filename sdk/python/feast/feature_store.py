@@ -1495,7 +1495,6 @@ class FeatureStore:
         df: pd.DataFrame,
         allow_registry_cache: bool = True,
         to: PushMode = PushMode.ONLINE,
-        **kwargs,
     ):
         fvs = self._fvs_for_push_source_or_raise(push_source_name, allow_registry_cache)
 
