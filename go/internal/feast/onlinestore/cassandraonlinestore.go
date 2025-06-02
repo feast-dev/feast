@@ -1000,7 +1000,14 @@ func (c *CassandraOnlineStore) BatchedKeysOnlineReadRange(
 func appendRangeFeature(row *RangeFeatureData, featName, view string, val interface{}, status serving.FieldStatus, ts time.Time) {
 	row.FeatureView = view
 	row.FeatureName = featName
-	row.Values = append(row.Values, val)
+
+	// Ensure nil values stay as nil, not converted to empty values
+	if status == serving.FieldStatus_NOT_FOUND || status == serving.FieldStatus_NULL_VALUE {
+		row.Values = append(row.Values, nil)
+	} else {
+		row.Values = append(row.Values, val)
+	}
+
 	row.Statuses = append(row.Statuses, status)
 	row.EventTimestamps = append(row.EventTimestamps, timestamppb.Timestamp{
 		Seconds: ts.Unix(),
