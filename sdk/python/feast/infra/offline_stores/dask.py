@@ -453,7 +453,6 @@ class DaskOfflineStore(OfflineStore):
             # TODO: Decides if we want to field mapping for pull_latest_from_table_or_query
             # This is default for other offline store.
             df = df[list(columns_to_extract)]
-            df = _run_dask_field_mapping(df, data_source.field_mapping or {})
             df.persist()
             return df
 

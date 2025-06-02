@@ -41,6 +41,11 @@ class LocalSourceReadNode(LocalNode):
             end_time=self.end_time,
         )
         arrow_table = retrieval_job.to_arrow()
+        field_mapping = context.column_info.field_mapping
+        if field_mapping:
+            arrow_table = arrow_table.rename_columns(
+                [field_mapping.get(col, col) for col in arrow_table.column_names]
+            )
         return ArrowTableValue(data=arrow_table)
 
 
