@@ -15,7 +15,6 @@ import {
   EuiButtonGroup,
   EuiCode,
   EuiTextArea,
-
 } from "@elastic/eui";
 import { useTheme } from "../../contexts/ThemeContext";
 
@@ -77,7 +76,7 @@ The final paragraph contains information about feature stores and real-time mach
           content: testContent,
           file_path: filePath,
         });
-        
+
         loadSavedLabels();
       } else {
         throw new Error(
@@ -153,7 +152,7 @@ The final paragraph contains information about feature stores and real-time mach
 
   const saveLabels = () => {
     setIsSaving(true);
-    
+
     setTimeout(() => {
       try {
         const saveData = {
@@ -165,30 +164,32 @@ The final paragraph contains information about feature stores and real-time mach
           timestamp: new Date().toISOString(),
         };
 
-        const pathParts = filePath.split('/');
+        const pathParts = filePath.split("/");
         const filename = pathParts[pathParts.length - 1];
-        const nameWithoutExt = filename.replace(/\.[^/.]+$/, '');
+        const nameWithoutExt = filename.replace(/\.[^/.]+$/, "");
         const downloadFilename = `${nameWithoutExt}-labels.json`;
-        
+
         const jsonString = JSON.stringify(saveData, null, 2);
-        const blob = new Blob([jsonString], { type: 'application/json' });
+        const blob = new Blob([jsonString], { type: "application/json" });
         const url = URL.createObjectURL(blob);
-        
-        const link = document.createElement('a');
+
+        const link = document.createElement("a");
         link.href = url;
         link.download = downloadFilename;
-        link.style.display = 'none';
-        
+        link.style.display = "none";
+
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
 
         setHasUnsavedChanges(false);
-        alert(`Successfully saved ${labels.length} labels. File downloaded as ${downloadFilename}`);
+        alert(
+          `Successfully saved ${labels.length} labels. File downloaded as ${downloadFilename}`,
+        );
       } catch (error) {
-        console.error('Error saving labels:', error);
-        alert('Error saving labels. Please try again.');
+        console.error("Error saving labels:", error);
+        alert("Error saving labels. Please try again.");
       } finally {
         setIsSaving(false);
       }
@@ -197,18 +198,20 @@ The final paragraph contains information about feature stores and real-time mach
 
   const loadSavedLabels = () => {
     try {
-      const savedData = JSON.parse(localStorage.getItem('ragLabels') || '[]');
-      const fileData = savedData.find((item: any) => item.filePath === filePath);
-      
+      const savedData = JSON.parse(localStorage.getItem("ragLabels") || "[]");
+      const fileData = savedData.find(
+        (item: any) => item.filePath === filePath,
+      );
+
       if (fileData) {
-        setPrompt(fileData.prompt || '');
-        setQuery(fileData.query || '');
-        setGroundTruthLabel(fileData.groundTruthLabel || '');
+        setPrompt(fileData.prompt || "");
+        setQuery(fileData.query || "");
+        setGroundTruthLabel(fileData.groundTruthLabel || "");
         setLabels(fileData.labels || []);
         setHasUnsavedChanges(false);
       }
     } catch (error) {
-      console.error('Error loading saved labels:', error);
+      console.error("Error loading saved labels:", error);
     }
   };
 
@@ -508,7 +511,9 @@ The final paragraph contains information about feature stores and real-time mach
                 fill
                 color="success"
                 onClick={saveLabels}
-                disabled={labels.length === 0 && !groundTruthLabel && !prompt && !query}
+                disabled={
+                  labels.length === 0 && !groundTruthLabel && !prompt && !query
+                }
                 isLoading={isSaving}
                 iconType="save"
               >
@@ -527,7 +532,10 @@ The final paragraph contains information about feature stores and real-time mach
                 iconType="check"
                 size="s"
               >
-                <p>Click "Save Labels" to download your labeled data as a JSON file.</p>
+                <p>
+                  Click "Save Labels" to download your labeled data as a JSON
+                  file.
+                </p>
               </EuiCallOut>
               <EuiSpacer size="m" />
             </>
@@ -543,7 +551,10 @@ The final paragraph contains information about feature stores and real-time mach
                 iconType="alert"
                 size="s"
               >
-                <p>You have unsaved changes. Click "Save Labels" to persist your work.</p>
+                <p>
+                  You have unsaved changes. Click "Save Labels" to persist your
+                  work.
+                </p>
               </EuiCallOut>
               <EuiSpacer size="m" />
             </>

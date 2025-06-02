@@ -383,8 +383,8 @@ def get_app(
     @app.post("/save-document")
     async def save_document_endpoint(request: SaveDocumentRequest):
         try:
-            import os
             import json
+            import os
             from pathlib import Path
 
             file_path = Path(request.file_path).resolve()
