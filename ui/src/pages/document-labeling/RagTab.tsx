@@ -15,7 +15,7 @@ import {
   EuiButtonGroup,
   EuiCode,
   EuiTextArea,
-  EuiSelect,
+
 } from "@elastic/eui";
 import { useTheme } from "../../contexts/ThemeContext";
 
@@ -52,6 +52,8 @@ const RagTab = () => {
   const [prompt, setPrompt] = useState("");
   const [query, setQuery] = useState("");
   const [groundTruthLabel, setGroundTruthLabel] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   const loadDocument = async () => {
     if (!filePath) return;
@@ -75,6 +77,8 @@ The final paragraph contains information about feature stores and real-time mach
           content: testContent,
           file_path: filePath,
         });
+        
+        loadSavedLabels();
       } else {
         throw new Error(
           "Document not found. Please use the test document path: ./src/test-document.txt",
@@ -133,6 +137,7 @@ The final paragraph contains information about feature stores and real-time mach
 
       setLabels([...labels, newLabel]);
       setSelectedText(null);
+      setHasUnsavedChanges(true);
 
       const selection = window.getSelection();
       if (selection) {
@@ -143,6 +148,68 @@ The final paragraph contains information about feature stores and real-time mach
 
   const handleRemoveLabel = (index: number) => {
     setLabels(labels.filter((_: DocumentLabel, i: number) => i !== index));
+    setHasUnsavedChanges(true);
+  };
+
+  const saveLabels = () => {
+    setIsSaving(true);
+    
+    setTimeout(() => {
+      try {
+        const saveData = {
+          filePath: filePath,
+          prompt: prompt,
+          query: query,
+          groundTruthLabel: groundTruthLabel,
+          labels: labels,
+          timestamp: new Date().toISOString(),
+        };
+
+        const pathParts = filePath.split('/');
+        const filename = pathParts[pathParts.length - 1];
+        const nameWithoutExt = filename.replace(/\.[^/.]+$/, '');
+        const downloadFilename = `${nameWithoutExt}-labels.json`;
+        
+        const jsonString = JSON.stringify(saveData, null, 2);
+        const blob = new Blob([jsonString], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = downloadFilename;
+        link.style.display = 'none';
+        
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        setHasUnsavedChanges(false);
+        alert(`Successfully saved ${labels.length} labels. File downloaded as ${downloadFilename}`);
+      } catch (error) {
+        console.error('Error saving labels:', error);
+        alert('Error saving labels. Please try again.');
+      } finally {
+        setIsSaving(false);
+      }
+    }, 100);
+  };
+
+  const loadSavedLabels = () => {
+    try {
+      const savedData = JSON.parse(localStorage.getItem('ragLabels') || '[]');
+      const fileData = savedData.find((item: any) => item.filePath === filePath);
+      
+      if (fileData) {
+        setPrompt(fileData.prompt || '');
+        setQuery(fileData.query || '');
+        setGroundTruthLabel(fileData.groundTruthLabel || '');
+        setLabels(fileData.labels || []);
+        setHasUnsavedChanges(false);
+      }
+    } catch (error) {
+      console.error('Error loading saved labels:', error);
+    }
   };
 
   const renderDocumentWithHighlights = (
@@ -255,43 +322,6 @@ The final paragraph contains information about feature stores and real-time mach
 
       <EuiSpacer size="l" />
 
-      <EuiPanel>
-        <EuiTitle size="s">
-          <h3>RAG Context</h3>
-        </EuiTitle>
-        <EuiSpacer size="m" />
-        <EuiFlexGroup>
-          <EuiFlexItem>
-            <EuiFormRow
-              label="Prompt"
-              helpText="System context for the RAG system"
-            >
-              <EuiTextArea
-                placeholder="Enter system prompt..."
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                rows={3}
-              />
-            </EuiFormRow>
-          </EuiFlexItem>
-          <EuiFlexItem>
-            <EuiFormRow
-              label="Query"
-              helpText="User query for retrieval testing"
-            >
-              <EuiTextArea
-                placeholder="Enter user query..."
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                rows={3}
-              />
-            </EuiFormRow>
-          </EuiFlexItem>
-        </EuiFlexGroup>
-      </EuiPanel>
-
-      <EuiSpacer size="l" />
-
       <EuiFlexGroup>
         <EuiFlexItem>
           <EuiFormRow label="Document file path">
@@ -341,8 +371,51 @@ The final paragraph contains information about feature stores and real-time mach
 
       {documentContent && (
         <>
+          <EuiPanel paddingSize="l">
+            <EuiTitle size="s">
+              <h3>RAG Context</h3>
+            </EuiTitle>
+            <EuiSpacer size="m" />
+            <EuiFlexGroup>
+              <EuiFlexItem>
+                <EuiFormRow
+                  label="Prompt"
+                  helpText="System context for the RAG system"
+                >
+                  <EuiTextArea
+                    placeholder="Enter system prompt..."
+                    value={prompt}
+                    onChange={(e) => {
+                      setPrompt(e.target.value);
+                      setHasUnsavedChanges(true);
+                    }}
+                    rows={3}
+                  />
+                </EuiFormRow>
+              </EuiFlexItem>
+              <EuiFlexItem>
+                <EuiFormRow
+                  label="Query"
+                  helpText="User query for retrieval testing"
+                >
+                  <EuiTextArea
+                    placeholder="Enter user query..."
+                    value={query}
+                    onChange={(e) => {
+                      setQuery(e.target.value);
+                      setHasUnsavedChanges(true);
+                    }}
+                    rows={3}
+                  />
+                </EuiFormRow>
+              </EuiFlexItem>
+            </EuiFlexGroup>
+          </EuiPanel>
+
+          <EuiSpacer size="l" />
+
           <EuiTitle size="m">
-            <h2>Label for Chunk Extraction</h2>
+            <h2>Step 1: Label for Chunk Extraction</h2>
           </EuiTitle>
           <EuiSpacer size="m" />
 
@@ -372,25 +445,6 @@ The final paragraph contains information about feature stores and real-time mach
           </EuiFlexGroup>
 
           <EuiSpacer size="l" />
-
-          <EuiTitle size="m">
-            <h2>Label for Generation</h2>
-          </EuiTitle>
-          <EuiSpacer size="m" />
-
-          <EuiFormRow
-            label="Ground Truth Label"
-            helpText="Text for generation evaluation"
-          >
-            <EuiTextArea
-              placeholder="Enter ground truth label for generation evaluation..."
-              value={groundTruthLabel}
-              onChange={(e) => setGroundTruthLabel(e.target.value)}
-              rows={3}
-            />
-          </EuiFormRow>
-
-          <EuiSpacer size="m" />
 
           {selectedText && (
             <EuiCallOut
@@ -424,12 +478,83 @@ The final paragraph contains information about feature stores and real-time mach
             </EuiText>
           </EuiPanel>
 
+          <EuiSpacer size="l" />
+
+          <EuiTitle size="m">
+            <h2>Step 2: Label for Generation</h2>
+          </EuiTitle>
+          <EuiSpacer size="m" />
+
+          <EuiFormRow
+            label="Ground Truth Label"
+            helpText="Text for generation evaluation"
+          >
+            <EuiTextArea
+              placeholder="Enter ground truth label for generation evaluation..."
+              value={groundTruthLabel}
+              onChange={(e) => {
+                setGroundTruthLabel(e.target.value);
+                setHasUnsavedChanges(true);
+              }}
+              rows={3}
+            />
+          </EuiFormRow>
+
+          <EuiSpacer size="m" />
+
+          <EuiFlexGroup justifyContent="flexEnd">
+            <EuiFlexItem grow={false}>
+              <EuiButton
+                fill
+                color="success"
+                onClick={saveLabels}
+                disabled={labels.length === 0 && !groundTruthLabel && !prompt && !query}
+                isLoading={isSaving}
+                iconType="save"
+              >
+                Save Labels
+              </EuiButton>
+            </EuiFlexItem>
+          </EuiFlexGroup>
+
+          <EuiSpacer size="m" />
+
+          {(labels.length > 0 || groundTruthLabel || prompt || query) && (
+            <>
+              <EuiCallOut
+                title="Ready to save"
+                color="success"
+                iconType="check"
+                size="s"
+              >
+                <p>Click "Save Labels" to download your labeled data as a JSON file.</p>
+              </EuiCallOut>
+              <EuiSpacer size="m" />
+            </>
+          )}
+
+          <EuiSpacer size="m" />
+
+          {hasUnsavedChanges && (
+            <>
+              <EuiCallOut
+                title="Unsaved changes"
+                color="warning"
+                iconType="alert"
+                size="s"
+              >
+                <p>You have unsaved changes. Click "Save Labels" to persist your work.</p>
+              </EuiCallOut>
+              <EuiSpacer size="m" />
+            </>
+          )}
+
           {labels.length > 0 && (
             <>
               <EuiSpacer size="l" />
               <EuiPanel paddingSize="l">
                 <EuiTitle size="s">
-                  <h3>Labels ({labels.length})</h3>
+                  <h3>Extracted Chunk Labels ({labels.length})</h3>
                 </EuiTitle>
                 <EuiSpacer size="m" />
                 {labels.map((label, index) => (

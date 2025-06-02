@@ -105,6 +105,11 @@ class ReadDocumentRequest(BaseModel):
     file_path: str
 
 
+class SaveDocumentRequest(BaseModel):
+    file_path: str
+    data: dict
+
+
 def _get_features(request: GetOnlineFeaturesRequest, store: "feast.FeatureStore"):
     if request.feature_service:
         feature_service = store.get_feature_service(
@@ -372,6 +377,27 @@ def get_app(
                 content = file.read()
 
             return {"content": content, "file_path": request.file_path}
+        except Exception as e:
+            return {"error": str(e)}
+
+    @app.post("/save-document")
+    async def save_document_endpoint(request: SaveDocumentRequest):
+        try:
+            import os
+            import json
+            from pathlib import Path
+
+            file_path = Path(request.file_path).resolve()
+            if not str(file_path).startswith(os.getcwd()):
+                return {"error": "Invalid file path"}
+
+            base_name = file_path.stem
+            labels_file = file_path.parent / f"{base_name}-labels.json"
+
+            with open(labels_file, "w", encoding="utf-8") as file:
+                json.dump(request.data, file, indent=2, ensure_ascii=False)
+
+            return {"success": True, "saved_to": str(labels_file)}
         except Exception as e:
             return {"error": str(e)}
 
