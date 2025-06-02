@@ -147,7 +147,7 @@ const FeastUISansProvidersInner = ({
                       element={<DatasetInstance />}
                     />
                     <Route
-                      path="document-labeling/"
+                      path="data-labeling/"
                       element={<DocumentLabelingPage />}
                     />
                     <Route path="permissions/" element={<PermissionsIndex />} />

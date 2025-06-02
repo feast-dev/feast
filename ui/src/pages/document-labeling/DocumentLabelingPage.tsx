@@ -220,7 +220,7 @@ The final paragraph contains information about feature stores and real-time mach
       <EuiPageBody>
         <EuiPageHeader>
           <EuiTitle size="l">
-            <h1>Document Labeling for RAG</h1>
+            <h1>Data Labeling for RAG</h1>
           </EuiTitle>
         </EuiPageHeader>
 

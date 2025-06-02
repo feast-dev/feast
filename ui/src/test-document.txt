@@ -1,4 +1,4 @@
-This is a sample document for testing the document labeling functionality in Feast UI.
+This is a sample document for testing the data labeling functionality in Feast UI.
 
 The document contains multiple paragraphs and sections that can be used to test the text highlighting and labeling features.
 
