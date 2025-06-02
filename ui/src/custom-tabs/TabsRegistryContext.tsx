@@ -289,6 +289,7 @@ export {
   useDataSourceCustomTabs,
   useEntityCustomTabs,
   useDatasetCustomTabs,
+
   // Routes
   useRegularFeatureViewCustomTabRoutes,
   useOnDemandFeatureViewCustomTabRoutes,

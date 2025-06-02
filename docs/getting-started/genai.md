@@ -56,7 +56,6 @@ The transformation workflow typically involves:
 3. **Chunking**: Split documents into smaller, semantically meaningful chunks
 4. **Embedding Generation**: Convert text chunks into vector embeddings
 5. **Storage**: Store embeddings and metadata in Feast's feature store
-
 ### Feature Transformation for LLMs
 
 Feast supports transformations that can be used to:
@@ -66,6 +65,99 @@ Feast supports transformations that can be used to:
 * Normalize and preprocess features before serving to LLMs
 * Apply custom transformations to adapt features for specific LLM requirements
 
+## Getting Started with Feast for GenAI
+
+### Installation
+
+To use Feast with vector database support, install with the appropriate extras:
+
+```bash
+# For Milvus support
+pip install feast[milvus,nlp]
+
+# For Elasticsearch support
+pip install feast[elasticsearch]
+
+# For Qdrant support
+pip install feast[qdrant]
+
+# For SQLite support (Python 3.10 only)
+pip install feast[sqlite_vec]
+```
+
+### Configuration
+
+Configure your feature store to use a vector database as the online store:
+
+```yaml
+project: genai-project
+provider: local
+registry: data/registry.db
+online_store:
+  type: milvus
+  path: data/online_store.db
+  vector_enabled: true
+  embedding_dim: 384  # Adjust based on your embedding model
+  index_type: "IVF_FLAT"
+
+offline_store:
+  type: file
+entity_key_serialization_version: 3
+```
+
+### Defining Vector Features
+
+Create feature views with vector index support:
+
+```python
+from feast import FeatureView, Field, Entity
+from feast.types import Array, Float32, String
+
+document = Entity(
+    name="document_id",
+    description="Document identifier",
+    join_keys=["document_id"],
+)
+
+document_embeddings = FeatureView(
+    name="document_embeddings",
+    entities=[document],
+    schema=[
+        Field(
+            name="vector",
+            dtype=Array(Float32),
+            vector_index=True,  # Enable vector search
+            vector_search_metric="COSINE",  # Similarity metric
+        ),
+        Field(name="document_id", dtype=String),
+        Field(name="content", dtype=String),
+    ],
+    source=document_source,
+    ttl=timedelta(days=30),
+)
+```
+
+### Retrieving Similar Documents
+
+Use the `retrieve_online_documents_v2` method to find similar documents:
+
+```python
+# Generate query embedding
+query = "How does Feast support vector databases?"
+query_embedding = embed_text(query)  # Your embedding function
+
+# Retrieve similar documents
+context_data = store.retrieve_online_documents_v2(
+    features=[
+        "document_embeddings:vector",
+        "document_embeddings:document_id",
+        "document_embeddings:content",
+    ],
+    query=query_embedding,
+    top_k=3,
+    distance_metric='COSINE',
+).to_df()
+```
 ## Use Cases
 
 ### Document Question-Answering
@@ -104,7 +196,6 @@ This integration enables:
 - Generating embeddings for millions of text chunks
 - Efficiently materializing features to vector databases
 - Scaling RAG applications to enterprise-level document repositories
-
 ## Learn More
 
 For more detailed information and examples:
