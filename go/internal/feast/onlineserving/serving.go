@@ -1165,8 +1165,7 @@ func getUniqueEntityRows(joinKeysProto []*prototypes.EntityKey) ([]*prototypes.E
 		if existingIndex, exists := seen[rowHash]; exists {
 			mappingIndices[existingIndex] = append(mappingIndices[existingIndex], index)
 		} else {
-			newIndex := len(uniqueEntityRows)
-			seen[rowHash] = newIndex
+			seen[rowHash] = len(uniqueEntityRows)
 			uniqueEntityRows = append(uniqueEntityRows, entityKey)
 			mappingIndices = append(mappingIndices, []int{index})
 		}

@@ -3,7 +3,6 @@ package feast
 import (
 	"context"
 	"fmt"
-	"github.com/apache/arrow/go/v17/arrow/array"
 	"github.com/apache/arrow/go/v17/arrow/memory"
 	"github.com/feast-dev/feast/go/internal/feast/model"
 	"github.com/feast-dev/feast/go/internal/feast/onlineserving"
@@ -230,9 +229,28 @@ func TestGetOnlineFeaturesRange(t *testing.T) {
 		return len(views) > 0
 	})
 
+	entityKeysMatcher := mock.MatchedBy(func(keys []*types.EntityKey) bool {
+		if len(keys) != 2 {
+			return false
+		}
+		if len(keys[0].JoinKeys) != 1 || keys[0].JoinKeys[0] != "driver_id" {
+			return false
+		}
+		if len(keys[0].EntityValues) != 1 || keys[0].EntityValues[0].GetInt64Val() != 1001 {
+			return false
+		}
+		if len(keys[1].JoinKeys) != 1 || keys[1].JoinKeys[0] != "driver_id" {
+			return false
+		}
+		if len(keys[1].EntityValues) != 1 || keys[1].EntityValues[0].GetInt64Val() != 1002 {
+			return false
+		}
+		return true
+	})
+
 	mockStore.On("OnlineReadRange",
 		mock.Anything,
-		mock.AnythingOfType("[]*types.EntityKey"),
+		entityKeysMatcher,
 		featureViewNamesMatcher,
 		[]string{"conv_rate", "acc_rate"},
 		filterMatcher,
@@ -268,46 +286,24 @@ func TestGetOnlineFeaturesRange(t *testing.T) {
 		}
 	}
 
-	assert.NotNil(t, driverIdVector, "Should have driver_id vector")
-	assert.NotNil(t, accRateVector, "Should have acc_rate vector")
-	assert.NotNil(t, convRateVector, "Should have conv_rate vector")
-	assert.Equal(t, 2, driverIdVector.RangeValues.Len())
-	assert.Equal(t, 2, len(driverIdVector.RangeStatuses))
-	assert.Equal(t, 2, len(driverIdVector.RangeTimestamps))
-	entityId0 := driverIdVector.RangeValues.(*array.List).ListValues().(*array.Int64).Value(0)
-	entityId1 := driverIdVector.RangeValues.(*array.List).ListValues().(*array.Int64).Value(1)
+	assert.NotNil(t, driverIdVector)
+	assert.NotNil(t, accRateVector)
+	assert.NotNil(t, convRateVector)
+
 	accRateValues, err := types2.ArrowValuesToProtoValues(accRateVector.RangeValues)
 	assert.NoError(t, err)
 	convRateValues, err := types2.ArrowValuesToProtoValues(convRateVector.RangeValues)
 	assert.NoError(t, err)
+	assert.Equal(t, []float64{0.91, 0.92, 0.94}, accRateValues[0].GetDoubleListVal().Val)
+	assert.Equal(t, []float64{0.85, 0.87, 0.89}, convRateValues[0].GetDoubleListVal().Val)
+	assert.Equal(t, []float64{0.85, 0.88}, accRateValues[1].GetDoubleListVal().Val)
+	assert.Equal(t, []float64{0.78, 0.80}, convRateValues[1].GetDoubleListVal().Val)
 
-	if entityId0 == 1001 && entityId1 == 1002 {
-		assert.Equal(t, []float64{0.91, 0.92, 0.94}, accRateValues[0].GetDoubleListVal().Val)
-		assert.Equal(t, []float64{0.85, 0.87, 0.89}, convRateValues[0].GetDoubleListVal().Val)
+	assert.Equal(t, 3, len(accRateVector.RangeStatuses[0]))
+	assert.Equal(t, 3, len(convRateVector.RangeStatuses[0]))
+	assert.Equal(t, 2, len(accRateVector.RangeStatuses[1]))
+	assert.Equal(t, 2, len(convRateVector.RangeStatuses[1]))
 
-		assert.Equal(t, []float64{0.85, 0.88}, accRateValues[1].GetDoubleListVal().Val)
-		assert.Equal(t, []float64{0.78, 0.80}, convRateValues[1].GetDoubleListVal().Val)
-
-		assert.Equal(t, 3, len(accRateVector.RangeStatuses[0]))
-		assert.Equal(t, 3, len(convRateVector.RangeStatuses[0]))
-		assert.Equal(t, 2, len(accRateVector.RangeStatuses[1]))
-		assert.Equal(t, 2, len(convRateVector.RangeStatuses[1]))
-	} else if entityId0 == 1002 && entityId1 == 1001 {
-		t.Logf("Warning: Entity order is not as expected. Got %d, %d instead of 1001, 1002", entityId0, entityId1)
-
-		assert.Equal(t, []float64{0.85, 0.88}, accRateValues[0].GetDoubleListVal().Val)
-		assert.Equal(t, []float64{0.78, 0.80}, convRateValues[0].GetDoubleListVal().Val)
-
-		assert.Equal(t, []float64{0.91, 0.92, 0.94}, accRateValues[1].GetDoubleListVal().Val)
-		assert.Equal(t, []float64{0.85, 0.87, 0.89}, convRateValues[1].GetDoubleListVal().Val)
-
-		assert.Equal(t, 2, len(accRateVector.RangeStatuses[0]))
-		assert.Equal(t, 2, len(convRateVector.RangeStatuses[0]))
-		assert.Equal(t, 3, len(accRateVector.RangeStatuses[1]))
-		assert.Equal(t, 3, len(convRateVector.RangeStatuses[1]))
-	} else {
-		t.Fatalf("Unexpected entity IDs: %d, %d", entityId0, entityId1)
-	}
 	mockStore.AssertExpectations(t)
 }
 
