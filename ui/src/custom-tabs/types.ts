@@ -136,18 +136,18 @@ interface DatasetCustomTabRegistrationInterface
   }: DatasetCustomTabProps) => JSX.Element;
 }
 
-// Type for Document Labeling Custom Tabs
-interface DocumentLabelingCustomTabProps {
+// Type for Data Labeling Custom Tabs
+interface DataLabelingCustomTabProps {
   id: string | undefined;
   feastObjectQuery: RegularFeatureViewQueryReturnType;
 }
-interface DocumentLabelingCustomTabRegistrationInterface
+interface DataLabelingCustomTabRegistrationInterface
   extends CustomTabRegistrationInterface {
   Component: ({
     id,
     feastObjectQuery,
     ...args
-  }: DocumentLabelingCustomTabProps) => JSX.Element;
+  }: DataLabelingCustomTabProps) => JSX.Element;
 }
 
 export type {
@@ -171,6 +171,6 @@ export type {
   FeatureCustomTabProps,
   DatasetCustomTabRegistrationInterface,
   DatasetCustomTabProps,
-  DocumentLabelingCustomTabRegistrationInterface,
-  DocumentLabelingCustomTabProps,
+  DataLabelingCustomTabRegistrationInterface,
+  DataLabelingCustomTabProps,
 };

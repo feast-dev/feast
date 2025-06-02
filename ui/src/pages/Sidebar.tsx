@@ -132,13 +132,13 @@ const SideNav = () => {
           isSelected: useMatchSubpath(`${baseUrl}/data-set`),
         },
         {
-          name: "Document Labeling",
-          id: htmlIdGenerator("documentLabeling")(),
-          icon: <EuiIcon type="documentEdit" />,
+          name: "Data Labeling",
+          id: htmlIdGenerator("dataLabeling")(),
+          icon: <EuiIcon type="documentEdit" color="#006BB4" />,
           renderItem: (props) => (
-            <Link {...props} to={`${baseUrl}/document-labeling`} />
+            <Link {...props} to={`${baseUrl}/data-labeling`} />
           ),
-          isSelected: useMatchSubpath(`${baseUrl}/document-labeling`),
+          isSelected: useMatchSubpath(`${baseUrl}/data-labeling`),
         },
         {
           name: "Permissions",
