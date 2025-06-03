@@ -20,7 +20,8 @@ class MaterializationTask:
     feature_view: Union[BatchFeatureView, StreamFeatureView, FeatureView]
     start_time: datetime
     end_time: datetime
-    tqdm_builder: Callable[[int], tqdm]
+    only_latest: bool = True
+    tqdm_builder: Union[None, Callable[[int], tqdm]] = None
 
 
 class MaterializationJobStatus(enum.Enum):
