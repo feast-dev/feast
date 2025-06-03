@@ -457,6 +457,7 @@ pathspec==0.12.1 \
     --hash=sha256:a482d51503a1ab33b1c67a6c3813a26953dbdc71c31dacaef9a838c4e29f5712
     # via
     #   hatchling
+    #   mypy
     #   scikit-build-core
 pdm-backend==2.4.4 \
     --hash=sha256:87f85f65c208956a8adbcc01b8878ab29a97d0494cde56b733d961d4b5a48acf \
@@ -502,9 +503,9 @@ pyproject-metadata==0.9.1 \
     --hash=sha256:b8b2253dd1b7062b78cf949a115f02ba7fa4114aabe63fa10528e9e1a954a816 \
     --hash=sha256:ee5efde548c3ed9b75a354fc319d5afd25e9585fa918a34f62f904cc731973ad
     # via meson-python
-scikit-build-core==0.11.3 \
-    --hash=sha256:74baf7cbc089f8621cc0646d9c5679034d5be1b014c10912dc32a4bcd1092506 \
-    --hash=sha256:9f222e10021734367a749c8062ed12119bea82d451d07674a2de9bff4832bbea
+scikit-build-core==0.11.4 \
+    --hash=sha256:0d3e3463c332979a0c07340241b162d6cb0059a7a1bee6465c38ace49d441596 \
+    --hash=sha256:5b194bbb04092ae327d294b23e4bbffb6181adce4259440a86c9cf6abb8eaa6c
     # via patchelf
 semantic-version==2.10.0 \
     --hash=sha256:bdabb6d336998cbb378d4b9db3a4b56a1e3235701dc05ea2690d9a997ed5041c \
@@ -555,13 +556,13 @@ types-psutil==7.0.0.20250218 \
     --hash=sha256:1447a30c282aafefcf8941ece854e1100eee7b0296a9d9be9977292f0269b121 \
     --hash=sha256:1e642cdafe837b240295b23b1cbd4691d80b08a07d29932143cbbae30eb0db9c
     # via mypy
-types-setuptools==80.8.0.20250521 \
-    --hash=sha256:7360b33b1ed3cda6e5a1f379701a61ec9dbee6e59e8bda072b88226157d8da80 \
-    --hash=sha256:737cd1f54aade1f68fece1381871ea563b622b3ff28393ad65a9d4ed30d6454e
+types-setuptools==80.9.0.20250529 \
+    --hash=sha256:00dfcedd73e333a430e10db096e4d46af93faf9314f832f13b6bbe3d6757e95f \
+    --hash=sha256:79e088ba0cba2186c8d6499cbd3e143abb142d28a44b042c28d3148b1e353c91
     # via mypy
-typing-extensions==4.13.2 \
-    --hash=sha256:a439e7c04b49fec3e5d3e2beaa21755cadbbdc391694e28ccdd36ca4a1408f8c \
-    --hash=sha256:e6c81219bd689f51865d9e372991c540bda33a0379d5573cddb9a3a23f7caaef
+typing-extensions==4.14.0 \
+    --hash=sha256:8676b788e32f02ab42d9e7c61324048ae4c6d844a399eebace3d4979d75ceef4 \
+    --hash=sha256:a1514509136dd0b477638fc68d6a91497af5076466ad0fa6c338e44e359944af
     # via
     #   mypy
     #   pydantic-core
@@ -632,7 +633,6 @@ setuptools==76.1.0 \
     #   partd
     #   pathspec
     #   pluggy
-    #   prometheus-client
     #   propcache
     #   proto-plus
     #   psutil
@@ -669,6 +669,7 @@ setuptools==80.9.0 \
     --hash=sha256:062d34222ad13e0cc312a4c02d73f059e86a4acbfbdea8f8f76b28c99f306922 \
     --hash=sha256:f36b47402ecde768dbfafc46e8e4207b4360c654f1f3bb84475f0a28628fb19c
     # via
+    #   prometheus-client
     #   python-dateutil
     #   types-pymysql
     #   types-setuptools

@@ -146,7 +146,7 @@ DUCKDB_REQUIRED = ["ibis-framework[duckdb]>=9.0.0,<10"]
 
 DELTA_REQUIRED = ["deltalake"]
 
-DOCLING_REQUIRED = ["docling>=2.23.0"]
+DOCLING_REQUIRED = ["docling>=2.36.0"]
 
 ELASTICSEARCH_REQUIRED = ["elasticsearch>=8.13.0"]
 
