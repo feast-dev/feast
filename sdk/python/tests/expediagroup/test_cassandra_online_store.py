@@ -285,7 +285,6 @@ class TestCassandraOnlineStore:
 
     def test_validate_invalid_request_error_when_sort_keys_are_null(
         self,
-        cassandra_session,
         repo_config: RepoConfig,
         online_store: CassandraOnlineStore,
     ):
