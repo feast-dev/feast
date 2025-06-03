@@ -507,6 +507,7 @@ async def _do_async_retrieval_test(environment, universal_data_sources):
     await fs.close()
 
 
+@pytest.mark.asyncio
 @pytest.mark.integration
 @pytest.mark.universal_online_stores(only=["redis", "postgres"])
 async def test_async_online_retrieval_with_event_timestamps(
@@ -515,6 +516,7 @@ async def test_async_online_retrieval_with_event_timestamps(
     await _do_async_retrieval_test(environment, universal_data_sources)
 
 
+@pytest.mark.asyncio
 @pytest.mark.integration
 @pytest.mark.universal_online_stores(only=["dynamodb"])
 async def test_async_online_retrieval_with_event_timestamps_dynamo(
