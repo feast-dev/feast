@@ -107,6 +107,11 @@ postgres = ["psycopg[binary,pool]==3.2.5"]
 postgres-c = ["psycopg[c,pool]==3.2.5"]
 pytorch = ["torch==2.2.2", "torchvision>=0.17.2"]
 qdrant = ["qdrant-client>=1.12.0"]
+rag = [
+    "transformers>=4.36.0",
+    "sentence-transformers>=2.5.0",
+    "datasets>=3.6.0",
+]
 redis = [
     "redis>=4.2.2,<5",
     "hiredis>=2.0.0,<3",
@@ -117,11 +122,6 @@ snowflake = [
 ]
 sqlite_vec = ["sqlite-vec==v0.1.6"]
 mcp = ["fastapi_mcp"]
-rag = [
-    "transformers>=4.36.0",
-    "sentence-transformers>=2.5.0",
-    "torch>=2.2.0",
-]
 
 ci = [
     "build",
@@ -168,6 +168,9 @@ ci = [
     "types-setuptools",
     "types-tabulate",
     "virtualenv<20.24.2",
+    "transformers>=4.36.0",
+    "sentence-transformers>=2.5.0",
+    "datasets>=3.6.0",
     "feast[aws, azure, cassandra, clickhouse, couchbase, delta, docling, duckdb, elasticsearch, faiss, gcp, ge, go, grpcio, hazelcast, hbase, ibis, ikv, k8s, mcp, milvus, mssql, mysql, opentelemetry, spark, trino, postgres, pytorch, qdrant, rag, redis, singlestore, snowflake, sqlite_vec]"
 ]
 nlp = ["feast[docling, milvus, pytorch]"]

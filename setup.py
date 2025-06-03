@@ -178,7 +178,6 @@ MCP_REQUIRED = ["fastapi_mcp"]
 RAG_REQUIRED = [
     "transformers>=4.36.0",
     "sentence-transformers>=2.5.0",
-    "torch>=2.2.0",
 ]
 
 CI_REQUIRED = (
