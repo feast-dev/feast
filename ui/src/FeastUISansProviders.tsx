@@ -30,6 +30,7 @@ import NoProjectGuard from "./components/NoProjectGuard";
 import TabsRegistryContext, {
   FeastTabsRegistryInterface,
 } from "./custom-tabs/TabsRegistryContext";
+import CurlGeneratorTab from "./pages/feature-views/CurlGeneratorTab";
 import FeatureFlagsContext, {
   FeatureFlags,
 } from "./contexts/FeatureFlagsContext";
@@ -98,7 +99,31 @@ const FeastUISansProvidersInner = ({
     <EuiProvider colorMode={colorMode}>
       <EuiErrorBoundary>
         <TabsRegistryContext.Provider
-          value={feastUIConfigs?.tabsRegistry || {}}
+          value={{
+            RegularFeatureViewCustomTabs: [
+              {
+                label: "CURL Generator",
+                path: "curl-generator",
+                Component: CurlGeneratorTab,
+              },
+              ...(feastUIConfigs?.tabsRegistry?.RegularFeatureViewCustomTabs ||
+                []),
+            ],
+            OnDemandFeatureViewCustomTabs:
+              feastUIConfigs?.tabsRegistry?.OnDemandFeatureViewCustomTabs || [],
+            StreamFeatureViewCustomTabs:
+              feastUIConfigs?.tabsRegistry?.StreamFeatureViewCustomTabs || [],
+            FeatureServiceCustomTabs:
+              feastUIConfigs?.tabsRegistry?.FeatureServiceCustomTabs || [],
+            FeatureCustomTabs:
+              feastUIConfigs?.tabsRegistry?.FeatureCustomTabs || [],
+            DataSourceCustomTabs:
+              feastUIConfigs?.tabsRegistry?.DataSourceCustomTabs || [],
+            EntityCustomTabs:
+              feastUIConfigs?.tabsRegistry?.EntityCustomTabs || [],
+            DatasetCustomTabs:
+              feastUIConfigs?.tabsRegistry?.DatasetCustomTabs || [],
+          }}
         >
           <FeatureFlagsContext.Provider
             value={feastUIConfigs?.featureFlags || {}}
