@@ -3,6 +3,7 @@ import time
 from datetime import datetime, timedelta
 
 import pytest
+from cassandra import InvalidRequest
 from cassandra.cluster import Cluster
 
 from feast import Entity, Field, FileSource, RepoConfig, ValueType
@@ -282,6 +283,30 @@ class TestCassandraOnlineStore:
         count = [row.count for row in result]
         assert count[0] == 10
 
+    def test_validate_invalid_request_error_when_sort_keys_are_null(
+        self,
+        repo_config: RepoConfig,
+        online_store: CassandraOnlineStore,
+    ):
+        (
+            feature_view,
+            data,
+        ) = self._create_test_sample_features_with_null_sort_keys()
+
+        online_store._create_table(repo_config, repo_config.project, feature_view)
+
+        with pytest.raises(InvalidRequest) as excinfo:
+            online_store.online_write_batch(
+                config=repo_config,
+                table=feature_view,
+                data=data,
+                progress=None,
+            )
+        assert (
+            str(excinfo.value)
+            == 'Error from server: code=2200 [Invalid query] message="Invalid null value in condition for column int"'
+        )
+
     def test_cassandra_online_write_batch_ttl(
         self,
         cassandra_session,
@@ -479,6 +504,65 @@ class TestCassandraOnlineStore:
                 None,
             )
             for i in range(n)
+        ]
+
+    def _create_test_sample_features_with_null_sort_keys(self):
+        fv = SortedFeatureView(
+            name="sortedfv",
+            source=FileSource(
+                name="my_file_source",
+                path="test.parquet",
+                timestamp_field="event_timestamp",
+            ),
+            entities=[Entity(name="id")],
+            ttl=timedelta(seconds=10),
+            sort_keys=[
+                SortKey(
+                    name="int",
+                    value_type=ValueType.INT32,
+                    default_sort_order=SortOrder.DESC,
+                )
+            ],
+            schema=[
+                Field(
+                    name="id",
+                    dtype=String,
+                ),
+                Field(
+                    name="text",
+                    dtype=String,
+                ),
+                Field(
+                    name="int",
+                    dtype=Int32,
+                ),
+            ],
+        )
+        return fv, [
+            (
+                EntityKeyProto(
+                    join_keys=["id"],
+                    entity_values=[ValueProto(string_val=str(1))],
+                ),
+                {
+                    "text": ValueProto(string_val="text"),
+                    "int": ValueProto(null_val=None),
+                },
+                datetime.utcnow(),
+                None,
+            ),
+            (
+                EntityKeyProto(
+                    join_keys=["id"],
+                    entity_values=[ValueProto(string_val=str(2))],
+                ),
+                {
+                    "text": ValueProto(string_val="text"),
+                    "int": ValueProto(int32_val=1),
+                },
+                datetime.utcnow(),
+                None,
+            ),
         ]
 
     def _create_n_test_sample_features_all_datatypes(self, n=10):
