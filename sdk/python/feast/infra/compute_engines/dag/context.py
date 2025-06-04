@@ -16,12 +16,39 @@ class ColumnInfo:
     feature_cols: List[str]
     ts_col: str
     created_ts_col: Optional[str]
+    field_mapping: Optional[Dict[str, str]] = None
 
     def __iter__(self):
         yield self.join_keys
         yield self.feature_cols
         yield self.ts_col
         yield self.created_ts_col
+        yield self.field_mapping
+
+    @property
+    def timestamp_column(self) -> str:
+        """
+        Get the event timestamp column from the context.
+        """
+        mapped_column = self._get_mapped_column(self.ts_col)
+        if mapped_column is None:
+            raise ValueError("Timestamp column cannot be None")
+        return mapped_column
+
+    @property
+    def created_timestamp_column(self) -> Optional[str]:
+        """
+        Get the created timestamp column from the context.
+        """
+        return self._get_mapped_column(self.created_ts_col)
+
+    def _get_mapped_column(self, column: Optional[str]) -> Optional[str]:
+        """
+        Helper method to get the mapped column name if it exists in field_mapping.
+        """
+        if column and self.field_mapping:
+            return self.field_mapping.get(column, column)
+        return column
 
 
 @dataclass
@@ -55,6 +82,8 @@ class ExecutionContext:
         node_outputs: Internal cache of DAGValue outputs keyed by DAGNode name.
             Automatically populated during ExecutionPlan execution to avoid redundant
             computation. Used by downstream nodes to access their input data.
+
+        field_mapping: A mapping of field names to their corresponding column names in the
     """
 
     project: str

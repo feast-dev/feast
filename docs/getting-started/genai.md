@@ -56,7 +56,6 @@ The transformation workflow typically involves:
 3. **Chunking**: Split documents into smaller, semantically meaningful chunks
 4. **Embedding Generation**: Convert text chunks into vector embeddings
 5. **Storage**: Store embeddings and metadata in Feast's feature store
-
 ### Feature Transformation for LLMs
 
 Feast supports transformations that can be used to:
