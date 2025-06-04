@@ -202,7 +202,7 @@ class FileSource(DataSource):
             schema = (
                 DeltaTable(self.path, storage_options=storage_options)
                 .schema()
-                .to_pyarrow()
+                .to_arrow()
             )
         else:
             raise Exception(f"Unknown FileFormat -> {self.file_format}")
