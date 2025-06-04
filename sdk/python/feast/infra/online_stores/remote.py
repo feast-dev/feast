@@ -60,7 +60,77 @@ class RemoteOnlineStore(OnlineStore):
         ],
         progress: Optional[Callable[[int], Any]],
     ) -> None:
-        raise NotImplementedError
+        """
+        Writes a batch of feature rows to the remote online store via the remote API.
+        """
+        assert isinstance(config.online_store, RemoteOnlineStoreConfig)
+        config.online_store.__class__ = RemoteOnlineStoreConfig
+
+        # Restructure data into a columnar dictionary format for the 'df' key
+        columnar_data: Dict[str, List[Any]] = {}
+
+        # Collect all unique entity key names and feature names
+        all_keys = set()
+        for entity_key_proto, feature_values_proto, _, _ in data:
+            for join_key in entity_key_proto.join_keys:
+                all_keys.add(join_key)
+            for feature_name in feature_values_proto.keys():
+                all_keys.add(feature_name)
+        all_keys.add("event_timestamp")
+        if data and data[0][3] is not None:  # Check if created_ts is present
+            all_keys.add("created")
+
+        # Initialize columnar data dictionary with empty lists
+        for key in all_keys:
+            columnar_data[key] = []
+
+        # Populate the columnar data
+        for entity_key_proto, feature_values_proto, event_ts, created_ts in data:
+            # Populate entity key values
+            for join_key, entity_value_proto in zip(
+                entity_key_proto.join_keys, entity_key_proto.entity_values
+            ):
+                columnar_data[join_key].append(
+                    self.value_proto_to_python(entity_value_proto)
+                )
+
+            # Populate feature values
+            for feature_name, feature_value_proto in feature_values_proto.items():
+                columnar_data[feature_name].append(
+                    self.value_proto_to_python(feature_value_proto)
+                )
+
+            # Populate timestamps
+            columnar_data["event_timestamp"].append(event_ts.isoformat())
+            if "created" in columnar_data:
+                columnar_data["created"].append(
+                    created_ts.isoformat() if created_ts else None
+                )
+
+        req_body = {
+            "feature_view_name": table.name,
+            "df": columnar_data,
+            "allow_registry_cache": False,
+        }
+
+        response = post_remote_online_write(config=config, req_body=req_body)
+
+        if response.status_code != 200:
+            error_msg = f"Unable to write online store data using feature server API. Error_code={response.status_code}, error_message={response.text}"
+            logger.error(error_msg)
+            raise RuntimeError(error_msg)
+
+        if progress:
+            progress(len(data))
+
+    def value_proto_to_python(self, value_proto: ValueProto):
+        """
+        Convert a ValueProto to a native Python value for JSON serialization.
+        """
+        kind = value_proto.WhichOneof("val")
+        if kind is None:
+            return None
+        return getattr(value_proto, kind)
 
     def online_read(
         self,
@@ -184,3 +254,14 @@ def get_remote_online_features(
         return session.post(
             f"{config.online_store.path}/get-online-features", data=req_body
         )
+
+
+@rest_error_handling_decorator
+def post_remote_online_write(
+    session: requests.Session, config: RepoConfig, req_body: dict
+) -> requests.Response:
+    url = f"{config.online_store.path}/write-to-online-store"
+    if config.online_store.cert:
+        return session.post(url, json=req_body, verify=config.online_store.cert)
+    else:
+        return session.post(url, json=req_body)
