@@ -87,7 +87,7 @@ class SnowflakeComputeEngineConfig(FeastConfigBaseModel):
 
     schema_: Optional[str] = Field("PUBLIC", alias="schema")
     """ Snowflake schema name """
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(populate_by_name=True, extra="allow")
 
 
 class SnowflakeComputeEngine(ComputeEngine):
