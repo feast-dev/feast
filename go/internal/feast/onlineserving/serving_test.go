@@ -2,6 +2,7 @@ package onlineserving
 
 import (
 	"fmt"
+	"google.golang.org/protobuf/proto"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -842,6 +843,112 @@ func TestGroupSortedFeatureRefs_withReverseSortOrder(t *testing.T) {
 	}
 
 	assert.True(t, featureAFound, "Feature A should be present in results")
+}
+
+func TestGetUniqueEntityRows_WithUniqueValues(t *testing.T) {
+	entityKeys := []*types.EntityKey{
+		{
+			JoinKeys:     []string{"id"},
+			EntityValues: []*types.Value{{Val: &types.Value_Int32Val{Int32Val: 1}}},
+		},
+		{
+			JoinKeys:     []string{"id"},
+			EntityValues: []*types.Value{{Val: &types.Value_Int32Val{Int32Val: 2}}},
+		},
+		{
+			JoinKeys:     []string{"id"},
+			EntityValues: []*types.Value{{Val: &types.Value_Int32Val{Int32Val: 3}}},
+		},
+	}
+
+	uniqueEntityRows, mappingIndices, err := getUniqueEntityRows(entityKeys)
+
+	require.NoError(t, err)
+	assert.Len(t, uniqueEntityRows, 3)
+	assert.Len(t, mappingIndices, 3)
+
+	for i := 0; i < 3; i++ {
+		assert.Equal(t, []int{i}, mappingIndices[i])
+		assert.True(t, proto.Equal(uniqueEntityRows[i], entityKeys[i]))
+	}
+}
+
+func TestGetUniqueEntityRows_WithDuplicates(t *testing.T) {
+	entityKeys := []*types.EntityKey{
+		{
+			JoinKeys:     []string{"id"},
+			EntityValues: []*types.Value{{Val: &types.Value_Int32Val{Int32Val: 1}}},
+		},
+		{
+			JoinKeys:     []string{"id"},
+			EntityValues: []*types.Value{{Val: &types.Value_Int32Val{Int32Val: 2}}},
+		},
+		{
+			JoinKeys:     []string{"id"},
+			EntityValues: []*types.Value{{Val: &types.Value_Int32Val{Int32Val: 1}}},
+		},
+		{
+			JoinKeys:     []string{"id"},
+			EntityValues: []*types.Value{{Val: &types.Value_Int32Val{Int32Val: 3}}},
+		},
+		{
+			JoinKeys:     []string{"id"},
+			EntityValues: []*types.Value{{Val: &types.Value_Int32Val{Int32Val: 2}}},
+		},
+	}
+
+	uniqueEntityRows, mappingIndices, err := getUniqueEntityRows(entityKeys)
+
+	require.NoError(t, err)
+	assert.Len(t, uniqueEntityRows, 3)
+	assert.Len(t, mappingIndices, 3)
+
+	assert.True(t, proto.Equal(uniqueEntityRows[0], entityKeys[0]))
+	assert.ElementsMatch(t, []int{0, 2}, mappingIndices[0])
+
+	assert.True(t, proto.Equal(uniqueEntityRows[1], entityKeys[1]))
+	assert.ElementsMatch(t, []int{1, 4}, mappingIndices[1])
+
+	assert.True(t, proto.Equal(uniqueEntityRows[2], entityKeys[3]))
+	assert.Equal(t, []int{3}, mappingIndices[2])
+}
+
+func TestGetUniqueEntityRows_MultipleJoinKeys(t *testing.T) {
+	entityKeys := []*types.EntityKey{
+		{
+			JoinKeys: []string{"driver_id", "customer_id"},
+			EntityValues: []*types.Value{
+				{Val: &types.Value_Int32Val{Int32Val: 1}},
+				{Val: &types.Value_StringVal{StringVal: "A"}},
+			},
+		},
+		{
+			JoinKeys: []string{"driver_id", "customer_id"},
+			EntityValues: []*types.Value{
+				{Val: &types.Value_Int32Val{Int32Val: 1}},
+				{Val: &types.Value_StringVal{StringVal: "B"}},
+			},
+		},
+		{
+			JoinKeys: []string{"driver_id", "customer_id"},
+			EntityValues: []*types.Value{
+				{Val: &types.Value_Int32Val{Int32Val: 1}},
+				{Val: &types.Value_StringVal{StringVal: "A"}},
+			},
+		},
+	}
+
+	uniqueEntityRows, mappingIndices, err := getUniqueEntityRows(entityKeys)
+
+	require.NoError(t, err)
+	assert.Len(t, uniqueEntityRows, 2)
+	assert.Len(t, mappingIndices, 2)
+
+	assert.True(t, proto.Equal(uniqueEntityRows[0], entityKeys[0]))
+	assert.ElementsMatch(t, []int{0, 2}, mappingIndices[0])
+
+	assert.True(t, proto.Equal(uniqueEntityRows[1], entityKeys[1]))
+	assert.Equal(t, []int{1}, mappingIndices[1])
 }
 
 func TestEntitiesToRangeFeatureVectors(t *testing.T) {

@@ -3,7 +3,6 @@ package feast
 import (
 	"context"
 	"fmt"
-	"github.com/apache/arrow/go/v17/arrow/array"
 	"github.com/apache/arrow/go/v17/arrow/memory"
 	"github.com/feast-dev/feast/go/internal/feast/model"
 	"github.com/feast-dev/feast/go/internal/feast/onlineserving"
@@ -19,7 +18,6 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 	"path/filepath"
 	"runtime"
-	"sort"
 	"testing"
 	"time"
 )
@@ -177,7 +175,6 @@ func TestGetOnlineFeaturesRange(t *testing.T) {
 		return sameBase && f.Order != nil && expectedFilter.Order != nil &&
 			f.Order.Order == expectedFilter.Order.Order
 	})
-
 	mockRangeFeatureData := [][]onlinestore.RangeFeatureData{
 		{
 			{
@@ -232,9 +229,24 @@ func TestGetOnlineFeaturesRange(t *testing.T) {
 		return len(views) > 0
 	})
 
+	entityKeysMatcher := mock.MatchedBy(func(keys []*types.EntityKey) bool {
+		if len(keys) != len(entityValues["driver_id"].Val) {
+			return false
+		}
+		for i, key := range keys {
+			if len(key.JoinKeys) != 1 || key.JoinKeys[0] != "driver_id" {
+				return false
+			}
+			if len(key.EntityValues) != 1 || key.EntityValues[0].GetInt64Val() != entityValues["driver_id"].Val[i].GetInt64Val() {
+				return false
+			}
+		}
+		return true
+	})
+
 	mockStore.On("OnlineReadRange",
 		mock.Anything,
-		mock.AnythingOfType("[]*types.EntityKey"),
+		entityKeysMatcher,
 		featureViewNamesMatcher,
 		[]string{"conv_rate", "acc_rate"},
 		filterMatcher,
@@ -255,45 +267,39 @@ func TestGetOnlineFeaturesRange(t *testing.T) {
 		true,
 	)
 
-	// Sort the result by name, so we can assert by index consistently
-	sort.Slice(result, func(i, j int) bool {
-		return result[i].Name < result[j].Name
-	})
-
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.Equal(t, 3, len(result), "Should have 3 vectors (1 entity + 2 features)")
-	assert.Equal(t, "driver_id", result[0].Name)
-	assert.Equal(t, "driver_stats__acc_rate", result[1].Name)
-	assert.Equal(t, "driver_stats__conv_rate", result[2].Name)
-	assert.Equal(t, 2, result[0].RangeValues.Len())
-	assert.Equal(t, 2, len(result[0].RangeStatuses))
-	assert.Equal(t, 2, len(result[0].RangeTimestamps))
-
-	for i := 0; i < result[0].RangeValues.Len(); i++ {
-		key := result[0].RangeValues.(*array.List).ListValues().(*array.Int64).Value(i)
-		var expectedLength int
-
-		accRateValues, err := types2.ArrowValuesToProtoValues(result[1].RangeValues)
-		assert.NoError(t, err)
-		convRateValues, err := types2.ArrowValuesToProtoValues(result[2].RangeValues)
-		assert.NoError(t, err)
-
-		if key == 1001 {
-			assert.Equal(t, []float64{0.91, 0.92, 0.94}, accRateValues[i].GetDoubleListVal().Val)
-			assert.Equal(t, []float64{0.85, 0.87, 0.89}, convRateValues[i].GetDoubleListVal().Val)
-			expectedLength = 3
-		} else {
-			assert.Equal(t, []float64{0.85, 0.88}, accRateValues[i].GetDoubleListVal().Val)
-			assert.Equal(t, []float64{0.78, 0.80}, convRateValues[i].GetDoubleListVal().Val)
-			expectedLength = 2
+	var driverIdVector, accRateVector, convRateVector *onlineserving.RangeFeatureVector
+	for _, r := range result {
+		switch r.Name {
+		case "driver_id":
+			driverIdVector = r
+		case "driver_stats__acc_rate":
+			accRateVector = r
+		case "driver_stats__conv_rate":
+			convRateVector = r
 		}
-
-		assert.Equal(t, expectedLength, len(result[1].RangeStatuses[i]))
-		assert.Equal(t, expectedLength, len(result[2].RangeStatuses[i]))
-		assert.Equal(t, expectedLength, len(result[1].RangeTimestamps[i]))
-		assert.Equal(t, expectedLength, len(result[2].RangeTimestamps[i]))
 	}
+
+	assert.NotNil(t, driverIdVector)
+	assert.NotNil(t, accRateVector)
+	assert.NotNil(t, convRateVector)
+
+	accRateValues, err := types2.ArrowValuesToProtoValues(accRateVector.RangeValues)
+	assert.NoError(t, err)
+	convRateValues, err := types2.ArrowValuesToProtoValues(convRateVector.RangeValues)
+	assert.NoError(t, err)
+	assert.Equal(t, []float64{0.91, 0.92, 0.94}, accRateValues[0].GetDoubleListVal().Val)
+	assert.Equal(t, []float64{0.85, 0.87, 0.89}, convRateValues[0].GetDoubleListVal().Val)
+	assert.Equal(t, []float64{0.85, 0.88}, accRateValues[1].GetDoubleListVal().Val)
+	assert.Equal(t, []float64{0.78, 0.80}, convRateValues[1].GetDoubleListVal().Val)
+
+	assert.Equal(t, 3, len(accRateVector.RangeStatuses[0]))
+	assert.Equal(t, 3, len(convRateVector.RangeStatuses[0]))
+	assert.Equal(t, 2, len(accRateVector.RangeStatuses[1]))
+	assert.Equal(t, 2, len(convRateVector.RangeStatuses[1]))
+
 	mockStore.AssertExpectations(t)
 }
 

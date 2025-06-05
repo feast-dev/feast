@@ -1151,8 +1151,9 @@ func GroupSortedFeatureRefs(
 }
 
 func getUniqueEntityRows(joinKeysProto []*prototypes.EntityKey) ([]*prototypes.EntityKey, [][]int, error) {
-	uniqueValues := make(map[[sha256.Size]byte]*prototypes.EntityKey, 0)
-	positions := make(map[[sha256.Size]byte][]int, 0)
+	seen := make(map[[sha256.Size]byte]int)
+	uniqueEntityRows := make([]*prototypes.EntityKey, 0)
+	mappingIndices := make([][]int, 0)
 
 	for index, entityKey := range joinKeysProto {
 		serializedRow, err := proto.Marshal(entityKey)
@@ -1161,22 +1162,15 @@ func getUniqueEntityRows(joinKeysProto []*prototypes.EntityKey) ([]*prototypes.E
 		}
 
 		rowHash := sha256.Sum256(serializedRow)
-		if _, ok := uniqueValues[rowHash]; !ok {
-			uniqueValues[rowHash] = entityKey
-			positions[rowHash] = []int{index}
+		if existingIndex, exists := seen[rowHash]; exists {
+			mappingIndices[existingIndex] = append(mappingIndices[existingIndex], index)
 		} else {
-			positions[rowHash] = append(positions[rowHash], index)
+			seen[rowHash] = len(uniqueEntityRows)
+			uniqueEntityRows = append(uniqueEntityRows, entityKey)
+			mappingIndices = append(mappingIndices, []int{index})
 		}
 	}
 
-	mappingIndices := make([][]int, len(uniqueValues))
-	uniqueEntityRows := make([]*prototypes.EntityKey, 0)
-	for rowHash, row := range uniqueValues {
-		nextIdx := len(uniqueEntityRows)
-
-		mappingIndices[nextIdx] = positions[rowHash]
-		uniqueEntityRows = append(uniqueEntityRows, row)
-	}
 	return uniqueEntityRows, mappingIndices, nil
 }
 
