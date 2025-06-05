@@ -347,24 +347,18 @@ maturin==1.8.6 \
     #   pydantic-core
     #   rpds-py
     #   watchfiles
-meson-python==0.13.1 \
-    --hash=sha256:63b3170001425c42fa4cfedadb9051cbd28925ff8eed7c40d36ba0099e3c7618 \
-    --hash=sha256:e33ea3efbadecc15768c205d03b905c7b3bf72afae1e1ebd84b438c4a3ed3393
-    # via pandas
 meson-python==0.15.0 \
     --hash=sha256:3ae38253ff02b2e947a05e362a2eaf5a9a09d133c5666b4123399ee5fbf2e591 \
     --hash=sha256:fddb73eecd49e89c1c41c87937cd89c2d0b65a1c63ba28238681d4bd9484d26f
-    # via numpy
-meson==1.2.1 \
-    --hash=sha256:08f83fc17513e99cd6e82c7554c1f58af70425211887f8f9c7363b2a90209462 \
-    --hash=sha256:b1db3a153087549497ee52b1c938d2134e0338214fe14f7efd16fecd57b639f5
     # via
-    #   meson-python
+    #   numpy
     #   pandas
 meson==1.7.1 \
     --hash=sha256:155780a5be87f6dd7f427ad8bcbf0f2b2c5f62ee5fdacca7caa9de8439a24b89 \
     --hash=sha256:6d9cbc9ce87a70243c75e4cc668ee3f206ab50b184beb0a08ece948112f19bd7
-    # via meson-python
+    # via
+    #   meson-python
+    #   pandas
 mypy-extensions==1.1.0 \
     --hash=sha256:1be4cccdb0f2482337c4743e60421de3a356cd97508abadd57d47403e94f5505 \
     --hash=sha256:52e68efc3284861e772bbcd66823fde5ae21fd2fdb51c62a211403730b916558
@@ -742,9 +736,9 @@ tomli==2.2.1 \
     --hash=sha256:ece47d672db52ac607a3d9599a9d48dcb2f2f735c6c2d1f34130085bb12b112a \
     --hash=sha256:f4039b9cbc3048b2416cc57ab3bda989a6fcf9b36cf8937f01a6e731b64f80d7
     # via fastapi-mcp
-tomlkit==0.13.2 \
-    --hash=sha256:7a974427f6e119197f670fbbbeae7bef749a6c14e793db934baefc1b5f03efde \
-    --hash=sha256:fff5fe59a87295b278abd31bec92c15d9bc4a06885ab12bcea52c71119392e79
+tomlkit==0.13.3 \
+    --hash=sha256:430cf247ee57df2b94ee3fbe588e71d362a941ebb545dec29b53961d61add2a1 \
+    --hash=sha256:c89c649d79ee40629a9fda55f8ace8c6a1b42deb912b2a8fd8d942ddadb606b0
     # via
     #   poetry-dynamic-versioning
     #   uv-dynamic-versioning
@@ -834,7 +828,6 @@ setuptools==76.1.0 \
     #   markupsafe
     #   maturin
     #   meson
-    #   meson-python
     #   mmh3
     #   multidict
     #   mypy
@@ -867,7 +860,6 @@ setuptools==76.1.0 \
     #   tenacity
     #   tqdm
     #   trove-classifiers
-    #   typeguard
     #   tzdata
     #   ujson
     #   uvloop
@@ -881,5 +873,6 @@ setuptools==80.9.0 \
     # via
     #   prometheus-client
     #   python-dateutil
+    #   typeguard
     #   types-pymysql
     #   types-setuptools

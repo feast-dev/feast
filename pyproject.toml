@@ -57,7 +57,7 @@ azure = [
 cassandra = ["cassandra-driver>=3.24.0,<4"]
 clickhouse = ["clickhouse-connect>=0.7.19"]
 couchbase = ["couchbase==4.3.2", "couchbase-columnar==1.0.0"]
-delta = ["deltalake"]
+delta = ["deltalake<1.0.0"]
 docling = ["docling==2.27.0"]
 duckdb = ["ibis-framework[duckdb]>=9.0.0,<=9.5.0"]
 elasticsearch = ["elasticsearch>=8.13.0"]

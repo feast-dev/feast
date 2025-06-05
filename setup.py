@@ -144,7 +144,7 @@ GRPCIO_REQUIRED = [
 
 DUCKDB_REQUIRED = ["ibis-framework[duckdb]>=9.0.0,<10"]
 
-DELTA_REQUIRED = ["deltalake"]
+DELTA_REQUIRED = ["deltalake<1.0.0"]
 
 DOCLING_REQUIRED = ["docling>=2.23.0"]
 
