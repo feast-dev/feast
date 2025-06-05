@@ -230,20 +230,16 @@ func TestGetOnlineFeaturesRange(t *testing.T) {
 	})
 
 	entityKeysMatcher := mock.MatchedBy(func(keys []*types.EntityKey) bool {
-		if len(keys) != 2 {
+		if len(keys) != len(entityValues["driver_id"].Val) {
 			return false
 		}
-		if len(keys[0].JoinKeys) != 1 || keys[0].JoinKeys[0] != "driver_id" {
-			return false
-		}
-		if len(keys[0].EntityValues) != 1 || keys[0].EntityValues[0].GetInt64Val() != 1001 {
-			return false
-		}
-		if len(keys[1].JoinKeys) != 1 || keys[1].JoinKeys[0] != "driver_id" {
-			return false
-		}
-		if len(keys[1].EntityValues) != 1 || keys[1].EntityValues[0].GetInt64Val() != 1002 {
-			return false
+		for i, key := range keys {
+			if len(key.JoinKeys) != 1 || key.JoinKeys[0] != "driver_id" {
+				return false
+			}
+			if len(key.EntityValues) != 1 || key.EntityValues[0].GetInt64Val() != entityValues["driver_id"].Val[i].GetInt64Val() {
+				return false
+			}
 		}
 		return true
 	})
