@@ -37,7 +37,7 @@ REQUIRED = [
     "Jinja2>=2,<4",
     "jsonschema",
     "mmh3",
-    "numpy>=1.22,<2",
+    "numpy>=2.0.0,<3",
     "pandas>=1.4.3,<3",
     "pyarrow<18.1.0",
     "pydantic>=2.0.0",
@@ -86,7 +86,7 @@ SNOWFLAKE_REQUIRED = [
 ]
 
 SPARK_REQUIRED = [
-    "pyspark>=3.0.0,<4",
+    "pyspark>=4.0.0",
 ]
 
 SQLITE_VEC_REQUIRED = [
@@ -167,8 +167,8 @@ GO_REQUIRED = ["cffi>=1.15.0"]
 MILVUS_REQUIRED = ["pymilvus"]
 
 TORCH_REQUIRED = [
-    "torch==2.2.2",
-    "torchvision>=0.17.2",
+    "torch>=2.7.0",
+    "torchvision>=0.22.1",
 ]
 
 CLICKHOUSE_REQUIRED = ["clickhouse-connect>=0.7.19"]
