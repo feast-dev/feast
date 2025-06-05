@@ -132,7 +132,7 @@
     "terser-webpack-plugin": "^5.2.5",
     "typescript": "~5.7.2",
     "webpack": "^5.64.4",
-    "webpack-dev-server": "^4.6.0",
+    "webpack-dev-server": "^5.2.1",
     "webpack-manifest-plugin": "^4.0.2",
     "workbox-webpack-plugin": "^6.4.1"
   },
