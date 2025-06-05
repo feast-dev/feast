@@ -770,14 +770,24 @@ func processFeatureRowData(
 			return nil, nil, nil, fmt.Errorf("error converting value for feature %s: %v", featureData.FeatureName, err)
 		}
 
+		// Explicitly set to nil if status is NOT_FOUND
+		if i < len(featureData.Statuses) &&
+			(featureData.Statuses[i] == serving.FieldStatus_NOT_FOUND ||
+				featureData.Statuses[i] == serving.FieldStatus_NULL_VALUE) {
+			rangeValues[i] = nil
+		} else {
+			rangeValues[i] = protoVal
+		}
+
 		timestamp := getEventTimestamp(featureData.EventTimestamps, i)
 
 		status := serving.FieldStatus_PRESENT
-		if timestamp.GetSeconds() > 0 && checkOutsideTtl(timestamp, timestamppb.Now(), sfv.FeatureView.Ttl) {
+		if i < len(featureData.Statuses) {
+			status = featureData.Statuses[i]
+		} else if timestamp.GetSeconds() > 0 && checkOutsideTtl(timestamp, timestamppb.Now(), sfv.FeatureView.Ttl) {
 			status = serving.FieldStatus_OUTSIDE_MAX_AGE
 		}
 
-		rangeValues[i] = protoVal
 		rangeStatuses[i] = status
 		rangeTimestamps[i] = timestamp
 	}
