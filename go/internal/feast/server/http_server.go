@@ -225,16 +225,24 @@ func processFeatureVectors(vectors []*onlineserving.RangeFeatureVector, status b
 			}
 
 			if len(vector.RangeTimestamps) > 0 {
-				timestampValues := make([][]string, len(vector.RangeTimestamps))
+				timestampValues := make([][]interface{}, len(vector.RangeTimestamps))
 				for j, entityTimestamps := range vector.RangeTimestamps {
-					timestampValues[j] = make([]string, len(entityTimestamps))
+					timestampValues[j] = make([]interface{}, len(entityTimestamps))
 					for k, ts := range entityTimestamps {
+						if j < len(vector.RangeStatuses) && k < len(vector.RangeStatuses[j]) {
+							statusCode := vector.RangeStatuses[j][k]
+							if statusCode == serving.FieldStatus_NOT_FOUND ||
+								statusCode == serving.FieldStatus_NULL_VALUE {
+								timestampValues[j][k] = nil
+								continue
+							}
+						}
 						timestampValues[j][k] = ts.AsTime().Format(time.RFC3339)
 					}
 				}
 				result["event_timestamps"] = timestampValues
 			} else {
-				result["event_timestamps"] = [][]string{}
+				result["event_timestamps"] = [][]interface{}{}
 			}
 		}
 
