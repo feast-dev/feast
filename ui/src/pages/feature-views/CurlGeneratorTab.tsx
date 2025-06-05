@@ -13,7 +13,7 @@ import {
   EuiCopy,
   EuiCheckbox,
 } from "@elastic/eui";
-import { CodeBlock } from "react-code-blocks";
+import { CodeBlock, github } from "react-code-blocks";
 import { RegularFeatureViewCustomTabProps } from "../../custom-tabs/types";
 
 const CurlGeneratorTab = ({
@@ -254,7 +254,7 @@ const CurlGeneratorTab = ({
           text={curlCommand}
           language="bash"
           showLineNumbers={false}
-          theme="github"
+          theme={github}
         />
 
         <EuiSpacer size="m" />
