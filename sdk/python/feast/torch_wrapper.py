@@ -33,7 +33,7 @@ def get_torch():
             "Original error:\n"
             f"{_torch_import_error}\n\n"
             "If you are on a CPU-only system, make sure you install the CPU-only torch wheel:\n"
-            "  pip install torch==2.2.2+cpu torchvision==0.17.2+cpu -f https://download.pytorch.org/whl/torch_stable.html\n"
+            "  pip install torch torchvision -f https://download.pytorch.org/whl/cpu\n"
             "Or check your CUDA installation if using GPU torch.\n"
         )
         raise ImportError(error_message) from _torch_import_error
