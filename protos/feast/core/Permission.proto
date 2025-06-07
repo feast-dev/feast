@@ -46,6 +46,7 @@ message PermissionSpec {
     SAVED_DATASET = 8;
     PERMISSION = 9;
     PROJECT = 10;
+    MODEL_METADATA = 11;
   }
 
   repeated Type types = 3;
