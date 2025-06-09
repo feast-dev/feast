@@ -21,6 +21,6 @@ def test_is_valid_name():
     ]
 
     for name, expected in test_cases:
-        assert is_valid_name(name) == expected, (
-            f"Failed for project invalid name: {name}"
-        )
+        assert (
+            is_valid_name(name) == expected
+        ), f"Failed for project invalid name: {name}"
