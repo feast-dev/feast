@@ -95,7 +95,7 @@ def remote_feature_store(offline_server):
             registry=registry_path,
             provider="local",
             offline_store=offline_config,
-            entity_key_serialization_version=2,
+            entity_key_serialization_version=3,
             # repo_config =
         )
     )

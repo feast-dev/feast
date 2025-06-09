@@ -19,7 +19,7 @@ def test_ibis_pandas_parity():
                 project="test_on_demand_substrait_transformation",
                 registry=os.path.join(data_dir, "registry.db"),
                 provider="local",
-                entity_key_serialization_version=2,
+                entity_key_serialization_version=3,
                 online_store=SqliteOnlineStoreConfig(
                     path=os.path.join(data_dir, "online.db")
                 ),

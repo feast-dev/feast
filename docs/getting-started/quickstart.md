@@ -113,7 +113,7 @@ provider: local
 online_store:
   type: sqlite
   path: data/online_store.db
-entity_key_serialization_version: 2
+entity_key_serialization_version: 3
 ```
 {% endtab %}
 
