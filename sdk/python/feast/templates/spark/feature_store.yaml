@@ -12,4 +12,4 @@ offline_store:
         spark.sql.session.timeZone: "UTC"
 online_store:
     path: data/online_store.db
-entity_key_serialization_version: 2
+entity_key_serialization_version: 3

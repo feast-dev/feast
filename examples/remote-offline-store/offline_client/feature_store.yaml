@@ -7,4 +7,4 @@ offline_store:
     type: remote
     host: localhost
     port: 8815
-entity_key_serialization_version: 2
+entity_key_serialization_version: 3

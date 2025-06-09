@@ -77,7 +77,7 @@ public class TestUtils {
 
     feastProperties.setActiveStore("online");
     feastProperties.setProject("feast_project");
-    feastProperties.setEntityKeySerializationVersion(2);
+    feastProperties.setEntityKeySerializationVersion(3);
     feastProperties.setStores(
         ImmutableList.of(
             new ApplicationProperties.Store(
