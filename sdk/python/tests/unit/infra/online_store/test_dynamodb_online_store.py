@@ -12,6 +12,7 @@ from feast.infra.online_stores.dynamodb import (
     DynamoDBOnlineStore,
     DynamoDBOnlineStoreConfig,
     DynamoDBTable,
+    _DynamoTableManager,
     _latest_data_to_write,
 )
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
@@ -251,14 +252,15 @@ def test_dynamodb_online_store_update(repo_config, dynamodb_online_store):
     assert len(existing_tables) == 1
     assert existing_tables[0] == f"test_aws.{db_table_keep_name}"
 
-    assert _get_tags(dynamodb_client, existing_tables[0]) == [
-        {"Key": "some", "Value": "tag"}
-    ]
+    # default behavior: no dynamo table tags
+    assert _get_tags(dynamodb_client, existing_tables[0]) == []
 
 
 @mock_dynamodb
 def test_dynamodb_online_store_update_tags(repo_config, dynamodb_online_store):
     """Test DynamoDBOnlineStore update method."""
+    repo_config.online_config.tag_aws_resources = True
+
     # create dummy table to update with new tags and tag values
     table_name = f"{TABLE_NAME}_keep_update_tags"
     create_test_table(PROJECT, table_name, REGION)
@@ -335,12 +337,14 @@ def test_dynamodb_online_store_update_tags(repo_config, dynamodb_online_store):
     ],
 )
 def test_dynamodb_online_store_tag_priority(
-    global_tags, table_tags, expected, dynamodb_online_store
+    repo_config, global_tags, table_tags, expected
 ):
-    actual = dynamodb_online_store._table_tags(
-        MockOnlineConfig(tags=global_tags),
+    repo_config.online_config = MockOnlineConfig(tags=global_tags)
+    actual = _DynamoTableManager(
+        None,
+        repo_config,
         MockFeatureView(name="table", tags=table_tags),
-    )
+    ).table_tags()
     assert actual == expected
 
 
