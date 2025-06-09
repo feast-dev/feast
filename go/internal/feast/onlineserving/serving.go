@@ -131,8 +131,10 @@ func GetFeatureViewsToUseByService(
 				return nil, nil, nil, err
 			}
 			if _, ok := viewNameToViewAndRefs[featureProjection.NameToUse()]; !ok {
+				view := fv.NewFeatureViewFromBase(base)
+				view.EntityColumns = fv.EntityColumns
 				viewNameToViewAndRefs[featureProjection.NameToUse()] = &FeatureViewAndRefs{
-					View:        fv.NewFeatureViewFromBase(base),
+					View:        view,
 					FeatureRefs: []string{},
 				}
 			}
@@ -149,8 +151,10 @@ func GetFeatureViewsToUseByService(
 				return nil, nil, nil, err
 			}
 			if _, ok := viewNameToSortedViewAndRefs[featureProjection.NameToUse()]; !ok {
+				view := sortedFv.NewSortedFeatureViewFromBase(base)
+				view.EntityColumns = sortedFv.EntityColumns
 				viewNameToSortedViewAndRefs[featureProjection.NameToUse()] = &SortedFeatureViewAndRefs{
-					View:        sortedFv.NewSortedFeatureViewFromBase(base),
+					View:        view,
 					FeatureRefs: []string{},
 				}
 			}
@@ -552,19 +556,13 @@ func isValueTypeCompatible(value *prototypes.Value, expectedType prototypes.Valu
 
 	switch value.Val.(type) {
 	case *prototypes.Value_Int32Val:
-		return expectedType == prototypes.ValueType_INT32 ||
-			expectedType == prototypes.ValueType_INT64 ||
-			expectedType == prototypes.ValueType_UNIX_TIMESTAMP
+		return expectedType == prototypes.ValueType_INT32
 	case *prototypes.Value_Int64Val:
-		return expectedType == prototypes.ValueType_INT64 ||
-			expectedType == prototypes.ValueType_INT32 ||
-			expectedType == prototypes.ValueType_UNIX_TIMESTAMP
+		return expectedType == prototypes.ValueType_INT64
 	case *prototypes.Value_FloatVal:
-		return expectedType == prototypes.ValueType_FLOAT ||
-			expectedType == prototypes.ValueType_DOUBLE
+		return expectedType == prototypes.ValueType_FLOAT
 	case *prototypes.Value_DoubleVal:
-		return expectedType == prototypes.ValueType_DOUBLE ||
-			expectedType == prototypes.ValueType_FLOAT
+		return expectedType == prototypes.ValueType_DOUBLE
 	case *prototypes.Value_UnixTimestampVal:
 		return expectedType == prototypes.ValueType_UNIX_TIMESTAMP
 	case *prototypes.Value_StringVal:

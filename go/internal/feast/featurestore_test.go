@@ -406,3 +406,120 @@ func testGetOnlineFeaturesRange(
 
 	return result, nil
 }
+
+func assertValueTypes(t *testing.T, actualValues []*types.Value, expectedType string) {
+	for _, value := range actualValues {
+		assert.Equal(t, expectedType, fmt.Sprintf("%T", value.GetVal()), expectedType)
+	}
+}
+
+func TestEntityTypeConversion_WithValidValues(t *testing.T) {
+	entityMap := map[string]*types.RepeatedValue{
+		"int32":         {Val: []*types.Value{{Val: &types.Value_Int32Val{Int32Val: 1002}}, {Val: &types.Value_Int32Val{Int32Val: 2003}}}},
+		"int64>int32":   {Val: []*types.Value{{Val: &types.Value_Int64Val{Int64Val: 1001}}, {Val: &types.Value_Int64Val{Int64Val: 2002}}}},
+		"float":         {Val: []*types.Value{{Val: &types.Value_FloatVal{FloatVal: 1.23}}, {Val: &types.Value_FloatVal{FloatVal: 4.56}}}},
+		"float64>float": {Val: []*types.Value{{Val: &types.Value_DoubleVal{DoubleVal: 10.32}}, {Val: &types.Value_DoubleVal{DoubleVal: 20.64}}}},
+		"bytes":         {Val: []*types.Value{{Val: &types.Value_BytesVal{BytesVal: []byte("test")}}, {Val: &types.Value_BytesVal{BytesVal: []byte("data")}}}},
+		"string>bytes":  {Val: []*types.Value{{Val: &types.Value_StringVal{StringVal: "test"}}, {Val: &types.Value_StringVal{StringVal: "data"}}}},
+	}
+	entityColumns := map[string]*model.Field{
+		"int32":         {Name: "int32", Dtype: types.ValueType_INT32},
+		"int64>int32":   {Name: "int64>int32", Dtype: types.ValueType_INT32},
+		"float":         {Name: "float", Dtype: types.ValueType_FLOAT},
+		"float64>float": {Name: "float64>float", Dtype: types.ValueType_FLOAT},
+		"bytes":         {Name: "bytes", Dtype: types.ValueType_BYTES},
+		"string>bytes":  {Name: "string>bytes", Dtype: types.ValueType_BYTES},
+	}
+
+	err := entityTypeConversion(entityMap, entityColumns)
+	assert.NoError(t, err)
+	assertValueTypes(t, entityMap["int32"].Val, "*types.Value_Int32Val")
+	assertValueTypes(t, entityMap["int64>int32"].Val, "*types.Value_Int32Val")
+	assertValueTypes(t, entityMap["float"].Val, "*types.Value_FloatVal")
+	assertValueTypes(t, entityMap["float64>float"].Val, "*types.Value_FloatVal")
+	assertValueTypes(t, entityMap["bytes"].Val, "*types.Value_BytesVal")
+	assertValueTypes(t, entityMap["string>bytes"].Val, "*types.Value_BytesVal")
+}
+
+func TestEntityTypeConversion_WithInvalidValues(t *testing.T) {
+	entityMaps := []map[string]*types.RepeatedValue{
+		{"int32": {Val: []*types.Value{{Val: &types.Value_StringVal{StringVal: "invalid"}}}}},
+		{"float": {Val: []*types.Value{{Val: &types.Value_Int64Val{Int64Val: 1001}}}}},
+		{"bytes": {Val: []*types.Value{{Val: &types.Value_Int64Val{Int64Val: 1001}}}}},
+	}
+	entityColumns := []map[string]*model.Field{
+		{"int32": {Name: "int32", Dtype: types.ValueType_INT32}},
+		{"float": {Name: "float", Dtype: types.ValueType_FLOAT}},
+		{"bytes": {Name: "bytes", Dtype: types.ValueType_BYTES}},
+	}
+	expectedErrors := []string{
+		"error converting entity value for int32: unsupported value type for conversion: INT32 for actual value type: *types.Value_StringVal",
+		"error converting entity value for float: unsupported value type for conversion: FLOAT for actual value type: *types.Value_Int64Val",
+		"error converting entity value for bytes: unsupported value type for conversion: BYTES for actual value type: *types.Value_Int64Val",
+	}
+
+	for i, entityMap := range entityMaps {
+		err := entityTypeConversion(entityMap, entityColumns[i])
+		assert.Error(t, err)
+		assert.Equal(t, expectedErrors[i], err.Error())
+	}
+}
+
+func TestSortKeyFilterTypeConversion_WithValidValues(t *testing.T) {
+	sortKeyFilters := []*serving.SortKeyFilter{
+		{SortKeyName: "int32_equals", Query: &serving.SortKeyFilter_Equals{Equals: &types.Value{Val: &types.Value_Int64Val{Int64Val: 1001}}}},
+		{SortKeyName: "int32_range", Query: &serving.SortKeyFilter_Range{Range: &serving.SortKeyFilter_RangeQuery{
+			RangeStart: &types.Value{Val: &types.Value_Int64Val{Int64Val: 1000}},
+			RangeEnd:   &types.Value{Val: &types.Value_Int64Val{Int64Val: 2000}},
+		}}},
+		{SortKeyName: "float32_equals", Query: &serving.SortKeyFilter_Equals{Equals: &types.Value{Val: &types.Value_DoubleVal{DoubleVal: 10.32}}}},
+		{SortKeyName: "float32_range", Query: &serving.SortKeyFilter_Range{Range: &serving.SortKeyFilter_RangeQuery{
+			RangeStart: &types.Value{Val: &types.Value_DoubleVal{DoubleVal: 10.32}},
+			RangeEnd:   &types.Value{Val: &types.Value_DoubleVal{DoubleVal: 20.64}},
+		}}},
+		{SortKeyName: "bytes_equals", Query: &serving.SortKeyFilter_Equals{Equals: &types.Value{Val: &types.Value_StringVal{StringVal: "test"}}}},
+		{SortKeyName: "bytes_range", Query: &serving.SortKeyFilter_Range{Range: &serving.SortKeyFilter_RangeQuery{
+			RangeEnd: &types.Value{Val: &types.Value_StringVal{StringVal: "test"}},
+		}}},
+		{SortKeyName: "timestamp_equals", Query: &serving.SortKeyFilter_Equals{Equals: &types.Value{Val: &types.Value_Int64Val{Int64Val: time.Now().Unix()}}}},
+		{SortKeyName: "timestamp_range", Query: &serving.SortKeyFilter_Range{Range: &serving.SortKeyFilter_RangeQuery{
+			RangeStart: &types.Value{Val: &types.Value_Int64Val{Int64Val: time.Now().Unix()}},
+		}}},
+	}
+	sortKeys := map[string]*model.SortKey{
+		"int32_equals":     {FieldName: "int32_equals", ValueType: types.ValueType_INT32},
+		"int32_range":      {FieldName: "int32_range", ValueType: types.ValueType_INT32},
+		"float32_equals":   {FieldName: "float32_equals", ValueType: types.ValueType_FLOAT},
+		"float32_range":    {FieldName: "float32_range", ValueType: types.ValueType_FLOAT},
+		"bytes_equals":     {FieldName: "bytes_equals", ValueType: types.ValueType_BYTES},
+		"bytes_range":      {FieldName: "bytes_range", ValueType: types.ValueType_BYTES},
+		"timestamp_equals": {FieldName: "timestamp_equals", ValueType: types.ValueType_UNIX_TIMESTAMP},
+		"timestamp_range":  {FieldName: "timestamp_range", ValueType: types.ValueType_UNIX_TIMESTAMP},
+	}
+	filters, err := sortKeyFilterTypeConversion(sortKeyFilters, sortKeys)
+	assert.NoError(t, err)
+	int32values := []*types.Value{
+		filters[0].GetEquals(),
+		filters[1].GetRange().GetRangeStart(),
+		filters[1].GetRange().GetRangeEnd(),
+	}
+	assertValueTypes(t, int32values, "*types.Value_Int32Val")
+	floatValues := []*types.Value{
+		filters[2].GetEquals(),
+		filters[3].GetRange().GetRangeStart(),
+		filters[3].GetRange().GetRangeEnd(),
+	}
+	assertValueTypes(t, floatValues, "*types.Value_FloatVal")
+	bytesValues := []*types.Value{
+		filters[4].GetEquals(),
+		filters[5].GetRange().GetRangeEnd(),
+	}
+	assertValueTypes(t, bytesValues, "*types.Value_BytesVal")
+	assert.Nil(t, filters[5].GetRange().GetRangeStart())
+	timestampValues := []*types.Value{
+		filters[6].GetEquals(),
+		filters[7].GetRange().GetRangeStart(),
+	}
+	assertValueTypes(t, timestampValues, "*types.Value_UnixTimestampVal")
+	assert.Nil(t, filters[7].GetRange().GetRangeEnd())
+}

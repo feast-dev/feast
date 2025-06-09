@@ -1,6 +1,7 @@
 package types
 
 import (
+	"fmt"
 	"math"
 	"testing"
 	"time"
@@ -420,5 +421,355 @@ func TestValueTypeToGoType(t *testing.T) {
 	for i, testCase := range testCases {
 		actual := ValueTypeToGoType(testCase)
 		assert.Equal(t, expectedTypes[i], actual)
+	}
+}
+
+func TestConvertToValueType_String(t *testing.T) {
+	testCases := []struct {
+		input    *types.Value
+		expected interface{}
+	}{
+		{input: &types.Value{Val: &types.Value_StringVal{StringVal: "test"}}, expected: "test"},
+		{input: &types.Value{Val: &types.Value_StringVal{StringVal: ""}}, expected: ""},
+	}
+
+	for _, tc := range testCases {
+		result, err := ConvertToValueType(tc.input, types.ValueType_STRING)
+		assert.NoErrorf(t, err, "Error converting value: %v", tc.input)
+		assert.Equal(t, tc.expected, result.GetStringVal())
+	}
+}
+
+func TestConvertToValueType_Bytes(t *testing.T) {
+	testCases := []struct {
+		input    *types.Value
+		expected interface{}
+	}{
+		{input: &types.Value{Val: &types.Value_BytesVal{BytesVal: []byte{1, 2, 3}}}, expected: []byte{1, 2, 3}},
+		{input: &types.Value{Val: &types.Value_BytesVal{BytesVal: nil}}, expected: []byte(nil)},
+		{input: &types.Value{Val: &types.Value_StringVal{StringVal: "test"}}, expected: []byte("test")},
+	}
+
+	for _, tc := range testCases {
+		result, err := ConvertToValueType(tc.input, types.ValueType_BYTES)
+		assert.NoErrorf(t, err, "Error converting value: %v", tc.input)
+		assert.Equal(t, tc.expected, result.GetBytesVal())
+	}
+}
+
+func TestConvertToValueType_Int32(t *testing.T) {
+	testCases := []struct {
+		input    *types.Value
+		expected interface{}
+	}{
+		{input: &types.Value{Val: &types.Value_Int32Val{Int32Val: 10}}, expected: int32(10)},
+		{input: &types.Value{Val: &types.Value_Int32Val{Int32Val: 0}}, expected: int32(0)},
+		{input: &types.Value{Val: &types.Value_Int64Val{Int64Val: 20}}, expected: int32(20)},
+	}
+
+	for _, tc := range testCases {
+		result, err := ConvertToValueType(tc.input, types.ValueType_INT32)
+		assert.NoErrorf(t, err, "Error converting value: %v", tc.input)
+		assert.Equal(t, tc.expected, result.GetInt32Val())
+	}
+}
+
+func TestConvertToValueType_Int64(t *testing.T) {
+	testCases := []struct {
+		input    *types.Value
+		expected interface{}
+	}{
+		{input: &types.Value{Val: &types.Value_Int64Val{Int64Val: 10}}, expected: int64(10)},
+		{input: &types.Value{Val: &types.Value_Int64Val{Int64Val: 0}}, expected: int64(0)},
+	}
+
+	for _, tc := range testCases {
+		result, err := ConvertToValueType(tc.input, types.ValueType_INT64)
+		assert.NoErrorf(t, err, "Error converting value: %v", tc.input)
+		assert.Equal(t, tc.expected, result.GetInt64Val())
+	}
+}
+
+func TestConvertToValueType_Float(t *testing.T) {
+	testCases := []struct {
+		input    *types.Value
+		expected interface{}
+	}{
+		{input: &types.Value{Val: &types.Value_FloatVal{FloatVal: 10.0}}, expected: float32(10.0)},
+		{input: &types.Value{Val: &types.Value_FloatVal{FloatVal: 0.0}}, expected: float32(0.0)},
+		{input: &types.Value{Val: &types.Value_DoubleVal{DoubleVal: 20.0}}, expected: float32(20.0)},
+	}
+
+	for _, tc := range testCases {
+		result, err := ConvertToValueType(tc.input, types.ValueType_FLOAT)
+		assert.NoErrorf(t, err, "Error converting value: %v", tc.input)
+		assert.Equal(t, tc.expected, result.GetFloatVal())
+	}
+}
+
+func TestConvertToValueType_Double(t *testing.T) {
+	testCases := []struct {
+		input    *types.Value
+		expected interface{}
+	}{
+		{input: &types.Value{Val: &types.Value_DoubleVal{DoubleVal: 10.0}}, expected: float64(10.0)},
+		{input: &types.Value{Val: &types.Value_DoubleVal{DoubleVal: 0.0}}, expected: float64(0.0)},
+	}
+
+	for _, tc := range testCases {
+		result, err := ConvertToValueType(tc.input, types.ValueType_DOUBLE)
+		assert.NoErrorf(t, err, "Error converting value: %v", tc.input)
+		assert.Equal(t, tc.expected, result.GetDoubleVal())
+	}
+}
+
+func TestConvertToValueType_Bool(t *testing.T) {
+	testCases := []struct {
+		input    *types.Value
+		expected interface{}
+	}{
+		{input: &types.Value{Val: &types.Value_BoolVal{BoolVal: true}}, expected: true},
+		{input: &types.Value{Val: &types.Value_BoolVal{BoolVal: false}}, expected: false},
+	}
+
+	for _, tc := range testCases {
+		result, err := ConvertToValueType(tc.input, types.ValueType_BOOL)
+		assert.NoErrorf(t, err, "Error converting value: %v", tc.input)
+		assert.Equal(t, tc.expected, result.GetBoolVal())
+	}
+}
+
+func TestConvertToValueType_Timestamp(t *testing.T) {
+	testCases := []struct {
+		input    *types.Value
+		expected interface{}
+	}{
+		{input: &types.Value{Val: &types.Value_UnixTimestampVal{UnixTimestampVal: time.Now().Unix()}}, expected: time.Now().Unix()},
+		{input: &types.Value{Val: &types.Value_Int64Val{Int64Val: time.Now().Unix()}}, expected: time.Now().Unix()},
+	}
+
+	for _, tc := range testCases {
+		result, err := ConvertToValueType(tc.input, types.ValueType_UNIX_TIMESTAMP)
+		assert.NoErrorf(t, err, "Error converting value: %v", tc.input)
+		assert.Equal(t, tc.expected, result.GetUnixTimestampVal())
+	}
+}
+
+func TestConvertToValueType_StringList(t *testing.T) {
+	testCases := []struct {
+		input    *types.Value
+		expected []string
+	}{
+		{input: &types.Value{Val: &types.Value_StringListVal{StringListVal: &types.StringList{Val: []string{"a", "b", "c"}}}}, expected: []string{"a", "b", "c"}},
+		{input: &types.Value{Val: &types.Value_StringListVal{StringListVal: &types.StringList{Val: []string{}}}}, expected: []string{}},
+	}
+
+	for _, tc := range testCases {
+		result, err := ConvertToValueType(tc.input, types.ValueType_STRING_LIST)
+		assert.NoErrorf(t, err, "Error converting value: %v", tc.input)
+		assert.IsType(t, &types.Value_StringListVal{}, result.GetVal())
+		assert.ElementsMatch(t, tc.expected, result.GetStringListVal().GetVal())
+	}
+}
+
+func TestConvertToValueType_BytesList(t *testing.T) {
+	testCases := []struct {
+		input    *types.Value
+		expected [][]byte
+	}{
+		{input: &types.Value{Val: &types.Value_BytesListVal{BytesListVal: &types.BytesList{Val: [][]byte{{1, 2}, {3, 4}}}}}, expected: [][]byte{{1, 2}, {3, 4}}},
+		{input: &types.Value{Val: &types.Value_BytesListVal{BytesListVal: &types.BytesList{Val: [][]byte{}}}}, expected: [][]byte{}},
+		{input: &types.Value{Val: &types.Value_StringListVal{StringListVal: &types.StringList{Val: []string{"a", "b", "c"}}}}, expected: [][]byte{[]byte("a"), []byte("b"), []byte("c")}},
+		{input: &types.Value{Val: &types.Value_StringListVal{StringListVal: &types.StringList{Val: []string{}}}}, expected: [][]byte{}},
+	}
+
+	for _, tc := range testCases {
+		result, err := ConvertToValueType(tc.input, types.ValueType_BYTES_LIST)
+		assert.NoErrorf(t, err, "Error converting value: %v", tc.input)
+		assert.IsType(t, &types.Value_BytesListVal{}, result.GetVal())
+		assert.ElementsMatch(t, tc.expected, result.GetBytesListVal().GetVal())
+	}
+}
+
+func TestConvertToValueType_Int32List(t *testing.T) {
+	testCases := []struct {
+		input    *types.Value
+		expected []int32
+	}{
+		{input: &types.Value{Val: &types.Value_Int32ListVal{Int32ListVal: &types.Int32List{Val: []int32{1, 2, 3}}}}, expected: []int32{1, 2, 3}},
+		{input: &types.Value{Val: &types.Value_Int32ListVal{Int32ListVal: &types.Int32List{Val: []int32{}}}}, expected: []int32{}},
+		{input: &types.Value{Val: &types.Value_Int64ListVal{Int64ListVal: &types.Int64List{Val: []int64{1, 2, 3}}}}, expected: []int32{1, 2, 3}},
+		{input: &types.Value{Val: &types.Value_Int64ListVal{Int64ListVal: &types.Int64List{Val: []int64{}}}}, expected: []int32{}},
+	}
+
+	for _, tc := range testCases {
+		result, err := ConvertToValueType(tc.input, types.ValueType_INT32_LIST)
+		assert.NoErrorf(t, err, "Error converting value: %v", tc.input)
+		assert.IsType(t, &types.Value_Int32ListVal{}, result.GetVal())
+		assert.ElementsMatch(t, tc.expected, result.GetInt32ListVal().GetVal())
+	}
+}
+
+func TestConvertToValueType_Int64List(t *testing.T) {
+	testCases := []struct {
+		input    *types.Value
+		expected []int64
+	}{
+		{input: &types.Value{Val: &types.Value_Int64ListVal{Int64ListVal: &types.Int64List{Val: []int64{1, 2, 3}}}}, expected: []int64{1, 2, 3}},
+		{input: &types.Value{Val: &types.Value_Int64ListVal{Int64ListVal: &types.Int64List{Val: []int64{}}}}, expected: []int64{}},
+	}
+
+	for _, tc := range testCases {
+		result, err := ConvertToValueType(tc.input, types.ValueType_INT64_LIST)
+		assert.NoErrorf(t, err, "Error converting value: %v", tc.input)
+		assert.IsType(t, &types.Value_Int64ListVal{}, result.GetVal())
+		assert.ElementsMatch(t, tc.expected, result.GetInt64ListVal().GetVal())
+	}
+}
+
+func TestConvertToValueType_FloatList(t *testing.T) {
+	testCases := []struct {
+		input    *types.Value
+		expected []float32
+	}{
+		{input: &types.Value{Val: &types.Value_FloatListVal{FloatListVal: &types.FloatList{Val: []float32{1.1, 2.2, 3.3}}}}, expected: []float32{1.1, 2.2, 3.3}},
+		{input: &types.Value{Val: &types.Value_FloatListVal{FloatListVal: &types.FloatList{Val: []float32{}}}}, expected: []float32{}},
+		{input: &types.Value{Val: &types.Value_DoubleListVal{DoubleListVal: &types.DoubleList{Val: []float64{1.1, 2.2, 3.3}}}}, expected: []float32{1.1, 2.2, 3.3}},
+		{input: &types.Value{Val: &types.Value_DoubleListVal{DoubleListVal: &types.DoubleList{Val: []float64{}}}}, expected: []float32{}},
+	}
+
+	for _, tc := range testCases {
+		result, err := ConvertToValueType(tc.input, types.ValueType_FLOAT_LIST)
+		assert.NoErrorf(t, err, "Error converting value: %v", tc.input)
+		assert.IsType(t, &types.Value_FloatListVal{}, result.GetVal())
+		assert.ElementsMatch(t, tc.expected, result.GetFloatListVal().GetVal())
+	}
+}
+
+func TestConvertToValueType_DoubleList(t *testing.T) {
+	testCases := []struct {
+		input    *types.Value
+		expected []float64
+	}{
+		{input: &types.Value{Val: &types.Value_DoubleListVal{DoubleListVal: &types.DoubleList{Val: []float64{1.1, 2.2, 3.3}}}}, expected: []float64{1.1, 2.2, 3.3}},
+		{input: &types.Value{Val: &types.Value_DoubleListVal{DoubleListVal: &types.DoubleList{Val: []float64{}}}}, expected: []float64{}},
+	}
+
+	for _, tc := range testCases {
+		result, err := ConvertToValueType(tc.input, types.ValueType_DOUBLE_LIST)
+		assert.NoErrorf(t, err, "Error converting value: %v", tc.input)
+		assert.IsType(t, &types.Value_DoubleListVal{}, result.GetVal())
+		assert.ElementsMatch(t, tc.expected, result.GetDoubleListVal().GetVal())
+	}
+}
+
+func TestConvertToValueType_UnixTimestampList(t *testing.T) {
+	testCases := []struct {
+		input    *types.Value
+		expected []int64
+	}{
+		{input: &types.Value{Val: &types.Value_UnixTimestampListVal{UnixTimestampListVal: &types.Int64List{Val: []int64{1622547800, 1622547900}}}}, expected: []int64{1622547800, 1622547900}},
+		{input: &types.Value{Val: &types.Value_UnixTimestampListVal{UnixTimestampListVal: &types.Int64List{Val: []int64{}}}}, expected: []int64{}},
+	}
+
+	for _, tc := range testCases {
+		result, err := ConvertToValueType(tc.input, types.ValueType_UNIX_TIMESTAMP_LIST)
+		assert.NoErrorf(t, err, "Error converting value: %v", tc.input)
+		assert.IsType(t, &types.Value_UnixTimestampListVal{}, result.GetVal())
+		assert.ElementsMatch(t, tc.expected, result.GetUnixTimestampListVal().GetVal())
+	}
+}
+
+func TestConvertToValueType_BoolList(t *testing.T) {
+	testCases := []struct {
+		input    *types.Value
+		expected []bool
+	}{
+		{input: &types.Value{Val: &types.Value_BoolListVal{BoolListVal: &types.BoolList{Val: []bool{true, false}}}}, expected: []bool{true, false}},
+		{input: &types.Value{Val: &types.Value_BoolListVal{BoolListVal: &types.BoolList{Val: []bool{}}}}, expected: []bool{}},
+	}
+
+	for _, tc := range testCases {
+		result, err := ConvertToValueType(tc.input, types.ValueType_BOOL_LIST)
+		assert.NoErrorf(t, err, "Error converting value: %v", tc.input)
+		assert.IsType(t, &types.Value_BoolListVal{}, result.GetVal())
+		assert.ElementsMatch(t, tc.expected, result.GetBoolListVal().GetVal())
+	}
+}
+
+func TestConvertToValueType_ValidNulls(t *testing.T) {
+	testCases := []*types.Value{{Val: &types.Value_NullVal{NullVal: types.Null_NULL}}, {}, nil}
+
+	for _, tc := range testCases {
+		result, err := ConvertToValueType(tc, types.ValueType_NULL)
+		assert.NoErrorf(t, err, "Expected no error converting value: %v", tc)
+		assert.Nil(t, result, "Expected nil result for value: %v", tc)
+	}
+}
+
+func TestConvertToValueType_InvalidNulls(t *testing.T) {
+	testCases := []*types.Value{{Val: &types.Value_NullVal{NullVal: types.Null_NULL}}, {}, nil}
+
+	for _, tc := range testCases {
+		_, err := ConvertToValueType(tc, types.ValueType_STRING)
+		assert.Error(t, err, "Expected error converting value: %v", tc)
+		assert.Equal(t, "value is nil, cannot convert to type STRING", err.Error())
+	}
+}
+
+func TestConvertToValueType_InvalidType(t *testing.T) {
+	errorStr := "unsupported value type for conversion: %s for actual value type: %s"
+	testCases := []struct {
+		input     *types.Value
+		valueType types.ValueType_Enum
+		expected  string
+	}{
+		{input: &types.Value{Val: &types.Value_Int64Val{Int64Val: 10}}, valueType: types.ValueType_STRING, expected: fmt.Sprintf(errorStr, "STRING", "*types.Value_Int64Val")},
+		{input: &types.Value{Val: &types.Value_Int64Val{Int64Val: 10}}, valueType: types.ValueType_BYTES, expected: fmt.Sprintf(errorStr, "BYTES", "*types.Value_Int64Val")},
+		{input: &types.Value{Val: &types.Value_StringVal{StringVal: "test"}}, valueType: types.ValueType_INT32, expected: fmt.Sprintf(errorStr, "INT32", "*types.Value_StringVal")},
+		{input: &types.Value{Val: &types.Value_StringVal{StringVal: "test"}}, valueType: types.ValueType_INT64, expected: fmt.Sprintf(errorStr, "INT64", "*types.Value_StringVal")},
+		{input: &types.Value{Val: &types.Value_Int64Val{Int64Val: 10}}, valueType: types.ValueType_FLOAT, expected: fmt.Sprintf(errorStr, "FLOAT", "*types.Value_Int64Val")},
+		{input: &types.Value{Val: &types.Value_Int64Val{Int64Val: 10}}, valueType: types.ValueType_DOUBLE, expected: fmt.Sprintf(errorStr, "DOUBLE", "*types.Value_Int64Val")},
+		{input: &types.Value{Val: &types.Value_StringVal{StringVal: "test"}}, valueType: types.ValueType_UNIX_TIMESTAMP, expected: fmt.Sprintf(errorStr, "UNIX_TIMESTAMP", "*types.Value_StringVal")},
+		{input: &types.Value{Val: &types.Value_StringVal{StringVal: "test"}}, valueType: types.ValueType_BOOL, expected: fmt.Sprintf(errorStr, "BOOL", "*types.Value_StringVal")},
+		{input: &types.Value{Val: &types.Value_Int64ListVal{Int64ListVal: &types.Int64List{Val: []int64{10}}}}, valueType: types.ValueType_STRING_LIST, expected: fmt.Sprintf(errorStr, "STRING_LIST", "*types.Value_Int64ListVal")},
+		{input: &types.Value{Val: &types.Value_Int64ListVal{Int64ListVal: &types.Int64List{Val: []int64{10}}}}, valueType: types.ValueType_BYTES_LIST, expected: fmt.Sprintf(errorStr, "BYTES_LIST", "*types.Value_Int64ListVal")},
+		{input: &types.Value{Val: &types.Value_StringListVal{StringListVal: &types.StringList{Val: []string{"test"}}}}, valueType: types.ValueType_INT32_LIST, expected: fmt.Sprintf(errorStr, "INT32_LIST", "*types.Value_StringListVal")},
+		{input: &types.Value{Val: &types.Value_StringListVal{StringListVal: &types.StringList{Val: []string{"test"}}}}, valueType: types.ValueType_INT64_LIST, expected: fmt.Sprintf(errorStr, "INT64_LIST", "*types.Value_StringListVal")},
+		{input: &types.Value{Val: &types.Value_Int64ListVal{Int64ListVal: &types.Int64List{Val: []int64{10}}}}, valueType: types.ValueType_FLOAT_LIST, expected: fmt.Sprintf(errorStr, "FLOAT_LIST", "*types.Value_Int64ListVal")},
+		{input: &types.Value{Val: &types.Value_Int64ListVal{Int64ListVal: &types.Int64List{Val: []int64{10}}}}, valueType: types.ValueType_DOUBLE_LIST, expected: fmt.Sprintf(errorStr, "DOUBLE_LIST", "*types.Value_Int64ListVal")},
+		{input: &types.Value{Val: &types.Value_StringListVal{StringListVal: &types.StringList{Val: []string{"test"}}}}, valueType: types.ValueType_UNIX_TIMESTAMP_LIST, expected: fmt.Sprintf(errorStr, "UNIX_TIMESTAMP_LIST", "*types.Value_StringListVal")},
+		{input: &types.Value{Val: &types.Value_StringVal{StringVal: "test"}}, valueType: types.ValueType_BOOL_LIST, expected: fmt.Sprintf(errorStr, "BOOL_LIST", "*types.Value_StringVal")},
+	}
+
+	for _, tc := range testCases {
+		_, err := ConvertToValueType(tc.input, tc.valueType)
+		assert.Error(t, err, "Expected error converting value: %v", tc.input)
+		assert.Equal(t, tc.expected, err.Error(), "Error message mismatch for input: %v", tc.input)
+	}
+}
+
+func TestConvertToValueType_OutOfBoundValues(t *testing.T) {
+	errorStrI := "value %d is out of range for %s"
+	errorStrE := "value %e is out of range for %s"
+	testCases := []struct {
+		input     *types.Value
+		valueType types.ValueType_Enum
+		expected  string
+	}{
+		{input: &types.Value{Val: &types.Value_Int64Val{Int64Val: math.MaxInt64}}, valueType: types.ValueType_INT32, expected: fmt.Sprintf(errorStrI, math.MaxInt64, "INT32")},
+		{input: &types.Value{Val: &types.Value_Int64Val{Int64Val: math.MinInt64}}, valueType: types.ValueType_INT32, expected: fmt.Sprintf(errorStrI, math.MinInt64, "INT32")},
+		{input: &types.Value{Val: &types.Value_DoubleVal{DoubleVal: math.MaxFloat64}}, valueType: types.ValueType_FLOAT, expected: fmt.Sprintf(errorStrE, math.MaxFloat64, "FLOAT")},
+		{input: &types.Value{Val: &types.Value_DoubleVal{DoubleVal: math.SmallestNonzeroFloat64}}, valueType: types.ValueType_FLOAT, expected: fmt.Sprintf(errorStrE, math.SmallestNonzeroFloat64, "FLOAT")},
+		{input: &types.Value{Val: &types.Value_Int64ListVal{Int64ListVal: &types.Int64List{Val: []int64{math.MaxInt64}}}}, valueType: types.ValueType_INT32_LIST, expected: fmt.Sprintf(errorStrI, math.MaxInt64, "INT32_LIST")},
+		{input: &types.Value{Val: &types.Value_Int64ListVal{Int64ListVal: &types.Int64List{Val: []int64{math.MinInt64}}}}, valueType: types.ValueType_INT32_LIST, expected: fmt.Sprintf(errorStrI, math.MinInt64, "INT32_LIST")},
+		{input: &types.Value{Val: &types.Value_DoubleListVal{DoubleListVal: &types.DoubleList{Val: []float64{math.MaxFloat64}}}}, valueType: types.ValueType_FLOAT_LIST, expected: fmt.Sprintf(errorStrE, math.MaxFloat64, "FLOAT_LIST")},
+		{input: &types.Value{Val: &types.Value_DoubleListVal{DoubleListVal: &types.DoubleList{Val: []float64{math.SmallestNonzeroFloat64}}}}, valueType: types.ValueType_FLOAT_LIST, expected: fmt.Sprintf(errorStrE, math.SmallestNonzeroFloat64, "FLOAT_LIST")},
+	}
+
+	for _, tc := range testCases {
+		_, err := ConvertToValueType(tc.input, tc.valueType)
+		assert.Error(t, err, "Expected error converting value: %v", tc.input)
+		assert.Equal(t, tc.expected, err.Error(), "Error message mismatch for input: %v", tc.input)
 	}
 }
