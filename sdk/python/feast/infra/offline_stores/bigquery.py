@@ -285,12 +285,10 @@ class BigQueryOfflineStore(OfflineStore):
                 full_feature_names=full_feature_names,
             )
 
-            try:
-                yield query
-            finally:
-                # Asynchronously clean up the uploaded Bigquery table, which will expire
-                # if cleanup fails
-                client.delete_table(table=table_reference, not_found_ok=True)
+            # Removed table deletion as this makes it impossible to
+            # run offline feature retrieval SQL queries outside of this execution context.
+            # client.delete_table(table=table_reference, not_found_ok=True)
+            yield query
 
         return BigQueryRetrievalJob(
             query=query_generator,
