@@ -656,7 +656,7 @@ class FeatureStore:
     def _get_feature_views_to_materialize(
         self,
         feature_views: Optional[List[str]],
-    ) -> List[FeatureView]:
+    ) -> List[Union[FeatureView, OnDemandFeatureView]]:
         """
         Returns the list of feature views that should be materialized.
 
@@ -669,7 +669,7 @@ class FeatureStore:
             FeatureViewNotFoundException: One of the specified feature views could not be found.
             ValueError: One of the specified feature views is not configured for materialization.
         """
-        feature_views_to_materialize: List[FeatureView] = []
+        feature_views_to_materialize: List[Union[FeatureView, OnDemandFeatureView]] = []
 
         if feature_views is None:
             feature_views_to_materialize = utils._list_feature_views(
@@ -684,18 +684,29 @@ class FeatureStore:
             feature_views_to_materialize += [
                 sfv for sfv in stream_feature_views_to_materialize if sfv.online
             ]
+            on_demand_feature_views_to_materialize = self.list_on_demand_feature_views()
+            feature_views_to_materialize += [
+                odfv for odfv in on_demand_feature_views_to_materialize if odfv.write_to_online_store
+            ]
         else:
             for name in feature_views:
                 try:
                     feature_view = self._get_feature_view(name, hide_dummy_entity=False)
                 except FeatureViewNotFoundException:
-                    feature_view = self._get_stream_feature_view(
-                        name, hide_dummy_entity=False
-                    )
+                    try:
+                        feature_view = self._get_stream_feature_view(
+                            name, hide_dummy_entity=False
+                        )
+                    except FeatureViewNotFoundException:
+                        feature_view = self.get_on_demand_feature_view(name)
 
-                if not feature_view.online:
+                if hasattr(feature_view, 'online') and not feature_view.online:
                     raise ValueError(
                         f"FeatureView {feature_view.name} is not configured to be served online."
+                    )
+                elif hasattr(feature_view, 'write_to_online_store') and not feature_view.write_to_online_store:
+                    raise ValueError(
+                        f"OnDemandFeatureView {feature_view.name} is not configured for write_to_online_store."
                     )
                 feature_views_to_materialize.append(feature_view)
 

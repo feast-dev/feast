@@ -24,6 +24,7 @@ from feast.entity import Entity
 from feast.feature_logging import FeatureServiceLoggingSource
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
+from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.infra.common.materialization_job import (
     MaterializationJobStatus,
     MaterializationTask,
@@ -420,13 +421,22 @@ class PassthroughProvider(Provider):
     def materialize_single_feature_view(
         self,
         config: RepoConfig,
-        feature_view: FeatureView,
+        feature_view: Union[FeatureView, OnDemandFeatureView],
         start_date: datetime,
         end_date: datetime,
         registry: BaseRegistry,
         project: str,
         tqdm_builder: Callable[[int], tqdm],
     ) -> None:
+        from feast.on_demand_feature_view import OnDemandFeatureView
+        
+        if isinstance(feature_view, OnDemandFeatureView):
+            if not feature_view.write_to_online_store:
+                raise ValueError(
+                    f"OnDemandFeatureView {feature_view.name} does not have write_to_online_store enabled"
+                )
+            return
+            
         assert (
             isinstance(feature_view, BatchFeatureView)
             or isinstance(feature_view, StreamFeatureView)
