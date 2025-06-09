@@ -1249,27 +1249,43 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
                 ]
             )
 
-            feature_views_to_materialize = self.store._get_feature_views_to_materialize(None)
-            
-            odfv_names = [fv.name for fv in feature_views_to_materialize if hasattr(fv, 'write_to_online_store')]
+            feature_views_to_materialize = self.store._get_feature_views_to_materialize(
+                None
+            )
+
+            odfv_names = [
+                fv.name
+                for fv in feature_views_to_materialize
+                if hasattr(fv, "write_to_online_store")
+            ]
             assert "python_stored_writes_feature_view" in odfv_names
             assert "python_no_writes_feature_view" not in odfv_names
-            
-            regular_fv_names = [fv.name for fv in feature_views_to_materialize if not hasattr(fv, 'write_to_online_store')]
+
+            regular_fv_names = [
+                fv.name
+                for fv in feature_views_to_materialize
+                if not hasattr(fv, "write_to_online_store")
+            ]
             assert "driver_hourly_stats" in regular_fv_names
 
-            materialize_end_date = datetime.now().replace(microsecond=0, second=0, minute=0)
+            materialize_end_date = datetime.now().replace(
+                microsecond=0, second=0, minute=0
+            )
             materialize_start_date = materialize_end_date - timedelta(days=1)
-            
+
             self.store.materialize(materialize_start_date, materialize_end_date)
-            
-            specific_feature_views_to_materialize = self.store._get_feature_views_to_materialize(
-                ["driver_hourly_stats", "python_stored_writes_feature_view"]
+
+            specific_feature_views_to_materialize = (
+                self.store._get_feature_views_to_materialize(
+                    ["driver_hourly_stats", "python_stored_writes_feature_view"]
+                )
             )
             assert len(specific_feature_views_to_materialize) == 2
-            
+
             try:
-                self.store._get_feature_views_to_materialize(["python_no_writes_feature_view"])
+                self.store._get_feature_views_to_materialize(
+                    ["python_no_writes_feature_view"]
+                )
                 assert False, "Should have raised ValueError for ODFV without write_to_online_store"
             except ValueError as e:
                 assert "not configured for write_to_online_store" in str(e)

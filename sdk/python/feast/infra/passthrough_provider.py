@@ -16,7 +16,7 @@ import pandas as pd
 import pyarrow as pa
 from tqdm import tqdm
 
-from feast import OnDemandFeatureView, importer
+from feast import importer
 from feast.base_feature_view import BaseFeatureView
 from feast.batch_feature_view import BatchFeatureView
 from feast.data_source import DataSource
@@ -24,7 +24,6 @@ from feast.entity import Entity
 from feast.feature_logging import FeatureServiceLoggingSource
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
-from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.infra.common.materialization_job import (
     MaterializationJobStatus,
     MaterializationTask,
@@ -39,6 +38,7 @@ from feast.infra.online_stores.helpers import get_online_store_from_config
 from feast.infra.provider import Provider
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.infra.supported_async_methods import ProviderAsyncMethods
+from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.online_response import OnlineResponse
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
@@ -429,14 +429,14 @@ class PassthroughProvider(Provider):
         tqdm_builder: Callable[[int], tqdm],
     ) -> None:
         from feast.on_demand_feature_view import OnDemandFeatureView
-        
+
         if isinstance(feature_view, OnDemandFeatureView):
             if not feature_view.write_to_online_store:
                 raise ValueError(
                     f"OnDemandFeatureView {feature_view.name} does not have write_to_online_store enabled"
                 )
             return
-            
+
         assert (
             isinstance(feature_view, BatchFeatureView)
             or isinstance(feature_view, StreamFeatureView)
@@ -506,9 +506,9 @@ class PassthroughProvider(Provider):
         config: RepoConfig,
         registry: BaseRegistry,
     ):
-        assert feature_service.logging_config is not None, (
-            "Logging should be configured for the feature service before calling this function"
-        )
+        assert (
+            feature_service.logging_config is not None
+        ), "Logging should be configured for the feature service before calling this function"
 
         self.offline_store.write_logged_features(
             config=config,
@@ -526,9 +526,9 @@ class PassthroughProvider(Provider):
         config: RepoConfig,
         registry: BaseRegistry,
     ) -> RetrievalJob:
-        assert feature_service.logging_config is not None, (
-            "Logging should be configured for the feature service before calling this function"
-        )
+        assert (
+            feature_service.logging_config is not None
+        ), "Logging should be configured for the feature service before calling this function"
 
         logging_source = FeatureServiceLoggingSource(feature_service, config.project)
         schema = logging_source.get_schema(registry)

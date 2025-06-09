@@ -23,7 +23,6 @@ from feast.base_feature_view import BaseFeatureView
 from feast.data_source import DataSource
 from feast.entity import Entity
 from feast.feature_view import FeatureView
-from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.importer import import_class
 from feast.infra.infra_object import Infra
 from feast.infra.offline_stores.offline_store import RetrievalJob
