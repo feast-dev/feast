@@ -358,6 +358,7 @@ class OfflineServer(fl.FlightServerBase):
             data_source=data_source,
             join_key_columns=command["join_key_columns"],
             feature_name_columns=command["feature_name_columns"],
+            created_timestamp_column=command["created_timestamp_column"],
             timestamp_field=command["timestamp_field"],
             start_date=utils.make_tzaware(
                 datetime.fromisoformat(command["start_date"])

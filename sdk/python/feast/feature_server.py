@@ -173,6 +173,8 @@ def get_app(
     - `/materialize-incremental`: Materialize features incrementally
     - `/chat`: Chat UI
     - `/ws/chat`: WebSocket endpoint for chat
+    MCP Support:
+    - If MCP is enabled in feature server configuration, MCP endpoints will be added automatically
     """
     proto_json.patch()
     # Asynchronously refresh registry, notifying shutdown and canceling the active timer if the app is shutting down
@@ -490,7 +492,35 @@ def get_app(
     with importlib_resources.as_file(static_dir_ref) as static_dir:
         app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
+    # Add MCP support if enabled in feature server configuration
+    _add_mcp_support_if_enabled(app, store)
+
     return app
+
+
+def _add_mcp_support_if_enabled(app, store: "feast.FeatureStore"):
+    """Add MCP support to the FastAPI app if enabled in configuration."""
+    try:
+        # Check if MCP is enabled in feature server config
+        if (
+            store.config.feature_server
+            and hasattr(store.config.feature_server, "type")
+            and store.config.feature_server.type == "mcp"
+            and getattr(store.config.feature_server, "mcp_enabled", False)
+        ):
+            from feast.infra.mcp_servers.mcp_server import add_mcp_support_to_app
+
+            mcp_server = add_mcp_support_to_app(app, store, store.config.feature_server)
+
+            if mcp_server:
+                logger.info("MCP support has been enabled for the Feast feature server")
+            else:
+                logger.warning("MCP support was requested but could not be enabled")
+        else:
+            logger.debug("MCP support is not enabled in feature server configuration")
+    except Exception as e:
+        logger.error(f"Error checking/adding MCP support: {e}")
+        # Don't fail the entire server if MCP fails to initialize
 
 
 if sys.platform != "win32":

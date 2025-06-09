@@ -47,6 +47,7 @@ from feast.cli.serve import (
 from feast.cli.stream_feature_views import stream_feature_views_cmd
 from feast.cli.ui import ui
 from feast.cli.validation_references import validation_references_cmd
+from feast.constants import FEAST_FS_YAML_FILE_PATH_ENV_NAME
 from feast.errors import FeastProviderLoginError
 from feast.repo_config import load_repo_config
 from feast.repo_operations import (
@@ -81,7 +82,8 @@ class NoOptionDefaultFormat(click.Command):
 @click.option(
     "--chdir",
     "-c",
-    help="Switch to a different feature repository directory before executing the given subcommand.",
+    envvar="FEATURE_REPO_DIR_ENV_VAR",
+    help="Switch to a different feature repository directory before executing the given subcommand. Can also be set via the FEATURE_REPO_DIR_ENV_VAR environment variable.",
 )
 @click.option(
     "--log-level",
@@ -91,7 +93,7 @@ class NoOptionDefaultFormat(click.Command):
 @click.option(
     "--feature-store-yaml",
     "-f",
-    help="Override the directory where the CLI should look for the feature_store.yaml file.",
+    help=f"Override the directory where the CLI should look for the feature_store.yaml file. Can also be set via the {FEAST_FS_YAML_FILE_PATH_ENV_NAME} environment variable.",
 )
 @click.pass_context
 def cli(

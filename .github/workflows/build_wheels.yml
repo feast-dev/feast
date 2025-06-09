@@ -112,7 +112,7 @@ jobs:
     needs: [ build-python-wheel ]
     strategy:
       matrix:
-        os: [ ubuntu-latest,  macos-13 ]
+        os: [ ubuntu-latest,  macos-14 ]
         python-version: [ "3.9", "3.10", "3.11" ]
         from-source: [ True, False ]
     env:
@@ -141,7 +141,7 @@ jobs:
           name: python-wheels
           path: dist
       - name: Install OS X dependencies
-        if: matrix.os == 'macos-13'
+        if: matrix.os == 'macos-14'
         run: brew install coreutils
       - name: Install wheel
         if: ${{ !matrix.from-source }}
