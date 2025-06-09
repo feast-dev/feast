@@ -814,13 +814,11 @@ class _DynamoTableManager:
 
     @property
     def table_name(self) -> str:
-        return _get_table_name(
-            self.config.online_config, self.config, self.feature_view
-        )
+        return _get_table_name(self.config.online_store, self.config, self.feature_view)
 
     def table_tags(self) -> list[dict[str, str]]:
         table_instance_tags = self.feature_view.tags or {}
-        online_tags = self.config.online_config.tags or {}
+        online_tags = self.config.online_store.tags or {}
 
         common_tags = [
             {"Key": key, "Value": table_instance_tags.get(key) or value}
@@ -863,7 +861,7 @@ class _DynamoTableManager:
     def update(self):
         # Add Tags attribute to creation request only if configured to prevent
         # TagResource permission issues, even with an empty Tags array.
-        do_tag_update = self.config.online_config.tag_aws_resources
+        do_tag_update = self.config.online_store.tag_aws_resources
         table_tags = self.table_tags()
         kwargs = {"Tags": table_tags} if table_tags and do_tag_update else {}
         try:
