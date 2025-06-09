@@ -21,6 +21,12 @@ from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
 
 from aiobotocore.config import AioConfig
 from pydantic import StrictBool, StrictStr
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 from feast import Entity, FeatureView, utils
 from feast.infra.infra_object import DYNAMODB_INFRA_OBJECT_CLASS_TYPE, InfraObject
@@ -786,6 +792,14 @@ def _latest_data_to_write(
     return (v for _, v in OrderedDict((ah[0], ah[1]) for ah in sorted_data).items())
 
 
+class RetryableBotoError(Exception):
+    pass
+
+
+class LimitExceededException(RetryableBotoError):
+    pass
+
+
 class _DynamoTableManager:
     def __init__(
         self, dynamodb_resource, config: RepoConfig, feature_view: FeatureView
@@ -820,6 +834,12 @@ class _DynamoTableManager:
 
         return common_tags + table_tags
 
+    @retry(
+        wait=wait_exponential(multiplier=1, max=4),
+        retry=retry_if_exception_type(RetryableBotoError),
+        stop=stop_after_attempt(3),
+        reraise=True,
+    )
     def _update_tags(self, new_tags: list[dict[str, str]]):
         table_arn = self._dynamodb_client.describe_table(TableName=self.table_name)[
             "Table"
@@ -834,7 +854,11 @@ class _DynamoTableManager:
             )
 
         if new_tags:
-            self._dynamodb_client.tag_resource(ResourceArn=table_arn, Tags=new_tags)
+            try:
+                self._dynamodb_client.tag_resource(ResourceArn=table_arn, Tags=new_tags)
+            except ClientError as ce:
+                if ce.response["Error"]["Code"] == "LimitExceededException":
+                    raise LimitExceededException from ce
 
     def update(self):
         # Add Tags attribute to creation request only if configured to prevent
