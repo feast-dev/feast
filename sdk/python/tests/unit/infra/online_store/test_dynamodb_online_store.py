@@ -11,7 +11,6 @@ from feast.infra.offline_stores.dask import DaskOfflineStoreConfig
 from feast.infra.online_stores.dynamodb import (
     DynamoDBOnlineStore,
     DynamoDBOnlineStoreConfig,
-    DynamoDBTable,
     _latest_data_to_write,
 )
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
@@ -70,18 +69,6 @@ def test_dynamodb_online_store_config_default():
     assert dynamodb_store_config.table_name_template == "{project}.{table_name}"
 
 
-def test_dynamodb_table_default_params():
-    """Test DynamoDBTable default parameters."""
-    tbl_name = "dynamodb-test"
-    aws_region = "us-west-2"
-    dynamodb_table = DynamoDBTable(tbl_name, aws_region)
-    assert dynamodb_table.name == tbl_name
-    assert dynamodb_table.region == aws_region
-    assert dynamodb_table.endpoint_url is None
-    assert dynamodb_table._dynamodb_client is None
-    assert dynamodb_table._dynamodb_resource is None
-
-
 def test_dynamodb_online_store_config_custom_params():
     """Test DynamoDBOnlineStoreConfig custom parameters."""
     aws_region = "us-west-2"
@@ -101,19 +88,6 @@ def test_dynamodb_online_store_config_custom_params():
     assert dynamodb_store_config.table_name_template == table_name_template
 
 
-def test_dynamodb_table_custom_params():
-    """Test DynamoDBTable custom parameters."""
-    tbl_name = "dynamodb-test"
-    aws_region = "us-west-2"
-    endpoint_url = "http://localhost:8000"
-    dynamodb_table = DynamoDBTable(tbl_name, aws_region, endpoint_url)
-    assert dynamodb_table.name == tbl_name
-    assert dynamodb_table.region == aws_region
-    assert dynamodb_table.endpoint_url == endpoint_url
-    assert dynamodb_table._dynamodb_client is None
-    assert dynamodb_table._dynamodb_resource is None
-
-
 def test_dynamodb_online_store_config_dynamodb_client(dynamodb_online_store):
     """Test DynamoDBOnlineStoreConfig configure DynamoDB client with endpoint_url."""
     aws_region = "us-west-2"
@@ -128,19 +102,6 @@ def test_dynamodb_online_store_config_dynamodb_client(dynamodb_online_store):
     assert dynamodb_client.meta.endpoint_url == endpoint_url
 
 
-def test_dynamodb_table_dynamodb_client():
-    """Test DynamoDBTable configure DynamoDB client with endpoint_url."""
-    tbl_name = "dynamodb-test"
-    aws_region = "us-west-2"
-    endpoint_url = "http://localhost:8000"
-    dynamodb_table = DynamoDBTable(tbl_name, aws_region, endpoint_url)
-    dynamodb_client = dynamodb_table._get_dynamodb_client(
-        dynamodb_table.region, dynamodb_table.endpoint_url
-    )
-    assert dynamodb_client.meta.region_name == aws_region
-    assert dynamodb_client.meta.endpoint_url == endpoint_url
-
-
 def test_dynamodb_online_store_config_dynamodb_resource(dynamodb_online_store):
     """Test DynamoDBOnlineStoreConfig configure DynamoDB Resource with endpoint_url."""
     aws_region = "us-west-2"
@@ -150,19 +111,6 @@ def test_dynamodb_online_store_config_dynamodb_resource(dynamodb_online_store):
     )
     dynamodb_resource = dynamodb_online_store._get_dynamodb_resource(
         dynamodb_store_config.region, dynamodb_store_config.endpoint_url
-    )
-    assert dynamodb_resource.meta.client.meta.region_name == aws_region
-    assert dynamodb_resource.meta.client.meta.endpoint_url == endpoint_url
-
-
-def test_dynamodb_table_dynamodb_resource():
-    """Test DynamoDBTable configure DynamoDB resource with endpoint_url."""
-    tbl_name = "dynamodb-test"
-    aws_region = "us-west-2"
-    endpoint_url = "http://localhost:8000"
-    dynamodb_table = DynamoDBTable(tbl_name, aws_region, endpoint_url)
-    dynamodb_resource = dynamodb_table._get_dynamodb_resource(
-        dynamodb_table.region, dynamodb_table.endpoint_url
     )
     assert dynamodb_resource.meta.client.meta.region_name == aws_region
     assert dynamodb_resource.meta.client.meta.endpoint_url == endpoint_url
