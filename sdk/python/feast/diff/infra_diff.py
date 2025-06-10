@@ -13,9 +13,7 @@ from feast.protos.feast.core.DatastoreTable_pb2 import (
 from feast.protos.feast.core.InfraObject_pb2 import Infra as InfraProto
 from feast.protos.feast.core.SqliteTable_pb2 import SqliteTable as SqliteTableProto
 
-InfraObjectProto = TypeVar(
-    "InfraObjectProto", DatastoreTableProto, SqliteTableProto
-)
+InfraObjectProto = TypeVar("InfraObjectProto", DatastoreTableProto, SqliteTableProto)
 
 
 @dataclass
