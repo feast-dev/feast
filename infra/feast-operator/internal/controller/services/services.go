@@ -224,8 +224,32 @@ func (feast *FeastServices) deployFeastServiceByType(feastType FeastServiceType)
 		if err := feast.createService(feastType); err != nil {
 			return feast.setFeastServiceCondition(err, feastType)
 		}
+		// Create REST API service if needed
+		if feastType == RegistryFeastType && feast.isRegistryServer() {
+			registry := feast.Handler.FeatureStore.Status.Applied.Services.Registry
+			if registry.Local.Server.RestAPI != nil && *registry.Local.Server.RestAPI {
+				if err := feast.createRestService(feastType); err != nil {
+					return feast.setFeastServiceCondition(err, feastType)
+				}
+			} else {
+				// Delete REST API service if REST API is disabled
+				_ = feast.Handler.DeleteOwnedFeastObj(&corev1.Service{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      feast.GetFeastServiceName(feastType) + "-rest",
+						Namespace: feast.Handler.FeatureStore.Namespace,
+					},
+				})
+			}
+		}
 	} else {
 		_ = feast.Handler.DeleteOwnedFeastObj(feast.initFeastSvc(feastType))
+		// Delete REST API service if it exists
+		_ = feast.Handler.DeleteOwnedFeastObj(&corev1.Service{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      feast.GetFeastServiceName(feastType) + "-rest",
+				Namespace: feast.Handler.FeatureStore.Namespace,
+			},
+		})
 	}
 	return feast.setFeastServiceCondition(nil, feastType)
 }
@@ -404,6 +428,16 @@ func (feast *FeastServices) setContainer(containers *[]corev1.Container, feastTy
 				Protocol:      corev1.ProtocolTCP,
 			},
 		}
+		if feastType == RegistryFeastType && feast.isRegistryServer() {
+			registry := feast.Handler.FeatureStore.Status.Applied.Services.Registry
+			if registry.Local.Server.RestAPI != nil && *registry.Local.Server.RestAPI {
+				container.Ports = append(container.Ports, corev1.ContainerPort{
+					Name:          name + "-rest",
+					ContainerPort: getTargetRestPort(feastType, tls),
+					Protocol:      corev1.ProtocolTCP,
+				})
+			}
+		}
 		container.StartupProbe = &corev1.Probe{
 			ProbeHandler:     probeHandler,
 			PeriodSeconds:    3,
@@ -509,6 +543,7 @@ func (feast *FeastServices) getContainerCommand(feastType FeastServiceType) []st
 		}
 		if registry.Local.Server.RestAPI != nil && *registry.Local.Server.RestAPI {
 			deploySettings.Args = append(deploySettings.Args, "--rest-api")
+			deploySettings.Args = append(deploySettings.Args, "--rest-port", strconv.Itoa(int(getTargetRestPort(feastType, tls))))
 		}
 	}
 	if tls.IsTLS() {
@@ -627,6 +662,70 @@ func (feast *FeastServices) setService(svc *corev1.Service, feastType FeastServi
 	return controllerutil.SetControllerReference(feast.Handler.FeatureStore, svc, feast.Handler.Scheme)
 }
 
+// createRestService creates a separate service for REST API
+func (feast *FeastServices) createRestService(feastType FeastServiceType) error {
+	if feastType != RegistryFeastType || !feast.isRegistryServer() {
+		return nil
+	}
+
+	registry := feast.Handler.FeatureStore.Status.Applied.Services.Registry
+	if registry.Local.Server.RestAPI == nil || !*registry.Local.Server.RestAPI {
+		return nil
+	}
+
+	svc := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      feast.GetFeastServiceName(feastType) + "-rest",
+			Namespace: feast.Handler.FeatureStore.Namespace,
+			Labels:    feast.getFeastTypeLabels(feastType),
+		},
+	}
+	svc.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("Service"))
+
+	if feast.isOpenShiftTls(feastType) {
+		if len(svc.Annotations) == 0 {
+			svc.Annotations = map[string]string{}
+		}
+		svc.Annotations["service.beta.openshift.io/serving-cert-secret-name"] = svc.Name + tlsNameSuffix
+	}
+
+	var port int32 = HttpPort
+	scheme := HttpScheme
+	tls := feast.getTlsConfigs(feastType)
+	if tls.IsTLS() {
+		port = HttpsPort
+		scheme = HttpsScheme
+	}
+
+	svc.Spec = corev1.ServiceSpec{
+		Selector: feast.getLabels(),
+		Type:     corev1.ServiceTypeClusterIP,
+		Ports: []corev1.ServicePort{
+			{
+				Name:       scheme,
+				Port:       port,
+				Protocol:   corev1.ProtocolTCP,
+				TargetPort: intstr.FromInt(int(getTargetRestPort(feastType, tls))),
+			},
+		},
+	}
+
+	if err := controllerutil.SetControllerReference(feast.Handler.FeatureStore, svc, feast.Handler.Scheme); err != nil {
+		return err
+	}
+
+	logger := log.FromContext(feast.Handler.Context)
+	if op, err := controllerutil.CreateOrUpdate(feast.Handler.Context, feast.Handler.Client, svc, controllerutil.MutateFn(func() error {
+		return nil // No need to mutate as we set everything above
+	})); err != nil {
+		return err
+	} else if op == controllerutil.OperationResultCreated || op == controllerutil.OperationResultUpdated {
+		logger.Info("Successfully reconciled", "Service", svc.Name, "operation", op)
+	}
+
+	return nil
+}
+
 func (feast *FeastServices) setServiceAccount(sa *corev1.ServiceAccount) error {
 	sa.Labels = feast.getLabels()
 	return controllerutil.SetControllerReference(feast.Handler.FeatureStore, sa, feast.Handler.Scheme)
@@ -730,8 +829,15 @@ func (feast *FeastServices) setServiceHostnames() error {
 	}
 	if feast.isRegistryServer() {
 		objMeta := feast.initFeastSvc(RegistryFeastType)
+		registry := feast.Handler.FeatureStore.Status.Applied.Services.Registry
 		feast.Handler.FeatureStore.Status.ServiceHostnames.Registry = objMeta.Name + "." + objMeta.Namespace + domain +
 			getPortStr(feast.Handler.FeatureStore.Status.Applied.Services.Registry.Local.Server.TLS)
+		if registry.Local.Server.RestAPI != nil && *registry.Local.Server.RestAPI {
+			// Use the REST API service name
+			restSvcName := objMeta.Name + "-rest"
+			feast.Handler.FeatureStore.Status.ServiceHostnames.RegistryRest = restSvcName + "." + objMeta.Namespace + domain +
+				getPortStr(feast.Handler.FeatureStore.Status.Applied.Services.Registry.Local.Server.TLS)
+		}
 	} else if feast.isRemoteRegistry() {
 		return feast.setRemoteRegistryURL()
 	}
@@ -1001,6 +1107,13 @@ func getTargetPort(feastType FeastServiceType, tls *feastdevv1alpha1.TlsConfigs)
 		return FeastServiceConstants[feastType].TargetHttpsPort
 	}
 	return FeastServiceConstants[feastType].TargetHttpPort
+}
+
+func getTargetRestPort(feastType FeastServiceType, tls *feastdevv1alpha1.TlsConfigs) int32 {
+	if tls.IsTLS() {
+		return FeastServiceConstants[feastType].TargetRestHttpsPort
+	}
+	return FeastServiceConstants[feastType].TargetRestHttpPort
 }
 
 func getProbeHandler(feastType FeastServiceType, tls *feastdevv1alpha1.TlsConfigs) corev1.ProbeHandler {

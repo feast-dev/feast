@@ -773,6 +773,7 @@ _Appears in:_
 | `offlineStore` _string_ |  |
 | `onlineStore` _string_ |  |
 | `registry` _string_ |  |
+| `registryRest` _string_ |  |
 | `ui` _string_ |  |
 
 

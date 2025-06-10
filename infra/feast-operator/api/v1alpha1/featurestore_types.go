@@ -624,6 +624,7 @@ type ServiceHostnames struct {
 	OfflineStore string `json:"offlineStore,omitempty"`
 	OnlineStore  string `json:"onlineStore,omitempty"`
 	Registry     string `json:"registry,omitempty"`
+	RegistryRest string `json:"registryRest,omitempty"`
 	UI           string `json:"ui,omitempty"`
 }
 

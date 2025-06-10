@@ -8067,6 +8067,8 @@ spec:
                     type: string
                   registry:
                     type: string
+                  registryRest:
+                    type: string
                   ui:
                     type: string
                 type: object
