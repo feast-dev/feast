@@ -4,21 +4,17 @@ from typing import Generic, Iterable, List, Tuple, TypeVar
 from feast.diff.property_diff import PropertyDiff, TransitionType
 from feast.infra.infra_object import (
     DATASTORE_INFRA_OBJECT_CLASS_TYPE,
-    DYNAMODB_INFRA_OBJECT_CLASS_TYPE,
     SQLITE_INFRA_OBJECT_CLASS_TYPE,
     InfraObject,
 )
 from feast.protos.feast.core.DatastoreTable_pb2 import (
     DatastoreTable as DatastoreTableProto,
 )
-from feast.protos.feast.core.DynamoDBTable_pb2 import (
-    DynamoDBTable as DynamoDBTableProto,
-)
 from feast.protos.feast.core.InfraObject_pb2 import Infra as InfraProto
 from feast.protos.feast.core.SqliteTable_pb2 import SqliteTable as SqliteTableProto
 
 InfraObjectProto = TypeVar(
-    "InfraObjectProto", DatastoreTableProto, DynamoDBTableProto, SqliteTableProto
+    "InfraObjectProto", DatastoreTableProto, SqliteTableProto
 )
 
 
@@ -110,7 +106,6 @@ def diff_infra_protos(
 
     infra_object_class_types_to_str = {
         DATASTORE_INFRA_OBJECT_CLASS_TYPE: "datastore table",
-        DYNAMODB_INFRA_OBJECT_CLASS_TYPE: "dynamodb table",
         SQLITE_INFRA_OBJECT_CLASS_TYPE: "sqlite table",
     }
 
