@@ -1932,6 +1932,10 @@ spec:
                                       x-kubernetes-map-type: atomic
                                   type: object
                                 type: array
+                              grpc:
+                                description: Enable gRPC registry server. Defaults
+                                  to true if unset.
+                                type: boolean
                               image:
                                 type: string
                               imagePullPolicy:
@@ -1996,8 +2000,8 @@ spec:
                                     type: object
                                 type: object
                               restAPI:
-                                description: RestAPI determines if the registry should
-                                  serve using the REST API instead of gRPC.
+                                description: Enable REST API registry server. Defaults
+                                  to false if unset.
                                 type: boolean
                               tls:
                                 description: TlsConfigs configures server TLS for
@@ -5914,6 +5918,10 @@ spec:
                                           x-kubernetes-map-type: atomic
                                       type: object
                                     type: array
+                                  grpc:
+                                    description: Enable gRPC registry server. Defaults
+                                      to true if unset.
+                                    type: boolean
                                   image:
                                     type: string
                                   imagePullPolicy:
@@ -5978,8 +5986,8 @@ spec:
                                         type: object
                                     type: object
                                   restAPI:
-                                    description: RestAPI determines if the registry
-                                      should serve using the REST API instead of gRPC.
+                                    description: Enable REST API registry server.
+                                      Defaults to false if unset.
                                     type: boolean
                                   tls:
                                     description: TlsConfigs configures server TLS
