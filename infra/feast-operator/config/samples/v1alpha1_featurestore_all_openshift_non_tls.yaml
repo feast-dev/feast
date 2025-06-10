@@ -1,0 +1,21 @@
+apiVersion: feast.dev/v1alpha1
+kind: FeatureStore
+metadata:
+  name: sample-openshift-non-tls
+spec:
+  feastProject: my_project
+  services:
+    offlineStore:
+      server:
+        tls:
+          disable: true
+    onlineStore:
+      server:
+        tls:
+          disable: true
+    registry:
+      local:
+        server:
+          tls:
+            disable: true
+    ui: {}

@@ -19,6 +19,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
+    Dict,
     Iterable,
     List,
     Optional,
@@ -38,6 +39,7 @@ from feast.infra.registry.base_registry import BaseRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
+from feast.torch_wrapper import get_torch
 
 if TYPE_CHECKING:
     from feast.saved_dataset import ValidationReference
@@ -136,6 +138,40 @@ class RetrievalJob(ABC):
                 raise ValidationFailed(validation_result)
 
         return features_table
+
+    def to_tensor(
+        self,
+        kind: str = "torch",
+        default_value: Any = float("nan"),
+        timeout: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """
+        Converts historical features into a dictionary of 1D torch tensors or lists (for non-numeric types).
+
+        Args:
+            kind: "torch" (default and only supported kind).
+            default_value: Value to replace missing (None or NaN) entries.
+            timeout: Optional timeout for query execution.
+
+        Returns:
+            Dict[str, Union[torch.Tensor, List]]: Feature column name -> tensor or list.
+        """
+        if kind != "torch":
+            raise ValueError(
+                f"Unsupported tensor kind: {kind}. Only 'torch' is supported."
+            )
+        torch = get_torch()
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        df = self.to_df(timeout=timeout)
+        tensor_dict = {}
+        for column in df.columns:
+            values = df[column].fillna(default_value).tolist()
+            first_non_null = next((v for v in values if v is not None), None)
+            if isinstance(first_non_null, (int, float, bool)):
+                tensor_dict[column] = torch.tensor(values, device=device)
+            else:
+                tensor_dict[column] = values
+        return tensor_dict
 
     def to_sql(self) -> str:
         """

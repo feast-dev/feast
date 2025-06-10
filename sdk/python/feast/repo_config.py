@@ -105,6 +105,7 @@ OFFLINE_STORE_CLASS_FOR_TYPE = {
 
 FEATURE_SERVER_CONFIG_CLASS_FOR_TYPE = {
     "local": "feast.infra.feature_servers.local_process.config.LocalFeatureServerConfig",
+    "mcp": "feast.infra.mcp_servers.mcp_config.McpFeatureServerConfig",
 }
 
 ALLOWED_AUTH_TYPES = ["no_auth", "kubernetes", "oidc"]

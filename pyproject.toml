@@ -21,7 +21,7 @@ dependencies = [
     "Jinja2>=2,<4",
     "jsonschema",
     "mmh3",
-    "numpy>=1.22,<2",
+    "numpy>=2.0.0,<3",
     "pandas>=1.4.3,<3",
     "pyarrow<=17.0.0",
     "pydantic==2.10.6",
@@ -57,7 +57,7 @@ azure = [
 cassandra = ["cassandra-driver>=3.24.0,<4"]
 clickhouse = ["clickhouse-connect>=0.7.19"]
 couchbase = ["couchbase==4.3.2", "couchbase-columnar==1.0.0"]
-delta = ["deltalake"]
+delta = ["deltalake<1.0.0"]
 docling = ["docling==2.27.0"]
 duckdb = ["ibis-framework[duckdb]>=9.0.0,<=9.5.0"]
 elasticsearch = ["elasticsearch>=8.13.0"]
@@ -99,13 +99,13 @@ milvus = [
 mssql = ["ibis-framework[mssql]>=9.0.0,<=9.5.0"]
 mysql = ["pymysql", "types-PyMySQL"]
 opentelemetry = ["prometheus_client", "psutil"]
-spark = ["pyspark>=3.0.0,<4"]
+spark = ["pyspark>=4.0.0"]
 trino = ["trino>=0.305.0,<0.400.0", "regex"]
 postgres = ["psycopg[binary,pool]==3.2.5"]
 # psycopg[c] install requires a system with a C compiler, python dev headers, & postgresql client dev headers
 # https://www.psycopg.org/psycopg3/docs/basic/install.html#local-installation
 postgres-c = ["psycopg[c,pool]==3.2.5"]
-pytorch = ["torch==2.2.2", "torchvision>=0.17.2"]
+pytorch = ["torch>=2.7.0", "torchvision>=0.22.1"]
 qdrant = ["qdrant-client>=1.12.0"]
 redis = [
     "redis>=4.2.2,<5",
@@ -116,6 +116,7 @@ snowflake = [
     "snowflake-connector-python[pandas]>=3.7,<4",
 ]
 sqlite_vec = ["sqlite-vec==v0.1.6"]
+mcp = ["fastapi_mcp"]
 
 ci = [
     "build",
@@ -162,13 +163,13 @@ ci = [
     "types-setuptools",
     "types-tabulate",
     "virtualenv<20.24.2",
-    "feast[aws, azure, cassandra, clickhouse, couchbase, delta, docling, duckdb, elasticsearch, faiss, gcp, ge, go, grpcio, hazelcast, hbase, ibis, ikv, k8s, milvus, mssql, mysql, opentelemetry, spark, trino, postgres, pytorch, qdrant, redis, singlestore, snowflake, sqlite_vec]"
+    "feast[aws, azure, cassandra, clickhouse, couchbase, delta, docling, duckdb, elasticsearch, faiss, gcp, ge, go, grpcio, hazelcast, hbase, ibis, ikv, k8s, mcp, milvus, mssql, mysql, opentelemetry, spark, trino, postgres, pytorch, qdrant, redis, singlestore, snowflake, sqlite_vec]"
 ]
 nlp = ["feast[docling, milvus, pytorch]"]
 dev = ["feast[ci]"]
 docs = ["feast[ci]"]
 # used for the 'feature-server' container image build
-minimal = ["feast[aws, gcp, snowflake, redis, go, mysql, postgres-c, opentelemetry, grpcio, k8s, duckdb, milvus]"]
+minimal = ["feast[aws, gcp, snowflake, redis, go, mysql, postgres-c, opentelemetry, grpcio, k8s, duckdb, mcp, milvus]"]
 minimal-sdist-build = [
     "feast[minimal]",
     "feast[ibis]",
