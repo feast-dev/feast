@@ -2,6 +2,10 @@ package server
 
 import (
 	"encoding/json"
+	"github.com/feast-dev/feast/go/internal/feast/onlineserving"
+	"github.com/feast-dev/feast/go/protos/feast/serving"
+	prototypes "github.com/feast-dev/feast/go/protos/feast/types"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"strings"
 	"testing"
 
@@ -220,4 +224,151 @@ func TestSortKeyFilter_ToProto_WithInvalidRangeEnd(t *testing.T) {
 	_, err := getSortKeyFiltersProto(invalidRange)
 	assert.Error(t, err, "Should return an error for invalid sort key filter range")
 	assert.Equal(t, "error parsing range_end: could not parse JSON value: [1]", err.Error())
+}
+
+func TestProcessFeatureVectors_NotFoundReturnsNull(t *testing.T) {
+	memoryPool := memory.NewGoAllocator()
+
+	entitiesProto := map[string]*prototypes.RepeatedValue{
+		"entity_key": {
+			Val: []*prototypes.Value{
+				{Val: &prototypes.Value_StringVal{StringVal: "entity_1"}},
+				{Val: &prototypes.Value_StringVal{StringVal: "entity_2"}},
+			},
+		},
+	}
+
+	featureBuilder := array.NewListBuilder(memoryPool, arrow.PrimitiveTypes.Int32)
+	defer featureBuilder.Release()
+
+	valueBuilder := featureBuilder.ValueBuilder().(*array.Int32Builder)
+
+	// Entity 1: NOT_FOUND
+	featureBuilder.Append(true)
+	valueBuilder.Append(0)
+	featureBuilder.Append(true)
+	valueBuilder.Append(42)
+
+	featureVector := &onlineserving.RangeFeatureVector{
+		Name:        "feature_2",
+		RangeValues: featureBuilder.NewArray(),
+		RangeStatuses: [][]serving.FieldStatus{
+			{serving.FieldStatus_NOT_FOUND},
+			{serving.FieldStatus_PRESENT},
+		},
+		RangeTimestamps: [][]*timestamppb.Timestamp{
+			{{Seconds: 0}},
+			{{Seconds: 1234567890}},
+		},
+	}
+	defer featureVector.RangeValues.Release()
+
+	featureNames, results := processFeatureVectors(
+		[]*onlineserving.RangeFeatureVector{featureVector},
+		false,
+		entitiesProto,
+	)
+
+	assert.Equal(t, []string{"feature_2"}, featureNames)
+	values := results[0]["values"].([]interface{})
+	entity1Values := values[0].([]interface{})
+	assert.Equal(t, 1, len(entity1Values))
+	assert.Nil(t, entity1Values[0])
+	entity2Values := values[1].([]interface{})
+	assert.Equal(t, int32(42), entity2Values[0])
+}
+
+func TestProcessFeatureVectors_TimestampHandling(t *testing.T) {
+	memoryPool := memory.NewGoAllocator()
+
+	entitiesProto := map[string]*prototypes.RepeatedValue{
+		"entity_key": {
+			Val: []*prototypes.Value{
+				{Val: &prototypes.Value_StringVal{StringVal: "entity_1"}},
+				{Val: &prototypes.Value_StringVal{StringVal: "entity_2"}},
+			},
+		},
+	}
+
+	featureBuilder := array.NewListBuilder(memoryPool, arrow.BinaryTypes.String)
+	defer featureBuilder.Release()
+
+	valueBuilder := featureBuilder.ValueBuilder().(*array.StringBuilder)
+
+	// Entity 1: NOT_FOUND
+	featureBuilder.Append(true)
+	valueBuilder.Append("")
+	featureBuilder.Append(true)
+	valueBuilder.Append("value")
+
+	featureVector := &onlineserving.RangeFeatureVector{
+		Name:        "feature_3",
+		RangeValues: featureBuilder.NewArray(),
+		RangeStatuses: [][]serving.FieldStatus{
+			{serving.FieldStatus_NOT_FOUND},
+			{serving.FieldStatus_PRESENT},
+		},
+		RangeTimestamps: [][]*timestamppb.Timestamp{
+			{{Seconds: 0, Nanos: 0}},
+			{{Seconds: 0, Nanos: 0}},
+		},
+	}
+	defer featureVector.RangeValues.Release()
+
+	featureNames, results := processFeatureVectors(
+		[]*onlineserving.RangeFeatureVector{featureVector},
+		true,
+		entitiesProto,
+	)
+
+	assert.Equal(t, []string{"feature_3"}, featureNames)
+	timestamps := results[0]["event_timestamps"].([][]interface{})
+	assert.Nil(t, timestamps[0][0])
+	assert.Equal(t, "1970-01-01T00:00:00Z", timestamps[1][0])
+}
+
+func TestProcessFeatureVectors_NullValueReturnsNull(t *testing.T) {
+	memoryPool := memory.NewGoAllocator()
+
+	entitiesProto := map[string]*prototypes.RepeatedValue{
+		"entity_key": {
+			Val: []*prototypes.Value{
+				{Val: &prototypes.Value_StringVal{StringVal: "entity_1"}},
+			},
+		},
+	}
+
+	featureBuilder := array.NewListBuilder(memoryPool, arrow.PrimitiveTypes.Float32)
+	defer featureBuilder.Release()
+
+	valueBuilder := featureBuilder.ValueBuilder().(*array.Float32Builder)
+
+	featureBuilder.Append(true)
+	valueBuilder.Append(0.0)
+
+	featureVector := &onlineserving.RangeFeatureVector{
+		Name:        "feature_4",
+		RangeValues: featureBuilder.NewArray(),
+		RangeStatuses: [][]serving.FieldStatus{
+			{serving.FieldStatus_NULL_VALUE},
+		},
+		RangeTimestamps: [][]*timestamppb.Timestamp{
+			{{Seconds: 1234567890}},
+		},
+	}
+	defer featureVector.RangeValues.Release()
+
+	featureNames, results := processFeatureVectors(
+		[]*onlineserving.RangeFeatureVector{featureVector},
+		true,
+		entitiesProto,
+	)
+
+	assert.Equal(t, []string{"feature_4"}, featureNames)
+	values := results[0]["values"].([]interface{})
+	entity1Values := values[0].([]interface{})
+	assert.Equal(t, 1, len(entity1Values))
+	assert.Nil(t, entity1Values[0])
+	timestamps := results[0]["event_timestamps"].([][]interface{})
+	assert.Nil(t, timestamps[0][0])
 }

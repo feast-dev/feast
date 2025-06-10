@@ -138,6 +138,120 @@ func parseValueFromJSON(data json.RawMessage) (*prototypes.Value, error) {
 	return nil, fmt.Errorf("could not parse JSON value: %s", string(data))
 }
 
+func processFeatureVectors(vectors []*onlineserving.RangeFeatureVector, includeMetadata bool, entitiesProto map[string]*prototypes.RepeatedValue) ([]string, []map[string]interface{}) {
+	featureNames := make([]string, len(vectors))
+	results := make([]map[string]interface{}, len(vectors))
+
+	entityNames := make(map[string]bool)
+	for entityName := range entitiesProto {
+		entityNames[entityName] = true
+	}
+
+	for i, vector := range vectors {
+		featureNames[i] = vector.Name
+		result := make(map[string]interface{})
+
+		rangeValues, err := types.ArrowValuesToRepeatedProtoValues(vector.RangeValues)
+		if err != nil {
+			result["values"] = []interface{}{}
+			results[i] = result
+			continue
+		}
+
+		isEntity := entityNames[vector.Name]
+
+		if isEntity {
+			entityValues := make([]interface{}, len(rangeValues))
+			for j, repeatedValue := range rangeValues {
+				if repeatedValue == nil || len(repeatedValue.Val) == 0 {
+					entityValues[j] = nil
+				} else {
+					if j < len(vector.RangeStatuses) && len(vector.RangeStatuses[j]) > 0 {
+						statusCode := vector.RangeStatuses[j][0]
+						if statusCode == serving.FieldStatus_NOT_FOUND ||
+							statusCode == serving.FieldStatus_NULL_VALUE {
+							entityValues[j] = nil
+						} else {
+							entityValues[j] = types.ValueTypeToGoType(repeatedValue.Val[0])
+						}
+					} else {
+						entityValues[j] = types.ValueTypeToGoType(repeatedValue.Val[0])
+					}
+				}
+			}
+			result["values"] = entityValues
+		} else {
+			simplifiedValues := make([]interface{}, len(rangeValues))
+			for j, repeatedValue := range rangeValues {
+				if repeatedValue == nil || len(repeatedValue.Val) == 0 {
+					simplifiedValues[j] = nil
+					continue
+				}
+
+				rangeForEntity := make([]interface{}, len(repeatedValue.Val))
+				for k, val := range repeatedValue.Val {
+					if j < len(vector.RangeStatuses) && k < len(vector.RangeStatuses[j]) {
+						statusCode := vector.RangeStatuses[j][k]
+						if statusCode == serving.FieldStatus_NOT_FOUND ||
+							statusCode == serving.FieldStatus_NULL_VALUE {
+							rangeForEntity[k] = nil
+							continue
+						}
+					}
+
+					if val == nil {
+						rangeForEntity[k] = nil
+					} else {
+						rangeForEntity[k] = types.ValueTypeToGoType(val)
+					}
+				}
+				simplifiedValues[j] = rangeForEntity
+			}
+			result["values"] = simplifiedValues
+		}
+
+		if includeMetadata {
+			if len(vector.RangeStatuses) > 0 {
+				statusValues := make([][]string, len(vector.RangeStatuses))
+				for j, entityStatuses := range vector.RangeStatuses {
+					statusValues[j] = make([]string, len(entityStatuses))
+					for k, stat := range entityStatuses {
+						statusValues[j][k] = stat.String()
+					}
+				}
+				result["statuses"] = statusValues
+			} else {
+				result["statuses"] = [][]string{}
+			}
+
+			if len(vector.RangeTimestamps) > 0 {
+				timestampValues := make([][]interface{}, len(vector.RangeTimestamps))
+				for j, entityTimestamps := range vector.RangeTimestamps {
+					timestampValues[j] = make([]interface{}, len(entityTimestamps))
+					for k, ts := range entityTimestamps {
+						if j < len(vector.RangeStatuses) && k < len(vector.RangeStatuses[j]) {
+							statusCode := vector.RangeStatuses[j][k]
+							if statusCode == serving.FieldStatus_NOT_FOUND ||
+								statusCode == serving.FieldStatus_NULL_VALUE {
+								timestampValues[j][k] = nil
+								continue
+							}
+						}
+						timestampValues[j][k] = ts.AsTime().Format(time.RFC3339)
+					}
+				}
+				result["event_timestamps"] = timestampValues
+			} else {
+				result["event_timestamps"] = [][]interface{}{}
+			}
+		}
+
+		results[i] = result
+	}
+
+	return featureNames, results
+}
+
 func (u *repeatedValue) ToProto() *prototypes.RepeatedValue {
 	proto := new(prototypes.RepeatedValue)
 	if u.stringVal != nil {
@@ -262,14 +376,14 @@ func (s *httpServer) getOnlineFeatures(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	statusQuery := r.URL.Query().Get("status")
+	includeMetadataQuery := r.URL.Query().Get("includeMetadata")
 
-	status := false
-	if statusQuery != "" {
-		status, err = strconv.ParseBool(statusQuery)
+	includeMetadata := false
+	if includeMetadataQuery != "" {
+		includeMetadata, err = strconv.ParseBool(includeMetadataQuery)
 		if err != nil {
-			logSpanContext.Error().Err(err).Msg("Error parsing status query parameter")
-			writeJSONError(w, fmt.Errorf("Error parsing status query parameter: %+v", err), http.StatusBadRequest)
+			logSpanContext.Error().Err(err).Msg("Error parsing includeMetadata query parameter")
+			writeJSONError(w, fmt.Errorf("Error parsing includeMetadata query parameter: %+v", err), http.StatusBadRequest)
 			return
 		}
 	}
@@ -325,7 +439,7 @@ func (s *httpServer) getOnlineFeatures(w http.ResponseWriter, r *http.Request) {
 	for _, vector := range featureVectors {
 		featureNames = append(featureNames, vector.Name)
 		result := make(map[string]interface{})
-		if status {
+		if includeMetadata {
 			var statuses []string
 			for _, status := range vector.Statuses {
 				statuses = append(statuses, status.String())
@@ -446,13 +560,13 @@ func (s *httpServer) getOnlineFeaturesRange(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	statusQuery := r.URL.Query().Get("status")
-	status := false
-	if statusQuery != "" {
-		status, err = strconv.ParseBool(statusQuery)
+	includeMetadataQuery := r.URL.Query().Get("includeMetadata")
+	includeMetadata := false
+	if includeMetadataQuery != "" {
+		includeMetadata, err = strconv.ParseBool(includeMetadataQuery)
 		if err != nil {
-			logSpanContext.Error().Err(err).Msg("Error parsing status query parameter")
-			writeJSONError(w, fmt.Errorf("error parsing status query parameter: %w", err), http.StatusBadRequest)
+			logSpanContext.Error().Err(err).Msg("Error parsing includeMetadata query parameter")
+			writeJSONError(w, fmt.Errorf("error parsing includeMetadata query parameter: %w", err), http.StatusBadRequest)
 			return
 		}
 	}
@@ -515,52 +629,14 @@ func (s *httpServer) getOnlineFeaturesRange(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	featureNames := make([]string, 0, len(rangeFeatureVectors))
-	results := make([]map[string]interface{}, 0, len(rangeFeatureVectors))
-
-	for _, vector := range rangeFeatureVectors {
-		featureNames = append(featureNames, vector.Name)
-		result := make(map[string]interface{})
-		rangeValues, err := types.ArrowValuesToRepeatedProtoValues(vector.RangeValues)
-		if err != nil {
-			logSpanContext.Error().Err(err).Msg("Error converting Arrow range values to proto values")
-			writeJSONError(w, fmt.Errorf("error converting Arrow range values to proto values: %w", err), http.StatusInternalServerError)
-			return
-		}
-		simplifiedValues := make([]interface{}, len(rangeValues))
-		for i, repeatedValue := range rangeValues {
-			simplifiedValues[i] = extractSimpleValues(repeatedValue)
-		}
-		result["values"] = simplifiedValues
-
-		if status {
-			statuses := make([][]string, len(vector.RangeStatuses))
-			for i, entityStatuses := range vector.RangeStatuses {
-				statuses[i] = make([]string, len(entityStatuses))
-				for j, stat := range entityStatuses {
-					statuses[i][j] = stat.String()
-				}
-			}
-			result["statuses"] = statuses
-			timestamps := make([][]string, len(vector.RangeTimestamps))
-			for i, entityTimestamps := range vector.RangeTimestamps {
-				timestamps[i] = make([]string, len(entityTimestamps))
-				for j, ts := range entityTimestamps {
-					timestamps[i][j] = ts.AsTime().Format(time.RFC3339)
-				}
-			}
-			result["event_timestamps"] = timestamps
-		}
-
-		results = append(results, result)
-	}
+	featureNames, results := processFeatureVectors(rangeFeatureVectors, includeMetadata, entitiesProto)
 
 	response := map[string]interface{}{
 		"metadata": map[string]interface{}{
 			"feature_names": featureNames,
 		},
-		"results": results,
-		"status":  true,
+		"results":         results,
+		"includeMetadata": true,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -570,22 +646,6 @@ func (s *httpServer) getOnlineFeaturesRange(w http.ResponseWriter, r *http.Reque
 		writeJSONError(w, fmt.Errorf("error encoding response: %w", err), http.StatusInternalServerError)
 		return
 	}
-}
-
-func extractSimpleValues(repeatedValue *prototypes.RepeatedValue) interface{} {
-	if repeatedValue == nil || repeatedValue.Val == nil {
-		return []interface{}{}
-	}
-
-	if len(repeatedValue.Val) == 1 {
-		return types.ValueTypeToGoType(repeatedValue.Val[0])
-	}
-
-	result := make([]interface{}, len(repeatedValue.Val))
-	for i, val := range repeatedValue.Val {
-		result[i] = types.ValueTypeToGoType(val)
-	}
-	return result
 }
 
 func releaseCGOMemory(featureVectors []*onlineserving.FeatureVector) {
