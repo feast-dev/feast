@@ -138,7 +138,7 @@ func parseValueFromJSON(data json.RawMessage) (*prototypes.Value, error) {
 	return nil, fmt.Errorf("could not parse JSON value: %s", string(data))
 }
 
-func processFeatureVectors(vectors []*onlineserving.RangeFeatureVector, status bool, entitiesProto map[string]*prototypes.RepeatedValue) ([]string, []map[string]interface{}) {
+func processFeatureVectors(vectors []*onlineserving.RangeFeatureVector, includeMetadata bool, entitiesProto map[string]*prototypes.RepeatedValue) ([]string, []map[string]interface{}) {
 	featureNames := make([]string, len(vectors))
 	results := make([]map[string]interface{}, len(vectors))
 
@@ -210,7 +210,7 @@ func processFeatureVectors(vectors []*onlineserving.RangeFeatureVector, status b
 			result["values"] = simplifiedValues
 		}
 
-		if status {
+		if includeMetadata {
 			if len(vector.RangeStatuses) > 0 {
 				statusValues := make([][]string, len(vector.RangeStatuses))
 				for j, entityStatuses := range vector.RangeStatuses {
@@ -376,14 +376,14 @@ func (s *httpServer) getOnlineFeatures(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	statusQuery := r.URL.Query().Get("status")
+	includeMetadataQuery := r.URL.Query().Get("includeMetadata")
 
-	status := false
-	if statusQuery != "" {
-		status, err = strconv.ParseBool(statusQuery)
+	includeMetadata := false
+	if includeMetadataQuery != "" {
+		includeMetadata, err = strconv.ParseBool(includeMetadataQuery)
 		if err != nil {
-			logSpanContext.Error().Err(err).Msg("Error parsing status query parameter")
-			writeJSONError(w, fmt.Errorf("Error parsing status query parameter: %+v", err), http.StatusBadRequest)
+			logSpanContext.Error().Err(err).Msg("Error parsing includeMetadata query parameter")
+			writeJSONError(w, fmt.Errorf("Error parsing includeMetadata query parameter: %+v", err), http.StatusBadRequest)
 			return
 		}
 	}
@@ -439,7 +439,7 @@ func (s *httpServer) getOnlineFeatures(w http.ResponseWriter, r *http.Request) {
 	for _, vector := range featureVectors {
 		featureNames = append(featureNames, vector.Name)
 		result := make(map[string]interface{})
-		if status {
+		if includeMetadata {
 			var statuses []string
 			for _, status := range vector.Statuses {
 				statuses = append(statuses, status.String())
@@ -560,13 +560,13 @@ func (s *httpServer) getOnlineFeaturesRange(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	statusQuery := r.URL.Query().Get("status")
-	status := false
-	if statusQuery != "" {
-		status, err = strconv.ParseBool(statusQuery)
+	includeMetadataQuery := r.URL.Query().Get("includeMetadata")
+	includeMetadata := false
+	if includeMetadataQuery != "" {
+		includeMetadata, err = strconv.ParseBool(includeMetadataQuery)
 		if err != nil {
-			logSpanContext.Error().Err(err).Msg("Error parsing status query parameter")
-			writeJSONError(w, fmt.Errorf("error parsing status query parameter: %w", err), http.StatusBadRequest)
+			logSpanContext.Error().Err(err).Msg("Error parsing includeMetadata query parameter")
+			writeJSONError(w, fmt.Errorf("error parsing includeMetadata query parameter: %w", err), http.StatusBadRequest)
 			return
 		}
 	}
@@ -629,14 +629,14 @@ func (s *httpServer) getOnlineFeaturesRange(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	featureNames, results := processFeatureVectors(rangeFeatureVectors, status, entitiesProto)
+	featureNames, results := processFeatureVectors(rangeFeatureVectors, includeMetadata, entitiesProto)
 
 	response := map[string]interface{}{
 		"metadata": map[string]interface{}{
 			"feature_names": featureNames,
 		},
-		"results": results,
-		"status":  true,
+		"results":         results,
+		"includeMetadata": true,
 	}
 
 	w.Header().Set("Content-Type", "application/json")

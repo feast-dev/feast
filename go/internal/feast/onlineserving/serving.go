@@ -568,8 +568,7 @@ func isValueTypeCompatible(value *prototypes.Value, expectedType prototypes.Valu
 	case *prototypes.Value_UnixTimestampVal:
 		return expectedType == prototypes.ValueType_UNIX_TIMESTAMP
 	case *prototypes.Value_StringVal:
-		return expectedType == prototypes.ValueType_STRING ||
-			expectedType == prototypes.ValueType_BYTES
+		return expectedType == prototypes.ValueType_STRING
 	case *prototypes.Value_BoolVal:
 		return expectedType == prototypes.ValueType_BOOL
 	case *prototypes.Value_BytesVal:
