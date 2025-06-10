@@ -1476,6 +1476,59 @@ var _ = Describe("FeatureStore Controller", func() {
 			err = k8sClient.Update(ctx, resource)
 			Expect(err).NotTo(HaveOccurred())
 		})
+
+		It("should error if referencing a remote registry without gRPC server enabled", func() {
+			const remoteStoreName = "remote-featurestore"
+			remoteNamespacedName := types.NamespacedName{
+				Name:      remoteStoreName,
+				Namespace: "default",
+			}
+
+			// Create remote FeatureStore with gRPC disabled
+			remote := &feastdevv1alpha1.FeatureStore{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      remoteStoreName,
+					Namespace: "default",
+				},
+				Spec: feastdevv1alpha1.FeatureStoreSpec{
+					FeastProject: feastProject,
+					Services: &feastdevv1alpha1.FeatureStoreServices{
+						Registry: &feastdevv1alpha1.Registry{
+							Local: &feastdevv1alpha1.LocalRegistryConfig{
+								Server: &feastdevv1alpha1.RegistryServerConfigs{
+									GRPC:    ptr(false),
+									RestAPI: ptr(true),
+								},
+							},
+						},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, remote)).To(Succeed())
+			reconciler := &FeatureStoreReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+			}
+			_, err := reconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: remoteNamespacedName,
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			// Update main FeatureStore to reference the remote registry
+			Expect(k8sClient.Get(ctx, typeNamespacedName, featurestore)).To(Succeed())
+			featurestore.Spec.FeastProject = feastProject
+			featurestore.Spec.Services.Registry = &feastdevv1alpha1.Registry{
+				Remote: &feastdevv1alpha1.RemoteRegistryConfig{
+					FeastRef: &feastdevv1alpha1.FeatureStoreRef{Name: remoteStoreName},
+				},
+			}
+			Expect(k8sClient.Update(ctx, featurestore)).To(Succeed())
+			_, err = reconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: typeNamespacedName,
+			})
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("must have gRPC server enabled"))
+		})
 	})
 })
 

@@ -877,6 +877,11 @@ func (feast *FeastServices) setRemoteRegistryURL() error {
 			remoteFeast.isRegistryServer() &&
 			apimeta.IsStatusConditionTrue(remoteFeast.Handler.FeatureStore.Status.Conditions, feastdevv1alpha1.RegistryReadyType) &&
 			len(remoteFeast.Handler.FeatureStore.Status.ServiceHostnames.Registry) > 0 {
+			// Check if gRPC server is enabled
+			registry := remoteFeast.Handler.FeatureStore.Status.Applied.Services.Registry
+			if registry.Local.Server.GRPC == nil || !*registry.Local.Server.GRPC {
+				return errors.New("Remote feast registry of referenced FeatureStore '" + remoteFeast.Handler.FeatureStore.Name + "' must have gRPC server enabled")
+			}
 			feast.Handler.FeatureStore.Status.ServiceHostnames.Registry = remoteFeast.Handler.FeatureStore.Status.ServiceHostnames.Registry
 		} else {
 			return errors.New("Remote feast registry of referenced FeatureStore '" + remoteFeast.Handler.FeatureStore.Name + "' is not ready")
