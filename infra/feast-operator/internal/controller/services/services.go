@@ -228,7 +228,7 @@ func (feast *FeastServices) deployFeastServiceByType(feastType FeastServiceType)
 		if feastType == RegistryFeastType && feast.isRegistryServer() {
 			registry := feast.Handler.FeatureStore.Status.Applied.Services.Registry
 			if registry.Local.Server.RestAPI != nil && *registry.Local.Server.RestAPI {
-				if err := feast.createRestService(); err != nil {
+				if err := feast.createRestService(feastType); err != nil {
 					return feast.setFeastServiceCondition(err, feastType)
 				}
 			} else {
@@ -537,11 +537,11 @@ func (feast *FeastServices) getContainerCommand(feastType FeastServiceType) []st
 	if feastType == RegistryFeastType && feast.isRegistryServer() {
 		registry := feast.Handler.FeatureStore.Status.Applied.Services.Registry
 		if registry.Local.Server.GRPC != nil {
-		    if *registry.Local.Server.GRPC {
-			deploySettings.Args = append(deploySettings.Args, "--grpc")
-		    } else {
-			deploySettings.Args = append(deploySettings.Args, "--no-grpc")
-		    }
+			if *registry.Local.Server.GRPC {
+				deploySettings.Args = append(deploySettings.Args, "--grpc")
+			} else {
+				deploySettings.Args = append(deploySettings.Args, "--no-grpc")
+			}
 		}
 		if registry.Local.Server.RestAPI != nil && *registry.Local.Server.RestAPI {
 			deploySettings.Args = append(deploySettings.Args, "--rest-api")
@@ -632,7 +632,7 @@ func (feast *FeastServices) setInitContainer(podSpec *corev1.PodSpec, fsYamlB64 
 	}
 }
 
-func (feast *FeastServices) setService(svc *corev1.Service, feastType FeastServiceType) error {
+func (feast *FeastServices) setService(svc *corev1.Service, feastType FeastServiceType, isRestService ...bool) error {
 	svc.Labels = feast.getFeastTypeLabels(feastType)
 	if feast.isOpenShiftTls(feastType) {
 		if len(svc.Annotations) == 0 {
@@ -648,6 +648,14 @@ func (feast *FeastServices) setService(svc *corev1.Service, feastType FeastServi
 		port = HttpsPort
 		scheme = HttpsScheme
 	}
+
+	var targetPort int32
+	if len(isRestService) > 0 && isRestService[0] {
+		targetPort = getTargetRestPort(feastType, tls)
+	} else {
+		targetPort = getTargetPort(feastType, tls)
+	}
+
 	svc.Spec = corev1.ServiceSpec{
 		Selector: feast.getLabels(),
 		Type:     corev1.ServiceTypeClusterIP,
@@ -656,7 +664,7 @@ func (feast *FeastServices) setService(svc *corev1.Service, feastType FeastServi
 				Name:       scheme,
 				Port:       port,
 				Protocol:   corev1.ProtocolTCP,
-				TargetPort: intstr.FromInt(int(getTargetPort(feastType, tls))),
+				TargetPort: intstr.FromInt(int(targetPort)),
 			},
 		},
 	}
@@ -665,62 +673,23 @@ func (feast *FeastServices) setService(svc *corev1.Service, feastType FeastServi
 }
 
 // createRestService creates a separate service for the Registry REST API
-func (feast *FeastServices) createRestService() error {
+func (feast *FeastServices) createRestService(feastType FeastServiceType) error {
 	if feast.isRegistryServer() {
 
-	registry := feast.Handler.FeatureStore.Status.Applied.Services.Registry
-	if registry.Local.Server.RestAPI == nil || !*registry.Local.Server.RestAPI {
-		return nil
-	}
-
-	svc := &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      feast.GetFeastRestServiceName(feastType),
-			Namespace: feast.Handler.FeatureStore.Namespace,
-			Labels:    feast.getFeastTypeLabels(feastType),
-		},
-	}
-	svc.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("Service"))
-
-	if feast.isOpenShiftTls(feastType) {
-		if len(svc.Annotations) == 0 {
-			svc.Annotations = map[string]string{}
+		registry := feast.Handler.FeatureStore.Status.Applied.Services.Registry
+		if registry.Local.Server.RestAPI == nil || !*registry.Local.Server.RestAPI {
+			return nil
 		}
-		svc.Annotations["service.beta.openshift.io/serving-cert-secret-name"] = svc.Name + tlsNameSuffix
-	}
 
-	var port int32 = HttpPort
-	scheme := HttpScheme
-	tls := feast.getTlsConfigs(feastType)
-	if tls.IsTLS() {
-		port = HttpsPort
-		scheme = HttpsScheme
-	}
-
-	svc.Spec = corev1.ServiceSpec{
-		Selector: feast.getLabels(),
-		Type:     corev1.ServiceTypeClusterIP,
-		Ports: []corev1.ServicePort{
-			{
-				Name:       scheme,
-				Port:       port,
-				Protocol:   corev1.ProtocolTCP,
-				TargetPort: intstr.FromInt(int(getTargetRestPort(feastType, tls))),
-			},
-		},
-	}
-
-	if err := controllerutil.SetControllerReference(feast.Handler.FeatureStore, svc, feast.Handler.Scheme); err != nil {
-		return err
-	}
-
-	logger := log.FromContext(feast.Handler.Context)
-	if op, err := controllerutil.CreateOrUpdate(feast.Handler.Context, feast.Handler.Client, svc, controllerutil.MutateFn(func() error {
-		return nil // No need to mutate as we set everything above
-	})); err != nil {
-		return err
-	} else if op == controllerutil.OperationResultCreated || op == controllerutil.OperationResultUpdated {
-		logger.Info("Successfully reconciled", "Service", svc.Name, "operation", op)
+		logger := log.FromContext(feast.Handler.Context)
+		svc := feast.initFeastRestSvc(feastType)
+		if op, err := controllerutil.CreateOrUpdate(feast.Handler.Context, feast.Handler.Client, svc, controllerutil.MutateFn(func() error {
+			return feast.setService(svc, feastType, true)
+		})); err != nil {
+			return err
+		} else if op == controllerutil.OperationResultCreated || op == controllerutil.OperationResultUpdated {
+			logger.Info("Successfully reconciled", "Service", svc.Name, "operation", op)
+		}
 	}
 
 	return nil
@@ -982,6 +951,18 @@ func (feast *FeastServices) initFeastDeploy() *appsv1.Deployment {
 func (feast *FeastServices) initFeastSvc(feastType FeastServiceType) *corev1.Service {
 	svc := &corev1.Service{
 		ObjectMeta: feast.GetObjectMetaType(feastType),
+	}
+	svc.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("Service"))
+	return svc
+}
+
+func (feast *FeastServices) initFeastRestSvc(feastType FeastServiceType) *corev1.Service {
+	svc := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      feast.GetFeastRestServiceName(feastType),
+			Namespace: feast.Handler.FeatureStore.Namespace,
+			Labels:    feast.getFeastTypeLabels(feastType),
+		},
 	}
 	svc.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("Service"))
 	return svc
