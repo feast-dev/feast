@@ -221,9 +221,24 @@ func (feast *FeastServices) deployFeastServiceByType(feastType FeastServiceType)
 		_ = feast.Handler.DeleteOwnedFeastObj(feast.initPVC(feastType))
 	}
 	if serviceConfig := feast.getServerConfigs(feastType); serviceConfig != nil {
-		if err := feast.createService(feastType); err != nil {
-			return feast.setFeastServiceCondition(err, feastType)
+		// For registry service, only create service if gRPC is enabled
+		if feastType == RegistryFeastType && feast.isRegistryServer() {
+			registry := feast.Handler.FeatureStore.Status.Applied.Services.Registry
+			if registry.Local.Server.GRPC == nil || *registry.Local.Server.GRPC {
+				if err := feast.createService(feastType); err != nil {
+					return feast.setFeastServiceCondition(err, feastType)
+				}
+			} else {
+				// Delete service if gRPC is disabled
+				_ = feast.Handler.DeleteOwnedFeastObj(feast.initFeastSvc(feastType))
+			}
+		} else {
+			// For non-registry services, always create service
+			if err := feast.createService(feastType); err != nil {
+				return feast.setFeastServiceCondition(err, feastType)
+			}
 		}
+
 		// Create REST API service if needed
 		if feastType == RegistryFeastType && feast.isRegistryServer() {
 			registry := feast.Handler.FeatureStore.Status.Applied.Services.Registry
@@ -280,7 +295,7 @@ func (feast *FeastServices) createService(feastType FeastServiceType) error {
 	logger := log.FromContext(feast.Handler.Context)
 	svc := feast.initFeastSvc(feastType)
 	if op, err := controllerutil.CreateOrUpdate(feast.Handler.Context, feast.Handler.Client, svc, controllerutil.MutateFn(func() error {
-		return feast.setService(svc, feastType)
+		return feast.setService(svc, feastType, false)
 	})); err != nil {
 		return err
 	} else if op == controllerutil.OperationResultCreated || op == controllerutil.OperationResultUpdated {
@@ -420,24 +435,29 @@ func (feast *FeastServices) setContainer(containers *[]corev1.Container, feastTy
 		cmd := feast.getContainerCommand(feastType)
 		container := getContainer(name, workingDir, cmd, serverConfigs.ContainerConfigs, fsYamlB64)
 		tls := feast.getTlsConfigs(feastType)
-		probeHandler := getProbeHandler(feastType, tls)
-		container.Ports = []corev1.ContainerPort{
-			{
+		probeHandler := feast.getProbeHandler(feastType, tls)
+		container.Ports = []corev1.ContainerPort{}
+
+		isRegistry := feastType == RegistryFeastType && feast.isRegistryServer()
+		registry := feast.Handler.FeatureStore.Status.Applied.Services.Registry
+
+		grpcEnabled := !isRegistry || registry.Local.Server.GRPC == nil || *registry.Local.Server.GRPC
+		if grpcEnabled {
+			container.Ports = append(container.Ports, corev1.ContainerPort{
 				Name:          name,
 				ContainerPort: getTargetPort(feastType, tls),
 				Protocol:      corev1.ProtocolTCP,
-			},
+			})
 		}
-		if feastType == RegistryFeastType && feast.isRegistryServer() {
-			registry := feast.Handler.FeatureStore.Status.Applied.Services.Registry
-			if registry.Local.Server.RestAPI != nil && *registry.Local.Server.RestAPI {
-				container.Ports = append(container.Ports, corev1.ContainerPort{
-					Name:          name + "-rest",
-					ContainerPort: getTargetRestPort(feastType, tls),
-					Protocol:      corev1.ProtocolTCP,
-				})
-			}
+
+		if isRegistry && registry.Local.Server.RestAPI != nil && *registry.Local.Server.RestAPI {
+			container.Ports = append(container.Ports, corev1.ContainerPort{
+				Name:          name + "-rest",
+				ContainerPort: getTargetRestPort(feastType, tls),
+				Protocol:      corev1.ProtocolTCP,
+			})
 		}
+
 		container.StartupProbe = &corev1.Probe{
 			ProbeHandler:     probeHandler,
 			PeriodSeconds:    3,
@@ -632,7 +652,7 @@ func (feast *FeastServices) setInitContainer(podSpec *corev1.PodSpec, fsYamlB64 
 	}
 }
 
-func (feast *FeastServices) setService(svc *corev1.Service, feastType FeastServiceType, isRestService ...bool) error {
+func (feast *FeastServices) setService(svc *corev1.Service, feastType FeastServiceType, isRestService bool) error {
 	svc.Labels = feast.getFeastTypeLabels(feastType)
 	if feast.isOpenShiftTls(feastType) {
 		if len(svc.Annotations) == 0 {
@@ -650,7 +670,7 @@ func (feast *FeastServices) setService(svc *corev1.Service, feastType FeastServi
 	}
 
 	var targetPort int32
-	if len(isRestService) > 0 && isRestService[0] {
+	if isRestService {
 		targetPort = getTargetRestPort(feastType, tls)
 	} else {
 		targetPort = getTargetPort(feastType, tls)
@@ -1102,9 +1122,34 @@ func getTargetRestPort(feastType FeastServiceType, tls *feastdevv1alpha1.TlsConf
 	return FeastServiceConstants[feastType].TargetRestHttpPort
 }
 
-func getProbeHandler(feastType FeastServiceType, tls *feastdevv1alpha1.TlsConfigs) corev1.ProbeHandler {
-	targetPort := getTargetPort(feastType, tls)
-	if feastType == OnlineFeastType {
+func (feast *FeastServices) getProbeHandler(feastType FeastServiceType, tls *feastdevv1alpha1.TlsConfigs) corev1.ProbeHandler {
+	if feastType == RegistryFeastType {
+		registry := feast.Handler.FeatureStore.Status.Applied.Services.Registry
+		grpcEnabled := registry.Local.Server.GRPC == nil || *registry.Local.Server.GRPC
+		restEnabled := registry.Local.Server.RestAPI != nil && *registry.Local.Server.RestAPI
+
+		if restEnabled {
+			targetPort := getTargetRestPort(feastType, tls)
+			probeHandler := corev1.ProbeHandler{
+				HTTPGet: &corev1.HTTPGetAction{
+					Path: "/health",
+					Port: intstr.FromInt(int(targetPort)),
+				},
+			}
+			if tls.IsTLS() {
+				probeHandler.HTTPGet.Scheme = corev1.URISchemeHTTPS
+			}
+			return probeHandler
+		} else if grpcEnabled {
+			targetPort := getTargetPort(feastType, tls)
+			return corev1.ProbeHandler{
+				TCPSocket: &corev1.TCPSocketAction{
+					Port: intstr.FromInt(int(targetPort)),
+				},
+			}
+		}
+	} else if feastType == OnlineFeastType {
+		targetPort := getTargetPort(feastType, tls)
 		probeHandler := corev1.ProbeHandler{
 			HTTPGet: &corev1.HTTPGetAction{
 				Path: "/health",
@@ -1116,6 +1161,7 @@ func getProbeHandler(feastType FeastServiceType, tls *feastdevv1alpha1.TlsConfig
 		}
 		return probeHandler
 	}
+	targetPort := getTargetPort(feastType, tls)
 	return corev1.ProbeHandler{
 		TCPSocket: &corev1.TCPSocketAction{
 			Port: intstr.FromInt(int(targetPort)),

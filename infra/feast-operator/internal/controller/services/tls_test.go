@@ -302,19 +302,19 @@ var _ = Describe("TLS Config", func() {
 			// check k8s service objects
 			offlineSvc := feast.initFeastSvc(OfflineFeastType)
 			Expect(offlineSvc.Annotations).To(BeEmpty())
-			err = feast.setService(offlineSvc, OfflineFeastType)
+			err = feast.setService(offlineSvc, OfflineFeastType, false)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(offlineSvc.Annotations).NotTo(BeEmpty())
 			Expect(offlineSvc.Spec.Ports[0].Name).To(Equal(HttpsScheme))
 
 			onlineSvc := feast.initFeastSvc(OnlineFeastType)
-			err = feast.setService(onlineSvc, OnlineFeastType)
+			err = feast.setService(onlineSvc, OnlineFeastType, false)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(onlineSvc.Annotations).To(BeEmpty())
 			Expect(onlineSvc.Spec.Ports[0].Name).To(Equal(HttpScheme))
 
 			uiSvc := feast.initFeastSvc(UIFeastType)
-			err = feast.setService(uiSvc, UIFeastType)
+			err = feast.setService(uiSvc, UIFeastType, false)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(uiSvc.Annotations).To(BeEmpty())
 			Expect(uiSvc.Spec.Ports[0].Name).To(Equal(HttpScheme))
