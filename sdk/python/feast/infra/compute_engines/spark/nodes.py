@@ -56,11 +56,13 @@ class SparkReadNode(DAGNode):
         self,
         name: str,
         source: DataSource,
+        spark_session: SparkSession,
         start_time: Optional[datetime] = None,
         end_time: Optional[datetime] = None,
     ):
         super().__init__(name)
         self.source = source
+        self.spark_session = spark_session
         self.start_time = start_time
         self.end_time = end_time
 
@@ -72,7 +74,10 @@ class SparkReadNode(DAGNode):
             start_time=self.start_time,
             end_time=self.end_time,
         )
-        spark_df = cast(SparkRetrievalJob, retrieval_job).to_spark_df()
+        if isinstance(retrieval_job, SparkRetrievalJob):
+            spark_df = cast(SparkRetrievalJob, retrieval_job).to_spark_df()
+        else:
+            spark_df = self.spark_session.createDataFrame(retrieval_job.to_arrow())
 
         return DAGValue(
             data=spark_df,
