@@ -131,11 +131,6 @@ func ApplyDefaultsToStatus(cr *feastdevv1alpha1.FeatureStore) {
 					services.Registry.Local.Server.GRPC = &defaultGRPC
 				}
 
-				// Set default for RestAPI: false if nil
-				if services.Registry.Local.Server.RestAPI == nil {
-					defaultRestAPI := false
-					services.Registry.Local.Server.RestAPI = &defaultRestAPI
-				}
 			}
 		} else if services.Registry.Remote.FeastRef != nil && len(services.Registry.Remote.FeastRef.Namespace) == 0 {
 			services.Registry.Remote.FeastRef.Namespace = cr.Namespace

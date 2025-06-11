@@ -228,7 +228,7 @@ func (feast *FeastServices) deployFeastServiceByType(feastType FeastServiceType)
 		if feastType == RegistryFeastType && feast.isRegistryServer() {
 			registry := feast.Handler.FeatureStore.Status.Applied.Services.Registry
 			if registry.Local.Server.RestAPI != nil && *registry.Local.Server.RestAPI {
-				if err := feast.createRestService(feastType); err != nil {
+				if err := feast.createRestService(); err != nil {
 					return feast.setFeastServiceCondition(err, feastType)
 				}
 			} else {
@@ -536,10 +536,12 @@ func (feast *FeastServices) getContainerCommand(feastType FeastServiceType) []st
 
 	if feastType == RegistryFeastType && feast.isRegistryServer() {
 		registry := feast.Handler.FeatureStore.Status.Applied.Services.Registry
-		if registry.Local.Server.GRPC != nil && *registry.Local.Server.GRPC {
+		if registry.Local.Server.GRPC != nil {
+		    if *registry.Local.Server.GRPC {
 			deploySettings.Args = append(deploySettings.Args, "--grpc")
-		} else if registry.Local.Server.GRPC != nil && !*registry.Local.Server.GRPC {
+		    } else {
 			deploySettings.Args = append(deploySettings.Args, "--no-grpc")
+		    }
 		}
 		if registry.Local.Server.RestAPI != nil && *registry.Local.Server.RestAPI {
 			deploySettings.Args = append(deploySettings.Args, "--rest-api")
@@ -662,11 +664,9 @@ func (feast *FeastServices) setService(svc *corev1.Service, feastType FeastServi
 	return controllerutil.SetControllerReference(feast.Handler.FeatureStore, svc, feast.Handler.Scheme)
 }
 
-// createRestService creates a separate service for REST API
-func (feast *FeastServices) createRestService(feastType FeastServiceType) error {
-	if feastType != RegistryFeastType || !feast.isRegistryServer() {
-		return nil
-	}
+// createRestService creates a separate service for the Registry REST API
+func (feast *FeastServices) createRestService() error {
+	if feast.isRegistryServer() {
 
 	registry := feast.Handler.FeatureStore.Status.Applied.Services.Registry
 	if registry.Local.Server.RestAPI == nil || !*registry.Local.Server.RestAPI {
