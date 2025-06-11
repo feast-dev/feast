@@ -194,7 +194,7 @@ minimal-sdist-build = [
 ]
 setuptools = [
     # https://amitylearning.vercel.app/?question=git-1742419854670&update=1742342400027
-    "setuptools>=60,<77",
+    "setuptools>=60,<81",
 ]
 
 [project.urls]
@@ -210,7 +210,7 @@ feast = "feast.cli.cli:cli"
 requires = [
   "pybindgen==0.22.0",
   # https://amitylearning.vercel.app/?question=git-1742419854670&update=1742342400027
-  "setuptools>=60,<77",
+  "setuptools>=60,<81",
   "setuptools_scm>=6.2",
   "sphinx!=4.0.0",
   "wheel",
