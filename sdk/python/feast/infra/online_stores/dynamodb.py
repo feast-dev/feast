@@ -23,15 +23,10 @@ from aiobotocore.config import AioConfig
 from pydantic import StrictBool, StrictStr
 
 from feast import Entity, FeatureView, utils
-from feast.infra.infra_object import DYNAMODB_INFRA_OBJECT_CLASS_TYPE, InfraObject
 from feast.infra.online_stores.helpers import compute_entity_id
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.supported_async_methods import SupportedAsyncMethods
 from feast.infra.utils.aws_utils import dynamo_write_items_async
-from feast.protos.feast.core.DynamoDBTable_pb2 import (
-    DynamoDBTable as DynamoDBTableProto,
-)
-from feast.protos.feast.core.InfraObject_pb2 import InfraObject as InfraObjectProto
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
@@ -715,94 +710,6 @@ def _delete_table_idempotent(
             raise
         else:
             logger.warning(f"Trying to delete table that doesn't exist: {table_name}")
-
-
-class DynamoDBTable(InfraObject):
-    """
-    A DynamoDB table managed by Feast.
-
-    Attributes:
-        name: The name of the table.
-        region: The region of the table.
-        endpoint_url: Local DynamoDB Endpoint Url.
-        _dynamodb_client: Boto3 DynamoDB client.
-        _dynamodb_resource: Boto3 DynamoDB resource.
-    """
-
-    region: str
-    endpoint_url = None
-    _dynamodb_client = None
-    _dynamodb_resource = None
-
-    def __init__(self, name: str, region: str, endpoint_url: Optional[str] = None):
-        super().__init__(name)
-        self.region = region
-        self.endpoint_url = endpoint_url
-
-    def to_infra_object_proto(self) -> InfraObjectProto:
-        dynamodb_table_proto = self.to_proto()
-        return InfraObjectProto(
-            infra_object_class_type=DYNAMODB_INFRA_OBJECT_CLASS_TYPE,
-            dynamodb_table=dynamodb_table_proto,
-        )
-
-    def to_proto(self) -> Any:
-        dynamodb_table_proto = DynamoDBTableProto()
-        dynamodb_table_proto.name = self.name
-        dynamodb_table_proto.region = self.region
-        return dynamodb_table_proto
-
-    @staticmethod
-    def from_infra_object_proto(infra_object_proto: InfraObjectProto) -> Any:
-        return DynamoDBTable(
-            name=infra_object_proto.dynamodb_table.name,
-            region=infra_object_proto.dynamodb_table.region,
-        )
-
-    @staticmethod
-    def from_proto(dynamodb_table_proto: DynamoDBTableProto) -> Any:
-        return DynamoDBTable(
-            name=dynamodb_table_proto.name,
-            region=dynamodb_table_proto.region,
-        )
-
-    def update(self):
-        dynamodb_client = self._get_dynamodb_client(self.region, self.endpoint_url)
-        dynamodb_resource = self._get_dynamodb_resource(self.region, self.endpoint_url)
-
-        try:
-            dynamodb_resource.create_table(
-                TableName=f"{self.name}",
-                KeySchema=[{"AttributeName": "entity_id", "KeyType": "HASH"}],
-                AttributeDefinitions=[
-                    {"AttributeName": "entity_id", "AttributeType": "S"}
-                ],
-                BillingMode="PAY_PER_REQUEST",
-            )
-        except ClientError as ce:
-            # If the table creation fails with ResourceInUseException,
-            # it means the table already exists or is being created.
-            # Otherwise, re-raise the exception
-            if ce.response["Error"]["Code"] != "ResourceInUseException":
-                raise
-
-        dynamodb_client.get_waiter("table_exists").wait(TableName=f"{self.name}")
-
-    def teardown(self):
-        dynamodb_resource = self._get_dynamodb_resource(self.region, self.endpoint_url)
-        _delete_table_idempotent(dynamodb_resource, self.name)
-
-    def _get_dynamodb_client(self, region: str, endpoint_url: Optional[str] = None):
-        if self._dynamodb_client is None:
-            self._dynamodb_client = _initialize_dynamodb_client(region, endpoint_url)
-        return self._dynamodb_client
-
-    def _get_dynamodb_resource(self, region: str, endpoint_url: Optional[str] = None):
-        if self._dynamodb_resource is None:
-            self._dynamodb_resource = _initialize_dynamodb_resource(
-                region, endpoint_url
-            )
-        return self._dynamodb_resource
 
 
 def _to_resource_write_item(config, entity_key, features, timestamp):

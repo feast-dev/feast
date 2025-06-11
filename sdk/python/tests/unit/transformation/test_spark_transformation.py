@@ -53,7 +53,10 @@ def remove_extra_spaces_sql(df, column_name):
 @pytest.fixture
 def spark_fixture():
     spark = SparkSession.builder.appName("Testing PySpark Example").getOrCreate()
-    yield spark
+    try:
+        yield spark
+    finally:
+        spark.stop()
 
 
 @patch("feast.infra.compute_engines.spark.utils.get_or_create_new_spark_session")

@@ -149,7 +149,7 @@ class SnowflakeOnlineStore(OnlineStore):
                             "_feast_row" = 1;
                 """
                 execute_snowflake_statement(conn, query)
-
+                conn.commit()
             if progress:
                 progress(len(data))
 

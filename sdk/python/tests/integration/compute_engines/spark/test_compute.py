@@ -172,7 +172,7 @@ def test_spark_compute_engine_get_historical_features():
 
         spark_dag_retrieval_job = engine.get_historical_features(registry, task)
         spark_df = cast(SparkDAGRetrievalJob, spark_dag_retrieval_job).to_spark_df()
-        df_out = spark_df.orderBy("driver_id").to_pandas_on_spark()
+        df_out = spark_df.orderBy("driver_id").toPandas()
 
         # ✅ Assert output
         assert df_out.driver_id.to_list() == [1001, 1002]
