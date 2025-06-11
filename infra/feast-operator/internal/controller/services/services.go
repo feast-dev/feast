@@ -235,7 +235,7 @@ func (feast *FeastServices) deployFeastServiceByType(feastType FeastServiceType)
 				// Delete REST API service if REST API is disabled
 				_ = feast.Handler.DeleteOwnedFeastObj(&corev1.Service{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      feast.GetFeastServiceName(feastType) + "-rest",
+						Name:      feast.GetFeastRestServiceName(feastType),
 						Namespace: feast.Handler.FeatureStore.Namespace,
 					},
 				})
@@ -246,7 +246,7 @@ func (feast *FeastServices) deployFeastServiceByType(feastType FeastServiceType)
 		// Delete REST API service if it exists
 		_ = feast.Handler.DeleteOwnedFeastObj(&corev1.Service{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      feast.GetFeastServiceName(feastType) + "-rest",
+				Name:      feast.GetFeastRestServiceName(feastType),
 				Namespace: feast.Handler.FeatureStore.Namespace,
 			},
 		})
@@ -675,7 +675,7 @@ func (feast *FeastServices) createRestService() error {
 
 	svc := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      feast.GetFeastServiceName(feastType) + "-rest",
+			Name:      feast.GetFeastRestServiceName(feastType),
 			Namespace: feast.Handler.FeatureStore.Namespace,
 			Labels:    feast.getFeastTypeLabels(feastType),
 		},
@@ -834,7 +834,7 @@ func (feast *FeastServices) setServiceHostnames() error {
 			getPortStr(feast.Handler.FeatureStore.Status.Applied.Services.Registry.Local.Server.TLS)
 		if registry.Local.Server.RestAPI != nil && *registry.Local.Server.RestAPI {
 			// Use the REST API service name
-			restSvcName := objMeta.Name + "-rest"
+			restSvcName := feast.GetFeastRestServiceName(RegistryFeastType)
 			feast.Handler.FeatureStore.Status.ServiceHostnames.RegistryRest = restSvcName + "." + objMeta.Namespace + domain +
 				getPortStr(feast.Handler.FeatureStore.Status.Applied.Services.Registry.Local.Server.TLS)
 		}
@@ -1150,4 +1150,9 @@ func IsDeploymentAvailable(conditions []appsv1.DeploymentCondition) bool {
 	}
 
 	return false
+}
+
+// GetFeastRestServiceName returns the feast REST service object name based on service type
+func (feast *FeastServices) GetFeastRestServiceName(feastType FeastServiceType) string {
+	return feast.GetFeastServiceName(feastType) + "-rest"
 }
