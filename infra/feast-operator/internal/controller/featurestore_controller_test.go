@@ -1255,12 +1255,6 @@ var _ = Describe("FeatureStore Controller", func() {
 					restAPI:      ptr(true),
 					expectedArgs: []string{"--grpc", "--rest-api"},
 				},
-				{
-					name:         "explicitly disable both",
-					grpc:         ptr(false),
-					restAPI:      ptr(false),
-					expectedArgs: []string{"--no-grpc"},
-				},
 			}
 
 			for _, tc := range cases {

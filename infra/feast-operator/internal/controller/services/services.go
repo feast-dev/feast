@@ -54,6 +54,11 @@ func (feast *FeastServices) Deploy() error {
 	if feast.noLocalCoreServerConfigured() {
 		return errors.New("at least one local server must be configured. e.g. registry / online / offline")
 	}
+	if feast.isRegistryServer() {
+		if !feast.isRegistryGrpcEnabled() && !feast.isRegistryRestEnabled() {
+			return errors.New("at least one of gRPC or REST API must be enabled for registry service")
+		}
+	}
 	openshiftTls, err := feast.checkOpenshiftTls()
 	if err != nil {
 		return err
@@ -221,39 +226,41 @@ func (feast *FeastServices) deployFeastServiceByType(feastType FeastServiceType)
 		_ = feast.Handler.DeleteOwnedFeastObj(feast.initPVC(feastType))
 	}
 	if serviceConfig := feast.getServerConfigs(feastType); serviceConfig != nil {
-		// For registry service, only create service if gRPC is enabled
+		// For registry service, handle both gRPC and REST services
 		if feastType == RegistryFeastType && feast.isRegistryServer() {
-			registry := feast.Handler.FeatureStore.Status.Applied.Services.Registry
-			if registry.Local.Server.GRPC == nil || *registry.Local.Server.GRPC {
+			// Create gRPC service if enabled
+			if feast.isRegistryGrpcEnabled() {
 				if err := feast.createService(feastType); err != nil {
 					return feast.setFeastServiceCondition(err, feastType)
 				}
 			} else {
-				// Delete service if gRPC is disabled
-				_ = feast.Handler.DeleteOwnedFeastObj(feast.initFeastSvc(feastType))
+				// Delete gRPC service if disabled
+				_ = feast.Handler.DeleteOwnedFeastObj(&corev1.Service{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      feast.GetFeastServiceName(feastType),
+						Namespace: feast.Handler.FeatureStore.Namespace,
+					},
+				})
 			}
-		} else {
-			// For non-registry services, always create service
-			if err := feast.createService(feastType); err != nil {
-				return feast.setFeastServiceCondition(err, feastType)
-			}
-		}
 
-		// Create REST API service if needed
-		if feastType == RegistryFeastType && feast.isRegistryServer() {
-			registry := feast.Handler.FeatureStore.Status.Applied.Services.Registry
-			if registry.Local.Server.RestAPI != nil && *registry.Local.Server.RestAPI {
+			// Create REST service if enabled
+			if feast.isRegistryRestEnabled() {
 				if err := feast.createRestService(feastType); err != nil {
 					return feast.setFeastServiceCondition(err, feastType)
 				}
 			} else {
-				// Delete REST API service if REST API is disabled
+				// Delete REST service if disabled
 				_ = feast.Handler.DeleteOwnedFeastObj(&corev1.Service{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      feast.GetFeastRestServiceName(feastType),
 						Namespace: feast.Handler.FeatureStore.Namespace,
 					},
 				})
+			}
+		} else {
+			// For non-registry services, always create service
+			if err := feast.createService(feastType); err != nil {
+				return feast.setFeastServiceCondition(err, feastType)
 			}
 		}
 	} else {
@@ -439,9 +446,8 @@ func (feast *FeastServices) setContainer(containers *[]corev1.Container, feastTy
 		container.Ports = []corev1.ContainerPort{}
 
 		isRegistry := feastType == RegistryFeastType && feast.isRegistryServer()
-		registry := feast.Handler.FeatureStore.Status.Applied.Services.Registry
 
-		grpcEnabled := !isRegistry || registry.Local.Server.GRPC == nil || *registry.Local.Server.GRPC
+		grpcEnabled := !feast.isRegistryServer() || feast.isRegistryGrpcEnabled()
 		if grpcEnabled {
 			container.Ports = append(container.Ports, corev1.ContainerPort{
 				Name:          name,
@@ -450,7 +456,7 @@ func (feast *FeastServices) setContainer(containers *[]corev1.Container, feastTy
 			})
 		}
 
-		if isRegistry && registry.Local.Server.RestAPI != nil && *registry.Local.Server.RestAPI {
+		if isRegistry && feast.isRegistryRestEnabled() {
 			container.Ports = append(container.Ports, corev1.ContainerPort{
 				Name:          name + "-rest",
 				ContainerPort: getTargetRestPort(feastType, tls),
@@ -555,15 +561,12 @@ func (feast *FeastServices) getContainerCommand(feastType FeastServiceType) []st
 	tls := feast.getTlsConfigs(feastType)
 
 	if feastType == RegistryFeastType && feast.isRegistryServer() {
-		registry := feast.Handler.FeatureStore.Status.Applied.Services.Registry
-		if registry.Local.Server.GRPC != nil {
-			if *registry.Local.Server.GRPC {
-				deploySettings.Args = append(deploySettings.Args, "--grpc")
-			} else {
-				deploySettings.Args = append(deploySettings.Args, "--no-grpc")
-			}
+		if feast.isRegistryGrpcEnabled() {
+			deploySettings.Args = append(deploySettings.Args, "--grpc")
+		} else {
+			deploySettings.Args = append(deploySettings.Args, "--no-grpc")
 		}
-		if registry.Local.Server.RestAPI != nil && *registry.Local.Server.RestAPI {
+		if feast.isRegistryRestEnabled() {
 			deploySettings.Args = append(deploySettings.Args, "--rest-api")
 			deploySettings.Args = append(deploySettings.Args, "--rest-port", strconv.Itoa(int(getTargetRestPort(feastType, tls))))
 		}
@@ -695,12 +698,9 @@ func (feast *FeastServices) setService(svc *corev1.Service, feastType FeastServi
 // createRestService creates a separate service for the Registry REST API
 func (feast *FeastServices) createRestService(feastType FeastServiceType) error {
 	if feast.isRegistryServer() {
-
-		registry := feast.Handler.FeatureStore.Status.Applied.Services.Registry
-		if registry.Local.Server.RestAPI == nil || !*registry.Local.Server.RestAPI {
+		if !feast.isRegistryRestEnabled() {
 			return nil
 		}
-
 		logger := log.FromContext(feast.Handler.Context)
 		svc := feast.initFeastRestSvc(feastType)
 		if op, err := controllerutil.CreateOrUpdate(feast.Handler.Context, feast.Handler.Client, svc, controllerutil.MutateFn(func() error {
@@ -711,7 +711,6 @@ func (feast *FeastServices) createRestService(feastType FeastServiceType) error 
 			logger.Info("Successfully reconciled", "Service", svc.Name, "operation", op)
 		}
 	}
-
 	return nil
 }
 
@@ -818,10 +817,9 @@ func (feast *FeastServices) setServiceHostnames() error {
 	}
 	if feast.isRegistryServer() {
 		objMeta := feast.initFeastSvc(RegistryFeastType)
-		registry := feast.Handler.FeatureStore.Status.Applied.Services.Registry
 		feast.Handler.FeatureStore.Status.ServiceHostnames.Registry = objMeta.Name + "." + objMeta.Namespace + domain +
 			getPortStr(feast.Handler.FeatureStore.Status.Applied.Services.Registry.Local.Server.TLS)
-		if registry.Local.Server.RestAPI != nil && *registry.Local.Server.RestAPI {
+		if feast.isRegistryRestEnabled() {
 			// Use the REST API service name
 			restSvcName := feast.GetFeastRestServiceName(RegistryFeastType)
 			feast.Handler.FeatureStore.Status.ServiceHostnames.RegistryRest = restSvcName + "." + objMeta.Namespace + domain +
@@ -867,8 +865,7 @@ func (feast *FeastServices) setRemoteRegistryURL() error {
 			apimeta.IsStatusConditionTrue(remoteFeast.Handler.FeatureStore.Status.Conditions, feastdevv1alpha1.RegistryReadyType) &&
 			len(remoteFeast.Handler.FeatureStore.Status.ServiceHostnames.Registry) > 0 {
 			// Check if gRPC server is enabled
-			registry := remoteFeast.Handler.FeatureStore.Status.Applied.Services.Registry
-			if registry.Local.Server.GRPC == nil || !*registry.Local.Server.GRPC {
+			if !remoteFeast.isRegistryGrpcEnabled() {
 				return errors.New("Remote feast registry of referenced FeatureStore '" + remoteFeast.Handler.FeatureStore.Name + "' must have gRPC server enabled")
 			}
 			feast.Handler.FeatureStore.Status.ServiceHostnames.Registry = remoteFeast.Handler.FeatureStore.Status.ServiceHostnames.Registry
@@ -1124,15 +1121,10 @@ func getTargetRestPort(feastType FeastServiceType, tls *feastdevv1alpha1.TlsConf
 
 func (feast *FeastServices) getProbeHandler(feastType FeastServiceType, tls *feastdevv1alpha1.TlsConfigs) corev1.ProbeHandler {
 	if feastType == RegistryFeastType {
-		registry := feast.Handler.FeatureStore.Status.Applied.Services.Registry
-		grpcEnabled := registry.Local.Server.GRPC == nil || *registry.Local.Server.GRPC
-		restEnabled := registry.Local.Server.RestAPI != nil && *registry.Local.Server.RestAPI
-
-		if restEnabled {
+		if feast.isRegistryRestEnabled() {
 			targetPort := getTargetRestPort(feastType, tls)
 			probeHandler := corev1.ProbeHandler{
 				HTTPGet: &corev1.HTTPGetAction{
-					Path: "/health",
 					Port: intstr.FromInt(int(targetPort)),
 				},
 			}
@@ -1140,7 +1132,8 @@ func (feast *FeastServices) getProbeHandler(feastType FeastServiceType, tls *fea
 				probeHandler.HTTPGet.Scheme = corev1.URISchemeHTTPS
 			}
 			return probeHandler
-		} else if grpcEnabled {
+		}
+		if feast.isRegistryGrpcEnabled() {
 			targetPort := getTargetPort(feastType, tls)
 			return corev1.ProbeHandler{
 				TCPSocket: &corev1.TCPSocketAction{
@@ -1182,4 +1175,16 @@ func IsDeploymentAvailable(conditions []appsv1.DeploymentCondition) bool {
 // GetFeastRestServiceName returns the feast REST service object name based on service type
 func (feast *FeastServices) GetFeastRestServiceName(feastType FeastServiceType) string {
 	return feast.GetFeastServiceName(feastType) + "-rest"
+}
+
+// isRegistryGrpcEnabled checks if gRPC is enabled for registry service
+func (feast *FeastServices) isRegistryGrpcEnabled() bool {
+	registry := feast.Handler.FeatureStore.Status.Applied.Services.Registry
+	return registry.Local.Server.GRPC == nil || *registry.Local.Server.GRPC
+}
+
+// isRegistryRestEnabled checks if REST API is enabled for registry service
+func (feast *FeastServices) isRegistryRestEnabled() bool {
+	registry := feast.Handler.FeatureStore.Status.Applied.Services.Registry
+	return registry.Local.Server.RestAPI != nil && *registry.Local.Server.RestAPI
 }
