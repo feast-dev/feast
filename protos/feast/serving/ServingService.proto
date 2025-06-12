@@ -196,7 +196,6 @@ message GetOnlineFeaturesRangeResponse {
     // Length of "results" array should match length of requested features.
     // We also preserve the same order of features here as in metadata.feature_names
     repeated RangeFeatureVector results = 2;
-    bool status = 3;
 
     message RangeFeatureVector {
         // Each values entry contains multiple values for a feature

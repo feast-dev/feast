@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
@@ -17,20 +16,7 @@ var defaultCheckTimeout = 2 * time.Second
 
 // Register default HTTP handlers specific to the hybrid server configuration.
 func DefaultHybridHandlers(s *httpServer, port int) []Handler {
-	return []Handler{
-		{
-			path:        "/get-online-features",
-			handlerFunc: recoverMiddleware(http.HandlerFunc(s.getOnlineFeatures)),
-		},
-		{
-			path:        "/metrics",
-			handlerFunc: promhttp.Handler(),
-		},
-		{
-			path:        "/health",
-			handlerFunc: http.HandlerFunc(combinedHealthCheck(port)),
-		},
-	}
+	return CommonHttpHandlers(s, combinedHealthCheck(port))
 }
 
 // This function wraps an http.Handler that is registered during hybrid server creation.

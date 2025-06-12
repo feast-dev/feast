@@ -1,6 +1,8 @@
 package server
 
 import (
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"net/http"
 	"os"
 
 	"github.com/rs/zerolog"
@@ -17,4 +19,25 @@ func LogWithSpanContext(span tracer.Span) zerolog.Logger {
 		Logger()
 
 	return logger
+}
+
+func CommonHttpHandlers(s *httpServer, healthCheckHandler http.HandlerFunc) []Handler {
+	return []Handler{
+		{
+			path:        "/get-online-features",
+			handlerFunc: recoverMiddleware(http.HandlerFunc(s.getOnlineFeatures)),
+		},
+		{
+			path:        "/get-online-features-range",
+			handlerFunc: recoverMiddleware(http.HandlerFunc(s.getOnlineFeaturesRange)),
+		},
+		{
+			path:        "/metrics",
+			handlerFunc: promhttp.Handler(),
+		},
+		{
+			path:        "/health",
+			handlerFunc: healthCheckHandler,
+		},
+	}
 }

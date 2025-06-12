@@ -18,7 +18,6 @@ import (
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	prototypes "github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/feast-dev/feast/go/types"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/zerolog/log"
 	httptrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/net/http"
 	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
@@ -635,8 +634,7 @@ func (s *httpServer) getOnlineFeaturesRange(w http.ResponseWriter, r *http.Reque
 		"metadata": map[string]interface{}{
 			"feature_names": featureNames,
 		},
-		"results":         results,
-		"includeMetadata": true,
+		"results": results,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -724,30 +722,14 @@ func (s *httpServer) Serve(host string, port int, handlers []Handler) error {
 }
 
 func DefaultHttpHandlers(s *httpServer) []Handler {
-	return []Handler{
-		{
-			path:        "/get-online-features",
-			handlerFunc: recoverMiddleware(http.HandlerFunc(s.getOnlineFeatures)),
-		},
-		{
-			path:        "/get-online-features-range",
-			handlerFunc: recoverMiddleware(http.HandlerFunc(s.getOnlineFeaturesRange)),
-		},
-		{
-			path:        "/metrics",
-			handlerFunc: promhttp.Handler(),
-		},
-		{
-			path:        "/health",
-			handlerFunc: http.HandlerFunc(healthCheckHandler),
-		},
-	}
+	return CommonHttpHandlers(s, healthCheckHandler)
 }
 
 func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprintf(w, "Healthy")
 }
+
 func (s *httpServer) Stop() error {
 	if s.server != nil {
 		return s.server.Shutdown(context.Background())

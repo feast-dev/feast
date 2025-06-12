@@ -159,7 +159,6 @@ func (s *grpcServingServiceServer) GetOnlineFeaturesRange(ctx context.Context, r
 		Metadata: &serving.GetOnlineFeaturesResponseMetadata{
 			FeatureNames: &serving.FeatureList{Val: make([]string, 0)},
 		},
-		Status: true,
 	}
 
 	for _, vector := range rangeFeatureVectors {
