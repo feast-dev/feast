@@ -170,6 +170,123 @@ class RemoteOnlineStore(OnlineStore):
             logger.error(error_msg)
             raise RuntimeError(error_msg)
 
+    def retrieve_online_documents(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        embedding: List[float],
+        top_k: int,
+        requested_features: Optional[List[str]] = None,
+        distance_metric: Optional[str] = "L2",
+    ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
+        assert isinstance(config.online_store, RemoteOnlineStoreConfig)
+        config.online_store.__class__ = RemoteOnlineStoreConfig
+
+        req_body = self._construct_online_documents_api_json_request(
+            table, requested_features, embedding, top_k, distance_metric
+        )
+        response = get_remote_online_documents(config=config, req_body=req_body)
+        if response.status_code == 200:
+            logger.debug("Able to retrieve the online documents from feature server.")
+            response_json = json.loads(response.text)
+            event_ts = self._get_event_ts(response_json)
+            result_tuples: List[
+                Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]
+            ] = []
+            for feature_value_index in range(
+                len(response_json["results"][0]["values"])
+            ):
+                feature_values_dict: Dict[str, ValueProto] = dict()
+                for index, feature_name in enumerate(
+                    response_json["metadata"]["feature_names"]
+                ):
+                    if (
+                        requested_features is not None
+                        and feature_name in requested_features
+                    ):
+                        if (
+                            response_json["results"][index]["statuses"][
+                                feature_value_index
+                            ]
+                            == "PRESENT"
+                        ):
+                            message = python_values_to_proto_values(
+                                [
+                                    response_json["results"][index]["values"][
+                                        feature_value_index
+                                    ]
+                                ],
+                                ValueType.UNKNOWN,
+                            )
+                            feature_values_dict[feature_name] = message[0]
+                        else:
+                            feature_values_dict[feature_name] = ValueProto()
+                result_tuples.append((event_ts, feature_values_dict))
+            return result_tuples
+        else:
+            error_msg = f"Unable to retrieve the online documents using feature server API. Error_code={response.status_code}, error_message={response.text}"
+            logger.error(error_msg)
+            raise RuntimeError(error_msg)
+
+    def retrieve_online_documents_v2(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        embedding: Optional[List[float]],
+        top_k: int,
+        requested_features: Optional[List[str]] = None,
+        distance_metric: Optional[str] = None,
+        query_string: Optional[str] = None,
+    ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
+        assert isinstance(config.online_store, RemoteOnlineStoreConfig)
+        config.online_store.__class__ = RemoteOnlineStoreConfig
+
+        req_body = self._construct_online_documents_v2_api_json_request(
+            table, requested_features, embedding, top_k, distance_metric, query_string
+        )
+        response = get_remote_online_documents_v2(config=config, req_body=req_body)
+        if response.status_code == 200:
+            logger.debug("Able to retrieve the online documents from feature server.")
+            response_json = json.loads(response.text)
+            event_ts = self._get_event_ts(response_json)
+            result_tuples: List[
+                Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]
+            ] = []
+            for feature_value_index in range(
+                len(response_json["results"][0]["values"])
+            ):
+                feature_values_dict: Dict[str, ValueProto] = dict()
+                for index, feature_name in enumerate(
+                    response_json["metadata"]["feature_names"]
+                ):
+                    if (
+                        requested_features is not None
+                        and feature_name in requested_features
+                    ):
+                        if (
+                            response_json["results"][index]["statuses"][
+                                feature_value_index
+                            ]
+                            == "PRESENT"
+                        ):
+                            message = python_values_to_proto_values(
+                                [
+                                    response_json["results"][index]["values"][
+                                        feature_value_index
+                                    ]
+                                ],
+                                ValueType.UNKNOWN,
+                            )
+                            feature_values_dict[feature_name] = message[0]
+                        else:
+                            feature_values_dict[feature_name] = ValueProto()
+                result_tuples.append((event_ts, feature_values_dict))
+            return result_tuples
+        else:
+            error_msg = f"Unable to retrieve the online documents using feature server API. Error_code={response.status_code}, error_message={response.text}"
+            logger.error(error_msg)
+            raise RuntimeError(error_msg)
+
     def _construct_online_read_api_json_request(
         self,
         entity_keys: List[EntityKeyProto],
@@ -193,6 +310,54 @@ class RemoteOnlineStore(OnlineStore):
             {
                 "features": api_requested_features,
                 "entities": {entity_key: entity_values},
+            }
+        )
+        return req_body
+
+    def _construct_online_documents_api_json_request(
+        self,
+        table: FeatureView,
+        requested_features: Optional[List[str]] = None,
+        embedding: Optional[List[float]] = None,
+        top_k: Optional[int] = None,
+        distance_metric: Optional[str] = "L2",
+    ) -> str:
+        api_requested_features = []
+        if requested_features is not None:
+            for requested_feature in requested_features:
+                api_requested_features.append(f"{table.name}:{requested_feature}")
+
+        req_body = json.dumps(
+            {
+                "features": api_requested_features,
+                "embedding": embedding,
+                "top_k": top_k,
+                "distance_metric": distance_metric,
+            }
+        )
+        return req_body
+
+    def _construct_online_documents_v2_api_json_request(
+        self,
+        table: FeatureView,
+        embedding: Optional[List[float]],
+        top_k: int,
+        requested_features: Optional[List[str]] = None,
+        distance_metric: Optional[str] = None,
+        query_string: Optional[str] = None,
+    ) -> str:
+        api_requested_features = []
+        if requested_features is not None:
+            for requested_feature in requested_features:
+                api_requested_features.append(f"{table.name}:{requested_feature}")
+
+        req_body = json.dumps(
+            {
+                "features": api_requested_features,
+                "embedding": embedding,
+                "top_k": top_k,
+                "distance_metric": distance_metric,
+                "query_string": query_string,
             }
         )
         return req_body
@@ -236,6 +401,38 @@ def get_remote_online_features(
     else:
         return session.post(
             f"{config.online_store.path}/get-online-features", data=req_body
+        )
+
+
+@rest_error_handling_decorator
+def get_remote_online_documents(
+    session: requests.Session, config: RepoConfig, req_body: str
+) -> requests.Response:
+    if config.online_store.cert:
+        return session.post(
+            f"{config.online_store.path}/retrieve-online-documents",
+            data=req_body,
+            verify=config.online_store.cert,
+        )
+    else:
+        return session.post(
+            f"{config.online_store.path}/retrieve-online-documents", data=req_body
+        )
+
+
+@rest_error_handling_decorator
+def get_remote_online_documents_v2(
+    session: requests.Session, config: RepoConfig, req_body: str
+) -> requests.Response:
+    if config.online_store.cert:
+        return session.post(
+            f"{config.online_store.path}/retrieve-online-documents",
+            data=req_body,
+            verify=config.online_store.cert,
+        )
+    else:
+        return session.post(
+            f"{config.online_store.path}/retrieve-online-documents", data=req_body
         )
 
 
