@@ -596,13 +596,18 @@ func TrainAndTestModel(namespace string, feastCRName string, feastDeploymentName
 	fmt.Println("Patched FeatureStore with train/test commands")
 
 	By("Validating patch was applied correctly")
-	cmd = exec.Command("kubectl", "get", "feast/"+feastCRName, "-n", namespace, "-o", "jsonpath={.status.applied.cronJob.containerConfigs.commands}")
-	output, err := Run(cmd, testDir)
-	ExpectWithOffset(1, err).NotTo(HaveOccurred())
-	outputStr := string(output)
-	Expect(outputStr).To(ContainSubstring("pip install -r ../requirements.txt"))
-	Expect(outputStr).To(ContainSubstring("python run.py"))
-	fmt.Print("FeatureStore patched correctly with commands", outputStr)
+
+	Eventually(func() string {
+		cmd := exec.Command("kubectl", "get", "feast/"+feastCRName, "-n", namespace, "-o", "jsonpath={.status.applied.cronJob.containerConfigs.commands}")
+		output, _ := Run(cmd, testDir)
+		return string(output)
+	}, "30s", "3s").Should(
+		And(
+			ContainSubstring("pip install -r ../requirements.txt"),
+			ContainSubstring("python run.py"),
+		),
+	)
+	fmt.Println("FeatureStore patched correctly with commands")
 
 	By("Creating Job from CronJob")
 	CreateAndVerifyJobFromCron(namespace, feastDeploymentName, "feast-test-job", testDir, []string{"Loan rejected!"})
@@ -645,11 +650,16 @@ func checkDeployment(namespace, name string) {
 
 // validate that the status of the FeatureStore CR is "Ready".
 func validateFeatureStoreCRStatus(namespace, crName string) {
-	cmd := exec.Command("kubectl", "get", "feast", crName, "-n", namespace, "-o", "jsonpath={.status.phase}")
-	output, err := cmd.Output()
-	Expect(err).ToNot(HaveOccurred(), "failed to get Feature Store CR status")
-	Expect(string(output)).To(Equal("Ready"))
-	fmt.Printf("Feature Store CR is in %s state\n", output)
+	Eventually(func() string {
+		cmd := exec.Command("kubectl", "get", "feast", crName, "-n", namespace, "-o", "jsonpath={.status.phase}")
+		output, err := cmd.Output()
+		if err != nil {
+			return ""
+		}
+		return string(output)
+	}, "2m", "5s").Should(Equal("Ready"), "Feature Store CR did not reach 'Ready' state in time")
+
+	fmt.Printf("✅ Feature Store CR %s/%s is in Ready state\n", namespace, crName)
 }
 
 // validate the feature store yaml
