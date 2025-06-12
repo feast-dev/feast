@@ -88,6 +88,13 @@ class GetOnlineFeaturesRequest(BaseModel):
     feature_service: Optional[str] = None
     features: Optional[List[str]] = None
     full_feature_names: bool = False
+
+
+class GetOnlineDocumentsRequest(BaseModel):
+    feature_service: Optional[str] = None
+    features: Optional[List[str]] = None
+    full_feature_names: bool = False
+    top_k: Optional[int] = None
     query_embedding: Optional[List[float]] = None
     query_string: Optional[str] = None
 
@@ -110,7 +117,7 @@ class SaveDocumentRequest(BaseModel):
     data: dict
 
 
-def _get_features(request: GetOnlineFeaturesRequest, store: "feast.FeatureStore"):
+def _get_features(request: GetOnlineFeaturesRequest|GetOnlineDocumentsRequest, store: "feast.FeatureStore"):
     if request.feature_service:
         feature_service = store.get_feature_service(
             request.feature_service, allow_cache=True
@@ -246,7 +253,7 @@ def get_app(
         dependencies=[Depends(inject_user_details)],
     )
     async def retrieve_online_documents(
-        request: GetOnlineFeaturesRequest,
+        request: GetOnlineDocumentsRequest,
     ) -> Dict[str, Any]:
         logger.warning(
             "This endpoint is in alpha and will be moved to /get-online-features when stable."
@@ -256,9 +263,9 @@ def get_app(
 
         read_params = dict(
             features=features,
-            full_feature_names=request.full_feature_names,
             query=request.query_embedding,
             query_string=request.query_string,
+            top_k=request.top_k,
         )
 
         response = await run_in_threadpool(
