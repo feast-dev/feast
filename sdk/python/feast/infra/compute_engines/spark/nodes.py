@@ -13,6 +13,9 @@ from feast.infra.compute_engines.dag.model import DAGFormat
 from feast.infra.compute_engines.dag.node import DAGNode
 from feast.infra.compute_engines.dag.value import DAGValue
 from feast.infra.compute_engines.spark.utils import map_in_arrow
+from feast.infra.compute_engines.utils import (
+    create_offline_store_retrieval_job,
+)
 from feast.infra.offline_stores.contrib.spark_offline_store.spark import (
     SparkRetrievalJob,
     _get_entity_schema,
@@ -53,43 +56,36 @@ class SparkReadNode(DAGNode):
         self,
         name: str,
         source: DataSource,
+        spark_session: SparkSession,
         start_time: Optional[datetime] = None,
         end_time: Optional[datetime] = None,
     ):
         super().__init__(name)
         self.source = source
+        self.spark_session = spark_session
         self.start_time = start_time
         self.end_time = end_time
 
     def execute(self, context: ExecutionContext) -> DAGValue:
-        offline_store = context.offline_store
-        (
-            join_key_columns,
-            feature_name_columns,
-            timestamp_field,
-            created_timestamp_column,
-        ) = context.column_info
-
-        # 📥 Reuse Feast's robust query resolver
-        retrieval_job = offline_store.pull_all_from_table_or_query(
-            config=context.repo_config,
+        column_info = context.column_info
+        retrieval_job = create_offline_store_retrieval_job(
             data_source=self.source,
-            join_key_columns=join_key_columns,
-            feature_name_columns=feature_name_columns,
-            timestamp_field=timestamp_field,
-            created_timestamp_column=created_timestamp_column,
-            start_date=self.start_time,
-            end_date=self.end_time,
+            context=context,
+            start_time=self.start_time,
+            end_time=self.end_time,
         )
-        spark_df = cast(SparkRetrievalJob, retrieval_job).to_spark_df()
+        if isinstance(retrieval_job, SparkRetrievalJob):
+            spark_df = cast(SparkRetrievalJob, retrieval_job).to_spark_df()
+        else:
+            spark_df = self.spark_session.createDataFrame(retrieval_job.to_arrow())
 
         return DAGValue(
             data=spark_df,
             format=DAGFormat.SPARK,
             metadata={
                 "source": "feature_view_batch_source",
-                "timestamp_field": timestamp_field,
-                "created_timestamp_column": created_timestamp_column,
+                "timestamp_field": column_info.timestamp_column,
+                "created_timestamp_column": column_info.created_timestamp_column,
                 "start_date": self.start_time,
                 "end_date": self.end_time,
             },
@@ -171,7 +167,7 @@ class SparkJoinNode(DAGNode):
             )
 
         # Get timestamp fields from feature view
-        join_keys, feature_cols, ts_col, created_ts_col = context.column_info
+        column_info = context.column_info
 
         # Rename entity_df event_timestamp_col to match feature_df
         entity_df = rename_entity_ts_column(
@@ -180,10 +176,13 @@ class SparkJoinNode(DAGNode):
         )
 
         # Perform left join on entity df
-        joined = feature_df.join(entity_df, on=join_keys, how="left")
+        # TODO: give a config option to use other join types
+        joined = feature_df.join(entity_df, on=column_info.join_keys, how="left")
 
         return DAGValue(
-            data=joined, format=DAGFormat.SPARK, metadata={"joined_on": join_keys}
+            data=joined,
+            format=DAGFormat.SPARK,
+            metadata={"joined_on": column_info.join_keys},
         )
 
 
@@ -206,12 +205,14 @@ class SparkFilterNode(DAGNode):
         input_df: DataFrame = input_value.data
 
         # Get timestamp fields from feature view
-        _, _, ts_col, _ = context.column_info
+        timestamp_column = context.column_info.timestamp_column
 
         # Optional filter: feature.ts <= entity.event_timestamp
         filtered_df = input_df
         if ENTITY_TS_ALIAS in input_df.columns:
-            filtered_df = filtered_df.filter(F.col(ts_col) <= F.col(ENTITY_TS_ALIAS))
+            filtered_df = filtered_df.filter(
+                F.col(timestamp_column) <= F.col(ENTITY_TS_ALIAS)
+            )
 
             # Optional TTL filter: feature.ts >= entity.event_timestamp - ttl
             if self.ttl:
@@ -219,7 +220,7 @@ class SparkFilterNode(DAGNode):
                 lower_bound = F.col(ENTITY_TS_ALIAS) - F.expr(
                     f"INTERVAL {ttl_seconds} seconds"
                 )
-                filtered_df = filtered_df.filter(F.col(ts_col) >= lower_bound)
+                filtered_df = filtered_df.filter(F.col(timestamp_column) >= lower_bound)
 
         # Optional custom filter condition
         if self.filter_condition:
@@ -247,21 +248,23 @@ class SparkDedupNode(DAGNode):
         input_df: DataFrame = input_value.data
 
         # Get timestamp fields from feature view
-        join_keys, _, ts_col, created_ts_col = context.column_info
+        colmun_info = context.column_info
 
-        # Dedup based on join keys and event timestamp
+        # Dedup based on join keys and event timestamp column
         # Dedup with row_number
-        partition_cols = join_keys + [ENTITY_TS_ALIAS]
-        ordering = [F.col(ts_col).desc()]
-        if created_ts_col:
-            ordering.append(F.col(created_ts_col).desc())
+        partition_cols = context.column_info.join_keys
+        deduped_df = input_df
+        if partition_cols:
+            ordering = [F.col(colmun_info.timestamp_column).desc()]
+            if colmun_info.created_timestamp_column:
+                ordering.append(F.col(colmun_info.created_timestamp_column).desc())
 
-        window = Window.partitionBy(*partition_cols).orderBy(*ordering)
-        deduped_df = (
-            input_df.withColumn("row_num", F.row_number().over(window))
-            .filter("row_num = 1")
-            .drop("row_num")
-        )
+            window = Window.partitionBy(*partition_cols).orderBy(*ordering)
+            deduped_df = (
+                input_df.withColumn("row_num", F.row_number().over(window))
+                .filter("row_num = 1")
+                .drop("row_num")
+            )
 
         return DAGValue(
             data=deduped_df,

@@ -168,12 +168,11 @@ def test_spark_compute_engine_get_historical_features():
             repo_config=spark_environment.config,
             offline_store=SparkOfflineStore(),
             online_store=MagicMock(),
-            registry=registry,
         )
 
-        spark_dag_retrieval_job = engine.get_historical_features(task)
+        spark_dag_retrieval_job = engine.get_historical_features(registry, task)
         spark_df = cast(SparkDAGRetrievalJob, spark_dag_retrieval_job).to_spark_df()
-        df_out = spark_df.orderBy("driver_id").to_pandas_on_spark()
+        df_out = spark_df.orderBy("driver_id").toPandas()
 
         # ✅ Assert output
         assert df_out.driver_id.to_list() == [1001, 1002]
@@ -253,9 +252,11 @@ def test_spark_compute_engine_materialize():
             registry=registry,
         )
 
-        spark_materialize_job = engine.materialize(task)
+        spark_materialize_jobs = engine.materialize(registry, task)
 
-        assert spark_materialize_job.status() == MaterializationJobStatus.SUCCEEDED
+        assert len(spark_materialize_jobs) == 1
+
+        assert spark_materialize_jobs[0].status() == MaterializationJobStatus.SUCCEEDED
 
         _check_online_features(
             fs=fs,

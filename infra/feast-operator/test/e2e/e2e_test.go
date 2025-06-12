@@ -36,7 +36,8 @@ var _ = Describe("controller", Ordered, func() {
 	}
 	namespace := "test-ns-feast"
 	defaultFeatureStoreCRTest := "TesDefaultFeastCR"
-	remoteRegisteFeatureStoreCRTest := "TestRemoteRegistryFeastCR"
+	remoteRegistryFeatureStoreCRTest := "TestRemoteRegistryFeastCR"
+	applyAndMaterializeTest := "TestApplyAndMaterializeFeastDefinitions"
 
 	runTestDeploySimpleCRFunc := utils.GetTestDeploySimpleCRFunc("/test/e2e",
 		"test/testdata/feast_integration_test_crs/v1alpha1_default_featurestore.yaml",
@@ -46,6 +47,8 @@ var _ = Describe("controller", Ordered, func() {
 		"test/testdata/feast_integration_test_crs/v1alpha1_default_featurestore.yaml",
 		"test/testdata/feast_integration_test_crs/v1alpha1_remote_registry_featurestore.yaml",
 		featureStoreName, feastResourceName, feastK8sResourceNames, namespace)
+
+	runTestApplyAndMaterializeFunc := utils.RunTestApplyAndMaterializeFunc("/test/e2e", namespace, "credit-scoring", utils.FeastPrefix+"credit-scoring")
 
 	BeforeAll(func() {
 		if !isRunOnOpenShiftCI {
@@ -63,11 +66,11 @@ var _ = Describe("controller", Ordered, func() {
 		By(fmt.Sprintf("Deleting test namespace: %s", namespace))
 		err := utils.DeleteNamespace(namespace, "/test/e2e")
 		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to delete namespace %s", namespace))
-
 	})
 
 	Context("Operator E2E Tests", func() {
 		It("Should be able to deploy and run a "+defaultFeatureStoreCRTest+" successfully", runTestDeploySimpleCRFunc)
-		It("Should be able to deploy and run a "+remoteRegisteFeatureStoreCRTest+"  successfully", runTestWithRemoteRegistryFunction)
+		It("Should be able to deploy and run a "+remoteRegistryFeatureStoreCRTest+"  successfully", runTestWithRemoteRegistryFunction)
+		It("Should be able to apply and run a "+applyAndMaterializeTest+" materialize feature store definitions using CronJob successfully", runTestApplyAndMaterializeFunc)
 	})
 })

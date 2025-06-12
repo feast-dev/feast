@@ -101,6 +101,15 @@ class ChatRequest(BaseModel):
     messages: List[ChatMessage]
 
 
+class ReadDocumentRequest(BaseModel):
+    file_path: str
+
+
+class SaveDocumentRequest(BaseModel):
+    file_path: str
+    data: dict
+
+
 def _get_features(request: GetOnlineFeaturesRequest, store: "feast.FeatureStore"):
     if request.feature_service:
         feature_service = store.get_feature_service(
@@ -164,6 +173,8 @@ def get_app(
     - `/materialize-incremental`: Materialize features incrementally
     - `/chat`: Chat UI
     - `/ws/chat`: WebSocket endpoint for chat
+    MCP Support:
+    - If MCP is enabled in feature server configuration, MCP endpoints will be added automatically
     """
     proto_json.patch()
     # Asynchronously refresh registry, notifying shutdown and canceling the active timer if the app is shutting down
@@ -356,6 +367,42 @@ def get_app(
         # For now, just return dummy text
         return {"response": "This is a dummy response from the Feast feature server."}
 
+    @app.post("/read-document")
+    async def read_document_endpoint(request: ReadDocumentRequest):
+        try:
+            import os
+
+            if not os.path.exists(request.file_path):
+                return {"error": f"File not found: {request.file_path}"}
+
+            with open(request.file_path, "r", encoding="utf-8") as file:
+                content = file.read()
+
+            return {"content": content, "file_path": request.file_path}
+        except Exception as e:
+            return {"error": str(e)}
+
+    @app.post("/save-document")
+    async def save_document_endpoint(request: SaveDocumentRequest):
+        try:
+            import json
+            import os
+            from pathlib import Path
+
+            file_path = Path(request.file_path).resolve()
+            if not str(file_path).startswith(os.getcwd()):
+                return {"error": "Invalid file path"}
+
+            base_name = file_path.stem
+            labels_file = file_path.parent / f"{base_name}-labels.json"
+
+            with open(labels_file, "w", encoding="utf-8") as file:
+                json.dump(request.data, file, indent=2, ensure_ascii=False)
+
+            return {"success": True, "saved_to": str(labels_file)}
+        except Exception as e:
+            return {"error": str(e)}
+
     @app.get("/chat")
     async def chat_ui():
         # Serve the chat UI
@@ -445,7 +492,35 @@ def get_app(
     with importlib_resources.as_file(static_dir_ref) as static_dir:
         app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
+    # Add MCP support if enabled in feature server configuration
+    _add_mcp_support_if_enabled(app, store)
+
     return app
+
+
+def _add_mcp_support_if_enabled(app, store: "feast.FeatureStore"):
+    """Add MCP support to the FastAPI app if enabled in configuration."""
+    try:
+        # Check if MCP is enabled in feature server config
+        if (
+            store.config.feature_server
+            and hasattr(store.config.feature_server, "type")
+            and store.config.feature_server.type == "mcp"
+            and getattr(store.config.feature_server, "mcp_enabled", False)
+        ):
+            from feast.infra.mcp_servers.mcp_server import add_mcp_support_to_app
+
+            mcp_server = add_mcp_support_to_app(app, store, store.config.feature_server)
+
+            if mcp_server:
+                logger.info("MCP support has been enabled for the Feast feature server")
+            else:
+                logger.warning("MCP support was requested but could not be enabled")
+        else:
+            logger.debug("MCP support is not enabled in feature server configuration")
+    except Exception as e:
+        logger.error(f"Error checking/adding MCP support: {e}")
+        # Don't fail the entire server if MCP fails to initialize
 
 
 if sys.platform != "win32":

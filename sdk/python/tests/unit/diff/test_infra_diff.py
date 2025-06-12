@@ -1,3 +1,6 @@
+from unittest.mock import patch
+
+import pytest
 from google.protobuf import wrappers_pb2 as wrappers
 
 from feast.diff.infra_diff import (
@@ -7,16 +10,26 @@ from feast.diff.infra_diff import (
 )
 from feast.diff.property_diff import TransitionType
 from feast.infra.online_stores.datastore import DatastoreTable
-from feast.infra.online_stores.dynamodb import DynamoDBTable
+from feast.infra.online_stores.sqlite import SqliteTable
 from feast.protos.feast.core.InfraObject_pb2 import Infra as InfraProto
 
 
-def test_tag_infra_proto_objects_for_keep_delete_add():
-    to_delete = DynamoDBTable(name="to_delete", region="us-west-2").to_proto()
-    to_add = DynamoDBTable(name="to_add", region="us-west-2").to_proto()
-    unchanged_table = DynamoDBTable(name="unchanged", region="us-west-2").to_proto()
-    pre_changed = DynamoDBTable(name="table", region="us-west-2").to_proto()
-    post_changed = DynamoDBTable(name="table", region="us-east-2").to_proto()
+@pytest.fixture
+def datastore_table():
+    def build(name="table"):
+        return DatastoreTable(
+            project="test", name=name, project_id="pre", namespace="pre", database="pre"
+        )
+
+    return build
+
+
+def test_tag_infra_proto_objects_for_keep_delete_add(datastore_table):
+    to_delete = datastore_table(name="to_delete").to_proto()
+    to_add = datastore_table(name="to_add").to_proto()
+    unchanged_table = datastore_table(name="unchanged").to_proto()
+    pre_changed = datastore_table(name="table").to_proto()
+    post_changed = datastore_table(name="table").to_proto()
 
     keep, delete, add = tag_infra_proto_objects_for_keep_delete_add(
         [to_delete, unchanged_table, pre_changed],
@@ -37,10 +50,8 @@ def test_tag_infra_proto_objects_for_keep_delete_add():
     assert post_changed not in add
 
 
-def test_diff_between_datastore_tables():
-    pre_changed = DatastoreTable(
-        project="test", name="table", project_id="pre", namespace="pre", database="pre"
-    ).to_proto()
+def test_diff_between_datastore_tables(datastore_table):
+    pre_changed = datastore_table().to_proto()
     post_changed = DatastoreTable(
         project="test",
         name="table",
@@ -80,10 +91,15 @@ def test_diff_between_datastore_tables():
     )
 
 
-def test_diff_infra_protos():
-    to_delete = DynamoDBTable(name="to_delete", region="us-west-2")
-    to_add = DynamoDBTable(name="to_add", region="us-west-2")
-    unchanged_table = DynamoDBTable(name="unchanged", region="us-west-2")
+@patch("feast.infra.online_stores.sqlite._initialize_conn")
+def test_diff_infra_protos(_, tmp_path):
+    db_dir = tmp_path / "db"
+    db_dir.mkdir()
+    db_dir_str = str(db_dir)
+
+    to_delete = SqliteTable(path=db_dir_str, name="to_delete")
+    to_add = SqliteTable(path=db_dir_str, name="to_add")
+    unchanged_table = SqliteTable(path=db_dir_str, name="unchanged")
     pre_changed = DatastoreTable(
         project="test", name="table", project_id="pre", namespace="pre"
     )

@@ -320,80 +320,100 @@ class DaskOfflineStore(OfflineStore):
         assert isinstance(config.offline_store, DaskOfflineStoreConfig)
         assert isinstance(data_source, FileSource)
 
-        # Create lazy function that is only called from the RetrievalJob object
-        def evaluate_offline_job():
-            source_df = _read_datasource(data_source, config.repo_path)
-
-            source_df = _normalize_timestamp(
-                source_df, timestamp_field, created_timestamp_column
+        def evaluate_func():
+            df = DaskOfflineStore.evaluate_offline_job(
+                config=config,
+                data_source=data_source,
+                join_key_columns=join_key_columns,
+                timestamp_field=timestamp_field,
+                created_timestamp_column=created_timestamp_column,
+                start_date=start_date,
+                end_date=end_date,
             )
-
-            source_columns = set(source_df.columns)
-            if not set(join_key_columns).issubset(source_columns):
-                raise FeastJoinKeysDuringMaterialization(
-                    data_source.path, set(join_key_columns), source_columns
-                )
-
             ts_columns = (
                 [timestamp_field, created_timestamp_column]
                 if created_timestamp_column
                 else [timestamp_field]
             )
-            # try-catch block is added to deal with this issue https://github.com/dask/dask/issues/8939.
-            # TODO(kevjumba): remove try catch when fix is merged upstream in Dask.
-            try:
-                if created_timestamp_column:
-                    source_df = source_df.sort_values(
-                        by=created_timestamp_column,
-                    )
-
-                source_df = source_df.sort_values(by=timestamp_field)
-
-            except ZeroDivisionError:
-                # Use 1 partition to get around case where everything in timestamp column is the same so the partition algorithm doesn't
-                # try to divide by zero.
-                if created_timestamp_column:
-                    source_df = source_df.sort_values(
-                        by=created_timestamp_column, npartitions=1
-                    )
-
-                source_df = source_df.sort_values(by=timestamp_field, npartitions=1)
-
-            # TODO: The old implementation is inclusive of start_date and exclusive of end_date.
-            # Which is inconsistent with other offline stores.
-            if start_date or end_date:
-                if start_date and end_date:
-                    source_df = source_df[
-                        source_df[timestamp_field].between(
-                            start_date, end_date, inclusive="both"
-                        )
-                    ]
-                elif start_date:
-                    source_df = source_df[source_df[timestamp_field] >= start_date]
-                elif end_date:
-                    source_df = source_df[source_df[timestamp_field] <= end_date]
-
-            source_df = source_df.persist()
-
             columns_to_extract = set(
                 join_key_columns + feature_name_columns + ts_columns
             )
             if join_key_columns:
-                source_df = source_df.drop_duplicates(
+                df = df.drop_duplicates(
                     join_key_columns, keep="last", ignore_index=True
                 )
             else:
-                source_df[DUMMY_ENTITY_ID] = DUMMY_ENTITY_VAL
+                df[DUMMY_ENTITY_ID] = DUMMY_ENTITY_VAL
                 columns_to_extract.add(DUMMY_ENTITY_ID)
 
-            return source_df[list(columns_to_extract)].persist()
+            return df[list(columns_to_extract)].persist()
 
         # When materializing a single feature view, we don't need full feature names. On demand transforms aren't materialized
         return DaskRetrievalJob(
-            evaluation_function=evaluate_offline_job,
+            evaluation_function=evaluate_func,
             full_feature_names=False,
             repo_path=str(config.repo_path),
         )
+
+    @staticmethod
+    def evaluate_offline_job(
+        config: RepoConfig,
+        data_source: FileSource,
+        join_key_columns: List[str],
+        timestamp_field: str,
+        created_timestamp_column: Optional[str] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+    ) -> dd.DataFrame:
+        # Create lazy function that is only called from the RetrievalJob object
+        source_df = _read_datasource(data_source, config.repo_path)
+
+        source_df = _normalize_timestamp(
+            source_df, timestamp_field, created_timestamp_column
+        )
+
+        source_columns = set(source_df.columns)
+        if not set(join_key_columns).issubset(source_columns):
+            raise FeastJoinKeysDuringMaterialization(
+                data_source.path, set(join_key_columns), source_columns
+            )
+
+        # try-catch block is added to deal with this issue https://github.com/dask/dask/issues/8939.
+        # TODO(kevjumba): remove try catch when fix is merged upstream in Dask.
+        try:
+            if created_timestamp_column:
+                source_df = source_df.sort_values(
+                    by=created_timestamp_column,
+                )
+
+            source_df = source_df.sort_values(by=timestamp_field)
+
+        except ZeroDivisionError:
+            # Use 1 partition to get around case where everything in timestamp column is the same so the partition algorithm doesn't
+            # try to divide by zero.
+            if created_timestamp_column:
+                source_df = source_df.sort_values(
+                    by=created_timestamp_column, npartitions=1
+                )
+
+            source_df = source_df.sort_values(by=timestamp_field, npartitions=1)
+
+        # TODO: The old implementation is inclusive of start_date and exclusive of end_date.
+        # Which is inconsistent with other offline stores.
+        if start_date or end_date:
+            if start_date and end_date:
+                source_df = source_df[
+                    source_df[timestamp_field].between(
+                        start_date, end_date, inclusive="both"
+                    )
+                ]
+            elif start_date:
+                source_df = source_df[source_df[timestamp_field] >= start_date]
+            elif end_date:
+                source_df = source_df[source_df[timestamp_field] <= end_date]
+
+        source_df = source_df.persist()
+        return source_df
 
     @staticmethod
     def pull_all_from_table_or_query(
@@ -409,16 +429,38 @@ class DaskOfflineStore(OfflineStore):
         assert isinstance(config.offline_store, DaskOfflineStoreConfig)
         assert isinstance(data_source, FileSource)
 
-        return DaskOfflineStore.pull_latest_from_table_or_query(
-            config=config,
-            data_source=data_source,
-            join_key_columns=join_key_columns
-            + [timestamp_field],  # avoid deduplication
-            feature_name_columns=feature_name_columns,
-            timestamp_field=timestamp_field,
-            created_timestamp_column=created_timestamp_column,
-            start_date=start_date,
-            end_date=end_date,
+        def evaluate_func():
+            df = DaskOfflineStore.evaluate_offline_job(
+                config=config,
+                data_source=data_source,
+                join_key_columns=join_key_columns,
+                timestamp_field=timestamp_field,
+                created_timestamp_column=created_timestamp_column,
+                start_date=start_date,
+                end_date=end_date,
+            )
+            ts_columns = (
+                [timestamp_field, created_timestamp_column]
+                if created_timestamp_column
+                else [timestamp_field]
+            )
+            columns_to_extract = set(
+                join_key_columns + feature_name_columns + ts_columns
+            )
+            if not join_key_columns:
+                df[DUMMY_ENTITY_ID] = DUMMY_ENTITY_VAL
+                columns_to_extract.add(DUMMY_ENTITY_ID)
+            # TODO: Decides if we want to field mapping for pull_latest_from_table_or_query
+            # This is default for other offline store.
+            df = df[list(columns_to_extract)]
+            df.persist()
+            return df
+
+        # When materializing a single feature view, we don't need full feature names. On demand transforms aren't materialized
+        return DaskRetrievalJob(
+            evaluation_function=evaluate_func,
+            full_feature_names=False,
+            repo_path=str(config.repo_path),
         )
 
     @staticmethod
@@ -642,7 +684,7 @@ def _merge(
 def _normalize_timestamp(
     df_to_join: dd.DataFrame,
     timestamp_field: str,
-    created_timestamp_column: str,
+    created_timestamp_column: Optional[str] = None,
 ) -> dd.DataFrame:
     df_to_join_types = df_to_join.dtypes
     timestamp_field_type = df_to_join_types[timestamp_field]

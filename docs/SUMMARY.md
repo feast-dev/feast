@@ -53,6 +53,7 @@
 * [Validating historical features with Great Expectations](tutorials/validating-historical-features.md)
 * [Building streaming features](tutorials/building-streaming-features.md)
 * [Retrieval Augmented Generation (RAG) with Feast](tutorials/rag-with-docling.md)
+* [MCP - AI Agent Example](../examples/mcp_feature_store/README.md)
 
 ## How-to Guides
 
@@ -131,6 +132,7 @@
   * [GCS](reference/registries/gcs.md)
   * [SQL](reference/registries/sql.md)
   * [Snowflake](reference/registries/snowflake.md)
+  * [Remote](reference/registries/remote.md)
 * [Providers](reference/providers/README.md)
   * [Local](reference/providers/local.md)
   * [Google Cloud Platform](reference/providers/google-cloud-platform.md)
@@ -146,6 +148,7 @@
 * [Feature servers](reference/feature-servers/README.md)
   * [Python feature server](reference/feature-servers/python-feature-server.md)
   * [\[Alpha\] Go feature server](reference/feature-servers/go-feature-server.md)
+  * [MCP Feature Server](reference/feature-servers/mcp-feature-server.md)
   * [Offline Feature Server](reference/feature-servers/offline-feature-server.md)
   * [Registry server](reference/feature-servers/registry-server.md)
 * [\[Beta\] Web UI](reference/alpha-web-ui.md)

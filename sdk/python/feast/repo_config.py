@@ -44,11 +44,11 @@ REGISTRY_CLASS_FOR_TYPE = {
 }
 
 BATCH_ENGINE_CLASS_FOR_TYPE = {
-    "local": "feast.infra.materialization.local_engine.LocalMaterializationEngine",
-    "snowflake.engine": "feast.infra.materialization.snowflake_engine.SnowflakeMaterializationEngine",
-    "lambda": "feast.infra.materialization.aws_lambda.lambda_engine.LambdaMaterializationEngine",
-    "k8s": "feast.infra.materialization.kubernetes.k8s_materialization_engine.KubernetesMaterializationEngine",
-    "spark.engine": "feast.infra.materialization.contrib.spark.spark_materialization_engine.SparkMaterializationEngine",
+    "local": "feast.infra.compute_engines.local.compute.LocalComputeEngine",
+    "snowflake.engine": "feast.infra.compute_engines.snowflake.snowflake_engine.SnowflakeComputeEngine",
+    "lambda": "feast.infra.compute_engines.aws_lambda.lambda_engine.LambdaComputeEngine",
+    "k8s": "feast.infra.compute_engines.kubernetes.k8s_engine.KubernetesComputeEngine",
+    "spark.engine": "feast.infra.compute_engines.spark.compute.SparkComputeEngine",
 }
 
 LEGACY_ONLINE_STORE_CLASS_FOR_TYPE = {
@@ -105,6 +105,7 @@ OFFLINE_STORE_CLASS_FOR_TYPE = {
 
 FEATURE_SERVER_CONFIG_CLASS_FOR_TYPE = {
     "local": "feast.infra.feature_servers.local_process.config.LocalFeatureServerConfig",
+    "mcp": "feast.infra.mcp_servers.mcp_config.McpFeatureServerConfig",
 }
 
 ALLOWED_AUTH_TYPES = ["no_auth", "kubernetes", "oidc"]

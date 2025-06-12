@@ -1,34 +1,27 @@
 import logging
 import uuid
-from datetime import datetime
 from time import sleep
-from typing import Callable, List, Literal, Sequence, Union
+from typing import List, Literal
 
+import pyarrow as pa
 import yaml
 from kubernetes import client, utils
 from kubernetes import config as k8s_config
 from kubernetes.client.exceptions import ApiException
 from kubernetes.utils import FailToCreateError
 from pydantic import StrictStr
-from tqdm import tqdm
 
-from feast import FeatureView, RepoConfig
-from feast.batch_feature_view import BatchFeatureView
-from feast.entity import Entity
+from feast import RepoConfig
 from feast.infra.common.materialization_job import (
-    MaterializationJob,
     MaterializationJobStatus,
     MaterializationTask,
 )
-from feast.infra.materialization.batch_materialization_engine import (
-    BatchMaterializationEngine,
-)
+from feast.infra.common.retrieval_task import HistoricalRetrievalTask
+from feast.infra.compute_engines.base import ComputeEngine
 from feast.infra.offline_stores.offline_store import OfflineStore
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.registry.base_registry import BaseRegistry
-from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import FeastConfigBaseModel
-from feast.stream_feature_view import StreamFeatureView
 from feast.utils import _get_column_names
 
 from .k8s_materialization_job import KubernetesMaterializationJob
@@ -36,8 +29,8 @@ from .k8s_materialization_job import KubernetesMaterializationJob
 logger = logging.getLogger(__name__)
 
 
-class KubernetesMaterializationEngineConfig(FeastConfigBaseModel):
-    """Batch Materialization Engine config for Kubernetes"""
+class KubernetesComputeEngineConfig(FeastConfigBaseModel):
+    """Batch Compute Engine config for Kubernetes"""
 
     type: Literal["k8s"] = "k8s"
     """ Materialization type selector"""
@@ -94,7 +87,14 @@ class KubernetesMaterializationEngineConfig(FeastConfigBaseModel):
     """(optional) Print pod logs on job failure.  Only applies to synchronous materialization"""
 
 
-class KubernetesMaterializationEngine(BatchMaterializationEngine):
+class KubernetesComputeEngine(ComputeEngine):
+    def get_historical_features(
+        self, registry: BaseRegistry, task: HistoricalRetrievalTask
+    ) -> pa.Table:
+        raise NotImplementedError(
+            "KubernetesComputeEngine does not support get_historical_features()"
+        )
+
     def __init__(
         self,
         *,
@@ -121,57 +121,17 @@ class KubernetesMaterializationEngine(BatchMaterializationEngine):
         self.batch_engine_config = repo_config.batch_engine
         self.namespace = self.batch_engine_config.namespace
 
-    def update(
-        self,
-        project: str,
-        views_to_delete: Sequence[
-            Union[BatchFeatureView, StreamFeatureView, FeatureView, OnDemandFeatureView]
-        ],
-        views_to_keep: Sequence[
-            Union[BatchFeatureView, StreamFeatureView, FeatureView, OnDemandFeatureView]
-        ],
-        entities_to_delete: Sequence[Entity],
-        entities_to_keep: Sequence[Entity],
-    ):
-        """This method ensures that any necessary infrastructure or resources needed by the
-        engine are set up ahead of materialization."""
-        pass
-
-    def teardown_infra(
-        self,
-        project: str,
-        fvs: Sequence[Union[BatchFeatureView, StreamFeatureView, FeatureView]],
-        entities: Sequence[Entity],
-    ):
-        """This method ensures that any infrastructure or resources set up by ``update()``are torn down."""
-        pass
-
-    def materialize(
-        self,
-        registry: BaseRegistry,
-        tasks: List[MaterializationTask],
-    ) -> List[MaterializationJob]:
-        return [
-            self._materialize_one(
-                registry,
-                task.feature_view,
-                task.start_time,
-                task.end_time,
-                task.project,
-                task.tqdm_builder,
-            )
-            for task in tasks
-        ]
-
     def _materialize_one(
         self,
         registry: BaseRegistry,
-        feature_view: Union[BatchFeatureView, StreamFeatureView, FeatureView],
-        start_date: datetime,
-        end_date: datetime,
-        project: str,
-        tqdm_builder: Callable[[int], tqdm],
+        task: MaterializationTask,
+        **kwargs,
     ):
+        feature_view = task.feature_view
+        start_date = task.start_time
+        end_date = task.end_time
+        project = task.project
+
         entities = []
         for entity_name in feature_view.entities:
             entities.append(registry.get_entity(entity_name, project))
