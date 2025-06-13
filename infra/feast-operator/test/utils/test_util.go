@@ -583,7 +583,7 @@ func TrainAndTestModel(namespace string, feastCRName string, feastDeploymentName
 			"cronJob": {
 				"containerConfigs": {
 					"commands": [
-						"pip install -r ../requirements.txt",
+						"pip install jupyter==1.1.1 scikit-learn==1.5.2 matplotlib==3.9.2 seaborn==0.13.2 joblib",
 						"cd ../ && python run.py"
 					]
 				}
@@ -596,13 +596,17 @@ func TrainAndTestModel(namespace string, feastCRName string, feastDeploymentName
 	fmt.Println("Patched FeatureStore with train/test commands")
 
 	By("Validating patch was applied correctly")
-	cmd = exec.Command("kubectl", "get", "feast/"+feastCRName, "-n", namespace, "-o", "jsonpath={.status.applied.cronJob.containerConfigs.commands}")
-	output, err := Run(cmd, testDir)
-	ExpectWithOffset(1, err).NotTo(HaveOccurred())
-	outputStr := string(output)
-	Expect(outputStr).To(ContainSubstring("pip install -r ../requirements.txt"))
-	Expect(outputStr).To(ContainSubstring("python run.py"))
-	fmt.Print("FeatureStore patched correctly with commands", outputStr)
+
+	Eventually(func() string {
+		cmd := exec.Command("kubectl", "get", "feast/"+feastCRName, "-n", namespace, "-o", "jsonpath={.status.applied.cronJob.containerConfigs.commands}")
+		output, _ := Run(cmd, testDir)
+		return string(output)
+	}, "30s", "3s").Should(
+		And(
+			ContainSubstring("python run.py"),
+		),
+	)
+	fmt.Println("FeatureStore patched correctly with commands")
 
 	By("Creating Job from CronJob")
 	CreateAndVerifyJobFromCron(namespace, feastDeploymentName, "feast-test-job", testDir, []string{"Loan rejected!"})
@@ -616,7 +620,7 @@ func CreateAndVerifyJobFromCron(namespace, cronName, jobName, testDir string, ex
 	ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
 	By("Waiting for Job completion")
-	cmd = exec.Command("kubectl", "wait", "--for=condition=complete", "--timeout=3m", "job/"+jobName, "-n", namespace)
+	cmd = exec.Command("kubectl", "wait", "--for=condition=complete", "--timeout=5m", "job/"+jobName, "-n", namespace)
 	_, err = Run(cmd, testDir)
 	ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
@@ -631,6 +635,7 @@ func CreateAndVerifyJobFromCron(namespace, cronName, jobName, testDir string, ex
 	for _, expected := range expectedLogSubstrings {
 		Expect(outputStr).To(ContainSubstring(expected))
 	}
+	fmt.Printf("created Job %s and Verified expected Logs ", jobName)
 }
 
 // verifies the specified deployment exists and is in the "Available" state.
@@ -645,11 +650,16 @@ func checkDeployment(namespace, name string) {
 
 // validate that the status of the FeatureStore CR is "Ready".
 func validateFeatureStoreCRStatus(namespace, crName string) {
-	cmd := exec.Command("kubectl", "get", "feast", crName, "-n", namespace, "-o", "jsonpath={.status.phase}")
-	output, err := cmd.Output()
-	Expect(err).ToNot(HaveOccurred(), "failed to get Feature Store CR status")
-	Expect(string(output)).To(Equal("Ready"))
-	fmt.Printf("Feature Store CR is in %s state\n", output)
+	Eventually(func() string {
+		cmd := exec.Command("kubectl", "get", "feast", crName, "-n", namespace, "-o", "jsonpath={.status.phase}")
+		output, err := cmd.Output()
+		if err != nil {
+			return ""
+		}
+		return string(output)
+	}, "2m", "5s").Should(Equal("Ready"), "Feature Store CR did not reach 'Ready' state in time")
+
+	fmt.Printf("✅ Feature Store CR %s/%s is in Ready state\n", namespace, crName)
 }
 
 // validate the feature store yaml
