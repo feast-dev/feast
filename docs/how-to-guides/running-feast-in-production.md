@@ -88,7 +88,7 @@ def materialize(data_interval_start=None, data_interval_end=None):
     provider="aws",
     offline_store="file",
     online_store=DynamoDBOnlineStoreConfig(region="us-west-2"),
-    entity_key_serialization_version=2
+    entity_key_serialization_version=3
   )
   store = FeatureStore(config=repo_config)
   # Option 1: materialize just one feature view

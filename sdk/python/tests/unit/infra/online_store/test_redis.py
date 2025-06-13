@@ -18,7 +18,7 @@ def repo_config():
     return RepoConfig(
         provider="local",
         project="test",
-        entity_key_serialization_version=2,
+        entity_key_serialization_version=3,
         registry="dummy_registry.db",
     )
 
@@ -49,7 +49,7 @@ def test_generate_entity_redis_keys(redis_online_store: RedisOnlineStore, repo_c
         repo_config, entity_keys
     )
     expected = [
-        b"\x02\x00\x00\x00entity\x03\x00\x00\x00\x04\x00\x00\x00\x01\x00\x00\x00test"
+        b"\x01\x00\x00\x00\x02\x00\x00\x00\x06\x00\x00\x00entity\x03\x00\x00\x00\x04\x00\x00\x00\x01\x00\x00\x00test"
     ]
     assert actual == expected
 

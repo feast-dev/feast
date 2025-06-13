@@ -1,4 +1,5 @@
 import struct
+import warnings
 from typing import List, Tuple, Union
 
 from google.protobuf.internal.containers import RepeatedScalarFieldContainer
@@ -9,7 +10,7 @@ from feast.protos.feast.types.Value_pb2 import ValueType
 
 
 def _serialize_val(
-    value_type, v: ValueProto, entity_key_serialization_version=1
+    value_type, v: ValueProto, entity_key_serialization_version=3
 ) -> Tuple[bytes, int]:
     if value_type == "string_val":
         return v.string_val.encode("utf8"), ValueType.STRING
@@ -104,7 +105,7 @@ def reserialize_entity_v2_key_to_v3(
 
 
 def serialize_entity_key(
-    entity_key: EntityKeyProto, entity_key_serialization_version=1
+    entity_key: EntityKeyProto, entity_key_serialization_version=3
 ) -> bytes:
     """
     Serialize entity key to a bytestring so it can be used as a lookup key in a hash table.
@@ -117,13 +118,19 @@ def serialize_entity_key(
 
     Args:
         entity_key_serialization_version: version of the entity key serialization
-        version 1: int64 values are serialized as 4 bytes
-        version 2: int64 values are serialized as 8 bytes
+        Versions:
         version 3: entity_key size is added to the serialization for deserialization purposes
         entity_key: EntityKeyProto
 
     Returns: bytes of the serialized entity key
     """
+    if entity_key_serialization_version < 3:
+        # Not raising the error, keeping it in warning state for reserialization purpose
+        # We should remove this after few releases
+        warnings.warn(
+            "Serialization of entity key with version < 3 is removed. Please use version 3 by setting entity_key_serialization_version=3."
+            "To reserializa your online store featrues refer -  https://github.com/feast-dev/feast/blob/master/docs/how-to-guides/entity-reserialization-of-from-v2-to-v3.md"
+        )
     sorted_keys, sorted_values = zip(
         *sorted(zip(entity_key.join_keys, entity_key.entity_values))
     )
@@ -163,9 +170,12 @@ def deserialize_entity_key(
     Returns: EntityKeyProto
 
     """
-    if entity_key_serialization_version <= 2:
-        raise ValueError(
-            "Deserialization of entity key with version <= 2 is not supported. Please use version > 2 by setting entity_key_serialization_version=3"
+    if entity_key_serialization_version < 3:
+        # Not raising the error, keeping it in warning state for reserialization purpose
+        # We should remove this after few releases
+        warnings.warn(
+            "Deserialization of entity key with version < 3 is removed. Please use version 3 by setting entity_key_serialization_version=3."
+            "To reserializa your online store featrues refer -  https://github.com/feast-dev/feast/blob/master/docs/how-to-guides/entity-reserialization-of-from-v2-to-v3.md"
         )
     offset = 0
     keys = []

@@ -25,4 +25,4 @@ offline_store:
     user: %REDSHIFT_USER%
     s3_staging_location: %REDSHIFT_S3_STAGING_LOCATION%
     iam_role: %REDSHIFT_IAM_ROLE%
-entity_key_serialization_version: 2
+entity_key_serialization_version: 3

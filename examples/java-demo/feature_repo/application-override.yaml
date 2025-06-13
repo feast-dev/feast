@@ -10,7 +10,7 @@ feature-server:
                 host: my-redis-master
                 port: 6379
                 password: [YOUR PASSWORD]
-            entityKeySerializationVersion: 2
+            entityKeySerializationVersion: 3
     # Uncomment below for dev
 #    image:
 #      tag: dev
