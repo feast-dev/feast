@@ -291,6 +291,11 @@ class FeatureView(BaseFeatureView):
         """
         super().ensure_valid()
 
+        if self.ttl < timedelta(days=0):
+            raise ValueError(
+                "Feature view ttl cannot be negative. Please set a positive value or 0 for no ttl."
+            )
+
         if not self.entities:
             raise ValueError("Feature view has no entities.")
 

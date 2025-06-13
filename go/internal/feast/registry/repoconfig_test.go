@@ -356,7 +356,7 @@ func TestNewRepoConfigForScyllaDBFromJSON(t *testing.T) {
         "online_store": {
             "type": "scylladb",
             "hosts": ["localhost:9042"],
-			"key_batch_size": 85,
+			"read_batch_size": 85,
 			"table_name_format_version": 2
         }
     }`
@@ -378,8 +378,8 @@ func TestNewRepoConfigForScyllaDBFromJSON(t *testing.T) {
 	// assert.Equal(t, "feature_repo", config.Project)
 	assert.Equal(t, filepath.Join(dir, "data/registry.db"), registryConfig.Path)
 	assert.Equal(t, "local", config.Provider)
-	assert.Equal(t, float64(85), config.OnlineStore["key_batch_size"])
+	assert.Equal(t, float64(85), config.OnlineStore["read_batch_size"])
 	assert.Equal(t, float64(2), config.OnlineStore["table_name_format_version"])
-	assert.Equal(t, int(85), int(config.OnlineStore["key_batch_size"].(float64)))
+	assert.Equal(t, int(85), int(config.OnlineStore["read_batch_size"].(float64)))
 	assert.Equal(t, int(2), int(config.OnlineStore["table_name_format_version"].(float64)))
 }
