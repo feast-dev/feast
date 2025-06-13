@@ -5,7 +5,7 @@ from binascii import hexlify
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 from threading import Lock
-from typing import Any, Callable, List, Literal, Optional, Union, cast
+from typing import Any, Callable, Dict, List, Literal, Optional, Union, cast
 
 from pydantic import ConfigDict, Field, StrictStr
 
@@ -33,6 +33,7 @@ from feast.infra.utils.snowflake.snowflake_utils import (
     GetSnowflakeConnection,
     execute_snowflake_statement,
 )
+from feast.model import ModelMetadata
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.permissions.permission import Permission
 from feast.project import Project
@@ -1373,3 +1374,30 @@ class SnowflakeRegistry(BaseRegistry):
             self._refresh_cached_registry_if_necessary()
             return proto_registry_utils.list_projects(self.cached_registry_proto, tags)
         return self._list_projects(tags)
+
+    def apply_model(self, model: ModelMetadata, project: str, commit: bool = True):
+        raise NotImplementedError(
+            "Model support not implemented in Snowflake registry yet."
+        )
+
+    def delete_model(self, name: str, project: str, commit: bool = True):
+        raise NotImplementedError(
+            "Model support not implemented in Snowflake registry yet."
+        )
+
+    def get_model(
+        self, name: str, project: str, allow_cache: bool = False
+    ) -> ModelMetadata:
+        raise NotImplementedError(
+            "Model support not implemented in Snowflake registry yet."
+        )
+
+    def list_models(
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[Dict[str, str]] = None,
+    ) -> List[ModelMetadata]:
+        raise NotImplementedError(
+            "Model support not implemented in Snowflake registry yet."
+        )

@@ -10,6 +10,7 @@ from feast.errors import (
     EntityNotFoundException,
     FeatureServiceNotFoundException,
     FeatureViewNotFoundException,
+    ModelObjectNotFoundException,
     PermissionObjectNotFoundException,
     ProjectObjectNotFoundException,
     SavedDatasetNotFound,
@@ -17,6 +18,7 @@ from feast.errors import (
 )
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
+from feast.model import ModelMetadata
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.permissions.permission import Permission
 from feast.project import Project
@@ -393,3 +395,48 @@ def get_project(registry_proto: RegistryProto, name: str) -> Project:
         if projects_proto.spec.name == name:
             return Project.from_proto(projects_proto)
     raise ProjectObjectNotFoundException(name=name)
+
+
+@registry_proto_cache_with_tags
+def list_models(
+    registry_proto: RegistryProto, project: str, tags: Optional[dict[str, str]]
+) -> List[ModelMetadata]:
+    models = []
+    registry_proto_models = getattr(registry_proto, "model_metadata", [])
+    for model_proto in registry_proto_models:
+        if model_proto.project == project and utils.has_all_tags(
+            model_proto.tags, tags
+        ):
+            models.append(ModelMetadata.from_proto(model_proto))
+    return models
+
+
+def get_model(registry_proto: RegistryProto, name: str, project: str) -> ModelMetadata:
+    registry_proto_models = getattr(registry_proto, "model_metadata", [])
+    for model_proto in registry_proto_models:
+        if model_proto.project == project and model_proto.name == name:
+            return ModelMetadata.from_proto(model_proto)
+    raise ModelObjectNotFoundException(name=name, project=project)
+
+
+def apply_model(registry_proto: RegistryProto, model_metadata: ModelMetadata) -> None:
+    registry_proto_models = getattr(registry_proto, "model_metadata", [])
+    for i, existing_proto in enumerate(registry_proto_models):
+        if (
+            existing_proto.name == model_metadata.name
+            and existing_proto.project == model_metadata.project
+        ):
+            registry_proto.model_metadata[i].CopyFrom(model_metadata.to_proto())
+            return
+
+    registry_proto.model_metadata.append(model_metadata.to_proto())
+
+
+def delete_model(registry_proto: RegistryProto, name: str, project: str) -> None:
+    registry_proto_models = getattr(registry_proto, "model_metadata", [])
+    for i, model_proto in enumerate(registry_proto_models):
+        if model_proto.name == name and model_proto.project == project:
+            del registry_proto.model_metadata[i]
+            return
+
+    raise ModelObjectNotFoundException(name=name, project=project)
