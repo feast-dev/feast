@@ -336,6 +336,46 @@ var _ = Describe("TLS Config", func() {
 			Expect(GetUIContainer(*feastDeploy).Command).NotTo(ContainElements(ContainSubstring("--key")))
 			Expect(GetUIContainer(*feastDeploy).VolumeMounts).To(HaveLen(1))
 
+			// Test REST registry server TLS configuration
+			feast.Handler.FeatureStore = minimalFeatureStore()
+			restEnabled := true
+			grpcEnabled := false
+			feast.Handler.FeatureStore.Spec.Services = &feastdevv1alpha1.FeatureStoreServices{
+				Registry: &feastdevv1alpha1.Registry{
+					Local: &feastdevv1alpha1.LocalRegistryConfig{
+						Server: &feastdevv1alpha1.RegistryServerConfigs{
+							ServerConfigs: feastdevv1alpha1.ServerConfigs{},
+							RestAPI:       &restEnabled,
+							GRPC:          &grpcEnabled,
+						},
+					},
+				},
+			}
+			testSetIsOpenShift()
+			err = feast.ApplyDefaults()
+			Expect(err).ToNot(HaveOccurred())
+
+			tls = feast.getTlsConfigs(RegistryFeastType)
+			Expect(tls).NotTo(BeNil())
+			Expect(tls.IsTLS()).To(BeTrue())
+			Expect(tls.SecretRef).NotTo(BeNil())
+			Expect(tls.SecretRef.Name).To(Equal("feast-test-registry-rest-tls"))
+			Expect(tls.SecretKeyNames).To(Equal(secretKeyNames))
+			Expect(getPortStr(tls)).To(Equal("443"))
+			Expect(GetTlsPath(RegistryFeastType)).To(Equal("/tls/registry/"))
+
+			registryRestSvc := feast.initFeastRestSvc(RegistryFeastType)
+			err = feast.setService(registryRestSvc, RegistryFeastType, true)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(registryRestSvc.Annotations).NotTo(BeEmpty())
+			Expect(registryRestSvc.Spec.Ports[0].Name).To(Equal(HttpsScheme))
+
+			feastDeploy = feast.initFeastDeploy()
+			err = feast.setDeployment(feastDeploy)
+			Expect(err).ToNot(HaveOccurred())
+			registryContainer := GetRegistryContainer(*feastDeploy)
+			Expect(registryContainer).NotTo(BeNil())
+			Expect(registryContainer.Command).To(ContainElements(ContainSubstring("--key")))
 		})
 	})
 })

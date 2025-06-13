@@ -71,10 +71,18 @@ func (feast *FeastServices) setOpenshiftTls() error {
 		}
 	}
 	if feast.localRegistryOpenshiftTls() {
-		appliedServices.Registry.Local.Server.TLS = &feastdevv1alpha1.TlsConfigs{
-			SecretRef: &corev1.LocalObjectReference{
-				Name: feast.initFeastSvc(RegistryFeastType).Name + tlsNameSuffix,
-			},
+		if feast.isRegistryRestEnabled() {
+			appliedServices.Registry.Local.Server.TLS = &feastdevv1alpha1.TlsConfigs{
+				SecretRef: &corev1.LocalObjectReference{
+					Name: feast.initFeastRestSvc(RegistryFeastType).Name + tlsNameSuffix,
+				},
+			}
+		} else {
+			appliedServices.Registry.Local.Server.TLS = &feastdevv1alpha1.TlsConfigs{
+				SecretRef: &corev1.LocalObjectReference{
+					Name: feast.initFeastSvc(RegistryFeastType).Name + tlsNameSuffix,
+				},
+			}
 		}
 	} else if remote, err := feast.remoteRegistryOpenshiftTls(); remote {
 		// if the remote registry reference is using openshift's service serving certificates, we can use the injected service CA bundle configMap
