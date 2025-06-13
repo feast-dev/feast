@@ -122,7 +122,7 @@ document_embeddings = FeatureView(
             name="Embeddings",
             dtype=Array(Float32),
             vector_index=True,
-            vector_length=8,
+            vector_length=10,
             vector_search_metric="L2",
         ),
         Field(name="item_id", dtype=String),
@@ -131,6 +131,7 @@ document_embeddings = FeatureView(
     ],
     source=rag_documents_source,
     ttl=timedelta(hours=24),
+    online=True,
 )
 
 

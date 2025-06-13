@@ -175,6 +175,11 @@ CLICKHOUSE_REQUIRED = ["clickhouse-connect>=0.7.19"]
 
 MCP_REQUIRED = ["fastapi_mcp"]
 
+RAG_REQUIRED = [
+    "transformers>=4.36.0",
+    "sentence-transformers>=2.5.0",
+]
+
 CI_REQUIRED = (
     [
         "build",
@@ -250,6 +255,7 @@ CI_REQUIRED = (
     + TORCH_REQUIRED
     + CLICKHOUSE_REQUIRED
     + MCP_REQUIRED
+    + RAG_REQUIRED
 )
 MINIMAL_REQUIRED = (
     GCP_REQUIRED
@@ -350,6 +356,7 @@ setup(
         "nlp": NLP_REQUIRED,
         "clickhouse": CLICKHOUSE_REQUIRED,
         "mcp": MCP_REQUIRED,
+        "rag": RAG_REQUIRED,
     },
     include_package_data=True,
     license="Apache",
