@@ -73,4 +73,3 @@ class FeastVectorStore:
             top_k=top_k,
             distance_metric=distance_metric
         )       
-
