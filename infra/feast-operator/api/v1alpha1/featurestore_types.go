@@ -503,10 +503,11 @@ type ServerConfigs struct {
 }
 
 // RegistryServerConfigs creates a registry server for the feast service, with specified container configurations.
+// +kubebuilder:validation:XValidation:rule="self.restAPI == true || self.grpc == true || !has(self.grpc)", message="At least one of restAPI or grpc must be true"
 type RegistryServerConfigs struct {
 	ServerConfigs `json:",inline"`
 
-	// Enable REST API registry server. Defaults to false if unset.
+	// Enable REST API registry server.
 	RestAPI *bool `json:"restAPI,omitempty"`
 
 	// Enable gRPC registry server. Defaults to true if unset.

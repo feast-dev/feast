@@ -1265,7 +1265,6 @@ var _ = Describe("FeatureStore Controller", func() {
 					Name:      name,
 					Namespace: "default",
 				}
-
 				resource := &feastdevv1alpha1.FeatureStore{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      name,
@@ -1320,7 +1319,40 @@ var _ = Describe("FeatureStore Controller", func() {
 						To(ContainElement(expectedArg),
 							"expected %s to be present in container command: %v", expectedArg, registryContainer.Command)
 				}
+				Expect(resource.Status.Conditions).NotTo(BeEmpty())
+				cond := apimeta.FindStatusCondition(resource.Status.Conditions, feastdevv1alpha1.RegistryReadyType)
+				Expect(cond).ToNot(BeNil())
+				Expect(cond.Status).To(Equal(metav1.ConditionTrue))
+				Expect(cond.Reason).To(Equal(feastdevv1alpha1.ReadyReason))
+				Expect(cond.Type).To(Equal(feastdevv1alpha1.RegistryReadyType))
+				Expect(cond.Message).To(Equal(feastdevv1alpha1.RegistryReadyMessage))
 			}
+
+			By("Verifying that creation fails when both REST API and gRPC are disabled")
+			disabledResource := &feastdevv1alpha1.FeatureStore{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "disabled-both",
+					Namespace: "default",
+				},
+				Spec: feastdevv1alpha1.FeatureStoreSpec{
+					FeastProject: feastProject,
+					Services: &feastdevv1alpha1.FeatureStoreServices{
+						Registry: &feastdevv1alpha1.Registry{
+							Local: &feastdevv1alpha1.LocalRegistryConfig{
+								Server: &feastdevv1alpha1.RegistryServerConfigs{
+									RestAPI: ptr(false),
+									GRPC:    ptr(false),
+								},
+							},
+						},
+					},
+				},
+			}
+			disabledResource.SetGroupVersionKind(feastdevv1alpha1.GroupVersion.WithKind("FeatureStore"))
+
+			err := k8sClient.Create(ctx, disabledResource)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("At least one of restAPI or grpc must be true"))
 		})
 
 		It("should error on reconcile", func() {

@@ -445,21 +445,25 @@ func (feast *FeastServices) setContainer(containers *[]corev1.Container, feastTy
 		probeHandler := feast.getProbeHandler(feastType, tls)
 		container.Ports = []corev1.ContainerPort{}
 
-		isRegistry := feastType == RegistryFeastType && feast.isRegistryServer()
-
-		grpcEnabled := !feast.isRegistryServer() || feast.isRegistryGrpcEnabled()
-		if grpcEnabled {
+		if feastType == RegistryFeastType {
+			if feast.isRegistryGrpcEnabled() {
+				container.Ports = append(container.Ports, corev1.ContainerPort{
+					Name:          name,
+					ContainerPort: getTargetPort(feastType, tls),
+					Protocol:      corev1.ProtocolTCP,
+				})
+			}
+			if feast.isRegistryRestEnabled() {
+				container.Ports = append(container.Ports, corev1.ContainerPort{
+					Name:          name + "-rest",
+					ContainerPort: getTargetRestPort(feastType, tls),
+					Protocol:      corev1.ProtocolTCP,
+				})
+			}
+		} else {
 			container.Ports = append(container.Ports, corev1.ContainerPort{
 				Name:          name,
 				ContainerPort: getTargetPort(feastType, tls),
-				Protocol:      corev1.ProtocolTCP,
-			})
-		}
-
-		if isRegistry && feast.isRegistryRestEnabled() {
-			container.Ports = append(container.Ports, corev1.ContainerPort{
-				Name:          name + "-rest",
-				ContainerPort: getTargetRestPort(feastType, tls),
 				Protocol:      corev1.ProtocolTCP,
 			})
 		}
@@ -1120,9 +1124,18 @@ func getTargetRestPort(feastType FeastServiceType, tls *feastdevv1alpha1.TlsConf
 }
 
 func (feast *FeastServices) getProbeHandler(feastType FeastServiceType, tls *feastdevv1alpha1.TlsConfigs) corev1.ProbeHandler {
+	targetPort := getTargetPort(feastType, tls)
+
 	if feastType == RegistryFeastType {
+		if feast.isRegistryGrpcEnabled() {
+			return corev1.ProbeHandler{
+				TCPSocket: &corev1.TCPSocketAction{
+					Port: intstr.FromInt(int(targetPort)),
+				},
+			}
+		}
 		if feast.isRegistryRestEnabled() {
-			targetPort := getTargetRestPort(feastType, tls)
+			targetPort = getTargetRestPort(feastType, tls)
 			probeHandler := corev1.ProbeHandler{
 				HTTPGet: &corev1.HTTPGetAction{
 					Port: intstr.FromInt(int(targetPort)),
@@ -1133,16 +1146,8 @@ func (feast *FeastServices) getProbeHandler(feastType FeastServiceType, tls *fea
 			}
 			return probeHandler
 		}
-		if feast.isRegistryGrpcEnabled() {
-			targetPort := getTargetPort(feastType, tls)
-			return corev1.ProbeHandler{
-				TCPSocket: &corev1.TCPSocketAction{
-					Port: intstr.FromInt(int(targetPort)),
-				},
-			}
-		}
-	} else if feastType == OnlineFeastType {
-		targetPort := getTargetPort(feastType, tls)
+	}
+	if feastType == OnlineFeastType {
 		probeHandler := corev1.ProbeHandler{
 			HTTPGet: &corev1.HTTPGetAction{
 				Path: "/health",
@@ -1154,7 +1159,6 @@ func (feast *FeastServices) getProbeHandler(feastType FeastServiceType, tls *fea
 		}
 		return probeHandler
 	}
-	targetPort := getTargetPort(feastType, tls)
 	return corev1.ProbeHandler{
 		TCPSocket: &corev1.TCPSocketAction{
 			Port: intstr.FromInt(int(targetPort)),
@@ -1179,12 +1183,18 @@ func (feast *FeastServices) GetFeastRestServiceName(feastType FeastServiceType) 
 
 // isRegistryGrpcEnabled checks if gRPC is enabled for registry service
 func (feast *FeastServices) isRegistryGrpcEnabled() bool {
-	registry := feast.Handler.FeatureStore.Status.Applied.Services.Registry
-	return registry.Local.Server.GRPC == nil || *registry.Local.Server.GRPC
+	if feast.isRegistryServer() {
+		registry := feast.Handler.FeatureStore.Status.Applied.Services.Registry
+		return registry.Local.Server.GRPC != nil && *registry.Local.Server.GRPC
+	}
+	return false
 }
 
 // isRegistryRestEnabled checks if REST API is enabled for registry service
 func (feast *FeastServices) isRegistryRestEnabled() bool {
-	registry := feast.Handler.FeatureStore.Status.Applied.Services.Registry
-	return registry.Local.Server.RestAPI != nil && *registry.Local.Server.RestAPI
+	if feast.isRegistryServer() {
+		registry := feast.Handler.FeatureStore.Status.Applied.Services.Registry
+		return registry.Local.Server.RestAPI != nil && *registry.Local.Server.RestAPI
+	}
+	return false
 }

@@ -1992,8 +1992,7 @@ spec:
                                     type: object
                                 type: object
                               restAPI:
-                                description: Enable REST API registry server. Defaults
-                                  to false if unset.
+                                description: Enable REST API registry server.
                                 type: boolean
                               tls:
                                 description: TlsConfigs configures server TLS for
@@ -2079,6 +2078,9 @@ spec:
                                   type: object
                                 type: array
                             type: object
+                            x-kubernetes-validations:
+                            - message: At least one of restAPI or grpc must be true
+                              rule: self.restAPI == true || self.grpc == true || !has(self.grpc)
                         type: object
                       remote:
                         description: RemoteRegistryConfig points to a remote feast
@@ -5979,7 +5981,6 @@ spec:
                                     type: object
                                   restAPI:
                                     description: Enable REST API registry server.
-                                      Defaults to false if unset.
                                     type: boolean
                                   tls:
                                     description: TlsConfigs configures server TLS
@@ -6069,6 +6070,11 @@ spec:
                                       type: object
                                     type: array
                                 type: object
+                                x-kubernetes-validations:
+                                - message: At least one of restAPI or grpc must be
+                                    true
+                                  rule: self.restAPI == true || self.grpc == true
+                                    || !has(self.grpc)
                             type: object
                           remote:
                             description: RemoteRegistryConfig points to a remote feast
