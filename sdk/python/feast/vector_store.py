@@ -11,25 +11,26 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from typing import List, Optional, Any
+from typing import List, Optional
 
 import numpy as np
+
 from feast import FeatureStore, FeatureView
 from feast.online_response import OnlineResponse
 
 
 class FeastVectorStore:
     """Feast-based vector store implementation."""
-    
+
     def __init__(self, repo_path: str, rag_view: FeatureView, features: List[str]):
         """Initialize the Feast vector store.
-        
+
         Args:
             repo_path: Path to the Feast repo
             rag_view: Feature view
             features: List of feature names to retrieve
         """
-        self._store = None # Lazy load
+        self._store = None  # Lazy load
         self._store_repo_path = repo_path
         self.rag_view = rag_view
         self.features = features
@@ -48,12 +49,12 @@ class FeastVectorStore:
         top_k: int = 10,
     ) -> OnlineResponse:
         """Query the Feast vector store.
-        
+
         Args:
             query_vector: Optional vector to use for similarity search
             query_string: Optional text query for semantic search
             top_k: Number of results to return
-            
+
         Returns:
             An OnlineResponse
         """
@@ -61,8 +62,8 @@ class FeastVectorStore:
 
         distance_metric = None
         for field in self.rag_view.schema:
-            if hasattr(field, 'vector_index') and field.vector_index:
-                if hasattr(field, 'vector_search_metric'):
+            if hasattr(field, "vector_index") and field.vector_index:
+                if hasattr(field, "vector_search_metric"):
                     distance_metric = field.vector_search_metric
                     break
 
@@ -71,5 +72,5 @@ class FeastVectorStore:
             query=query_list,
             query_string=query_string,
             top_k=top_k,
-            distance_metric=distance_metric
-        )       
+            distance_metric=distance_metric,
+        )

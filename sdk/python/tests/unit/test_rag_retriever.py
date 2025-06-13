@@ -1,13 +1,20 @@
-import pytest
-import numpy as np
-import torch
-from unittest.mock import Mock, MagicMock
-from transformers import PreTrainedTokenizer, PreTrainedModel, RagConfig, BertConfig, BartConfig
-from feast import FeatureStore
-from feast.repo_config import RepoConfig
 import os
+from unittest.mock import MagicMock, Mock
 
-from feast.rag_retriever import FeastRAGRetriever, FeastIndex
+import numpy as np
+import pytest
+import torch
+from transformers import (
+    BartConfig,
+    BertConfig,
+    PreTrainedModel,
+    PreTrainedTokenizer,
+    RagConfig,
+)
+
+from feast import FeatureStore
+from feast.rag_retriever import FeastIndex, FeastRAGRetriever
+from feast.repo_config import RepoConfig
 from tests.utils.rag_test_utils import MockVectorStore
 
 
@@ -17,14 +24,17 @@ def cleanup_milvus():
     yield
     # This will run after each test
     import gc
+
     gc.collect()  # Force garbage collection to help release resources
     # Add a small delay to ensure resources are released
     import time
+
     time.sleep(0.1)
 
 
 class MockTokenizer(PreTrainedTokenizer):
     """Mock tokenizer for testing."""
+
     def __init__(self):
         self._vocab = {"[PAD]": 0, "[UNK]": 1, "[CLS]": 2, "[SEP]": 3}
         self._vocab_size = 1000
@@ -37,7 +47,7 @@ class MockTokenizer(PreTrainedTokenizer):
 
     def decode(self, ids, **kwargs):
         return "decoded text"
-        
+
     def get_vocab(self):
         """Returns the vocabulary as a dictionary of token to index."""
         return self._vocab.copy()
@@ -65,14 +75,17 @@ class MockTokenizer(PreTrainedTokenizer):
 
 class MockModel(PreTrainedModel):
     """Mock model for testing."""
+
     def __init__(self, config=None):
         if config is None:
             from transformers import PretrainedConfig
+
             config = PretrainedConfig()
             config.hidden_size = 768
         super().__init__(config)
         self.config = config
         import torch
+
         self.dummy_param = torch.nn.Parameter(torch.zeros(1))
 
     def forward(self, **kwargs):
@@ -99,15 +112,15 @@ def rag_retriever(feature_store):
     from tests.example_repos.example_feature_repo_1 import (
         document_embeddings,
     )
-    
+
     print("Creating retriever...")
     rag_config = RagConfig(
         question_encoder=BertConfig(hidden_size=768).to_dict(),
         generator=BartConfig().to_dict(),
         retrieval_vector_size=10,  # Match the embedding size in the feature view
-        n_docs=2
+        n_docs=2,
     )
-    
+
     retriever = FeastRAGRetriever(
         question_encoder_tokenizer=MockTokenizer(),
         question_encoder=MockModel(),
@@ -115,29 +128,38 @@ def rag_retriever(feature_store):
         generator_model=MockModel(),
         feast_repo_path=str(feature_store.repo_path),
         feature_view=document_embeddings,
-        features=["document_embeddings:content", "document_embeddings:title", "document_embeddings:Embeddings"],
+        features=[
+            "document_embeddings:content",
+            "document_embeddings:title",
+            "document_embeddings:Embeddings",
+        ],
         search_type="hybrid",
         config=rag_config,
         index=FeastIndex(),
         id_field="item_id",
         text_field="content",
     )
-    
+
     # Replace the vector store with our mock
     retriever._vector_store = MockVectorStore(
         repo_path=str(feature_store.repo_path),
         rag_view=document_embeddings,
-        features=["document_embeddings:content", "document_embeddings:title", "document_embeddings:Embeddings"]
+        features=[
+            "document_embeddings:content",
+            "document_embeddings:title",
+            "document_embeddings:Embeddings",
+        ],
     )
-    
+
     try:
         yield retriever
     finally:
         # Cleanup
-        if hasattr(retriever, '_vector_store'):
+        if hasattr(retriever, "_vector_store"):
             retriever._vector_store.close()
             retriever._vector_store = None
             import gc
+
             gc.collect()
 
 
@@ -171,7 +193,7 @@ def test_rag_retriever_invalid_search_type(feature_store):
     from tests.example_repos.example_feature_repo_1 import (
         document_embeddings,
     )
-    
+
     with pytest.raises(ValueError):
         FeastRAGRetriever(
             question_encoder_tokenizer=MockTokenizer(),
@@ -182,8 +204,13 @@ def test_rag_retriever_invalid_search_type(feature_store):
             feature_view=document_embeddings,
             features=["content", "title", "Embeddings"],
             search_type="invalid",
-            config=RagConfig(question_encoder=BertConfig(hidden_size=768).to_dict(), generator=BartConfig().to_dict(), retrieval_vector_size=10, n_docs=2),
-            index=FeastIndex()
+            config=RagConfig(
+                question_encoder=BertConfig(hidden_size=768).to_dict(),
+                generator=BartConfig().to_dict(),
+                retrieval_vector_size=10,
+                n_docs=2,
+            ),
+            index=FeastIndex(),
         )
 
 
@@ -205,33 +232,31 @@ def test_retrieve_with_text_search(rag_retriever):
         id_field=rag_retriever.id_field,
         text_field=rag_retriever.text_field,
     )
-    
+
     # Mock the vector store's query method
     mock_response = MagicMock()
     mock_response.to_dict.return_value = {
         "content": ["doc1 content", "doc2 content"],
         "item_id": [1, 2],
-        "Embeddings": [np.random.rand(10).tolist(), np.random.rand(10).tolist()]
+        "Embeddings": [np.random.rand(10).tolist(), np.random.rand(10).tolist()],
     }
     text_retriever.vector_store.query = Mock(return_value=mock_response)
-    
+
     # Test text search with query string only
     # Create empty question hidden states since we're only doing text search
     question_hidden_states = np.zeros((1, 10, 10))  # (batch_size, seq_len, hidden_dim)
-    
+
     doc_embeds, doc_ids, doc_dicts = text_retriever.retrieve(
-        question_hidden_states=question_hidden_states,
-        n_docs=2,
-        query="test query"
+        question_hidden_states=question_hidden_states, n_docs=2, query="test query"
     )
-    
+
     # Verify the results
     assert doc_embeds.shape == (1, 2, 10)  # (batch_size, n_docs, embedding_dim)
     assert len(doc_ids) == 1  # One batch
     assert len(doc_dicts) == 1  # One batch
     assert len(doc_dicts[0]["text"]) == 2  # Two documents
     assert len(doc_dicts[0]["id"]) == 2  # Two document IDs
-    
+
     # Verify that vector_store.query was called with text parameter only
     text_retriever.vector_store.query.assert_called_once()
     call_args = text_retriever.vector_store.query.call_args[1]
@@ -257,33 +282,35 @@ def test_retrieve_with_vector_search(rag_retriever):
         id_field=rag_retriever.id_field,
         text_field=rag_retriever.text_field,
     )
-    
+
     # Create mock question hidden states
-    question_hidden_states = np.random.rand(1, 10, 10)  # (batch_size, seq_len, hidden_dim)
-    
+    question_hidden_states = np.random.rand(
+        1, 10, 10
+    )  # (batch_size, seq_len, hidden_dim)
+
     # Mock the vector store's query method
     mock_response = MagicMock()
     mock_response.to_dict.return_value = {
         "content": ["doc1 content", "doc2 content"],
         "item_id": [1, 2],
-        "Embeddings": [np.random.rand(10).tolist(), np.random.rand(10).tolist()]
+        "Embeddings": [np.random.rand(10).tolist(), np.random.rand(10).tolist()],
     }
     vector_retriever.vector_store.query = Mock(return_value=mock_response)
-    
+
     # Test vector search with hidden states only
     doc_embeds, doc_ids, doc_dicts = vector_retriever.retrieve(
         question_hidden_states=question_hidden_states,
         n_docs=2,
-        query=None  # No text search
+        query=None,  # No text search
     )
-    
+
     # Verify the results
     assert doc_embeds.shape == (1, 2, 10)  # (batch_size, n_docs, embedding_dim)
     assert len(doc_ids) == 1  # One batch
     assert len(doc_dicts) == 1  # One batch
     assert len(doc_dicts[0]["text"]) == 2  # Two documents
     assert len(doc_dicts[0]["id"]) == 2  # Two document IDs
-    
+
     # Verify that vector_store.query was called with vector parameter only
     vector_retriever.vector_store.query.assert_called_once()
     call_args = vector_retriever.vector_store.query.call_args[1]
@@ -295,31 +322,31 @@ def test_retrieve_with_vector_search(rag_retriever):
 def test_retrieve_with_hybrid_search(rag_retriever):
     """Test retrieving documents using hybrid search (both vector and text search)."""
     # Create mock question hidden states
-    question_hidden_states = np.random.rand(1, 10, 10)  # (batch_size, seq_len, hidden_dim)
-    
+    question_hidden_states = np.random.rand(
+        1, 10, 10
+    )  # (batch_size, seq_len, hidden_dim)
+
     # Mock the vector store's query method
     mock_response = MagicMock()
     mock_response.to_dict.return_value = {
         "content": ["doc1 content", "doc2 content"],
         "item_id": [1, 2],
-        "Embeddings": [np.random.rand(10).tolist(), np.random.rand(10).tolist()]
+        "Embeddings": [np.random.rand(10).tolist(), np.random.rand(10).tolist()],
     }
     rag_retriever.vector_store.query = Mock(return_value=mock_response)
-    
+
     # Test hybrid search with both vector and text query
     doc_embeds, doc_ids, doc_dicts = rag_retriever.retrieve(
-        question_hidden_states=question_hidden_states,
-        n_docs=2,
-        query="test query"
+        question_hidden_states=question_hidden_states, n_docs=2, query="test query"
     )
-    
+
     # Verify the results
     assert doc_embeds.shape == (1, 2, 10)  # (batch_size, n_docs, embedding_dim)
     assert len(doc_ids) == 1  # One batch
     assert len(doc_dicts) == 1  # One batch
     assert len(doc_dicts[0]["text"]) == 2  # Two documents
     assert len(doc_dicts[0]["id"]) == 2  # Two document IDs
-    
+
     # Verify that vector_store.query was called with both vector and text parameters
     rag_retriever.vector_store.query.assert_called_once()
     call_args = rag_retriever.vector_store.query.call_args[1]
@@ -331,15 +358,15 @@ def test_retrieve_with_hybrid_search(rag_retriever):
 def test_retrieve_documents(rag_retriever):
     """Test retrieving documents using the RAG retriever."""
     # Create mock question hidden states with 10 dimensions to match test data
-    question_hidden_states = np.random.rand(1, 10, 10)  # (batch_size, seq_len, hidden_dim)
-    
+    question_hidden_states = np.random.rand(
+        1, 10, 10
+    )  # (batch_size, seq_len, hidden_dim)
+
     # Mock the retrieve method
     doc_embeds, doc_ids, doc_dicts = rag_retriever.retrieve(
-        question_hidden_states=question_hidden_states,
-        n_docs=2,
-        query="test query"
+        question_hidden_states=question_hidden_states, n_docs=2, query="test query"
     )
-    
+
     # Verify the results
     assert doc_embeds.shape == (1, 2, 10)  # (batch_size, n_docs, embedding_dim)
     assert len(doc_ids) == 1  # One batch
@@ -352,18 +379,28 @@ def test_retrieve_documents(rag_retriever):
 def test_generate_answer(rag_retriever):
     """Test generating an answer using the RAG retriever."""
     # Mock the retrieve method
-    rag_retriever.retrieve = Mock(return_value=(
-        np.array([[[0.1] * 10, [0.2] * 10]]),  # 10-dimensional embeddings
-        np.array([[1, 2]]),
-        [{"text": ["context1", "context2"], "id": ["doc1", "doc2"], "title": ["Doc 1", "Doc 2"]}]
-    ))
-    
+    rag_retriever.retrieve = Mock(
+        return_value=(
+            np.array([[[0.1] * 10, [0.2] * 10]]),  # 10-dimensional embeddings
+            np.array([[1, 2]]),
+            [
+                {
+                    "text": ["context1", "context2"],
+                    "id": ["doc1", "doc2"],
+                    "title": ["Doc 1", "Doc 2"],
+                }
+            ],
+        )
+    )
+
     # Mock the generator model's generate method
-    rag_retriever.generator_model.generate = Mock(return_value=torch.tensor([[1, 2, 3]]))
-    
+    rag_retriever.generator_model.generate = Mock(
+        return_value=torch.tensor([[1, 2, 3]])
+    )
+
     # Generate an answer
     answer = rag_retriever.generate_answer("test query", top_k=2)
-    
+
     # Verify the answer
     assert isinstance(answer, str)
     assert len(answer) > 0

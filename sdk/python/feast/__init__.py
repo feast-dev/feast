@@ -19,10 +19,10 @@ from .feature_view import FeatureView
 from .field import Field
 from .on_demand_feature_view import OnDemandFeatureView
 from .project import Project
+from .rag_retriever import FeastIndex, FeastRAGRetriever
 from .repo_config import RepoConfig
 from .stream_feature_view import StreamFeatureView
 from .value_type import ValueType
-from .rag_retriever import FeastRAGRetriever, FeastIndex
 from .vector_store import FeastVectorStore
 
 try:

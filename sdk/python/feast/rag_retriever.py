@@ -11,30 +11,32 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from typing import Callable, Dict, List, Optional, Union, Any, Tuple, TYPE_CHECKING
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
-
-from transformers import RagRetriever, AutoModelForSeq2SeqLM, AutoModel
+from sentence_transformers import SentenceTransformer
+from transformers import (
+    AutoModel,
+    AutoModelForSeq2SeqLM,
+    PreTrainedTokenizer,
+    RagRetriever,
+)
 
 from feast import FeatureStore, FeatureView
-from feast.vector_store import FeastVectorStore
 from feast.torch_wrapper import get_torch
-
-from sentence_transformers import SentenceTransformer
-from transformers import PreTrainedTokenizer, PreTrainedModel
+from feast.vector_store import FeastVectorStore
 
 
 class FeastIndex:
     """Dummy index required by HuggingFace's RagRetriever."""
-    
+
     def __init__(self):
         """Initialize the Feast index."""
         pass
 
     def get_top_docs(self, query_vectors: np.ndarray, n_docs: int = 5):
         """Get top documents (not implemented).
-        
+
         This method is required by the RagRetriever interface but is not used
         as we override the retrieve method in FeastRAGRetriever.
         """
@@ -42,7 +44,7 @@ class FeastIndex:
 
     def get_doc_dicts(self, doc_ids: List[str]):
         """Get document dictionaries (not implemented).
-        
+
         This method is required by the RagRetriever interface but is not used
         as we override the retrieve method in FeastRAGRetriever.
         """
@@ -73,7 +75,7 @@ class FeastRAGRetriever(RagRetriever):
         **kwargs,
     ):
         """Initialize the Feast RAG retriever.
-        
+
         Args:
             question_encoder_tokenizer: Tokenizer for encoding questions
             question_encoder: Model for encoding questions
@@ -117,24 +119,30 @@ class FeastRAGRetriever(RagRetriever):
         self._query_encoder = None
         self._feature_store = None
         self._vector_store = None
-        self._query_encoder_model_name = query_encoder_model if isinstance(query_encoder_model, str) else None
+        self._query_encoder_model_name = (
+            query_encoder_model if isinstance(query_encoder_model, str) else None
+        )
 
     @property
     def query_encoder(self):
         if self._query_encoder is None:
             if self._query_encoder_model_name:
-                self._query_encoder = SentenceTransformer(self._query_encoder_model_name)
+                self._query_encoder = SentenceTransformer(
+                    self._query_encoder_model_name
+                )
             else:
-                raise ValueError("query_encoder_model_name must be set in order to initialize SentenceTransformer lazily")
+                raise ValueError(
+                    "query_encoder_model_name must be set in order to initialize SentenceTransformer lazily"
+                )
             return self._query_encoder
-        
+
     @property
     def feature_store(self):
         # Initialize FeatureStore lazily
         if self._feature_store is None:
             self._feature_store = FeatureStore(repo_path=self.feast_repo_path)
         return self._feature_store
-   
+
     @property
     def vector_store(self):
         # Initialize FeastVectorStore lazily
@@ -142,15 +150,15 @@ class FeastRAGRetriever(RagRetriever):
             self._vector_store = FeastVectorStore(
                 repo_path=self.feast_repo_path,
                 rag_view=self.feature_view,
-                features=self.features
+                features=self.features,
             )
         return self._vector_store
-    
-    def retrieve( # type: ignore [override]
+
+    def retrieve(  # type: ignore [override]
         self,
         question_hidden_states: np.ndarray,
         n_docs: int,
-        query: Optional[str] = None
+        query: Optional[str] = None,
     ) -> Tuple[np.ndarray, np.ndarray, List[dict]]:
         """
         Overrides the base `retrieve` method to fetch documents from Feast.
@@ -160,22 +168,22 @@ class FeastRAGRetriever(RagRetriever):
         (document_embeddings, document_ids, document_dictionaries).
 
         Args:
-            question_hidden_states (np.ndarray): 
+            question_hidden_states (np.ndarray):
                 Hidden state representation of the question from the encoder.
                 Expected shape is (1, seq_len, hidden_dim).
-            n_docs (int): 
+            n_docs (int):
                 Number of top documents to retrieve.
-            query (Optional[str]): 
+            query (Optional[str]):
                 Optional raw query string. If not provided and search_type is "text" or "hybrid",
                 it will be decoded from question_hidden_states.
 
         Returns:
             Tuple containing:
-                - retrieved_doc_embeds (np.ndarray): 
+                - retrieved_doc_embeds (np.ndarray):
                     Embeddings of the retrieved documents with shape (1, n_docs, embed_dim).
-                - doc_ids (List[str]): 
+                - doc_ids (List[str]):
                     List of document IDs or passage identifiers.
-                - doc_dicts (List[Dict[str, str]]): 
+                - doc_dicts (List[Dict[str, str]]):
                     List of dictionaries containing document text fields.
         """
         torch = get_torch()
@@ -197,9 +205,13 @@ class FeastRAGRetriever(RagRetriever):
                 pooled_query_vectors.append(pooled)
             else:
                 pooled_query_vectors.append(None)  # For text-only search
-        
+
         # Determine embedding dimension for padding
-        emb_dim = pooled_query_vectors[0].shape[-1] if pooled_query_vectors and pooled_query_vectors[0] is not None else self.config.retrieval_vector_size
+        emb_dim = (
+            pooled_query_vectors[0].shape[-1]
+            if pooled_query_vectors and pooled_query_vectors[0] is not None
+            else self.config.retrieval_vector_size
+        )
 
         # Retrieve documents for each query in batch
         batch_embeddings, batch_doc_ids, batch_metadata = [], [], []
@@ -215,7 +227,7 @@ class FeastRAGRetriever(RagRetriever):
             response = self.vector_store.query(
                 query_vector=query_vector if self.search_type != "text" else None,
                 query_string=query_text if self.search_type != "vector" else None,
-                top_k=n_docs
+                top_k=n_docs,
             )
             results_dict = response.to_dict()
             # Dynamically get data using the configured feature names
@@ -226,24 +238,31 @@ class FeastRAGRetriever(RagRetriever):
             embeddings = []
             embedding_field_name = None
             for field in self.feature_view.schema:
-                if hasattr(field, 'vector_index') and field.vector_index:
+                if hasattr(field, "vector_index") and field.vector_index:
                     embedding_field_name = field.name
                     break
-            
+
             if embedding_field_name:
                 embeddings = results_dict.get(embedding_field_name, [])
             else:
-                raise ValueError("Warning: No field with 'vector_index=True' found in schema, cannot extract embeddings")
-
+                raise ValueError(
+                    "Warning: No field with 'vector_index=True' found in schema, cannot extract embeddings"
+                )
 
             # Initialize lists for the current query's results
-            current_query_embeddings, current_query_ids, current_query_texts = [], [], []
+            current_query_embeddings, current_query_ids, current_query_texts = (
+                [],
+                [],
+                [],
+            )
 
             # Process retrieved documents up to n_docs
             emb_array = np.array([])
             if num_retrieved > 0:
-                emb_array = np.array([np.asarray(emb, dtype=np.float32) for emb in embeddings])
-                if emb_array.ndim == 1: # Reshape if it's a flat array
+                emb_array = np.array(
+                    [np.asarray(emb, dtype=np.float32) for emb in embeddings]
+                )
+                if emb_array.ndim == 1:  # Reshape if it's a flat array
                     emb_array = emb_array.reshape(num_retrieved, -1)
 
             for k in range(n_docs):
@@ -254,7 +273,7 @@ class FeastRAGRetriever(RagRetriever):
                     try:
                         current_query_ids.append(int(ids[k]))
                     except (ValueError, TypeError):
-                        current_query_ids.append(-1) # Use placeholder for invalid IDs
+                        current_query_ids.append(-1)  # Use placeholder for invalid IDs
                 else:
                     # Pad with empty/zero values if fewer than n_docs were found
                     current_query_texts.append("")
@@ -264,62 +283,75 @@ class FeastRAGRetriever(RagRetriever):
             # Collate results for the current query
             batch_embeddings.append(np.array(current_query_embeddings))
             batch_doc_ids.append(np.array(current_query_ids))
-            batch_metadata.append({
-                "text": current_query_texts,
-                "id": current_query_ids,
-                "title": [""] * n_docs  # RAG model expects a "title" key during Forward pass
-            })
+            batch_metadata.append(
+                {
+                    "text": current_query_texts,
+                    "id": current_query_ids,
+                    "title": [""]
+                    * n_docs,  # RAG model expects a "title" key during Forward pass
+                }
+            )
 
         # Return the Collated Batch Results
         # Convert lists of arrays into single batch arrays.
         return (
             np.array(batch_embeddings, dtype=np.float32),
             np.array(batch_doc_ids, dtype=np.int64),
-            batch_metadata
+            batch_metadata,
         )
-    
+
     def generate_answer(
         self, query: str, top_k: int = 5, max_new_tokens: int = 100
     ) -> str:
         """A helper method to generate an answer for a single query string.
-        
+
         Args:
             query: The query to answer
             top_k: Number of documents to retrieve
             max_new_tokens: Maximum number of tokens to generate
-            
+
         Returns:
             Generated answer string
         """
         if not self.question_encoder or not self.generator_model:
-            raise ValueError("`question_encoder` and `generator_model` must be provided to use `generate_answer`.")
-        
+            raise ValueError(
+                "`question_encoder` and `generator_model` must be provided to use `generate_answer`."
+            )
+
         # Convert query to hidden states format expected by retrieve
         inputs = self.question_encoder_tokenizer(
             query, return_tensors="pt", padding=True, truncation=True
         ).to(self.question_encoder.device)  # type: ignore
 
-        question_hidden_states = self.question_encoder.forward(**inputs).last_hidden_state  # type: ignore
-        
+        question_hidden_states = self.question_encoder.forward(
+            **inputs
+        ).last_hidden_state  # type: ignore
+
         # Get documents using retrieve method
-        _, _, doc_dicts = self.retrieve(question_hidden_states, n_docs=top_k, query=query)
-        
+        _, _, doc_dicts = self.retrieve(
+            question_hidden_states, n_docs=top_k, query=query
+        )
+
         contexts = doc_dicts[0]["text"] if doc_dicts else []
         context_str = "\n\n".join(filter(None, contexts))
 
         prompt = f"Context: {context_str}\n\nQuestion: {query}\n\nAnswer:"
 
-        generator_inputs = self.generator_tokenizer(prompt, return_tensors="pt").to(self.generator_model.device)  # type: ignore
-        output_ids = self.generator_model.generate(**generator_inputs, max_new_tokens=max_new_tokens)  # type: ignore
+        generator_inputs = self.generator_tokenizer(prompt, return_tensors="pt").to(
+            self.generator_model.device
+        )  # type: ignore
+        output_ids = self.generator_model.generate(
+            **generator_inputs, max_new_tokens=max_new_tokens
+        )  # type: ignore
 
         return self.generator_tokenizer.decode(output_ids[0], skip_special_tokens=True)
 
     def _default_format_document(self, doc: Dict[str, Any]) -> str:
         """Default document formatting function.
-        
+
         Args:
             doc: Document dictionary to format
-            
+
         Returns:
             Formatted document string
         """
@@ -333,4 +365,4 @@ class FeastRAGRetriever(RagRetriever):
             ):
                 continue
             lines.append(f"{key.replace('_', ' ').capitalize()}: {value}")
-        return "\n".join(lines) 
+        return "\n".join(lines)
