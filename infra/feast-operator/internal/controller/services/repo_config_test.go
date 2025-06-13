@@ -374,7 +374,7 @@ func minimalFeatureStoreWithAllServers() *feastdevv1alpha1.FeatureStore {
 		},
 		Registry: &feastdevv1alpha1.Registry{
 			Local: &feastdevv1alpha1.LocalRegistryConfig{
-				Server: &feastdevv1alpha1.ServerConfigs{},
+				Server: &feastdevv1alpha1.RegistryServerConfigs{},
 			},
 		},
 		UI: &feastdevv1alpha1.ServerConfigs{},

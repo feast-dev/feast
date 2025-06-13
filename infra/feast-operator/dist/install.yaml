@@ -1932,6 +1932,10 @@ spec:
                                       x-kubernetes-map-type: atomic
                                   type: object
                                 type: array
+                              grpc:
+                                description: Enable gRPC registry server. Defaults
+                                  to true if unset.
+                                type: boolean
                               image:
                                 type: string
                               imagePullPolicy:
@@ -1995,6 +1999,9 @@ spec:
                                       of compute resources required.
                                     type: object
                                 type: object
+                              restAPI:
+                                description: Enable REST API registry server.
+                                type: boolean
                               tls:
                                 description: TlsConfigs configures server TLS for
                                   a feast service.
@@ -2079,6 +2086,9 @@ spec:
                                   type: object
                                 type: array
                             type: object
+                            x-kubernetes-validations:
+                            - message: At least one of restAPI or grpc must be true
+                              rule: self.restAPI == true || self.grpc == true || !has(self.grpc)
                         type: object
                       remote:
                         description: RemoteRegistryConfig points to a remote feast
@@ -5910,6 +5920,10 @@ spec:
                                           x-kubernetes-map-type: atomic
                                       type: object
                                     type: array
+                                  grpc:
+                                    description: Enable gRPC registry server. Defaults
+                                      to true if unset.
+                                    type: boolean
                                   image:
                                     type: string
                                   imagePullPolicy:
@@ -5973,6 +5987,9 @@ spec:
                                           amount of compute resources required.
                                         type: object
                                     type: object
+                                  restAPI:
+                                    description: Enable REST API registry server.
+                                    type: boolean
                                   tls:
                                     description: TlsConfigs configures server TLS
                                       for a feast service.
@@ -6061,6 +6078,11 @@ spec:
                                       type: object
                                     type: array
                                 type: object
+                                x-kubernetes-validations:
+                                - message: At least one of restAPI or grpc must be
+                                    true
+                                  rule: self.restAPI == true || self.grpc == true
+                                    || !has(self.grpc)
                             type: object
                           remote:
                             description: RemoteRegistryConfig points to a remote feast
@@ -8058,6 +8080,8 @@ spec:
                   onlineStore:
                     type: string
                   registry:
+                    type: string
+                  registryRest:
                     type: string
                   ui:
                     type: string
