@@ -23,4 +23,4 @@ offline_store:
   db_schema: public
   user: feast
   password: feast
-entity_key_serialization_version: 2
+entity_key_serialization_version: 3

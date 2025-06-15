@@ -528,7 +528,7 @@ def construct_test_environment(
     fixture_request: Optional[pytest.FixtureRequest],
     test_suite_name: str = "integration_test",
     worker_id: str = "worker_id",
-    entity_key_serialization_version: int = 2,
+    entity_key_serialization_version: int = 3,
 ) -> Environment:
     _uuid = str(uuid.uuid4()).replace("-", "")[:6]
 

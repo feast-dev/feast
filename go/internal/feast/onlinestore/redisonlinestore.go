@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+
 	//"os"
 	"sort"
 	"strconv"
@@ -343,6 +344,10 @@ func buildRedisKey(project string, entityKey *types.EntityKey, entityKeySerializ
 func serializeEntityKey(entityKey *types.EntityKey, entityKeySerializationVersion int64) (*[]byte, error) {
 	// Serialize entity key to a bytestring so that it can be used as a lookup key in a hash table.
 
+	if entityKeySerializationVersion < 3 {
+		return nil, fmt.Errorf("Serialization of entity key with version < 3 is removed. Please use version 3 by setting entity_key_serialization_version=3. To reserializa your online store featrues refer -  https://github.com/feast-dev/feast/blob/master/docs/how-to-guides/entity-reserialization-of-from-v2-to-v3.md")
+	}
+
 	// Ensure that we have the right amount of join keys and entity values
 	if len(entityKey.JoinKeys) != len(entityKey.EntityValues) {
 		return nil, fmt.Errorf("the amount of join key names and entity values don't match: %s vs %s", entityKey.JoinKeys, entityKey.EntityValues)
@@ -364,6 +369,14 @@ func serializeEntityKey(entityKey *types.EntityKey, entityKeySerializationVersio
 	// Build the key
 	length := 5 * len(keys)
 	bufferList := make([][]byte, length)
+
+	// For entityKeySerializationVersion 3 and above, we add the number of join keys
+	// as the first 4 bytes of the serialized key.
+	if entityKeySerializationVersion >= 3 {
+		byteBuffer := make([]byte, 4)
+		binary.LittleEndian.PutUint32(byteBuffer, uint32(len(keys)))
+		bufferList = append([][]byte{byteBuffer}, bufferList...)
+	}
 
 	for i := 0; i < len(keys); i++ {
 		offset := i * 2
@@ -415,16 +428,9 @@ func serializeValue(value interface{}, entityKeySerializationVersion int64) (*[]
 		binary.LittleEndian.PutUint32(valueBuffer, uint32(x.Int32Val))
 		return &valueBuffer, types.ValueType_INT32, nil
 	case *types.Value_Int64Val:
-		if entityKeySerializationVersion <= 1 {
-			//  We unfortunately have to use 32 bit here for backward compatibility :(
-			valueBuffer := make([]byte, 4)
-			binary.LittleEndian.PutUint32(valueBuffer, uint32(x.Int64Val))
-			return &valueBuffer, types.ValueType_INT64, nil
-		} else {
-			valueBuffer := make([]byte, 8)
-			binary.LittleEndian.PutUint64(valueBuffer, uint64(x.Int64Val))
-			return &valueBuffer, types.ValueType_INT64, nil
-		}
+		valueBuffer := make([]byte, 8)
+		binary.LittleEndian.PutUint64(valueBuffer, uint64(x.Int64Val))
+		return &valueBuffer, types.ValueType_INT64, nil
 	case nil:
 		return nil, types.ValueType_INVALID, fmt.Errorf("could not detect type for %v", x)
 	default:

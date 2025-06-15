@@ -193,19 +193,19 @@ def main():
                 EntityKey(
                     join_keys=["driver_id"], entity_values=[Value(int64_val=1004)]
                 ),
-                entity_key_serialization_version=2,
+                entity_key_serialization_version=3,
             ).hex(),
             serialize_entity_key(
                 EntityKey(
                     join_keys=["driver_id"], entity_values=[Value(int64_val=1005)]
                 ),
-                entity_key_serialization_version=2,
+                entity_key_serialization_version=3,
             ).hex(),
             serialize_entity_key(
                 EntityKey(
                     join_keys=["driver_id"], entity_values=[Value(int64_val=1024)]
                 ),
-                entity_key_serialization_version=2,
+                entity_key_serialization_version=3,
             ).hex(),
         ]
         rows = table.rows(row_keys)

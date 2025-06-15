@@ -5,4 +5,4 @@ online_store:
   type: sqlite
 offline_store:
   type: file
-entity_key_serialization_version: 2
+entity_key_serialization_version: 3

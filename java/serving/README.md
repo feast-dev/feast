@@ -30,14 +30,14 @@ From the Feast GitHub root, run:
     feast:
       project: feast_demo
       registry: /Users/[your username]/GitHub/feast-demo/feature_repo/data/registry.db
-      entityKeySerializationVersion: 2
+      entityKeySerializationVersion: 3
     ```
    2. An example of if you're using Redis with a remote registry:
       ```yaml
       feast:
         project: feast_java_demo
         registry: gs://[YOUR BUCKET]/demo-repo/registry.db
-        entityKeySerializationVersion: 2
+        entityKeySerializationVersion: 3
         activeStore: online
         stores:
         - name: online

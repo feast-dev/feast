@@ -17,7 +17,7 @@ online_store:
   path: http://localhost:6566
   type: remote
   cert: /path/to/cert.pem
-entity_key_serialization_version: 2
+entity_key_serialization_version: 3
 auth:
   type: no_auth
 ```
