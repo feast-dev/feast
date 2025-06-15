@@ -13,6 +13,7 @@
 # limitations under the License.
 import json
 import logging
+from collections import defaultdict
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
 
@@ -20,12 +21,16 @@ import requests
 from pydantic import StrictStr
 
 from feast import Entity, FeatureView, RepoConfig
+from feast.infra.online_stores.helpers import _to_naive_utc
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel
 from feast.rest_error_handler import rest_error_handling_decorator
-from feast.type_map import python_values_to_proto_values
+from feast.type_map import (
+    feast_value_type_to_python_type,
+    python_values_to_proto_values,
+)
 from feast.value_type import ValueType
 
 logger = logging.getLogger(__name__)
@@ -60,7 +65,55 @@ class RemoteOnlineStore(OnlineStore):
         ],
         progress: Optional[Callable[[int], Any]],
     ) -> None:
-        raise NotImplementedError
+        """
+        Writes a batch of feature rows to the remote online store via the remote API.
+        """
+        assert isinstance(config.online_store, RemoteOnlineStoreConfig)
+        config.online_store.__class__ = RemoteOnlineStoreConfig
+
+        columnar_data: Dict[str, List[Any]] = defaultdict(list)
+
+        # Iterate through each row to populate columnar data directly
+        for entity_key_proto, feature_values_proto, event_ts, created_ts in data:
+            # Populate entity key values
+            for join_key, entity_value_proto in zip(
+                entity_key_proto.join_keys, entity_key_proto.entity_values
+            ):
+                columnar_data[join_key].append(
+                    feast_value_type_to_python_type(entity_value_proto)
+                )
+
+            # Populate feature values
+            for feature_name, feature_value_proto in feature_values_proto.items():
+                columnar_data[feature_name].append(
+                    feast_value_type_to_python_type(feature_value_proto)
+                )
+
+            # Populate timestamps
+            columnar_data["event_timestamp"].append(_to_naive_utc(event_ts).isoformat())
+            columnar_data["created"].append(
+                _to_naive_utc(created_ts).isoformat() if created_ts else None
+            )
+
+        req_body = {
+            "feature_view_name": table.name,
+            "df": columnar_data,
+            "allow_registry_cache": False,
+        }
+
+        response = post_remote_online_write(config=config, req_body=req_body)
+
+        if response.status_code != 200:
+            error_msg = f"Unable to write online store data using feature server API. Error_code={response.status_code}, error_message={response.text}"
+            logger.error(error_msg)
+            raise RuntimeError(error_msg)
+
+        if progress:
+            data_length = len(data)
+            logger.info(
+                f"Writing {data_length} rows to the remote store for feature view {table.name}."
+            )
+            progress(data_length)
 
     def online_read(
         self,
@@ -184,3 +237,14 @@ def get_remote_online_features(
         return session.post(
             f"{config.online_store.path}/get-online-features", data=req_body
         )
+
+
+@rest_error_handling_decorator
+def post_remote_online_write(
+    session: requests.Session, config: RepoConfig, req_body: dict
+) -> requests.Response:
+    url = f"{config.online_store.path}/write-to-online-store"
+    if config.online_store.cert:
+        return session.post(url, json=req_body, verify=config.online_store.cert)
+    else:
+        return session.post(url, json=req_body)
