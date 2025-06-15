@@ -2,6 +2,10 @@
 
 Please see [Registry](../../getting-started/components/registry.md) for a conceptual explanation of registries.
 
+{% content-ref url="metadata.md" %}
+[metadata.md](metadata.md)
+{% endcontent-ref %}
+
 {% content-ref url="local.md" %}
 [local.md](local.md)
 {% endcontent-ref %}
