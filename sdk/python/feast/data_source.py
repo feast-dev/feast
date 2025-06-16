@@ -815,7 +815,6 @@ class PushSource(DataSource):
 
     @staticmethod
     def from_proto(data_source: DataSourceProto):
-        # assert data_source.HasField("batch_source")
         batch_source = (
             DataSource.from_proto(data_source.batch_source)
             if data_source.HasField("batch_source")
@@ -831,8 +830,6 @@ class PushSource(DataSource):
         )
 
     def to_proto(self) -> DataSourceProto:
-        # batch_source_proto = None
-
         data_source_proto = DataSourceProto(
             name=self.name,
             type=DataSourceProto.PUSH_SOURCE,
