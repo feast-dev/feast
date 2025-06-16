@@ -6,13 +6,14 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/feast-dev/feast/go/internal/feast/model"
 	"math"
 	"math/big"
 	"os"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/feast-dev/feast/go/internal/feast/model"
 
 	"github.com/feast-dev/feast/go/internal/feast/registry"
 	"github.com/feast-dev/feast/go/internal/feast/utils"
@@ -272,7 +273,7 @@ func NewCassandraOnlineStore(project string, config *registry.RepoConfig, online
 	// parse tableNameFormatVersion
 	tableNameFormatVersion, ok := onlineStoreConfig["table_name_format_version"]
 	if !ok {
-		tableNameFormatVersion = 1
+		tableNameFormatVersion = 1.0
 		log.Warn().Msg("table_name_format_version not specified: Using 1 instead")
 	}
 	store.tableNameFormatVersion = int(tableNameFormatVersion.(float64))
