@@ -6,9 +6,12 @@ Push sources allow feature values to be pushed to the online store and offline s
 
 Push sources can be used by multiple feature views. When data is pushed to a push source, Feast propagates the feature values to all the consuming feature views.
 
-Push sources must have a batch source specified. The batch source will be used for retrieving historical features. Thus users are also responsible for pushing data to a batch data source such as a data warehouse table. When using a push source as a stream source in the definition of a feature view, a batch source doesn't need to be specified in the feature view definition explicitly.
+Push sources can optionally have a batch_source specified. If provided, it enables retrieval of historical features and supports materialization from the offline store to the online store. However, if your features are generated post-training or are only needed online (e.g., embeddings), you can omit the batch_source.
+
+When a batch_source is used, users are responsible for ensuring that data is also pushed to a batch data source, such as a data warehouse. Note that when a push source is used as a stream source in a feature view definition, a batch_source does not need to be explicitly specified in the feature view itself.
 
 ## Stream sources
+
 Streaming data sources are important sources of feature values. A typical setup with streaming data looks like:
 
 1. Raw events come in (stream 1)
@@ -20,7 +23,9 @@ Streaming data sources are important sources of feature values. A typical setup 
 Feast allows users to push features previously registered in a feature view to the online store for fresher features. It also allows users to push batches of stream data to the offline store by specifying that the push be directed to the offline store. This will push the data to the offline store declared in the repository configuration used to initialize the feature store.
 
 ## Example (basic)
+
 ### Defining a push source
+
 Note that the push schema needs to also include the entity.
 
 ```python
@@ -43,7 +48,9 @@ fv = FeatureView(
 ```
 
 ### Pushing data
+
 Note that the `to` parameter is optional and defaults to online but we can specify these options: `PushMode.ONLINE`, `PushMode.OFFLINE`, or `PushMode.ONLINE_AND_OFFLINE`.
+
 ```python
 from feast import FeatureStore
 import pandas as pd
