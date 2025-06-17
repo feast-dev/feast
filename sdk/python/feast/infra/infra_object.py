@@ -20,15 +20,11 @@ from feast.importer import import_class
 from feast.protos.feast.core.DatastoreTable_pb2 import (
     DatastoreTable as DatastoreTableProto,
 )
-from feast.protos.feast.core.DynamoDBTable_pb2 import (
-    DynamoDBTable as DynamoDBTableProto,
-)
 from feast.protos.feast.core.InfraObject_pb2 import Infra as InfraProto
 from feast.protos.feast.core.InfraObject_pb2 import InfraObject as InfraObjectProto
 from feast.protos.feast.core.SqliteTable_pb2 import SqliteTable as SqliteTableProto
 
 DATASTORE_INFRA_OBJECT_CLASS_TYPE = "feast.infra.online_stores.datastore.DatastoreTable"
-DYNAMODB_INFRA_OBJECT_CLASS_TYPE = "feast.infra.online_stores.dynamodb.DynamoDBTable"
 SQLITE_INFRA_OBJECT_CLASS_TYPE = "feast.infra.online_stores.sqlite.SqliteTable"
 
 
@@ -91,8 +87,6 @@ class InfraObject(ABC):
         """
         if isinstance(infra_object_proto, DatastoreTableProto):
             infra_object_class_type = DATASTORE_INFRA_OBJECT_CLASS_TYPE
-        elif isinstance(infra_object_proto, DynamoDBTableProto):
-            infra_object_class_type = DYNAMODB_INFRA_OBJECT_CLASS_TYPE
         elif isinstance(infra_object_proto, SqliteTableProto):
             infra_object_class_type = SQLITE_INFRA_OBJECT_CLASS_TYPE
         else:

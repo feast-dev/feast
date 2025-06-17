@@ -764,13 +764,13 @@ class PushSource(DataSource):
 
     # TODO(adchia): consider adding schema here in case where Feast manages pushing events to the offline store
     # TODO(adchia): consider a "mode" to support pushing raw vs transformed events
-    batch_source: DataSource
+    batch_source: Optional[DataSource] = None
 
     def __init__(
         self,
         *,
         name: str,
-        batch_source: DataSource,
+        batch_source: Optional[DataSource] = None,
         description: Optional[str] = "",
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
@@ -815,8 +815,11 @@ class PushSource(DataSource):
 
     @staticmethod
     def from_proto(data_source: DataSourceProto):
-        assert data_source.HasField("batch_source")
-        batch_source = DataSource.from_proto(data_source.batch_source)
+        batch_source = (
+            DataSource.from_proto(data_source.batch_source)
+            if data_source.HasField("batch_source")
+            else None
+        )
 
         return PushSource(
             name=data_source.name,
@@ -827,18 +830,16 @@ class PushSource(DataSource):
         )
 
     def to_proto(self) -> DataSourceProto:
-        batch_source_proto = None
-        if self.batch_source:
-            batch_source_proto = self.batch_source.to_proto()
-
         data_source_proto = DataSourceProto(
             name=self.name,
             type=DataSourceProto.PUSH_SOURCE,
             description=self.description,
             tags=self.tags,
             owner=self.owner,
-            batch_source=batch_source_proto,
         )
+
+        if self.batch_source:
+            data_source_proto.batch_source.MergeFrom(self.batch_source.to_proto())
 
         return data_source_proto
 

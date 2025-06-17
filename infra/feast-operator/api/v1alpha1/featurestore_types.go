@@ -392,8 +392,8 @@ var ValidOnlineStoreDBStorePersistenceTypes = []string{
 // LocalRegistryConfig configures the registry service
 type LocalRegistryConfig struct {
 	// Creates a registry server container
-	Server      *ServerConfigs       `json:"server,omitempty"`
-	Persistence *RegistryPersistence `json:"persistence,omitempty"`
+	Server      *RegistryServerConfigs `json:"server,omitempty"`
+	Persistence *RegistryPersistence   `json:"persistence,omitempty"`
 }
 
 // RegistryPersistence configures the persistence settings for the registry service
@@ -500,6 +500,18 @@ type ServerConfigs struct {
 	// required by the Feast components. Ensure that each volume mount has a corresponding
 	// volume definition in the Volumes field.
 	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitempty"`
+}
+
+// RegistryServerConfigs creates a registry server for the feast service, with specified container configurations.
+// +kubebuilder:validation:XValidation:rule="self.restAPI == true || self.grpc == true || !has(self.grpc)", message="At least one of restAPI or grpc must be true"
+type RegistryServerConfigs struct {
+	ServerConfigs `json:",inline"`
+
+	// Enable REST API registry server.
+	RestAPI *bool `json:"restAPI,omitempty"`
+
+	// Enable gRPC registry server. Defaults to true if unset.
+	GRPC *bool `json:"grpc,omitempty"`
 }
 
 // CronJobContainerConfigs k8s container settings for the CronJob
@@ -613,6 +625,7 @@ type ServiceHostnames struct {
 	OfflineStore string `json:"offlineStore,omitempty"`
 	OnlineStore  string `json:"onlineStore,omitempty"`
 	Registry     string `json:"registry,omitempty"`
+	RegistryRest string `json:"registryRest,omitempty"`
 	UI           string `json:"ui,omitempty"`
 }
 

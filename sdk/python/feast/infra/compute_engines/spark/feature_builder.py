@@ -29,7 +29,7 @@ class SparkFeatureBuilder(FeatureBuilder):
         source = self.feature_view.batch_source
         start_time = self.task.start_time
         end_time = self.task.end_time
-        node = SparkReadNode("source", source, start_time, end_time)
+        node = SparkReadNode("source", source, self.spark_session, start_time, end_time)
         self.nodes.append(node)
         return node
 

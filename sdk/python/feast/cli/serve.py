@@ -232,7 +232,15 @@ def serve_registry_command(
         for p in servers:
             p.join()
     else:
-        store.serve_registry(port, tls_key_path, tls_cert_path, rest_api)
+        if grpc:
+            store.serve_registry(port, tls_key_path, tls_cert_path)
+        else:
+            store.serve_registry(
+                port=rest_port,
+                tls_key_path=tls_key_path,
+                tls_cert_path=tls_cert_path,
+                rest_api=rest_api,
+            )
 
 
 def _serve_grpc_registry(
