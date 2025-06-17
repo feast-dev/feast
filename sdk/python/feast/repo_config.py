@@ -101,6 +101,7 @@ OFFLINE_STORE_CLASS_FOR_TYPE = {
     "remote": "feast.infra.offline_stores.remote.RemoteOfflineStore",
     "couchbase.offline": "feast.infra.offline_stores.contrib.couchbase_offline_store.couchbase.CouchbaseColumnarOfflineStore",
     "clickhouse": "feast.infra.offline_stores.contrib.clickhouse_offline_store.clickhouse.ClickhouseOfflineStore",
+    "ray": "feast.infra.offline_stores.contrib.ray_offline_store.ray.RayOfflineStore",
 }
 
 FEATURE_SERVER_CONFIG_CLASS_FOR_TYPE = {
