@@ -30,6 +30,22 @@ def test_push_with_batch():
     assert push_source.batch_source.name == push_source_unproto.batch_source.name
 
 
+def test_push_source_without_batch_source():
+    # Create PushSource with no batch_source
+    push_source = PushSource(name="test_push_source")
+
+    # Convert to proto
+    push_source_proto = push_source.to_proto()
+
+    # Assert batch_source is not present in proto
+    assert not push_source_proto.HasField("batch_source")
+
+    # Deserialize and check again
+    push_source_unproto = PushSource.from_proto(push_source_proto)
+    assert push_source_unproto.batch_source is None
+    assert push_source_unproto.name == "test_push_source"
+
+
 def test_request_source_primitive_type_to_proto():
     schema = [
         Field(name="f1", dtype=Float32),
