@@ -703,6 +703,11 @@ func TestGroupSortedFeatureRefs(t *testing.T) {
 		t.Logf("Group %d:", i)
 		t.Logf("  Features: %v", group.FeatureNames)
 		t.Logf("  AliasedNames: %v", group.AliasedFeatureNames)
+		filterNames := make([]string, len(group.SortKeyFilters))
+		for j, filter := range group.SortKeyFilters {
+			filterNames[j] = filter.SortKeyName
+		}
+		t.Logf("  SortKeyFilters: %v", filterNames)
 	}
 
 	assert.NoError(t, err)
@@ -725,6 +730,7 @@ func TestGroupSortedFeatureRefs(t *testing.T) {
 			assert.Nil(t, group.SortKeyFilters[0].Order)
 		}
 		assert.Equal(t, int32(10), group.Limit)
+		assert.False(t, group.IsReverseSortOrder)
 	}
 
 	featureAFound := false
@@ -830,6 +836,7 @@ func TestGroupSortedFeatureRefs_withReverseSortOrder(t *testing.T) {
 		assert.Equal(t, "DESC", group.SortKeyFilters[1].Order.Order.String())
 
 		assert.Equal(t, int32(10), group.Limit)
+		assert.True(t, group.IsReverseSortOrder)
 	}
 
 	featureAFound := false
@@ -1018,7 +1025,7 @@ func TestTransposeRangeFeatureRowsIntoColumns(t *testing.T) {
 		{View: sfv, FeatureRefs: []string{"f1"}},
 	}
 
-	groupRef := &GroupedRangeFeatureRefs{
+	groupRef := &model.GroupedRangeFeatureRefs{
 		FeatureNames:        []string{"f1"},
 		FeatureViewNames:    []string{"testView"},
 		AliasedFeatureNames: []string{"testView__f1"},

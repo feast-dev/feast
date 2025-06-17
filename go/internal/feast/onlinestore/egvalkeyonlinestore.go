@@ -6,11 +6,11 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/feast-dev/feast/go/internal/feast/model"
 	"os"
 	"strconv"
 	"strings"
 
-	"github.com/feast-dev/feast/go/internal/feast/model"
 	"github.com/feast-dev/feast/go/internal/feast/utils"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -336,7 +336,7 @@ func (r *ValkeyOnlineStore) OnlineRead(ctx context.Context, entityKeys []*types.
 	return results, nil
 }
 
-func (r *ValkeyOnlineStore) OnlineReadRange(ctx context.Context, entityKeys []*types.EntityKey, featureViewNames []string, featureNames []string, sortKeyFilters []*model.SortKeyFilter, limit int32) ([][]RangeFeatureData, error) {
+func (r *ValkeyOnlineStore) OnlineReadRange(ctx context.Context, groupedRefs *model.GroupedRangeFeatureRefs) ([][]RangeFeatureData, error) {
 	// TODO: Implement OnlineReadRange
 	return nil, errors.New("OnlineReadRange is not supported by ValkeyOnlineStore")
 }

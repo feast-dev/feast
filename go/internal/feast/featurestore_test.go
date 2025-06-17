@@ -90,8 +90,8 @@ func (m *MockOnlineStore) OnlineRead(ctx context.Context, entityKeys []*types.En
 	return args.Get(0).([][]onlinestore.FeatureData), args.Error(1)
 }
 
-func (m *MockOnlineStore) OnlineReadRange(ctx context.Context, entityRows []*types.EntityKey, featureViewNames []string, featureNames []string, sortKeyFilters []*model.SortKeyFilter, limit int32) ([][]onlinestore.RangeFeatureData, error) {
-	args := m.Called(ctx, entityRows, featureViewNames, featureNames, sortKeyFilters, limit)
+func (m *MockOnlineStore) OnlineReadRange(ctx context.Context, groupedRefs *model.GroupedRangeFeatureRefs) ([][]onlinestore.RangeFeatureData, error) {
+	args := m.Called(ctx, groupedRefs)
 	return args.Get(0).([][]onlinestore.RangeFeatureData), args.Error(1)
 }
 
@@ -157,7 +157,7 @@ func TestGetOnlineFeaturesRange(t *testing.T) {
 	}
 
 	expectedFilter := model.NewSortKeyFilterFromProto(sortKeyProto, nil)
-	filterMatcher := mock.MatchedBy(func(fs []*model.SortKeyFilter) bool {
+	filterMatcher := func(fs []*model.SortKeyFilter) bool {
 		if len(fs) != 1 {
 			return false
 		}
@@ -174,7 +174,7 @@ func TestGetOnlineFeaturesRange(t *testing.T) {
 		}
 		return sameBase && f.Order != nil && expectedFilter.Order != nil &&
 			f.Order.Order == expectedFilter.Order.Order
-	})
+	}
 	mockRangeFeatureData := [][]onlinestore.RangeFeatureData{
 		{
 			{
@@ -220,16 +220,16 @@ func TestGetOnlineFeaturesRange(t *testing.T) {
 		},
 	}
 
-	featureViewNamesMatcher := mock.MatchedBy(func(views []string) bool {
+	featureViewNamesMatcher := func(views []string) bool {
 		for _, view := range views {
 			if view != "driver_stats" {
 				return false
 			}
 		}
 		return len(views) > 0
-	})
+	}
 
-	entityKeysMatcher := mock.MatchedBy(func(keys []*types.EntityKey) bool {
+	entityKeysMatcher := func(keys []*types.EntityKey) bool {
 		if len(keys) != len(entityValues["driver_id"].Val) {
 			return false
 		}
@@ -242,15 +242,22 @@ func TestGetOnlineFeaturesRange(t *testing.T) {
 			}
 		}
 		return true
+	}
+
+	groupedRefsMatcher := mock.MatchedBy(func(ref *model.GroupedRangeFeatureRefs) bool {
+		return entityKeysMatcher(ref.EntityKeys) &&
+			featureViewNamesMatcher(ref.FeatureViewNames) &&
+			len(ref.FeatureNames) == 2 &&
+			ref.FeatureNames[0] == "conv_rate" &&
+			ref.FeatureNames[1] == "acc_rate" &&
+			filterMatcher(ref.SortKeyFilters) &&
+			ref.Limit == 0 &&
+			ref.IsReverseSortOrder == false
 	})
 
 	mockStore.On("OnlineReadRange",
 		mock.Anything,
-		entityKeysMatcher,
-		featureViewNamesMatcher,
-		[]string{"conv_rate", "acc_rate"},
-		filterMatcher,
-		int32(0),
+		groupedRefsMatcher,
 	).Return(mockRangeFeatureData, nil)
 
 	result, err := testGetOnlineFeaturesRange(
@@ -381,11 +388,7 @@ func testGetOnlineFeaturesRange(
 	for _, groupRef := range groupedRangeRefs {
 		featureData, err := store.OnlineReadRange(
 			ctx,
-			groupRef.EntityKeys,
-			groupRef.FeatureViewNames,
-			groupRef.FeatureNames,
-			groupRef.SortKeyFilters,
-			groupRef.Limit)
+			groupRef)
 		if err != nil {
 			return nil, err
 		}

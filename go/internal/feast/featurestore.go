@@ -408,13 +408,7 @@ func (fs *FeatureStore) GetOnlineFeaturesRange(
 	}
 
 	for _, groupRef := range groupedRangeRefs {
-		featureData, err := fs.readRangeFromOnlineStore(
-			ctx,
-			groupRef.EntityKeys,
-			groupRef.FeatureViewNames,
-			groupRef.FeatureNames,
-			groupRef.SortKeyFilters,
-			groupRef.Limit)
+		featureData, err := fs.readRangeFromOnlineStore(ctx, groupRef)
 		if err != nil {
 			return nil, err
 		}
@@ -517,7 +511,9 @@ func (fs *FeatureStore) GetFeatureView(featureViewName string, hideDummyEntity b
 	return fv, nil
 }
 
-func (fs *FeatureStore) readFromOnlineStore(ctx context.Context, entityRows []*prototypes.EntityKey,
+func (fs *FeatureStore) readFromOnlineStore(
+	ctx context.Context,
+	entityRows []*prototypes.EntityKey,
 	requestedFeatureViewNames []string,
 	requestedFeatureNames []string,
 ) ([][]onlinestore.FeatureData, error) {
@@ -525,41 +521,17 @@ func (fs *FeatureStore) readFromOnlineStore(ctx context.Context, entityRows []*p
 	span, _ := tracer.StartSpanFromContext(ctx, "fs.readFromOnlineStore")
 	defer span.Finish()
 
-	numRows := len(entityRows)
-	entityRowsValue := make([]*prototypes.EntityKey, numRows)
-	for index, entityKey := range entityRows {
-		entityRowsValue[index] = &prototypes.EntityKey{JoinKeys: entityKey.JoinKeys, EntityValues: entityKey.EntityValues}
-	}
-	return fs.onlineStore.OnlineRead(ctx, entityRowsValue, requestedFeatureViewNames, requestedFeatureNames)
+	return fs.onlineStore.OnlineRead(ctx, entityRows, requestedFeatureViewNames, requestedFeatureNames)
 }
 
 func (fs *FeatureStore) readRangeFromOnlineStore(
 	ctx context.Context,
-	entityRows []*prototypes.EntityKey,
-	requestedFeatureViewNames []string,
-	requestedFeatureNames []string,
-	sortKeyFilters []*model.SortKeyFilter,
-	limit int32) ([][]onlinestore.RangeFeatureData, error) {
-
+	groupedRefs *model.GroupedRangeFeatureRefs,
+) ([][]onlinestore.RangeFeatureData, error) {
 	span, _ := tracer.StartSpanFromContext(ctx, "fs.readRangeFromOnlineStore")
 	defer span.Finish()
 
-	numRows := len(entityRows)
-	entityRowsValue := make([]*prototypes.EntityKey, numRows)
-	for index, entityKey := range entityRows {
-		entityRowsValue[index] = &prototypes.EntityKey{
-			JoinKeys:     entityKey.JoinKeys,
-			EntityValues: entityKey.EntityValues,
-		}
-	}
-
-	return fs.onlineStore.OnlineReadRange(
-		ctx,
-		entityRowsValue,
-		requestedFeatureViewNames,
-		requestedFeatureNames,
-		sortKeyFilters,
-		limit)
+	return fs.onlineStore.OnlineReadRange(ctx, groupedRefs)
 }
 
 func (fs *FeatureStore) GetFcosMap(featureServiceName string) (*model.FeatureService, map[string]*model.Entity, map[string]*model.FeatureView, map[string]*model.SortedFeatureView, map[string]*model.OnDemandFeatureView, error) {

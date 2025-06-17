@@ -80,31 +80,6 @@ type GroupedFeaturesPerEntitySet struct {
 }
 
 /*
-We group all features from a single request by entities they attached to.
-Thus, we will be able to call online range retrieval per entity and not per each feature View.
-In this struct we collect all features and views that belongs to a group.
-We store here projected entity keys (only ones that needed to retrieve these features)
-and indexes to map result of retrieval into output response.
-We also store range query parameters like sort key filters, reverse sort order and limit.
-*/
-type GroupedRangeFeatureRefs struct {
-	// A list of requested feature references of the form featureViewName:featureName that share this entity set
-	FeatureNames     []string
-	FeatureViewNames []string
-	// full feature references as they supposed to appear in response
-	AliasedFeatureNames []string
-	// Entity set as a list of EntityKeys to pass to OnlineReadRange
-	EntityKeys []*prototypes.EntityKey
-	// Reversed mapping to project result of retrieval from storage to response
-	Indices [][]int
-
-	// Sort key filters to pass to OnlineReadRange
-	SortKeyFilters []*model.SortKeyFilter
-	// Limit to pass to OnlineReadRange
-	Limit int32
-}
-
-/*
 Return
 
 	(1) requested feature views and features grouped per View
@@ -674,7 +649,7 @@ func TransposeFeatureRowsIntoColumns(featureData2D [][]onlinestore.FeatureData,
 
 func TransposeRangeFeatureRowsIntoColumns(
 	featureData2D [][]onlinestore.RangeFeatureData,
-	groupRef *GroupedRangeFeatureRefs,
+	groupRef *model.GroupedRangeFeatureRefs,
 	sortedViews []*SortedFeatureViewAndRefs,
 	arrowAllocator memory.Allocator,
 	numRows int) ([]*RangeFeatureVector, error) {
@@ -1038,9 +1013,9 @@ func GroupSortedFeatureRefs(
 	sortKeyFilters []*serving.SortKeyFilter,
 	reverseSortOrder bool,
 	limit int32,
-	fullFeatureNames bool) ([]*GroupedRangeFeatureRefs, error) {
+	fullFeatureNames bool) ([]*model.GroupedRangeFeatureRefs, error) {
 
-	groups := make(map[string]*GroupedRangeFeatureRefs)
+	groups := make(map[string]*model.GroupedRangeFeatureRefs)
 	sortKeyFilterMap := make(map[string]*serving.SortKeyFilter)
 	for _, sortKeyFilter := range sortKeyFilters {
 		sortKeyFilterMap[sortKeyFilter.SortKeyName] = sortKeyFilter
@@ -1112,14 +1087,10 @@ func GroupSortedFeatureRefs(
 			var filterModel *model.SortKeyFilter
 			if filter, ok := sortKeyFilterMap[sortKey.FieldName]; ok {
 				filterModel = model.NewSortKeyFilterFromProto(filter, sortOrder)
-			} else {
-				var orderPtr *model.SortOrder
-				if sortOrder != nil {
-					orderPtr = model.NewSortOrderFromProto(*sortOrder)
-				}
+			} else if reverseSortOrder {
 				filterModel = &model.SortKeyFilter{
 					SortKeyName: sortKey.FieldName,
-					Order:       orderPtr, // nil unless reverseSortOrder == true
+					Order:       model.NewSortOrderFromProto(*sortOrder),
 				}
 			}
 
@@ -1133,7 +1104,7 @@ func GroupSortedFeatureRefs(
 				return nil, err
 			}
 
-			groups[groupKey] = &GroupedRangeFeatureRefs{
+			groups[groupKey] = &model.GroupedRangeFeatureRefs{
 				FeatureNames:        featureNames,
 				FeatureViewNames:    featureViewNames,
 				AliasedFeatureNames: aliasedFeatureNames,
@@ -1141,6 +1112,7 @@ func GroupSortedFeatureRefs(
 				EntityKeys:          uniqueEntityRows,
 				SortKeyFilters:      sortKeyFilterModels,
 				Limit:               limit,
+				IsReverseSortOrder:  reverseSortOrder,
 			}
 
 		} else {
@@ -1150,7 +1122,7 @@ func GroupSortedFeatureRefs(
 		}
 	}
 
-	result := make([]*GroupedRangeFeatureRefs, 0, len(groups))
+	result := make([]*model.GroupedRangeFeatureRefs, 0, len(groups))
 	for _, group := range groups {
 		result = append(result, group)
 	}

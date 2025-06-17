@@ -221,7 +221,7 @@ func TestCassandraOnlineStore_buildRangeQueryCQL_singleFilter(t *testing.T) {
 
 	cqlStatement, params := store.buildRangeQueryCQL(fqTableName, []string{"feat1", "feat2"}, 1, []*model.SortKeyFilter{&sortFilter1}, 5, false)
 	assert.Equal(t,
-		`SELECT "entity_key", "event_ts", "feat1", "feat2" FROM "scylladb"."dummy_project_dummy_fv" WHERE "entity_key" = ? AND "sort1" >= ? AND "sort1" <= ? ORDER BY "sort1" ASC LIMIT ?`,
+		`SELECT "entity_key", "event_ts", "feat1", "feat2" FROM "scylladb"."dummy_project_dummy_fv" WHERE "entity_key" = ? AND "sort1" >= ? AND "sort1" <= ? PER PARTITION LIMIT ?`,
 		cqlStatement,
 	)
 	assert.ElementsMatch(t, []interface{}{4, 12, int32(5)}, params)
@@ -239,7 +239,7 @@ func TestCassandraOnlineStore_buildRangeQueryCQL_withoutLimit(t *testing.T) {
 
 	cqlStatement, params := store.buildRangeQueryCQL(fqTableName, []string{"feat1", "feat2"}, 1, []*model.SortKeyFilter{&sortFilter1}, 0, false)
 	assert.Equal(t,
-		`SELECT "entity_key", "event_ts", "feat1", "feat2" FROM "scylladb"."dummy_project_dummy_fv" WHERE "entity_key" = ? AND "sort1" <= ? ORDER BY "sort1" ASC`,
+		`SELECT "entity_key", "event_ts", "feat1", "feat2" FROM "scylladb"."dummy_project_dummy_fv" WHERE "entity_key" = ? AND "sort1" <= ?`,
 		cqlStatement,
 	)
 	assert.ElementsMatch(t, []interface{}{12}, params)
@@ -262,7 +262,7 @@ func TestCassandraOnlineStore_buildRangeQueryCQL_multipleFilters(t *testing.T) {
 
 	cqlStatement, params := store.buildRangeQueryCQL(fqTableName, []string{"feat1", "feat2"}, 1, []*model.SortKeyFilter{&sortFilter1, &sortFilter2}, 5, false)
 	assert.Equal(t,
-		`SELECT "entity_key", "event_ts", "feat1", "feat2" FROM "scylladb"."dummy_project_dummy_fv" WHERE "entity_key" = ? AND "sort1" = ? AND "sort2" >= ? ORDER BY "sort1" ASC, "sort2" DESC LIMIT ?`,
+		`SELECT "entity_key", "event_ts", "feat1", "feat2" FROM "scylladb"."dummy_project_dummy_fv" WHERE "entity_key" = ? AND "sort1" = ? AND "sort2" >= ? PER PARTITION LIMIT ?`,
 		cqlStatement,
 	)
 	assert.ElementsMatch(t, []interface{}{4, 10, int32(5)}, params)
@@ -294,7 +294,7 @@ func TestCassandraOnlineStore_buildRangeQueryCQL_multipleFiltersWithMixOfRanges(
 
 	cqlStatement, params := store.buildRangeQueryCQL(fqTableName, []string{"feat1", "feat2"}, 1, []*model.SortKeyFilter{&sortFilter1, &sortFilter2, &sortFilter3}, 5, false)
 	assert.Equal(t,
-		`SELECT "entity_key", "event_ts", "feat1", "feat2" FROM "scylladb"."dummy_project_dummy_fv" WHERE "entity_key" = ? AND "sort1" >= ? AND "sort1" < ? AND "sort2" > ? AND "sort2" <= ? ORDER BY "sort1" ASC, "sort2" DESC, "sort3" ASC LIMIT ?`,
+		`SELECT "entity_key", "event_ts", "feat1", "feat2" FROM "scylladb"."dummy_project_dummy_fv" WHERE "entity_key" = ? AND "sort1" >= ? AND "sort1" < ? AND "sort2" > ? AND "sort2" <= ? PER PARTITION LIMIT ?`,
 		cqlStatement,
 	)
 	assert.ElementsMatch(t, []interface{}{4, 12, 10, 20, int32(5)}, params)
@@ -306,13 +306,13 @@ func TestCassandraOnlineStore_buildRangeQueryCQL_noFilters(t *testing.T) {
 
 	cqlStatement, params := store.buildRangeQueryCQL(fqTableName, []string{"feat1", "feat2"}, 1, []*model.SortKeyFilter{}, 5, false)
 	assert.Equal(t,
-		`SELECT "entity_key", "event_ts", "feat1", "feat2" FROM "scylladb"."dummy_project_dummy_fv" WHERE "entity_key" = ? LIMIT ?`,
+		`SELECT "entity_key", "event_ts", "feat1", "feat2" FROM "scylladb"."dummy_project_dummy_fv" WHERE "entity_key" = ? PER PARTITION LIMIT ?`,
 		cqlStatement,
 	)
 	assert.ElementsMatch(t, []interface{}{int32(5)}, params)
 }
 
-func TestCassandraOnlineStore_buildRangeQueryCQL_batchedKeysWithPerPartitionLimit(t *testing.T) {
+func TestCassandraOnlineStore_buildRangeQueryCQL_reverseSortOrder(t *testing.T) {
 	store := CassandraOnlineStore{}
 	fqTableName := `"scylladb"."dummy_project_dummy_fv"`
 	sortFilter := model.SortKeyFilter{
@@ -325,14 +325,14 @@ func TestCassandraOnlineStore_buildRangeQueryCQL_batchedKeysWithPerPartitionLimi
 	cqlStatement, params := store.buildRangeQueryCQL(
 		fqTableName,
 		[]string{"feat1", "feat2"},
-		3,
+		1,
 		[]*model.SortKeyFilter{&sortFilter},
 		7, // limit 7
 		true,
 	)
 
 	assert.Equal(t,
-		`SELECT "entity_key", "event_ts", "feat1", "feat2" FROM "scylladb"."dummy_project_dummy_fv" WHERE "entity_key" IN (?, ?, ?) AND "sort1" >= ? PER PARTITION LIMIT ?`,
+		`SELECT "entity_key", "event_ts", "feat1", "feat2" FROM "scylladb"."dummy_project_dummy_fv" WHERE "entity_key" = ? AND "sort1" >= ? ORDER BY "sort1" DESC PER PARTITION LIMIT ?`,
 		cqlStatement,
 	)
 
