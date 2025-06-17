@@ -42,7 +42,9 @@ def _deserialize_value(value_type, value_bytes) -> ValueProto:
         raise ValueError(f"Unsupported value type: {value_type}")
 
 
-def serialize_entity_key_prefix(entity_keys: List[str]) -> bytes:
+def serialize_entity_key_prefix(
+    entity_keys: List[str], entity_key_serialization_version: int = 3
+) -> bytes:
     """
     Serialize keys to a bytestring, so it can be used to prefix-scan through items stored in the online store
     using serialize_entity_key.
@@ -52,8 +54,12 @@ def serialize_entity_key_prefix(entity_keys: List[str]) -> bytes:
     """
     sorted_keys = sorted(entity_keys)
     output: List[bytes] = []
+    if entity_key_serialization_version > 2:
+        output.append(struct.pack("<I", len(sorted_keys)))
     for k in sorted_keys:
         output.append(struct.pack("<I", ValueType.STRING))
+        if entity_key_serialization_version > 2:
+            output.append(struct.pack("<I", len(k)))
         output.append(k.encode("utf8"))
     return b"".join(output)
 
