@@ -16,7 +16,7 @@ from feast.protos.feast.core import Policy_pb2 as feast_dot_core_dot_Policy__pb2
 from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1b\x66\x65\x61st/core/Permission.proto\x12\nfeast.core\x1a\x17\x66\x65\x61st/core/Policy.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"`\n\nPermission\x12(\n\x04spec\x18\x01 \x01(\x0b\x32\x1a.feast.core.PermissionSpec\x12(\n\x04meta\x18\x02 \x01(\x0b\x32\x1a.feast.core.PermissionMeta\"\xa0\x06\n\x0ePermissionSpec\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x0f\n\x07project\x18\x02 \x01(\t\x12.\n\x05types\x18\x03 \x03(\x0e\x32\x1f.feast.core.PermissionSpec.Type\x12\x15\n\rname_patterns\x18\x04 \x03(\t\x12\x43\n\rrequired_tags\x18\x05 \x03(\x0b\x32,.feast.core.PermissionSpec.RequiredTagsEntry\x12\x39\n\x07\x61\x63tions\x18\x06 \x03(\x0e\x32(.feast.core.PermissionSpec.AuthzedAction\x12\"\n\x06policy\x18\x07 \x01(\x0b\x32\x12.feast.core.Policy\x12\x32\n\x04tags\x18\x08 \x03(\x0b\x32$.feast.core.PermissionSpec.TagsEntry\x1a\x33\n\x11RequiredTagsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\x1a+\n\tTagsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\"\x89\x01\n\rAuthzedAction\x12\n\n\x06\x43REATE\x10\x00\x12\x0c\n\x08\x44\x45SCRIBE\x10\x01\x12\n\n\x06UPDATE\x10\x02\x12\n\n\x06\x44\x45LETE\x10\x03\x12\x0f\n\x0bREAD_ONLINE\x10\x04\x12\x10\n\x0cREAD_OFFLINE\x10\x05\x12\x10\n\x0cWRITE_ONLINE\x10\x06\x12\x11\n\rWRITE_OFFLINE\x10\x07\"\xe1\x01\n\x04Type\x12\x10\n\x0c\x46\x45\x41TURE_VIEW\x10\x00\x12\x1a\n\x16ON_DEMAND_FEATURE_VIEW\x10\x01\x12\x16\n\x12\x42\x41TCH_FEATURE_VIEW\x10\x02\x12\x17\n\x13STREAM_FEATURE_VIEW\x10\x03\x12\n\n\x06\x45NTITY\x10\x04\x12\x13\n\x0f\x46\x45\x41TURE_SERVICE\x10\x05\x12\x0f\n\x0b\x44\x41TA_SOURCE\x10\x06\x12\x18\n\x14VALIDATION_REFERENCE\x10\x07\x12\x11\n\rSAVED_DATASET\x10\x08\x12\x0e\n\nPERMISSION\x10\t\x12\x0b\n\x07PROJECT\x10\n\"\x83\x01\n\x0ePermissionMeta\x12\x35\n\x11\x63reated_timestamp\x18\x01 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12:\n\x16last_updated_timestamp\x18\x02 \x01(\x0b\x32\x1a.google.protobuf.TimestampBT\n\x10\x66\x65\x61st.proto.coreB\x0fPermissionProtoZ/github.com/feast-dev/feast/go/protos/feast/coreb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1b\x66\x65\x61st/core/Permission.proto\x12\nfeast.core\x1a\x17\x66\x65\x61st/core/Policy.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"`\n\nPermission\x12(\n\x04spec\x18\x01 \x01(\x0b\x32\x1a.feast.core.PermissionSpec\x12(\n\x04meta\x18\x02 \x01(\x0b\x32\x1a.feast.core.PermissionMeta\"\xb4\x06\n\x0ePermissionSpec\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x0f\n\x07project\x18\x02 \x01(\t\x12.\n\x05types\x18\x03 \x03(\x0e\x32\x1f.feast.core.PermissionSpec.Type\x12\x15\n\rname_patterns\x18\x04 \x03(\t\x12\x43\n\rrequired_tags\x18\x05 \x03(\x0b\x32,.feast.core.PermissionSpec.RequiredTagsEntry\x12\x39\n\x07\x61\x63tions\x18\x06 \x03(\x0e\x32(.feast.core.PermissionSpec.AuthzedAction\x12\"\n\x06policy\x18\x07 \x01(\x0b\x32\x12.feast.core.Policy\x12\x32\n\x04tags\x18\x08 \x03(\x0b\x32$.feast.core.PermissionSpec.TagsEntry\x1a\x33\n\x11RequiredTagsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\x1a+\n\tTagsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\"\x89\x01\n\rAuthzedAction\x12\n\n\x06\x43REATE\x10\x00\x12\x0c\n\x08\x44\x45SCRIBE\x10\x01\x12\n\n\x06UPDATE\x10\x02\x12\n\n\x06\x44\x45LETE\x10\x03\x12\x0f\n\x0bREAD_ONLINE\x10\x04\x12\x10\n\x0cREAD_OFFLINE\x10\x05\x12\x10\n\x0cWRITE_ONLINE\x10\x06\x12\x11\n\rWRITE_OFFLINE\x10\x07\"\xf5\x01\n\x04Type\x12\x10\n\x0c\x46\x45\x41TURE_VIEW\x10\x00\x12\x1a\n\x16ON_DEMAND_FEATURE_VIEW\x10\x01\x12\x16\n\x12\x42\x41TCH_FEATURE_VIEW\x10\x02\x12\x17\n\x13STREAM_FEATURE_VIEW\x10\x03\x12\n\n\x06\x45NTITY\x10\x04\x12\x13\n\x0f\x46\x45\x41TURE_SERVICE\x10\x05\x12\x0f\n\x0b\x44\x41TA_SOURCE\x10\x06\x12\x18\n\x14VALIDATION_REFERENCE\x10\x07\x12\x11\n\rSAVED_DATASET\x10\x08\x12\x0e\n\nPERMISSION\x10\t\x12\x0b\n\x07PROJECT\x10\n\x12\x12\n\x0eMODEL_METADATA\x10\x0b\"\x83\x01\n\x0ePermissionMeta\x12\x35\n\x11\x63reated_timestamp\x18\x01 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12:\n\x16last_updated_timestamp\x18\x02 \x01(\x0b\x32\x1a.google.protobuf.TimestampBT\n\x10\x66\x65\x61st.proto.coreB\x0fPermissionProtoZ/github.com/feast-dev/feast/go/protos/feast/coreb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -31,7 +31,7 @@ if _descriptor._USE_C_DESCRIPTORS == False:
   _globals['_PERMISSION']._serialized_start=101
   _globals['_PERMISSION']._serialized_end=197
   _globals['_PERMISSIONSPEC']._serialized_start=200
-  _globals['_PERMISSIONSPEC']._serialized_end=1000
+  _globals['_PERMISSIONSPEC']._serialized_end=1020
   _globals['_PERMISSIONSPEC_REQUIREDTAGSENTRY']._serialized_start=536
   _globals['_PERMISSIONSPEC_REQUIREDTAGSENTRY']._serialized_end=587
   _globals['_PERMISSIONSPEC_TAGSENTRY']._serialized_start=589
@@ -39,7 +39,7 @@ if _descriptor._USE_C_DESCRIPTORS == False:
   _globals['_PERMISSIONSPEC_AUTHZEDACTION']._serialized_start=635
   _globals['_PERMISSIONSPEC_AUTHZEDACTION']._serialized_end=772
   _globals['_PERMISSIONSPEC_TYPE']._serialized_start=775
-  _globals['_PERMISSIONSPEC_TYPE']._serialized_end=1000
-  _globals['_PERMISSIONMETA']._serialized_start=1003
-  _globals['_PERMISSIONMETA']._serialized_end=1134
+  _globals['_PERMISSIONSPEC_TYPE']._serialized_end=1020
+  _globals['_PERMISSIONMETA']._serialized_start=1023
+  _globals['_PERMISSIONMETA']._serialized_end=1154
 # @@protoc_insertion_point(module_scope)
