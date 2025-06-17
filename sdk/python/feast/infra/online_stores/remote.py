@@ -174,11 +174,11 @@ class RemoteOnlineStore(OnlineStore):
         self,
         config: RepoConfig,
         table: FeatureView,
-        embedding: List[float],
+        requested_features: Optional[List[str]],
+        embedding: Optional[List[float]],
         top_k: int,
-        requested_features: Optional[List[str]] = None,
         distance_metric: Optional[str] = "L2",
-    ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
+    ) -> List[Tuple[Optional[datetime], Optional[EntityKeyProto], Optional[Dict[str, ValueProto]]]]:
         assert isinstance(config.online_store, RemoteOnlineStoreConfig)
         config.online_store.__class__ = RemoteOnlineStoreConfig
 
@@ -330,7 +330,7 @@ class RemoteOnlineStore(OnlineStore):
         req_body = json.dumps(
             {
                 "features": api_requested_features,
-                "embedding": embedding,
+                "query_embedding": embedding,
                 "top_k": top_k,
                 "distance_metric": distance_metric,
             }

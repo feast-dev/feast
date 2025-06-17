@@ -117,7 +117,10 @@ class SaveDocumentRequest(BaseModel):
     data: dict
 
 
-def _get_features(request: GetOnlineFeaturesRequest|GetOnlineDocumentsRequest, store: "feast.FeatureStore"):
+def _get_features(
+    request: GetOnlineFeaturesRequest | GetOnlineDocumentsRequest,
+    store: "feast.FeatureStore",
+):
     if request.feature_service:
         feature_service = store.get_feature_service(
             request.feature_service, allow_cache=True
@@ -264,12 +267,11 @@ def get_app(
         read_params = dict(
             features=features,
             query=request.query_embedding,
-            query_string=request.query_string,
             top_k=request.top_k,
         )
 
         response = await run_in_threadpool(
-            lambda: store.retrieve_online_documents_v2(**read_params)  # type: ignore
+            lambda: store.retrieve_online_documents(**read_params)  # type: ignore
         )
 
         # Convert the Protobuf object to JSON and return it
