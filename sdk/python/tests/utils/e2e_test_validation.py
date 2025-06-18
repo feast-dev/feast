@@ -195,7 +195,7 @@ def make_feature_store_yaml(
         offline_store=offline_store_config,
         online_store=online_store,
         repo_path=str(Path(repo_dir_name)),
-        entity_key_serialization_version=2,
+        entity_key_serialization_version=3,
     )
     config_dict = config.model_dump(by_alias=True)
     if (

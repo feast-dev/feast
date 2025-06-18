@@ -111,7 +111,6 @@ class SqliteOnlineStoreConfig(FeastConfigBaseModel, VectorStoreConfig):
     path: StrictStr = "data/online.db"
     """ (optional) Path to sqlite db """
 
-    vector_enabled: bool = False
     text_search_enabled: bool = False
 
 

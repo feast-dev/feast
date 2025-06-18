@@ -394,7 +394,7 @@ def feast_serialize_entity_keys(df):
                 join_keys=join_keys,
                 entity_values=[proto_values_by_column[k][idx] for k in join_keys],
             ),
-            entity_key_serialization_version=2,
+            entity_key_serialization_version=3,
         )
         for idx in range(df.shape[0])
     ]

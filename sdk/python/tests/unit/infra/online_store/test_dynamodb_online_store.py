@@ -49,7 +49,7 @@ def repo_config():
         online_store=DynamoDBOnlineStoreConfig(region=REGION),
         # online_store={"type": "dynamodb", "region": REGION},
         offline_store=DaskOfflineStoreConfig(),
-        entity_key_serialization_version=2,
+        entity_key_serialization_version=3,
     )
 
 

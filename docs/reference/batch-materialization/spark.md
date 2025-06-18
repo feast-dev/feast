@@ -47,7 +47,7 @@ repo_config = RepoConfig(
       "partitions": 10
     },
     online_store=DynamoDBOnlineStoreConfig(region="us-west-1"),
-    entity_key_serialization_version=2
+    entity_key_serialization_version=3
 )
 
 store = FeatureStore(config=repo_config)

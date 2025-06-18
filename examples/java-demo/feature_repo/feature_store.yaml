@@ -7,4 +7,4 @@ online_store:
   connection_string: localhost:6379,password=[YOUR PASSWORD]
 offline_store:
   type: file
-entity_key_serialization_version: 2
+entity_key_serialization_version: 3
