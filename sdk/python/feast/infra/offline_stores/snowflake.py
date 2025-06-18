@@ -133,7 +133,7 @@ class SnowflakeOfflineStoreConfig(FeastConfigBaseModel):
 
     max_file_size: Optional[int] = None
     """ Upper size limit (in bytes) of each file that is offloaded. Default: 16777216"""
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(populate_by_name=True, extra="allow")
 
 
 class SnowflakeOfflineStore(OfflineStore):
