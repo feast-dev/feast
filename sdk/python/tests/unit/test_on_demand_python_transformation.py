@@ -1282,6 +1282,35 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
             )
             assert len(specific_feature_views_to_materialize) == 2
 
+            # materialize some data into the online store for the python_stored_writes_feature_view
+            self.store.materialize(
+                materialize_start_date,
+                materialize_end_date,
+                ["python_stored_writes_feature_view"],
+            )
+            # validate data is loaded to online store
+            online_response = self.store.get_online_features(
+                entity_rows=[{"driver_id": 1001}],
+                features=[
+                    "python_stored_writes_feature_view:conv_rate_plus_acc",
+                    "python_stored_writes_feature_view:current_datetime",
+                    "python_stored_writes_feature_view:counter",
+                    "python_stored_writes_feature_view:input_datetime",
+                    "python_stored_writes_feature_view:string_constant",
+                ],
+            ).to_dict()
+            assert sorted(list(online_response.keys())) == sorted(
+                [
+                    "driver_id",
+                    "conv_rate_plus_acc",
+                    "counter",
+                    "current_datetime",
+                    "input_datetime",
+                    "string_constant",
+                ]
+            )
+            assert online_response["driver_id"] == [1001]
+
             try:
                 self.store._get_feature_views_to_materialize(
                     ["python_no_writes_feature_view"]
