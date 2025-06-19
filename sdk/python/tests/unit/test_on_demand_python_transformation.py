@@ -1117,6 +1117,181 @@ class TestOnDemandTransformationsWithWrites(unittest.TestCase):
                 "current_datetime": [None],
             }
 
+    def test_materialize_with_odfv_writes(self):
+        with tempfile.TemporaryDirectory() as data_dir:
+            self.store = FeatureStore(
+                config=RepoConfig(
+                    project="test_on_demand_python_transformation",
+                    registry=os.path.join(data_dir, "registry.db"),
+                    provider="local",
+                    entity_key_serialization_version=3,
+                    online_store=SqliteOnlineStoreConfig(
+                        path=os.path.join(data_dir, "online.db")
+                    ),
+                )
+            )
+
+            end_date = datetime.now().replace(microsecond=0, second=0, minute=0)
+            start_date = end_date - timedelta(days=15)
+
+            driver_entities = [1001, 1002, 1003, 1004, 1005]
+            driver_df = create_driver_hourly_stats_df(
+                driver_entities, start_date, end_date
+            )
+            driver_stats_path = os.path.join(data_dir, "driver_stats.parquet")
+            driver_df.to_parquet(
+                path=driver_stats_path, allow_truncated_timestamps=True
+            )
+
+            driver = Entity(name="driver", join_keys=["driver_id"])
+
+            driver_stats_source = FileSource(
+                name="driver_hourly_stats_source",
+                path=driver_stats_path,
+                timestamp_field="event_timestamp",
+            )
+
+            driver_stats_fv = FeatureView(
+                name="driver_hourly_stats",
+                entities=[driver],
+                ttl=timedelta(days=1),
+                schema=[
+                    Field(name="conv_rate", dtype=Float32),
+                    Field(name="acc_rate", dtype=Float32),
+                    Field(name="avg_daily_trips", dtype=Int64),
+                ],
+                online=True,
+                source=driver_stats_source,
+                tags={},
+            )
+
+            input_request_source = RequestSource(
+                name="vals_to_add",
+                schema=[
+                    Field(name="counter", dtype=Int64),
+                    Field(name="input_datetime", dtype=UnixTimestamp),
+                ],
+            )
+
+            @on_demand_feature_view(
+                entities=[driver],
+                sources=[
+                    driver_stats_fv[["conv_rate", "acc_rate"]],
+                    input_request_source,
+                ],
+                schema=[
+                    Field(name="conv_rate_plus_acc", dtype=Float64),
+                    Field(name="current_datetime", dtype=UnixTimestamp),
+                    Field(name="counter", dtype=Int64),
+                    Field(name="input_datetime", dtype=UnixTimestamp),
+                    Field(name="string_constant", dtype=String),
+                ],
+                mode="python",
+                write_to_online_store=True,
+            )
+            def python_stored_writes_feature_view(
+                inputs: dict[str, Any],
+            ) -> dict[str, Any]:
+                output: dict[str, Any] = {
+                    "conv_rate_plus_acc": [
+                        conv_rate + acc_rate
+                        for conv_rate, acc_rate in zip(
+                            inputs["conv_rate"], inputs["acc_rate"]
+                        )
+                    ],
+                    "current_datetime": [datetime.now() for _ in inputs["conv_rate"]],
+                    "counter": [c + 1 for c in inputs["counter"]],
+                    "input_datetime": [d for d in inputs["input_datetime"]],
+                    "string_constant": ["test_constant"],
+                }
+                return output
+
+            @on_demand_feature_view(
+                entities=[driver],
+                sources=[
+                    driver_stats_fv[["conv_rate", "acc_rate"]],
+                    input_request_source,
+                ],
+                schema=[
+                    Field(name="conv_rate_plus_acc", dtype=Float64),
+                    Field(name="current_datetime", dtype=UnixTimestamp),
+                    Field(name="counter", dtype=Int64),
+                    Field(name="input_datetime", dtype=UnixTimestamp),
+                    Field(name="string_constant", dtype=String),
+                ],
+                mode="python",
+                write_to_online_store=False,
+            )
+            def python_no_writes_feature_view(
+                inputs: dict[str, Any],
+            ) -> dict[str, Any]:
+                output: dict[str, Any] = {
+                    "conv_rate_plus_acc": [
+                        conv_rate + acc_rate
+                        for conv_rate, acc_rate in zip(
+                            inputs["conv_rate"], inputs["acc_rate"]
+                        )
+                    ],
+                    "current_datetime": [datetime.now() for _ in inputs["conv_rate"]],
+                    "counter": [c + 1 for c in inputs["counter"]],
+                    "input_datetime": [d for d in inputs["input_datetime"]],
+                    "string_constant": ["test_constant"],
+                }
+                return output
+
+            self.store.apply(
+                [
+                    driver,
+                    driver_stats_source,
+                    driver_stats_fv,
+                    python_stored_writes_feature_view,
+                    python_no_writes_feature_view,
+                ]
+            )
+
+            feature_views_to_materialize = self.store._get_feature_views_to_materialize(
+                None
+            )
+
+            odfv_names = [
+                fv.name
+                for fv in feature_views_to_materialize
+                if hasattr(fv, "write_to_online_store")
+            ]
+            assert "python_stored_writes_feature_view" in odfv_names
+            assert "python_no_writes_feature_view" not in odfv_names
+
+            regular_fv_names = [
+                fv.name
+                for fv in feature_views_to_materialize
+                if not hasattr(fv, "write_to_online_store")
+            ]
+            assert "driver_hourly_stats" in regular_fv_names
+
+            materialize_end_date = datetime.now().replace(
+                microsecond=0, second=0, minute=0
+            )
+            materialize_start_date = materialize_end_date - timedelta(days=1)
+
+            self.store.materialize(materialize_start_date, materialize_end_date)
+
+            specific_feature_views_to_materialize = (
+                self.store._get_feature_views_to_materialize(
+                    ["driver_hourly_stats", "python_stored_writes_feature_view"]
+                )
+            )
+            assert len(specific_feature_views_to_materialize) == 2
+
+            try:
+                self.store._get_feature_views_to_materialize(
+                    ["python_no_writes_feature_view"]
+                )
+                assert False, (
+                    "Should have raised ValueError for ODFV without write_to_online_store"
+                )
+            except ValueError as e:
+                assert "not configured for write_to_online_store" in str(e)
+
     def test_stored_writes_with_explode(self):
         with tempfile.TemporaryDirectory() as data_dir:
             self.store = FeatureStore(
