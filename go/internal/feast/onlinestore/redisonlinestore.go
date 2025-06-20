@@ -304,8 +304,8 @@ func (r *RedisOnlineStore) OnlineRead(ctx context.Context, entityKeys []*types.E
 				return nil, errors.New("error parsing Value from redis")
 			} else {
 				resContainsNonNil = true
-				var value types.Value
-				if err := proto.Unmarshal([]byte(valueString), &value); err != nil {
+				var value *types.Value
+				if value, _, err = UnmarshalStoredProto([]byte(valueString)); err != nil {
 					return nil, errors.New("error converting parsed redis Value to types.Value")
 				} else {
 					featureName := featureNamesWithTimeStamps[featureIndex]

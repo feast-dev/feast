@@ -188,11 +188,7 @@ func TestGetOnlineFeaturesRange(t *testing.T) {
 
 func getValueType(value interface{}, featureName string) *types.Value {
 	if value == nil {
-		if featureName == "timestamp_val" || featureName == "null_timestamp_val" {
-			return &types.Value{Val: &types.Value_UnixTimestampVal{UnixTimestampVal: -9223372036854775808}}
-		} else {
-			return &types.Value{}
-		}
+		return &types.Value{}
 	}
 	switch value.(type) {
 	case int32:

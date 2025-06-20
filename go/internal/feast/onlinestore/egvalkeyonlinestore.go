@@ -276,7 +276,7 @@ func (r *ValkeyOnlineStore) OnlineRead(ctx context.Context, entityKeys []*types.
 			return nil, err
 		}
 
-		var value types.Value
+		var value *types.Value
 		var resString interface{}
 		timeStampMap := make(map[string]*timestamppb.Timestamp, 1)
 
@@ -287,7 +287,7 @@ func (r *ValkeyOnlineStore) OnlineRead(ctx context.Context, entityKeys []*types.
 
 			featureName := featureNamesWithTimeStamps[featureIndex]
 			featureViewName := featureViewNames[featureIndex]
-			value = types.Value{Val: &types.Value_NullVal{NullVal: types.Null_NULL}}
+			value = &types.Value{Val: &types.Value_NullVal{NullVal: types.Null_NULL}}
 			resString = nil
 
 			if !featureValue.IsNil() {
@@ -301,7 +301,7 @@ func (r *ValkeyOnlineStore) OnlineRead(ctx context.Context, entityKeys []*types.
 					return nil, errors.New("error parsing Value from valkey")
 				}
 				resContainsNonNil = true
-				if err := proto.Unmarshal([]byte(valueString), &value); err != nil {
+				if value, _, err = UnmarshalStoredProto([]byte(valueString)); err != nil {
 					return nil, errors.New("error converting parsed valkey Value to types.Value")
 				}
 			}

@@ -15,7 +15,6 @@ import (
 	"fmt"
 
 	_ "github.com/mattn/go-sqlite3"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/feast-dev/feast/go/protos/feast/serving"
@@ -101,12 +100,12 @@ func (s *SqliteOnlineStore) OnlineRead(ctx context.Context, entityKeys []*types.
 			var feature_name string
 			var valueString []byte
 			var event_ts time.Time
-			var value types.Value
+			var value *types.Value
 			err = rows.Scan(&entity_key, &feature_name, &valueString, &event_ts)
 			if err != nil {
 				return nil, errors.New("error could not resolve row in query (entity key, feature name, value, event ts)")
 			}
-			if err := proto.Unmarshal(valueString, &value); err != nil {
+			if value, _, err = UnmarshalStoredProto(valueString); err != nil {
 				return nil, errors.New("error converting parsed value to types.Value")
 			}
 			rowIdx := entityNameToEntityIndex[utils.HashSerializedEntityKey(&entity_key)]

@@ -21,8 +21,6 @@ import (
 	"github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/gocql/gocql"
 	"github.com/rs/zerolog/log"
-	"google.golang.org/protobuf/proto"
-
 	"google.golang.org/protobuf/types/known/timestamppb"
 	gocqltrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/gocql/gocql"
 )
@@ -458,7 +456,7 @@ func (c *CassandraOnlineStore) OnlineRead(ctx context.Context, entityKeys []*typ
 			var featureName string
 			var eventTs time.Time
 			var valueStr []byte
-			var deserializedValue types.Value
+			var deserializedValue *types.Value
 			// key 1: entityKey - key 2: featureName
 			batchFeatures := make(map[string]map[string]*FeatureData)
 			for scanner.Next() {
@@ -467,8 +465,9 @@ func (c *CassandraOnlineStore) OnlineRead(ctx context.Context, entityKeys []*typ
 					errorsChannel <- errors.New("could not read row in query for (entity key, feature name, value, event ts)")
 					return
 				}
-				if err := proto.Unmarshal(valueStr, &deserializedValue); err != nil {
-					errorsChannel <- errors.New("error converting parsed Cassandra Value to types.Value")
+				deserializedValue, _, err = UnmarshalStoredProto(valueStr)
+				if err != nil {
+					errorsChannel <- err
 					return
 				}
 
@@ -771,29 +770,10 @@ func (c *CassandraOnlineStore) OnlineReadRange(ctx context.Context, groupedRefs 
 						}
 					} else {
 						if valueStr, ok := readValues[featName]; ok {
-							var message types.Value
-							if err := proto.Unmarshal(valueStr.([]byte), &message); err != nil {
-								errorsChannel <- errors.New("error converting parsed Cassandra Value to types.Value")
+							val, status, err = UnmarshalStoredProto(valueStr.([]byte))
+							if err != nil {
+								errorsChannel <- err
 								return
-							}
-							if message.Val == nil {
-								val = nil
-								status = serving.FieldStatus_NULL_VALUE
-							} else {
-								switch message.Val.(type) {
-								case *types.Value_UnixTimestampVal:
-									// null timestamps are read as min int64, so we convert them to nil
-									if message.Val.(*types.Value_UnixTimestampVal).UnixTimestampVal == math.MinInt64 {
-										val = nil
-										status = serving.FieldStatus_NULL_VALUE
-									} else {
-										val = &types.Value{Val: message.Val}
-										status = serving.FieldStatus_PRESENT
-									}
-								default:
-									val = &types.Value{Val: message.Val}
-									status = serving.FieldStatus_PRESENT
-								}
 							}
 						} else {
 							val = nil
