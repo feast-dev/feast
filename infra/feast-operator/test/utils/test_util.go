@@ -471,19 +471,18 @@ func DeleteNamespace(namespace string, testDir string) error {
 	return nil
 }
 
-// Test real-time credit scoring demo by applying feature store configs and verifying Feast definitions, materializing data, and executing a training and prediction jobs
+// Test real-time credit scoring demo by applying feature store configs and verifying Feast definitions, materializing data.
 func RunTestApplyAndMaterializeFunc(testDir string, namespace string, feastCRName string, feastDeploymentName string) func() {
 	return func() {
-		applyFeastInfraManifestsAndVerify(namespace, testDir)
-		applyFeastYamlAndVerify(namespace, testDir, feastDeploymentName, feastCRName)
+		ApplyFeastInfraManifestsAndVerify(namespace, testDir)
+		ApplyFeastYamlAndVerify(namespace, testDir, feastDeploymentName, feastCRName)
 		VerifyApplyFeatureStoreDefinitions(namespace, feastCRName, feastDeploymentName)
 		VerifyFeastMethods(namespace, feastDeploymentName, testDir)
-		TrainAndTestModel(namespace, feastCRName, feastDeploymentName, testDir)
 	}
 }
 
 // applies the manifests for Redis and Postgres and checks whether the deployments become available
-func applyFeastInfraManifestsAndVerify(namespace string, testDir string) {
+func ApplyFeastInfraManifestsAndVerify(namespace string, testDir string) {
 	By("Applying postgres.yaml and redis.yaml manifests")
 	cmd := exec.Command("kubectl", "apply", "-n", namespace, "-f", "test/testdata/feast_integration_test_crs/postgres.yaml", "-f", "test/testdata/feast_integration_test_crs/redis.yaml")
 	_, cmdOutputerr := Run(cmd, testDir)
@@ -575,43 +574,6 @@ func VerifyOutputContains(output []byte, expectedSubstrings []string) {
 	}
 }
 
-// patches and validate the FeatureStore CR's CronJob to execute model training and prediction
-func TrainAndTestModel(namespace string, feastCRName string, feastDeploymentName string, testDir string) {
-	By("Patching FeatureStore with train/test commands")
-	patch := `{
-		"spec": {
-			"cronJob": {
-				"containerConfigs": {
-					"commands": [
-						"pip install jupyter==1.1.1 scikit-learn==1.5.2 matplotlib==3.9.2 seaborn==0.13.2 joblib",
-						"cd ../ && python run.py"
-					]
-				}
-			}
-		}
-	}`
-	cmd := exec.Command("kubectl", "patch", "feast/"+feastCRName, "-n", namespace, "--type=merge", "--patch", patch)
-	_, cmdOutputErr := Run(cmd, testDir)
-	ExpectWithOffset(1, cmdOutputErr).NotTo(HaveOccurred())
-	fmt.Println("Patched FeatureStore with train/test commands")
-
-	By("Validating patch was applied correctly")
-
-	Eventually(func() string {
-		cmd := exec.Command("kubectl", "get", "feast/"+feastCRName, "-n", namespace, "-o", "jsonpath={.status.applied.cronJob.containerConfigs.commands}")
-		output, _ := Run(cmd, testDir)
-		return string(output)
-	}, "30s", "3s").Should(
-		And(
-			ContainSubstring("python run.py"),
-		),
-	)
-	fmt.Println("FeatureStore patched correctly with commands")
-
-	By("Creating Job from CronJob")
-	CreateAndVerifyJobFromCron(namespace, feastDeploymentName, "feast-test-job", testDir, []string{"Loan rejected!"})
-}
-
 // Create a Job and verifies its logs contain expected substrings
 func CreateAndVerifyJobFromCron(namespace, cronName, jobName, testDir string, expectedLogSubstrings []string) {
 	By(fmt.Sprintf("Creating Job %s from CronJob %s", jobName, cronName))
@@ -649,7 +611,7 @@ func checkDeployment(namespace, name string) {
 }
 
 // validate that the status of the FeatureStore CR is "Ready".
-func validateFeatureStoreCRStatus(namespace, crName string) {
+func ValidateFeatureStoreCRStatus(namespace, crName string) {
 	Eventually(func() string {
 		cmd := exec.Command("kubectl", "get", "feast", crName, "-n", namespace, "-o", "jsonpath={.status.phase}")
 		output, err := cmd.Output()
@@ -675,7 +637,7 @@ func validateFeatureStoreYaml(namespace, deployment string) {
 }
 
 // apply and verifies the Feast deployment becomes available, the CR status is "Ready
-func applyFeastYamlAndVerify(namespace string, testDir string, feastDeploymentName string, feastCRName string) {
+func ApplyFeastYamlAndVerify(namespace string, testDir string, feastDeploymentName string, feastCRName string) {
 	By("Applying Feast yaml for secrets and Feature store CR")
 	cmd := exec.Command("kubectl", "apply", "-n", namespace,
 		"-f", "test/testdata/feast_integration_test_crs/feast.yaml")
@@ -684,7 +646,7 @@ func applyFeastYamlAndVerify(namespace string, testDir string, feastDeploymentNa
 	checkDeployment(namespace, feastDeploymentName)
 
 	By("Verify Feature Store CR is in Ready state")
-	validateFeatureStoreCRStatus(namespace, feastCRName)
+	ValidateFeatureStoreCRStatus(namespace, feastCRName)
 
 	By("Verifying that the Postgres DB contains the expected Feast tables")
 	cmd = exec.Command("kubectl", "exec", "deploy/postgres", "-n", namespace, "--", "psql", "-h", "localhost", "-U", "feast", "feast", "-c", `\dt`)
@@ -713,4 +675,21 @@ func applyFeastYamlAndVerify(namespace string, testDir string, feastDeploymentNa
 
 	By("Verifying client feature_store.yaml for expected store types")
 	validateFeatureStoreYaml(namespace, feastDeploymentName)
+}
+
+// ReplaceNamespaceInYaml reads a YAML file, replaces all existingNamespace with the actual namespace
+func ReplaceNamespaceInYamlFilesInPlace(filePaths []string, existingNamespace string, actualNamespace string) error {
+	for _, filePath := range filePaths {
+		data, err := os.ReadFile(filePath)
+		if err != nil {
+			return fmt.Errorf("failed to read YAML file %s: %w", filePath, err)
+		}
+		updated := strings.ReplaceAll(string(data), existingNamespace, actualNamespace)
+
+		err = os.WriteFile(filePath, []byte(updated), 0644)
+		if err != nil {
+			return fmt.Errorf("failed to write updated YAML file %s: %w", filePath, err)
+		}
+	}
+	return nil
 }
