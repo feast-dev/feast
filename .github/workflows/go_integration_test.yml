@@ -1,19 +1,15 @@
 name: go-integration-test
 
 on:
-  workflow_run:
-    workflows:
-      - unit-tests
-    types:
-      - completed
+  pull_request:
+    paths:
+      - 'go/**'
+
 jobs:
   integration-test-go-local:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: refs/pull/${{ github.event.pull_request.number }}/merge
-          submodules: recursive
       - name: Install Go
         uses: actions/setup-go@v4
         with:
