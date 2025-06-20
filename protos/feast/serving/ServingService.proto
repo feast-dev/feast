@@ -94,8 +94,8 @@ message GetOnlineFeaturesRequest {
     // A map of variable name -> list of values
     map<string, feast.types.RepeatedValue> request_context = 5;
 
-    // Used to omit the timestamp/status from the response
-    bool omit_status = 6;
+    // Whether to include the timestamp/status metadata in the response
+    bool include_metadata = 10;
 }
 
 message GetOnlineFeaturesResponse {
@@ -186,8 +186,8 @@ message GetOnlineFeaturesRangeRequest {
     // A map of variable name -> list of values
     map<string, feast.types.RepeatedValue> request_context = 8;
 
-    // Used to omit the timestamp/status from the response
-    bool omit_status = 9;
+    // Whether to include the timestamp and status metadata in the response
+    bool include_metadata = 9;
 }
 
 message GetOnlineFeaturesRangeResponse {

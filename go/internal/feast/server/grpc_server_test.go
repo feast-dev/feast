@@ -126,6 +126,7 @@ func TestGetOnlineFeaturesSqliteWithLogging(t *testing.T) {
 		},
 		Entities:         entities,
 		FullFeatureNames: true,
+		IncludeMetadata:  true,
 	}
 	response, err := client.GetOnlineFeatures(ctx, request)
 

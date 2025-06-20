@@ -218,6 +218,12 @@ func (l *LoggerImpl) Log(joinKeyToEntityValues map[string]*types.RepeatedValue, 
 	}
 
 	numFeatures := len(l.schema.Features)
+
+	if len(featureVectors[0].Values) == 0 {
+		log.Printf("Warning: Feature vectors contain no values, skipping logging")
+		return nil
+	}
+
 	// Should be equivalent to how many entities there are(each feature row has (entity) number of features)
 	numRows := len(featureVectors[0].Values)
 
@@ -240,9 +246,34 @@ func (l *LoggerImpl) Log(joinKeyToEntityValues map[string]*types.RepeatedValue, 
 					return errors.Errorf("Missing feature %s in log data", featureName)
 				}
 			}
-			featureValues[idx] = featureVectors[featureIdx].Values[rowIdx]
-			featureStatuses[idx] = featureVectors[featureIdx].Statuses[rowIdx]
-			eventTimestamps[idx] = featureVectors[featureIdx].EventTimestamps[rowIdx]
+
+			if featureIdx >= len(featureVectors) {
+				return errors.Errorf("Feature index %d out of range for feature vectors (length %d)", featureIdx, len(featureVectors))
+			}
+
+			featureVector := featureVectors[featureIdx]
+
+			if rowIdx >= len(featureVector.Values) {
+				return errors.Errorf("Row index %d out of range for feature %s values (length %d)", rowIdx, featureName, len(featureVector.Values))
+			}
+			featureValues[idx] = featureVector.Values[rowIdx]
+			// Handle statuses by providing default when metadata is not included
+			if len(featureVector.Statuses) == 0 {
+				featureStatuses[idx] = serving.FieldStatus_PRESENT
+			} else if rowIdx >= len(featureVector.Statuses) {
+				featureStatuses[idx] = serving.FieldStatus_PRESENT
+			} else {
+				featureStatuses[idx] = featureVector.Statuses[rowIdx]
+			}
+
+			// Handle timestamps by providing default when metadata is not included
+			if len(featureVector.EventTimestamps) == 0 {
+				eventTimestamps[idx] = timestamppb.Now()
+			} else if rowIdx >= len(featureVector.EventTimestamps) {
+				eventTimestamps[idx] = timestamppb.Now()
+			} else {
+				eventTimestamps[idx] = featureVector.EventTimestamps[rowIdx]
+			}
 		}
 
 		entityValues := make([]*types.Value, len(l.schema.JoinKeys))
@@ -250,6 +281,12 @@ func (l *LoggerImpl) Log(joinKeyToEntityValues map[string]*types.RepeatedValue, 
 			rows, ok := joinKeyToEntityValues[joinKey]
 			if !ok {
 				return errors.Errorf("Missing join key %s in log data", joinKey)
+			}
+			if len(rows.Val) == 0 {
+				return errors.Errorf("Join key %s has empty values array", joinKey)
+			}
+			if rowIdx >= len(rows.Val) {
+				return errors.Errorf("Row index %d out of range for join key %s (length %d)", rowIdx, joinKey, len(rows.Val))
 			}
 			entityValues[idx] = rows.Val[rowIdx]
 		}
@@ -259,6 +296,12 @@ func (l *LoggerImpl) Log(joinKeyToEntityValues map[string]*types.RepeatedValue, 
 			rows, ok := requestData[requestParam]
 			if !ok {
 				return errors.Errorf("Missing request parameter %s in log data", requestParam)
+			}
+			if len(rows.Val) == 0 {
+				return errors.Errorf("Request parameter %s has empty values array", requestParam)
+			}
+			if rowIdx >= len(rows.Val) {
+				return errors.Errorf("Row index %d out of range for request parameter %s (length %d)", rowIdx, requestParam, len(rows.Val))
 			}
 			requestDataValues[idx] = rows.Val[rowIdx]
 		}
