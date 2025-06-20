@@ -23,6 +23,10 @@ jobs:
     env:
       OS: ${{ matrix.os }}
       PYTHON: ${{ matrix.python-version }}
+      # Memory optimization
+      PYTHONUNBUFFERED: 1
+      PYTHONDONTWRITEBYTECODE: 1
+      PYTHONGC: 1
     steps:
       - uses: actions/checkout@v4
         with:
@@ -42,8 +46,46 @@ jobs:
           enable-cache: true
       - name: Install dependencies
         run: make install-python-dependencies-ci
-      - name: Test rbac and remote feature integration tests
-        if: ${{ always() }}  # this will guarantee that step won't be canceled and resources won't leak
-        run: make test-python-integration-rbac-remote
+      - name: Test rbac and remote feature integration tests with memory monitoring
+        if: ${{ always() }}
+        run: |
+          echo "=== Starting RBAC tests with memory monitoring ==="
+          echo "Initial memory usage:"
+          free -h
+          
+          # Set memory limits and optimizations
+          export PYTHONMALLOC=malloc
+          export PYTHONDEVMODE=1
+          
+          # Set process limits to prevent runaway processes
+          ulimit -u 1000  # Limit number of processes
+          ulimit -v 15000000  # Limit virtual memory to ~15GB
+          
+          # Start memory monitoring in background
+          (
+            while true; do
+              echo "$(date '+%H:%M:%S') - Memory: $(free -h | grep Mem | awk '{print $3"/"$2}') - Processes: $(ps aux | wc -l)"
+              # Force garbage collection every 30 seconds
+              python -c "import gc; gc.collect()" 2>/dev/null || true
+              sleep 30
+            done
+          ) &
+          MONITOR_PID=$!
+          
+          # Run the tests with memory monitoring
+          make test-python-integration-rbac-remote
+          TEST_EXIT_CODE=$?
+          
+          # Stop monitoring
+          kill $MONITOR_PID 2>/dev/null || true
+          
+          echo "=== Final status ==="
+          echo "Test exit code: $TEST_EXIT_CODE"
+          echo "Final memory: $(free -h | grep Mem | awk '{print $3"/"$2}')"
+          
+          # Force cleanup
+          python -c "import gc; gc.collect()" 2>/dev/null || true
+          
+          exit $TEST_EXIT_CODE
       - name: Minimize uv cache
         run: uv cache prune --ci

@@ -1661,18 +1661,18 @@ class FeatureStore:
         """
         if feature_view.features and feature_view.features[0].vector_index:
             fv_vector_feature_name = feature_view.features[0].name
-            df_vector_feature_index = df.columns.get_loc(fv_vector_feature_name)
-
             if feature_view.features[0].vector_length != 0:
-                if (
-                    df.shape[df_vector_feature_index]
-                    > feature_view.features[0].vector_length
-                ):
-                    raise ValueError(
-                        f"The dataframe for {fv_vector_feature_name} column has {df.shape[1]} vectors "
-                        f"which is greater than expected (i.e {feature_view.features[0].vector_length}) "
-                        f"by feature view {feature_view.name}."
-                    )
+                for i, row in df.iterrows():
+                    vector = row[fv_vector_feature_name]
+                    if not hasattr(vector, "__len__"):
+                        raise ValueError(
+                            f"Row {i}: Vector feature '{fv_vector_feature_name}' is not a sequence. Got: {type(vector)}"
+                        )
+                    if len(vector) != feature_view.features[0].vector_length:
+                        raise ValueError(
+                            f"Row {i}: Vector length {len(vector)} does not match expected {feature_view.features[0].vector_length} "
+                            f"for feature '{fv_vector_feature_name}' in feature view '{feature_view.name}'."
+                        )
 
     def _get_feature_view_and_df_for_online_write(
         self,
