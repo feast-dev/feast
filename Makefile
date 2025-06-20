@@ -155,10 +155,19 @@ test-python-integration-local: ## Run Python integration tests (local dev mode)
 test-python-integration-rbac-remote: ## Run Python remote RBAC integration tests
 	FEAST_IS_LOCAL_TEST=True \
 	FEAST_LOCAL_ONLINE_CONTAINER=True \
-	python -m pytest --tb=short -v -n 1 --color=yes --integration --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
+	PYTHONUNBUFFERED=1 \
+	PYTHONDONTWRITEBYTECODE=1 \
+	PYTHONGC=1 \
+	PYTHONMALLOC=malloc \
+	PYTHONDEVMODE=1 \
+	timeout 1800 python -m pytest --tb=short -v -n 1 --color=yes --integration --durations=10 --timeout=1200 --timeout_method=thread \
 		-k "not test_lambda_materialization and not test_snowflake_materialization" \
 		-m "rbac_remote_integration_test" \
 		--log-cli-level=INFO -s \
+		--maxfail=1 \
+		--disable-warnings \
+		--dist=no \
+		--cache-clear \
 		sdk/python/tests
 
 test-python-integration-container: ## Run Python integration tests using Docker
