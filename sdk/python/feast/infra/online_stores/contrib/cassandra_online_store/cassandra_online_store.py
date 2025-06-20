@@ -589,6 +589,7 @@ class CassandraOnlineStore(OnlineStore):
                         timestamp,
                     )
                     batch.add(insert_cql, params)
+                    batch_count += 1
 
                     if (
                         online_store_config.write_batch_size is not None
