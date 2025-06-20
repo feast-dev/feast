@@ -656,7 +656,7 @@ class FeatureStore:
     def _get_feature_views_to_materialize(
         self,
         feature_views: Optional[List[str]],
-    ) -> List[FeatureView]:
+    ) -> List[Union[FeatureView, OnDemandFeatureView]]:
         """
         Returns the list of feature views that should be materialized.
 
@@ -669,33 +669,52 @@ class FeatureStore:
             FeatureViewNotFoundException: One of the specified feature views could not be found.
             ValueError: One of the specified feature views is not configured for materialization.
         """
-        feature_views_to_materialize: List[FeatureView] = []
+        feature_views_to_materialize: List[Union[FeatureView, OnDemandFeatureView]] = []
 
         if feature_views is None:
-            feature_views_to_materialize = utils._list_feature_views(
+            regular_feature_views = utils._list_feature_views(
                 self._registry, self.project, hide_dummy_entity=False
             )
-            feature_views_to_materialize = [
-                fv for fv in feature_views_to_materialize if fv.online
-            ]
+            feature_views_to_materialize.extend(
+                [fv for fv in regular_feature_views if fv.online]
+            )
             stream_feature_views_to_materialize = self._list_stream_feature_views(
                 hide_dummy_entity=False
             )
-            feature_views_to_materialize += [
-                sfv for sfv in stream_feature_views_to_materialize if sfv.online
-            ]
+            feature_views_to_materialize.extend(
+                [sfv for sfv in stream_feature_views_to_materialize if sfv.online]
+            )
+            on_demand_feature_views_to_materialize = self.list_on_demand_feature_views()
+            feature_views_to_materialize.extend(
+                [
+                    odfv
+                    for odfv in on_demand_feature_views_to_materialize
+                    if odfv.write_to_online_store
+                ]
+            )
         else:
             for name in feature_views:
+                feature_view: Union[FeatureView, OnDemandFeatureView]
                 try:
                     feature_view = self._get_feature_view(name, hide_dummy_entity=False)
                 except FeatureViewNotFoundException:
-                    feature_view = self._get_stream_feature_view(
-                        name, hide_dummy_entity=False
-                    )
+                    try:
+                        feature_view = self._get_stream_feature_view(
+                            name, hide_dummy_entity=False
+                        )
+                    except FeatureViewNotFoundException:
+                        feature_view = self.get_on_demand_feature_view(name)
 
-                if not feature_view.online:
+                if hasattr(feature_view, "online") and not feature_view.online:
                     raise ValueError(
                         f"FeatureView {feature_view.name} is not configured to be served online."
+                    )
+                elif (
+                    hasattr(feature_view, "write_to_online_store")
+                    and not feature_view.write_to_online_store
+                ):
+                    raise ValueError(
+                        f"OnDemandFeatureView {feature_view.name} is not configured for write_to_online_store."
                     )
                 feature_views_to_materialize.append(feature_view)
 
@@ -1312,6 +1331,8 @@ class FeatureStore:
         )
         # TODO paging large loads
         for feature_view in feature_views_to_materialize:
+            if isinstance(feature_view, OnDemandFeatureView):
+                continue
             start_date = feature_view.most_recent_end_time
             if start_date is None:
                 if feature_view.ttl is None:
@@ -1340,7 +1361,7 @@ class FeatureStore:
                 return tqdm(total=length, ncols=100)
 
             start_date = utils.make_tzaware(start_date)
-            end_date = utils.make_tzaware(end_date)
+            end_date = utils.make_tzaware(end_date) or _utc_now()
 
             provider.materialize_single_feature_view(
                 config=self.config,
@@ -1351,13 +1372,13 @@ class FeatureStore:
                 project=self.project,
                 tqdm_builder=tqdm_builder,
             )
-
-            self._registry.apply_materialization(
-                feature_view,
-                self.project,
-                start_date,
-                end_date,
-            )
+            if not isinstance(feature_view, OnDemandFeatureView):
+                self._registry.apply_materialization(
+                    feature_view,
+                    self.project,
+                    start_date,
+                    end_date,
+                )
 
     def materialize(
         self,

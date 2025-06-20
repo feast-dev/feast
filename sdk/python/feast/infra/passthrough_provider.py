@@ -420,17 +420,24 @@ class PassthroughProvider(Provider):
     def materialize_single_feature_view(
         self,
         config: RepoConfig,
-        feature_view: FeatureView,
+        feature_view: Union[FeatureView, OnDemandFeatureView],
         start_date: datetime,
         end_date: datetime,
         registry: BaseRegistry,
         project: str,
         tqdm_builder: Callable[[int], tqdm],
     ) -> None:
+        if isinstance(feature_view, OnDemandFeatureView):
+            if not feature_view.write_to_online_store:
+                raise ValueError(
+                    f"OnDemandFeatureView {feature_view.name} does not have write_to_online_store enabled"
+                )
+            return
         assert (
             isinstance(feature_view, BatchFeatureView)
             or isinstance(feature_view, StreamFeatureView)
             or isinstance(feature_view, FeatureView)
+            or isinstance(feature_view, OnDemandFeatureView)
         ), f"Unexpected type for {feature_view.name}: {type(feature_view)}"
         task = MaterializationTask(
             project=project,
