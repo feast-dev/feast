@@ -203,7 +203,7 @@ def test_build_sorted_table_cql(sorted_feature_view):
     expected_cql = textwrap.dedent("""\
         CREATE TABLE IF NOT EXISTS test_keyspace.test_project_test_sorted_feature_view (
             entity_key TEXT,
-            feature1 BIGINT, feature2 LIST<TEXT>, sort_key1 BIGINT, sort_key2 TEXT,
+            feature1 BLOB, feature2 BLOB, sort_key1 BIGINT, sort_key2 TEXT,
             event_ts TIMESTAMP,
             created_ts TIMESTAMP,
             PRIMARY KEY ((entity_key), sort_key1, sort_key2)

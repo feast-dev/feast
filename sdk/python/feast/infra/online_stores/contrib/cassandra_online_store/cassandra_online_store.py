@@ -499,7 +499,7 @@ class CassandraOnlineStore(OnlineStore):
                         # The ttl is negative when the timestamp-adjusted ttl is in the past in which case skip inserting the row
                         continue
 
-                    feature_values: tuple = ()
+                    feature_values: tuple[Any, ...] = ()
                     for feature_name, valProto in feat_dict.items():
                         # When the event timestamp is added as a feature, it is converted in to UNIX_TIMESTAMP
                         # feast type. Hence, its value must be reassigned before inserting in to online store
@@ -508,7 +508,7 @@ class CassandraOnlineStore(OnlineStore):
                             and feature_name == timestamp_field_name
                         ):
                             feature_value = timestamp
-                        else:
+                        elif feature_name in sort_key_names:
                             feast_value_type = valProto.WhichOneof("val")
                             if feast_value_type is None:
                                 feature_value = None
@@ -518,6 +518,9 @@ class CassandraOnlineStore(OnlineStore):
                                 ).val
                             else:
                                 feature_value = getattr(valProto, str(feast_value_type))
+                        else:
+                            # For all other features, use the serialized value
+                            feature_value = valProto.SerializeToString()  # type:ignore
                         feature_values += (feature_value,)
 
                     feature_values = feature_values + (
@@ -902,9 +905,11 @@ class CassandraOnlineStore(OnlineStore):
         Build the CQL statement for creating a SortedFeatureView table with custom
         entity and sort key columns.
         """
-
+        sort_key_names = [sk.name for sk in table.sort_keys]
         feature_columns = ", ".join(
             f"{feature.name} {self._get_cql_type(feature.dtype)}"
+            if feature.name in sort_key_names
+            else f"{feature.name} BLOB"
             for feature in table.features
         )
 
@@ -913,7 +918,7 @@ class CassandraOnlineStore(OnlineStore):
             for sk in table.sort_keys
         ]
 
-        sort_key_names = ", ".join(name for name, _ in sorted_keys)
+        sort_key_names = ", ".join(name for name, _ in sorted_keys)  # type:ignore
         clustering_order = ", ".join(f"{name} {order}" for name, order in sorted_keys)
 
         create_cql = (

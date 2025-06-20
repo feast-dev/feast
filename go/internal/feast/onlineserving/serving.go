@@ -751,17 +751,17 @@ func processFeatureRowData(
 			rangeValues[i] = protoVal
 		}
 
-		timestamp := getEventTimestamp(featureData.EventTimestamps, i)
+		eventTimestamp := getEventTimestamp(featureData.EventTimestamps, i)
 
 		status := serving.FieldStatus_PRESENT
 		if i < len(featureData.Statuses) {
 			status = featureData.Statuses[i]
-		} else if timestamp.GetSeconds() > 0 && checkOutsideTtl(timestamp, timestamppb.Now(), sfv.FeatureView.Ttl) {
+		} else if eventTimestamp.GetSeconds() > 0 && checkOutsideTtl(eventTimestamp, timestamppb.Now(), sfv.FeatureView.Ttl) {
 			status = serving.FieldStatus_OUTSIDE_MAX_AGE
 		}
 
 		rangeStatuses[i] = status
-		rangeTimestamps[i] = timestamp
+		rangeTimestamps[i] = eventTimestamp
 	}
 
 	return rangeValues, rangeStatuses, rangeTimestamps, nil
@@ -1074,7 +1074,9 @@ func GroupSortedFeatureRefs(
 		}
 
 		sortKeyFilterModels := make([]*model.SortKeyFilter, 0)
+		sortKeyNamesMap := make(map[string]bool)
 		for _, sortKey := range featuresAndView.View.SortKeys {
+			sortKeyNamesMap[sortKey.FieldName] = true
 			var sortOrder *core.SortOrder_Enum
 			if reverseSortOrder {
 				flipped := core.SortOrder_DESC
@@ -1113,6 +1115,7 @@ func GroupSortedFeatureRefs(
 				SortKeyFilters:      sortKeyFilterModels,
 				Limit:               limit,
 				IsReverseSortOrder:  reverseSortOrder,
+				SortKeyNames:        sortKeyNamesMap,
 			}
 
 		} else {

@@ -1,0 +1,23 @@
+project: feature_integration_repo
+# By default, the registry is a file (but can be turned into a more scalable SQL-backed registry)
+registry: data/registry.db
+# The provider primarily specifies default offline / online stores & storing the registry in a given cloud
+provider: local
+online_store:
+    type: scylladb
+    hosts:
+        - localhost
+    load_balancing:
+        load_balancing_policy: "TokenAwarePolicy(DCAwareRoundRobinPolicy)"
+        local_dc: datacenter1
+    lazy_table_creation: True
+    table_name_format_version: 2
+    read_batch_size: 2
+    write_batch_size: 100
+    write_concurrency: 2
+    write_rate_limit: 10
+    protocol_version: 4
+entity_key_serialization_version: 2
+# By default, no_auth for authentication and authorization, other possible values kubernetes and oidc. Refer the documentation for more details.
+auth:
+    type: no_auth

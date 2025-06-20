@@ -173,7 +173,7 @@ func (s *grpcServingServiceServer) GetOnlineFeaturesRange(ctx context.Context, r
 		}
 
 		rangeStatuses := make([]*serving.RepeatedFieldStatus, len(rangeValues))
-		for j, _ := range rangeValues {
+		for j := range rangeValues {
 			statusValues := make([]serving.FieldStatus, len(vector.RangeStatuses[j]))
 			for k, status := range vector.RangeStatuses[j] {
 				statusValues[k] = status
@@ -187,7 +187,7 @@ func (s *grpcServingServiceServer) GetOnlineFeaturesRange(ctx context.Context, r
 			for k, ts := range timestamps {
 				timestampValues[k] = &prototypes.Value{
 					Val: &prototypes.Value_UnixTimestampVal{
-						UnixTimestampVal: ts.GetSeconds(),
+						UnixTimestampVal: types.GetTimestampMillis(ts),
 					},
 				}
 			}
@@ -197,7 +197,7 @@ func (s *grpcServingServiceServer) GetOnlineFeaturesRange(ctx context.Context, r
 				timestampValues = []*prototypes.Value{
 					{
 						Val: &prototypes.Value_UnixTimestampVal{
-							UnixTimestampVal: now.GetSeconds(),
+							UnixTimestampVal: types.GetTimestampMillis(now),
 						},
 					},
 				}

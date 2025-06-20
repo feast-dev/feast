@@ -1,0 +1,28 @@
+name: go-integration-test
+
+on:
+  workflow_run:
+    workflows:
+      - unit-tests
+    types:
+      - completed
+jobs:
+  integration-test-go-local:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refs/pull/${{ github.event.pull_request.number }}/merge
+          submodules: recursive
+      - name: Install Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.23'
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        id: setup-python
+        with:
+          python-version: "3.11"
+          architecture: x64
+      - name: Test local integration tests
+        run: make test-go-integration

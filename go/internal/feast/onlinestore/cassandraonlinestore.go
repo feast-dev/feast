@@ -589,7 +589,7 @@ func (c *CassandraOnlineStore) buildRangeQueryCQL(
 	numKeys int,
 	sortKeyFilters []*model.SortKeyFilter,
 	limit int32,
-	reverseSortOrder bool,
+	isReverseSortOrder bool,
 ) (string, []interface{}) {
 	quotedFeatures := make([]string, len(featureNames))
 	for i, name := range featureNames {
@@ -625,8 +625,8 @@ func (c *CassandraOnlineStore) buildRangeQueryCQL(
 			whereClause = " AND " + strings.Join(rangeFilters, " AND ")
 		}
 
-		// Only add ORDER BY if single key and using reverse sort order
-		if len(orderBy) > 0 && reverseSortOrder {
+		// Only add ORDER BY if IsReverseSortOrder is true
+		if isReverseSortOrder && len(orderBy) > 0 {
 			orderByClause = " ORDER BY " + strings.Join(orderBy, ", ")
 		}
 	}
@@ -755,16 +755,50 @@ func (c *CassandraOnlineStore) OnlineReadRange(ctx context.Context, groupedRefs 
 
 				for _, featName := range groupedRefs.FeatureNames {
 					idx := prepCtx.featureNamesToIdx[featName]
-					val, exists := readValues[featName]
-
+					var val interface{}
 					var status serving.FieldStatus
-					if !exists {
-						status = serving.FieldStatus_NOT_FOUND
-						val = nil
-					} else if val == nil {
-						status = serving.FieldStatus_NULL_VALUE
+
+					if _, isSortKey := groupedRefs.SortKeyNames[featName]; isSortKey {
+						var exists bool
+						val, exists = readValues[featName]
+						if !exists {
+							status = serving.FieldStatus_NOT_FOUND
+							val = nil
+						} else if val == nil {
+							status = serving.FieldStatus_NULL_VALUE
+						} else {
+							status = serving.FieldStatus_PRESENT
+						}
 					} else {
-						status = serving.FieldStatus_PRESENT
+						if valueStr, ok := readValues[featName]; ok {
+							var message types.Value
+							if err := proto.Unmarshal(valueStr.([]byte), &message); err != nil {
+								errorsChannel <- errors.New("error converting parsed Cassandra Value to types.Value")
+								return
+							}
+							if message.Val == nil {
+								val = nil
+								status = serving.FieldStatus_NULL_VALUE
+							} else {
+								switch message.Val.(type) {
+								case *types.Value_UnixTimestampVal:
+									// null timestamps are read as min int64, so we convert them to nil
+									if message.Val.(*types.Value_UnixTimestampVal).UnixTimestampVal == math.MinInt64 {
+										val = nil
+										status = serving.FieldStatus_NULL_VALUE
+									} else {
+										val = &types.Value{Val: message.Val}
+										status = serving.FieldStatus_PRESENT
+									}
+								default:
+									val = &types.Value{Val: message.Val}
+									status = serving.FieldStatus_PRESENT
+								}
+							}
+						} else {
+							val = nil
+							status = serving.FieldStatus_NOT_FOUND
+						}
 					}
 
 					appendRangeFeature(&rowData[idx], featName, prepCtx.featureViewName, val, status, eventTs)

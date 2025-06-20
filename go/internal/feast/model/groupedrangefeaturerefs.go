@@ -20,11 +20,12 @@ type GroupedRangeFeatureRefs struct {
 	EntityKeys []*types.EntityKey
 	// Reversed mapping to project result of retrieval from storage to response
 	Indices [][]int
-
 	// Sort key filters to pass to OnlineReadRange
 	SortKeyFilters []*SortKeyFilter
 	// Limit to pass to OnlineReadRange
 	Limit int32
 	// Reverse sort order to pass to OnlineReadRange
 	IsReverseSortOrder bool
+	// Sort key names to pass to OnlineReadRange
+	SortKeyNames map[string]bool
 }

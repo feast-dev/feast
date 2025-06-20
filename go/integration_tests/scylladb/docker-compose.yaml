@@ -1,0 +1,18 @@
+services:
+  scylla:
+    image: artifactory-edge.expedia.biz/all-docker-virtual/scylladb/scylla:latest
+    container_name: scylla
+    ports:
+      - "9042:9042"
+      - "10000:10000"
+  init-scylla:
+    image: artifactory-edge.expedia.biz/all-docker-virtual/scylladb/scylla:latest
+    depends_on:
+      - scylla
+    entrypoint: ["/bin/sh", "-c"]
+    command: >
+      "until cqlsh scylla -e 'DESC KEYSPACES'; do echo 'Waiting for Scylla...'; sleep 2; done &&
+       cqlsh scylla -e \"
+       CREATE KEYSPACE IF NOT EXISTS feast_keyspace
+       WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1};
+       \""
