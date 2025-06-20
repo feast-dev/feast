@@ -42,7 +42,7 @@ func (s *RealServerStarter) StartHybridServer(fs *feast.FeatureStore, host strin
 }
 
 func main() {
-	// Default values
+	// Default values Test
 	serverType := "http"
 	host := ""
 	port := 8080
