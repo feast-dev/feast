@@ -61,6 +61,9 @@ func NewOnlineStore(config *registry.RepoConfig) (OnlineStore, error) {
 	} else if onlineStoreType == "redis" {
 		onlineStore, err := NewRedisOnlineStore(config.Project, config, config.OnlineStore)
 		return onlineStore, err
+	} else if onlineStoreType == "dynamodb" {
+		onlineStore, err := NewDynamodbOnlineStore(config.Project, config, config.OnlineStore)
+		return onlineStore, err
 	} else {
 		return nil, fmt.Errorf("%s online store type is currently not supported; only redis and sqlite are supported", onlineStoreType)
 	}
