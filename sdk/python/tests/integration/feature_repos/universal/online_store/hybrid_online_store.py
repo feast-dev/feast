@@ -13,16 +13,11 @@ class HybridOnlineStoreCreator(OnlineStoreCreator):
                     "type": "redis",
                     "conf": {
                         "redis_type": "redis",
-                        "connection_string": "localhost:6379"
-                    }
+                        "connection_string": "localhost:6379",
+                    },
                 },
-                {
-                    "type": "sqlite",
-                    "conf": {
-                        "path": "/tmp/feast_hybrid_test.db"
-                    }
-                }
-            ]
+                {"type": "sqlite", "conf": {"path": "/tmp/feast_hybrid_test.db"}},
+            ],
         }
 
     def teardown(self):

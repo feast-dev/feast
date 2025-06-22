@@ -63,8 +63,10 @@ class HybridOnlineStoreConfig(FeastConfigBaseModel):
         type: The type identifier for the HybridOnlineStore.
         online_stores: A list of OnlineStoresWithConfig, each specifying the type and config for an online store backend.
     """
-    type: Literal[
-        "HybridOnlineStore", "hybrid_online_store.HybridOnlineStore"] = "hybrid_online_store.HybridOnlineStore"
+
+    type: Literal["HybridOnlineStore", "hybrid_online_store.HybridOnlineStore"] = (
+        "hybrid_online_store.HybridOnlineStore"
+    )
 
     class OnlineStoresWithConfig(FeastConfigBaseModel):
         """
@@ -74,11 +76,14 @@ class HybridOnlineStoreConfig(FeastConfigBaseModel):
             type: Python import path to the online store class.
             conf: Dictionary of configuration parameters for the online store.
         """
+
         type: StrictStr  # Python import path to the online store class
         conf: Dict
 
     online_stores: Optional[List[OnlineStoresWithConfig]]
-    routing_tag: StrictStr = "tribe"  # Configurable tag name for routing, default is 'tribe'
+    routing_tag: StrictStr = (
+        "tribe"  # Configurable tag name for routing, default is 'tribe'
+    )
 
 
 class HybridOnlineStore(OnlineStore):
@@ -89,6 +94,7 @@ class HybridOnlineStore(OnlineStore):
 
     The backend is selected dynamically at runtime according to the tag value.
     """
+
     def __init__(self):
         """
         Initialize the HybridOnlineStore. Online stores are instantiated lazily on first use.
@@ -106,12 +112,16 @@ class HybridOnlineStore(OnlineStore):
         if self._initialized:
             return
         self.online_stores = {}
-        online_stores_cfg = getattr(config.online_store, 'online_stores', [])
+        online_stores_cfg = getattr(config.online_store, "online_stores", [])
         for store_cfg in online_stores_cfg:
-            config_cls = get_online_config_from_type(store_cfg.type.split('.')[-1].lower())
+            config_cls = get_online_config_from_type(
+                store_cfg.type.split(".")[-1].lower()
+            )
             config_instance = config_cls(**store_cfg.conf)
             online_store_instance = get_online_store_from_config(config_instance)
-            self.online_stores[store_cfg.type.split('.')[-1].lower()] = online_store_instance
+            self.online_stores[store_cfg.type.split(".")[-1].lower()] = (
+                online_store_instance
+            )
         self._initialized = True
 
     def _get_online_store(self, tribe_tag, config: RepoConfig):
@@ -139,27 +149,27 @@ class HybridOnlineStore(OnlineStore):
         """
         rconfig = config
         for online_store in config.online_store.online_stores:
-            if online_store.type.split('.')[-1].lower() == online_store_type.lower():
+            if online_store.type.split(".")[-1].lower() == online_store_type.lower():
                 rconfig.online_config = online_store.conf
                 rconfig.online_config["type"] = online_store.type
         data = rconfig.__dict__
-        data['registry'] = data['registry_config']
-        data['offline_store'] = data['offline_config']
-        data['online_store'] = data['online_config']
+        data["registry"] = data["registry_config"]
+        data["offline_store"] = data["offline_config"]
+        data["online_store"] = data["online_config"]
         return data
 
     def _get_routing_tag_value(self, table: FeatureView, config: RepoConfig):
-        tag_name = getattr(config.online_store, 'routing_tag', 'tribe')
+        tag_name = getattr(config.online_store, "routing_tag", "tribe")
         return table.tags.get(tag_name)
 
     def online_write_batch(
-            self,
-            config: RepoConfig,
-            table: FeatureView,
-            odata: List[
-                Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
-            ],
-            progress: Optional[Callable[[int], Any]],
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        odata: List[
+            Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
+        ],
+        progress: Optional[Callable[[int], Any]],
     ) -> None:
         """
         Write a batch of feature rows to the appropriate online store based on the FeatureView's tag.
@@ -175,29 +185,34 @@ class HybridOnlineStore(OnlineStore):
         """
         tribe = self._get_routing_tag_value(table, config)
         if not tribe:
-            tag_name = getattr(config.online_store, 'routing_tag', 'tribe')
-            raise ValueError(f"FeatureView must have a '{tag_name}' tag to use HybridOnlineStore.")
+            tag_name = getattr(config.online_store, "routing_tag", "tribe")
+            raise ValueError(
+                f"FeatureView must have a '{tag_name}' tag to use HybridOnlineStore."
+            )
         online_store = self._get_online_store(tribe, config)
         if online_store:
             config = RepoConfig(**self._prepare_repo_conf(config, tribe))
             online_store.online_write_batch(config, table, odata, progress)
         else:
             raise NotImplementedError(
-                f"No online store found for {getattr(config.online_store, 'routing_tag', 'tribe')} tag '{tribe}'. Please check your configuration.")
+                f"No online store found for {getattr(config.online_store, 'routing_tag', 'tribe')} tag '{tribe}'. Please check your configuration."
+            )
 
     @staticmethod
-    def write_to_table(created_ts, cur, entity_key_bin, feature_name, project, table, timestamp, val):
+    def write_to_table(
+        created_ts, cur, entity_key_bin, feature_name, project, table, timestamp, val
+    ):
         """
         (Not implemented) Write a single feature value to the online store table.
         """
         pass
 
     def online_read(
-            self,
-            config: RepoConfig,
-            table: FeatureView,
-            entity_keys: List[EntityKeyProto],
-            requested_features: Optional[List[str]] = None,
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        entity_keys: List[EntityKeyProto],
+        requested_features: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
         """
         Read feature rows from the appropriate online store based on the FeatureView's tag.
@@ -215,24 +230,29 @@ class HybridOnlineStore(OnlineStore):
         """
         tribe = self._get_routing_tag_value(table, config)
         if not tribe:
-            tag_name = getattr(config.online_store, 'routing_tag', 'tribe')
-            raise ValueError(f"FeatureView must have a '{tag_name}' tag to use HybridOnlineStore.")
+            tag_name = getattr(config.online_store, "routing_tag", "tribe")
+            raise ValueError(
+                f"FeatureView must have a '{tag_name}' tag to use HybridOnlineStore."
+            )
         online_store = self._get_online_store(tribe, config)
         if online_store:
             config = RepoConfig(**self._prepare_repo_conf(config, tribe))
-            return online_store.online_read(config, table, entity_keys, requested_features)
+            return online_store.online_read(
+                config, table, entity_keys, requested_features
+            )
         else:
             raise NotImplementedError(
-                f"No online store found for {getattr(config.online_store, 'routing_tag', 'tribe')} tag '{tribe}'. Please check your configuration.")
+                f"No online store found for {getattr(config.online_store, 'routing_tag', 'tribe')} tag '{tribe}'. Please check your configuration."
+            )
 
     def update(
-            self,
-            config: RepoConfig,
-            tables_to_delete: Sequence[FeatureView],
-            tables_to_keep: Sequence[FeatureView],
-            entities_to_delete: Sequence[Entity],
-            entities_to_keep: Sequence[Entity],
-            partial: bool,
+        self,
+        config: RepoConfig,
+        tables_to_delete: Sequence[FeatureView],
+        tables_to_keep: Sequence[FeatureView],
+        entities_to_delete: Sequence[Entity],
+        entities_to_keep: Sequence[Entity],
+        partial: bool,
     ):
         """
         Update the state of the online stores for the given FeatureViews and Entities.
@@ -251,22 +271,31 @@ class HybridOnlineStore(OnlineStore):
         for table in tables_to_keep:
             tribe = self._get_routing_tag_value(table, config)
             if not tribe:
-                tag_name = getattr(config.online_store, 'routing_tag', 'tribe')
-                raise ValueError(f"FeatureView must have a '{tag_name}' tag to use HybridOnlineStore.")
+                tag_name = getattr(config.online_store, "routing_tag", "tribe")
+                raise ValueError(
+                    f"FeatureView must have a '{tag_name}' tag to use HybridOnlineStore."
+                )
             online_store = self._get_online_store(tribe, config)
             if online_store:
                 config = RepoConfig(**self._prepare_repo_conf(config, tribe))
-                online_store.update(config, tables_to_delete, tables_to_keep, entities_to_delete,
-                                    entities_to_keep, partial)
+                online_store.update(
+                    config,
+                    tables_to_delete,
+                    tables_to_keep,
+                    entities_to_delete,
+                    entities_to_keep,
+                    partial,
+                )
             else:
                 raise NotImplementedError(
-                    f"No online store found for {getattr(config.online_store, 'routing_tag', 'tribe')} tag '{tribe}'. Please check your configuration.")
+                    f"No online store found for {getattr(config.online_store, 'routing_tag', 'tribe')} tag '{tribe}'. Please check your configuration."
+                )
 
     def teardown(
-            self,
-            config: RepoConfig,
-            tables: Sequence[FeatureView],
-            entities: Sequence[Entity],
+        self,
+        config: RepoConfig,
+        tables: Sequence[FeatureView],
+        entities: Sequence[Entity],
     ):
         """
         Teardown all managed online stores for the given FeatureViews and Entities.
@@ -278,8 +307,8 @@ class HybridOnlineStore(OnlineStore):
         """
         # Use a set of (tribe, store_type, conf_id) to avoid duplicate teardowns for the same instance
         tribes_seen = set()
-        online_stores_cfg = getattr(config.online_store, 'online_stores', [])
-        tag_name = getattr(config.online_store, 'routing_tag', 'tribe')
+        online_stores_cfg = getattr(config.online_store, "online_stores", [])
+        tag_name = getattr(config.online_store, "routing_tag", "tribe")
         for table in tables:
             tribe = table.tags.get(tag_name)
             if not tribe:
@@ -293,7 +322,7 @@ class HybridOnlineStore(OnlineStore):
                     continue
                 tribes_seen.add(key)
                 # Only select the online store if tribe matches the type (or you can add a mapping in config for more flexibility)
-                if tribe.lower() == store_type.split('.')[-1].lower():
+                if tribe.lower() == store_type.split(".")[-1].lower():
                     online_store = self._get_online_store(tribe, config)
                     if online_store:
                         config = RepoConfig(**self._prepare_repo_conf(config, tribe))

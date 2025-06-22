@@ -17,6 +17,7 @@ from feast.types import PrimitiveFeastType
 def sample_entity():
     return Entity(name="id", join_keys=["id"], value_type=ValueType.INT64)
 
+
 @pytest.fixture
 def sample_feature_view(sample_entity):
     file_source = FileSource(
@@ -32,6 +33,7 @@ def sample_feature_view(sample_entity):
         source=file_source,
     )
 
+
 @pytest.fixture
 def sample_repo_config():
     # Minimal config for HybridOnlineStore with two backends (mocked for test)
@@ -43,10 +45,7 @@ def sample_repo_config():
             online_stores=[
                 HybridOnlineStoreConfig.OnlineStoresWithConfig(
                     type="redis",
-                    conf={
-                        "redis_type": "redis",
-                        "connection_string": "localhost:6379"
-                    },
+                    conf={"redis_type": "redis", "connection_string": "localhost:6379"},
                 ),
                 HybridOnlineStoreConfig.OnlineStoresWithConfig(
                     type="sqlite",
@@ -57,26 +56,32 @@ def sample_repo_config():
         offline_store=None,
     )
 
+
 @pytest.mark.usefixtures("sample_entity", "sample_feature_view", "sample_repo_config")
 def test_hybrid_online_store_write_and_read(sample_repo_config, sample_feature_view):
-    with patch("feast.infra.online_stores.redis.RedisOnlineStore.online_write_batch") as mock_write, \
-         patch("feast.infra.online_stores.redis.RedisOnlineStore.online_read") as mock_read:
+    with (
+        patch(
+            "feast.infra.online_stores.redis.RedisOnlineStore.online_write_batch"
+        ) as mock_write,
+        patch(
+            "feast.infra.online_stores.redis.RedisOnlineStore.online_read"
+        ) as mock_read,
+    ):
         mock_write.return_value = None
-        mock_read.return_value = [
-            (None, {"feature1": Value(int64_val=100)})
-        ]
+        mock_read.return_value = [(None, {"feature1": Value(int64_val=100)})]
         store = HybridOnlineStore()
         entity_key = EntityKey(
             join_keys=["id"],
             entity_values=[Value(int64_val=1)],
         )
         now = datetime.utcnow()
-        odata = [
-            (entity_key, {"feature1": Value(int64_val=100)}, now, None)
-        ]
+        odata = [(entity_key, {"feature1": Value(int64_val=100)}, now, None)]
         # Write to the online store (mocked)
-        store.online_write_batch(sample_repo_config, sample_feature_view, odata, progress=None)
+        store.online_write_batch(
+            sample_repo_config, sample_feature_view, odata, progress=None
+        )
         # Read back (mocked)
-        result = store.online_read(sample_repo_config, sample_feature_view, [entity_key])
+        result = store.online_read(
+            sample_repo_config, sample_feature_view, [entity_key]
+        )
         assert result[0][1]["feature1"].int64_val == 100
-
