@@ -528,7 +528,7 @@ def construct_test_environment(
     fixture_request: Optional[pytest.FixtureRequest],
     test_suite_name: str = "integration_test",
     worker_id: str = "worker_id",
-    entity_key_serialization_version: int = 2,
+    entity_key_serialization_version: int = 3,
 ) -> Environment:
     _uuid = str(uuid.uuid4()).replace("-", "")[:6]
 
@@ -564,14 +564,6 @@ def construct_test_environment(
             path=str(Path(repo_dir_name) / "registry.db"),
             cache_ttl_seconds=1,
         )
-
-    online_store = (
-        test_repo_config.online_store.get("type")
-        if isinstance(test_repo_config.online_store, dict)
-        else test_repo_config.online_store
-    )
-    if online_store in ["milvus", "pgvector", "qdrant", "elasticsearch"]:
-        entity_key_serialization_version = 3
 
     environment_params = {
         "name": project,

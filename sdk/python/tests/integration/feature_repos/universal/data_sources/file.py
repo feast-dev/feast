@@ -385,7 +385,7 @@ class RemoteOfflineStoreDataSourceCreator(FileDataSourceCreator):
             provider="local",
             offline_store=parent_offline_config,
             registry=registry.path,
-            entity_key_serialization_version=2,
+            entity_key_serialization_version=3,
         )
 
         repo_path = Path(tempfile.mkdtemp())
@@ -435,7 +435,7 @@ class RemoteOfflineTlsStoreDataSourceCreator(FileDataSourceCreator):
             provider="local",
             offline_store=parent_offline_config,
             registry=registry.path,
-            entity_key_serialization_version=2,
+            entity_key_serialization_version=3,
         )
 
         certificates_path = tempfile.mkdtemp()
@@ -536,7 +536,7 @@ auth:
             provider="local",
             offline_store=parent_offline_config,
             registry=registry.path,
-            entity_key_serialization_version=2,
+            entity_key_serialization_version=3,
         )
 
         repo_base_path = Path(tempfile.mkdtemp())

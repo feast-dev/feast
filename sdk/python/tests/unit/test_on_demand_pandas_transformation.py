@@ -35,7 +35,7 @@ def test_pandas_transformation():
                 project="test_on_demand_python_transformation",
                 registry=os.path.join(data_dir, "registry.db"),
                 provider="local",
-                entity_key_serialization_version=2,
+                entity_key_serialization_version=3,
                 online_store=SqliteOnlineStoreConfig(
                     path=os.path.join(data_dir, "online.db")
                 ),
@@ -116,7 +116,7 @@ def test_pandas_transformation_returning_all_data_types():
                 project="test_on_demand_python_transformation",
                 registry=os.path.join(data_dir, "registry.db"),
                 provider="local",
-                entity_key_serialization_version=2,
+                entity_key_serialization_version=3,
                 online_store=SqliteOnlineStoreConfig(
                     path=os.path.join(data_dir, "online.db")
                 ),
@@ -312,7 +312,7 @@ def test_invalid_pandas_transformation_raises_type_error_on_apply():
                 project="test_on_demand_python_transformation",
                 registry=os.path.join(data_dir, "registry.db"),
                 provider="local",
-                entity_key_serialization_version=2,
+                entity_key_serialization_version=3,
                 online_store=SqliteOnlineStoreConfig(
                     path=os.path.join(data_dir, "online.db")
                 ),
