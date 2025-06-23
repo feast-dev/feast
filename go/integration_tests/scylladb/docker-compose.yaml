@@ -1,12 +1,12 @@
 services:
   scylla:
-    image: artifactory-edge.expedia.biz/all-docker-virtual/scylladb/scylla:latest
+    image: scylladb/scylla:latest
     container_name: scylla
     ports:
       - "9042:9042"
       - "10000:10000"
   init-scylla:
-    image: artifactory-edge.expedia.biz/all-docker-virtual/scylladb/scylla:latest
+    image: scylladb/scylla:latest
     depends_on:
       - scylla
     entrypoint: ["/bin/sh", "-c"]
