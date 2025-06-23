@@ -1086,17 +1086,17 @@ func GroupSortedFeatureRefs(
 				sortOrder = &flipped // non-nil only when sort key order is reversed
 			}
 
-			var filterModel *model.SortKeyFilter
 			if filter, ok := sortKeyFilterMap[sortKey.FieldName]; ok {
-				filterModel = model.NewSortKeyFilterFromProto(filter, sortOrder)
+				filterModel := model.NewSortKeyFilterFromProto(filter, sortOrder)
+				sortKeyFilterModels = append(sortKeyFilterModels, filterModel)
 			} else if reverseSortOrder {
-				filterModel = &model.SortKeyFilter{
+				filterModel := &model.SortKeyFilter{
 					SortKeyName: sortKey.FieldName,
 					Order:       model.NewSortOrderFromProto(*sortOrder),
 				}
+				sortKeyFilterModels = append(sortKeyFilterModels, filterModel)
 			}
 
-			sortKeyFilterModels = append(sortKeyFilterModels, filterModel)
 		}
 
 		if _, ok := groups[groupKey]; !ok {

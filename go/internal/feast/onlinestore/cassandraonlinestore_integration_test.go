@@ -18,12 +18,21 @@ import (
 	"time"
 )
 
+var onlineStore *CassandraOnlineStore
+var ctx = context.Background()
+
 func TestMain(m *testing.M) {
 	// Initialize the test environment
 	dir := "../../../integration_tests/scylladb/"
 	err := test.SetupInitializedRepo(dir)
 	if err != nil {
 		fmt.Printf("Failed to set up test environment: %v\n", err)
+		os.Exit(1)
+	}
+
+	onlineStore, err = getCassandraOnlineStore()
+	if err != nil {
+		fmt.Printf("Failed to create CassandraOnlineStore: %v\n", err)
 		os.Exit(1)
 	}
 
@@ -40,16 +49,19 @@ func TestMain(m *testing.M) {
 	os.Exit(exitCode)
 }
 
-func getCassandraOnlineStore(t *testing.T) (*CassandraOnlineStore, context.Context) {
-	ctx := context.Background()
+func getCassandraOnlineStore() (*CassandraOnlineStore, error) {
 	dir := "../../../integration_tests/scylladb/"
 	config, err := loadRepoConfig(dir)
-	require.NoError(t, err)
-	assert.Equal(t, "scylladb", config.OnlineStore["type"])
+	if err != nil {
+		fmt.Printf("Failed to load repo config: %v\n", err)
+		return nil, err
+	}
 
-	onlineStore, err := NewCassandraOnlineStore("feature_integration_repo", config, config.OnlineStore)
-	require.NoError(t, err)
-	return onlineStore, ctx
+	store, err := NewCassandraOnlineStore("feature_integration_repo", config, config.OnlineStore)
+	if err != nil {
+		return nil, err
+	}
+	return store, nil
 }
 
 func loadRepoConfig(basePath string) (*registry.RepoConfig, error) {
@@ -62,8 +74,6 @@ func loadRepoConfig(basePath string) (*registry.RepoConfig, error) {
 }
 
 func TestCassandraOnlineStore_OnlineReadRange_withSingleEntityKey(t *testing.T) {
-	onlineStore, ctx := getCassandraOnlineStore(t)
-
 	entityKeys := []*types.EntityKey{{
 		JoinKeys: []string{"index_id"},
 		EntityValues: []*types.Value{
@@ -79,6 +89,7 @@ func TestCassandraOnlineStore_OnlineReadRange_withSingleEntityKey(t *testing.T) 
 	sortKeyFilters := []*model.SortKeyFilter{{
 		SortKeyName: "event_timestamp",
 		RangeStart:  int64(1744769099919),
+		RangeEnd:    int64(1744779099919),
 	}}
 
 	groupedRefs := &model.GroupedRangeFeatureRefs{
@@ -93,12 +104,10 @@ func TestCassandraOnlineStore_OnlineReadRange_withSingleEntityKey(t *testing.T) 
 
 	data, err := onlineStore.OnlineReadRange(ctx, groupedRefs)
 	require.NoError(t, err)
-	verifyResponseData(t, data, 1)
+	verifyResponseData(t, data, 1, int64(1744769099919), int64(1744779099919))
 }
 
 func TestCassandraOnlineStore_OnlineReadRange_withMultipleEntityKeys(t *testing.T) {
-	onlineStore, ctx := getCassandraOnlineStore(t)
-
 	entityKeys := []*types.EntityKey{
 		{
 			JoinKeys: []string{"index_id"},
@@ -142,12 +151,10 @@ func TestCassandraOnlineStore_OnlineReadRange_withMultipleEntityKeys(t *testing.
 
 	data, err := onlineStore.OnlineReadRange(ctx, groupedRefs)
 	require.NoError(t, err)
-	verifyResponseData(t, data, 3)
+	verifyResponseData(t, data, 3, int64(1744769099919), int64(1744769099919*10))
 }
 
 func TestCassandraOnlineStore_OnlineReadRange_withReverseSortOrder(t *testing.T) {
-	onlineStore, ctx := getCassandraOnlineStore(t)
-
 	entityKeys := []*types.EntityKey{
 		{
 			JoinKeys: []string{"index_id"},
@@ -193,7 +200,51 @@ func TestCassandraOnlineStore_OnlineReadRange_withReverseSortOrder(t *testing.T)
 
 	data, err := onlineStore.OnlineReadRange(ctx, groupedRefs)
 	require.NoError(t, err)
-	verifyResponseData(t, data, 3)
+	verifyResponseData(t, data, 3, int64(1744769099919), int64(1744769099919*10))
+}
+
+func TestCassandraOnlineStore_OnlineReadRange_withNoSortKeyFilters(t *testing.T) {
+	entityKeys := []*types.EntityKey{
+		{
+			JoinKeys: []string{"index_id"},
+			EntityValues: []*types.Value{
+				{Val: &types.Value_Int64Val{Int64Val: 1}},
+			},
+		},
+		{
+			JoinKeys: []string{"index_id"},
+			EntityValues: []*types.Value{
+				{Val: &types.Value_Int64Val{Int64Val: 2}},
+			},
+		},
+		{
+			JoinKeys: []string{"index_id"},
+			EntityValues: []*types.Value{
+				{Val: &types.Value_Int64Val{Int64Val: 3}},
+			},
+		},
+	}
+	featureViewNames := []string{"all_dtypes_sorted"}
+	featureNames := []string{"int_val", "long_val", "float_val", "double_val", "byte_val", "string_val", "timestamp_val", "boolean_val",
+		"null_int_val", "null_long_val", "null_float_val", "null_double_val", "null_byte_val", "null_string_val", "null_timestamp_val", "null_boolean_val",
+		"null_array_int_val", "null_array_long_val", "null_array_float_val", "null_array_double_val", "null_array_byte_val", "null_array_string_val",
+		"null_array_boolean_val", "array_int_val", "array_long_val", "array_float_val", "array_double_val", "array_string_val", "array_boolean_val",
+		"array_byte_val", "array_timestamp_val", "null_array_timestamp_val", "event_timestamp"}
+	sortKeyFilters := []*model.SortKeyFilter{}
+
+	groupedRefs := &model.GroupedRangeFeatureRefs{
+		EntityKeys:         entityKeys,
+		FeatureViewNames:   featureViewNames,
+		FeatureNames:       featureNames,
+		SortKeyFilters:     sortKeyFilters,
+		Limit:              10,
+		IsReverseSortOrder: true,
+		SortKeyNames:       map[string]bool{"event_timestamp": true},
+	}
+
+	data, err := onlineStore.OnlineReadRange(ctx, groupedRefs)
+	require.NoError(t, err)
+	verifyResponseData(t, data, 3, int64(0), int64(1744769099919*10))
 }
 
 func assertValueType(t *testing.T, actualValue interface{}, expectedType string) {
@@ -201,7 +252,7 @@ func assertValueType(t *testing.T, actualValue interface{}, expectedType string)
 	assert.Equal(t, expectedType, fmt.Sprintf("%T", actualValue.(*types.Value).GetVal()), expectedType)
 }
 
-func verifyResponseData(t *testing.T, data [][]RangeFeatureData, numEntityKeys int) {
+func verifyResponseData(t *testing.T, data [][]RangeFeatureData, numEntityKeys int, start int64, end int64) {
 	assert.Equal(t, numEntityKeys, len(data))
 
 	for i := 0; i < numEntityKeys; i++ {
@@ -356,7 +407,8 @@ func verifyResponseData(t *testing.T, data [][]RangeFeatureData, numEntityKeys i
 		assert.NotNil(t, data[i][32].Values[0])
 		assert.IsType(t, time.Time{}, data[i][32].Values[0])
 		for _, timestamp := range data[i][32].Values {
-			assert.GreaterOrEqual(t, timestamp.(time.Time).UnixMilli(), int64(1744769099919), "Timestamp should be greater than or equal to 1744769099919")
+			assert.GreaterOrEqual(t, timestamp.(time.Time).UnixMilli(), start, "Timestamp should be greater than or equal to %d", start)
+			assert.LessOrEqual(t, timestamp.(time.Time).UnixMilli(), end, "Timestamp should be less than or equal to %d", end)
 		}
 	}
 }
