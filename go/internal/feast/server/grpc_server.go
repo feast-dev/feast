@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"github.com/feast-dev/feast/go/internal/feast/onlineserving"
 
 	"google.golang.org/grpc/reflection"
 
@@ -154,67 +155,123 @@ func (s *grpcServingServiceServer) GetOnlineFeaturesRange(ctx context.Context, r
 		return nil, err
 	}
 
+	entityNames := make([]string, 0)
+	featureNames := make([]string, 0)
+
+	entityNamesMap := make(map[string]bool)
+	for entityName := range request.GetEntities() {
+		entityNamesMap[entityName] = true
+		entityNames = append(entityNames, entityName)
+	}
+
+	requestedFeatureNames := make([]string, 0)
+	if featuresOrService.FeatureService != nil {
+		for _, projection := range featuresOrService.FeatureService.Projections {
+			for _, feature := range projection.Features {
+				featureName := feature.Name
+				if request.GetFullFeatureNames() {
+					featureName = fmt.Sprintf("%s:%s", projection.NameToUse(), feature.Name)
+				}
+				requestedFeatureNames = append(requestedFeatureNames, featureName)
+			}
+		}
+	} else {
+		requestedFeatureNames = featuresOrService.FeaturesRefs
+	}
+
+	vectorsByName := make(map[string]*onlineserving.RangeFeatureVector)
+	for _, vector := range rangeFeatureVectors {
+		vectorsByName[vector.Name] = vector
+	}
+
+	entities := make([]*prototypes.RepeatedValue, 0, len(entityNames))
+	for _, entityName := range entityNames {
+		if vector, exists := vectorsByName[entityName]; exists {
+			rangeValues, err := types.ArrowValuesToRepeatedProtoValues(vector.RangeValues)
+			if err != nil {
+				logSpanContext.Error().Err(err).Msgf("Error converting entity %s values", entityName)
+				return nil, err
+			}
+
+			entityValues := &prototypes.RepeatedValue{Val: make([]*prototypes.Value, len(rangeValues))}
+			for i, repeatedValue := range rangeValues {
+				if repeatedValue != nil && len(repeatedValue.Val) > 0 {
+					entityValues.Val[i] = repeatedValue.Val[0]
+				} else {
+					entityValues.Val[i] = &prototypes.Value{}
+				}
+			}
+			entities = append(entities, entityValues)
+		} else {
+			entities = append(entities, &prototypes.RepeatedValue{Val: []*prototypes.Value{}})
+		}
+	}
+
+	features := make([]*serving.GetOnlineFeaturesRangeResponse_RangeFeatureVector, 0)
+	for _, featureName := range requestedFeatureNames {
+		if !entityNamesMap[featureName] {
+			if vector, exists := vectorsByName[featureName]; exists {
+				featureNames = append(featureNames, featureName)
+
+				rangeValues, err := types.ArrowValuesToRepeatedProtoValues(vector.RangeValues)
+				if err != nil {
+					logSpanContext.Error().Err(err).Msgf("Error converting feature %s values", featureName)
+					return nil, err
+				}
+
+				rangeStatuses := make([]*serving.RepeatedFieldStatus, len(rangeValues))
+				for j := range rangeValues {
+					statusValues := make([]serving.FieldStatus, len(vector.RangeStatuses[j]))
+					for k, status := range vector.RangeStatuses[j] {
+						statusValues[k] = status
+					}
+					rangeStatuses[j] = &serving.RepeatedFieldStatus{Status: statusValues}
+				}
+
+				timeValues := make([]*prototypes.RepeatedValue, len(rangeValues))
+				for j, timestamps := range vector.RangeTimestamps {
+					timestampValues := make([]*prototypes.Value, len(timestamps))
+					for k, ts := range timestamps {
+						timestampValues[k] = &prototypes.Value{
+							Val: &prototypes.Value_UnixTimestampVal{
+								UnixTimestampVal: types.GetTimestampMillis(ts),
+							},
+						}
+					}
+
+					if len(timestampValues) == 0 {
+						now := timestamppb.Now()
+						timestampValues = []*prototypes.Value{
+							{
+								Val: &prototypes.Value_UnixTimestampVal{
+									UnixTimestampVal: types.GetTimestampMillis(now),
+								},
+							},
+						}
+					}
+					timeValues[j] = &prototypes.RepeatedValue{Val: timestampValues}
+				}
+
+				featureVector := &serving.GetOnlineFeaturesRangeResponse_RangeFeatureVector{
+					Values: rangeValues,
+				}
+
+				if request.GetIncludeMetadata() {
+					featureVector.Statuses = rangeStatuses
+					featureVector.EventTimestamps = timeValues
+				}
+
+				features = append(features, featureVector)
+			}
+		}
+	}
+
 	resp := &serving.GetOnlineFeaturesRangeResponse{
-		Results: make([]*serving.GetOnlineFeaturesRangeResponse_RangeFeatureVector, 0),
 		Metadata: &serving.GetOnlineFeaturesResponseMetadata{
-			FeatureNames: &serving.FeatureList{Val: make([]string, 0)},
+			FeatureNames: &serving.FeatureList{Val: featureNames},
 		},
-	}
-
-	for _, vector := range rangeFeatureVectors {
-		resp.Metadata.FeatureNames.Val = append(resp.Metadata.FeatureNames.Val, vector.Name)
-	}
-
-	for _, vector := range rangeFeatureVectors {
-		rangeValues, err := types.ArrowValuesToRepeatedProtoValues(vector.RangeValues)
-		if err != nil {
-			logSpanContext.Error().Err(err).Msg("Error converting Arrow range values to proto values")
-			return nil, err
-		}
-
-		rangeStatuses := make([]*serving.RepeatedFieldStatus, len(rangeValues))
-		for j := range rangeValues {
-			statusValues := make([]serving.FieldStatus, len(vector.RangeStatuses[j]))
-			for k, status := range vector.RangeStatuses[j] {
-				statusValues[k] = status
-			}
-			rangeStatuses[j] = &serving.RepeatedFieldStatus{Status: statusValues}
-		}
-
-		timeValues := make([]*prototypes.RepeatedValue, len(rangeValues))
-		for j, timestamps := range vector.RangeTimestamps {
-			timestampValues := make([]*prototypes.Value, len(timestamps))
-			for k, ts := range timestamps {
-				timestampValues[k] = &prototypes.Value{
-					Val: &prototypes.Value_UnixTimestampVal{
-						UnixTimestampVal: types.GetTimestampMillis(ts),
-					},
-				}
-			}
-
-			if len(timestampValues) == 0 {
-				now := timestamppb.Now()
-				timestampValues = []*prototypes.Value{
-					{
-						Val: &prototypes.Value_UnixTimestampVal{
-							UnixTimestampVal: types.GetTimestampMillis(now),
-						},
-					},
-				}
-			}
-			timeValues[j] = &prototypes.RepeatedValue{Val: timestampValues}
-		}
-
-		featureVector := &serving.GetOnlineFeaturesRangeResponse_RangeFeatureVector{
-			Values: rangeValues,
-		}
-
-		if request.GetIncludeMetadata() {
-			featureVector.Statuses = rangeStatuses
-			featureVector.EventTimestamps = timeValues
-		}
-
-		resp.Results = append(resp.Results, featureVector)
+		Entities: entities,
+		Features: features,
 	}
 
 	// TODO: Implement logging for GetOnlineFeaturesRange for feature services when support for feature services is added

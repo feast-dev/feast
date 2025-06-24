@@ -193,9 +193,12 @@ message GetOnlineFeaturesRangeRequest {
 message GetOnlineFeaturesRangeResponse {
     GetOnlineFeaturesResponseMetadata metadata = 1;
 
-    // Length of "results" array should match length of requested features.
+    // Entities used to retrieve the features.
+    repeated feast.types.RepeatedValue entities = 2;
+
+    // Length of "features" array should match length of requested features.
     // We also preserve the same order of features here as in metadata.feature_names
-    repeated RangeFeatureVector results = 2;
+    repeated RangeFeatureVector features = 3;
 
     message RangeFeatureVector {
         // Each values entry contains multiple values for a feature
