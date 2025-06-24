@@ -93,7 +93,7 @@ func (d *DynamodbOnlineStore) OnlineRead(ctx context.Context, entityKeys []*type
 		entityId := hex.EncodeToString(mmh3.Hashx64_128(*serKey, 0))
 		entityIds = append(entityIds, entityId)
 		entityIndexMap[entityId] = i
-		unprocessedEntityIds[entityId] = true
+		unprocessedEntityIds[entityId] = false
 	}
 
 	// metadata from feature views, feature names
