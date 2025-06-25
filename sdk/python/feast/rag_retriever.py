@@ -63,6 +63,8 @@ class FeastRAGRetriever(RagRetriever):
             generator_tokenizer: Tokenizer for the generator model
             generator_model: The generator model
             feast_repo_path: Path to the Feast repository
+            feature_view: Feast FeatureView containing the document data
+            features: List of feature names to use from the feature view
             search_type: Type of search to perform (text, vector, or hybrid)
             config: Configuration for the retriever
             index: Index instance (must be FeastIndex)
@@ -141,7 +143,7 @@ class FeastRAGRetriever(RagRetriever):
         Args:
             question_hidden_states (np.ndarray):
                 Hidden state representation of the question from the encoder.
-                Expected shape is (1, seq_len, hidden_dim).
+                Expected shape is (batch_size, seq_len, hidden_dim).
             n_docs (int):
                 Number of top documents to retrieve.
             query (Optional[str]):
@@ -151,11 +153,12 @@ class FeastRAGRetriever(RagRetriever):
         Returns:
             Tuple containing:
                 - retrieved_doc_embeds (np.ndarray):
-                    Embeddings of the retrieved documents with shape (1, n_docs, embed_dim).
-                - doc_ids (list[str]):
-                    List of document IDs or passage identifiers.
-                - doc_dicts (list[dict[str, str]]):
-                    List of dictionaries containing document text fields.
+                    Embeddings of the retrieved documents with shape (batch_size, n_docs, embed_dim).
+                - doc_ids (np.ndarray):
+                    Array of document IDs or passage identifiers with shape (batch_size, n_docs).
+                - doc_dicts (list[dict]):
+                    List of dictionaries containing document metadata and text.
+                    Each dictionary has keys "text", "id", and "title".
         """
 
         batch_size = question_hidden_states.shape[0]
