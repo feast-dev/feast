@@ -1,10 +1,10 @@
-# End-to-end RAG example using Feast and Milvus.
+# End-to-end RAG Fine Tuning example using Feast and Milvus.
 
 ## Introduction
-This example notebook provides a step-by-step demonstration of building and using a RAG system with Feast Feature Store and the custom FeastRagRetriever. The notebook walks through:
+This example notebook provides a step-by-step demonstration of building and using a RAG system with Feast and the custom FeastRagRetriever. The notebook walks through:
 
 1. Data Preparation
-   - Loads a subset of the Wikipedia DPR dataset (1% of training data)
+   - Loads a subset of the [Wikipedia DPR dataset](https://huggingface.co/datasets/facebook/wiki_dpr) (1% of training data)
    - Implements text chunking with configurable chunk size and overlap
    - Processes text into manageable passages with unique IDs
 
@@ -49,7 +49,7 @@ Navigate to the examples/rag-retriever directory. Here you will find the followi
   This is the Feast feature repository configuration that defines the schema and data source for Wikipedia passage embeddings. 
 
 * **__rag_feast.ipynb__**
-  This is a notebook demonstrating the implementation of a RAG system using Feast feature store. The notebook provides:
+  This is a notebook demonstrating the implementation of a RAG system using Feast. The notebook provides:
 
   - A complete end-to-end example of building a RAG system with:
     - Data preparation using the Wiki DPR dataset
