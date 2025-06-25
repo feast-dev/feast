@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/feast-dev/feast/go/internal/feast/registry"
-
 	"github.com/stretchr/testify/assert"
 )
 
