@@ -352,16 +352,9 @@ func serializeValue(value interface{}, entityKeySerializationVersion int64) (*[]
 		binary.LittleEndian.PutUint32(valueBuffer, uint32(x.Int32Val))
 		return &valueBuffer, types.ValueType_INT32, nil
 	case *types.Value_Int64Val:
-		if entityKeySerializationVersion <= 1 {
-			//  We unfortunately have to use 32 bit here for backward compatibility :(
-			valueBuffer := make([]byte, 4)
-			binary.LittleEndian.PutUint32(valueBuffer, uint32(x.Int64Val))
-			return &valueBuffer, types.ValueType_INT64, nil
-		} else {
-			valueBuffer := make([]byte, 8)
-			binary.LittleEndian.PutUint64(valueBuffer, uint64(x.Int64Val))
-			return &valueBuffer, types.ValueType_INT64, nil
-		}
+		valueBuffer := make([]byte, 8)
+		binary.LittleEndian.PutUint64(valueBuffer, uint64(x.Int64Val))
+		return &valueBuffer, types.ValueType_INT64, nil
 	case nil:
 		return nil, types.ValueType_INVALID, fmt.Errorf("could not detect type for %v", x)
 	default:

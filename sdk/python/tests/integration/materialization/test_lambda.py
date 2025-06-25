@@ -38,9 +38,8 @@ def test_lambda_materialization_consistency():
         },
         registry_location=RegistryLocation.S3,
     )
-    # TODO(adchia): figure out why entity_key_serialization_version 2 breaks with this test
     lambda_environment = construct_test_environment(
-        lambda_config, None, entity_key_serialization_version=1
+        lambda_config, None, entity_key_serialization_version=3
     )
 
     df = create_basic_driver_dataset()
