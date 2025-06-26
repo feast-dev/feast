@@ -207,7 +207,7 @@ func (s *grpcServingServiceServer) GetOnlineFeaturesRange(ctx context.Context, r
 		}
 	}
 
-	features := make([]*serving.GetOnlineFeaturesRangeResponse_RangeFeatureVector, 0)
+	results := make([]*serving.GetOnlineFeaturesRangeResponse_RangeFeatureVector, 0)
 	for _, featureName := range requestedFeatureNames {
 		if !entityNamesMap[featureName] {
 			if vector, exists := vectorsByName[featureName]; exists {
@@ -261,7 +261,7 @@ func (s *grpcServingServiceServer) GetOnlineFeaturesRange(ctx context.Context, r
 					featureVector.EventTimestamps = timeValues
 				}
 
-				features = append(features, featureVector)
+				results = append(results, featureVector)
 			}
 		}
 	}
@@ -271,7 +271,7 @@ func (s *grpcServingServiceServer) GetOnlineFeaturesRange(ctx context.Context, r
 			FeatureNames: &serving.FeatureList{Val: featureNames},
 		},
 		Entities: entities,
-		Features: features,
+		Results:  results,
 	}
 
 	// TODO: Implement logging for GetOnlineFeaturesRange for feature services when support for feature services is added

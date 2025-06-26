@@ -192,7 +192,7 @@ func processFeatureVectors(
 	}
 
 	featureNames := make([]string, 0)
-	featureResults := make([]map[string]interface{}, 0)
+	results := make([]map[string]interface{}, 0)
 
 	for _, featureName := range requestedFeatureNames {
 		if !entityNamesMap[featureName] {
@@ -201,7 +201,7 @@ func processFeatureVectors(
 
 				rangeValues, err := types.ArrowValuesToRepeatedProtoValues(vector.RangeValues)
 				if err != nil {
-					featureResults = append(featureResults, map[string]interface{}{"values": []interface{}{}})
+					results = append(results, map[string]interface{}{"values": []interface{}{}})
 					continue
 				}
 
@@ -271,12 +271,12 @@ func processFeatureVectors(
 					}
 				}
 
-				featureResults = append(featureResults, result)
+				results = append(results, result)
 			}
 		}
 	}
 
-	return featureNames, entities, featureResults
+	return featureNames, entities, results
 }
 
 func (u *repeatedValue) ToProto() *prototypes.RepeatedValue {
@@ -656,7 +656,7 @@ func (s *httpServer) getOnlineFeaturesRange(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	featureNames, entities, features := processFeatureVectors(
+	featureNames, entities, results := processFeatureVectors(
 		rangeFeatureVectors, includeMetadata, entitiesProto, request.Features)
 
 	response := map[string]interface{}{
@@ -664,7 +664,7 @@ func (s *httpServer) getOnlineFeaturesRange(w http.ResponseWriter, r *http.Reque
 			"feature_names": featureNames,
 		},
 		"entities": entities,
-		"features": features,
+		"results":  results,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
