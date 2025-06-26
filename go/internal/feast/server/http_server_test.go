@@ -265,10 +265,11 @@ func TestProcessFeatureVectors_NotFoundReturnsNull(t *testing.T) {
 	}
 	defer featureVector.RangeValues.Release()
 
-	featureNames, results := processFeatureVectors(
+	featureNames, _, results := processFeatureVectors(
 		[]*onlineserving.RangeFeatureVector{featureVector},
 		false,
 		entitiesProto,
+		[]string{"feature_2"},
 	)
 
 	assert.Equal(t, []string{"feature_2"}, featureNames)
@@ -317,10 +318,11 @@ func TestProcessFeatureVectors_TimestampHandling(t *testing.T) {
 	}
 	defer featureVector.RangeValues.Release()
 
-	featureNames, results := processFeatureVectors(
+	featureNames, _, results := processFeatureVectors(
 		[]*onlineserving.RangeFeatureVector{featureVector},
 		true,
 		entitiesProto,
+		[]string{"feature_3"},
 	)
 
 	assert.Equal(t, []string{"feature_3"}, featureNames)
@@ -360,10 +362,11 @@ func TestProcessFeatureVectors_NullValueReturnsNull(t *testing.T) {
 	}
 	defer featureVector.RangeValues.Release()
 
-	featureNames, results := processFeatureVectors(
+	featureNames, _, results := processFeatureVectors(
 		[]*onlineserving.RangeFeatureVector{featureVector},
 		true,
 		entitiesProto,
+		[]string{"feature_4"},
 	)
 
 	assert.Equal(t, []string{"feature_4"}, featureNames)
