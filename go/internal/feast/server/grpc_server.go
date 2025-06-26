@@ -156,8 +156,6 @@ func (s *grpcServingServiceServer) GetOnlineFeaturesRange(ctx context.Context, r
 	}
 
 	entityNames := make([]string, 0)
-	featureNames := make([]string, 0)
-
 	entityNamesMap := make(map[string]bool)
 	for entityName := range request.GetEntities() {
 		entityNamesMap[entityName] = true
@@ -178,6 +176,13 @@ func (s *grpcServingServiceServer) GetOnlineFeaturesRange(ctx context.Context, r
 	} else {
 		requestedFeatureNames = featuresOrService.FeaturesRefs
 	}
+
+	logSpanContext.Info().Msgf("DEBUG: Got %d vectors from GetOnlineFeaturesRange", len(rangeFeatureVectors))
+	for i, vector := range rangeFeatureVectors {
+		logSpanContext.Info().Msgf("DEBUG: Vector %d name: '%s'", i, vector.Name)
+	}
+	logSpanContext.Info().Msgf("DEBUG: Requested feature names: %v", requestedFeatureNames)
+	logSpanContext.Info().Msgf("DEBUG: Entity names: %v", entityNames)
 
 	vectorsByName := make(map[string]*onlineserving.RangeFeatureVector)
 	for _, vector := range rangeFeatureVectors {
@@ -208,63 +213,69 @@ func (s *grpcServingServiceServer) GetOnlineFeaturesRange(ctx context.Context, r
 	}
 
 	results := make([]*serving.GetOnlineFeaturesRangeResponse_RangeFeatureVector, 0)
+	featureNames := make([]string, 0)
+
 	for _, featureName := range requestedFeatureNames {
-		if !entityNamesMap[featureName] {
-			if vector, exists := vectorsByName[featureName]; exists {
-				featureNames = append(featureNames, featureName)
+		logSpanContext.Info().Msgf("DEBUG: Looking for requested feature: '%s'", featureName)
+		if vector, exists := vectorsByName[featureName]; exists {
+			logSpanContext.Info().Msgf("DEBUG: Found vector for feature: '%s'", featureName)
+			featureNames = append(featureNames, vector.Name)
 
-				rangeValues, err := types.ArrowValuesToRepeatedProtoValues(vector.RangeValues)
-				if err != nil {
-					logSpanContext.Error().Err(err).Msgf("Error converting feature %s values", featureName)
-					return nil, err
-				}
-
-				rangeStatuses := make([]*serving.RepeatedFieldStatus, len(rangeValues))
-				for j := range rangeValues {
-					statusValues := make([]serving.FieldStatus, len(vector.RangeStatuses[j]))
-					for k, status := range vector.RangeStatuses[j] {
-						statusValues[k] = status
-					}
-					rangeStatuses[j] = &serving.RepeatedFieldStatus{Status: statusValues}
-				}
-
-				timeValues := make([]*prototypes.RepeatedValue, len(rangeValues))
-				for j, timestamps := range vector.RangeTimestamps {
-					timestampValues := make([]*prototypes.Value, len(timestamps))
-					for k, ts := range timestamps {
-						timestampValues[k] = &prototypes.Value{
-							Val: &prototypes.Value_UnixTimestampVal{
-								UnixTimestampVal: types.GetTimestampMillis(ts),
-							},
-						}
-					}
-
-					if len(timestampValues) == 0 {
-						now := timestamppb.Now()
-						timestampValues = []*prototypes.Value{
-							{
-								Val: &prototypes.Value_UnixTimestampVal{
-									UnixTimestampVal: types.GetTimestampMillis(now),
-								},
-							},
-						}
-					}
-					timeValues[j] = &prototypes.RepeatedValue{Val: timestampValues}
-				}
-
-				featureVector := &serving.GetOnlineFeaturesRangeResponse_RangeFeatureVector{
-					Values: rangeValues,
-				}
-
-				if request.GetIncludeMetadata() {
-					featureVector.Statuses = rangeStatuses
-					featureVector.EventTimestamps = timeValues
-				}
-
-				results = append(results, featureVector)
+			rangeValues, err := types.ArrowValuesToRepeatedProtoValues(vector.RangeValues)
+			if err != nil {
+				logSpanContext.Error().Err(err).Msgf("Error converting feature %s values", vector.Name)
+				return nil, err
 			}
+
+			rangeStatuses := make([]*serving.RepeatedFieldStatus, len(rangeValues))
+			for j := range rangeValues {
+				statusValues := make([]serving.FieldStatus, len(vector.RangeStatuses[j]))
+				for k, status := range vector.RangeStatuses[j] {
+					statusValues[k] = status
+				}
+				rangeStatuses[j] = &serving.RepeatedFieldStatus{Status: statusValues}
+			}
+
+			timeValues := make([]*prototypes.RepeatedValue, len(rangeValues))
+			for j, timestamps := range vector.RangeTimestamps {
+				timestampValues := make([]*prototypes.Value, len(timestamps))
+				for k, ts := range timestamps {
+					timestampValues[k] = &prototypes.Value{
+						Val: &prototypes.Value_UnixTimestampVal{
+							UnixTimestampVal: types.GetTimestampMillis(ts),
+						},
+					}
+				}
+
+				if len(timestampValues) == 0 {
+					now := timestamppb.Now()
+					timestampValues = []*prototypes.Value{
+						{
+							Val: &prototypes.Value_UnixTimestampVal{
+								UnixTimestampVal: types.GetTimestampMillis(now),
+							},
+						},
+					}
+				}
+				timeValues[j] = &prototypes.RepeatedValue{Val: timestampValues}
+			}
+
+			featureVector := &serving.GetOnlineFeaturesRangeResponse_RangeFeatureVector{
+				Values: rangeValues,
+			}
+
+			if request.GetIncludeMetadata() {
+				featureVector.Statuses = rangeStatuses
+				featureVector.EventTimestamps = timeValues
+			}
+
+			results = append(results, featureVector)
+		} else {
+			logSpanContext.Warn().Msgf("DEBUG: Feature '%s' not found in returned vectors", featureName)
 		}
 	}
+
+	logSpanContext.Info().Msgf("DEBUG: Built %d entities, %d features", len(entities), len(results))
 
 	resp := &serving.GetOnlineFeaturesRangeResponse{
 		Metadata: &serving.GetOnlineFeaturesResponseMetadata{
