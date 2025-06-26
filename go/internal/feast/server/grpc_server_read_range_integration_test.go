@@ -89,26 +89,24 @@ func TestGetOnlineFeaturesRange(t *testing.T) {
 	response, err := client.GetOnlineFeaturesRange(ctx, request)
 	assert.NoError(t, err)
 	assert.NotNil(t, response)
-	assert.Equal(t, 33, len(response.Results))
+	assert.Equal(t, 1, len(response.Entities), "Should have 1 entity")
+	entityValues := response.Entities[0]
+	assert.NotNil(t, entityValues)
+	assert.Equal(t, 3, len(entityValues.Val), "Entity should have 3 values")
+	assert.Equal(t, 32, len(response.Results), "Should have 32 features")
 
 	for i, featureResult := range response.Results {
 		assert.Equal(t, 3, len(featureResult.Values))
 		for _, value := range featureResult.Values {
-			if i == 0 {
-				// The first result is the entity key which should only have 1 entry
+			featureName := featureNames[i]
+			if strings.Contains(featureName, "null") {
+				// For null features, we expect the value to contain 1 entry with a nil value
 				assert.NotNil(t, value)
-				assert.Equal(t, 1, len(value.Val), "Entity Key should have 1 value, got %d", len(value.Val))
+				assert.Equal(t, 1, len(value.Val), "Feature %s should have one values, got %d", featureName, len(value.Val))
+				assert.Nil(t, value.Val[0].Val, "Feature %s should have a nil value", featureName)
 			} else {
-				featureName := featureNames[i-1] // The first entry is the entity key
-				if strings.Contains(featureName, "null") {
-					// For null features, we expect the value to contain 1 entry with a nil value
-					assert.NotNil(t, value)
-					assert.Equal(t, 1, len(value.Val), "Feature %s should have one values, got %d", featureName, len(value.Val))
-					assert.Nil(t, value.Val[0].Val, "Feature %s should have a nil value", featureName)
-				} else {
-					assert.NotNil(t, value)
-					assert.Equal(t, 10, len(value.Val), "Feature %s should have 10 values, got %d", featureName, len(value.Val))
-				}
+				assert.NotNil(t, value)
+				assert.Equal(t, 10, len(value.Val), "Feature %s should have 10 values, got %d", featureName, len(value.Val))
 			}
 		}
 	}
@@ -150,26 +148,24 @@ func TestGetOnlineFeaturesRange_withEmptySortKeyFilter(t *testing.T) {
 	response, err := client.GetOnlineFeaturesRange(ctx, request)
 	assert.NoError(t, err)
 	assert.NotNil(t, response)
-	assert.Equal(t, 33, len(response.Results))
+	assert.Equal(t, 1, len(response.Entities), "Should have 1 entity")
+	entityValues := response.Entities[0]
+	assert.NotNil(t, entityValues)
+	assert.Equal(t, 3, len(entityValues.Val), "Entity should have 3 values")
+	assert.Equal(t, 32, len(response.Results), "Should have 32 features")
 
 	for i, featureResult := range response.Results {
 		assert.Equal(t, 3, len(featureResult.Values))
 		for _, value := range featureResult.Values {
-			if i == 0 {
-				// The first result is the entity key which should only have 1 entry
+			featureName := featureNames[i]
+			if strings.Contains(featureName, "null") {
+				// For null features, we expect the value to contain 1 entry with a nil value
 				assert.NotNil(t, value)
-				assert.Equal(t, 1, len(value.Val), "Entity Key should have 1 value, got %d", len(value.Val))
+				assert.Equal(t, 1, len(value.Val), "Feature %s should have one values, got %d", featureName, len(value.Val))
+				assert.Nil(t, value.Val[0].Val, "Feature %s should have a nil value", featureName)
 			} else {
-				featureName := featureNames[i-1] // The first entry is the entity key
-				if strings.Contains(featureName, "null") {
-					// For null features, we expect the value to contain 1 entry with a nil value
-					assert.NotNil(t, value)
-					assert.Equal(t, 1, len(value.Val), "Feature %s should have one values, got %d", featureName, len(value.Val))
-					assert.Nil(t, value.Val[0].Val, "Feature %s should have a nil value", featureName)
-				} else {
-					assert.NotNil(t, value)
-					assert.Equal(t, 10, len(value.Val), "Feature %s should have 10 values, got %d", featureName, len(value.Val))
-				}
+				assert.NotNil(t, value)
+				assert.Equal(t, 10, len(value.Val), "Feature %s should have 10 values, got %d", featureName, len(value.Val))
 			}
 		}
 	}

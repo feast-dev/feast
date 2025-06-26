@@ -162,12 +162,6 @@ func (s *grpcServingServiceServer) GetOnlineFeaturesRange(ctx context.Context, r
 		entityNames = append(entityNames, entityName)
 	}
 
-	logSpanContext.Info().Msgf("DEBUG: Got %d vectors from GetOnlineFeaturesRange", len(rangeFeatureVectors))
-	for i, vector := range rangeFeatureVectors {
-		logSpanContext.Info().Msgf("DEBUG: Vector %d name: '%s'", i, vector.Name)
-	}
-	logSpanContext.Info().Msgf("DEBUG: Entity names: %v", entityNames)
-
 	vectorsByName := make(map[string]*onlineserving.RangeFeatureVector)
 	for _, vector := range rangeFeatureVectors {
 		vectorsByName[vector.Name] = vector
@@ -201,9 +195,7 @@ func (s *grpcServingServiceServer) GetOnlineFeaturesRange(ctx context.Context, r
 
 	for _, vector := range rangeFeatureVectors {
 		if !entityNamesMap[vector.Name] {
-			logSpanContext.Info().Msgf("DEBUG: Adding feature vector: '%s'", vector.Name)
 			featureNames = append(featureNames, vector.Name)
-
 			rangeValues, err := types.ArrowValuesToRepeatedProtoValues(vector.RangeValues)
 			if err != nil {
 				logSpanContext.Error().Err(err).Msgf("Error converting feature %s values", vector.Name)
