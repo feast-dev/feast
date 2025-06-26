@@ -160,7 +160,6 @@ class FeastRAGRetriever(RagRetriever):
                     List of dictionaries containing document metadata and text.
                     Each dictionary has keys "text", "id", and "title".
         """
-
         batch_size = question_hidden_states.shape[0]
 
         # Convert the question hidden states into a list of 1D query vectors.
@@ -284,30 +283,27 @@ class FeastRAGRetriever(RagRetriever):
             raise ValueError(
                 "`question_encoder` and `generator_model` must be provided to use `generate_answer`."
             )
-
-        # Convert query to hidden states format expected by retrieve
-        inputs = self.question_encoder_tokenizer(
-            query, return_tensors="pt", padding=True, truncation=True
-        ).to(self.question_encoder.device)  # type: ignore
-
-        question_hidden_states = self.question_encoder(**inputs).last_hidden_state
-
-        # Get documents using retrieve method
-        _, _, doc_dicts = self.retrieve(
-            question_hidden_states, n_docs=top_k, query=query
+        torch = get_torch()
+        inputs = self.question_encoder_tokenizer(query, return_tensors="pt").to(
+            self.question_encoder.device
         )
+        question_embeddings = self.question_encoder(**inputs).pooler_output
+        question_embeddings = (
+            question_embeddings.detach().cpu().to(torch.float32).numpy()
+        )
+        _, _, doc_batch = self.retrieve(question_embeddings, n_docs=top_k, query=query)
 
-        contexts = doc_dicts[0]["text"] if doc_dicts else []
+        contexts = doc_batch[0]["text"] if doc_batch else []
         context_str = "\n\n".join(filter(None, contexts))
 
         prompt = f"Context: {context_str}\n\nQuestion: {query}\n\nAnswer:"
 
         generator_inputs = self.generator_tokenizer(prompt, return_tensors="pt").to(
             self.generator_model.device
-        )  # type: ignore
+        )
         output_ids = self.generator_model.generate(
             **generator_inputs, max_new_tokens=max_new_tokens
-        )  # type: ignore
+        )
 
         return self.generator_tokenizer.decode(output_ids[0], skip_special_tokens=True)
 
