@@ -31,6 +31,7 @@ from feast.type_map import (
     feast_value_type_to_python_type,
     python_values_to_proto_values,
 )
+from feast.utils import _get_feature_view_vector_field_metadata
 from feast.value_type import ValueType
 
 logger = logging.getLogger(__name__)
@@ -178,7 +179,7 @@ class RemoteOnlineStore(OnlineStore):
         embedding: Optional[List[float]],
         top_k: int,
         distance_metric: Optional[str] = "L2",
-    ) -> List[Tuple[Optional[datetime], Optional[EntityKeyProto], Optional[Dict[str, ValueProto]]]]:
+    ) -> List[Tuple[Optional[datetime], Optional[EntityKeyProto], Optional[ValueProto], Optional[ValueProto], Optional[ValueProto]]]:
         assert isinstance(config.online_store, RemoteOnlineStoreConfig)
         config.online_store.__class__ = RemoteOnlineStoreConfig
 
@@ -190,38 +191,38 @@ class RemoteOnlineStore(OnlineStore):
             logger.debug("Able to retrieve the online documents from feature server.")
             response_json = json.loads(response.text)
             event_ts = self._get_event_ts(response_json)
-            result_tuples: List[
-                Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]
-            ] = []
-            for feature_value_index in range(
-                len(response_json["results"][0]["values"])
-            ):
-                feature_values_dict: Dict[str, ValueProto] = dict()
-                for index, feature_name in enumerate(
-                    response_json["metadata"]["feature_names"]
-                ):
-                    if (
-                        requested_features is not None
-                        and feature_name in requested_features
-                    ):
-                        if (
-                            response_json["results"][index]["statuses"][
-                                feature_value_index
-                            ]
-                            == "PRESENT"
-                        ):
-                            message = python_values_to_proto_values(
-                                [
-                                    response_json["results"][index]["values"][
-                                        feature_value_index
-                                    ]
-                                ],
-                                ValueType.UNKNOWN,
-                            )
-                            feature_values_dict[feature_name] = message[0]
-                        else:
-                            feature_values_dict[feature_name] = ValueProto()
-                result_tuples.append((event_ts, feature_values_dict))
+
+            # Create feature name to index mapping for efficient lookup
+            feature_name_to_index = {
+                name: idx for idx, name in enumerate(response_json["metadata"]["feature_names"])
+            }
+
+            vector_field_metadata = _get_feature_view_vector_field_metadata(table)
+
+            # Extract feature names once
+            feature_names = response_json["metadata"]["feature_names"]
+
+            # Process each result row
+            num_results = len(response_json["results"][0]["values"])
+            result_tuples = []
+
+            for row_idx in range(num_results):
+                # Extract values using helper methods
+                feature_val = self._extract_requested_feature_value(
+                    response_json, feature_name_to_index, requested_features, row_idx
+                )
+                vector_value = self._extract_vector_field_value(
+                    response_json, feature_name_to_index, vector_field_metadata, row_idx
+                )
+                distance_val = self._extract_distance_value(
+                    response_json, feature_name_to_index, 'distance', row_idx
+                )
+                entity_key_proto = self._construct_entity_key_from_response(
+                    response_json, row_idx, feature_name_to_index
+                )
+
+                result_tuples.append((event_ts, entity_key_proto, feature_val, vector_value, distance_val))
+
             return result_tuples
         else:
             error_msg = f"Unable to retrieve the online documents using feature server API. Error_code={response.status_code}, error_message={response.text}"
@@ -237,7 +238,7 @@ class RemoteOnlineStore(OnlineStore):
         requested_features: Optional[List[str]] = None,
         distance_metric: Optional[str] = None,
         query_string: Optional[str] = None,
-    ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
+    ) -> List[Tuple[Optional[datetime], Optional[EntityKeyProto], Optional[Dict[str, ValueProto]]]]:
         assert isinstance(config.online_store, RemoteOnlineStoreConfig)
         config.online_store.__class__ = RemoteOnlineStoreConfig
 
@@ -250,7 +251,7 @@ class RemoteOnlineStore(OnlineStore):
             response_json = json.loads(response.text)
             event_ts = self._get_event_ts(response_json)
             result_tuples: List[
-                Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]
+                Tuple[Optional[datetime], Optional[EntityKeyProto], Optional[Dict[str, ValueProto]]]
             ] = []
             for feature_value_index in range(
                 len(response_json["results"][0]["values"])
@@ -280,12 +281,77 @@ class RemoteOnlineStore(OnlineStore):
                             feature_values_dict[feature_name] = message[0]
                         else:
                             feature_values_dict[feature_name] = ValueProto()
-                result_tuples.append((event_ts, feature_values_dict))
+
+                # Create a dummy EntityKeyProto since remote store doesn't provide entity information
+                # This matches the behavior of the current implementation
+                entity_key_proto = None
+
+                result_tuples.append((event_ts, entity_key_proto, feature_values_dict))
             return result_tuples
         else:
             error_msg = f"Unable to retrieve the online documents using feature server API. Error_code={response.status_code}, error_message={response.text}"
             logger.error(error_msg)
             raise RuntimeError(error_msg)
+
+    def _extract_requested_feature_value(
+        self,
+        response_json: dict,
+        feature_name_to_index: dict,
+        requested_features: Optional[List[str]],
+        row_idx: int
+    ) -> ValueProto:
+        """Extract the first available requested feature value."""
+        if not requested_features:
+            return ValueProto()
+
+        for feature_name in requested_features:
+            if feature_name in feature_name_to_index:
+                feature_idx = feature_name_to_index[feature_name]
+                if self._is_feature_present(response_json, feature_idx, row_idx):
+                    return self._extract_feature_value(response_json, feature_idx, row_idx)
+
+        return ValueProto()
+
+    def _extract_vector_field_value(
+        self,
+        response_json: dict,
+        feature_name_to_index: dict,
+        vector_field_metadata,
+        row_idx: int
+    ) -> ValueProto:
+        """Extract vector field value from response."""
+        if not vector_field_metadata or vector_field_metadata.name not in feature_name_to_index:
+            return ValueProto()
+
+        vector_feature_idx = feature_name_to_index[vector_field_metadata.name]
+        if self._is_feature_present(response_json, vector_feature_idx, row_idx):
+            return self._extract_feature_value(response_json, vector_feature_idx, row_idx)
+
+        return ValueProto()
+
+    def _extract_distance_value(
+        self,
+        response_json: dict,
+        feature_name_to_index: dict,
+        distance_feature_name: str,
+        row_idx: int
+    ) -> ValueProto:
+        """Extract distance/score value from response."""
+        if not distance_feature_name:
+            return ValueProto()
+
+        distance_feature_idx = feature_name_to_index[distance_feature_name]
+        if self._is_feature_present(response_json, distance_feature_idx, row_idx):
+            distance_value = response_json["results"][distance_feature_idx]["values"][row_idx]
+            distance_val = ValueProto()
+            distance_val.float_val = float(distance_value)
+            return distance_val
+
+        return ValueProto()
+
+    def _is_feature_present(self, response_json: dict, feature_idx: int, row_idx: int) -> bool:
+        """Check if a feature is present in the response."""
+        return response_json["results"][feature_idx]["statuses"][row_idx] == "PRESENT"
 
     def _construct_online_read_api_json_request(
         self,
@@ -367,6 +433,35 @@ class RemoteOnlineStore(OnlineStore):
         if len(response_json["results"]) > 1:
             event_ts = response_json["results"][1]["event_timestamps"][0]
         return datetime.fromisoformat(event_ts.replace("Z", "+00:00"))
+
+    def _construct_entity_key_from_response(
+        self, response_json: dict, row_idx: int, feature_name_to_index: dict
+    ) -> Optional[EntityKeyProto]:
+        """Construct EntityKeyProto from response data."""
+        # Look for entity key fields in the response
+        entity_fields = [name for name in feature_name_to_index.keys()
+                        if name.endswith('_id') or name in ['id', 'key', 'entity_id']]
+
+        if not entity_fields:
+            return None
+
+        entity_key_proto = EntityKeyProto()
+        entity_key_proto.join_keys.extend(entity_fields)
+
+        for entity_field in entity_fields:
+            if entity_field in feature_name_to_index:
+                feature_idx = feature_name_to_index[entity_field]
+                if self._is_feature_present(response_json, feature_idx, row_idx):
+                    entity_value = self._extract_feature_value(response_json, feature_idx, row_idx)
+                    entity_key_proto.entity_values.append(entity_value)
+
+        return entity_key_proto if entity_key_proto.entity_values else None
+
+    def _extract_feature_value(self, response_json: dict, feature_idx: int, row_idx: int) -> ValueProto:
+        """Extract and convert a feature value to ValueProto."""
+        raw_value = response_json["results"][feature_idx]["values"][row_idx]
+        proto_values = python_values_to_proto_values([raw_value])
+        return proto_values[0]
 
     def update(
         self,
