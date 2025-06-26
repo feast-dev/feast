@@ -162,26 +162,10 @@ func (s *grpcServingServiceServer) GetOnlineFeaturesRange(ctx context.Context, r
 		entityNames = append(entityNames, entityName)
 	}
 
-	requestedFeatureNames := make([]string, 0)
-	if featuresOrService.FeatureService != nil {
-		for _, projection := range featuresOrService.FeatureService.Projections {
-			for _, feature := range projection.Features {
-				featureName := feature.Name
-				if request.GetFullFeatureNames() {
-					featureName = fmt.Sprintf("%s:%s", projection.NameToUse(), feature.Name)
-				}
-				requestedFeatureNames = append(requestedFeatureNames, featureName)
-			}
-		}
-	} else {
-		requestedFeatureNames = featuresOrService.FeaturesRefs
-	}
-
 	logSpanContext.Info().Msgf("DEBUG: Got %d vectors from GetOnlineFeaturesRange", len(rangeFeatureVectors))
 	for i, vector := range rangeFeatureVectors {
 		logSpanContext.Info().Msgf("DEBUG: Vector %d name: '%s'", i, vector.Name)
 	}
-	logSpanContext.Info().Msgf("DEBUG: Requested feature names: %v", requestedFeatureNames)
 	logSpanContext.Info().Msgf("DEBUG: Entity names: %v", entityNames)
 
 	vectorsByName := make(map[string]*onlineserving.RangeFeatureVector)
@@ -215,10 +199,9 @@ func (s *grpcServingServiceServer) GetOnlineFeaturesRange(ctx context.Context, r
 	results := make([]*serving.GetOnlineFeaturesRangeResponse_RangeFeatureVector, 0)
 	featureNames := make([]string, 0)
 
-	for _, featureName := range requestedFeatureNames {
-		logSpanContext.Info().Msgf("DEBUG: Looking for requested feature: '%s'", featureName)
-		if vector, exists := vectorsByName[featureName]; exists {
-			logSpanContext.Info().Msgf("DEBUG: Found vector for feature: '%s'", featureName)
+	for _, vector := range rangeFeatureVectors {
+		if !entityNamesMap[vector.Name] {
+			logSpanContext.Info().Msgf("DEBUG: Adding feature vector: '%s'", vector.Name)
 			featureNames = append(featureNames, vector.Name)
 
 			rangeValues, err := types.ArrowValuesToRepeatedProtoValues(vector.RangeValues)
@@ -271,7 +254,7 @@ func (s *grpcServingServiceServer) GetOnlineFeaturesRange(ctx context.Context, r
 
 			results = append(results, featureVector)
 		} else {
-			logSpanContext.Warn().Msgf("DEBUG: Feature '%s' not found in returned vectors", featureName)
+			logSpanContext.Info().Msgf("DEBUG: Skipping entity vector: '%s'", vector.Name)
 		}
 	}
 
