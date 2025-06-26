@@ -426,20 +426,11 @@ public class FeastClient implements AutoCloseable {
   }
 
   /**
-   * Get online features range from Feast without indicating a project — uses the default project.
+   * Get online features from Feast, without indicating project, will use 'default'
    *
-   * <p>See {@link #getOnlineFeaturesRange(List, List, List, int, boolean, String)} for
-   * project-specific queries.
-   *
-   * @param featureRefs List of string feature references to retrieve in the format {@code
-   *     featureTable:feature}, where 'featureTable' and 'feature' refer to the FeatureTable and
-   *     Feature names respectively. Only the Feature name is required.
-   * @param entities List of {@link RangeRow} objects representing the entities for which to
-   *     retrieve features.
-   * @param sortKeyFilters List of field names to use for sorting the feature results.
-   * @param limit Maximum number of results to return.
-   * @param reverseSortOrder If true, the results will be returned in descending order.
-   * @return List of {@link RangeRow} containing the retrieved feature data.
+   * @param request {@link GetOnlineFeaturesRangeRequest} containing the request parameters.
+   * @param entities list of {@link Row} to select the entities to retrieve the features for.
+   * @return list of {@link RangeRow} containing retrieved data fields.
    */
   public List<RangeRow> getOnlineFeaturesRange(
       GetOnlineFeaturesRangeRequest request, List<Row> entities) {
