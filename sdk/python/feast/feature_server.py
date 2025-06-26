@@ -95,8 +95,9 @@ class GetOnlineDocumentsRequest(BaseModel):
     features: Optional[List[str]] = None
     full_feature_names: bool = False
     top_k: Optional[int] = None
-    query_embedding: Optional[List[float]] = None
+    query: Optional[List[float]] = None
     query_string: Optional[str] = None
+    api_version: Optional[int] = 1
 
 
 class ChatMessage(BaseModel):
@@ -266,13 +267,20 @@ def get_app(
 
         read_params = dict(
             features=features,
-            query=request.query_embedding,
-            top_k=request.top_k,
+            query=request.query,
+            top_k=request.top_k
         )
+        if request.api_version == 2 and request.query_string is not None:
+            read_params['query_string'] = request.query_string
 
-        response = await run_in_threadpool(
-            lambda: store.retrieve_online_documents(**read_params)  # type: ignore
-        )
+        if request.api_version == 2:
+            response = await run_in_threadpool(
+                lambda: store.retrieve_online_documents_v2(**read_params)  # type: ignore
+            )
+        else:
+            response = await run_in_threadpool(
+                lambda: store.retrieve_online_documents(**read_params)  # type: ignore
+            )
 
         # Convert the Protobuf object to JSON and return it
         response_dict = await run_in_threadpool(
