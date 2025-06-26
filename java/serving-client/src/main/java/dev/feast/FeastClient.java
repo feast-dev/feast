@@ -484,6 +484,17 @@ public class FeastClient implements AutoCloseable {
     return results;
   }
 
+  /**
+   * Get online features from Feast via feature reference(s) with range support.
+   *
+   * @param featureRefs List of string feature references to retrieve in the format
+   * @param rows list of {@link Row} to select the entities to retrieve the features for.
+   * @param sortKeyFilters List of field names to use for sorting the feature results.
+   * @param limit Maximum number of results to return.
+   * @param reverseSortOrder If true, the results will be returned in descending order.
+   * @param project The Feast project to retrieve features from.
+   * @return
+   */
   public List<RangeRow> getOnlineFeaturesRange(
       List<String> featureRefs,
       List<Row> rows,
