@@ -939,8 +939,6 @@ class SqlRegistry(CachingRegistry):
                 getattr(table.c, id_field_name) == name, table.c.project_id == project
             )
             row = conn.execute(stmt).first()
-            if hasattr(obj, "last_updated_timestamp"):
-                obj.last_updated_timestamp = update_datetime
 
             if row:
                 if proto_field_name in [
@@ -950,21 +948,30 @@ class SqlRegistry(CachingRegistry):
                     "feature_service_proto",
                     "permission_proto",
                     "project_proto",
+                    "data_source_proto",
                 ]:
                     deserialized_proto = self.deserialize_registry_values(
                         row._mapping[proto_field_name], type(obj)
                     )
-                    obj.created_timestamp = (
-                        deserialized_proto.meta.created_timestamp.ToDatetime().replace(
+                    if deserialized_proto is not None:
+                        # Check if the object has actually changed (same as feature views)
+                        existing_obj = type(obj).from_proto(deserialized_proto)
+                        if existing_obj == obj:
+                            return  # No changes, exit early
+
+                        # Object has changed, preserve created_timestamp, update last_updated_timestamp
+                        obj.created_timestamp = deserialized_proto.meta.created_timestamp.ToDatetime().replace(
                             tzinfo=timezone.utc
                         )
-                    )
-                    if isinstance(obj, (FeatureView, StreamFeatureView)):
-                        obj.update_materialization_intervals(
-                            type(obj)
-                            .from_proto(deserialized_proto)
-                            .materialization_intervals
-                        )
+                        if hasattr(obj, "last_updated_timestamp"):
+                            obj.last_updated_timestamp = update_datetime
+                        if isinstance(obj, (FeatureView, StreamFeatureView)):
+                            obj.update_materialization_intervals(
+                                type(obj)
+                                .from_proto(deserialized_proto)
+                                .materialization_intervals
+                            )
+
                 values = {
                     proto_field_name: obj.to_proto().SerializeToString(),
                     "last_updated_timestamp": update_time,
@@ -981,6 +988,12 @@ class SqlRegistry(CachingRegistry):
                 )
                 conn.execute(update_stmt)
             else:
+                # Creating new object - set timestamps consistently for all objects
+                if hasattr(obj, "created_timestamp"):
+                    obj.created_timestamp = update_datetime
+                if hasattr(obj, "last_updated_timestamp"):
+                    obj.last_updated_timestamp = update_datetime
+
                 obj_proto = obj.to_proto()
 
                 if hasattr(obj_proto, "meta") and hasattr(
