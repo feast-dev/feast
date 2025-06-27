@@ -7,10 +7,27 @@ The Ray offline store is a distributed offline store implementation that leverag
 The Ray offline store provides:
 - Distributed data processing using Ray
 - Support for both local and cluster modes
-- Efficient data loading and processing
 - Integration with various storage backends (local files, S3, etc.)
 - Support for scalable batch materialization
 - Saved dataset persistence for data analysis and model training
+
+## Optimization Features
+
+### Intelligent Join Strategies
+
+The Ray offline store now includes intelligent join strategy selection:
+
+- **Broadcast Joins**: For small feature datasets (<100MB by default), data is stored in Ray's object store for efficient broadcasting
+- **Distributed Windowed Joins**: For large datasets, uses time-based windowing for distributed point-in-time joins
+- **Automatic Strategy Selection**: Chooses optimal join strategy based on dataset size and cluster resources
+
+### Resource Management
+
+The store automatically detects and optimizes for your Ray cluster:
+
+- **Auto-scaling**: Adjusts parallelism based on available CPU cores
+- **Memory Optimization**: Configures buffer sizes based on available memory
+- **Partition Optimization**: Calculates optimal partition sizes for your workload
 
 ## Configuration
 
@@ -22,19 +39,30 @@ registry: data/registry.db
 provider: local
 offline_store:
     type: ray
-    storage_path: data/ray_storage  # Optional: Path for materialized data
-    ray_address: localhost:10001    # Optional: Ray cluster address
-    use_ray_cluster: false          # Optional: Whether to use Ray cluster
+    storage_path: data/ray_storage        # Optional: Path for materialized data
+    ray_address: localhost:10001          # Optional: Ray cluster address
+    use_ray_cluster: false                # Optional: Whether to use Ray cluster
+    # New optimization settings
+    broadcast_join_threshold_mb: 100      # Optional: Threshold for broadcast joins (MB)
+    enable_distributed_joins: true       # Optional: Enable distributed join strategies
+    max_parallelism_multiplier: 2        # Optional: Max parallelism as multiple of CPU cores
+    target_partition_size_mb: 64         # Optional: Target partition size (MB)
+    window_size_for_joins: "1H"          # Optional: Time window size for distributed joins
 ```
 
 ### Configuration Options
 
-| Option | Type | Required | Description |
-|--------|------|----------|-------------|
-| `type` | string | Yes | Must be `feast.offline_stores.ray.RayOfflineStore` |
-| `storage_path` | string | No | Path for storing materialized data (e.g., "s3://my-bucket/data") |
-| `ray_address` | string | No | Address of the Ray cluster (e.g., "localhost:10001") |
-| `use_ray_cluster` | boolean | No | Whether to use Ray cluster mode (default: false) |
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `type` | string | Required | Must be `feast.offline_stores.contrib.ray_offline_store.ray.RayOfflineStore` or `ray` |
+| `storage_path` | string | None | Path for storing materialized data (e.g., "s3://my-bucket/data") |
+| `ray_address` | string | None | Address of the Ray cluster (e.g., "localhost:10001") |
+| `use_ray_cluster` | boolean | false | Whether to use Ray cluster mode |
+| `broadcast_join_threshold_mb` | int | 100 | Size threshold (MB) below which broadcast joins are used |
+| `enable_distributed_joins` | boolean | true | Enable intelligent distributed join strategies |
+| `max_parallelism_multiplier` | int | 2 | Maximum parallelism as multiple of CPU cores |
+| `target_partition_size_mb` | int | 64 | Target size for data partitions (MB) |
+| `window_size_for_joins` | string | "1H" | Time window size for distributed temporal joins |
 
 ## Usage Examples
 
@@ -74,6 +102,43 @@ features = store.get_historical_features(
     entity_df=entity_df,
     features=[
         "driver_stats:avg_daily_trips"
+    ]
+).to_df()
+```
+
+### Optimized Configuration for Large Datasets
+
+```yaml
+offline_store:
+    type: ray
+    storage_path: s3://my-bucket/feast-data
+    use_ray_cluster: true
+    ray_address: ray://head-node:10001
+    # Optimize for large datasets
+    broadcast_join_threshold_mb: 50       # Smaller threshold for large clusters
+    max_parallelism_multiplier: 4        # Higher parallelism for more CPUs
+    target_partition_size_mb: 128        # Larger partitions for better throughput
+    window_size_for_joins: "30min"       # Smaller windows for better distribution
+```
+
+### High-Performance Feature Retrieval
+
+```python
+# For large-scale feature retrieval with millions of entities
+large_entity_df = pd.DataFrame({
+    "driver_id": range(1, 1000000),  # 1M drivers
+    "event_timestamp": [datetime.now()] * 1000000
+})
+
+# The Ray offline store will automatically:
+# 1. Detect large dataset and use distributed joins
+# 2. Partition data optimally across cluster
+# 3. Use appropriate join strategy based on feature data size
+features = store.get_historical_features(
+    entity_df=large_entity_df,
+    features=[
+        "driver_stats:avg_daily_trips",
+        "driver_stats:total_distance"
     ]
 ).to_df()
 ```
@@ -192,7 +257,7 @@ job.persist(remote_storage, allow_overwrite=True)
 
 ### Using Ray Cluster
 
-To use Ray in cluster mode:
+To use Ray in cluster mode for maximum performance:
 
 1. Start a Ray cluster:
 ```bash
@@ -205,6 +270,15 @@ offline_store:
     type: ray
     ray_address: localhost:10001
     use_ray_cluster: true
+    # Cluster-optimized settings
+    max_parallelism_multiplier: 3
+    target_partition_size_mb: 256
+```
+
+3. For multiple worker nodes:
+```bash
+# On worker nodes
+ray start --address='head-node-ip:10001'
 ```
 
 ### Remote Storage
@@ -224,4 +298,19 @@ store.materialize(
     end_date=datetime.now(),
     feature_views=["driver_stats"]
 )
+```
+
+
+### Custom Optimization
+
+For specific workloads, you can fine-tune the configuration:
+
+```yaml
+offline_store:
+    type: ray
+    # Fine-tuning for high-throughput scenarios
+    broadcast_join_threshold_mb: 200      # Larger broadcast threshold
+    max_parallelism_multiplier: 1        # Conservative parallelism
+    target_partition_size_mb: 512        # Larger partitions
+    window_size_for_joins: "2H"          # Larger time windows
 ```
