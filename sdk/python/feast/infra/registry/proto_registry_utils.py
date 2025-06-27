@@ -320,7 +320,7 @@ def list_saved_datasets(
     saved_datasets = []
     for saved_dataset in registry_proto.saved_datasets:
         if saved_dataset.spec.project == project and utils.has_all_tags(
-            saved_dataset.tags, tags
+            saved_dataset.spec.tags, tags
         ):
             saved_datasets.append(SavedDataset.from_proto(saved_dataset))
     return saved_datasets
