@@ -32,6 +32,6 @@ def get_saved_dataset_router(grpc_handler) -> APIRouter:
             tags=tags,
         )
         response = grpc_call(grpc_handler.ListSavedDatasets, req)
-        return {"saved_datasets": response.get("saved_datasets", [])}
+        return {"saved_datasets": response.get("savedDatasets", [])}
 
     return router
