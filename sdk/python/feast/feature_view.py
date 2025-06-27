@@ -289,6 +289,7 @@ class FeatureView(BaseFeatureView):
             or self.batch_source != other.batch_source
             or self.stream_source != other.stream_source
             or sorted(self.entity_columns) != sorted(other.entity_columns)
+            or self.materialization_intervals != other.materialization_intervals
         ):
             return False
 

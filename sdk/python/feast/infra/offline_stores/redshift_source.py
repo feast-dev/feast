@@ -152,7 +152,7 @@ class RedshiftSource(DataSource):
         """Returns the Redshift database of this Redshift source."""
         return self.redshift_options.database
 
-    def to_proto(self) -> DataSourceProto:
+    def _to_proto_impl(self) -> DataSourceProto:
         """
         Converts a RedshiftSource object to its protobuf representation.
 

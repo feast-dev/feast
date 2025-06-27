@@ -14,7 +14,7 @@
 import enum
 import warnings
 from abc import ABC, abstractmethod
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 from google.protobuf.duration_pb2 import Duration
@@ -27,6 +27,7 @@ from feast.field import Field
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.repo_config import RepoConfig, get_data_source_class_from_type
 from feast.types import from_value_type
+from feast.utils import _utc_now
 from feast.value_type import ValueType
 
 
@@ -182,6 +183,8 @@ class DataSource(ABC):
         owner (optional): The owner of the data source, typically the email of the primary
             maintainer.
         date_partition_column (optional): Timestamp column used for partitioning. Not supported by all offline stores.
+        created_timestamp: The time when the data source was created.
+        last_updated_timestamp: The time when the data source was last updated.
     """
 
     name: str
@@ -192,6 +195,8 @@ class DataSource(ABC):
     tags: Dict[str, str]
     owner: str
     date_partition_column: str
+    created_timestamp: Optional[datetime]
+    last_updated_timestamp: Optional[datetime]
 
     def __init__(
         self,
@@ -242,6 +247,9 @@ class DataSource(ABC):
         self.date_partition_column = (
             date_partition_column if date_partition_column else ""
         )
+        now = _utc_now()
+        self.created_timestamp = now
+        self.last_updated_timestamp = now
 
     def __hash__(self):
         return hash((self.name, self.timestamp_field))
@@ -295,14 +303,31 @@ class DataSource(ABC):
 
         if data_source_type == DataSourceProto.SourceType.CUSTOM_SOURCE:
             cls = get_data_source_class_from_type(data_source.data_source_class_type)
-            return cls.from_proto(data_source)
-        cls = get_data_source_class_from_type(_DATA_SOURCE_OPTIONS[data_source_type])
-        return cls.from_proto(data_source)
+            data_source_instance = cls.from_proto(data_source)
+        else:
+            cls = get_data_source_class_from_type(
+                _DATA_SOURCE_OPTIONS[data_source_type]
+            )
+            data_source_instance = cls.from_proto(data_source)
 
-    @abstractmethod
+        data_source_instance._extract_timestamps_from_proto(data_source)
+
+        return data_source_instance
+
     def to_proto(self) -> DataSourceProto:
         """
         Converts a DataSourceProto object to its protobuf representation.
+        """
+        proto = self._to_proto_impl()
+        self._set_timestamps_in_proto(proto)
+
+        return proto
+
+    @abstractmethod
+    def _to_proto_impl(self) -> DataSourceProto:
+        """
+        Subclass implementation of protobuf conversion.
+        This should be implemented by each DataSource subclass.
         """
         raise NotImplementedError
 
@@ -339,6 +364,42 @@ class DataSource(ABC):
         Returns a string that can directly be used to reference this table in SQL.
         """
         raise NotImplementedError
+
+    def _extract_timestamps_from_proto(self, data_source_proto: DataSourceProto):
+        """
+        Internal method to extract created_timestamp and last_updated_timestamp from protobuf.
+        Called automatically by the base from_proto method.
+        """
+        if data_source_proto.HasField("meta"):
+            if data_source_proto.meta.HasField("created_timestamp"):
+                self.created_timestamp = (
+                    data_source_proto.meta.created_timestamp.ToDatetime().replace(
+                        tzinfo=timezone.utc
+                    )
+                )
+            if data_source_proto.meta.HasField("last_updated_timestamp"):
+                self.last_updated_timestamp = (
+                    data_source_proto.meta.last_updated_timestamp.ToDatetime().replace(
+                        tzinfo=timezone.utc
+                    )
+                )
+
+    def _set_timestamps_in_proto(self, data_source_proto: DataSourceProto):
+        """
+        Internal method to set created_timestamp and last_updated_timestamp in protobuf.
+        Called automatically by the base to_proto method.
+        """
+        if not data_source_proto.HasField("meta"):
+            data_source_proto.meta.CopyFrom(DataSourceProto.SourceMeta())
+
+        if self.created_timestamp:
+            data_source_proto.meta.created_timestamp.FromDatetime(
+                self.created_timestamp
+            )
+        if self.last_updated_timestamp:
+            data_source_proto.meta.last_updated_timestamp.FromDatetime(
+                self.last_updated_timestamp
+            )
 
 
 @typechecked
@@ -470,7 +531,7 @@ class KafkaSource(DataSource):
             ),
         )
 
-    def to_proto(self) -> DataSourceProto:
+    def _to_proto_impl(self) -> DataSourceProto:
         data_source_proto = DataSourceProto(
             name=self.name,
             type=DataSourceProto.STREAM_KAFKA,
@@ -485,6 +546,7 @@ class KafkaSource(DataSource):
         data_source_proto.created_timestamp_column = self.created_timestamp_column
         if self.batch_source:
             data_source_proto.batch_source.MergeFrom(self.batch_source.to_proto())
+
         return data_source_proto
 
     def validate(self, config: RepoConfig):
@@ -587,7 +649,7 @@ class RequestSource(DataSource):
             owner=data_source.owner,
         )
 
-    def to_proto(self) -> DataSourceProto:
+    def _to_proto_impl(self) -> DataSourceProto:
         schema_pb = []
 
         if isinstance(self.schema, Dict):
@@ -731,7 +793,7 @@ class KinesisSource(DataSource):
     def __hash__(self):
         return super().__hash__()
 
-    def to_proto(self) -> DataSourceProto:
+    def _to_proto_impl(self) -> DataSourceProto:
         data_source_proto = DataSourceProto(
             name=self.name,
             type=DataSourceProto.STREAM_KINESIS,
@@ -829,7 +891,7 @@ class PushSource(DataSource):
             owner=data_source.owner,
         )
 
-    def to_proto(self) -> DataSourceProto:
+    def _to_proto_impl(self) -> DataSourceProto:
         data_source_proto = DataSourceProto(
             name=self.name,
             type=DataSourceProto.PUSH_SOURCE,

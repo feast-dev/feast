@@ -31,6 +31,7 @@ from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.permissions.permission import Permission
 from feast.project import Project
 from feast.project_metadata import ProjectMetadata
+from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.protos.feast.core.Entity_pb2 import Entity as EntityProto
 from feast.protos.feast.core.FeatureService_pb2 import (
     FeatureService as FeatureServiceProto,
@@ -1057,4 +1058,6 @@ class BaseRegistry(ABC):
             return PermissionProto.FromString(serialized_proto)
         if feast_obj_type == Project:
             return ProjectProto.FromString(serialized_proto)
+        if issubclass(feast_obj_type, DataSource):
+            return DataSourceProto.FromString(serialized_proto)
         return None
