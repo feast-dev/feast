@@ -2,13 +2,12 @@ import os
 import tempfile
 from typing import Any, Dict, Optional
 
-from sdk.python.feast.infra.offline_stores.contrib.ray_offline_store.ray import (
-    RayOfflineStoreConfig,
-)
-
 from feast.data_format import ParquetFormat
 from feast.data_source import DataSource
 from feast.feature_logging import LoggingDestination
+from feast.infra.offline_stores.contrib.ray_offline_store.ray import (
+    RayOfflineStoreConfig,
+)
 from feast.infra.offline_stores.file_source import (
     FileLoggingDestination,
     FileSource,
@@ -33,8 +32,8 @@ class RayDataSourceCreator(DataSourceCreator):
             ray_address=None,
             use_ray_cluster=False,
         )
-        self.files = []
-        self.dirs = []
+        self.files: list[Any] = []
+        self.dirs: list[str] = []
 
     def create_offline_store_config(self) -> FeastConfigBaseModel:
         return self.offline_store_config
