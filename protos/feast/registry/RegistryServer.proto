@@ -88,6 +88,10 @@ service RegistryServer{
   rpc Refresh (RefreshRequest) returns (google.protobuf.Empty) {}
   rpc Proto (google.protobuf.Empty) returns (feast.core.Registry) {}
 
+  // Lineage RPCs
+  rpc GetRegistryLineage (GetRegistryLineageRequest) returns (GetRegistryLineageResponse) {}
+  rpc GetObjectRelationships (GetObjectRelationshipsRequest) returns (GetObjectRelationshipsResponse) {}
+
 }
 
 message RefreshRequest {
@@ -423,4 +427,40 @@ message ListProjectsResponse {
 message DeleteProjectRequest {
   string name = 1;
   bool commit = 2;
+}
+
+// Lineage
+
+message EntityReference {
+  string type = 1;  // "dataSource", "entity", "featureView", "featureService"
+  string name = 2;
+}
+
+message EntityRelation {
+  EntityReference source = 1;
+  EntityReference target = 2;
+}
+
+message GetRegistryLineageRequest {
+  string project = 1;
+  bool allow_cache = 2;
+  string filter_object_type = 3;
+  string filter_object_name = 4;
+}
+
+message GetRegistryLineageResponse {
+  repeated EntityRelation relationships = 1;
+  repeated EntityRelation indirect_relationships = 2;
+}
+
+message GetObjectRelationshipsRequest {
+  string project = 1;
+  string object_type = 2;
+  string object_name = 3;
+  bool include_indirect = 4;
+  bool allow_cache = 5;
+}
+
+message GetObjectRelationshipsResponse {
+  repeated EntityRelation relationships = 1;
 }
