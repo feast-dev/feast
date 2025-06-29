@@ -417,6 +417,20 @@ class RemoteOfflineStoreDataSourceCreator(FileDataSourceCreator):
         )
         return "grpc+tcp://{}:{}".format(host, self.server_port)
 
+    def teardown(self):
+        super().teardown()
+        if self.proc is not None:
+            self.proc.kill()
+
+            # wait server to free the port
+            wait_retry_backoff(
+                lambda: (
+                    None,
+                    not check_port_open("localhost", self.server_port),
+                ),
+                timeout_secs=30,
+            )
+
 
 class RemoteOfflineTlsStoreDataSourceCreator(FileDataSourceCreator):
     def __init__(self, project_name: str, *args, **kwargs):
