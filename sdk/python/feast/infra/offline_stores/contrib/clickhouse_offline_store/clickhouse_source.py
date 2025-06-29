@@ -105,7 +105,7 @@ class ClickhouseSource(DataSource):
             owner=data_source.owner,
         )
 
-    def to_proto(self) -> DataSourceProto:
+    def _to_proto_impl(self) -> DataSourceProto:
         data_source_proto = DataSourceProto(
             name=self.name,
             type=DataSourceProto.CUSTOM_SOURCE,

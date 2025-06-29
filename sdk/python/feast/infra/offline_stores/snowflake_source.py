@@ -164,7 +164,7 @@ class SnowflakeSource(DataSource):
         """Returns the snowflake options of this snowflake source."""
         return self.snowflake_options.query
 
-    def to_proto(self) -> DataSourceProto:
+    def _to_proto_impl(self) -> DataSourceProto:
         """
         Converts a SnowflakeSource object to its protobuf representation.
 

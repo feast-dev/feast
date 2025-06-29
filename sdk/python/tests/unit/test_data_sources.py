@@ -197,6 +197,63 @@ def test_proto_conversion():
     assert DataSource.from_proto(push_source.to_proto()) == push_source
     assert DataSource.from_proto(request_source.to_proto()) == request_source
 
+    # Test that timestamps are properly included in protobuf conversion
+    # Test FileSource timestamps
+    file_proto = file_source.to_proto()
+    assert file_proto.HasField("meta")
+    assert file_proto.meta.HasField("created_timestamp")
+    assert file_proto.meta.HasField("last_updated_timestamp")
+    assert file_source.created_timestamp is not None
+    assert file_source.last_updated_timestamp is not None
+
+    # Test BigQuerySource timestamps
+    bigquery_proto = bigquery_source.to_proto()
+    assert bigquery_proto.HasField("meta")
+    assert bigquery_proto.meta.HasField("created_timestamp")
+    assert bigquery_proto.meta.HasField("last_updated_timestamp")
+    assert bigquery_source.created_timestamp is not None
+    assert bigquery_source.last_updated_timestamp is not None
+
+    # Test RedshiftSource timestamps
+    redshift_proto = redshift_source.to_proto()
+    assert redshift_proto.HasField("meta")
+    assert redshift_proto.meta.HasField("created_timestamp")
+    assert redshift_proto.meta.HasField("last_updated_timestamp")
+    assert redshift_source.created_timestamp is not None
+    assert redshift_source.last_updated_timestamp is not None
+
+    # Test KafkaSource timestamps
+    kafka_proto = kafka_source.to_proto()
+    assert kafka_proto.HasField("meta")
+    assert kafka_proto.meta.HasField("created_timestamp")
+    assert kafka_proto.meta.HasField("last_updated_timestamp")
+    assert kafka_source.created_timestamp is not None
+    assert kafka_source.last_updated_timestamp is not None
+
+    # Test KinesisSource timestamps
+    kinesis_proto = kinesis_source.to_proto()
+    assert kinesis_proto.HasField("meta")
+    assert kinesis_proto.meta.HasField("created_timestamp")
+    assert kinesis_proto.meta.HasField("last_updated_timestamp")
+    assert kinesis_source.created_timestamp is not None
+    assert kinesis_source.last_updated_timestamp is not None
+
+    # Test PushSource timestamps
+    push_proto = push_source.to_proto()
+    assert push_proto.HasField("meta")
+    assert push_proto.meta.HasField("created_timestamp")
+    assert push_proto.meta.HasField("last_updated_timestamp")
+    assert push_source.created_timestamp is not None
+    assert push_source.last_updated_timestamp is not None
+
+    # Test RequestSource timestamps
+    request_proto = request_source.to_proto()
+    assert request_proto.HasField("meta")
+    assert request_proto.meta.HasField("created_timestamp")
+    assert request_proto.meta.HasField("last_updated_timestamp")
+    assert request_source.created_timestamp is not None
+    assert request_source.last_updated_timestamp is not None
+
 
 def test_column_conflict():
     with pytest.raises(ValueError):
