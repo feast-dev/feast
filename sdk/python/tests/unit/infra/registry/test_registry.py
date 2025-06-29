@@ -81,6 +81,18 @@ class TestCachingRegistry(CachingRegistry):
     def _list_validation_references(self, *args, **kwargs):
         pass
 
+    def _apply_model(self, *args, **kwargs):
+        pass
+
+    def _delete_model(self, *args, **kwargs):
+        pass
+
+    def _get_model(self, *args, **kwargs):
+        pass
+
+    def _list_models(self, *args, **kwargs):
+        pass
+
     def apply_data_source(self, *args, **kwargs):
         pass
 

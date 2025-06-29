@@ -15,6 +15,7 @@ from feast.feature_view import FeatureView
 from feast.infra.infra_object import Infra
 from feast.infra.registry import proto_registry_utils
 from feast.infra.registry.base_registry import BaseRegistry
+from feast.model import ModelMetadata
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.permissions.permission import Permission
 from feast.project import Project
@@ -433,6 +434,60 @@ class CachingRegistry(BaseRegistry):
             self.cached_registry_proto_created = _utc_now()
         except Exception as e:
             logger.error(f"Error while refreshing registry: {e}", exc_info=True)
+
+    @abstractmethod
+    def _apply_model(
+        self, model_metadata: ModelMetadata, project: str, commit: bool = True
+    ):
+        pass
+
+    def apply_model(
+        self, model_metadata: ModelMetadata, project: str, commit: bool = True
+    ):
+        self._apply_model(model_metadata, project, commit)
+
+    @abstractmethod
+    def _delete_model(self, name: str, project: str, commit: bool = True):
+        pass
+
+    def delete_model(self, name: str, project: str, commit: bool = True):
+        self._delete_model(name, project, commit)
+
+    @abstractmethod
+    def _get_model(self, name: str, project: str) -> ModelMetadata:
+        pass
+
+    def get_model(
+        self, name: str, project: str, allow_cache: bool = False
+    ) -> ModelMetadata:
+        if allow_cache:
+            self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.get_model(
+                self.cached_registry_proto, name, project
+            )
+        return self._get_model(name, project)
+
+    @abstractmethod
+    def _list_models(
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
+    ) -> List[ModelMetadata]:
+        pass
+
+    def list_models(
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
+    ) -> List[ModelMetadata]:
+        if allow_cache:
+            self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.list_models(
+                self.cached_registry_proto, project, tags
+            )
+        return self._list_models(project, allow_cache, tags)
 
     def _refresh_cached_registry_if_necessary(self):
         if self.cache_mode == "sync":

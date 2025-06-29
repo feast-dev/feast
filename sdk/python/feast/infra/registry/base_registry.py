@@ -27,6 +27,7 @@ from feast.entity import Entity
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.infra.infra_object import Infra
+from feast.model import ModelMetadata
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.permissions.permission import Permission
 from feast.project import Project
@@ -765,6 +766,71 @@ class BaseRegistry(ABC):
 
         Returns:
             List of project
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def apply_model(
+        self, model_metadata: ModelMetadata, project: str, commit: bool = True
+    ) -> None:
+        """
+        Register or update model metadata in the registry.
+
+        Args:
+            model_metadata: The model metadata object to apply.
+            project: Feast project that this entity belongs to
+            commit: Whether the change should be persisted immediately
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_model(
+        self, name: str, project: str, allow_cache: bool = False
+    ) -> ModelMetadata:
+        """
+        Retrieve a model from the registry by model name.
+
+        Args:
+            name: The name of the model to retrieve.
+            allow_cache: Whether to allow returning model from cached registry.
+
+        Returns:
+            ModelMetadata
+
+        Raises:
+            ModelObjectNotFoundException: If the model is not found.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def list_models(
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[Dict[str, str]] = None,
+    ) -> List[ModelMetadata]:
+        """
+        List all models registered in the registry.
+
+        Args:
+            allow_cache: Whether to allow returning models from cached registry.
+            project: Project name to filter models.
+            tags: Tags to filter models.
+
+        Returns:
+            List of ModelMetadata objects.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def delete_model(self, name: str, project: str, commit: bool = True) -> None:
+        """
+        Delete a model from the registry.
+
+        Args:
+            name: The name of the model to delete.
+            project: The project the model belongs to.
+            commit: Whether the change should be persisted immediately
         """
         raise NotImplementedError
 

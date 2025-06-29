@@ -277,4 +277,5 @@ _PERMISSION_TYPES = {
     "VALIDATION_REFERENCE": "feast.saved_dataset.ValidationReference",
     "SAVED_DATASET": "feast.saved_dataset.SavedDataset",
     "PERMISSION": "feast.permissions.permission.Permission",
+    "MODEL_METADATA": "feast.model.ModelMetadata",
 }

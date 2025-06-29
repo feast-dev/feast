@@ -522,3 +522,8 @@ class FeastPermissionError(FeastError, PermissionError):
 
     def http_status_code(self) -> int:
         return HttpStatusCode.HTTP_403_FORBIDDEN
+
+
+class ModelObjectNotFoundException(Exception):
+    def __init__(self, name: str, project: str):
+        super().__init__(f"Model {name} not found in project {project}")

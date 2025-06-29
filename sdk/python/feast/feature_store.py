@@ -71,6 +71,7 @@ from feast.infra.provider import Provider, RetrievalJob, get_provider
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.infra.registry.registry import Registry
 from feast.infra.registry.sql import SqlRegistry
+from feast.model import ModelMetadata
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.online_response import OnlineResponse
 from feast.permissions.permission import Permission
@@ -828,6 +829,7 @@ class FeatureStore:
             FeatureService,
             ValidationReference,
             Permission,
+            ModelMetadata,
             List[FeastObject],
         ],
         objects_to_delete: Optional[List[FeastObject]] = None,
@@ -943,6 +945,10 @@ class FeatureStore:
 
         data_sources_to_update = list(data_sources_set_to_update)
 
+        model_metadata_to_update: List[ModelMetadata] = [
+            ob for ob in objects if isinstance(ob, ModelMetadata)
+        ]
+
         # Handle all entityless feature views by using DUMMY_ENTITY as a placeholder entity.
         entities_to_update.append(DUMMY_ENTITY)
 
@@ -982,11 +988,16 @@ class FeatureStore:
             self._registry.apply_permission(
                 permission, project=self.project, commit=False
             )
+        for model_metadata in model_metadata_to_update:
+            self._registry.apply_model(
+                model_metadata, project=self.project, commit=False
+            )
 
         entities_to_delete = []
         views_to_delete = []
         sfvs_to_delete = []
         permissions_to_delete = []
+        model_metadata_to_delete = []
         if not partial:
             # Delete all registry objects that should not exist.
             entities_to_delete = [
@@ -1017,6 +1028,9 @@ class FeatureStore:
             ]
             permissions_to_delete = [
                 ob for ob in objects_to_delete if isinstance(ob, Permission)
+            ]
+            model_metadata_to_delete = [
+                ob for ob in objects_to_delete if isinstance(ob, ModelMetadata)
             ]
 
             for data_source in data_sources_to_delete:
@@ -1050,6 +1064,10 @@ class FeatureStore:
             for permission in permissions_to_delete:
                 self._registry.delete_permission(
                     permission.name, project=self.project, commit=False
+                )
+            for model_metadata in model_metadata_to_delete:
+                self._registry.delete_model(
+                    model_metadata.name, project=self.project, commit=False
                 )
 
         tables_to_delete: List[FeatureView] = (
@@ -2552,6 +2570,55 @@ class FeatureStore:
         return self._registry.list_saved_datasets(
             self.project, allow_cache=allow_cache, tags=tags
         )
+
+    def get_model(self, name: str, allow_cache: bool = False) -> ModelMetadata:
+        """
+        Retrieves a specific model by ID.
+
+        Args:
+            name: The name of the model.
+            allow_cache: Whether to allow returning from cache.
+
+        Returns:
+            The ModelMetadata for the specified model.
+
+        Raises:
+            ModelObjectNotFoundException: If the model does not exist.
+        """
+        return self._registry.get_model(
+            name=name, project=self.project, allow_cache=allow_cache
+        )
+
+    def list_models(
+        self,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
+    ) -> List[ModelMetadata]:
+        """
+        List models stored in the registry.
+
+        Args:
+            allow_cache: Whether to allow returning from a cached registry.
+            tags: Optional dictionary to filter models by tags.
+
+        Returns:
+            A list of ModelMetadata objects.
+        """
+        return self._registry.list_models(
+            allow_cache=allow_cache,
+            project=self.project,
+            tags=tags,
+        )
+
+    def delete_model(self, name: str) -> None:
+        """
+        Deletes a model from the registry.
+
+        Args:
+            name: The name of the model to delete.
+            feast_project: The project the model belongs to (defaults to current project).
+        """
+        self._registry.delete_model(name=name, project=self.project)
 
     async def initialize(self) -> None:
         """Initialize long-lived clients and/or resources needed for accessing datastores"""
