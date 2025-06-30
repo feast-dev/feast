@@ -131,3 +131,120 @@ def test_projects_via_rest(fastapi_test_app):
 def test_permissions_via_rest(fastapi_test_app):
     response = fastapi_test_app.get("/permissions?project=demo_project")
     assert response.status_code == 200
+
+
+def test_lineage_registry_via_rest(fastapi_test_app):
+    """Test the /lineage/registry endpoint."""
+    response = fastapi_test_app.get("/lineage/registry?project=demo_project")
+    assert response.status_code == 200
+
+    data = response.json()
+    assert "relationships" in data
+    assert "indirect_relationships" in data
+    assert isinstance(data["relationships"], list)
+    assert isinstance(data["indirect_relationships"], list)
+
+
+def test_lineage_registry_with_filters_via_rest(fastapi_test_app):
+    """Test the /lineage/registry endpoint with filters."""
+    response = fastapi_test_app.get(
+        "/lineage/registry?project=demo_project&filter_object_type=featureView"
+    )
+    assert response.status_code == 200
+
+    response = fastapi_test_app.get(
+        "/lineage/registry?project=demo_project&filter_object_type=featureView&filter_object_name=user_profile"
+    )
+    assert response.status_code == 200
+
+
+def test_object_relationships_via_rest(fastapi_test_app):
+    """Test the /lineage/objects/{object_type}/{object_name} endpoint."""
+    response = fastapi_test_app.get(
+        "/lineage/objects/featureView/user_profile?project=demo_project"
+    )
+    assert response.status_code == 200
+
+    data = response.json()
+    assert "relationships" in data
+    assert isinstance(data["relationships"], list)
+
+
+def test_object_relationships_with_indirect_via_rest(fastapi_test_app):
+    """Test the object relationships endpoint with indirect relationships."""
+    response = fastapi_test_app.get(
+        "/lineage/objects/featureView/user_profile?project=demo_project&include_indirect=true"
+    )
+    assert response.status_code == 200
+
+    data = response.json()
+    assert "relationships" in data
+    assert isinstance(data["relationships"], list)
+
+
+def test_object_relationships_invalid_type_via_rest(fastapi_test_app):
+    """Test the object relationships endpoint with invalid object type."""
+    response = fastapi_test_app.get(
+        "/lineage/objects/invalidType/some_name?project=demo_project"
+    )
+    assert response.status_code == 400
+
+    data = response.json()
+    assert "detail" in data
+    assert "Invalid object_type" in data["detail"]
+
+
+def test_complete_registry_data_via_rest(fastapi_test_app):
+    """Test the /lineage/complete endpoint."""
+    response = fastapi_test_app.get("/lineage/complete?project=demo_project")
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert "project" in data
+    assert data["project"] == "demo_project"
+    assert "objects" in data
+    assert "relationships" in data
+    assert "indirectRelationships" in data
+
+    objects = data["objects"]
+    assert "entities" in objects
+    assert "dataSources" in objects
+    assert "featureViews" in objects
+    assert "featureServices" in objects
+
+    assert isinstance(objects["entities"], list)
+    assert isinstance(objects["dataSources"], list)
+    assert isinstance(objects["featureViews"], list)
+    assert isinstance(objects["featureServices"], list)
+
+
+def test_complete_registry_data_cache_control_via_rest(fastapi_test_app):
+    """Test the /lineage/complete endpoint with cache control."""
+    response = fastapi_test_app.get(
+        "/lineage/complete?project=demo_project&allow_cache=false"
+    )
+    assert response.status_code == 200
+
+    data = response.json()
+    assert "project" in data
+    response = fastapi_test_app.get(
+        "/lineage/complete?project=demo_project&allow_cache=true"
+    )
+    assert response.status_code == 200
+
+
+def test_lineage_endpoint_error_handling(fastapi_test_app):
+    """Test error handling in lineage endpoints."""
+    # Test missing project parameter
+    response = fastapi_test_app.get("/lineage/registry")
+    assert response.status_code == 422  # Validation error
+
+    # Test invalid project
+    response = fastapi_test_app.get("/lineage/registry?project=nonexistent_project")
+    # Should still return 200 but with empty results
+    assert response.status_code == 200
+
+    # Test object relationships with missing parameters
+    response = fastapi_test_app.get("/lineage/objects/featureView/test_fv")
+    assert response.status_code == 422  # Missing required project parameter

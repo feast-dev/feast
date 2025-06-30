@@ -745,6 +745,44 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         self.proxied_registry.delete_project(name=request.name, commit=request.commit)
         return Empty()
 
+    def GetRegistryLineage(
+        self, request: RegistryServer_pb2.GetRegistryLineageRequest, context
+    ):
+        """Get complete registry lineage with relationships and indirect relationships."""
+        relationships, indirect_relationships = (
+            self.proxied_registry.get_registry_lineage(
+                project=request.project,
+                allow_cache=request.allow_cache,
+                filter_object_type=request.filter_object_type
+                if request.filter_object_type
+                else None,
+                filter_object_name=request.filter_object_name
+                if request.filter_object_name
+                else None,
+            )
+        )
+
+        return RegistryServer_pb2.GetRegistryLineageResponse(
+            relationships=[rel.to_proto() for rel in relationships],
+            indirect_relationships=[rel.to_proto() for rel in indirect_relationships],
+        )
+
+    def GetObjectRelationships(
+        self, request: RegistryServer_pb2.GetObjectRelationshipsRequest, context
+    ):
+        """Get relationships for a specific object."""
+        relationships = self.proxied_registry.get_object_relationships(
+            project=request.project,
+            object_type=request.object_type,
+            object_name=request.object_name,
+            include_indirect=request.include_indirect,
+            allow_cache=request.allow_cache,
+        )
+
+        return RegistryServer_pb2.GetObjectRelationshipsResponse(
+            relationships=[rel.to_proto() for rel in relationships]
+        )
+
     def Commit(self, request, context):
         self.proxied_registry.commit()
         return Empty()

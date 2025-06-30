@@ -1316,3 +1316,126 @@ class DeleteProjectRequest(google.protobuf.message.Message):
     def ClearField(self, field_name: typing_extensions.Literal["commit", b"commit", "name", b"name"]) -> None: ...
 
 global___DeleteProjectRequest = DeleteProjectRequest
+
+class EntityReference(google.protobuf.message.Message):
+    """Lineage Messages"""
+
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    TYPE_FIELD_NUMBER: builtins.int
+    NAME_FIELD_NUMBER: builtins.int
+    type: builtins.str
+    """"dataSource", "entity", "featureView", "featureService" """
+    name: builtins.str
+    def __init__(
+        self,
+        *,
+        type: builtins.str = ...,
+        name: builtins.str = ...,
+    ) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["name", b"name", "type", b"type"]) -> None: ...
+
+global___EntityReference = EntityReference
+
+class EntityRelation(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    SOURCE_FIELD_NUMBER: builtins.int
+    TARGET_FIELD_NUMBER: builtins.int
+    @property
+    def source(self) -> global___EntityReference: ...
+    @property
+    def target(self) -> global___EntityReference: ...
+    def __init__(
+        self,
+        *,
+        source: global___EntityReference | None = ...,
+        target: global___EntityReference | None = ...,
+    ) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["source", b"source", "target", b"target"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["source", b"source", "target", b"target"]) -> None: ...
+
+global___EntityRelation = EntityRelation
+
+class GetRegistryLineageRequest(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    PROJECT_FIELD_NUMBER: builtins.int
+    ALLOW_CACHE_FIELD_NUMBER: builtins.int
+    FILTER_OBJECT_TYPE_FIELD_NUMBER: builtins.int
+    FILTER_OBJECT_NAME_FIELD_NUMBER: builtins.int
+    project: builtins.str
+    allow_cache: builtins.bool
+    filter_object_type: builtins.str
+    filter_object_name: builtins.str
+    def __init__(
+        self,
+        *,
+        project: builtins.str = ...,
+        allow_cache: builtins.bool = ...,
+        filter_object_type: builtins.str = ...,
+        filter_object_name: builtins.str = ...,
+    ) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["allow_cache", b"allow_cache", "filter_object_name", b"filter_object_name", "filter_object_type", b"filter_object_type", "project", b"project"]) -> None: ...
+
+global___GetRegistryLineageRequest = GetRegistryLineageRequest
+
+class GetRegistryLineageResponse(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    RELATIONSHIPS_FIELD_NUMBER: builtins.int
+    INDIRECT_RELATIONSHIPS_FIELD_NUMBER: builtins.int
+    @property
+    def relationships(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___EntityRelation]: ...
+    @property
+    def indirect_relationships(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___EntityRelation]: ...
+    def __init__(
+        self,
+        *,
+        relationships: collections.abc.Iterable[global___EntityRelation] | None = ...,
+        indirect_relationships: collections.abc.Iterable[global___EntityRelation] | None = ...,
+    ) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["indirect_relationships", b"indirect_relationships", "relationships", b"relationships"]) -> None: ...
+
+global___GetRegistryLineageResponse = GetRegistryLineageResponse
+
+class GetObjectRelationshipsRequest(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    PROJECT_FIELD_NUMBER: builtins.int
+    OBJECT_TYPE_FIELD_NUMBER: builtins.int
+    OBJECT_NAME_FIELD_NUMBER: builtins.int
+    INCLUDE_INDIRECT_FIELD_NUMBER: builtins.int
+    ALLOW_CACHE_FIELD_NUMBER: builtins.int
+    project: builtins.str
+    object_type: builtins.str
+    object_name: builtins.str
+    include_indirect: builtins.bool
+    allow_cache: builtins.bool
+    def __init__(
+        self,
+        *,
+        project: builtins.str = ...,
+        object_type: builtins.str = ...,
+        object_name: builtins.str = ...,
+        include_indirect: builtins.bool = ...,
+        allow_cache: builtins.bool = ...,
+    ) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["allow_cache", b"allow_cache", "include_indirect", b"include_indirect", "object_name", b"object_name", "object_type", b"object_type", "project", b"project"]) -> None: ...
+
+global___GetObjectRelationshipsRequest = GetObjectRelationshipsRequest
+
+class GetObjectRelationshipsResponse(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    RELATIONSHIPS_FIELD_NUMBER: builtins.int
+    @property
+    def relationships(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___EntityRelation]: ...
+    def __init__(
+        self,
+        *,
+        relationships: collections.abc.Iterable[global___EntityRelation] | None = ...,
+    ) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["relationships", b"relationships"]) -> None: ...
+
+global___GetObjectRelationshipsResponse = GetObjectRelationshipsResponse
