@@ -32,7 +32,9 @@ class SparkFeatureBuilder(FeatureBuilder):
         end_time = self.task.end_time
         source = view.batch_source
         column_info = self.get_column_info(view)
-        node = SparkReadNode("source", source, column_info, self.spark_session, start_time, end_time)
+        node = SparkReadNode(
+            "source", source, column_info, self.spark_session, start_time, end_time
+        )
         self.nodes.append(node)
         return node
 
@@ -40,13 +42,17 @@ class SparkFeatureBuilder(FeatureBuilder):
         agg_specs = view.aggregations
         group_by_keys = view.entities
         timestamp_col = view.batch_source.timestamp_field
-        node = SparkAggregationNode("agg", agg_specs, group_by_keys, timestamp_col, inputs=[input_node])
+        node = SparkAggregationNode(
+            "agg", agg_specs, group_by_keys, timestamp_col, inputs=[input_node]
+        )
         self.nodes.append(node)
         return node
 
     def build_join_node(self, view, input_node):
         column_info = self.get_column_info(view)
-        node = SparkJoinNode("join", column_info, self.spark_session, inputs=[input_node])
+        node = SparkJoinNode(
+            "join", column_info, self.spark_session, inputs=[input_node]
+        )
         self.nodes.append(node)
         return node
 
@@ -54,12 +60,21 @@ class SparkFeatureBuilder(FeatureBuilder):
         filter_expr = getattr(view, "filter", None)
         ttl = getattr(view, "ttl", None)
         column_info = self.get_column_info(view)
-        node = SparkFilterNode("filter", column_info, self.spark_session, ttl, filter_expr, inputs=[input_node])
+        node = SparkFilterNode(
+            "filter",
+            column_info,
+            self.spark_session,
+            ttl,
+            filter_expr,
+            inputs=[input_node],
+        )
         return node
 
     def build_dedup_node(self, view, input_node):
         column_info = self.get_column_info(view)
-        node = SparkDedupNode("dedup", column_info, self.spark_session, inputs=[input_node])
+        node = SparkDedupNode(
+            "dedup", column_info, self.spark_session, inputs=[input_node]
+        )
         self.nodes.append(node)
         return node
 

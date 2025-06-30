@@ -8,7 +8,7 @@ from feast import BatchFeatureView, StreamFeatureView
 from feast.aggregation import Aggregation
 from feast.data_source import DataSource
 from feast.infra.common.serde import SerializedArtifacts
-from feast.infra.compute_engines.dag.context import ExecutionContext, ColumnInfo
+from feast.infra.compute_engines.dag.context import ColumnInfo, ExecutionContext
 from feast.infra.compute_engines.dag.model import DAGFormat
 from feast.infra.compute_engines.dag.node import DAGNode
 from feast.infra.compute_engines.dag.value import DAGValue
@@ -32,8 +32,7 @@ ENTITY_TS_ALIAS = "__entity_event_timestamp"
 
 # Rename entity_df event_timestamp_col to match feature_df
 def rename_entity_ts_column(
-        spark_session: SparkSession,
-        entity_df: DataFrame
+    spark_session: SparkSession, entity_df: DataFrame
 ) -> DataFrame:
     # check if entity_ts_alias already exists
     if ENTITY_TS_ALIAS in entity_df.columns:
@@ -54,13 +53,13 @@ def rename_entity_ts_column(
 
 class SparkReadNode(DAGNode):
     def __init__(
-            self,
-            name: str,
-            source: DataSource,
-            column_info: ColumnInfo,
-            spark_session: SparkSession,
-            start_time: Optional[datetime] = None,
-            end_time: Optional[datetime] = None,
+        self,
+        name: str,
+        source: DataSource,
+        column_info: ColumnInfo,
+        spark_session: SparkSession,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
     ):
         super().__init__(name)
         self.source = source
@@ -69,8 +68,7 @@ class SparkReadNode(DAGNode):
         self.start_time = start_time
         self.end_time = end_time
 
-    def execute(self,
-                context: ExecutionContext) -> DAGValue:
+    def execute(self, context: ExecutionContext) -> DAGValue:
         retrieval_job = create_offline_store_retrieval_job(
             data_source=self.source,
             column_info=self.column_info,
@@ -98,20 +96,19 @@ class SparkReadNode(DAGNode):
 
 class SparkAggregationNode(DAGNode):
     def __init__(
-            self,
-            name: str,
-            aggregations: List[Aggregation],
-            group_by_keys: List[str],
-            timestamp_col: str,
-            inputs=None,
+        self,
+        name: str,
+        aggregations: List[Aggregation],
+        group_by_keys: List[str],
+        timestamp_col: str,
+        inputs=None,
     ):
         super().__init__(name, inputs=inputs)
         self.aggregations = aggregations
         self.group_by_keys = group_by_keys
         self.timestamp_col = timestamp_col
 
-    def execute(self,
-                context: ExecutionContext) -> DAGValue:
+    def execute(self, context: ExecutionContext) -> DAGValue:
         input_value = self.get_single_input_value(context)
         input_value.assert_format(DAGFormat.SPARK)
         input_df: DataFrame = input_value.data
@@ -153,17 +150,18 @@ class SparkAggregationNode(DAGNode):
 
 
 class SparkJoinNode(DAGNode):
-    def __init__(self,
-                 name: str,
-                 column_info: ColumnInfo,
-                 spark_session: SparkSession,
-                 inputs=None):
+    def __init__(
+        self,
+        name: str,
+        column_info: ColumnInfo,
+        spark_session: SparkSession,
+        inputs=None,
+    ):
         super().__init__(name, inputs=inputs)
         self.column_info = column_info
         self.spark_session = spark_session
 
-    def execute(self,
-                context: ExecutionContext) -> DAGValue:
+    def execute(self, context: ExecutionContext) -> DAGValue:
         feature_value = self.get_single_input_value(context)
         feature_value.assert_format(DAGFormat.SPARK)
         feature_df: DataFrame = feature_value.data
@@ -195,21 +193,22 @@ class SparkJoinNode(DAGNode):
 
 
 class SparkFilterNode(DAGNode):
-    def __init__(self,
-                 name: str,
-                 column_info: ColumnInfo,
-                 spark_session: SparkSession,
-                 ttl: Optional[timedelta] = None,
-                 filter_condition: Optional[str] = None,
-                 inputs=None):
+    def __init__(
+        self,
+        name: str,
+        column_info: ColumnInfo,
+        spark_session: SparkSession,
+        ttl: Optional[timedelta] = None,
+        filter_condition: Optional[str] = None,
+        inputs=None,
+    ):
         super().__init__(name, inputs=inputs)
         self.column_info = column_info
         self.spark_session = spark_session
         self.ttl = ttl
         self.filter_condition = filter_condition
 
-    def execute(self,
-                context: ExecutionContext) -> DAGValue:
+    def execute(self, context: ExecutionContext) -> DAGValue:
         input_value = self.get_single_input_value(context)
         input_value.assert_format(DAGFormat.SPARK)
         input_df: DataFrame = input_value.data
@@ -245,17 +244,18 @@ class SparkFilterNode(DAGNode):
 
 
 class SparkDedupNode(DAGNode):
-    def __init__(self,
-                 name: str,
-                 column_info: ColumnInfo,
-                 spark_session: SparkSession,
-                 inputs=None):
+    def __init__(
+        self,
+        name: str,
+        column_info: ColumnInfo,
+        spark_session: SparkSession,
+        inputs=None,
+    ):
         super().__init__(name, inputs=inputs)
         self.column_info = column_info
         self.spark_session = spark_session
 
-    def execute(self,
-                context: ExecutionContext) -> DAGValue:
+    def execute(self, context: ExecutionContext) -> DAGValue:
         input_value = self.get_single_input_value(context)
         input_value.assert_format(DAGFormat.SPARK)
         input_df: DataFrame = input_value.data
@@ -284,15 +284,16 @@ class SparkDedupNode(DAGNode):
 
 
 class SparkWriteNode(DAGNode):
-    def __init__(self,
-                 name: str,
-                 feature_view: Union[BatchFeatureView, StreamFeatureView],
-                 inputs=None):
+    def __init__(
+        self,
+        name: str,
+        feature_view: Union[BatchFeatureView, StreamFeatureView],
+        inputs=None,
+    ):
         super().__init__(name, inputs=inputs)
         self.feature_view = feature_view
 
-    def execute(self,
-                context: ExecutionContext) -> DAGValue:
+    def execute(self, context: ExecutionContext) -> DAGValue:
         spark_df: DataFrame = self.get_single_input_value(context).data
         serialized_artifacts = SerializedArtifacts.serialize(
             feature_view=self.feature_view, repo_config=context.repo_config
@@ -334,15 +335,11 @@ class SparkWriteNode(DAGNode):
 
 
 class SparkTransformationNode(DAGNode):
-    def __init__(self,
-                 name: str,
-                 udf: callable,
-                 inputs=None):
+    def __init__(self, name: str, udf: callable, inputs=None):
         super().__init__(name, inputs)
         self.udf = udf
 
-    def execute(self,
-                context: ExecutionContext) -> DAGValue:
+    def execute(self, context: ExecutionContext) -> DAGValue:
         input_val = self.get_single_input_value(context)
         input_val.assert_format(DAGFormat.SPARK)
         print("[SparkTransformationNode] Input schema:", input_val.data.columns)

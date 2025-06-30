@@ -5,7 +5,7 @@ import pyarrow as pa
 
 from feast import BatchFeatureView, StreamFeatureView
 from feast.data_source import DataSource
-from feast.infra.compute_engines.dag.context import ExecutionContext, ColumnInfo
+from feast.infra.compute_engines.dag.context import ColumnInfo, ExecutionContext
 from feast.infra.compute_engines.local.arrow_table_value import ArrowTableValue
 from feast.infra.compute_engines.local.backends.base import DataFrameBackend
 from feast.infra.compute_engines.local.local_node import LocalNode
@@ -22,12 +22,12 @@ ENTITY_TS_ALIAS = "__entity_event_timestamp"
 
 class LocalSourceReadNode(LocalNode):
     def __init__(
-            self,
-            name: str,
-            source: DataSource,
-            column_info: ColumnInfo,
-            start_time: Optional[datetime] = None,
-            end_time: Optional[datetime] = None,
+        self,
+        name: str,
+        source: DataSource,
+        column_info: ColumnInfo,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
     ):
         super().__init__(name)
         self.source = source
@@ -35,8 +35,7 @@ class LocalSourceReadNode(LocalNode):
         self.start_time = start_time
         self.end_time = end_time
 
-    def execute(self,
-                context: ExecutionContext) -> ArrowTableValue:
+    def execute(self, context: ExecutionContext) -> ArrowTableValue:
         retrieval_job = create_offline_store_retrieval_job(
             data_source=self.source,
             context=context,
@@ -46,23 +45,23 @@ class LocalSourceReadNode(LocalNode):
         arrow_table = retrieval_job.to_arrow()
         if self.column_info.field_mapping:
             arrow_table = arrow_table.rename_columns(
-                [self.column_info.field_mapping.get(col, col) for col in arrow_table.column_names]
+                [
+                    self.column_info.field_mapping.get(col, col)
+                    for col in arrow_table.column_names
+                ]
             )
         return ArrowTableValue(data=arrow_table)
 
 
 class LocalJoinNode(LocalNode):
-    def __init__(self,
-                 name: str,
-                 column_info: ColumnInfo,
-                 backend: DataFrameBackend,
-                 inputs=None):
+    def __init__(
+        self, name: str, column_info: ColumnInfo, backend: DataFrameBackend, inputs=None
+    ):
         super().__init__(name, inputs=inputs)
         self.column_info = column_info
         self.backend = backend
 
-    def execute(self,
-                context: ExecutionContext) -> ArrowTableValue:
+    def execute(self, context: ExecutionContext) -> ArrowTableValue:
         feature_table = self.get_single_table(context).data
 
         if context.entity_df is None:
@@ -93,21 +92,22 @@ class LocalJoinNode(LocalNode):
 
 
 class LocalFilterNode(LocalNode):
-    def __init__(self,
-                 name: str,
-                 column_info: ColumnInfo,
-                 backend: DataFrameBackend,
-                 filter_expr: Optional[str] = None,
-                 ttl: Optional[timedelta] = None,
-                 inputs=None):
+    def __init__(
+        self,
+        name: str,
+        column_info: ColumnInfo,
+        backend: DataFrameBackend,
+        filter_expr: Optional[str] = None,
+        ttl: Optional[timedelta] = None,
+        inputs=None,
+    ):
         super().__init__(name, inputs=inputs)
         self.column_info = column_info
         self.backend = backend
         self.filter_expr = filter_expr
         self.ttl = ttl
 
-    def execute(self,
-                context: ExecutionContext) -> ArrowTableValue:
+    def execute(self, context: ExecutionContext) -> ArrowTableValue:
         input_table = self.get_single_table(context).data
         df = self.backend.from_arrow(input_table)
 
@@ -135,19 +135,20 @@ class LocalFilterNode(LocalNode):
 
 
 class LocalAggregationNode(LocalNode):
-    def __init__(self,
-                 name: str,
-                 backend: DataFrameBackend,
-                 group_keys: list[str],
-                 agg_ops: dict,
-                 inputs=None):
+    def __init__(
+        self,
+        name: str,
+        backend: DataFrameBackend,
+        group_keys: list[str],
+        agg_ops: dict,
+        inputs=None,
+    ):
         super().__init__(name, inputs=inputs)
         self.backend = backend
         self.group_keys = group_keys
         self.agg_ops = agg_ops
 
-    def execute(self,
-                context: ExecutionContext) -> ArrowTableValue:
+    def execute(self, context: ExecutionContext) -> ArrowTableValue:
         input_table = self.get_single_table(context).data
         df = self.backend.from_arrow(input_table)
         grouped_df = self.backend.groupby_agg(df, self.group_keys, self.agg_ops)
@@ -158,17 +159,14 @@ class LocalAggregationNode(LocalNode):
 
 
 class LocalDedupNode(LocalNode):
-    def __init__(self,
-                 name: str,
-                 column_info: ColumnInfo,
-                 backend: DataFrameBackend,
-                 inputs=None):
+    def __init__(
+        self, name: str, column_info: ColumnInfo, backend: DataFrameBackend, inputs=None
+    ):
         super().__init__(name, inputs=inputs)
         self.column_info = column_info
         self.backend = backend
 
-    def execute(self,
-                context: ExecutionContext) -> ArrowTableValue:
+    def execute(self, context: ExecutionContext) -> ArrowTableValue:
         input_table = self.get_single_table(context).data
         df = self.backend.from_arrow(input_table)
 
@@ -179,8 +177,8 @@ class LocalDedupNode(LocalNode):
         if dedup_keys:
             sort_keys = [self.column_info.timestamp_column]
             if (
-                    self.column_info.created_timestamp_column
-                    and self.column_info.created_timestamp_column in df.columns
+                self.column_info.created_timestamp_column
+                and self.column_info.created_timestamp_column in df.columns
             ):
                 sort_keys.append(self.column_info.created_timestamp_column)
 
@@ -194,17 +192,14 @@ class LocalDedupNode(LocalNode):
 
 
 class LocalTransformationNode(LocalNode):
-    def __init__(self,
-                 name: str,
-                 transformation_fn,
-                 backend: DataFrameBackend,
-                 inputs=None):
+    def __init__(
+        self, name: str, transformation_fn, backend: DataFrameBackend, inputs=None
+    ):
         super().__init__(name, inputs=inputs)
         self.transformation_fn = transformation_fn
         self.backend = backend
 
-    def execute(self,
-                context: ExecutionContext) -> ArrowTableValue:
+    def execute(self, context: ExecutionContext) -> ArrowTableValue:
         input_table = self.get_single_table(context).data
         df = self.backend.from_arrow(input_table)
         transformed_df = self.transformation_fn(df)
@@ -215,17 +210,14 @@ class LocalTransformationNode(LocalNode):
 
 
 class LocalValidationNode(LocalNode):
-    def __init__(self,
-                 name: str,
-                 validation_config,
-                 backend: DataFrameBackend,
-                 inputs=None):
+    def __init__(
+        self, name: str, validation_config, backend: DataFrameBackend, inputs=None
+    ):
         super().__init__(name, inputs=inputs)
         self.validation_config = validation_config
         self.backend = backend
 
-    def execute(self,
-                context: ExecutionContext) -> ArrowTableValue:
+    def execute(self, context: ExecutionContext) -> ArrowTableValue:
         input_table = self.get_single_table(context).data
         df = self.backend.from_arrow(input_table)
         # Placeholder for actual validation logic
@@ -238,15 +230,16 @@ class LocalValidationNode(LocalNode):
 
 
 class LocalOutputNode(LocalNode):
-    def __init__(self,
-                 name: str,
-                 feature_view: Union[BatchFeatureView, StreamFeatureView],
-                 inputs=None):
+    def __init__(
+        self,
+        name: str,
+        feature_view: Union[BatchFeatureView, StreamFeatureView],
+        inputs=None,
+    ):
         super().__init__(name, inputs=inputs)
         self.feature_view = feature_view
 
-    def execute(self,
-                context: ExecutionContext) -> ArrowTableValue:
+    def execute(self, context: ExecutionContext) -> ArrowTableValue:
         input_table = self.get_single_table(context).data
         context.node_outputs[self.name] = input_table
 

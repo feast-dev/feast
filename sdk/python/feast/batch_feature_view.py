@@ -107,7 +107,9 @@ class BatchFeatureView(FeatureView):
                     f"or CUSTOM_SOURCE, got {type(source).__name__}: {source.name} instead "
                 )
         elif source_view is None:
-            raise ValueError("BatchFeatureView must have either 'source' or 'source_view'.")
+            raise ValueError(
+                "BatchFeatureView must have either 'source' or 'source_view'."
+            )
 
         self.mode = mode
         self.udf = udf
@@ -129,7 +131,7 @@ class BatchFeatureView(FeatureView):
             owner=owner,
             schema=schema,
             source=source,
-            source_view=source_view
+            source_view=source_view,
         )
 
     def get_feature_transformation(self) -> Optional[Transformation]:

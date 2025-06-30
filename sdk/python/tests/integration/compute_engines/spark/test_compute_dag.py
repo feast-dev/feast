@@ -1,22 +1,34 @@
+from datetime import datetime, timedelta
+from unittest.mock import MagicMock
+
 import pandas as pd
 import pytest
-from datetime import datetime, timedelta
-from typing import cast
-from unittest.mock import MagicMock
 from pyspark.sql import DataFrame
-
-from feast import BatchFeatureView, Entity, Field
-from feast.types import Float32, Int64, Int32
-from feast.aggregation import Aggregation
-from feast.infra.common.materialization_job import MaterializationJobStatus, MaterializationTask
-from feast.infra.compute_engines.spark.compute import SparkComputeEngine
-from feast.infra.offline_stores.contrib.spark_offline_store.spark import SparkOfflineStore
-from feast.infra.offline_stores.contrib.spark_offline_store.tests.data_source import SparkDataSourceCreator
-from tests.integration.feature_repos.repo_configuration import construct_test_environment
-from tests.integration.feature_repos.integration_test_repo_config import IntegrationTestRepoConfig
-from tests.integration.feature_repos.universal.online_store.redis import RedisOnlineStoreCreator
 from tqdm import tqdm
 
+from feast import BatchFeatureView, Entity, Field
+from feast.aggregation import Aggregation
+from feast.infra.common.materialization_job import (
+    MaterializationJobStatus,
+    MaterializationTask,
+)
+from feast.infra.compute_engines.spark.compute import SparkComputeEngine
+from feast.infra.offline_stores.contrib.spark_offline_store.spark import (
+    SparkOfflineStore,
+)
+from feast.infra.offline_stores.contrib.spark_offline_store.tests.data_source import (
+    SparkDataSourceCreator,
+)
+from feast.types import Float32, Int32, Int64
+from tests.integration.feature_repos.integration_test_repo_config import (
+    IntegrationTestRepoConfig,
+)
+from tests.integration.feature_repos.repo_configuration import (
+    construct_test_environment,
+)
+from tests.integration.feature_repos.universal.online_store.redis import (
+    RedisOnlineStoreCreator,
+)
 
 now = datetime.now()
 today = datetime.today()
@@ -42,24 +54,26 @@ def spark_env():
 
 
 def create_sample_datasource(spark_environment):
-    df = pd.DataFrame([
-        {
-            "driver_id": 1001,
-            "event_timestamp": today - timedelta(days=1),
-            "created": now - timedelta(hours=2),
-            "conv_rate": 0.8,
-            "acc_rate": 0.5,
-            "avg_daily_trips": 15,
-        },
-        {
-            "driver_id": 1002,
-            "event_timestamp": today - timedelta(days=1),
-            "created": now - timedelta(hours=2),
-            "conv_rate": 0.7,
-            "acc_rate": 0.4,
-            "avg_daily_trips": 12,
-        },
-    ])
+    df = pd.DataFrame(
+        [
+            {
+                "driver_id": 1001,
+                "event_timestamp": today - timedelta(days=1),
+                "created": now - timedelta(hours=2),
+                "conv_rate": 0.8,
+                "acc_rate": 0.5,
+                "avg_daily_trips": 15,
+            },
+            {
+                "driver_id": 1002,
+                "event_timestamp": today - timedelta(days=1),
+                "created": now - timedelta(hours=2),
+                "conv_rate": 0.7,
+                "acc_rate": 0.4,
+                "avg_daily_trips": 12,
+            },
+        ]
+    )
     ds = spark_environment.data_source_creator.create_data_source(
         df,
         spark_environment.feature_store.project,
@@ -111,7 +125,7 @@ def create_chained_feature_view(base_fv: BatchFeatureView):
             "feature_cols": "sum_conv_rate",
             "ts_col": "event_timestamp",
             "created_ts_col": "created",
-        }
+        },
     )
 
 

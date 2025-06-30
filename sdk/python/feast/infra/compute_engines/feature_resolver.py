@@ -1,14 +1,14 @@
-from feast.feature_view import FeatureView
+from typing import List, Optional, Set
 
-from typing import Set, List, Optional
+from feast.feature_view import FeatureView
 
 
 class FeatureViewNode:
     """
     Logical representation of a node in the FeatureView dependency DAG.
     """
-    def __init__(self,
-                 view: FeatureView):
+
+    def __init__(self, view: FeatureView):
         self.view: FeatureView = view
         self.parent: Optional["FeatureViewNode"] = None
 
@@ -19,13 +19,13 @@ class FeatureResolver:
     This graph represents the logical dependencies between FeatureViews, allowing
     for ordered execution and cycle detection.
     """
+
     def __init__(self):
         # Used to detect and prevent cycles in the FeatureView graph.
         self.visited: Set[str] = set()
         self.resolution_path: List[str] = []
 
-    def resolve(self,
-                feature_view: FeatureView) -> FeatureViewNode:
+    def resolve(self, feature_view: FeatureView) -> FeatureViewNode:
         """
         Entry point for resolving a FeatureView into a DAG node.
 
@@ -39,8 +39,7 @@ class FeatureResolver:
         self._walk(root)
         return root
 
-    def _walk(self,
-              node: FeatureViewNode):
+    def _walk(self, node: FeatureViewNode):
         """
         Recursive traversal of the FeatureView graph.
 
@@ -80,9 +79,7 @@ class FeatureResolver:
         dfs(root)
         return ordered
 
-    def debug_dag(self,
-                  node: FeatureViewNode,
-                  depth=0):
+    def debug_dag(self, node: FeatureViewNode, depth=0):
         """
         Prints the FeatureView dependency DAG for debugging.
 

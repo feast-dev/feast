@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List, Optional, Sequence, Union
+from typing import List, Sequence, Union
 
 import pyarrow as pa
 
@@ -12,13 +12,12 @@ from feast.infra.common.materialization_job import (
     MaterializationTask,
 )
 from feast.infra.common.retrieval_task import HistoricalRetrievalTask
-from feast.infra.compute_engines.dag.context import ColumnInfo, ExecutionContext
+from feast.infra.compute_engines.dag.context import ExecutionContext
 from feast.infra.offline_stores.offline_store import OfflineStore, RetrievalJob
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.stream_feature_view import StreamFeatureView
-from feast.utils import _get_column_names
 
 
 class ComputeEngine(ABC):
@@ -132,4 +131,3 @@ class ComputeEngine(ABC):
             entity_defs=entity_defs,
             entity_df=entity_df,
         )
-

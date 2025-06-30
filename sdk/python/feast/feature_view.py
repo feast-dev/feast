@@ -147,7 +147,9 @@ class FeatureView(BaseFeatureView):
         schema = schema or []
 
         if (source is None) == (source_view is None):
-            raise ValueError("FeatureView must have exactly one of 'source' or 'source_view', not both/neither.")
+            raise ValueError(
+                "FeatureView must have exactly one of 'source' or 'source_view', not both/neither."
+            )
 
         # Initialize data sources.
         if (
@@ -427,7 +429,9 @@ class FeatureView(BaseFeatureView):
             else None
         )
         source_view = (
-            FeatureView.from_proto(FeatureViewProto(spec=feature_view_proto.spec.source_view, meta=None))
+            FeatureView.from_proto(
+                FeatureViewProto(spec=feature_view_proto.spec.source_view, meta=None)
+            )
             if feature_view_proto.spec.HasField("source_view")
             else None
         )

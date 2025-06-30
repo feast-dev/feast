@@ -1,13 +1,16 @@
 from abc import ABC, abstractmethod
-from typing import Union, List, Optional
+from typing import List, Optional, Union
 
-from feast import BatchFeatureView, StreamFeatureView, FeatureView
+from feast import BatchFeatureView, FeatureView, StreamFeatureView
 from feast.infra.common.materialization_job import MaterializationTask
 from feast.infra.common.retrieval_task import HistoricalRetrievalTask
+from feast.infra.compute_engines.dag.context import ColumnInfo
 from feast.infra.compute_engines.dag.node import DAGNode
 from feast.infra.compute_engines.dag.plan import ExecutionPlan
-from feast.infra.compute_engines.feature_resolver import FeatureResolver, FeatureViewNode
-from feast.infra.compute_engines.dag.context import ColumnInfo
+from feast.infra.compute_engines.feature_resolver import (
+    FeatureResolver,
+    FeatureViewNode,
+)
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.utils import _get_column_names
 
@@ -19,10 +22,10 @@ class FeatureBuilder(ABC):
     """
 
     def __init__(
-            self,
-            registry: BaseRegistry,
-            feature_view,
-            task: Union[MaterializationTask, HistoricalRetrievalTask],
+        self,
+        registry: BaseRegistry,
+        feature_view,
+        task: Union[MaterializationTask, HistoricalRetrievalTask],
     ):
         self.registry = registry
         self.task = task
@@ -36,64 +39,46 @@ class FeatureBuilder(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def build_aggregation_node(self,
-                               view,
-                               input_node):
+    def build_aggregation_node(self, view, input_node):
         raise NotImplementedError
 
     @abstractmethod
-    def build_join_node(self,
-                        view,
-                        input_node):
+    def build_join_node(self, view, input_node):
         raise NotImplementedError
 
     @abstractmethod
-    def build_filter_node(self,
-                          view,
-                          input_node):
+    def build_filter_node(self, view, input_node):
         raise NotImplementedError
 
     @abstractmethod
-    def build_dedup_node(self,
-                         view,
-                         input_node):
+    def build_dedup_node(self, view, input_node):
         raise NotImplementedError
 
     @abstractmethod
-    def build_transformation_node(self,
-                                  view,
-                                  input_node):
+    def build_transformation_node(self, view, input_node):
         raise NotImplementedError
 
     @abstractmethod
-    def build_output_nodes(self,
-                           final_node):
+    def build_output_nodes(self, final_node):
         raise NotImplementedError
 
     @abstractmethod
-    def build_validation_node(self,
-                              view,
-                              input_node):
+    def build_validation_node(self, view, input_node):
         raise NotImplementedError
 
-    def _should_aggregate(self,
-                          view):
+    def _should_aggregate(self, view):
         return bool(getattr(view, "aggregations", []))
 
-    def _should_transform(self,
-                          view):
+    def _should_transform(self, view):
         return bool(getattr(view, "feature_transformation", None))
 
-    def _should_validate(self,
-                         view):
+    def _should_validate(self, view):
         return getattr(view, "enable_validation", False)
 
-    def _should_dedupe(self,
-                       view):
+    def _should_dedupe(self, view):
         return isinstance(self.task, HistoricalRetrievalTask) or self.task.only_latest
 
-    def _build(self,
-               current_node: FeatureViewNode) -> DAGNode:
+    def _build(self, current_node: FeatureViewNode) -> DAGNode:
         current_view = current_node.view
 
         # Step 1: build source or parent join
@@ -128,8 +113,8 @@ class FeatureBuilder(ABC):
         return ExecutionPlan(self.nodes)
 
     def get_column_info(
-            self,
-            view: Union[BatchFeatureView, StreamFeatureView, FeatureView],
+        self,
+        view: Union[BatchFeatureView, StreamFeatureView, FeatureView],
     ) -> ColumnInfo:
         entities = []
         for entity_name in view.entities:
@@ -157,8 +142,7 @@ class FeatureBuilder(ABC):
         )
 
     def get_field_mapping(
-            self,
-            feature_view: Union[BatchFeatureView, StreamFeatureView, FeatureView]
+        self, feature_view: Union[BatchFeatureView, StreamFeatureView, FeatureView]
     ) -> Optional[dict]:
         """
         Get the field mapping for a feature view.

@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Optional
 
 from feast.data_source import DataSource
-from feast.infra.compute_engines.dag.context import ExecutionContext, ColumnInfo
+from feast.infra.compute_engines.dag.context import ColumnInfo, ExecutionContext
 from feast.infra.offline_stores.offline_store import RetrievalJob
 
 
