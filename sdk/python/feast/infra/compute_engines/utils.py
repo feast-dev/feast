@@ -2,12 +2,13 @@ from datetime import datetime
 from typing import Optional
 
 from feast.data_source import DataSource
-from feast.infra.compute_engines.dag.context import ExecutionContext
+from feast.infra.compute_engines.dag.context import ExecutionContext, ColumnInfo
 from feast.infra.offline_stores.offline_store import RetrievalJob
 
 
 def create_offline_store_retrieval_job(
     data_source: DataSource,
+    column_info: ColumnInfo,
     context: ExecutionContext,
     start_time: Optional[datetime] = None,
     end_time: Optional[datetime] = None,
@@ -16,6 +17,7 @@ def create_offline_store_retrieval_job(
     Create a retrieval job for the offline store.
     Args:
         data_source: The data source to pull from.
+        column_info: Column information containing join keys, feature columns, and timestamps.
         context:
         start_time:
         end_time:
@@ -24,7 +26,6 @@ def create_offline_store_retrieval_job(
 
     """
     offline_store = context.offline_store
-    column_info = context.column_info
     # 📥 Reuse Feast's robust query resolver
     retrieval_job = offline_store.pull_all_from_table_or_query(
         config=context.repo_config,

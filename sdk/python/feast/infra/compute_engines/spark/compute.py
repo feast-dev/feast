@@ -116,6 +116,7 @@ class SparkComputeEngine(ComputeEngine):
         try:
             # ✅ 2. Construct Feature Builder and run it
             builder = SparkFeatureBuilder(
+                registry=registry,
                 spark_session=self.spark_session,
                 task=task,
             )
@@ -128,6 +129,7 @@ class SparkComputeEngine(ComputeEngine):
             )
 
         except Exception as e:
+            raise e
             # 🛑 Handle failure
             return SparkMaterializationJob(
                 job_id=job_id, status=MaterializationJobStatus.ERROR, error=e
@@ -211,6 +213,7 @@ class SparkComputeEngine(ComputeEngine):
         try:
             # ✅ 2. Construct Feature Builder and run it
             builder = SparkFeatureBuilder(
+                registry=registry,
                 spark_session=self.spark_session,
                 task=task,
             )

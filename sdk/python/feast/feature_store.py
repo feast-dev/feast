@@ -903,7 +903,7 @@ class FeatureStore:
         for fv in itertools.chain(
             views_to_update, sfvs_to_update, odfvs_with_writes_to_update
         ):
-            if isinstance(fv, FeatureView):
+            if isinstance(fv, FeatureView) and fv.batch_source:
                 data_sources_set_to_update.add(fv.batch_source)
             if hasattr(fv, "stream_source"):
                 if fv.stream_source:

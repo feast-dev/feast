@@ -65,7 +65,7 @@ class BatchFeatureView(FeatureView):
     materialization_intervals: List[Tuple[datetime, datetime]]
     udf: Optional[Callable[[Any], Any]]
     udf_string: Optional[str]
-    feature_transformation: Transformation
+    feature_transformation: Optional[Transformation]
     batch_engine: Optional[Field]
     aggregations: Optional[List[Aggregation]]
 
@@ -74,7 +74,8 @@ class BatchFeatureView(FeatureView):
         *,
         name: str,
         mode: Union[TransformationMode, str] = TransformationMode.PYTHON,
-        source: DataSource,
+        source: Optional[DataSource] = None,
+        source_view: Optional["FeatureView"] = None,
         entities: Optional[List[Entity]] = None,
         ttl: Optional[timedelta] = None,
         tags: Optional[Dict[str, str]] = None,
@@ -83,7 +84,7 @@ class BatchFeatureView(FeatureView):
         description: str = "",
         owner: str = "",
         schema: Optional[List[Field]] = None,
-        udf: Optional[Callable[[Any], Any]],
+        udf: Optional[Callable[[Any], Any]] = None,
         udf_string: Optional[str] = "",
         feature_transformation: Optional[Transformation] = None,
         batch_engine: Optional[Field] = None,
@@ -96,14 +97,17 @@ class BatchFeatureView(FeatureView):
                 RuntimeWarning,
             )
 
-        if (
-            type(source).__name__ not in SUPPORTED_BATCH_SOURCES
-            and source.to_proto().type != DataSourceProto.SourceType.CUSTOM_SOURCE
-        ):
-            raise ValueError(
-                f"Batch feature views need a batch source, expected one of {SUPPORTED_BATCH_SOURCES} "
-                f"or CUSTOM_SOURCE, got {type(source).__name__}: {source.name} instead "
-            )
+        if source is not None:
+            if (
+                type(source).__name__ not in SUPPORTED_BATCH_SOURCES
+                and source.to_proto().type != DataSourceProto.SourceType.CUSTOM_SOURCE
+            ):
+                raise ValueError(
+                    f"Batch feature views need a batch source, expected one of {SUPPORTED_BATCH_SOURCES} "
+                    f"or CUSTOM_SOURCE, got {type(source).__name__}: {source.name} instead "
+                )
+        elif source_view is None:
+            raise ValueError("BatchFeatureView must have either 'source' or 'source_view'.")
 
         self.mode = mode
         self.udf = udf
@@ -125,13 +129,12 @@ class BatchFeatureView(FeatureView):
             owner=owner,
             schema=schema,
             source=source,
+            source_view=source_view
         )
 
-    def get_feature_transformation(self) -> Transformation:
+    def get_feature_transformation(self) -> Optional[Transformation]:
         if not self.udf:
-            raise ValueError(
-                "Either a UDF or a feature transformation must be provided for BatchFeatureView"
-            )
+            return
         if self.mode in (
             TransformationMode.PANDAS,
             TransformationMode.PYTHON,

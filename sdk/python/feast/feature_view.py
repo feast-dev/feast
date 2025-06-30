@@ -90,6 +90,7 @@ class FeatureView(BaseFeatureView):
     ttl: Optional[timedelta]
     batch_source: DataSource
     stream_source: Optional[DataSource]
+    source_view: Optional["FeatureView"]
     entity_columns: List[Field]
     features: List[Field]
     online: bool
@@ -103,7 +104,8 @@ class FeatureView(BaseFeatureView):
         self,
         *,
         name: str,
-        source: DataSource,
+        source: Optional[DataSource] = None,
+        source_view: Optional["FeatureView"] = None,
         schema: Optional[List[Field]] = None,
         entities: Optional[List[Entity]] = None,
         ttl: Optional[timedelta] = timedelta(days=0),
@@ -143,6 +145,9 @@ class FeatureView(BaseFeatureView):
         self.entities = [e.name for e in entities] if entities else [DUMMY_ENTITY_NAME]
         self.ttl = ttl
         schema = schema or []
+
+        if (source is None) == (source_view is None):
+            raise ValueError("FeatureView must have exactly one of 'source' or 'source_view', not both/neither.")
 
         # Initialize data sources.
         if (
@@ -201,17 +206,18 @@ class FeatureView(BaseFeatureView):
         )
 
         # TODO(felixwang9817): Add more robust validation of features.
-        cols = [field.name for field in schema]
-        for col in cols:
-            if (
-                self.batch_source.field_mapping is not None
-                and col in self.batch_source.field_mapping.keys()
-            ):
-                raise ValueError(
-                    f"The field {col} is mapped to {self.batch_source.field_mapping[col]} for this data source. "
-                    f"Please either remove this field mapping or use {self.batch_source.field_mapping[col]} as the "
-                    f"Entity or Feature name."
-                )
+        if source is not None:
+            cols = [field.name for field in schema]
+            for col in cols:
+                if (
+                    self.batch_source.field_mapping is not None
+                    and col in self.batch_source.field_mapping.keys()
+                ):
+                    raise ValueError(
+                        f"The field {col} is mapped to {self.batch_source.field_mapping[col]} for this data source. "
+                        f"Please either remove this field mapping or use {self.batch_source.field_mapping[col]} as the "
+                        f"Entity or Feature name."
+                    )
 
         super().__init__(
             name=name,
@@ -224,6 +230,7 @@ class FeatureView(BaseFeatureView):
         self.online = online
         self.offline = offline
         self.materialization_intervals = []
+        self.source_view = source_view
 
     def __hash__(self):
         return super().__hash__()
@@ -348,13 +355,18 @@ class FeatureView(BaseFeatureView):
         meta = self.to_proto_meta()
         ttl_duration = self.get_ttl_duration()
 
-        batch_source_proto = self.batch_source.to_proto()
-        batch_source_proto.data_source_class_type = f"{self.batch_source.__class__.__module__}.{self.batch_source.__class__.__name__}"
+        batch_source_proto = None
+        if self.batch_source:
+            batch_source_proto = self.batch_source.to_proto()
+            batch_source_proto.data_source_class_type = f"{self.batch_source.__class__.__module__}.{self.batch_source.__class__.__name__}"
 
         stream_source_proto = None
         if self.stream_source:
             stream_source_proto = self.stream_source.to_proto()
             stream_source_proto.data_source_class_type = f"{self.stream_source.__class__.__module__}.{self.stream_source.__class__.__name__}"
+        source_view_proto = None
+        if self.source_view:
+            source_view_proto = self.source_view.to_proto().spec
         spec = FeatureViewSpecProto(
             name=self.name,
             entities=self.entities,
@@ -368,6 +380,7 @@ class FeatureView(BaseFeatureView):
             offline=self.offline,
             batch_source=batch_source_proto,
             stream_source=stream_source_proto,
+            source_view=source_view_proto,
         )
 
         return FeatureViewProto(spec=spec, meta=meta)
@@ -403,10 +416,19 @@ class FeatureView(BaseFeatureView):
         Returns:
             A FeatureViewProto object based on the feature view protobuf.
         """
-        batch_source = DataSource.from_proto(feature_view_proto.spec.batch_source)
+        batch_source = (
+            DataSource.from_proto(feature_view_proto.spec.batch_source)
+            if feature_view_proto.spec.HasField("batch_source")
+            else None
+        )
         stream_source = (
             DataSource.from_proto(feature_view_proto.spec.stream_source)
             if feature_view_proto.spec.HasField("stream_source")
+            else None
+        )
+        source_view = (
+            FeatureView.from_proto(FeatureViewProto(spec=feature_view_proto.spec.source_view, meta=None))
+            if feature_view_proto.spec.HasField("source_view")
             else None
         )
         feature_view = cls(
@@ -422,6 +444,7 @@ class FeatureView(BaseFeatureView):
                 else feature_view_proto.spec.ttl.ToTimedelta()
             ),
             source=batch_source,
+            source_view=source_view,
         )
         if stream_source:
             feature_view.stream_source = stream_source

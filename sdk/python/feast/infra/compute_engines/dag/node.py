@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List
+from typing import List, Optional
 
 from feast.infra.compute_engines.dag.context import ExecutionContext
 from feast.infra.compute_engines.dag.value import DAGValue
@@ -10,10 +10,13 @@ class DAGNode(ABC):
     inputs: List["DAGNode"]
     outputs: List["DAGNode"]
 
-    def __init__(self, name: str):
+    def __init__(self, name: str, inputs: Optional[List["DAGNode"]] = None):
         self.name = name
-        self.inputs = []
-        self.outputs = []
+        self.inputs: List["DAGNode"] = []
+        self.outputs: List["DAGNode"] = []
+
+        for node in inputs or []:
+            self.add_input(node)
 
     def add_input(self, node: "DAGNode"):
         if node in self.inputs:
