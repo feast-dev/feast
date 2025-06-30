@@ -59,6 +59,7 @@ REQUIRED = [
     "psutil",
     "bigtree>=0.19.2",
     "pyjwt",
+    "transformers>=4.36.0",
 ]
 
 GCP_REQUIRED = [
@@ -176,7 +177,6 @@ CLICKHOUSE_REQUIRED = ["clickhouse-connect>=0.7.19"]
 MCP_REQUIRED = ["fastapi_mcp"]
 
 RAG_REQUIRED = [
-    "transformers>=4.36.0",
     "datasets>=3.6.0",
 ]
 
@@ -275,6 +275,7 @@ NLP_REQUIRED = (
     DOCLING_REQUIRED
     + MILVUS_REQUIRED
     + TORCH_REQUIRED
+    + RAG_REQUIRED
 )
 DOCS_REQUIRED = CI_REQUIRED
 DEV_REQUIRED = CI_REQUIRED
