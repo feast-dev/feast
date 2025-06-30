@@ -6,6 +6,8 @@ approvers:
 - accorvin
 - amsharma3
 - franciscojavierarceo
+- ntkathole
+- jyejare
 options: {}
 reviewers:
 - redhathameed
@@ -13,3 +15,5 @@ reviewers:
 - accorvin
 - amsharma3
 - franciscojavierarceo
+- ntkathole
+- jyejare
