@@ -43,6 +43,7 @@ dependencies = [
     "psutil",
     "bigtree>=0.19.2",
     "pyjwt",
+    "transformers>=4.36.0",
 ]
 
 [project.optional-dependencies]
@@ -108,7 +109,6 @@ postgres-c = ["psycopg[c,pool]==3.2.5"]
 pytorch = ["torch>=2.7.0", "torchvision>=0.22.1"]
 qdrant = ["qdrant-client>=1.12.0"]
 rag = [
-    "transformers>=4.36.0",
     "datasets>=3.6.0",
 ]
 redis = [
