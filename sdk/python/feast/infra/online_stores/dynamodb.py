@@ -599,6 +599,7 @@ class DynamoDBOnlineStore(OnlineStore):
 
 _aioboto_session = None
 _aioboto_client = None
+_aioboto_context_stack = None
 
 
 def _get_aioboto_session():
@@ -618,7 +619,7 @@ async def _get_aiodynamodb_client(
     total_max_retry_attempts: Union[int, None],
     retry_mode: Union[Literal["legacy", "standard", "adaptive"], None],
 ):
-    global _aioboto_client
+    global _aioboto_client, _aioboto_context_stack
     if _aioboto_client is None:
         logger.debug("initializing the aiobotocore dynamodb client")
 
@@ -639,15 +640,23 @@ async def _get_aiodynamodb_client(
                 connector_args={"keepalive_timeout": keepalive_timeout},
             ),
         )
-        context_stack = contextlib.AsyncExitStack()
-        _aioboto_client = await context_stack.enter_async_context(client_context)
+        _aioboto_context_stack = contextlib.AsyncExitStack()
+        _aioboto_client = await _aioboto_context_stack.enter_async_context(
+            client_context
+        )
     return _aioboto_client
 
 
 async def _aiodynamodb_close():
-    global _aioboto_client
+    global _aioboto_client, _aioboto_session, _aioboto_context_stack
     if _aioboto_client:
         await _aioboto_client.close()
+        _aioboto_client = None
+    if _aioboto_context_stack:
+        await _aioboto_context_stack.aclose()
+        _aioboto_context_stack = None
+    if _aioboto_session:
+        _aioboto_session = None
 
 
 def _initialize_dynamodb_client(
