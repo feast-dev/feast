@@ -130,6 +130,9 @@ jobs:
         fi
     steps:
       - uses: actions/checkout@v4
+      - name: Install OS X dependencies
+        if: matrix.os == 'macos-14'
+        run: brew install coreutils gettext
       - name: Setup Python
         id: setup-python
         uses: actions/setup-python@v5
@@ -140,9 +143,6 @@ jobs:
         with:
           name: python-wheels
           path: dist
-      - name: Install OS X dependencies
-        if: matrix.os == 'macos-14'
-        run: brew install coreutils gettext
       - name: Install wheel
         if: ${{ !matrix.from-source }}
         # try to install all wheels; only the current platform wheel should be actually installed
