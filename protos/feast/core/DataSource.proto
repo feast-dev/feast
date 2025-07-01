@@ -95,6 +95,8 @@ message DataSource {
   message SourceMeta {
     google.protobuf.Timestamp earliestEventTimestamp = 1;
     google.protobuf.Timestamp latestEventTimestamp = 2;
+    google.protobuf.Timestamp created_timestamp = 3;
+    google.protobuf.Timestamp last_updated_timestamp = 4;
   }
 
   // Defines options for DataSource that sources features from a file
