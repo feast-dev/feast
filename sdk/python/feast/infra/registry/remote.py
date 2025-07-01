@@ -1,4 +1,5 @@
 import os
+import weakref
 from datetime import datetime
 from pathlib import Path
 from typing import Any, List, Optional, Union
@@ -78,6 +79,7 @@ class RemoteRegistry(BaseRegistry):
         self.auth_config = auth_config
         assert isinstance(registry_config, RemoteRegistryConfig)
         self.channel = self._create_grpc_channel(registry_config)
+        weakref.finalize(self, self.channel.close)
 
         auth_header_interceptor = GrpcClientAuthHeaderInterceptor(auth_config)
         self.channel = grpc.intercept_channel(self.channel, auth_header_interceptor)
@@ -106,9 +108,6 @@ class RemoteRegistry(BaseRegistry):
     def close(self):
         if self.channel:
             self.channel.close()
-
-    def __del__(self):
-        self.close()
 
     def apply_entity(self, entity: Entity, project: str, commit: bool = True):
         request = RegistryServer_pb2.ApplyEntityRequest(
