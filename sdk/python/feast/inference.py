@@ -26,6 +26,8 @@ def update_data_sources_with_inferred_event_timestamp_col(
 ) -> None:
     ERROR_MSG_PREFIX = "Unable to infer DataSource timestamp_field"
     for data_source in data_sources:
+        if data_source is None:
+            continue
         if isinstance(data_source, RequestSource):
             continue
         if isinstance(data_source, PushSource):
