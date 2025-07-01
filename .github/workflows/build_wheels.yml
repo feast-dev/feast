@@ -142,7 +142,7 @@ jobs:
           path: dist
       - name: Install OS X dependencies
         if: matrix.os == 'macos-14'
-        run: brew install coreutils
+        run: brew install coreutils gettext
       - name: Install wheel
         if: ${{ !matrix.from-source }}
         # try to install all wheels; only the current platform wheel should be actually installed
