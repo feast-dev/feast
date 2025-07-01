@@ -16,7 +16,7 @@ Feast (Feature Store) is an open-source feature store designed to facilitate the
 For more info refer to [Introduction to feast](../README.md)
 
 ## Prerequisites
-* Ensure that you have Python (3.9 or above) installed.
+* Ensure that you have Python (3.10 or above) installed.
 * It is recommended to create and work in a virtual environment:
   ```sh
   # create & activate a virtual environment

@@ -7,7 +7,7 @@ This guide explains how to deploy Feast remote server components using Podman Co
 
 1. **Podman**: [Podman installation guide](https://podman.io/).
 2. **Podman Compose**: [Podman Compose Installation guide](https://github.com/containers/podman-compose/tree/main?tab=readme-ov-file#installation]).
-3. **Python 3.9+ environment**
+3. **Correct Python version environment**
 4. **Feast CLI** 
 
 ## Setup
