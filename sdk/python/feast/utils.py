@@ -1048,7 +1048,7 @@ def _list_feature_views(
 def _get_feature_views_to_use(
     registry: "BaseRegistry",
     project,
-    features: Optional[Union[List[str], "FeatureService"]],
+    features: Union[List[str], "FeatureService"],
     allow_cache=False,
     hide_dummy_entity: bool = True,
 ) -> Tuple[List["FeatureView"], List["OnDemandFeatureView"]]:

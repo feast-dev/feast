@@ -2275,7 +2275,7 @@ class FeatureStore:
             distance_metric,
             query_string,
         )
- 
+
     def _retrieve_from_online_store(
         self,
         provider: Provider,
@@ -2417,7 +2417,6 @@ class FeatureStore:
             online_features_response=online_features_response,
             data=entity_key_dict,
         )
-
 
         return OnlineResponse(online_features_response)
 

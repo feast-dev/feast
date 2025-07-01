@@ -179,7 +179,15 @@ class RemoteOnlineStore(OnlineStore):
         embedding: Optional[List[float]],
         top_k: int,
         distance_metric: Optional[str] = "L2",
-    ) -> List[Tuple[Optional[datetime], Optional[EntityKeyProto], Optional[ValueProto], Optional[ValueProto], Optional[ValueProto]]]:
+    ) -> List[
+        Tuple[
+            Optional[datetime],
+            Optional[EntityKeyProto],
+            Optional[ValueProto],
+            Optional[ValueProto],
+            Optional[ValueProto],
+        ]
+    ]:
         assert isinstance(config.online_store, RemoteOnlineStoreConfig)
         config.online_store.__class__ = RemoteOnlineStoreConfig
 
@@ -190,17 +198,15 @@ class RemoteOnlineStore(OnlineStore):
         if response.status_code == 200:
             logger.debug("Able to retrieve the online documents from feature server.")
             response_json = json.loads(response.text)
-            event_ts = self._get_event_ts(response_json)
+            event_ts: Optional[datetime] = self._get_event_ts(response_json)
 
             # Create feature name to index mapping for efficient lookup
             feature_name_to_index = {
-                name: idx for idx, name in enumerate(response_json["metadata"]["feature_names"])
+                name: idx
+                for idx, name in enumerate(response_json["metadata"]["feature_names"])
             }
 
             vector_field_metadata = _get_feature_view_vector_field_metadata(table)
-
-            # Extract feature names once
-            feature_names = response_json["metadata"]["feature_names"]
 
             # Process each result row
             num_results = len(response_json["results"][0]["values"])
@@ -215,13 +221,21 @@ class RemoteOnlineStore(OnlineStore):
                     response_json, feature_name_to_index, vector_field_metadata, row_idx
                 )
                 distance_val = self._extract_distance_value(
-                    response_json, feature_name_to_index, 'distance', row_idx
+                    response_json, feature_name_to_index, "distance", row_idx
                 )
                 entity_key_proto = self._construct_entity_key_from_response(
-                    response_json, row_idx, feature_name_to_index
+                    response_json, row_idx, feature_name_to_index, table
                 )
 
-                result_tuples.append((event_ts, entity_key_proto, feature_val, vector_value, distance_val))
+                result_tuples.append(
+                    (
+                        event_ts,
+                        entity_key_proto,
+                        feature_val,
+                        vector_value,
+                        distance_val,
+                    )
+                )
 
             return result_tuples
         else:
@@ -238,50 +252,77 @@ class RemoteOnlineStore(OnlineStore):
         top_k: int,
         distance_metric: Optional[str] = None,
         query_string: Optional[str] = None,
-    ) -> List[Tuple[Optional[datetime], Optional[EntityKeyProto], Optional[Dict[str, ValueProto]]]]:
+    ) -> List[
+        Tuple[
+            Optional[datetime],
+            Optional[EntityKeyProto],
+            Optional[Dict[str, ValueProto]],
+        ]
+    ]:
         assert isinstance(config.online_store, RemoteOnlineStoreConfig)
         config.online_store.__class__ = RemoteOnlineStoreConfig
 
         req_body = self._construct_online_documents_v2_api_json_request(
-            table, requested_features, embedding, top_k, distance_metric, query_string, api_version=2
+            table,
+            requested_features,
+            embedding,
+            top_k,
+            distance_metric,
+            query_string,
+            api_version=2,
         )
         response = get_remote_online_documents(config=config, req_body=req_body)
         if response.status_code == 200:
             logger.debug("Able to retrieve the online documents from feature server.")
             response_json = json.loads(response.text)
-            event_ts = self._get_event_ts(response_json)
-            
+            event_ts: Optional[datetime] = self._get_event_ts(response_json)
+
             # Create feature name to index mapping for efficient lookup
             feature_name_to_index = {
-                name: idx for idx, name in enumerate(response_json["metadata"]["feature_names"])
+                name: idx
+                for idx, name in enumerate(response_json["metadata"]["feature_names"])
             }
 
             # Process each result row
-            num_results = len(response_json["results"][0]["values"]) if response_json["results"] else 0
+            num_results = (
+                len(response_json["results"][0]["values"])
+                if response_json["results"]
+                else 0
+            )
             result_tuples = []
 
             for row_idx in range(num_results):
                 # Build feature values dictionary for requested features
-                feature_values_dict: Dict[str, ValueProto] = {}
-                
+                feature_values_dict = {}
+
                 if requested_features:
                     for feature_name in requested_features:
                         if feature_name in feature_name_to_index:
                             feature_idx = feature_name_to_index[feature_name]
-                            if self._is_feature_present(response_json, feature_idx, row_idx):
-                                feature_values_dict[feature_name] = self._extract_feature_value(
-                                    response_json, feature_idx, row_idx
+                            if self._is_feature_present(
+                                response_json, feature_idx, row_idx
+                            ):
+                                feature_values_dict[feature_name] = (
+                                    self._extract_feature_value(
+                                        response_json, feature_idx, row_idx
+                                    )
                                 )
                             else:
                                 feature_values_dict[feature_name] = ValueProto()
 
                 # Construct entity key proto using existing helper method
                 entity_key_proto = self._construct_entity_key_from_response(
-                    response_json, row_idx, feature_name_to_index
+                    response_json, row_idx, feature_name_to_index, table
                 )
 
-                result_tuples.append((event_ts, entity_key_proto, feature_values_dict))
-            
+                result_tuples.append(
+                    (
+                        event_ts,
+                        entity_key_proto,
+                        feature_values_dict if feature_values_dict else None,
+                    )
+                )
+
             return result_tuples
         else:
             error_msg = f"Unable to retrieve the online documents using feature server API. Error_code={response.status_code}, error_message={response.text}"
@@ -293,8 +334,8 @@ class RemoteOnlineStore(OnlineStore):
         response_json: dict,
         feature_name_to_index: dict,
         requested_features: Optional[List[str]],
-        row_idx: int
-    ) -> ValueProto:
+        row_idx: int,
+    ) -> Optional[ValueProto]:
         """Extract the first available requested feature value."""
         if not requested_features:
             return ValueProto()
@@ -303,7 +344,9 @@ class RemoteOnlineStore(OnlineStore):
             if feature_name in feature_name_to_index:
                 feature_idx = feature_name_to_index[feature_name]
                 if self._is_feature_present(response_json, feature_idx, row_idx):
-                    return self._extract_feature_value(response_json, feature_idx, row_idx)
+                    return self._extract_feature_value(
+                        response_json, feature_idx, row_idx
+                    )
 
         return ValueProto()
 
@@ -312,15 +355,20 @@ class RemoteOnlineStore(OnlineStore):
         response_json: dict,
         feature_name_to_index: dict,
         vector_field_metadata,
-        row_idx: int
-    ) -> ValueProto:
+        row_idx: int,
+    ) -> Optional[ValueProto]:
         """Extract vector field value from response."""
-        if not vector_field_metadata or vector_field_metadata.name not in feature_name_to_index:
+        if (
+            not vector_field_metadata
+            or vector_field_metadata.name not in feature_name_to_index
+        ):
             return ValueProto()
 
         vector_feature_idx = feature_name_to_index[vector_field_metadata.name]
         if self._is_feature_present(response_json, vector_feature_idx, row_idx):
-            return self._extract_feature_value(response_json, vector_feature_idx, row_idx)
+            return self._extract_feature_value(
+                response_json, vector_feature_idx, row_idx
+            )
 
         return ValueProto()
 
@@ -329,22 +377,26 @@ class RemoteOnlineStore(OnlineStore):
         response_json: dict,
         feature_name_to_index: dict,
         distance_feature_name: str,
-        row_idx: int
-    ) -> ValueProto:
+        row_idx: int,
+    ) -> Optional[ValueProto]:
         """Extract distance/score value from response."""
         if not distance_feature_name:
             return ValueProto()
 
         distance_feature_idx = feature_name_to_index[distance_feature_name]
         if self._is_feature_present(response_json, distance_feature_idx, row_idx):
-            distance_value = response_json["results"][distance_feature_idx]["values"][row_idx]
+            distance_value = response_json["results"][distance_feature_idx]["values"][
+                row_idx
+            ]
             distance_val = ValueProto()
             distance_val.float_val = float(distance_value)
             return distance_val
 
         return ValueProto()
 
-    def _is_feature_present(self, response_json: dict, feature_idx: int, row_idx: int) -> bool:
+    def _is_feature_present(
+        self, response_json: dict, feature_idx: int, row_idx: int
+    ) -> bool:
         """Check if a feature is present in the response."""
         return response_json["results"][feature_idx]["statuses"][row_idx] == "PRESENT"
 
@@ -406,7 +458,7 @@ class RemoteOnlineStore(OnlineStore):
         top_k: int,
         distance_metric: Optional[str] = None,
         query_string: Optional[str] = None,
-        api_version: Optional[int] = 1,
+        api_version: Optional[int] = 2,
     ) -> str:
         api_requested_features = []
         if requested_features is not None:
@@ -432,12 +484,19 @@ class RemoteOnlineStore(OnlineStore):
         return datetime.fromisoformat(event_ts.replace("Z", "+00:00"))
 
     def _construct_entity_key_from_response(
-        self, response_json: dict, row_idx: int, feature_name_to_index: dict
+        self,
+        response_json: dict,
+        row_idx: int,
+        feature_name_to_index: dict,
+        table: FeatureView,
     ) -> Optional[EntityKeyProto]:
         """Construct EntityKeyProto from response data."""
-        # Look for entity key fields in the response
-        entity_fields = [name for name in feature_name_to_index.keys()
-                        if name.endswith('_id') or name in ['id', 'key', 'entity_id']]
+        # Use the feature view's join_keys to identify entity fields
+        entity_fields = [
+            join_key
+            for join_key in table.join_keys
+            if join_key in feature_name_to_index
+        ]
 
         if not entity_fields:
             return None
@@ -449,12 +508,16 @@ class RemoteOnlineStore(OnlineStore):
             if entity_field in feature_name_to_index:
                 feature_idx = feature_name_to_index[entity_field]
                 if self._is_feature_present(response_json, feature_idx, row_idx):
-                    entity_value = self._extract_feature_value(response_json, feature_idx, row_idx)
+                    entity_value = self._extract_feature_value(
+                        response_json, feature_idx, row_idx
+                    )
                     entity_key_proto.entity_values.append(entity_value)
 
         return entity_key_proto if entity_key_proto.entity_values else None
 
-    def _extract_feature_value(self, response_json: dict, feature_idx: int, row_idx: int) -> ValueProto:
+    def _extract_feature_value(
+        self, response_json: dict, feature_idx: int, row_idx: int
+    ) -> ValueProto:
         """Extract and convert a feature value to ValueProto."""
         raw_value = response_json["results"][feature_idx]["values"][row_idx]
         if raw_value is None:

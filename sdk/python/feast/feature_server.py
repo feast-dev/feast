@@ -6,7 +6,7 @@ import time
 import traceback
 from contextlib import asynccontextmanager
 from importlib import resources as importlib_resources
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 import psutil
@@ -86,13 +86,13 @@ class MaterializeIncrementalRequest(BaseModel):
 class GetOnlineFeaturesRequest(BaseModel):
     entities: Dict[str, List[Any]]
     feature_service: Optional[str] = None
-    features: Optional[List[str]] = None
+    features: List[str] = []
     full_feature_names: bool = False
 
 
 class GetOnlineDocumentsRequest(BaseModel):
     feature_service: Optional[str] = None
-    features: Optional[List[str]] = None
+    features: List[str] = []
     full_feature_names: bool = False
     top_k: Optional[int] = None
     query: Optional[List[float]] = None
@@ -119,7 +119,7 @@ class SaveDocumentRequest(BaseModel):
 
 
 def _get_features(
-    request: GetOnlineFeaturesRequest | GetOnlineDocumentsRequest,
+    request: Union[GetOnlineFeaturesRequest, GetOnlineDocumentsRequest],
     store: "feast.FeatureStore",
 ):
     if request.feature_service:
@@ -265,13 +265,9 @@ def get_app(
         # Initialize parameters for FeatureStore.retrieve_online_documents_v2(...) call
         features = await run_in_threadpool(_get_features, request, store)
 
-        read_params = dict(
-            features=features,
-            query=request.query,
-            top_k=request.top_k
-        )
+        read_params = dict(features=features, query=request.query, top_k=request.top_k)
         if request.api_version == 2 and request.query_string is not None:
-            read_params['query_string'] = request.query_string
+            read_params["query_string"] = request.query_string
 
         if request.api_version == 2:
             response = await run_in_threadpool(
