@@ -132,7 +132,13 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install OS X dependencies
         if: matrix.os == 'macos-14'
-        run: brew install coreutils gettext
+        run: |
+          brew install coreutils gettext
+          brew link --force gettext
+          GETTEXT_PATH=$(brew --prefix gettext)
+          sudo mkdir -p /usr/local/opt/gettext
+          sudo ln -sf "$GETTEXT_PATH/lib" /usr/local/opt/gettext/lib
+          echo "DYLD_LIBRARY_PATH=$GETTEXT_PATH/lib:$DYLD_LIBRARY_PATH" >> $GITHUB_ENV
       - name: Setup Python
         id: setup-python
         uses: actions/setup-python@v5
