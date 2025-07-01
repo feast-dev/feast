@@ -50,10 +50,10 @@ metadata:
         }
       ]
     capabilities: Basic Install
-    createdAt: "2025-06-30T20:39:42Z"
+    createdAt: "2025-04-29T13:15:51Z"
     operators.operatorframework.io/builder: operator-sdk-v1.38.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
-  name: feast-operator.v0.50.0
+  name: feast-operator.v0.49.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -214,10 +214,10 @@ spec:
                 - /manager
                 env:
                 - name: RELATED_IMAGE_FEATURE_SERVER
-                  value: quay.io/feastdev/feature-server:0.50.0
+                  value: quay.io/feastdev/feature-server:0.49.0
                 - name: RELATED_IMAGE_CRON_JOB
                   value: quay.io/openshift/origin-cli:4.17
-                image: quay.io/feastdev/feast-operator:0.50.0
+                image: quay.io/feastdev/feast-operator:0.49.0
                 livenessProbe:
                   httpGet:
                     path: /healthz
@@ -233,11 +233,11 @@ spec:
                   periodSeconds: 10
                 resources:
                   limits:
-                    cpu: "1"
+                    cpu: 1000m
                     memory: 256Mi
                   requests:
-                    cpu: 10m
-                    memory: 64Mi
+                    cpu: 50m
+                    memory: 128Mi
                 securityContext:
                   allowPrivilegeEscalation: false
                   capabilities:
@@ -307,8 +307,8 @@ spec:
     name: Feast Community
     url: https://lf-aidata.atlassian.net/wiki/spaces/FEAST/
   relatedImages:
-  - image: quay.io/feastdev/feature-server:0.50.0
+  - image: quay.io/feastdev/feature-server:0.49.0
     name: feature-server
   - image: quay.io/openshift/origin-cli:4.17
     name: cron-job
-  version: 0.50.0
+  version: 0.49.0
