@@ -94,6 +94,26 @@ service RegistryServer{
 
 }
 
+// Common pagination and sorting messages
+message PaginationParams {
+  int32 page = 1;       // 1-based page number
+  int32 limit = 2;      // Number of items per page
+}
+
+message SortingParams {
+  string sort_by = 1;     // Field to sort by (supports dot notation)
+  string sort_order = 2;  // "asc" or "desc"
+}
+
+message PaginationMetadata {
+  int32 page = 1;
+  int32 limit = 2;
+  int32 total_count = 3;
+  int32 total_pages = 4;
+  bool has_next = 5;
+  bool has_previous = 6;
+}
+
 message RefreshRequest {
   string project = 1;
 }
@@ -142,10 +162,13 @@ message ListEntitiesRequest {
     string project = 1;
     bool allow_cache = 2;
     map<string,string> tags = 3;
+    PaginationParams pagination = 4;
+    SortingParams sorting = 5;
 }
 
 message ListEntitiesResponse {
     repeated feast.core.Entity entities = 1;
+    PaginationMetadata pagination = 2;
 }
 
 message DeleteEntityRequest {
@@ -172,10 +195,13 @@ message ListDataSourcesRequest {
     string project = 1;
     bool allow_cache = 2;
     map<string,string> tags = 3;
+    PaginationParams pagination = 4;
+    SortingParams sorting = 5;
 }
 
 message ListDataSourcesResponse {
     repeated feast.core.DataSource data_sources = 1;
+    PaginationMetadata pagination = 2;
 }
 
 message DeleteDataSourceRequest {
@@ -206,10 +232,13 @@ message ListFeatureViewsRequest {
     string project = 1;
     bool allow_cache = 2;
     map<string,string> tags = 3;
+    PaginationParams pagination = 4;
+    SortingParams sorting = 5;
 }
 
 message ListFeatureViewsResponse {
     repeated feast.core.FeatureView feature_views = 1;
+    PaginationMetadata pagination = 2;
 }
 
 message DeleteFeatureViewRequest {
@@ -240,10 +269,13 @@ message ListAllFeatureViewsRequest {
     string project = 1;
     bool allow_cache = 2;
     map<string,string> tags = 3;
+    PaginationParams pagination = 4;
+    SortingParams sorting = 5;
 }
 
 message ListAllFeatureViewsResponse {
     repeated AnyFeatureView feature_views = 1;
+    PaginationMetadata pagination = 2;
 }
 
 
@@ -259,10 +291,13 @@ message ListStreamFeatureViewsRequest {
     string project = 1;
     bool allow_cache = 2;
     map<string,string> tags = 3;
+    PaginationParams pagination = 4;
+    SortingParams sorting = 5;
 }
 
 message ListStreamFeatureViewsResponse {
     repeated feast.core.StreamFeatureView stream_feature_views = 1;
+    PaginationMetadata pagination = 2;
 }
 
 // OnDemandFeatureView
@@ -277,10 +312,13 @@ message ListOnDemandFeatureViewsRequest {
     string project = 1;
     bool allow_cache = 2;
     map<string,string> tags = 3;
+    PaginationParams pagination = 4;
+    SortingParams sorting = 5;
 }
 
 message ListOnDemandFeatureViewsResponse {
     repeated feast.core.OnDemandFeatureView on_demand_feature_views = 1;
+    PaginationMetadata pagination = 2;
 }
 
 // FeatureServices
@@ -301,10 +339,13 @@ message ListFeatureServicesRequest {
     string project = 1;
     bool allow_cache = 2;
     map<string,string> tags = 3;
+    PaginationParams pagination = 4;
+    SortingParams sorting = 5;
 }
 
 message ListFeatureServicesResponse {
     repeated feast.core.FeatureService feature_services = 1;
+    PaginationMetadata pagination = 2;
 }
 
 message DeleteFeatureServiceRequest {
@@ -331,10 +372,13 @@ message ListSavedDatasetsRequest {
     string project = 1;
     bool allow_cache = 2;
     map<string,string> tags = 3;
+    PaginationParams pagination = 4;
+    SortingParams sorting = 5;
 }
 
 message ListSavedDatasetsResponse {
     repeated feast.core.SavedDataset saved_datasets = 1;
+    PaginationMetadata pagination = 2;
 }
 
 message DeleteSavedDatasetRequest {
@@ -361,10 +405,13 @@ message ListValidationReferencesRequest {
     string project = 1;
     bool allow_cache = 2;
     map<string,string> tags = 3;
+    PaginationParams pagination = 4;
+    SortingParams sorting = 5;
 }
 
 message ListValidationReferencesResponse {
     repeated feast.core.ValidationReference validation_references = 1;
+    PaginationMetadata pagination = 2;
 }
 
 message DeleteValidationReferenceRequest {
@@ -391,10 +438,13 @@ message ListPermissionsRequest {
   string project = 1;
   bool allow_cache = 2;
   map<string,string> tags = 3;
+  PaginationParams pagination = 4;
+  SortingParams sorting = 5;
 }
 
 message ListPermissionsResponse {
   repeated feast.core.Permission permissions = 1;
+  PaginationMetadata pagination = 2;
 }
 
 message DeletePermissionRequest {
@@ -418,10 +468,13 @@ message GetProjectRequest {
 message ListProjectsRequest {
   bool allow_cache = 1;
   map<string,string> tags = 2;
+  PaginationParams pagination = 3;
+  SortingParams sorting = 4;
 }
 
 message ListProjectsResponse {
   repeated feast.core.Project projects = 1;
+  PaginationMetadata pagination = 2;
 }
 
 message DeleteProjectRequest {
@@ -446,11 +499,15 @@ message GetRegistryLineageRequest {
   bool allow_cache = 2;
   string filter_object_type = 3;
   string filter_object_name = 4;
+  PaginationParams pagination = 5;
+  SortingParams sorting = 6;
 }
 
 message GetRegistryLineageResponse {
   repeated EntityRelation relationships = 1;
   repeated EntityRelation indirect_relationships = 2;
+  PaginationMetadata relationships_pagination = 3;
+  PaginationMetadata indirect_relationships_pagination = 4;
 }
 
 message GetObjectRelationshipsRequest {
@@ -459,8 +516,11 @@ message GetObjectRelationshipsRequest {
   string object_name = 3;
   bool include_indirect = 4;
   bool allow_cache = 5;
+  PaginationParams pagination = 6;
+  SortingParams sorting = 7;
 }
 
 message GetObjectRelationshipsResponse {
   repeated EntityRelation relationships = 1;
+  PaginationMetadata pagination = 2;
 }
