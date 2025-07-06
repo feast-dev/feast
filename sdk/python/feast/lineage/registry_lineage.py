@@ -307,6 +307,39 @@ class RegistryLineageGenerator:
                                 )
                             )
 
+        # Create Entity -> DataSource relationships (through feature views)
+        # Build a map of feature view -> data sources
+        feature_view_to_data_sources: Dict[str, List[str]] = {}
+        for rel in direct_relationships:
+            if (
+                rel.source.type == FeastObjectType.DATA_SOURCE
+                and rel.target.type == FeastObjectType.FEATURE_VIEW
+            ):
+                if rel.target.name not in feature_view_to_data_sources:
+                    feature_view_to_data_sources[rel.target.name] = []
+                feature_view_to_data_sources[rel.target.name].append(rel.source.name)
+
+        # For each Entity -> FeatureView relationship, create Entity -> DataSource relationships
+        for rel in direct_relationships:
+            if (
+                rel.source.type == FeastObjectType.ENTITY
+                and rel.target.type == FeastObjectType.FEATURE_VIEW
+            ):
+                # Find data sources that this feature view uses
+                if rel.target.name in feature_view_to_data_sources:
+                    for data_source_name in feature_view_to_data_sources[
+                        rel.target.name
+                    ]:
+                        indirect_relationships.append(
+                            EntityRelation(
+                                source=rel.source,  # The entity
+                                target=EntityReference(
+                                    FeastObjectType.DATA_SOURCE,
+                                    data_source_name,
+                                ),
+                            )
+                        )
+
         return indirect_relationships
 
     def get_object_relationships(

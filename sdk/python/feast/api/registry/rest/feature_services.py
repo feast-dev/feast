@@ -5,7 +5,9 @@ from fastapi import APIRouter, Depends, Query
 from feast.api.registry.rest.rest_utils import (
     create_grpc_pagination_params,
     create_grpc_sorting_params,
+    get_object_relationships,
     get_pagination_params,
+    get_relationships_for_objects,
     get_sorting_params,
     grpc_call,
     parse_tags,
@@ -19,6 +21,9 @@ def get_feature_service_router(grpc_handler) -> APIRouter:
     @router.get("/feature_services")
     def list_feature_services(
         project: str = Query(...),
+        include_relationships: bool = Query(
+            False, description="Include relationships for each feature service"
+        ),
         allow_cache: bool = Query(default=True),
         tags: Dict[str, str] = Depends(parse_tags),
         pagination_params: dict = Depends(get_pagination_params),
@@ -31,12 +36,29 @@ def get_feature_service_router(grpc_handler) -> APIRouter:
             pagination=create_grpc_pagination_params(pagination_params),
             sorting=create_grpc_sorting_params(sorting_params),
         )
-        return grpc_call(grpc_handler.ListFeatureServices, req)
+        response = grpc_call(grpc_handler.ListFeatureServices, req)
+        feature_services = response.get("featureServices", [])
+
+        result = {
+            "featureServices": feature_services,
+            "pagination": response.get("pagination", {}),
+        }
+
+        if include_relationships:
+            relationships = get_relationships_for_objects(
+                grpc_handler, feature_services, "featureService", project, allow_cache
+            )
+            result["relationships"] = relationships
+
+        return result
 
     @router.get("/feature_services/{name}")
     def get_feature_service(
         name: str,
         project: str = Query(...),
+        include_relationships: bool = Query(
+            False, description="Include relationships for this feature service"
+        ),
         allow_cache: bool = Query(default=True),
     ):
         req = RegistryServer_pb2.GetFeatureServiceRequest(
@@ -44,6 +66,16 @@ def get_feature_service_router(grpc_handler) -> APIRouter:
             project=project,
             allow_cache=allow_cache,
         )
-        return grpc_call(grpc_handler.GetFeatureService, req)
+        feature_service = grpc_call(grpc_handler.GetFeatureService, req)
+
+        result = feature_service
+
+        if include_relationships:
+            relationships = get_object_relationships(
+                grpc_handler, "featureService", name, project, allow_cache
+            )
+            result["relationships"] = relationships
+
+        return result
 
     return router

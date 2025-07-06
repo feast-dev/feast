@@ -6,7 +6,9 @@ from fastapi import APIRouter, Depends, Query
 from feast.api.registry.rest.rest_utils import (
     create_grpc_pagination_params,
     create_grpc_sorting_params,
+    get_object_relationships,
     get_pagination_params,
+    get_relationships_for_objects,
     get_sorting_params,
     grpc_call,
     parse_tags,
@@ -22,6 +24,9 @@ def get_data_source_router(grpc_handler) -> APIRouter:
     @router.get("/data_sources")
     def list_data_sources(
         project: str = Query(...),
+        include_relationships: bool = Query(
+            False, description="Include relationships for each data source"
+        ),
         allow_cache: bool = Query(default=True),
         tags: Dict[str, str] = Depends(parse_tags),
         pagination_params: dict = Depends(get_pagination_params),
@@ -34,17 +39,29 @@ def get_data_source_router(grpc_handler) -> APIRouter:
             pagination=create_grpc_pagination_params(pagination_params),
             sorting=create_grpc_sorting_params(sorting_params),
         )
-
         response = grpc_call(grpc_handler.ListDataSources, req)
-        return {
-            "data_sources": response.get("dataSources", []),
+        data_sources = response.get("dataSources", [])
+
+        result = {
+            "data_sources": data_sources,
             "pagination": response.get("pagination", {}),
         }
+
+        if include_relationships:
+            relationships = get_relationships_for_objects(
+                grpc_handler, data_sources, "dataSource", project, allow_cache
+            )
+            result["relationships"] = relationships
+
+        return result
 
     @router.get("/data_sources/{name}")
     def get_data_source(
         name: str,
         project: str = Query(...),
+        include_relationships: bool = Query(
+            False, description="Include relationships for this data source"
+        ),
         allow_cache: bool = Query(default=True),
     ):
         req = RegistryServer_pb2.GetDataSourceRequest(
@@ -52,6 +69,16 @@ def get_data_source_router(grpc_handler) -> APIRouter:
             project=project,
             allow_cache=allow_cache,
         )
-        return grpc_call(grpc_handler.GetDataSource, req)
+        data_source = grpc_call(grpc_handler.GetDataSource, req)
+
+        result = data_source
+
+        if include_relationships:
+            relationships = get_object_relationships(
+                grpc_handler, "dataSource", name, project, allow_cache
+            )
+            result["relationships"] = relationships
+
+        return result
 
     return router
