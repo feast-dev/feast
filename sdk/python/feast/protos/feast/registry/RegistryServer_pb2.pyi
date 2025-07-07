@@ -29,6 +29,75 @@ else:
 
 DESCRIPTOR: google.protobuf.descriptor.FileDescriptor
 
+class PaginationParams(google.protobuf.message.Message):
+    """Common pagination and sorting messages"""
+
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    PAGE_FIELD_NUMBER: builtins.int
+    LIMIT_FIELD_NUMBER: builtins.int
+    page: builtins.int
+    """1-based page number"""
+    limit: builtins.int
+    """Number of items per page"""
+    def __init__(
+        self,
+        *,
+        page: builtins.int = ...,
+        limit: builtins.int = ...,
+    ) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["limit", b"limit", "page", b"page"]) -> None: ...
+
+global___PaginationParams = PaginationParams
+
+class SortingParams(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    SORT_BY_FIELD_NUMBER: builtins.int
+    SORT_ORDER_FIELD_NUMBER: builtins.int
+    sort_by: builtins.str
+    """Field to sort by (supports dot notation)"""
+    sort_order: builtins.str
+    """"asc" or "desc" """
+    def __init__(
+        self,
+        *,
+        sort_by: builtins.str = ...,
+        sort_order: builtins.str = ...,
+    ) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["sort_by", b"sort_by", "sort_order", b"sort_order"]) -> None: ...
+
+global___SortingParams = SortingParams
+
+class PaginationMetadata(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    PAGE_FIELD_NUMBER: builtins.int
+    LIMIT_FIELD_NUMBER: builtins.int
+    TOTAL_COUNT_FIELD_NUMBER: builtins.int
+    TOTAL_PAGES_FIELD_NUMBER: builtins.int
+    HAS_NEXT_FIELD_NUMBER: builtins.int
+    HAS_PREVIOUS_FIELD_NUMBER: builtins.int
+    page: builtins.int
+    limit: builtins.int
+    total_count: builtins.int
+    total_pages: builtins.int
+    has_next: builtins.bool
+    has_previous: builtins.bool
+    def __init__(
+        self,
+        *,
+        page: builtins.int = ...,
+        limit: builtins.int = ...,
+        total_count: builtins.int = ...,
+        total_pages: builtins.int = ...,
+        has_next: builtins.bool = ...,
+        has_previous: builtins.bool = ...,
+    ) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["has_next", b"has_next", "has_previous", b"has_previous", "limit", b"limit", "page", b"page", "total_count", b"total_count", "total_pages", b"total_pages"]) -> None: ...
+
+global___PaginationMetadata = PaginationMetadata
+
 class RefreshRequest(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -207,18 +276,27 @@ class ListEntitiesRequest(google.protobuf.message.Message):
     PROJECT_FIELD_NUMBER: builtins.int
     ALLOW_CACHE_FIELD_NUMBER: builtins.int
     TAGS_FIELD_NUMBER: builtins.int
+    PAGINATION_FIELD_NUMBER: builtins.int
+    SORTING_FIELD_NUMBER: builtins.int
     project: builtins.str
     allow_cache: builtins.bool
     @property
     def tags(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, builtins.str]: ...
+    @property
+    def pagination(self) -> global___PaginationParams: ...
+    @property
+    def sorting(self) -> global___SortingParams: ...
     def __init__(
         self,
         *,
         project: builtins.str = ...,
         allow_cache: builtins.bool = ...,
         tags: collections.abc.Mapping[builtins.str, builtins.str] | None = ...,
+        pagination: global___PaginationParams | None = ...,
+        sorting: global___SortingParams | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["allow_cache", b"allow_cache", "project", b"project", "tags", b"tags"]) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["pagination", b"pagination", "sorting", b"sorting"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["allow_cache", b"allow_cache", "pagination", b"pagination", "project", b"project", "sorting", b"sorting", "tags", b"tags"]) -> None: ...
 
 global___ListEntitiesRequest = ListEntitiesRequest
 
@@ -226,14 +304,19 @@ class ListEntitiesResponse(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
     ENTITIES_FIELD_NUMBER: builtins.int
+    PAGINATION_FIELD_NUMBER: builtins.int
     @property
     def entities(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.core.Entity_pb2.Entity]: ...
+    @property
+    def pagination(self) -> global___PaginationMetadata: ...
     def __init__(
         self,
         *,
         entities: collections.abc.Iterable[feast.core.Entity_pb2.Entity] | None = ...,
+        pagination: global___PaginationMetadata | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["entities", b"entities"]) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["pagination", b"pagination"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["entities", b"entities", "pagination", b"pagination"]) -> None: ...
 
 global___ListEntitiesResponse = ListEntitiesResponse
 
@@ -322,18 +405,27 @@ class ListDataSourcesRequest(google.protobuf.message.Message):
     PROJECT_FIELD_NUMBER: builtins.int
     ALLOW_CACHE_FIELD_NUMBER: builtins.int
     TAGS_FIELD_NUMBER: builtins.int
+    PAGINATION_FIELD_NUMBER: builtins.int
+    SORTING_FIELD_NUMBER: builtins.int
     project: builtins.str
     allow_cache: builtins.bool
     @property
     def tags(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, builtins.str]: ...
+    @property
+    def pagination(self) -> global___PaginationParams: ...
+    @property
+    def sorting(self) -> global___SortingParams: ...
     def __init__(
         self,
         *,
         project: builtins.str = ...,
         allow_cache: builtins.bool = ...,
         tags: collections.abc.Mapping[builtins.str, builtins.str] | None = ...,
+        pagination: global___PaginationParams | None = ...,
+        sorting: global___SortingParams | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["allow_cache", b"allow_cache", "project", b"project", "tags", b"tags"]) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["pagination", b"pagination", "sorting", b"sorting"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["allow_cache", b"allow_cache", "pagination", b"pagination", "project", b"project", "sorting", b"sorting", "tags", b"tags"]) -> None: ...
 
 global___ListDataSourcesRequest = ListDataSourcesRequest
 
@@ -341,14 +433,19 @@ class ListDataSourcesResponse(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
     DATA_SOURCES_FIELD_NUMBER: builtins.int
+    PAGINATION_FIELD_NUMBER: builtins.int
     @property
     def data_sources(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.core.DataSource_pb2.DataSource]: ...
+    @property
+    def pagination(self) -> global___PaginationMetadata: ...
     def __init__(
         self,
         *,
         data_sources: collections.abc.Iterable[feast.core.DataSource_pb2.DataSource] | None = ...,
+        pagination: global___PaginationMetadata | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["data_sources", b"data_sources"]) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["pagination", b"pagination"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["data_sources", b"data_sources", "pagination", b"pagination"]) -> None: ...
 
 global___ListDataSourcesResponse = ListDataSourcesResponse
 
@@ -446,18 +543,27 @@ class ListFeatureViewsRequest(google.protobuf.message.Message):
     PROJECT_FIELD_NUMBER: builtins.int
     ALLOW_CACHE_FIELD_NUMBER: builtins.int
     TAGS_FIELD_NUMBER: builtins.int
+    PAGINATION_FIELD_NUMBER: builtins.int
+    SORTING_FIELD_NUMBER: builtins.int
     project: builtins.str
     allow_cache: builtins.bool
     @property
     def tags(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, builtins.str]: ...
+    @property
+    def pagination(self) -> global___PaginationParams: ...
+    @property
+    def sorting(self) -> global___SortingParams: ...
     def __init__(
         self,
         *,
         project: builtins.str = ...,
         allow_cache: builtins.bool = ...,
         tags: collections.abc.Mapping[builtins.str, builtins.str] | None = ...,
+        pagination: global___PaginationParams | None = ...,
+        sorting: global___SortingParams | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["allow_cache", b"allow_cache", "project", b"project", "tags", b"tags"]) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["pagination", b"pagination", "sorting", b"sorting"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["allow_cache", b"allow_cache", "pagination", b"pagination", "project", b"project", "sorting", b"sorting", "tags", b"tags"]) -> None: ...
 
 global___ListFeatureViewsRequest = ListFeatureViewsRequest
 
@@ -465,14 +571,19 @@ class ListFeatureViewsResponse(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
     FEATURE_VIEWS_FIELD_NUMBER: builtins.int
+    PAGINATION_FIELD_NUMBER: builtins.int
     @property
     def feature_views(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.core.FeatureView_pb2.FeatureView]: ...
+    @property
+    def pagination(self) -> global___PaginationMetadata: ...
     def __init__(
         self,
         *,
         feature_views: collections.abc.Iterable[feast.core.FeatureView_pb2.FeatureView] | None = ...,
+        pagination: global___PaginationMetadata | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["feature_views", b"feature_views"]) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["pagination", b"pagination"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["feature_views", b"feature_views", "pagination", b"pagination"]) -> None: ...
 
 global___ListFeatureViewsResponse = ListFeatureViewsResponse
 
@@ -578,18 +689,27 @@ class ListAllFeatureViewsRequest(google.protobuf.message.Message):
     PROJECT_FIELD_NUMBER: builtins.int
     ALLOW_CACHE_FIELD_NUMBER: builtins.int
     TAGS_FIELD_NUMBER: builtins.int
+    PAGINATION_FIELD_NUMBER: builtins.int
+    SORTING_FIELD_NUMBER: builtins.int
     project: builtins.str
     allow_cache: builtins.bool
     @property
     def tags(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, builtins.str]: ...
+    @property
+    def pagination(self) -> global___PaginationParams: ...
+    @property
+    def sorting(self) -> global___SortingParams: ...
     def __init__(
         self,
         *,
         project: builtins.str = ...,
         allow_cache: builtins.bool = ...,
         tags: collections.abc.Mapping[builtins.str, builtins.str] | None = ...,
+        pagination: global___PaginationParams | None = ...,
+        sorting: global___SortingParams | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["allow_cache", b"allow_cache", "project", b"project", "tags", b"tags"]) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["pagination", b"pagination", "sorting", b"sorting"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["allow_cache", b"allow_cache", "pagination", b"pagination", "project", b"project", "sorting", b"sorting", "tags", b"tags"]) -> None: ...
 
 global___ListAllFeatureViewsRequest = ListAllFeatureViewsRequest
 
@@ -597,14 +717,19 @@ class ListAllFeatureViewsResponse(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
     FEATURE_VIEWS_FIELD_NUMBER: builtins.int
+    PAGINATION_FIELD_NUMBER: builtins.int
     @property
     def feature_views(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___AnyFeatureView]: ...
+    @property
+    def pagination(self) -> global___PaginationMetadata: ...
     def __init__(
         self,
         *,
         feature_views: collections.abc.Iterable[global___AnyFeatureView] | None = ...,
+        pagination: global___PaginationMetadata | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["feature_views", b"feature_views"]) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["pagination", b"pagination"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["feature_views", b"feature_views", "pagination", b"pagination"]) -> None: ...
 
 global___ListAllFeatureViewsResponse = ListAllFeatureViewsResponse
 
@@ -651,18 +776,27 @@ class ListStreamFeatureViewsRequest(google.protobuf.message.Message):
     PROJECT_FIELD_NUMBER: builtins.int
     ALLOW_CACHE_FIELD_NUMBER: builtins.int
     TAGS_FIELD_NUMBER: builtins.int
+    PAGINATION_FIELD_NUMBER: builtins.int
+    SORTING_FIELD_NUMBER: builtins.int
     project: builtins.str
     allow_cache: builtins.bool
     @property
     def tags(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, builtins.str]: ...
+    @property
+    def pagination(self) -> global___PaginationParams: ...
+    @property
+    def sorting(self) -> global___SortingParams: ...
     def __init__(
         self,
         *,
         project: builtins.str = ...,
         allow_cache: builtins.bool = ...,
         tags: collections.abc.Mapping[builtins.str, builtins.str] | None = ...,
+        pagination: global___PaginationParams | None = ...,
+        sorting: global___SortingParams | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["allow_cache", b"allow_cache", "project", b"project", "tags", b"tags"]) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["pagination", b"pagination", "sorting", b"sorting"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["allow_cache", b"allow_cache", "pagination", b"pagination", "project", b"project", "sorting", b"sorting", "tags", b"tags"]) -> None: ...
 
 global___ListStreamFeatureViewsRequest = ListStreamFeatureViewsRequest
 
@@ -670,14 +804,19 @@ class ListStreamFeatureViewsResponse(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
     STREAM_FEATURE_VIEWS_FIELD_NUMBER: builtins.int
+    PAGINATION_FIELD_NUMBER: builtins.int
     @property
     def stream_feature_views(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.core.StreamFeatureView_pb2.StreamFeatureView]: ...
+    @property
+    def pagination(self) -> global___PaginationMetadata: ...
     def __init__(
         self,
         *,
         stream_feature_views: collections.abc.Iterable[feast.core.StreamFeatureView_pb2.StreamFeatureView] | None = ...,
+        pagination: global___PaginationMetadata | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["stream_feature_views", b"stream_feature_views"]) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["pagination", b"pagination"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["pagination", b"pagination", "stream_feature_views", b"stream_feature_views"]) -> None: ...
 
 global___ListStreamFeatureViewsResponse = ListStreamFeatureViewsResponse
 
@@ -724,18 +863,27 @@ class ListOnDemandFeatureViewsRequest(google.protobuf.message.Message):
     PROJECT_FIELD_NUMBER: builtins.int
     ALLOW_CACHE_FIELD_NUMBER: builtins.int
     TAGS_FIELD_NUMBER: builtins.int
+    PAGINATION_FIELD_NUMBER: builtins.int
+    SORTING_FIELD_NUMBER: builtins.int
     project: builtins.str
     allow_cache: builtins.bool
     @property
     def tags(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, builtins.str]: ...
+    @property
+    def pagination(self) -> global___PaginationParams: ...
+    @property
+    def sorting(self) -> global___SortingParams: ...
     def __init__(
         self,
         *,
         project: builtins.str = ...,
         allow_cache: builtins.bool = ...,
         tags: collections.abc.Mapping[builtins.str, builtins.str] | None = ...,
+        pagination: global___PaginationParams | None = ...,
+        sorting: global___SortingParams | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["allow_cache", b"allow_cache", "project", b"project", "tags", b"tags"]) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["pagination", b"pagination", "sorting", b"sorting"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["allow_cache", b"allow_cache", "pagination", b"pagination", "project", b"project", "sorting", b"sorting", "tags", b"tags"]) -> None: ...
 
 global___ListOnDemandFeatureViewsRequest = ListOnDemandFeatureViewsRequest
 
@@ -743,14 +891,19 @@ class ListOnDemandFeatureViewsResponse(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
     ON_DEMAND_FEATURE_VIEWS_FIELD_NUMBER: builtins.int
+    PAGINATION_FIELD_NUMBER: builtins.int
     @property
     def on_demand_feature_views(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.core.OnDemandFeatureView_pb2.OnDemandFeatureView]: ...
+    @property
+    def pagination(self) -> global___PaginationMetadata: ...
     def __init__(
         self,
         *,
         on_demand_feature_views: collections.abc.Iterable[feast.core.OnDemandFeatureView_pb2.OnDemandFeatureView] | None = ...,
+        pagination: global___PaginationMetadata | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["on_demand_feature_views", b"on_demand_feature_views"]) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["pagination", b"pagination"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["on_demand_feature_views", b"on_demand_feature_views", "pagination", b"pagination"]) -> None: ...
 
 global___ListOnDemandFeatureViewsResponse = ListOnDemandFeatureViewsResponse
 
@@ -819,18 +972,27 @@ class ListFeatureServicesRequest(google.protobuf.message.Message):
     PROJECT_FIELD_NUMBER: builtins.int
     ALLOW_CACHE_FIELD_NUMBER: builtins.int
     TAGS_FIELD_NUMBER: builtins.int
+    PAGINATION_FIELD_NUMBER: builtins.int
+    SORTING_FIELD_NUMBER: builtins.int
     project: builtins.str
     allow_cache: builtins.bool
     @property
     def tags(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, builtins.str]: ...
+    @property
+    def pagination(self) -> global___PaginationParams: ...
+    @property
+    def sorting(self) -> global___SortingParams: ...
     def __init__(
         self,
         *,
         project: builtins.str = ...,
         allow_cache: builtins.bool = ...,
         tags: collections.abc.Mapping[builtins.str, builtins.str] | None = ...,
+        pagination: global___PaginationParams | None = ...,
+        sorting: global___SortingParams | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["allow_cache", b"allow_cache", "project", b"project", "tags", b"tags"]) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["pagination", b"pagination", "sorting", b"sorting"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["allow_cache", b"allow_cache", "pagination", b"pagination", "project", b"project", "sorting", b"sorting", "tags", b"tags"]) -> None: ...
 
 global___ListFeatureServicesRequest = ListFeatureServicesRequest
 
@@ -838,14 +1000,19 @@ class ListFeatureServicesResponse(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
     FEATURE_SERVICES_FIELD_NUMBER: builtins.int
+    PAGINATION_FIELD_NUMBER: builtins.int
     @property
     def feature_services(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.core.FeatureService_pb2.FeatureService]: ...
+    @property
+    def pagination(self) -> global___PaginationMetadata: ...
     def __init__(
         self,
         *,
         feature_services: collections.abc.Iterable[feast.core.FeatureService_pb2.FeatureService] | None = ...,
+        pagination: global___PaginationMetadata | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["feature_services", b"feature_services"]) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["pagination", b"pagination"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["feature_services", b"feature_services", "pagination", b"pagination"]) -> None: ...
 
 global___ListFeatureServicesResponse = ListFeatureServicesResponse
 
@@ -934,18 +1101,27 @@ class ListSavedDatasetsRequest(google.protobuf.message.Message):
     PROJECT_FIELD_NUMBER: builtins.int
     ALLOW_CACHE_FIELD_NUMBER: builtins.int
     TAGS_FIELD_NUMBER: builtins.int
+    PAGINATION_FIELD_NUMBER: builtins.int
+    SORTING_FIELD_NUMBER: builtins.int
     project: builtins.str
     allow_cache: builtins.bool
     @property
     def tags(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, builtins.str]: ...
+    @property
+    def pagination(self) -> global___PaginationParams: ...
+    @property
+    def sorting(self) -> global___SortingParams: ...
     def __init__(
         self,
         *,
         project: builtins.str = ...,
         allow_cache: builtins.bool = ...,
         tags: collections.abc.Mapping[builtins.str, builtins.str] | None = ...,
+        pagination: global___PaginationParams | None = ...,
+        sorting: global___SortingParams | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["allow_cache", b"allow_cache", "project", b"project", "tags", b"tags"]) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["pagination", b"pagination", "sorting", b"sorting"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["allow_cache", b"allow_cache", "pagination", b"pagination", "project", b"project", "sorting", b"sorting", "tags", b"tags"]) -> None: ...
 
 global___ListSavedDatasetsRequest = ListSavedDatasetsRequest
 
@@ -953,14 +1129,19 @@ class ListSavedDatasetsResponse(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
     SAVED_DATASETS_FIELD_NUMBER: builtins.int
+    PAGINATION_FIELD_NUMBER: builtins.int
     @property
     def saved_datasets(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.core.SavedDataset_pb2.SavedDataset]: ...
+    @property
+    def pagination(self) -> global___PaginationMetadata: ...
     def __init__(
         self,
         *,
         saved_datasets: collections.abc.Iterable[feast.core.SavedDataset_pb2.SavedDataset] | None = ...,
+        pagination: global___PaginationMetadata | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["saved_datasets", b"saved_datasets"]) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["pagination", b"pagination"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["pagination", b"pagination", "saved_datasets", b"saved_datasets"]) -> None: ...
 
 global___ListSavedDatasetsResponse = ListSavedDatasetsResponse
 
@@ -1049,18 +1230,27 @@ class ListValidationReferencesRequest(google.protobuf.message.Message):
     PROJECT_FIELD_NUMBER: builtins.int
     ALLOW_CACHE_FIELD_NUMBER: builtins.int
     TAGS_FIELD_NUMBER: builtins.int
+    PAGINATION_FIELD_NUMBER: builtins.int
+    SORTING_FIELD_NUMBER: builtins.int
     project: builtins.str
     allow_cache: builtins.bool
     @property
     def tags(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, builtins.str]: ...
+    @property
+    def pagination(self) -> global___PaginationParams: ...
+    @property
+    def sorting(self) -> global___SortingParams: ...
     def __init__(
         self,
         *,
         project: builtins.str = ...,
         allow_cache: builtins.bool = ...,
         tags: collections.abc.Mapping[builtins.str, builtins.str] | None = ...,
+        pagination: global___PaginationParams | None = ...,
+        sorting: global___SortingParams | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["allow_cache", b"allow_cache", "project", b"project", "tags", b"tags"]) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["pagination", b"pagination", "sorting", b"sorting"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["allow_cache", b"allow_cache", "pagination", b"pagination", "project", b"project", "sorting", b"sorting", "tags", b"tags"]) -> None: ...
 
 global___ListValidationReferencesRequest = ListValidationReferencesRequest
 
@@ -1068,14 +1258,19 @@ class ListValidationReferencesResponse(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
     VALIDATION_REFERENCES_FIELD_NUMBER: builtins.int
+    PAGINATION_FIELD_NUMBER: builtins.int
     @property
     def validation_references(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.core.ValidationProfile_pb2.ValidationReference]: ...
+    @property
+    def pagination(self) -> global___PaginationMetadata: ...
     def __init__(
         self,
         *,
         validation_references: collections.abc.Iterable[feast.core.ValidationProfile_pb2.ValidationReference] | None = ...,
+        pagination: global___PaginationMetadata | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["validation_references", b"validation_references"]) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["pagination", b"pagination"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["pagination", b"pagination", "validation_references", b"validation_references"]) -> None: ...
 
 global___ListValidationReferencesResponse = ListValidationReferencesResponse
 
@@ -1164,18 +1359,27 @@ class ListPermissionsRequest(google.protobuf.message.Message):
     PROJECT_FIELD_NUMBER: builtins.int
     ALLOW_CACHE_FIELD_NUMBER: builtins.int
     TAGS_FIELD_NUMBER: builtins.int
+    PAGINATION_FIELD_NUMBER: builtins.int
+    SORTING_FIELD_NUMBER: builtins.int
     project: builtins.str
     allow_cache: builtins.bool
     @property
     def tags(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, builtins.str]: ...
+    @property
+    def pagination(self) -> global___PaginationParams: ...
+    @property
+    def sorting(self) -> global___SortingParams: ...
     def __init__(
         self,
         *,
         project: builtins.str = ...,
         allow_cache: builtins.bool = ...,
         tags: collections.abc.Mapping[builtins.str, builtins.str] | None = ...,
+        pagination: global___PaginationParams | None = ...,
+        sorting: global___SortingParams | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["allow_cache", b"allow_cache", "project", b"project", "tags", b"tags"]) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["pagination", b"pagination", "sorting", b"sorting"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["allow_cache", b"allow_cache", "pagination", b"pagination", "project", b"project", "sorting", b"sorting", "tags", b"tags"]) -> None: ...
 
 global___ListPermissionsRequest = ListPermissionsRequest
 
@@ -1183,14 +1387,19 @@ class ListPermissionsResponse(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
     PERMISSIONS_FIELD_NUMBER: builtins.int
+    PAGINATION_FIELD_NUMBER: builtins.int
     @property
     def permissions(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.core.Permission_pb2.Permission]: ...
+    @property
+    def pagination(self) -> global___PaginationMetadata: ...
     def __init__(
         self,
         *,
         permissions: collections.abc.Iterable[feast.core.Permission_pb2.Permission] | None = ...,
+        pagination: global___PaginationMetadata | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["permissions", b"permissions"]) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["pagination", b"pagination"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["pagination", b"pagination", "permissions", b"permissions"]) -> None: ...
 
 global___ListPermissionsResponse = ListPermissionsResponse
 
@@ -1272,16 +1481,25 @@ class ListProjectsRequest(google.protobuf.message.Message):
 
     ALLOW_CACHE_FIELD_NUMBER: builtins.int
     TAGS_FIELD_NUMBER: builtins.int
+    PAGINATION_FIELD_NUMBER: builtins.int
+    SORTING_FIELD_NUMBER: builtins.int
     allow_cache: builtins.bool
     @property
     def tags(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, builtins.str]: ...
+    @property
+    def pagination(self) -> global___PaginationParams: ...
+    @property
+    def sorting(self) -> global___SortingParams: ...
     def __init__(
         self,
         *,
         allow_cache: builtins.bool = ...,
         tags: collections.abc.Mapping[builtins.str, builtins.str] | None = ...,
+        pagination: global___PaginationParams | None = ...,
+        sorting: global___SortingParams | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["allow_cache", b"allow_cache", "tags", b"tags"]) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["pagination", b"pagination", "sorting", b"sorting"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["allow_cache", b"allow_cache", "pagination", b"pagination", "sorting", b"sorting", "tags", b"tags"]) -> None: ...
 
 global___ListProjectsRequest = ListProjectsRequest
 
@@ -1289,14 +1507,19 @@ class ListProjectsResponse(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
     PROJECTS_FIELD_NUMBER: builtins.int
+    PAGINATION_FIELD_NUMBER: builtins.int
     @property
     def projects(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.core.Project_pb2.Project]: ...
+    @property
+    def pagination(self) -> global___PaginationMetadata: ...
     def __init__(
         self,
         *,
         projects: collections.abc.Iterable[feast.core.Project_pb2.Project] | None = ...,
+        pagination: global___PaginationMetadata | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["projects", b"projects"]) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["pagination", b"pagination"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["pagination", b"pagination", "projects", b"projects"]) -> None: ...
 
 global___ListProjectsResponse = ListProjectsResponse
 
@@ -1318,7 +1541,7 @@ class DeleteProjectRequest(google.protobuf.message.Message):
 global___DeleteProjectRequest = DeleteProjectRequest
 
 class EntityReference(google.protobuf.message.Message):
-    """Lineage Messages"""
+    """Lineage"""
 
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -1364,10 +1587,16 @@ class GetRegistryLineageRequest(google.protobuf.message.Message):
     ALLOW_CACHE_FIELD_NUMBER: builtins.int
     FILTER_OBJECT_TYPE_FIELD_NUMBER: builtins.int
     FILTER_OBJECT_NAME_FIELD_NUMBER: builtins.int
+    PAGINATION_FIELD_NUMBER: builtins.int
+    SORTING_FIELD_NUMBER: builtins.int
     project: builtins.str
     allow_cache: builtins.bool
     filter_object_type: builtins.str
     filter_object_name: builtins.str
+    @property
+    def pagination(self) -> global___PaginationParams: ...
+    @property
+    def sorting(self) -> global___SortingParams: ...
     def __init__(
         self,
         *,
@@ -1375,8 +1604,11 @@ class GetRegistryLineageRequest(google.protobuf.message.Message):
         allow_cache: builtins.bool = ...,
         filter_object_type: builtins.str = ...,
         filter_object_name: builtins.str = ...,
+        pagination: global___PaginationParams | None = ...,
+        sorting: global___SortingParams | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["allow_cache", b"allow_cache", "filter_object_name", b"filter_object_name", "filter_object_type", b"filter_object_type", "project", b"project"]) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["pagination", b"pagination", "sorting", b"sorting"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["allow_cache", b"allow_cache", "filter_object_name", b"filter_object_name", "filter_object_type", b"filter_object_type", "pagination", b"pagination", "project", b"project", "sorting", b"sorting"]) -> None: ...
 
 global___GetRegistryLineageRequest = GetRegistryLineageRequest
 
@@ -1385,17 +1617,26 @@ class GetRegistryLineageResponse(google.protobuf.message.Message):
 
     RELATIONSHIPS_FIELD_NUMBER: builtins.int
     INDIRECT_RELATIONSHIPS_FIELD_NUMBER: builtins.int
+    RELATIONSHIPS_PAGINATION_FIELD_NUMBER: builtins.int
+    INDIRECT_RELATIONSHIPS_PAGINATION_FIELD_NUMBER: builtins.int
     @property
     def relationships(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___EntityRelation]: ...
     @property
     def indirect_relationships(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___EntityRelation]: ...
+    @property
+    def relationships_pagination(self) -> global___PaginationMetadata: ...
+    @property
+    def indirect_relationships_pagination(self) -> global___PaginationMetadata: ...
     def __init__(
         self,
         *,
         relationships: collections.abc.Iterable[global___EntityRelation] | None = ...,
         indirect_relationships: collections.abc.Iterable[global___EntityRelation] | None = ...,
+        relationships_pagination: global___PaginationMetadata | None = ...,
+        indirect_relationships_pagination: global___PaginationMetadata | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["indirect_relationships", b"indirect_relationships", "relationships", b"relationships"]) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["indirect_relationships_pagination", b"indirect_relationships_pagination", "relationships_pagination", b"relationships_pagination"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["indirect_relationships", b"indirect_relationships", "indirect_relationships_pagination", b"indirect_relationships_pagination", "relationships", b"relationships", "relationships_pagination", b"relationships_pagination"]) -> None: ...
 
 global___GetRegistryLineageResponse = GetRegistryLineageResponse
 
@@ -1407,11 +1648,17 @@ class GetObjectRelationshipsRequest(google.protobuf.message.Message):
     OBJECT_NAME_FIELD_NUMBER: builtins.int
     INCLUDE_INDIRECT_FIELD_NUMBER: builtins.int
     ALLOW_CACHE_FIELD_NUMBER: builtins.int
+    PAGINATION_FIELD_NUMBER: builtins.int
+    SORTING_FIELD_NUMBER: builtins.int
     project: builtins.str
     object_type: builtins.str
     object_name: builtins.str
     include_indirect: builtins.bool
     allow_cache: builtins.bool
+    @property
+    def pagination(self) -> global___PaginationParams: ...
+    @property
+    def sorting(self) -> global___SortingParams: ...
     def __init__(
         self,
         *,
@@ -1420,8 +1667,11 @@ class GetObjectRelationshipsRequest(google.protobuf.message.Message):
         object_name: builtins.str = ...,
         include_indirect: builtins.bool = ...,
         allow_cache: builtins.bool = ...,
+        pagination: global___PaginationParams | None = ...,
+        sorting: global___SortingParams | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["allow_cache", b"allow_cache", "include_indirect", b"include_indirect", "object_name", b"object_name", "object_type", b"object_type", "project", b"project"]) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["pagination", b"pagination", "sorting", b"sorting"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["allow_cache", b"allow_cache", "include_indirect", b"include_indirect", "object_name", b"object_name", "object_type", b"object_type", "pagination", b"pagination", "project", b"project", "sorting", b"sorting"]) -> None: ...
 
 global___GetObjectRelationshipsRequest = GetObjectRelationshipsRequest
 
@@ -1429,13 +1679,18 @@ class GetObjectRelationshipsResponse(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
     RELATIONSHIPS_FIELD_NUMBER: builtins.int
+    PAGINATION_FIELD_NUMBER: builtins.int
     @property
     def relationships(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___EntityRelation]: ...
+    @property
+    def pagination(self) -> global___PaginationMetadata: ...
     def __init__(
         self,
         *,
         relationships: collections.abc.Iterable[global___EntityRelation] | None = ...,
+        pagination: global___PaginationMetadata | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["relationships", b"relationships"]) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["pagination", b"pagination"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["pagination", b"pagination", "relationships", b"relationships"]) -> None: ...
 
 global___GetObjectRelationshipsResponse = GetObjectRelationshipsResponse
