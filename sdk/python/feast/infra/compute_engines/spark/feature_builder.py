@@ -48,10 +48,16 @@ class SparkFeatureBuilder(FeatureBuilder):
         self.nodes.append(node)
         return node
 
-    def build_join_node(self, view, input_node):
+    def build_join_node(self,
+                        view,
+                        input_nodes):
         column_info = self.get_column_info(view)
         node = SparkJoinNode(
-            "join", column_info, self.spark_session, inputs=[input_node]
+            name=f"{view.name}_join",
+            column_info=column_info,
+            spark_session=self.spark_session,
+            inputs=input_nodes,
+            how="left",  # You can make this configurable later
         )
         self.nodes.append(node)
         return node
@@ -68,6 +74,7 @@ class SparkFeatureBuilder(FeatureBuilder):
             filter_expr,
             inputs=[input_node],
         )
+        self.nodes.append(node)
         return node
 
     def build_dedup_node(self, view, input_node):
@@ -78,16 +85,17 @@ class SparkFeatureBuilder(FeatureBuilder):
         self.nodes.append(node)
         return node
 
-    def build_transformation_node(self, view, input_node):
+    def build_transformation_node(self, view, input_nodes):
         udf_name = view.feature_transformation.name
         udf = view.feature_transformation.udf
-        node = SparkTransformationNode(udf_name, udf, inputs=[input_node])
+        node = SparkTransformationNode(udf_name, udf, inputs=input_nodes)
         self.nodes.append(node)
         return node
 
     def build_output_nodes(self, input_node):
         node = SparkWriteNode("output", self.dag_root.view, inputs=[input_node])
         self.nodes.append(node)
+        return node
 
     def build_validation_node(self, view, input_node):
         pass

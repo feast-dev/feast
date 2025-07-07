@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List, Optional, Union
-
+from typing import List, Optional, Union, Dict
 from feast import BatchFeatureView, FeatureView, StreamFeatureView
 from feast.infra.common.materialization_job import MaterializationTask
 from feast.infra.common.retrieval_task import HistoricalRetrievalTask
@@ -9,10 +8,10 @@ from feast.infra.compute_engines.dag.node import DAGNode
 from feast.infra.compute_engines.dag.plan import ExecutionPlan
 from feast.infra.compute_engines.feature_resolver import (
     FeatureResolver,
-    FeatureViewNode,
 )
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.utils import _get_column_names
+from feast.infra.compute_engines.algorithms.topo import topo_sort
 
 
 class FeatureBuilder(ABC):
@@ -28,11 +27,11 @@ class FeatureBuilder(ABC):
         task: Union[MaterializationTask, HistoricalRetrievalTask],
     ):
         self.registry = registry
+        self.feature_view = feature_view
         self.task = task
         self.nodes: List[DAGNode] = []
-        self.resolver = FeatureResolver()
-        self.dag_root = self.resolver.resolve(feature_view)
-        self.sorted_nodes = self.resolver.topo_sort(self.dag_root)
+        self.feature_resolver = FeatureResolver()
+        self.dag_root = self.feature_resolver.resolve(self.feature_view)
 
     @abstractmethod
     def build_source_node(self, view):
@@ -43,7 +42,7 @@ class FeatureBuilder(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def build_join_node(self, view, input_node):
+    def build_join_node(self, view, input_nodes):
         raise NotImplementedError
 
     @abstractmethod
@@ -55,7 +54,7 @@ class FeatureBuilder(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def build_transformation_node(self, view, input_node):
+    def build_transformation_node(self, view, input_nodes):
         raise NotImplementedError
 
     @abstractmethod
@@ -78,39 +77,67 @@ class FeatureBuilder(ABC):
     def _should_dedupe(self, view):
         return isinstance(self.task, HistoricalRetrievalTask) or self.task.only_latest
 
-    def _build(self, current_node: FeatureViewNode) -> DAGNode:
-        current_view = current_node.view
+    def _build(self, view, input_nodes: Optional[List[DAGNode]]) -> DAGNode:
 
-        # Step 1: build source or parent join
-        if current_node.parent:
-            parent_node = self._build(current_node.parent)
-            last_node = self.build_join_node(current_view, parent_node)
+        # Step 1: build source node
+        if view.data_source:
+            last_node = self.build_source_node(view)
+
+            if self._should_transform(view):
+                # Transform applied to the source data
+                last_node = self.build_transformation_node(view, [last_node])
+
+        # If there are input nodes, transform or join them
+        elif input_nodes:
+            # User-defined transform handles the merging of input views
+            if self._should_transform(view):
+                last_node = self.build_transformation_node(view, input_nodes)
+            # Default join
+            else:
+                last_node = self.build_join_node(view, input_nodes)
         else:
-            last_node = self.build_source_node(current_view)
+            raise ValueError(f"FeatureView {view.name} has no valid source or inputs")
 
         # Step 2: filter
-        last_node = self.build_filter_node(current_view, last_node)
+        last_node = self.build_filter_node(view, last_node)
 
         # Step 3: aggregate or dedupe
-        if self._should_aggregate(current_view):
-            last_node = self.build_aggregation_node(current_view, last_node)
-        elif self._should_dedupe(current_view):
-            last_node = self.build_dedup_node(current_view, last_node)
+        if self._should_aggregate(view):
+            last_node = self.build_aggregation_node(view, last_node)
+        elif self._should_dedupe(view):
+            last_node = self.build_dedup_node(view, last_node)
 
-        # Step 4: transform
-        if self._should_transform(current_view):
-            last_node = self.build_transformation_node(current_view, last_node)
-
-        # Step 5: validate
-        if self._should_validate(current_view):
-            last_node = self.build_validation_node(current_view, last_node)
+        # Step 4: validate
+        if self._should_validate(view):
+            last_node = self.build_validation_node(view, last_node)
 
         return last_node
 
     def build(self) -> ExecutionPlan:
-        final_node = self._build(self.dag_root)
-        self.build_output_nodes(final_node)
-        return ExecutionPlan(self.nodes)
+        # Step 1: Topo sort the FeatureViewNode DAG (Logical DAG)
+        logical_nodes = self.feature_resolver.topo_sort(self.dag_root)
+
+        # Step 2: For each FeatureView, build its corresponding execution DAGNode
+        view_to_node: Dict[str, DAGNode] = {}
+
+        for node in logical_nodes:
+            view = node.view
+            parent_dag_nodes = [
+                view_to_node[parent.view.name]
+                for parent in node.inputs
+                if parent.view.name in view_to_node
+            ]
+            dag_node = self._build(view, parent_dag_nodes)
+            view_to_node[view.name] = dag_node
+
+        # Step 3: Build output node
+        final_node = self.build_output_nodes(view_to_node[self.feature_view.name])
+
+        # Step 4: Topo sort the final DAG from the output node (Physical DAG)
+        sorted_nodes = topo_sort(final_node)
+
+        # Step 5: Return sorted execution plan
+        return ExecutionPlan(sorted_nodes)
 
     def get_column_info(
         self,
@@ -120,17 +147,9 @@ class FeatureBuilder(ABC):
         for entity_name in view.entities:
             entities.append(self.registry.get_entity(entity_name, self.task.project))
 
-        if view.source_view:
-            # If the view has a source_view, the column information come from the tags dict
-            # unpack to get those values
-            join_keys = view.source_view.tags.get("join_keys", [])
-            feature_cols = view.source_view.tags.get("feature_cols", [])
-            ts_col = view.source_view.tags.get("ts_col", None)
-            created_ts_col = view.source_view.tags.get("created_ts_col", None)
-        else:
-            join_keys, feature_cols, ts_col, created_ts_col = _get_column_names(
-                view, entities
-            )
+        join_keys, feature_cols, ts_col, created_ts_col = _get_column_names(
+            view, entities
+        )
         field_mapping = self.get_field_mapping(self.task.feature_view)
 
         return ColumnInfo(

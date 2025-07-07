@@ -68,10 +68,10 @@ class LocalFeatureBuilder(FeatureBuilder):
         self.nodes.append(node)
         return node
 
-    def build_transformation_node(self, view, input_node):
+    def build_transformation_node(self, view, input_nodes):
         transform_config = view.feature_transformation
         node = LocalTransformationNode(
-            "transform", transform_config, self.backend, inputs=[input_node]
+            "transform", transform_config, self.backend, inputs=input_nodes
         )
         self.nodes.append(node)
         return node
@@ -87,6 +87,7 @@ class LocalFeatureBuilder(FeatureBuilder):
     def build_output_nodes(self, input_node):
         node = LocalOutputNode("output", self.dag_root.view, inputs=[input_node])
         self.nodes.append(node)
+        return node
 
     @staticmethod
     def _get_aggregate_operations(agg_specs):

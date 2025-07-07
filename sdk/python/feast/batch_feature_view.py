@@ -74,8 +74,7 @@ class BatchFeatureView(FeatureView):
         *,
         name: str,
         mode: Union[TransformationMode, str] = TransformationMode.PYTHON,
-        source: Optional[DataSource] = None,
-        source_view: Optional["FeatureView"] = None,
+        source: Union[DataSource, "BatchFeatureView", List["BatchFeatureView"]],
         entities: Optional[List[Entity]] = None,
         ttl: Optional[timedelta] = None,
         tags: Optional[Dict[str, str]] = None,
@@ -95,20 +94,6 @@ class BatchFeatureView(FeatureView):
                 "Batch feature views are experimental features in alpha development. "
                 "Some functionality may still be unstable so functionality can change in the future.",
                 RuntimeWarning,
-            )
-
-        if source is not None:
-            if (
-                type(source).__name__ not in SUPPORTED_BATCH_SOURCES
-                and source.to_proto().type != DataSourceProto.SourceType.CUSTOM_SOURCE
-            ):
-                raise ValueError(
-                    f"Batch feature views need a batch source, expected one of {SUPPORTED_BATCH_SOURCES} "
-                    f"or CUSTOM_SOURCE, got {type(source).__name__}: {source.name} instead "
-                )
-        elif source_view is None:
-            raise ValueError(
-                "BatchFeatureView must have either 'source' or 'source_view'."
             )
 
         self.mode = mode
@@ -131,7 +116,6 @@ class BatchFeatureView(FeatureView):
             owner=owner,
             schema=schema,
             source=source,
-            source_view=source_view,
         )
 
     def get_feature_transformation(self) -> Optional[Transformation]:

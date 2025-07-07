@@ -1,16 +1,26 @@
 from typing import List, Optional, Set
 
 from feast.feature_view import FeatureView
+from feast.infra.compute_engines.dag.node import DAGNode
+from feast.infra.compute_engines.algorithms.topo import topo_sort
+from feast.infra.compute_engines.dag.context import ExecutionContext
+from feast.infra.compute_engines.dag.value import DAGValue
 
 
-class FeatureViewNode:
+class FeatureViewNode(DAGNode):
     """
     Logical representation of a node in the FeatureView dependency DAG.
     """
 
     def __init__(self, view: FeatureView):
+        super().__init__(name=view.name)
         self.view: FeatureView = view
-        self.parent: Optional["FeatureViewNode"] = None
+        self.inputs: List["FeatureViewNode"] = []
+
+    def execute(self, context: ExecutionContext) -> DAGValue:
+        raise NotImplementedError(
+            f"FeatureViewNode '{self.name}' does not implement execute method."
+        )
 
 
 class FeatureResolver:
@@ -21,9 +31,9 @@ class FeatureResolver:
     """
 
     def __init__(self):
-        # Used to detect and prevent cycles in the FeatureView graph.
-        self.visited: Set[str] = set()
-        self.resolution_path: List[str] = []
+        self._visited: Set[str] = set()
+        self._resolution_path: List[str] = []
+        self._node_cache: dict[str, FeatureViewNode] = {}
 
     def resolve(self, feature_view: FeatureView) -> FeatureViewNode:
         """
@@ -35,11 +45,9 @@ class FeatureResolver:
         Returns:
             A FeatureViewNode representing the root of the logical dependency DAG.
         """
-        root = FeatureViewNode(feature_view)
-        self._walk(root)
-        return root
+        return self._walk(feature_view)
 
-    def _walk(self, node: FeatureViewNode):
+    def _walk(self, view: FeatureView):
         """
         Recursive traversal of the FeatureView graph.
 
@@ -47,37 +55,28 @@ class FeatureResolver:
         Cycles are detected using the visited set.
 
         Args:
-            node: The current FeatureViewNode being processed.
+            view: The FeatureView to process.
         """
-        view = node.view
-        if view.name in self.visited:
-            cycle_path = " → ".join(self.resolution_path + [view.name])
-            raise ValueError(f"Cycle detected in FeatureView graph: {cycle_path}")
-        self.visited.add(view.name)
-        self.resolution_path.append(view.name)
+        if view.name in self._resolution_path:
+            cycle = " → ".join(self._resolution_path + [view.name])
+            raise ValueError(f"Cycle detected in FeatureView DAG: {cycle}")
 
-        # TODO: Only one parent is allowed via source_view, support more than one
-        if view.source_view:
-            parent_node = FeatureViewNode(view.source_view)
-            node.parent = parent_node
-            self._walk(parent_node)
+        if view.name in self._node_cache:
+            return self._node_cache[view.name]
 
-        self.resolution_path.pop()
+        node = FeatureViewNode(view)
+        self._node_cache[view.name] = node
+
+        self._resolution_path.append(view.name)
+        for upstream_view in view.source_views:
+            input_node = self._walk(upstream_view)
+            node.inputs.append(input_node)
+        self._resolution_path.pop()
+
+        return node
 
     def topo_sort(self, root: FeatureViewNode) -> List[FeatureViewNode]:
-        visited = set()
-        ordered: List[FeatureViewNode] = []
-
-        def dfs(node: FeatureViewNode):
-            if id(node) in visited:
-                return
-            visited.add(id(node))
-            if node.parent:
-                dfs(node.parent)
-            ordered.append(node)
-
-        dfs(root)
-        return ordered
+        return topo_sort(root)
 
     def debug_dag(self, node: FeatureViewNode, depth=0):
         """
@@ -89,5 +88,5 @@ class FeatureResolver:
         """
         indent = "  " * depth
         print(f"{indent}- {node.view.name}")
-        if node.parent:
-            self.debug_dag(node.parent, depth + 1)
+        for input_node in node.inputs:
+            self.debug_dag(input_node, depth + 1)

@@ -155,40 +155,37 @@ class SparkJoinNode(DAGNode):
         name: str,
         column_info: ColumnInfo,
         spark_session: SparkSession,
-        inputs=None,
+        inputs: Optional[List[DAGNode]] = None,
+        how: str = "left"
     ):
-        super().__init__(name, inputs=inputs)
+        super().__init__(name, inputs=inputs or [])
         self.column_info = column_info
         self.spark_session = spark_session
+        self.how = how
 
     def execute(self, context: ExecutionContext) -> DAGValue:
-        feature_value = self.get_single_input_value(context)
-        feature_value.assert_format(DAGFormat.SPARK)
-        feature_df: DataFrame = feature_value.data
-        print("[SparkJoinNode] Input schema:", feature_df.columns)
+        input_values = self.get_input_values(context)
+        for val in input_values:
+            val.assert_format(DAGFormat.SPARK)
 
+        # Join all input DataFrames on join_keys
+        joined_df = input_values[0].data
+        for dag_value in input_values[1:]:
+            joined_df = joined_df.join(dag_value.data, on=self.column_info.join_keys, how=self.how)
+
+        # If entity_df is provided, join it in last
         entity_df = context.entity_df
-        if entity_df is None:
-            return DAGValue(
-                data=feature_df,
-                format=DAGFormat.SPARK,
-                metadata={"joined_on": None},
+        if entity_df is not None:
+            entity_df = rename_entity_ts_column(
+                spark_session=self.spark_session,
+                entity_df=entity_df,
             )
-
-        # Rename entity_df event_timestamp_col to match feature_df
-        entity_df = rename_entity_ts_column(
-            spark_session=self.spark_session,
-            entity_df=entity_df,
-        )
-
-        # Perform left join on entity df
-        # TODO: give a config option to use other join types
-        joined = feature_df.join(entity_df, on=self.column_info.join_keys, how="left")
+            joined_df = joined_df.join(entity_df, on=self.column_info.join_keys, how=self.how)
 
         return DAGValue(
-            data=joined,
+            data=joined_df,
             format=DAGFormat.SPARK,
-            metadata={"joined_on": self.column_info.join_keys},
+            metadata={"joined_on": self.column_info.join_keys, "join_type": self.how},
         )
 
 
@@ -335,16 +332,20 @@ class SparkWriteNode(DAGNode):
 
 
 class SparkTransformationNode(DAGNode):
-    def __init__(self, name: str, udf: callable, inputs=None):
+    def __init__(self, name: str, udf: callable, inputs: List[DAGNode]):
         super().__init__(name, inputs)
         self.udf = udf
 
     def execute(self, context: ExecutionContext) -> DAGValue:
-        input_val = self.get_single_input_value(context)
-        input_val.assert_format(DAGFormat.SPARK)
-        print("[SparkTransformationNode] Input schema:", input_val.data.columns)
+        input_values = self.get_input_values(context)
+        for val in input_values:
+            val.assert_format(DAGFormat.SPARK)
 
-        transformed_df = self.udf(input_val.data)
+        input_dfs: List[DataFrame] = [val.data for val in input_values]
+
+        print(f"[SparkTransformationNode] Executing transform on {len(input_dfs)} input(s).")
+
+        transformed_df = self.udf(*input_dfs)
 
         return DAGValue(
             data=transformed_df, format=DAGFormat.SPARK, metadata={"transformed": True}

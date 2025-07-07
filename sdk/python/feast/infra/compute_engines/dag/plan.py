@@ -31,7 +31,8 @@ class ExecutionPlan:
 
     Example:
         DAG:
-            ReadNode -> AggregateNode -> JoinNode -> TransformNode -> WriteNode
+            ReadNode -> TransformNode -> AggregateNode -> -> WriteNode
+                     -> JoinNode      ->
 
         Execution proceeds step by step, passing intermediate DAGValues through
         the plan while respecting node dependencies and formats.
@@ -47,10 +48,6 @@ class ExecutionPlan:
         context.node_outputs = {}
 
         for node in self.nodes:
-            for input_node in node.inputs:
-                if input_node.name not in context.node_outputs:
-                    context.node_outputs[input_node.name] = input_node.execute(context)
-
             output = node.execute(context)
             context.node_outputs[node.name] = output
 
@@ -62,3 +59,30 @@ class ExecutionPlan:
         This is a placeholder and should be implemented in subclasses.
         """
         raise NotImplementedError("SQL generation is not implemented yet.")
+
+    def to_dag(self):
+        """
+        Generate a textual DAG representation for debugging.
+
+        Returns:
+            str: A multi-line string showing the DAG structure.
+        """
+        lines = []
+        seen = set()
+
+        def dfs(node: DAGNode, indent=0):
+            prefix = "  " * indent
+            if node.name in seen:
+                lines.append(f"{prefix}- {node.name} (visited)")
+                return
+            seen.add(node.name)
+            lines.append(f"{prefix}- {node.name}")
+            for input_node in node.inputs:
+                dfs(input_node, indent + 1)
+
+        for node in self.nodes:
+            dfs(node)
+
+        return "\n".join(lines)
+
+

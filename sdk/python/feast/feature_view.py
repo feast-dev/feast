@@ -14,7 +14,7 @@
 import copy
 import warnings
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple, Type
+from typing import Dict, List, Optional, Tuple, Type, Union
 
 from google.protobuf.duration_pb2 import Duration
 from google.protobuf.message import Message
@@ -90,7 +90,7 @@ class FeatureView(BaseFeatureView):
     ttl: Optional[timedelta]
     batch_source: DataSource
     stream_source: Optional[DataSource]
-    source_view: Optional["FeatureView"]
+    source_views: Optional[List["FeatureView"]]
     entity_columns: List[Field]
     features: List[Field]
     online: bool
@@ -104,8 +104,7 @@ class FeatureView(BaseFeatureView):
         self,
         *,
         name: str,
-        source: Optional[DataSource] = None,
-        source_view: Optional["FeatureView"] = None,
+        source: Union[DataSource, "FeatureView", List["FeatureView"]],
         schema: Optional[List[Field]] = None,
         entities: Optional[List[Entity]] = None,
         ttl: Optional[timedelta] = timedelta(days=0),
@@ -146,27 +145,35 @@ class FeatureView(BaseFeatureView):
         self.ttl = ttl
         schema = schema or []
 
-        if (source is None) == (source_view is None):
-            raise ValueError(
-                "FeatureView must have exactly one of 'source' or 'source_view', not both/neither."
-            )
+        # Normalize source
+        self.data_source: Optional[DataSource] = None
+        self.source_views: List[FeatureView] = []
 
-        # Initialize data sources.
+        if isinstance(source, DataSource):
+            self.data_source = source
+        elif isinstance(source, FeatureView):
+            self.source_views = [source]
+        elif isinstance(source, list) and all(isinstance(sv, FeatureView) for sv in source):
+            self.source_views = source
+        else:
+            raise TypeError("source must be a DataSource, a FeatureView, or a list of FeatureViews.")
+
+        # Set up stream/batch sources
         if (
-            isinstance(source, PushSource)
-            or isinstance(source, KafkaSource)
-            or isinstance(source, KinesisSource)
+            isinstance(self.data_source, PushSource)
+            or isinstance(self.data_source, KafkaSource)
+            or isinstance(self.data_source, KinesisSource)
         ):
             self.stream_source = source
-            if not source.batch_source:
+            if not self.data_source.batch_source:
                 raise ValueError(
                     f"A batch_source needs to be specified for stream source `{source.name}`"
                 )
             else:
-                self.batch_source = source.batch_source
+                self.batch_source = self.data_source.batch_source
         else:
             self.stream_source = None
-            self.batch_source = source
+            self.batch_source = self.data_source
 
         # Initialize features and entity columns.
         features: List[Field] = []
@@ -227,12 +234,11 @@ class FeatureView(BaseFeatureView):
             description=description,
             tags=tags,
             owner=owner,
-            source=source,
+            source=self.batch_source,
         )
         self.online = online
         self.offline = offline
         self.materialization_intervals = []
-        self.source_view = source_view
 
     def __hash__(self):
         return super().__hash__()
@@ -366,9 +372,9 @@ class FeatureView(BaseFeatureView):
         if self.stream_source:
             stream_source_proto = self.stream_source.to_proto()
             stream_source_proto.data_source_class_type = f"{self.stream_source.__class__.__module__}.{self.stream_source.__class__.__name__}"
-        source_view_proto = None
-        if self.source_view:
-            source_view_proto = self.source_view.to_proto().spec
+        source_view_protos = None
+        if self.source_views:
+            source_view_protos = [view.to_proto().spec for view in self.source_views]
         spec = FeatureViewSpecProto(
             name=self.name,
             entities=self.entities,
@@ -382,7 +388,7 @@ class FeatureView(BaseFeatureView):
             offline=self.offline,
             batch_source=batch_source_proto,
             stream_source=stream_source_proto,
-            source_view=source_view_proto,
+            source_views=source_view_protos,
         )
 
         return FeatureViewProto(spec=spec, meta=meta)
@@ -428,13 +434,11 @@ class FeatureView(BaseFeatureView):
             if feature_view_proto.spec.HasField("stream_source")
             else None
         )
-        source_view = (
-            FeatureView.from_proto(
-                FeatureViewProto(spec=feature_view_proto.spec.source_view, meta=None)
-            )
-            if feature_view_proto.spec.HasField("source_view")
-            else None
-        )
+        source_views = [
+            FeatureView.from_proto(FeatureViewProto(spec=view_spec, meta=None))
+            for view_spec in feature_view_proto.spec.source_views
+        ]
+
         feature_view = cls(
             name=feature_view_proto.spec.name,
             description=feature_view_proto.spec.description,
@@ -447,8 +451,7 @@ class FeatureView(BaseFeatureView):
                 if feature_view_proto.spec.ttl.ToNanoseconds() == 0
                 else feature_view_proto.spec.ttl.ToTimedelta()
             ),
-            source=batch_source,
-            source_view=source_view,
+            source=batch_source if batch_source else source_views
         )
         if stream_source:
             feature_view.stream_source = stream_source

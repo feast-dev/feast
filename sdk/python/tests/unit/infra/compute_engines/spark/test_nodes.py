@@ -58,19 +58,15 @@ def test_spark_transformation_node_executes_udf(spark_session):
         online_store=MagicMock(),
         entity_defs=MagicMock(),
         entity_df=None,
-        column_info=ColumnInfo(
-            join_keys=["name"],
-            feature_cols=["age"],
-            ts_col="",
-            created_ts_col="",
-        ),
         node_outputs={"source": input_value},
     )
 
+    # Prepare mock input node
+    input_node = MagicMock()
+    input_node.name = "source"
+
     # Create and run the node
-    node = SparkTransformationNode("transform", udf=strip_extra_spaces)
-    node.add_input(MagicMock())
-    node.inputs[0].name = "source"
+    node = SparkTransformationNode("transform", udf=strip_extra_spaces, inputs=[input_node])
     result = node.execute(context)
 
     # Assert output
@@ -104,12 +100,6 @@ def test_spark_aggregation_node_executes_correctly(spark_session):
         online_store=MagicMock(),
         entity_defs=[],
         entity_df=None,
-        column_info=ColumnInfo(
-            join_keys=["user_id"],
-            feature_cols=["value"],
-            ts_col="",
-            created_ts_col="",
-        ),
         node_outputs={"source": input_value},
     )
 
@@ -188,8 +178,19 @@ def test_spark_join_node_executes_point_in_time_join(spark_session):
         entity_defs=[driver],
         entity_df=entity_df,
         node_outputs={
-            "feature_node": feature_val,
+            "source": feature_val,
         },
+    )
+
+    # Prepare mock input node
+    input_node = MagicMock()
+    input_node.name = "source"
+
+    # Create the node and add input
+    join_node = SparkJoinNode(
+        name="join",
+        spark_session=spark_session,
+        inputs=[input_node],
         column_info=ColumnInfo(
             join_keys=["driver_id"],
             feature_cols=["conv_rate", "acc_rate", "avg_daily_trips"],
@@ -198,14 +199,6 @@ def test_spark_join_node_executes_point_in_time_join(spark_session):
         ),
     )
 
-    # Create the node and add input
-    join_node = SparkJoinNode(
-        name="join",
-        spark_session=spark_session,
-    )
-    join_node.add_input(MagicMock())
-    join_node.inputs[0].name = "feature_node"
-
     # Execute the node
     output = join_node.execute(context)
     context.node_outputs["join"] = output
@@ -213,6 +206,12 @@ def test_spark_join_node_executes_point_in_time_join(spark_session):
     dedup_node = SparkDedupNode(
         name="dedup",
         spark_session=spark_session,
+        column_info=ColumnInfo(
+            join_keys=["driver_id"],
+            feature_cols=["conv_rate", "acc_rate", "avg_daily_trips"],
+            ts_col="event_timestamp",
+            created_ts_col="created",
+        ),
     )
     dedup_node.add_input(MagicMock())
     dedup_node.inputs[0].name = "join"
