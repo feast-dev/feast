@@ -11,6 +11,7 @@ from feast.data_source import DataSource
 from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.field import Field
+from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.transformation.base import Transformation
 from feast.transformation.mode import TransformationMode
 
@@ -95,6 +96,15 @@ class BatchFeatureView(FeatureView):
                 "Batch feature views are experimental features in alpha development. "
                 "Some functionality may still be unstable so functionality can change in the future.",
                 RuntimeWarning,
+            )
+
+        if isinstance(source, DataSource) and (
+            type(source).__name__ not in SUPPORTED_BATCH_SOURCES
+            and source.to_proto().type != DataSourceProto.SourceType.CUSTOM_SOURCE
+        ):
+            raise ValueError(
+                f"Batch feature views need a batch source, expected one of {SUPPORTED_BATCH_SOURCES} "
+                f"or CUSTOM_SOURCE, got {type(source).__name__}: {source.name} instead "
             )
 
         self.mode = mode
