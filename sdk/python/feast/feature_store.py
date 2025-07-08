@@ -1884,6 +1884,9 @@ class FeatureStore:
             inputs: Optional the dictionary object to be written
             allow_registry_cache (optional): Whether to allow retrieving feature views from a cached registry.
             transform_on_write (optional): Whether to transform the data before pushing.
+
+        Raises:
+            ValueError: If the dataframe is empty (has no rows) or if feature columns are empty.
         """
 
         feature_view, df = self._get_feature_view_and_df_for_online_write(
@@ -1893,6 +1896,19 @@ class FeatureStore:
             allow_registry_cache=allow_registry_cache,
             transform_on_write=transform_on_write,
         )
+        
+        # Validate that the dataframe has meaningful feature data
+        if df is not None:
+            if df.empty:
+                raise ValueError("Cannot write empty dataframe to online store")
+            
+            # Check if feature columns are empty (entity columns may have data but feature columns are empty)
+            feature_column_names = [f.name for f in feature_view.features]
+            if feature_column_names:
+                feature_df = df[feature_column_names]
+                if feature_df.empty or feature_df.isnull().all().all():
+                    raise ValueError("Cannot write dataframe with empty feature columns to online store")
+        
         provider = self._get_provider()
         provider.ingest_df(feature_view, df)
 
@@ -1911,6 +1927,9 @@ class FeatureStore:
             df: The dataframe to be persisted.
             inputs: Optional the dictionary object to be written
             allow_registry_cache (optional): Whether to allow retrieving feature views from a cached registry.
+
+        Raises:
+            ValueError: If the dataframe is empty (has no rows) or if feature columns are empty.
         """
 
         feature_view, df = self._get_feature_view_and_df_for_online_write(
@@ -1919,6 +1938,19 @@ class FeatureStore:
             inputs=inputs,
             allow_registry_cache=allow_registry_cache,
         )
+        
+        # Validate that the dataframe has meaningful feature data
+        if df is not None:
+            if df.empty:
+                raise ValueError("Cannot write empty dataframe to online store")
+            
+            # Check if feature columns are empty (entity columns may have data but feature columns are empty)
+            feature_column_names = [f.name for f in feature_view.features]
+            if feature_column_names:
+                feature_df = df[feature_column_names]
+                if feature_df.empty or feature_df.isnull().all().all():
+                    raise ValueError("Cannot write dataframe with empty feature columns to online store")
+        
         provider = self._get_provider()
         await provider.ingest_df_async(feature_view, df)
 
