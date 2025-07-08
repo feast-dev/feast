@@ -142,8 +142,6 @@ class SparkAggregationNode(DAGNode):
                 *self.group_by_keys,
             ).agg(*agg_exprs)
 
-        print("[SparkAggregationNode] Output schema:", grouped.columns)
-
         return DAGValue(
             data=grouped, format=DAGFormat.SPARK, metadata={"aggregated": True}
         )
@@ -233,7 +231,6 @@ class SparkFilterNode(DAGNode):
         input_value = self.get_single_input_value(context)
         input_value.assert_format(DAGFormat.SPARK)
         input_df: DataFrame = input_value.data
-        print("[SparkFilterNode] Input schema:", input_df.columns)
 
         # Get timestamp fields from feature view
         timestamp_column = self.column_info.timestamp_column
@@ -366,10 +363,6 @@ class SparkTransformationNode(DAGNode):
             val.assert_format(DAGFormat.SPARK)
 
         input_dfs: List[DataFrame] = [val.data for val in input_values]
-
-        print(
-            f"[SparkTransformationNode] Executing transform on {len(input_dfs)} input(s)."
-        )
 
         transformed_df = self.udf(*input_dfs)
 

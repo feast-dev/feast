@@ -210,9 +210,13 @@ def test_spark_join_node_executes_point_in_time_join(spark_session):
         spark_session=spark_session,
         column_info=ColumnInfo(
             join_keys=["driver_id"],
-            feature_cols=["conv_rate", "acc_rate", "avg_daily_trips"],
-            ts_col="event_timestamp",
-            created_ts_col="created",
+            feature_cols=[
+                "source__conv_rate",
+                "source__acc_rate",
+                "source__avg_daily_trips",
+            ],
+            ts_col="source__event_timestamp",
+            created_ts_col="source__created",
         ),
     )
     dedup_node.add_input(MagicMock())
@@ -226,10 +230,10 @@ def test_spark_join_node_executes_point_in_time_join(spark_session):
 
     # Validate result for driver_id = 1001
     assert result_df[0]["driver_id"] == 1001
-    assert abs(result_df[0]["conv_rate"] - 0.8) < 1e-6
-    assert result_df[0]["avg_daily_trips"] == 15
+    assert abs(result_df[0]["source__conv_rate"] - 0.8) < 1e-6
+    assert result_df[0]["source__avg_daily_trips"] == 15
 
     # Validate result for driver_id = 1002
     assert result_df[1]["driver_id"] == 1002
-    assert abs(result_df[1]["conv_rate"] - 0.7) < 1e-6
-    assert result_df[1]["avg_daily_trips"] == 12
+    assert abs(result_df[1]["source__conv_rate"] - 0.7) < 1e-6
+    assert result_df[1]["source__avg_daily_trips"] == 12
