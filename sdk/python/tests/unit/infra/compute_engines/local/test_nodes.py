@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 import pandas as pd
 import pyarrow as pa
 
-from feast.infra.compute_engines.dag.context import ColumnInfo, ExecutionContext
+from feast.infra.compute_engines.dag.context import ExecutionContext
 from feast.infra.compute_engines.local.arrow_table_value import ArrowTableValue
 from feast.infra.compute_engines.local.backends.pandas_backend import PandasBackend
 from feast.infra.compute_engines.local.nodes import (
@@ -45,12 +45,6 @@ def create_context(node_outputs):
         entity_defs=MagicMock(),
         entity_df=entity_df,
         node_outputs=node_outputs,
-        column_info=ColumnInfo(
-            join_keys=["entity_id"],
-            feature_cols=["value"],
-            ts_col="event_timestamp",
-            created_ts_col=None,
-        ),
     )
 
 

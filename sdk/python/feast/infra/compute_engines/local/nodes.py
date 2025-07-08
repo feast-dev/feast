@@ -1,11 +1,13 @@
 from datetime import datetime, timedelta
-from typing import Optional, Union
+from typing import List, Optional, Union
 
 import pyarrow as pa
 
 from feast import BatchFeatureView, StreamFeatureView
 from feast.data_source import DataSource
 from feast.infra.compute_engines.dag.context import ColumnInfo, ExecutionContext
+from feast.infra.compute_engines.dag.model import DAGFormat
+from feast.infra.compute_engines.dag.node import DAGNode
 from feast.infra.compute_engines.local.arrow_table_value import ArrowTableValue
 from feast.infra.compute_engines.local.backends.base import DataFrameBackend
 from feast.infra.compute_engines.local.local_node import LocalNode
@@ -56,40 +58,55 @@ class LocalSourceReadNode(LocalNode):
 
 class LocalJoinNode(LocalNode):
     def __init__(
-        self, name: str, column_info: ColumnInfo, backend: DataFrameBackend, inputs=None
+        self,
+        name: str,
+        column_info: ColumnInfo,
+        backend: DataFrameBackend,
+        inputs: Optional[List["DAGNode"]] = None,
+        how: str = "left",
     ):
-        super().__init__(name, inputs=inputs)
+        super().__init__(name, inputs or [])
         self.column_info = column_info
         self.backend = backend
+        self.how = how
 
     def execute(self, context: ExecutionContext) -> ArrowTableValue:
-        feature_table = self.get_single_table(context).data
+        input_values = self.get_input_values(context)
+        for val in input_values:
+            val.assert_format(DAGFormat.ARROW)
 
-        if context.entity_df is None:
-            output = ArrowTableValue(feature_table)
-            context.node_outputs[self.name] = output
-            return output
+        # Convert all upstream ArrowTables to backend DataFrames
+        joined_df = self.backend.from_arrow(input_values[0].data)
+        for val in input_values[1:]:
+            next_df = self.backend.from_arrow(val.data)
+            joined_df = self.backend.join(
+                joined_df,
+                next_df,
+                on=self.column_info.join_keys,
+                how=self.how,
+            )
 
-        entity_table = pa.Table.from_pandas(context.entity_df)
-        feature_df = self.backend.from_arrow(feature_table)
-        entity_df = self.backend.from_arrow(entity_table)
+        # If entity_df is provided, join it in last
+        if context.entity_df is not None:
+            entity_df = self.backend.from_arrow(pa.Table.from_pandas(context.entity_df))
 
-        entity_schema = dict(zip(entity_df.columns, entity_df.dtypes))
-        entity_df_event_timestamp_col = infer_event_timestamp_from_entity_df(
-            entity_schema
-        )
+            entity_schema = dict(zip(entity_df.columns, entity_df.dtypes))
+            entity_ts_col = infer_event_timestamp_from_entity_df(entity_schema)
 
-        entity_df = self.backend.rename_columns(
-            entity_df, {entity_df_event_timestamp_col: ENTITY_TS_ALIAS}
-        )
+            if entity_ts_col != ENTITY_TS_ALIAS:
+                entity_df = self.backend.rename_columns(
+                    entity_df, {entity_ts_col: ENTITY_TS_ALIAS}
+                )
 
-        joined_df = self.backend.join(
-            feature_df, entity_df, on=self.column_info.join_keys, how="left"
-        )
+            joined_df = self.backend.join(
+                joined_df,
+                entity_df,
+                on=self.column_info.join_keys,
+                how=self.how,
+            )
+
         result = self.backend.to_arrow(joined_df)
-        output = ArrowTableValue(result)
-        context.node_outputs[self.name] = output
-        return output
+        return ArrowTableValue(result)
 
 
 class LocalFilterNode(LocalNode):
@@ -155,7 +172,6 @@ class LocalAggregationNode(LocalNode):
         grouped_df = self.backend.groupby_agg(df, self.group_keys, self.agg_ops)
         result = self.backend.to_arrow(grouped_df)
         output = ArrowTableValue(result)
-        context.node_outputs[self.name] = output
         return output
 
 

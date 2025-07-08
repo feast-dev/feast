@@ -36,9 +36,9 @@ class LocalFeatureBuilder(FeatureBuilder):
         self.nodes.append(node)
         return node
 
-    def build_join_node(self, view, input_node):
+    def build_join_node(self, view, input_nodes):
         column_info = self.get_column_info(view)
-        node = LocalJoinNode("join", column_info, self.backend, inputs=[input_node])
+        node = LocalJoinNode("join", column_info, self.backend, inputs=input_nodes)
         self.nodes.append(node)
         return node
 

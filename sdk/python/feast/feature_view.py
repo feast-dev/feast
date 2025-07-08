@@ -161,7 +161,7 @@ class FeatureView(BaseFeatureView):
             self.source_views = source
         else:
             raise TypeError(
-                "source must be a DataSource, a FeatureView, or a list of FeatureViews."
+                "source must be a DataSource, a FeatureView, or a list of FeatureView."
             )
 
         # Set up stream, batch and derived view sources
