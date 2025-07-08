@@ -63,7 +63,7 @@ class LocalJoinNode(LocalNode):
         column_info: ColumnInfo,
         backend: DataFrameBackend,
         inputs: Optional[List["DAGNode"]] = None,
-        how: str = "left",
+        how: str = "inner",
     ):
         super().__init__(name, inputs or [])
         self.column_info = column_info

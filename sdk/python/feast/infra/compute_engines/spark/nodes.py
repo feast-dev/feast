@@ -156,7 +156,7 @@ class SparkJoinNode(DAGNode):
         column_info: ColumnInfo,
         spark_session: SparkSession,
         inputs: Optional[List[DAGNode]] = None,
-        how: str = "left",
+        how: str = "inner",
     ):
         super().__init__(name, inputs=inputs or [])
         self.column_info = column_info
@@ -169,11 +169,28 @@ class SparkJoinNode(DAGNode):
             val.assert_format(DAGFormat.SPARK)
 
         # Join all input DataFrames on join_keys
-        joined_df = input_values[0].data
-        for dag_value in input_values[1:]:
-            joined_df = joined_df.join(
-                dag_value.data, on=self.column_info.join_keys, how=self.how
-            )
+        joined_df = None
+        for i, dag_value in enumerate(input_values):
+            df = dag_value.data
+
+            # Use original FeatureView name if available
+            fv_name = self.inputs[i].name.split(":")[0]
+            prefix = fv_name + "__"
+
+            # Skip renaming join keys to preserve join compatibility
+            renamed_cols = [
+                F.col(c).alias(f"{prefix}{c}")
+                if c not in self.column_info.join_keys
+                else F.col(c)
+                for c in df.columns
+            ]
+            df = df.select(*renamed_cols)
+            if joined_df is None:
+                joined_df = df
+            else:
+                joined_df = joined_df.join(
+                    df, on=self.column_info.join_keys, how=self.how
+                )
 
         # If entity_df is provided, join it in last
         entity_df = context.entity_df
@@ -182,8 +199,11 @@ class SparkJoinNode(DAGNode):
                 spark_session=self.spark_session,
                 entity_df=entity_df,
             )
-            joined_df = joined_df.join(
-                entity_df, on=self.column_info.join_keys, how=self.how
+            if joined_df is None:
+                raise RuntimeError("No input features available to join with entity_df")
+
+            joined_df = entity_df.join(
+                joined_df, on=self.column_info.join_keys, how="left"
             )
 
         return DAGValue(

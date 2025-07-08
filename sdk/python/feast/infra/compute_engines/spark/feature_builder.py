@@ -33,7 +33,12 @@ class SparkFeatureBuilder(FeatureBuilder):
         source = view.batch_source
         column_info = self.get_column_info(view)
         node = SparkReadNode(
-            "source", source, column_info, self.spark_session, start_time, end_time
+            f"{view.name}:source",
+            source,
+            column_info,
+            self.spark_session,
+            start_time,
+            end_time,
         )
         self.nodes.append(node)
         return node
@@ -43,7 +48,11 @@ class SparkFeatureBuilder(FeatureBuilder):
         group_by_keys = view.entities
         timestamp_col = view.batch_source.timestamp_field
         node = SparkAggregationNode(
-            "agg", agg_specs, group_by_keys, timestamp_col, inputs=[input_node]
+            f"{view.name}:agg",
+            agg_specs,
+            group_by_keys,
+            timestamp_col,
+            inputs=[input_node],
         )
         self.nodes.append(node)
         return node
@@ -51,7 +60,7 @@ class SparkFeatureBuilder(FeatureBuilder):
     def build_join_node(self, view, input_nodes):
         column_info = self.get_column_info(view)
         node = SparkJoinNode(
-            name=f"{view.name}_join",
+            name=f"{view.name}:join",
             column_info=column_info,
             spark_session=self.spark_session,
             inputs=input_nodes,
@@ -65,7 +74,7 @@ class SparkFeatureBuilder(FeatureBuilder):
         ttl = getattr(view, "ttl", None)
         column_info = self.get_column_info(view)
         node = SparkFilterNode(
-            "filter",
+            f"{view.name}:filter",
             column_info,
             self.spark_session,
             ttl,
@@ -78,7 +87,7 @@ class SparkFeatureBuilder(FeatureBuilder):
     def build_dedup_node(self, view, input_node):
         column_info = self.get_column_info(view)
         node = SparkDedupNode(
-            "dedup", column_info, self.spark_session, inputs=[input_node]
+            f"{view.name}:dedup", column_info, self.spark_session, inputs=[input_node]
         )
         self.nodes.append(node)
         return node
@@ -90,8 +99,10 @@ class SparkFeatureBuilder(FeatureBuilder):
         self.nodes.append(node)
         return node
 
-    def build_output_nodes(self, input_node):
-        node = SparkWriteNode("output", self.dag_root.view, inputs=[input_node])
+    def build_output_nodes(self, view, input_node):
+        node = SparkWriteNode(
+            f"{view.name}:output", self.dag_root.view, inputs=[input_node]
+        )
         self.nodes.append(node)
         return node
 

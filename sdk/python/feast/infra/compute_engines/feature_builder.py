@@ -59,7 +59,7 @@ class FeatureBuilder(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def build_output_nodes(self, final_node):
+    def build_output_nodes(self, view, final_node):
         raise NotImplementedError
 
     @abstractmethod
@@ -131,7 +131,9 @@ class FeatureBuilder(ABC):
             view_to_node[view.name] = dag_node
 
         # Step 3: Build output node
-        final_node = self.build_output_nodes(view_to_node[self.feature_view.name])
+        final_node = self.build_output_nodes(
+            self.feature_view, view_to_node[self.feature_view.name]
+        )
 
         # Step 4: Topo sort the final DAG from the output node (Physical DAG)
         sorted_nodes = topo_sort(final_node)

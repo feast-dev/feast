@@ -117,7 +117,7 @@ class MockFeatureBuilder(FeatureBuilder):
     def build_validation_node(self, view, input_node):
         return MockDAGNode(f"Validate({view.name})", inputs=[input_node])
 
-    def build_output_nodes(self, final_node):
+    def build_output_nodes(self, view, final_node):
         output_node = MockDAGNode(f"Output({final_node.name})", inputs=[final_node])
         self.nodes.append(output_node)
         return output_node
