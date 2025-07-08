@@ -82,8 +82,10 @@ var _ = Describe("FeatureStore Controller - Feast service TLS", func() {
 							},
 							Registry: &feastdevv1alpha1.Registry{
 								Local: &feastdevv1alpha1.LocalRegistryConfig{
-									Server: &feastdevv1alpha1.ServerConfigs{
-										TLS: tlsConfigs,
+									Server: &feastdevv1alpha1.RegistryServerConfigs{
+										ServerConfigs: feastdevv1alpha1.ServerConfigs{
+											TLS: tlsConfigs,
+										},
 									},
 								},
 							},
@@ -463,7 +465,7 @@ var _ = Describe("Test mountCustomCABundle functionality", func() {
 		Spec: feastdevv1alpha1.FeatureStoreSpec{
 			FeastProject: feastProject,
 			Services: &feastdevv1alpha1.FeatureStoreServices{
-				Registry:     &feastdevv1alpha1.Registry{Local: &feastdevv1alpha1.LocalRegistryConfig{Server: &feastdevv1alpha1.ServerConfigs{}}},
+				Registry:     &feastdevv1alpha1.Registry{Local: &feastdevv1alpha1.LocalRegistryConfig{Server: &feastdevv1alpha1.RegistryServerConfigs{ServerConfigs: feastdevv1alpha1.ServerConfigs{}}}},
 				OnlineStore:  &feastdevv1alpha1.OnlineStore{Server: &feastdevv1alpha1.ServerConfigs{}},
 				OfflineStore: &feastdevv1alpha1.OfflineStore{Server: &feastdevv1alpha1.ServerConfigs{}},
 				UI:           &feastdevv1alpha1.ServerConfigs{},

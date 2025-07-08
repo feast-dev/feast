@@ -156,6 +156,7 @@ For more detailed information and examples:
 
 * [Vector Database Reference](../reference/alpha-vector-database.md)
 * [RAG Tutorial with Docling](../tutorials/rag-with-docling.md)
+* [RAG Fine Tuning with Feast and Milvus](../../examples/rag-retriever/README.md)
 * [Milvus Quickstart Example](https://github.com/feast-dev/feast/tree/master/examples/rag/milvus-quickstart.ipynb)
 * [MCP Feature Store Example](../../examples/mcp_feature_store/)
 * [MCP Feature Server Reference](../reference/feature-servers/mcp-feature-server.md)

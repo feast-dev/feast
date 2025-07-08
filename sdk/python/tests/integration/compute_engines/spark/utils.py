@@ -92,7 +92,7 @@ def create_spark_environment():
         batch_engine={"type": "spark.engine", "partitions": 10},
     )
     spark_environment = construct_test_environment(
-        spark_config, None, entity_key_serialization_version=2
+        spark_config, None, entity_key_serialization_version=3
     )
     spark_environment.setup()
     return spark_environment

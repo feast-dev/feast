@@ -385,7 +385,7 @@ class RemoteOfflineStoreDataSourceCreator(FileDataSourceCreator):
             provider="local",
             offline_store=parent_offline_config,
             registry=registry.path,
-            entity_key_serialization_version=2,
+            entity_key_serialization_version=3,
         )
 
         repo_path = Path(tempfile.mkdtemp())
@@ -417,6 +417,20 @@ class RemoteOfflineStoreDataSourceCreator(FileDataSourceCreator):
         )
         return "grpc+tcp://{}:{}".format(host, self.server_port)
 
+    def teardown(self):
+        super().teardown()
+        if self.proc is not None:
+            self.proc.kill()
+
+            # wait server to free the port
+            wait_retry_backoff(
+                lambda: (
+                    None,
+                    not check_port_open("localhost", self.server_port),
+                ),
+                timeout_secs=30,
+            )
+
 
 class RemoteOfflineTlsStoreDataSourceCreator(FileDataSourceCreator):
     def __init__(self, project_name: str, *args, **kwargs):
@@ -435,7 +449,7 @@ class RemoteOfflineTlsStoreDataSourceCreator(FileDataSourceCreator):
             provider="local",
             offline_store=parent_offline_config,
             registry=registry.path,
-            entity_key_serialization_version=2,
+            entity_key_serialization_version=3,
         )
 
         certificates_path = tempfile.mkdtemp()
@@ -536,7 +550,7 @@ auth:
             provider="local",
             offline_store=parent_offline_config,
             registry=registry.path,
-            entity_key_serialization_version=2,
+            entity_key_serialization_version=3,
         )
 
         repo_base_path = Path(tempfile.mkdtemp())

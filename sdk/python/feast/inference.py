@@ -31,7 +31,10 @@ def update_data_sources_with_inferred_event_timestamp_col(
         if isinstance(data_source, RequestSource):
             continue
         if isinstance(data_source, PushSource):
-            data_source = data_source.batch_source
+            if not isinstance(data_source.batch_source, DataSource):
+                continue
+            else:
+                data_source = data_source.batch_source
         if data_source.timestamp_field is None or data_source.timestamp_field == "":
             # prepare right match pattern for data source
             ts_column_type_regex_pattern: str

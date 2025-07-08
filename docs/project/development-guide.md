@@ -74,6 +74,7 @@ A quick list of things to keep in mind as you're making changes:
   - Ensure you leave a release note for any user facing changes in the PR. There is a field automatically generated in the PR request. You can write `NONE` in that field if there are no user facing changes.
   - Please run tests locally before submitting a PR (e.g. for Python, the [local integration tests](#local-integration-tests))
   - Try to keep PRs smaller. This makes them easier to review.
+  - Please make sure to update any useful documentation under `docs/` that impacts the area you are contributing to.
 
 ### Good practices to keep in mind
 * Fill in the description based on the default template configured when you first open the PR

@@ -11,4 +11,4 @@ online_store:
   ssl_keyfile_path: c_key_path
   ssl_password: ${SSL_PASSWORD} # This value will be read form the `SSL_PASSWORD` environment variable.
   key_ttl_seconds: c_ttl_seconds
-entity_key_serialization_version: 2
+entity_key_serialization_version: 3

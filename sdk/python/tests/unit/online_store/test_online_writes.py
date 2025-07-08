@@ -43,7 +43,7 @@ class TestOnlineWrites(unittest.TestCase):
                     project="test_write_to_online_store",
                     registry=os.path.join(data_dir, "registry.db"),
                     provider="local",
-                    entity_key_serialization_version=2,
+                    entity_key_serialization_version=3,
                     online_store=SqliteOnlineStoreConfig(
                         path=os.path.join(data_dir, "online.db")
                     ),
@@ -163,7 +163,7 @@ class TestOnlineWritesWithTransform(unittest.TestCase):
                     project="test_write_to_online_store_with_transform",
                     registry=os.path.join(data_dir, "registry.db"),
                     provider="local",
-                    entity_key_serialization_version=2,
+                    entity_key_serialization_version=3,
                     online_store=SqliteOnlineStoreConfig(
                         path=os.path.join(data_dir, "online.db")
                     ),

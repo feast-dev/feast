@@ -341,24 +341,27 @@ markupsafe==3.0.2 \
     --hash=sha256:f8b3d067f2e40fe93e1ccdd6b2e1d16c43140e76f02fb1319a05cf2b79d99430 \
     --hash=sha256:fcabf5ff6eea076f859677f5f0b6b5c1a51e70a376b0579e0eadef8db48c6b50
     # via jinja2
-maturin==1.8.6 \
-    --hash=sha256:0e0dc2e0bfaa2e1bd238e0236cf8a2b7e2250ccaa29c1aa8d0e61fa664b0289d \
-    --hash=sha256:1bf4c743dd2b24448e82b8c96251597818956ddf848e1d16b59356512c7e58d8 \
-    --hash=sha256:24f66624db69b895b134a8f1592efdf04cd223c9b3b65243ad32080477936d14 \
-    --hash=sha256:4dd2e2f005ca63ac7ef0dddf2d65324ee480277a11544dcc4e7e436af68034dd \
-    --hash=sha256:4ea89cf76048bc760e12b36b608fc3f5ef4f7359c0895e9afe737be34041d948 \
-    --hash=sha256:5c0ff7ad43883920032b63c94c76dcdd5758710d7b72b68db69e7826c40534ac \
-    --hash=sha256:62a65f70ebaadd6eb6083f5548413744f2ef12400445778e08d41d4facf15bbe \
-    --hash=sha256:6bc9281b90cd37e2a7985f2e5d6e3d35a1d64cf6e4d04ce5ed25603d162995b9 \
-    --hash=sha256:b0637604774e2c50ab48a0e9023fe2f071837ecbc817c04ec28e1cfcc25224c2 \
-    --hash=sha256:b1e786ec9b5f7315c7e3fcc62b0715f9d99ffe477b06d0d62655a71e6a51a67b \
-    --hash=sha256:bec5948c6475954c8089b17fae349966258756bb2ca05e54099e476a08070795 \
-    --hash=sha256:ca30fdb158a24cf312f3e53072a6e987182c103fa613efea2d28b5f52707d04a \
-    --hash=sha256:dade5edfaf508439ff6bbc7be4f207e04c0999c47d9ef7e1bae16258e76b1518
+maturin==1.9.0 \
+    --hash=sha256:18d77e395f62a0227697098526be6becb3ceea34a79f338b1b716fb96e42a1b2 \
+    --hash=sha256:289d0c2925a8c8ba3ce058e7b691b1c274fd06e36a915232f4e07fa62266f9b6 \
+    --hash=sha256:33f046f52327b68c28203efe5ecc4fd1952b4d1fe34e65853092e3347a6a6fa0 \
+    --hash=sha256:35a506c3139d6847edd160f99fd0da7c7b2bbb4d53e0fef995479eed3a92ac37 \
+    --hash=sha256:3aa8de021f91bd41918f4afd1b285e84e1b858e354b1de01597bb97a1b9820e1 \
+    --hash=sha256:5a7a829b03415b7fcaaabeafb520a92cd32b6dd9e8d12e34c7cd7689d404e6a3 \
+    --hash=sha256:6b075f82dc87fa70d583b1fe909ac5e96f36ec2043721acb82f9d6757e860459 \
+    --hash=sha256:7acbcf1ae9d3c26c2cceec08b4f58d37ac1a7df5f15b13328e3f80efb5b6c4de \
+    --hash=sha256:8634a6b7e4af491fea90441580f73d74fd92320cfc53ea06d06293ffa89430e5 \
+    --hash=sha256:a48d8917e60875a06ef36568c2c4a926b6e2681616a251cc50cbf0a5c8aa7428 \
+    --hash=sha256:c99003470cb37388a31152af4b00492c5db8d767f689a64f45eb5830adc6f3f4 \
+    --hash=sha256:ccb9cb87f8df88d1bab8f49efe3fc77f0abb0639ea4b4ebf4f35549200d16b9e \
+    --hash=sha256:fb9796c1893d1e3cd9da9325ef3c63d54a5b0fe6183ddae4954b10c64a1ae5e3
     # via
     #   cryptography
+    #   hf-xet
     #   pydantic-core
     #   rpds-py
+    #   safetensors
+    #   tokenizers
     #   watchfiles
 meson-python==0.15.0 \
     --hash=sha256:3ae38253ff02b2e947a05e362a2eaf5a9a09d133c5666b4123399ee5fbf2e591 \
@@ -637,9 +640,9 @@ pyproject-metadata==0.9.1 \
     --hash=sha256:b8b2253dd1b7062b78cf949a115f02ba7fa4114aabe63fa10528e9e1a954a816 \
     --hash=sha256:ee5efde548c3ed9b75a354fc319d5afd25e9585fa918a34f62f904cc731973ad
     # via meson-python
-scikit-build-core==0.11.4 \
-    --hash=sha256:0d3e3463c332979a0c07340241b162d6cb0059a7a1bee6465c38ace49d441596 \
-    --hash=sha256:5b194bbb04092ae327d294b23e4bbffb6181adce4259440a86c9cf6abb8eaa6c
+scikit-build-core==0.11.5 \
+    --hash=sha256:8f0a1edb86cb087876f3c699d2a2682012efd8867b390ed37355f13949d0628e \
+    --hash=sha256:fada727b49f6c34f943bd52773a130bbd1f9b322d751251048ddbe2f4ce92761
     # via patchelf
 semantic-version==2.10.0 \
     --hash=sha256:bdabb6d336998cbb378d4b9db3a4b56a1e3235701dc05ea2690d9a997ed5041c \
@@ -677,6 +680,7 @@ setuptools-scm==8.3.1 \
     #   tqdm
     #   typeguard
     #   ujson
+    #   urllib3
     #   zipp
 smmap==5.0.2 \
     --hash=sha256:26ea65a03958fa0c8a1c7e8c7a58fdc77221b8910f6be2131affade476898ad5 \
@@ -798,9 +802,9 @@ wheel==0.45.1 \
     #   uvloop
 
 # The following packages are considered to be unsafe in a requirements file:
-setuptools==76.1.0 \
-    --hash=sha256:34750dcb17d046929f545dec9b8349fe42bf4ba13ddffee78428aec422dbfb73 \
-    --hash=sha256:4959b9ad482ada2ba2320c8f1a8d8481d4d8d668908a7a1b84d987375cd7f5bd
+setuptools==80.9.0 \
+    --hash=sha256:062d34222ad13e0cc312a4c02d73f059e86a4acbfbdea8f8f76b28c99f306922 \
+    --hash=sha256:f36b47402ecde768dbfafc46e8e4207b4360c654f1f3bb84475f0a28628fb19c
     # via
     #   aiobotocore
     #   aiohttp
@@ -810,6 +814,7 @@ setuptools==76.1.0 \
     #   backports-datetime-fromisoformat
     #   cachetools
     #   calver
+    #   certifi
     #   cffi
     #   charset-normalizer
     #   cryptography
@@ -837,6 +842,7 @@ setuptools==76.1.0 \
     #   partd
     #   pathspec
     #   pluggy
+    #   prometheus-client
     #   propcache
     #   proto-plus
     #   psutil
@@ -850,7 +856,9 @@ setuptools==76.1.0 \
     #   pyjwt
     #   pymilvus
     #   pymysql
+    #   python-dateutil
     #   pyyaml
+    #   regex
     #   setuptools-rust
     #   setuptools-scm
     #   shellingham
@@ -863,6 +871,9 @@ setuptools==76.1.0 \
     #   tenacity
     #   tqdm
     #   trove-classifiers
+    #   typeguard
+    #   types-pymysql
+    #   types-setuptools
     #   tzdata
     #   ujson
     #   uvloop
@@ -870,13 +881,4 @@ setuptools==76.1.0 \
     #   websockets
     #   wrapt
     #   yarl
-setuptools==80.9.0 \
-    --hash=sha256:062d34222ad13e0cc312a4c02d73f059e86a4acbfbdea8f8f76b28c99f306922 \
-    --hash=sha256:f36b47402ecde768dbfafc46e8e4207b4360c654f1f3bb84475f0a28628fb19c
-    # via
-    #   prometheus-client
-    #   python-dateutil
-    #   typeguard
-    #   types-pymysql
-    #   types-setuptools
     #   zipp
