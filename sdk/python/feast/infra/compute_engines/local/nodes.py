@@ -99,10 +99,10 @@ class LocalJoinNode(LocalNode):
                 )
 
             joined_df = self.backend.join(
-                joined_df,
                 entity_df,
+                joined_df,
                 on=self.column_info.join_keys,
-                how=self.how,
+                how="left",
             )
 
         result = self.backend.to_arrow(joined_df)
