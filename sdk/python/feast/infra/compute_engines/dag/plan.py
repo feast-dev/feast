@@ -60,29 +60,16 @@ class ExecutionPlan:
         """
         raise NotImplementedError("SQL generation is not implemented yet.")
 
-    def to_dag(self):
+    def to_dag(self) -> str:
         """
-        Generate a textual DAG representation for debugging.
-
-        Returns:
-            str: A multi-line string showing the DAG structure.
+        Render the DAG as a multiline string with full node expansion (no visited shortcut).
         """
-        lines = []
-        seen = set()
 
-        def dfs(node: DAGNode, indent=0):
+        def walk(node: DAGNode, indent: int = 0) -> List[str]:
             prefix = "  " * indent
-            if node.name in seen:
-                lines.append(f"{prefix}- {node.name} (visited)")
-                return
-            seen.add(node.name)
-            lines.append(f"{prefix}- {node.name}")
+            lines = [f"{prefix}- {node.name}"]
             for input_node in node.inputs:
-                dfs(input_node, indent + 1)
+                lines.extend(walk(input_node, indent + 1))
+            return lines
 
-        for node in self.nodes:
-            dfs(node)
-
-        return "\n".join(lines)
-
-
+        return "\n".join(walk(self.nodes[-1]))

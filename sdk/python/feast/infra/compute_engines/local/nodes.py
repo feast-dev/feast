@@ -41,6 +41,7 @@ class LocalSourceReadNode(LocalNode):
             context=context,
             start_time=self.start_time,
             end_time=self.end_time,
+            column_info=self.column_info,
         )
         arrow_table = retrieval_job.to_arrow()
         if self.column_info.field_mapping:

@@ -48,9 +48,7 @@ class SparkFeatureBuilder(FeatureBuilder):
         self.nodes.append(node)
         return node
 
-    def build_join_node(self,
-                        view,
-                        input_nodes):
+    def build_join_node(self, view, input_nodes):
         column_info = self.get_column_info(view)
         node = SparkJoinNode(
             name=f"{view.name}_join",

@@ -1,13 +1,11 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 from unittest.mock import MagicMock
 
-import pandas as pd
 import pytest
 from pyspark.sql import DataFrame
 from tqdm import tqdm
 
-from feast import BatchFeatureView, Entity, Field
-from feast.aggregation import Aggregation
+from feast import BatchFeatureView, Field
 from feast.infra.common.materialization_job import (
     MaterializationJobStatus,
     MaterializationTask,
@@ -16,82 +14,25 @@ from feast.infra.compute_engines.spark.compute import SparkComputeEngine
 from feast.infra.offline_stores.contrib.spark_offline_store.spark import (
     SparkOfflineStore,
 )
-from feast.infra.offline_stores.contrib.spark_offline_store.tests.data_source import (
-    SparkDataSourceCreator,
+from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import (
+    SparkSource,
 )
 from feast.types import Float32, Int32, Int64
-from tests.integration.feature_repos.integration_test_repo_config import (
-    IntegrationTestRepoConfig,
+from tests.integration.compute_engines.spark.utils import (
+    _check_offline_features,
+    _check_online_features,
+    create_entity_df,
+    create_feature_dataset,
+    create_spark_environment,
+    driver,
+    now,
 )
-from tests.integration.feature_repos.repo_configuration import (
-    construct_test_environment,
-)
-from tests.integration.feature_repos.universal.online_store.redis import (
-    RedisOnlineStoreCreator,
-)
-
-now = datetime.now()
-today = datetime.today()
-
-driver = Entity(
-    name="driver_id",
-    description="driver id",
-)
-
-
-@pytest.fixture(scope="module")
-def spark_env():
-    config = IntegrationTestRepoConfig(
-        provider="local",
-        online_store_creator=RedisOnlineStoreCreator,
-        offline_store_creator=SparkDataSourceCreator,
-        batch_engine={"type": "spark.engine", "partitions": 10},
-    )
-    env = construct_test_environment(config, None, entity_key_serialization_version=2)
-    env.setup()
-    yield env
-    env.teardown()
-
-
-def create_sample_datasource(spark_environment):
-    df = pd.DataFrame(
-        [
-            {
-                "driver_id": 1001,
-                "event_timestamp": today - timedelta(days=1),
-                "created": now - timedelta(hours=2),
-                "conv_rate": 0.8,
-                "acc_rate": 0.5,
-                "avg_daily_trips": 15,
-            },
-            {
-                "driver_id": 1002,
-                "event_timestamp": today - timedelta(days=1),
-                "created": now - timedelta(hours=2),
-                "conv_rate": 0.7,
-                "acc_rate": 0.4,
-                "avg_daily_trips": 12,
-            },
-        ]
-    )
-    ds = spark_environment.data_source_creator.create_data_source(
-        df,
-        spark_environment.feature_store.project,
-        timestamp_field="event_timestamp",
-        created_timestamp_column="created",
-    )
-    return ds
 
 
 def create_base_feature_view(source):
     return BatchFeatureView(
         name="hourly_driver_stats",
         entities=[driver],
-        aggregations=[
-            Aggregation(column="conv_rate", function="sum"),
-            Aggregation(column="acc_rate", function="avg"),
-        ],
-        ttl=timedelta(days=3),
         schema=[
             Field(name="conv_rate", dtype=Float32),
             Field(name="acc_rate", dtype=Float32),
@@ -105,69 +46,83 @@ def create_base_feature_view(source):
 
 
 def create_chained_feature_view(base_fv: BatchFeatureView):
-    def transform(df: DataFrame) -> DataFrame:
-        return df.withColumn("sum_conv_rate", df["sum_conv_rate"] * 10)
+    def transform_feature(df: DataFrame) -> DataFrame:
+        df = df.withColumn("conv_rate", df["conv_rate"] * 2)
+        df = df.withColumn("acc_rate", df["acc_rate"] * 2)
+        return df
 
     return BatchFeatureView(
         name="daily_driver_stats",
         entities=[driver],
-        udf=transform,
+        udf=transform_feature,
         udf_string="transform",
         schema=[
-            Field(name="sum_conv_rate", dtype=Float32),
+            Field(name="conv_rate", dtype=Float32),
             Field(name="driver_id", dtype=Int32),
         ],
         online=True,
         offline=True,
-        source_view=base_fv,
-        tags={
-            "join_keys": "driver_id",
-            "feature_cols": "sum_conv_rate",
-            "ts_col": "event_timestamp",
-            "created_ts_col": "created",
-        },
+        source=base_fv,
+        sink_source=SparkSource(
+            name="daily_driver_stats_sink",
+            path="/tmp/daily_driver_stats_sink",
+            file_format="parquet",
+            timestamp_field="event_timestamp",
+            created_timestamp_column="created",
+        ),
     )
 
 
-def _tqdm_builder(length):
-    return tqdm(total=length, ncols=100)
-
-
 @pytest.mark.integration
-def test_spark_dag_materialize_recursive_view(spark_env):
+def test_spark_dag_materialize_recursive_view():
+    spark_env = create_spark_environment()
     fs = spark_env.feature_store
     registry = fs.registry
-    source = create_sample_datasource(spark_env)
+    source = create_feature_dataset(spark_env)
 
     base_fv = create_base_feature_view(source)
     chained_fv = create_chained_feature_view(base_fv)
 
-    fs.apply([driver, base_fv, chained_fv])
+    def tqdm_builder(length):
+        return tqdm(total=length, ncols=100)
 
-    # 🧪 Materialize top-level view; DAG will include base_fv implicitly
-    task = MaterializationTask(
-        project=fs.project,
-        feature_view=chained_fv,
-        start_time=now - timedelta(days=2),
-        end_time=now,
-        tqdm_builder=_tqdm_builder,
-    )
+    try:
+        fs.apply([driver, base_fv, chained_fv])
 
-    engine = SparkComputeEngine(
-        repo_config=spark_env.config,
-        offline_store=SparkOfflineStore(),
-        online_store=MagicMock(),
-        registry=registry,
-    )
+        # 🧪 Materialize top-level view; DAG will include base_fv implicitly
+        task = MaterializationTask(
+            project=fs.project,
+            feature_view=chained_fv,
+            start_time=now - timedelta(days=2),
+            end_time=now,
+            tqdm_builder=tqdm_builder,
+        )
 
-    jobs = engine.materialize(registry, task)
+        engine = SparkComputeEngine(
+            repo_config=spark_env.config,
+            offline_store=SparkOfflineStore(),
+            online_store=MagicMock(),
+            registry=registry,
+        )
 
-    # ✅ Validate jobs ran
-    assert len(jobs) == 1
-    assert jobs[0].status() == MaterializationJobStatus.SUCCEEDED
+        jobs = engine.materialize(registry, task)
 
-    # ✅ Verify output exists in offline store
-    df = jobs[0].to_df()
-    assert "sum_conv_rate" in df.columns
-    assert sorted(df["driver_id"].tolist()) == [1001, 1002]
-    assert abs(df["sum_conv_rate"].iloc[0] - 16.0) < 1e-6  # (0.8 + 0.8) * 10
+        # ✅ Validate jobs ran
+        assert len(jobs) == 1
+        assert jobs[0].status() == MaterializationJobStatus.SUCCEEDED
+
+        _check_online_features(
+            fs=fs,
+            driver_id=1001,
+            feature="daily_driver_stats:conv_rate",
+            expected_value=1.6,
+            full_feature_names=True,
+        )
+
+        entity_df = create_entity_df()
+
+        _check_offline_features(
+            fs=fs, feature="hourly_driver_stats:conv_rate", entity_df=entity_df, size=2
+        )
+    finally:
+        spark_env.teardown()

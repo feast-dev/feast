@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from typing import List, Optional, Union, cast
+from typing import Callable, List, Optional, Union, cast
 
 from pyspark.sql import DataFrame, SparkSession, Window
 from pyspark.sql import functions as F
@@ -156,7 +156,7 @@ class SparkJoinNode(DAGNode):
         column_info: ColumnInfo,
         spark_session: SparkSession,
         inputs: Optional[List[DAGNode]] = None,
-        how: str = "left"
+        how: str = "left",
     ):
         super().__init__(name, inputs=inputs or [])
         self.column_info = column_info
@@ -171,7 +171,9 @@ class SparkJoinNode(DAGNode):
         # Join all input DataFrames on join_keys
         joined_df = input_values[0].data
         for dag_value in input_values[1:]:
-            joined_df = joined_df.join(dag_value.data, on=self.column_info.join_keys, how=self.how)
+            joined_df = joined_df.join(
+                dag_value.data, on=self.column_info.join_keys, how=self.how
+            )
 
         # If entity_df is provided, join it in last
         entity_df = context.entity_df
@@ -180,7 +182,9 @@ class SparkJoinNode(DAGNode):
                 spark_session=self.spark_session,
                 entity_df=entity_df,
             )
-            joined_df = joined_df.join(entity_df, on=self.column_info.join_keys, how=self.how)
+            joined_df = joined_df.join(
+                entity_df, on=self.column_info.join_keys, how=self.how
+            )
 
         return DAGValue(
             data=joined_df,
@@ -332,7 +336,7 @@ class SparkWriteNode(DAGNode):
 
 
 class SparkTransformationNode(DAGNode):
-    def __init__(self, name: str, udf: callable, inputs: List[DAGNode]):
+    def __init__(self, name: str, udf: Callable, inputs: List[DAGNode]):
         super().__init__(name, inputs)
         self.udf = udf
 
@@ -343,7 +347,9 @@ class SparkTransformationNode(DAGNode):
 
         input_dfs: List[DataFrame] = [val.data for val in input_values]
 
-        print(f"[SparkTransformationNode] Executing transform on {len(input_dfs)} input(s).")
+        print(
+            f"[SparkTransformationNode] Executing transform on {len(input_dfs)} input(s)."
+        )
 
         transformed_df = self.udf(*input_dfs)
 

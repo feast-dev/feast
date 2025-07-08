@@ -11,7 +11,6 @@ from feast.data_source import DataSource
 from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.field import Field
-from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.transformation.base import Transformation
 from feast.transformation.mode import TransformationMode
 
@@ -53,6 +52,7 @@ class BatchFeatureView(FeatureView):
     entities: List[str]
     ttl: Optional[timedelta]
     source: DataSource
+    sink_source: Optional[DataSource] = None
     schema: List[Field]
     entity_columns: List[Field]
     features: List[Field]
@@ -75,6 +75,7 @@ class BatchFeatureView(FeatureView):
         name: str,
         mode: Union[TransformationMode, str] = TransformationMode.PYTHON,
         source: Union[DataSource, "BatchFeatureView", List["BatchFeatureView"]],
+        sink_source: Optional[DataSource] = None,
         entities: Optional[List[Entity]] = None,
         ttl: Optional[timedelta] = None,
         tags: Optional[Dict[str, str]] = None,
@@ -115,12 +116,13 @@ class BatchFeatureView(FeatureView):
             description=description,
             owner=owner,
             schema=schema,
-            source=source,
+            source=source,  # type: ignore[arg-type]
+            sink_source=sink_source,
         )
 
     def get_feature_transformation(self) -> Optional[Transformation]:
         if not self.udf:
-            return
+            return None
         if self.mode in (
             TransformationMode.PANDAS,
             TransformationMode.PYTHON,

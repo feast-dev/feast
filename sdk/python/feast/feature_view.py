@@ -105,6 +105,7 @@ class FeatureView(BaseFeatureView):
         *,
         name: str,
         source: Union[DataSource, "FeatureView", List["FeatureView"]],
+        sink_source: Optional[DataSource] = None,
         schema: Optional[List[Field]] = None,
         entities: Optional[List[Entity]] = None,
         ttl: Optional[timedelta] = timedelta(days=0),
@@ -146,6 +147,7 @@ class FeatureView(BaseFeatureView):
         schema = schema or []
 
         # Normalize source
+        self.stream_source = None
         self.data_source: Optional[DataSource] = None
         self.source_views: List[FeatureView] = []
 
@@ -153,27 +155,36 @@ class FeatureView(BaseFeatureView):
             self.data_source = source
         elif isinstance(source, FeatureView):
             self.source_views = [source]
-        elif isinstance(source, list) and all(isinstance(sv, FeatureView) for sv in source):
+        elif isinstance(source, list) and all(
+            isinstance(sv, FeatureView) for sv in source
+        ):
             self.source_views = source
         else:
-            raise TypeError("source must be a DataSource, a FeatureView, or a list of FeatureViews.")
+            raise TypeError(
+                "source must be a DataSource, a FeatureView, or a list of FeatureViews."
+            )
 
-        # Set up stream/batch sources
+        # Set up stream, batch and derived view sources
         if (
             isinstance(self.data_source, PushSource)
             or isinstance(self.data_source, KafkaSource)
             or isinstance(self.data_source, KinesisSource)
         ):
-            self.stream_source = source
+            # Stream source definition
+            self.stream_source = self.data_source
             if not self.data_source.batch_source:
                 raise ValueError(
-                    f"A batch_source needs to be specified for stream source `{source.name}`"
+                    f"A batch_source needs to be specified for stream source `{self.data_source.name}`"
                 )
-            else:
-                self.batch_source = self.data_source.batch_source
-        else:
-            self.stream_source = None
+            self.batch_source = self.data_source.batch_source
+        elif self.data_source:
+            # Batch source definition
             self.batch_source = self.data_source
+        else:
+            # Derived view source definition
+            if not sink_source:
+                raise ValueError("Derived FeatureView must specify `sink_source`.")
+            self.batch_source = sink_source
 
         # Initialize features and entity columns.
         features: List[Field] = []
@@ -215,7 +226,7 @@ class FeatureView(BaseFeatureView):
         )
 
         # TODO(felixwang9817): Add more robust validation of features.
-        if source is not None:
+        if self.batch_source is not None:
             cols = [field.name for field in schema]
             for col in cols:
                 if (
@@ -451,7 +462,7 @@ class FeatureView(BaseFeatureView):
                 if feature_view_proto.spec.ttl.ToNanoseconds() == 0
                 else feature_view_proto.spec.ttl.ToTimedelta()
             ),
-            source=batch_source if batch_source else source_views
+            source=batch_source if batch_source else source_views,
         )
         if stream_source:
             feature_view.stream_source = stream_source

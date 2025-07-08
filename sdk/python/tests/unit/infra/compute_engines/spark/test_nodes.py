@@ -66,7 +66,9 @@ def test_spark_transformation_node_executes_udf(spark_session):
     input_node.name = "source"
 
     # Create and run the node
-    node = SparkTransformationNode("transform", udf=strip_extra_spaces, inputs=[input_node])
+    node = SparkTransformationNode(
+        "transform", udf=strip_extra_spaces, inputs=[input_node]
+    )
     result = node.execute(context)
 
     # Assert output

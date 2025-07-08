@@ -1,8 +1,10 @@
 from abc import ABC, abstractmethod
-from typing import List, Optional, Union, Dict
+from typing import Dict, List, Optional, Union
+
 from feast import BatchFeatureView, FeatureView, StreamFeatureView
 from feast.infra.common.materialization_job import MaterializationTask
 from feast.infra.common.retrieval_task import HistoricalRetrievalTask
+from feast.infra.compute_engines.algorithms.topo import topo_sort
 from feast.infra.compute_engines.dag.context import ColumnInfo
 from feast.infra.compute_engines.dag.node import DAGNode
 from feast.infra.compute_engines.dag.plan import ExecutionPlan
@@ -11,7 +13,6 @@ from feast.infra.compute_engines.feature_resolver import (
 )
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.utils import _get_column_names
-from feast.infra.compute_engines.algorithms.topo import topo_sort
 
 
 class FeatureBuilder(ABC):
@@ -78,7 +79,6 @@ class FeatureBuilder(ABC):
         return isinstance(self.task, HistoricalRetrievalTask) or self.task.only_latest
 
     def _build(self, view, input_nodes: Optional[List[DAGNode]]) -> DAGNode:
-
         # Step 1: build source node
         if view.data_source:
             last_node = self.build_source_node(view)

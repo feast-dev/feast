@@ -1,9 +1,9 @@
 from typing import List, Optional, Set
 
 from feast.feature_view import FeatureView
-from feast.infra.compute_engines.dag.node import DAGNode
 from feast.infra.compute_engines.algorithms.topo import topo_sort
 from feast.infra.compute_engines.dag.context import ExecutionContext
+from feast.infra.compute_engines.dag.node import DAGNode
 from feast.infra.compute_engines.dag.value import DAGValue
 
 
@@ -12,10 +12,12 @@ class FeatureViewNode(DAGNode):
     Logical representation of a node in the FeatureView dependency DAG.
     """
 
-    def __init__(self, view: FeatureView):
+    def __init__(
+        self, view: FeatureView, inputs: Optional[List["FeatureViewNode"]] = None
+    ):
         super().__init__(name=view.name)
         self.view: FeatureView = view
-        self.inputs: List["FeatureViewNode"] = []
+        self.inputs: List["FeatureViewNode"] = inputs or []  # type: ignore
 
     def execute(self, context: ExecutionContext) -> DAGValue:
         raise NotImplementedError(
@@ -68,15 +70,16 @@ class FeatureResolver:
         self._node_cache[view.name] = node
 
         self._resolution_path.append(view.name)
-        for upstream_view in view.source_views:
-            input_node = self._walk(upstream_view)
-            node.inputs.append(input_node)
+        if view.source_views:
+            for upstream_view in view.source_views:
+                input_node = self._walk(upstream_view)
+                node.inputs.append(input_node)
         self._resolution_path.pop()
 
         return node
 
     def topo_sort(self, root: FeatureViewNode) -> List[FeatureViewNode]:
-        return topo_sort(root)
+        return topo_sort(root)  # type: ignore
 
     def debug_dag(self, node: FeatureViewNode, depth=0):
         """
@@ -89,4 +92,4 @@ class FeatureResolver:
         indent = "  " * depth
         print(f"{indent}- {node.view.name}")
         for input_node in node.inputs:
-            self.debug_dag(input_node, depth + 1)
+            self.debug_dag(input_node, depth + 1)  # type: ignore
