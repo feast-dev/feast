@@ -693,8 +693,13 @@ def _get_entity_maps(
                 entity.join_key, entity.join_key
             )
             entity_name_to_join_key_map[entity_name] = join_key
+
         for entity_column in feature_view.entity_columns:
-            entity_type_map[entity_column.name] = entity_column.dtype.to_value_type()
+            dtype = entity_column.dtype.to_value_type()
+            entity_join_key_column_name = feature_view.projection.join_key_map.get(
+                entity_column.name, entity_column.name
+            )
+            entity_type_map[entity_join_key_column_name] = dtype
 
     return (
         entity_name_to_join_key_map,
