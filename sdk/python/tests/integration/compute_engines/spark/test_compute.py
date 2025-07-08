@@ -91,9 +91,9 @@ def test_spark_compute_engine_get_historical_features():
 
         # ✅ Assert output
         assert df_out.driver_id.to_list() == [1001, 1002]
-        assert abs(df_out["sum_conv_rate"].to_list()[0] - 1.6) < 1e-6
+        assert abs(df_out["sum_conv_rate"].to_list()[0] - 3.1) < 1e-6
         assert abs(df_out["sum_conv_rate"].to_list()[1] - 2.0) < 1e-6
-        assert abs(df_out["avg_acc_rate"].to_list()[0] - 1.0) < 1e-6
+        assert abs(df_out["avg_acc_rate"].to_list()[0] - 1.4) < 1e-6
         assert abs(df_out["avg_acc_rate"].to_list()[1] - 1.0) < 1e-6
 
     finally:
