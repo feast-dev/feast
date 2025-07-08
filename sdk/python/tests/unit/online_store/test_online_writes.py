@@ -155,6 +155,220 @@ class TestOnlineWrites(unittest.TestCase):
         )
 
 
+class TestEmptyDataFrameValidation(unittest.TestCase):
+    def setUp(self):
+        with tempfile.TemporaryDirectory() as data_dir:
+            self.store = FeatureStore(
+                config=RepoConfig(
+                    project="test_empty_df_validation",
+                    registry=os.path.join(data_dir, "registry.db"),
+                    provider="local",
+                    entity_key_serialization_version=2,
+                    online_store=SqliteOnlineStoreConfig(
+                        path=os.path.join(data_dir, "online.db")
+                    ),
+                )
+            )
+
+            # Generate test data for schema creation
+            end_date = datetime.now().replace(microsecond=0, second=0, minute=0)
+            start_date = end_date - timedelta(days=1)
+
+            driver_entities = [1001]
+            driver_df = create_driver_hourly_stats_df(
+                driver_entities, start_date, end_date
+            )
+            driver_stats_path = os.path.join(data_dir, "driver_stats.parquet")
+            driver_df.to_parquet(
+                path=driver_stats_path, allow_truncated_timestamps=True
+            )
+
+            driver = Entity(name="driver", join_keys=["driver_id"])
+
+            driver_stats_source = FileSource(
+                name="driver_hourly_stats_source",
+                path=driver_stats_path,
+                timestamp_field="event_timestamp",
+                created_timestamp_column="created",
+            )
+
+            driver_stats_fv = FeatureView(
+                name="driver_hourly_stats",
+                entities=[driver],
+                ttl=timedelta(days=0),
+                schema=[
+                    Field(name="conv_rate", dtype=Float32),
+                    Field(name="acc_rate", dtype=Float32),
+                    Field(name="avg_daily_trips", dtype=Int64),
+                ],
+                online=True,
+                source=driver_stats_source,
+            )
+
+            self.store.apply([driver, driver_stats_source, driver_stats_fv])
+
+    def test_empty_dataframe_raises_error(self):
+        """Test that completely empty dataframe raises ValueError"""
+        empty_df = pd.DataFrame()
+        
+        with self.assertRaises(ValueError) as context:
+            self.store.write_to_online_store(
+                feature_view_name="driver_hourly_stats", df=empty_df
+            )
+        
+        self.assertIn("Cannot write empty dataframe to online store", str(context.exception))
+
+    def test_empty_dataframe_async_raises_error(self):
+        """Test that completely empty dataframe raises ValueError in async version"""
+        import asyncio
+        
+        async def test_async_empty():
+            empty_df = pd.DataFrame()
+            
+            with self.assertRaises(ValueError) as context:
+                await self.store.write_to_online_store_async(
+                    feature_view_name="driver_hourly_stats", df=empty_df
+                )
+            
+            self.assertIn("Cannot write empty dataframe to online store", str(context.exception))
+        
+        asyncio.run(test_async_empty())
+
+    def test_dataframe_with_empty_feature_columns_raises_error(self):
+        """Test that dataframe with entity data but empty feature columns raises ValueError"""
+        current_time = pd.Timestamp.now()
+        df_with_entity_only = pd.DataFrame({
+            "driver_id": [1001, 1002, 1003],
+            "event_timestamp": [current_time] * 3,
+            "created": [current_time] * 3,
+            "conv_rate": [None, None, None],  # All nulls
+            "acc_rate": [None, None, None],   # All nulls
+            "avg_daily_trips": [None, None, None]  # All nulls
+        })
+        
+        with self.assertRaises(ValueError) as context:
+            self.store.write_to_online_store(
+                feature_view_name="driver_hourly_stats", df=df_with_entity_only
+            )
+        
+        self.assertIn("Cannot write dataframe with empty feature columns to online store", str(context.exception))
+
+    def test_dataframe_with_empty_feature_columns_async_raises_error(self):
+        """Test that dataframe with entity data but empty feature columns raises ValueError in async version"""
+        import asyncio
+        
+        async def test_async_empty_features():
+            current_time = pd.Timestamp.now()
+            df_with_entity_only = pd.DataFrame({
+                "driver_id": [1001, 1002, 1003],
+                "event_timestamp": [current_time] * 3,
+                "created": [current_time] * 3,
+                "conv_rate": [None, None, None],
+                "acc_rate": [None, None, None],
+                "avg_daily_trips": [None, None, None]
+            })
+            
+            with self.assertRaises(ValueError) as context:
+                await self.store.write_to_online_store_async(
+                    feature_view_name="driver_hourly_stats", df=df_with_entity_only
+                )
+            
+            self.assertIn("Cannot write dataframe with empty feature columns to online store", str(context.exception))
+        
+        asyncio.run(test_async_empty_features())
+
+    def test_valid_dataframe_succeeds(self):
+        """Test that valid dataframe with feature data succeeds"""
+        current_time = pd.Timestamp.now()
+        valid_df = pd.DataFrame({
+            "driver_id": [1001, 1002],
+            "event_timestamp": [current_time] * 2,
+            "created": [current_time] * 2,
+            "conv_rate": [0.5, 0.7],
+            "acc_rate": [0.8, 0.9],
+            "avg_daily_trips": [10, 12]
+        })
+        
+        # This should not raise an exception
+        self.store.write_to_online_store(
+            feature_view_name="driver_hourly_stats", df=valid_df
+        )
+
+    def test_valid_dataframe_async_succeeds(self):
+        """Test that valid dataframe with feature data succeeds in async version"""
+        import asyncio
+        
+        async def test_async_valid():
+            current_time = pd.Timestamp.now()
+            valid_df = pd.DataFrame({
+                "driver_id": [1001, 1002],
+                "event_timestamp": [current_time] * 2,
+                "created": [current_time] * 2,
+                "conv_rate": [0.5, 0.7],
+                "acc_rate": [0.8, 0.9],
+                "avg_daily_trips": [10, 12]
+            })
+            
+            # This should not raise an exception
+            await self.store.write_to_online_store_async(
+                feature_view_name="driver_hourly_stats", df=valid_df
+            )
+        
+        asyncio.run(test_async_valid())
+
+    def test_mixed_dataframe_with_some_valid_features_succeeds(self):
+        """Test that dataframe with some valid feature values succeeds"""
+        current_time = pd.Timestamp.now()
+        mixed_df = pd.DataFrame({
+            "driver_id": [1001, 1002, 1003],
+            "event_timestamp": [current_time] * 3,
+            "created": [current_time] * 3,
+            "conv_rate": [0.5, None, 0.7],  # Mixed values
+            "acc_rate": [0.8, 0.9, None],   # Mixed values
+            "avg_daily_trips": [10, 12, 15]  # All valid
+        })
+        
+        # This should not raise an exception because not all feature values are null
+        self.store.write_to_online_store(
+            feature_view_name="driver_hourly_stats", df=mixed_df
+        )
+
+    def test_empty_inputs_dict_raises_error(self):
+        """Test that empty inputs dict raises ValueError"""
+        empty_inputs = {
+            "driver_id": [],
+            "conv_rate": [],
+            "acc_rate": [],
+            "avg_daily_trips": []
+        }
+        
+        with self.assertRaises(ValueError) as context:
+            self.store.write_to_online_store(
+                feature_view_name="driver_hourly_stats", inputs=empty_inputs
+            )
+        
+        self.assertIn("Cannot write empty dataframe to online store", str(context.exception))
+
+    def test_inputs_dict_with_empty_features_raises_error(self):
+        """Test that inputs dict with empty feature values raises ValueError"""
+        current_time = pd.Timestamp.now()
+        empty_feature_inputs = {
+            "driver_id": [1001, 1002, 1003],
+            "event_timestamp": [current_time] * 3,
+            "created": [current_time] * 3,
+            "conv_rate": [None, None, None],
+            "acc_rate": [None, None, None],
+            "avg_daily_trips": [None, None, None]
+        }
+        
+        with self.assertRaises(ValueError) as context:
+            self.store.write_to_online_store(
+                feature_view_name="driver_hourly_stats", inputs=empty_feature_inputs
+            )
+        
+        self.assertIn("Cannot write dataframe with empty feature columns to online store", str(context.exception))
+
+
 class TestOnlineWritesWithTransform(unittest.TestCase):
     def test_transform_on_write_pdf(self):
         with tempfile.TemporaryDirectory() as data_dir:
