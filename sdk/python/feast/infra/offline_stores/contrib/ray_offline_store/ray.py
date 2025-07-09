@@ -27,6 +27,13 @@ from feast.infra.offline_stores.offline_store import (
     RetrievalJob,
     RetrievalMetadata,
 )
+from feast.infra.offline_stores.offline_utils import (
+    assert_expected_columns_in_entity_df,
+    get_entity_df_timestamp_bounds,
+    get_expected_join_keys,
+    get_pyarrow_schema_from_batch_source,
+    infer_event_timestamp_from_entity_df,
+)
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
@@ -38,16 +45,292 @@ from feast.value_type import ValueType
 logger = logging.getLogger(__name__)
 
 
+def _normalize_timestamp_column(
+    df: pd.DataFrame, column: str, inplace: bool = False
+) -> pd.DataFrame:
+    """
+    Normalize a timestamp column to UTC with second precision.
+    Args:
+        df: DataFrame containing the timestamp column
+        column: Name of the timestamp column to normalize
+        inplace: Whether to modify the DataFrame in place
+    Returns:
+        DataFrame with normalized timestamp column
+    """
+    if not inplace:
+        df = df.copy()
+
+    if column in df.columns:
+        df[column] = (
+            pd.to_datetime(df[column], utc=True, errors="coerce")
+            .dt.floor("s")
+            .astype("datetime64[ns, UTC]")
+        )
+
+    return df
+
+
+def _normalize_timestamp_columns(
+    df: pd.DataFrame, columns: List[str], inplace: bool = False
+) -> pd.DataFrame:
+    """
+    Normalize multiple timestamp columns to UTC with second precision.
+    Args:
+        df: DataFrame containing the timestamp columns
+        columns: List of timestamp column names to normalize
+        inplace: Whether to modify the DataFrame in place
+    Returns:
+        DataFrame with normalized timestamp columns
+    """
+    if not inplace:
+        df = df.copy()
+
+    for column in columns:
+        if column in df.columns:
+            df = _normalize_timestamp_column(df, column, inplace=True)
+
+    return df
+
+
+def _create_time_window_column(
+    df: pd.DataFrame,
+    timestamp_column: str,
+    window_size: str,
+    window_column: str = "time_window",
+    inplace: bool = False,
+) -> pd.DataFrame:
+    """
+    Create a time window column by flooring timestamps to specified window size.
+    Args:
+        df: DataFrame containing the timestamp column
+        timestamp_column: Name of the timestamp column
+        window_size: Window size string (e.g., "1H", "30min")
+        window_column: Name for the new window column
+        inplace: Whether to modify the DataFrame in place
+    Returns:
+        DataFrame with added time window column
+    """
+    if not inplace:
+        df = df.copy()
+
+    if timestamp_column in df.columns:
+        df[window_column] = (
+            pd.to_datetime(df[timestamp_column])
+            .dt.floor(window_size)
+            .astype("datetime64[ns, UTC]")
+        )
+
+    return df
+
+
+def _create_empty_timestamp_column(
+    length: int, dtype: str = "datetime64[ns, UTC]"
+) -> pd.Series:
+    """
+    Create an empty timestamp column with proper dtype.
+    Args:
+        length: Length of the series
+        dtype: Pandas dtype for the timestamp column
+    Returns:
+        Series with NaT values and proper datetime dtype
+    """
+    return pd.Series([pd.NaT] * length, dtype=dtype)
+
+
+def _ensure_timestamp_compatibility(
+    df: pd.DataFrame, timestamp_fields: List[str], inplace: bool = False
+) -> pd.DataFrame:
+    """
+    Ensure timestamp columns have compatible dtypes and precision for joins.
+    Args:
+        df: DataFrame to process
+        timestamp_fields: List of timestamp field names
+        inplace: Whether to modify the DataFrame in place
+    Returns:
+        DataFrame with compatible timestamp columns
+    """
+    if not inplace:
+        df = df.copy()
+
+    # Use existing utility for timezone awareness
+    df = make_df_tzaware(df)
+
+    # Then normalize timestamp precision for specified fields only
+    for field in timestamp_fields:
+        if field in df.columns:
+            df = _normalize_timestamp_column(df, field, inplace=True)
+
+    return df
+
+
+def _create_empty_dataframe_with_timestamp_columns(
+    columns: List[str], timestamp_columns: List[str]
+) -> pd.DataFrame:
+    """
+    Create an empty DataFrame with proper column types including datetime columns.
+    Args:
+        columns: List of all column names
+        timestamp_columns: List of timestamp column names that need proper dtype
+    Returns:
+        Empty DataFrame with proper column types
+    """
+    df = pd.DataFrame(columns=columns)
+
+    # Set proper dtype for timestamp columns
+    for col in timestamp_columns:
+        if col in df.columns:
+            df[col] = df[col].astype("datetime64[ns, UTC]")
+
+    return df
+
+
+def _safe_infer_event_timestamp_column(
+    entity_df: pd.DataFrame, fallback_column: str = "event_timestamp"
+) -> str:
+    """
+    Safely infer the event timestamp column using offline_utils with fallback.
+    Args:
+        entity_df: Entity DataFrame to analyze
+        fallback_column: Default column name to use if inference fails
+    Returns:
+        Inferred or fallback timestamp column name
+    """
+    try:
+        return infer_event_timestamp_from_entity_df(entity_df.dtypes.to_dict())
+    except Exception as e:
+        logger.debug(
+            f"Timestamp column inference failed: {e}, using fallback: {fallback_column}"
+        )
+        return fallback_column
+
+
+def _safe_get_entity_timestamp_bounds(
+    entity_df: pd.DataFrame, timestamp_column: str
+) -> Tuple[Optional[datetime], Optional[datetime]]:
+    """
+    Safely get entity timestamp bounds using offline_utils with fallback.
+    Args:
+        entity_df: Entity DataFrame
+        timestamp_column: Name of timestamp column
+    Returns:
+        Tuple of (min_timestamp, max_timestamp) or (None, None) if failed
+    """
+    try:
+        if timestamp_column in entity_df.columns:
+            min_ts, max_ts = get_entity_df_timestamp_bounds(entity_df, timestamp_column)
+            # Convert Pandas Timestamp to datetime if needed
+            if hasattr(min_ts, "to_pydatetime"):
+                min_ts = min_ts.to_pydatetime()
+            if hasattr(max_ts, "to_pydatetime"):
+                max_ts = max_ts.to_pydatetime()
+            return min_ts, max_ts
+    except Exception as e:
+        logger.debug(
+            f"Timestamp bounds extraction failed: {e}, falling back to manual calculation"
+        )
+
+    # Fallback to original logic
+    try:
+        if timestamp_column in entity_df.columns:
+            timestamps = pd.to_datetime(entity_df[timestamp_column], utc=True)
+            return timestamps.min().to_pydatetime(), timestamps.max().to_pydatetime()
+    except Exception:
+        pass
+
+    return None, None
+
+
+def _safe_validate_entity_dataframe(
+    entity_df: pd.DataFrame,
+    feature_views: List[FeatureView],
+    project: str,
+    registry: BaseRegistry,
+) -> None:
+    """
+    Safely validate entity DataFrame using offline_utils with graceful fallback.
+    Args:
+        entity_df: Entity DataFrame to validate
+        feature_views: List of feature views to validate against
+        project: Feast project name
+        registry: Feature registry
+    """
+    try:
+        # Get expected join keys for validation
+        expected_join_keys = get_expected_join_keys(project, feature_views, registry)
+
+        # Infer event timestamp column
+        timestamp_col = infer_event_timestamp_from_entity_df(entity_df.dtypes.to_dict())
+
+        # Validate entity DataFrame has required columns
+        assert_expected_columns_in_entity_df(
+            entity_df.dtypes.to_dict(), expected_join_keys, timestamp_col
+        )
+
+        logger.info(
+            f"Entity DataFrame validation passed:\n"
+            f"  Expected join keys: {expected_join_keys}\n"
+            f"  Detected timestamp column: {timestamp_col}"
+        )
+
+    except Exception as e:
+        # Log validation issues but don't fail
+        logger.warning(f"Entity DataFrame validation skipped due to error: {e}")
+        logger.debug("Validation error details:", exc_info=True)
+
+
+def _safe_validate_schema(
+    config: RepoConfig,
+    data_source: DataSource,
+    table_columns: List[str],
+    operation_name: str = "operation",
+) -> Optional[Tuple[pa.Schema, List[str]]]:
+    """
+    Safely validate schema using offline_utils with graceful fallback.
+    Args:
+        config: Repo configuration
+        data_source: Data source to validate against
+        table_columns: Actual table column names
+        operation_name: Name of operation for logging
+    Returns:
+        Tuple of (expected_schema, expected_columns) or None if validation fails
+    """
+    try:
+        expected_schema, expected_columns = get_pyarrow_schema_from_batch_source(
+            config, data_source
+        )
+
+        if set(expected_columns) != set(table_columns):
+            logger.warning(
+                f"Schema mismatch in {operation_name}:\n"
+                f"  Expected columns: {expected_columns}\n"
+                f"  Actual columns: {table_columns}"
+            )
+
+            # Check if it's just a column order issue
+            if set(expected_columns) == set(table_columns):
+                logger.info(f"Columns match but order differs for {operation_name}")
+                return expected_schema, expected_columns
+        else:
+            logger.debug(f"Schema validation passed for {operation_name}")
+            return expected_schema, expected_columns
+
+    except Exception as e:
+        logger.warning(
+            f"Schema validation skipped for {operation_name} due to error: {e}"
+        )
+        logger.debug("Schema validation error details:", exc_info=True)
+
+    return None
+
+
 def _convert_feature_column_types(
     batch: pd.DataFrame, feature_views: List[FeatureView]
 ) -> pd.DataFrame:
     """
     Convert feature columns to appropriate pandas types using Feast's type mapping utilities.
-
     Args:
         batch: DataFrame containing feature data
         feature_views: List of feature views with type information
-
     Returns:
         DataFrame with properly converted feature column types
     """
@@ -312,9 +595,7 @@ class RayDataProcessor:
                 if feat in features_df.columns and pd.api.types.is_datetime64_any_dtype(
                     features_df[feat]
                 ):
-                    result[feat] = pd.Series(
-                        [pd.NaT] * len(result), dtype="datetime64[ns, UTC]"
-                    )
+                    result[feat] = _create_empty_timestamp_column(len(result))
                 else:
                     result[feat] = np.nan
 
@@ -439,21 +720,10 @@ class RayDataProcessor:
             features_filtered = features[available_feature_cols].copy()
 
             # Ensure timestamp columns have compatible dtypes and precision
-            if timestamp_field in batch.columns:
-                batch[timestamp_field] = (
-                    pd.to_datetime(batch[timestamp_field], utc=True, errors="coerce")
-                    .dt.floor("s")
-                    .astype("datetime64[ns, UTC]")
-                )
-
-            if timestamp_field in features_filtered.columns:
-                features_filtered[timestamp_field] = (
-                    pd.to_datetime(
-                        features_filtered[timestamp_field], utc=True, errors="coerce"
-                    )
-                    .dt.floor("s")
-                    .astype("datetime64[ns, UTC]")
-                )
+            batch = _normalize_timestamp_column(batch, timestamp_field, inplace=True)
+            features_filtered = _normalize_timestamp_column(
+                features_filtered, timestamp_field, inplace=True
+            )
 
             if not entity_join_keys:
                 # Temporal join without entity keys
@@ -688,11 +958,8 @@ class RayDataProcessor:
         """Add time windows and source markers to dataset."""
 
         def add_window_and_source(batch: pd.DataFrame) -> pd.DataFrame:
-            batch = batch.copy()
-            batch["time_window"] = (
-                pd.to_datetime(batch[timestamp_field])
-                .dt.floor(window_size)
-                .astype("datetime64[ns, UTC]")
+            batch = _create_time_window_column(
+                batch, timestamp_field, window_size, "time_window"
             )
             batch["_data_source"] = source_marker
             return batch
@@ -793,22 +1060,16 @@ class RayRetrievalJob(RetrievalJob):
     def _create_metadata(self) -> RetrievalMetadata:
         """Create metadata from the entity DataFrame and feature references."""
         if self._entity_df is not None:
-            # Get timestamp range from entity DataFrame
-            if "event_timestamp" in self._entity_df.columns:
-                timestamps = pd.to_datetime(
-                    self._entity_df["event_timestamp"], utc=True
-                )
-                min_timestamp = timestamps.min().to_pydatetime()
-                max_timestamp = timestamps.max().to_pydatetime()
+            # Auto-detect timestamp column and get timestamp bounds using utilities
+            timestamp_col = _safe_infer_event_timestamp_column(
+                self._entity_df, "event_timestamp"
+            )
+            min_timestamp, max_timestamp = _safe_get_entity_timestamp_bounds(
+                self._entity_df, timestamp_col
+            )
 
-                # Get keys (all columns except event_timestamp)
-                keys = [
-                    col for col in self._entity_df.columns if col != "event_timestamp"
-                ]
-            else:
-                min_timestamp = None
-                max_timestamp = None
-                keys = list(self._entity_df.columns)
+            # Get keys (all columns except the detected timestamp column)
+            keys = [col for col in self._entity_df.columns if col != timestamp_col]
         else:
             min_timestamp = None
             max_timestamp = None
@@ -1121,16 +1382,10 @@ class RayOfflineStore(OfflineStore):
             entity_ds = ray.data.from_pandas(entity_df)
             original_entity_df = entity_df.copy()
 
-        # Make entity dataframe timezone aware
-        original_entity_df = make_df_tzaware(original_entity_df)
-        if "event_timestamp" in original_entity_df.columns:
-            original_entity_df["event_timestamp"] = (
-                pd.to_datetime(
-                    original_entity_df["event_timestamp"], utc=True, errors="coerce"
-                )
-                .dt.floor("s")
-                .astype("datetime64[ns, UTC]")
-            )
+        # Make entity dataframe timezone aware and normalize timestamp
+        original_entity_df = _ensure_timestamp_compatibility(
+            original_entity_df, ["event_timestamp"]
+        )
 
         # Parse feature_refs and get ODFVs
         on_demand_feature_views = OnDemandFeatureView.get_requested_odfvs(
@@ -1153,6 +1408,11 @@ class RayOfflineStore(OfflineStore):
         regular_feature_views = [
             fv for fv in feature_views if fv.name not in odfv_names
         ]
+
+        # Enhanced validation using offline_utils with safe fallback
+        _safe_validate_entity_dataframe(
+            original_entity_df, regular_feature_views, project, registry
+        )
         # Apply field mappings to entity dataset if needed
         global_field_mappings = {}
         for fv in regular_feature_views:
@@ -1242,14 +1502,10 @@ class RayOfflineStore(OfflineStore):
 
                 def add_timestamp_field(batch: pd.DataFrame) -> pd.DataFrame:
                     batch = batch.copy()
-                    batch[timestamp_field] = (
-                        pd.to_datetime(
-                            batch["event_timestamp"], utc=True, errors="coerce"
-                        )
-                        .dt.floor("s")
-                        .astype("datetime64[ns, UTC]")
+                    batch[timestamp_field] = batch["event_timestamp"]
+                    return _normalize_timestamp_column(
+                        batch, timestamp_field, inplace=True
                     )
-                    return batch
 
                 result_ds = result_ds.map_batches(
                     add_timestamp_field, batch_format="pandas"
@@ -1268,16 +1524,9 @@ class RayOfflineStore(OfflineStore):
                     f"Using broadcast join for {fv.name} (size: {feature_size // 1024**2}MB)"
                 )
                 feature_df = feature_ds.to_pandas()
-                feature_df = make_df_tzaware(feature_df)
-
-                if timestamp_field in feature_df.columns:
-                    feature_df[timestamp_field] = (
-                        pd.to_datetime(
-                            feature_df[timestamp_field], utc=True, errors="coerce"
-                        )
-                        .dt.floor("s")
-                        .astype("datetime64[ns, UTC]")
-                    )
+                feature_df = _ensure_timestamp_compatibility(
+                    feature_df, [timestamp_field]
+                )
 
                 if store._data_processor is None:
                     raise ValueError("Data processor not initialized")
@@ -1299,16 +1548,7 @@ class RayOfflineStore(OfflineStore):
 
                 # Ensure timestamp format in feature dataset
                 def normalize_timestamps(batch: pd.DataFrame) -> pd.DataFrame:
-                    batch = make_df_tzaware(batch)
-                    if timestamp_field in batch.columns:
-                        batch[timestamp_field] = (
-                            pd.to_datetime(
-                                batch[timestamp_field], utc=True, errors="coerce"
-                            )
-                            .dt.floor("s")
-                            .astype("datetime64[ns, UTC]")
-                        )
-                    return batch
+                    return _ensure_timestamp_compatibility(batch, [timestamp_field])
 
                 feature_ds = feature_ds.map_batches(
                     normalize_timestamps, batch_format="pandas"
@@ -1355,13 +1595,10 @@ class RayOfflineStore(OfflineStore):
             if "event_timestamp" not in batch.columns:
                 if "event_timestamp" in original_entity_df.columns:
                     batch["event_timestamp"] = (
-                        pd.to_datetime(
-                            original_entity_df["event_timestamp"].iloc[: len(batch)],
-                            utc=True,
-                            errors="coerce",
-                        )
-                        .dt.floor("s")
-                        .astype("datetime64[ns, UTC]")
+                        original_entity_df["event_timestamp"].iloc[: len(batch)].values
+                    )
+                    batch = _normalize_timestamp_column(
+                        batch, "event_timestamp", inplace=True
                     )
                 elif timestamp_field in batch.columns:
                     batch["event_timestamp"] = batch[timestamp_field]
@@ -1409,6 +1646,118 @@ class RayOfflineStore(OfflineStore):
         return self._staging_location is not None
 
     @staticmethod
+    def _load_and_filter_dataset(
+        source_path: str,
+        data_source: DataSource,
+        join_key_columns: List[str],
+        feature_name_columns: List[str],
+        timestamp_field: str,
+        created_timestamp_column: Optional[str],
+        start_date: Optional[datetime],
+        end_date: Optional[datetime],
+    ) -> pd.DataFrame:
+        """
+        Common method to load and filter dataset for both pull_latest and pull_all methods.
+        Args:
+            source_path: Path to the data source
+            data_source: DataSource object containing field mapping
+            join_key_columns: List of join key columns
+            feature_name_columns: List of feature columns
+            timestamp_field: Name of the timestamp field
+            created_timestamp_column: Optional created timestamp column
+            start_date: Optional start date for filtering
+            end_date: Optional end date for filtering
+        Returns:
+            Processed pandas DataFrame
+        """
+        try:
+            # Get field mapping for column renaming after loading
+            field_mapping = getattr(data_source, "field_mapping", None)
+
+            # Load and filter the dataset using the original timestamp field name
+            ds = RayOfflineStore._create_filtered_dataset(
+                source_path, timestamp_field, start_date, end_date
+            )
+
+            # Convert to pandas for processing
+            df = ds.to_pandas()
+            df = make_df_tzaware(df)
+
+            # Apply field mapping if needed
+            if field_mapping:
+                df = df.rename(columns=field_mapping)
+
+            # Get mapped field names
+            timestamp_field_mapped = (
+                field_mapping.get(timestamp_field, timestamp_field)
+                if field_mapping
+                else timestamp_field
+            )
+            created_timestamp_column_mapped = (
+                field_mapping.get(created_timestamp_column, created_timestamp_column)
+                if field_mapping and created_timestamp_column
+                else created_timestamp_column
+            )
+
+            # Build timestamp columns list
+            timestamp_columns = [timestamp_field_mapped]
+            if created_timestamp_column_mapped:
+                timestamp_columns.append(created_timestamp_column_mapped)
+
+            # Normalize timestamp columns
+            df = _normalize_timestamp_columns(df, timestamp_columns, inplace=True)
+
+            # Handle empty DataFrame case
+            if df.empty:
+                empty_columns = (
+                    join_key_columns + feature_name_columns + timestamp_columns
+                )
+                if not join_key_columns:
+                    empty_columns.append(DUMMY_ENTITY_ID)
+                if "event_timestamp" not in empty_columns:
+                    empty_columns.append("event_timestamp")
+                return _create_empty_dataframe_with_timestamp_columns(
+                    empty_columns, timestamp_columns
+                )
+
+            # Build required columns list
+            all_required_columns = (
+                join_key_columns + feature_name_columns + timestamp_columns
+            )
+            if not join_key_columns:
+                df[DUMMY_ENTITY_ID] = DUMMY_ENTITY_VAL
+                all_required_columns.append(DUMMY_ENTITY_ID)
+
+            # Select only the required columns that exist
+            available_columns = [
+                col for col in all_required_columns if col in df.columns
+            ]
+            df = df[available_columns]
+
+            # Basic sorting by timestamp (most recent first)
+            existing_timestamp_columns = [
+                col for col in timestamp_columns if col in df.columns
+            ]
+            if existing_timestamp_columns:
+                df = df.sort_values(existing_timestamp_columns, ascending=False)
+
+            # Reset index
+            df = df.reset_index(drop=True)
+
+            # Ensure 'event_timestamp' column exists for pandas backend compatibility
+            if (
+                "event_timestamp" not in df.columns
+                and timestamp_field_mapped != "event_timestamp"
+            ):
+                if timestamp_field_mapped in df.columns:
+                    df["event_timestamp"] = df[timestamp_field_mapped]
+
+            return df
+
+        except Exception as e:
+            raise RuntimeError(f"Failed to load data from {source_path}: {e}")
+
+    @staticmethod
     def pull_latest_from_table_or_query(
         config: RepoConfig,
         data_source: DataSource,
@@ -1425,28 +1774,22 @@ class RayOfflineStore(OfflineStore):
         source_path = store._get_source_path(data_source, config)
 
         def _load():
-            try:
-                # Get field mapping for column renaming after loading
+            # Load and filter the dataset using the shared method
+            df = store._load_and_filter_dataset(
+                source_path,
+                data_source,
+                join_key_columns,
+                feature_name_columns,
+                timestamp_field,
+                created_timestamp_column,
+                start_date,
+                end_date,
+            )
+
+            # Handle deduplication (keep latest records) - specific to pull_latest
+            if join_key_columns and not df.empty:
+                # Get field mapping for proper column names
                 field_mapping = getattr(data_source, "field_mapping", None)
-
-                # The timestamp_field parameter is already the original field name
-                # (reverse mapping is handled by _get_column_names)
-                filter_timestamp_field = timestamp_field
-
-                # Load and filter the dataset using the original timestamp field name
-                ds = RayOfflineStore._create_filtered_dataset(
-                    source_path, filter_timestamp_field, start_date, end_date
-                )
-
-                # Convert to pandas for deduplication and column selection
-                df = ds.to_pandas()
-                df = make_df_tzaware(df)
-
-                # Apply field mapping if needed
-                if field_mapping:
-                    df = df.rename(columns=field_mapping)
-
-                # Now use the mapped timestamp field name for all operations
                 timestamp_field_mapped = (
                     field_mapping.get(timestamp_field, timestamp_field)
                     if field_mapping
@@ -1460,106 +1803,27 @@ class RayOfflineStore(OfflineStore):
                     else created_timestamp_column
                 )
 
-                # Handle empty DataFrame case
-                if df.empty:
-                    # Create an empty DataFrame with the required columns
-                    empty_columns = (
-                        join_key_columns
-                        + feature_name_columns
-                        + [timestamp_field_mapped]
-                    )
-                    if created_timestamp_column_mapped:
-                        empty_columns.append(created_timestamp_column_mapped)
-                    if not join_key_columns:
-                        empty_columns.append(DUMMY_ENTITY_ID)
-
-                    # Add event_timestamp column for pandas backend compatibility
-                    if "event_timestamp" not in empty_columns:
-                        empty_columns.append("event_timestamp")
-
-                    # Create empty DataFrame with proper column types
-                    empty_df = pd.DataFrame(columns=empty_columns)
-                    return empty_df
-
-                # Ensure timestamp is properly formatted
-                if timestamp_field_mapped in df.columns:
-                    df[timestamp_field_mapped] = (
-                        pd.to_datetime(
-                            df[timestamp_field_mapped], utc=True, errors="coerce"
-                        )
-                        .dt.floor("s")
-                        .astype("datetime64[ns, UTC]")
-                    )
-
-                if (
-                    created_timestamp_column_mapped
-                    and created_timestamp_column_mapped in df.columns
-                ):
-                    df[created_timestamp_column_mapped] = (
-                        pd.to_datetime(
-                            df[created_timestamp_column_mapped],
-                            utc=True,
-                            errors="coerce",
-                        )
-                        .dt.floor("s")
-                        .astype("datetime64[ns, UTC]")
-                    )
-
-                # Prepare columns to select
+                # Build timestamp columns for sorting
                 timestamp_columns = [timestamp_field_mapped]
                 if created_timestamp_column_mapped:
                     timestamp_columns.append(created_timestamp_column_mapped)
 
-                all_required_columns = (
-                    join_key_columns + feature_name_columns + timestamp_columns
-                )
-
-                # Select only the required columns that exist
-                available_columns = [
-                    col for col in all_required_columns if col in df.columns
+                # Filter out timestamp columns that don't exist in the dataframe
+                existing_timestamp_columns = [
+                    col for col in timestamp_columns if col in df.columns
                 ]
-                df = df[available_columns]
 
-                # Handle deduplication (keep latest records)
-                if join_key_columns:
-                    # Sort by timestamp columns (latest first) and deduplicate by join keys
-                    # Filter out timestamp columns that don't exist in the dataframe
-                    existing_timestamp_columns = [
-                        col for col in timestamp_columns if col in df.columns
-                    ]
-                    sort_columns = join_key_columns + existing_timestamp_columns
-                    if sort_columns:
-                        df = df.sort_values(
-                            sort_columns,
-                            ascending=[True] * len(join_key_columns)
-                            + [False] * len(existing_timestamp_columns),
-                        )
-                        df = df.drop_duplicates(subset=join_key_columns, keep="first")
-                else:
-                    # No join keys - add dummy entity and sort by timestamp
-                    df[DUMMY_ENTITY_ID] = DUMMY_ENTITY_VAL
-                    # Filter out timestamp columns that don't exist in the dataframe
-                    existing_timestamp_columns = [
-                        col for col in timestamp_columns if col in df.columns
-                    ]
-                    if existing_timestamp_columns:
-                        df = df.sort_values(existing_timestamp_columns, ascending=False)
+                # Sort by join keys (ascending) and timestamps (descending for latest first)
+                sort_columns = join_key_columns + existing_timestamp_columns
+                if sort_columns:
+                    df = df.sort_values(
+                        sort_columns,
+                        ascending=[True] * len(join_key_columns)
+                        + [False] * len(existing_timestamp_columns),
+                    )
+                    df = df.drop_duplicates(subset=join_key_columns, keep="first")
 
-                # Reset index
-                df = df.reset_index(drop=True)
-
-                # Ensure 'event_timestamp' column exists for pandas backend compatibility
-                if (
-                    "event_timestamp" not in df.columns
-                    and timestamp_field_mapped != "event_timestamp"
-                ):
-                    if timestamp_field_mapped in df.columns:
-                        df["event_timestamp"] = df[timestamp_field_mapped]
-
-                return df
-
-            except Exception as e:
-                raise RuntimeError(f"Failed to load data from {source_path}: {e}")
+            return df
 
         return RayRetrievalJob(
             _load, staging_location=config.offline_store.storage_path
@@ -1586,129 +1850,16 @@ class RayOfflineStore(OfflineStore):
             raise FileNotFoundError(f"Parquet path does not exist: {source_path}")
 
         def _load():
-            try:
-                # Get field mapping for column renaming after loading
-                field_mapping = getattr(data_source, "field_mapping", None)
-
-                # The timestamp_field parameter is already the original field name
-                # (reverse mapping is handled by _get_column_names)
-                filter_timestamp_field = timestamp_field
-
-                # Load and filter the dataset using the original timestamp field name
-                ds = RayOfflineStore._create_filtered_dataset(
-                    source_path, filter_timestamp_field, start_date, end_date
-                )
-
-                # Convert to pandas for column selection
-                df = ds.to_pandas()
-                df = make_df_tzaware(df)
-
-                # Apply field mapping if needed
-                if field_mapping:
-                    df = df.rename(columns=field_mapping)
-
-                # Now use the mapped timestamp field name for all operations
-                timestamp_field_mapped = (
-                    field_mapping.get(timestamp_field, timestamp_field)
-                    if field_mapping
-                    else timestamp_field
-                )
-                created_timestamp_column_mapped = (
-                    field_mapping.get(
-                        created_timestamp_column, created_timestamp_column
-                    )
-                    if field_mapping and created_timestamp_column
-                    else created_timestamp_column
-                )
-
-                # Handle empty DataFrame case
-                if df.empty:
-                    # Create an empty DataFrame with the required columns
-                    empty_columns = (
-                        join_key_columns
-                        + feature_name_columns
-                        + [timestamp_field_mapped]
-                    )
-                    if created_timestamp_column_mapped:
-                        empty_columns.append(created_timestamp_column_mapped)
-                    if not join_key_columns:
-                        empty_columns.append(DUMMY_ENTITY_ID)
-
-                    # Add event_timestamp column for pandas backend compatibility
-                    if "event_timestamp" not in empty_columns:
-                        empty_columns.append("event_timestamp")
-
-                    # Create empty DataFrame with proper column types
-                    empty_df = pd.DataFrame(columns=empty_columns)
-                    return empty_df
-
-                # Ensure timestamp is properly formatted
-                if timestamp_field_mapped in df.columns:
-                    df[timestamp_field_mapped] = (
-                        pd.to_datetime(
-                            df[timestamp_field_mapped], utc=True, errors="coerce"
-                        )
-                        .dt.floor("s")
-                        .astype("datetime64[ns, UTC]")
-                    )
-
-                if (
-                    created_timestamp_column_mapped
-                    and created_timestamp_column_mapped in df.columns
-                ):
-                    df[created_timestamp_column_mapped] = (
-                        pd.to_datetime(
-                            df[created_timestamp_column_mapped],
-                            utc=True,
-                            errors="coerce",
-                        )
-                        .dt.floor("s")
-                        .astype("datetime64[ns, UTC]")
-                    )
-
-                # Prepare columns to select
-                timestamp_columns = [timestamp_field_mapped]
-                if created_timestamp_column_mapped:
-                    timestamp_columns.append(created_timestamp_column_mapped)
-
-                all_required_columns = (
-                    join_key_columns + feature_name_columns + timestamp_columns
-                )
-
-                # Add dummy entity if no join keys
-                if not join_key_columns:
-                    df[DUMMY_ENTITY_ID] = DUMMY_ENTITY_VAL
-                    all_required_columns.append(DUMMY_ENTITY_ID)
-
-                # Select only the required columns that exist
-                available_columns = [
-                    col for col in all_required_columns if col in df.columns
-                ]
-                df = df[available_columns]
-
-                # Sort by timestamp (most recent first)
-                # Filter out timestamp columns that don't exist in the dataframe
-                existing_timestamp_columns = [
-                    col for col in timestamp_columns if col in df.columns
-                ]
-                if existing_timestamp_columns:
-                    df = df.sort_values(existing_timestamp_columns, ascending=False)
-
-                # Reset index
-                df = df.reset_index(drop=True)
-
-                # Ensure 'event_timestamp' column exists for pandas backend compatibility
-                if (
-                    "event_timestamp" not in df.columns
-                    and timestamp_field_mapped != "event_timestamp"
-                ):
-                    if timestamp_field_mapped in df.columns:
-                        df["event_timestamp"] = df[timestamp_field_mapped]
-
-                return df
-
-            except Exception as e:
-                raise RuntimeError(f"Failed to load data from {source_path}: {e}")
+            return store._load_and_filter_dataset(
+                source_path,
+                data_source,
+                join_key_columns,
+                feature_name_columns,
+                timestamp_field,
+                created_timestamp_column,
+                start_date,
+                end_date,
+            )
 
         return RayRetrievalJob(
             _load, staging_location=config.offline_store.storage_path
@@ -1762,7 +1913,20 @@ class RayOfflineStore(OfflineStore):
         assert isinstance(ray_config, RayOfflineStoreConfig)
         assert isinstance(feature_view.batch_source, FileSource)
 
-        # Use the existing batch source path (like other offline stores)
+        # Enhanced schema validation using safe utility
+        validation_result = _safe_validate_schema(
+            config, feature_view.batch_source, table.column_names, "offline_write_batch"
+        )
+
+        if validation_result:
+            expected_schema, expected_columns = validation_result
+            # Try to reorder columns to match expected order if needed
+            if expected_columns != table.column_names and set(expected_columns) == set(
+                table.column_names
+            ):
+                logger.info("Reordering table columns to match expected schema")
+                table = table.select(expected_columns)
+
         batch_source_path = feature_view.batch_source.file_options.uri
         feature_path = FileSource.get_uri_for_file_path(repo_path, batch_source_path)
 
@@ -1802,7 +1966,6 @@ class RayOfflineStore(OfflineStore):
         """Create a saved dataset destination for Ray offline store."""
 
         if path is None:
-            # Use default path based on config
             ray_config = config.offline_store
             assert isinstance(ray_config, RayOfflineStoreConfig)
             base_storage_path = ray_config.storage_path or "/tmp/ray-storage"
