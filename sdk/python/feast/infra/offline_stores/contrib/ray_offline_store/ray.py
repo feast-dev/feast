@@ -31,12 +31,118 @@ from feast.infra.registry.base_registry import BaseRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage, ValidationReference
-from feast.utils import _get_column_names, _utc_now, make_df_tzaware
+from feast.type_map import feast_value_type_to_pandas_type
+from feast.utils import _get_column_names, make_df_tzaware
+from feast.value_type import ValueType
 
 logger = logging.getLogger(__name__)
 
 
+def _convert_feature_column_types(
+    batch: pd.DataFrame, feature_views: List[FeatureView]
+) -> pd.DataFrame:
+    """
+    Convert feature columns to appropriate pandas types using Feast's type mapping utilities.
+
+    Args:
+        batch: DataFrame containing feature data
+        feature_views: List of feature views with type information
+
+    Returns:
+        DataFrame with properly converted feature column types
+    """
+    batch = batch.copy()
+
+    for fv in feature_views:
+        for feature in fv.features:
+            feat_name = feature.name
+
+            # Check if this feature exists in the batch
+            if feat_name not in batch.columns:
+                continue
+
+            try:
+                # Get the Feast ValueType for this feature
+                value_type = feature.dtype.to_value_type()
+
+                # Handle array/list types
+                if value_type.name.endswith("_LIST"):
+                    batch[feat_name] = _convert_array_column(
+                        batch[feat_name], value_type
+                    )
+                else:
+                    # Handle scalar types using feast type mapping
+                    target_pandas_type = feast_value_type_to_pandas_type(value_type)
+                    batch[feat_name] = _convert_scalar_column(
+                        batch[feat_name], value_type, target_pandas_type
+                    )
+
+            except Exception as e:
+                logger.warning(
+                    f"Failed to convert feature {feat_name} to proper type: {e}"
+                )
+                # Keep original dtype if conversion fails
+                continue
+
+    return batch
+
+
+def _convert_scalar_column(
+    series: pd.Series, value_type: ValueType, target_pandas_type: str
+) -> pd.Series:
+    """Convert a scalar feature column to the appropriate pandas type."""
+    if value_type == ValueType.INT32:
+        return pd.to_numeric(series, errors="coerce").astype("Int32")
+    elif value_type == ValueType.INT64:
+        return pd.to_numeric(series, errors="coerce").astype("Int64")
+    elif value_type in [ValueType.FLOAT, ValueType.DOUBLE]:
+        return pd.to_numeric(series, errors="coerce").astype("float64")
+    elif value_type == ValueType.BOOL:
+        return series.astype("boolean")
+    elif value_type == ValueType.STRING:
+        return series.astype("string")
+    elif value_type == ValueType.UNIX_TIMESTAMP:
+        return pd.to_datetime(series, unit="s", errors="coerce")
+    else:
+        # For other types, use pandas default conversion
+        return series.astype(target_pandas_type)
+
+
+def _convert_array_column(series: pd.Series, value_type: ValueType) -> pd.Series:
+    """Convert an array feature column to the appropriate type with proper empty array handling."""
+    # Determine the base type for array elements
+    base_type_map = {
+        ValueType.INT32_LIST: np.int32,
+        ValueType.INT64_LIST: np.int64,
+        ValueType.FLOAT_LIST: np.float32,
+        ValueType.DOUBLE_LIST: np.float64,
+        ValueType.BOOL_LIST: np.bool_,
+        ValueType.STRING_LIST: object,
+        ValueType.BYTES_LIST: object,
+        ValueType.UNIX_TIMESTAMP_LIST: "datetime64[s]",
+    }
+
+    target_dtype = base_type_map.get(value_type, object)
+
+    def convert_array_item(item):
+        if item is None or (isinstance(item, list) and len(item) == 0):
+            # Return properly typed empty array
+            if target_dtype == object:
+                return np.array([], dtype=object)
+            else:
+                return np.array([], dtype=target_dtype)
+        else:
+            # Return the item as-is for non-empty arrays
+            return item
+
+    return series.apply(convert_array_item)
+
+
 class RayOfflineStoreConfig(FeastConfigBaseModel):
+    """
+    Configuration for the Ray Offline Store.
+    """
+
     type: Literal[
         "feast.offline_stores.contrib.ray_offline_store.ray.RayOfflineStore", "ray"
     ] = "ray"
@@ -53,61 +159,63 @@ class RayOfflineStoreConfig(FeastConfigBaseModel):
 
 
 class RayResourceManager:
-    """Manages Ray cluster resources for optimal performance."""
+    """
+    Manages Ray cluster resources for optimal performance.
+    """
 
     def __init__(self, config: Optional[RayOfflineStoreConfig] = None):
+        """
+        Initialize the resource manager with cluster resource information.
+        """
         self.config = config or RayOfflineStoreConfig()
         self.cluster_resources = ray.cluster_resources()
-        self.available_memory = self.cluster_resources.get(
-            "memory", 8 * 1024**3
-        )  # 8GB default
+        self.available_memory = self.cluster_resources.get("memory", 8 * 1024**3)
         self.available_cpus = int(self.cluster_resources.get("CPU", 4))
         self.num_nodes = len(ray.nodes()) if ray.is_initialized() else 1
 
-    def configure_ray_context(self):
-        """Configure Ray DatasetContext for optimal performance."""
+    def configure_ray_context(self) -> None:
+        """
+        Configure Ray DatasetContext for optimal performance based on available resources.
+        """
         ctx = DatasetContext.get_current()
 
-        # Set buffer sizes based on available memory
-        if self.available_memory > 32 * 1024**3:  # 32GB
-            ctx.target_shuffle_buffer_size = 2 * 1024**3  # 2GB
-            ctx.target_max_block_size = 512 * 1024**2  # 512MB
+        if self.available_memory > 32 * 1024**3:
+            ctx.target_shuffle_buffer_size = 2 * 1024**3
+            ctx.target_max_block_size = 512 * 1024**2
         else:
-            ctx.target_shuffle_buffer_size = 512 * 1024**2  # 512MB
-            ctx.target_max_block_size = 128 * 1024**2  # 128MB
-
-        # Configure parallelism
+            ctx.target_shuffle_buffer_size = 512 * 1024**2
+            ctx.target_max_block_size = 128 * 1024**2
         ctx.min_parallelism = self.available_cpus
-        ctx.max_parallelism = (
-            self.available_cpus * self.config.max_parallelism_multiplier
+        multiplier = (
+            self.config.max_parallelism_multiplier
+            if self.config.max_parallelism_multiplier is not None
+            else 2
         )
-
-        # Optimize for feature store workloads
-        ctx.shuffle_strategy = "sort"
+        ctx.max_parallelism = self.available_cpus * multiplier
+        ctx.shuffle_strategy = "sort"  # type: ignore
         ctx.enable_tensor_extension_casting = False
-
         logger.info(
             f"Configured Ray context: {self.available_cpus} CPUs, "
             f"{self.available_memory // 1024**3}GB memory, {self.num_nodes} nodes"
         )
 
     def estimate_optimal_partitions(self, dataset_size_bytes: int) -> int:
-        """Estimate optimal number of partitions for a dataset."""
-        # Use configured target partition size
+        """
+        Estimate optimal number of partitions for a dataset based on size and resources.
+        """
         target_partition_size = (self.config.target_partition_size_mb or 64) * 1024**2
         size_based_partitions = max(1, dataset_size_bytes // target_partition_size)
-
-        # Don't exceed configured max parallelism
         max_partitions = self.available_cpus * (
             self.config.max_parallelism_multiplier or 2
         )
-
         return min(size_based_partitions, max_partitions)
 
     def should_use_broadcast_join(
         self, dataset_size_bytes: int, threshold_mb: Optional[int] = None
     ) -> bool:
-        """Determine if dataset is small enough for broadcast join."""
+        """
+        Determine if dataset is small enough for broadcast join.
+        """
         threshold = (
             threshold_mb
             if threshold_mb is not None
@@ -118,20 +226,18 @@ class RayResourceManager:
     def estimate_processing_requirements(
         self, dataset_size_bytes: int, operation_type: str
     ) -> Dict[str, Any]:
-        """Estimate resource requirements for different operations."""
-
-        # Memory requirements (with safety margin)
+        """
+        Estimate resource requirements for different operations.
+        """
         memory_multiplier = {
             "read": 1.2,  # 20% overhead for reading
             "join": 3.0,  # 3x for join operations
             "aggregate": 2.0,  # 2x for aggregations
             "shuffle": 2.5,  # 2.5x for shuffling
         }
-
         required_memory = dataset_size_bytes * memory_multiplier.get(
             operation_type, 2.0
         )
-
         return {
             "required_memory": required_memory,
             "optimal_partitions": self.estimate_optimal_partitions(dataset_size_bytes),
@@ -141,26 +247,135 @@ class RayResourceManager:
 
 
 class RayDataProcessor:
-    """Optimized data processing with Ray for feature store operations."""
+    """
+    Optimized data processing with Ray for feature store operations.
+    """
 
     def __init__(self, resource_manager: RayResourceManager):
+        """
+        Initialize the data processor with a resource manager.
+        """
         self.resource_manager = resource_manager
 
     def optimize_dataset_for_join(self, ds: Dataset, join_keys: List[str]) -> Dataset:
-        """Optimize dataset partitioning for join operations."""
-
-        # Estimate optimal partitions
+        """
+        Optimize dataset partitioning for join operations.
+        """
         dataset_size = ds.size_bytes()
         optimal_partitions = self.resource_manager.estimate_optimal_partitions(
             dataset_size
         )
-
         if not join_keys:
             # For datasets without join keys, use simple repartitioning
             return ds.repartition(num_blocks=optimal_partitions)
-
         # For datasets with join keys, use shuffle for better distribution
         return ds.random_shuffle(num_blocks=optimal_partitions)
+
+    def _manual_point_in_time_join(
+        self,
+        batch_df: pd.DataFrame,
+        features_df: pd.DataFrame,
+        join_keys: List[str],
+        feature_join_keys: List[str],
+        timestamp_field: str,
+        requested_feats: List[str],
+    ) -> pd.DataFrame:
+        """
+        Perform manual point-in-time join when merge_asof fails.
+
+        This method handles cases where merge_asof cannot be used due to:
+        - Entity mapping (different column names)
+        - Complex multi-entity joins
+        - Sorting issues with the data
+        """
+        result = batch_df.copy()
+        for feat in requested_feats:
+            is_list_feature = False
+            if feat in features_df.columns:
+                sample_values = features_df[feat].dropna()
+                if not sample_values.empty:
+                    sample_value = sample_values.iloc[0]
+                    if isinstance(sample_value, (list, np.ndarray)):
+                        is_list_feature = True
+                    elif (
+                        features_df[feat].dtype == object
+                        and sample_values.apply(
+                            lambda x: isinstance(x, (list, np.ndarray))
+                        ).any()
+                    ):
+                        is_list_feature = True
+
+            if is_list_feature:
+                result[feat] = [[] for _ in range(len(result))]
+            else:
+                # Check if the feature column is datetime
+                if feat in features_df.columns and pd.api.types.is_datetime64_any_dtype(
+                    features_df[feat]
+                ):
+                    result[feat] = pd.Series(
+                        [pd.NaT] * len(result), dtype="datetime64[ns, UTC]"
+                    )
+                else:
+                    result[feat] = np.nan
+
+        for _, entity_row in batch_df.iterrows():
+            entity_matches = pd.Series(
+                [True] * len(features_df), index=features_df.index
+            )
+            for entity_key, feature_key in zip(join_keys, feature_join_keys):
+                if entity_key in entity_row and feature_key in features_df.columns:
+                    entity_value = entity_row[entity_key]
+                    feature_column = features_df[feature_key]
+                    if pd.api.types.is_scalar(entity_value):
+                        entity_matches &= feature_column == entity_value
+                    else:
+                        if hasattr(entity_value, "__len__") and len(entity_value) > 0:
+                            entity_matches &= feature_column.isin(entity_value)
+                        else:
+                            entity_matches &= pd.Series(
+                                [False] * len(features_df), index=features_df.index
+                            )
+
+            if not entity_matches.any():
+                continue
+
+            matching_features = features_df[entity_matches]
+
+            if matching_features.empty:
+                continue
+
+            entity_timestamp = entity_row[timestamp_field]
+            if timestamp_field in matching_features.columns:
+                time_matches = matching_features[timestamp_field] <= entity_timestamp
+                matching_features = matching_features[time_matches]
+
+            if matching_features.empty:
+                continue
+
+            if timestamp_field in matching_features.columns:
+                matching_features = matching_features.sort_values(timestamp_field)
+                latest_feature = matching_features.iloc[-1]
+            else:
+                latest_feature = matching_features.iloc[-1]
+
+            entity_index = entity_row.name
+            for feat in requested_feats:
+                if feat in latest_feature:
+                    feature_value = latest_feature[feat]
+                    if pd.api.types.is_scalar(feature_value):
+                        if pd.notna(feature_value):
+                            result.loc[entity_index, feat] = feature_value
+                    elif isinstance(feature_value, (list, tuple, np.ndarray)):
+                        result.at[entity_index, feat] = feature_value
+                    else:
+                        try:
+                            if pd.notna(feature_value):
+                                result.at[entity_index, feat] = feature_value
+                        except (ValueError, TypeError):
+                            if feature_value is not None:
+                                result.at[entity_index, feat] = feature_value
+
+        return result
 
     def broadcast_join_features(
         self,
@@ -182,34 +397,46 @@ class RayDataProcessor:
             """Join a batch with broadcast feature data."""
             features = ray.get(feature_ref)
 
-            logger.debug(f"Broadcast join - Features DataFrame shape: {features.shape}")
-            logger.debug(
-                f"Broadcast join - Features DataFrame columns: {list(features.columns)}"
+            logger.info(
+                f"Processing feature view {feature_view_name} with join keys {join_keys}"
             )
-            logger.debug(f"Broadcast join - Requested features: {requested_feats}")
-            logger.debug(f"Broadcast join - Join keys: {join_keys}")
-            logger.debug(f"Broadcast join - Timestamp field: {timestamp_field}")
-            logger.debug(f"Broadcast join - Batch DataFrame shape: {batch.shape}")
-            logger.debug(
-                f"Broadcast join - Batch DataFrame columns: {list(batch.columns)}"
-            )
-            if feature_view_name:
-                logger.info(
-                    f"Processing feature view {feature_view_name} with join keys {join_keys}"
-                )
+
+            # Determine feature join keys
+            # For entity mapping (join key mapping), original_join_keys contains the original feature view join keys
+            # join_keys contains the mapped entity join keys
+            if original_join_keys:
+                # Entity mapping case: entity has join_keys, features have original_join_keys
+                feature_join_keys = original_join_keys
+                entity_join_keys = join_keys
+            else:
+                # Normal case: both use the same join keys
+                feature_join_keys = join_keys
+                entity_join_keys = join_keys
 
             # Select only required feature columns plus join keys and timestamp
-            # Use original join keys for filtering if provided (for entity mapping)
-            filter_join_keys = original_join_keys if original_join_keys else join_keys
-            feature_cols = [timestamp_field] + filter_join_keys + requested_feats
-            features_filtered = features[feature_cols].copy()
+            feature_cols = [timestamp_field] + feature_join_keys + requested_feats
 
-            logger.debug(
-                f"Broadcast join - Features filtered shape: {features_filtered.shape}"
-            )
-            logger.debug(
-                f"Broadcast join - Features filtered columns: {list(features_filtered.columns)}"
-            )
+            # Only include columns that actually exist in the features DataFrame
+            available_feature_cols = [
+                col for col in feature_cols if col in features.columns
+            ]
+
+            # Ensure we have the minimum required columns
+            if timestamp_field not in available_feature_cols:
+                raise ValueError(
+                    f"Timestamp field '{timestamp_field}' not found in features columns: {list(features.columns)}"
+                )
+
+            # Check if required feature columns exist
+            missing_feats = [
+                feat for feat in requested_feats if feat not in features.columns
+            ]
+            if missing_feats:
+                raise ValueError(
+                    f"Requested features {missing_feats} not found in features columns: {list(features.columns)}"
+                )
+
+            features_filtered = features[available_feature_cols].copy()
 
             # Ensure timestamp columns have compatible dtypes and precision
             if timestamp_field in batch.columns:
@@ -228,7 +455,7 @@ class RayDataProcessor:
                     .astype("datetime64[ns, UTC]")
                 )
 
-            if not join_keys:
+            if not entity_join_keys:
                 # Temporal join without entity keys
                 batch_sorted = batch.sort_values(timestamp_field).reset_index(drop=True)
                 features_sorted = features_filtered.sort_values(
@@ -241,22 +468,20 @@ class RayDataProcessor:
                     direction="backward",
                 )
             else:
-                # Temporal join with entity keys
-                # Clean data first by removing NaN values
-                # Use original join keys for filtering feature dataset, mapped join keys for entity dataset
-                feature_join_keys = (
-                    original_join_keys if original_join_keys else join_keys
-                )
-
-                for key in join_keys:
+                # Ensure entity join keys exist in batch
+                for key in entity_join_keys:
                     if key not in batch.columns:
-                        batch[key] = None
+                        batch[key] = np.nan
+
+                # Ensure feature join keys exist in features
                 for key in feature_join_keys:
                     if key not in features_filtered.columns:
-                        features_filtered[key] = None
+                        features_filtered[key] = np.nan
 
                 # Drop rows with NaN values in join keys or timestamp
-                batch_clean = batch.dropna(subset=join_keys + [timestamp_field]).copy()
+                batch_clean = batch.dropna(
+                    subset=entity_join_keys + [timestamp_field]
+                ).copy()
                 features_clean = features_filtered.dropna(
                     subset=feature_join_keys + [timestamp_field]
                 ).copy()
@@ -265,164 +490,136 @@ class RayDataProcessor:
                 if batch_clean.empty or features_clean.empty:
                     return batch.head(0)  # Return empty dataframe with same columns
 
-                # Important: For merge_asof with 'by' parameter, sort by 'by' columns first, then by 'on' column
-                # Both DataFrames must be sorted identically
-                batch_sort_columns = join_keys + [timestamp_field]
-                features_sort_columns = feature_join_keys + [timestamp_field]
+                # Sort both DataFrames for merge_asof requirements
+                # merge_asof requires: left sorted by 'on' column, right sorted by ['by'] + ['on'] columns
 
-                try:
-                    # For entity mapping, we need to manually join since merge_asof doesn't support different column names
-                    if original_join_keys and original_join_keys != join_keys:
-                        # Manual join for entity mapping
-                        logger.info("Using manual join for entity mapping")
-                        raise ValueError("Entity mapping requires manual join")
-
-                    # For multi-entity joins, use manual join to ensure correctness
-                    if len(join_keys) > 1:
-                        logger.info(
-                            f"Using manual join for multi-entity join with keys: {join_keys}"
-                        )
-                        raise ValueError("Multi-entity join requires manual join")
-
-                    # Sort both DataFrames consistently
+                # For the left DataFrame (batch), sort by timestamp (on column)
+                if timestamp_field in batch_clean.columns:
                     batch_sorted = batch_clean.sort_values(
-                        batch_sort_columns, ascending=True
+                        timestamp_field, ascending=True
                     ).reset_index(drop=True)
+                else:
+                    batch_sorted = batch_clean.reset_index(drop=True)
 
+                # For the right DataFrame (features), sort by join keys (by columns) + timestamp (on column)
+                right_sort_columns = []
+
+                # Add join keys to sort columns (these are the 'by' columns for merge_asof)
+                for key in feature_join_keys:
+                    if key in features_clean.columns:
+                        right_sort_columns.append(key)
+
+                # Add timestamp field to sort columns (this is the 'on' column for merge_asof)
+                if timestamp_field in features_clean.columns:
+                    right_sort_columns.append(timestamp_field)
+
+                # Sort the right DataFrame
+                if right_sort_columns:
+                    # Remove duplicates first, then sort
+                    features_clean = features_clean.drop_duplicates(
+                        subset=right_sort_columns, keep="last"
+                    )
                     features_sorted = features_clean.sort_values(
-                        features_sort_columns, ascending=True
+                        right_sort_columns, ascending=True
                     ).reset_index(drop=True)
+                else:
+                    features_sorted = features_clean.reset_index(drop=True)
 
-                    # Verify sorting (merge_asof requirement)
-                    for key in join_keys:
-                        if not batch_sorted[key].is_monotonic_increasing:
-                            # If not monotonic, we need to handle this differently
-                            logger.warning(
-                                f"Join key {key} is not monotonic, using manual join"
+                # Verify sorting for merge_asof
+                if (
+                    timestamp_field in features_sorted.columns
+                    and len(features_sorted) > 1
+                ):
+                    # Check if timestamp is monotonic within each group
+                    if feature_join_keys:
+                        # Group by join keys and check if timestamp is monotonic within each group
+                        grouped = features_sorted.groupby(feature_join_keys, sort=False)
+                        for name, group in grouped:
+                            if not group[timestamp_field].is_monotonic_increasing:
+                                # If not monotonic, sort again more carefully
+                                features_sorted = features_sorted.sort_values(
+                                    feature_join_keys + [timestamp_field],
+                                    ascending=True,
+                                ).reset_index(drop=True)
+                                break
+                    else:
+                        # No join keys, just check timestamp monotonicity
+                        if not features_sorted[timestamp_field].is_monotonic_increasing:
+                            features_sorted = features_sorted.sort_values(
+                                timestamp_field, ascending=True
+                            ).reset_index(drop=True)
+
+                # Attempt merge_asof with proper error handling
+                try:
+                    # Remove duplicates from both DataFrames before merge_asof
+                    if feature_join_keys:
+                        # For batch DataFrame, remove duplicates based on join keys + timestamp
+                        batch_dedup_cols = [
+                            k for k in entity_join_keys if k in batch_sorted.columns
+                        ]
+                        if timestamp_field in batch_sorted.columns:
+                            batch_dedup_cols.append(timestamp_field)
+                        if batch_dedup_cols:
+                            batch_sorted = batch_sorted.drop_duplicates(
+                                subset=batch_dedup_cols, keep="last"
                             )
-                            raise ValueError(f"Join key {key} is not monotonic")
-                        if not features_sorted[key].is_monotonic_increasing:
-                            logger.warning(
-                                f"Feature join key {key} is not monotonic, using manual join"
+
+                        # For features DataFrame, remove duplicates based on join keys + timestamp
+                        feature_dedup_cols = [
+                            k for k in feature_join_keys if k in features_sorted.columns
+                        ]
+                        if timestamp_field in features_sorted.columns:
+                            feature_dedup_cols.append(timestamp_field)
+                        if feature_dedup_cols:
+                            features_sorted = features_sorted.drop_duplicates(
+                                subset=feature_dedup_cols, keep="last"
                             )
-                            raise ValueError(f"Feature join key {key} is not monotonic")
 
                     # Perform merge_asof
-                    result = pd.merge_asof(
-                        batch_sorted,
-                        features_sorted,
-                        on=timestamp_field,
-                        by=join_keys,
-                        direction="backward",
-                    )
-                    logger.debug(
-                        f"merge_asof succeeded for batch of size {len(batch_sorted)}"
-                    )
-
-                except (ValueError, KeyError) as e:
-                    # If merge_asof fails, implement manual point-in-time join
-                    logger.warning(
-                        f"merge_asof failed, implementing manual point-in-time join: {e}"
-                    )
-
-                    # Group by join keys and apply point-in-time logic manually
-                    result_chunks = []
-
-                    logger.debug(
-                        f"Manual join - batch_clean shape: {batch_clean.shape}"
-                    )
-                    logger.debug(
-                        f"Manual join - features_clean shape: {features_clean.shape}"
-                    )
-                    logger.debug(f"Manual join - join_keys: {join_keys}")
-                    logger.debug(
-                        f"Manual join - feature_join_keys: {feature_join_keys}"
-                    )
-
-                    for join_key_vals, entity_group in batch_clean.groupby(join_keys):
-                        # Create dictionary for filtering features by join keys
-                        if len(join_keys) == 1:
-                            entity_key_filter = {join_keys[0]: join_key_vals}
-                        else:
-                            entity_key_filter = dict(zip(join_keys, join_key_vals))
-
-                        # For entity mapping, map the entity keys to feature keys
-                        feature_key_filter = {}
-                        for i, entity_key in enumerate(join_keys):
-                            feature_key = (
-                                feature_join_keys[i]
-                                if i < len(feature_join_keys)
-                                else entity_key
+                    if feature_join_keys:
+                        # Handle join keys properly - if they are the same, just use one set
+                        if entity_join_keys == feature_join_keys:
+                            result = pd.merge_asof(
+                                batch_sorted,
+                                features_sorted,
+                                on=timestamp_field,
+                                by=entity_join_keys,
+                                direction="backward",
+                                suffixes=("", "_right"),
                             )
-                            feature_key_filter[feature_key] = entity_key_filter[
-                                entity_key
-                            ]
-
-                        # Filter features for this join key group
-                        feature_group = features_clean
-                        for key, val in feature_key_filter.items():
-                            # Only filter if the key exists in the feature dataset
-                            if key in feature_group.columns:
-                                feature_group = feature_group[feature_group[key] == val]
-                                logger.debug(
-                                    f"Filtered by {key}={val}: {len(feature_group)} rows remaining"
-                                )
-                            else:
-                                logger.warning(
-                                    f"Join key {key} not found in feature dataset columns: {list(feature_group.columns)}"
-                                )
-                                # If the key is missing, we can't match, so return empty
-                                feature_group = feature_group.iloc[0:0]
-                                break
-
-                        if len(feature_group) == 0:
-                            # No features found, add NaN columns
-                            entity_result = entity_group.copy()
-                            for feat in requested_feats:
-                                if feat not in entity_result.columns:
-                                    entity_result[feat] = np.nan
-                            result_chunks.append(entity_result)
                         else:
-                            # Apply point-in-time logic: for each entity timestamp, find the latest feature
-                            entity_result = entity_group.copy()
-                            for feat in requested_feats:
-                                if feat not in entity_result.columns:
-                                    entity_result[feat] = np.nan
-
-                            # For each row in entity group, find the latest feature value
-                            for idx, entity_row in entity_group.iterrows():
-                                entity_ts = entity_row[timestamp_field]
-                                # Find features with timestamp <= entity timestamp
-                                valid_features = feature_group[
-                                    feature_group[timestamp_field] <= entity_ts
-                                ]
-                                if len(valid_features) > 0:
-                                    # Sort by timestamp to ensure we get the latest feature
-                                    valid_features = valid_features.sort_values(
-                                        timestamp_field
-                                    )
-                                    latest_feature = valid_features.iloc[-1]
-                                    # Update the result with feature values
-                                    for feat in requested_feats:
-                                        if feat in latest_feature:
-                                            entity_result.loc[idx, feat] = (
-                                                latest_feature[feat]
-                                            )
-
-                            result_chunks.append(entity_result)
-
-                    if result_chunks:
-                        result = pd.concat(result_chunks, ignore_index=True)
+                            # Different join keys, use left_by and right_by parameters
+                            result = pd.merge_asof(
+                                batch_sorted,
+                                features_sorted,
+                                on=timestamp_field,
+                                left_by=entity_join_keys,
+                                right_by=feature_join_keys,
+                                direction="backward",
+                                suffixes=("", "_right"),
+                            )
                     else:
-                        result = batch_clean.copy()
-                        for feat in requested_feats:
-                            if feat not in result.columns:
-                                result[feat] = np.nan
+                        result = pd.merge_asof(
+                            batch_sorted,
+                            features_sorted,
+                            on=timestamp_field,
+                            direction="backward",
+                            suffixes=("", "_right"),
+                        )
 
-            # Debug logging for join result
-            logger.debug(f"Join result shape: {result.shape}")
-            logger.debug(f"Join result columns: {list(result.columns)}")
-
+                except Exception as e:
+                    logger.warning(
+                        f"merge_asof failed: {e}, implementing manual point-in-time join"
+                    )
+                    # Fall back to manual join
+                    result = self._manual_point_in_time_join(
+                        batch_clean,
+                        features_clean,
+                        entity_join_keys,
+                        feature_join_keys,
+                        timestamp_field,
+                        requested_feats,
+                    )
             # Handle feature renaming if full_feature_names is True
             if full_feature_names and feature_view_name:
                 for feat in requested_feats:
@@ -590,6 +787,44 @@ class RayRetrievalJob(RetrievalJob):
         self._metadata: Optional[RetrievalMetadata] = None
         self._full_feature_names: bool = False
         self._on_demand_feature_views: Optional[List[OnDemandFeatureView]] = None
+        self._feature_refs: List[str] = []
+        self._entity_df: Optional[pd.DataFrame] = None
+
+    def _create_metadata(self) -> RetrievalMetadata:
+        """Create metadata from the entity DataFrame and feature references."""
+        if self._entity_df is not None:
+            # Get timestamp range from entity DataFrame
+            if "event_timestamp" in self._entity_df.columns:
+                timestamps = pd.to_datetime(
+                    self._entity_df["event_timestamp"], utc=True
+                )
+                min_timestamp = timestamps.min().to_pydatetime()
+                max_timestamp = timestamps.max().to_pydatetime()
+
+                # Get keys (all columns except event_timestamp)
+                keys = [
+                    col for col in self._entity_df.columns if col != "event_timestamp"
+                ]
+            else:
+                min_timestamp = None
+                max_timestamp = None
+                keys = list(self._entity_df.columns)
+        else:
+            min_timestamp = None
+            max_timestamp = None
+            keys = []
+
+        return RetrievalMetadata(
+            features=self._feature_refs,
+            keys=keys,
+            min_event_timestamp=min_timestamp,
+            max_event_timestamp=max_timestamp,
+        )
+
+    def _set_metadata_info(self, feature_refs: List[str], entity_df: pd.DataFrame):
+        """Set the feature references and entity DataFrame for metadata creation."""
+        self._feature_refs = feature_refs
+        self._entity_df = entity_df
 
     def _resolve(self) -> Union[Dataset, pd.DataFrame]:
         if callable(self._dataset_or_callable):
@@ -605,28 +840,41 @@ class RayRetrievalJob(RetrievalJob):
     ) -> pd.DataFrame:
         # Use cached DataFrame if available for repeated access
         if self._cached_df is not None and not self.on_demand_feature_views:
-            return self._cached_df
+            df = self._cached_df
+        else:
+            # If we have on-demand feature views, use the parent's implementation
+            # which calls to_arrow and applies the transformations
+            if self.on_demand_feature_views:
+                logger.info(
+                    f"Using parent implementation for {len(self.on_demand_feature_views)} ODFVs"
+                )
+                df = super().to_df(
+                    validation_reference=validation_reference, timeout=timeout
+                )
+            else:
+                result = self._resolve()
+                if isinstance(result, pd.DataFrame):
+                    df = result
+                else:
+                    df = result.to_pandas()
+                self._cached_df = df
 
-        # If we have on-demand feature views, use the parent's implementation
-        # which calls to_arrow and applies the transformations
-        if self.on_demand_feature_views:
-            logger.info(
-                f"Using parent implementation for {len(self.on_demand_feature_views)} ODFVs"
-            )
-            return super().to_df(
-                validation_reference=validation_reference, timeout=timeout
-            )
+        # Handle validation reference if provided
+        if validation_reference:
+            try:
+                # Import here to avoid circular imports
+                from feast.dqm.errors import ValidationFailed
 
-        result = self._resolve()
-        if isinstance(result, pd.DataFrame):
-            self._cached_df = result
-            return result
-
-        # Convert Ray Dataset to DataFrame with progress logging
-        logger.info("Converting Ray dataset to DataFrame...")
-        self._cached_df = result.to_pandas()
-        logger.info(f"Converted dataset to DataFrame: {self._cached_df.shape}")
-        return self._cached_df
+                # Run validation using the validation reference
+                validation_result = validation_reference.profile.validate(df)
+                if not validation_result.is_success:
+                    raise ValidationFailed(validation_result)
+            except ImportError:
+                logger.warning("DQM profiler not available, skipping validation")
+            except Exception as e:
+                logger.error(f"Validation failed: {e}")
+                raise ValueError(f"Data validation failed: {e}")
+        return df
 
     def to_arrow(
         self,
@@ -635,9 +883,6 @@ class RayRetrievalJob(RetrievalJob):
     ) -> pa.Table:
         # If we have ODFVs, use the parent's implementation
         if self.on_demand_feature_views:
-            logger.debug(
-                f"Using parent implementation for {len(self.on_demand_feature_views)} ODFVs"
-            )
             return super().to_arrow(
                 validation_reference=validation_reference, timeout=timeout
             )
@@ -673,6 +918,8 @@ class RayRetrievalJob(RetrievalJob):
     @property
     def metadata(self) -> Optional[RetrievalMetadata]:
         """Return metadata information about retrieval."""
+        if self._metadata is None:
+            self._metadata = self._create_metadata()
         return self._metadata
 
     @property
@@ -692,21 +939,10 @@ class RayRetrievalJob(RetrievalJob):
     def _to_arrow_internal(self, timeout: Optional[int] = None) -> pa.Table:
         result = self._resolve()
         if isinstance(result, pd.DataFrame):
-            logger.debug(f"_to_arrow_internal: DataFrame shape: {result.shape}")
-            logger.debug(
-                f"_to_arrow_internal: DataFrame columns: {list(result.columns)}"
-            )
             return pa.Table.from_pandas(result)
 
         # For Ray Dataset, convert to pandas first then to arrow
-        logger.debug(
-            "_to_arrow_internal: Converting Ray Dataset to pandas then to arrow"
-        )
         df = result.to_pandas()
-        logger.debug(f"_to_arrow_internal: Converted dataset shape: {df.shape}")
-        logger.debug(
-            f"_to_arrow_internal: Converted dataset columns: {list(df.columns)}"
-        )
         return pa.Table.from_pandas(df)
 
     def persist(
@@ -726,10 +962,20 @@ class RayRetrievalJob(RetrievalJob):
             if not allow_overwrite and os.path.exists(destination_path):
                 raise SavedDatasetLocationAlreadyExists(location=destination_path)
         try:
-            ds = self._resolve()
+            result = self._resolve()
             if not destination_path.startswith(("s3://", "gs://", "hdfs://")):
                 os.makedirs(os.path.dirname(destination_path), exist_ok=True)
-            ds.write_parquet(destination_path)
+
+            # Handle both DataFrame and Ray Dataset
+            if isinstance(result, pd.DataFrame):
+                # For DataFrame, convert to Ray Dataset first
+                RayOfflineStore._ensure_ray_initialized()
+                ds = ray.data.from_pandas(result)
+                ds.write_parquet(destination_path)
+            else:
+                # For Ray Dataset, use direct write
+                result.write_parquet(destination_path)
+
             return destination_path
         except Exception as e:
             raise RuntimeError(f"Failed to persist dataset to {destination_path}: {e}")
@@ -774,14 +1020,10 @@ class RayOfflineStore(OfflineStore):
     def _init_ray(self, config: RepoConfig):
         ray_config = config.offline_store
         assert isinstance(ray_config, RayOfflineStoreConfig)
-
         self._ensure_ray_initialized(config)
-
-        # Initialize optimization components
         if self._resource_manager is None:
             self._resource_manager = RayResourceManager(ray_config)
             self._resource_manager.configure_ray_context()
-
         if self._data_processor is None:
             self._data_processor = RayDataProcessor(self._resource_manager)
 
@@ -814,17 +1056,41 @@ class RayOfflineStore(OfflineStore):
         if start_date or end_date:
             try:
                 if start_date and end_date:
-                    filtered_ds = ds.filter(
-                        lambda row: start_date <= row[timestamp_field] <= end_date
-                    )
+
+                    def filter_func(row):
+                        try:
+                            ts = row[timestamp_field]
+                            return start_date <= ts <= end_date
+                        except KeyError:
+                            raise KeyError(
+                                f"Timestamp field '{timestamp_field}' not found in row. Available keys: {list(row.keys())}"
+                            )
+
+                    filtered_ds = ds.filter(filter_func)
                 elif start_date:
-                    filtered_ds = ds.filter(
-                        lambda row: row[timestamp_field] >= start_date
-                    )
+
+                    def filter_func(row):
+                        try:
+                            ts = row[timestamp_field]
+                            return ts >= start_date
+                        except KeyError:
+                            raise KeyError(
+                                f"Timestamp field '{timestamp_field}' not found in row. Available keys: {list(row.keys())}"
+                            )
+
+                    filtered_ds = ds.filter(filter_func)
                 elif end_date:
-                    filtered_ds = ds.filter(
-                        lambda row: row[timestamp_field] <= end_date
-                    )
+
+                    def filter_func(row):
+                        try:
+                            ts = row[timestamp_field]
+                            return ts <= end_date
+                        except KeyError:
+                            raise KeyError(
+                                f"Timestamp field '{timestamp_field}' not found in row. Available keys: {list(row.keys())}"
+                            )
+
+                    filtered_ds = ds.filter(filter_func)
                 else:
                     return ds
 
@@ -887,11 +1153,6 @@ class RayOfflineStore(OfflineStore):
         regular_feature_views = [
             fv for fv in feature_views if fv.name not in odfv_names
         ]
-
-        logger.info(
-            f"Processing {len(regular_feature_views)} regular feature views and {len(on_demand_feature_views)} on-demand feature views with {len(feature_refs)} feature references"
-        )
-
         # Apply field mappings to entity dataset if needed
         global_field_mappings = {}
         for fv in regular_feature_views:
@@ -924,9 +1185,6 @@ class RayOfflineStore(OfflineStore):
             ]
             if not fv_feature_refs:
                 continue
-
-            logger.info(f"Processing feature view: {fv.name}")
-
             # Get join configuration
             entities = fv.entities or []
             entity_objs = [registry.get_entity(e, project) for e in entities]
@@ -957,10 +1215,6 @@ class RayOfflineStore(OfflineStore):
                     f"(available: {available_feature_names})"
                 )
 
-            logger.info(
-                f"Feature view '{fv.name}': requesting {requested_feats}, available: {available_feature_names}"
-            )
-
             # Load feature data as Ray dataset
             source_path = store._get_source_path(fv.batch_source, config)
             feature_ds = ray.data.read_parquet(source_path)
@@ -978,13 +1232,6 @@ class RayOfflineStore(OfflineStore):
                 timestamp_field = field_mapping.get(timestamp_field, timestamp_field)
                 if created_col:
                     created_col = field_mapping.get(created_col, created_col)
-
-            # Apply projection join key mapping to entity dataset if needed
-            if fv.projection.join_key_map:
-                # The feature dataset keeps its original columns (e.g., location_id)
-                # The entity dataset gets the mapped columns (e.g., origin_id, destination_id)
-                # We need to ensure the entity dataset has the properly mapped columns
-                pass  # The entity dataset already has the mapped columns in this case
 
             # Ensure timestamp compatibility in entity dataset
             if (
@@ -1042,7 +1289,7 @@ class RayOfflineStore(OfflineStore):
                     requested_feats,
                     full_feature_names,
                     fv.projection.name_to_use(),
-                    original_join_keys,
+                    original_join_keys if fv.projection.join_key_map else None,
                 )
             else:
                 # Use distributed windowed join for large feature datasets
@@ -1078,14 +1325,13 @@ class RayOfflineStore(OfflineStore):
                     window_size=config.offline_store.window_size_for_joins,
                     full_feature_names=full_feature_names,
                     feature_view_name=fv.projection.name_to_use(),
-                    original_join_keys=original_join_keys,
+                    original_join_keys=original_join_keys
+                    if fv.projection.join_key_map
+                    else None,
                 )
 
         # Final processing: clean up and ensure proper column structure
         def finalize_result(batch: pd.DataFrame) -> pd.DataFrame:
-            logger.debug(f"Finalizing result - input columns: {list(batch.columns)}")
-            logger.debug(f"Finalizing result - batch shape: {batch.shape}")
-
             batch = batch.copy()
 
             # Preserve existing feature columns (including renamed ones)
@@ -1120,7 +1366,9 @@ class RayOfflineStore(OfflineStore):
                 elif timestamp_field in batch.columns:
                     batch["event_timestamp"] = batch[timestamp_field]
 
-            logger.debug(f"Final columns: {list(batch.columns)}")
+            # Fix data types for feature columns using centralized type mapping utilities
+            batch = _convert_feature_column_types(batch, regular_feature_views)
+
             return batch
 
         result_ds = result_ds.map_batches(finalize_result, batch_format="pandas")
@@ -1134,8 +1382,9 @@ class RayOfflineStore(OfflineStore):
         job = RayRetrievalJob(result_ds, staging_location=storage_path)
         job._full_feature_names = full_feature_names
         job._on_demand_feature_views = on_demand_feature_views
-
-        logger.info("Historical features processing completed successfully")
+        job._feature_refs = feature_refs
+        job._entity_df = original_entity_df
+        job._metadata = job._create_metadata()
         return job
 
     def validate_data_source(
@@ -1177,9 +1426,16 @@ class RayOfflineStore(OfflineStore):
 
         def _load():
             try:
-                # Load and filter the dataset
+                # Get field mapping for column renaming after loading
+                field_mapping = getattr(data_source, "field_mapping", None)
+
+                # The timestamp_field parameter is already the original field name
+                # (reverse mapping is handled by _get_column_names)
+                filter_timestamp_field = timestamp_field
+
+                # Load and filter the dataset using the original timestamp field name
                 ds = RayOfflineStore._create_filtered_dataset(
-                    source_path, timestamp_field, start_date, end_date
+                    source_path, filter_timestamp_field, start_date, end_date
                 )
 
                 # Convert to pandas for deduplication and column selection
@@ -1187,19 +1443,25 @@ class RayOfflineStore(OfflineStore):
                 df = make_df_tzaware(df)
 
                 # Apply field mapping if needed
-                field_mapping = getattr(data_source, "field_mapping", None)
                 if field_mapping:
                     df = df.rename(columns=field_mapping)
 
-                # Use the actual timestamp field name (this is already the correct mapped name)
-                timestamp_field_mapped = timestamp_field
-                created_timestamp_column_mapped = created_timestamp_column
+                # Now use the mapped timestamp field name for all operations
+                timestamp_field_mapped = (
+                    field_mapping.get(timestamp_field, timestamp_field)
+                    if field_mapping
+                    else timestamp_field
+                )
+                created_timestamp_column_mapped = (
+                    field_mapping.get(
+                        created_timestamp_column, created_timestamp_column
+                    )
+                    if field_mapping and created_timestamp_column
+                    else created_timestamp_column
+                )
 
                 # Handle empty DataFrame case
                 if df.empty:
-                    logger.info(
-                        "DataFrame is empty after filtering, creating empty DataFrame with required columns"
-                    )
                     # Create an empty DataFrame with the required columns
                     empty_columns = (
                         join_key_columns
@@ -1293,9 +1555,6 @@ class RayOfflineStore(OfflineStore):
                 ):
                     if timestamp_field_mapped in df.columns:
                         df["event_timestamp"] = df[timestamp_field_mapped]
-                        logger.debug(
-                            f"Added 'event_timestamp' column from '{timestamp_field_mapped}' for pandas backend compatibility"
-                        )
 
                 return df
 
@@ -1328,9 +1587,16 @@ class RayOfflineStore(OfflineStore):
 
         def _load():
             try:
-                # Load and filter the dataset
+                # Get field mapping for column renaming after loading
+                field_mapping = getattr(data_source, "field_mapping", None)
+
+                # The timestamp_field parameter is already the original field name
+                # (reverse mapping is handled by _get_column_names)
+                filter_timestamp_field = timestamp_field
+
+                # Load and filter the dataset using the original timestamp field name
                 ds = RayOfflineStore._create_filtered_dataset(
-                    source_path, timestamp_field, start_date, end_date
+                    source_path, filter_timestamp_field, start_date, end_date
                 )
 
                 # Convert to pandas for column selection
@@ -1338,27 +1604,25 @@ class RayOfflineStore(OfflineStore):
                 df = make_df_tzaware(df)
 
                 # Apply field mapping if needed
-                field_mapping = getattr(data_source, "field_mapping", None)
                 if field_mapping:
                     df = df.rename(columns=field_mapping)
 
-                # Use the actual timestamp field name (this is already the correct mapped name)
-                timestamp_field_mapped = timestamp_field
-                created_timestamp_column_mapped = created_timestamp_column
-
-                # Debug logging
-                logger.debug(f"DataFrame columns: {df.columns.tolist()}")
-                logger.debug(f"Timestamp field: {timestamp_field_mapped}")
-                logger.debug(
-                    f"Created timestamp column: {created_timestamp_column_mapped}"
+                # Now use the mapped timestamp field name for all operations
+                timestamp_field_mapped = (
+                    field_mapping.get(timestamp_field, timestamp_field)
+                    if field_mapping
+                    else timestamp_field
                 )
-                logger.debug(f"DataFrame shape: {df.shape}")
+                created_timestamp_column_mapped = (
+                    field_mapping.get(
+                        created_timestamp_column, created_timestamp_column
+                    )
+                    if field_mapping and created_timestamp_column
+                    else created_timestamp_column
+                )
 
                 # Handle empty DataFrame case
                 if df.empty:
-                    logger.info(
-                        "DataFrame is empty after filtering, creating empty DataFrame with required columns"
-                    )
                     # Create an empty DataFrame with the required columns
                     empty_columns = (
                         join_key_columns
@@ -1440,9 +1704,6 @@ class RayOfflineStore(OfflineStore):
                 ):
                     if timestamp_field_mapped in df.columns:
                         df["event_timestamp"] = df[timestamp_field_mapped]
-                        logger.debug(
-                            f"Added 'event_timestamp' column from '{timestamp_field_mapped}' for pandas backend compatibility"
-                        )
 
                 return df
 
@@ -1499,25 +1760,38 @@ class RayOfflineStore(OfflineStore):
         repo_path = getattr(config, "repo_path", None) or os.getcwd()
         ray_config = config.offline_store
         assert isinstance(ray_config, RayOfflineStoreConfig)
-        base_storage_path = ray_config.storage_path or "/tmp/ray-storage"
+        assert isinstance(feature_view.batch_source, FileSource)
 
-        batch_source_path = getattr(feature_view.batch_source, "file_path", None)
-        if not batch_source_path:
-            batch_source_path = f"{feature_view.name}/push_{_utc_now()}.parquet"
-
+        # Use the existing batch source path (like other offline stores)
+        batch_source_path = feature_view.batch_source.file_options.uri
         feature_path = FileSource.get_uri_for_file_path(repo_path, batch_source_path)
-        storage_path = FileSource.get_uri_for_file_path(repo_path, base_storage_path)
 
-        feature_dir = os.path.dirname(feature_path)
-        if not feature_dir.startswith(("s3://", "gs://")):
-            os.makedirs(feature_dir, exist_ok=True)
-        if not storage_path.startswith(("s3://", "gs://")):
-            os.makedirs(os.path.dirname(storage_path), exist_ok=True)
+        # If the path points to a file, write directly to that file location
+        # If it points to a directory, write to that directory
+        if feature_path.endswith(".parquet"):
+            # Convert PyArrow table to pandas DataFrame
+            df = table.to_pandas()
 
-        df = table.to_pandas()
-        ds = ray.data.from_pandas(df)
-        ds.materialize()
-        ds.write_parquet(feature_dir)
+            # Check if file exists and append if it does
+            if os.path.exists(feature_path):
+                # Read existing data
+                existing_df = pd.read_parquet(feature_path)
+                # Append new data
+                combined_df = pd.concat([existing_df, df], ignore_index=True)
+                # Write combined data
+                combined_df.to_parquet(feature_path, index=False)
+            else:
+                # Write new data
+                df.to_parquet(feature_path, index=False)
+        else:
+            # Write to directory (multiple parquet files)
+            os.makedirs(feature_path, exist_ok=True)
+
+            # Convert PyArrow table to Ray dataset
+            ds = ray.data.from_arrow(table)
+
+            # Write to parquet
+            ds.write_parquet(feature_path)
 
     @staticmethod
     def create_saved_dataset_destination(
