@@ -127,10 +127,6 @@ class TestOnlineWrites(unittest.TestCase):
                 inputs=driver_dict,
             )
 
-    def tearDown(self):
-        import shutil
-        shutil.rmtree(self.data_dir)
-
     def test_online_retrieval(self):
         entity_rows = [
             {
