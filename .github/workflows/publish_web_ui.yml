@@ -1,0 +1,72 @@
+name: publish web ui
+
+on:
+  workflow_dispatch: # Allows manual trigger of the workflow
+    inputs:
+      custom_version: # Optional input for a custom version
+        description: 'Custom version to publish (e.g., v1.2.3) -- only edit if you know what you are doing'
+        required: false
+        type: string
+      token:
+        description: 'Personal Access Token'
+        required: true
+        default: ""
+        type: string
+      publish_ui:
+        description: 'Publish to NPM?'
+        required: true
+        default: true
+        type: boolean
+  workflow_call: # Allows trigger of the workflow from another workflow
+    inputs:
+      custom_version: # Optional input for a custom version
+        description: 'Custom version to publish (e.g., v1.2.3) -- only edit if you know what you are doing'
+        required: false
+        type: string
+      token:
+        description: 'Personal Access Token'
+        required: true
+        default: ""
+        type: string
+      publish_ui:
+        description: 'Publish to NPM?'
+        required: true
+        default: true
+        type: boolean
+
+jobs:
+  publish-web-ui-npm:
+    if: github.repository == 'feast-dev/feast'
+    runs-on: ubuntu-latest
+    env:
+      # This publish is working using an NPM automation token to bypass 2FA
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: get-version
+        uses: ./.github/actions/get-semantic-release-version
+        with:
+          custom_version: ${{ github.event.inputs.custom_version }}
+          token: ${{ github.event.inputs.token || github.token }}
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version-file: './ui/.nvmrc'
+      - name: Bump file versions (temporarily for Web UI publish)
+        env:
+          CURRENT_VERSION: ${{ steps.get-version.outputs.current_version }}
+          NEXT_VERSION: ${{ steps.get-version.outputs.version_without_prefix }}
+        run: python ./infra/scripts/release/bump_file_versions.py ${CURRENT_VERSION} ${NEXT_VERSION}
+      - name: Install yarn dependencies
+        working-directory: ./ui
+        run: yarn install
+      - name: Build yarn rollup
+        working-directory: ./ui
+        run: yarn build:lib
+      - name: Publish UI package
+        working-directory: ./ui
+        if: github.event.inputs.publish_ui != 'false'
+        run: npm publish
+        env:
+          # This publish is working using an NPM automation token to bypass 2FA
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }} 
