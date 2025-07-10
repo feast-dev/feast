@@ -38,165 +38,218 @@ from feast.infra.registry.base_registry import BaseRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage, ValidationReference
-from feast.type_map import feast_value_type_to_pandas_type
+from feast.type_map import feast_value_type_to_pandas_type, pa_to_feast_value_type
 from feast.utils import _get_column_names, make_df_tzaware
 from feast.value_type import ValueType
 
 logger = logging.getLogger(__name__)
 
 
-def _normalize_timestamp_column(
-    df: pd.DataFrame, column: str, inplace: bool = False
-) -> pd.DataFrame:
+def _get_data_schema_info(
+    data: Union[pd.DataFrame, Dataset],
+) -> Tuple[Dict[str, Any], List[str]]:
     """
-    Normalize a timestamp column to UTC with second precision.
+    Extract schema information from DataFrame or Dataset.
     Args:
-        df: DataFrame containing the timestamp column
-        column: Name of the timestamp column to normalize
-        inplace: Whether to modify the DataFrame in place
+        data: DataFrame or Ray Dataset
     Returns:
-        DataFrame with normalized timestamp column
+        Tuple of (dtypes_dict, column_names)
     """
-    if not inplace:
-        df = df.copy()
+    if isinstance(data, Dataset):
+        schema = data.schema()
+        # Embed _create_dtypes_dict_from_schema logic inline
+        dtypes = {}
+        for i, col in enumerate(schema.names):
+            field_type = schema.field(i).type
+            # Embed _pa_type_to_pandas_dtype logic inline
+            try:
+                pa_type_str = str(field_type).lower()
+                feast_value_type = pa_to_feast_value_type(pa_type_str)
+                pandas_type_str = feast_value_type_to_pandas_type(feast_value_type)
+                dtypes[col] = pd.api.types.pandas_dtype(pandas_type_str)
+            except Exception:
+                dtypes[col] = pd.api.types.pandas_dtype("object")
+        columns = schema.names
+    else:
+        dtypes = data.dtypes.to_dict()
+        columns = list(data.columns)
+    return dtypes, columns
 
-    if column in df.columns:
-        df[column] = (
-            pd.to_datetime(df[column], utc=True, errors="coerce")
+
+def _apply_to_data(
+    data: Union[pd.DataFrame, Dataset],
+    process_func: Callable[[pd.DataFrame], pd.DataFrame],
+    inplace: bool = False,
+) -> Union[pd.DataFrame, Dataset]:
+    """
+    Apply a processing function to DataFrame or Dataset.
+    Args:
+        data: DataFrame or Ray Dataset to process
+        process_func: Function that takes a DataFrame and returns a processed DataFrame
+        inplace: Whether to modify DataFrame in place (only applies to pandas)
+    Returns:
+        Processed DataFrame or Dataset
+    """
+    if isinstance(data, Dataset):
+        return data.map_batches(process_func, batch_format="pandas")
+    else:
+        if not inplace:
+            data = data.copy()
+        return process_func(data)
+
+
+def _normalize_timestamp_columns(
+    data: Union[pd.DataFrame, Dataset],
+    columns: Union[str, List[str]],
+    inplace: bool = False,
+) -> Union[pd.DataFrame, Dataset]:
+    """
+    Normalize timestamp columns to UTC with second precision.
+    Works with both pandas DataFrames and Ray Datasets.
+    Args:
+        data: DataFrame or Ray Dataset containing the timestamp columns
+        columns: Column name (str) or list of column names (List[str]) to normalize
+        inplace: Whether to modify the DataFrame in place (only applies to pandas)
+    Returns:
+        DataFrame or Dataset with normalized timestamp columns
+    """
+    # Normalize input to always be a list
+    column_list = [columns] if isinstance(columns, str) else columns
+
+    def apply_normalization(series: pd.Series) -> pd.Series:
+        return (
+            pd.to_datetime(series, utc=True, errors="coerce")
             .dt.floor("s")
             .astype("datetime64[ns, UTC]")
         )
 
-    return df
+    if isinstance(data, Dataset):
 
+        def normalize_batch(batch: pd.DataFrame) -> pd.DataFrame:
+            for column in column_list:
+                if not batch.empty and column in batch.columns:
+                    batch[column] = apply_normalization(batch[column])
+            return batch
 
-def _normalize_timestamp_columns(
-    df: pd.DataFrame, columns: List[str], inplace: bool = False
-) -> pd.DataFrame:
-    """
-    Normalize multiple timestamp columns to UTC with second precision.
-    Args:
-        df: DataFrame containing the timestamp columns
-        columns: List of timestamp column names to normalize
-        inplace: Whether to modify the DataFrame in place
-    Returns:
-        DataFrame with normalized timestamp columns
-    """
-    if not inplace:
-        df = df.copy()
+        return data.map_batches(normalize_batch, batch_format="pandas")
+    else:
+        if not inplace:
+            data = data.copy()
 
-    for column in columns:
-        if column in df.columns:
-            df = _normalize_timestamp_column(df, column, inplace=True)
-
-    return df
-
-
-def _create_time_window_column(
-    df: pd.DataFrame,
-    timestamp_column: str,
-    window_size: str,
-    window_column: str = "time_window",
-    inplace: bool = False,
-) -> pd.DataFrame:
-    """
-    Create a time window column by flooring timestamps to specified window size.
-    Args:
-        df: DataFrame containing the timestamp column
-        timestamp_column: Name of the timestamp column
-        window_size: Window size string (e.g., "1H", "30min")
-        window_column: Name for the new window column
-        inplace: Whether to modify the DataFrame in place
-    Returns:
-        DataFrame with added time window column
-    """
-    if not inplace:
-        df = df.copy()
-
-    if timestamp_column in df.columns:
-        df[window_column] = (
-            pd.to_datetime(df[timestamp_column])
-            .dt.floor(window_size)
-            .astype("datetime64[ns, UTC]")
-        )
-
-    return df
-
-
-def _create_empty_timestamp_column(
-    length: int, dtype: str = "datetime64[ns, UTC]"
-) -> pd.Series:
-    """
-    Create an empty timestamp column with proper dtype.
-    Args:
-        length: Length of the series
-        dtype: Pandas dtype for the timestamp column
-    Returns:
-        Series with NaT values and proper datetime dtype
-    """
-    return pd.Series([pd.NaT] * length, dtype=dtype)
+        for column in column_list:
+            if column in data.columns:
+                data[column] = apply_normalization(data[column])
+        return data
 
 
 def _ensure_timestamp_compatibility(
-    df: pd.DataFrame, timestamp_fields: List[str], inplace: bool = False
-) -> pd.DataFrame:
+    data: Union[pd.DataFrame, Dataset],
+    timestamp_fields: List[str],
+    inplace: bool = False,
+) -> Union[pd.DataFrame, Dataset]:
     """
     Ensure timestamp columns have compatible dtypes and precision for joins.
+    Works with both pandas DataFrames and Ray Datasets.
     Args:
-        df: DataFrame to process
+        data: DataFrame or Ray Dataset to process
         timestamp_fields: List of timestamp field names
-        inplace: Whether to modify the DataFrame in place
+        inplace: Whether to modify the DataFrame in place (only applies to pandas)
     Returns:
-        DataFrame with compatible timestamp columns
+        DataFrame or Dataset with compatible timestamp columns
     """
-    if not inplace:
-        df = df.copy()
+    if isinstance(data, Dataset):
+        # Ray Dataset path
+        def ensure_compatibility(batch: pd.DataFrame) -> pd.DataFrame:
+            # Use existing utility for timezone awareness
+            batch = make_df_tzaware(batch)
 
-    # Use existing utility for timezone awareness
-    df = make_df_tzaware(df)
+            # Then normalize timestamp precision for specified fields only
+            for field in timestamp_fields:
+                if field in batch.columns:
+                    batch[field] = (
+                        pd.to_datetime(batch[field], utc=True, errors="coerce")
+                        .dt.floor("s")
+                        .astype("datetime64[ns, UTC]")
+                    )
+            return batch
 
-    # Then normalize timestamp precision for specified fields only
-    for field in timestamp_fields:
-        if field in df.columns:
-            df = _normalize_timestamp_column(df, field, inplace=True)
+        return data.map_batches(ensure_compatibility, batch_format="pandas")
+    else:
+        # Pandas DataFrame path
+        if not inplace:
+            data = data.copy()
 
-    return df
+        # Use existing utility for timezone awareness
+        data = make_df_tzaware(data)
+
+        # Then normalize timestamp precision for specified fields only
+        for field in timestamp_fields:
+            if field in data.columns:
+                data = _normalize_timestamp_columns(data, field, inplace=True)
+        return data
 
 
-def _create_empty_dataframe_with_timestamp_columns(
-    columns: List[str], timestamp_columns: List[str]
+def _build_required_columns(
+    join_key_columns: List[str],
+    feature_name_columns: List[str],
+    timestamp_columns: List[str],
+) -> List[str]:
+    """
+    Build list of required columns for data processing.
+    Args:
+        join_key_columns: List of join key columns
+        feature_name_columns: List of feature columns
+        timestamp_columns: List of timestamp columns
+    Returns:
+        List of all required columns
+    """
+    all_required_columns = join_key_columns + feature_name_columns + timestamp_columns
+    if not join_key_columns:
+        all_required_columns.append(DUMMY_ENTITY_ID)
+    if "event_timestamp" not in all_required_columns:
+        all_required_columns.append("event_timestamp")
+    return all_required_columns
+
+
+def _handle_empty_dataframe_case(
+    join_key_columns: List[str],
+    feature_name_columns: List[str],
+    timestamp_columns: List[str],
 ) -> pd.DataFrame:
     """
-    Create an empty DataFrame with proper column types including datetime columns.
+    Handle empty DataFrame case by creating properly structured empty DataFrame.
     Args:
-        columns: List of all column names
-        timestamp_columns: List of timestamp column names that need proper dtype
+        join_key_columns: List of join key columns
+        feature_name_columns: List of feature columns
+        timestamp_columns: List of timestamp columns
     Returns:
-        Empty DataFrame with proper column types
+        Empty DataFrame with proper structure and column types
     """
-    df = pd.DataFrame(columns=columns)
-
-    # Set proper dtype for timestamp columns
+    empty_columns = _build_required_columns(
+        join_key_columns, feature_name_columns, timestamp_columns
+    )
+    df = pd.DataFrame(columns=empty_columns)
     for col in timestamp_columns:
         if col in df.columns:
             df[col] = df[col].astype("datetime64[ns, UTC]")
-
     return df
 
 
 def _safe_infer_event_timestamp_column(
-    entity_df: pd.DataFrame, fallback_column: str = "event_timestamp"
+    data: Union[pd.DataFrame, Dataset], fallback_column: str = "event_timestamp"
 ) -> str:
     """
-    Safely infer the event timestamp column using offline_utils with fallback.
+    Safely infer the event timestamp column.
+    Works with both pandas DataFrames and Ray Datasets.
     Args:
-        entity_df: Entity DataFrame to analyze
+        data: DataFrame or Ray Dataset to analyze
         fallback_column: Default column name to use if inference fails
     Returns:
         Inferred or fallback timestamp column name
     """
     try:
-        return infer_event_timestamp_from_entity_df(entity_df.dtypes.to_dict())
+        dtypes, _ = _get_data_schema_info(data)
+        return infer_event_timestamp_from_entity_df(dtypes)
     except Exception as e:
         logger.debug(
             f"Timestamp column inference failed: {e}, using fallback: {fallback_column}"
@@ -205,51 +258,92 @@ def _safe_infer_event_timestamp_column(
 
 
 def _safe_get_entity_timestamp_bounds(
-    entity_df: pd.DataFrame, timestamp_column: str
+    data: Union[pd.DataFrame, Dataset], timestamp_column: str
 ) -> Tuple[Optional[datetime], Optional[datetime]]:
     """
-    Safely get entity timestamp bounds using offline_utils with fallback.
+    Safely get entity timestamp bounds.
+    Works with both pandas DataFrames and Ray Datasets.
     Args:
-        entity_df: Entity DataFrame
+        data: DataFrame or Ray Dataset
         timestamp_column: Name of timestamp column
     Returns:
         Tuple of (min_timestamp, max_timestamp) or (None, None) if failed
     """
     try:
-        if timestamp_column in entity_df.columns:
-            min_ts, max_ts = get_entity_df_timestamp_bounds(entity_df, timestamp_column)
-            # Convert Pandas Timestamp to datetime if needed
-            if hasattr(min_ts, "to_pydatetime"):
-                min_ts = min_ts.to_pydatetime()
-            if hasattr(max_ts, "to_pydatetime"):
-                max_ts = max_ts.to_pydatetime()
-            return min_ts, max_ts
+        if isinstance(data, Dataset):
+            # Ray Dataset path - try Ray's built-in operations first
+            min_ts = data.min(timestamp_column)
+            max_ts = data.max(timestamp_column)
+        else:
+            # Pandas DataFrame path
+            if timestamp_column in data.columns:
+                min_ts, max_ts = get_entity_df_timestamp_bounds(data, timestamp_column)
+            else:
+                return None, None
+
+        # Convert to datetime if needed
+        if hasattr(min_ts, "to_pydatetime"):
+            min_ts = min_ts.to_pydatetime()
+        elif isinstance(min_ts, pd.Timestamp):
+            min_ts = min_ts.to_pydatetime()
+
+        if hasattr(max_ts, "to_pydatetime"):
+            max_ts = max_ts.to_pydatetime()
+        elif isinstance(max_ts, pd.Timestamp):
+            max_ts = max_ts.to_pydatetime()
+
+        return min_ts, max_ts
     except Exception as e:
         logger.debug(
             f"Timestamp bounds extraction failed: {e}, falling back to manual calculation"
         )
 
-    # Fallback to original logic
-    try:
-        if timestamp_column in entity_df.columns:
-            timestamps = pd.to_datetime(entity_df[timestamp_column], utc=True)
-            return timestamps.min().to_pydatetime(), timestamps.max().to_pydatetime()
-    except Exception:
-        pass
+        # Fallback to manual calculation
+        try:
+            if isinstance(data, Dataset):
+                # Ray Dataset fallback
+                def extract_bounds(batch: pd.DataFrame) -> pd.DataFrame:
+                    if timestamp_column in batch.columns and not batch.empty:
+                        timestamps = pd.to_datetime(batch[timestamp_column], utc=True)
+                        return pd.DataFrame(
+                            {"min_ts": [timestamps.min()], "max_ts": [timestamps.max()]}
+                        )
+                    return pd.DataFrame({"min_ts": [None], "max_ts": [None]})
 
-    return None, None
+                bounds_ds = data.map_batches(extract_bounds, batch_format="pandas")
+                bounds_df = bounds_ds.to_pandas()
+
+                if not bounds_df.empty:
+                    min_ts = bounds_df["min_ts"].min()
+                    max_ts = bounds_df["max_ts"].max()
+
+                    if pd.notna(min_ts) and pd.notna(max_ts):
+                        return min_ts.to_pydatetime(), max_ts.to_pydatetime()
+            else:
+                # Pandas DataFrame fallback
+                if timestamp_column in data.columns:
+                    timestamps = pd.to_datetime(data[timestamp_column], utc=True)
+                    return (
+                        timestamps.min().to_pydatetime(),
+                        timestamps.max().to_pydatetime(),
+                    )
+        except Exception:
+            pass
+
+        return None, None
 
 
 def _safe_validate_entity_dataframe(
-    entity_df: pd.DataFrame,
+    data: Union[pd.DataFrame, Dataset],
     feature_views: List[FeatureView],
     project: str,
     registry: BaseRegistry,
 ) -> None:
     """
-    Safely validate entity DataFrame using offline_utils with graceful fallback.
+    Safely validate entity DataFrame or Dataset.
+    Works with both pandas DataFrames and Ray Datasets.
     Args:
-        entity_df: Entity DataFrame to validate
+        data: DataFrame or Ray Dataset to validate
         feature_views: List of feature views to validate against
         project: Feast project name
         registry: Feature registry
@@ -258,23 +352,26 @@ def _safe_validate_entity_dataframe(
         # Get expected join keys for validation
         expected_join_keys = get_expected_join_keys(project, feature_views, registry)
 
+        dtypes, columns = _get_data_schema_info(data)
+
         # Infer event timestamp column
-        timestamp_col = infer_event_timestamp_from_entity_df(entity_df.dtypes.to_dict())
+        timestamp_col = infer_event_timestamp_from_entity_df(dtypes)
 
-        # Validate entity DataFrame has required columns
-        assert_expected_columns_in_entity_df(
-            entity_df.dtypes.to_dict(), expected_join_keys, timestamp_col
-        )
+        # Validate DataFrame/Dataset has required columns
+        assert_expected_columns_in_entity_df(dtypes, expected_join_keys, timestamp_col)
 
+        data_type = "Dataset" if isinstance(data, Dataset) else "DataFrame"
         logger.info(
-            f"Entity DataFrame validation passed:\n"
+            f"Entity {data_type} validation passed:\n"
             f"  Expected join keys: {expected_join_keys}\n"
-            f"  Detected timestamp column: {timestamp_col}"
+            f"  Detected timestamp column: {timestamp_col}\n"
+            f"  Available columns: {columns}"
         )
 
     except Exception as e:
         # Log validation issues but don't fail
-        logger.warning(f"Entity DataFrame validation skipped due to error: {e}")
+        data_type = "Dataset" if isinstance(data, Dataset) else "DataFrame"
+        logger.warning(f"Entity {data_type} validation skipped due to error: {e}")
         logger.debug("Validation error details:", exc_info=True)
 
 
@@ -324,50 +421,55 @@ def _safe_validate_schema(
 
 
 def _convert_feature_column_types(
-    batch: pd.DataFrame, feature_views: List[FeatureView]
-) -> pd.DataFrame:
+    data: Union[pd.DataFrame, Dataset], feature_views: List[FeatureView]
+) -> Union[pd.DataFrame, Dataset]:
     """
     Convert feature columns to appropriate pandas types using Feast's type mapping utilities.
+    Works with both pandas DataFrames and Ray Datasets.
     Args:
-        batch: DataFrame containing feature data
+        data: DataFrame or Ray Dataset containing feature data
         feature_views: List of feature views with type information
     Returns:
-        DataFrame with properly converted feature column types
+        DataFrame or Dataset with properly converted feature column types
     """
-    batch = batch.copy()
 
-    for fv in feature_views:
-        for feature in fv.features:
-            feat_name = feature.name
+    def convert_batch(batch: pd.DataFrame) -> pd.DataFrame:
+        batch = batch.copy()
 
-            # Check if this feature exists in the batch
-            if feat_name not in batch.columns:
-                continue
+        for fv in feature_views:
+            for feature in fv.features:
+                feat_name = feature.name
 
-            try:
-                # Get the Feast ValueType for this feature
-                value_type = feature.dtype.to_value_type()
+                # Check if this feature exists in the batch
+                if feat_name not in batch.columns:
+                    continue
 
-                # Handle array/list types
-                if value_type.name.endswith("_LIST"):
-                    batch[feat_name] = _convert_array_column(
-                        batch[feat_name], value_type
+                try:
+                    # Get the Feast ValueType for this feature
+                    value_type = feature.dtype.to_value_type()
+
+                    # Handle array/list types
+                    if value_type.name.endswith("_LIST"):
+                        batch[feat_name] = _convert_array_column(
+                            batch[feat_name], value_type
+                        )
+                    else:
+                        # Handle scalar types using feast type mapping
+                        target_pandas_type = feast_value_type_to_pandas_type(value_type)
+                        batch[feat_name] = _convert_scalar_column(
+                            batch[feat_name], value_type, target_pandas_type
+                        )
+
+                except Exception as e:
+                    logger.warning(
+                        f"Failed to convert feature {feat_name} to proper type: {e}"
                     )
-                else:
-                    # Handle scalar types using feast type mapping
-                    target_pandas_type = feast_value_type_to_pandas_type(value_type)
-                    batch[feat_name] = _convert_scalar_column(
-                        batch[feat_name], value_type, target_pandas_type
-                    )
+                    # Keep original dtype if conversion fails
+                    continue
 
-            except Exception as e:
-                logger.warning(
-                    f"Failed to convert feature {feat_name} to proper type: {e}"
-                )
-                # Keep original dtype if conversion fails
-                continue
+        return batch
 
-    return batch
+    return _apply_to_data(data, convert_batch)
 
 
 def _convert_scalar_column(
@@ -419,6 +521,25 @@ def _convert_array_column(series: pd.Series, value_type: ValueType) -> pd.Series
             return item
 
     return series.apply(convert_array_item)
+
+
+def _apply_field_mapping(
+    data: Union[pd.DataFrame, Dataset], field_mapping: Dict[str, str]
+) -> Union[pd.DataFrame, Dataset]:
+    """
+    Apply field mapping to column names.
+    Works with both pandas DataFrames and Ray Datasets.
+    Args:
+        data: DataFrame or Ray Dataset to apply mapping to
+        field_mapping: Dictionary mapping old column names to new column names
+    Returns:
+        DataFrame or Dataset with renamed columns
+    """
+
+    def rename_columns(df: pd.DataFrame) -> pd.DataFrame:
+        return df.rename(columns=field_mapping)
+
+    return _apply_to_data(data, rename_columns)
 
 
 class RayOfflineStoreConfig(FeastConfigBaseModel):
@@ -595,7 +716,9 @@ class RayDataProcessor:
                 if feat in features_df.columns and pd.api.types.is_datetime64_any_dtype(
                     features_df[feat]
                 ):
-                    result[feat] = _create_empty_timestamp_column(len(result))
+                    result[feat] = pd.Series(
+                        [pd.NaT] * len(result), dtype="datetime64[ns, UTC]"
+                    )
                 else:
                     result[feat] = np.nan
 
@@ -622,14 +745,13 @@ class RayDataProcessor:
 
             matching_features = features_df[entity_matches]
 
-            if matching_features.empty:
-                continue
-
+            # Apply time filter if timestamp field exists
             entity_timestamp = entity_row[timestamp_field]
             if timestamp_field in matching_features.columns:
                 time_matches = matching_features[timestamp_field] <= entity_timestamp
                 matching_features = matching_features[time_matches]
 
+            # Skip if no features match entity criteria or time criteria
             if matching_features.empty:
                 continue
 
@@ -720,8 +842,8 @@ class RayDataProcessor:
             features_filtered = features[available_feature_cols].copy()
 
             # Ensure timestamp columns have compatible dtypes and precision
-            batch = _normalize_timestamp_column(batch, timestamp_field, inplace=True)
-            features_filtered = _normalize_timestamp_column(
+            batch = _normalize_timestamp_columns(batch, timestamp_field, inplace=True)
+            features_filtered = _normalize_timestamp_columns(
                 features_filtered, timestamp_field, inplace=True
             )
 
@@ -958,9 +1080,13 @@ class RayDataProcessor:
         """Add time windows and source markers to dataset."""
 
         def add_window_and_source(batch: pd.DataFrame) -> pd.DataFrame:
-            batch = _create_time_window_column(
-                batch, timestamp_field, window_size, "time_window"
-            )
+            batch = batch.copy()
+            if timestamp_field in batch.columns:
+                batch["time_window"] = (
+                    pd.to_datetime(batch[timestamp_field])
+                    .dt.floor(window_size)
+                    .astype("datetime64[ns, UTC]")
+                )
             batch["_data_source"] = source_marker
             return batch
 
@@ -1056,6 +1182,7 @@ class RayRetrievalJob(RetrievalJob):
         self._on_demand_feature_views: Optional[List[OnDemandFeatureView]] = None
         self._feature_refs: List[str] = []
         self._entity_df: Optional[pd.DataFrame] = None
+        self._prefer_ray_datasets: bool = True  # New flag to prefer Ray datasets
 
     def _create_metadata(self) -> RetrievalMetadata:
         """Create metadata from the entity DataFrame and feature references."""
@@ -1071,9 +1198,26 @@ class RayRetrievalJob(RetrievalJob):
             # Get keys (all columns except the detected timestamp column)
             keys = [col for col in self._entity_df.columns if col != timestamp_col]
         else:
-            min_timestamp = None
-            max_timestamp = None
-            keys = []
+            # Try to extract metadata from Ray dataset if entity_df is not available
+            try:
+                result = self._resolve()
+                if isinstance(result, Dataset):
+                    timestamp_col = _safe_infer_event_timestamp_column(
+                        result, "event_timestamp"
+                    )
+                    min_timestamp, max_timestamp = _safe_get_entity_timestamp_bounds(
+                        result, timestamp_col
+                    )
+                    schema = result.schema()
+                    keys = [col for col in schema.names if col != timestamp_col]
+                else:
+                    min_timestamp = None
+                    max_timestamp = None
+                    keys = []
+            except Exception:
+                min_timestamp = None
+                max_timestamp = None
+                keys = []
 
         return RetrievalMetadata(
             features=self._feature_refs,
@@ -1094,12 +1238,27 @@ class RayRetrievalJob(RetrievalJob):
             result = self._dataset_or_callable
         return result
 
+    def _get_ray_dataset(self) -> Dataset:
+        """Get the result as a Ray Dataset, converting if necessary."""
+        if self._cached_dataset is not None:
+            return self._cached_dataset
+
+        result = self._resolve()
+        if isinstance(result, Dataset):
+            self._cached_dataset = result
+            return result
+        elif isinstance(result, pd.DataFrame):
+            self._cached_dataset = ray.data.from_pandas(result)
+            return self._cached_dataset
+        else:
+            raise ValueError(f"Unsupported result type: {type(result)}")
+
     def to_df(
         self,
         validation_reference: Optional[ValidationReference] = None,
         timeout: Optional[int] = None,
     ) -> pd.DataFrame:
-        # Use cached DataFrame if available for repeated access
+        # Use cached DataFrame if available and no ODFVs
         if self._cached_df is not None and not self.on_demand_feature_views:
             df = self._cached_df
         else:
@@ -1113,11 +1272,16 @@ class RayRetrievalJob(RetrievalJob):
                     validation_reference=validation_reference, timeout=timeout
                 )
             else:
-                result = self._resolve()
-                if isinstance(result, pd.DataFrame):
-                    df = result
+                # For Ray datasets, prefer keeping data distributed until the final conversion
+                if self._prefer_ray_datasets:
+                    ray_ds = self._get_ray_dataset()
+                    df = ray_ds.to_pandas()
                 else:
-                    df = result.to_pandas()
+                    result = self._resolve()
+                    if isinstance(result, pd.DataFrame):
+                        df = result
+                    else:
+                        df = result.to_pandas()
                 self._cached_df = df
 
         # Handle validation reference if provided
@@ -1148,30 +1312,42 @@ class RayRetrievalJob(RetrievalJob):
                 validation_reference=validation_reference, timeout=timeout
             )
 
-        # For non-ODFV cases, use direct conversion
-        result = self._resolve()
-        if isinstance(result, pd.DataFrame):
-            return pa.Table.from_pandas(result)
-
-        # For Ray Dataset, use direct Arrow conversion if available
-        try:
-            if hasattr(result, "to_arrow"):
-                return result.to_arrow()
-            else:
+        # For Ray datasets, use direct Arrow conversion when available
+        if self._prefer_ray_datasets:
+            try:
+                ray_ds = self._get_ray_dataset()
+                # Try to use Ray's native to_arrow() if available
+                if hasattr(ray_ds, "to_arrow"):
+                    return ray_ds.to_arrow()
+                else:
+                    # Fallback to pandas conversion
+                    df = ray_ds.to_pandas()
+                    return pa.Table.from_pandas(df)
+            except Exception:
                 # Fallback to pandas conversion
-                return pa.Table.from_pandas(result.to_pandas())
-        except Exception:
-            # Fallback to pandas conversion
-            return pa.Table.from_pandas(result.to_pandas())
+                df = self.to_df(
+                    validation_reference=validation_reference, timeout=timeout
+                )
+                return pa.Table.from_pandas(df)
+        else:
+            # Original implementation for non-Ray datasets
+            result = self._resolve()
+            if isinstance(result, pd.DataFrame):
+                return pa.Table.from_pandas(result)
+            else:
+                # For Ray Dataset, convert to pandas first then to arrow
+                df = result.to_pandas()
+                return pa.Table.from_pandas(df)
 
     def to_remote_storage(self) -> list[str]:
         if not self._staging_location:
             raise ValueError("Staging location must be set for remote materialization.")
         try:
-            ds = self._resolve()
+            # Use Ray dataset directly for remote storage
+            ray_ds = self._get_ray_dataset()
             RayOfflineStore._ensure_ray_initialized()
             output_uri = os.path.join(self._staging_location, str(uuid.uuid4()))
-            ds.write_parquet(output_uri)
+            ray_ds.write_parquet(output_uri)
             return [output_uri]
         except Exception as e:
             raise RuntimeError(f"Failed to write to remote storage: {e}")
@@ -1195,16 +1371,34 @@ class RayRetrievalJob(RetrievalJob):
         raise NotImplementedError("SQL export not supported for Ray offline store")
 
     def _to_df_internal(self, timeout: Optional[int] = None) -> pd.DataFrame:
-        return self._resolve().to_pandas()
+        # Use Ray dataset when possible
+        if self._prefer_ray_datasets:
+            ray_ds = self._get_ray_dataset()
+            return ray_ds.to_pandas()
+        else:
+            return self._resolve().to_pandas()
 
     def _to_arrow_internal(self, timeout: Optional[int] = None) -> pa.Table:
-        result = self._resolve()
-        if isinstance(result, pd.DataFrame):
-            return pa.Table.from_pandas(result)
-
-        # For Ray Dataset, convert to pandas first then to arrow
-        df = result.to_pandas()
-        return pa.Table.from_pandas(df)
+        # Use Ray dataset when possible
+        if self._prefer_ray_datasets:
+            ray_ds = self._get_ray_dataset()
+            try:
+                if hasattr(ray_ds, "to_arrow"):
+                    return ray_ds.to_arrow()
+                else:
+                    df = ray_ds.to_pandas()
+                    return pa.Table.from_pandas(df)
+            except Exception:
+                df = ray_ds.to_pandas()
+                return pa.Table.from_pandas(df)
+        else:
+            result = self._resolve()
+            if isinstance(result, pd.DataFrame):
+                return pa.Table.from_pandas(result)
+            else:
+                # For Ray Dataset, convert to pandas first then to arrow
+                df = result.to_pandas()
+                return pa.Table.from_pandas(df)
 
     def persist(
         self,
@@ -1212,7 +1406,7 @@ class RayRetrievalJob(RetrievalJob):
         allow_overwrite: Optional[bool] = False,
         timeout: Optional[int] = None,
     ) -> str:
-        """Persist the dataset to storage."""
+        """Persist the dataset to storage using Ray operations."""
 
         if not isinstance(storage, SavedDatasetFileStorage):
             raise ValueError(
@@ -1223,23 +1417,59 @@ class RayRetrievalJob(RetrievalJob):
             if not allow_overwrite and os.path.exists(destination_path):
                 raise SavedDatasetLocationAlreadyExists(location=destination_path)
         try:
-            result = self._resolve()
+            # Use Ray dataset directly for persistence
+            ray_ds = self._get_ray_dataset()
+
             if not destination_path.startswith(("s3://", "gs://", "hdfs://")):
                 os.makedirs(os.path.dirname(destination_path), exist_ok=True)
 
-            # Handle both DataFrame and Ray Dataset
-            if isinstance(result, pd.DataFrame):
-                # For DataFrame, convert to Ray Dataset first
-                RayOfflineStore._ensure_ray_initialized()
-                ds = ray.data.from_pandas(result)
-                ds.write_parquet(destination_path)
-            else:
-                # For Ray Dataset, use direct write
-                result.write_parquet(destination_path)
+            # Use Ray's native write operations
+            ray_ds.write_parquet(destination_path)
 
             return destination_path
         except Exception as e:
             raise RuntimeError(f"Failed to persist dataset to {destination_path}: {e}")
+
+    def materialize(self) -> None:
+        """Materialize the Ray dataset to improve subsequent access performance."""
+        try:
+            ray_ds = self._get_ray_dataset()
+            materialized_ds = ray_ds.materialize()
+            self._cached_dataset = materialized_ds
+            logger.info("Ray dataset materialized successfully")
+        except Exception as e:
+            logger.warning(f"Failed to materialize Ray dataset: {e}")
+
+    def count(self) -> int:
+        """Get the number of rows in the dataset efficiently using Ray operations."""
+        try:
+            ray_ds = self._get_ray_dataset()
+            return ray_ds.count()
+        except Exception:
+            # Fallback to pandas
+            df = self.to_df()
+            return len(df)
+
+    def take(self, limit: int) -> pd.DataFrame:
+        """Take a limited number of rows efficiently using Ray operations."""
+        try:
+            ray_ds = self._get_ray_dataset()
+            limited_ds = ray_ds.limit(limit)
+            return limited_ds.to_pandas()
+        except Exception:
+            # Fallback to pandas
+            df = self.to_df()
+            return df.head(limit)
+
+    def schema(self) -> pa.Schema:
+        """Get the schema of the dataset efficiently using Ray operations."""
+        try:
+            ray_ds = self._get_ray_dataset()
+            return ray_ds.schema()
+        except Exception:
+            # Fallback to pandas
+            df = self.to_df()
+            return pa.Table.from_pandas(df).schema
 
 
 class RayOfflineStore(OfflineStore):
@@ -1248,6 +1478,7 @@ class RayOfflineStore(OfflineStore):
         self._ray_initialized: bool = False
         self._resource_manager: Optional[RayResourceManager] = None
         self._data_processor: Optional[RayDataProcessor] = None
+        self._performance_monitoring: bool = True  # Enable performance monitoring
 
     @staticmethod
     def _ensure_ray_initialized(config: Optional[RepoConfig] = None):
@@ -1278,15 +1509,34 @@ class RayOfflineStore(OfflineStore):
         ctx.shuffle_strategy = "sort"  # type: ignore
         ctx.enable_tensor_extension_casting = False
 
+        # Log Ray cluster information
+        if ray.is_initialized():
+            cluster_resources = ray.cluster_resources()
+            logger.info(
+                f"Ray cluster initialized with {cluster_resources.get('CPU', 0)} CPUs, "
+                f"{cluster_resources.get('memory', 0) / (1024**3):.1f}GB memory"
+            )
+
     def _init_ray(self, config: RepoConfig):
         ray_config = config.offline_store
         assert isinstance(ray_config, RayOfflineStoreConfig)
-        self._ensure_ray_initialized(config)
+        RayOfflineStore._ensure_ray_initialized(config)
         if self._resource_manager is None:
             self._resource_manager = RayResourceManager(ray_config)
             self._resource_manager.configure_ray_context()
         if self._data_processor is None:
             self._data_processor = RayDataProcessor(self._resource_manager)
+
+    def _log_performance_metrics(
+        self, operation: str, dataset_size: int, duration: float
+    ):
+        """Log performance metrics for Ray operations."""
+        if self._performance_monitoring:
+            throughput = dataset_size / duration if duration > 0 else 0
+            logger.info(
+                f"Ray {operation} performance: {dataset_size} rows in {duration:.2f}s "
+                f"({throughput:.0f} rows/s)"
+            )
 
     def _get_source_path(self, source: DataSource, config: RepoConfig) -> str:
         if not isinstance(source, FileSource):
@@ -1294,6 +1544,710 @@ class RayOfflineStore(OfflineStore):
         repo_path = getattr(config, "repo_path", None)
         uri = FileSource.get_uri_for_file_path(repo_path, source.path)
         return uri
+
+    def _optimize_dataset_for_operation(self, ds: Dataset, operation: str) -> Dataset:
+        """Optimize dataset for specific operations."""
+        if self._resource_manager is None:
+            return ds
+
+        dataset_size = ds.size_bytes()
+        requirements = self._resource_manager.estimate_processing_requirements(
+            dataset_size, operation
+        )
+
+        if requirements["can_fit_in_memory"]:
+            # Materialize small datasets for better performance
+            ds = ds.materialize()
+
+        # Optimize partitioning
+        optimal_partitions = requirements["optimal_partitions"]
+        current_partitions = ds.num_blocks()
+
+        if current_partitions != optimal_partitions:
+            logger.debug(
+                f"Repartitioning dataset from {current_partitions} to {optimal_partitions} blocks"
+            )
+            ds = ds.repartition(num_blocks=optimal_partitions)
+
+        return ds
+
+    def supports_remote_storage_export(self) -> bool:
+        """Check if remote storage export is supported."""
+        return True  # Ray supports remote storage natively
+
+    def get_feature_server_endpoint(self) -> Optional[str]:
+        """Get feature server endpoint if available."""
+        return None  # Ray offline store doesn't have a feature server endpoint
+
+    def get_infra_object_names(self) -> List[str]:
+        """Get infrastructure object names managed by this store."""
+        return []  # Ray offline store doesn't manage persistent infrastructure objects
+
+    def plan_infra(self, config: RepoConfig, desired_registry_proto: Any) -> Any:
+        """Plan infrastructure changes."""
+        # Ray offline store doesn't require infrastructure planning
+        return None
+
+    def update_infra(
+        self,
+        project: str,
+        tables_to_delete: List[Any],
+        tables_to_keep: List[Any],
+        entities_to_delete: List[Any],
+        entities_to_keep: List[Any],
+        partial: bool,
+    ) -> None:
+        """Update infrastructure."""
+        # Ray offline store doesn't require infrastructure updates
+        pass
+
+    def teardown_infra(
+        self, project: str, tables: List[Any], entities: List[Any]
+    ) -> None:
+        """Teardown infrastructure."""
+        # Ray offline store doesn't require infrastructure teardown
+        pass
+
+    @staticmethod
+    def offline_write_batch(
+        config: RepoConfig,
+        feature_view: FeatureView,
+        table: pa.Table,
+        progress: Optional[Callable[[int], Any]] = None,
+    ) -> None:
+        """Write batch data using Ray operations with performance monitoring."""
+        import time
+
+        start_time = time.time()
+
+        RayOfflineStore._ensure_ray_initialized(config)
+
+        repo_path = getattr(config, "repo_path", None) or os.getcwd()
+        ray_config = config.offline_store
+        assert isinstance(ray_config, RayOfflineStoreConfig)
+        assert isinstance(feature_view.batch_source, FileSource)
+
+        # Enhanced schema validation using safe utility
+        validation_result = _safe_validate_schema(
+            config, feature_view.batch_source, table.column_names, "offline_write_batch"
+        )
+
+        if validation_result:
+            expected_schema, expected_columns = validation_result
+            # Try to reorder columns to match expected order if needed
+            if expected_columns != table.column_names and set(expected_columns) == set(
+                table.column_names
+            ):
+                logger.info("Reordering table columns to match expected schema")
+                table = table.select(expected_columns)
+
+        batch_source_path = feature_view.batch_source.file_options.uri
+        feature_path = FileSource.get_uri_for_file_path(repo_path, batch_source_path)
+
+        # Use Ray Dataset for efficient writing
+        ds = ray.data.from_arrow(table)
+
+        try:
+            # If the path points to a file, write directly to that file location
+            # If it points to a directory, write to that directory
+            if feature_path.endswith(".parquet"):
+                # For single file writes, check if file exists and append if it does
+                if os.path.exists(feature_path):
+                    # Read existing data as Ray Dataset
+                    existing_ds = ray.data.read_parquet(feature_path)
+                    # Append new data using Ray operations
+                    combined_ds = existing_ds.union(ds)
+                    # Write combined data
+                    combined_ds.write_parquet(feature_path)
+                else:
+                    # Write new data
+                    ds.write_parquet(feature_path)
+            else:
+                # Write to directory (multiple parquet files)
+                os.makedirs(feature_path, exist_ok=True)
+                ds.write_parquet(feature_path)
+
+            # Call progress callback if provided
+            if progress:
+                progress(table.num_rows)
+
+        except Exception as e:
+            logger.error(f"Failed to write batch data: {e}")
+            # Fallback to pandas-based writing
+            logger.info("Falling back to pandas-based writing")
+
+            # Convert to pandas for fallback
+            df = table.to_pandas()
+
+            if feature_path.endswith(".parquet"):
+                # Check if file exists and append if it does
+                if os.path.exists(feature_path):
+                    # Read existing data
+                    existing_df = pd.read_parquet(feature_path)
+                    # Append new data
+                    combined_df = pd.concat([existing_df, df], ignore_index=True)
+                    # Write combined data
+                    combined_df.to_parquet(feature_path, index=False)
+                else:
+                    # Write new data
+                    df.to_parquet(feature_path, index=False)
+            else:
+                # Write to directory (multiple parquet files)
+                os.makedirs(feature_path, exist_ok=True)
+
+                # Convert to Ray dataset and write
+                ds_fallback = ray.data.from_pandas(df)
+                ds_fallback.write_parquet(feature_path)
+
+            # Call progress callback if provided
+            if progress:
+                progress(table.num_rows)
+
+        # Log performance metrics
+        duration = time.time() - start_time
+        logger.info(
+            f"Ray offline_write_batch performance: {table.num_rows} rows in {duration:.2f}s "
+            f"({table.num_rows / duration:.0f} rows/s)"
+        )
+
+    def online_write_batch(
+        self,
+        config: RepoConfig,
+        table: pa.Table,
+        progress: Optional[Callable[[int], Any]] = None,
+    ) -> None:
+        """Ray offline store doesn't support online writes."""
+        raise NotImplementedError("Ray offline store doesn't support online writes")
+
+    def get_table_query_string(self) -> str:
+        """Get table query string format."""
+        return "file://{table_name}"
+
+    def get_table_column_names_and_types(
+        self, config: RepoConfig, data_source: DataSource
+    ) -> Iterable[Tuple[str, str]]:
+        """Get table column names and types efficiently using Ray."""
+        return self.get_table_column_names_and_types_from_data_source(
+            config, data_source
+        )
+
+    def create_ray_dataset_from_table(
+        self, config: RepoConfig, data_source: DataSource
+    ) -> Dataset:
+        """Create a Ray Dataset from a data source."""
+        self._init_ray(config)
+        source_path = self._get_source_path(data_source, config)
+        ds = ray.data.read_parquet(source_path)
+
+        # Apply field mapping if needed
+        field_mapping = getattr(data_source, "field_mapping", None)
+        if field_mapping:
+            ds = _apply_field_mapping(ds, field_mapping)
+
+        return ds
+
+    def get_dataset_statistics(self, ds: Dataset) -> Dict[str, Any]:
+        """Get comprehensive statistics for a Ray Dataset."""
+        try:
+            stats = {
+                "num_rows": ds.count(),
+                "num_blocks": ds.num_blocks(),
+                "size_bytes": ds.size_bytes(),
+                "schema": ds.schema(),
+            }
+
+            # Add column statistics if possible
+            try:
+                column_stats = {}
+                for col in ds.schema().names:
+                    try:
+                        column_stats[col] = {
+                            "min": ds.min(col),
+                            "max": ds.max(col),
+                            "mean": ds.mean(col)
+                            if ds.schema().field(col).type
+                            in [pa.float32(), pa.float64(), pa.int32(), pa.int64()]
+                            else None,
+                        }
+                    except Exception:
+                        # Skip columns that don't support these operations
+                        pass
+                stats["column_stats"] = column_stats
+            except Exception:
+                pass
+
+            return stats
+        except Exception as e:
+            logger.warning(f"Failed to get dataset statistics: {e}")
+            return {"error": str(e)}
+
+    def validate_data_source(
+        self,
+        config: RepoConfig,
+        data_source: DataSource,
+    ):
+        """Validates the underlying data source."""
+        self._init_ray(config)
+        data_source.validate(config=config)
+
+    def get_table_column_names_and_types_from_data_source(
+        self,
+        config: RepoConfig,
+        data_source: DataSource,
+    ) -> Iterable[Tuple[str, str]]:
+        """Returns the list of column names and raw column types for a DataSource."""
+        return data_source.get_table_column_names_and_types(config=config)
+
+    @staticmethod
+    def _load_and_filter_dataset(
+        source_path: str,
+        data_source: DataSource,
+        join_key_columns: List[str],
+        feature_name_columns: List[str],
+        timestamp_field: str,
+        created_timestamp_column: Optional[str],
+        start_date: Optional[datetime],
+        end_date: Optional[datetime],
+    ) -> pd.DataFrame:
+        """
+        Common method to load and filter dataset for both pull_latest and pull_all methods.
+        Args:
+            source_path: Path to the data source
+            data_source: DataSource object containing field mapping
+            join_key_columns: List of join key columns
+            feature_name_columns: List of feature columns
+            timestamp_field: Name of the timestamp field
+            created_timestamp_column: Optional created timestamp column
+            start_date: Optional start date for filtering
+            end_date: Optional end date for filtering
+        Returns:
+            Processed pandas DataFrame
+        """
+        try:
+            # Get field mapping for column renaming after loading
+            field_mapping = getattr(data_source, "field_mapping", None)
+
+            # Load and filter the dataset using the original timestamp field name
+            ds = RayOfflineStore._create_filtered_dataset(
+                source_path, timestamp_field, start_date, end_date
+            )
+
+            # Convert to pandas for processing
+            df = ds.to_pandas()
+            df = make_df_tzaware(df)
+
+            # Apply field mapping if needed
+            if field_mapping:
+                df = df.rename(columns=field_mapping)
+
+            # Get mapped field names
+            timestamp_field_mapped = (
+                field_mapping.get(timestamp_field, timestamp_field)
+                if field_mapping
+                else timestamp_field
+            )
+            created_timestamp_column_mapped = (
+                field_mapping.get(created_timestamp_column, created_timestamp_column)
+                if field_mapping and created_timestamp_column
+                else created_timestamp_column
+            )
+
+            # Build timestamp columns list
+            timestamp_columns = [timestamp_field_mapped]
+            if created_timestamp_column_mapped:
+                timestamp_columns.append(created_timestamp_column_mapped)
+
+            # Normalize timestamp columns
+            df = _normalize_timestamp_columns(df, timestamp_columns, inplace=True)
+
+            # Handle empty DataFrame case
+            if df.empty:
+                return _handle_empty_dataframe_case(
+                    join_key_columns, feature_name_columns, timestamp_columns
+                )
+
+            # Build required columns list
+            all_required_columns = _build_required_columns(
+                join_key_columns, feature_name_columns, timestamp_columns
+            )
+            if not join_key_columns:
+                df[DUMMY_ENTITY_ID] = DUMMY_ENTITY_VAL
+
+            # Select only the required columns that exist
+            available_columns = [
+                col for col in all_required_columns if col in df.columns
+            ]
+            df = df[available_columns]
+
+            # Basic sorting by timestamp (most recent first)
+            existing_timestamp_columns = [
+                col for col in timestamp_columns if col in df.columns
+            ]
+            if existing_timestamp_columns:
+                df = df.sort_values(existing_timestamp_columns, ascending=False)
+
+            # Reset index
+            df = df.reset_index(drop=True)
+
+            # Ensure 'event_timestamp' column exists for pandas backend compatibility
+            if (
+                "event_timestamp" not in df.columns
+                and timestamp_field_mapped != "event_timestamp"
+            ):
+                if timestamp_field_mapped in df.columns:
+                    df["event_timestamp"] = df[timestamp_field_mapped]
+
+            return df
+
+        except Exception as e:
+            raise RuntimeError(f"Failed to load data from {source_path}: {e}")
+
+    @staticmethod
+    def _load_and_filter_dataset_ray(
+        source_path: str,
+        data_source: DataSource,
+        join_key_columns: List[str],
+        feature_name_columns: List[str],
+        timestamp_field: str,
+        created_timestamp_column: Optional[str],
+        start_date: Optional[datetime],
+        end_date: Optional[datetime],
+    ) -> Dataset:
+        """
+        Ray-native method to load and filter dataset for distributed processing.
+        Args:
+            source_path: Path to the data source
+            data_source: DataSource object containing field mapping
+            join_key_columns: List of join key columns
+            feature_name_columns: List of feature columns
+            timestamp_field: Name of the timestamp field
+            created_timestamp_column: Optional created timestamp column
+            start_date: Optional start date for filtering
+            end_date: Optional end date for filtering
+        Returns:
+            Processed Ray Dataset
+        """
+        try:
+            # Get field mapping for column renaming after loading
+            field_mapping = getattr(data_source, "field_mapping", None)
+
+            # Load and filter the dataset using the original timestamp field name
+            ds = RayOfflineStore._create_filtered_dataset(
+                source_path, timestamp_field, start_date, end_date
+            )
+
+            # Apply field mapping if needed using Ray operations
+            if field_mapping:
+                ds = _apply_field_mapping(ds, field_mapping)
+
+            # Get mapped field names
+            timestamp_field_mapped = (
+                field_mapping.get(timestamp_field, timestamp_field)
+                if field_mapping
+                else timestamp_field
+            )
+            created_timestamp_column_mapped = (
+                field_mapping.get(created_timestamp_column, created_timestamp_column)
+                if field_mapping and created_timestamp_column
+                else created_timestamp_column
+            )
+
+            # Build timestamp columns list
+            timestamp_columns = [timestamp_field_mapped]
+            if created_timestamp_column_mapped:
+                timestamp_columns.append(created_timestamp_column_mapped)
+
+            # Normalize timestamp columns using Ray operations
+            ds = _normalize_timestamp_columns(ds, timestamp_columns)
+
+            # Process dataset using Ray operations
+            def process_batch(batch: pd.DataFrame) -> pd.DataFrame:
+                # Apply timezone awareness
+                batch = make_df_tzaware(batch)
+
+                # Handle empty batch case
+                if batch.empty:
+                    return _handle_empty_dataframe_case(
+                        join_key_columns, feature_name_columns, timestamp_columns
+                    )
+
+                # Build required columns list
+                all_required_columns = _build_required_columns(
+                    join_key_columns, feature_name_columns, timestamp_columns
+                )
+                if not join_key_columns:
+                    batch[DUMMY_ENTITY_ID] = DUMMY_ENTITY_VAL
+
+                # Select only the required columns that exist
+                available_columns = [
+                    col for col in all_required_columns if col in batch.columns
+                ]
+                batch = batch[available_columns]
+
+                # Ensure 'event_timestamp' column exists for pandas backend compatibility
+                if (
+                    "event_timestamp" not in batch.columns
+                    and timestamp_field_mapped != "event_timestamp"
+                ):
+                    if timestamp_field_mapped in batch.columns:
+                        batch["event_timestamp"] = batch[timestamp_field_mapped]
+
+                return batch
+
+            ds = ds.map_batches(process_batch, batch_format="pandas")
+
+            # Sort by timestamp (most recent first) using Ray operations
+            timestamp_columns_existing = [
+                col for col in timestamp_columns if col in ds.schema().names
+            ]
+            if timestamp_columns_existing:
+                # Sort using Ray's native sorting
+                ds = ds.sort(timestamp_columns_existing, descending=True)
+
+            return ds
+
+        except Exception as e:
+            raise RuntimeError(f"Failed to load data from {source_path}: {e}")
+
+    @staticmethod
+    def _pull_latest_processing_ray(
+        ds: Dataset,
+        join_key_columns: List[str],
+        timestamp_field: str,
+        created_timestamp_column: Optional[str],
+        field_mapping: Optional[Dict[str, str]] = None,
+    ) -> Dataset:
+        """
+        Ray-native processing for pull_latest operations with deduplication.
+        Args:
+            ds: Ray Dataset to process
+            join_key_columns: List of join key columns
+            timestamp_field: Name of the timestamp field
+            created_timestamp_column: Optional created timestamp column
+            field_mapping: Optional field mapping dictionary
+        Returns:
+            Ray Dataset with latest records only
+        """
+        if not join_key_columns:
+            return ds
+
+        # Get mapped field names
+        timestamp_field_mapped = (
+            field_mapping.get(timestamp_field, timestamp_field)
+            if field_mapping
+            else timestamp_field
+        )
+        created_timestamp_column_mapped = (
+            field_mapping.get(created_timestamp_column, created_timestamp_column)
+            if field_mapping and created_timestamp_column
+            else created_timestamp_column
+        )
+
+        # Build timestamp columns for sorting
+        timestamp_columns = [timestamp_field_mapped]
+        if created_timestamp_column_mapped:
+            timestamp_columns.append(created_timestamp_column_mapped)
+
+        def deduplicate_batch(batch: pd.DataFrame) -> pd.DataFrame:
+            if batch.empty:
+                return batch
+
+            # Filter out timestamp columns that don't exist in the dataframe
+            existing_timestamp_columns = [
+                col for col in timestamp_columns if col in batch.columns
+            ]
+
+            # Sort by join keys (ascending) and timestamps (descending for latest first)
+            sort_columns = join_key_columns + existing_timestamp_columns
+            if sort_columns:
+                batch = batch.sort_values(
+                    sort_columns,
+                    ascending=[True] * len(join_key_columns)
+                    + [False] * len(existing_timestamp_columns),
+                )
+                batch = batch.drop_duplicates(subset=join_key_columns, keep="first")
+
+            return batch
+
+        return ds.map_batches(deduplicate_batch, batch_format="pandas")
+
+    @staticmethod
+    def pull_latest_from_table_or_query(
+        config: RepoConfig,
+        data_source: DataSource,
+        join_key_columns: List[str],
+        feature_name_columns: List[str],
+        timestamp_field: str,
+        created_timestamp_column: Optional[str],
+        start_date: datetime,
+        end_date: datetime,
+    ) -> RetrievalJob:
+        store = RayOfflineStore()
+        store._init_ray(config)
+
+        source_path = store._get_source_path(data_source, config)
+
+        def _load_ray_dataset():
+            # Use Ray-native processing for better performance
+            ds = store._load_and_filter_dataset_ray(
+                source_path,
+                data_source,
+                join_key_columns,
+                feature_name_columns,
+                timestamp_field,
+                created_timestamp_column,
+                start_date,
+                end_date,
+            )
+
+            # Apply pull_latest processing (deduplication) using Ray operations
+            field_mapping = getattr(data_source, "field_mapping", None)
+            ds = store._pull_latest_processing_ray(
+                ds,
+                join_key_columns,
+                timestamp_field,
+                created_timestamp_column,
+                field_mapping,
+            )
+
+            return ds
+
+        def _load_pandas_fallback():
+            # Fallback to pandas processing for compatibility
+            return store._load_and_filter_dataset(
+                source_path,
+                data_source,
+                join_key_columns,
+                feature_name_columns,
+                timestamp_field,
+                created_timestamp_column,
+                start_date,
+                end_date,
+            )
+
+        # Try Ray-native processing first, fallback to pandas if needed
+        try:
+            return RayRetrievalJob(
+                _load_ray_dataset, staging_location=config.offline_store.storage_path
+            )
+        except Exception as e:
+            logger.warning(f"Ray-native processing failed: {e}, falling back to pandas")
+            return RayRetrievalJob(
+                _load_pandas_fallback,
+                staging_location=config.offline_store.storage_path,
+            )
+
+    @staticmethod
+    def pull_all_from_table_or_query(
+        config: RepoConfig,
+        data_source: DataSource,
+        join_key_columns: List[str],
+        feature_name_columns: List[str],
+        timestamp_field: str,
+        created_timestamp_column: Optional[str] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+    ) -> RetrievalJob:
+        store = RayOfflineStore()
+        store._init_ray(config)
+
+        source_path = store._get_source_path(data_source, config)
+
+        fs, path_in_fs = fsspec.core.url_to_fs(source_path)
+        if not fs.exists(path_in_fs):
+            raise FileNotFoundError(f"Parquet path does not exist: {source_path}")
+
+        def _load_ray_dataset():
+            # Use Ray-native processing for better performance
+            return store._load_and_filter_dataset_ray(
+                source_path,
+                data_source,
+                join_key_columns,
+                feature_name_columns,
+                timestamp_field,
+                created_timestamp_column,
+                start_date,
+                end_date,
+            )
+
+        def _load_pandas_fallback():
+            # Fallback to pandas processing for compatibility
+            return store._load_and_filter_dataset(
+                source_path,
+                data_source,
+                join_key_columns,
+                feature_name_columns,
+                timestamp_field,
+                created_timestamp_column,
+                start_date,
+                end_date,
+            )
+
+        # Try Ray-native processing first, fallback to pandas if needed
+        try:
+            return RayRetrievalJob(
+                _load_ray_dataset, staging_location=config.offline_store.storage_path
+            )
+        except Exception as e:
+            logger.warning(f"Ray-native processing failed: {e}, falling back to pandas")
+            return RayRetrievalJob(
+                _load_pandas_fallback,
+                staging_location=config.offline_store.storage_path,
+            )
+
+    @staticmethod
+    def write_logged_features(
+        config: RepoConfig,
+        data: Union[pa.Table, Path],
+        source: LoggingSource,
+        logging_config: LoggingConfig,
+        registry: BaseRegistry,
+    ) -> None:
+        RayOfflineStore._ensure_ray_initialized(config)
+
+        repo_path = getattr(config, "repo_path", None) or os.getcwd()
+
+        # Get source path and resolve URI
+        source_path = getattr(source, "file_path", None)
+        if not source_path:
+            raise ValueError("LoggingSource must have a file_path attribute")
+
+        path = FileSource.get_uri_for_file_path(repo_path, source_path)
+
+        try:
+            # Use Ray dataset for efficient writing
+            if isinstance(data, Path):
+                ds = ray.data.read_parquet(str(data))
+            else:
+                # Convert PyArrow Table to Ray Dataset directly
+                ds = ray.data.from_arrow(data)
+
+            # Materialize for better performance
+            ds = ds.materialize()
+
+            if not path.startswith(("s3://", "gs://")):
+                os.makedirs(os.path.dirname(path), exist_ok=True)
+
+            # Use Ray's native write operations
+            ds.write_parquet(path)
+        except Exception as e:
+            raise RuntimeError(f"Failed to write logged features: {e}")
+
+    @staticmethod
+    def create_saved_dataset_destination(
+        config: RepoConfig,
+        name: str,
+        path: Optional[str] = None,
+    ) -> SavedDatasetStorage:
+        """Create a saved dataset destination for Ray offline store."""
+
+        if path is None:
+            ray_config = config.offline_store
+            assert isinstance(ray_config, RayOfflineStoreConfig)
+            base_storage_path = ray_config.storage_path or "/tmp/ray-storage"
+            path = f"{base_storage_path}/saved_datasets/{name}.parquet"
+
+        return SavedDatasetFileStorage(path=path)
 
     @staticmethod
     def _create_filtered_dataset(
@@ -1377,26 +2331,25 @@ class RayOfflineStore(OfflineStore):
         # Load entity_df as Ray dataset for distributed processing
         if isinstance(entity_df, str):
             entity_ds = ray.data.read_csv(entity_df)
-            original_entity_df = pd.read_csv(entity_df)
+            # Keep a minimal pandas copy only for metadata creation
+            entity_df_sample = entity_ds.limit(1000).to_pandas()
         else:
             entity_ds = ray.data.from_pandas(entity_df)
-            original_entity_df = entity_df.copy()
+            entity_df_sample = entity_df.copy()
 
-        # Make entity dataframe timezone aware and normalize timestamp
-        original_entity_df = _ensure_timestamp_compatibility(
-            original_entity_df, ["event_timestamp"]
-        )
+        # Make entity dataset timezone aware and normalize timestamp using Ray operations
+        entity_ds = _ensure_timestamp_compatibility(entity_ds, ["event_timestamp"])
 
         # Parse feature_refs and get ODFVs
         on_demand_feature_views = OnDemandFeatureView.get_requested_odfvs(
             feature_refs, project, registry
         )
 
-        # Validate request data for ODFVs
+        # Validate request data for ODFVs using sample
         for odfv in on_demand_feature_views:
             odfv_request_data_schema = odfv.get_request_data_schema()
             for feature_name in odfv_request_data_schema.keys():
-                if feature_name not in original_entity_df.columns:
+                if feature_name not in entity_df_sample.columns:
                     raise RequestDataNotFoundInEntityDfException(
                         feature_name=feature_name,
                         feature_view_name=odfv.name,
@@ -1409,11 +2362,12 @@ class RayOfflineStore(OfflineStore):
             fv for fv in feature_views if fv.name not in odfv_names
         ]
 
-        # Enhanced validation using offline_utils with safe fallback
+        # Enhanced validation using unified operations
         _safe_validate_entity_dataframe(
-            original_entity_df, regular_feature_views, project, registry
+            entity_ds, regular_feature_views, project, registry
         )
-        # Apply field mappings to entity dataset if needed
+
+        # Apply field mappings to entity dataset if needed using unified operations
         global_field_mappings = {}
         for fv in regular_feature_views:
             mapping = getattr(fv.batch_source, "field_mapping", None)
@@ -1425,15 +2379,12 @@ class RayOfflineStore(OfflineStore):
             cols_to_rename = {
                 v: k
                 for k, v in global_field_mappings.items()
-                if v in original_entity_df.columns
+                if v in entity_df_sample.columns
             }
             if cols_to_rename:
-                entity_ds = entity_ds.map_batches(
-                    lambda batch: batch.rename(columns=cols_to_rename),
-                    batch_format="pandas",
-                )
+                entity_ds = _apply_field_mapping(entity_ds, cols_to_rename)
 
-        # Start with entity dataset
+        # Start with entity dataset - keep it as Ray dataset throughout
         result_ds = entity_ds
 
         # Process each regular feature view with intelligent join strategy
@@ -1445,6 +2396,7 @@ class RayOfflineStore(OfflineStore):
             ]
             if not fv_feature_refs:
                 continue
+
             # Get join configuration
             entities = fv.entities or []
             entity_objs = [registry.get_entity(e, project) for e in entities]
@@ -1480,36 +2432,32 @@ class RayOfflineStore(OfflineStore):
             feature_ds = ray.data.read_parquet(source_path)
             feature_size = feature_ds.size_bytes()
 
-            # Apply field mapping to feature dataset if needed
+            # Apply field mapping to feature dataset if needed using unified operations
             field_mapping = getattr(fv.batch_source, "field_mapping", None)
             if field_mapping:
-                feature_ds = feature_ds.map_batches(
-                    lambda batch: batch.rename(columns=field_mapping),
-                    batch_format="pandas",
-                )
+                feature_ds = _apply_field_mapping(feature_ds, field_mapping)
                 # Update join keys and timestamp field to mapped names
                 join_keys = [field_mapping.get(k, k) for k in join_keys]
                 timestamp_field = field_mapping.get(timestamp_field, timestamp_field)
                 if created_col:
                     created_col = field_mapping.get(created_col, created_col)
 
-            # Ensure timestamp compatibility in entity dataset
+            # Ensure timestamp compatibility in entity dataset using unified operations
             if (
                 timestamp_field != "event_timestamp"
-                and timestamp_field not in original_entity_df.columns
-                and "event_timestamp" in original_entity_df.columns
+                and timestamp_field not in entity_df_sample.columns
+                and "event_timestamp" in entity_df_sample.columns
             ):
 
                 def add_timestamp_field(batch: pd.DataFrame) -> pd.DataFrame:
                     batch = batch.copy()
                     batch[timestamp_field] = batch["event_timestamp"]
-                    return _normalize_timestamp_column(
-                        batch, timestamp_field, inplace=True
-                    )
+                    return batch
 
                 result_ds = result_ds.map_batches(
                     add_timestamp_field, batch_format="pandas"
                 )
+                result_ds = _normalize_timestamp_columns(result_ds, timestamp_field)
 
             # Determine join strategy based on dataset sizes and cluster resources
             if store._resource_manager is None:
@@ -1523,6 +2471,7 @@ class RayOfflineStore(OfflineStore):
                 logger.info(
                     f"Using broadcast join for {fv.name} (size: {feature_size // 1024**2}MB)"
                 )
+                # Convert to pandas only for broadcast join
                 feature_df = feature_ds.to_pandas()
                 feature_df = _ensure_timestamp_compatibility(
                     feature_df, [timestamp_field]
@@ -1546,12 +2495,9 @@ class RayOfflineStore(OfflineStore):
                     f"Using distributed join for {fv.name} (size: {feature_size // 1024**2}MB)"
                 )
 
-                # Ensure timestamp format in feature dataset
-                def normalize_timestamps(batch: pd.DataFrame) -> pd.DataFrame:
-                    return _ensure_timestamp_compatibility(batch, [timestamp_field])
-
-                feature_ds = feature_ds.map_batches(
-                    normalize_timestamps, batch_format="pandas"
+                # Ensure timestamp format in feature dataset using unified operations
+                feature_ds = _ensure_timestamp_compatibility(
+                    feature_ds, [timestamp_field]
                 )
 
                 if store._data_processor is None:
@@ -1570,7 +2516,7 @@ class RayOfflineStore(OfflineStore):
                     else None,
                 )
 
-        # Final processing: clean up and ensure proper column structure
+        # Final processing: clean up and ensure proper column structure using Ray operations
         def finalize_result(batch: pd.DataFrame) -> pd.DataFrame:
             batch = batch.copy()
 
@@ -1578,37 +2524,37 @@ class RayOfflineStore(OfflineStore):
             existing_columns = set(batch.columns)
 
             # Re-attach any missing original entity columns that aren't already present
-            for col in original_entity_df.columns:
+            for col in entity_df_sample.columns:
                 if col not in existing_columns:
-                    # For missing columns, use values from original entity df
-                    if len(batch) <= len(original_entity_df):
-                        batch[col] = original_entity_df[col].iloc[: len(batch)].values
+                    # For missing columns, use values from entity df sample
+                    if len(batch) <= len(entity_df_sample):
+                        batch[col] = entity_df_sample[col].iloc[: len(batch)].values
                     else:
                         # Repeat values if batch is larger
                         repeated_values = np.tile(
-                            original_entity_df[col].values,
-                            (len(batch) // len(original_entity_df) + 1),
+                            entity_df_sample[col].values,
+                            (len(batch) // len(entity_df_sample) + 1),
                         )
                         batch[col] = repeated_values[: len(batch)]
 
             # Ensure event_timestamp is present
             if "event_timestamp" not in batch.columns:
-                if "event_timestamp" in original_entity_df.columns:
+                if "event_timestamp" in entity_df_sample.columns:
                     batch["event_timestamp"] = (
-                        original_entity_df["event_timestamp"].iloc[: len(batch)].values
+                        entity_df_sample["event_timestamp"].iloc[: len(batch)].values
                     )
-                    batch = _normalize_timestamp_column(
+                    batch = _normalize_timestamp_columns(
                         batch, "event_timestamp", inplace=True
                     )
                 elif timestamp_field in batch.columns:
                     batch["event_timestamp"] = batch[timestamp_field]
 
-            # Fix data types for feature columns using centralized type mapping utilities
-            batch = _convert_feature_column_types(batch, regular_feature_views)
-
             return batch
 
         result_ds = result_ds.map_batches(finalize_result, batch_format="pandas")
+
+        # Apply feature type conversion using unified operations
+        result_ds = _convert_feature_column_types(result_ds, regular_feature_views)
 
         # Storage path validation
         storage_path = config.offline_store.storage_path
@@ -1620,355 +2566,6 @@ class RayOfflineStore(OfflineStore):
         job._full_feature_names = full_feature_names
         job._on_demand_feature_views = on_demand_feature_views
         job._feature_refs = feature_refs
-        job._entity_df = original_entity_df
+        job._entity_df = entity_df_sample  # Use sample for metadata creation
         job._metadata = job._create_metadata()
         return job
-
-    def validate_data_source(
-        self,
-        config: RepoConfig,
-        data_source: DataSource,
-    ):
-        """Validates the underlying data source."""
-        self._init_ray(config)
-        data_source.validate(config=config)
-
-    def get_table_column_names_and_types_from_data_source(
-        self,
-        config: RepoConfig,
-        data_source: DataSource,
-    ) -> Iterable[Tuple[str, str]]:
-        """Returns the list of column names and raw column types for a DataSource."""
-        return data_source.get_table_column_names_and_types(config=config)
-
-    def supports_remote_storage_export(self) -> bool:
-        """Check if remote storage export is supported."""
-        return self._staging_location is not None
-
-    @staticmethod
-    def _load_and_filter_dataset(
-        source_path: str,
-        data_source: DataSource,
-        join_key_columns: List[str],
-        feature_name_columns: List[str],
-        timestamp_field: str,
-        created_timestamp_column: Optional[str],
-        start_date: Optional[datetime],
-        end_date: Optional[datetime],
-    ) -> pd.DataFrame:
-        """
-        Common method to load and filter dataset for both pull_latest and pull_all methods.
-        Args:
-            source_path: Path to the data source
-            data_source: DataSource object containing field mapping
-            join_key_columns: List of join key columns
-            feature_name_columns: List of feature columns
-            timestamp_field: Name of the timestamp field
-            created_timestamp_column: Optional created timestamp column
-            start_date: Optional start date for filtering
-            end_date: Optional end date for filtering
-        Returns:
-            Processed pandas DataFrame
-        """
-        try:
-            # Get field mapping for column renaming after loading
-            field_mapping = getattr(data_source, "field_mapping", None)
-
-            # Load and filter the dataset using the original timestamp field name
-            ds = RayOfflineStore._create_filtered_dataset(
-                source_path, timestamp_field, start_date, end_date
-            )
-
-            # Convert to pandas for processing
-            df = ds.to_pandas()
-            df = make_df_tzaware(df)
-
-            # Apply field mapping if needed
-            if field_mapping:
-                df = df.rename(columns=field_mapping)
-
-            # Get mapped field names
-            timestamp_field_mapped = (
-                field_mapping.get(timestamp_field, timestamp_field)
-                if field_mapping
-                else timestamp_field
-            )
-            created_timestamp_column_mapped = (
-                field_mapping.get(created_timestamp_column, created_timestamp_column)
-                if field_mapping and created_timestamp_column
-                else created_timestamp_column
-            )
-
-            # Build timestamp columns list
-            timestamp_columns = [timestamp_field_mapped]
-            if created_timestamp_column_mapped:
-                timestamp_columns.append(created_timestamp_column_mapped)
-
-            # Normalize timestamp columns
-            df = _normalize_timestamp_columns(df, timestamp_columns, inplace=True)
-
-            # Handle empty DataFrame case
-            if df.empty:
-                empty_columns = (
-                    join_key_columns + feature_name_columns + timestamp_columns
-                )
-                if not join_key_columns:
-                    empty_columns.append(DUMMY_ENTITY_ID)
-                if "event_timestamp" not in empty_columns:
-                    empty_columns.append("event_timestamp")
-                return _create_empty_dataframe_with_timestamp_columns(
-                    empty_columns, timestamp_columns
-                )
-
-            # Build required columns list
-            all_required_columns = (
-                join_key_columns + feature_name_columns + timestamp_columns
-            )
-            if not join_key_columns:
-                df[DUMMY_ENTITY_ID] = DUMMY_ENTITY_VAL
-                all_required_columns.append(DUMMY_ENTITY_ID)
-
-            # Select only the required columns that exist
-            available_columns = [
-                col for col in all_required_columns if col in df.columns
-            ]
-            df = df[available_columns]
-
-            # Basic sorting by timestamp (most recent first)
-            existing_timestamp_columns = [
-                col for col in timestamp_columns if col in df.columns
-            ]
-            if existing_timestamp_columns:
-                df = df.sort_values(existing_timestamp_columns, ascending=False)
-
-            # Reset index
-            df = df.reset_index(drop=True)
-
-            # Ensure 'event_timestamp' column exists for pandas backend compatibility
-            if (
-                "event_timestamp" not in df.columns
-                and timestamp_field_mapped != "event_timestamp"
-            ):
-                if timestamp_field_mapped in df.columns:
-                    df["event_timestamp"] = df[timestamp_field_mapped]
-
-            return df
-
-        except Exception as e:
-            raise RuntimeError(f"Failed to load data from {source_path}: {e}")
-
-    @staticmethod
-    def pull_latest_from_table_or_query(
-        config: RepoConfig,
-        data_source: DataSource,
-        join_key_columns: List[str],
-        feature_name_columns: List[str],
-        timestamp_field: str,
-        created_timestamp_column: Optional[str],
-        start_date: datetime,
-        end_date: datetime,
-    ) -> RetrievalJob:
-        store = RayOfflineStore()
-        store._init_ray(config)
-
-        source_path = store._get_source_path(data_source, config)
-
-        def _load():
-            # Load and filter the dataset using the shared method
-            df = store._load_and_filter_dataset(
-                source_path,
-                data_source,
-                join_key_columns,
-                feature_name_columns,
-                timestamp_field,
-                created_timestamp_column,
-                start_date,
-                end_date,
-            )
-
-            # Handle deduplication (keep latest records) - specific to pull_latest
-            if join_key_columns and not df.empty:
-                # Get field mapping for proper column names
-                field_mapping = getattr(data_source, "field_mapping", None)
-                timestamp_field_mapped = (
-                    field_mapping.get(timestamp_field, timestamp_field)
-                    if field_mapping
-                    else timestamp_field
-                )
-                created_timestamp_column_mapped = (
-                    field_mapping.get(
-                        created_timestamp_column, created_timestamp_column
-                    )
-                    if field_mapping and created_timestamp_column
-                    else created_timestamp_column
-                )
-
-                # Build timestamp columns for sorting
-                timestamp_columns = [timestamp_field_mapped]
-                if created_timestamp_column_mapped:
-                    timestamp_columns.append(created_timestamp_column_mapped)
-
-                # Filter out timestamp columns that don't exist in the dataframe
-                existing_timestamp_columns = [
-                    col for col in timestamp_columns if col in df.columns
-                ]
-
-                # Sort by join keys (ascending) and timestamps (descending for latest first)
-                sort_columns = join_key_columns + existing_timestamp_columns
-                if sort_columns:
-                    df = df.sort_values(
-                        sort_columns,
-                        ascending=[True] * len(join_key_columns)
-                        + [False] * len(existing_timestamp_columns),
-                    )
-                    df = df.drop_duplicates(subset=join_key_columns, keep="first")
-
-            return df
-
-        return RayRetrievalJob(
-            _load, staging_location=config.offline_store.storage_path
-        )
-
-    @staticmethod
-    def pull_all_from_table_or_query(
-        config: RepoConfig,
-        data_source: DataSource,
-        join_key_columns: List[str],
-        feature_name_columns: List[str],
-        timestamp_field: str,
-        created_timestamp_column: Optional[str] = None,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
-    ) -> RetrievalJob:
-        store = RayOfflineStore()
-        store._init_ray(config)
-
-        source_path = store._get_source_path(data_source, config)
-
-        fs, path_in_fs = fsspec.core.url_to_fs(source_path)
-        if not fs.exists(path_in_fs):
-            raise FileNotFoundError(f"Parquet path does not exist: {source_path}")
-
-        def _load():
-            return store._load_and_filter_dataset(
-                source_path,
-                data_source,
-                join_key_columns,
-                feature_name_columns,
-                timestamp_field,
-                created_timestamp_column,
-                start_date,
-                end_date,
-            )
-
-        return RayRetrievalJob(
-            _load, staging_location=config.offline_store.storage_path
-        )
-
-    @staticmethod
-    def write_logged_features(
-        config: RepoConfig,
-        data: Union[pa.Table, Path],
-        source: LoggingSource,
-        logging_config: LoggingConfig,
-        registry: BaseRegistry,
-    ) -> None:
-        RayOfflineStore._ensure_ray_initialized(config)
-
-        repo_path = getattr(config, "repo_path", None) or os.getcwd()
-
-        # Get source path and resolve URI
-        source_path = getattr(source, "file_path", None)
-        if not source_path:
-            raise ValueError("LoggingSource must have a file_path attribute")
-
-        path = FileSource.get_uri_for_file_path(repo_path, source_path)
-
-        try:
-            if isinstance(data, Path):
-                ds = ray.data.read_parquet(str(data))
-            else:
-                ds = ray.data.from_pandas(pa.Table.to_pandas(data))
-
-            ds.materialize()
-
-            if not path.startswith(("s3://", "gs://")):
-                os.makedirs(os.path.dirname(path), exist_ok=True)
-
-            ds.write_parquet(path)
-        except Exception as e:
-            raise RuntimeError(f"Failed to write logged features: {e}")
-
-    @staticmethod
-    def offline_write_batch(
-        config: RepoConfig,
-        feature_view: FeatureView,
-        table: pa.Table,
-        progress: Optional[Callable[[int], Any]] = None,
-    ) -> None:
-        RayOfflineStore._ensure_ray_initialized(config)
-
-        repo_path = getattr(config, "repo_path", None) or os.getcwd()
-        ray_config = config.offline_store
-        assert isinstance(ray_config, RayOfflineStoreConfig)
-        assert isinstance(feature_view.batch_source, FileSource)
-
-        # Enhanced schema validation using safe utility
-        validation_result = _safe_validate_schema(
-            config, feature_view.batch_source, table.column_names, "offline_write_batch"
-        )
-
-        if validation_result:
-            expected_schema, expected_columns = validation_result
-            # Try to reorder columns to match expected order if needed
-            if expected_columns != table.column_names and set(expected_columns) == set(
-                table.column_names
-            ):
-                logger.info("Reordering table columns to match expected schema")
-                table = table.select(expected_columns)
-
-        batch_source_path = feature_view.batch_source.file_options.uri
-        feature_path = FileSource.get_uri_for_file_path(repo_path, batch_source_path)
-
-        # If the path points to a file, write directly to that file location
-        # If it points to a directory, write to that directory
-        if feature_path.endswith(".parquet"):
-            # Convert PyArrow table to pandas DataFrame
-            df = table.to_pandas()
-
-            # Check if file exists and append if it does
-            if os.path.exists(feature_path):
-                # Read existing data
-                existing_df = pd.read_parquet(feature_path)
-                # Append new data
-                combined_df = pd.concat([existing_df, df], ignore_index=True)
-                # Write combined data
-                combined_df.to_parquet(feature_path, index=False)
-            else:
-                # Write new data
-                df.to_parquet(feature_path, index=False)
-        else:
-            # Write to directory (multiple parquet files)
-            os.makedirs(feature_path, exist_ok=True)
-
-            # Convert PyArrow table to Ray dataset
-            ds = ray.data.from_arrow(table)
-
-            # Write to parquet
-            ds.write_parquet(feature_path)
-
-    @staticmethod
-    def create_saved_dataset_destination(
-        config: RepoConfig,
-        name: str,
-        path: Optional[str] = None,
-    ) -> SavedDatasetStorage:
-        """Create a saved dataset destination for Ray offline store."""
-
-        if path is None:
-            ray_config = config.offline_store
-            assert isinstance(ray_config, RayOfflineStoreConfig)
-            base_storage_path = ray_config.storage_path or "/tmp/ray-storage"
-            path = f"{base_storage_path}/saved_datasets/{name}.parquet"
-
-        return SavedDatasetFileStorage(path=path)
