@@ -375,7 +375,25 @@ class FeatureView(BaseFeatureView):
         Returns:
             A FeatureViewProto protobuf.
         """
+        return self._to_proto_internal(seen={})
+
+    def _to_proto_internal(self, seen: Dict[str, FeatureViewProto]) -> FeatureViewProto:
+        if self.name in seen:
+            if seen[self.name] is not None:
+                raise ValueError(
+                    f"Cycle detected during serialization of FeatureView: {self.name}"
+                )
+            return seen[self.name]
+
+        seen[self.name] = None  # type: ignore[assignment]
+
+        spec = self.to_proto_spec(seen)
         meta = self.to_proto_meta()
+        proto = FeatureViewProto(spec=spec, meta=meta)
+        seen[self.name] = proto
+        return proto
+
+    def to_proto_spec(self, seen: Dict[str, FeatureViewProto]) -> FeatureViewSpecProto:
         ttl_duration = self.get_ttl_duration()
 
         batch_source_proto = None
@@ -389,8 +407,10 @@ class FeatureView(BaseFeatureView):
             stream_source_proto.data_source_class_type = f"{self.stream_source.__class__.__module__}.{self.stream_source.__class__.__name__}"
         source_view_protos = None
         if self.source_views:
-            source_view_protos = [view.to_proto().spec for view in self.source_views]
-        spec = FeatureViewSpecProto(
+            source_view_protos = [
+                view._to_proto_internal(seen).spec for view in self.source_views
+            ]
+        return FeatureViewSpecProto(
             name=self.name,
             entities=self.entities,
             entity_columns=[field.to_proto() for field in self.entity_columns],
@@ -405,8 +425,6 @@ class FeatureView(BaseFeatureView):
             stream_source=stream_source_proto,
             source_views=source_view_protos,
         )
-
-        return FeatureViewProto(spec=spec, meta=meta)
 
     def to_proto_meta(self):
         meta = FeatureViewMetaProto(materialization_intervals=[])
@@ -429,16 +447,33 @@ class FeatureView(BaseFeatureView):
         return ttl_duration
 
     @classmethod
-    def from_proto(cls, feature_view_proto: FeatureViewProto):
+    def from_proto(cls, feature_view_proto: FeatureViewProto) -> "FeatureView":
+        return cls._from_proto_internal(feature_view_proto, seen={})
+
+    @classmethod
+    def _from_proto_internal(
+        cls, feature_view_proto: FeatureViewProto, seen: Dict[str, "FeatureView"]
+    ) -> "FeatureView":
         """
         Creates a feature view from a protobuf representation of a feature view.
 
         Args:
             feature_view_proto: A protobuf representation of a feature view.
+            seen: A dictionary to keep track of already seen feature views to avoid recursion.
 
         Returns:
             A FeatureViewProto object based on the feature view protobuf.
         """
+        feature_view_name = feature_view_proto.spec.name
+
+        if feature_view_name in seen:
+            if seen[feature_view_name] is None:
+                raise ValueError(
+                    f"Cycle detected while deserializing FeatureView: {feature_view_name}"
+                )
+            return seen[feature_view_name]
+        seen[feature_view_name] = None  # type: ignore[assignment]
+
         batch_source = (
             DataSource.from_proto(feature_view_proto.spec.batch_source)
             if feature_view_proto.spec.HasField("batch_source")
@@ -513,6 +548,7 @@ class FeatureView(BaseFeatureView):
                 )
             )
 
+        seen[feature_view_name] = feature_view
         return feature_view
 
     @property
