@@ -22,7 +22,9 @@ def get_project_router(grpc_handler) -> APIRouter:
             name=name,
             allow_cache=allow_cache,
         )
-        return grpc_call(grpc_handler.GetProject, req)
+        project = grpc_call(grpc_handler.GetProject, req)
+
+        return project
 
     @router.get("/projects")
     def list_projects(
@@ -35,7 +37,12 @@ def get_project_router(grpc_handler) -> APIRouter:
             pagination=create_grpc_pagination_params(pagination_params),
             sorting=create_grpc_sorting_params(sorting_params),
         )
+        response = grpc_call(grpc_handler.ListProjects, req)
+        projects = response.get("projects", [])
 
-        return grpc_call(grpc_handler.ListProjects, req)
+        return {
+            "projects": projects,
+            "pagination": response.get("pagination", {}),
+        }
 
     return router
