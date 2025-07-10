@@ -69,6 +69,7 @@ class StreamFeatureView(FeatureView):
     entities: List[str]
     ttl: Optional[timedelta]
     source: DataSource
+    sink_source: Optional[DataSource] = None
     schema: List[Field]
     entity_columns: List[Field]
     features: List[Field]
@@ -90,7 +91,8 @@ class StreamFeatureView(FeatureView):
         self,
         *,
         name: str,
-        source: DataSource,
+        source: Union[DataSource, "StreamFeatureView", List["StreamFeatureView"]],
+        sink_source: Optional[DataSource] = None,
         entities: Optional[List[Entity]] = None,
         ttl: timedelta = timedelta(days=0),
         tags: Optional[Dict[str, str]] = None,
@@ -114,7 +116,7 @@ class StreamFeatureView(FeatureView):
                 RuntimeWarning,
             )
 
-        if (
+        if isinstance(source, DataSource) and (
             type(source).__name__ not in SUPPORTED_STREAM_SOURCES
             and source.to_proto().type != DataSourceProto.SourceType.CUSTOM_SOURCE
         ):
@@ -148,7 +150,8 @@ class StreamFeatureView(FeatureView):
             description=description,
             owner=owner,
             schema=schema,
-            source=source,
+            source=source,  # type: ignore[arg-type]
+            sink_source=sink_source,
         )
 
     def get_feature_transformation(self) -> Optional[Transformation]:

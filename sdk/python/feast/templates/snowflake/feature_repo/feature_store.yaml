@@ -25,4 +25,4 @@ online_store:
     role: SNOWFLAKE_ROLE
     warehouse: SNOWFLAKE_WAREHOUSE
     database: SNOWFLAKE_DATABASE
-entity_key_serialization_version: 2
+entity_key_serialization_version: 3

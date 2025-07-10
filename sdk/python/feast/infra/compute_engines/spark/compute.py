@@ -116,6 +116,7 @@ class SparkComputeEngine(ComputeEngine):
         try:
             # ✅ 2. Construct Feature Builder and run it
             builder = SparkFeatureBuilder(
+                registry=registry,
                 spark_session=self.spark_session,
                 task=task,
             )
@@ -211,6 +212,7 @@ class SparkComputeEngine(ComputeEngine):
         try:
             # ✅ 2. Construct Feature Builder and run it
             builder = SparkFeatureBuilder(
+                registry=registry,
                 spark_session=self.spark_session,
                 task=task,
             )

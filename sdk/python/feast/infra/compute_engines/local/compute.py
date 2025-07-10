@@ -68,7 +68,7 @@ class LocalComputeEngine(ComputeEngine):
         backend = self._get_backend(context)
 
         try:
-            builder = LocalFeatureBuilder(task, backend=backend)
+            builder = LocalFeatureBuilder(registry, task, backend=backend)
             plan = builder.build()
             plan.execute(context)
             return LocalMaterializationJob(
@@ -90,7 +90,7 @@ class LocalComputeEngine(ComputeEngine):
         backend = self._get_backend(context)
 
         try:
-            builder = LocalFeatureBuilder(task=task, backend=backend)
+            builder = LocalFeatureBuilder(registry, task=task, backend=backend)
             plan = builder.build()
             return LocalRetrievalJob(
                 plan=plan,

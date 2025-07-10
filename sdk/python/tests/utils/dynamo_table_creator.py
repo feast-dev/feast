@@ -44,7 +44,7 @@ def insert_data_test_table(data, project, tbl_name, region):
     dynamodb_resource = boto3.resource("dynamodb", region_name=region)
     table_instance = dynamodb_resource.Table(f"{project}.{tbl_name}")
     for entity_key, features, timestamp, created_ts in data:
-        entity_id = compute_entity_id(entity_key, entity_key_serialization_version=2)
+        entity_id = compute_entity_id(entity_key, entity_key_serialization_version=3)
         with table_instance.batch_writer() as batch:
             batch.put_item(
                 Item={

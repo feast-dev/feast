@@ -117,7 +117,7 @@ class SnowflakeRegistryConfig(RegistryConfig):
 
     schema_: Optional[str] = Field("PUBLIC", alias="schema")
     """ Snowflake schema name """
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(populate_by_name=True, extra="allow")
 
 
 class SnowflakeRegistry(BaseRegistry):
@@ -992,7 +992,7 @@ class SnowflakeRegistry(BaseRegistry):
 
     def apply_materialization(
         self,
-        feature_view: FeatureView,
+        feature_view: Union[FeatureView, OnDemandFeatureView],
         project: str,
         start_date: datetime,
         end_date: datetime,

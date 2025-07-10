@@ -81,6 +81,9 @@ install-python-dependencies-minimal: ## Install minimal Python dependencies usin
 # Used in github actions/ci
 # formerly install-python-ci-dependencies-uv
 install-python-dependencies-ci: ## Install Python CI dependencies in system environment using uv
+	# Install CPU-only torch first to prevent CUDA dependency issues
+	pip uninstall torch torchvision -y || true
+	pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu --force-reinstall
 	uv pip sync --system sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt
 	uv pip install --system --no-deps -e .
 
@@ -152,7 +155,7 @@ test-python-integration-local: ## Run Python integration tests (local dev mode)
 test-python-integration-rbac-remote: ## Run Python remote RBAC integration tests
 	FEAST_IS_LOCAL_TEST=True \
 	FEAST_LOCAL_ONLINE_CONTAINER=True \
-	python -m pytest --tb=short -v -n 4 --color=yes --integration --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
+	python -m pytest --tb=short -v -n 8 --color=yes --integration --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
 		-k "not test_lambda_materialization and not test_snowflake_materialization" \
 		-m "rbac_remote_integration_test" \
 		--log-cli-level=INFO -s \

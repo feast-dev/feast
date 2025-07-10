@@ -1,7 +1,7 @@
 import logging
 from concurrent import futures
 from datetime import datetime, timezone
-from typing import Optional, Union, cast
+from typing import Any, List, Optional, Union, cast
 
 import grpc
 from google.protobuf.empty_pb2 import Empty
@@ -41,6 +41,107 @@ from feast.stream_feature_view import StreamFeatureView
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+
+
+def apply_pagination_and_sorting(
+    objects: List[Any],
+    pagination: Optional[RegistryServer_pb2.PaginationParams] = None,
+    sorting: Optional[RegistryServer_pb2.SortingParams] = None,
+) -> tuple[List[Any], RegistryServer_pb2.PaginationMetadata]:
+    """
+    Apply sorting and pagination to a list of objects at the gRPC layer.
+
+    Args:
+        objects: List of objects to paginate and sort
+        pagination: Pagination parameters (page, limit)
+        sorting: Sorting parameters (sort_by, sort_order)
+
+    Returns:
+        Tuple of (paginated and sorted objects, pagination metadata)
+    """
+    if not objects:
+        empty_metadata = RegistryServer_pb2.PaginationMetadata(
+            page=0,
+            limit=0,
+            total_count=0,
+            total_pages=0,
+            has_next=False,
+            has_previous=False,
+        )
+        return objects, empty_metadata
+
+    if sorting and sorting.sort_by and sorting.sort_by.strip():
+        objects = apply_sorting(objects, sorting.sort_by, sorting.sort_order)
+
+    total_count = len(objects)
+
+    # Apply pagination if requested
+    if pagination and pagination.page > 0 and pagination.limit > 0:
+        start_idx = (pagination.page - 1) * pagination.limit
+        end_idx = start_idx + pagination.limit
+        paginated_objects = objects[start_idx:end_idx]
+
+        total_pages = (total_count + pagination.limit - 1) // pagination.limit
+        has_next = pagination.page < total_pages
+        has_previous = pagination.page > 1
+
+        pagination_metadata = RegistryServer_pb2.PaginationMetadata(
+            page=pagination.page,
+            limit=pagination.limit,
+            total_count=total_count,
+            total_pages=total_pages,
+            has_next=has_next,
+            has_previous=has_previous,
+        )
+        return paginated_objects, pagination_metadata
+    else:
+        # No pagination requested - return all objects
+        pagination_metadata = RegistryServer_pb2.PaginationMetadata(
+            page=0,
+            limit=0,
+            total_count=total_count,
+            total_pages=1,
+            has_next=False,
+            has_previous=False,
+        )
+        return objects, pagination_metadata
+
+
+def apply_sorting(objects: List[Any], sort_by: str, sort_order: str) -> List[Any]:
+    """Apply sorting to a list of objects using dot notation for nested attributes."""
+
+    def get_nested_attr(obj, attr_path: str):
+        """Get nested attribute using dot notation."""
+        attrs = attr_path.split(".")
+        current = obj
+        for attr in attrs:
+            if hasattr(current, attr):
+                current = getattr(current, attr)
+            elif isinstance(current, dict) and attr in current:
+                current = current[attr]
+            else:
+                return None
+        return current
+
+    def sort_key(obj):
+        value = get_nested_attr(obj, sort_by)
+        if value is None:
+            return ("", 0, None)
+
+        if isinstance(value, str):
+            return (value.lower(), 1, None)
+        elif isinstance(value, (int, float)):
+            return ("", 1, value)
+        else:
+            return (str(value).lower(), 1, None)
+
+    reverse = sort_order.lower() == "desc"
+
+    try:
+        return sorted(objects, key=sort_key, reverse=reverse)
+    except Exception as e:
+        logger.warning(f"Failed to sort objects by '{sort_by}': {e}")
+        return objects
 
 
 def _build_any_feature_view_proto(feature_view: BaseFeatureView):
@@ -98,21 +199,25 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         ).to_proto()
 
     def ListEntities(self, request: RegistryServer_pb2.ListEntitiesRequest, context):
-        return RegistryServer_pb2.ListEntitiesResponse(
-            entities=[
-                entity.to_proto()
-                for entity in permitted_resources(
-                    resources=cast(
-                        list[FeastObject],
-                        self.proxied_registry.list_entities(
-                            project=request.project,
-                            allow_cache=request.allow_cache,
-                            tags=dict(request.tags),
-                        ),
+        paginated_entities, pagination_metadata = apply_pagination_and_sorting(
+            permitted_resources(
+                resources=cast(
+                    list[FeastObject],
+                    self.proxied_registry.list_entities(
+                        project=request.project,
+                        allow_cache=request.allow_cache,
+                        tags=dict(request.tags),
                     ),
-                    actions=AuthzedAction.DESCRIBE,
-                )
-            ]
+                ),
+                actions=AuthzedAction.DESCRIBE,
+            ),
+            pagination=request.pagination,
+            sorting=request.sorting,
+        )
+
+        return RegistryServer_pb2.ListEntitiesResponse(
+            entities=[entity.to_proto() for entity in paginated_entities],
+            pagination=pagination_metadata,
         )
 
     def DeleteEntity(self, request: RegistryServer_pb2.DeleteEntityRequest, context):
@@ -160,21 +265,27 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
     def ListDataSources(
         self, request: RegistryServer_pb2.ListDataSourcesRequest, context
     ):
+        paginated_data_sources, pagination_metadata = apply_pagination_and_sorting(
+            permitted_resources(
+                resources=cast(
+                    list[FeastObject],
+                    self.proxied_registry.list_data_sources(
+                        project=request.project,
+                        allow_cache=request.allow_cache,
+                        tags=dict(request.tags),
+                    ),
+                ),
+                actions=AuthzedAction.DESCRIBE,
+            ),
+            pagination=request.pagination,
+            sorting=request.sorting,
+        )
+
         return RegistryServer_pb2.ListDataSourcesResponse(
             data_sources=[
-                data_source.to_proto()
-                for data_source in permitted_resources(
-                    resources=cast(
-                        list[FeastObject],
-                        self.proxied_registry.list_data_sources(
-                            project=request.project,
-                            allow_cache=request.allow_cache,
-                            tags=dict(request.tags),
-                        ),
-                    ),
-                    actions=AuthzedAction.DESCRIBE,
-                )
-            ]
+                data_source.to_proto() for data_source in paginated_data_sources
+            ],
+            pagination=pagination_metadata,
         )
 
     def DeleteDataSource(
@@ -259,41 +370,54 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
     def ListFeatureViews(
         self, request: RegistryServer_pb2.ListFeatureViewsRequest, context
     ):
+        paginated_feature_views, pagination_metadata = apply_pagination_and_sorting(
+            permitted_resources(
+                resources=cast(
+                    list[FeastObject],
+                    self.proxied_registry.list_feature_views(
+                        project=request.project,
+                        allow_cache=request.allow_cache,
+                        tags=dict(request.tags),
+                    ),
+                ),
+                actions=AuthzedAction.DESCRIBE,
+            ),
+            pagination=request.pagination,
+            sorting=request.sorting,
+        )
+
         return RegistryServer_pb2.ListFeatureViewsResponse(
             feature_views=[
-                feature_view.to_proto()
-                for feature_view in permitted_resources(
-                    resources=cast(
-                        list[FeastObject],
-                        self.proxied_registry.list_feature_views(
-                            project=request.project,
-                            allow_cache=request.allow_cache,
-                            tags=dict(request.tags),
-                        ),
-                    ),
-                    actions=AuthzedAction.DESCRIBE,
-                )
-            ]
+                feature_view.to_proto() for feature_view in paginated_feature_views
+            ],
+            pagination=pagination_metadata,
         )
 
     def ListAllFeatureViews(
         self, request: RegistryServer_pb2.ListAllFeatureViewsRequest, context
     ):
+        paginated_feature_views, pagination_metadata = apply_pagination_and_sorting(
+            permitted_resources(
+                resources=cast(
+                    list[FeastObject],
+                    self.proxied_registry.list_all_feature_views(
+                        project=request.project,
+                        allow_cache=request.allow_cache,
+                        tags=dict(request.tags),
+                    ),
+                ),
+                actions=AuthzedAction.DESCRIBE,
+            ),
+            pagination=request.pagination,
+            sorting=request.sorting,
+        )
+
         return RegistryServer_pb2.ListAllFeatureViewsResponse(
             feature_views=[
                 _build_any_feature_view_proto(cast(BaseFeatureView, feature_view))
-                for feature_view in permitted_resources(
-                    resources=cast(
-                        list[FeastObject],
-                        self.proxied_registry.list_all_feature_views(
-                            project=request.project,
-                            allow_cache=request.allow_cache,
-                            tags=dict(request.tags),
-                        ),
-                    ),
-                    actions=AuthzedAction.DESCRIBE,
-                )
-            ]
+                for feature_view in paginated_feature_views
+            ],
+            pagination=pagination_metadata,
         )
 
     def DeleteFeatureView(
@@ -334,10 +458,9 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
     def ListStreamFeatureViews(
         self, request: RegistryServer_pb2.ListStreamFeatureViewsRequest, context
     ):
-        return RegistryServer_pb2.ListStreamFeatureViewsResponse(
-            stream_feature_views=[
-                stream_feature_view.to_proto()
-                for stream_feature_view in permitted_resources(
+        paginated_stream_feature_views, pagination_metadata = (
+            apply_pagination_and_sorting(
+                permitted_resources(
                     resources=cast(
                         list[FeastObject],
                         self.proxied_registry.list_stream_feature_views(
@@ -347,8 +470,18 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
                         ),
                     ),
                     actions=AuthzedAction.DESCRIBE,
-                )
-            ]
+                ),
+                pagination=request.pagination,
+                sorting=request.sorting,
+            )
+        )
+
+        return RegistryServer_pb2.ListStreamFeatureViewsResponse(
+            stream_feature_views=[
+                stream_feature_view.to_proto()
+                for stream_feature_view in paginated_stream_feature_views
+            ],
+            pagination=pagination_metadata,
         )
 
     def GetOnDemandFeatureView(
@@ -366,10 +499,9 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
     def ListOnDemandFeatureViews(
         self, request: RegistryServer_pb2.ListOnDemandFeatureViewsRequest, context
     ):
-        return RegistryServer_pb2.ListOnDemandFeatureViewsResponse(
-            on_demand_feature_views=[
-                on_demand_feature_view.to_proto()
-                for on_demand_feature_view in permitted_resources(
+        paginated_on_demand_feature_views, pagination_metadata = (
+            apply_pagination_and_sorting(
+                permitted_resources(
                     resources=cast(
                         list[FeastObject],
                         self.proxied_registry.list_on_demand_feature_views(
@@ -379,8 +511,18 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
                         ),
                     ),
                     actions=AuthzedAction.DESCRIBE,
-                )
-            ]
+                ),
+                pagination=request.pagination,
+                sorting=request.sorting,
+            )
+        )
+
+        return RegistryServer_pb2.ListOnDemandFeatureViewsResponse(
+            on_demand_feature_views=[
+                on_demand_feature_view.to_proto()
+                for on_demand_feature_view in paginated_on_demand_feature_views
+            ],
+            pagination=pagination_metadata,
         )
 
     def ApplyFeatureService(
@@ -417,35 +559,40 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
     def ListFeatureServices(
         self, request: RegistryServer_pb2.ListFeatureServicesRequest, context
     ):
+        paginated_feature_services, pagination_metadata = apply_pagination_and_sorting(
+            permitted_resources(
+                resources=cast(
+                    list[FeastObject],
+                    self.proxied_registry.list_feature_services(
+                        project=request.project,
+                        allow_cache=request.allow_cache,
+                        tags=dict(request.tags),
+                    ),
+                ),
+                actions=AuthzedAction.DESCRIBE,
+            ),
+            pagination=request.pagination,
+            sorting=request.sorting,
+        )
+
         return RegistryServer_pb2.ListFeatureServicesResponse(
             feature_services=[
                 feature_service.to_proto()
-                for feature_service in permitted_resources(
-                    resources=cast(
-                        list[FeastObject],
-                        self.proxied_registry.list_feature_services(
-                            project=request.project,
-                            allow_cache=request.allow_cache,
-                            tags=dict(request.tags),
-                        ),
-                    ),
-                    actions=AuthzedAction.DESCRIBE,
-                )
-            ]
+                for feature_service in paginated_feature_services
+            ],
+            pagination=pagination_metadata,
         )
 
     def DeleteFeatureService(
         self, request: RegistryServer_pb2.DeleteFeatureServiceRequest, context
     ):
-        (
-            assert_permissions(
-                resource=self.proxied_registry.get_feature_service(
-                    name=request.name, project=request.project
-                ),
-                actions=[AuthzedAction.DELETE],
-            ),
+        feature_service = self.proxied_registry.get_feature_service(
+            name=request.name, project=request.project, allow_cache=False
         )
-
+        assert_permissions(
+            resource=feature_service,
+            actions=[AuthzedAction.DELETE],
+        )
         self.proxied_registry.delete_feature_service(
             name=request.name, project=request.project, commit=request.commit
         )
@@ -485,36 +632,43 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
     def ListSavedDatasets(
         self, request: RegistryServer_pb2.ListSavedDatasetsRequest, context
     ):
+        paginated_saved_datasets, pagination_metadata = apply_pagination_and_sorting(
+            permitted_resources(
+                resources=cast(
+                    list[FeastObject],
+                    self.proxied_registry.list_saved_datasets(
+                        project=request.project,
+                        allow_cache=request.allow_cache,
+                        tags=dict(request.tags),
+                    ),
+                ),
+                actions=AuthzedAction.DESCRIBE,
+            ),
+            pagination=request.pagination,
+            sorting=request.sorting,
+        )
+
         return RegistryServer_pb2.ListSavedDatasetsResponse(
             saved_datasets=[
-                saved_dataset.to_proto()
-                for saved_dataset in permitted_resources(
-                    resources=cast(
-                        list[FeastObject],
-                        self.proxied_registry.list_saved_datasets(
-                            project=request.project,
-                            allow_cache=request.allow_cache,
-                            tags=dict(request.tags),
-                        ),
-                    ),
-                    actions=AuthzedAction.DESCRIBE,
-                )
-            ]
+                saved_dataset.to_proto() for saved_dataset in paginated_saved_datasets
+            ],
+            pagination=pagination_metadata,
         )
 
     def DeleteSavedDataset(
         self, request: RegistryServer_pb2.DeleteSavedDatasetRequest, context
     ):
+        saved_dataset = self.proxied_registry.get_saved_dataset(
+            name=request.name, project=request.project, allow_cache=False
+        )
         assert_permissions(
-            resource=self.proxied_registry.get_saved_dataset(
-                name=request.name, project=request.project
-            ),
+            resource=saved_dataset,
             actions=[AuthzedAction.DELETE],
         )
-
         self.proxied_registry.delete_saved_dataset(
             name=request.name, project=request.project, commit=request.commit
         )
+
         return Empty()
 
     def ApplyValidationReference(
@@ -551,10 +705,9 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
     def ListValidationReferences(
         self, request: RegistryServer_pb2.ListValidationReferencesRequest, context
     ):
-        return RegistryServer_pb2.ListValidationReferencesResponse(
-            validation_references=[
-                validation_reference.to_proto()
-                for validation_reference in permitted_resources(
+        paginated_validation_references, pagination_metadata = (
+            apply_pagination_and_sorting(
+                permitted_resources(
                     resources=cast(
                         list[FeastObject],
                         self.proxied_registry.list_validation_references(
@@ -564,17 +717,28 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
                         ),
                     ),
                     actions=AuthzedAction.DESCRIBE,
-                )
-            ]
+                ),
+                pagination=request.pagination,
+                sorting=request.sorting,
+            )
+        )
+
+        return RegistryServer_pb2.ListValidationReferencesResponse(
+            validation_references=[
+                validation_reference.to_proto()
+                for validation_reference in paginated_validation_references
+            ],
+            pagination=pagination_metadata,
         )
 
     def DeleteValidationReference(
         self, request: RegistryServer_pb2.DeleteValidationReferenceRequest, context
     ):
+        validation_reference = self.proxied_registry.get_validation_reference(
+            name=request.name, project=request.project, allow_cache=False
+        )
         assert_permissions(
-            resource=self.proxied_registry.get_validation_reference(
-                name=request.name, project=request.project
-            ),
+            resource=validation_reference,
             actions=[AuthzedAction.DELETE],
         )
         self.proxied_registry.delete_validation_reference(
@@ -648,49 +812,53 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         return Empty()
 
     def GetPermission(self, request: RegistryServer_pb2.GetPermissionRequest, context):
-        permission = self.proxied_registry.get_permission(
-            name=request.name, project=request.project, allow_cache=request.allow_cache
-        )
-        assert_permissions(
-            resource=permission,
+        return assert_permissions(
+            self.proxied_registry.get_permission(
+                name=request.name,
+                project=request.project,
+                allow_cache=request.allow_cache,
+            ),
             actions=[AuthzedAction.DESCRIBE],
-        )
-        permission.to_proto().spec.project = request.project
-
-        return permission.to_proto()
+        ).to_proto()
 
     def ListPermissions(
         self, request: RegistryServer_pb2.ListPermissionsRequest, context
     ):
-        return RegistryServer_pb2.ListPermissionsResponse(
-            permissions=[
-                permission.to_proto()
-                for permission in permitted_resources(
-                    resources=cast(
-                        list[FeastObject],
-                        self.proxied_registry.list_permissions(
-                            project=request.project, allow_cache=request.allow_cache
-                        ),
+        paginated_permissions, pagination_metadata = apply_pagination_and_sorting(
+            permitted_resources(
+                resources=cast(
+                    list[FeastObject],
+                    self.proxied_registry.list_permissions(
+                        project=request.project,
+                        allow_cache=request.allow_cache,
+                        tags=dict(request.tags),
                     ),
-                    actions=AuthzedAction.DESCRIBE,
-                )
-            ]
+                ),
+                actions=AuthzedAction.DESCRIBE,
+            ),
+            pagination=request.pagination,
+            sorting=request.sorting,
+        )
+
+        return RegistryServer_pb2.ListPermissionsResponse(
+            permissions=[permission.to_proto() for permission in paginated_permissions],
+            pagination=pagination_metadata,
         )
 
     def DeletePermission(
         self, request: RegistryServer_pb2.DeletePermissionRequest, context
     ):
+        permission = self.proxied_registry.get_permission(
+            name=request.name, project=request.project, allow_cache=False
+        )
         assert_permissions(
-            resource=self.proxied_registry.get_permission(
-                name=request.name,
-                project=request.project,
-            ),
+            resource=permission,
             actions=[AuthzedAction.DELETE],
         )
-
         self.proxied_registry.delete_permission(
             name=request.name, project=request.project, commit=request.commit
         )
+
         return Empty()
 
     def ApplyProject(self, request: RegistryServer_pb2.ApplyProjectRequest, context):
@@ -709,41 +877,106 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         return Empty()
 
     def GetProject(self, request: RegistryServer_pb2.GetProjectRequest, context):
-        project = self.proxied_registry.get_project(
-            name=request.name, allow_cache=request.allow_cache
-        )
-        assert_permissions(
-            resource=project,
+        return assert_permissions(
+            self.proxied_registry.get_project(
+                name=request.name,
+                allow_cache=request.allow_cache,
+            ),
             actions=[AuthzedAction.DESCRIBE],
-        )
-        return project.to_proto()
+        ).to_proto()
 
     def ListProjects(self, request: RegistryServer_pb2.ListProjectsRequest, context):
-        return RegistryServer_pb2.ListProjectsResponse(
-            projects=[
-                project.to_proto()
-                for project in permitted_resources(
-                    resources=cast(
-                        list[FeastObject],
-                        self.proxied_registry.list_projects(
-                            allow_cache=request.allow_cache
-                        ),
+        paginated_projects, pagination_metadata = apply_pagination_and_sorting(
+            permitted_resources(
+                resources=cast(
+                    list[FeastObject],
+                    self.proxied_registry.list_projects(
+                        allow_cache=request.allow_cache,
+                        tags=dict(request.tags),
                     ),
-                    actions=AuthzedAction.DESCRIBE,
-                )
-            ]
+                ),
+                actions=AuthzedAction.DESCRIBE,
+            ),
+            pagination=request.pagination,
+            sorting=request.sorting,
+        )
+
+        return RegistryServer_pb2.ListProjectsResponse(
+            projects=[project.to_proto() for project in paginated_projects],
+            pagination=pagination_metadata,
         )
 
     def DeleteProject(self, request: RegistryServer_pb2.DeleteProjectRequest, context):
+        project = self.proxied_registry.get_project(
+            name=request.name, allow_cache=False
+        )
         assert_permissions(
-            resource=self.proxied_registry.get_project(
-                name=request.name,
-            ),
+            resource=project,
             actions=[AuthzedAction.DELETE],
         )
-
         self.proxied_registry.delete_project(name=request.name, commit=request.commit)
+
         return Empty()
+
+    def GetRegistryLineage(
+        self, request: RegistryServer_pb2.GetRegistryLineageRequest, context
+    ):
+        direct_relationships, indirect_relationships = (
+            self.proxied_registry.get_registry_lineage(
+                project=request.project,
+                allow_cache=request.allow_cache,
+                filter_object_type=request.filter_object_type,
+                filter_object_name=request.filter_object_name,
+            )
+        )
+
+        paginated_relationships, relationships_pagination = (
+            apply_pagination_and_sorting(
+                direct_relationships,
+                pagination=request.pagination,
+                sorting=request.sorting,
+            )
+        )
+
+        paginated_indirect_relationships, indirect_relationships_pagination = (
+            apply_pagination_and_sorting(
+                indirect_relationships,
+                pagination=request.pagination,
+                sorting=request.sorting,
+            )
+        )
+
+        return RegistryServer_pb2.GetRegistryLineageResponse(
+            relationships=[rel.to_proto() for rel in paginated_relationships],
+            indirect_relationships=[
+                rel.to_proto() for rel in paginated_indirect_relationships
+            ],
+            relationships_pagination=relationships_pagination,
+            indirect_relationships_pagination=indirect_relationships_pagination,
+        )
+
+    def GetObjectRelationships(
+        self, request: RegistryServer_pb2.GetObjectRelationshipsRequest, context
+    ):
+        """Get relationships for a specific object."""
+        relationships = self.proxied_registry.get_object_relationships(
+            project=request.project,
+            object_type=request.object_type,
+            object_name=request.object_name,
+            include_indirect=request.include_indirect,
+            allow_cache=request.allow_cache,
+        )
+
+        paginated_relationships, pagination_metadata = apply_pagination_and_sorting(
+            relationships,
+            pagination=request.pagination,
+            sorting=request.sorting,
+        )
+
+        return RegistryServer_pb2.GetObjectRelationshipsResponse(
+            relationships=[rel.to_proto() for rel in paginated_relationships],
+            pagination=pagination_metadata,
+        )
 
     def Commit(self, request, context):
         self.proxied_registry.commit()

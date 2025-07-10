@@ -43,10 +43,11 @@ dependencies = [
     "psutil",
     "bigtree>=0.19.2",
     "pyjwt",
+    "transformers>=4.36.0",
 ]
 
 [project.optional-dependencies]
-aws = ["boto3>=1.17.0,<2", "fsspec<=2024.9.0", "aiobotocore>2,<3"]
+aws = ["boto3==1.38.27", "fsspec<=2024.9.0", "aiobotocore>2,<3"]
 azure = [
     "azure-storage-blob>=0.37.0",
     "azure-identity>=1.6.1",
@@ -107,6 +108,9 @@ postgres = ["psycopg[binary,pool]==3.2.5"]
 postgres-c = ["psycopg[c,pool]==3.2.5"]
 pytorch = ["torch>=2.7.0", "torchvision>=0.22.1"]
 qdrant = ["qdrant-client>=1.12.0"]
+rag = [
+    "datasets>=3.6.0",
+]
 redis = [
     "redis>=4.2.2,<5",
     "hiredis>=2.0.0,<3",
@@ -163,9 +167,9 @@ ci = [
     "types-setuptools",
     "types-tabulate",
     "virtualenv<20.24.2",
-    "feast[aws, azure, cassandra, clickhouse, couchbase, delta, docling, duckdb, elasticsearch, faiss, gcp, ge, go, grpcio, hazelcast, hbase, ibis, ikv, k8s, mcp, milvus, mssql, mysql, opentelemetry, spark, trino, postgres, pytorch, qdrant, redis, singlestore, snowflake, sqlite_vec]"
+    "feast[aws, azure, cassandra, clickhouse, couchbase, delta, docling, duckdb, elasticsearch, faiss, gcp, ge, go, grpcio, hazelcast, hbase, ibis, ikv, k8s, mcp, milvus, mssql, mysql, opentelemetry, spark, trino, postgres, pytorch, qdrant, rag, redis, singlestore, snowflake, sqlite_vec]"
 ]
-nlp = ["feast[docling, milvus, pytorch]"]
+nlp = ["feast[docling, milvus, pytorch, rag]"]
 dev = ["feast[ci]"]
 docs = ["feast[ci]"]
 # used for the 'feature-server' container image build
