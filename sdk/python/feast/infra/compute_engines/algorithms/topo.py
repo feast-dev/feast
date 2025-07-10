@@ -1,4 +1,3 @@
-
 from typing import List, Set
 
 from feast.infra.compute_engines.dag.node import DAGNode
