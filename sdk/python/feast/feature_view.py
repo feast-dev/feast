@@ -258,11 +258,14 @@ class FeatureView(BaseFeatureView):
         fv = FeatureView(
             name=self.name,
             ttl=self.ttl,
-            source=self.stream_source if self.stream_source else self.batch_source,
+            source=self.source_views
+            if self.source_views
+            else (self.stream_source if self.stream_source else self.batch_source),
             schema=self.schema,
             tags=self.tags,
             online=self.online,
             offline=self.offline,
+            sink_source=self.batch_source if self.source_views else None,
         )
 
         # This is deliberately set outside of the FV initialization as we do not have the Entity objects.
@@ -289,6 +292,7 @@ class FeatureView(BaseFeatureView):
             or self.batch_source != other.batch_source
             or self.stream_source != other.stream_source
             or sorted(self.entity_columns) != sorted(other.entity_columns)
+            or self.source_views != other.source_views
         ):
             return False
 
