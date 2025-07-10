@@ -258,9 +258,9 @@ class FeatureView(BaseFeatureView):
         fv = FeatureView(
             name=self.name,
             ttl=self.ttl,
-            source=self.source_views if self.source_views else (
-                self.stream_source if self.stream_source else self.batch_source
-            ),
+            source=self.source_views
+            if self.source_views
+            else (self.stream_source if self.stream_source else self.batch_source),
             schema=self.schema,
             tags=self.tags,
             online=self.online,
