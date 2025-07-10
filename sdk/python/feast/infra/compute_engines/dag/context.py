@@ -82,15 +82,12 @@ class ExecutionContext:
         node_outputs: Internal cache of DAGValue outputs keyed by DAGNode name.
             Automatically populated during ExecutionPlan execution to avoid redundant
             computation. Used by downstream nodes to access their input data.
-
-        field_mapping: A mapping of field names to their corresponding column names in the
     """
 
     project: str
     repo_config: RepoConfig
     offline_store: OfflineStore
     online_store: OnlineStore
-    column_info: ColumnInfo
     entity_defs: List[Entity]
     entity_df: Union[pd.DataFrame, None] = None
     node_outputs: Dict[str, DAGValue] = field(default_factory=dict)
