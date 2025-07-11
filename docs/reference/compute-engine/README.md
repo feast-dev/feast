@@ -57,6 +57,14 @@ An example of built output from FeatureBuilder:
 - Supports point-in-time joins and large-scale materialization
 - Integrates with `SparkOfflineStore` and `SparkMaterializationJob`
 
+### ⚡ RayComputeEngine (contrib)
+
+- Distributed DAG execution via Ray
+- Intelligent join strategies (broadcast vs distributed)
+- Automatic resource management and optimization
+- Integrates with `RayOfflineStore` and `RayMaterializationJob`
+- See [Ray Compute Engine documentation](ray.md) for details
+
 ### 🧪 LocalComputeEngine
 
 {% page-ref page="local.md" %}
