@@ -31,6 +31,15 @@ class RayDataSourceCreator(DataSourceCreator):
             storage_path="/tmp/ray-storage",
             ray_address=None,
             use_ray_cluster=False,
+            broadcast_join_threshold_mb=25,
+            max_parallelism_multiplier=1,
+            target_partition_size_mb=16,
+            enable_ray_logging=False,
+            ray_conf={
+                "num_cpus": 1,
+                "object_store_memory": 80 * 1024 * 1024,
+                "_memory": 400 * 1024 * 1024,
+            },
         )
         self.files: list[Any] = []
         self.dirs: list[str] = []
@@ -101,6 +110,14 @@ class RayDataSourceCreator(DataSourceCreator):
             "type": "parquet",
             "path": "data/saved_dataset.parquet",
         }
+
+    @staticmethod
+    def xdist_groups() -> list[str]:
+        """
+        Return xdist group names for Ray tests.
+        This ensures all Ray tests run on the same pytest worker to avoid OOM issues.
+        """
+        return ["ray"]
 
 
 # Define the full repo configurations for Ray offline store
