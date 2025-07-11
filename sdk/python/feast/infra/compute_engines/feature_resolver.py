@@ -1,7 +1,7 @@
 from typing import List, Optional, Set
 
 from feast.feature_view import FeatureView
-from feast.infra.compute_engines.algorithms.topo import topo_sort
+from feast.infra.compute_engines.algorithms.topo import topological_sort
 from feast.infra.compute_engines.dag.context import ExecutionContext
 from feast.infra.compute_engines.dag.node import DAGNode
 from feast.infra.compute_engines.dag.value import DAGValue
@@ -78,8 +78,8 @@ class FeatureResolver:
 
         return node
 
-    def topo_sort(self, root: FeatureViewNode) -> List[FeatureViewNode]:
-        return topo_sort(root)  # type: ignore
+    def topological_sort(self, root: FeatureViewNode) -> List[FeatureViewNode]:
+        return topological_sort(root)  # type: ignore
 
     def debug_dag(self, node: FeatureViewNode, depth=0):
         """

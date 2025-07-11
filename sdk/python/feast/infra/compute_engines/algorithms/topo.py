@@ -3,7 +3,7 @@ from typing import List, Set
 from feast.infra.compute_engines.dag.node import DAGNode
 
 
-def topo_sort(root: DAGNode) -> List[DAGNode]:
+def topological_sort(root: DAGNode) -> List[DAGNode]:
     """
     Topologically sort a DAG starting from a single root node.
 
@@ -13,10 +13,10 @@ def topo_sort(root: DAGNode) -> List[DAGNode]:
     Returns:
         A list of DAGNodes in topological order (dependencies first).
     """
-    return topo_sort_multiple([root])
+    return topological_sort_multiple([root])
 
 
-def topo_sort_multiple(roots: List[DAGNode]) -> List[DAGNode]:
+def topological_sort_multiple(roots: List[DAGNode]) -> List[DAGNode]:
     """
     Topologically sort a DAG with multiple roots.
 
