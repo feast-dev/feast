@@ -19,29 +19,43 @@ from feast.type_map import (
 class PandasTransformation(Transformation):
     def __new__(
         cls,
-        udf: Callable[[Any], Any],
-        udf_string: str,
+        udf: Optional[Callable[[Any], Any]] = None,
+        udf_string: Optional[str] = None,
         name: Optional[str] = None,
         tags: Optional[dict[str, str]] = None,
         description: str = "",
         owner: str = "",
     ) -> "PandasTransformation":
-        instance = super(PandasTransformation, cls).__new__(
-            cls,
-            mode=TransformationMode.PANDAS,
-            udf=udf,
-            name=name,
-            udf_string=udf_string,
-            tags=tags,
-            description=description,
-            owner=owner,
+        # Handle Ray deserialization where parameters may not be provided
+        if udf is None and udf_string is None:
+            # Create a bare instance for deserialization
+            instance = object.__new__(cls)
+            return cast("PandasTransformation", instance)
+
+        # Ensure required parameters are not None before calling parent constructor
+        if udf is None:
+            raise ValueError("udf parameter cannot be None")
+        if udf_string is None:
+            raise ValueError("udf_string parameter cannot be None")
+
+        return cast(
+            "PandasTransformation",
+            super(PandasTransformation, cls).__new__(
+                cls,
+                mode=TransformationMode.PANDAS,
+                udf=udf,
+                name=name,
+                udf_string=udf_string,
+                tags=tags,
+                description=description,
+                owner=owner,
+            ),
         )
-        return cast(PandasTransformation, instance)
 
     def __init__(
         self,
-        udf: Callable[[Any], Any],
-        udf_string: str,
+        udf: Optional[Callable[[Any], Any]] = None,
+        udf_string: Optional[str] = None,
         name: Optional[str] = None,
         tags: Optional[dict[str, str]] = None,
         description: str = "",
@@ -49,6 +63,17 @@ class PandasTransformation(Transformation):
         *args,
         **kwargs,
     ):
+        # Handle Ray deserialization where parameters may not be provided
+        if udf is None and udf_string is None:
+            # Early return for deserialization - don't initialize
+            return
+
+        # Ensure required parameters are not None before calling parent constructor
+        if udf is None:
+            raise ValueError("udf parameter cannot be None")
+        if udf_string is None:
+            raise ValueError("udf_string parameter cannot be None")
+
         return_annotation = get_type_hints(udf).get("return", inspect._empty)
         if return_annotation not in (inspect._empty, pd.DataFrame):
             raise TypeError(

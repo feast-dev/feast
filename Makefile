@@ -320,6 +320,11 @@ test-python-universal-ray-offline: ## Run Python Ray offline store integration t
 				not test_spark" \
 			sdk/python/tests
 
+test-python-ray-compute-engine: ## Run Python Ray compute engine tests
+	PYTHONPATH='.' \
+		python -m pytest --integration \
+			sdk/python/tests/integration/compute_engines/ray_compute/
+
 test-python-universal-postgres-online: ## Run Python Postgres integration tests
 	PYTHONPATH='.' \
 		FULL_REPO_CONFIGS_MODULE=sdk.python.feast.infra.online_stores.postgres_online_store.postgres_repo_configuration \

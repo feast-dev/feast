@@ -1,0 +1,660 @@
+import logging
+from datetime import datetime, timedelta
+from typing import List, Optional, Union
+
+import pandas as pd
+import ray
+from ray.data import Dataset
+
+from feast import BatchFeatureView, StreamFeatureView
+from feast.aggregation import Aggregation
+from feast.data_source import DataSource
+from feast.infra.compute_engines.dag.context import ExecutionContext
+from feast.infra.compute_engines.dag.model import DAGFormat
+from feast.infra.compute_engines.dag.node import DAGNode
+from feast.infra.compute_engines.dag.value import DAGValue
+from feast.infra.compute_engines.ray.config import RayComputeEngineConfig
+from feast.infra.compute_engines.utils import create_offline_store_retrieval_job
+from feast.infra.ray_shared_utils import (
+    apply_field_mapping,
+    broadcast_join,
+    distributed_windowed_join,
+)
+
+logger = logging.getLogger(__name__)
+
+# Entity timestamp alias for historical feature retrieval
+ENTITY_TS_ALIAS = "__entity_event_timestamp"
+
+
+class RayReadNode(DAGNode):
+    """
+    Ray node for reading data from offline stores.
+    """
+
+    def __init__(
+        self,
+        name: str,
+        source: DataSource,
+        column_info,
+        config: RayComputeEngineConfig,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
+    ):
+        super().__init__(name)
+        self.source = source
+        self.column_info = column_info
+        self.config = config
+        self.start_time = start_time
+        self.end_time = end_time
+
+    def execute(self, context: ExecutionContext) -> DAGValue:
+        """Execute the read operation to load data from the offline store."""
+        try:
+            # Use utility function to create retrieval job
+            retrieval_job = create_offline_store_retrieval_job(
+                data_source=self.source,
+                column_info=self.column_info,
+                context=context,
+                start_time=self.start_time,
+                end_time=self.end_time,
+            )
+
+            # Convert to Ray Dataset
+            if hasattr(retrieval_job, "to_ray_dataset"):
+                # If the retrieval job supports Ray datasets directly
+                ray_dataset = retrieval_job.to_ray_dataset()
+            else:
+                # Fall back to converting from Arrow/Pandas
+                try:
+                    arrow_table = retrieval_job.to_arrow()
+                    ray_dataset = ray.data.from_arrow(arrow_table)
+                except Exception:
+                    # Ultimate fallback to pandas
+                    df = retrieval_job.to_df()
+                    ray_dataset = ray.data.from_pandas(df)
+
+            # Apply field mapping if needed
+            field_mapping = getattr(self.source, "field_mapping", None)
+            if field_mapping:
+                ray_dataset = apply_field_mapping(ray_dataset, field_mapping)
+
+            return DAGValue(
+                data=ray_dataset,
+                format=DAGFormat.RAY,
+                metadata={
+                    "source": "offline_store",
+                    "source_type": type(self.source).__name__,
+                    "start_time": self.start_time,
+                    "end_time": self.end_time,
+                },
+            )
+
+        except Exception as e:
+            logger.error(f"Ray read node failed: {e}")
+            raise
+
+
+class RayJoinNode(DAGNode):
+    """
+    Ray node for joining entity dataframes with feature data.
+    """
+
+    def __init__(
+        self,
+        name: str,
+        column_info,
+        config: RayComputeEngineConfig,
+        is_historical_retrieval: bool = False,
+    ):
+        super().__init__(name)
+        self.column_info = column_info
+        self.config = config
+        self.is_historical_retrieval = is_historical_retrieval
+
+    def execute(self, context: ExecutionContext) -> DAGValue:
+        """Execute the join operation."""
+        input_value = self.get_single_input_value(context)
+        input_value.assert_format(DAGFormat.RAY)
+        feature_dataset: Dataset = input_value.data
+
+        # If this is not a historical retrieval, just return the feature data
+        if not self.is_historical_retrieval or context.entity_df is None:
+            return DAGValue(
+                data=feature_dataset,
+                format=DAGFormat.RAY,
+                metadata={"joined": False},
+            )
+
+        # Convert entity_df to Ray Dataset
+        entity_df = context.entity_df
+        if isinstance(entity_df, pd.DataFrame):
+            entity_dataset = ray.data.from_pandas(entity_df)
+        else:
+            entity_dataset = entity_df
+
+        # Perform the join using Ray operations
+        join_keys = self.column_info.join_keys
+        timestamp_col = self.column_info.timestamp_column
+        requested_feats = getattr(self.column_info, "feature_cols", [])
+
+        # Check if the feature dataset contains aggregated features (from aggregation node)
+        # If so, we don't need point-in-time join logic - just simple join on entity keys
+        sample_data = feature_dataset.take(1)
+        is_aggregated = False
+        if sample_data:
+            if hasattr(sample_data[0], "columns"):
+                feature_cols = sample_data[0].columns.tolist()
+            else:
+                # Handle other data formats
+                feature_cols = (
+                    list(sample_data[0].keys())
+                    if isinstance(sample_data[0], dict)
+                    else []
+                )
+
+            # Check for aggregated feature column patterns
+            is_aggregated = any(
+                col.startswith(
+                    ("sum_", "avg_", "mean_", "count_", "min_", "max_", "std_", "var_")
+                )
+                for col in feature_cols
+            )
+
+        feature_size = feature_dataset.size_bytes()
+
+        if is_aggregated:
+            # For aggregated features, do simple join on entity keys
+            feature_df = feature_dataset.to_pandas()
+            feature_ref = ray.put(feature_df)
+
+            def join_with_aggregated_features(batch: pd.DataFrame) -> pd.DataFrame:
+                if batch.empty:
+                    return batch
+                features = ray.get(feature_ref)
+                if join_keys:
+                    result = pd.merge(
+                        batch,
+                        features,
+                        on=join_keys,
+                        how="left",
+                        suffixes=("", "_feature"),
+                    )
+                else:
+                    result = batch.copy()
+                return result
+
+            joined_dataset = entity_dataset.map_batches(
+                join_with_aggregated_features, batch_format="pandas"
+            )
+        else:
+            if feature_size <= self.config.broadcast_join_threshold_mb * 1024 * 1024:
+                # Use broadcast join for small feature datasets
+                joined_dataset = broadcast_join(
+                    entity_dataset,
+                    feature_dataset.to_pandas(),
+                    join_keys,
+                    timestamp_col,
+                    requested_feats,
+                )
+            else:
+                # Use distributed join for large datasets
+                joined_dataset = distributed_windowed_join(
+                    entity_dataset,
+                    feature_dataset,
+                    join_keys,
+                    timestamp_col,
+                    requested_feats,
+                )
+
+        return DAGValue(
+            data=joined_dataset,
+            format=DAGFormat.RAY,
+            metadata={
+                "joined": True,
+                "join_keys": join_keys,
+                "join_strategy": "broadcast"
+                if feature_size <= self.config.broadcast_join_threshold_mb * 1024 * 1024
+                else "distributed",
+            },
+        )
+
+
+class RayFilterNode(DAGNode):
+    """
+    Ray node for filtering data based on TTL and custom conditions.
+    """
+
+    def __init__(
+        self,
+        name: str,
+        column_info,
+        config: RayComputeEngineConfig,
+        ttl: Optional[timedelta] = None,
+        filter_condition: Optional[str] = None,
+    ):
+        super().__init__(name)
+        self.column_info = column_info
+        self.config = config
+        self.ttl = ttl
+        self.filter_condition = filter_condition
+
+    def execute(self, context: ExecutionContext) -> DAGValue:
+        """Execute the filter operation."""
+        input_value = self.get_single_input_value(context)
+        input_value.assert_format(DAGFormat.RAY)
+        dataset: Dataset = input_value.data
+
+        def apply_filters(batch: pd.DataFrame) -> pd.DataFrame:
+            """Apply TTL and custom filters to the batch."""
+            if batch.empty:
+                return batch
+
+            filtered_batch = batch.copy()
+
+            # Apply TTL filter if specified
+            if self.ttl:
+                timestamp_col = self.column_info.timestamp_column
+                if timestamp_col in filtered_batch.columns:
+                    # Import necessary modules at the top of the function
+                    from datetime import timezone
+
+                    import pandas as pd
+
+                    # Convert to datetime if not already
+                    if not pd.api.types.is_datetime64_any_dtype(
+                        filtered_batch[timestamp_col]
+                    ):
+                        filtered_batch[timestamp_col] = pd.to_datetime(
+                            filtered_batch[timestamp_col]
+                        )
+
+                    # For historical retrieval, use entity timestamp for TTL calculation
+                    if ENTITY_TS_ALIAS in filtered_batch.columns:
+                        # Use entity timestamp for TTL calculation (historical retrieval)
+                        if not pd.api.types.is_datetime64_any_dtype(
+                            filtered_batch[ENTITY_TS_ALIAS]
+                        ):
+                            filtered_batch[ENTITY_TS_ALIAS] = pd.to_datetime(
+                                filtered_batch[ENTITY_TS_ALIAS]
+                            )
+
+                        # Apply TTL filter with both upper and lower bounds:
+                        # 1. feature.ts <= entity.event_timestamp (upper bound)
+                        # 2. feature.ts >= entity.event_timestamp - ttl (lower bound)
+                        upper_bound = filtered_batch[ENTITY_TS_ALIAS]
+                        lower_bound = filtered_batch[ENTITY_TS_ALIAS] - self.ttl
+
+                        filtered_batch = filtered_batch[
+                            (filtered_batch[timestamp_col] <= upper_bound)
+                            & (filtered_batch[timestamp_col] >= lower_bound)
+                        ]
+                    else:
+                        # Use current time for TTL calculation (real-time retrieval)
+                        # Check if timestamp column is timezone-aware
+                        if pd.api.types.is_datetime64tz_dtype(
+                            filtered_batch[timestamp_col]
+                        ):
+                            # Use timezone-aware current time
+                            current_time = datetime.now(timezone.utc)
+                        else:
+                            # Use naive datetime
+                            current_time = datetime.now()
+
+                        ttl_threshold = current_time - self.ttl
+
+                        # Apply TTL filter
+                        filtered_batch = filtered_batch[
+                            filtered_batch[timestamp_col] >= ttl_threshold
+                        ]
+
+            # Apply custom filter condition if specified
+            if self.filter_condition:
+                try:
+                    filtered_batch = filtered_batch.query(self.filter_condition)
+                except Exception as e:
+                    logger.warning(f"Custom filter failed: {e}")
+
+            return filtered_batch
+
+        filtered_dataset = dataset.map_batches(apply_filters, batch_format="pandas")
+
+        return DAGValue(
+            data=filtered_dataset,
+            format=DAGFormat.RAY,
+            metadata={
+                "filtered": True,
+                "ttl": self.ttl,
+                "filter_condition": self.filter_condition,
+            },
+        )
+
+
+class RayAggregationNode(DAGNode):
+    """
+    Ray node for performing aggregations on feature data.
+    """
+
+    def __init__(
+        self,
+        name: str,
+        aggregations: List[Aggregation],
+        group_by_keys: List[str],
+        timestamp_col: str,
+        config: RayComputeEngineConfig,
+    ):
+        super().__init__(name)
+        self.aggregations = aggregations
+        self.group_by_keys = group_by_keys
+        self.timestamp_col = timestamp_col
+        self.config = config
+
+    def execute(self, context: ExecutionContext) -> DAGValue:
+        """Execute the aggregation operation."""
+        input_value = self.get_single_input_value(context)
+        input_value.assert_format(DAGFormat.RAY)
+        dataset: Dataset = input_value.data
+
+        # Convert aggregations to Ray's groupby format
+        agg_dict = {}
+        for agg in self.aggregations:
+            feature_name = f"{agg.function}_{agg.column}"
+            if agg.time_window:
+                feature_name += f"_{int(agg.time_window.total_seconds())}s"
+
+            if agg.function == "count":
+                agg_dict[feature_name] = (agg.column, "count")
+            elif agg.function == "sum":
+                agg_dict[feature_name] = (agg.column, "sum")
+            elif agg.function == "mean" or agg.function == "avg":
+                agg_dict[feature_name] = (agg.column, "mean")
+            elif agg.function == "min":
+                agg_dict[feature_name] = (agg.column, "min")
+            elif agg.function == "max":
+                agg_dict[feature_name] = (agg.column, "max")
+            elif agg.function == "std":
+                agg_dict[feature_name] = (agg.column, "std")
+            elif agg.function == "var":
+                agg_dict[feature_name] = (agg.column, "var")
+            else:
+                logger.warning(f"Unknown aggregation function: {agg.function}")
+                continue
+
+        # Apply aggregations using pandas fallback (Ray's native groupby has compatibility issues)
+        if self.group_by_keys and agg_dict:
+            # Use pandas-based aggregation for entire dataset
+            aggregated_dataset = self._fallback_pandas_aggregation(dataset, agg_dict)
+        else:
+            # No group keys or aggregations, return original dataset
+            aggregated_dataset = dataset
+
+        return DAGValue(
+            data=aggregated_dataset,
+            format=DAGFormat.RAY,
+            metadata={
+                "aggregated": True,
+                "aggregations": len(self.aggregations),
+                "group_by_keys": self.group_by_keys,
+            },
+        )
+
+    def _fallback_pandas_aggregation(self, dataset: Dataset, agg_dict: dict) -> Dataset:
+        """Fallback to pandas-based aggregation for the entire dataset."""
+        # Convert entire dataset to pandas for aggregation
+        df = dataset.to_pandas()
+
+        if df.empty:
+            return dataset
+
+        # Group by the specified keys
+        if self.group_by_keys:
+            grouped = df.groupby(self.group_by_keys)
+        else:
+            # If no group keys, apply aggregations to entire dataset
+            grouped = df.groupby(lambda x: 0)  # Dummy grouping
+
+        # Apply each aggregation
+        agg_results = []
+        for feature_name, (column, function) in agg_dict.items():
+            if column in df.columns:
+                if function == "count":
+                    result = grouped[column].count()
+                elif function == "sum":
+                    result = grouped[column].sum()
+                elif function == "mean":
+                    result = grouped[column].mean()
+                elif function == "min":
+                    result = grouped[column].min()
+                elif function == "max":
+                    result = grouped[column].max()
+                elif function == "std":
+                    result = grouped[column].std()
+                elif function == "var":
+                    result = grouped[column].var()
+                else:
+                    logger.warning(f"Unknown aggregation function: {function}")
+                    continue
+
+                result.name = feature_name
+                agg_results.append(result)
+
+        # Combine aggregation results
+        if agg_results:
+            result_df = pd.concat(agg_results, axis=1)
+
+            # Reset index to make group keys regular columns
+            if self.group_by_keys:
+                result_df = result_df.reset_index()
+
+            # Convert back to Ray Dataset
+            return ray.data.from_pandas(result_df)
+        else:
+            return dataset
+
+
+class RayDedupNode(DAGNode):
+    """
+    Ray node for deduplicating records.
+    """
+
+    def __init__(
+        self,
+        name: str,
+        column_info,
+        config: RayComputeEngineConfig,
+    ):
+        super().__init__(name)
+        self.column_info = column_info
+        self.config = config
+
+    def execute(self, context: ExecutionContext) -> DAGValue:
+        """Execute the deduplication operation."""
+        input_value = self.get_single_input_value(context)
+        input_value.assert_format(DAGFormat.RAY)
+        dataset: Dataset = input_value.data
+
+        def deduplicate_batch(batch: pd.DataFrame) -> pd.DataFrame:
+            """Remove duplicates from the batch."""
+            if batch.empty:
+                return batch
+
+            # Get deduplication keys
+            join_keys = self.column_info.join_keys
+            timestamp_col = self.column_info.timestamp_column
+
+            if join_keys:
+                # Sort by join keys and timestamp (most recent first)
+                sort_columns = join_keys + [timestamp_col]
+                available_columns = [
+                    col for col in sort_columns if col in batch.columns
+                ]
+
+                if available_columns:
+                    # Sort and deduplicate
+                    sorted_batch = batch.sort_values(
+                        available_columns,
+                        ascending=[True] * len(join_keys)
+                        + [False],  # Recent timestamps first
+                    )
+
+                    # Keep first occurrence (most recent) for each join key combination
+                    deduped_batch = sorted_batch.drop_duplicates(
+                        subset=join_keys,
+                        keep="first",
+                    )
+
+                    return deduped_batch
+
+            return batch
+
+        deduped_dataset = dataset.map_batches(deduplicate_batch, batch_format="pandas")
+
+        return DAGValue(
+            data=deduped_dataset,
+            format=DAGFormat.RAY,
+            metadata={"deduped": True},
+        )
+
+
+class RayTransformationNode(DAGNode):
+    """
+    Ray node for applying feature transformations.
+    """
+
+    def __init__(
+        self,
+        name: str,
+        transformation,
+        config: RayComputeEngineConfig,
+    ):
+        super().__init__(name)
+        # Extract the UDF function to avoid serialization issues with PandasTransformation
+        if hasattr(transformation, "udf") and callable(transformation.udf):
+            self.transformation_udf = transformation.udf
+            self.transformation_name = getattr(transformation, "name", "unknown")
+        elif callable(transformation):
+            # Handle direct UDF functions
+            self.transformation_udf = transformation
+            self.transformation_name = getattr(transformation, "__name__", "unknown")
+        else:
+            self.transformation_udf = None
+            self.transformation_name = "unknown"
+        self.config = config
+
+    def execute(self, context: ExecutionContext) -> DAGValue:
+        """Execute the transformation operation."""
+        input_value = self.get_single_input_value(context)
+        input_value.assert_format(DAGFormat.RAY)
+        dataset: Dataset = input_value.data
+
+        # Use the extracted UDF function directly
+        transformation_func = self.transformation_udf
+
+        def apply_transformation(batch: pd.DataFrame) -> pd.DataFrame:
+            """Apply the transformation to the batch."""
+            if batch.empty:
+                return batch
+
+            try:
+                # Apply the transformation function directly
+                if transformation_func and callable(transformation_func):
+                    transformed_batch = transformation_func(batch)
+                else:
+                    logger.warning(
+                        "Transformation function not available, returning original batch"
+                    )
+                    transformed_batch = batch
+
+                return transformed_batch
+            except Exception as e:
+                logger.error(f"Transformation failed: {e}")
+                return batch
+
+        transformed_dataset = dataset.map_batches(
+            apply_transformation, batch_format="pandas"
+        )
+
+        return DAGValue(
+            data=transformed_dataset,
+            format=DAGFormat.RAY,
+            metadata={
+                "transformed": True,
+                "transformation": self.transformation_name,
+            },
+        )
+
+
+class RayWriteNode(DAGNode):
+    """
+    Ray node for writing results to online/offline stores.
+    """
+
+    def __init__(
+        self,
+        name: str,
+        feature_view: Union[BatchFeatureView, StreamFeatureView],
+        config: RayComputeEngineConfig,
+    ):
+        super().__init__(name)
+        self.feature_view = feature_view
+        self.config = config
+
+    def execute(self, context: ExecutionContext) -> DAGValue:
+        """Execute the write operation."""
+        input_value = self.get_single_input_value(context)
+        input_value.assert_format(DAGFormat.RAY)
+        dataset: Dataset = input_value.data
+
+        def write_batch(batch: pd.DataFrame) -> pd.DataFrame:
+            """Write each batch to the appropriate stores."""
+            if batch.empty:
+                return batch
+
+            try:
+                # Convert to Arrow Table for writing
+                import pyarrow as pa
+
+                arrow_table = pa.Table.from_pandas(batch)
+
+                # Write to online store if enabled
+                if getattr(self.feature_view, "online", False):
+                    # TODO: Implement proper online store writing with correct data format conversion
+                    logger.debug(
+                        f"Online store writing not implemented yet for {len(batch)} rows"
+                    )
+
+                # Write to offline store if enabled
+                if getattr(self.feature_view, "offline", False):
+                    try:
+                        context.offline_store.offline_write_batch(
+                            config=context.repo_config,
+                            feature_view=self.feature_view,
+                            table=arrow_table,
+                            progress=lambda x: None,
+                        )
+                        logger.debug(f"Wrote {len(batch)} rows to offline store")
+                    except Exception as e:
+                        logger.error(f"Failed to write to offline store: {e}")
+
+                return batch
+
+            except Exception as e:
+                logger.error(f"Write operation failed: {e}")
+                return batch
+
+        # Apply write operation to all batches
+        written_dataset = dataset.map_batches(write_batch, batch_format="pandas")
+
+        # Materialize the dataset to ensure writes are executed
+        written_dataset = written_dataset.materialize()
+
+        return DAGValue(
+            data=written_dataset,
+            format=DAGFormat.RAY,
+            metadata={
+                "written": True,
+                "feature_view": self.feature_view.name,
+                "online": getattr(self.feature_view, "online", False),
+                "offline": getattr(self.feature_view, "offline", False),
+            },
+        )
