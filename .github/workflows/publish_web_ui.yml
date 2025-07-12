@@ -9,7 +9,7 @@ on:
         type: string
       token:
         description: 'Personal Access Token'
-        required: true
+        required: false
         default: ""
         type: string
       publish_ui:
@@ -25,7 +25,7 @@ on:
         type: string
       token:
         description: 'Personal Access Token'
-        required: true
+        required: false
         default: ""
         type: string
       publish_ui:
@@ -43,20 +43,32 @@ jobs:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
     steps:
       - uses: actions/checkout@v4
-      - id: get-version
+      - id: get-current-version
+        if: github.event.inputs.custom_version != ''
         uses: ./.github/actions/get-semantic-release-version
         with:
-          custom_version: ${{ github.event.inputs.custom_version }}
           token: ${{ github.event.inputs.token || github.token }}
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version-file: './ui/.nvmrc'
       - name: Bump file versions (temporarily for Web UI publish)
+        if: github.event.inputs.custom_version != ''
         env:
-          CURRENT_VERSION: ${{ steps.get-version.outputs.highest_semver_tag }}
-          NEXT_VERSION: ${{ steps.get-version.outputs.version_without_prefix }}
-        run: python ./infra/scripts/release/bump_file_versions.py ${CURRENT_VERSION} ${NEXT_VERSION}
+          CUSTOM_VERSION: ${{ github.event.inputs.custom_version }}
+        run: |
+          # Get current version from action output (already normalized without 'v' prefix)
+          CURRENT_VERSION="${{ steps.get-current-version.outputs.version_without_prefix }}"
+          
+          # Normalize custom version (next version) by removing 'v' prefix if present
+          NEXT_VERSION="${CUSTOM_VERSION}"
+          if [[ "$NEXT_VERSION" =~ ^v ]]; then
+            NEXT_VERSION="${NEXT_VERSION:1}"
+          fi
+          
+          echo "Using current version from action: $CURRENT_VERSION"
+          echo "Using next version (custom): $NEXT_VERSION"
+          python ./infra/scripts/release/bump_file_versions.py ${CURRENT_VERSION} ${NEXT_VERSION}
       - name: Install yarn dependencies
         working-directory: ./ui
         run: yarn install
