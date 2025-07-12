@@ -109,6 +109,7 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version-file: './ui/.nvmrc'
+          registry-url: 'https://registry.npmjs.org'
       - name: Bump file versions (temporarily for Web UI publish)
         if: github.event.inputs.custom_version != ''
         env:
@@ -138,4 +139,4 @@ jobs:
         run: npm publish
         env:
           # This publish is working using an NPM automation token to bypass 2FA
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }} 
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }} 
