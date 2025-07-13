@@ -338,10 +338,27 @@ class Registry(BaseRegistry):
     def apply_data_source(
         self, data_source: DataSource, project: str, commit: bool = True
     ):
+        now = _utc_now()
+        if not data_source.created_timestamp:
+            data_source.created_timestamp = now
+        data_source.last_updated_timestamp = now
+
         registry = self._prepare_registry_for_changes(project)
+
         for idx, existing_data_source_proto in enumerate(registry.data_sources):
             if existing_data_source_proto.name == data_source.name:
-                del registry.data_sources[idx]
+                existing_data_source = DataSource.from_proto(existing_data_source_proto)
+                # Check if the data source has actually changed
+                if existing_data_source == data_source:
+                    return
+                else:
+                    # Preserve created_timestamp from existing data source
+                    data_source.created_timestamp = (
+                        existing_data_source.created_timestamp
+                    )
+                    del registry.data_sources[idx]
+                    break
+
         data_source_proto = data_source.to_proto()
         data_source_proto.project = project
         data_source_proto.data_source_class_type = (

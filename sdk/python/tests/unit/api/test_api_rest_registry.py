@@ -1,12 +1,12 @@
 import os
 import tempfile
 
+import pandas as pd
 import pytest
 from fastapi.testclient import TestClient
 
-from feast import Entity, FeatureService, FeatureView, Field, FileSource
+from feast import Entity, FeatureService, FeatureStore, FeatureView, Field, FileSource
 from feast.api.registry.rest.rest_registry_server import RestRegistryServer
-from feast.feature_store import FeatureStore
 from feast.infra.offline_stores.file_source import SavedDatasetFileStorage
 from feast.repo_config import RepoConfig
 from feast.saved_dataset import SavedDataset
@@ -22,7 +22,6 @@ def fastapi_test_app():
 
     # Create dummy parquet file (Feast requires valid sources)
     parquet_file_path = os.path.join(tmp_dir.name, "data.parquet")
-    import pandas as pd
 
     df = pd.DataFrame(
         {
@@ -107,7 +106,30 @@ def test_feature_views_via_rest(fastapi_test_app):
     assert "featureViews" in response.json()
     response = fastapi_test_app.get("/feature_views/user_profile?project=demo_project")
     assert response.status_code == 200
-    assert response.json()["featureView"]["spec"]["name"] == "user_profile"
+    assert response.json()["spec"]["name"] == "user_profile"
+
+
+def test_feature_views_type_field_via_rest(fastapi_test_app):
+    """Test that the type field is correctly populated for feature views."""
+    # Test list endpoint
+    response = fastapi_test_app.get("/feature_views?project=demo_project")
+    assert response.status_code == 200
+    data = response.json()
+    assert "featureViews" in data
+
+    # Verify all feature views have a type field
+    for fv in data["featureViews"]:
+        assert "type" in fv
+        assert fv["type"] is not None
+        assert fv["type"] == "featureView"
+
+    # Test single endpoint
+    response = fastapi_test_app.get("/feature_views/user_profile?project=demo_project")
+    assert response.status_code == 200
+    data = response.json()
+    assert "type" in data
+    assert data["type"] == "featureView"
+    assert data["spec"]["name"] == "user_profile"
 
 
 def test_feature_services_via_rest(fastapi_test_app):
@@ -336,7 +358,6 @@ def fastapi_test_app_with_multiple_objects():
     registry_path = os.path.join(tmp_dir.name, "registry.db")
 
     parquet_file_path = os.path.join(tmp_dir.name, "data.parquet")
-    import pandas as pd
 
     df = pd.DataFrame(
         {
@@ -577,7 +598,7 @@ def test_feature_views_sorting_via_rest(fastapi_test_app_with_multiple_objects):
     )
     assert response.status_code == 200
     data = response.json()
-    fv_names = [fv["featureView"]["spec"]["name"] for fv in data["featureViews"]]
+    fv_names = [fv["spec"]["name"] for fv in data["featureViews"]]
     assert fv_names == sorted(fv_names)
 
     # Test sorting by name descending
@@ -586,7 +607,7 @@ def test_feature_views_sorting_via_rest(fastapi_test_app_with_multiple_objects):
     )
     assert response.status_code == 200
     data = response.json()
-    fv_names = [fv["featureView"]["spec"]["name"] for fv in data["featureViews"]]
+    fv_names = [fv["spec"]["name"] for fv in data["featureViews"]]
     assert fv_names == sorted(fv_names, reverse=True)
 
 
@@ -818,3 +839,24 @@ def test_lineage_sorting_via_rest(fastapi_test_app_with_multiple_objects):
     assert response.status_code == 200
     data = response.json()
     assert "relationships" in data
+
+
+def test_feature_view_type_identification():
+    """Test that we can properly identify feature view types from their structure."""
+    from feast.api.registry.rest.feature_views import _extract_feature_view_from_any
+
+    any_feature_view_1 = {"featureView": {"spec": {"name": "test_fv"}, "meta": {}}}
+    any_feature_view_2 = {
+        "onDemandFeatureView": {"spec": {"name": "test_odfv"}, "meta": {}}
+    }
+    any_feature_view_3 = {
+        "streamFeatureView": {"spec": {"name": "test_sfv"}, "meta": {}}
+    }
+
+    result_1 = _extract_feature_view_from_any(any_feature_view_1)
+    result_2 = _extract_feature_view_from_any(any_feature_view_2)
+    result_3 = _extract_feature_view_from_any(any_feature_view_3)
+
+    assert result_1["type"] == "featureView"
+    assert result_2["type"] == "onDemandFeatureView"
+    assert result_3["type"] == "streamFeatureView"
