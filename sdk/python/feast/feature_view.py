@@ -377,15 +377,15 @@ class FeatureView(BaseFeatureView):
         """
         return self._to_proto_internal(seen={})
 
-    def _to_proto_internal(self, seen: Dict[str, FeatureViewProto]) -> FeatureViewProto:
+    def _to_proto_internal(self, seen: Dict[str, Union[None, FeatureViewProto]]) -> FeatureViewProto:
         if self.name in seen:
-            if seen[self.name] is not None:
+            if seen[self.name] is None:
                 raise ValueError(
                     f"Cycle detected during serialization of FeatureView: {self.name}"
                 )
-            return seen[self.name]
+            return seen[self.name]  # type: ignore[return-value]
 
-        seen[self.name] = None  # type: ignore[assignment]
+        seen[self.name] = None
 
         spec = self.to_proto_spec(seen)
         meta = self.to_proto_meta()
@@ -393,7 +393,7 @@ class FeatureView(BaseFeatureView):
         seen[self.name] = proto
         return proto
 
-    def to_proto_spec(self, seen: Dict[str, FeatureViewProto]) -> FeatureViewSpecProto:
+    def to_proto_spec(self, seen: Dict[str, Union[None, FeatureViewProto]]) -> FeatureViewSpecProto:
         ttl_duration = self.get_ttl_duration()
 
         batch_source_proto = None
@@ -452,7 +452,7 @@ class FeatureView(BaseFeatureView):
 
     @classmethod
     def _from_proto_internal(
-        cls, feature_view_proto: FeatureViewProto, seen: Dict[str, "FeatureView"]
+        cls, feature_view_proto: FeatureViewProto, seen: Dict[str, Union[None, "FeatureView"]]
     ) -> "FeatureView":
         """
         Creates a feature view from a protobuf representation of a feature view.
@@ -471,8 +471,8 @@ class FeatureView(BaseFeatureView):
                 raise ValueError(
                     f"Cycle detected while deserializing FeatureView: {feature_view_name}"
                 )
-            return seen[feature_view_name]
-        seen[feature_view_name] = None  # type: ignore[assignment]
+            return seen[feature_view_name]  # type: ignore[return-value]
+        seen[feature_view_name] = None
 
         batch_source = (
             DataSource.from_proto(feature_view_proto.spec.batch_source)
