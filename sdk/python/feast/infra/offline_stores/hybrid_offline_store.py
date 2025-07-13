@@ -1,20 +1,19 @@
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Any, Union, Callable, Iterable, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 import pandas as pd
 import pyarrow
+from feature_logging import LoggingConfig, LoggingSource
+from infra.registry.base_registry import BaseRegistry
 
 from feast import FeatureView, RepoConfig
 from feast.data_source import DataSource
+from feast.infra.offline_stores.file_source import FileSource
 from feast.infra.offline_stores.offline_store import OfflineStore, RetrievalJob
 from feast.infra.offline_stores.offline_utils import get_offline_store_from_config
-from feast.repo_config import FeastConfigBaseModel, get_offline_config_from_type
-
-from feast.infra.offline_stores.file_source import FileSource
 from feast.infra.offline_stores.snowflake_source import SnowflakeSource
-from feature_logging import LoggingSource, LoggingConfig
-from infra.registry.base_registry import BaseRegistry
+from feast.repo_config import FeastConfigBaseModel, get_offline_config_from_type
 
 
 class HybridOfflineStoreConfig(FeastConfigBaseModel):
@@ -29,12 +28,13 @@ class HybridOfflineStoreConfig(FeastConfigBaseModel):
 
 class HybridOfflineStore(OfflineStore):
     _instance: Optional["HybridOfflineStore"] = None
+    _initialized: bool
+    offline_stores: Dict[str, OfflineStore]
 
     _source_to_store_key = {
         FileSource: "file",
         SnowflakeSource: "snowflake",
         LoggingSource: "logging",
-
     }
 
     def __new__(cls):
@@ -44,31 +44,36 @@ class HybridOfflineStore(OfflineStore):
             cls._instance.offline_stores = {}
         return cls._instance
 
-    def _initialize_offline_stores(self,
-                                   config: RepoConfig):
+    def _initialize_offline_stores(self, config: RepoConfig):
         if self._initialized:
             return
         for store_cfg in getattr(config.offline_store, "offline_stores", []):
-            config_cls = get_offline_config_from_type(store_cfg.type.split(".")[-1].lower())
+            config_cls = get_offline_config_from_type(
+                store_cfg.type.split(".")[-1].lower()
+            )
             config_instance = config_cls(**store_cfg.conf)
             store = get_offline_store_from_config(config_instance)
-            store_key = store_cfg.type.split(".")[-1].replace("OfflineStore", "").lower()
+            store_key = (
+                store_cfg.type.split(".")[-1].replace("OfflineStore", "").lower()
+            )
             self.offline_stores[store_key] = store
         self._initialized = True
 
-    def _get_offline_store_for_feature_view(self,
-                                            feature_view: FeatureView,
-                                            config: RepoConfig) -> OfflineStore:
+    def _get_offline_store_for_feature_view(
+        self, feature_view: FeatureView, config: RepoConfig
+    ) -> OfflineStore:
         self._initialize_offline_stores(config)
         source_type = type(feature_view.batch_source)
         store_key = self._source_to_store_key.get(source_type)
         if store_key is None:
-            raise ValueError(f"Unsupported FeatureView batch_source type: {source_type}")
+            raise ValueError(
+                f"Unsupported FeatureView batch_source type: {source_type}"
+            )
         return self.offline_stores[store_key]
 
-    def _get_offline_store_for_source(self,
-                                      data_source: Union[DataSource, LoggingSource],
-                                      config: RepoConfig) -> OfflineStore:
+    def _get_offline_store_for_source(
+        self, data_source: Union[DataSource, LoggingSource], config: RepoConfig
+    ) -> OfflineStore:
         self._initialize_offline_stores(config)
         source_type = type(data_source)
         store_key = self._source_to_store_key.get(source_type)
@@ -78,81 +83,112 @@ class HybridOfflineStore(OfflineStore):
 
     @staticmethod
     def get_historical_features(
-            config: RepoConfig,
-            feature_views: List[FeatureView],
-            feature_refs: List[str],
-            entity_df: Union[pd.DataFrame, str],
-            registry: BaseRegistry,
-            project: str,
-            full_feature_names: bool = False,
+        config: RepoConfig,
+        feature_views: List[FeatureView],
+        feature_refs: List[str],
+        entity_df: Union[pd.DataFrame, str],
+        registry: BaseRegistry,
+        project: str,
+        full_feature_names: bool = False,
     ) -> RetrievalJob:
-        store = HybridOfflineStore()._get_offline_store_for_feature_view(feature_views[0], config)
-        return store.get_historical_features(config, feature_views, feature_refs, entity_df, registry, project,
-                                             full_feature_names)
+        store = HybridOfflineStore()._get_offline_store_for_feature_view(
+            feature_views[0], config
+        )
+        return store.get_historical_features(
+            config,
+            feature_views,
+            feature_refs,
+            entity_df,
+            registry,
+            project,
+            full_feature_names,
+        )
 
     @staticmethod
     def pull_latest_from_table_or_query(
-            config: RepoConfig,
-            data_source: DataSource,
-            join_key_columns: List[str],
-            feature_name_columns: List[str],
-            timestamp_field: str,
-            created_timestamp_column: Optional[str],
-            start_date: datetime,
-            end_date: datetime,
+        config: RepoConfig,
+        data_source: DataSource,
+        join_key_columns: List[str],
+        feature_name_columns: List[str],
+        timestamp_field: str,
+        created_timestamp_column: Optional[str],
+        start_date: datetime,
+        end_date: datetime,
     ) -> RetrievalJob:
         store = HybridOfflineStore()._get_offline_store_for_source(data_source, config)
-        return store.pull_latest_from_table_or_query(config, data_source, join_key_columns, feature_name_columns,
-                                                     timestamp_field, created_timestamp_column, start_date, end_date)
+        return store.pull_latest_from_table_or_query(
+            config,
+            data_source,
+            join_key_columns,
+            feature_name_columns,
+            timestamp_field,
+            created_timestamp_column,
+            start_date,
+            end_date,
+        )
 
     @staticmethod
     def pull_all_from_table_or_query(
-            config: RepoConfig,
-            data_source: DataSource,
-            join_key_columns: List[str],
-            feature_name_columns: List[str],
-            timestamp_field: str,
-            created_timestamp_column: Optional[str] = None,
-            start_date: Optional[datetime] = None,
-            end_date: Optional[datetime] = None,
+        config: RepoConfig,
+        data_source: DataSource,
+        join_key_columns: List[str],
+        feature_name_columns: List[str],
+        timestamp_field: str,
+        created_timestamp_column: Optional[str] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
     ) -> RetrievalJob:
         store = HybridOfflineStore()._get_offline_store_for_source(data_source, config)
-        return store.pull_all_from_table_or_query(config, data_source, join_key_columns, feature_name_columns,
-                                                  timestamp_field, created_timestamp_column, start_date, end_date)
+        return store.pull_all_from_table_or_query(
+            config,
+            data_source,
+            join_key_columns,
+            feature_name_columns,
+            timestamp_field,
+            created_timestamp_column,
+            start_date,
+            end_date,
+        )
 
     @staticmethod
     def write_logged_features(
-            config: RepoConfig,
-            data: Union[pyarrow.Table, Path],
-            source: LoggingSource,
-            logging_config: LoggingConfig,
-            registry: BaseRegistry,
+        config: RepoConfig,
+        data: Union[pyarrow.Table, Path],
+        source: LoggingSource,
+        logging_config: LoggingConfig,
+        registry: BaseRegistry,
     ):
         store = HybridOfflineStore()._get_offline_store_for_source(source, config)
-        return store.write_logged_features(config, data, source, logging_config, registry)
+        return store.write_logged_features(
+            config, data, source, logging_config, registry
+        )
 
     @staticmethod
     def offline_write_batch(
-            config: RepoConfig,
-            feature_view: FeatureView,
-            table: pyarrow.Table,
-            progress: Optional[Callable[[int], Any]],
+        config: RepoConfig,
+        feature_view: FeatureView,
+        table: pyarrow.Table,
+        progress: Optional[Callable[[int], Any]],
     ):
-        store = HybridOfflineStore()._get_offline_store_for_feature_view(feature_view, config)
+        store = HybridOfflineStore()._get_offline_store_for_feature_view(
+            feature_view, config
+        )
         return store.offline_write_batch(config, feature_view, table, progress)
 
     def validate_data_source(
-            self,
-            config: RepoConfig,
-            data_source: DataSource,
+        self,
+        config: RepoConfig,
+        data_source: DataSource,
     ):
         store = self._get_offline_store_for_source(data_source, config)
         return store.validate_data_source(config, data_source)
 
     def get_table_column_names_and_types_from_data_source(
-            self,
-            config: RepoConfig,
-            data_source: DataSource,
+        self,
+        config: RepoConfig,
+        data_source: DataSource,
     ) -> Iterable[Tuple[str, str]]:
         store = self._get_offline_store_for_source(data_source, config)
-        return store.get_table_column_names_and_types_from_data_source(config, data_source)
+        return store.get_table_column_names_and_types_from_data_source(
+            config, data_source
+        )
