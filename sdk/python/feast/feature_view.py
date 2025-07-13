@@ -377,7 +377,9 @@ class FeatureView(BaseFeatureView):
         """
         return self._to_proto_internal(seen={})
 
-    def _to_proto_internal(self, seen: Dict[str, Union[None, FeatureViewProto]]) -> FeatureViewProto:
+    def _to_proto_internal(
+        self, seen: Dict[str, Union[None, FeatureViewProto]]
+    ) -> FeatureViewProto:
         if self.name in seen:
             if seen[self.name] is None:
                 raise ValueError(
@@ -393,7 +395,9 @@ class FeatureView(BaseFeatureView):
         seen[self.name] = proto
         return proto
 
-    def to_proto_spec(self, seen: Dict[str, Union[None, FeatureViewProto]]) -> FeatureViewSpecProto:
+    def to_proto_spec(
+        self, seen: Dict[str, Union[None, FeatureViewProto]]
+    ) -> FeatureViewSpecProto:
         ttl_duration = self.get_ttl_duration()
 
         batch_source_proto = None
@@ -452,7 +456,9 @@ class FeatureView(BaseFeatureView):
 
     @classmethod
     def _from_proto_internal(
-        cls, feature_view_proto: FeatureViewProto, seen: Dict[str, Union[None, "FeatureView"]]
+        cls,
+        feature_view_proto: FeatureViewProto,
+        seen: Dict[str, Union[None, "FeatureView"]],
     ) -> "FeatureView":
         """
         Creates a feature view from a protobuf representation of a feature view.
