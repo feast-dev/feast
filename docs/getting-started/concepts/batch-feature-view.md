@@ -7,7 +7,7 @@
 ## ✅ Key Capabilities
 
 - **Composable DAG of FeatureViews**: Supports defining a `BatchFeatureView` on top of one or more other `FeatureView`s.
-- **Transformations**: Apply PySpark-based transformation logic (`feature_transformation` or `udf`) to raw data source, can also be used to deal with multiple data sources.
+- **Transformations**: Apply [transformation](../../getting-started/architecture/feature-transformation.md) logic (`feature_transformation` or `udf`) to raw data source, can also be used to deal with multiple data sources.
 - **Aggregations**: Define time-windowed aggregations (e.g. `sum`, `avg`) over event-timestamped data.
 - **Feature resolution & execution**: Automatically resolves and executes DAGs of dependent views during materialization or retrieval. More details in the [Compute engine documentation](../../reference/compute-engine/README.md).
 - **Materialization Sink Customization**: Specify a custom `sink_source` to define where derived feature data should be persisted.
