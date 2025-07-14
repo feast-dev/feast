@@ -106,7 +106,7 @@ class HybridOfflineStore(OfflineStore):
         for feature_view in feature_views:
             if not feature_view.batch_source:
                 raise ValueError(
-                    f"HybridOfflineStore only supports feature views with DataSource as source. "
+                    "HybridOfflineStore only supports feature views with DataSource as source. "
                 )
             if not data_source:
                 data_source = feature_view.batch_source
