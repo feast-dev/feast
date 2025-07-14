@@ -25,7 +25,7 @@ This system builds and executes DAGs (Directed Acyclic Graphs) of typed operatio
 ---
 
 ## Feature resolver and builder
-The `FeatureBuilder` initialize a `FeatureResolver` that extracts a DAG from the `FeatureView` definitions, resolving dependencies and ensuring correct execution order. \
+The `FeatureBuilder` initializes a `FeatureResolver` that extracts a DAG from the `FeatureView` definitions, resolving dependencies and ensuring the correct execution order. \
 The FeatureView represents a logical data source, while DataSource represents the physical data source (e.g., BigQuery, Spark, etc.). \
 When defines the FeatureView, the source can be a physical DataSource, a derived FeatureView, or a list of FeatureViews.
 The FeatureResolver walks through the FeatureView sources, and topologically sorts the DAG nodes based on dependencies, and returns a head node that represents the final output of the DAG. \
