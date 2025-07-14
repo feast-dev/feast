@@ -73,7 +73,7 @@ driver_fv = BatchFeatureView(
 ---
 
 ### 2. Derived Feature View from Another View
-
+You can build feature views on top of other features by deriving a feature view from another view. Let's take a look at an example.
 ```python
 from feast import BatchFeatureView, Field
 from pyspark.sql import DataFrame
