@@ -56,6 +56,10 @@ class ClickhouseOptions:
 
 
 class ClickhouseSource(DataSource):
+    def source_type(self) -> DataSourceProto.SourceType.ValueType:
+        # TODO: Add ClickhouseSourceType to DataSourceProto
+        return DataSourceProto.CUSTOM_SOURCE
+
     def __init__(
         self,
         name: Optional[str] = None,

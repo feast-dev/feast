@@ -23,6 +23,9 @@ from feast.value_type import ValueType
 class BigQuerySource(DataSource):
     """A BigQuerySource object defines a data source that a BigQueryOfflineStore class can use."""
 
+    def source_type(self) -> DataSourceProto.SourceType.ValueType:
+        return DataSourceProto.BATCH_BIGQUERY
+
     def __init__(
         self,
         *,

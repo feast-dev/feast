@@ -4,16 +4,20 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 import pandas as pd
 import pyarrow
-from feature_logging import LoggingConfig, LoggingSource
-from infra.registry.base_registry import BaseRegistry
 
 from feast import FeatureView, RepoConfig
-from feast.data_source import DataSource
-from feast.infra.offline_stores.file_source import FileSource
+from feast.data_source import _DATA_SOURCE_FOR_OFFLINE_STORE, DataSource
+from feast.errors import FeastOfflineStoreInvalidName
+from feast.feature_logging import LoggingConfig, LoggingSource
 from feast.infra.offline_stores.offline_store import OfflineStore, RetrievalJob
 from feast.infra.offline_stores.offline_utils import get_offline_store_from_config
-from feast.infra.offline_stores.snowflake_source import SnowflakeSource
-from feast.repo_config import FeastConfigBaseModel, get_offline_config_from_type
+from feast.infra.registry.base_registry import BaseRegistry
+from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
+from feast.repo_config import (
+    FeastConfigBaseModel,
+    get_offline_config_from_type,
+    get_offline_store_type,
+)
 
 
 class HybridOfflineStoreConfig(FeastConfigBaseModel):
@@ -31,12 +35,6 @@ class HybridOfflineStore(OfflineStore):
     _initialized: bool
     offline_stores: Dict[str, OfflineStore]
 
-    _source_to_store_key = {
-        FileSource: "file",
-        SnowflakeSource: "snowflake",
-        LoggingSource: "logging",
-    }
-
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super(HybridOfflineStore, cls).__new__(cls)
@@ -48,23 +46,34 @@ class HybridOfflineStore(OfflineStore):
         if self._initialized:
             return
         for store_cfg in getattr(config.offline_store, "offline_stores", []):
-            config_cls = get_offline_config_from_type(
-                store_cfg.type.split(".")[-1].lower()
-            )
-            config_instance = config_cls(**store_cfg.conf)
-            store = get_offline_store_from_config(config_instance)
-            store_key = (
-                store_cfg.type.split(".")[-1].replace("OfflineStore", "").lower()
-            )
-            self.offline_stores[store_key] = store
+            try:
+                offline_store_type = get_offline_store_type(store_cfg.type)
+                config_cls = get_offline_config_from_type(store_cfg.type)
+                config_instance = config_cls(**store_cfg.conf)
+                store = get_offline_store_from_config(config_instance)
+                self.offline_stores[offline_store_type] = store
+            except FeastOfflineStoreInvalidName as e:
+                raise FeastOfflineStoreInvalidName(
+                    f"Failed to initialize Hybrid offline store {store_cfg.type}: {e}"
+                )
         self._initialized = True
+
+    def get_source_key_from_type(
+        self, source_type: DataSourceProto.SourceType.ValueType
+    ) -> Optional[str]:
+        if source_type not in list(_DATA_SOURCE_FOR_OFFLINE_STORE.keys()):
+            raise ValueError(
+                f"Unsupported DataSource type for HybridOfflineStore: {source_type}."
+                f"Supported types are: {list(_DATA_SOURCE_FOR_OFFLINE_STORE.keys())}"
+            )
+        return _DATA_SOURCE_FOR_OFFLINE_STORE.get(source_type, None)
 
     def _get_offline_store_for_feature_view(
         self, feature_view: FeatureView, config: RepoConfig
     ) -> OfflineStore:
         self._initialize_offline_stores(config)
-        source_type = type(feature_view.batch_source)
-        store_key = self._source_to_store_key.get(source_type)
+        source_type = feature_view.batch_source.source_type()
+        store_key = self.get_source_key_from_type(source_type)
         if store_key is None:
             raise ValueError(
                 f"Unsupported FeatureView batch_source type: {source_type}"
@@ -72,11 +81,11 @@ class HybridOfflineStore(OfflineStore):
         return self.offline_stores[store_key]
 
     def _get_offline_store_for_source(
-        self, data_source: Union[DataSource, LoggingSource], config: RepoConfig
+        self, data_source: DataSource, config: RepoConfig
     ) -> OfflineStore:
         self._initialize_offline_stores(config)
-        source_type = type(data_source)
-        store_key = self._source_to_store_key.get(source_type)
+        source_type = data_source.source_type()
+        store_key = self.get_source_key_from_type(source_type)
         if store_key is None:
             raise ValueError(f"Unsupported DataSource type: {source_type}")
         return self.offline_stores[store_key]
@@ -158,9 +167,9 @@ class HybridOfflineStore(OfflineStore):
         logging_config: LoggingConfig,
         registry: BaseRegistry,
     ):
-        store = HybridOfflineStore()._get_offline_store_for_source(source, config)
-        return store.write_logged_features(
-            config, data, source, logging_config, registry
+        raise NotImplementedError(
+            "HybridOfflineStore does not support write_logged_features. "
+            "Please use the specific offline store for logging."
         )
 
     @staticmethod

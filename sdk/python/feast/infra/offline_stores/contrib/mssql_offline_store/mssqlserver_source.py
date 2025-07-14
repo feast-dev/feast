@@ -113,6 +113,10 @@ class MsSqlServerOptions:
 class MsSqlServerSource(DataSource):
     """A MsSqlServerSource object defines a data source that a MsSqlServerOfflineStore class can use."""
 
+    def source_type(self) -> DataSourceProto.SourceType.ValueType:
+        # TODO: Add MsSqlServerSource to DataSourceProto.SourceType
+        return DataSourceProto.CUSTOM_SOURCE
+
     def __init__(
         self,
         name: str,

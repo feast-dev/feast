@@ -301,6 +301,12 @@ class SnowflakeSource(DataSource):
             for column in metadata
         ]
 
+    def source_type(self) -> DataSourceProto.SourceType.ValueType:
+        """
+        Returns the source type of this data source.
+        """
+        return DataSourceProto.BATCH_SNOWFLAKE
+
 
 snowflake_type_code_map = {
     0: "NUMBER",
