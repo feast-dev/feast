@@ -1028,7 +1028,7 @@ def _list_feature_views(
     project,
     allow_cache: bool = False,
     hide_dummy_entity: bool = True,
-    tags: Optional[dict[str, str]] = None,
+    tags: Optional[Dict[str, str]] = None,
 ) -> List["FeatureView"]:
     from feast.feature_view import DUMMY_ENTITY_NAME
 
@@ -1324,7 +1324,7 @@ def _convert_rows_to_protobuf(
 
 
 def has_all_tags(
-    object_tags: dict[str, str], requested_tags: Optional[dict[str, str]] = None
+    object_tags: Dict[str, str], requested_tags: Optional[Dict[str, str]] = None
 ) -> bool:
     if requested_tags is None:
         return True
@@ -1332,22 +1332,22 @@ def has_all_tags(
 
 
 def tags_list_to_dict(
-    tags_list: Optional[list[str]] = None,
-) -> Optional[dict[str, str]]:
+    tags_list: Optional[List[str]] = None,
+) -> Optional[Dict[str, str]]:
     if not tags_list:
         return None
-    tags_dict: dict[str, str] = {}
+    tags_dict: Dict[str, str] = {}
     for tags_str in tags_list:
         tags_dict.update(tags_str_to_dict(tags_str))
     return tags_dict
 
 
-def tags_str_to_dict(tags: str = "") -> dict[str, str]:
+def tags_str_to_dict(tags: str = "") -> Dict[str, str]:
     tags_list = tags.strip().strip("()").replace('"', "").replace("'", "").split(",")
     return {
         key.strip(): value.strip()
         for key, value in dict(
-            cast(tuple[str, str], tag.split(":", 1)) for tag in tags_list if ":" in tag
+            cast(Tuple[str, str], tag.split(":", 1)) for tag in tags_list if ":" in tag
         ).items()
     }
 

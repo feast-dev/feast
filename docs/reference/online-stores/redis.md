@@ -79,6 +79,65 @@ online_store:
 
 The full set of configuration options is available in [RedisOnlineStoreConfig](https://rtd.feast.dev/en/latest/#feast.infra.online_stores.redis.RedisOnlineStoreConfig).
 
+## Vector Search Support
+
+Redis online store supports vector similarity search through RediSearch. To enable vector search capabilities:
+
+{% code title="feature_store.yaml" %}
+```yaml
+project: my_feature_repo
+registry: data/registry.db
+provider: local
+online_store:
+  type: redis
+  connection_string: "localhost:6379"
+  vector_enabled: true
+  vector_dim: 384
+  vector_index_type: "FLAT"  # or "HNSW"
+  vector_distance_metric: "COSINE"  # or "L2", "IP"
+```
+{% endcode %}
+
+### Vector Configuration Options
+
+- `vector_enabled`: Whether to enable vector search capabilities (default: False)
+- `vector_dim`: Vector dimension - must be specified if vector_enabled is True
+- `vector_index_type`: Vector index type - "FLAT" or "HNSW" (default: "FLAT")
+- `vector_distance_metric`: Distance metric - "COSINE", "L2", or "IP" (default: "COSINE")
+- `hnsw_m`: Max number of outgoing edges for HNSW index (default: 16)
+- `hnsw_ef_construction`: Max number of connected neighbors during HNSW graph building (default: 200)
+- `hnsw_ef_runtime`: Max top candidates during HNSW KNN search (default: 10)
+
+### Prerequisites
+
+Vector search requires Redis with RediSearch module. You can use:
+- Redis Stack (includes RediSearch)
+- Redis Enterprise with RediSearch module
+- Redis with RediSearch module installed
+
+### Retrieving online document vectors
+
+The Redis online store supports retrieving document vectors for vector similarity search:
+
+{% code title="python" %}
+```python
+from feast import FeatureStore
+
+feature_store = FeatureStore(repo_path="feature_store.yaml")
+
+query_vector = [1.0, 2.0, 3.0, 4.0, 5.0]
+top_k = 5
+
+# Retrieve the top k closest features to the query vector
+feature_values = feature_store.retrieve_online_documents_v2(
+    features=["my_feature_view:vector_field", "my_feature_view:metadata"],
+    query=query_vector,
+    top_k=top_k,
+    distance_metric="COSINE"
+)
+```
+{% endcode %}
+
 ## Functionality Matrix
 
 The set of functionality supported by online stores is described in detail [here](overview.md#functionality).
