@@ -196,4 +196,113 @@ def get_lineage_router(grpc_handler) -> APIRouter:
             },
         }
 
+    @router.get("/lineage/registry/all")
+    def get_registry_lineage_all(
+        allow_cache: bool = Query(True),
+        filter_object_type: Optional[str] = Query(None),
+        filter_object_name: Optional[str] = Query(None),
+    ):
+        projects_resp = grpc_call(
+            grpc_handler.ListProjects,
+            RegistryServer_pb2.ListProjectsRequest(allow_cache=allow_cache),
+        )
+        projects = projects_resp.get("projects", [])
+        all_relationships = []
+        all_indirect_relationships = []
+        for project in projects:
+            project_name = project["spec"]["name"]
+            req = RegistryServer_pb2.GetRegistryLineageRequest(
+                project=project_name,
+                allow_cache=allow_cache,
+                filter_object_type=filter_object_type or "",
+                filter_object_name=filter_object_name or "",
+            )
+            response = grpc_call(grpc_handler.GetRegistryLineage, req)
+            relationships = response.get("relationships", [])
+            indirect_relationships = response.get("indirectRelationships", [])
+            # Optionally add project info to each relationship
+            for rel in relationships:
+                rel["project"] = project_name
+            for rel in indirect_relationships:
+                rel["project"] = project_name
+            all_relationships.extend(relationships)
+            all_indirect_relationships.extend(indirect_relationships)
+        return {
+            "relationships": all_relationships,
+            "indirect_relationships": all_indirect_relationships,
+        }
+
+    @router.get("/lineage/complete/all")
+    def get_complete_registry_data_all(
+        allow_cache: bool = Query(True),
+    ):
+        projects_resp = grpc_call(
+            grpc_handler.ListProjects,
+            RegistryServer_pb2.ListProjectsRequest(allow_cache=allow_cache),
+        )
+        projects = projects_resp.get("projects", [])
+        all_data = []
+        for project in projects:
+            project_name = project["spec"]["name"]
+            # Get lineage data
+            lineage_req = RegistryServer_pb2.GetRegistryLineageRequest(
+                project=project_name,
+                allow_cache=allow_cache,
+            )
+            lineage_response = grpc_call(grpc_handler.GetRegistryLineage, lineage_req)
+            # Get all registry objects
+            entities_req = RegistryServer_pb2.ListEntitiesRequest(
+                project=project_name,
+                allow_cache=allow_cache,
+            )
+            entities_response = grpc_call(grpc_handler.ListEntities, entities_req)
+            data_sources_req = RegistryServer_pb2.ListDataSourcesRequest(
+                project=project_name,
+                allow_cache=allow_cache,
+            )
+            data_sources_response = grpc_call(
+                grpc_handler.ListDataSources, data_sources_req
+            )
+            feature_views_req = RegistryServer_pb2.ListAllFeatureViewsRequest(
+                project=project_name,
+                allow_cache=allow_cache,
+            )
+            feature_views_response = grpc_call(
+                grpc_handler.ListAllFeatureViews, feature_views_req
+            )
+            feature_services_req = RegistryServer_pb2.ListFeatureServicesRequest(
+                project=project_name,
+                allow_cache=allow_cache,
+            )
+            feature_services_response = grpc_call(
+                grpc_handler.ListFeatureServices, feature_services_req
+            )
+            # Add project field to each object
+            for entity in entities_response.get("entities", []):
+                entity["project"] = project_name
+            for ds in data_sources_response.get("dataSources", []):
+                ds["project"] = project_name
+            for fv in feature_views_response.get("featureViews", []):
+                fv["project"] = project_name
+            for fs in feature_services_response.get("featureServices", []):
+                fs["project"] = project_name
+            all_data.append(
+                {
+                    "project": project_name,
+                    "objects": {
+                        "entities": entities_response.get("entities", []),
+                        "dataSources": data_sources_response.get("dataSources", []),
+                        "featureViews": feature_views_response.get("featureViews", []),
+                        "featureServices": feature_services_response.get(
+                            "featureServices", []
+                        ),
+                    },
+                    "relationships": lineage_response.get("relationships", []),
+                    "indirectRelationships": lineage_response.get(
+                        "indirectRelationships", []
+                    ),
+                }
+            )
+        return {"projects": all_data}
+
     return router

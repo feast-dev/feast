@@ -3,6 +3,7 @@ from typing import Dict
 from fastapi import APIRouter, Depends, Query
 
 from feast.api.registry.rest.rest_utils import (
+    aggregate_across_projects,
     create_grpc_pagination_params,
     create_grpc_sorting_params,
     get_object_relationships,
@@ -51,6 +52,31 @@ def get_feature_service_router(grpc_handler) -> APIRouter:
             result["relationships"] = relationships
 
         return result
+
+    @router.get("/feature_services/all")
+    def list_feature_services_all(
+        allow_cache: bool = Query(default=True),
+        page: int = Query(1, ge=1),
+        limit: int = Query(50, ge=1, le=100),
+        sort_by: str = Query(None),
+        sort_order: str = Query("asc"),
+        include_relationships: bool = Query(
+            False, description="Include relationships for each feature service"
+        ),
+    ):
+        return aggregate_across_projects(
+            grpc_handler=grpc_handler,
+            list_method=grpc_handler.ListFeatureServices,
+            request_cls=RegistryServer_pb2.ListFeatureServicesRequest,
+            response_key="featureServices",
+            object_type="featureService",
+            allow_cache=allow_cache,
+            page=page,
+            limit=limit,
+            sort_by=sort_by,
+            sort_order=sort_order,
+            include_relationships=include_relationships,
+        )
 
     @router.get("/feature_services/{name}")
     def get_feature_service(
