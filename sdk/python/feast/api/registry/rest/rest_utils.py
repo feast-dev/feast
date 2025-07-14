@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional
+from typing import Callable, Dict, List, Optional
 
 from fastapi import HTTPException, Query
 from google.protobuf.json_format import MessageToDict
@@ -100,6 +100,59 @@ def get_relationships_for_objects(
     return relationships_map
 
 
+def aggregate_across_projects(
+    grpc_handler,
+    list_method: Callable,
+    request_cls: Callable,
+    response_key: str,
+    object_type: str,
+    allow_cache: bool = True,
+    page: int = 1,
+    limit: int = 50,
+    sort_by: Optional[str] = None,
+    sort_order: str = "asc",
+    include_relationships: bool = False,
+) -> Dict:
+    """
+    Fetches and aggregates objects across all projects, adds project field, handles relationships, and paginates/sorts.
+    """
+    projects_resp = grpc_call(
+        grpc_handler.ListProjects,
+        RegistryServer_pb2.ListProjectsRequest(allow_cache=allow_cache),
+    )
+    projects = projects_resp.get("projects", [])
+    all_objects = []
+    relationships_map = {}
+
+    for project in projects:
+        project_name = project["spec"]["name"]
+        req = request_cls(
+            project=project_name,
+            allow_cache=allow_cache,
+        )
+        response = grpc_call(list_method, req)
+        objects = response.get(response_key, [])
+        for obj in objects:
+            obj["project"] = project_name
+        all_objects.extend(objects)
+        if include_relationships:
+            rels = get_relationships_for_objects(
+                grpc_handler, objects, object_type, project_name, allow_cache
+            )
+            relationships_map.update(rels)
+
+    paged_objects, pagination = paginate_and_sort(
+        all_objects, page, limit, sort_by, sort_order
+    )
+    result = {
+        response_key: paged_objects,
+        "pagination": pagination,
+    }
+    if include_relationships:
+        result["relationships"] = relationships_map
+    return result
+
+
 def parse_tags(tags: List[str] = Query(default=[])) -> Dict[str, str]:
     """
     Parses query strings like ?tags=key1:value1&tags=key2:value2 into a dict.
@@ -149,3 +202,29 @@ def create_grpc_sorting_params(
         sort_by=sorting_params.get("sort_by", ""),
         sort_order=sorting_params.get("sort_order", "asc"),
     )
+
+
+def paginate_and_sort(
+    items: list,
+    page: int,
+    limit: int,
+    sort_by: Optional[str] = None,
+    sort_order: str = "asc",
+):
+    if sort_by:
+        items = sorted(
+            items, key=lambda x: x.get(sort_by, ""), reverse=(sort_order == "desc")
+        )
+    total = len(items)
+    start = (page - 1) * limit
+    end = start + limit
+    paged_items = items[start:end]
+    pagination = {
+        "page": page,
+        "limit": limit,
+        "total_count": total,
+        "total_pages": (total + limit - 1) // limit,
+        "has_next": end < total,
+        "has_previous": start > 0,
+    }
+    return paged_items, pagination

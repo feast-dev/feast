@@ -70,3 +70,10 @@ def test_routes_registered_in_app(mock_store_and_registry):
     assert "/lineage/registry" in route_paths
     assert "/lineage/objects/{object_type}/{object_name}" in route_paths
     assert "/lineage/complete" in route_paths
+    assert "/entities/all" in route_paths
+    assert "/feature_views/all" in route_paths
+    assert "/data_sources/all" in route_paths
+    assert "/feature_services/all" in route_paths
+    assert "/saved_datasets/all" in route_paths
+    assert "/lineage/registry/all" in route_paths
+    assert "/lineage/complete/all" in route_paths
