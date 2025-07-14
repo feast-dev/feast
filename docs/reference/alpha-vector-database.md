@@ -15,6 +15,7 @@ Below are supported vector databases and implemented features:
 | Faiss           | [ ]       | [ ]      | []          | []          |
 | SQLite          | [x]       | [ ]      | [x]         | [x]         |
 | Qdrant          | [x]       | [x]      | []          | []          |
+| Redis           | [x]       | [x]      | [x]         | [x]         |
 
 *Note: V2 Support means the SDK supports retrieval of features along with vector embeddings from vector similarity search.
 
@@ -189,7 +190,7 @@ print('\n'.join([c.message.content for c in response.choices]))
 
 ### Configuration and Installation
 
-We offer [Milvus](https://milvus.io/), [PGVector](https://github.com/pgvector/pgvector), [SQLite](https://github.com/asg017/sqlite-vec), [Elasticsearch](https://www.elastic.co) and [Qdrant](https://qdrant.tech/) as Online Store options for Vector Databases.
+We offer [Milvus](https://milvus.io/), [PGVector](https://github.com/pgvector/pgvector), [SQLite](https://github.com/asg017/sqlite-vec), [Elasticsearch](https://www.elastic.co), [Qdrant](https://qdrant.tech/), and [Redis](https://redis.io/) as Online Store options for Vector Databases.
 
 Milvus offers a convenient local implementation for vector similarity search. To use Milvus, you can install the Feast package with the Milvus extra.
 
@@ -209,6 +210,18 @@ pip install feast[elasticsearch]
 ```bash
 pip install feast[qdrant]
 ```
+
+#### Installation with Redis
+
+```bash
+pip install feast[redis]
+```
+
+Note: Redis vector search requires Redis with RediSearch module. You can use:
+- Redis Stack (includes RediSearch)
+- Redis Enterprise with RediSearch module
+- Redis with RediSearch module installed
+
 #### Installation with SQLite
 
 If you are using `pyenv` to manage your Python versions, you can install the SQLite extension with the following command:

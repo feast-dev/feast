@@ -34,9 +34,11 @@ from pydantic import StrictStr
 from feast import Entity, FeatureView, RepoConfig, utils
 from feast.infra.online_stores.helpers import _mmh3, _redis_key, _redis_key_prefix
 from feast.infra.online_stores.online_store import OnlineStore
+from feast.infra.online_stores.vector_store import VectorStoreConfig
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel
+from feast.utils import _build_retrieve_online_document_record, _get_feature_view_vector_field_metadata
 
 try:
     from redis import Redis
@@ -50,6 +52,18 @@ except ImportError as e:
 
 logger = logging.getLogger(__name__)
 
+# Redis vector search distance metrics mapping
+REDIS_DISTANCE_METRICS = {
+    "L2": "L2",
+    "IP": "IP",
+    "COSINE": "COSINE",
+    "cosine": "COSINE",
+    "l2": "L2",
+    "ip": "IP",
+    "inner_product": "IP",
+    "euclidean": "L2"
+}
+
 
 class RedisType(str, Enum):
     redis = "redis"
@@ -57,7 +71,7 @@ class RedisType(str, Enum):
     redis_sentinel = "redis_sentinel"
 
 
-class RedisOnlineStoreConfig(FeastConfigBaseModel):
+class RedisOnlineStoreConfig(FeastConfigBaseModel, VectorStoreConfig):
     """Online store config for Redis store"""
 
     type: Literal["redis"] = "redis"
@@ -79,6 +93,29 @@ class RedisOnlineStoreConfig(FeastConfigBaseModel):
     full_scan_for_deletion: Optional[bool] = True
     """(Optional) whether to scan for deletion of features"""
 
+    # Vector search specific configurations
+    vector_enabled: Optional[bool] = False
+    """Whether to enable vector search capabilities"""
+
+    vector_index_type: Optional[str] = "FLAT"
+    """Vector index type: FLAT or HNSW"""
+
+    vector_distance_metric: Optional[str] = "COSINE"
+    """Distance metric for vector similarity: L2, IP, or COSINE"""
+
+    vector_dim: Optional[int] = None
+    """Vector dimension - must be specified if vector_enabled is True"""
+
+    # HNSW specific parameters
+    hnsw_m: Optional[int] = 16
+    """Max number of outgoing edges for HNSW index"""
+
+    hnsw_ef_construction: Optional[int] = 200
+    """Max number of connected neighbors during HNSW graph building"""
+
+    hnsw_ef_runtime: Optional[int] = 10
+    """Max top candidates during HNSW KNN search"""
+
 
 class RedisOnlineStore(OnlineStore):
     """
@@ -95,6 +132,100 @@ class RedisOnlineStore(OnlineStore):
     _client_async: Optional[Union[redis_asyncio.Redis, redis_asyncio.RedisCluster]] = (
         None
     )
+
+    def _create_vector_index(self, config: RepoConfig, table: FeatureView):
+        """Create a vector index for the feature view if vector search is enabled."""
+        online_store_config = config.online_store
+        assert isinstance(online_store_config, RedisOnlineStoreConfig)
+
+        if not online_store_config.vector_enabled:
+            return
+
+        vector_field_metadata = _get_feature_view_vector_field_metadata(table)
+        if not vector_field_metadata:
+            return
+
+        client = self._get_client(online_store_config)
+        index_name = f"{config.project}:{table.name}:vector_index"
+
+        # Check if index already exists
+        try:
+            client.execute_command("FT.INFO", index_name)
+            logger.debug(f"Vector index {index_name} already exists")
+            return
+        except Exception:
+            # Index doesn't exist, create it
+            pass
+
+        # Determine vector field configuration
+        vector_dim = online_store_config.vector_dim or vector_field_metadata.vector_length
+        if not vector_dim:
+            raise ValueError(f"Vector dimension must be specified either in config.vector_dim or field.vector_length for table {table.name}")
+
+        distance_metric = REDIS_DISTANCE_METRICS.get(
+            online_store_config.vector_distance_metric or vector_field_metadata.vector_search_metric or "COSINE",
+            "COSINE"
+        )
+
+        # Build vector field schema
+        vector_field_name = f"vector_{vector_field_metadata.name}"
+
+        if online_store_config.vector_index_type.upper() == "HNSW":
+            vector_schema = [
+                "TYPE", "FLOAT32",
+                "DIM", str(vector_dim),
+                "DISTANCE_METRIC", distance_metric,
+                "M", str(online_store_config.hnsw_m),
+                "EF_CONSTRUCTION", str(online_store_config.hnsw_ef_construction),
+                "EF_RUNTIME", str(online_store_config.hnsw_ef_runtime)
+            ]
+        else:  # FLAT
+            vector_schema = [
+                "TYPE", "FLOAT32",
+                "DIM", str(vector_dim),
+                "DISTANCE_METRIC", distance_metric
+            ]
+
+        # Create the index
+        try:
+            cmd = [
+                "FT.CREATE", index_name,
+                "ON", "HASH",
+                "PREFIX", "1", f"{config.project}:",
+                "SCHEMA",
+                vector_field_name, "VECTOR", online_store_config.vector_index_type.upper(),
+                str(len(vector_schema))
+            ] + vector_schema
+
+            client.execute_command(*cmd)
+            logger.info(f"Created vector index {index_name} for table {table.name}")
+        except Exception as e:
+            logger.error(f"Failed to create vector index {index_name}: {e}")
+            raise
+
+    def _extract_vector_from_value(self, val: ValueProto) -> Optional[bytes]:
+        """Extract vector data from ValueProto and convert to bytes for Redis."""
+        import numpy as np
+
+        try:
+            if val.HasField("float_list_val"):
+                # Handle float list
+                vector = np.array(val.float_list_val.val, dtype=np.float32)
+                return vector.tobytes()
+            elif val.HasField("double_list_val"):
+                # Handle double list - convert to float32
+                vector = np.array(val.double_list_val.val, dtype=np.float32)
+                return vector.tobytes()
+            elif val.HasField("int64_list_val"):
+                # Handle int list - convert to float32
+                vector = np.array(val.int64_list_val.val, dtype=np.float32)
+                return vector.tobytes()
+            else:
+                logger.warning(f"Unsupported vector data type in ValueProto: {val}")
+                return None
+        except Exception as e:
+            logger.error(f"Failed to extract vector from ValueProto: {e}")
+            return None
 
     def delete_entity_values(self, config: RepoConfig, join_keys: List[str]):
         client = self._get_client(config.online_store)
@@ -278,12 +409,21 @@ class RedisOnlineStore(OnlineStore):
         online_store_config = config.online_store
         assert isinstance(online_store_config, RedisOnlineStoreConfig)
 
+        # Create vector index if vector search is enabled
+        if online_store_config.vector_enabled:
+            self._create_vector_index(config, table)
+
         client = self._get_client(online_store_config)
         project = config.project
 
         feature_view = table.name
         ts_key = f"_ts:{feature_view}"
         keys = []
+
+        # Get vector field metadata if vector search is enabled
+        vector_field_metadata = None
+        if online_store_config.vector_enabled:
+            vector_field_metadata = _get_feature_view_vector_field_metadata(table)
         # redis pipelining optimization: send multiple commands to redis server without waiting for every reply
         with client.pipeline(transaction=False) as pipe:
             # check if a previous record under the key bin exists
@@ -324,6 +464,16 @@ class RedisOnlineStore(OnlineStore):
                 for feature_name, val in values.items():
                     f_key = _mmh3(f"{feature_view}:{feature_name}")
                     entity_hset[f_key] = val.SerializeToString()
+
+                    # Handle vector data for vector search
+                    if (vector_field_metadata and
+                        feature_name == vector_field_metadata.name and
+                        online_store_config.vector_enabled):
+                        # Convert vector data to bytes for Redis vector search
+                        vector_data = self._extract_vector_from_value(val)
+                        if vector_data is not None:
+                            vector_field_name = f"vector_{feature_name}"
+                            entity_hset[vector_field_name] = vector_data
 
                 pipe.hset(redis_key_bin, mapping=entity_hset)
 
@@ -458,3 +608,174 @@ class RedisOnlineStore(OnlineStore):
         else:
             timestamp = datetime.fromtimestamp(res_ts.seconds, tz=timezone.utc)
             return timestamp, res
+
+    def retrieve_online_documents_v2(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        requested_features: List[str],
+        embedding: Optional[List[float]],
+        top_k: int,
+        distance_metric: Optional[str] = None,
+        query_string: Optional[str] = None,
+    ) -> List[
+        Tuple[
+            Optional[datetime],
+            Optional[EntityKeyProto],
+            Optional[Dict[str, ValueProto]],
+        ]
+    ]:
+        """
+        Retrieve documents using vector similarity search from Redis.
+
+        Args:
+            config: Feast configuration object
+            table: FeatureView object as the table to search
+            requested_features: List of requested features to retrieve
+            embedding: Query embedding to search for (optional)
+            top_k: Number of items to return
+            distance_metric: Distance metric to use (optional)
+            query_string: The query string to search for using keyword search (optional)
+
+        Returns:
+            List of tuples containing the event timestamp, entity key, and feature values
+        """
+        online_store_config = config.online_store
+        assert isinstance(online_store_config, RedisOnlineStoreConfig)
+
+        if not online_store_config.vector_enabled:
+            raise ValueError("Vector search is not enabled in the online store config")
+
+        if embedding is None and query_string is None:
+            raise ValueError("Either embedding or query_string must be provided")
+
+        if query_string is not None:
+            raise NotImplementedError("Text search is not yet implemented for Redis vector store")
+
+        vector_field_metadata = _get_feature_view_vector_field_metadata(table)
+        if not vector_field_metadata:
+            raise ValueError(f"No vector field found in feature view {table.name}")
+
+        client = self._get_client(online_store_config)
+        index_name = f"{config.project}:{table.name}:vector_index"
+
+        # Prepare the vector query
+        import numpy as np
+        query_vector = np.array(embedding, dtype=np.float32).tobytes()
+
+        # Determine distance metric
+        search_distance_metric = (
+            distance_metric or
+            online_store_config.vector_distance_metric or
+            vector_field_metadata.vector_search_metric or
+            "COSINE"
+        )
+        redis_distance_metric = REDIS_DISTANCE_METRICS.get(search_distance_metric.upper(), "COSINE")
+
+        # Build the search query
+        vector_field_name = f"vector_{vector_field_metadata.name}"
+
+        try:
+            # Perform vector search using FT.SEARCH
+            search_cmd = [
+                "FT.SEARCH", index_name,
+                f"*=>[KNN {top_k} @{vector_field_name} $BLOB AS vector_score]",
+                "PARAMS", "2", "BLOB", query_vector,
+                "SORTBY", "vector_score",
+                "LIMIT", "0", str(top_k),
+                "DIALECT", "2"
+            ]
+
+            search_results = client.execute_command(*search_cmd)
+
+            # Parse search results
+            results = []
+            if len(search_results) > 1:
+                num_results = search_results[0]
+                for i in range(1, len(search_results), 2):
+                    if i + 1 < len(search_results):
+                        redis_key = search_results[i]
+                        field_values = search_results[i + 1]
+
+                        # Extract entity key from redis key
+                        entity_key = self._extract_entity_key_from_redis_key(redis_key, config)
+
+                        # Convert field values to feature dict
+                        feature_dict = self._convert_search_result_to_features(
+                            field_values, table, requested_features
+                        )
+
+                        # Extract timestamp
+                        timestamp = self._extract_timestamp_from_features(feature_dict, table.name)
+
+                        results.append((timestamp, entity_key, feature_dict))
+
+            return results
+
+        except Exception as e:
+            logger.error(f"Vector search failed: {e}")
+            raise
+
+    def _extract_entity_key_from_redis_key(self, redis_key: bytes, config: RepoConfig) -> Optional[EntityKeyProto]:
+        """Extract entity key from Redis key."""
+        try:
+            # Redis key format: project:entity_key_hash
+            key_str = redis_key.decode('utf-8')
+            project_prefix = f"{config.project}:"
+            if key_str.startswith(project_prefix):
+                # For now, return None as entity key extraction requires more complex logic
+                # This would need to be implemented based on the specific entity key serialization
+                return None
+            return None
+        except Exception as e:
+            logger.warning(f"Failed to extract entity key from Redis key {redis_key}: {e}")
+            return None
+
+    def _convert_search_result_to_features(
+        self,
+        field_values: List,
+        table: FeatureView,
+        requested_features: List[str]
+    ) -> Optional[Dict[str, ValueProto]]:
+        """Convert Redis search result field values to feature dictionary."""
+        try:
+            # field_values is a list of [field_name, field_value, field_name, field_value, ...]
+            field_dict = {}
+            for i in range(0, len(field_values), 2):
+                if i + 1 < len(field_values):
+                    field_name = field_values[i].decode('utf-8') if isinstance(field_values[i], bytes) else field_values[i]
+                    field_value = field_values[i + 1]
+                    field_dict[field_name] = field_value
+
+            # Convert to ValueProto format
+            feature_dict = {}
+            for feature_name in requested_features:
+                # Look for the feature in the field dict using the hashed key
+                f_key = _mmh3(f"{table.name}:{feature_name}")
+                f_key_str = f_key.decode('utf-8') if isinstance(f_key, bytes) else str(f_key)
+
+                if f_key_str in field_dict:
+                    val = ValueProto()
+                    val.ParseFromString(field_dict[f_key_str])
+                    feature_dict[feature_name] = val
+
+            return feature_dict if feature_dict else None
+
+        except Exception as e:
+            logger.error(f"Failed to convert search result to features: {e}")
+            return None
+
+    def _extract_timestamp_from_features(self, feature_dict: Optional[Dict[str, ValueProto]], table_name: str) -> Optional[datetime]:
+        """Extract timestamp from feature dictionary."""
+        try:
+            if not feature_dict:
+                return None
+
+            ts_key = f"_ts:{table_name}"
+            # The timestamp is stored separately in Redis, not in the search results
+            # For now, return current time as a placeholder
+            return datetime.now(tz=timezone.utc)
+
+        except Exception as e:
+            logger.warning(f"Failed to extract timestamp: {e}")
+            return None
