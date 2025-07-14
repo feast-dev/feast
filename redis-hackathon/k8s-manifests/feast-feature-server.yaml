@@ -1,0 +1,99 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: feast-feature-server
+  namespace: feast
+  labels:
+    app: feast-feature-server
+    version: redis-vector
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: feast-feature-server
+  template:
+    metadata:
+      labels:
+        app: feast-feature-server
+        version: redis-vector
+    spec:
+      containers:
+      - name: feast-feature-server
+        image: your-registry.com/feast-feature-server:latest
+        ports:
+        - containerPort: 6566
+          name: http
+        env:
+        - name: FEAST_CORE_URL
+          value: "feast-core:6565"
+        - name: REDIS_HOST
+          value: "redis-master"
+        - name: REDIS_PORT
+          value: "6379"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 6566
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 6566
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        volumeMounts:
+        - name: feast-config
+          mountPath: /feast/feature_store.yaml
+          subPath: feature_store.yaml
+      volumes:
+      - name: feast-config
+        configMap:
+          name: feast-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: feast-feature-server
+  namespace: feast
+  labels:
+    app: feast-feature-server
+spec:
+  selector:
+    app: feast-feature-server
+  ports:
+  - port: 6566
+    targetPort: 6566
+    name: http
+  type: ClusterIP
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: feast-config
+  namespace: feast
+data:
+  feature_store.yaml: |
+    project: feast_redis_vector
+    registry: feast_registry.db
+    provider: local
+    online_store:
+      type: redis
+      connection_string: "redis-master:6379"
+      vector_enabled: true
+      vector_dim: 384
+      vector_index_type: "HNSW"
+      vector_distance_metric: "COSINE"
+      hnsw_m: 32
+      hnsw_ef_construction: 400
+      hnsw_ef_runtime: 20
+    offline_store:
+      type: file
+    entity_key_serialization_version: 3
