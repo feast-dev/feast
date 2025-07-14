@@ -100,6 +100,21 @@ class HybridOfflineStore(OfflineStore):
         project: str,
         full_feature_names: bool = False,
     ) -> RetrievalJob:
+        # TODO: Multiple data sources can be supported when feature store use compute engine
+        # for getting historical features
+        data_source = None
+        for feature_view in feature_views:
+            if not feature_view.batch_source:
+                raise ValueError(
+                    f"HybridOfflineStore only supports feature views with DataSource as source. "
+                )
+            if not data_source:
+                data_source = feature_view.batch_source
+            elif data_source != feature_view.batch_source:
+                raise ValueError(
+                    "All feature views must have the same batch source for HybridOfflineStore."
+                )
+
         store = HybridOfflineStore()._get_offline_store_for_feature_view(
             feature_views[0], config
         )
