@@ -34,7 +34,7 @@ offline_store:
 ```
 {% endcode %}
 
-### Example FeatureView with Batch Source
+### Example FeatureView 
 ```python
 from feast import FeatureView, Entity, ValueType
 from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import (
