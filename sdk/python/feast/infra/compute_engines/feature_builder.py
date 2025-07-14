@@ -4,7 +4,7 @@ from typing import Dict, List, Optional, Union
 from feast import BatchFeatureView, FeatureView, StreamFeatureView
 from feast.infra.common.materialization_job import MaterializationTask
 from feast.infra.common.retrieval_task import HistoricalRetrievalTask
-from feast.infra.compute_engines.algorithms.topo import topo_sort
+from feast.infra.compute_engines.algorithms.topo import topological_sort
 from feast.infra.compute_engines.dag.context import ColumnInfo
 from feast.infra.compute_engines.dag.node import DAGNode
 from feast.infra.compute_engines.dag.plan import ExecutionPlan
@@ -115,7 +115,7 @@ class FeatureBuilder(ABC):
 
     def build(self) -> ExecutionPlan:
         # Step 1: Topo sort the FeatureViewNode DAG (Logical DAG)
-        logical_nodes = self.feature_resolver.topo_sort(self.dag_root)
+        logical_nodes = self.feature_resolver.topological_sort(self.dag_root)
 
         # Step 2: For each FeatureView, build its corresponding execution DAGNode
         view_to_node: Dict[str, DAGNode] = {}
@@ -136,7 +136,7 @@ class FeatureBuilder(ABC):
         )
 
         # Step 4: Topo sort the final DAG from the output node (Physical DAG)
-        sorted_nodes = topo_sort(final_node)
+        sorted_nodes = topological_sort(final_node)
 
         # Step 5: Return sorted execution plan
         return ExecutionPlan(sorted_nodes)

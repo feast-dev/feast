@@ -38,6 +38,7 @@ from feast.utils import _utc_now
 from feast.value_type import ValueType
 
 warnings.simplefilter("once", DeprecationWarning)
+OnDemandSourceType = Union[FeatureView, FeatureViewProjection, RequestSource]
 
 
 @typechecked
@@ -82,13 +83,7 @@ class OnDemandFeatureView(BaseFeatureView):
         name: str,
         entities: Optional[List[Entity]] = None,
         schema: Optional[List[Field]] = None,
-        sources: List[
-            Union[
-                FeatureView,
-                RequestSource,
-                FeatureViewProjection,
-            ]
-        ],
+        sources: List[OnDemandSourceType],
         udf: Optional[FunctionType] = None,
         udf_string: Optional[str] = "",
         feature_transformation: Optional[Transformation] = None,
@@ -468,7 +463,7 @@ class OnDemandFeatureView(BaseFeatureView):
                 )
                 for feature in on_demand_feature_view_proto.spec.features
             ],
-            sources=sources,
+            sources=cast(List[OnDemandSourceType], sources),
             feature_transformation=transformation,
             mode=on_demand_feature_view_proto.spec.mode or "pandas",
             description=on_demand_feature_view_proto.spec.description,
