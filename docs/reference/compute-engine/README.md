@@ -13,15 +13,38 @@ This system builds and executes DAGs (Directed Acyclic Graphs) of typed operatio
 
 ## 🧠 Core Concepts
 
-| Component          | Description                                                          |
-|--------------------|----------------------------------------------------------------------|
-| `ComputeEngine`    | Interface for executing materialization and retrieval tasks          |
-| `FeatureBuilder`   | Constructs a DAG from Feature View definition for a specific backend |
-| `DAGNode`          | Represents a logical operation (read, aggregate, join, etc.)         |
-| `ExecutionPlan`    | Executes nodes in dependency order and stores intermediate outputs   |
-| `ExecutionContext` | Holds config, registry, stores, entity data, and node outputs        |
+| Component          | Description                                                          | API                                                                                                                         |
+|--------------------|----------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------|
+| `ComputeEngine`    | Interface for executing materialization and retrieval tasks          | [link](https://github.com/feast-dev/feast/blob/master/sdk/python/feast/infra/compute_engines/base.py)                       |
+| `FeatureBuilder`   | Constructs a DAG from Feature View definition for a specific backend | [link](https://github.com/feast-dev/feast/blob/master/sdk/python/feast/infra/compute_engines/feature_builder.py)            |
+| `FeatureResolver`  | Resolves feature DAG by topological order for execution              | [link](https://github.com/feast-dev/feast/blob/master/sdk/python/feast/infra/compute_engines/feature_resolver.py)           |
+| `DAG`              | Represents a logical DAG operation (read, aggregate, join, etc.)     | [link](https://github.com/feast-dev/feast/blob/master/sdk/python/feast/infra/compute_engines/dag/README.md)                 |
+| `ExecutionPlan`    | Executes nodes in dependency order and stores intermediate outputs   | [link]([link](https://github.com/feast-dev/feast/blob/master/sdk/python/feast/infra/compute_engines/dag/README.md))         |
+| `ExecutionContext` | Holds config, registry, stores, entity data, and node outputs        | [link]([link](https://github.com/feast-dev/feast/blob/master/sdk/python/feast/infra/compute_engines/dag/README.md))         |
 
 ---
+
+## Feature resolver and builder
+The `FeatureBuilder` initializes a `FeatureResolver` that extracts a DAG from the `FeatureView` definitions, resolving dependencies and ensuring the correct execution order. \
+The FeatureView represents a logical data source, while DataSource represents the physical data source (e.g., BigQuery, Spark, etc.). \
+When defining a `FeatureView`, the source can be a physical `DataSource`, a derived `FeatureView`, or a list of `FeatureViews`. 
+The FeatureResolver walks through the FeatureView sources, and topologically sorts the DAG nodes based on dependencies, and returns a head node that represents the final output of the DAG. \
+Subsequently, the `FeatureBuilder` builds the DAG nodes from the resolved head node, creating a `DAGNode` for each operation (read, join, filter, aggregate, etc.).
+An example of built output from FeatureBuilder:
+```markdown
+- Output(Agg(daily_driver_stats))
+  - Agg(daily_driver_stats)
+    - Filter(daily_driver_stats)
+      - Transform(daily_driver_stats)
+        - Agg(hourly_driver_stats)
+          - Filter(hourly_driver_stats)
+            - Transform(hourly_driver_stats)
+              - Source(hourly_driver_stats)
+```
+
+## Diagram
+![feature_dag.png](feature_dag.png)
+
 
 ## ✨ Available Engines
 
@@ -44,7 +67,7 @@ This system builds and executes DAGs (Directed Acyclic Graphs) of typed operatio
 SourceReadNode
       |
       v
-JoinNode (Only for get_historical_features with entity df)
+TransformationNode (If feature_transformation is defined) | JoinNode (default behavior for multiple sources)
       |
       v
 FilterNode (Always included; applies TTL or user-defined filters)
@@ -54,9 +77,6 @@ AggregationNode (If aggregations are defined in FeatureView)
       |
       v
 DeduplicationNode (If no aggregation is defined for get_historical_features) 
-      |
-      v
-TransformationNode (If feature_transformation is defined)
       |
       v
 ValidationNode (If enable_validation = True)
@@ -79,19 +99,53 @@ To create your own compute engine:
 
 ```python
 from feast.infra.compute_engines.base import ComputeEngine
-from feast.infra.materialization.batch_materialization_engine import MaterializationTask, MaterializationJob
-from feast.infra.compute_engines.tasks import HistoricalRetrievalTask
+from typing import Sequence, Union
+from feast.batch_feature_view import BatchFeatureView
+from feast.entity import Entity
+from feast.feature_view import FeatureView
+from feast.infra.common.materialization_job import (
+    MaterializationJob,
+    MaterializationTask,
+)
+from feast.infra.common.retrieval_task import HistoricalRetrievalTask
+from feast.infra.offline_stores.offline_store import RetrievalJob
+from feast.infra.registry.base_registry import BaseRegistry
+from feast.on_demand_feature_view import OnDemandFeatureView
+from feast.stream_feature_view import StreamFeatureView
+
+
 class MyComputeEngine(ComputeEngine):
-    def materialize(self, task: MaterializationTask) -> MaterializationJob:
+    def update(
+        self,
+        project: str,
+        views_to_delete: Sequence[
+            Union[BatchFeatureView, StreamFeatureView, FeatureView]
+        ],
+        views_to_keep: Sequence[
+            Union[BatchFeatureView, StreamFeatureView, FeatureView, OnDemandFeatureView]
+        ],
+        entities_to_delete: Sequence[Entity],
+        entities_to_keep: Sequence[Entity],
+    ):
+        ...
+   
+    def _materialize_one(
+        self,
+        registry: BaseRegistry,
+        task: MaterializationTask,
+        **kwargs,
+    ) -> MaterializationJob:
         ...
 
     def get_historical_features(self, task: HistoricalRetrievalTask) -> RetrievalJob:
         ...
+
 ```
 
 2. Create a FeatureBuilder
 ```python
 from feast.infra.compute_engines.feature_builder import FeatureBuilder
+
 
 class CustomFeatureBuilder(FeatureBuilder):
     def build_source_node(self): ...
@@ -101,6 +155,7 @@ class CustomFeatureBuilder(FeatureBuilder):
     def build_dedup_node(self, input_node):
     def build_transformation_node(self, input_node): ...
     def build_output_nodes(self, input_node): ...
+    def build_validation_node(self, input_node): ...
 ```
 
 3. Define DAGNode subclasses
@@ -114,7 +169,7 @@ class CustomFeatureBuilder(FeatureBuilder):
 ## 🚧 Roadmap
 - [x] Modular, backend-agnostic DAG execution framework
 - [x] Spark engine with native support for materialization + PIT joins
-- [ ] PyArrow + Pandas engine for local compute
-- [ ] Native multi-feature-view DAG optimization
+- [x] PyArrow + Pandas engine for local compute
+- [x] Native multi-feature-view DAG optimization
 - [ ] DAG validation, metrics, and debug output
 - [ ] Scalable distributed backend via Ray or Polars

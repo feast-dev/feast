@@ -164,7 +164,7 @@ class SnowflakeSource(DataSource):
         """Returns the snowflake options of this snowflake source."""
         return self.snowflake_options.query
 
-    def to_proto(self) -> DataSourceProto:
+    def _to_proto_impl(self) -> DataSourceProto:
         """
         Converts a SnowflakeSource object to its protobuf representation.
 
@@ -300,6 +300,12 @@ class SnowflakeSource(DataSource):
             (str(column["column_name"]), str(column["snowflake_type"]))
             for column in metadata
         ]
+
+    def source_type(self) -> DataSourceProto.SourceType.ValueType:
+        """
+        Returns the source type of this data source.
+        """
+        return DataSourceProto.BATCH_SNOWFLAKE
 
 
 snowflake_type_code_map = {

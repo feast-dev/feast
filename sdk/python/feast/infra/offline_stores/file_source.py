@@ -29,6 +29,9 @@ from feast.value_type import ValueType
 class FileSource(DataSource):
     """A FileSource object defines a data source that a DaskOfflineStore or DuckDBOfflineStore class can use."""
 
+    def source_type(self) -> DataSourceProto.SourceType.ValueType:
+        return DataSourceProto.BATCH_FILE
+
     def __init__(
         self,
         *,
@@ -131,7 +134,7 @@ class FileSource(DataSource):
             owner=data_source.owner,
         )
 
-    def to_proto(self) -> DataSourceProto:
+    def _to_proto_impl(self) -> DataSourceProto:
         data_source_proto = DataSourceProto(
             name=self.name,
             type=DataSourceProto.BATCH_FILE,

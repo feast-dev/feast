@@ -3,6 +3,7 @@ from typing import Dict
 from fastapi import APIRouter, Depends, Query
 
 from feast.api.registry.rest.rest_utils import (
+    aggregate_across_projects,
     create_grpc_pagination_params,
     create_grpc_sorting_params,
     get_object_relationships,
@@ -17,6 +18,31 @@ from feast.protos.feast.registry import RegistryServer_pb2
 
 def get_saved_dataset_router(grpc_handler) -> APIRouter:
     router = APIRouter()
+
+    @router.get("/saved_datasets/all")
+    def list_saved_datasets_all(
+        allow_cache: bool = Query(default=True),
+        page: int = Query(1, ge=1),
+        limit: int = Query(50, ge=1, le=100),
+        sort_by: str = Query(None),
+        sort_order: str = Query("asc"),
+        include_relationships: bool = Query(
+            False, description="Include relationships for each saved dataset"
+        ),
+    ):
+        return aggregate_across_projects(
+            grpc_handler=grpc_handler,
+            list_method=grpc_handler.ListSavedDatasets,
+            request_cls=RegistryServer_pb2.ListSavedDatasetsRequest,
+            response_key="savedDatasets",
+            object_type="savedDataset",
+            allow_cache=allow_cache,
+            page=page,
+            limit=limit,
+            sort_by=sort_by,
+            sort_order=sort_order,
+            include_relationships=include_relationships,
+        )
 
     @router.get("/saved_datasets/{name}")
     def get_saved_dataset(

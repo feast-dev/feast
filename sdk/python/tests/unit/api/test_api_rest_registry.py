@@ -860,3 +860,82 @@ def test_feature_view_type_identification():
     assert result_1["type"] == "featureView"
     assert result_2["type"] == "onDemandFeatureView"
     assert result_3["type"] == "streamFeatureView"
+
+
+def test_entities_all_via_rest(fastapi_test_app):
+    response = fastapi_test_app.get("/entities/all")
+    assert response.status_code == 200
+    data = response.json()
+    assert "entities" in data
+    for entity in data["entities"]:
+        assert "project" in entity
+        assert entity["project"] == "demo_project"
+
+
+def test_feature_views_all_via_rest(fastapi_test_app):
+    response = fastapi_test_app.get("/feature_views/all")
+    assert response.status_code == 200
+    data = response.json()
+    assert "featureViews" in data
+    for fv in data["featureViews"]:
+        assert "project" in fv
+        assert fv["project"] == "demo_project"
+
+
+def test_data_sources_all_via_rest(fastapi_test_app):
+    response = fastapi_test_app.get("/data_sources/all")
+    assert response.status_code == 200
+    data = response.json()
+    assert "dataSources" in data
+    for ds in data["dataSources"]:
+        assert "project" in ds
+        assert ds["project"] == "demo_project"
+
+
+def test_feature_services_all_via_rest(fastapi_test_app):
+    response = fastapi_test_app.get("/feature_services/all")
+    assert response.status_code == 200
+    data = response.json()
+    assert "featureServices" in data
+    for fs in data["featureServices"]:
+        assert "project" in fs
+        assert fs["project"] == "demo_project"
+
+
+def test_saved_datasets_all_via_rest(fastapi_test_app):
+    response = fastapi_test_app.get("/saved_datasets/all")
+    assert response.status_code == 200
+    data = response.json()
+    assert "savedDatasets" in data
+    for sd in data["savedDatasets"]:
+        assert "project" in sd
+        assert sd["project"] == "demo_project"
+
+
+def test_lineage_registry_all_via_rest(fastapi_test_app):
+    response = fastapi_test_app.get("/lineage/registry/all")
+    assert response.status_code == 200
+    data = response.json()
+    assert "relationships" in data
+    assert "indirect_relationships" in data
+    for rel in data["relationships"]:
+        assert "project" in rel
+        assert rel["project"] == "demo_project"
+    for rel in data["indirect_relationships"]:
+        assert "project" in rel
+        assert rel["project"] == "demo_project"
+
+
+def test_lineage_complete_all_via_rest(fastapi_test_app):
+    response = fastapi_test_app.get("/lineage/complete/all")
+    assert response.status_code == 200
+    data = response.json()
+    assert "projects" in data
+    for project_data in data["projects"]:
+        assert "project" in project_data
+        assert project_data["project"] == "demo_project"
+        assert "objects" in project_data
+        assert "entities" in project_data["objects"]
+        assert "dataSources" in project_data["objects"]
+        assert "featureViews" in project_data["objects"]
+        assert "featureServices" in project_data["objects"]

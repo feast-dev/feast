@@ -16,6 +16,13 @@ Feast supports running the Registry Server in three distinct modes:
 
 The REST API provides HTTP/JSON endpoints for accessing all registry metadata. All endpoints are prefixed with `/api/v1` and return JSON responses.
 
+**Global `/all` Endpoints**
+
+- Endpoints with `/all` (e.g., `/entities/all`) aggregate results across all projects.
+- Each object in the response includes a `project` field.
+- Support global pagination, sorting, and relationships (where applicable).
+- No `project` parameter is required for `/all` endpoints.
+
 ### Authentication
 
 The REST API supports Bearer token authentication. Include your token in the Authorization header:
@@ -88,6 +95,37 @@ Most endpoints support these common query parameters:
     "http://localhost:6572/api/v1/entities/user_id?project=my_project&include_relationships=true"
   ```
 
+#### List All Entities (All Projects)
+- **Endpoint**: `GET /api/v1/entities/all`
+- **Description**: Retrieve all entities across all projects. Each entity includes a `project` field.
+- **Parameters**:
+  - `allow_cache` (optional): Whether to allow cached data
+  - `page` (optional): Page number for pagination
+  - `limit` (optional): Number of items per page
+  - `sort_by` (optional): Field to sort by
+  - `sort_order` (optional): Sort order ("asc" or "desc")
+  - `include_relationships` (optional): Include relationships for each entity
+- **Examples**:
+  ```bash
+  # List all entities across all projects
+  curl -H "Authorization: Bearer <token>" \
+    "http://localhost:6572/api/v1/entities/all?page=1&limit=10&sort_by=name"
+  # With relationships
+  curl -H "Authorization: Bearer <token>" \
+    "http://localhost:6572/api/v1/entities/all?include_relationships=true"
+  ```
+- **Response Example**:
+  ```json
+  {
+    "entities": [
+      { "name": "customer_id", "project": "project1", ... },
+      { "name": "driver_id", "project": "project2", ... }
+    ],
+    "pagination": { "page": 1, "limit": 10, "total": 25, "totalPages": 3 },
+    "relationships": { ... }
+  }
+  ```
+
 ### Data Sources
 
 #### List Data Sources
@@ -130,6 +168,36 @@ Most endpoints support these common query parameters:
   # With relationships
   curl -H "Authorization: Bearer <token>" \
     "http://localhost:6572/api/v1/data_sources/user_data?project=my_project&include_relationships=true"
+  ```
+
+#### List All Data Sources (All Projects)
+- **Endpoint**: `GET /api/v1/data_sources/all`
+- **Description**: Retrieve all data sources across all projects. Each data source includes a `project` field.
+- **Parameters**:
+  - `allow_cache` (optional): Whether to allow cached data
+  - `page` (optional): Page number for pagination
+  - `limit` (optional): Number of items per page
+  - `sort_by` (optional): Field to sort by
+  - `sort_order` (optional): Sort order ("asc" or "desc")
+  - `include_relationships` (optional): Include relationships for each data source
+- **Examples**:
+  ```bash
+  curl -H "Authorization: Bearer <token>" \
+    "http://localhost:6572/api/v1/data_sources/all?page=1&limit=10&sort_by=name"
+  # With relationships
+  curl -H "Authorization: Bearer <token>" \
+    "http://localhost:6572/api/v1/data_sources/all?include_relationships=true"
+  ```
+- **Response Example**:
+  ```json
+  {
+    "dataSources": [
+      { "name": "user_data", "project": "project1", ... },
+      { "name": "item_data", "project": "project2", ... }
+    ],
+    "pagination": { "page": 1, "limit": 10, "total": 25, "totalPages": 3 },
+    "relationships": { ... }
+  }
   ```
 
 ### Feature Views
@@ -176,6 +244,36 @@ Most endpoints support these common query parameters:
     "http://localhost:6572/api/v1/feature_views/user_features?project=my_project&include_relationships=true"
   ```
 
+#### List All Feature Views (All Projects)
+- **Endpoint**: `GET /api/v1/feature_views/all`
+- **Description**: Retrieve all feature views across all projects. Each feature view includes a `project` field.
+- **Parameters**:
+  - `allow_cache` (optional): Whether to allow cached data
+  - `page` (optional): Page number for pagination
+  - `limit` (optional): Number of items per page
+  - `sort_by` (optional): Field to sort by
+  - `sort_order` (optional): Sort order ("asc" or "desc")
+  - `include_relationships` (optional): Include relationships for each feature view
+- **Examples**:
+  ```bash
+  curl -H "Authorization: Bearer <token>" \
+    "http://localhost:6572/api/v1/feature_views/all?page=1&limit=10&sort_by=name"
+  # With relationships
+  curl -H "Authorization: Bearer <token>" \
+    "http://localhost:6572/api/v1/feature_views/all?include_relationships=true"
+  ```
+- **Response Example**:
+  ```json
+  {
+    "featureViews": [
+      { "name": "user_features", "project": "project1", ... },
+      { "name": "item_features", "project": "project2", ... }
+    ],
+    "pagination": { "page": 1, "limit": 10, "total": 25, "totalPages": 3 },
+    "relationships": { ... }
+  }
+  ```
+
 ### Feature Services
 
 #### List Feature Services
@@ -220,6 +318,36 @@ Most endpoints support these common query parameters:
     "http://localhost:6572/api/v1/feature_services/recommendation_service?project=my_project&include_relationships=true"
   ```
 
+#### List All Feature Services (All Projects)
+- **Endpoint**: `GET /api/v1/feature_services/all`
+- **Description**: Retrieve all feature services across all projects. Each feature service includes a `project` field.
+- **Parameters**:
+  - `allow_cache` (optional): Whether to allow cached data
+  - `page` (optional): Page number for pagination
+  - `limit` (optional): Number of items per page
+  - `sort_by` (optional): Field to sort by
+  - `sort_order` (optional): Sort order ("asc" or "desc")
+  - `include_relationships` (optional): Include relationships for each feature service
+- **Examples**:
+  ```bash
+  curl -H "Authorization: Bearer <token>" \
+    "http://localhost:6572/api/v1/feature_services/all?page=1&limit=10&sort_by=name"
+  # With relationships
+  curl -H "Authorization: Bearer <token>" \
+    "http://localhost:6572/api/v1/feature_services/all?include_relationships=true"
+  ```
+- **Response Example**:
+  ```json
+  {
+    "featureServices": [
+      { "name": "recommendation_service", "project": "project1", ... },
+      { "name": "scoring_service", "project": "project2", ... }
+    ],
+    "pagination": { "page": 1, "limit": 10, "total": 25, "totalPages": 3 },
+    "relationships": { ... }
+  }
+  ```
+
 ### Lineage and Relationships
 
 #### Get Registry Lineage
@@ -261,6 +389,56 @@ Most endpoints support these common query parameters:
   ```bash
   curl -H "Authorization: Bearer <token>" \
     "http://localhost:6572/api/v1/lineage/complete?project=my_project"
+  ```
+
+#### Get Registry Lineage (All Projects)
+- **Endpoint**: `GET /api/v1/lineage/registry/all`
+- **Description**: Retrieve registry lineage (relationships and indirect relationships) for all projects.
+- **Parameters**:
+  - `allow_cache` (optional): Whether to allow cached data
+  - `filter_object_type` (optional): Filter by object type (`dataSource`, `entity`, `featureView`, `featureService`)
+  - `filter_object_name` (optional): Filter by object name
+- **Example**:
+  ```bash
+  curl -H "Authorization: Bearer <token>" \
+    "http://localhost:6572/api/v1/lineage/registry/all"
+  ```
+- **Response Example**:
+  ```json
+  {
+    "relationships": [ { ... , "project": "project1" }, ... ],
+    "indirect_relationships": [ { ... , "project": "project2" }, ... ]
+  }
+  ```
+
+#### Get Complete Registry Data (All Projects)
+- **Endpoint**: `GET /api/v1/lineage/complete/all`
+- **Description**: Retrieve complete registry data, including all objects and relationships, for all projects. Optimized for UI consumption.
+- **Parameters**:
+  - `allow_cache` (optional): Whether to allow cached data
+- **Example**:
+  ```bash
+  curl -H "Authorization: Bearer <token>" \
+    "http://localhost:6572/api/v1/lineage/complete/all"
+  ```
+- **Response Example**:
+  ```json
+  {
+    "projects": [
+      {
+        "project": "project1",
+        "objects": {
+          "entities": [ ... ],
+          "dataSources": [ ... ],
+          "featureViews": [ ... ],
+          "featureServices": [ ... ]
+        },
+        "relationships": [ ... ],
+        "indirectRelationships": [ ... ]
+      },
+      { "project": "project2", ... }
+    ]
+  }
   ```
 
 ### Permissions
@@ -382,6 +560,36 @@ Most endpoints support these common query parameters:
   # With relationships
   curl -H "Authorization: Bearer <token>" \
     "http://localhost:6572/api/v1/saved_datasets/training_data?project=my_project&include_relationships=true"
+  ```
+
+#### List All Saved Datasets (All Projects)
+- **Endpoint**: `GET /api/v1/saved_datasets/all`
+- **Description**: Retrieve all saved datasets across all projects. Each saved dataset includes a `project` field.
+- **Parameters**:
+  - `allow_cache` (optional): Whether to allow cached data
+  - `page` (optional): Page number for pagination
+  - `limit` (optional): Number of items per page
+  - `sort_by` (optional): Field to sort by
+  - `sort_order` (optional): Sort order ("asc" or "desc")
+  - `include_relationships` (optional): Include relationships for each saved dataset
+- **Examples**:
+  ```bash
+  curl -H "Authorization: Bearer <token>" \
+    "http://localhost:6572/api/v1/saved_datasets/all?page=1&limit=10&sort_by=name"
+  # With relationships
+  curl -H "Authorization: Bearer <token>" \
+    "http://localhost:6572/api/v1/saved_datasets/all?include_relationships=true"
+  ```
+- **Response Example**:
+  ```json
+  {
+    "savedDatasets": [
+      { "name": "training_data", "project": "project1", ... },
+      { "name": "validation_data", "project": "project2", ... }
+    ],
+    "pagination": { "page": 1, "limit": 10, "total": 25, "totalPages": 3 },
+    "relationships": { ... }
+  }
   ```
 
 ### Response Formats
