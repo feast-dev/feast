@@ -20,6 +20,10 @@ from feast.value_type import ValueType
 class PostgreSQLSource(DataSource):
     """A PostgreSQLSource object defines a data source that a PostgreSQLOfflineStore class can use."""
 
+    def source_type(self) -> DataSourceProto.SourceType.ValueType:
+        # TODO: Add Postgres to DataSourceProto.SourceType
+        return DataSourceProto.CUSTOM_SOURCE
+
     def __init__(
         self,
         name: Optional[str] = None,

@@ -17,6 +17,9 @@ from feast.value_type import ValueType
 
 
 class AthenaSource(DataSource):
+    def source_type(self) -> DataSourceProto.SourceType.ValueType:
+        return DataSourceProto.BATCH_ATHENA
+
     def __init__(
         self,
         *,

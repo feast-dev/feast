@@ -163,6 +163,16 @@ _DATA_SOURCE_OPTIONS = {
     DataSourceProto.SourceType.PUSH_SOURCE: "feast.data_source.PushSource",
 }
 
+_DATA_SOURCE_FOR_OFFLINE_STORE = {
+    DataSourceProto.SourceType.BATCH_FILE: "feast.infra.offline_stores.dask.DaskOfflineStore",
+    DataSourceProto.SourceType.BATCH_BIGQUERY: "feast.infra.offline_stores.bigquery.BigQueryOfflineStore",
+    DataSourceProto.SourceType.BATCH_REDSHIFT: "feast.infra.offline_stores.redshift.RedshiftOfflineStore",
+    DataSourceProto.SourceType.BATCH_SNOWFLAKE: "feast.infra.offline_stores.snowflake.SnowflakeOfflineStore",
+    DataSourceProto.SourceType.BATCH_TRINO: "feast.infra.offline_stores.contrib.trino_offline_store.trino.TrinoOfflineStore",
+    DataSourceProto.SourceType.BATCH_SPARK: "feast.infra.offline_stores.contrib.spark_offline_store.spark.SparkOfflineStore",
+    DataSourceProto.SourceType.BATCH_ATHENA: "feast.infra.offline_stores.contrib.athena_offline_store.athena.AthenaOfflineStore",
+}
+
 
 @typechecked
 class DataSource(ABC):
@@ -401,6 +411,9 @@ class DataSource(ABC):
                 self.last_updated_timestamp
             )
 
+    @abstractmethod
+    def source_type(self) -> DataSourceProto.SourceType.ValueType: ...
+
 
 @typechecked
 class KafkaSource(DataSource):
@@ -564,6 +577,9 @@ class KafkaSource(DataSource):
     def get_table_query_string(self) -> str:
         raise NotImplementedError
 
+    def source_type(self) -> DataSourceProto.SourceType.ValueType:
+        return DataSourceProto.STREAM_KAFKA
+
 
 @typechecked
 class RequestSource(DataSource):
@@ -678,6 +694,9 @@ class RequestSource(DataSource):
     @staticmethod
     def source_datatype_to_feast_value_type() -> Callable[[str], ValueType]:
         raise NotImplementedError
+
+    def source_type(self) -> DataSourceProto.SourceType.ValueType:
+        return DataSourceProto.REQUEST_SOURCE
 
 
 @typechecked
@@ -811,6 +830,9 @@ class KinesisSource(DataSource):
 
         return data_source_proto
 
+    def source_type(self) -> DataSourceProto.SourceType.ValueType:
+        return DataSourceProto.STREAM_KINESIS
+
 
 class PushMode(enum.Enum):
     ONLINE = 1
@@ -911,3 +933,6 @@ class PushSource(DataSource):
     @staticmethod
     def source_datatype_to_feast_value_type() -> Callable[[str], ValueType]:
         raise NotImplementedError
+
+    def source_type(self) -> DataSourceProto.SourceType.ValueType:
+        return DataSourceProto.PUSH_SOURCE

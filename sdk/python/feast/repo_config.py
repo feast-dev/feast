@@ -568,11 +568,16 @@ def get_auth_config_from_type(auth_config_type: str):
     return import_class(module_name, config_class_name, config_class_name)
 
 
-def get_offline_config_from_type(offline_store_type: str):
+def get_offline_store_type(offline_store_type: str):
     if offline_store_type in OFFLINE_STORE_CLASS_FOR_TYPE:
-        offline_store_type = OFFLINE_STORE_CLASS_FOR_TYPE[offline_store_type]
+        return OFFLINE_STORE_CLASS_FOR_TYPE[offline_store_type]
     elif not offline_store_type.endswith("OfflineStore"):
         raise FeastOfflineStoreInvalidName(offline_store_type)
+    return offline_store_type
+
+
+def get_offline_config_from_type(offline_store_type: str):
+    offline_store_type = get_offline_store_type(offline_store_type)
     module_name, offline_store_class_type = offline_store_type.rsplit(".", 1)
     config_class_name = f"{offline_store_class_type}Config"
 

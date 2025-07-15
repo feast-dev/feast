@@ -26,6 +26,9 @@ from feast.value_type import ValueType
 class RedshiftSource(DataSource):
     """A RedshiftSource object defines a data source that a RedshiftOfflineStore class can use."""
 
+    def source_type(self) -> DataSourceProto.SourceType.ValueType:
+        return DataSourceProto.BATCH_REDSHIFT
+
     def __init__(
         self,
         *,
