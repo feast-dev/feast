@@ -36,6 +36,7 @@ from feast.permissions.server.utils import (
 )
 from feast.project import Project
 from feast.protos.feast.registry import RegistryServer_pb2, RegistryServer_pb2_grpc
+from feast.protos.feast.registry.RegistryServer_pb2 import Feature, ListFeaturesResponse
 from feast.saved_dataset import SavedDataset, ValidationReference
 from feast.stream_feature_view import StreamFeatureView
 
@@ -988,6 +989,77 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
 
     def Proto(self, request, context):
         return self.proxied_registry.proto()
+
+    def ListFeatures(self, request: RegistryServer_pb2.ListFeaturesRequest, context):
+        """
+        List all features in the registry, optionally filtered by project, feature_view, or name.
+        """
+        allow_cache = request.allow_cache if hasattr(request, "allow_cache") else True
+        feature_views = self.proxied_registry.list_all_feature_views(
+            project=request.project,
+            allow_cache=allow_cache,
+        )
+        permitted_fvs = permitted_resources(
+            resources=cast(list[FeastObject], feature_views),
+            actions=AuthzedAction.DESCRIBE,
+        )
+        features = []
+        for fv in permitted_fvs:
+            fv_name = getattr(fv, "name", None)
+            for feature in getattr(fv, "features", []):
+                if request.feature_view and fv_name != request.feature_view:
+                    continue
+                if request.name and feature.name != request.name:
+                    continue
+                features.append(
+                    Feature(
+                        name=feature.name,
+                        feature_view=fv_name if fv_name is not None else "",
+                        type=str(feature.dtype)
+                        if hasattr(feature, "dtype")
+                        else str(feature.valueType),
+                        description=getattr(feature, "description", ""),
+                        tags=getattr(feature, "tags", {}),
+                    )
+                )
+        paginated_features, pagination_metadata = apply_pagination_and_sorting(
+            features,
+            pagination=request.pagination if request.HasField("pagination") else None,
+            sorting=request.sorting if request.HasField("sorting") else None,
+        )
+        return ListFeaturesResponse(
+            features=paginated_features, pagination=pagination_metadata
+        )
+
+    def GetFeature(self, request: RegistryServer_pb2.GetFeatureRequest, context):
+        """
+        Get a single feature by project, feature_view, and name.
+        """
+        allow_cache = getattr(request, "allow_cache", True)
+        feature_views = self.proxied_registry.list_all_feature_views(
+            project=request.project,
+            allow_cache=allow_cache,
+        )
+        permitted_fvs = permitted_resources(
+            resources=cast(list[FeastObject], feature_views),
+            actions=AuthzedAction.DESCRIBE,
+        )
+        for fv in permitted_fvs:
+            fv_name = getattr(fv, "name", None)
+            for feature in getattr(fv, "features", []):
+                if fv_name == request.feature_view and feature.name == request.name:
+                    return Feature(
+                        name=feature.name,
+                        feature_view=fv_name if fv_name is not None else "",
+                        type=str(feature.dtype)
+                        if hasattr(feature, "dtype")
+                        else str(feature.valueType),
+                        description=getattr(feature, "description", ""),
+                        tags=getattr(feature, "tags", {}),
+                    )
+        context.set_code(grpc.StatusCode.NOT_FOUND)
+        context.set_details("Feature not found")
+        return Feature()
 
 
 def start_server(

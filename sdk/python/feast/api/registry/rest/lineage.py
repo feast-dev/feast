@@ -31,7 +31,7 @@ def get_lineage_router(grpc_handler) -> APIRouter:
         Args:
             project: Project name
             allow_cache: Whether to allow cached data
-            filter_object_type: Optional filter by object type (dataSource, entity, featureView, featureService)
+            filter_object_type: Optional filter by object type (dataSource, entity, featureView, featureService, feature)
             filter_object_name: Optional filter by object name
         Returns:
             Dictionary containing relationships and indirect_relationships arrays
@@ -68,7 +68,7 @@ def get_lineage_router(grpc_handler) -> APIRouter:
         """
         Get relationships for a specific object.
         Args:
-            object_type: Type of object (dataSource, entity, featureView, featureService)
+            object_type: Type of object (dataSource, entity, featureView, featureService, feature)
             object_name: Name of the object
             project: Project name
             include_indirect: Whether to include indirect relationships
@@ -76,7 +76,13 @@ def get_lineage_router(grpc_handler) -> APIRouter:
         Returns:
             Dictionary containing relationships array for the specific object
         """
-        valid_types = ["dataSource", "entity", "featureView", "featureService"]
+        valid_types = [
+            "dataSource",
+            "entity",
+            "featureView",
+            "featureService",
+            "feature",
+        ]
         if object_type not in valid_types:
             raise HTTPException(
                 status_code=400,
@@ -109,6 +115,7 @@ def get_lineage_router(grpc_handler) -> APIRouter:
         - Relationships
         - Indirect relationships
         - Merged feature view data
+        - Features
 
         Args:
             project: Project name
@@ -174,6 +181,13 @@ def get_lineage_router(grpc_handler) -> APIRouter:
             grpc_handler.ListFeatureServices, feature_services_req
         )
 
+        features_req = RegistryServer_pb2.ListFeaturesRequest(
+            project=project,
+            pagination=grpc_pagination,
+            sorting=grpc_sorting,
+        )
+        features_response = grpc_call(grpc_handler.ListFeatures, features_req)
+
         return {
             "project": project,
             "objects": {
@@ -181,6 +195,7 @@ def get_lineage_router(grpc_handler) -> APIRouter:
                 "dataSources": data_sources_response.get("dataSources", []),
                 "featureViews": feature_views_response.get("featureViews", []),
                 "featureServices": feature_services_response.get("featureServices", []),
+                "features": features_response.get("features", []),
             },
             "relationships": lineage_response.get("relationships", []),
             "indirectRelationships": lineage_response.get("indirectRelationships", []),
@@ -189,6 +204,7 @@ def get_lineage_router(grpc_handler) -> APIRouter:
                 "dataSources": data_sources_response.get("pagination", {}),
                 "featureViews": feature_views_response.get("pagination", {}),
                 "featureServices": feature_services_response.get("pagination", {}),
+                "features": features_response.get("pagination", {}),
                 "relationships": lineage_response.get("relationshipsPagination", {}),
                 "indirectRelationships": lineage_response.get(
                     "indirectRelationshipsPagination", {}
@@ -277,6 +293,12 @@ def get_lineage_router(grpc_handler) -> APIRouter:
             feature_services_response = grpc_call(
                 grpc_handler.ListFeatureServices, feature_services_req
             )
+
+            features_req = RegistryServer_pb2.ListFeaturesRequest(
+                project=project_name,
+            )
+            features_response = grpc_call(grpc_handler.ListFeatures, features_req)
+
             # Add project field to each object
             for entity in entities_response.get("entities", []):
                 entity["project"] = project_name
@@ -286,6 +308,8 @@ def get_lineage_router(grpc_handler) -> APIRouter:
                 fv["project"] = project_name
             for fs in feature_services_response.get("featureServices", []):
                 fs["project"] = project_name
+            for feat in features_response.get("features", []):
+                feat["project"] = project_name
             all_data.append(
                 {
                     "project": project_name,
@@ -296,6 +320,7 @@ def get_lineage_router(grpc_handler) -> APIRouter:
                         "featureServices": feature_services_response.get(
                             "featureServices", []
                         ),
+                        "features": features_response.get("features", []),
                     },
                     "relationships": lineage_response.get("relationships", []),
                     "indirectRelationships": lineage_response.get(

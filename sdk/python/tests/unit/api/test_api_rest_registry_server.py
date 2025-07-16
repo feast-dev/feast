@@ -77,3 +77,6 @@ def test_routes_registered_in_app(mock_store_and_registry):
     assert "/saved_datasets/all" in route_paths
     assert "/lineage/registry/all" in route_paths
     assert "/lineage/complete/all" in route_paths
+    assert "/features" in route_paths
+    assert "/features/all" in route_paths
+    assert "/features/{feature_view}/{name}" in route_paths

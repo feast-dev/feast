@@ -274,6 +274,137 @@ Most endpoints support these common query parameters:
   }
   ```
 
+### Features
+
+#### List Features
+- **Endpoint**: `GET /api/v1/features`
+- **Description**: Retrieve all features in a project
+- **Parameters**:
+  - `project` (required): Project name
+  - `feature_view` (optional): Filter by feature view name
+  - `name` (optional): Filter by feature name
+  - `include_relationships` (optional): Include relationships for each feature (relationships are keyed by feature name)
+  - `allow_cache` (optional): Whether to allow cached data
+  - `page` (optional): Page number for pagination
+  - `limit` (optional): Number of items per page
+  - `sort_by` (optional): Field to sort by
+  - `sort_order` (optional): Sort order ("asc" or "desc")
+- **Examples**:
+  ```bash
+  # Basic list
+  curl -H "Authorization: Bearer <token>" \
+    "http://localhost:6572/api/v1/features?project=my_project"
+
+  # With pagination and relationships
+  curl -H "Authorization: Bearer <token>" \
+    "http://localhost:6572/api/v1/features?project=my_project&include_relationships=true&page=1&limit=5"
+  ```
+- **Response Example**:
+  ```json
+  {
+    "features": [
+      { "name": "conv_rate", "featureView": "driver_hourly_stats_fresh", "type": "Float32" },
+      { "name": "acc_rate", "featureView": "driver_hourly_stats_fresh", "type": "Float32" },
+      { "name": "avg_daily_trips", "featureView": "driver_hourly_stats_fresh", "type": "Int64" },
+      { "name": "conv_rate", "featureView": "driver_hourly_stats", "type": "Float32" },
+      { "name": "acc_rate", "featureView": "driver_hourly_stats", "type": "Float32" }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 5,
+      "totalCount": 10,
+      "totalPages": 2,
+      "hasNext": true
+    },
+    "relationships": {
+      "conv_rate": [
+        { "source": { "type": "feature", "name": "conv_rate" }, "target": { "type": "featureView", "name": "driver_hourly_stats_fresh" } },
+        { "source": { "type": "feature", "name": "conv_rate" }, "target": { "type": "featureView", "name": "driver_hourly_stats" } },
+        { "source": { "type": "feature", "name": "conv_rate" }, "target": { "type": "featureService", "name": "driver_activity_v1" } }
+      ]
+    }
+  }
+  ```
+
+#### Get Feature
+- **Endpoint**: `GET /api/v1/features/{feature_view}/{name}`
+- **Description**: Retrieve a specific feature by feature view and name
+- **Parameters**:
+  - `feature_view` (path): Feature view name
+  - `name` (path): Feature name
+  - `project` (required): Project name
+  - `include_relationships` (optional): Include relationships for this feature
+  - `allow_cache` (optional): Whether to allow cached data
+- **Examples**:
+  ```bash
+  # Basic get
+  curl -H "Authorization: Bearer <token>" \
+    "http://localhost:6572/api/v1/features/driver_hourly_stats/conv_rate?project=my_project"
+
+  # With relationships
+  curl -H "Authorization: Bearer <token>" \
+    "http://localhost:6572/api/v1/features/driver_hourly_stats/conv_rate?project=my_project&include_relationships=true"
+  ```
+- **Response Example**:
+  ```json
+  {
+    "name": "conv_rate",
+    "featureView": "driver_hourly_stats",
+    "type": "Float32",
+    "relationships": [
+      { "source": { "type": "feature", "name": "conv_rate" }, "target": { "type": "featureView", "name": "driver_hourly_stats_fresh" } },
+      { "source": { "type": "feature", "name": "conv_rate" }, "target": { "type": "featureView", "name": "driver_hourly_stats" } },
+      { "source": { "type": "feature", "name": "conv_rate" }, "target": { "type": "featureService", "name": "driver_activity_v1" } }
+    ]
+  }
+  ```
+
+#### List All Features (All Projects)
+- **Endpoint**: `GET /api/v1/features/all`
+- **Description**: Retrieve all features across all projects. Each feature includes a `project` field.
+- **Parameters**:
+  - `page` (optional): Page number for pagination
+  - `limit` (optional): Number of items per page
+  - `sort_by` (optional): Field to sort by
+  - `sort_order` (optional): Sort order ("asc" or "desc")
+  - `include_relationships` (optional): Include relationships for each feature
+  - `allow_cache` (optional): Whether to allow cached data
+- **Examples**:
+  ```bash
+  curl -H "Authorization: Bearer <token>" \
+    "http://localhost:6572/api/v1/features/all?page=1&limit=5&sort_by=name"
+  # With relationships
+  curl -H "Authorization: Bearer <token>" \
+    "http://localhost:6572/api/v1/features/all?include_relationships=true"
+  ```
+- **Response Example**:
+  ```json
+  {
+    "features": [
+      { "name": "conv_rate", "featureView": "driver_hourly_stats_fresh", "type": "Float32", "project": "multiproject" },
+      { "name": "acc_rate", "featureView": "driver_hourly_stats_fresh", "type": "Float32", "project": "multiproject" },
+      { "name": "avg_daily_trips", "featureView": "driver_hourly_stats_fresh", "type": "Int64", "project": "multiproject" },
+      { "name": "conv_rate", "featureView": "driver_hourly_stats", "type": "Float32", "project": "multiproject" },
+      { "name": "acc_rate", "featureView": "driver_hourly_stats", "type": "Float32", "project": "multiproject" }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 5,
+      "total_count": 20,
+      "total_pages": 4,
+      "has_next": true,
+      "has_previous": false
+    },
+    "relationships": {
+      "conv_rate": [
+        { "source": { "type": "feature", "name": "conv_rate" }, "target": { "type": "featureView", "name": "driver_hourly_stats" } },
+        { "source": { "type": "feature", "name": "conv_rate" }, "target": { "type": "featureView", "name": "driver_hourly_stats_fresh" } },
+        { "source": { "type": "feature", "name": "conv_rate" }, "target": { "type": "featureService", "name": "driver_activity_v3" } }
+      ]
+    }
+  }
+  ```
+
 ### Feature Services
 
 #### List Feature Services
@@ -356,7 +487,7 @@ Most endpoints support these common query parameters:
 - **Parameters**:
   - `project` (required): Project name
   - `allow_cache` (optional): Whether to allow cached data
-  - `filter_object_type` (optional): Filter by object type (`dataSource`, `entity`, `featureView`, `featureService`)
+  - `filter_object_type` (optional): Filter by object type (`dataSource`, `entity`, `featureView`, `featureService`, `feature`)
   - `filter_object_name` (optional): Filter by object name
 - **Example**:
   ```bash
@@ -368,7 +499,7 @@ Most endpoints support these common query parameters:
 - **Endpoint**: `GET /api/v1/lineage/objects/{object_type}/{object_name}`
 - **Description**: Retrieve relationships for a specific object
 - **Parameters**:
-  - `object_type` (path): Type of object (`dataSource`, `entity`, `featureView`, `featureService`)
+  - `object_type` (path): Type of object (`dataSource`, `entity`, `featureView`, `featureService`, `feature`)
   - `object_name` (path): Name of the object
   - `project` (required): Project name
   - `include_indirect` (optional): Whether to include indirect relationships
@@ -376,7 +507,17 @@ Most endpoints support these common query parameters:
 - **Example**:
   ```bash
   curl -H "Authorization: Bearer <token>" \
-    "http://localhost:6572/api/v1/lineage/objects/featureView/user_features?project=my_project&include_indirect=true"
+    "http://localhost:6572/api/v1/lineage/objects/feature/conv_rate?project=my_project&include_indirect=true"
+  ```
+- **Response Example**:
+  ```json
+  {
+    "relationships": [
+      { "source": { "type": "feature", "name": "conv_rate" }, "target": { "type": "featureView", "name": "driver_hourly_stats_fresh" } },
+      { "source": { "type": "feature", "name": "conv_rate" }, "target": { "type": "featureView", "name": "driver_hourly_stats" } }
+    ],
+    "pagination": { "totalCount": 2, "totalPages": 1 }
+  }
   ```
 
 #### Get Complete Registry Data
@@ -389,6 +530,35 @@ Most endpoints support these common query parameters:
   ```bash
   curl -H "Authorization: Bearer <token>" \
     "http://localhost:6572/api/v1/lineage/complete?project=my_project"
+  ```
+- **Response Example**:
+  ```json
+  {
+    "project": "multiproject",
+    "objects": {
+      "entities": [ ... ],
+      "dataSources": [ ... ],
+      "featureViews": [ ... ],
+      "featureServices": [ ... ],
+      "features": [
+        { "name": "conv_rate", "featureView": "driver_hourly_stats_fresh", "type": "Float32" },
+        { "name": "acc_rate", "featureView": "driver_hourly_stats_fresh", "type": "Float32" },
+        { "name": "avg_daily_trips", "featureView": "driver_hourly_stats_fresh", "type": "Int64" },
+        { "name": "conv_rate", "featureView": "driver_hourly_stats", "type": "Float32" },
+        { "name": "acc_rate", "featureView": "driver_hourly_stats", "type": "Float32" },
+        { "name": "conv_rate_plus_val1", "featureView": "transformed_conv_rate_fresh", "type": "Float64" },
+        { "name": "conv_rate_plus_val2", "featureView": "transformed_conv_rate_fresh", "type": "Float64" },
+        { "name": "conv_rate_plus_val1", "featureView": "transformed_conv_rate", "type": "Float64" },
+        { "name": "conv_rate_plus_val2", "featureView": "transformed_conv_rate", "type": "Float64" }
+      ]
+    },
+    "relationships": [ ... ],
+    "indirectRelationships": [ ... ],
+    "pagination": {
+      "features": { "totalCount": 10, "totalPages": 1 },
+      ...
+    }
+  }
   ```
 
 #### Get Registry Lineage (All Projects)
@@ -716,6 +886,7 @@ Relationships show how different Feast objects connect to each other, providing 
 - `entity` - Feast entities
 - `dataSource` - Data sources
 - `featureView` - Feature views (including regular, on-demand, and stream)
+- `feature` - Features (including features from on-demand feature views)
 - `featureService` - Feature services
 - `permission` - Permissions
 - `savedDataset` - Saved datasets
@@ -724,6 +895,8 @@ Relationships show how different Feast objects connect to each other, providing 
 - Feature Views → Data Sources (feature views depend on data sources)
 - Feature Views → Entities (feature views use entities as join keys)
 - Feature Services → Feature Views (feature services consume feature views)
+- Features → Feature Views (features belong to feature views, including on-demand feature views)
+- Features → Feature Services (features are consumed by feature services)
 - Entities → Data Sources (entities connect to data sources through feature views)
 - Entities → Feature Services (entities connect to feature services through feature views)
 

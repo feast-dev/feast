@@ -18,6 +18,7 @@ class FeastObjectType(Enum):
     ENTITY = "entity"
     FEATURE_VIEW = "featureView"
     FEATURE_SERVICE = "featureService"
+    FEATURE = "feature"
 
 
 @dataclass
@@ -89,17 +90,16 @@ class RegistryLineageGenerator:
                 and feature_service.spec.features
             ):
                 for feature in feature_service.spec.features:
-                    relationships.append(
-                        EntityRelation(
-                            source=EntityReference(
-                                FeastObjectType.FEATURE_VIEW, feature.feature_view_name
-                            ),
-                            target=EntityReference(
-                                FeastObjectType.FEATURE_SERVICE,
-                                feature_service.spec.name,
-                            ),
-                        )
+                    rel = EntityRelation(
+                        source=EntityReference(
+                            FeastObjectType.FEATURE_VIEW, feature.feature_view_name
+                        ),
+                        target=EntityReference(
+                            FeastObjectType.FEATURE_SERVICE,
+                            feature_service.spec.name,
+                        ),
                     )
+                    relationships.append(rel)
 
         # Entity -> FeatureView and DataSource -> FeatureView relationships
         for feature_view in registry.feature_views:
@@ -107,16 +107,26 @@ class RegistryLineageGenerator:
                 # Entity relationships
                 if hasattr(feature_view.spec, "entities"):
                     for entity_name in feature_view.spec.entities:
-                        relationships.append(
-                            EntityRelation(
-                                source=EntityReference(
-                                    FeastObjectType.ENTITY, entity_name
-                                ),
-                                target=EntityReference(
-                                    FeastObjectType.FEATURE_VIEW, feature_view.spec.name
-                                ),
-                            )
+                        rel = EntityRelation(
+                            source=EntityReference(FeastObjectType.ENTITY, entity_name),
+                            target=EntityReference(
+                                FeastObjectType.FEATURE_VIEW, feature_view.spec.name
+                            ),
                         )
+                        relationships.append(rel)
+
+                # Feature -> FeatureView relationships
+                if hasattr(feature_view.spec, "features"):
+                    for feature in feature_view.spec.features:
+                        rel = EntityRelation(
+                            source=EntityReference(
+                                FeastObjectType.FEATURE, feature.name
+                            ),
+                            target=EntityReference(
+                                FeastObjectType.FEATURE_VIEW, feature_view.spec.name
+                            ),
+                        )
+                        relationships.append(rel)
 
                 # Batch source relationship
                 if (
@@ -159,6 +169,21 @@ class RegistryLineageGenerator:
                                 ),
                             )
                         )
+
+        # OnDemand FeatureView: Feature -> OnDemandFeatureView relationships
+        for odfv in registry.on_demand_feature_views:
+            if hasattr(odfv, "spec") and odfv.spec and hasattr(odfv.spec, "features"):
+                for feature in odfv.spec.features:
+                    relationships.append(
+                        EntityRelation(
+                            source=EntityReference(
+                                FeastObjectType.FEATURE, feature.name
+                            ),
+                            target=EntityReference(
+                                FeastObjectType.FEATURE_VIEW, odfv.spec.name
+                            ),
+                        )
+                    )
 
         # OnDemand FeatureView relationships
         for odfv in registry.on_demand_feature_views:
