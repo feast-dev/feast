@@ -97,7 +97,7 @@ def df_to_postgres_table(
     """
     nr_columns = df.shape[1]
     placeholders = ", ".join(["%s"] * nr_columns)
-    query = f"INSERT INTO {table_name} VALUES ({placeholders})"
+    query = f"INSERT INTO {table_name} VALUES ({placeholders})"    
     values = df.replace({np.nan: None}).to_numpy().tolist()
 
     with _get_conn(config) as conn, conn.cursor() as cur:

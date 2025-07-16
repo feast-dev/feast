@@ -1,6 +1,7 @@
 import contextlib
 from dataclasses import asdict
 from datetime import datetime, timezone
+import pandas as pd
 from enum import Enum
 from typing import (
     Any,
@@ -22,6 +23,7 @@ import pyarrow as pa
 from jinja2 import BaseLoader, Environment
 from psycopg import sql
 
+from feast.utils import make_tzaware
 from feast.data_source import DataSource
 from feast.errors import InvalidEntityType, ZeroColumnQueryResult, ZeroRowsQueryResult
 from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_VAL, FeatureView
@@ -119,14 +121,28 @@ class PostgreSQLOfflineStore(OfflineStore):
         config: RepoConfig,
         feature_views: List[FeatureView],
         feature_refs: List[str],
-        entity_df: Union[pd.DataFrame, str],
+        entity_df: Optional[Union[pd.DataFrame, str]],
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
     ) -> RetrievalJob:
         assert isinstance(config.offline_store, PostgreSQLOfflineStoreConfig)
         for fv in feature_views:
             assert isinstance(fv.batch_source, PostgreSQLSource)
+
+        # Handle non-entity retrieval mode
+        if entity_df is None:
+            if start_date is None or end_date is None:
+                raise ValueError("When entity_df is None, both start_date and end_date must be provided")
+
+            start_date = make_tzaware(start_date)
+            end_date = make_tzaware(end_date)
+
+            entity_df = pd.DataFrame({
+                'event_timestamp': pd.date_range(start=start_date, end=end_date, freq='1s', tz=timezone.utc)[:1]  # Just one row
+            })
 
         entity_schema = _get_entity_schema(entity_df, config)
 
@@ -189,6 +205,8 @@ class PostgreSQLOfflineStore(OfflineStore):
                     query_template=MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
                     full_feature_names=full_feature_names,
                     use_cte=use_cte,
+                    start_date=start_date,
+                    end_date=end_date,
                 )
             finally:
                 # Only cleanup if we created a table
@@ -398,6 +416,8 @@ def build_point_in_time_query(
     query_template: str,
     full_feature_names: bool = False,
     use_cte: bool = False,
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
 ) -> str:
     """Build point-in-time query between each feature view table and the entity dataframe for PostgreSQL"""
     template = Environment(loader=BaseLoader()).from_string(source=query_template)
@@ -426,6 +446,8 @@ def build_point_in_time_query(
         "full_feature_names": full_feature_names,
         "final_output_feature_names": final_output_feature_names,
         "use_cte": use_cte,
+        "start_date": start_date,
+        "end_date": end_date,
     }
 
     query = template.render(template_context)
@@ -466,6 +488,45 @@ def _get_entity_schema(
 # https://github.com/feast-dev/feast/blob/master/sdk/python/feast/infra/offline_stores/redshift.py
 
 MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN = """
+{% if start_date and end_date %}
+/*
+ Non-entity timestamp range query - simplified approach without entity joins
+*/
+{% if featureviews | length == 1 %}
+SELECT
+    "{{ featureviews[0].timestamp_field }}" AS event_timestamp,
+    {% if featureviews[0].created_timestamp_column %}
+    "{{ featureviews[0].created_timestamp_column }}" AS created_timestamp,
+    {% endif %}
+    {% for entity in featureviews[0].entities %}
+    "{{ entity }}",
+    {% endfor %}
+    {% for feature in featureviews[0].features %}
+    "{{ feature }}" AS {% if full_feature_names %}"{{ featureviews[0].name }}__{{ featureviews[0].field_mapping.get(feature, feature) }}"{% else %}"{{ featureviews[0].field_mapping.get(feature, feature) }}"{% endif %}{% if not loop.last %},{% endif %}
+    {% endfor %}
+FROM {{ featureviews[0].table_subquery }} as fv_alias
+WHERE "{{ featureviews[0].timestamp_field }}" BETWEEN '{{ start_date }}' AND '{{ end_date }}'
+{% else %}
+{% for featureview in featureviews %}
+SELECT
+    "{{ featureview.timestamp_field }}" AS event_timestamp,
+    {% if featureview.created_timestamp_column %}
+    "{{ featureview.created_timestamp_column }}" AS created_timestamp,
+    {% endif %}
+    {% for entity in featureview.entities %}
+    "{{ entity }}",
+    {% endfor %}
+    {% for feature in featureview.features %}
+    "{{ feature }}" AS {% if full_feature_names %}"{{ featureview.name }}__{{ featureview.field_mapping.get(feature, feature) }}"{% else %}"{{ featureview.field_mapping.get(feature, feature) }}"{% endif %}{% if not loop.last %},{% endif %}
+    {% endfor %}
+FROM {{ featureview.table_subquery }} as fv_alias {{ loop.index0 }}
+WHERE "{{ featureview.timestamp_field }}" BETWEEN '{{ start_date }}'::timestamptz AND '{{ end_date }}'::timestamptz
+{% if not loop.last %}
+UNION ALL
+{% endif %}
+{% endfor %}
+{% endif %}
+{% else %}
 WITH
 {% if use_cte %}
     entity_query AS ({{ left_table_query_string }}),
@@ -644,4 +705,5 @@ LEFT JOIN (
     FROM "{{ featureview.name }}__cleaned"
 ) AS "{{featureview.name}}" USING ("{{featureview.name}}__entity_row_unique_id")
 {% endfor %}
+{% endif %}
 """

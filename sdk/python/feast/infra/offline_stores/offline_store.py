@@ -297,10 +297,12 @@ class OfflineStore(ABC):
         config: RepoConfig,
         feature_views: List[FeatureView],
         feature_refs: List[str],
-        entity_df: Union[pd.DataFrame, str],
+        entity_df: Optional[Union[pd.DataFrame, str]],
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = datetime.now(),
     ) -> RetrievalJob:
         """
         Retrieves the point-in-time correct historical feature values for the specified entity rows.
@@ -311,12 +313,14 @@ class OfflineStore(ABC):
             feature_refs: The features to be retrieved.
             entity_df: A collection of rows containing all entity columns on which features need to be joined,
                 as well as the timestamp column used for point-in-time joins. Either a pandas dataframe can be
-                provided or a SQL query.
+                provided or a SQL query. If None, features will be retrieved for the specified timestamp range.
             registry: The registry for the current feature store.
             project: Feast project to which the feature views belong.
             full_feature_names: If True, feature names will be prefixed with the corresponding feature view name,
                 changing them from the format "feature" to "feature_view__feature" (e.g. "daily_transactions"
                 changes to "customer_fv__daily_transactions").
+            start_date: Start date for the timestamp range when retrieving features without entity_df.
+            end_date: End date for the timestamp range when retrieving features without entity_df. By default, the current time is used.
 
         Returns:
             A RetrievalJob that can be executed to get the features.
