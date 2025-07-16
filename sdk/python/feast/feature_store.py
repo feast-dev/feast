@@ -1884,7 +1884,6 @@ class FeatureStore:
             inputs: Optional the dictionary object to be written
             allow_registry_cache (optional): Whether to allow retrieving feature views from a cached registry.
             transform_on_write (optional): Whether to transform the data before pushing.
-
         """
 
         feature_view, df = self._get_feature_view_and_df_for_online_write(
@@ -1929,7 +1928,6 @@ class FeatureStore:
             df: The dataframe to be persisted.
             inputs: Optional the dictionary object to be written
             allow_registry_cache (optional): Whether to allow retrieving feature views from a cached registry.
-
         """
 
         feature_view, df = self._get_feature_view_and_df_for_online_write(
