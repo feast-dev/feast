@@ -1901,6 +1901,7 @@ class FeatureStore:
         if df is not None:
             if df.empty:
                 warnings.warn("Cannot write empty dataframe to online store")
+                return  # Early return for empty dataframe
 
             # Check if feature columns are empty (entity columns may have data but feature columns are empty)
             feature_column_names = [f.name for f in feature_view.features]
@@ -1910,6 +1911,7 @@ class FeatureStore:
                     warnings.warn(
                         "Cannot write dataframe with empty feature columns to online store"
                     )
+                    return  # Early return for empty feature columns
 
         provider = self._get_provider()
         provider.ingest_df(feature_view, df)
@@ -1945,6 +1947,7 @@ class FeatureStore:
         if df is not None:
             if df.empty:
                 warnings.warn("Cannot write empty dataframe to online store")
+                return  # Early return for empty dataframe
 
             # Check if feature columns are empty (entity columns may have data but feature columns are empty)
             feature_column_names = [f.name for f in feature_view.features]
@@ -1954,6 +1957,7 @@ class FeatureStore:
                     warnings.warn(
                         "Cannot write dataframe with empty feature columns to online store"
                     )
+                    return  # Early return for empty feature columns
 
         provider = self._get_provider()
         await provider.ingest_df_async(feature_view, df)
