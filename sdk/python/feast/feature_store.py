@@ -1761,14 +1761,14 @@ class FeatureStore:
         # Validate that the dataframe has meaningful feature data
         if df is not None:
             if df.empty:
-                raise ValueError("Cannot write empty dataframe to online store")
+                warnings.warn("Cannot write empty dataframe to online store")
 
             # Check if feature columns are empty (entity columns may have data but feature columns are empty)
             feature_column_names = [f.name for f in feature_view.features]
             if feature_column_names:
                 feature_df = df[feature_column_names]
                 if feature_df.empty or feature_df.isnull().all().all():
-                    raise ValueError(
+                    warnings.warn(
                         "Cannot write dataframe with empty feature columns to online store"
                     )
 
@@ -1805,14 +1805,14 @@ class FeatureStore:
         # Validate that the dataframe has meaningful feature data
         if df is not None:
             if df.empty:
-                raise ValueError("Cannot write empty dataframe to online store")
+                warnings.warn("Cannot write empty dataframe to online store")
 
             # Check if feature columns are empty (entity columns may have data but feature columns are empty)
             feature_column_names = [f.name for f in feature_view.features]
             if feature_column_names:
                 feature_df = df[feature_column_names]
                 if feature_df.empty or feature_df.isnull().all().all():
-                    raise ValueError(
+                    warnings.warn(
                         "Cannot write dataframe with empty feature columns to online store"
                     )
 
