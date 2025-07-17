@@ -1373,3 +1373,54 @@ class SnowflakeRegistry(BaseRegistry):
             self._refresh_cached_registry_if_necessary()
             return proto_registry_utils.list_projects(self.cached_registry_proto, tags)
         return self._list_projects(tags)
+
+    def set_project_metadata(self, project: str, key: str, value: str):
+        """Set a custom project metadata key-value pair in the FEAST_METADATA table (Snowflake backend)."""
+        with GetSnowflakeConnection(self.registry_config) as conn:
+            query = f"""
+                SELECT
+                    project_id
+                FROM
+                    {self.registry_path}.\"FEAST_METADATA\"
+                WHERE
+                    project_id = '{project}'
+                    AND metadata_key = '{key}'
+                LIMIT 1
+            """
+            df = execute_snowflake_statement(conn, query).fetch_pandas_all()
+            if not df.empty:
+                query = f"""
+                    UPDATE {self.registry_path}.\"FEAST_METADATA\"
+                        SET
+                            metadata_value = '{value}',
+                            last_updated_timestamp = CURRENT_TIMESTAMP()
+                        WHERE
+                            project_id = '{project}'
+                            AND metadata_key = '{key}'
+                """
+                execute_snowflake_statement(conn, query)
+            else:
+                query = f"""
+                    INSERT INTO {self.registry_path}.\"FEAST_METADATA\"
+                        VALUES
+                        ('{project}', '{key}', '{value}', CURRENT_TIMESTAMP())
+                """
+                execute_snowflake_statement(conn, query)
+
+    def get_project_metadata(self, project: str, key: str) -> Optional[str]:
+        """Get a custom project metadata value by key from the FEAST_METADATA table (Snowflake backend)."""
+        with GetSnowflakeConnection(self.registry_config) as conn:
+            query = f"""
+                SELECT
+                    metadata_value
+                FROM
+                    {self.registry_path}.\"FEAST_METADATA\"
+                WHERE
+                    project_id = '{project}'
+                    AND metadata_key = '{key}'
+                LIMIT 1
+            """
+            df = execute_snowflake_statement(conn, query).fetch_pandas_all()
+            if not df.empty:
+                return df.iloc[0]["METADATA_VALUE"]
+            return None

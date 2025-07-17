@@ -164,6 +164,24 @@ class Registry(BaseRegistry):
     ) -> Optional[bytes]:
         pass
 
+    def set_project_metadata(self, project: str, key: str, value: str):
+        """Set a custom project metadata key-value pair in the registry backend."""
+        if hasattr(self._registry_store, "set_project_metadata"):
+            self._registry_store.set_project_metadata(project, key, value)
+        else:
+            raise NotImplementedError(
+                "set_project_metadata not implemented for this registry backend"
+            )
+
+    def get_project_metadata(self, project: str, key: str) -> Optional[str]:
+        """Get a custom project metadata value by key from the registry backend."""
+        if hasattr(self._registry_store, "get_project_metadata"):
+            return self._registry_store.get_project_metadata(project, key)
+        else:
+            raise NotImplementedError(
+                "get_project_metadata not implemented for this registry backend"
+            )
+
     # The cached_registry_proto object is used for both reads and writes. In particular,
     # all write operations refresh the cache and modify it in memory; the write must
     # then be persisted to the underlying RegistryStore with a call to commit().
