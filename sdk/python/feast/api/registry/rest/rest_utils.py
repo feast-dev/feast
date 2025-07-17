@@ -68,7 +68,7 @@ def get_relationships_for_objects(
     Args:
         grpc_handler: The gRPC handler to use for calls
         objects: List of objects to get relationships for
-        object_type: Type of objects (dataSource, entity, featureView, featureService)
+        object_type: Type of objects (dataSource, entity, featureView, featureService, feature)
         project: Project name
         allow_cache: Whether to allow cached data
 
@@ -78,10 +78,10 @@ def get_relationships_for_objects(
     relationships_map = {}
 
     for obj in objects:
-        # Extract object name from different possible structures
         obj_name = None
-        if isinstance(obj, dict):
-            # Consistent name extraction logic for all object types
+        if object_type == "feature":
+            obj_name = obj.get("name")
+        elif isinstance(obj, dict):
             obj_name = (
                 obj.get("name")
                 or obj.get("spec", {}).get("name")
@@ -89,13 +89,14 @@ def get_relationships_for_objects(
             )
 
         if obj_name:
-            relationships_map[obj_name] = get_object_relationships(
+            rels = get_object_relationships(
                 grpc_handler,
                 object_type,
                 obj_name,
                 project,
                 allow_cache,
             )
+            relationships_map[obj_name] = rels
 
     return relationships_map
 

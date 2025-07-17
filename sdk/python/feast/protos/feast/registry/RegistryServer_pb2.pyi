@@ -1694,3 +1694,119 @@ class GetObjectRelationshipsResponse(google.protobuf.message.Message):
     def ClearField(self, field_name: typing_extensions.Literal["pagination", b"pagination", "relationships", b"relationships"]) -> None: ...
 
 global___GetObjectRelationshipsResponse = GetObjectRelationshipsResponse
+
+class Feature(google.protobuf.message.Message):
+    """Feature messages"""
+
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    class TagsEntry(google.protobuf.message.Message):
+        DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+        KEY_FIELD_NUMBER: builtins.int
+        VALUE_FIELD_NUMBER: builtins.int
+        key: builtins.str
+        value: builtins.str
+        def __init__(
+            self,
+            *,
+            key: builtins.str = ...,
+            value: builtins.str = ...,
+        ) -> None: ...
+        def ClearField(self, field_name: typing_extensions.Literal["key", b"key", "value", b"value"]) -> None: ...
+
+    NAME_FIELD_NUMBER: builtins.int
+    FEATURE_VIEW_FIELD_NUMBER: builtins.int
+    TYPE_FIELD_NUMBER: builtins.int
+    DESCRIPTION_FIELD_NUMBER: builtins.int
+    TAGS_FIELD_NUMBER: builtins.int
+    name: builtins.str
+    feature_view: builtins.str
+    type: builtins.str
+    description: builtins.str
+    @property
+    def tags(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, builtins.str]: ...
+    def __init__(
+        self,
+        *,
+        name: builtins.str = ...,
+        feature_view: builtins.str = ...,
+        type: builtins.str = ...,
+        description: builtins.str = ...,
+        tags: collections.abc.Mapping[builtins.str, builtins.str] | None = ...,
+    ) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["description", b"description", "feature_view", b"feature_view", "name", b"name", "tags", b"tags", "type", b"type"]) -> None: ...
+
+global___Feature = Feature
+
+class ListFeaturesRequest(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    PROJECT_FIELD_NUMBER: builtins.int
+    FEATURE_VIEW_FIELD_NUMBER: builtins.int
+    NAME_FIELD_NUMBER: builtins.int
+    ALLOW_CACHE_FIELD_NUMBER: builtins.int
+    PAGINATION_FIELD_NUMBER: builtins.int
+    SORTING_FIELD_NUMBER: builtins.int
+    project: builtins.str
+    feature_view: builtins.str
+    name: builtins.str
+    allow_cache: builtins.bool
+    @property
+    def pagination(self) -> global___PaginationParams: ...
+    @property
+    def sorting(self) -> global___SortingParams: ...
+    def __init__(
+        self,
+        *,
+        project: builtins.str = ...,
+        feature_view: builtins.str = ...,
+        name: builtins.str = ...,
+        allow_cache: builtins.bool = ...,
+        pagination: global___PaginationParams | None = ...,
+        sorting: global___SortingParams | None = ...,
+    ) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["pagination", b"pagination", "sorting", b"sorting"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["allow_cache", b"allow_cache", "feature_view", b"feature_view", "name", b"name", "pagination", b"pagination", "project", b"project", "sorting", b"sorting"]) -> None: ...
+
+global___ListFeaturesRequest = ListFeaturesRequest
+
+class ListFeaturesResponse(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    FEATURES_FIELD_NUMBER: builtins.int
+    PAGINATION_FIELD_NUMBER: builtins.int
+    @property
+    def features(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___Feature]: ...
+    @property
+    def pagination(self) -> global___PaginationMetadata: ...
+    def __init__(
+        self,
+        *,
+        features: collections.abc.Iterable[global___Feature] | None = ...,
+        pagination: global___PaginationMetadata | None = ...,
+    ) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["pagination", b"pagination"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["features", b"features", "pagination", b"pagination"]) -> None: ...
+
+global___ListFeaturesResponse = ListFeaturesResponse
+
+class GetFeatureRequest(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    PROJECT_FIELD_NUMBER: builtins.int
+    FEATURE_VIEW_FIELD_NUMBER: builtins.int
+    NAME_FIELD_NUMBER: builtins.int
+    project: builtins.str
+    feature_view: builtins.str
+    name: builtins.str
+    def __init__(
+        self,
+        *,
+        project: builtins.str = ...,
+        feature_view: builtins.str = ...,
+        name: builtins.str = ...,
+    ) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["feature_view", b"feature_view", "name", b"name", "project", b"project"]) -> None: ...
+
+global___GetFeatureRequest = GetFeatureRequest

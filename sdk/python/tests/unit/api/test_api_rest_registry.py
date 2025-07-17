@@ -841,6 +841,131 @@ def test_lineage_sorting_via_rest(fastapi_test_app_with_multiple_objects):
     assert "relationships" in data
 
 
+def test_features_list_via_rest(fastapi_test_app):
+    """Test the /features endpoint (list features in a project)."""
+    response = fastapi_test_app.get("/features?project=demo_project")
+    assert response.status_code == 200
+    data = response.json()
+    assert "features" in data
+    assert "pagination" in data
+    for feature in data["features"]:
+        assert "name" in feature
+        assert "featureView" in feature
+        assert "type" in feature
+
+    pagination = data["pagination"]
+    assert "totalCount" in pagination
+    assert "totalPages" in pagination
+
+
+def test_features_list_with_relationships_via_rest(fastapi_test_app):
+    """Test the /features endpoint with include_relationships."""
+    response = fastapi_test_app.get(
+        "/features?project=demo_project&include_relationships=true"
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert "features" in data
+    assert "relationships" in data
+    assert isinstance(data["relationships"], dict)
+    for k, v in data["relationships"].items():
+        assert isinstance(v, list)
+        for rel in v:
+            assert "source" in rel and "target" in rel
+
+
+def test_features_get_via_rest(fastapi_test_app):
+    """Test the /features/{feature_view}/{name} endpoint (get single feature)."""
+    response = fastapi_test_app.get("/features/user_profile/age?project=demo_project")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["name"] == "age"
+    assert data["featureView"] == "user_profile"
+    assert data["type"] == "Int64"
+
+    response = fastapi_test_app.get(
+        "/features/user_profile/age?project=demo_project&include_relationships=true"
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert "relationships" in data
+    assert isinstance(data["relationships"], list)
+    for rel in data["relationships"]:
+        assert "source" in rel and "target" in rel
+
+
+def test_features_list_all_via_rest(fastapi_test_app):
+    """Test the /features/all endpoint (all projects)."""
+    response = fastapi_test_app.get("/features/all")
+    assert response.status_code == 200
+    data = response.json()
+    assert "features" in data
+    assert "pagination" in data
+    for feature in data["features"]:
+        assert "project" in feature
+        assert "name" in feature
+        assert "featureView" in feature
+        assert "type" in feature
+
+
+def test_features_filtering_and_sorting_via_rest(fastapi_test_app):
+    """Test filtering and sorting for /features endpoint."""
+    response = fastapi_test_app.get(
+        "/features?project=demo_project&feature_view=user_profile"
+    )
+    assert response.status_code == 200
+    data = response.json()
+    for feature in data["features"]:
+        assert feature["featureView"] == "user_profile"
+
+    response = fastapi_test_app.get("/features?project=demo_project&name=age")
+    assert response.status_code == 200
+    data = response.json()
+    for feature in data["features"]:
+        assert feature["name"] == "age"
+
+    response = fastapi_test_app.get(
+        "/features?project=demo_project&sort_by=name&sort_order=asc"
+    )
+    assert response.status_code == 200
+    data = response.json()
+    names = [f["name"] for f in data["features"]]
+    assert names == sorted(names)
+
+
+def test_features_pagination_via_rest(fastapi_test_app_with_multiple_objects):
+    """Test pagination for /features endpoint."""
+    client = fastapi_test_app_with_multiple_objects
+    response = client.get("/features?project=demo_project&page=1&limit=2")
+    assert response.status_code == 200
+    data = response.json()
+    assert "features" in data
+    assert "pagination" in data
+    assert data["pagination"]["page"] == 1
+    assert data["pagination"]["limit"] == 2
+
+    response = client.get("/features?project=demo_project&page=2&limit=2")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["pagination"]["page"] == 2
+
+
+def test_lineage_features_object_type_via_rest(fastapi_test_app):
+    """Test lineage endpoints for features as a first-class object."""
+    response = fastapi_test_app.get("/lineage/objects/feature/age?project=demo_project")
+    assert response.status_code == 200
+    data = response.json()
+    assert "relationships" in data
+    assert isinstance(data["relationships"], list)
+    response = fastapi_test_app.get(
+        "/lineage/registry?project=demo_project&filter_object_type=feature"
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert "relationships" in data
+    assert isinstance(data["relationships"], list)
+
+
 def test_feature_view_type_identification():
     """Test that we can properly identify feature view types from their structure."""
     from feast.api.registry.rest.feature_views import _extract_feature_view_from_any

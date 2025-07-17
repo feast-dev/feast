@@ -92,6 +92,9 @@ service RegistryServer{
   rpc GetRegistryLineage (GetRegistryLineageRequest) returns (GetRegistryLineageResponse) {}
   rpc GetObjectRelationships (GetObjectRelationshipsRequest) returns (GetObjectRelationshipsResponse) {}
 
+  // Feature RPCs
+  rpc ListFeatures (ListFeaturesRequest) returns (ListFeaturesResponse) {}
+  rpc GetFeature (GetFeatureRequest) returns (Feature) {}
 }
 
 // Common pagination and sorting messages
@@ -523,4 +526,33 @@ message GetObjectRelationshipsRequest {
 message GetObjectRelationshipsResponse {
   repeated EntityRelation relationships = 1;
   PaginationMetadata pagination = 2;
+}
+
+// Feature messages
+message Feature {
+  string name = 1;
+  string feature_view = 2;
+  string type = 3;
+  string description = 4;
+  map<string, string> tags = 7;
+}
+
+message ListFeaturesRequest {
+  string project = 1;
+  string feature_view = 2;
+  string name = 3;
+  bool allow_cache = 6;
+  PaginationParams pagination = 4;
+  SortingParams sorting = 5;
+}
+
+message ListFeaturesResponse {
+  repeated Feature features = 1;
+  PaginationMetadata pagination = 2;
+}
+
+message GetFeatureRequest {
+  string project = 1;
+  string feature_view = 2;
+  string name = 3;
 }
