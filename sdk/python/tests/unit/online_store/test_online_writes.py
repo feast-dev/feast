@@ -222,8 +222,11 @@ class TestEmptyDataFrameValidation(unittest.TestCase):
         # Check that our specific warning message is present
         warning_messages = [str(w.message) for w in warning_list]
         self.assertTrue(
-            any("Cannot write empty dataframe to online store" in msg for msg in warning_messages),
-            f"Expected warning not found. Actual warnings: {warning_messages}"
+            any(
+                "Cannot write empty dataframe to online store" in msg
+                for msg in warning_messages
+            ),
+            f"Expected warning not found. Actual warnings: {warning_messages}",
         )
 
     def test_empty_dataframe_async_warns(self):
@@ -242,8 +245,11 @@ class TestEmptyDataFrameValidation(unittest.TestCase):
             # Check that our specific warning message is present
             warning_messages = [str(w.message) for w in warning_list]
             self.assertTrue(
-                any("Cannot write empty dataframe to online store" in msg for msg in warning_messages),
-                f"Expected warning not found. Actual warnings: {warning_messages}"
+                any(
+                    "Cannot write empty dataframe to online store" in msg
+                    for msg in warning_messages
+                ),
+                f"Expected warning not found. Actual warnings: {warning_messages}",
             )
 
         asyncio.run(test_async_empty())
@@ -271,8 +277,12 @@ class TestEmptyDataFrameValidation(unittest.TestCase):
         # Check that our specific warning message is present
         warning_messages = [str(w.message) for w in warning_list]
         self.assertTrue(
-            any("Cannot write dataframe with empty feature columns to online store" in msg for msg in warning_messages),
-            f"Expected warning not found. Actual warnings: {warning_messages}"
+            any(
+                "Cannot write dataframe with empty feature columns to online store"
+                in msg
+                for msg in warning_messages
+            ),
+            f"Expected warning not found. Actual warnings: {warning_messages}",
         )
 
     def test_dataframe_with_empty_feature_columns_async_warns(self):
@@ -301,8 +311,12 @@ class TestEmptyDataFrameValidation(unittest.TestCase):
             # Check that our specific warning message is present
             warning_messages = [str(w.message) for w in warning_list]
             self.assertTrue(
-                any("Cannot write dataframe with empty feature columns to online store" in msg for msg in warning_messages),
-                f"Expected warning not found. Actual warnings: {warning_messages}"
+                any(
+                    "Cannot write dataframe with empty feature columns to online store"
+                    in msg
+                    for msg in warning_messages
+                ),
+                f"Expected warning not found. Actual warnings: {warning_messages}",
             )
 
         asyncio.run(test_async_empty_features())
@@ -391,8 +405,11 @@ class TestEmptyDataFrameValidation(unittest.TestCase):
             # Check that our specific warning message is present
             warning_messages = [str(w.message) for w in warning_list]
             self.assertTrue(
-                any("Cannot write empty dataframe to online store" in msg for msg in warning_messages),
-                f"Expected warning not found. Actual warnings: {warning_messages}"
+                any(
+                    "Cannot write empty dataframe to online store" in msg
+                    for msg in warning_messages
+                ),
+                f"Expected warning not found. Actual warnings: {warning_messages}",
             )
 
     def test_inputs_dict_with_empty_features_warns(self):
