@@ -12,7 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import asyncio
 import os
+import shutil
 import tempfile
 import unittest
 import warnings
@@ -20,6 +22,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 import pandas as pd
+import pytest
 
 from feast import (
     Entity,
@@ -205,8 +208,6 @@ class TestEmptyDataFrameValidation(unittest.TestCase):
         self.store.apply([driver, driver_stats_source, driver_stats_fv])
 
     def tearDown(self):
-        import shutil
-
         shutil.rmtree(self.data_dir)
 
     def test_empty_dataframe_warns(self):
@@ -231,7 +232,6 @@ class TestEmptyDataFrameValidation(unittest.TestCase):
 
     def test_empty_dataframe_async_warns(self):
         """Test that completely empty dataframe warns instead of raising error in async version"""
-        import asyncio
 
         async def test_async_empty():
             empty_df = pd.DataFrame()
@@ -287,7 +287,6 @@ class TestEmptyDataFrameValidation(unittest.TestCase):
 
     def test_dataframe_with_empty_feature_columns_async_warns(self):
         """Test that dataframe with entity data but empty feature columns warns instead of raising error in async version"""
-        import asyncio
 
         async def test_async_empty_features():
             current_time = pd.Timestamp.now()
@@ -342,10 +341,6 @@ class TestEmptyDataFrameValidation(unittest.TestCase):
 
     def test_valid_dataframe_async(self):
         """Test that valid dataframe with feature data succeeds in async version"""
-        import asyncio
-
-        import pytest
-
         pytest.skip("Feature not implemented yet")
 
         async def test_async_valid():
@@ -443,8 +438,6 @@ class TestEmptyDataFrameValidation(unittest.TestCase):
 
     def test_multiple_feature_views_materialization_with_empty_data(self):
         """Test materializing multiple feature views where one has empty data - should not break materialization"""
-        import tempfile
-        from datetime import timedelta
 
         with tempfile.TemporaryDirectory() as data_dir:
             # Create a new store for this test
@@ -525,10 +518,10 @@ class TestEmptyDataFrameValidation(unittest.TestCase):
                             entity_key: pd.Series([], dtype="int64"),
                             "event_timestamp": pd.Series(
                                 [], dtype="datetime64[ns, UTC]"
-                            ),  # ✅ Timezone-aware
+                            ),  # Timezone-aware
                             "created": pd.Series(
                                 [], dtype="datetime64[ns, UTC]"
-                            ),  # ✅ Timezone-aware
+                            ),  # Timezone-aware
                             f"feature_{i + 1}_rate": pd.Series([], dtype="float32"),
                             f"feature_{i + 1}_count": pd.Series([], dtype="int64"),
                         }
