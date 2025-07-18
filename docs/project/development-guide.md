@@ -91,7 +91,7 @@ See [Creating a pull request from a fork](https://docs.github.com/en/github/coll
 
 ### Pre-commit Hooks
 Setup [`pre-commit`](https://pre-commit.com/) to automatically lint and format the codebase on commit:
-1. Ensure that you have Python (3.7 and above) with `pip`, installed.
+1. Ensure that you have Python (3.10 and above) with `pip`, installed.
 2. Install `pre-commit` with `pip` &amp; install pre-push hooks
 ```sh
 pip install pre-commit
