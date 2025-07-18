@@ -2,6 +2,7 @@ from typing import Dict
 
 from fastapi import APIRouter, Depends, Query
 
+from feast.api.registry.rest.codegen_utils import render_feature_service_code
 from feast.api.registry.rest.rest_utils import (
     aggregate_across_projects,
     create_grpc_pagination_params,
@@ -102,6 +103,42 @@ def get_feature_service_router(grpc_handler) -> APIRouter:
             )
             result["relationships"] = relationships
 
+        if result:
+            spec = result.get("spec", result)
+            name = spec.get("name") or result.get("name") or "default_feature_service"
+            projections = spec.get("features", [])
+            if not isinstance(projections, list):
+                projections = []
+
+            features_exprs = []
+            for proj in projections:
+                if isinstance(proj, dict):
+                    view_name = proj.get("name")
+                    feature_names = proj.get("features", [])
+                else:
+                    view_name = str(proj)
+                    feature_names = []
+
+                if not view_name:
+                    continue
+
+                if feature_names:
+                    feature_list = ", ".join([repr(f) for f in feature_names])
+                    features_exprs.append(f"{view_name}[[{feature_list}]]")
+                else:
+                    features_exprs.append(view_name)
+
+            features_str = ", ".join(features_exprs)
+
+            context = {
+                "name": name,
+                "features": features_str,
+                "tags": spec.get("tags", {}),
+                "description": spec.get("description", ""),
+                "logging_config": spec.get("loggingConfig"),
+            }
+
+            result["featureDefinition"] = render_feature_service_code(context)
         return result
 
     return router
