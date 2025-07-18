@@ -131,3 +131,34 @@ class ComputeEngine(ABC):
             entity_defs=entity_defs,
             entity_df=entity_df,
         )
+
+    def _get_feature_view_engine_config(
+        self, feature_view: Union[BatchFeatureView, StreamFeatureView, FeatureView]
+    ) -> dict:
+        """
+        Merge repo-level default batch engine config with runtime engine overrides defined in the feature view.
+
+        Priority:
+        1. Repo config (`self.repo_config.batch_engine_config`) - baseline
+        2. FeatureView overrides (`batch_engine` for BatchFeatureView, `stream_engine` for StreamFeatureView`) - highest priority
+
+        Args:
+            feature_view: A BatchFeatureView or StreamFeatureView.
+
+        Returns:
+            dict: The merged engine configuration.
+        """
+        default_conf = self.repo_config.batch_engine_config or {}
+
+        runtime_conf = None
+        if isinstance(feature_view, BatchFeatureView):
+            runtime_conf = feature_view.batch_engine
+        elif isinstance(feature_view, StreamFeatureView):
+            runtime_conf = feature_view.stream_engine
+
+        if runtime_conf is not None and not isinstance(runtime_conf, dict):
+            raise TypeError(
+                f"Engine config for {feature_view.name} must be a dict, got {type(runtime_conf)}."
+            )
+
+        return {**default_conf, **runtime_conf} if runtime_conf else dict(default_conf)

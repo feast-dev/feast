@@ -2,6 +2,12 @@
 
 `BatchFeatureView` is a flexible abstraction in Feast that allows users to define features derived from batch data sources or even other `FeatureView`s, enabling composable and reusable feature pipelines. It is an extension of the `FeatureView` class, with support for user-defined transformations, aggregations, and recursive chaining of feature logic.
 
+## Supported Compute Engines
+- [x] LocalComputeEngine
+- [x] SparkComputeEngine
+- [ ] LambdaComputeEngine
+- [ ] KubernetesComputeEngine
+
 ---
 
 ## ✅ Key Capabilities

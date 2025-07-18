@@ -47,7 +47,6 @@ class SparkOfflineStoreConfig(FeastConfigBaseModel):
 
     spark_conf: Optional[Dict[str, str]] = None
     """ Configuration overlay for the spark session """
-    # sparksession is not serializable and we dont want to pass it around as an argument
 
     staging_location: Optional[StrictStr] = None
     """ Remote path for batch materialization jobs"""

@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import Dict, Literal, Optional, Sequence, Union, cast
 
 from pydantic import StrictStr
+from pyspark.sql import SparkSession
 
 from feast import (
     BatchFeatureView,
@@ -77,20 +78,11 @@ class SparkComputeEngine(ComputeEngine):
     ):
         pass
 
-    def __init__(
-        self,
-        offline_store,
-        online_store,
-        repo_config,
-        **kwargs,
-    ):
-        super().__init__(
-            offline_store=offline_store,
-            online_store=online_store,
-            repo_config=repo_config,
-            **kwargs,
-        )
-        self.spark_session = get_or_create_new_spark_session()
+    def _get_feature_view_spark_session(
+        self, feature_view: Union[BatchFeatureView, StreamFeatureView, FeatureView]
+    ) -> SparkSession:
+        spark_conf = self._get_feature_view_engine_config(feature_view)
+        return get_or_create_new_spark_session(spark_conf)
 
     def _materialize_one(
         self,
@@ -113,11 +105,13 @@ class SparkComputeEngine(ComputeEngine):
         # ✅ 1. Build typed execution context
         context = self.get_execution_context(registry, task)
 
+        spark_session = self._get_feature_view_spark_session(task.feature_view)
+
         try:
             # ✅ 2. Construct Feature Builder and run it
             builder = SparkFeatureBuilder(
                 registry=registry,
-                spark_session=self.spark_session,
+                spark_session=spark_session,
                 task=task,
             )
             plan = builder.build()
@@ -209,18 +203,20 @@ class SparkComputeEngine(ComputeEngine):
         # ✅ 1. Build typed execution context
         context = self.get_execution_context(registry, task)
 
+        spark_session = self._get_feature_view_spark_session(task.feature_view)
+
         try:
             # ✅ 2. Construct Feature Builder and run it
             builder = SparkFeatureBuilder(
                 registry=registry,
-                spark_session=self.spark_session,
+                spark_session=spark_session,
                 task=task,
             )
             plan = builder.build()
 
             return SparkDAGRetrievalJob(
                 plan=plan,
-                spark_session=self.spark_session,
+                spark_session=spark_session,
                 context=context,
                 config=self.repo_config,
                 full_feature_names=task.full_feature_name,
@@ -229,7 +225,7 @@ class SparkComputeEngine(ComputeEngine):
             # 🛑 Handle failure
             return SparkDAGRetrievalJob(
                 plan=None,
-                spark_session=self.spark_session,
+                spark_session=spark_session,
                 context=context,
                 config=self.repo_config,
                 full_feature_names=task.full_feature_name,
