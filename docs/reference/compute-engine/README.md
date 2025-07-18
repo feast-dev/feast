@@ -19,8 +19,8 @@ This system builds and executes DAGs (Directed Acyclic Graphs) of typed operatio
 | `FeatureBuilder`   | Constructs a DAG from Feature View definition for a specific backend | [link](https://github.com/feast-dev/feast/blob/master/sdk/python/feast/infra/compute_engines/feature_builder.py)            |
 | `FeatureResolver`  | Resolves feature DAG by topological order for execution              | [link](https://github.com/feast-dev/feast/blob/master/sdk/python/feast/infra/compute_engines/feature_resolver.py)           |
 | `DAG`              | Represents a logical DAG operation (read, aggregate, join, etc.)     | [link](https://github.com/feast-dev/feast/blob/master/sdk/python/feast/infra/compute_engines/dag/README.md)                 |
-| `ExecutionPlan`    | Executes nodes in dependency order and stores intermediate outputs   | [link]([link](https://github.com/feast-dev/feast/blob/master/sdk/python/feast/infra/compute_engines/dag/README.md))         |
-| `ExecutionContext` | Holds config, registry, stores, entity data, and node outputs        | [link]([link](https://github.com/feast-dev/feast/blob/master/sdk/python/feast/infra/compute_engines/dag/README.md))         |
+| `ExecutionPlan`    | Executes nodes in dependency order and stores intermediate outputs   | [link](https://github.com/feast-dev/feast/blob/master/sdk/python/feast/infra/compute_engines/dag/README.md)         |
+| `ExecutionContext` | Holds config, registry, stores, entity data, and node outputs        | [link](https://github.com/feast-dev/feast/blob/master/sdk/python/feast/infra/compute_engines/dag/README.md)         |
 
 ---
 

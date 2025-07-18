@@ -34,6 +34,7 @@ class BatchFeatureView(FeatureView):
 
     Attributes:
         name: The unique name of the batch feature view.
+        mode: The transformation mode to use for the batch feature view. This can be one of TransformationMode
         entities: List of entities or entity join keys.
         ttl: The amount of time this group of features lives. A ttl of 0 indicates that
             this group of features lives forever. Note that large ttl's or a ttl of 0
@@ -46,6 +47,13 @@ class BatchFeatureView(FeatureView):
         description: A human-readable description.
         tags: A dictionary of key-value pairs to store arbitrary metadata.
         owner: The owner of the batch feature view, typically the email of the primary maintainer.
+        udf: A user-defined function that applies transformations to the data in the batch feature view.
+        udf_string: A string representation of the user-defined function.
+        feature_transformation: A transformation object that defines how features are transformed.
+                Note, feature_transformation has precedence over udf and udf_string.
+        batch_engine: A dictionary containing configuration for the batch engine used to process the feature view.
+                Note, it will override the repo-level default batch engine config defined in the yaml file.
+        aggregations: A list of aggregations to be applied to the features in the batch feature view.
     """
 
     name: str
@@ -67,7 +75,7 @@ class BatchFeatureView(FeatureView):
     udf: Optional[Callable[[Any], Any]]
     udf_string: Optional[str]
     feature_transformation: Optional[Transformation]
-    batch_engine: Optional[Field]
+    batch_engine: Optional[Dict[str, Any]]
     aggregations: Optional[List[Aggregation]]
 
     def __init__(
@@ -88,7 +96,7 @@ class BatchFeatureView(FeatureView):
         udf: Optional[Callable[[Any], Any]] = None,
         udf_string: Optional[str] = "",
         feature_transformation: Optional[Transformation] = None,
-        batch_engine: Optional[Field] = None,
+        batch_engine: Optional[Dict[str, Any]] = None,
         aggregations: Optional[List[Aggregation]] = None,
     ):
         if not flags_helper.is_test():
@@ -162,21 +170,9 @@ def batch_feature_view(
     schema: Optional[List[Field]] = None,
 ):
     """
-    Args:
-        name:
-        mode:
-        entities:
-        ttl:
-        source:
-        tags:
-        online:
-        offline:
-        description:
-        owner:
-        schema:
-
-    Returns:
-
+    Creates a BatchFeatureView object with the given user-defined function (UDF) as the transformation.
+    Please make sure that the udf contains all non-built in imports within the function to ensure that the execution
+    of a deserialized function does not miss imports.
     """
 
     def mainify(obj):

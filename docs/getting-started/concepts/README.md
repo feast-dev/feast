@@ -20,6 +20,14 @@
 [feature-view.md](feature-view.md)
 {% endcontent-ref %}
 
+{% content-ref url="batch-feature-view.md" %}
+[batch-feature-view.md](batch-feature-view.md)
+{% endcontent-ref %}
+
+{% content-ref url="stream-feature-view.md" %}
+[stream-feature-view.md](stream-feature-view.md)
+{% endcontent-ref %}
+
 {% content-ref url="feature-retrieval.md" %}
 [feature-retrieval.md](feature-retrieval.md)
 {% endcontent-ref %}
