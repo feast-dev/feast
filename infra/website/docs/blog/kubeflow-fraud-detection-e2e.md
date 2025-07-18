@@ -39,13 +39,13 @@ The pipeline assumes that the initial datasets (`train.csv`, `test.csv`, etc.) a
 
 ## Why Kubeflow?
 
-This project demonstrates the power of using Kubeflow to abstract away the complexity of Kubernetes infrastructure, allowing data scientists and ML engineers to focus on what matters most: the data and model performance.
+This project demonstrates the power of using Kubeflow to abstract away the complexity of Kubernetes infrastructure, allowing AI Engineers, Data Scientists, and ML engineers to focus on what matters most: the data and model performance.
 
 ### Key Benefits
 
 **Infrastructure Abstraction**: Instead of manually managing Kubernetes deployments, service accounts, networking, and storage configurations, the pipeline handles all the infrastructure complexity behind the scenes. You define your ML workflow as code, and Kubeflow takes care of orchestrating the execution across your Kubernetes cluster.
 
-**Focus on Data Science, Not DevOps**: With the infrastructure automated, you can spend your time on the activities that directly impact model performance:
+**Focus on AI, Not DevOps**: With the infrastructure automated, you can spend your time on the activities that directly impact model performance:
 
 - Experimenting with different feature engineering approaches
 - Tuning hyperparameters and model architectures  
@@ -99,6 +99,44 @@ Before uploading, you need to port-forward the MinIO service so it's accessible 
 
 ```sh
 kubectl port-forward --namespace kubeflow svc/minio-service 9000:9000
+```
+
+Next, generate the synthetic data and copy it to `feature_engineering/feature_repo/data/input/` if you haven't done yet. The synthetic data generation script creates the `raw_transaction_datasource.csv` file that serves as the primary input for the pipeline.
+
+```sh
+cd synthetic_data_generation
+uv sync
+source .venv/bin/activate
+python synthetic_data_generation.py
+cp raw_transaction_datasource.csv ../feature_engineering/feature_repo/data/input
+cd ..
+```
+
+You should see an output similar to the following. The generation may take a few minutes depending on your hardware.
+
+```sh
+Using CPython 3.11.11
+Creating virtual environment at: .venv
+Resolved 7 packages in 14ms
+Installed 6 packages in 84ms
+ + numpy==2.3.0
+ + pandas==2.3.0
+ + python-dateutil==2.9.0.post0
+ + pytz==2025.2
+ + six==1.17.0
+ + tzdata==2025.2
+loading data...
+generating transaction level data...
+        0 of 1,000,000 (0%) complete
+  100,000 of 1,000,000 (10%) complete
+  200,000 of 1,000,000 (20%) complete
+  300,000 of 1,000,000 (30%) complete
+  400,000 of 1,000,000 (40%) complete
+  500,000 of 1,000,000 (50%) complete
+  600,000 of 1,000,000 (60%) complete
+  700,000 of 1,000,000 (70%) complete
+  800,000 of 1,000,000 (80%) complete
+  900,000 of 1,000,000 (90%) complete
 ```
 
 Next, install and configure the [MinIO Client (`mc`)](https://min.io/docs/minio/linux/reference/minio-mc.html) if you haven't already. Then, set up the alias and upload the datasets:
@@ -224,7 +262,7 @@ Repeat this process for each component, adjusting the tag and directory as neede
 
 ### Pushing Images
 
-After building, push the images to a container registry accessible by your Kubernetes cluster. Update the image references in your pipeline or manifests as needed.
+After building, push the images to a container registry accessible by your Kubernetes cluster. Update the image references in your pipeline as needed.
 
 ## The Kubeflow Pipeline
 
@@ -318,7 +356,7 @@ All of this logic is orchestrated by the `prepare_data` component in the pipelin
 
 ### 2. Feature Engineering with Feast
 
-[Feast](https://feast.dev/) is an open source feature store that lets you manage and serve features for both training and inference, ensuring consistency and reducing the risk of training/serving skew.
+[Feast](https://feast.dev/) is an open source feature store that lets you manage and serve features for both training and inference, ensuring consistency and reducing the risk of training/serving skew. In machine learning, a "feature" is an individual measurable property or characteristic of the data being analyzed—in our fraud detection case, features include transaction amounts, distances from previous transactions, merchant types, and user behavior patterns that help the model distinguish between legitimate and fraudulent activity.
 
 #### Container Image for Feature Engineering
 
@@ -559,7 +597,7 @@ Once your environment is set up and the data is uploaded, you're ready to run th
 
 1. After uploading, click on your pipeline in the list.
 2. Click **Create run**.
-3. Fill in the run details and click **Start**.
+3. Optionally customize the run name and description (the defaults work fine), then click **Start**.
 
 You can monitor the progress and view logs for each step directly in the UI.
 
