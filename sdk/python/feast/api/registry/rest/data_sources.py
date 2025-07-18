@@ -3,6 +3,11 @@ from typing import Dict
 
 from fastapi import APIRouter, Depends, Query
 
+from feast.api.registry.rest.codegen_utils import (
+    render_data_source_code,
+    render_push_source_code,
+    render_request_source_code,
+)
 from feast.api.registry.rest.rest_utils import (
     aggregate_across_projects,
     create_grpc_pagination_params,
@@ -15,6 +20,8 @@ from feast.api.registry.rest.rest_utils import (
     parse_tags,
 )
 from feast.protos.feast.registry import RegistryServer_pb2
+from feast.type_map import _convert_value_type_str_to_value_type
+from feast.types import from_value_type
 
 logger = logging.getLogger(__name__)
 
@@ -105,6 +112,49 @@ def get_data_source_router(grpc_handler) -> APIRouter:
             )
             result["relationships"] = relationships
 
-        return result
+        if result:
+            spec = result.get("spec", result)
+            name = spec.get("name", result.get("name", "default_source"))
+            source_type = spec.get("type", "").upper()
+            if source_type == "REQUEST_SOURCE":
+                schema_fields = []
+                feast_types = set()
+                for field in spec.get("requestDataOptions", {}).get("schema", []):
+                    value_type_enum = _convert_value_type_str_to_value_type(
+                        field.get("valueType", "").upper()
+                    )
+                    feast_type = from_value_type(value_type_enum)
+                    dtype = getattr(feast_type, "__name__", str(feast_type))
+                    schema_fields.append(
+                        f'        Field(name="{field["name"]}", dtype={dtype}),'
+                    )
+                    feast_types.add(dtype)
+                context = dict(
+                    name=name,
+                    schema_lines=schema_fields,
+                    feast_types=list(feast_types),
+                )
+                result["featureDefinition"] = render_request_source_code(context)
+                return result
+            elif source_type == "PUSH_SOURCE" and "batchSource" in spec:
+                batch_source_name = spec["batchSource"].get("name", "batch_source")
+                context = dict(
+                    name=name,
+                    batch_source_name=batch_source_name,
+                )
+                result["featureDefinition"] = render_push_source_code(context)
+                return result
+            else:
+                path = spec.get("path") or spec.get("fileOptions", {}).get("uri", "")
+                timestamp_field = spec.get("timestampField", "event_timestamp")
+                created_timestamp_column = spec.get("createdTimestampColumn", "")
+                context = dict(
+                    name=name,
+                    path=path,
+                    timestamp_field=timestamp_field,
+                    created_timestamp_column=created_timestamp_column,
+                )
+                result["featureDefinition"] = render_data_source_code(context)
+                return result
 
     return router

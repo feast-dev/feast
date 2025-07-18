@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, Query
 
+from feast.api.registry.rest.codegen_utils import render_feature_code
 from feast.api.registry.rest.rest_utils import (
     aggregate_across_projects,
     create_grpc_pagination_params,
@@ -11,6 +12,8 @@ from feast.api.registry.rest.rest_utils import (
     grpc_call,
 )
 from feast.registry_server import RegistryServer_pb2
+from feast.type_map import _convert_value_type_str_to_value_type
+from feast.types import from_value_type
 
 
 def get_feature_router(grpc_handler) -> APIRouter:
@@ -71,6 +74,26 @@ def get_feature_router(grpc_handler) -> APIRouter:
             response["relationships"] = get_object_relationships(
                 grpc_handler, "feature", name, project
             )
+        if response:
+            dtype_str = response.get("type") or response.get("dtype")
+            value_type_enum = (
+                _convert_value_type_str_to_value_type(dtype_str.upper())
+                if dtype_str
+                else None
+            )
+            feast_type = from_value_type(value_type_enum) if value_type_enum else None
+            dtype = (
+                feast_type.__name__
+                if feast_type and hasattr(feast_type, "__name__")
+                else "String"
+            )
+            context = dict(
+                name=response.get("name", name),
+                dtype=dtype,
+                description=response.get("description", ""),
+                tags=response.get("tags", response.get("labels", {})) or {},
+            )
+            response["featureDefinition"] = render_feature_code(context)
         return response
 
     @router.get("/features/all")

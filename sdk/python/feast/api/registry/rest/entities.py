@@ -2,6 +2,7 @@ import logging
 
 from fastapi import APIRouter, Depends, Query
 
+from feast.api.registry.rest.codegen_utils import render_entity_code
 from feast.api.registry.rest.rest_utils import (
     aggregate_across_projects,
     create_grpc_pagination_params,
@@ -119,6 +120,20 @@ def get_entity_router(grpc_handler) -> APIRouter:
         if include_relationships:
             result["relationships"] = relationships
 
+        if result:
+            spec = result.get("spec", result)
+            name = spec.get("name") or result.get("name") or "default_entity"
+            join_keys = spec.get("joinKeys") or (
+                [spec["joinKey"]] if "joinKey" in spec else []
+            )
+
+            context = {
+                "name": name,
+                "join_keys": join_keys,
+                "description": spec.get("description", ""),
+                "tags": spec.get("tags", {}),
+            }
+            result["featureDefinition"] = render_entity_code(context)
         return result
 
     return router

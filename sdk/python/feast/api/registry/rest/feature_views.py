@@ -2,6 +2,7 @@ from typing import Dict
 
 from fastapi import APIRouter, Depends, Query
 
+from feast.api.registry.rest.codegen_utils import render_feature_view_code
 from feast.api.registry.rest.rest_utils import (
     create_grpc_pagination_params,
     create_grpc_sorting_params,
@@ -14,6 +15,8 @@ from feast.api.registry.rest.rest_utils import (
     parse_tags,
 )
 from feast.registry_server import RegistryServer_pb2
+from feast.type_map import _convert_value_type_str_to_value_type
+from feast.types import from_value_type
 
 
 def _extract_feature_view_from_any(any_feature_view: dict) -> dict:
@@ -30,6 +33,20 @@ def _extract_feature_view_from_any(any_feature_view: dict) -> dict:
             return {"type": key, **value}
 
     return {}
+
+
+def extract_feast_types_from_fields(fields):
+    types = set()
+    for field in fields:
+        value_type_enum = _convert_value_type_str_to_value_type(
+            field.get("valueType", "").upper()
+        )
+        feast_type = from_value_type(value_type_enum)
+        dtype = (
+            feast_type.__name__ if hasattr(feast_type, "__name__") else str(feast_type)
+        )
+        types.add(dtype)
+    return list(types)
 
 
 def get_feature_view_router(grpc_handler) -> APIRouter:
@@ -115,6 +132,93 @@ def get_feature_view_router(grpc_handler) -> APIRouter:
                 grpc_handler, "featureView", name, project, allow_cache
             )
             result["relationships"] = relationships
+
+        if result and "spec" in result:
+            spec = result["spec"]
+            fv_type = result.get("type", "featureView")
+            features = spec.get("features", [])
+            if not isinstance(features, list):
+                features = []
+            if fv_type == "onDemandFeatureView":
+                class_name = "OnDemandFeatureView"
+                sources = spec.get("sources", {})
+                if sources:
+                    source_exprs = []
+                    for k, v in sources.items():
+                        var_name = v.get("name", k) if isinstance(v, dict) else str(v)
+                        source_exprs.append(f'"{k}": {var_name}')
+                    source_name = "{" + ", ".join(source_exprs) + "}"
+                else:
+                    source_name = "source_feature_view"
+            elif fv_type == "streamFeatureView":
+                class_name = "StreamFeatureView"
+                stream_source = spec.get("streamSource", {})
+                source_name = stream_source.get("name", "stream_source")
+            else:
+                class_name = "FeatureView"
+                source_views = spec.get("source_views") or spec.get("sourceViews")
+                if source_views and isinstance(source_views, list):
+                    source_vars = [sv.get("name", "source_view") for sv in source_views]
+                    source_name = "[" + ", ".join(source_vars) + "]"
+                else:
+                    source = spec.get("source")
+                    if isinstance(source, dict) and source.get("name"):
+                        source_name = source["name"]
+                    else:
+                        batch_source = spec.get("batchSource", {})
+                        source_name = batch_source.get("name", "driver_stats_source")
+
+            # Entities
+            entities = spec.get("entities") or []
+            entities_str = ", ".join(entities)
+
+            # Feature schema
+            schema_lines = []
+            for field in features:
+                value_type_enum = _convert_value_type_str_to_value_type(
+                    field.get("valueType", "").upper()
+                )
+                feast_type = from_value_type(value_type_enum)
+                dtype = getattr(feast_type, "__name__", str(feast_type))
+                desc = field.get("description")
+                desc_str = f', description="{desc}"' if desc else ""
+                schema_lines.append(
+                    f'        Field(name="{field["name"]}", dtype={dtype}{desc_str}),'
+                )
+
+            # Feast types
+            feast_types = extract_feast_types_from_fields(features)
+
+            # Tags
+            tags = spec.get("tags", {})
+            tags_str = f"tags={tags}," if tags else ""
+
+            # TTL
+            ttl = spec.get("ttl")
+            ttl_str = "timedelta(days=1)"
+            if ttl:
+                if isinstance(ttl, int):
+                    ttl_str = f"timedelta(seconds={ttl})"
+                elif isinstance(ttl, str) and ttl.endswith("s") and ttl[:-1].isdigit():
+                    ttl_str = f"timedelta(seconds={int(ttl[:-1])})"
+
+            # Online
+            online = spec.get("online", True)
+
+            # Build context
+            context = dict(
+                class_name=class_name,
+                name=spec.get("name", "example"),
+                entities_str=entities_str,
+                ttl_str=ttl_str,
+                schema_lines=schema_lines,
+                online=online,
+                source_name=source_name,
+                tags_str=tags_str,
+                feast_types=feast_types,
+            )
+
+            result["featureDefinition"] = render_feature_view_code(context)
 
         return result
 
