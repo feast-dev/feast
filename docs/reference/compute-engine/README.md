@@ -48,7 +48,10 @@ An example of built output from FeatureBuilder:
 
 ## ✨ Available Engines
 
+
 ### 🔥 SparkComputeEngine
+
+{% page-ref page="spark.md" %}
 
 - Distributed DAG execution via Apache Spark
 - Supports point-in-time joins and large-scale materialization
@@ -56,9 +59,23 @@ An example of built output from FeatureBuilder:
 
 ### 🧪 LocalComputeEngine
 
+{% page-ref page="local.md" %}
+
 - Runs on Arrow + Specified backend (e.g., Pandas, Polars)
 - Designed for local dev, testing, or lightweight feature generation
 - Supports `LocalMaterializationJob` and `LocalHistoricalRetrievalJob`
+
+### 🧊 SnowflakeComputeEngine
+
+- Runs entirely in Snowflake
+- Supports Snowflake SQL for feature transformations and aggregations
+- Integrates with `SnowflakeOfflineStore` and `SnowflakeMaterializationJob`
+
+{% page-ref page="snowflake.md" %}
+
+### LambdaComputeEngine
+
+{% page-ref page="lambda.md" %}
 
 ---
 

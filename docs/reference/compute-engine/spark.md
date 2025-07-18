@@ -1,10 +1,19 @@
-# Spark (alpha)
+# Spark
 
 ## Description
 
-The Spark batch materialization engine is considered alpha status. It relies on the offline store to output feature values to S3 via `to_remote_storage`, and then loads them into the online store.
+Spark Compute Engine provides a distributed execution engine for batch materialization operations (`materialize` and `materialize-incremental`) and historical retrieval operations (`get_historical_features`).
 
-See [SparkMaterializationEngine](https://rtd.feast.dev/en/master/index.html?highlight=SparkMaterializationEngine#feast.infra.materialization.spark.spark_materialization_engine.SparkMaterializationEngineConfig) for configuration options.
+It is designed to handle large-scale data processing and can be used with various offline stores, such as Snowflake, BigQuery, and Spark SQL.
+
+### Design
+The Spark Compute engine is implemented as a subclass of `feast.infra.compute_engine.ComputeEngine`.
+Offline store is used to read and write data, while the Spark engine is used to perform transformations and aggregations on the data.
+The engine supports the following features:
+- Support for reading different data sources, such as Spark SQL, BigQuery, and Snowflake.
+- Distributed execution of feature transformations and aggregations.
+- Support for custom transformations using Spark SQL or UDFs.
+
 
 ## Example
 
@@ -16,7 +25,12 @@ offline_store:
 ...
 batch_engine:
   type: spark.engine
-  partitions: [optional num partitions to use to write to online store]
+  partitions: 10 # number of partitions when writing to the online or offline store
+  spark_conf:
+    spark.master: "local[*]"
+    spark.app.name: "Feast Spark Engine"
+    spark.sql.shuffle.partitions: 100
+    spark.executor.memory: "4g"
 ```
 {% endcode %}
 

@@ -2,7 +2,7 @@
 
 ## Description
 
-The [Snowflake](https://trial.snowflake.com) batch materialization engine provides a highly scalable and parallel execution engine using a Snowflake Warehouse for batch materializations operations (`materialize` and `materialize-incremental`) when using a `SnowflakeSource`.
+The [Snowflake](https://trial.snowflake.com) compute engine provides a highly scalable and parallel execution engine using a Snowflake Warehouse for batch materializations operations (`materialize` and `materialize-incremental`) when using a `SnowflakeSource`.
 
 The engine requires no additional configuration other than for you to supply Snowflake's standard login and context details. The engine leverages custom (automatically deployed for you) Python UDFs to do the proper serialization of your offline store data to your online serving tables.
 
