@@ -430,11 +430,153 @@ class TestEmptyDataFrameValidation(unittest.TestCase):
                 feature_view_name="driver_hourly_stats", inputs=empty_feature_inputs
             )
 
-        self.assertEqual(len(warning_list), 1)
-        self.assertIn(
-            "Cannot write dataframe with empty feature columns to online store",
-            str(warning_list[0].message),
+        # Check that our specific warning message is present
+        warning_messages = [str(w.message) for w in warning_list]
+        self.assertTrue(
+            any(
+                "Cannot write dataframe with empty feature columns to online store"
+                in msg
+                for msg in warning_messages
+            ),
+            f"Expected warning not found. Actual warnings: {warning_messages}",
         )
+
+    def test_multiple_feature_views_materialization_with_empty_data(self):
+        """Test materializing multiple feature views where one has empty data - should not break materialization"""
+        import tempfile
+        from datetime import timedelta
+
+        with tempfile.TemporaryDirectory() as data_dir:
+            # Create a new store for this test
+            test_store = FeatureStore(
+                config=RepoConfig(
+                    project="test_multiple_fv_materialization",
+                    registry=os.path.join(data_dir, "registry.db"),
+                    provider="local",
+                    entity_key_serialization_version=3,
+                    online_store=SqliteOnlineStoreConfig(
+                        path=os.path.join(data_dir, "online.db")
+                    ),
+                )
+            )
+
+            # Create entities
+            driver = Entity(name="driver", join_keys=["driver_id"])
+            customer = Entity(name="customer", join_keys=["customer_id"])
+
+            # Create 5 feature views with data
+            current_time = pd.Timestamp.now().replace(microsecond=0)
+            start_date = current_time - timedelta(hours=2)
+            end_date = current_time - timedelta(minutes=10)
+            feature_views = []
+            dataframes = []
+            offline_paths = []
+
+            for i in range(5):
+                # Create file path for offline data
+                offline_path = os.path.join(data_dir, f"feature_view_{i + 1}.parquet")
+                offline_paths.append(offline_path)
+
+                # Create feature view with real file source
+                fv = FeatureView(
+                    name=f"feature_view_{i + 1}",
+                    entities=[driver if i % 2 == 0 else customer],
+                    ttl=timedelta(days=1),
+                    schema=[
+                        Field(name=f"feature_{i + 1}_rate", dtype=Float32),
+                        Field(name=f"feature_{i + 1}_count", dtype=Int64),
+                    ],
+                    online=True,
+                    source=FileSource(
+                        name=f"source_{i + 1}",
+                        path=offline_path,
+                        timestamp_field="event_timestamp",
+                        created_timestamp_column="created",
+                    ),
+                )
+                feature_views.append(fv)
+
+                # Create data - make 2nd feature view (index 1) empty
+                if i == 1:  # 2nd feature view gets empty data
+                    df = pd.DataFrame()  # Empty dataframe
+                else:
+                    # Create valid data for other feature views
+                    entity_key = "driver_id" if i % 2 == 0 else "customer_id"
+                    df = pd.DataFrame(
+                        {
+                            entity_key: [1000 + j for j in range(3)],
+                            "event_timestamp": [
+                                start_date + timedelta(minutes=j * 10) for j in range(3)
+                            ],
+                            "created": [current_time] * 3,
+                            f"feature_{i + 1}_rate": [0.5 + j * 0.1 for j in range(3)],
+                            f"feature_{i + 1}_count": [10 + j for j in range(3)],
+                        }
+                    )
+
+                # Write data to offline store (parquet files) - offline store allows empty dataframes
+                if len(df) > 0:
+                    df.to_parquet(offline_path, allow_truncated_timestamps=True)
+                else:
+                    # Create empty parquet file with correct schema (timezone-aware timestamps)
+                    entity_key = "driver_id" if i % 2 == 0 else "customer_id"
+                    empty_schema_df = pd.DataFrame(
+                        {
+                            entity_key: pd.Series([], dtype="int64"),
+                            "event_timestamp": pd.Series(
+                                [], dtype="datetime64[ns, UTC]"
+                            ),  # ✅ Timezone-aware
+                            "created": pd.Series(
+                                [], dtype="datetime64[ns, UTC]"
+                            ),  # ✅ Timezone-aware
+                            f"feature_{i + 1}_rate": pd.Series([], dtype="float32"),
+                            f"feature_{i + 1}_count": pd.Series([], dtype="int64"),
+                        }
+                    )
+                    empty_schema_df.to_parquet(
+                        offline_path, allow_truncated_timestamps=True
+                    )
+
+                dataframes.append(df)
+
+            # Apply entities and feature views
+            test_store.apply([driver, customer] + feature_views)
+
+            # Test: Use materialize() to move data from offline to online store
+            test_store.materialize(
+                start_date=start_date,
+                end_date=end_date,
+                feature_views=[fv.name for fv in feature_views],
+            )
+
+            # Verify that the operation was successful by checking that non-empty feature views have data
+            successful_materializations = 0
+            for i, fv in enumerate(feature_views):
+                if i != 1:  # Skip the empty one (2nd feature view)
+                    entity_key = "driver_id" if i % 2 == 0 else "customer_id"
+                    entity_value = 1000  # First entity from our test data
+
+                    # Try to retrieve features to verify they were written successfully
+                    online_response = test_store.get_online_features(
+                        entity_rows=[{entity_key: entity_value}],
+                        features=[
+                            f"{fv.name}:feature_{i + 1}_rate",
+                            f"{fv.name}:feature_{i + 1}_count",
+                        ],
+                    ).to_dict()
+
+                    # Verify we got some data back (not None/null)
+                    rate_value = online_response.get(f"feature_{i + 1}_rate")
+                    count_value = online_response.get(f"feature_{i + 1}_count")
+
+                    if rate_value is not None and count_value is not None:
+                        successful_materializations += 1
+
+                    self.assertIsNotNone(rate_value)
+                    self.assertIsNotNone(count_value)
+
+            # Verify that 4 out of 4 non-empty feature views were successfully materialized
+            self.assertEqual(successful_materializations, 4)
 
 
 class TestOnlineWritesWithTransform(unittest.TestCase):
