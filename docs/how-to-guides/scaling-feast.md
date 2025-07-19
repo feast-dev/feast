@@ -20,7 +20,7 @@ The recommended solution in this case is to use the [SQL based registry](../tuto
 The default Feast materialization process is an in-memory process, which pulls data from the offline store before writing it to the online store.
 However, this process does not scale for large data sets, since it's executed on a single-process.
 
-Feast supports pluggable [Materialization Engines](../getting-started/components/batch-materialization-engine.md), that allow the materialization process to be scaled up.
+Feast supports pluggable [Compute Engines](../getting-started/components/compute-engine.md), that allow the materialization process to be scaled up.
 Aside from the local process, Feast supports a [Lambda-based materialization engine](https://rtd.feast.dev/en/master/#alpha-lambda-based-engine), and a [Bytewax-based materialization engine](https://rtd.feast.dev/en/master/#bytewax-engine).
 
 Users may also be able to build an engine to scale up materialization using existing infrastructure in their organizations.

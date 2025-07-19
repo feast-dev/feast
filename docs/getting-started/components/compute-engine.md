@@ -1,4 +1,4 @@
-# Compute Engine (Batch Materialization Engine)
+# Compute Engine
 
 Note: The materialization is now constructed via unified compute engine interface.
 
@@ -20,8 +20,9 @@ engines.
 ```markdown
 | Compute Engine         | Description                                                                                      | Supported  | Link |
 |-------------------------|-------------------------------------------------------------------------------------------------|------------|------|
-| LocalComputeEngine      | Runs on Arrow + Pandas/Polars/Dask etc., designed for light weight transformation.              | ✅         |    |
+| LocalComputeEngine      | Runs on Arrow + Pandas/Polars/Dask etc., designed for light weight transformation.              | ✅         |      |
 | SparkComputeEngine      | Runs on Apache Spark, designed for large-scale distributed feature generation.                  | ✅         |      |
+| SnowflakeComputeEngine  | Runs on Snowflake, designed for scalable feature generation using Snowflake SQL.                | ✅         |      |
 | LambdaComputeEngine     | Runs on AWS Lambda, designed for serverless feature generation.                                 | ✅         |      |
 | FlinkComputeEngine      | Runs on Apache Flink, designed for stream processing and real-time feature generation.          | ❌         |      |
 | RayComputeEngine        | Runs on Ray, designed for distributed feature generation and machine learning workloads.        | ❌         |      |
@@ -31,7 +32,7 @@ engines.
 Batch Engine Config can be configured in the `feature_store.yaml` file, and it serves as the default configuration for all materialization and historical retrieval tasks. The `batch_engine` config in BatchFeatureView. E.g
 ```yaml
 batch_engine:
-    type: SparkComputeEngine
+    type: spark.engine
     config:
         spark_master: "local[*]"
         spark_app_name: "Feast Batch Engine"
@@ -59,7 +60,7 @@ Then, when you materialize the feature view, it will use the batch_engine config
 Stream Engine Config can be configured in the `feature_store.yaml` file, and it serves as the default configuration for all stream materialization and historical retrieval tasks. The `stream_engine` config in FeatureView. E.g
 ```yaml
 stream_engine:
-    type: SparkComputeEngine
+    type: spark.engine
     config:
         spark_master: "local[*]"
         spark_app_name: "Feast Stream Engine"
@@ -109,3 +110,50 @@ defined in the DAG. It handles the execution of transformations, aggregations, j
 The Feature resolver is the core component of the compute engine that constructs the execution plan for feature
 generation. It takes the definitions from feature views and builds a directed acyclic graph (DAG) of operations that
 need to be performed to generate the features.
+
+#### DAG
+The DAG represents the directed acyclic graph of operations that need to be performed to generate the features. It
+contains nodes for each operation, such as transformations, aggregations, joins, and filters. The DAG is built by the
+Feature Resolver and executed by the Feature Builder.
+
+DAG nodes are defined as follows:
+```
+   +---------------------+
+   |   SourceReadNode    |  <- Read data from offline store (e.g. Snowflake, BigQuery, etc. or custom source)
+   +---------------------+
+             |
+             v
+   +--------------------------------------+
+   |  TransformationNode / JoinNode (*)   |   <- Merge data sources, custom transformations by user, or default join
+   +--------------------------------------+ 
+             |
+             v
+   +---------------------+
+   |    FilterNode       |   <- used for point-in-time filtering 
+   +---------------------+
+             |
+             v
+   +---------------------+
+   | AggregationNode (*) |   <- only if aggregations are defined
+   +---------------------+
+             |
+             v
+   +---------------------+
+   |   DeduplicationNode |   <- used if no aggregation and for history
+   +---------------------+    retrieval
+             |
+             v
+   +---------------------+
+   |  ValidationNode (*) |   <- optional validation checks
+   +---------------------+
+             |
+             v
+        +----------+
+        |  Output  |
+        +----------+
+         /        \
+        v          v
++----------------+  +----------------+
+| OnlineStoreWrite|  OfflineStoreWrite|
++----------------+  +----------------+
+```

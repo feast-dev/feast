@@ -57,8 +57,8 @@ To keep your online store up to date, you need to run a job that loads feature d
 Out of the box, Feast's materialization process uses an in-process materialization engine. This engine loads all the data being materialized into memory from the offline store, and writes it into the online store. 
 
 This approach may not scale to large amounts of data, which users of Feast may be dealing with in production.
-In this case, we recommend using one of the more [scalable materialization engines](./scaling-feast.md#scaling-materialization), such as [Snowflake Materialization Engine](../reference/batch-materialization/snowflake.md).
-Users may also need to [write a custom materialization engine](../how-to-guides/customizing-feast/creating-a-custom-materialization-engine.md) to work on their existing infrastructure.  
+In this case, we recommend using one of the more [scalable compute engines](./scaling-feast.md#scaling-materialization), such as [Snowflake Compute Engine](../reference/compute-engine/snowflake.md).
+Users may also need to [write a custom compute engine](../how-to-guides/customizing-feast/creating-a-custom-compute-engine.md) to work on their existing infrastructure.  
 
 
 ### 2.2 Scheduled materialization with Airflow

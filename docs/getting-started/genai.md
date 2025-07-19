@@ -162,4 +162,4 @@ For more detailed information and examples:
 * [MCP Feature Server Reference](../reference/feature-servers/mcp-feature-server.md)
 * [Spark Data Source](../reference/data-sources/spark.md)
 * [Spark Offline Store](../reference/offline-stores/spark.md)
-* [Spark Batch Materialization](../reference/batch-materialization/spark.md)
+* [Spark Compute Engine](../reference/compute-engine/spark.md)
