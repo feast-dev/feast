@@ -30,13 +30,28 @@ class OidcAuthClientManager(AuthenticationClientManager):
             self.auth_config.auth_discovery_url
         ).get_token_url()
 
-        token_request_body = {
-            "grant_type": "password",
-            "client_id": self.auth_config.client_id,
-            "client_secret": self.auth_config.client_secret,
-            "username": self.auth_config.username,
-            "password": self.auth_config.password,
-        }
+        # 1) pre-issued JWT supplied in config
+        if getattr(self.auth_config, "token", None):
+            return self.auth_config.token
+
+        # 2) client_credentials
+        if self.auth_config.client_secret and not (
+            self.auth_config.username and self.auth_config.password
+        ):
+            token_request_body = {
+                "grant_type": "client_credentials",
+                "client_id": self.auth_config.client_id,
+                "client_secret": self.auth_config.client_secret,
+            }
+        # 3) ROPG (username + password + client_secret)
+        else:
+            token_request_body = {
+                "grant_type": "password",
+                "client_id": self.auth_config.client_id,
+                "client_secret": self.auth_config.client_secret,
+                "username": self.auth_config.username,
+                "password": self.auth_config.password,
+            }
         headers = {"Content-Type": "application/x-www-form-urlencoded"}
 
         token_response = requests.post(
