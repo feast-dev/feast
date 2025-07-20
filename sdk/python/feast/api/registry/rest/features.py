@@ -39,9 +39,15 @@ def get_feature_router(grpc_handler) -> APIRouter:
             sorting=create_grpc_sorting_params(sorting_params),
         )
         response = grpc_call(grpc_handler.ListFeatures, req)
+        if "features" not in response:
+            response["features"] = []
+        if "pagination" not in response:
+            response["pagination"] = {}
+
         if include_relationships:
+            features = response.get("features", [])
             relationships = get_relationships_for_objects(
-                grpc_handler, response["features"], "feature", project, allow_cache
+                grpc_handler, features, "feature", project, allow_cache
             )
             response["relationships"] = relationships
         return response
