@@ -1155,7 +1155,7 @@ class FeatureStore:
             ... )
             >>> feature_data = retrieval_job.to_df()
         """
-        
+
         if entity_df is not None and (start_date is not None or end_date is not None):
             raise ValueError("Cannot specify both entity_df and start_date/end_date. Use either entity_df for entity-based retrieval or start_date/end_date for timestamp range retrieval.")
 
