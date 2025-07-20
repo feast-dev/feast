@@ -44,7 +44,7 @@ def get_data_source_router(grpc_handler) -> APIRouter:
         data_sources = response.get("dataSources", [])
 
         result = {
-            "data_sources": data_sources,
+            "dataSources": data_sources,
             "pagination": response.get("pagination", {}),
         }
 
