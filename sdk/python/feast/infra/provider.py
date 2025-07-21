@@ -25,7 +25,8 @@ from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.importer import import_class
 from feast.infra.infra_object import Infra
-from feast.infra.offline_stores.offline_store import RetrievalJob
+from feast.infra.offline_stores.offline_store import OfflineStore, RetrievalJob
+from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.infra.supported_async_methods import ProviderAsyncMethods
 from feast.on_demand_feature_view import OnDemandFeatureView
@@ -51,6 +52,10 @@ class Provider(ABC):
     components of a feature store, such as the offline store, online store, and materialization
     engine. It is configured through a RepoConfig object.
     """
+
+    repo_config: RepoConfig
+    offline_store: OfflineStore
+    online_store: OnlineStore
 
     @abstractmethod
     def __init__(self, config: RepoConfig):
