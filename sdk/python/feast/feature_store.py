@@ -67,6 +67,9 @@ from feast.inference import (
     update_feature_views_with_inferred_features_and_entities,
 )
 from feast.infra.infra_object import Infra
+from feast.infra.offline_stores.offline_utils import (
+    DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL,
+)
 from feast.infra.provider import Provider, RetrievalJob, get_provider
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.infra.registry.registry import Registry
@@ -1287,6 +1290,115 @@ class FeatureStore:
         )
         return dataset.with_retrieval_job(retrieval_job)
 
+    def _materialize_odfv(
+        self,
+        feature_view: OnDemandFeatureView,
+        start_date: datetime,
+        end_date: datetime,
+    ):
+        """Helper to materialize a single OnDemandFeatureView."""
+        if not feature_view.source_feature_view_projections:
+            print(
+                f"[WARNING] ODFV {feature_view.name} materialization: No source feature views found."
+            )
+            return
+        start_date = utils.make_tzaware(start_date)
+        end_date = utils.make_tzaware(end_date)
+
+        source_features_from_projections = []
+        all_join_keys = set()
+        entity_timestamp_col_names = set()
+        source_fvs = {
+            self._get_feature_view(p.name)
+            for p in feature_view.source_feature_view_projections.values()
+        }
+
+        for source_fv in source_fvs:
+            all_join_keys.update(source_fv.entities)
+            if source_fv.batch_source:
+                entity_timestamp_col_names.add(source_fv.batch_source.timestamp_field)
+
+        for proj in feature_view.source_feature_view_projections.values():
+            source_features_from_projections.extend(
+                [f"{proj.name}:{f.name}" for f in proj.features]
+            )
+
+        all_join_keys = {key for key in all_join_keys if key}
+
+        if not all_join_keys:
+            print(
+                f"[WARNING] ODFV {feature_view.name} materialization: No join keys found in source views. Cannot create entity_df. Skipping."
+            )
+            return
+
+        if len(entity_timestamp_col_names) > 1:
+            print(
+                f"[WARNING] ODFV {feature_view.name} materialization: Found multiple timestamp columns in sources ({entity_timestamp_col_names}). This is not supported. Skipping."
+            )
+            return
+
+        if not entity_timestamp_col_names:
+            print(
+                f"[WARNING] ODFV {feature_view.name} materialization: No batch sources with timestamp columns found for sources. Skipping."
+            )
+            return
+
+        event_timestamp_col = list(entity_timestamp_col_names)[0]
+        all_source_dfs = []
+        provider = self._get_provider()
+
+        for source_fv in source_fvs:
+            if not source_fv.batch_source:
+                continue
+
+            job = provider.offline_store.pull_latest_from_table_or_query(
+                config=self.config,
+                data_source=source_fv.batch_source,
+                join_key_columns=source_fv.entities,
+                feature_name_columns=[f.name for f in source_fv.features],
+                timestamp_field=source_fv.batch_source.timestamp_field,
+                created_timestamp_column=getattr(
+                    source_fv.batch_source, "created_timestamp_column", None
+                ),
+                start_date=start_date,
+                end_date=end_date,
+            )
+            df = job.to_df()
+            if not df.empty:
+                all_source_dfs.append(df)
+
+        if not all_source_dfs:
+            print(
+                f"No source data found for ODFV {feature_view.name} in the given time range. Skipping materialization."
+            )
+            return
+
+        entity_df_cols = list(all_join_keys) + [event_timestamp_col]
+        all_sources_combined_df = pd.concat(all_source_dfs, ignore_index=True)
+        if all_sources_combined_df.empty:
+            return
+
+        entity_df = (
+            all_sources_combined_df[entity_df_cols]
+            .drop_duplicates()
+            .reset_index(drop=True)
+        )
+
+        if event_timestamp_col != DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL:
+            entity_df = entity_df.rename(
+                columns={event_timestamp_col: DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL}
+            )
+
+        retrieval_job = self.get_historical_features(
+            entity_df=entity_df,
+            features=source_features_from_projections,
+        )
+        input_df = retrieval_job.to_df()
+        transformed_df = self._transform_on_demand_feature_view_df(
+            feature_view, input_df
+        )
+        self.write_to_online_store(feature_view.name, df=transformed_df)
+
     def materialize_incremental(
         self,
         end_date: datetime,
@@ -1332,7 +1444,27 @@ class FeatureStore:
         # TODO paging large loads
         for feature_view in feature_views_to_materialize:
             if isinstance(feature_view, OnDemandFeatureView):
+                if feature_view.write_to_online_store:
+                    source_fvs = {
+                        self._get_feature_view(p.name)
+                        for p in feature_view.source_feature_view_projections.values()
+                    }
+                    max_ttl = timedelta(0)
+                    for fv in source_fvs:
+                        if fv.ttl and fv.ttl > max_ttl:
+                            max_ttl = fv.ttl
+
+                    if max_ttl.total_seconds() > 0:
+                        odfv_start_date = end_date - max_ttl
+                    else:
+                        odfv_start_date = end_date - timedelta(weeks=52)
+
+                    print(
+                        f"{Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}:"
+                    )
+                    self._materialize_odfv(feature_view, odfv_start_date, end_date)
                 continue
+
             start_date = feature_view.most_recent_end_time
             if start_date is None:
                 if feature_view.ttl is None:
@@ -1428,6 +1560,13 @@ class FeatureStore:
         )
         # TODO paging large loads
         for feature_view in feature_views_to_materialize:
+            if isinstance(feature_view, OnDemandFeatureView):
+                if feature_view.write_to_online_store:
+                    print(
+                        f"{Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}:"
+                    )
+                    self._materialize_odfv(feature_view, start_date, end_date)
+                continue
             provider = self._get_provider()
             print(f"{Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}:")
 

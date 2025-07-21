@@ -257,7 +257,11 @@ def _convert_arrow_to_proto(
     join_keys: Dict[str, ValueType],
 ) -> List[Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]]:
     # This is a workaround for isinstance(feature_view, OnDemandFeatureView), which triggers a circular import
-    if getattr(feature_view, "source_request_sources", None):
+    # Check for source_request_sources or source_feature_view_projections attributes to identify ODFVs
+    if (
+        getattr(feature_view, "source_request_sources", None) is not None
+        or getattr(feature_view, "source_feature_view_projections", None) is not None
+    ):
         return _convert_arrow_odfv_to_proto(table, feature_view, join_keys)  # type: ignore[arg-type]
     else:
         return _convert_arrow_fv_to_proto(table, feature_view, join_keys)  # type: ignore[arg-type]
