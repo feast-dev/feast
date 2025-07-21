@@ -301,8 +301,6 @@ class OfflineStore(ABC):
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = datetime.now(),
     ) -> RetrievalJob:
         """
         Retrieves the point-in-time correct historical feature values for the specified entity rows.
@@ -319,6 +317,8 @@ class OfflineStore(ABC):
             full_feature_names: If True, feature names will be prefixed with the corresponding feature view name,
                 changing them from the format "feature" to "feature_view__feature" (e.g. "daily_transactions"
                 changes to "customer_fv__daily_transactions").
+
+        Keyword Args:
             start_date: Start date for the timestamp range when retrieving features without entity_df.
             end_date: End date for the timestamp range when retrieving features without entity_df. By default, the current time is used.
 

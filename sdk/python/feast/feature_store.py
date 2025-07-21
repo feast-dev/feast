@@ -1087,8 +1087,8 @@ class FeatureStore:
 
     def get_historical_features(
         self,
-        features: Union[List[str], FeatureService],
         entity_df: Optional[Union[pd.DataFrame, str]] = None,
+        features: Union[List[str], FeatureService] = [],
         full_feature_names: bool = False,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
@@ -1157,7 +1157,9 @@ class FeatureStore:
         """
 
         if entity_df is not None and (start_date is not None or end_date is not None):
-            raise ValueError("Cannot specify both entity_df and start_date/end_date. Use either entity_df for entity-based retrieval or start_date/end_date for timestamp range retrieval.")
+            raise ValueError(
+                "Cannot specify both entity_df and start_date/end_date. Use either entity_df for entity-based retrieval or start_date/end_date for timestamp range retrieval."
+            )
 
         if entity_df is None and end_date is None:
             end_date = datetime.now()
@@ -1195,6 +1197,13 @@ class FeatureStore:
         utils._validate_feature_refs(_feature_refs, full_feature_names)
         provider = self._get_provider()
 
+        # Optional kwargs
+        kwargs = {}
+        if start_date is not None:
+            kwargs["start_date"] = start_date
+        if end_date is not None:
+            kwargs["end_date"] = end_date
+
         job = provider.get_historical_features(
             self.config,
             feature_views,
@@ -1203,8 +1212,7 @@ class FeatureStore:
             self._registry,
             self.project,
             full_feature_names,
-            start_date,
-            end_date,
+            **kwargs,
         )
 
         return job

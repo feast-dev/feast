@@ -253,8 +253,7 @@ class Provider(ABC):
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
+        **kwargs,
     ) -> RetrievalJob:
         """
         Retrieves the point-in-time correct historical feature values for the specified entity rows.

@@ -3,7 +3,6 @@ from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
-import pytest
 import sqlglot
 
 from feast.entity import Entity
@@ -556,20 +555,20 @@ def _mock_feature_view(name: str, ttl: timedelta = None):
 class TestNonEntityRetrieval:
     """
     Test suite for non-entity retrieval functionality (entity_df=None)
-    
+
     This test suite comprehensively covers the new non-entity retrieval mode
     for PostgreSQL offline store, which enables retrieving features for specified
     time ranges without requiring an entity DataFrame.
-    
+
     Key functionality tested:
     ✅ Single feature view retrieval with explicit start/end dates
     ✅ Multiple feature view retrieval with TTL calculation
-    ✅ Default end_date to current time when not provided  
+    ✅ Default end_date to current time when not provided
     ✅ TTL-based start_date calculation when not provided
     ✅ SQL template TTL filtering in queries
     ✅ LATERAL JOIN TTL constraints for point-in-time accuracy
     ✅ Date parameter validation and edge cases
-    
+
     Features covered:
     - Non-entity mode API signature validation
     - TTL calculation logic for multiple feature views
@@ -582,7 +581,7 @@ class TestNonEntityRetrieval:
         """Test non-entity retrieval API accepts both start_date and end_date"""
         test_repo_config = RepoConfig(
             project="test_project",
-            registry="test_registry", 
+            registry="test_registry",
             provider="local",
             offline_store=_mock_offline_store_config(),
         )
@@ -597,27 +596,39 @@ class TestNonEntityRetrieval:
             _get_conn=MagicMock(),
             _upload_entity_df=MagicMock(),
             _get_entity_schema=MagicMock(return_value={"event_timestamp": "timestamp"}),
-            _get_entity_df_event_timestamp_range=MagicMock(return_value=(start_date, end_date)),
+            _get_entity_df_event_timestamp_range=MagicMock(
+                return_value=(start_date, end_date)
+            ),
         ):
-            with patch("feast.infra.offline_stores.contrib.postgres_offline_store.postgres.offline_utils.get_expected_join_keys", return_value=[]):
-                with patch("feast.infra.offline_stores.contrib.postgres_offline_store.postgres.offline_utils.assert_expected_columns_in_entity_df"):
-                    with patch("feast.infra.offline_stores.contrib.postgres_offline_store.postgres.offline_utils.get_feature_view_query_context", return_value=[]):
+            with patch(
+                "feast.infra.offline_stores.contrib.postgres_offline_store.postgres.offline_utils.get_expected_join_keys",
+                return_value=[],
+            ):
+                with patch(
+                    "feast.infra.offline_stores.contrib.postgres_offline_store.postgres.offline_utils.assert_expected_columns_in_entity_df"
+                ):
+                    with patch(
+                        "feast.infra.offline_stores.contrib.postgres_offline_store.postgres.offline_utils.get_feature_view_query_context",
+                        return_value=[],
+                    ):
                         try:
-                            retrieval_job = PostgreSQLOfflineStore.get_historical_features(
-                                config=test_repo_config,
-                                feature_views=[feature_view],
-                                feature_refs=["test_fv:feature1"],
-                                entity_df=None,  # Non-entity mode
-                                registry=MagicMock(),
-                                project="test_project",
-                                start_date=start_date,
-                                end_date=end_date,
+                            retrieval_job = (
+                                PostgreSQLOfflineStore.get_historical_features(
+                                    config=test_repo_config,
+                                    feature_views=[feature_view],
+                                    feature_refs=["test_fv:feature1"],
+                                    entity_df=None,  # Non-entity mode
+                                    registry=MagicMock(),
+                                    project="test_project",
+                                    start_date=start_date,
+                                    end_date=end_date,
+                                )
                             )
                             assert isinstance(retrieval_job, RetrievalJob)
                         except Exception as e:
                             # Should not fail due to API signature issues
                             assert "entity_df" not in str(e)
-                            assert "start_date" not in str(e)  
+                            assert "start_date" not in str(e)
                             assert "end_date" not in str(e)
 
     def test_non_entity_mode_with_end_date_only(self):
@@ -625,7 +636,7 @@ class TestNonEntityRetrieval:
         test_repo_config = RepoConfig(
             project="test_project",
             registry="test_registry",
-            provider="local", 
+            provider="local",
             offline_store=_mock_offline_store_config(),
         )
 
@@ -636,38 +647,55 @@ class TestNonEntityRetrieval:
         end_date = datetime(2023, 1, 7, tzinfo=timezone.utc)
 
         with patch.multiple(
-             "feast.infra.offline_stores.contrib.postgres_offline_store.postgres",
-             _get_conn=MagicMock(),
-             _upload_entity_df=MagicMock(),
+            "feast.infra.offline_stores.contrib.postgres_offline_store.postgres",
+            _get_conn=MagicMock(),
+            _upload_entity_df=MagicMock(),
             _get_entity_schema=MagicMock(return_value={"event_timestamp": "timestamp"}),
-            _get_entity_df_event_timestamp_range=MagicMock(return_value=(datetime(2023, 1, 6, tzinfo=timezone.utc), end_date)),
+            _get_entity_df_event_timestamp_range=MagicMock(
+                return_value=(datetime(2023, 1, 6, tzinfo=timezone.utc), end_date)
+            ),
         ):
-            with patch("feast.infra.offline_stores.contrib.postgres_offline_store.postgres.offline_utils.get_expected_join_keys", return_value=[]):
-                with patch("feast.infra.offline_stores.contrib.postgres_offline_store.postgres.offline_utils.assert_expected_columns_in_entity_df"):
-                    with patch("feast.infra.offline_stores.contrib.postgres_offline_store.postgres.offline_utils.get_feature_view_query_context", return_value=[]):
+            with patch(
+                "feast.infra.offline_stores.contrib.postgres_offline_store.postgres.offline_utils.get_expected_join_keys",
+                return_value=[],
+            ):
+                with patch(
+                    "feast.infra.offline_stores.contrib.postgres_offline_store.postgres.offline_utils.assert_expected_columns_in_entity_df"
+                ):
+                    with patch(
+                        "feast.infra.offline_stores.contrib.postgres_offline_store.postgres.offline_utils.get_feature_view_query_context",
+                        return_value=[],
+                    ):
                         try:
-                            retrieval_job = PostgreSQLOfflineStore.get_historical_features(
-                                config=test_repo_config,
-                                feature_views=feature_views,
-                                feature_refs=["user_fv:age", "transaction_fv:amount"],
-                                entity_df=None,  # Non-entity mode
-                                registry=MagicMock(),
-                                project="test_project",
-                                end_date=end_date,
-                                # start_date not provided - should be calculated from max TTL
+                            retrieval_job = (
+                                PostgreSQLOfflineStore.get_historical_features(
+                                    config=test_repo_config,
+                                    feature_views=feature_views,
+                                    feature_refs=[
+                                        "user_fv:age",
+                                        "transaction_fv:amount",
+                                    ],
+                                    entity_df=None,  # Non-entity mode
+                                    registry=MagicMock(),
+                                    project="test_project",
+                                    end_date=end_date,
+                                    # start_date not provided - should be calculated from max TTL
+                                )
                             )
                             assert isinstance(retrieval_job, RetrievalJob)
                         except Exception as e:
                             # Should not fail due to TTL calculation issues
                             assert "ttl" not in str(e).lower()
 
-    @patch("feast.infra.offline_stores.contrib.postgres_offline_store.postgres.datetime")
+    @patch(
+        "feast.infra.offline_stores.contrib.postgres_offline_store.postgres.datetime"
+    )
     def test_no_dates_provided_defaults_to_current_time(self, mock_datetime):
         """Test that when no dates are provided, end_date defaults to current time"""
         # Mock datetime.now() to return a fixed time
         fixed_now = datetime(2023, 1, 7, 12, 0, 0, tzinfo=timezone.utc)
         mock_datetime.now.return_value = fixed_now
-        
+
         test_repo_config = RepoConfig(
             project="test_project",
             registry="test_registry",
@@ -682,22 +710,37 @@ class TestNonEntityRetrieval:
             _get_conn=MagicMock(),
             _upload_entity_df=MagicMock(),
             _get_entity_schema=MagicMock(return_value={"event_timestamp": "timestamp"}),
-            _get_entity_df_event_timestamp_range=MagicMock(return_value=(datetime(2023, 1, 6, 12, 0, 0, tzinfo=timezone.utc), fixed_now)),
+            _get_entity_df_event_timestamp_range=MagicMock(
+                return_value=(
+                    datetime(2023, 1, 6, 12, 0, 0, tzinfo=timezone.utc),
+                    fixed_now,
+                )
+            ),
         ):
-            with patch("feast.infra.offline_stores.contrib.postgres_offline_store.postgres.offline_utils.get_expected_join_keys", return_value=[]):
-                with patch("feast.infra.offline_stores.contrib.postgres_offline_store.postgres.offline_utils.assert_expected_columns_in_entity_df"):
-                    with patch("feast.infra.offline_stores.contrib.postgres_offline_store.postgres.offline_utils.get_feature_view_query_context", return_value=[]):
+            with patch(
+                "feast.infra.offline_stores.contrib.postgres_offline_store.postgres.offline_utils.get_expected_join_keys",
+                return_value=[],
+            ):
+                with patch(
+                    "feast.infra.offline_stores.contrib.postgres_offline_store.postgres.offline_utils.assert_expected_columns_in_entity_df"
+                ):
+                    with patch(
+                        "feast.infra.offline_stores.contrib.postgres_offline_store.postgres.offline_utils.get_feature_view_query_context",
+                        return_value=[],
+                    ):
                         try:
-                            retrieval_job = PostgreSQLOfflineStore.get_historical_features(
-                                config=test_repo_config,
-                                feature_views=[feature_view],
-                                feature_refs=["test_fv:feature1"],
-                                entity_df=None,  # Non-entity mode
-                                registry=MagicMock(),
-                                project="test_project",
-                                # No start_date or end_date provided
+                            retrieval_job = (
+                                PostgreSQLOfflineStore.get_historical_features(
+                                    config=test_repo_config,
+                                    feature_views=[feature_view],
+                                    feature_refs=["test_fv:feature1"],
+                                    entity_df=None,  # Non-entity mode
+                                    registry=MagicMock(),
+                                    project="test_project",
+                                    # No start_date or end_date provided
+                                )
                             )
-                            
+
                             # Verify that datetime.now() was called to get current time
                             mock_datetime.now.assert_called_with(tz=timezone.utc)
                             assert isinstance(retrieval_job, RetrievalJob)
@@ -709,50 +752,52 @@ class TestNonEntityRetrieval:
         """Test the TTL calculation logic for start_date computation"""
         # Test case 1: Multiple feature views with different TTLs
         feature_views = [
-            _mock_feature_view("fv1", ttl=timedelta(hours=12)),    # 12 hours
-            _mock_feature_view("fv2", ttl=timedelta(days=3)),      # 3 days (longer)
-            _mock_feature_view("fv3", ttl=None),                   # No TTL
+            _mock_feature_view("fv1", ttl=timedelta(hours=12)),  # 12 hours
+            _mock_feature_view("fv2", ttl=timedelta(days=3)),  # 3 days (longer)
+            _mock_feature_view("fv3", ttl=None),  # No TTL
         ]
-        
+
         end_date = datetime(2023, 1, 10, tzinfo=timezone.utc)
-        
+
         # Simulate the TTL calculation logic
         max_ttl_seconds = 0
         for fv in feature_views:
             if fv.ttl and isinstance(fv.ttl, timedelta):
                 ttl_seconds = int(fv.ttl.total_seconds())
                 max_ttl_seconds = max(max_ttl_seconds, ttl_seconds)
-        
+
         expected_max_ttl = 3 * 24 * 3600  # 3 days in seconds
         assert max_ttl_seconds == expected_max_ttl
-        
+
         calculated_start_date = end_date - timedelta(seconds=max_ttl_seconds)
         expected_start_date = datetime(2023, 1, 7, tzinfo=timezone.utc)  # 3 days before
         assert calculated_start_date == expected_start_date
-        
+
         # Test case 2: No TTLs provided, should default to 30 days
         feature_views_no_ttl = [
             _mock_feature_view("fv1", ttl=None),
             _mock_feature_view("fv2", ttl=None),
         ]
-        
+
         max_ttl_seconds = 0
         for fv in feature_views_no_ttl:
             if fv.ttl and isinstance(fv.ttl, timedelta):
                 ttl_seconds = int(fv.ttl.total_seconds())
                 max_ttl_seconds = max(max_ttl_seconds, ttl_seconds)
-        
+
         # Should default to 30 days
         if max_ttl_seconds == 0:
             calculated_start_date = end_date - timedelta(days=30)
-        
-        expected_start_date = datetime(2022, 12, 11, tzinfo=timezone.utc)  # 30 days before
+
+        expected_start_date = datetime(
+            2022, 12, 11, tzinfo=timezone.utc
+        )  # 30 days before
         assert calculated_start_date == expected_start_date
 
     def test_sql_template_ttl_filtering(self):
         """Test that the SQL template includes proper TTL filtering"""
-        from jinja2 import Environment, BaseLoader
-        
+        from jinja2 import BaseLoader, Environment
+
         # Test the template section that includes TTL filtering
         template_with_ttl = """
         FROM {{ featureview.table_subquery }} AS sub
@@ -761,47 +806,49 @@ class TestNonEntityRetrieval:
         AND "{{ featureview.timestamp_field }}" >= '{{ featureview.min_event_timestamp }}'
         {% endif %}
         """
-        
-        template = Environment(loader=BaseLoader()).from_string(source=template_with_ttl)
-        
+
+        template = Environment(loader=BaseLoader()).from_string(
+            source=template_with_ttl
+        )
+
         # Test case 1: Feature view with TTL
         context_with_ttl = {
-            'featureview': {
-                'table_subquery': 'test_table',
-                'timestamp_field': 'event_timestamp',
-                'ttl': 3600,  # 1 hour
-                'min_event_timestamp': '2023-01-06 23:00:00'
+            "featureview": {
+                "table_subquery": "test_table",
+                "timestamp_field": "event_timestamp",
+                "ttl": 3600,  # 1 hour
+                "min_event_timestamp": "2023-01-06 23:00:00",
             },
-            'start_date': '2023-01-01',
-            'end_date': '2023-01-07'
+            "start_date": "2023-01-01",
+            "end_date": "2023-01-07",
         }
-        
+
         query_with_ttl = template.render(context_with_ttl)
         # Should include the TTL timestamp value in the query
-        assert '2023-01-06 23:00:00' in query_with_ttl
+        assert "2023-01-06 23:00:00" in query_with_ttl
         # Should have the TTL filtering condition
-        assert '>=' in query_with_ttl
-        
+        assert ">=" in query_with_ttl
+
         # Test case 2: Feature view without TTL
         context_no_ttl = {
-            'featureview': {
-                'table_subquery': 'test_table',
-                'timestamp_field': 'event_timestamp',
-                'ttl': 0,  # No TTL
-                'min_event_timestamp': None
+            "featureview": {
+                "table_subquery": "test_table",
+                "timestamp_field": "event_timestamp",
+                "ttl": 0,  # No TTL
+                "min_event_timestamp": None,
             },
-            'start_date': '2023-01-01',
-            'end_date': '2023-01-07'
+            "start_date": "2023-01-01",
+            "end_date": "2023-01-07",
         }
-        
+
         query_no_ttl = template.render(context_no_ttl)
         # Should not include TTL filtering when TTL is 0 or min_event_timestamp is None
         assert 'AND "event_timestamp" >=' not in query_no_ttl
 
     def test_lateral_join_ttl_constraints(self):
         """Test that LATERAL JOINs include proper TTL constraints"""
-        from jinja2 import Environment, BaseLoader
-        
+        from jinja2 import BaseLoader, Environment
+
         lateral_template = """
         FROM "{{ featureview.name }}__data" fv_sub_{{ outer_loop_index }}
         WHERE fv_sub_{{ outer_loop_index }}.event_timestamp <= base.event_timestamp
@@ -809,33 +856,33 @@ class TestNonEntityRetrieval:
         AND fv_sub_{{ outer_loop_index }}.event_timestamp >= base.event_timestamp - {{ featureview.ttl }} * interval '1' second
         {% endif %}
         """
-        
+
         template = Environment(loader=BaseLoader()).from_string(source=lateral_template)
-        
+
         # Test with TTL
         context = {
-            'featureview': {
-                'name': 'user_features',
-                'ttl': 86400  # 1 day
+            "featureview": {
+                "name": "user_features",
+                "ttl": 86400,  # 1 day
             },
-            'outer_loop_index': 0
+            "outer_loop_index": 0,
         }
-        
+
         query = template.render(context)
-        assert '86400 * interval' in query
-        assert 'base.event_timestamp -' in query
-        
+        assert "86400 * interval" in query
+        assert "base.event_timestamp -" in query
+
         # Test without TTL
         context_no_ttl = {
-            'featureview': {
-                'name': 'user_features',
-                'ttl': 0  # No TTL
+            "featureview": {
+                "name": "user_features",
+                "ttl": 0,  # No TTL
             },
-            'outer_loop_index': 0
+            "outer_loop_index": 0,
         }
-        
+
         query_no_ttl = template.render(context_no_ttl)
-        assert 'interval' not in query_no_ttl
+        assert "interval" not in query_no_ttl
 
 
 # Test date combination scenarios
@@ -846,19 +893,19 @@ class TestDateCombinations:
         """Test validation of date parameters in different scenarios"""
         # This would test the actual validation logic when integrated
         # For now, we test the logic conceptually
-        
+
         # Scenario 1: Both dates provided - should work
         start_date = datetime(2023, 1, 1, tzinfo=timezone.utc)
         end_date = datetime(2023, 1, 7, tzinfo=timezone.utc)
         assert start_date < end_date  # Basic validation
-        
+
         # Scenario 2: Only end_date provided - should calculate start_date from TTL
         end_date = datetime(2023, 1, 7, tzinfo=timezone.utc)
         ttl_days = 7
         calculated_start = end_date - timedelta(days=ttl_days)
         expected_start = datetime(2022, 12, 31, tzinfo=timezone.utc)
         assert calculated_start == expected_start
-        
+
         # Scenario 3: Neither date provided - should default end_date to now()
         current_time = datetime.now(tz=timezone.utc)
         default_end = current_time

@@ -124,12 +124,13 @@ class PostgreSQLOfflineStore(OfflineStore):
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
+        **kwargs,
     ) -> RetrievalJob:
         assert isinstance(config.offline_store, PostgreSQLOfflineStoreConfig)
         for fv in feature_views:
             assert isinstance(fv.batch_source, PostgreSQLSource)
+        start_date: Optional[datetime] = kwargs.get("start_date", None)
+        end_date: Optional[datetime] = kwargs.get("end_date", None)
 
         # Handle non-entity retrieval mode
         if entity_df is None:
@@ -140,6 +141,7 @@ class PostgreSQLOfflineStore(OfflineStore):
                 end_date = make_tzaware(end_date)
 
             # Calculate start_date from TTL if not provided
+
             if start_date is None:
                 # Find the maximum TTL across all feature views to ensure we capture enough data
                 max_ttl_seconds = 0
@@ -157,9 +159,13 @@ class PostgreSQLOfflineStore(OfflineStore):
             else:
                 start_date = make_tzaware(start_date)
 
-            entity_df = pd.DataFrame({
-                'event_timestamp': pd.date_range(start=start_date, end=end_date, freq='1s', tz=timezone.utc)[:1]  # Just one row
-            })
+            entity_df = pd.DataFrame(
+                {
+                    "event_timestamp": pd.date_range(
+                        start=start_date, end=end_date, freq="1s", tz=timezone.utc
+                    )[:1]  # Just one row
+                }
+            )
 
         entity_schema = _get_entity_schema(entity_df, config)
 
@@ -564,7 +570,7 @@ base_entities AS (
     {% endfor %}
 )
 
-SELECT 
+SELECT
     base.event_timestamp,
     {% set all_entities = [] %}
     {% for featureview in featureviews %}

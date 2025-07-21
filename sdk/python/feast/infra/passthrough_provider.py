@@ -462,8 +462,7 @@ class PassthroughProvider(Provider):
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
+        **kwargs,
     ) -> RetrievalJob:
         job = self.offline_store.get_historical_features(
             config=config,
@@ -473,8 +472,7 @@ class PassthroughProvider(Provider):
             registry=registry,
             project=project,
             full_feature_names=full_feature_names,
-            start_date=start_date,
-            end_date=end_date,
+            **kwargs,
         )
 
         return job
