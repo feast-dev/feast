@@ -14,12 +14,12 @@ from typing import Literal, Optional
 from feast.repo_config import FeastConfigBaseModel
 
 # pick the correct validator decorator for current Pydantic version
-try:                           # Pydantic ≥ 2.0
+try:  # Pydantic ≥ 2.0
     from pydantic import model_validator as _v2  # type: ignore
 
     def _cred_validator(fn):
-        return _v2(mode="after")(fn)             # run after field validation
-except ImportError:            # Pydantic 1.x
+        return _v2(mode="after")(fn)  # run after field validation
+except ImportError:  # Pydantic 1.x
     from pydantic import root_validator as _v1  # type: ignore
 
     def _cred_validator(fn):
@@ -37,19 +37,19 @@ class OidcAuthConfig(AuthConfig):
 
 class OidcClientAuthConfig(OidcAuthConfig):
     # any **one** of the four fields below is sufficient
-    username:      Optional[str] = None
-    password:      Optional[str] = None
+    username: Optional[str] = None
+    password: Optional[str] = None
     client_secret: Optional[str] = None
-    token:         Optional[str] = None   # pre-issued `token`
+    token: Optional[str] = None  # pre-issued `token`
 
     @_cred_validator
     def _validate_credentials(cls, values):
         """Enforce exactly one valid credential set."""
         d = values.__dict__ if hasattr(values, "__dict__") else values
 
-        has_user_pass   = bool(d.get("username")) and bool(d.get("password"))
-        has_secret      = bool(d.get("client_secret"))
-        has_token       = bool(d.get("token"))
+        has_user_pass = bool(d.get("username")) and bool(d.get("password"))
+        has_secret = bool(d.get("client_secret"))
+        has_token = bool(d.get("token"))
 
         # 1 static token
         if has_token and not (has_user_pass or has_secret):
