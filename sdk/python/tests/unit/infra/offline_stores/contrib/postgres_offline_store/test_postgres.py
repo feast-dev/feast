@@ -559,22 +559,6 @@ class TestNonEntityRetrieval:
     This test suite comprehensively covers the new non-entity retrieval mode
     for PostgreSQL offline store, which enables retrieving features for specified
     time ranges without requiring an entity DataFrame.
-
-    Key functionality tested:
-    ✅ Single feature view retrieval with explicit start/end dates
-    ✅ Multiple feature view retrieval with TTL calculation
-    ✅ Default end_date to current time when not provided
-    ✅ TTL-based start_date calculation when not provided
-    ✅ SQL template TTL filtering in queries
-    ✅ LATERAL JOIN TTL constraints for point-in-time accuracy
-    ✅ Date parameter validation and edge cases
-
-    Features covered:
-    - Non-entity mode API signature validation
-    - TTL calculation logic for multiple feature views
-    - Automatic date defaulting (end_date = now())
-    - SQL template rendering with TTL constraints
-    - Point-in-time join correctness with TTL limits
     """
 
     def test_non_entity_mode_with_both_dates(self):
@@ -687,9 +671,7 @@ class TestNonEntityRetrieval:
                             # Should not fail due to TTL calculation issues
                             assert "ttl" not in str(e).lower()
 
-    @patch(
-        "feast.infra.offline_stores.contrib.postgres_offline_store.postgres.datetime"
-    )
+    @patch("feast.utils.datetime")
     def test_no_dates_provided_defaults_to_current_time(self, mock_datetime):
         """Test that when no dates are provided, end_date defaults to current time"""
         # Mock datetime.now() to return a fixed time
@@ -747,52 +729,6 @@ class TestNonEntityRetrieval:
                         except Exception as e:
                             # Should not fail due to datetime issues
                             assert "datetime" not in str(e).lower()
-
-    def test_ttl_calculation_logic(self):
-        """Test the TTL calculation logic for start_date computation"""
-        # Test case 1: Multiple feature views with different TTLs
-        feature_views = [
-            _mock_feature_view("fv1", ttl=timedelta(hours=12)),  # 12 hours
-            _mock_feature_view("fv2", ttl=timedelta(days=3)),  # 3 days (longer)
-            _mock_feature_view("fv3", ttl=None),  # No TTL
-        ]
-
-        end_date = datetime(2023, 1, 10, tzinfo=timezone.utc)
-
-        # Simulate the TTL calculation logic
-        max_ttl_seconds = 0
-        for fv in feature_views:
-            if fv.ttl and isinstance(fv.ttl, timedelta):
-                ttl_seconds = int(fv.ttl.total_seconds())
-                max_ttl_seconds = max(max_ttl_seconds, ttl_seconds)
-
-        expected_max_ttl = 3 * 24 * 3600  # 3 days in seconds
-        assert max_ttl_seconds == expected_max_ttl
-
-        calculated_start_date = end_date - timedelta(seconds=max_ttl_seconds)
-        expected_start_date = datetime(2023, 1, 7, tzinfo=timezone.utc)  # 3 days before
-        assert calculated_start_date == expected_start_date
-
-        # Test case 2: No TTLs provided, should default to 30 days
-        feature_views_no_ttl = [
-            _mock_feature_view("fv1", ttl=None),
-            _mock_feature_view("fv2", ttl=None),
-        ]
-
-        max_ttl_seconds = 0
-        for fv in feature_views_no_ttl:
-            if fv.ttl and isinstance(fv.ttl, timedelta):
-                ttl_seconds = int(fv.ttl.total_seconds())
-                max_ttl_seconds = max(max_ttl_seconds, ttl_seconds)
-
-        # Should default to 30 days
-        if max_ttl_seconds == 0:
-            calculated_start_date = end_date - timedelta(days=30)
-
-        expected_start_date = datetime(
-            2022, 12, 11, tzinfo=timezone.utc
-        )  # 30 days before
-        assert calculated_start_date == expected_start_date
 
     def test_sql_template_ttl_filtering(self):
         """Test that the SQL template includes proper TTL filtering"""
@@ -884,29 +820,133 @@ class TestNonEntityRetrieval:
         query_no_ttl = template.render(context_no_ttl)
         assert "interval" not in query_no_ttl
 
+    def test_api_non_entity_functionality(self):
+        """Test that FeatureStore API accepts non-entity parameters correctly"""
+        from feast import FeatureStore
+        from feast.infra.offline_stores.offline_store import RetrievalJob
+        from feast.repo_config import RepoConfig
 
-# Test date combination scenarios
-class TestDateCombinations:
-    """Test various date parameter combinations"""
+        config = RepoConfig(
+            project="test_project",
+            registry="test_registry",
+            provider="local",
+            offline_store=_mock_offline_store_config(),
+        )
 
-    def test_date_parameter_validation(self):
-        """Test validation of date parameters in different scenarios"""
-        # This would test the actual validation logic when integrated
-        # For now, we test the logic conceptually
+        # Mock the entire retrieval pipeline
+        with patch.object(FeatureStore, "_get_provider") as mock_provider:
+            mock_retrieval_job = MagicMock(spec=RetrievalJob)
+            mock_provider.return_value.get_historical_features.return_value = (
+                mock_retrieval_job
+            )
 
-        # Scenario 1: Both dates provided - should work
-        start_date = datetime(2023, 1, 1, tzinfo=timezone.utc)
-        end_date = datetime(2023, 1, 7, tzinfo=timezone.utc)
-        assert start_date < end_date  # Basic validation
+            fs = FeatureStore(config=config)
 
-        # Scenario 2: Only end_date provided - should calculate start_date from TTL
-        end_date = datetime(2023, 1, 7, tzinfo=timezone.utc)
-        ttl_days = 7
-        calculated_start = end_date - timedelta(days=ttl_days)
-        expected_start = datetime(2022, 12, 31, tzinfo=timezone.utc)
-        assert calculated_start == expected_start
+            # Mock registry and feature resolution
+            with (
+                patch.object(fs, "_registry"),
+                patch("feast.utils._get_features") as mock_get_features,
+                patch("feast.utils._get_feature_views_to_use") as mock_get_views,
+                patch("feast.utils._group_feature_refs") as mock_group_refs,
+            ):
+                mock_get_features.return_value = ["test:feature"]
+                mock_get_views.return_value = (
+                    [],
+                    [],
+                )  # (all_feature_views, all_on_demand_feature_views)
+                mock_group_refs.return_value = ([], [])  # (fvs, odfvs)
 
-        # Scenario 3: Neither date provided - should default end_date to now()
-        current_time = datetime.now(tz=timezone.utc)
-        default_end = current_time
-        assert abs((default_end - current_time).total_seconds()) < 1
+                # Test non-entity API call
+                result = fs.get_historical_features(
+                    features=["test:feature"],
+                    start_date=datetime(2023, 1, 1, tzinfo=timezone.utc),
+                    end_date=datetime(2023, 1, 7, tzinfo=timezone.utc),
+                )
+
+                # Verify the call was made correctly
+                assert result == mock_retrieval_job
+                mock_provider.return_value.get_historical_features.assert_called_once()
+
+                # Check that the new parameters were passed (the exact call structure may vary)
+                # but we want to verify the API accepted the new parameters
+                call_args = mock_provider.return_value.get_historical_features.call_args
+                if call_args.kwargs:
+                    # Called with keyword arguments
+                    assert call_args.kwargs.get("start_date") == datetime(
+                        2023, 1, 1, tzinfo=timezone.utc
+                    )
+                    assert call_args.kwargs.get("end_date") == datetime(
+                        2023, 1, 7, tzinfo=timezone.utc
+                    )
+                else:
+                    # Called with positional arguments - just verify it was called
+                    assert len(call_args.args) > 0
+
+    def test_cli_date_combinations(self):
+        """Test various CLI date parameter combinations"""
+        import tempfile
+        from pathlib import Path
+        from textwrap import dedent
+
+        from tests.utils.cli_repo_creator import CliRunner, get_example_repo
+
+        runner = CliRunner()
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo_path = Path(temp_dir)
+
+            # Setup repo
+            repo_config = repo_path / "feature_store.yaml"
+            repo_config.write_text(
+                dedent(f"""
+                project: test_cli_dates
+                registry: {repo_path / "registry.db"}
+                provider: local
+                offline_store:
+                    type: file
+                online_store:
+                    type: sqlite
+                    path: {repo_path / "online_store.db"}
+            """)
+            )
+
+            repo_example = repo_path / "example.py"
+            repo_example.write_text(get_example_repo("example_feature_repo_1.py"))
+
+            result = runner.run(["apply"], cwd=repo_path)
+            assert result.returncode == 0
+
+            # Test 1: Both dates provided - should parse correctly
+            result = runner.run(
+                [
+                    "get-historical-features",
+                    "--features",
+                    "driver_hourly_stats:conv_rate",
+                    "--start-date",
+                    "2023-01-01 00:00:00",
+                    "--end-date",
+                    "2023-01-07 00:00:00",
+                ],
+                cwd=repo_path,
+            )
+
+            # Should not fail on date parsing
+            stderr_output = result.stderr.decode()
+            assert "Error parsing" not in stderr_output
+            assert "time data" not in stderr_output  # datetime parsing errors
+
+            # Test 2: Only end date provided - should work (start_date calculated from TTL)
+            result = runner.run(
+                [
+                    "get-historical-features",
+                    "--features",
+                    "driver_hourly_stats:conv_rate",
+                    "--end-date",
+                    "2023-01-07 00:00:00",
+                ],
+                cwd=repo_path,
+            )
+
+            # Should not fail on parameter validation
+            stderr_output = result.stderr.decode()
+            assert "must be provided" not in stderr_output

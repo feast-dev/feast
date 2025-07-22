@@ -46,7 +46,7 @@ from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 from feast.type_map import pg_type_code_to_arrow
-from feast.utils import make_tzaware
+from feast.utils import _utc_now, make_tzaware
 
 from .postgres_source import PostgreSQLSource
 
@@ -136,7 +136,7 @@ class PostgreSQLOfflineStore(OfflineStore):
         if entity_df is None:
             # Default to current time if end_date not provided
             if end_date is None:
-                end_date = datetime.now(tz=timezone.utc)
+                end_date = _utc_now()
             else:
                 end_date = make_tzaware(end_date)
 
