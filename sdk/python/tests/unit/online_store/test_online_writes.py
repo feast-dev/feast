@@ -39,6 +39,109 @@ from feast.on_demand_feature_view import on_demand_feature_view
 from feast.types import Array, Float32, Float64, Int64, PdfBytes, String, ValueType
 
 
+def check_warnings(
+    expected_warnings=None,  # List of warnings that MUST be present
+    forbidden_warnings=None,  # List of warnings that MUST NOT be present
+    match_type="contains",  # "exact", "contains", "regex"
+    capture_all=True,  # Capture all warnings or just specific types
+    fail_on_unexpected=False,  # Fail if unexpected warnings appear
+    min_count=None,  # Minimum number of expected warnings
+    max_count=None,  # Maximum number of expected warnings
+):
+    """
+    Decorator to automatically capture and validate warnings in test methods.
+
+    Args:
+        expected_warnings: List of warning messages that MUST be present
+        forbidden_warnings: List of warning messages that MUST NOT be present
+        match_type: How to match warnings ("exact", "contains", "regex")
+        capture_all: Whether to capture all warnings
+        fail_on_unexpected: Whether to fail if unexpected warnings appear
+        min_count: Minimum number of warnings expected
+        max_count: Maximum number of warnings expected
+    """
+
+    def decorator(test_func):
+        def wrapper(*args, **kwargs):
+            # Setup warning capture
+            with warnings.catch_warnings(record=True) as warning_list:
+                warnings.simplefilter("always")
+
+                # Execute the test function
+                result = test_func(*args, **kwargs)
+
+                # Convert warnings to string messages
+                captured_messages = [str(w.message) for w in warning_list]
+
+                # Validate expected warnings are present
+                if expected_warnings:
+                    for expected_warning in expected_warnings:
+                        if not _warning_matches(
+                            expected_warning, captured_messages, match_type
+                        ):
+                            raise AssertionError(
+                                f"Expected warning '{expected_warning}' not found. "
+                                f"Captured warnings: {captured_messages}"
+                            )
+
+                # Validate forbidden warnings are NOT present
+                if forbidden_warnings:
+                    for forbidden_warning in forbidden_warnings:
+                        if _warning_matches(
+                            forbidden_warning, captured_messages, match_type
+                        ):
+                            raise AssertionError(
+                                f"Forbidden warning '{forbidden_warning}' was found. "
+                                f"Captured warnings: {captured_messages}"
+                            )
+
+                # Validate warning count constraints
+                if min_count is not None and len(warning_list) < min_count:
+                    raise AssertionError(
+                        f"Expected at least {min_count} warnings, got {len(warning_list)}"
+                    )
+
+                if max_count is not None and len(warning_list) > max_count:
+                    raise AssertionError(
+                        f"Expected at most {max_count} warnings, got {len(warning_list)}"
+                    )
+
+                # Validate no unexpected warnings (if enabled)
+                if fail_on_unexpected and expected_warnings:
+                    all_expected = expected_warnings + (forbidden_warnings or [])
+                    for message in captured_messages:
+                        if not any(
+                            _warning_matches(exp, [message], match_type)
+                            for exp in all_expected
+                        ):
+                            raise AssertionError(
+                                f"Unexpected warning found: '{message}'"
+                            )
+
+                return result
+
+        return wrapper
+
+    return decorator
+
+
+def _warning_matches(pattern, messages, match_type):
+    """Helper function to check if pattern matches any message"""
+    for message in messages:
+        if match_type == "exact":
+            if pattern == message:
+                return True
+        elif match_type == "contains":
+            if pattern in message:
+                return True
+        elif match_type == "regex":
+            import re
+
+            if re.search(pattern, message):
+                return True
+    return False
+
+
 class TestOnlineWrites(unittest.TestCase):
     def setUp(self):
         with tempfile.TemporaryDirectory() as data_dir:
@@ -210,50 +313,37 @@ class TestEmptyDataFrameValidation(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.data_dir)
 
+    @check_warnings(
+        expected_warnings=["Cannot write empty dataframe to online store"],
+    )
     def test_empty_dataframe_warns(self):
-        """Test that completely empty dataframe warns"""
+        """Test that completely empty dataframe issues a warning instead of raising an error"""
         empty_df = pd.DataFrame()
 
-        with warnings.catch_warnings(record=True) as warning_list:
-            warnings.simplefilter("always")
-            self.store.write_to_online_store(
-                feature_view_name="driver_hourly_stats", df=empty_df
-            )
-
-        # Check that our specific warning message is present
-        warning_messages = [str(w.message) for w in warning_list]
-        self.assertTrue(
-            any(
-                "Cannot write empty dataframe to online store" in msg
-                for msg in warning_messages
-            ),
-            f"Expected warning not found. Actual warnings: {warning_messages}",
+        self.store.write_to_online_store(
+            feature_view_name="driver_hourly_stats", df=empty_df
         )
 
+    @check_warnings(
+        expected_warnings=["Cannot write empty dataframe to online store"],
+    )
     def test_empty_dataframe_async_warns(self):
-        """Test that completely empty dataframe warns instead of raising error in async version"""
+        """Test that completely empty dataframe issues a warning instead of raising an error in async version"""
 
         async def test_async_empty():
             empty_df = pd.DataFrame()
 
-            with warnings.catch_warnings(record=True) as warning_list:
-                warnings.simplefilter("always")
-                await self.store.write_to_online_store_async(
-                    feature_view_name="driver_hourly_stats", df=empty_df
-                )
-
-            # Check that our specific warning message is present
-            warning_messages = [str(w.message) for w in warning_list]
-            self.assertTrue(
-                any(
-                    "Cannot write empty dataframe to online store" in msg
-                    for msg in warning_messages
-                ),
-                f"Expected warning not found. Actual warnings: {warning_messages}",
+            await self.store.write_to_online_store_async(
+                feature_view_name="driver_hourly_stats", df=empty_df
             )
 
         asyncio.run(test_async_empty())
 
+    @check_warnings(
+        expected_warnings=[
+            "Cannot write dataframe with empty feature columns to online store"
+        ],
+    )
     def test_dataframe_with_empty_feature_columns_warns(self):
         """Test that dataframe with entity data but empty feature columns warns instead of raising error"""
         current_time = pd.Timestamp.now()
@@ -268,23 +358,15 @@ class TestEmptyDataFrameValidation(unittest.TestCase):
             }
         )
 
-        with warnings.catch_warnings(record=True) as warning_list:
-            warnings.simplefilter("always")
-            self.store.write_to_online_store(
-                feature_view_name="driver_hourly_stats", df=df_with_entity_only
-            )
-
-        # Check that our specific warning message is present
-        warning_messages = [str(w.message) for w in warning_list]
-        self.assertTrue(
-            any(
-                "Cannot write dataframe with empty feature columns to online store"
-                in msg
-                for msg in warning_messages
-            ),
-            f"Expected warning not found. Actual warnings: {warning_messages}",
+        self.store.write_to_online_store(
+            feature_view_name="driver_hourly_stats", df=df_with_entity_only
         )
 
+    @check_warnings(
+        expected_warnings=[
+            "Cannot write dataframe with empty feature columns to online store"
+        ],
+    )
     def test_dataframe_with_empty_feature_columns_async_warns(self):
         """Test that dataframe with entity data but empty feature columns warns instead of raising error in async version"""
 
@@ -301,25 +383,18 @@ class TestEmptyDataFrameValidation(unittest.TestCase):
                 }
             )
 
-            with warnings.catch_warnings(record=True) as warning_list:
-                warnings.simplefilter("always")
-                await self.store.write_to_online_store_async(
-                    feature_view_name="driver_hourly_stats", df=df_with_entity_only
-                )
-
-            # Check that our specific warning message is present
-            warning_messages = [str(w.message) for w in warning_list]
-            self.assertTrue(
-                any(
-                    "Cannot write dataframe with empty feature columns to online store"
-                    in msg
-                    for msg in warning_messages
-                ),
-                f"Expected warning not found. Actual warnings: {warning_messages}",
+            await self.store.write_to_online_store_async(
+                feature_view_name="driver_hourly_stats", df=df_with_entity_only
             )
 
         asyncio.run(test_async_empty_features())
 
+    @check_warnings(
+        forbidden_warnings=[
+            "Cannot write empty dataframe to online store",
+            "Cannot write dataframe with empty feature columns to online store",
+        ],
+    )
     def test_valid_dataframe(self):
         """Test that valid dataframe with feature data succeeds"""
         current_time = pd.Timestamp.now()
@@ -334,28 +409,17 @@ class TestEmptyDataFrameValidation(unittest.TestCase):
             }
         )
 
-        # This should not raise an exception or warnings
-        with warnings.catch_warnings(record=True) as warning_list:
-            warnings.simplefilter("always")
-            self.store.write_to_online_store(
-                feature_view_name="driver_hourly_stats", df=valid_df
-            )
+        # This should not raise an exception or warnings - decorator handles warning validation
+        self.store.write_to_online_store(
+            feature_view_name="driver_hourly_stats", df=valid_df
+        )
 
-        # Validate that our specific empty dataframe warnings are NOT raised for valid data
-        empty_df_warning_messages = [
+    @check_warnings(
+        forbidden_warnings=[
             "Cannot write empty dataframe to online store",
-            "Cannot write dataframe with empty feature columns to online store"
-        ]
-        
-        for warning in warning_list:
-            warning_message = str(warning.message)
-            for empty_df_msg in empty_df_warning_messages:
-                self.assertNotIn(
-                    empty_df_msg, 
-                    warning_message,
-                    f"Valid dataframe should not generate empty dataframe warnings. Found: '{warning_message}'"
-                )
-
+            "Cannot write dataframe with empty feature columns to online store",
+        ],
+    )
     def test_valid_dataframe_async(self):
         """Test that valid dataframe with feature data succeeds in async version"""
         pytest.skip("Feature not implemented yet")
@@ -373,30 +437,19 @@ class TestEmptyDataFrameValidation(unittest.TestCase):
                 }
             )
 
-            # This should not raise an exception or warnings
-            with warnings.catch_warnings(record=True) as warning_list:
-                warnings.simplefilter("always")
-                await self.store.write_to_online_store_async(
-                    feature_view_name="driver_hourly_stats", df=valid_df
-                )
-
-            # Validate that our specific empty dataframe warnings are NOT raised for valid data
-            empty_df_warning_messages = [
-                "Cannot write empty dataframe to online store",
-                "Cannot write dataframe with empty feature columns to online store"
-            ]
-            
-            for warning in warning_list:
-                warning_message = str(warning.message)
-                for empty_df_msg in empty_df_warning_messages:
-                    self.assertNotIn(
-                        empty_df_msg, 
-                        warning_message,
-                        f"Valid dataframe should not generate empty dataframe warnings in async. Found: '{warning_message}'"
-                    )
+            # This should not raise an exception or warnings - decorator handles warning validation
+            await self.store.write_to_online_store_async(
+                feature_view_name="driver_hourly_stats", df=valid_df
+            )
 
         asyncio.run(test_async_valid())
 
+    @check_warnings(
+        forbidden_warnings=[
+            "Cannot write empty dataframe to online store",
+            "Cannot write dataframe with empty feature columns to online store",
+        ],
+    )
     def test_mixed_dataframe_with_some_valid_features(self):
         """Test that dataframe with some valid feature values succeeds"""
         current_time = pd.Timestamp.now()
@@ -411,28 +464,14 @@ class TestEmptyDataFrameValidation(unittest.TestCase):
             }
         )
 
-        # This should not raise an exception because not all feature values are null
-        with warnings.catch_warnings(record=True) as warning_list:
-            warnings.simplefilter("always")
-            self.store.write_to_online_store(
-                feature_view_name="driver_hourly_stats", df=mixed_df
-            )
+        # This should not raise an exception because not all feature values are null - decorator handles warning validation
+        self.store.write_to_online_store(
+            feature_view_name="driver_hourly_stats", df=mixed_df
+        )
 
-        # Validate that our specific empty dataframe warnings are NOT raised for mixed valid data
-        empty_df_warning_messages = [
-            "Cannot write empty dataframe to online store",
-            "Cannot write dataframe with empty feature columns to online store"
-        ]
-        
-        for warning in warning_list:
-            warning_message = str(warning.message)
-            for empty_df_msg in empty_df_warning_messages:
-                self.assertNotIn(
-                    empty_df_msg, 
-                    warning_message,
-                    f"Mixed dataframe with valid features should not generate empty dataframe warnings. Found: '{warning_message}'"
-                )
-
+    @check_warnings(
+        expected_warnings=["Cannot write empty dataframe to online store"],
+    )
     def test_empty_inputs_dict_warns(self):
         """Test that empty inputs dict warns instead of raising error"""
         empty_inputs = {
@@ -442,22 +481,15 @@ class TestEmptyDataFrameValidation(unittest.TestCase):
             "avg_daily_trips": [],
         }
 
-        with warnings.catch_warnings(record=True) as warning_list:
-            warnings.simplefilter("always")
-            self.store.write_to_online_store(
-                feature_view_name="driver_hourly_stats", inputs=empty_inputs
-            )
+        self.store.write_to_online_store(
+            feature_view_name="driver_hourly_stats", inputs=empty_inputs
+        )
 
-            # Check that our specific warning message is present
-            warning_messages = [str(w.message) for w in warning_list]
-            self.assertTrue(
-                any(
-                    "Cannot write empty dataframe to online store" in msg
-                    for msg in warning_messages
-                ),
-                f"Expected warning not found. Actual warnings: {warning_messages}",
-            )
-
+    @check_warnings(
+        expected_warnings=[
+            "Cannot write dataframe with empty feature columns to online store"
+        ],
+    )
     def test_inputs_dict_with_empty_features_warns(self):
         """Test that inputs dict with empty feature values warns instead of raising error"""
         current_time = pd.Timestamp.now()
@@ -470,25 +502,20 @@ class TestEmptyDataFrameValidation(unittest.TestCase):
             "avg_daily_trips": [None, None, None],
         }
 
-        with warnings.catch_warnings(record=True) as warning_list:
-            warnings.simplefilter("always")
-            self.store.write_to_online_store(
-                feature_view_name="driver_hourly_stats", inputs=empty_feature_inputs
-            )
-
-        # Check that our specific warning message is present
-        warning_messages = [str(w.message) for w in warning_list]
-        self.assertTrue(
-            any(
-                "Cannot write dataframe with empty feature columns to online store"
-                in msg
-                for msg in warning_messages
-            ),
-            f"Expected warning not found. Actual warnings: {warning_messages}",
+        self.store.write_to_online_store(
+            feature_view_name="driver_hourly_stats", inputs=empty_feature_inputs
         )
 
+    @check_warnings(
+        forbidden_warnings=[
+            "Cannot write empty dataframe to online store",
+            "Cannot write dataframe with empty feature columns to online store",
+        ],
+    )
     def test_multiple_feature_views_materialization_with_empty_data(self):
         """Test materializing multiple feature views where one has empty data - should not break materialization"""
+        import tempfile
+        from datetime import timedelta
 
         with tempfile.TemporaryDirectory() as data_dir:
             # Create a new store for this test
@@ -587,32 +614,15 @@ class TestEmptyDataFrameValidation(unittest.TestCase):
             test_store.apply([driver, customer] + feature_views)
 
             # Test: Use materialize() to move data from offline to online store
-            # This should NOT raise any exceptions even with empty data
+            # This should NOT raise any exceptions even with empty data - decorator handles warning validation
             try:
-                with warnings.catch_warnings(record=True) as warning_list:
-                    warnings.simplefilter("always")
-                    test_store.materialize(
-                        start_date=start_date,
-                        end_date=end_date,
-                        feature_views=[fv.name for fv in feature_views],
-                    )
+                test_store.materialize(
+                    start_date=start_date,
+                    end_date=end_date,
+                    feature_views=[fv.name for fv in feature_views],
+                )
             except Exception as e:
                 self.fail(f"Materialization raised an unexpected exception: {e}")
-
-            # Validate that our specific empty dataframe warnings are NOT raised during materialization
-            empty_df_warning_messages = [
-                "Cannot write empty dataframe to online store",
-                "Cannot write dataframe with empty feature columns to online store"
-            ]
-            
-            for warning in warning_list:
-                warning_message = str(warning.message)
-                for empty_df_msg in empty_df_warning_messages:
-                    self.assertNotIn(
-                        empty_df_msg, 
-                        warning_message,
-                        f"Materialization should not generate empty dataframe warnings. Found: '{warning_message}'"
-                    )
 
             # Verify that the operation was successful by checking that non-empty feature views have data
             successful_materializations = 0
