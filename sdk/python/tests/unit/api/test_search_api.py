@@ -1,6 +1,7 @@
 import logging
 import os
 import tempfile
+from urllib.parse import quote
 
 import pandas as pd
 import pytest
@@ -10,6 +11,7 @@ from feast import Entity, FeatureService, FeatureView, Field, FileSource
 from feast.api.registry.rest.rest_registry_server import RestRegistryServer
 from feast.feature_store import FeatureStore
 from feast.infra.offline_stores.file_source import SavedDatasetFileStorage
+from feast.project import Project
 from feast.repo_config import RepoConfig
 from feast.saved_dataset import SavedDataset
 from feast.types import Float64, Int64, String
@@ -387,7 +389,6 @@ def multi_project_search_test_app():
     master_store = FeatureStore(config=RepoConfig.model_validate(master_config))
 
     # First, create the Project objects in the registry
-    from feast.project import Project
 
     for project_name, project_data in projects_data.items():
         project_obj = Project(
@@ -1785,7 +1786,6 @@ class TestSearchAPINegativeScenarios:
 
     def test_search_with_unicode_and_special_encoding(self, search_test_app):
         """Test search API with unicode characters and special encoding"""
-        from urllib.parse import quote
 
         # Split into safe and unsafe characters
         safe_unicode_queries = [
