@@ -1,6 +1,6 @@
 # --------------------------------------------------------------------
 # Extends OIDC client auth model with an optional `token` field.
-# Works on Pydantic v1 and v2.
+# Works on Pydantic v2-only.
 #
 # Accepted credential sets (exactly **one** of):
 #   1 pre-issued `token`
@@ -11,19 +11,9 @@ from __future__ import annotations
 
 from typing import Literal, Optional
 
+from pydantic import model_validator
+
 from feast.repo_config import FeastConfigBaseModel
-
-# pick the correct validator decorator for current Pydantic version
-try:  # Pydantic ≥ 2.0
-    from pydantic import model_validator as _v2  # type: ignore
-
-    def _cred_validator(fn):
-        return _v2(mode="after")(fn)  # run after field validation
-except ImportError:  # Pydantic 1.x
-    from pydantic import root_validator as _v1  # type: ignore
-
-    def _cred_validator(fn):
-        return _v1(skip_on_failure=True)(fn)
 
 
 class AuthConfig(FeastConfigBaseModel):
@@ -42,7 +32,7 @@ class OidcClientAuthConfig(OidcAuthConfig):
     client_secret: Optional[str] = None
     token: Optional[str] = None  # pre-issued `token`
 
-    @_cred_validator
+    @model_validator(mode="after")
     def _validate_credentials(cls, values):
         """Enforce exactly one valid credential set."""
         d = values.__dict__ if hasattr(values, "__dict__") else values
