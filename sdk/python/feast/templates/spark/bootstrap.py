@@ -21,6 +21,7 @@ def bootstrap():
     driver_stats_df.to_parquet(
         path=str(data_path / "driver_hourly_stats.parquet"),
         allow_truncated_timestamps=True,
+        coerce_timestamps="us",
     )
 
     customer_entities = [201, 202, 203]
@@ -30,6 +31,7 @@ def bootstrap():
     customer_profile_df.to_parquet(
         path=str(data_path / "customer_daily_profile.parquet"),
         allow_truncated_timestamps=True,
+        coerce_timestamps="us",
     )
 
 
