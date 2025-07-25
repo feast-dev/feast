@@ -17,17 +17,30 @@ limitations under the License.
 package previous_version
 
 import (
+	"fmt"
+
 	"github.com/feast-dev/feast/infra/feast-operator/test/utils"
 	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 )
 
 var _ = Describe("previous version operator", Ordered, func() {
+	namespace := "test-ns-feast"
+
 	BeforeAll(func() {
 		utils.DeployPreviousVersionOperator()
+
+		By(fmt.Sprintf("Creating test namespace: %s", namespace))
+		err := utils.CreateNamespace(namespace, "/test/e2e")
+		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to create namespace %s", namespace))
 	})
 
 	AfterAll(func() {
 		utils.DeleteOperatorDeployment("/test/upgrade")
+
+		By(fmt.Sprintf("Deleting test namespace: %s", namespace))
+		err := utils.DeleteNamespace(namespace, "/test/e2e")
+		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to delete namespace %s", namespace))
 	})
 
 	Context("Previous version operator Tests", func() {
@@ -38,9 +51,9 @@ var _ = Describe("previous version operator", Ordered, func() {
 		}
 
 		runTestDeploySimpleCRFunc := utils.GetTestDeploySimpleCRFunc("/test/upgrade", utils.GetSimplePreviousVerCR(),
-			utils.FeatureStoreName, utils.FeastResourceName, feastK8sResourceNames, "default")
+			utils.FeatureStoreName, utils.FeastResourceName, feastK8sResourceNames, namespace)
 		runTestWithRemoteRegistryFunction := utils.GetTestWithRemoteRegistryFunc("/test/upgrade", utils.GetSimplePreviousVerCR(),
-			utils.GetRemoteRegistryPreviousVerCR(), utils.FeatureStoreName, utils.FeastResourceName, feastK8sResourceNames, "default")
+			utils.GetRemoteRegistryPreviousVerCR(), utils.FeatureStoreName, utils.FeastResourceName, feastK8sResourceNames, namespace)
 
 		// Run Test on previous version operator
 		It("Should be able to deploy and run a default feature store CR successfully", runTestDeploySimpleCRFunc)
