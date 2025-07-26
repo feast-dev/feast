@@ -1,13 +1,18 @@
 import logging
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Union, cast
 
+from feast.feature_view_utils import resolve_feature_view_source_with_fallback
 from feast.infra.common.materialization_job import MaterializationTask
 from feast.infra.common.retrieval_task import HistoricalRetrievalTask
+from feast.infra.compute_engines.algorithms.topo import topological_sort
+from feast.infra.compute_engines.dag.node import DAGNode
 from feast.infra.compute_engines.dag.plan import ExecutionPlan
 from feast.infra.compute_engines.feature_builder import FeatureBuilder
+from feast.infra.compute_engines.ray.config import RayComputeEngineConfig
 from feast.infra.compute_engines.ray.nodes import (
     RayAggregationNode,
     RayDedupNode,
+    RayDerivedReadNode,
     RayFilterNode,
     RayJoinNode,
     RayReadNode,
@@ -38,17 +43,21 @@ class RayFeatureBuilder(FeatureBuilder):
         super().__init__(registry, feature_view, task)
         self.config = config
         self.is_historical_retrieval = isinstance(task, HistoricalRetrievalTask)
+        self.is_materialization = isinstance(task, MaterializationTask)
 
     def build_source_node(self, view):
         """Build the source node for reading feature data."""
-        source = view.batch_source
+
+        source_info = resolve_feature_view_source_with_fallback(
+            view, config=None, is_materialization=self.is_materialization
+        )
         start_time = self.task.start_time
         end_time = self.task.end_time
         column_info = self.get_column_info(view)
 
         node = RayReadNode(
             name="source",
-            source=source,
+            source=source_info.data_source,
             column_info=column_info,
             config=self.config,
             start_time=start_time,
@@ -56,32 +65,49 @@ class RayFeatureBuilder(FeatureBuilder):
         )
 
         self.nodes.append(node)
-        logger.debug(f"Built source node for {source}")
+        return node
+
+    def build_aggregation_node(self, view, input_node: DAGNode) -> DAGNode:
+        """Build aggregation node for Ray."""
+        agg_specs = getattr(view, "aggregations", [])
+        if not agg_specs:
+            raise ValueError(f"No aggregations found for {view.name}")
+
+        group_by_keys = view.entities
+        timestamp_col = getattr(view.batch_source, "timestamp_field", "event_timestamp")
+
+        node = RayAggregationNode(
+            name="aggregation",
+            aggregations=agg_specs,
+            group_by_keys=group_by_keys,
+            timestamp_col=timestamp_col,
+            config=self.config,
+        )
+        node.add_input(input_node)
+
+        self.nodes.append(node)
         return node
 
     def build_join_node(self, view, input_nodes):
-        """Build the join node for entity-feature joining."""
+        """Build the join node for combining multiple feature sources."""
         column_info = self.get_column_info(view)
+
         node = RayJoinNode(
             name="join",
             column_info=column_info,
             config=self.config,
-            # Pass entity_df information if this is a historical retrieval
             is_historical_retrieval=self.is_historical_retrieval,
         )
         for input_node in input_nodes:
             node.add_input(input_node)
+
         self.nodes.append(node)
-        logger.debug("Built join node")
         return node
 
     def build_filter_node(self, view, input_node):
         """Build the filter node for TTL and custom filtering."""
-        filter_expr = None
-        if hasattr(view, "filter"):
-            filter_expr = view.filter
-
         ttl = getattr(view, "ttl", None)
+        filter_condition = getattr(view, "filter", None)
         column_info = self.get_column_info(view)
 
         node = RayFilterNode(
@@ -89,111 +115,190 @@ class RayFeatureBuilder(FeatureBuilder):
             column_info=column_info,
             config=self.config,
             ttl=ttl,
-            filter_condition=filter_expr,
+            filter_condition=filter_condition,
         )
-
         node.add_input(input_node)
+
         self.nodes.append(node)
-        logger.debug(f"Built filter node with TTL: {ttl}")
-        return node
-
-    def build_aggregation_node(self, view, input_node):
-        """Build the aggregation node for feature aggregations."""
-        if not hasattr(view, "aggregations"):
-            raise ValueError("Feature view does not have aggregations")
-
-        aggregations = view.aggregations
-        group_by_keys = view.entities
-
-        # Get timestamp field from batch source
-        timestamp_field = getattr(
-            view.batch_source, "timestamp_field", "event_timestamp"
-        )
-
-        node = RayAggregationNode(
-            name="aggregation",
-            aggregations=aggregations,
-            group_by_keys=group_by_keys,
-            timestamp_col=timestamp_field,
-            config=self.config,
-        )
-
-        node.add_input(input_node)
-        self.nodes.append(node)
-        logger.debug(f"Built aggregation node with {len(aggregations)} aggregations")
         return node
 
     def build_dedup_node(self, view, input_node):
-        """Build the deduplication node for removing duplicates."""
+        """Build the deduplication node for removing duplicate records."""
         column_info = self.get_column_info(view)
+
         node = RayDedupNode(
             name="dedup",
             column_info=column_info,
             config=self.config,
         )
-
         node.add_input(input_node)
+
         self.nodes.append(node)
-        logger.debug("Built dedup node")
         return node
 
     def build_transformation_node(self, view, input_nodes):
-        """Build the transformation node for feature transformations."""
-        transformation = None
+        """Build the transformation node for user-defined transformations."""
+        feature_transformation = getattr(view, "feature_transformation", None)
+        udf = getattr(view, "udf", None)
 
-        # Check for feature_transformation first
-        if hasattr(view, "feature_transformation") and view.feature_transformation:
-            transformation = view.feature_transformation
-        # For BatchFeatureView, also check for direct UDF
-        elif hasattr(view, "udf") and view.udf:
-            transformation = view.udf
-        else:
-            raise ValueError("Feature view does not have feature transformation or UDF")
+        transformation = feature_transformation or udf
+        if not transformation:
+            raise ValueError(f"No feature transformation found for {view.name}")
 
         node = RayTransformationNode(
             name="transformation",
             transformation=transformation,
             config=self.config,
         )
-
         for input_node in input_nodes:
             node.add_input(input_node)
+
         self.nodes.append(node)
-        transformation_name = getattr(
-            transformation, "name", getattr(transformation, "__name__", "unknown")
-        )
-        logger.debug(f"Built transformation node: {transformation_name}")
         return node
 
     def build_output_nodes(self, view, final_node):
-        """Build the output node for writing results."""
+        """Build the output node for writing processed features."""
         node = RayWriteNode(
             name="output",
             feature_view=view,
-            config=self.config,
+            inputs=[final_node],
         )
 
-        node.add_input(final_node)
         self.nodes.append(node)
-        logger.debug("Built output node")
         return node
 
     def build_validation_node(self, view, input_node):
-        """Build the validation node for data quality checks."""
-        # For now, validation is handled in the retrieval job
-        # This could be extended to include Ray-specific validation logic
-        logger.debug("Validation node not implemented yet")
+        """Build the validation node for feature validation."""
+        # TODO: Implement validation logic
         return input_node
 
-    def build(self) -> ExecutionPlan:
-        """Build execution plan with optimized order for aggregation scenarios."""
+    def _build(self, view, input_nodes: Optional[List[DAGNode]]) -> DAGNode:
+        """Override _build to handle derived views during materialization."""
+        # Step 1: build source node
+        if view.data_source:
+            last_node = self.build_source_node(view)
 
-        # For historical retrieval with aggregations, use a different execution order
+            # If source node is None (derived view during materialization), use input nodes
+            if last_node is None and input_nodes:
+                if self._should_transform(view):
+                    last_node = self.build_transformation_node(view, input_nodes)
+                else:
+                    last_node = self.build_join_node(view, input_nodes)
+            elif last_node is not None:
+                if self._should_transform(view):
+                    # Transform applied to the source data
+                    last_node = self.build_transformation_node(view, [last_node])
+
+        # If there are input nodes, transform or join them
+        elif input_nodes:
+            # User-defined transform handles the merging of input views
+            if self._should_transform(view):
+                last_node = self.build_transformation_node(view, input_nodes)
+            # Default join
+            else:
+                last_node = self.build_join_node(view, input_nodes)
+        else:
+            raise ValueError(f"FeatureView {view.name} has no valid source or inputs")
+
+        # Skip subsequent steps if last_node is None
+        if last_node is None:
+            raise ValueError(f"Failed to build processing node for {view.name}")
+
+        # Step 2: filter
+        last_node = self.build_filter_node(view, last_node)
+
+        # Step 3: aggregate or dedupe
+        if self._should_aggregate(view):
+            last_node = self.build_aggregation_node(view, last_node)
+        elif self._should_dedupe(view):
+            last_node = self.build_dedup_node(view, last_node)
+
+        # Step 4: validate
+        if self._should_validate(view):
+            last_node = self.build_validation_node(view, last_node)
+
+        return last_node
+
+    def build(self) -> ExecutionPlan:
+        """Build execution plan with support for derived feature views and sink_source writing."""
         if self.is_historical_retrieval and self._should_aggregate(self.feature_view):
             return self._build_aggregation_optimized_plan()
 
-        # Use the default build logic for other scenarios
+        if self.is_materialization:
+            return self._build_materialization_plan()
+
         return super().build()
+
+    def _build_materialization_plan(self) -> ExecutionPlan:
+        """Build execution plan for materialization with intermediate sink writes."""
+        logger.info(f"Building materialization plan for {self.feature_view.name}")
+
+        # Step 1: Topo sort the FeatureViewNode DAG (Logical DAG)
+        logical_nodes = self.feature_resolver.topological_sort(self.dag_root)
+        logger.info(
+            f"Logical nodes in topo order: {[node.view.name for node in logical_nodes]}"
+        )
+
+        # Step 2: For each FeatureView, build its corresponding execution DAGNode and write node
+        # Build them in dependency order to ensure proper execution
+        view_to_write_node: Dict[str, RayWriteNode] = {}
+
+        for i, logical_node in enumerate(logical_nodes):
+            view = logical_node.view
+            logger.info(
+                f"Building nodes for view {view.name} (step {i + 1}/{len(logical_nodes)})"
+            )
+
+            # For derived views, we need to ensure parent views are materialized first
+            # So we create a processing chain that depends on parent write nodes
+            parent_write_nodes = []
+            processing_node: DAGNode
+            if hasattr(view, "source_views") and view.source_views:
+                # This is a derived view - collect parent write nodes as dependencies
+                for parent in logical_node.inputs:
+                    if parent.view.name in view_to_write_node:
+                        parent_write_nodes.append(view_to_write_node[parent.view.name])
+
+                if parent_write_nodes:
+                    # For derived views, create a simple passthrough node that depends on parents
+                    # This ensures the derived view processing only starts after parents are materialized
+                    processing_node = RayDerivedReadNode(
+                        name=f"{view.name}:derived_read",
+                        feature_view=view,
+                        parent_dependencies=cast(List[DAGNode], parent_write_nodes),
+                        config=self.config,
+                        column_info=self.get_column_info(view),
+                        is_materialization=self.is_materialization,
+                    )
+                    self.nodes.append(processing_node)
+                else:
+                    # Parent not yet built - this shouldn't happen in topo order
+                    raise ValueError(f"Parent views for {view.name} not yet built")
+            else:
+                # Regular view - build normal processing chain
+                processing_node = self._build(view, None)
+
+            # Create a write node for this view
+            write_node = RayWriteNode(
+                name=f"{view.name}:write",
+                feature_view=view,
+                inputs=[processing_node],
+            )
+
+            view_to_write_node[view.name] = write_node
+            logger.info(f"Created write node for {view.name}")
+
+        # Step 3: The final write node is the one for the top-level feature view
+        final_node = view_to_write_node[self.feature_view.name]
+
+        # Step 4: Topo sort the final DAG from the output node (Physical DAG)
+        sorted_nodes = topological_sort(final_node)
+
+        # Step 5: Update self.nodes to include all nodes for the execution plan
+        self.nodes = sorted_nodes
+
+        # Step 6: Return sorted execution plan
+        return ExecutionPlan(sorted_nodes)
 
     def _build_aggregation_optimized_plan(self) -> ExecutionPlan:
         """Build execution plan optimized for aggregation scenarios."""
@@ -214,11 +319,7 @@ class RayFeatureBuilder(FeatureBuilder):
         if self._should_transform(self.feature_view):
             last_node = self.build_transformation_node(self.feature_view, [last_node])
 
-        # 6. Validation if needed
-        if self._should_validate(self.feature_view):
-            last_node = self.build_validation_node(self.feature_view, last_node)
-
-        # 7. Output
+        # 6. Output
         last_node = self.build_output_nodes(self.feature_view, last_node)
 
         return ExecutionPlan(self.nodes)
