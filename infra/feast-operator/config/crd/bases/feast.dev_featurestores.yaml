@@ -842,6 +842,7 @@ spec:
                                 - mssql
                                 - couchbase.offline
                                 - clickhouse
+                                - ray
                                 type: string
                             required:
                             - secretRef
@@ -4806,6 +4807,7 @@ spec:
                                     - mssql
                                     - couchbase.offline
                                     - clickhouse
+                                    - ray
                                     type: string
                                 required:
                                 - secretRef
