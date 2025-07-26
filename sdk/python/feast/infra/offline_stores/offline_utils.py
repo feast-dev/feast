@@ -50,7 +50,7 @@ def assert_expected_columns_in_entity_df(
     entity_df_event_timestamp_col: str,
 ):
     entity_columns = set(entity_schema.keys())
-    expected_columns = join_keys | {entity_df_event_timestamp_col}
+    expected_columns = {entity_df_event_timestamp_col}
     missing_keys = expected_columns - entity_columns
 
     if len(missing_keys) != 0:

@@ -1,4 +1,5 @@
 import json
+from datetime import datetime
 from typing import List
 
 import click
@@ -140,37 +141,69 @@ def get_online_features(ctx: click.Context, entities: List[str], features: List[
     "--dataframe",
     "-d",
     type=str,
-    required=True,
     help='JSON string containing entities and timestamps. Example: \'[{"event_timestamp": "2025-03-29T12:00:00", "driver_id": 1001}]\'',
 )
 @click.option(
     "--features",
     "-f",
     multiple=True,
-    required=True,
     help="Features to retrieve. feature-view:feature-name ex: driver_hourly_stats:conv_rate",
 )
+@click.option(
+    "--start-date",
+    "-s",
+    type=str,
+    help="Start date for historical feature retrieval. Format: YYYY-MM-DD HH:MM:SS",
+)
+@click.option(
+    "--end-date",
+    "-e",
+    type=str,
+    help="End date for historical feature retrieval. Format: YYYY-MM-DD HH:MM:SS",
+)
 @click.pass_context
-def get_historical_features(ctx: click.Context, dataframe: str, features: List[str]):
+def get_historical_features(
+    ctx: click.Context,
+    dataframe: str,
+    features: List[str],
+    start_date: str,
+    end_date: str,
+):
     """
     Fetch historical feature values for a given entity ID
     """
     store = create_feature_store(ctx)
-    try:
-        entity_list = json.loads(dataframe)
-        if not isinstance(entity_list, list):
-            raise ValueError("Entities must be a list of dictionaries.")
-
-        entity_df = pd.DataFrame(entity_list)
-        entity_df["event_timestamp"] = pd.to_datetime(entity_df["event_timestamp"])
-
-    except Exception as e:
-        click.echo(f"Error parsing entities JSON: {e}", err=True)
+    if not dataframe and not start_date and not end_date:
+        click.echo(
+            "Either --dataframe or --start-date and/or --end-date must be provided."
+        )
         return
+
+    if dataframe and (start_date or end_date):
+        click.echo("Cannot specify both --dataframe and --start-date/--end-date.")
+        return
+
+    entity_df = None
+    if dataframe:
+        try:
+            entity_list = json.loads(dataframe)
+            if not isinstance(entity_list, list):
+                raise ValueError("Entities must be a list of dictionaries.")
+
+            entity_df = pd.DataFrame(entity_list)
+            entity_df["event_timestamp"] = pd.to_datetime(entity_df["event_timestamp"])
+
+        except Exception as e:
+            click.echo(f"Error parsing entities JSON: {e}", err=True)
+            return
 
     feature_vector = store.get_historical_features(
         entity_df=entity_df,
         features=list(features),
+        start_date=datetime.strptime(start_date, "%Y-%m-%d %H:%M:%S")
+        if start_date
+        else None,
+        end_date=datetime.strptime(end_date, "%Y-%m-%d %H:%M:%S") if end_date else None,
     ).to_df()
 
     click.echo(feature_vector.to_json(orient="records", indent=4))

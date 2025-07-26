@@ -458,10 +458,11 @@ class PassthroughProvider(Provider):
         config: RepoConfig,
         feature_views: List[Union[FeatureView, OnDemandFeatureView]],
         feature_refs: List[str],
-        entity_df: Union[pd.DataFrame, str],
+        entity_df: Optional[Union[pd.DataFrame, str]],
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool,
+        **kwargs,
     ) -> RetrievalJob:
         job = self.offline_store.get_historical_features(
             config=config,
@@ -471,6 +472,7 @@ class PassthroughProvider(Provider):
             registry=registry,
             project=project,
             full_feature_names=full_feature_names,
+            **kwargs,
         )
 
         return job
