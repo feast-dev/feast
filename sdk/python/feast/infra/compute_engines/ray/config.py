@@ -1,7 +1,7 @@
 """Configuration for Ray compute engine."""
 
 from datetime import timedelta
-from typing import Dict, Literal, Optional
+from typing import Any, Dict, Literal, Optional
 
 from pydantic import StrictStr
 
@@ -39,7 +39,7 @@ class RayComputeEngineConfig(FeastConfigBaseModel):
     window_size_for_joins: str = "1H"
     """Window size for windowed temporal joins"""
 
-    ray_conf: Optional[Dict[str, str]] = None
+    ray_conf: Optional[Dict[str, Any]] = None
     """Ray configuration parameters"""
 
     # Additional configuration options

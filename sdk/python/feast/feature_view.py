@@ -510,7 +510,8 @@ class FeatureView(BaseFeatureView):
                 if feature_view_proto.spec.ttl.ToNanoseconds() == 0
                 else feature_view_proto.spec.ttl.ToTimedelta()
             ),
-            source=batch_source if batch_source else source_views,
+            source=source_views if source_views else batch_source,
+            sink_source=batch_source if source_views else None,
         )
         if stream_source:
             feature_view.stream_source = stream_source
