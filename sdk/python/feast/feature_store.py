@@ -2413,6 +2413,11 @@ class FeatureStore:
             output_len=output_len,
         )
 
+        utils._populate_result_rows_from_columnar(
+            online_features_response=online_features_response,
+            data=entity_key_dict,
+        )
+
         return OnlineResponse(online_features_response)
 
     def serve(
