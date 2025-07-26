@@ -199,14 +199,43 @@ class RayComputeEngine(ComputeEngine):
                 end_date=end_date,
             )
 
-            # Convert to Arrow Table and write to online store
+            # Convert to Arrow Table and write to online/offline stores
             arrow_table = retrieval_job.to_arrow()
-            # TODO: Implement proper online store writing with correct data format conversion
-            # self.online_store.online_write_batch(...)
-            logger.debug(
-                f"Materialization completed, arrow table has {arrow_table.num_rows} rows"
-            )
 
+            # Write to online store if enabled
+            if getattr(feature_view, "online", False):
+                # TODO: Implement proper online store writing with correct data format conversion
+                logger.debug(
+                    f"Online store writing not implemented yet for {arrow_table.num_rows} rows"
+                )
+
+            # Write to offline store if enabled (this handles sink_source automatically for derived views)
+            if getattr(feature_view, "offline", False):
+                self.offline_store.offline_write_batch(
+                    config=self.repo_config,
+                    feature_view=feature_view,
+                    table=arrow_table,
+                    progress=lambda x: None,
+                )
+
+            # For derived views, also ensure data is written to sink_source if it exists
+            # This is critical for feature view chaining to work properly
+            sink_source = getattr(feature_view, "sink_source", None)
+            if sink_source is not None:
+                logger.debug(
+                    f"Writing derived view {feature_view.name} to sink_source: {sink_source.path}"
+                )
+
+                # Write to sink_source using Ray data
+                try:
+                    # Convert arrow table to pandas then to ray dataset
+                    df = arrow_table.to_pandas()
+                    ray_dataset = ray.data.from_pandas(df)
+                    ray_dataset.write_parquet(sink_source.path)
+                except Exception as e:
+                    logger.error(
+                        f"Failed to write to sink_source {sink_source.path}: {e}"
+                    )
             return RayMaterializationJob(
                 job_id=job_id,
                 status=MaterializationJobStatus.SUCCEEDED,

@@ -5,6 +5,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union
 
+import dill
 import fsspec
 import numpy as np
 import pandas as pd
@@ -21,6 +22,7 @@ from feast.errors import (
 )
 from feast.feature_logging import LoggingConfig, LoggingSource
 from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_VAL, FeatureView
+from feast.feature_view_utils import resolve_feature_view_source_with_fallback
 from feast.infra.offline_stores.file_source import (
     FileLoggingDestination,
     FileSource,
@@ -47,7 +49,7 @@ from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage, ValidationReference
 from feast.type_map import feast_value_type_to_pandas_type, pa_to_feast_value_type
-from feast.utils import _get_column_names, make_df_tzaware
+from feast.utils import _get_column_names, make_df_tzaware, make_tzaware
 from feast.value_type import ValueType
 
 logger = logging.getLogger(__name__)
@@ -335,12 +337,12 @@ def _convert_array_column(series: pd.Series, value_type: ValueType) -> pd.Series
 
     target_dtype = base_type_map.get(value_type, object)
 
-    def convert_array_item(item):
+    def convert_array_item(item) -> Union[np.ndarray, Any]:
         if item is None or (isinstance(item, list) and len(item) == 0):
             if target_dtype == object:
-                return np.array([], dtype=object)
+                return np.empty(0, dtype=object)
             else:
-                return np.array([], dtype=target_dtype)
+                return np.empty(0, dtype=target_dtype)
         else:
             return item
 
@@ -378,7 +380,7 @@ class RayResourceManager:
     Manages Ray cluster resources for optimal performance.
     """
 
-    def __init__(self, config: Optional[RayOfflineStoreConfig] = None):
+    def __init__(self, config: Optional[RayOfflineStoreConfig] = None) -> None:
         """
         Initialize the resource manager with cluster resource information.
         """
@@ -473,7 +475,7 @@ class RayDataProcessor:
     Optimized data processing with Ray for feature store operations.
     """
 
-    def __init__(self, resource_manager: RayResourceManager):
+    def __init__(self, resource_manager: RayResourceManager) -> None:
         """
         Initialize the data processor with a resource manager.
         """
@@ -977,7 +979,9 @@ class RayRetrievalJob(RetrievalJob):
             max_event_timestamp=max_timestamp,
         )
 
-    def _set_metadata_info(self, feature_refs: List[str], entity_df: pd.DataFrame):
+    def _set_metadata_info(
+        self, feature_refs: List[str], entity_df: pd.DataFrame
+    ) -> None:
         """Set the feature references and entity DataFrame for metadata creation."""
         self._feature_refs = feature_refs
         self._entity_df = entity_df
@@ -1181,16 +1185,15 @@ class RayRetrievalJob(RetrievalJob):
 
 
 class RayOfflineStore(OfflineStore):
-    def __init__(self):
+    def __init__(self) -> None:
         self._staging_location: Optional[str] = None
         self._ray_initialized: bool = False
         self._resource_manager: Optional[RayResourceManager] = None
         self._data_processor: Optional[RayDataProcessor] = None
 
     @staticmethod
-    def _suppress_ray_logging():
+    def _suppress_ray_logging() -> None:
         """Suppress Ray and Ray Data logging completely."""
-        import logging
         import warnings
 
         # Suppress Ray warnings
@@ -1233,7 +1236,7 @@ class RayOfflineStore(OfflineStore):
             pass  # Ignore if Ray Data is not available
 
     @staticmethod
-    def _ensure_ray_initialized(config: Optional[RepoConfig] = None):
+    def _ensure_ray_initialized(config: Optional[RepoConfig] = None) -> None:
         """Ensure Ray is initialized with proper configuration."""
         ray_config = None
         if config and hasattr(config, "offline_store"):
@@ -1304,7 +1307,7 @@ class RayOfflineStore(OfflineStore):
                     f"{cluster_resources.get('memory', 0) / (1024**3):.1f}GB memory"
                 )
 
-    def _init_ray(self, config: RepoConfig):
+    def _init_ray(self, config: RepoConfig) -> None:
         ray_config = config.offline_store
         assert isinstance(ray_config, RayOfflineStoreConfig)
         RayOfflineStore._ensure_ray_initialized(config)
@@ -1852,50 +1855,35 @@ class RayOfflineStore(OfflineStore):
         except Exception as e:
             raise ValueError(f"Failed to get dataset schema: {e}")
 
-        if start_date or end_date:
-            try:
-                if start_date and end_date:
+        def normalize(dt):
+            return make_tzaware(dt) if dt and dt.tzinfo is None else dt
 
-                    def filter_func(row):
-                        try:
-                            ts = row[timestamp_field]
-                            return start_date <= ts <= end_date
-                        except KeyError:
-                            raise KeyError(
-                                f"Timestamp field '{timestamp_field}' not found in row. Available keys: {list(row.keys())}"
-                            )
+        start_date = normalize(start_date)
+        end_date = normalize(end_date)
 
-                    filtered_ds = ds.filter(filter_func)
-                elif start_date:
+        try:
+            if start_date and end_date:
 
-                    def filter_func(row):
-                        try:
-                            ts = row[timestamp_field]
-                            return ts >= start_date
-                        except KeyError:
-                            raise KeyError(
-                                f"Timestamp field '{timestamp_field}' not found in row. Available keys: {list(row.keys())}"
-                            )
+                def filter_by_timestamp_range(batch):
+                    return (batch[timestamp_field] >= start_date) & (
+                        batch[timestamp_field] <= end_date
+                    )
 
-                    filtered_ds = ds.filter(filter_func)
-                elif end_date:
+                ds = ds.filter(filter_by_timestamp_range)
+            elif start_date:
 
-                    def filter_func(row):
-                        try:
-                            ts = row[timestamp_field]
-                            return ts <= end_date
-                        except KeyError:
-                            raise KeyError(
-                                f"Timestamp field '{timestamp_field}' not found in row. Available keys: {list(row.keys())}"
-                            )
+                def filter_by_start_date(batch):
+                    return batch[timestamp_field] >= start_date
 
-                    filtered_ds = ds.filter(filter_func)
-                else:
-                    return ds
+                ds = ds.filter(filter_by_start_date)
+            elif end_date:
 
-                return filtered_ds
-            except Exception as e:
-                raise RuntimeError(f"Failed to filter by timestamp: {e}")
+                def filter_by_end_date(batch):
+                    return batch[timestamp_field] <= end_date
+
+                ds = ds.filter(filter_by_end_date)
+        except Exception as e:
+            raise RuntimeError(f"Failed to filter dataset by timestamp: {e}")
 
         return ds
 
@@ -1989,9 +1977,50 @@ class RayOfflineStore(OfflineStore):
                     f"(available: {available_feature_names})"
                 )
 
-            source_path = store._get_source_path(fv.batch_source, config)
+            source_info = resolve_feature_view_source_with_fallback(
+                fv, config, is_materialization=False
+            )
+
+            # Read from the resolved data source
+            source_path = store._get_source_path(source_info.data_source, config)
             feature_ds = ray.data.read_parquet(source_path)
-            feature_size = feature_ds.size_bytes()
+            logger.info(
+                f"Reading feature view {fv.name}: {source_info.source_description}"
+            )
+
+            # Apply transformation if available
+            if source_info.has_transformation and source_info.transformation_func:
+                transformation_serialized = dill.dumps(source_info.transformation_func)
+
+                def apply_transformation_with_serialized_func(
+                    batch: pd.DataFrame,
+                ) -> pd.DataFrame:
+                    if batch.empty:
+                        return batch
+                    try:
+                        logger.debug(
+                            f"Applying transformation to batch with columns: {list(batch.columns)}"
+                        )
+                        transformation_func = dill.loads(transformation_serialized)
+                        result = transformation_func(batch)
+                        logger.debug(
+                            f"Transformation result has columns: {list(result.columns)}"
+                        )
+                        return result
+                    except Exception as e:
+                        logger.error(f"Transformation failed for {fv.name}: {e}")
+                        return batch
+
+                feature_ds = feature_ds.map_batches(
+                    apply_transformation_with_serialized_func, batch_format="pandas"
+                )
+                logger.info(f"Applied transformation to feature view {fv.name}")
+            elif source_info.has_transformation:
+                logger.warning(
+                    f"Feature view {fv.name} marked as having transformation but no UDF found"
+                )
+
+            feature_size = feature_ds.size_bytes() or 0
 
             field_mapping = getattr(fv.batch_source, "field_mapping", None)
             if field_mapping:

@@ -1,14 +1,18 @@
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional, Union
 
+import dill
 import pandas as pd
+import pyarrow as pa
 import ray
 from ray.data import Dataset
 
-from feast import BatchFeatureView, StreamFeatureView
+from feast import BatchFeatureView, FeatureView, StreamFeatureView
 from feast.aggregation import Aggregation
 from feast.data_source import DataSource
+from feast.feature_view_utils import resolve_feature_view_source_with_fallback
+from feast.infra.common.serde import SerializedArtifacts
 from feast.infra.compute_engines.dag.context import ExecutionContext
 from feast.infra.compute_engines.dag.model import DAGFormat
 from feast.infra.compute_engines.dag.node import DAGNode
@@ -51,7 +55,6 @@ class RayReadNode(DAGNode):
     def execute(self, context: ExecutionContext) -> DAGValue:
         """Execute the read operation to load data from the offline store."""
         try:
-            # Use utility function to create retrieval job
             retrieval_job = create_offline_store_retrieval_job(
                 data_source=self.source,
                 column_info=self.column_info,
@@ -60,21 +63,16 @@ class RayReadNode(DAGNode):
                 end_time=self.end_time,
             )
 
-            # Convert to Ray Dataset
             if hasattr(retrieval_job, "to_ray_dataset"):
-                # If the retrieval job supports Ray datasets directly
                 ray_dataset = retrieval_job.to_ray_dataset()
             else:
-                # Fall back to converting from Arrow/Pandas
                 try:
                     arrow_table = retrieval_job.to_arrow()
                     ray_dataset = ray.data.from_arrow(arrow_table)
                 except Exception:
-                    # Ultimate fallback to pandas
                     df = retrieval_job.to_df()
                     ray_dataset = ray.data.from_pandas(df)
 
-            # Apply field mapping if needed
             field_mapping = getattr(self.source, "field_mapping", None)
             if field_mapping:
                 ray_dataset = apply_field_mapping(ray_dataset, field_mapping)
@@ -126,14 +124,12 @@ class RayJoinNode(DAGNode):
                 metadata={"joined": False},
             )
 
-        # Convert entity_df to Ray Dataset
         entity_df = context.entity_df
         if isinstance(entity_df, pd.DataFrame):
             entity_dataset = ray.data.from_pandas(entity_df)
         else:
             entity_dataset = entity_df
 
-        # Perform the join using Ray operations
         join_keys = self.column_info.join_keys
         timestamp_col = self.column_info.timestamp_column
         requested_feats = getattr(self.column_info, "feature_cols", [])
@@ -146,7 +142,6 @@ class RayJoinNode(DAGNode):
             if hasattr(sample_data[0], "columns"):
                 feature_cols = sample_data[0].columns.tolist()
             else:
-                # Handle other data formats
                 feature_cols = (
                     list(sample_data[0].keys())
                     if isinstance(sample_data[0], dict)
@@ -256,11 +251,6 @@ class RayFilterNode(DAGNode):
             if self.ttl:
                 timestamp_col = self.column_info.timestamp_column
                 if timestamp_col in filtered_batch.columns:
-                    # Import necessary modules at the top of the function
-                    from datetime import timezone
-
-                    import pandas as pd
-
                     # Convert to datetime if not already
                     if not pd.api.types.is_datetime64_any_dtype(
                         filtered_batch[timestamp_col]
@@ -528,17 +518,8 @@ class RayTransformationNode(DAGNode):
         config: RayComputeEngineConfig,
     ):
         super().__init__(name)
-        # Extract the UDF function to avoid serialization issues with PandasTransformation
-        if hasattr(transformation, "udf") and callable(transformation.udf):
-            self.transformation_udf = transformation.udf
-            self.transformation_name = getattr(transformation, "name", "unknown")
-        elif callable(transformation):
-            # Handle direct UDF functions
-            self.transformation_udf = transformation
-            self.transformation_name = getattr(transformation, "__name__", "unknown")
-        else:
-            self.transformation_udf = None
-            self.transformation_name = "unknown"
+        self.transformation = transformation
+        self.transformation_name = getattr(transformation, "name", "unknown")
         self.config = config
 
     def execute(self, context: ExecutionContext) -> DAGValue:
@@ -547,21 +528,26 @@ class RayTransformationNode(DAGNode):
         input_value.assert_format(DAGFormat.RAY)
         dataset: Dataset = input_value.data
 
-        # Use the extracted UDF function directly
-        transformation_func = self.transformation_udf
+        transformation_serialized = None
+        if hasattr(self.transformation, "udf") and callable(self.transformation.udf):
+            transformation_serialized = dill.dumps(self.transformation.udf)
+        elif callable(self.transformation):
+            transformation_serialized = dill.dumps(self.transformation)
 
-        def apply_transformation(batch: pd.DataFrame) -> pd.DataFrame:
-            """Apply the transformation to the batch."""
+        def apply_transformation_with_serialized_udf(
+            batch: pd.DataFrame,
+        ) -> pd.DataFrame:
+            """Apply the transformation using pre-serialized UDF."""
             if batch.empty:
                 return batch
 
             try:
-                # Apply the transformation function directly
-                if transformation_func and callable(transformation_func):
+                if transformation_serialized:
+                    transformation_func = dill.loads(transformation_serialized)
                     transformed_batch = transformation_func(batch)
                 else:
                     logger.warning(
-                        "Transformation function not available, returning original batch"
+                        "No serialized transformation available, returning original batch"
                     )
                     transformed_batch = batch
 
@@ -571,7 +557,7 @@ class RayTransformationNode(DAGNode):
                 return batch
 
         transformed_dataset = dataset.map_batches(
-            apply_transformation, batch_format="pandas"
+            apply_transformation_with_serialized_udf, batch_format="pandas"
         )
 
         return DAGValue(
@@ -584,20 +570,96 @@ class RayTransformationNode(DAGNode):
         )
 
 
-class RayWriteNode(DAGNode):
+class RayDerivedReadNode(DAGNode):
     """
-    Ray node for writing results to online/offline stores.
+    Ray node for reading derived feature views after parent dependencies are materialized.
+    This node ensures that parent feature views are fully materialized before reading from their sink_source.
     """
 
     def __init__(
         self,
         name: str,
-        feature_view: Union[BatchFeatureView, StreamFeatureView],
+        feature_view: FeatureView,
+        parent_dependencies: List[DAGNode],
         config: RayComputeEngineConfig,
+        column_info,
+        is_materialization: bool = True,
     ):
         super().__init__(name)
         self.feature_view = feature_view
         self.config = config
+        self.column_info = column_info
+        self.is_materialization = is_materialization
+
+        # Add parent dependencies to ensure they execute first
+        for parent in parent_dependencies:
+            self.add_input(parent)
+
+    def execute(self, context: ExecutionContext) -> DAGValue:
+        """Execute the derived read operation after parents are materialized."""
+        # Wait for all parent dependencies to complete
+        # The inputs contain the parent write nodes which have completed materialization
+        self.get_input_values(context)
+        source_info = resolve_feature_view_source_with_fallback(
+            self.feature_view, config=None, is_materialization=self.is_materialization
+        )
+        data_source = source_info.data_source
+        try:
+            retrieval_job = create_offline_store_retrieval_job(
+                data_source=data_source,
+                column_info=self.column_info,
+                context=context,
+                start_time=None,
+                end_time=None,
+            )
+
+            # Convert to Ray Dataset
+            if hasattr(retrieval_job, "to_ray_dataset"):
+                ray_dataset = retrieval_job.to_ray_dataset()
+            else:
+                try:
+                    arrow_table = retrieval_job.to_arrow()
+                    ray_dataset = ray.data.from_arrow(arrow_table)
+                except Exception:
+                    df = retrieval_job.to_df()
+                    ray_dataset = ray.data.from_pandas(df)
+
+            # Apply field mapping if needed
+            field_mapping = getattr(data_source, "field_mapping", None)
+            if field_mapping:
+                ray_dataset = apply_field_mapping(ray_dataset, field_mapping)
+
+            return DAGValue(
+                data=ray_dataset,
+                format=DAGFormat.RAY,
+                metadata={
+                    "source": "derived_from_parent",
+                    "source_description": source_info.source_description,
+                    "data_source_path": getattr(data_source, "path", "unknown"),
+                },
+            )
+
+        except Exception as e:
+            logger.error(
+                f"Failed to read derived view {self.feature_view.name} from parent data source {getattr(data_source, 'path', 'unknown')}: {e}"
+            )
+            raise
+
+
+class RayWriteNode(DAGNode):
+    """
+    Ray node for writing results to online/offline stores and sink_source paths.
+    This node handles writing intermediate results for derived feature views.
+    """
+
+    def __init__(
+        self,
+        name: str,
+        feature_view: Union[BatchFeatureView, StreamFeatureView, FeatureView],
+        inputs=None,
+    ):
+        super().__init__(name, inputs=inputs)
+        self.feature_view = feature_view
 
     def execute(self, context: ExecutionContext) -> DAGValue:
         """Execute the write operation."""
@@ -605,47 +667,54 @@ class RayWriteNode(DAGNode):
         input_value.assert_format(DAGFormat.RAY)
         dataset: Dataset = input_value.data
 
-        def write_batch(batch: pd.DataFrame) -> pd.DataFrame:
-            """Write each batch to the appropriate stores."""
+        serialized_artifacts = SerializedArtifacts.serialize(
+            feature_view=self.feature_view, repo_config=context.repo_config
+        )
+
+        def write_batch_with_serialized_artifacts(batch: pd.DataFrame) -> pd.DataFrame:
+            """Write each batch using pre-serialized artifacts."""
             if batch.empty:
                 return batch
 
             try:
-                # Convert to Arrow Table for writing
-                import pyarrow as pa
+                (
+                    feature_view,
+                    online_store,
+                    offline_store,
+                    repo_config,
+                ) = serialized_artifacts.unserialize()
 
                 arrow_table = pa.Table.from_pandas(batch)
 
                 # Write to online store if enabled
-                if getattr(self.feature_view, "online", False):
+                if getattr(feature_view, "online", False):
                     # TODO: Implement proper online store writing with correct data format conversion
                     logger.debug(
                         f"Online store writing not implemented yet for {len(batch)} rows"
                     )
 
                 # Write to offline store if enabled
-                if getattr(self.feature_view, "offline", False):
+                if getattr(feature_view, "offline", False):
                     try:
-                        context.offline_store.offline_write_batch(
-                            config=context.repo_config,
-                            feature_view=self.feature_view,
+                        offline_store.offline_write_batch(
+                            config=repo_config,
+                            feature_view=feature_view,
                             table=arrow_table,
                             progress=lambda x: None,
                         )
-                        logger.debug(f"Wrote {len(batch)} rows to offline store")
                     except Exception as e:
                         logger.error(f"Failed to write to offline store: {e}")
+                        raise
 
                 return batch
 
             except Exception as e:
                 logger.error(f"Write operation failed: {e}")
-                return batch
+                raise
 
-        # Apply write operation to all batches
-        written_dataset = dataset.map_batches(write_batch, batch_format="pandas")
-
-        # Materialize the dataset to ensure writes are executed
+        written_dataset = dataset.map_batches(
+            write_batch_with_serialized_artifacts, batch_format="pandas"
+        )
         written_dataset = written_dataset.materialize()
 
         return DAGValue(
@@ -656,5 +725,8 @@ class RayWriteNode(DAGNode):
                 "feature_view": self.feature_view.name,
                 "online": getattr(self.feature_view, "online", False),
                 "offline": getattr(self.feature_view, "offline", False),
+                "batch_source_path": getattr(
+                    getattr(self.feature_view, "batch_source", None), "path", "unknown"
+                ),
             },
         )

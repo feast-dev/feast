@@ -17,7 +17,6 @@ from feast.infra.compute_engines.ray.nodes import (
     RayJoinNode,
     RayReadNode,
     RayTransformationNode,
-    RayWriteNode,
 )
 
 
@@ -290,30 +289,6 @@ def test_ray_dedup_node(
     assert result.format == DAGFormat.RAY
     result_df = result.data.to_pandas()
     assert len(result_df) == 2  # Should remove the duplicate row
-    assert "driver_id" in result_df.columns
-
-
-def test_ray_write_node(
-    ray_session, ray_config, mock_context, sample_data, column_info
-):
-    """Test RayWriteNode functionality."""
-    ray_dataset = ray.data.from_pandas(sample_data)
-    input_value = DAGValue(data=ray_dataset, format=DAGFormat.RAY)
-    dummy_node = DummyInputNode("input_node", input_value)
-
-    mock_feature_view = DummyFeatureView()
-    node = RayWriteNode(
-        name="write",
-        feature_view=mock_feature_view,
-        config=ray_config,
-    )
-    node.add_input(dummy_node)
-    mock_context.node_outputs = {"input_node": input_value}
-    result = node.execute(mock_context)
-    assert isinstance(result, DAGValue)
-    assert result.format == DAGFormat.RAY
-    result_df = result.data.to_pandas()
-    assert len(result_df) == 3
     assert "driver_id" in result_df.columns
 
 
