@@ -187,17 +187,7 @@ batch_engine:
 
 #### Ray Compute Engine Options
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `type` | string | Required | Must be `ray.engine` |
-| `max_workers` | int | CPU count | Maximum number of Ray workers |
-| `enable_optimization` | boolean | true | Enable performance optimizations |
-| `broadcast_join_threshold_mb` | int | 100 | Size threshold for broadcast joins (MB) |
-| `max_parallelism_multiplier` | int | 2 | Parallelism as multiple of CPU cores |
-| `target_partition_size_mb` | int | 64 | Target partition size (MB) |
-| `window_size_for_joins` | string | "1H" | Time window for distributed joins |
-| `enable_distributed_joins` | boolean | true | Enable distributed joins for large datasets |
-| `staging_location` | string | None | Remote path for batch materialization jobs |
+For Ray compute engine configuration options, see the [Ray Compute Engine documentation](../compute-engine/ray.md#configuration-options).
 
 ## Resource Management and Testing
 
@@ -448,19 +438,11 @@ The Ray offline store has the following limitations:
 1. **File Sources Only**: Currently supports only `FileSource` data sources
 2. **No Direct SQL**: Does not support SQL query interfaces
 3. **No Online Writes**: Cannot write directly to online stores
-4. **Limited Transformations**: Complex feature transformations should use the Ray Compute Engine
+4. **No Complex Transformations**: The Ray offline store focuses on data I/O operations. For complex feature transformations (aggregations, joins, custom UDFs), use the [Ray Compute Engine](../compute-engine/ray.md) instead
 
 ## Integration with Ray Compute Engine
 
 For complex feature processing operations, use the Ray offline store in combination with the [Ray Compute Engine](../compute-engine/ray.md). See the **Ray Offline Store + Compute Engine** configuration example in the [Configuration](#configuration) section above for a complete setup.
-
-The Ray offline store provides the data I/O foundation, while the Ray compute engine handles:
-- **Point-in-time joins**: Efficient temporal joins for historical feature retrieval
-- **Feature aggregations**: Distributed aggregations across time windows
-- **Complex transformations**: Advanced feature transformations and computations  
-- **Historical feature retrieval**: `get_historical_features()` with distributed processing
-- **Distributed processing optimization**: Automatic join strategy selection and resource management
-- **Materialization**: Distributed batch materialization with progress tracking
 
 
 For more advanced troubleshooting, refer to the [Ray documentation](https://docs.ray.io/en/latest/data/getting-started.html).
@@ -507,6 +489,22 @@ features = store.get_historical_features(entity_df=df, features=["fv:feature"])
 # Direct data access (uses offline store)
 job = RayOfflineStore.pull_latest_from_table_or_query(...)
 df = job.to_df()
+
+# Offline write batch (materialization)
+# Create sample data for materialization
+data = pa.table({
+    "driver_id": [1, 2, 3, 4, 5],
+    "avg_daily_trips": [10.5, 15.2, 8.7, 12.3, 9.8],
+    "event_timestamp": [datetime.now()] * 5
+})
+
+# Write batch to offline store
+RayOfflineStore.offline_write_batch(
+    config=store.config,
+    feature_view=driver_stats_fv,
+    table=data,
+    progress=lambda rows: print(f"Processed {rows} rows")
+)
 ```
 
 For complete examples, see the [Configuration](#configuration) section above.

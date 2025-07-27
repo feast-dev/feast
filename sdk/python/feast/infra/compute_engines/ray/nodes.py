@@ -11,7 +11,7 @@ from ray.data import Dataset
 from feast import BatchFeatureView, FeatureView, StreamFeatureView
 from feast.aggregation import Aggregation
 from feast.data_source import DataSource
-from feast.feature_view_utils import resolve_feature_view_source_with_fallback
+from feast.feature_view_utils import get_transformation_function, has_transformation
 from feast.infra.common.serde import SerializedArtifacts
 from feast.infra.compute_engines.dag.context import ExecutionContext
 from feast.infra.compute_engines.dag.model import DAGFormat
@@ -597,53 +597,43 @@ class RayDerivedReadNode(DAGNode):
 
     def execute(self, context: ExecutionContext) -> DAGValue:
         """Execute the derived read operation after parents are materialized."""
-        # Wait for all parent dependencies to complete
-        # The inputs contain the parent write nodes which have completed materialization
-        self.get_input_values(context)
-        source_info = resolve_feature_view_source_with_fallback(
-            self.feature_view, config=None, is_materialization=self.is_materialization
+        parent_values = self.get_input_values(context)
+
+        if not parent_values:
+            raise ValueError(
+                f"No parent data available for derived view {self.feature_view.name}"
+            )
+
+        parent_value = parent_values[0]
+        parent_value.assert_format(DAGFormat.RAY)
+
+        if has_transformation(self.feature_view):
+            transformation_func = get_transformation_function(self.feature_view)
+            if callable(transformation_func):
+
+                def apply_transformation(batch: pd.DataFrame) -> pd.DataFrame:
+                    return transformation_func(batch)
+
+                transformed_dataset = parent_value.data.map_batches(
+                    apply_transformation
+                )
+                return DAGValue(
+                    data=transformed_dataset,
+                    format=DAGFormat.RAY,
+                    metadata={
+                        "source": "derived_from_parent",
+                        "source_description": f"Transformed data from parent for {self.feature_view.name}",
+                    },
+                )
+
+        return DAGValue(
+            data=parent_value.data,
+            format=DAGFormat.RAY,
+            metadata={
+                "source": "derived_from_parent",
+                "source_description": f"Data from parent for {self.feature_view.name}",
+            },
         )
-        data_source = source_info.data_source
-        try:
-            retrieval_job = create_offline_store_retrieval_job(
-                data_source=data_source,
-                column_info=self.column_info,
-                context=context,
-                start_time=None,
-                end_time=None,
-            )
-
-            # Convert to Ray Dataset
-            if hasattr(retrieval_job, "to_ray_dataset"):
-                ray_dataset = retrieval_job.to_ray_dataset()
-            else:
-                try:
-                    arrow_table = retrieval_job.to_arrow()
-                    ray_dataset = ray.data.from_arrow(arrow_table)
-                except Exception:
-                    df = retrieval_job.to_df()
-                    ray_dataset = ray.data.from_pandas(df)
-
-            # Apply field mapping if needed
-            field_mapping = getattr(data_source, "field_mapping", None)
-            if field_mapping:
-                ray_dataset = apply_field_mapping(ray_dataset, field_mapping)
-
-            return DAGValue(
-                data=ray_dataset,
-                format=DAGFormat.RAY,
-                metadata={
-                    "source": "derived_from_parent",
-                    "source_description": source_info.source_description,
-                    "data_source_path": getattr(data_source, "path", "unknown"),
-                },
-            )
-
-        except Exception as e:
-            logger.error(
-                f"Failed to read derived view {self.feature_view.name} from parent data source {getattr(data_source, 'path', 'unknown')}: {e}"
-            )
-            raise
 
 
 class RayWriteNode(DAGNode):

@@ -1,7 +1,7 @@
 import logging
 from typing import TYPE_CHECKING, Dict, List, Optional, Union, cast
 
-from feast.feature_view_utils import resolve_feature_view_source_with_fallback
+from feast import FeatureView
 from feast.infra.common.materialization_job import MaterializationTask
 from feast.infra.common.retrieval_task import HistoricalRetrievalTask
 from feast.infra.compute_engines.algorithms.topo import topological_sort
@@ -47,9 +47,8 @@ class RayFeatureBuilder(FeatureBuilder):
 
     def build_source_node(self, view):
         """Build the source node for reading feature data."""
-
-        source_info = resolve_feature_view_source_with_fallback(
-            view, config=None, is_materialization=self.is_materialization
+        data_source = getattr(view, "batch_source", None) or getattr(
+            view, "source", None
         )
         start_time = self.task.start_time
         end_time = self.task.end_time
@@ -57,7 +56,7 @@ class RayFeatureBuilder(FeatureBuilder):
 
         node = RayReadNode(
             name="source",
-            source=source_info.data_source,
+            source=data_source,
             column_info=column_info,
             config=self.config,
             start_time=start_time,
@@ -173,47 +172,36 @@ class RayFeatureBuilder(FeatureBuilder):
         return input_node
 
     def _build(self, view, input_nodes: Optional[List[DAGNode]]) -> DAGNode:
-        """Override _build to handle derived views during materialization."""
-        # Step 1: build source node
-        if view.data_source:
+        has_physical_source = (hasattr(view, "batch_source") and view.batch_source) or (
+            hasattr(view, "source")
+            and view.source
+            and not isinstance(view.source, FeatureView)
+        )
+
+        is_derived_view = hasattr(view, "source_views") and view.source_views
+
+        if has_physical_source and not is_derived_view:
             last_node = self.build_source_node(view)
-
-            # If source node is None (derived view during materialization), use input nodes
-            if last_node is None and input_nodes:
-                if self._should_transform(view):
-                    last_node = self.build_transformation_node(view, input_nodes)
-                else:
-                    last_node = self.build_join_node(view, input_nodes)
-            elif last_node is not None:
-                if self._should_transform(view):
-                    # Transform applied to the source data
-                    last_node = self.build_transformation_node(view, [last_node])
-
-        # If there are input nodes, transform or join them
+            if self._should_transform(view):
+                last_node = self.build_transformation_node(view, [last_node])
         elif input_nodes:
-            # User-defined transform handles the merging of input views
             if self._should_transform(view):
                 last_node = self.build_transformation_node(view, input_nodes)
-            # Default join
             else:
                 last_node = self.build_join_node(view, input_nodes)
         else:
             raise ValueError(f"FeatureView {view.name} has no valid source or inputs")
 
-        # Skip subsequent steps if last_node is None
         if last_node is None:
             raise ValueError(f"Failed to build processing node for {view.name}")
 
-        # Step 2: filter
         last_node = self.build_filter_node(view, last_node)
 
-        # Step 3: aggregate or dedupe
         if self._should_aggregate(view):
             last_node = self.build_aggregation_node(view, last_node)
         elif self._should_dedupe(view):
             last_node = self.build_dedup_node(view, last_node)
 
-        # Step 4: validate
         if self._should_validate(view):
             last_node = self.build_validation_node(view, last_node)
 
@@ -260,9 +248,7 @@ class RayFeatureBuilder(FeatureBuilder):
                         parent_write_nodes.append(view_to_write_node[parent.view.name])
 
                 if parent_write_nodes:
-                    # For derived views, create a simple passthrough node that depends on parents
-                    # This ensures the derived view processing only starts after parents are materialized
-                    processing_node = RayDerivedReadNode(
+                    derived_read_node = RayDerivedReadNode(
                         name=f"{view.name}:derived_read",
                         feature_view=view,
                         parent_dependencies=cast(List[DAGNode], parent_write_nodes),
@@ -270,7 +256,10 @@ class RayFeatureBuilder(FeatureBuilder):
                         column_info=self.get_column_info(view),
                         is_materialization=self.is_materialization,
                     )
-                    self.nodes.append(processing_node)
+                    self.nodes.append(derived_read_node)
+
+                    # Then build the rest of the processing chain (filter, aggregate, etc.)
+                    processing_node = self._build(view, [derived_read_node])
                 else:
                     # Parent not yet built - this shouldn't happen in topo order
                     raise ValueError(f"Parent views for {view.name} not yet built")
