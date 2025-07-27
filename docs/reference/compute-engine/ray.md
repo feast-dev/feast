@@ -203,16 +203,6 @@ batch_engine:
     # Ray cluster configuration (inherits from offline_store if not specified)
     ray_address: localhost:10001               # Ray cluster address
     use_ray_cluster: true                      # Use Ray cluster mode
-
-# Optional: Online store configuration
-online_store:
-    type: sqlite
-    path: data/online_store.db
-
-# Optional: Feature server configuration
-feature_server:
-    port: 6566
-    metrics_port: 8888
 ```
 
 ## DAG Node Types
