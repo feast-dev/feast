@@ -1,3 +1,4 @@
+import json
 import os
 import weakref
 from datetime import datetime
@@ -578,6 +579,20 @@ class RemoteRegistry(BaseRegistry):
         )
         response = self.stub.ListProjects(request)
         return [Project.from_proto(project) for project in response.projects]
+
+    def get_project_metadata(self, project: str, key: str) -> Optional[str]:
+        request = RegistryServer_pb2.ListProjectMetadataRequest(project=project)
+        response = self.stub.ListProjectMetadata(request)
+        for pm in response.project_metadata:
+            if hasattr(pm, "custom_metadata") and key in pm.custom_metadata:
+                return pm.custom_metadata[key]
+            try:
+                meta = json.loads(pm.project_uuid) if pm.project_uuid else {}
+            except Exception:
+                meta = {}
+            if isinstance(meta, dict) and key in meta:
+                return meta[key]
+        return None
 
     def proto(self) -> RegistryProto:
         return self.stub.Proto(Empty())

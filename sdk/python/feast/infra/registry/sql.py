@@ -1269,3 +1269,46 @@ class SqlRegistry(CachingRegistry):
             return
 
         raise ProjectNotFoundException(name)
+
+    def set_project_metadata(self, project: str, key: str, value: str):
+        """Set a custom project metadata key-value pair in the feast_metadata table."""
+        from feast.utils import _utc_now
+
+        update_time = int(_utc_now().timestamp())
+        with self.write_engine.begin() as conn:
+            stmt = select(feast_metadata).where(
+                feast_metadata.c.project_id == project,
+                feast_metadata.c.metadata_key == key,
+            )
+            row = conn.execute(stmt).first()
+            values = {
+                "metadata_key": key,
+                "metadata_value": value,
+                "last_updated_timestamp": update_time,
+                "project_id": project,
+            }
+            if row:
+                update_stmt = (
+                    update(feast_metadata)
+                    .where(
+                        feast_metadata.c.project_id == project,
+                        feast_metadata.c.metadata_key == key,
+                    )
+                    .values(values)
+                )
+                conn.execute(update_stmt)
+            else:
+                insert_stmt = insert(feast_metadata).values(values)
+                conn.execute(insert_stmt)
+
+    def get_project_metadata(self, project: str, key: str) -> Optional[str]:
+        """Get a custom project metadata value by key from the feast_metadata table."""
+        with self.read_engine.begin() as conn:
+            stmt = select(feast_metadata).where(
+                feast_metadata.c.project_id == project,
+                feast_metadata.c.metadata_key == key,
+            )
+            row = conn.execute(stmt).first()
+            if row:
+                return row._mapping["metadata_value"]
+            return None
