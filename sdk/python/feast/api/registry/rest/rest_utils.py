@@ -1,10 +1,13 @@
-from typing import Callable, Dict, List, Optional
+import logging
+from typing import Any, Callable, Dict, List, Optional
 
 from fastapi import HTTPException, Query
 from google.protobuf.json_format import MessageToDict
 
 from feast.errors import FeastObjectNotFoundException
 from feast.protos.feast.registry import RegistryServer_pb2
+
+logger = logging.getLogger(__name__)
 
 
 def grpc_call(handler_fn, request):
@@ -229,3 +232,126 @@ def paginate_and_sort(
         "has_previous": start > 0,
     }
     return paged_items, pagination
+
+
+def get_all_project_resources(
+    grpc_handler,
+    project: str,
+    allow_cache: bool,
+    tags: Dict[str, str],
+    pagination_params: Optional[dict] = None,
+    sorting_params: Optional[dict] = None,
+) -> Dict[str, Any]:
+    """
+    Helper function to get all resources for a project with optional sorting and pagination
+    Returns a dictionary with resource types as keys and lists of resources as values
+    Also includes pagination metadata when pagination_params are provided
+    """
+    # Create grpc pagination and sorting parameters if provided
+    grpc_pagination = None
+    grpc_sorting = None
+
+    if pagination_params:
+        grpc_pagination = create_grpc_pagination_params(pagination_params)
+    if sorting_params:
+        grpc_sorting = create_grpc_sorting_params(sorting_params)
+
+    resources: Dict[str, Any] = {
+        "entities": [],
+        "dataSources": [],
+        "featureViews": [],
+        "featureServices": [],
+        "savedDatasets": [],
+        "features": [],
+    }
+
+    try:
+        # Get entities
+        entities_req = RegistryServer_pb2.ListEntitiesRequest(
+            project=project,
+            allow_cache=allow_cache,
+            pagination=grpc_pagination,
+            sorting=grpc_sorting,
+        )
+        entities_response = grpc_call(grpc_handler.ListEntities, entities_req)
+        resources["entities"] = entities_response.get("entities", [])
+
+        # Get data sources
+        data_sources_req = RegistryServer_pb2.ListDataSourcesRequest(
+            project=project,
+            allow_cache=allow_cache,
+            pagination=grpc_pagination,
+            sorting=grpc_sorting,
+            tags=tags,
+        )
+        data_sources_response = grpc_call(
+            grpc_handler.ListDataSources, data_sources_req
+        )
+        resources["dataSources"] = data_sources_response.get("dataSources", [])
+
+        # Get feature views
+        feature_views_req = RegistryServer_pb2.ListAllFeatureViewsRequest(
+            project=project,
+            allow_cache=allow_cache,
+            pagination=grpc_pagination,
+            sorting=grpc_sorting,
+            tags=tags,
+        )
+        feature_views_response = grpc_call(
+            grpc_handler.ListAllFeatureViews, feature_views_req
+        )
+        resources["featureViews"] = feature_views_response.get("featureViews", [])
+
+        # Get feature services
+        feature_services_req = RegistryServer_pb2.ListFeatureServicesRequest(
+            project=project,
+            allow_cache=allow_cache,
+            pagination=grpc_pagination,
+            sorting=grpc_sorting,
+            tags=tags,
+        )
+        feature_services_response = grpc_call(
+            grpc_handler.ListFeatureServices, feature_services_req
+        )
+        resources["featureServices"] = feature_services_response.get(
+            "featureServices", []
+        )
+
+        # Get saved datasets
+        saved_datasets_req = RegistryServer_pb2.ListSavedDatasetsRequest(
+            project=project,
+            allow_cache=allow_cache,
+            pagination=grpc_pagination,
+            sorting=grpc_sorting,
+            tags=tags,
+        )
+        saved_datasets_response = grpc_call(
+            grpc_handler.ListSavedDatasets, saved_datasets_req
+        )
+        resources["savedDatasets"] = saved_datasets_response.get("savedDatasets", [])
+
+        # Get features
+        features_req = RegistryServer_pb2.ListFeaturesRequest(
+            project=project,
+            pagination=grpc_pagination,
+            sorting=grpc_sorting,
+        )
+        features_response = grpc_call(grpc_handler.ListFeatures, features_req)
+        resources["features"] = features_response.get("features", [])
+
+        # Include pagination metadata if pagination was requested
+        if pagination_params:
+            resources["pagination"] = {
+                "entities": entities_response.get("pagination", {}),
+                "dataSources": data_sources_response.get("pagination", {}),
+                "featureViews": feature_views_response.get("pagination", {}),
+                "featureServices": feature_services_response.get("pagination", {}),
+                "savedDatasets": saved_datasets_response.get("pagination", {}),
+                "features": features_response.get("pagination", {}),
+            }
+
+        return resources
+
+    except Exception as e:
+        logger.error(f"Error getting resources for project '{project}': {e}")
+        return resources  # Return empty resources dict on error

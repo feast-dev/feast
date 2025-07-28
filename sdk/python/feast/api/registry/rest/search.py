@@ -4,6 +4,7 @@ from typing import Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from feast.api.registry.rest.rest_utils import (
+    get_all_project_resources,
     get_sorting_params,
     grpc_call,
     parse_tags,
@@ -23,10 +24,6 @@ def get_search_router(grpc_handler) -> APIRouter:
             default=None,
             description="Project names to search in (optional - searches all projects if not specified)",
         ),
-        resource_types: List[str] = Query(
-            default=[],
-            description="Filter by resource types: entities, feature_views, feature_services, data_sources, saved_datasets, permissions, projects",
-        ),
         allow_cache: bool = Query(default=True),
         tags: Dict[str, str] = Depends(parse_tags),
         sorting_params: dict = Depends(get_sorting_params),
@@ -35,15 +32,17 @@ def get_search_router(grpc_handler) -> APIRouter:
         Search across all Feast resources including:
         - Entities
         - Feature Views
+        - Features
         - Feature Services
         - Data Sources
         - Saved Datasets
-        - Permissions
-        - Projects
         Project Selection:
         - No projects parameter: Search all projects (default)
         - projects=["proj1"]: Search single project
         - projects=["proj1", "proj2"]: Search multiple projects
+        Sorting:
+        - Supports sorting by match_score, name, or type
+        - Can specify sort_order as asc or desc
         """
 
         # Validate sorting parameters
@@ -54,7 +53,7 @@ def get_search_router(grpc_handler) -> APIRouter:
         valid_sort_fields = ["match_score", "name", "type"]
         if sort_by and sort_by not in valid_sort_fields:
             raise HTTPException(
-                status_code=422,
+                status_code=400,
                 detail=f"Invalid sort_by parameter: '{sort_by}'. Valid options are: {valid_sort_fields}",
             )
 
@@ -62,57 +61,9 @@ def get_search_router(grpc_handler) -> APIRouter:
         valid_sort_orders = ["asc", "desc"]
         if sort_order and sort_order not in valid_sort_orders:
             raise HTTPException(
-                status_code=422,
+                status_code=400,
                 detail=f"Invalid sort_order parameter: '{sort_order}'. Valid options are: {valid_sort_orders}",
             )
-
-        # Validate resource types
-        valid_resource_types = {
-            "entities",
-            "feature_views",
-            "feature_services",
-            "data_sources",
-            "saved_datasets",
-            "permissions",
-            "projects",
-        }
-
-        if resource_types:
-            valid_types = [rt for rt in resource_types if rt in valid_resource_types]
-            invalid_types = [
-                rt for rt in resource_types if rt not in valid_resource_types
-            ]
-
-            if invalid_types:
-                # Log warnings for invalid resource types
-                logger.warning(
-                    f"The following resource types are invalid and will be ignored: {invalid_types}"
-                )
-
-                if len(valid_types) == 0:
-                    # Single invalid resource type - don't search at all
-                    return {
-                        "results": [],
-                        "total_count": 0,
-                        "query": query,
-                        "resource_types": [],  # Don't include invalid types in response
-                        "projects_searched": [],
-                    }
-
-            # Use only valid resource types for the search
-            resource_types = valid_types
-
-        # Default to all resource types if none specified
-        if not resource_types:
-            resource_types = [
-                "entities",
-                "feature_views",
-                "feature_services",
-                "data_sources",
-                "saved_datasets",
-                "permissions",
-                "projects",
-            ]
 
         results = []
 
@@ -134,7 +85,6 @@ def get_search_router(grpc_handler) -> APIRouter:
             available_projects = set()
 
         # Get list of projects to search in
-        # Handle when projects parameter is not provided (None) or empty strings
         if projects is None:
             # No projects parameter provided - search all projects
             filtered_projects = []
@@ -159,84 +109,156 @@ def get_search_router(grpc_handler) -> APIRouter:
                     f"The following projects do not exist and will be ignored: {nonexistent_projects}"
                 )
 
-            # Handle single project case - if only one project requested and it doesn't exist
-            if len(filtered_projects) == 1 and len(existing_projects) == 0:
-                # Single non-existent project - don't search at all
-                return {
+            # if requested project/s doesn't exist, return empty results
+            if len(existing_projects) == 0:
+                response = {
                     "results": [],
                     "total_count": 0,
                     "query": query,
-                    "resource_types": resource_types,
                     "projects_searched": [],
+                    "error": "No projects found",
                 }
+                return response
 
-            # Multiple projects case - search only existing ones
+            # search only existing ones
             projects_to_search = existing_projects
         else:
             # No specific projects - search all projects
             projects_to_search = list(available_projects)
 
-        # Search across all specified projects
+        # Search across all specified projects using helper function
         for current_project in projects_to_search:
-            # Search entities
-            if "entities" in resource_types:
-                entities = _search_entities(
-                    grpc_handler, query, current_project, allow_cache, tags
+            try:
+                # Get all resources for this project
+                project_resources = get_all_project_resources(
+                    grpc_handler,
+                    current_project,
+                    allow_cache,
+                    tags,
+                    None,
+                    sorting_params,
                 )
-                results.extend(entities)
 
-            # Search feature views
-            if "feature_views" in resource_types:
-                feature_views = _search_feature_views(
-                    grpc_handler, query, current_project, allow_cache, tags
+                # Extract and convert entities
+                entities = project_resources.get("entities", [])
+                for entity in entities:
+                    results.append(
+                        {
+                            "type": "entity",
+                            "name": entity.get("spec", {}).get("name", ""),
+                            "description": entity.get("spec", {}).get(
+                                "description", ""
+                            ),
+                            "tags": entity.get("spec", {}).get("tags", {}),
+                            "data": entity,
+                            "project": current_project,
+                        }
+                    )
+
+                # Extract and convert data sources
+                data_sources = project_resources.get("dataSources", [])
+                for ds in data_sources:
+                    results.append(
+                        {
+                            "type": "dataSource",
+                            "name": ds.get("dataSource", {}).get("name", "")
+                            or ds.get("name", ""),
+                            "description": ds.get("dataSource", {}).get(
+                                "description", ""
+                            )
+                            or ds.get("description", ""),
+                            "tags": ds.get("dataSource", {}).get("tags", {})
+                            or ds.get("tags", {}),
+                            "data": ds,
+                            "project": current_project,
+                        }
+                    )
+
+                # Extract and convert feature views
+                feature_views = project_resources.get("featureViews", [])
+                for fv in feature_views:
+                    results.append(
+                        {
+                            "type": "featureView",
+                            "name": fv.get("featureView", {})
+                            .get("spec", {})
+                            .get("name", ""),
+                            "description": fv.get("featureView", {})
+                            .get("spec", {})
+                            .get("description", ""),
+                            "tags": fv.get("featureView", {})
+                            .get("spec", {})
+                            .get("tags", {}),
+                            "data": fv,
+                            "project": current_project,
+                        }
+                    )
+
+                # Extract and convert features
+                features = project_resources.get("features", [])
+                for feature in features:
+                    results.append(
+                        {
+                            "type": "feature",
+                            "name": feature.get("name", ""),
+                            "description": feature.get("description", ""),
+                            "tags": feature.get("tags", {}),
+                            "data": feature,
+                            "project": current_project,
+                        }
+                    )
+
+                # Extract and convert feature services
+                feature_services = project_resources.get("featureServices", [])
+                for fs in feature_services:
+                    results.append(
+                        {
+                            "type": "featureService",
+                            "name": fs.get("featureService", {})
+                            .get("spec", {})
+                            .get("name", "")
+                            or fs.get("spec", {}).get("name", ""),
+                            "description": fs.get("featureService", {})
+                            .get("spec", {})
+                            .get("description", "")
+                            or fs.get("spec", {}).get("description", ""),
+                            "tags": fs.get("featureService", {})
+                            .get("spec", {})
+                            .get("tags", {})
+                            or fs.get("spec", {}).get("tags", {}),
+                            "data": fs,
+                            "project": current_project,
+                        }
+                    )
+
+                # Extract and convert saved datasets
+                saved_datasets = project_resources.get("savedDatasets", [])
+                for sd in saved_datasets:
+                    results.append(
+                        {
+                            "type": "savedDataset",
+                            "name": sd.get("savedDataset", {})
+                            .get("spec", {})
+                            .get("name", "")
+                            or sd.get("spec", {}).get("name", ""),
+                            "description": sd.get("savedDataset", {})
+                            .get("spec", {})
+                            .get("description", "")
+                            or sd.get("spec", {}).get("description", ""),
+                            "tags": sd.get("savedDataset", {})
+                            .get("spec", {})
+                            .get("tags", {})
+                            or sd.get("spec", {}).get("tags", {}),
+                            "data": sd,
+                            "project": current_project,
+                        }
+                    )
+
+            except Exception as e:
+                logger.error(
+                    f"Error getting resources for project '{current_project}': {e}"
                 )
-                results.extend(feature_views)
-
-            # Search feature services
-            if "feature_services" in resource_types:
-                feature_services = _search_feature_services(
-                    grpc_handler, query, current_project, allow_cache, tags
-                )
-                results.extend(feature_services)
-
-            # Search data sources
-            if "data_sources" in resource_types:
-                data_sources = _search_data_sources(
-                    grpc_handler, query, current_project, allow_cache, tags
-                )
-                results.extend(data_sources)
-
-            # Search saved datasets
-            if "saved_datasets" in resource_types:
-                saved_datasets = _search_saved_datasets(
-                    grpc_handler, query, current_project, allow_cache, tags
-                )
-                results.extend(saved_datasets)
-
-            # Search permissions
-            if "permissions" in resource_types:
-                permissions = _search_permissions(
-                    grpc_handler, query, current_project, allow_cache, tags
-                )
-                results.extend(permissions)
-
-        # Search projects (filter by projects_to_search if specified)
-        if "projects" in resource_types:
-            all_projects_resources = _search_projects(
-                grpc_handler, query, allow_cache, tags
-            )
-
-            # Filter projects based on projects_to_search if specific projects were requested
-            if filtered_projects:  # If specific projects were requested
-                filtered_projects_resources = [
-                    proj
-                    for proj in all_projects_resources
-                    if proj.get("name", "") in projects_to_search
-                ]
-                results.extend(filtered_projects_resources)
-            else:
-                # No specific projects - include all projects
-                results.extend(all_projects_resources)
+                continue
 
         # Apply search filtering
         filtered_results = _filter_search_results(results, query)
@@ -244,247 +266,16 @@ def get_search_router(grpc_handler) -> APIRouter:
         # Apply sorting
         sorted_results = _sort_search_results(filtered_results, sorting_params)
 
-        return {
+        response = {
             "results": sorted_results,
             "total_count": len(filtered_results),
             "query": query,
-            "resource_types": resource_types,
             "projects_searched": projects_to_search,
         }
 
+        return response
+
     return router
-
-
-def _search_entities(
-    grpc_handler, query: str, project: str, allow_cache: bool, tags: Dict[str, str]
-) -> List[Dict]:
-    """Search entities"""
-    try:
-        req = RegistryServer_pb2.ListEntitiesRequest(
-            project=project,
-            allow_cache=allow_cache,
-        )
-        response = grpc_call(grpc_handler.ListEntities, req)
-        entities = response.get("entities", [])
-
-        return [
-            {
-                "type": "entity",
-                "name": entity.get("spec", {}).get("name", ""),
-                "description": entity.get("spec", {}).get("description", ""),
-                "tags": entity.get("spec", {}).get("tags", {}),
-                "data": entity,
-                "project": project,
-            }
-            for entity in entities
-        ]
-    except Exception as e:
-        logger.error(f"Error searching entities in project '{project}': {e}")
-        return []
-
-
-def _search_feature_views(
-    grpc_handler, query: str, project: str, allow_cache: bool, tags: Dict[str, str]
-) -> List[Dict]:
-    """Search feature views"""
-    try:
-        req = RegistryServer_pb2.ListAllFeatureViewsRequest(
-            project=project,
-            allow_cache=allow_cache,
-            tags=tags,
-        )
-        response = grpc_call(grpc_handler.ListAllFeatureViews, req)
-        feature_views = response.get("featureViews", [])
-
-        return [
-            {
-                "type": "feature_view",
-                "name": fv.get("featureView", {}).get("spec", {}).get("name", ""),
-                "description": fv.get("featureView", {})
-                .get("spec", {})
-                .get("description", ""),
-                "tags": fv.get("featureView", {}).get("spec", {}).get("tags", {}),
-                "features": [
-                    f.get("name", "")
-                    for f in fv.get("featureView", {})
-                    .get("spec", {})
-                    .get("features", [])
-                ],
-                "data": fv,
-                "project": project,
-            }
-            for fv in feature_views
-        ]
-    except Exception as e:
-        logger.error(f"Error searching feature views: {e}")
-        return []
-
-
-def _search_feature_services(
-    grpc_handler, query: str, project: str, allow_cache: bool, tags: Dict[str, str]
-) -> List[Dict]:
-    """Search feature services"""
-    try:
-        req = RegistryServer_pb2.ListFeatureServicesRequest(
-            project=project,
-            allow_cache=allow_cache,
-            tags=tags,
-        )
-        response = grpc_call(grpc_handler.ListFeatureServices, req)
-        feature_services = response.get("featureServices", [])
-
-        return [
-            {
-                "type": "feature_service",
-                "name": fs.get("featureService", {}).get("spec", {}).get("name", "")
-                or fs.get("spec", {}).get("name", ""),
-                "description": fs.get("featureService", {})
-                .get("spec", {})
-                .get("description", "")
-                or fs.get("spec", {}).get("description", ""),
-                "tags": fs.get("featureService", {}).get("spec", {}).get("tags", {})
-                or fs.get("spec", {}).get("tags", {}),
-                "features": [
-                    f.get("name", "")
-                    for f in (
-                        fs.get("featureService", {}).get("spec", {}).get("features", [])
-                        or fs.get("spec", {}).get("features", [])
-                    )
-                ],
-                "data": fs,
-                "project": project,
-            }
-            for fs in feature_services
-        ]
-    except Exception as e:
-        logger.error(f"Error searching feature services: {e}")
-        return []
-
-
-def _search_data_sources(
-    grpc_handler, query: str, project: str, allow_cache: bool, tags: Dict[str, str]
-) -> List[Dict]:
-    """Search data sources"""
-    try:
-        req = RegistryServer_pb2.ListDataSourcesRequest(
-            project=project,
-            allow_cache=allow_cache,
-            tags=tags,
-        )
-        response = grpc_call(grpc_handler.ListDataSources, req)
-        data_sources = response.get("dataSources", [])
-
-        return [
-            {
-                "type": "data_source",
-                "name": ds.get("dataSource", {}).get("name", "") or ds.get("name", ""),
-                "description": ds.get("dataSource", {}).get("description", "")
-                or ds.get("description", ""),
-                "tags": ds.get("dataSource", {}).get("tags", {}) or ds.get("tags", {}),
-                "data": ds,
-                "project": project,
-            }
-            for ds in data_sources
-        ]
-    except Exception as e:
-        logger.error(f"Error searching data sources: {e}")
-        return []
-
-
-def _search_saved_datasets(
-    grpc_handler, query: str, project: str, allow_cache: bool, tags: Dict[str, str]
-) -> List[Dict]:
-    """Search saved datasets"""
-    try:
-        req = RegistryServer_pb2.ListSavedDatasetsRequest(
-            project=project,
-            allow_cache=allow_cache,
-            tags=tags,
-        )
-        response = grpc_call(grpc_handler.ListSavedDatasets, req)
-        saved_datasets = response.get("savedDatasets", [])
-
-        return [
-            {
-                "type": "saved_dataset",
-                "name": sd.get("savedDataset", {}).get("spec", {}).get("name", "")
-                or sd.get("spec", {}).get("name", ""),
-                "description": sd.get("savedDataset", {})
-                .get("spec", {})
-                .get("description", "")
-                or sd.get("spec", {}).get("description", ""),
-                "tags": sd.get("savedDataset", {}).get("spec", {}).get("tags", {})
-                or sd.get("spec", {}).get("tags", {}),
-                "data": sd,
-                "project": project,
-            }
-            for sd in saved_datasets
-        ]
-    except Exception as e:
-        logger.error(f"Error searching saved datasets: {e}")
-        return []
-
-
-def _search_permissions(
-    grpc_handler, query: str, project: str, allow_cache: bool, tags: Dict[str, str]
-) -> List[Dict]:
-    """Search permissions"""
-    try:
-        req = RegistryServer_pb2.ListPermissionsRequest(
-            project=project,
-            allow_cache=allow_cache,
-            tags=tags,
-        )
-        response = grpc_call(grpc_handler.ListPermissions, req)
-        permissions = response.get("permissions", [])
-
-        return [
-            {
-                "type": "permission",
-                "name": perm.get("permission", {}).get("spec", {}).get("name", "")
-                or perm.get("spec", {}).get("name", ""),
-                "description": perm.get("permission", {})
-                .get("spec", {})
-                .get("description", "")
-                or perm.get("spec", {}).get("description", ""),
-                "tags": perm.get("permission", {}).get("spec", {}).get("tags", {})
-                or perm.get("spec", {}).get("tags", {}),
-                "data": perm,
-                "project": project,
-            }
-            for perm in permissions
-        ]
-    except Exception as e:
-        logger.error(f"Error searching permissions: {e}")
-        return []
-
-
-def _search_projects(
-    grpc_handler, query: str, allow_cache: bool, tags: Dict[str, str]
-) -> List[Dict]:
-    """Search projects"""
-    try:
-        req = RegistryServer_pb2.ListProjectsRequest(
-            allow_cache=allow_cache,
-            tags=tags,
-        )
-        response = grpc_call(grpc_handler.ListProjects, req)
-        projects = response.get("projects", [])
-
-        return [
-            {
-                "type": "project",
-                "name": proj.get("spec", {}).get("name", ""),
-                "description": proj.get("spec", {}).get("description", ""),
-                "tags": proj.get("spec", {}).get("tags", {}),
-                "data": proj,
-                "project": proj.get("spec", {}).get("name", ""),
-            }
-            for proj in projects
-        ]
-    except Exception as e:
-        logger.error(f"Error searching projects: {e}")
-        return []
 
 
 def _filter_search_results(results: List[Dict], query: str) -> List[Dict]:
@@ -545,14 +336,7 @@ def _sort_search_results(results: List[Dict], sorting_params: dict) -> List[Dict
 
     reverse = sort_order == "desc"
 
-    if sort_by == "match_score":
-        return sorted(results, key=lambda x: x.get("match_score", 0), reverse=reverse)
-    elif sort_by == "name":
-        return sorted(results, key=lambda x: x.get("name", ""), reverse=reverse)
-    elif sort_by == "type":
-        return sorted(results, key=lambda x: x.get("type", ""), reverse=reverse)
-
-    return results
+    return sorted(results, key=lambda x: x.get(sort_by, ""), reverse=reverse)
 
 
 def _fuzzy_match(query: str, text: str, threshold: float = 0.6) -> bool:

@@ -558,10 +558,12 @@ class TestSearchAPI:
 
     def test_search_all_resources_with_query(self, search_test_app):
         """Test searching across all resource types with a specific query"""
+
         response = search_test_app.get("/search?query=user")
         assert response.status_code == 200
 
         data = response.json()
+
         assert "results" in data
         assert "total_count" in data
         assert "query" in data
@@ -571,7 +573,11 @@ class TestSearchAPI:
         results = data["results"]
         assert len(results) > 0
 
-        # Debug: Print what we actually got
+        type_counts = {}
+        for r in results:
+            result_type = r.get("type", "unknown")
+            type_counts[result_type] = type_counts.get(result_type, 0) + 1
+
         logger.debug(f"Found {len(results)} results:")
         for r in results:
             logger.debug(
@@ -583,7 +589,7 @@ class TestSearchAPI:
         assert "user" in resource_names  # user entity
 
         # Check for feature views - be more flexible since there might be an issue
-        feature_view_names = [r["name"] for r in results if r["type"] == "feature_view"]
+        feature_view_names = [r["name"] for r in results if r["type"] == "featureView"]
         if feature_view_names:
             # If we found any feature views, check for user_features
             assert "user_features" in feature_view_names
@@ -595,6 +601,8 @@ class TestSearchAPI:
 
     def test_search_specific_resource_types(self, search_test_app):
         """Test filtering by specific resource types"""
+
+        pytest.skip("Skipping resource types filtering tests")
         # Search only entities
         response = search_test_app.get("/search?query=user&resource_types=entities")
         assert response.status_code == 200
@@ -612,6 +620,9 @@ class TestSearchAPI:
 
     def test_search_multiple_resource_types(self, search_test_app):
         """Test filtering by multiple resource types"""
+
+        pytest.skip("Skipping resource types filtering tests")
+
         response = search_test_app.get(
             "/search?query=product&resource_types=entities&resource_types=feature_views"
         )
@@ -623,7 +634,7 @@ class TestSearchAPI:
         # Results should only be entities or feature_views
         result_types = [r["type"] for r in results]
         for result_type in result_types:
-            assert result_type in ["entity", "feature_view"]
+            assert result_type in ["entity", "featureView"]
 
     def test_search_with_project_filter(self, search_test_app):
         """Test searching within a specific project"""
@@ -665,7 +676,7 @@ class TestSearchAPI:
             )
 
         # Should find user_features which has "demographic" in description
-        feature_view_names = [r["name"] for r in results if r["type"] == "feature_view"]
+        feature_view_names = [r["name"] for r in results if r["type"] == "featureView"]
         if len(feature_view_names) > 0:
             assert "user_features" in feature_view_names
         else:
@@ -713,11 +724,11 @@ class TestSearchAPI:
         feature_views_with_income = [
             r
             for r in results
-            if r["type"] == "feature_view" and "income" in r.get("features", [])
+            if r["type"] == "featureView" and "income" in r.get("features", [])
         ]
         if len(feature_views_with_income) == 0:
             # Check if any feature views exist at all
-            all_feature_views = [r for r in results if r["type"] == "feature_view"]
+            all_feature_views = [r for r in results if r["type"] == "featureView"]
             logger.debug(
                 f"Found {len(all_feature_views)} feature views total, but none with 'income' feature"
             )
@@ -853,7 +864,6 @@ class TestSearchAPI:
             "results",
             "total_count",
             "query",
-            "resource_types",
             "projects_searched",
         ]
         for field in required_fields:
@@ -878,6 +888,9 @@ class TestSearchAPI:
 
     def test_search_all_resource_types_individually(self, search_test_app):
         """Test that all resource types can be searched individually and return only that type"""
+
+        pytest.skip("Skipping resource types filtering tests")
+
         # Expected counts based on test fixture data
         expected_counts = {
             "entities": 3,  # user, product, transaction
@@ -905,10 +918,10 @@ class TestSearchAPI:
             # Map plural resource_type to singular type names used in results
             type_mapping = {
                 "entities": "entity",
-                "feature_views": "feature_view",
-                "feature_services": "feature_service",
-                "data_sources": "data_source",
-                "saved_datasets": "saved_dataset",
+                "feature_views": "featureView",
+                "feature_services": "featureService",
+                "data_sources": "dataSource",
+                "saved_datasets": "savedDataset",
                 "permissions": "permission",
                 "projects": "project",
             }
@@ -958,6 +971,7 @@ class TestSearchAPI:
 
     def test_search_api_with_tags_parameter(self, search_test_app):
         """Test search API with tags filtering and verify correct count"""
+
         # Test fixture has 3 resources with "team": "data" tag:
         # - user_entity: {"team": "data", "environment": "test"}
         # - user_features: {"team": "data", "version": "v1"}
@@ -1167,13 +1181,18 @@ class TestSearchAPIMultiProject:
     """Test class for multi-project search functionality"""
 
     def test_search_specific_multiple_projects(self, search_test_app):
-        """Test searching across multiple specific projects"""
         response = search_test_app.get(
             "/search?query=user&projects=test_project&projects=another_project"
         )
         assert response.status_code == 200
 
         data = response.json()
+        results = data.get("results", [])
+        project_counts = {}
+        for result in results:
+            project = result.get("project", "unknown")
+            project_counts[project] = project_counts.get(project, 0) + 1
+
         assert "projects_searched" in data
         # Should search only existing projects, non-existing ones are ignored
         expected_projects = ["test_project"]  # only existing project
@@ -1327,9 +1346,9 @@ class TestSearchAPIMultiProjectComprehensive:
             if "user" in result.get("name", "").lower():
                 if result["type"] == "entity":
                     user_entities.append(result)
-                elif result["type"] == "feature_view":
+                elif result["type"] == "featureView":
                     user_features.append(result)
-                elif result["type"] == "feature_service":
+                elif result["type"] == "featureService":
                     user_services.append(result)
 
         # Should find resources from project_a and project_b (both have 'user' entities/features)
@@ -1534,6 +1553,173 @@ class TestSearchAPIMultiProjectComprehensive:
         assert "ride sharing" in desc_a
         assert "food delivery" in desc_b
 
+    def test_all_resource_types_always_searched(self, search_test_app):
+        """Test that all resource types are always included in search results"""
+        response = search_test_app.get("/search?query=")
+        assert response.status_code == 200
+
+        data = response.json()
+        results = data["results"]
+
+        # Get all resource types returned
+        returned_types = set(result["type"] for result in results)
+
+        # Should include all expected resource types (including new 'feature' type)
+        expected_types = {
+            "entity",
+            "featureView",
+            "feature",
+            "featureService",
+            "dataSource",
+            "savedDataset",
+        }
+
+        # All expected types should be present (or at least no filtering happening)
+        # Note: Some types might not exist in test data, but if they do exist, they should all be returned
+        available_types_in_data = expected_types.intersection(returned_types)
+        assert len(available_types_in_data) >= 4, (
+            f"Expected multiple resource types in results, but only got {returned_types}. "
+            "All available resource types should be searched."
+        )
+
+    def test_features_as_individual_search_results(self, search_test_app):
+        """Test that individual features appear as separate search results"""
+        response = search_test_app.get("/search?query=")
+        assert response.status_code == 200
+
+        data = response.json()
+        results = data["results"]
+
+        # Find feature results
+        feature_results = [result for result in results if result["type"] == "feature"]
+
+        # Should have individual features in results
+        assert len(feature_results) > 0, (
+            "Expected individual features to appear in search results, but found none"
+        )
+
+        # Verify feature result structure
+        for feature_result in feature_results:
+            # Check required fields
+            assert "type" in feature_result
+            assert "name" in feature_result
+            assert "description" in feature_result
+            assert "tags" in feature_result
+            assert "data" in feature_result
+            assert "project" in feature_result
+
+            # Verify values
+            assert feature_result["type"] == "feature"
+            assert isinstance(feature_result["name"], str)
+
+    def test_feature_search_by_name(self, search_test_app):
+        """Test that individual features can be found by searching their names"""
+        # Based on test fixture, we should have features like "age", "income", "price", etc.
+
+        # Search for a specific feature name
+        response = search_test_app.get("/search?query=age")
+        assert response.status_code == 200
+
+        data = response.json()
+        results = data["results"]
+
+        # Should find feature named "age"
+        age_features = [
+            result
+            for result in results
+            if result["type"] == "feature" and "age" in result["name"].lower()
+        ]
+
+        assert len(age_features) > 0, (
+            "Expected to find feature named 'age' in search results"
+        )
+
+        # Verify the age feature has correct structure
+        age_feature = age_features[0]
+        assert age_feature["name"] == "age"
+
+    def test_features_from_multiple_feature_views(self, search_test_app):
+        """Test that features from different feature views all appear in search results"""
+        response = search_test_app.get("/search?query=")
+        assert response.status_code == 200
+
+        data = response.json()
+        results = data["results"]
+
+        # Get all feature results
+        feature_results = [result for result in results if result["type"] == "feature"]
+
+        # Should have individual features in search results
+        assert len(feature_results) > 0, (
+            "Expected individual features to appear in search results, but found none"
+        )
+
+        # Get all feature view results to understand the source feature views
+        feature_view_results = [
+            result for result in results if result["type"] == "featureView"
+        ]
+        feature_view_names = {fv["name"] for fv in feature_view_results}
+
+        # Based on test fixture: user_features, product_features, transaction_features
+        expected_feature_views = {
+            "user_features",
+            "product_features",
+            "transaction_features",
+        }
+
+        # Should have feature views from test fixture
+        found_feature_views = expected_feature_views.intersection(feature_view_names)
+        assert len(found_feature_views) >= 2, (
+            f"Expected features from multiple feature views, but only found feature views: {feature_view_names}. "
+            f"Expected to find some of: {expected_feature_views}"
+        )
+
+        # Verify we have features that likely come from different feature views
+        feature_names = {f["name"] for f in feature_results}
+
+        # Based on test fixture features: age, income (from user_features), price, category (from product_features),
+        # amount, payment_method (from transaction_features)
+        expected_features = {
+            "age",
+            "income",
+            "price",
+            "category",
+            "amount",
+            "payment_method",
+        }
+        found_features = expected_features.intersection(feature_names)
+
+        assert len(found_features) >= 3, (
+            f"Expected features from multiple feature views, but only found features: {feature_names}. "
+            f"Expected to find at least 3 of: {expected_features}"
+        )
+
+    def test_feature_search_includes_different_feature_types(self, search_test_app):
+        """Test that features of different data types appear in search results"""
+        response = search_test_app.get("/search?query=")
+        assert response.status_code == 200
+
+        data = response.json()
+        results = data["results"]
+
+        # Get all feature results
+        feature_results = [result for result in results if result["type"] == "feature"]
+
+        # Get unique feature names - should include various types from test fixture
+        feature_names = set(result["name"] for result in feature_results)
+
+        # Based on test fixture, should include features like:
+        # From user_features: age, income
+        # From product_features: price, category
+        # From transaction_features: amount, merchant
+        expected_features = {"age", "income", "price", "category", "amount", "merchant"}
+
+        # Should find several of these features
+        found_features = feature_names.intersection(expected_features)
+        assert len(found_features) >= 3, (
+            f"Expected to find multiple features like {expected_features}, but only found {found_features}"
+        )
+
     def test_search_feature_view_entity_relationships_across_projects(
         self, multi_project_search_test_app
     ):
@@ -1548,7 +1734,7 @@ class TestSearchAPIMultiProjectComprehensive:
         # Group feature views by project
         fvs_by_project = {}
         for result in data["results"]:
-            if result["type"] == "feature_view":
+            if result["type"] == "featureView":
                 project = result.get("project")
                 if project:
                     if project not in fvs_by_project:
@@ -1612,9 +1798,11 @@ class TestSearchAPIMultiProjectComprehensive:
         for project, types in resource_types_by_project.items():
             expected_types = {
                 "entity",
-                "feature_view",
-                "feature_service",
-                "data_source",
+                "featureView",
+                "featureService",
+                "dataSource",
+                "savedDataset",
+                "feature",
             }
             # Should have at least some of the expected types
             assert len(expected_types.intersection(types)) >= 3
@@ -1674,6 +1862,9 @@ class TestSearchAPINegativeScenarios:
 
     def test_search_with_invalid_resource_types(self, search_test_app):
         """Test search API with invalid resource types"""
+
+        pytest.skip("Skipping resource types filtering tests")
+
         invalid_resource_types = [
             "invalid_type",
             "nonexistent_resource",
@@ -1696,6 +1887,9 @@ class TestSearchAPINegativeScenarios:
 
     def test_search_with_multiple_invalid_resource_types(self, search_test_app):
         """Test search API with multiple invalid resource types"""
+
+        pytest.skip("Skipping resource types filtering tests")
+
         response = search_test_app.get(
             "/search?query=test&resource_types=invalid1&resource_types=invalid2&resource_types=invalid3"
         )
@@ -1707,19 +1901,19 @@ class TestSearchAPINegativeScenarios:
 
     def test_search_with_invalid_sorting_parameters(self, search_test_app):
         """Test search API with invalid sorting parameters"""
-        # Test scenarios - invalid parameters now return 422 due to stricter validation
+        # Test scenarios - invalid parameters now return 400 due to stricter validation
         scenarios = [
             (
                 "invalid_sort_field",
                 "desc",
-                [422],
-            ),  # Invalid sort field - now returns 422
+                [400],
+            ),  # Invalid sort field - now returns 400
             (
                 "name",
                 "invalid_order",
                 [422],
             ),  # Invalid sort order - FastAPI validation should reject
-            ("", "asc", [200, 422]),  # Empty sort field - could go either way
+            ("", "asc", [200, 400]),  # Empty sort field - could go either way
             (
                 "match_score",
                 "",
@@ -1741,7 +1935,7 @@ class TestSearchAPINegativeScenarios:
                 data = response.json()
                 assert "results" in data
                 assert isinstance(data["results"], list)
-            elif response.status_code == 422:
+            elif response.status_code == 400:
                 # If validation error, check it's a proper FastAPI error
                 error_data = response.json()
                 assert "detail" in error_data
@@ -1870,6 +2064,9 @@ class TestSearchAPINegativeScenarios:
 
     def test_search_with_mixed_valid_invalid_resource_types(self, search_test_app):
         """Test search API with mix of valid and invalid resource types"""
+
+        pytest.skip("Skipping resource types filtering tests")
+
         response = search_test_app.get(
             "/search?query=user&resource_types=entities&resource_types=invalid_type&resource_types=feature_views&resource_types=another_invalid"
         )
@@ -1886,10 +2083,10 @@ class TestSearchAPINegativeScenarios:
         if data["results"]:
             valid_types = {
                 "entity",
-                "feature_view",
-                "feature_service",
-                "data_source",
-                "saved_dataset",
+                "featureView",
+                "featureService",
+                "dataSource",
+                "savedDataset",
                 "permission",
                 "project",
             }
@@ -1914,7 +2111,6 @@ class TestSearchAPINegativeScenarios:
                 "results",
                 "total_count",
                 "query",
-                "resource_types",
                 "projects_searched",
             ]
             for field in required_fields:
@@ -1926,14 +2122,14 @@ class TestSearchAPINegativeScenarios:
             assert isinstance(data["total_count"], int)
             assert data["total_count"] >= 0
 
-        # Test scenarios that should return 422 due to stricter validation
-        scenarios_422 = [
+        # Test scenarios that should return 400 due to stricter validation
+        scenarios_400 = [
             "/search?query=&sort_by=invalid",
         ]
 
-        for scenario in scenarios_422:
+        for scenario in scenarios_400:
             response = search_test_app.get(scenario)
-            assert response.status_code == 422
+            assert response.status_code == 400
 
     def test_search_performance_under_stress(self, search_test_app):
         """Test search API performance with multiple complex queries"""
