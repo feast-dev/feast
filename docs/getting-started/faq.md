@@ -39,7 +39,16 @@ Yes, this is possible. For example, you can use BigQuery as an offline store and
 
 ### How do I run `get_historical_features` without providing an entity dataframe?
 
-Feast does not provide a way to do this right now. This is an area we're actively interested in contributions for. See [GitHub issue](https://github.com/feast-dev/feast/issues/1611)
+Feast does supports fetching historical features without passing an entity dataframe with the request. 
+- As of today, only `postgres offline feature store` is supported for entity dataframe less retrieval. Remaining offline stores would be gradually updated to support the entity df less retrieval. The stores would be selected based on priorities and user base/request. 
+- The retrieval is based on `start_date` and `end_date` parameters to the function. Here are some combinations supported.
+  - Both params are given, Returns data during the given start to end timerange.
+  - Only start_date param is given, Returns data from the start date to `now` time.
+  - Only end_date param is given, Returns data during the end_date minus TTL time in feature view.
+  - Both params are `not` given, Returns data during the TTL time in feature view to now time.
+- When multiple features are requested from multiple feature-views it is required to have entity ids in both of them for `JOIN` so that 
+
+This is an area we're actively interested in contributions for. See [GitHub issue](https://github.com/feast-dev/feast/issues/1611)
 
 ### Does Feast provide security or access control?
 
