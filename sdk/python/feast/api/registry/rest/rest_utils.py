@@ -189,6 +189,119 @@ def get_sorting_params(
         "sort_order": sort_order or "asc",
     }
 
+def validate_or_set_default_sorting_params(
+    sort_by_options: List[str] = [],
+    default_sort_by_option: str = "",
+    default_sort_order: str = "asc"
+) -> Callable:
+    def set_input_or_default(
+        sort_by: Optional[str] = Query(None), 
+        sort_order: Optional[str] = Query(None)
+        ) -> dict:
+        sorting_params = {}
+        if not sort_by_options:
+            return {
+                "sort_by": default_sort_by_option,
+                "sort_order": default_sort_order
+            }
+        
+        if sort_by:
+            if sort_by in sort_by_options:
+                sorting_params["sort_by"] = sort_by
+            else:
+                raise HTTPException(
+                status_code=400,
+                detail=f"Invalid sort_by parameter: '{sort_by}'. Valid options are: {sort_by_options}",
+            )
+        else:
+            sorting_params["sort_by"] = default_sort_by_option
+        
+        if sort_order:
+            if sort_order in ["asc", "desc"]:
+                sorting_params["sort_order"] = sort_order
+            else:
+                raise HTTPException(
+                status_code=400,
+                detail=f"Invalid sort_order parameter: '{sort_order}'. Valid options are: ['asc', 'desc']",
+            )
+        else:
+            sorting_params["sort_order"] = default_sort_order
+        
+        return sorting_params
+
+    return set_input_or_default
+
+def validate_or_set_default_pagination_params(
+    default_page: int = 1,
+    default_limit: int = 50,
+    min_page: int = 1,
+    min_limit: int = 1,
+    max_limit: int = 100
+) -> Callable:
+    """
+    Factory function to create a FastAPI dependency for validating pagination parameters.
+    
+    Args:
+        default_page: Default page number if not provided
+        default_limit: Default limit if not provided
+        min_page: Minimum allowed page number
+        min_limit: Minimum allowed limit
+        max_limit: Maximum allowed limit
+    
+    Returns:
+        Callable that can be used as FastAPI dependency for pagination validation
+        
+    Example usage:
+        # Create a custom pagination validator
+        custom_pagination = validate_or_set_default_pagination_params(
+            default_page=1,
+            default_limit=25,
+            max_limit=200
+        )
+        
+        # Use in FastAPI route
+        @router.get("/items")
+        def get_items(pagination_params: dict = Depends(custom_pagination)):
+            page = pagination_params["page"]
+            limit = pagination_params["limit"]
+            # Use page and limit for your logic
+    """
+    def set_input_or_default(
+        page: Optional[int] = Query(None), 
+        limit: Optional[int] = Query(None)
+    ) -> dict:
+        pagination_params = {}
+        
+        # Validate and set page parameter
+        if page is not None:
+            if page < min_page:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid page parameter: '{page}'. Must be greater than or equal to {min_page}",
+                )
+            pagination_params["page"] = page
+        else:
+            pagination_params["page"] = default_page
+        
+        # Validate and set limit parameter
+        if limit is not None:
+            if limit < min_limit:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid limit parameter: '{limit}'. Must be greater than or equal to {min_limit}",
+                )
+            if limit > max_limit:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid limit parameter: '{limit}'. Must be less than or equal to {max_limit}",
+                )
+            pagination_params["limit"] = limit
+        else:
+            pagination_params["limit"] = default_limit
+        
+        return pagination_params
+
+    return set_input_or_default
 
 def create_grpc_pagination_params(
     pagination_params: dict,
@@ -361,3 +474,70 @@ def get_all_project_resources(
     except Exception as e:
         logger.error(f"Error getting resources for project '{project}': {e}")
         return resources  # Return empty resources dict on error
+
+
+def filter_search_results_and_match_score(
+    results: List[Dict], query: str
+) -> List[Dict]:
+    """Filter search results based on query string"""
+    if not query:
+        return results
+
+    query_lower = query.lower()
+    filtered_results = []
+
+    for result in results:
+        # Search in name
+        if query_lower in result.get("name", "").lower():
+            result["match_score"] = 100  # Exact name match gets highest score
+            filtered_results.append(result)
+            continue
+
+        # Search in description
+        if query_lower in result.get("description", "").lower():
+            result["match_score"] = 80
+            filtered_results.append(result)
+            continue
+
+        # Search in tags
+        tags = result.get("tags", {})
+        tag_match = False
+        for key, value in tags.items():
+            if query_lower in key.lower() or query_lower in str(value).lower():
+                tag_match = True
+                break
+
+        if tag_match:
+            result["match_score"] = 60
+            filtered_results.append(result)
+            continue
+
+        # Search in features (for feature views and services)
+        features = result.get("features", [])
+        feature_match = any(query_lower in feature.lower() for feature in features)
+
+        if feature_match:
+            result["match_score"] = 70
+            filtered_results.append(result)
+            continue
+
+        # Partial name match (fuzzy search)
+        if fuzzy_match(query_lower, result.get("name", "").lower()):
+            result["match_score"] = 40
+            filtered_results.append(result)
+
+    return filtered_results
+
+
+def fuzzy_match(query: str, text: str, threshold: float = 0.6) -> bool:
+    """Simple fuzzy matching using character overlap"""
+    if not query or not text:
+        return False
+
+    query_chars = set(query)
+    text_chars = set(text)
+
+    overlap = len(query_chars.intersection(text_chars))
+    similarity = overlap / len(query_chars.union(text_chars))
+
+    return similarity >= threshold

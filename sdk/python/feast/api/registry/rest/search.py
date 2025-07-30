@@ -1,12 +1,17 @@
 import logging
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from feast.api.registry.rest.rest_utils import (
+    filter_search_results_and_match_score,
     get_all_project_resources,
+    get_pagination_params,
     get_sorting_params,
+    validate_or_set_default_sorting_params,
+    validate_or_set_default_pagination_params,
     grpc_call,
+    paginate_and_sort,
     parse_tags,
 )
 from feast.protos.feast.registry import RegistryServer_pb2
@@ -26,8 +31,16 @@ def get_search_router(grpc_handler) -> APIRouter:
         ),
         allow_cache: bool = Query(default=True),
         tags: Dict[str, str] = Depends(parse_tags),
-        sorting_params: dict = Depends(get_sorting_params),
-    ):
+        sorting_params: dict = Depends(validate_or_set_default_sorting_params(
+            sort_by_options=["match_score", "name", "type"],
+            default_sort_by_option="match_score",
+            default_sort_order="desc"
+        )),
+        pagination_params: dict = Depends(validate_or_set_default_pagination_params(
+            default_page=1,
+            default_limit=50,
+        )),
+    ) -> Dict[str, Any]:
         """
         Search across all Feast resources including:
         - Entities
@@ -44,27 +57,6 @@ def get_search_router(grpc_handler) -> APIRouter:
         - Supports sorting by match_score, name, or type
         - Can specify sort_order as asc or desc
         """
-
-        # Validate sorting parameters
-        sort_by = sorting_params.get("sort_by", "")
-        sort_order = sorting_params.get("sort_order", "")
-
-        # Validate sort_by parameter
-        valid_sort_fields = ["match_score", "name", "type"]
-        if sort_by and sort_by not in valid_sort_fields:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Invalid sort_by parameter: '{sort_by}'. Valid options are: {valid_sort_fields}",
-            )
-
-        # Validate sort_order parameter (this should already be validated by Query regex, but double-check)
-        valid_sort_orders = ["asc", "desc"]
-        if sort_order and sort_order not in valid_sort_orders:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Invalid sort_order parameter: '{sort_order}'. Valid options are: {valid_sort_orders}",
-            )
-
         results = []
 
         # Get list of all available projects for validation
@@ -92,11 +84,12 @@ def get_search_router(grpc_handler) -> APIRouter:
             # Handle empty string in projects list (from URL like "projects=")
             filtered_projects = [p for p in projects if p and p.strip()]
 
+        projects_to_search: List[str] = []
+        existing_projects: List[str] = []
+        nonexistent_projects: List[str] = []
+
         if filtered_projects:
             # Specific projects requested - validate they exist
-            existing_projects = []
-            nonexistent_projects = []
-
             for project in filtered_projects:
                 if project in available_projects:
                     existing_projects.append(project)
@@ -111,12 +104,14 @@ def get_search_router(grpc_handler) -> APIRouter:
 
             # if requested project/s doesn't exist, return empty results
             if len(existing_projects) == 0:
-                response = {
+                response: Dict[str, Any] = {
                     "results": [],
-                    "total_count": 0,
+                    "pagination": {
+                        "total_count": 0,
+                    },
                     "query": query,
                     "projects_searched": [],
-                    "error": "No projects found",
+                    "error": "Following projects do not exist: " + ", ".join(nonexistent_projects),
                 }
                 return response
 
@@ -149,9 +144,8 @@ def get_search_router(grpc_handler) -> APIRouter:
                             "description": entity.get("spec", {}).get(
                                 "description", ""
                             ),
-                            "tags": entity.get("spec", {}).get("tags", {}),
-                            "data": entity,
                             "project": current_project,
+                            "tags": entity.get("spec", {}).get("tags", {}),
                         }
                     )
 
@@ -167,10 +161,9 @@ def get_search_router(grpc_handler) -> APIRouter:
                                 "description", ""
                             )
                             or ds.get("description", ""),
+                            "project": current_project,
                             "tags": ds.get("dataSource", {}).get("tags", {})
                             or ds.get("tags", {}),
-                            "data": ds,
-                            "project": current_project,
                         }
                     )
 
@@ -186,11 +179,10 @@ def get_search_router(grpc_handler) -> APIRouter:
                             "description": fv.get("featureView", {})
                             .get("spec", {})
                             .get("description", ""),
+                            "project": current_project,
                             "tags": fv.get("featureView", {})
                             .get("spec", {})
                             .get("tags", {}),
-                            "data": fv,
-                            "project": current_project,
                         }
                     )
 
@@ -202,9 +194,8 @@ def get_search_router(grpc_handler) -> APIRouter:
                             "type": "feature",
                             "name": feature.get("name", ""),
                             "description": feature.get("description", ""),
-                            "tags": feature.get("tags", {}),
-                            "data": feature,
                             "project": current_project,
+                            "tags": feature.get("tags", {}),
                         }
                     )
 
@@ -222,12 +213,11 @@ def get_search_router(grpc_handler) -> APIRouter:
                             .get("spec", {})
                             .get("description", "")
                             or fs.get("spec", {}).get("description", ""),
+                            "project": current_project,
                             "tags": fs.get("featureService", {})
                             .get("spec", {})
                             .get("tags", {})
                             or fs.get("spec", {}).get("tags", {}),
-                            "data": fs,
-                            "project": current_project,
                         }
                     )
 
@@ -245,12 +235,11 @@ def get_search_router(grpc_handler) -> APIRouter:
                             .get("spec", {})
                             .get("description", "")
                             or sd.get("spec", {}).get("description", ""),
+                            "project": current_project,
                             "tags": sd.get("savedDataset", {})
                             .get("spec", {})
                             .get("tags", {})
                             or sd.get("spec", {}).get("tags", {}),
-                            "data": sd,
-                            "project": current_project,
                         }
                     )
 
@@ -261,93 +250,40 @@ def get_search_router(grpc_handler) -> APIRouter:
                 continue
 
         # Apply search filtering
-        filtered_results = _filter_search_results(results, query)
+        filtered_results = filter_search_results_and_match_score(results, query)
 
-        # Apply sorting
-        sorted_results = _sort_search_results(filtered_results, sorting_params)
+        # Paginate & sort results
+        paginated_results, pagination = paginate_and_sort(
+            items=filtered_results,
+            page=pagination_params["page"],
+            limit=pagination_params["limit"],
+            sort_by=sorting_params["sort_by"],
+            sort_order=sorting_params["sort_order"],
+        )
+
+        # Remove tags from results before returning to user
+        cleaned_result = _remove_tags_from_results(paginated_results)
 
         response = {
-            "results": sorted_results,
-            "total_count": len(filtered_results),
             "query": query,
             "projects_searched": projects_to_search,
+            "results": cleaned_result,
+            "pagination": pagination,
         }
+
+        if len(nonexistent_projects) > 0:
+            response["error"] = "Following projects do not exist: " + ", ".join(nonexistent_projects)
 
         return response
 
     return router
 
 
-def _filter_search_results(results: List[Dict], query: str) -> List[Dict]:
-    """Filter search results based on query string"""
-    if not query:
-        return results
-
-    query_lower = query.lower()
-    filtered_results = []
-
+def _remove_tags_from_results(results: List[Dict]) -> List[Dict]:
+    """Remove tags field from search results before returning to user"""
+    cleaned_results = []
     for result in results:
-        # Search in name
-        if query_lower in result.get("name", "").lower():
-            result["match_score"] = 100  # Exact name match gets highest score
-            filtered_results.append(result)
-            continue
-
-        # Search in description
-        if query_lower in result.get("description", "").lower():
-            result["match_score"] = 80
-            filtered_results.append(result)
-            continue
-
-        # Search in tags
-        tags = result.get("tags", {})
-        tag_match = False
-        for key, value in tags.items():
-            if query_lower in key.lower() or query_lower in str(value).lower():
-                tag_match = True
-                break
-
-        if tag_match:
-            result["match_score"] = 60
-            filtered_results.append(result)
-            continue
-
-        # Search in features (for feature views and services)
-        features = result.get("features", [])
-        feature_match = any(query_lower in feature.lower() for feature in features)
-
-        if feature_match:
-            result["match_score"] = 70
-            filtered_results.append(result)
-            continue
-
-        # Partial name match (fuzzy search)
-        if _fuzzy_match(query_lower, result.get("name", "").lower()):
-            result["match_score"] = 40
-            filtered_results.append(result)
-
-    return filtered_results
-
-
-def _sort_search_results(results: List[Dict], sorting_params: dict) -> List[Dict]:
-    """Sort search results"""
-    sort_by = sorting_params.get("sort_by", "match_score")
-    sort_order = sorting_params.get("sort_order", "desc")
-
-    reverse = sort_order == "desc"
-
-    return sorted(results, key=lambda x: x.get(sort_by, ""), reverse=reverse)
-
-
-def _fuzzy_match(query: str, text: str, threshold: float = 0.6) -> bool:
-    """Simple fuzzy matching using character overlap"""
-    if not query or not text:
-        return False
-
-    query_chars = set(query)
-    text_chars = set(text)
-
-    overlap = len(query_chars.intersection(text_chars))
-    similarity = overlap / len(query_chars.union(text_chars))
-
-    return similarity >= threshold
+        # Create a copy without the tags field
+        cleaned_result = {k: v for k, v in result.items() if k != "tags"}
+        cleaned_results.append(cleaned_result)
+    return cleaned_results

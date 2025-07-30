@@ -1094,6 +1094,114 @@ Please refer the [page](./../../../docs/getting-started/concepts/permission.md) 
 
 **Note**: Recent visits are automatically logged when users access registry objects via the REST API. The logging behavior can be configured through the `feature_server.recent_visit_logging` section in `feature_store.yaml` (see configuration section below).
 
+
+### Search API
+
+#### Search Resources
+- **Endpoint**: `GET /api/v1/search`
+- **Description**: Search across all Feast resources including entities, feature views, features, feature services, data sources, and saved datasets. Supports cross-project search, fuzzy matching, relevance scoring, and advanced filtering.
+- **Parameters**:
+  - `query` (required): Search query string. Searches in resource names, descriptions, and tags
+  - `projects` (optional): List of project names to search in. If not specified, searches all projects
+  - `allow_cache` (optional, default: `true`): Whether to allow cached data
+  - `tags` (optional): Filter results by tags in key=value format (e.g., `tags=environment:production&tags=team:ml`)
+  - `page` (optional, default: `1`): Page number for pagination
+  - `limit` (optional, default: `50`, max: `100`): Number of items per page
+  - `sort_by` (optional, default: `match_score`): Field to sort by (`match_score`, `name`, or `type`)
+  - `sort_order` (optional, default: `desc`): Sort order ("asc" or "desc")
+- **Examples**:
+  ```bash
+  # Basic search across all projects
+  curl -H "Authorization: Bearer <token>" \
+    "http://localhost:6572/api/v1/search?query=user"
+  
+  # Search in specific projects
+  curl -H "Authorization: Bearer <token>" \
+    "http://localhost:6572/api/v1/search?query=driver&projects=ride_sharing&projects=analytics"
+  
+  # Search with tag filtering
+  curl -H "Authorization: Bearer <token>" \
+    "http://localhost:6572/api/v1/search?query=features&tags=environment:production&tags=team:ml"
+  
+  # Search with pagination and sorting
+  curl -H "Authorization: Bearer <token>" \
+    "http://localhost:6572/api/v1/search?query=conv_rate&page=1&limit=10&sort_by=name&sort_order=asc"
+  
+  # Empty query to list all resources with filtering
+  curl -H "Authorization: Bearer <token>" \
+    "http://localhost:6572/api/v1/search?query=&projects=my_project&page=1&limit=20"
+  ```
+- **Response Example**:
+  ```json
+  {
+    "query": "user",
+    "projects_searched": ["project1", "project2"],
+    "results": [
+      {
+        "type": "entity",
+        "name": "user_id",
+        "description": "Primary identifier for users",
+        "project": "project1",
+        "match_score": 100
+      },
+      {
+        "type": "featureView",
+        "name": "user_features",
+        "description": "User demographic and behavioral features",
+        "project": "project1",
+        "match_score": 100
+      },
+      {
+        "type": "feature",
+        "name": "user_age",
+        "description": "Age of the user in years",
+        "project": "project1",
+        "match_score": 80
+      },
+      {
+        "type": "dataSource",
+        "name": "user_analytics",
+        "description": "Analytics data for user behavior tracking",
+        "project": "project2",
+        "match_score": 80
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 50,
+      "total_count": 4,
+      "total_pages": 1,
+      "has_next": false,
+      "has_previous": false
+    }
+  }
+  ```
+- **Project Handling**:
+  - **No projects specified**: Searches all available projects
+  - **Single project**: Searches only that project (returns empty if project doesn't exist)
+  - **Multiple projects**: Searches only existing projects, warns about non-existent ones
+  - **Empty projects list**: Treated as search all projects
+- **Error Responses**:
+  ```json
+  // Invalid sort_by parameter
+  {
+    "detail": "Invalid sort_by parameter: 'invalid_field'. Valid options are: ['match_score', 'name', 'type']"
+  }
+  
+  // Invalid sort_order parameter  
+  {
+    "detail": "Invalid sort_order parameter: 'invalid_order'. Valid options are: ['asc', 'desc']"
+  }
+  
+  // No existing projects found
+  {
+    "results": [],
+    "pagination": { "total_count": 0 },
+    "query": "user",
+    "projects_searched": [],
+    "error": "No projects found"
+  }
+  ```
 ---
 
 ## Registry Server Configuration: Recent Visit Logging
