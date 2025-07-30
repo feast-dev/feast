@@ -918,6 +918,17 @@ def test_features_list_with_relationships_via_rest(fastapi_test_app):
             assert "source" in rel and "target" in rel
 
 
+def test_features_get_invalid_feature_view_via_rest(fastapi_test_app):
+    """Test the /features/{feature_view}/{name} endpoint with invalid feature_view."""
+    response = fastapi_test_app.get(
+        "/features/invalid_fv/invalid_feature?project=demo_project"
+    )
+    assert response.status_code == 404
+    data = response.json()
+    assert "detail" in data
+    assert "not found" in data["detail"].lower()
+
+
 def test_features_get_via_rest(fastapi_test_app):
     """Test the /features/{feature_view}/{name} endpoint (get single feature)."""
     response = fastapi_test_app.get("/features/user_profile/age?project=demo_project")

@@ -1719,11 +1719,19 @@ class Feature(google.protobuf.message.Message):
     FEATURE_VIEW_FIELD_NUMBER: builtins.int
     TYPE_FIELD_NUMBER: builtins.int
     DESCRIPTION_FIELD_NUMBER: builtins.int
+    OWNER_FIELD_NUMBER: builtins.int
+    CREATED_TIMESTAMP_FIELD_NUMBER: builtins.int
+    LAST_UPDATED_TIMESTAMP_FIELD_NUMBER: builtins.int
     TAGS_FIELD_NUMBER: builtins.int
     name: builtins.str
     feature_view: builtins.str
     type: builtins.str
     description: builtins.str
+    owner: builtins.str
+    @property
+    def created_timestamp(self) -> google.protobuf.timestamp_pb2.Timestamp: ...
+    @property
+    def last_updated_timestamp(self) -> google.protobuf.timestamp_pb2.Timestamp: ...
     @property
     def tags(self) -> google.protobuf.internal.containers.ScalarMap[builtins.str, builtins.str]: ...
     def __init__(
@@ -1733,9 +1741,13 @@ class Feature(google.protobuf.message.Message):
         feature_view: builtins.str = ...,
         type: builtins.str = ...,
         description: builtins.str = ...,
+        owner: builtins.str = ...,
+        created_timestamp: google.protobuf.timestamp_pb2.Timestamp | None = ...,
+        last_updated_timestamp: google.protobuf.timestamp_pb2.Timestamp | None = ...,
         tags: collections.abc.Mapping[builtins.str, builtins.str] | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["description", b"description", "feature_view", b"feature_view", "name", b"name", "tags", b"tags", "type", b"type"]) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["created_timestamp", b"created_timestamp", "last_updated_timestamp", b"last_updated_timestamp"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["created_timestamp", b"created_timestamp", "description", b"description", "feature_view", b"feature_view", "last_updated_timestamp", b"last_updated_timestamp", "name", b"name", "owner", b"owner", "tags", b"tags", "type", b"type"]) -> None: ...
 
 global___Feature = Feature
 

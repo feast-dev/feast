@@ -253,6 +253,7 @@ def _convert_value_type_str_to_value_type(type_str: str) -> ValueType:
         "INT64": ValueType.INT64,
         "DOUBLE": ValueType.DOUBLE,
         "FLOAT": ValueType.FLOAT,
+        "FLOAT32": ValueType.FLOAT,
         "BOOL": ValueType.BOOL,
         "NULL": ValueType.NULL,
         "UNIX_TIMESTAMP": ValueType.UNIX_TIMESTAMP,
@@ -265,7 +266,7 @@ def _convert_value_type_str_to_value_type(type_str: str) -> ValueType:
         "BOOL_LIST": ValueType.BOOL_LIST,
         "UNIX_TIMESTAMP_LIST": ValueType.UNIX_TIMESTAMP_LIST,
     }
-    return type_map[type_str]
+    return type_map.get(type_str, ValueType.STRING)
 
 
 def _type_err(item, dtype):

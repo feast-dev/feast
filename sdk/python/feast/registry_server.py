@@ -1011,6 +1011,20 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
                     continue
                 if request.name and feature.name != request.name:
                     continue
+                # Get owner and timestamps from feature view
+                owner = ""
+                created_timestamp = None
+                last_updated_timestamp = None
+
+                if hasattr(fv, "spec") and hasattr(fv.spec, "owner"):
+                    owner = getattr(fv.spec, "owner", "")
+
+                if hasattr(fv, "meta"):
+                    if hasattr(fv.meta, "created_timestamp"):
+                        created_timestamp = fv.meta.created_timestamp
+                    if hasattr(fv.meta, "last_updated_timestamp"):
+                        last_updated_timestamp = fv.meta.last_updated_timestamp
+
                 features.append(
                     Feature(
                         name=feature.name,
@@ -1019,6 +1033,9 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
                         if hasattr(feature, "dtype")
                         else str(feature.valueType),
                         description=getattr(feature, "description", ""),
+                        owner=owner,
+                        created_timestamp=created_timestamp,
+                        last_updated_timestamp=last_updated_timestamp,
                         tags=getattr(feature, "tags", {}),
                     )
                 )
@@ -1048,6 +1065,20 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
             fv_name = getattr(fv, "name", None)
             for feature in getattr(fv, "features", []):
                 if fv_name == request.feature_view and feature.name == request.name:
+                    # Get owner and timestamps from feature view
+                    owner = ""
+                    created_timestamp = None
+                    last_updated_timestamp = None
+
+                    if hasattr(fv, "spec") and hasattr(fv.spec, "owner"):
+                        owner = getattr(fv.spec, "owner", "")
+
+                    if hasattr(fv, "meta"):
+                        if hasattr(fv.meta, "created_timestamp"):
+                            created_timestamp = fv.meta.created_timestamp
+                        if hasattr(fv.meta, "last_updated_timestamp"):
+                            last_updated_timestamp = fv.meta.last_updated_timestamp
+
                     return Feature(
                         name=feature.name,
                         feature_view=fv_name if fv_name is not None else "",
@@ -1055,6 +1086,9 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
                         if hasattr(feature, "dtype")
                         else str(feature.valueType),
                         description=getattr(feature, "description", ""),
+                        owner=owner,
+                        created_timestamp=created_timestamp,
+                        last_updated_timestamp=last_updated_timestamp,
                         tags=getattr(feature, "tags", {}),
                     )
         context.set_code(grpc.StatusCode.NOT_FOUND)

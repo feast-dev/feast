@@ -534,7 +534,10 @@ message Feature {
   string feature_view = 2;
   string type = 3;
   string description = 4;
-  map<string, string> tags = 7;
+  string owner = 5;
+  google.protobuf.Timestamp created_timestamp = 6;
+  google.protobuf.Timestamp last_updated_timestamp = 7;
+  map<string, string> tags = 8;
 }
 
 message ListFeaturesRequest {
