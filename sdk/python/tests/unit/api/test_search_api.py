@@ -1236,7 +1236,10 @@ class TestSearchAPIMultiProject:
         # Should return empty results since projects don't exist
         assert data["results"] == []
         assert not data["pagination"].get("totalCount", False)
-        assert data["error"] == "Following projects do not exist: nonexistent1, nonexistent2"
+        assert (
+            data["error"]
+            == "Following projects do not exist: nonexistent1, nonexistent2"
+        )
 
     def test_search_mixed_existing_nonexistent_projects(self, search_test_app):
         """Test searching in mix of existing and non-existing projects"""
@@ -1267,7 +1270,9 @@ class TestSearchAPIMultiProject:
         data = response.json()
         assert len(data["projects_searched"]) == 1  # only 1 real project exists
         assert "test_project" in data["projects_searched"]
-        assert data["error"] == "Following projects do not exist: " + ", ".join(fake_projects)
+        assert data["error"] == "Following projects do not exist: " + ", ".join(
+            fake_projects
+        )
 
         # Should still return results from the one existing project
         if data["results"]:
@@ -1303,6 +1308,7 @@ class TestSearchAPIMultiProject:
         entities = [r for r in data["results"] if r["type"] == "entity"]
         for entity in entities:
             assert entity.get("project") == "test_project"
+
 
 class TestSearchAPIMultiProjectComprehensive:
     """Comprehensive test class for multi-project search functionality with overlapping resource names"""
@@ -1841,7 +1847,9 @@ class TestSearchAPINegativeScenarios:
         )  # single non-existent project returns empty list
         assert not data["pagination"].get("totalCount", False)
         assert data["results"] == []
-        assert data["error"] == "Following projects do not exist: nonexistent_project_xyz"
+        assert (
+            data["error"] == "Following projects do not exist: nonexistent_project_xyz"
+        )
 
     def test_search_with_invalid_resource_types(self, search_test_app):
         """Test search API with invalid resource types"""
@@ -2102,6 +2110,7 @@ class TestSearchAPINegativeScenarios:
             assert "results" in data
             # Performance test - response should come back in reasonable time
             # (pytest will fail if it times out)
+
 
 class TestSearchAPIPagination:
     """Test class for pagination functionality in search API"""

@@ -189,68 +189,98 @@ def get_sorting_params(
         "sort_order": sort_order or "asc",
     }
 
+
 def validate_or_set_default_sorting_params(
     sort_by_options: List[str] = [],
     default_sort_by_option: str = "",
-    default_sort_order: str = "asc"
+    default_sort_order: str = "asc",
 ) -> Callable:
-    def set_input_or_default(
-        sort_by: Optional[str] = Query(None), 
-        sort_order: Optional[str] = Query(None)
-        ) -> dict:
-        sorting_params = {}
-        if not sort_by_options:
-            return {
-                "sort_by": default_sort_by_option,
-                "sort_order": default_sort_order
-            }
+    """
+    Factory function to create a FastAPI dependency for validating sorting parameters.
+    
+    Args:
+        sort_by_options: List of valid sort_by field names. If empty, no validation is performed
+        default_sort_by_option: Default sort_by value if not provided
+        default_sort_order: Default sort_order value if not provided (asc/desc)
+    
+    Returns:
+        Callable that can be used as FastAPI dependency for sorting validation
         
+    Example usage:
+        # Create a custom sorting validator for specific fields
+        custom_sorting = validate_or_set_default_sorting_params(
+            sort_by_options=["name", "created_at", "updated_at"],
+            default_sort_by_option="name",
+            default_sort_order="asc"
+        )
+        
+        # Use in FastAPI route
+        @router.get("/items")
+        def get_items(sorting_params: dict = Depends(custom_sorting)):
+            sort_by = sorting_params["sort_by"]
+            sort_order = sorting_params["sort_order"]
+            # Use sort_by and sort_order for your logic
+    """
+    def set_input_or_default(
+        sort_by: Optional[str] = Query(None), sort_order: Optional[str] = Query(None)
+    ) -> dict:
+        sorting_params = {}
+        
+        # If no sort options are configured, return defaults without validation
+        if not sort_by_options:
+            return {"sort_by": default_sort_by_option, "sort_order": default_sort_order}
+
+        # Validate and set sort_by parameter
         if sort_by:
             if sort_by in sort_by_options:
                 sorting_params["sort_by"] = sort_by
             else:
                 raise HTTPException(
-                status_code=400,
-                detail=f"Invalid sort_by parameter: '{sort_by}'. Valid options are: {sort_by_options}",
-            )
+                    status_code=400,
+                    detail=f"Invalid sort_by parameter: '{sort_by}'. Valid options are: {sort_by_options}",
+                )
         else:
+            # Use default if not provided
             sorting_params["sort_by"] = default_sort_by_option
-        
+
+        # Validate and set sort_order parameter
         if sort_order:
             if sort_order in ["asc", "desc"]:
                 sorting_params["sort_order"] = sort_order
             else:
                 raise HTTPException(
-                status_code=400,
-                detail=f"Invalid sort_order parameter: '{sort_order}'. Valid options are: ['asc', 'desc']",
-            )
+                    status_code=400,
+                    detail=f"Invalid sort_order parameter: '{sort_order}'. Valid options are: ['asc', 'desc']",
+                )
         else:
+            # Use default if not provided
             sorting_params["sort_order"] = default_sort_order
-        
+
         return sorting_params
 
     return set_input_or_default
+
 
 def validate_or_set_default_pagination_params(
     default_page: int = 1,
     default_limit: int = 50,
     min_page: int = 1,
     min_limit: int = 1,
-    max_limit: int = 100
+    max_limit: int = 100,
 ) -> Callable:
     """
     Factory function to create a FastAPI dependency for validating pagination parameters.
-    
+
     Args:
         default_page: Default page number if not provided
         default_limit: Default limit if not provided
         min_page: Minimum allowed page number
         min_limit: Minimum allowed limit
         max_limit: Maximum allowed limit
-    
+
     Returns:
         Callable that can be used as FastAPI dependency for pagination validation
-        
+
     Example usage:
         # Create a custom pagination validator
         custom_pagination = validate_or_set_default_pagination_params(
@@ -258,7 +288,7 @@ def validate_or_set_default_pagination_params(
             default_limit=25,
             max_limit=200
         )
-        
+
         # Use in FastAPI route
         @router.get("/items")
         def get_items(pagination_params: dict = Depends(custom_pagination)):
@@ -266,12 +296,12 @@ def validate_or_set_default_pagination_params(
             limit = pagination_params["limit"]
             # Use page and limit for your logic
     """
+
     def set_input_or_default(
-        page: Optional[int] = Query(None), 
-        limit: Optional[int] = Query(None)
+        page: Optional[int] = Query(None), limit: Optional[int] = Query(None)
     ) -> dict:
         pagination_params = {}
-        
+
         # Validate and set page parameter
         if page is not None:
             if page < min_page:
@@ -282,7 +312,7 @@ def validate_or_set_default_pagination_params(
             pagination_params["page"] = page
         else:
             pagination_params["page"] = default_page
-        
+
         # Validate and set limit parameter
         if limit is not None:
             if limit < min_limit:
@@ -298,10 +328,11 @@ def validate_or_set_default_pagination_params(
             pagination_params["limit"] = limit
         else:
             pagination_params["limit"] = default_limit
-        
+
         return pagination_params
 
     return set_input_or_default
+
 
 def create_grpc_pagination_params(
     pagination_params: dict,

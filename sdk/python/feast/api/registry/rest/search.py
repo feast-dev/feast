@@ -1,23 +1,31 @@
 import logging
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 
 from feast.api.registry.rest.rest_utils import (
     filter_search_results_and_match_score,
     get_all_project_resources,
-    get_pagination_params,
-    get_sorting_params,
-    validate_or_set_default_sorting_params,
-    validate_or_set_default_pagination_params,
     grpc_call,
     paginate_and_sort,
     parse_tags,
+    validate_or_set_default_pagination_params,
+    validate_or_set_default_sorting_params,
 )
 from feast.protos.feast.registry import RegistryServer_pb2
 
 logger = logging.getLogger(__name__)
 
+custom_sorting = validate_or_set_default_sorting_params(
+    sort_by_options=["match_score", "name", "type"],
+    default_sort_by_option="match_score",
+    default_sort_order="desc",
+)
+
+custom_pagination = validate_or_set_default_pagination_params(
+    default_page=1,
+    default_limit=50,
+)
 
 def get_search_router(grpc_handler) -> APIRouter:
     router = APIRouter()
@@ -31,15 +39,8 @@ def get_search_router(grpc_handler) -> APIRouter:
         ),
         allow_cache: bool = Query(default=True),
         tags: Dict[str, str] = Depends(parse_tags),
-        sorting_params: dict = Depends(validate_or_set_default_sorting_params(
-            sort_by_options=["match_score", "name", "type"],
-            default_sort_by_option="match_score",
-            default_sort_order="desc"
-        )),
-        pagination_params: dict = Depends(validate_or_set_default_pagination_params(
-            default_page=1,
-            default_limit=50,
-        )),
+        sorting_params: dict = Depends(custom_sorting),
+        pagination_params: dict = Depends(custom_pagination),
     ) -> Dict[str, Any]:
         """
         Search across all Feast resources including:
@@ -111,7 +112,8 @@ def get_search_router(grpc_handler) -> APIRouter:
                     },
                     "query": query,
                     "projects_searched": [],
-                    "error": "Following projects do not exist: " + ", ".join(nonexistent_projects),
+                    "error": "Following projects do not exist: "
+                    + ", ".join(nonexistent_projects),
                 }
                 return response
 
@@ -272,7 +274,9 @@ def get_search_router(grpc_handler) -> APIRouter:
         }
 
         if len(nonexistent_projects) > 0:
-            response["error"] = "Following projects do not exist: " + ", ".join(nonexistent_projects)
+            response["error"] = "Following projects do not exist: " + ", ".join(
+                nonexistent_projects
+            )
 
         return response
 
