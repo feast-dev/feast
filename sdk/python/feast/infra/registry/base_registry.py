@@ -603,6 +603,20 @@ class BaseRegistry(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def get_project_metadata(self, project: str, key: str) -> Optional[str]:
+        """
+        Retrieves a custom project metadata value by key.
+
+        Args:
+            project: Feast project name
+            key: Metadata key
+
+        Returns:
+            The metadata value as a string, or None if not found.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
     def update_infra(self, infra: Infra, project: str, commit: bool = True):
         """
         Updates the stored Infra object.

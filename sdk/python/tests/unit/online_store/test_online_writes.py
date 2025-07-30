@@ -12,13 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import asyncio
 import os
+import shutil
 import tempfile
 import unittest
 from datetime import datetime, timedelta
 from typing import Any
 
 import pandas as pd
+import pytest
 
 from feast import (
     Entity,
@@ -33,6 +36,7 @@ from feast.field import Field
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
 from feast.on_demand_feature_view import on_demand_feature_view
 from feast.types import Array, Float32, Float64, Int64, PdfBytes, String, ValueType
+from tests.utils.test_wrappers import check_warnings
 
 
 class TestOnlineWrites(unittest.TestCase):
@@ -153,6 +157,398 @@ class TestOnlineWrites(unittest.TestCase):
                 "conv_rate_plus_acc",
             ]
         )
+
+
+class TestEmptyDataFrameValidation(unittest.TestCase):
+    def setUp(self):
+        self.data_dir = tempfile.mkdtemp()
+        self.store = FeatureStore(
+            config=RepoConfig(
+                project="test_empty_df_validation",
+                registry=os.path.join(self.data_dir, "registry.db"),
+                provider="local",
+                entity_key_serialization_version=3,
+                online_store=SqliteOnlineStoreConfig(
+                    path=os.path.join(self.data_dir, "online.db")
+                ),
+            )
+        )
+
+        # Generate test data for schema creation
+        end_date = datetime.now().replace(microsecond=0, second=0, minute=0)
+        start_date = end_date - timedelta(days=1)
+
+        driver_entities = [1001]
+        driver_df = create_driver_hourly_stats_df(driver_entities, start_date, end_date)
+        driver_stats_path = os.path.join(self.data_dir, "driver_stats.parquet")
+        driver_df.to_parquet(path=driver_stats_path, allow_truncated_timestamps=True)
+
+        driver = Entity(name="driver", join_keys=["driver_id"])
+
+        driver_stats_source = FileSource(
+            name="driver_hourly_stats_source",
+            path=driver_stats_path,
+            timestamp_field="event_timestamp",
+            created_timestamp_column="created",
+        )
+
+        driver_stats_fv = FeatureView(
+            name="driver_hourly_stats",
+            entities=[driver],
+            ttl=timedelta(days=0),
+            schema=[
+                Field(name="conv_rate", dtype=Float32),
+                Field(name="acc_rate", dtype=Float32),
+                Field(name="avg_daily_trips", dtype=Int64),
+            ],
+            online=True,
+            source=driver_stats_source,
+        )
+
+        self.store.apply([driver, driver_stats_source, driver_stats_fv])
+
+    def tearDown(self):
+        shutil.rmtree(self.data_dir)
+
+    @check_warnings(
+        expected_warnings=["Cannot write empty dataframe to online store"],
+    )
+    def test_empty_dataframe_warns(self):
+        """Test that completely empty dataframe issues a warning instead of raising an error"""
+        empty_df = pd.DataFrame()
+
+        self.store.write_to_online_store(
+            feature_view_name="driver_hourly_stats", df=empty_df
+        )
+
+    @check_warnings(
+        expected_warnings=["Cannot write empty dataframe to online store"],
+    )
+    def test_empty_dataframe_async_warns(self):
+        """Test that completely empty dataframe issues a warning instead of raising an error in async version"""
+
+        async def test_async_empty():
+            empty_df = pd.DataFrame()
+
+            await self.store.write_to_online_store_async(
+                feature_view_name="driver_hourly_stats", df=empty_df
+            )
+
+        asyncio.run(test_async_empty())
+
+    @check_warnings(
+        expected_warnings=[
+            "Cannot write dataframe with empty feature columns to online store"
+        ],
+    )
+    def test_dataframe_with_empty_feature_columns_warns(self):
+        """Test that dataframe with entity data but empty feature columns warns instead of raising error"""
+        current_time = pd.Timestamp.now()
+        df_with_entity_only = pd.DataFrame(
+            {
+                "driver_id": [1001, 1002, 1003],
+                "event_timestamp": [current_time] * 3,
+                "created": [current_time] * 3,
+                "conv_rate": [None, None, None],  # All nulls
+                "acc_rate": [None, None, None],  # All nulls
+                "avg_daily_trips": [None, None, None],  # All nulls
+            }
+        )
+
+        self.store.write_to_online_store(
+            feature_view_name="driver_hourly_stats", df=df_with_entity_only
+        )
+
+    @check_warnings(
+        expected_warnings=[
+            "Cannot write dataframe with empty feature columns to online store"
+        ],
+    )
+    def test_dataframe_with_empty_feature_columns_async_warns(self):
+        """Test that dataframe with entity data but empty feature columns warns instead of raising error in async version"""
+
+        async def test_async_empty_features():
+            current_time = pd.Timestamp.now()
+            df_with_entity_only = pd.DataFrame(
+                {
+                    "driver_id": [1001, 1002, 1003],
+                    "event_timestamp": [current_time] * 3,
+                    "created": [current_time] * 3,
+                    "conv_rate": [None, None, None],
+                    "acc_rate": [None, None, None],
+                    "avg_daily_trips": [None, None, None],
+                }
+            )
+
+            await self.store.write_to_online_store_async(
+                feature_view_name="driver_hourly_stats", df=df_with_entity_only
+            )
+
+        asyncio.run(test_async_empty_features())
+
+    @check_warnings(
+        forbidden_warnings=[
+            "Cannot write empty dataframe to online store",
+            "Cannot write dataframe with empty feature columns to online store",
+        ],
+    )
+    def test_valid_dataframe(self):
+        """Test that valid dataframe with feature data succeeds"""
+        current_time = pd.Timestamp.now()
+        valid_df = pd.DataFrame(
+            {
+                "driver_id": [1001, 1002],
+                "event_timestamp": [current_time] * 2,
+                "created": [current_time] * 2,
+                "conv_rate": [0.5, 0.7],
+                "acc_rate": [0.8, 0.9],
+                "avg_daily_trips": [10, 12],
+            }
+        )
+
+        # This should not raise an exception or warnings - decorator handles warning validation
+        self.store.write_to_online_store(
+            feature_view_name="driver_hourly_stats", df=valid_df
+        )
+
+    @check_warnings(
+        forbidden_warnings=[
+            "Cannot write empty dataframe to online store",
+            "Cannot write dataframe with empty feature columns to online store",
+        ],
+    )
+    def test_valid_dataframe_async(self):
+        """Test that valid dataframe with feature data succeeds in async version"""
+        pytest.skip("Feature not implemented yet")
+
+        async def test_async_valid():
+            current_time = pd.Timestamp.now()
+            valid_df = pd.DataFrame(
+                {
+                    "driver_id": [1001, 1002],
+                    "event_timestamp": [current_time] * 2,
+                    "created": [current_time] * 2,
+                    "conv_rate": [0.5, 0.7],
+                    "acc_rate": [0.8, 0.9],
+                    "avg_daily_trips": [10, 12],
+                }
+            )
+
+            # This should not raise an exception or warnings - decorator handles warning validation
+            await self.store.write_to_online_store_async(
+                feature_view_name="driver_hourly_stats", df=valid_df
+            )
+
+        asyncio.run(test_async_valid())
+
+    @check_warnings(
+        forbidden_warnings=[
+            "Cannot write empty dataframe to online store",
+            "Cannot write dataframe with empty feature columns to online store",
+        ],
+    )
+    def test_mixed_dataframe_with_some_valid_features(self):
+        """Test that dataframe with some valid feature values succeeds"""
+        current_time = pd.Timestamp.now()
+        mixed_df = pd.DataFrame(
+            {
+                "driver_id": [1001, 1002, 1003],
+                "event_timestamp": [current_time] * 3,
+                "created": [current_time] * 3,
+                "conv_rate": [0.5, None, 0.7],  # Mixed values
+                "acc_rate": [0.8, 0.9, None],  # Mixed values
+                "avg_daily_trips": [10, 12, 15],  # All valid
+            }
+        )
+
+        # This should not raise an exception because not all feature values are null - decorator handles warning validation
+        self.store.write_to_online_store(
+            feature_view_name="driver_hourly_stats", df=mixed_df
+        )
+
+    @check_warnings(
+        expected_warnings=["Cannot write empty dataframe to online store"],
+    )
+    def test_empty_inputs_dict_warns(self):
+        """Test that empty inputs dict warns instead of raising error"""
+        empty_inputs = {
+            "driver_id": [],
+            "conv_rate": [],
+            "acc_rate": [],
+            "avg_daily_trips": [],
+        }
+
+        self.store.write_to_online_store(
+            feature_view_name="driver_hourly_stats", inputs=empty_inputs
+        )
+
+    @check_warnings(
+        expected_warnings=[
+            "Cannot write dataframe with empty feature columns to online store"
+        ],
+    )
+    def test_inputs_dict_with_empty_features_warns(self):
+        """Test that inputs dict with empty feature values warns instead of raising error"""
+        current_time = pd.Timestamp.now()
+        empty_feature_inputs = {
+            "driver_id": [1001, 1002, 1003],
+            "event_timestamp": [current_time] * 3,
+            "created": [current_time] * 3,
+            "conv_rate": [None, None, None],
+            "acc_rate": [None, None, None],
+            "avg_daily_trips": [None, None, None],
+        }
+
+        self.store.write_to_online_store(
+            feature_view_name="driver_hourly_stats", inputs=empty_feature_inputs
+        )
+
+    @check_warnings(
+        forbidden_warnings=[
+            "Cannot write empty dataframe to online store",
+            "Cannot write dataframe with empty feature columns to online store",
+        ],
+    )
+    def test_multiple_feature_views_materialization_with_empty_data(self):
+        """Test materializing multiple feature views where one has empty data - should not break materialization"""
+        import tempfile
+        from datetime import timedelta
+
+        with tempfile.TemporaryDirectory() as data_dir:
+            # Create a new store for this test
+            test_store = FeatureStore(
+                config=RepoConfig(
+                    project="test_multiple_fv_materialization",
+                    registry=os.path.join(data_dir, "registry.db"),
+                    provider="local",
+                    entity_key_serialization_version=3,
+                    online_store=SqliteOnlineStoreConfig(
+                        path=os.path.join(data_dir, "online.db")
+                    ),
+                )
+            )
+
+            # Create entities
+            driver = Entity(name="driver", join_keys=["driver_id"])
+            customer = Entity(name="customer", join_keys=["customer_id"])
+
+            # Create 5 feature views with data
+            current_time = pd.Timestamp.now().replace(microsecond=0)
+            start_date = current_time - timedelta(hours=2)
+            end_date = current_time - timedelta(minutes=10)
+            feature_views = []
+            dataframes = []
+            offline_paths = []
+
+            for i in range(5):
+                # Create file path for offline data
+                offline_path = os.path.join(data_dir, f"feature_view_{i + 1}.parquet")
+                offline_paths.append(offline_path)
+
+                # Create feature view with real file source
+                fv = FeatureView(
+                    name=f"feature_view_{i + 1}",
+                    entities=[driver if i % 2 == 0 else customer],
+                    ttl=timedelta(days=1),
+                    schema=[
+                        Field(name=f"feature_{i + 1}_rate", dtype=Float32),
+                        Field(name=f"feature_{i + 1}_count", dtype=Int64),
+                    ],
+                    online=True,
+                    source=FileSource(
+                        name=f"source_{i + 1}",
+                        path=offline_path,
+                        timestamp_field="event_timestamp",
+                        created_timestamp_column="created",
+                    ),
+                )
+                feature_views.append(fv)
+
+                # Create data - make 2nd feature view (index 1) empty
+                if i == 1:  # 2nd feature view gets empty data
+                    df = pd.DataFrame()  # Empty dataframe
+                else:
+                    # Create valid data for other feature views
+                    entity_key = "driver_id" if i % 2 == 0 else "customer_id"
+                    df = pd.DataFrame(
+                        {
+                            entity_key: [1000 + j for j in range(3)],
+                            "event_timestamp": [
+                                start_date + timedelta(minutes=j * 10) for j in range(3)
+                            ],
+                            "created": [current_time] * 3,
+                            f"feature_{i + 1}_rate": [0.5 + j * 0.1 for j in range(3)],
+                            f"feature_{i + 1}_count": [10 + j for j in range(3)],
+                        }
+                    )
+
+                # Write data to offline store (parquet files) - offline store allows empty dataframes
+                if len(df) > 0:
+                    df.to_parquet(offline_path, allow_truncated_timestamps=True)
+                else:
+                    # Create empty parquet file with correct schema (timezone-aware timestamps)
+                    entity_key = "driver_id" if i % 2 == 0 else "customer_id"
+                    empty_schema_df = pd.DataFrame(
+                        {
+                            entity_key: pd.Series([], dtype="int64"),
+                            "event_timestamp": pd.Series(
+                                [], dtype="datetime64[ns, UTC]"
+                            ),  # Timezone-aware
+                            "created": pd.Series(
+                                [], dtype="datetime64[ns, UTC]"
+                            ),  # Timezone-aware
+                            f"feature_{i + 1}_rate": pd.Series([], dtype="float32"),
+                            f"feature_{i + 1}_count": pd.Series([], dtype="int64"),
+                        }
+                    )
+                    empty_schema_df.to_parquet(
+                        offline_path, allow_truncated_timestamps=True
+                    )
+
+                dataframes.append(df)
+
+            # Apply entities and feature views
+            test_store.apply([driver, customer] + feature_views)
+
+            # Test: Use materialize() to move data from offline to online store
+            # This should NOT raise any exceptions even with empty data - decorator handles warning validation
+            try:
+                test_store.materialize(
+                    start_date=start_date,
+                    end_date=end_date,
+                    feature_views=[fv.name for fv in feature_views],
+                )
+            except Exception as e:
+                self.fail(f"Materialization raised an unexpected exception: {e}")
+
+            # Verify that the operation was successful by checking that non-empty feature views have data
+            successful_materializations = 0
+            for i, fv in enumerate(feature_views):
+                if i != 1:  # Skip the empty one (2nd feature view)
+                    entity_key = "driver_id" if i % 2 == 0 else "customer_id"
+                    entity_value = 1000  # First entity from our test data
+
+                    # Try to retrieve features to verify they were written successfully
+                    online_response = test_store.get_online_features(
+                        entity_rows=[{entity_key: entity_value}],
+                        features=[
+                            f"{fv.name}:feature_{i + 1}_rate",
+                            f"{fv.name}:feature_{i + 1}_count",
+                        ],
+                    ).to_dict()
+
+                    # Verify we got some data back (not None/null)
+                    rate_value = online_response.get(f"feature_{i + 1}_rate")
+                    count_value = online_response.get(f"feature_{i + 1}_count")
+
+                    if rate_value is not None and count_value is not None:
+                        successful_materializations += 1
+
+                    self.assertIsNotNone(rate_value)
+                    self.assertIsNotNone(count_value)
+
+            # Verify that 4 out of 4 non-empty feature views were successfully materialized
+            self.assertEqual(successful_materializations, 4)
 
 
 class TestOnlineWritesWithTransform(unittest.TestCase):

@@ -31,6 +31,7 @@ from feast.type_map import (
     feast_value_type_to_python_type,
     python_values_to_proto_values,
 )
+from feast.utils import _get_feature_view_vector_field_metadata
 from feast.value_type import ValueType
 
 logger = logging.getLogger(__name__)
@@ -170,6 +171,235 @@ class RemoteOnlineStore(OnlineStore):
             logger.error(error_msg)
             raise RuntimeError(error_msg)
 
+    def retrieve_online_documents(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        requested_features: Optional[List[str]],
+        embedding: Optional[List[float]],
+        top_k: int,
+        distance_metric: Optional[str] = "L2",
+    ) -> List[
+        Tuple[
+            Optional[datetime],
+            Optional[EntityKeyProto],
+            Optional[ValueProto],
+            Optional[ValueProto],
+            Optional[ValueProto],
+        ]
+    ]:
+        assert isinstance(config.online_store, RemoteOnlineStoreConfig)
+        config.online_store.__class__ = RemoteOnlineStoreConfig
+
+        req_body = self._construct_online_documents_api_json_request(
+            table, requested_features, embedding, top_k, distance_metric
+        )
+        response = get_remote_online_documents(config=config, req_body=req_body)
+        if response.status_code == 200:
+            logger.debug("Able to retrieve the online documents from feature server.")
+            response_json = json.loads(response.text)
+            event_ts: Optional[datetime] = self._get_event_ts(response_json)
+
+            # Create feature name to index mapping for efficient lookup
+            feature_name_to_index = {
+                name: idx
+                for idx, name in enumerate(response_json["metadata"]["feature_names"])
+            }
+
+            vector_field_metadata = _get_feature_view_vector_field_metadata(table)
+
+            # Process each result row
+            num_results = len(response_json["results"][0]["values"])
+            result_tuples = []
+
+            for row_idx in range(num_results):
+                # Extract values using helper methods
+                feature_val = self._extract_requested_feature_value(
+                    response_json, feature_name_to_index, requested_features, row_idx
+                )
+                vector_value = self._extract_vector_field_value(
+                    response_json, feature_name_to_index, vector_field_metadata, row_idx
+                )
+                distance_val = self._extract_distance_value(
+                    response_json, feature_name_to_index, "distance", row_idx
+                )
+                entity_key_proto = self._construct_entity_key_from_response(
+                    response_json, row_idx, feature_name_to_index, table
+                )
+
+                result_tuples.append(
+                    (
+                        event_ts,
+                        entity_key_proto,
+                        feature_val,
+                        vector_value,
+                        distance_val,
+                    )
+                )
+
+            return result_tuples
+        else:
+            error_msg = f"Unable to retrieve the online documents using feature server API. Error_code={response.status_code}, error_message={response.text}"
+            logger.error(error_msg)
+            raise RuntimeError(error_msg)
+
+    def retrieve_online_documents_v2(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        requested_features: Optional[List[str]],
+        embedding: Optional[List[float]],
+        top_k: int,
+        distance_metric: Optional[str] = None,
+        query_string: Optional[str] = None,
+    ) -> List[
+        Tuple[
+            Optional[datetime],
+            Optional[EntityKeyProto],
+            Optional[Dict[str, ValueProto]],
+        ]
+    ]:
+        assert isinstance(config.online_store, RemoteOnlineStoreConfig)
+        config.online_store.__class__ = RemoteOnlineStoreConfig
+
+        req_body = self._construct_online_documents_v2_api_json_request(
+            table,
+            requested_features,
+            embedding,
+            top_k,
+            distance_metric,
+            query_string,
+            api_version=2,
+        )
+        response = get_remote_online_documents(config=config, req_body=req_body)
+        if response.status_code == 200:
+            logger.debug("Able to retrieve the online documents from feature server.")
+            response_json = json.loads(response.text)
+            event_ts: Optional[datetime] = self._get_event_ts(response_json)
+
+            # Create feature name to index mapping for efficient lookup
+            feature_name_to_index = {
+                name: idx
+                for idx, name in enumerate(response_json["metadata"]["feature_names"])
+            }
+
+            # Process each result row
+            num_results = (
+                len(response_json["results"][0]["values"])
+                if response_json["results"]
+                else 0
+            )
+            result_tuples = []
+
+            for row_idx in range(num_results):
+                # Build feature values dictionary for requested features
+                feature_values_dict = {}
+
+                if requested_features:
+                    for feature_name in requested_features:
+                        if feature_name in feature_name_to_index:
+                            feature_idx = feature_name_to_index[feature_name]
+                            if self._is_feature_present(
+                                response_json, feature_idx, row_idx
+                            ):
+                                feature_values_dict[feature_name] = (
+                                    self._extract_feature_value(
+                                        response_json, feature_idx, row_idx
+                                    )
+                                )
+                            else:
+                                feature_values_dict[feature_name] = ValueProto()
+
+                # Construct entity key proto using existing helper method
+                entity_key_proto = self._construct_entity_key_from_response(
+                    response_json, row_idx, feature_name_to_index, table
+                )
+
+                result_tuples.append(
+                    (
+                        event_ts,
+                        entity_key_proto,
+                        feature_values_dict if feature_values_dict else None,
+                    )
+                )
+
+            return result_tuples
+        else:
+            error_msg = f"Unable to retrieve the online documents using feature server API. Error_code={response.status_code}, error_message={response.text}"
+            logger.error(error_msg)
+            raise RuntimeError(error_msg)
+
+    def _extract_requested_feature_value(
+        self,
+        response_json: dict,
+        feature_name_to_index: dict,
+        requested_features: Optional[List[str]],
+        row_idx: int,
+    ) -> Optional[ValueProto]:
+        """Extract the first available requested feature value."""
+        if not requested_features:
+            return ValueProto()
+
+        for feature_name in requested_features:
+            if feature_name in feature_name_to_index:
+                feature_idx = feature_name_to_index[feature_name]
+                if self._is_feature_present(response_json, feature_idx, row_idx):
+                    return self._extract_feature_value(
+                        response_json, feature_idx, row_idx
+                    )
+
+        return ValueProto()
+
+    def _extract_vector_field_value(
+        self,
+        response_json: dict,
+        feature_name_to_index: dict,
+        vector_field_metadata,
+        row_idx: int,
+    ) -> Optional[ValueProto]:
+        """Extract vector field value from response."""
+        if (
+            not vector_field_metadata
+            or vector_field_metadata.name not in feature_name_to_index
+        ):
+            return ValueProto()
+
+        vector_feature_idx = feature_name_to_index[vector_field_metadata.name]
+        if self._is_feature_present(response_json, vector_feature_idx, row_idx):
+            return self._extract_feature_value(
+                response_json, vector_feature_idx, row_idx
+            )
+
+        return ValueProto()
+
+    def _extract_distance_value(
+        self,
+        response_json: dict,
+        feature_name_to_index: dict,
+        distance_feature_name: str,
+        row_idx: int,
+    ) -> Optional[ValueProto]:
+        """Extract distance/score value from response."""
+        if not distance_feature_name:
+            return ValueProto()
+
+        distance_feature_idx = feature_name_to_index[distance_feature_name]
+        if self._is_feature_present(response_json, distance_feature_idx, row_idx):
+            distance_value = response_json["results"][distance_feature_idx]["values"][
+                row_idx
+            ]
+            distance_val = ValueProto()
+            distance_val.float_val = float(distance_value)
+            return distance_val
+
+        return ValueProto()
+
+    def _is_feature_present(
+        self, response_json: dict, feature_idx: int, row_idx: int
+    ) -> bool:
+        """Check if a feature is present in the response."""
+        return response_json["results"][feature_idx]["statuses"][row_idx] == "PRESENT"
+
     def _construct_online_read_api_json_request(
         self,
         entity_keys: List[EntityKeyProto],
@@ -197,11 +427,103 @@ class RemoteOnlineStore(OnlineStore):
         )
         return req_body
 
+    def _construct_online_documents_api_json_request(
+        self,
+        table: FeatureView,
+        requested_features: Optional[List[str]] = None,
+        embedding: Optional[List[float]] = None,
+        top_k: Optional[int] = None,
+        distance_metric: Optional[str] = "L2",
+    ) -> str:
+        api_requested_features = []
+        if requested_features is not None:
+            for requested_feature in requested_features:
+                api_requested_features.append(f"{table.name}:{requested_feature}")
+
+        req_body = json.dumps(
+            {
+                "features": api_requested_features,
+                "query": embedding,
+                "top_k": top_k,
+                "distance_metric": distance_metric,
+            }
+        )
+        return req_body
+
+    def _construct_online_documents_v2_api_json_request(
+        self,
+        table: FeatureView,
+        requested_features: Optional[List[str]],
+        embedding: Optional[List[float]],
+        top_k: int,
+        distance_metric: Optional[str] = None,
+        query_string: Optional[str] = None,
+        api_version: Optional[int] = 2,
+    ) -> str:
+        api_requested_features = []
+        if requested_features is not None:
+            for requested_feature in requested_features:
+                api_requested_features.append(f"{table.name}:{requested_feature}")
+
+        req_body = json.dumps(
+            {
+                "features": api_requested_features,
+                "query": embedding,
+                "top_k": top_k,
+                "distance_metric": distance_metric,
+                "query_string": query_string,
+                "api_version": api_version,
+            }
+        )
+        return req_body
+
     def _get_event_ts(self, response_json) -> datetime:
         event_ts = ""
         if len(response_json["results"]) > 1:
             event_ts = response_json["results"][1]["event_timestamps"][0]
         return datetime.fromisoformat(event_ts.replace("Z", "+00:00"))
+
+    def _construct_entity_key_from_response(
+        self,
+        response_json: dict,
+        row_idx: int,
+        feature_name_to_index: dict,
+        table: FeatureView,
+    ) -> Optional[EntityKeyProto]:
+        """Construct EntityKeyProto from response data."""
+        # Use the feature view's join_keys to identify entity fields
+        entity_fields = [
+            join_key
+            for join_key in table.join_keys
+            if join_key in feature_name_to_index
+        ]
+
+        if not entity_fields:
+            return None
+
+        entity_key_proto = EntityKeyProto()
+        entity_key_proto.join_keys.extend(entity_fields)
+
+        for entity_field in entity_fields:
+            if entity_field in feature_name_to_index:
+                feature_idx = feature_name_to_index[entity_field]
+                if self._is_feature_present(response_json, feature_idx, row_idx):
+                    entity_value = self._extract_feature_value(
+                        response_json, feature_idx, row_idx
+                    )
+                    entity_key_proto.entity_values.append(entity_value)
+
+        return entity_key_proto if entity_key_proto.entity_values else None
+
+    def _extract_feature_value(
+        self, response_json: dict, feature_idx: int, row_idx: int
+    ) -> ValueProto:
+        """Extract and convert a feature value to ValueProto."""
+        raw_value = response_json["results"][feature_idx]["values"][row_idx]
+        if raw_value is None:
+            return ValueProto()
+        proto_values = python_values_to_proto_values([raw_value])
+        return proto_values[0]
 
     def update(
         self,
@@ -236,6 +558,22 @@ def get_remote_online_features(
     else:
         return session.post(
             f"{config.online_store.path}/get-online-features", data=req_body
+        )
+
+
+@rest_error_handling_decorator
+def get_remote_online_documents(
+    session: requests.Session, config: RepoConfig, req_body: str
+) -> requests.Response:
+    if config.online_store.cert:
+        return session.post(
+            f"{config.online_store.path}/retrieve-online-documents",
+            data=req_body,
+            verify=config.online_store.cert,
+        )
+    else:
+        return session.post(
+            f"{config.online_store.path}/retrieve-online-documents", data=req_body
         )
 
 

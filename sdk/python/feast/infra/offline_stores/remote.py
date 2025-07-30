@@ -116,7 +116,7 @@ class RemoteRetrievalJob(RetrievalJob):
         client: FeastFlightClient,
         api: str,
         api_parameters: Dict[str, Any],
-        entity_df: Union[pd.DataFrame, str] = None,
+        entity_df: Optional[Union[pd.DataFrame, str]] = None,
         table: pa.Table = None,
         metadata: Optional[RetrievalMetadata] = None,
     ):
@@ -193,7 +193,7 @@ class RemoteOfflineStore(OfflineStore):
         config: RepoConfig,
         feature_views: List[FeatureView],
         feature_refs: List[str],
-        entity_df: Union[pd.DataFrame, str],
+        entity_df: Optional[Union[pd.DataFrame, str]],
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
@@ -482,8 +482,8 @@ def _get_entity_df_event_timestamp_range(
 def _send_retrieve_remote(
     api: str,
     api_parameters: Dict[str, Any],
-    entity_df: Union[pd.DataFrame, str],
-    table: pa.Table,
+    entity_df: Optional[Union[pd.DataFrame, str]],
+    table: Optional[pa.Table],
     client: FeastFlightClient,
 ):
     command_descriptor = _call_put(
@@ -510,7 +510,7 @@ def _call_put(
     api: str,
     api_parameters: Dict[str, Any],
     client: FeastFlightClient,
-    entity_df: Union[pd.DataFrame, str],
+    entity_df: Optional[Union[pd.DataFrame, str]],
     table: pa.Table,
 ):
     # Generate unique command identifier
@@ -535,7 +535,7 @@ def _call_put(
 
 def _put_parameters(
     command_descriptor: fl.FlightDescriptor,
-    entity_df: Union[pd.DataFrame, str],
+    entity_df: Optional[Union[pd.DataFrame, str]],
     table: pa.Table,
     client: FeastFlightClient,
 ):

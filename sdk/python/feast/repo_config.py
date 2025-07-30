@@ -308,11 +308,22 @@ class RepoConfig(FeastBaseModel):
     def auth_config(self):
         if not self._auth:
             if isinstance(self.auth, Dict):
-                is_oidc_client = (
-                    self.auth.get("type") == AuthType.OIDC.value
-                    and "username" in self.auth
-                    and "password" in self.auth
-                    and "client_secret" in self.auth
+                # treat this auth block as *client-side* OIDC when it matches
+                #   1)  ROPG            – username + password + client_secret
+                #   2)  client-credentials – client_secret only
+                #   3)  static token    – token
+                is_oidc_client = self.auth.get("type") == AuthType.OIDC.value and (
+                    (
+                        "username" in self.auth
+                        and "password" in self.auth
+                        and "client_secret" in self.auth
+                    )  # 1
+                    or (
+                        "client_secret" in self.auth
+                        and "username" not in self.auth
+                        and "password" not in self.auth
+                    )  # 2
+                    or ("token" in self.auth)  # 3
                 )
                 self._auth = get_auth_config_from_type(
                     "oidc_client" if is_oidc_client else self.auth.get("type")

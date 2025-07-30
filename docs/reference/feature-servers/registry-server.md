@@ -947,3 +947,189 @@ Please refer the [page](./../registry/registry-permissions.md) for more details 
 ## How to configure Authentication and Authorization ?
 
 Please refer the [page](./../../../docs/getting-started/concepts/permission.md) for more details on how to configure authentication and authorization.
+
+### Metrics
+
+#### Get Resource Counts
+- **Endpoint**: `GET /api/v1/metrics/resource_counts`
+- **Description**: Retrieve counts of registry objects (entities, data sources, feature views, etc.) for a project or across all projects.
+- **Parameters**:
+  - `project` (optional): Project name to filter resource counts (if not provided, returns counts for all projects)
+- **Examples**:
+  ```bash
+  # Get counts for specific project
+  curl -H "Authorization: Bearer <token>" \
+    "http://localhost:6572/api/v1/metrics/resource_counts?project=my_project"
+  
+  # Get counts for all projects
+  curl -H "Authorization: Bearer <token>" \
+    "http://localhost:6572/api/v1/metrics/resource_counts"
+  ```
+- **Response Example** (single project):
+  ```json
+  {
+    "project": "my_project",
+    "counts": {
+      "entities": 5,
+      "dataSources": 3,
+      "savedDatasets": 2,
+      "features": 12,
+      "featureViews": 4,
+      "featureServices": 2
+    }
+  }
+  ```
+- **Response Example** (all projects):
+  ```json
+  {
+    "total": {
+      "entities": 15,
+      "dataSources": 8,
+      "savedDatasets": 5,
+      "features": 35,
+      "featureViews": 12,
+      "featureServices": 6
+    },
+    "perProject": {
+      "project_a": {
+        "entities": 5,
+        "dataSources": 3,
+        "savedDatasets": 2,
+        "features": 12,
+        "featureViews": 4,
+        "featureServices": 2
+      },
+      "project_b": {
+        "entities": 10,
+        "dataSources": 5,
+        "savedDatasets": 3,
+        "features": 23,
+        "featureViews": 8,
+        "featureServices": 4
+      }
+    }
+  }
+  ```
+
+#### Get Recently Visited Objects
+- **Endpoint**: `GET /api/v1/metrics/recently_visited`
+- **Description**: Retrieve the most recently visited registry objects for the authenticated user in a project.
+- **Parameters**:
+  - `project` (optional): Project name to filter recent visits (defaults to current project)
+  - `object` (optional): Object type to filter recent visits (e.g., entities, features, feature_services)
+  - `page` (optional): Page number for pagination (starts from 1)
+  - `limit` (optional): Number of items per page (maximum 100)
+  - `sort_by` (optional): Field to sort by (e.g., timestamp, path, object)
+  - `sort_order` (optional): Sort order: "asc" or "desc" (default: "asc")
+- **Examples**:
+  ```bash
+  # Get all recent visits for a project
+  curl -H "Authorization: Bearer <token>" \
+    "http://localhost:6572/api/v1/metrics/recently_visited?project=my_project"
+  
+  # Get recent visits with pagination
+  curl -H "Authorization: Bearer <token>" \
+    "http://localhost:6572/api/v1/metrics/recently_visited?project=my_project&page=1&limit=10"
+  
+  # Get recent visits filtered by object type
+  curl -H "Authorization: Bearer <token>" \
+    "http://localhost:6572/api/v1/metrics/recently_visited?project=my_project&object=entities"
+  
+  # Get recent visits sorted by timestamp descending
+  curl -H "Authorization: Bearer <token>" \
+    "http://localhost:6572/api/v1/metrics/recently_visited?project=my_project&sort_by=timestamp&sort_order=desc"
+  ```
+- **Response Example** (without pagination):
+  ```json
+  {
+    "visits": [
+      {
+        "path": "/api/v1/entities/driver",
+        "timestamp": "2024-07-18T12:34:56.789Z",
+        "project": "my_project",
+        "user": "alice",
+        "object": "entities",
+        "object_name": "driver",
+        "method": "GET"
+      },
+      {
+        "path": "/api/v1/feature_services/user_service",
+        "timestamp": "2024-07-18T12:30:45.123Z",
+        "project": "my_project",
+        "user": "alice",
+        "object": "feature_services",
+        "object_name": "user_service",
+        "method": "GET"
+      }
+    ],
+    "pagination": {
+      "totalCount": 2
+    }
+  }
+  ```
+- **Response Example** (with pagination):
+  ```json
+  {
+    "visits": [
+      {
+        "path": "/api/v1/entities/driver",
+        "timestamp": "2024-07-18T12:34:56.789Z",
+        "project": "my_project",
+        "user": "alice",
+        "object": "entities",
+        "object_name": "driver",
+        "method": "GET"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 10,
+      "totalCount": 25,
+      "totalPages": 3,
+      "hasNext": true,
+      "hasPrevious": false
+    }
+  }
+  ```
+
+**Note**: Recent visits are automatically logged when users access registry objects via the REST API. The logging behavior can be configured through the `feature_server.recent_visit_logging` section in `feature_store.yaml` (see configuration section below).
+
+---
+
+## Registry Server Configuration: Recent Visit Logging
+
+The registry server supports configuration of recent visit logging via the `feature_server` section in `feature_store.yaml`.
+
+**Example:**
+```yaml
+feature_server:
+  type: local
+  recent_visit_logging:
+    limit: 100  # Number of recent visits to store per user
+    log_patterns:
+      - ".*/entities/(?!all$)[^/]+$"
+      - ".*/data_sources/(?!all$)[^/]+$"
+      - ".*/feature_views/(?!all$)[^/]+$"
+      - ".*/features/(?!all$)[^/]+$"
+      - ".*/feature_services/(?!all$)[^/]+$"
+      - ".*/saved_datasets/(?!all$)[^/]+$"
+      - ".*/custom_api/.*"
+```
+
+**Configuration Options:**
+- **recent_visit_logging.limit**: Maximum number of recent visits to store per user (default: 100).
+- **recent_visit_logging.log_patterns**: List of regex patterns for API paths to log as recent visits.
+
+**Default Log Patterns:**
+- `.*/entities/(?!all$)[^/]+$` - Individual entity endpoints
+- `.*/data_sources/(?!all$)[^/]+$` - Individual data source endpoints  
+- `.*/feature_views/(?!all$)[^/]+$` - Individual feature view endpoints
+- `.*/features/(?!all$)[^/]+$` - Individual feature endpoints
+- `.*/feature_services/(?!all$)[^/]+$` - Individual feature service endpoints
+- `.*/saved_datasets/(?!all$)[^/]+$` - Individual saved dataset endpoints
+
+**Behavior:**
+- Only requests matching one of the `log_patterns` will be tracked
+- Only the most recent `limit` visits per user are stored
+- Metrics endpoints (`/metrics/*`) are automatically excluded from logging to prevent circular references
+- Visit data is stored per user and per project in the registry metadata

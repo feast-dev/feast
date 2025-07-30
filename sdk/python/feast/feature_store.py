@@ -1087,14 +1087,17 @@ class FeatureStore:
 
     def get_historical_features(
         self,
-        entity_df: Union[pd.DataFrame, str],
-        features: Union[List[str], FeatureService],
+        entity_df: Optional[Union[pd.DataFrame, str]] = None,
+        features: Union[List[str], FeatureService] = [],
         full_feature_names: bool = False,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
     ) -> RetrievalJob:
         """Enrich an entity dataframe with historical feature values for either training or batch scoring.
 
         This method joins historical feature data from one or more feature views to an entity dataframe by using a time
-        travel join.
+        travel join. Alternatively, features can be retrieved for a specific timestamp range without requiring an entity
+        dataframe.
 
         Each feature view is joined to the entity dataframe using all entities configured for the respective feature
         view. All configured entities must be available in the entity dataframe. Therefore, the entity dataframe must
@@ -1105,16 +1108,21 @@ class FeatureStore:
         TTL may result in null values being returned.
 
         Args:
-            entity_df (Union[pd.DataFrame, str]): An entity dataframe is a collection of rows containing all entity
-                columns (e.g., customer_id, driver_id) on which features need to be joined, as well as a event_timestamp
-                column used to ensure point-in-time correctness. Either a Pandas DataFrame can be provided or a string
-                SQL query. The query must be of a format supported by the configured offline store (e.g., BigQuery)
             features: The list of features that should be retrieved from the offline store. These features can be
                 specified either as a list of string feature references or as a feature service. String feature
                 references must have format "feature_view:feature", e.g. "customer_fv:daily_transactions".
+            entity_df (Optional[Union[pd.DataFrame, str]]): An entity dataframe is a collection of rows containing all entity
+                columns (e.g., customer_id, driver_id) on which features need to be joined, as well as a event_timestamp
+                column used to ensure point-in-time correctness. Either a Pandas DataFrame can be provided or a string
+                SQL query. The query must be of a format supported by the configured offline store (e.g., BigQuery).
+                If not provided, features will be retrieved for the specified timestamp range without entity joins.
             full_feature_names: If True, feature names will be prefixed with the corresponding feature view name,
                 changing them from the format "feature" to "feature_view__feature" (e.g. "daily_transactions"
                 changes to "customer_fv__daily_transactions").
+            start_date (Optional[datetime]): Start date for the timestamp range when retrieving features without entity_df.
+                Required when entity_df is not provided.
+            end_date (Optional[datetime]): End date for the timestamp range when retrieving features without entity_df.
+                Required when entity_df is not provided. By default, the current time is used.
 
         Returns:
             RetrievalJob which can be used to materialize the results.
@@ -1147,6 +1155,15 @@ class FeatureStore:
             ... )
             >>> feature_data = retrieval_job.to_df()
         """
+
+        if entity_df is not None and (start_date is not None or end_date is not None):
+            raise ValueError(
+                "Cannot specify both entity_df and start_date/end_date. Use either entity_df for entity-based retrieval or start_date/end_date for timestamp range retrieval."
+            )
+
+        if entity_df is None and end_date is None:
+            end_date = datetime.now()
+
         _feature_refs = utils._get_features(self._registry, self.project, features)
         (
             all_feature_views,
@@ -1180,6 +1197,13 @@ class FeatureStore:
         utils._validate_feature_refs(_feature_refs, full_feature_names)
         provider = self._get_provider()
 
+        # Optional kwargs
+        kwargs = {}
+        if start_date is not None:
+            kwargs["start_date"] = start_date
+        if end_date is not None:
+            kwargs["end_date"] = end_date
+
         job = provider.get_historical_features(
             self.config,
             feature_views,
@@ -1188,6 +1212,7 @@ class FeatureStore:
             self._registry,
             self.project,
             full_feature_names,
+            **kwargs,
         )
 
         return job
@@ -1893,6 +1918,23 @@ class FeatureStore:
             allow_registry_cache=allow_registry_cache,
             transform_on_write=transform_on_write,
         )
+
+        # Validate that the dataframe has meaningful feature data
+        if df is not None:
+            if df.empty:
+                warnings.warn("Cannot write empty dataframe to online store")
+                return  # Early return for empty dataframe
+
+            # Check if feature columns are empty (entity columns may have data but feature columns are empty)
+            feature_column_names = [f.name for f in feature_view.features]
+            if feature_column_names:
+                feature_df = df[feature_column_names]
+                if feature_df.empty or feature_df.isnull().all().all():
+                    warnings.warn(
+                        "Cannot write dataframe with empty feature columns to online store"
+                    )
+                    return  # Early return for empty feature columns
+
         provider = self._get_provider()
         provider.ingest_df(feature_view, df)
 
@@ -1919,6 +1961,23 @@ class FeatureStore:
             inputs=inputs,
             allow_registry_cache=allow_registry_cache,
         )
+
+        # Validate that the dataframe has meaningful feature data
+        if df is not None:
+            if df.empty:
+                warnings.warn("Cannot write empty dataframe to online store")
+                return  # Early return for empty dataframe
+
+            # Check if feature columns are empty (entity columns may have data but feature columns are empty)
+            feature_column_names = [f.name for f in feature_view.features]
+            if feature_column_names:
+                feature_df = df[feature_column_names]
+                if feature_df.empty or feature_df.isnull().all().all():
+                    warnings.warn(
+                        "Cannot write dataframe with empty feature columns to online store"
+                    )
+                    return  # Early return for empty feature columns
+
         provider = self._get_provider()
         await provider.ingest_df_async(feature_view, df)
 
@@ -2377,6 +2436,11 @@ class FeatureStore:
             requested_features=features_to_request,
             table=table,
             output_len=output_len,
+        )
+
+        utils._populate_result_rows_from_columnar(
+            online_features_response=online_features_response,
+            data=entity_key_dict,
         )
 
         return OnlineResponse(online_features_response)

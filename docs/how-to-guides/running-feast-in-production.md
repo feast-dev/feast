@@ -213,19 +213,24 @@ To deploy a Feast feature server on Kubernetes, you should use the included [fea
 1. Install [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
 2. Install the Operator
 
-```sh
-### Install the latest release -
-$ kubectl apply -f https://raw.githubusercontent.com/feast-dev/feast/refs/heads/stable/infra/feast-operator/dist/install.yaml
 
-### OR, install a specific version -
-# kubectl apply -f https://raw.githubusercontent.com/feast-dev/feast/refs/tags/<version>/infra/feast-operator/dist/install.yaml
+Install the latest release
+```sh
+kubectl apply -f https://raw.githubusercontent.com/feast-dev/feast/refs/heads/stable/infra/feast-operator/dist/install.yaml
+```
+
+OR, install a specific version -
+```
+kubectl apply -f https://raw.githubusercontent.com/feast-dev/feast/refs/tags/<version>/infra/feast-operator/dist/install.yaml
 ```
 
 3. Deploy a Feature Store
 
 ```sh
-$ kubectl apply -f https://raw.githubusercontent.com/feast-dev/feast/refs/heads/stable/infra/feast-operator/config/samples/v1alpha1_featurestore.yaml
-
+kubectl apply -f https://raw.githubusercontent.com/feast-dev/feast/refs/heads/stable/infra/feast-operator/config/samples/v1alpha1_featurestore.yaml
+```
+Verify the status
+```
 $ kubectl get feast
 NAME     STATUS   AGE
 sample   Ready    2m21s

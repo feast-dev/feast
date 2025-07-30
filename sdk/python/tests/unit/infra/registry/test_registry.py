@@ -9,6 +9,16 @@ from feast.infra.registry.caching_registry import CachingRegistry
 class TestCachingRegistry(CachingRegistry):
     """Test subclass that implements abstract methods as no-ops"""
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._test_metadata = {}
+
+    def get_project_metadata(self, project: str, key: str) -> str:
+        return self._test_metadata.get((project, key))
+
+    def set_project_metadata(self, project: str, key: str, value: str):
+        self._test_metadata[(project, key)] = value
+
     def _get_any_feature_view(self, *args, **kwargs):
         pass
 

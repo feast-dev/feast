@@ -223,14 +223,20 @@ def paginate_and_sort(
     start = (page - 1) * limit
     end = start + limit
     paged_items = items[start:end]
-    pagination = {
-        "page": page,
-        "limit": limit,
-        "total_count": total,
-        "total_pages": (total + limit - 1) // limit,
-        "has_next": end < total,
-        "has_previous": start > 0,
-    }
+    pagination = {}
+    if page:
+        pagination["page"] = page
+    if limit:
+        pagination["limit"] = limit
+    if total:
+        pagination["totalCount"] = total
+    total_pages = (total + limit - 1) // limit
+    if total_pages:
+        pagination["totalPages"] = total_pages
+    if end < total:
+        pagination["hasNext"] = True
+    if start > 0:
+        pagination["hasPrevious"] = True
     return paged_items, pagination
 
 

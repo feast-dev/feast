@@ -1185,3 +1185,151 @@ def test_invalid_project_name_with_relationships_via_rest(fastapi_test_app):
     assert "relationships" in data
     assert isinstance(data["relationships"], dict)
     assert len(data["relationships"]) == 0
+
+
+def test_metrics_resource_counts_via_rest(fastapi_test_app):
+    """Test the /metrics/resource_counts endpoint."""
+    # Test with specific project
+    response = fastapi_test_app.get("/metrics/resource_counts?project=demo_project")
+    assert response.status_code == 200
+    data = response.json()
+    assert "project" in data
+    assert data["project"] == "demo_project"
+    assert "counts" in data
+
+    counts = data["counts"]
+    assert "entities" in counts
+    assert "dataSources" in counts
+    assert "savedDatasets" in counts
+    assert "features" in counts
+    assert "featureViews" in counts
+    assert "featureServices" in counts
+
+    # Verify counts are integers
+    for key, value in counts.items():
+        assert isinstance(value, int)
+        assert value >= 0
+
+    # Test without project parameter (should return all projects)
+    response = fastapi_test_app.get("/metrics/resource_counts")
+    assert response.status_code == 200
+    data = response.json()
+    assert "total" in data
+    assert "perProject" in data
+
+    total = data["total"]
+    assert "entities" in total
+    assert "dataSources" in total
+    assert "savedDatasets" in total
+    assert "features" in total
+    assert "featureViews" in total
+    assert "featureServices" in total
+
+    per_project = data["perProject"]
+    assert "demo_project" in per_project
+    assert isinstance(per_project["demo_project"], dict)
+
+
+def test_metrics_recently_visited_via_rest(fastapi_test_app):
+    """Test the /metrics/recently_visited endpoint."""
+    # First, make some requests to generate visit data
+    fastapi_test_app.get("/entities?project=demo_project")
+    fastapi_test_app.get("/entities/user_id?project=demo_project")
+    fastapi_test_app.get("/feature_services?project=demo_project")
+
+    # Test basic recently visited endpoint
+    response = fastapi_test_app.get("/metrics/recently_visited?project=demo_project")
+    assert response.status_code == 200
+    data = response.json()
+    assert "visits" in data
+    assert "pagination" in data
+
+    visits = data["visits"]
+    assert isinstance(visits, list)
+
+    # Check visit structure
+    if visits:
+        visit = visits[0]
+        assert "path" in visit
+        assert "timestamp" in visit
+        assert "project" in visit
+        assert "user" in visit
+        assert "object" in visit
+        assert "object_name" in visit
+        assert "method" in visit
+
+        # Verify timestamp format
+        import datetime
+
+        datetime.datetime.fromisoformat(visit["timestamp"].replace("Z", "+00:00"))
+
+    pagination = data["pagination"]
+    assert "totalCount" in pagination
+    assert isinstance(pagination["totalCount"], int)
+
+
+def test_metrics_recently_visited_with_object_filter(fastapi_test_app):
+    """Test filtering by object type for recently visited endpoint."""
+    # Generate visit data for different object types
+    fastapi_test_app.get("/entities?project=demo_project")
+    fastapi_test_app.get("/feature_services?project=demo_project")
+    fastapi_test_app.get("/data_sources?project=demo_project")
+
+    # Test filtering by entities only
+    response = fastapi_test_app.get(
+        "/metrics/recently_visited?project=demo_project&object=entities"
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert "visits" in data
+
+    visits = data["visits"]
+    for visit in visits:
+        assert visit["object"] == "entities"
+
+    # Test filtering by feature_services
+    response = fastapi_test_app.get(
+        "/metrics/recently_visited?project=demo_project&object=feature_services"
+    )
+    assert response.status_code == 200
+    data = response.json()
+    visits = data["visits"]
+    for visit in visits:
+        assert visit["object"] == "feature_services"
+
+
+def test_metrics_recently_visited_error_handling(fastapi_test_app):
+    """Test error handling for recently visited endpoint."""
+    # Test with non-existent project
+    response = fastapi_test_app.get(
+        "/metrics/recently_visited?project=nonexistent_project"
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert "visits" in data
+    assert len(data["visits"]) == 0
+
+    # Test with invalid object type
+    response = fastapi_test_app.get(
+        "/metrics/recently_visited?project=demo_project&object=invalid_type"
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert "visits" in data
+    assert len(data["visits"]) == 0
+
+
+def test_metrics_recently_visited_user_isolation(fastapi_test_app):
+    """Test that visits are isolated per user."""
+    # Make requests as "anonymous" user (default)
+    fastapi_test_app.get("/entities?project=demo_project")
+
+    # Check that visits are recorded for anonymous user
+    response = fastapi_test_app.get("/metrics/recently_visited?project=demo_project")
+    assert response.status_code == 200
+    data = response.json()
+    visits = data["visits"]
+
+    # All visits should be for anonymous user
+    for visit in visits:
+        assert visit["user"] == "anonymous"
