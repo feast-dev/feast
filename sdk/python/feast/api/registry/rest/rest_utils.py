@@ -197,15 +197,15 @@ def validate_or_set_default_sorting_params(
 ) -> Callable:
     """
     Factory function to create a FastAPI dependency for validating sorting parameters.
-    
+
     Args:
         sort_by_options: List of valid sort_by field names. If empty, no validation is performed
         default_sort_by_option: Default sort_by value if not provided
         default_sort_order: Default sort_order value if not provided (asc/desc)
-    
+
     Returns:
         Callable that can be used as FastAPI dependency for sorting validation
-        
+
     Example usage:
         # Create a custom sorting validator for specific fields
         custom_sorting = validate_or_set_default_sorting_params(
@@ -213,7 +213,7 @@ def validate_or_set_default_sorting_params(
             default_sort_by_option="name",
             default_sort_order="asc"
         )
-        
+
         # Use in FastAPI route
         @router.get("/items")
         def get_items(sorting_params: dict = Depends(custom_sorting)):
@@ -221,11 +221,12 @@ def validate_or_set_default_sorting_params(
             sort_order = sorting_params["sort_order"]
             # Use sort_by and sort_order for your logic
     """
+
     def set_input_or_default(
         sort_by: Optional[str] = Query(None), sort_order: Optional[str] = Query(None)
     ) -> dict:
         sorting_params = {}
-        
+
         # If no sort options are configured, return defaults without validation
         if not sort_by_options:
             return {"sort_by": default_sort_by_option, "sort_order": default_sort_order}
