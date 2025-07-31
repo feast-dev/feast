@@ -27,6 +27,7 @@ custom_pagination = validate_or_set_default_pagination_params(
     default_limit=50,
 )
 
+
 def get_search_router(grpc_handler) -> APIRouter:
     router = APIRouter()
 
