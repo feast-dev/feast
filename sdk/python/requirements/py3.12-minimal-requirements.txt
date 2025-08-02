@@ -466,9 +466,9 @@ fastapi==0.116.1 \
     # via
     #   feast (setup.py)
     #   fastapi-mcp
-fastapi-mcp==0.3.7 \
-    --hash=sha256:1d4561959d4cd6df0ed8836d380b74fd9969fd9400cb6f7ed5cbd2db2f39090c \
-    --hash=sha256:35de3333355e4d0f44116a4fe70613afecd5e5428bb6ddbaa041b39b33781af8
+fastapi-mcp==0.4.0 \
+    --hash=sha256:d4a3fe7966af24d44e4b412720561c95eb12bed999a4443a88221834b3b15aec \
+    --hash=sha256:d4ca9410996f4c7b8ea0d7b20fdf79878dc359ebf89cbf3b222e0b675a55097d
     # via feast (setup.py)
 filelock==3.18.0 \
     --hash=sha256:adbc88eabb99d2fec8c9c1b229b171f18afa655400173ddc653d5d01501fb9f2 \

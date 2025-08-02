@@ -1,4 +1,4 @@
-from typing import Optional, Sequence, Union
+from typing import Literal, Optional, Sequence, Union
 
 from feast import (
     BatchFeatureView,
@@ -22,6 +22,17 @@ from feast.infra.compute_engines.local.job import (
     LocalRetrievalJob,
 )
 from feast.infra.registry.base_registry import BaseRegistry
+from feast.repo_config import FeastConfigBaseModel
+
+
+class LocalComputeEngineConfig(FeastConfigBaseModel):
+    """Configuration for Local Compute Engine."""
+
+    type: Literal["local"] = "local"
+    """Local Compute Engine type selector"""
+
+    backend: Optional[str] = None
+    """Backend to use for DataFrame operations (e.g., 'pandas', 'polars')"""
 
 
 class LocalComputeEngine(ComputeEngine):

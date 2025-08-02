@@ -180,6 +180,8 @@ RAG_REQUIRED = [
     "datasets>=3.6.0",
 ]
 
+RAY_REQUIRED = ["ray>=2.47.0"]
+
 CI_REQUIRED = (
     [
         "build",
@@ -256,6 +258,7 @@ CI_REQUIRED = (
     + CLICKHOUSE_REQUIRED
     + MCP_REQUIRED
     + RAG_REQUIRED
+    + RAY_REQUIRED
 )
 MINIMAL_REQUIRED = (
     GCP_REQUIRED
@@ -358,6 +361,7 @@ setup(
         "clickhouse": CLICKHOUSE_REQUIRED,
         "mcp": MCP_REQUIRED,
         "rag": RAG_REQUIRED,
+        "ray": RAY_REQUIRED,
     },
     include_package_data=True,
     license="Apache",

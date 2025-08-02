@@ -49,6 +49,7 @@ BATCH_ENGINE_CLASS_FOR_TYPE = {
     "lambda": "feast.infra.compute_engines.aws_lambda.lambda_engine.LambdaComputeEngine",
     "k8s": "feast.infra.compute_engines.kubernetes.k8s_engine.KubernetesComputeEngine",
     "spark.engine": "feast.infra.compute_engines.spark.compute.SparkComputeEngine",
+    "ray.engine": "feast.infra.compute_engines.ray.compute.RayComputeEngine",
 }
 
 LEGACY_ONLINE_STORE_CLASS_FOR_TYPE = {
@@ -101,6 +102,7 @@ OFFLINE_STORE_CLASS_FOR_TYPE = {
     "remote": "feast.infra.offline_stores.remote.RemoteOfflineStore",
     "couchbase.offline": "feast.infra.offline_stores.contrib.couchbase_offline_store.couchbase.CouchbaseColumnarOfflineStore",
     "clickhouse": "feast.infra.offline_stores.contrib.clickhouse_offline_store.clickhouse.ClickhouseOfflineStore",
+    "ray": "feast.infra.offline_stores.contrib.ray_offline_store.ray.RayOfflineStore",
 }
 
 FEATURE_SERVER_CONFIG_CLASS_FOR_TYPE = {
