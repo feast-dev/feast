@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from feast.api.registry.rest.rest_utils import (
     create_grpc_pagination_params,
     create_grpc_sorting_params,
+    get_all_project_resources,
     get_pagination_params,
     get_sorting_params,
     grpc_call,
@@ -142,69 +143,40 @@ def get_lineage_router(grpc_handler) -> APIRouter:
         )
         lineage_response = grpc_call(grpc_handler.GetRegistryLineage, lineage_req)
 
-        # Get all registry objects
-        entities_req = RegistryServer_pb2.ListEntitiesRequest(
-            project=project,
-            allow_cache=allow_cache,
-            pagination=grpc_pagination,
-            sorting=grpc_sorting,
+        # Get all registry objects using shared helper function
+        project_resources = get_all_project_resources(
+            grpc_handler,
+            project,
+            allow_cache,
+            tags={},
+            pagination_params=pagination_params,
+            sorting_params=sorting_params,
         )
-        entities_response = grpc_call(grpc_handler.ListEntities, entities_req)
-
-        data_sources_req = RegistryServer_pb2.ListDataSourcesRequest(
-            project=project,
-            allow_cache=allow_cache,
-            pagination=grpc_pagination,
-            sorting=grpc_sorting,
-        )
-        data_sources_response = grpc_call(
-            grpc_handler.ListDataSources, data_sources_req
-        )
-
-        feature_views_req = RegistryServer_pb2.ListAllFeatureViewsRequest(
-            project=project,
-            allow_cache=allow_cache,
-            pagination=grpc_pagination,
-            sorting=grpc_sorting,
-        )
-        feature_views_response = grpc_call(
-            grpc_handler.ListAllFeatureViews, feature_views_req
-        )
-
-        feature_services_req = RegistryServer_pb2.ListFeatureServicesRequest(
-            project=project,
-            allow_cache=allow_cache,
-            pagination=grpc_pagination,
-            sorting=grpc_sorting,
-        )
-        feature_services_response = grpc_call(
-            grpc_handler.ListFeatureServices, feature_services_req
-        )
-
-        features_req = RegistryServer_pb2.ListFeaturesRequest(
-            project=project,
-            pagination=grpc_pagination,
-            sorting=grpc_sorting,
-        )
-        features_response = grpc_call(grpc_handler.ListFeatures, features_req)
 
         return {
             "project": project,
             "objects": {
-                "entities": entities_response.get("entities", []),
-                "dataSources": data_sources_response.get("dataSources", []),
-                "featureViews": feature_views_response.get("featureViews", []),
-                "featureServices": feature_services_response.get("featureServices", []),
-                "features": features_response.get("features", []),
+                "entities": project_resources.get("entities", []),
+                "dataSources": project_resources.get("dataSources", []),
+                "featureViews": project_resources.get("featureViews", []),
+                "featureServices": project_resources.get("featureServices", []),
+                "features": project_resources.get("features", []),
             },
             "relationships": lineage_response.get("relationships", []),
             "indirectRelationships": lineage_response.get("indirectRelationships", []),
             "pagination": {
-                "entities": entities_response.get("pagination", {}),
-                "dataSources": data_sources_response.get("pagination", {}),
-                "featureViews": feature_views_response.get("pagination", {}),
-                "featureServices": feature_services_response.get("pagination", {}),
-                "features": features_response.get("pagination", {}),
+                # Get pagination metadata from project_resources if available, otherwise use empty dicts
+                "entities": project_resources.get("pagination", {}).get("entities", {}),
+                "dataSources": project_resources.get("pagination", {}).get(
+                    "dataSources", {}
+                ),
+                "featureViews": project_resources.get("pagination", {}).get(
+                    "featureViews", {}
+                ),
+                "featureServices": project_resources.get("pagination", {}).get(
+                    "featureServices", {}
+                ),
+                "features": project_resources.get("pagination", {}).get("features", {}),
                 "relationships": lineage_response.get("relationshipsPagination", {}),
                 "indirectRelationships": lineage_response.get(
                     "indirectRelationshipsPagination", {}
@@ -266,61 +238,32 @@ def get_lineage_router(grpc_handler) -> APIRouter:
                 allow_cache=allow_cache,
             )
             lineage_response = grpc_call(grpc_handler.GetRegistryLineage, lineage_req)
-            # Get all registry objects
-            entities_req = RegistryServer_pb2.ListEntitiesRequest(
-                project=project_name,
-                allow_cache=allow_cache,
-            )
-            entities_response = grpc_call(grpc_handler.ListEntities, entities_req)
-            data_sources_req = RegistryServer_pb2.ListDataSourcesRequest(
-                project=project_name,
-                allow_cache=allow_cache,
-            )
-            data_sources_response = grpc_call(
-                grpc_handler.ListDataSources, data_sources_req
-            )
-            feature_views_req = RegistryServer_pb2.ListAllFeatureViewsRequest(
-                project=project_name,
-                allow_cache=allow_cache,
-            )
-            feature_views_response = grpc_call(
-                grpc_handler.ListAllFeatureViews, feature_views_req
-            )
-            feature_services_req = RegistryServer_pb2.ListFeatureServicesRequest(
-                project=project_name,
-                allow_cache=allow_cache,
-            )
-            feature_services_response = grpc_call(
-                grpc_handler.ListFeatureServices, feature_services_req
-            )
 
-            features_req = RegistryServer_pb2.ListFeaturesRequest(
-                project=project_name,
+            # Get all registry objects using shared helper function
+            project_resources = get_all_project_resources(
+                grpc_handler, project_name, allow_cache, tags={}
             )
-            features_response = grpc_call(grpc_handler.ListFeatures, features_req)
 
             # Add project field to each object
-            for entity in entities_response.get("entities", []):
+            for entity in project_resources.get("entities", []):
                 entity["project"] = project_name
-            for ds in data_sources_response.get("dataSources", []):
+            for ds in project_resources.get("dataSources", []):
                 ds["project"] = project_name
-            for fv in feature_views_response.get("featureViews", []):
+            for fv in project_resources.get("featureViews", []):
                 fv["project"] = project_name
-            for fs in feature_services_response.get("featureServices", []):
+            for fs in project_resources.get("featureServices", []):
                 fs["project"] = project_name
-            for feat in features_response.get("features", []):
+            for feat in project_resources.get("features", []):
                 feat["project"] = project_name
             all_data.append(
                 {
                     "project": project_name,
                     "objects": {
-                        "entities": entities_response.get("entities", []),
-                        "dataSources": data_sources_response.get("dataSources", []),
-                        "featureViews": feature_views_response.get("featureViews", []),
-                        "featureServices": feature_services_response.get(
-                            "featureServices", []
-                        ),
-                        "features": features_response.get("features", []),
+                        "entities": project_resources.get("entities", []),
+                        "dataSources": project_resources.get("dataSources", []),
+                        "featureViews": project_resources.get("featureViews", []),
+                        "featureServices": project_resources.get("featureServices", []),
+                        "features": project_resources.get("features", []),
                     },
                     "relationships": lineage_response.get("relationships", []),
                     "indirectRelationships": lineage_response.get(
