@@ -4,6 +4,14 @@ feast.api.registry.rest package
 Submodules
 ----------
 
+feast.api.registry.rest.codegen\_utils module
+---------------------------------------------
+
+.. automodule:: feast.api.registry.rest.codegen_utils
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 feast.api.registry.rest.data\_sources module
 --------------------------------------------
 
@@ -32,6 +40,30 @@ feast.api.registry.rest.feature\_views module
 ---------------------------------------------
 
 .. automodule:: feast.api.registry.rest.feature_views
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+feast.api.registry.rest.features module
+---------------------------------------
+
+.. automodule:: feast.api.registry.rest.features
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+feast.api.registry.rest.lineage module
+--------------------------------------
+
+.. automodule:: feast.api.registry.rest.lineage
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+feast.api.registry.rest.metrics module
+--------------------------------------
+
+.. automodule:: feast.api.registry.rest.metrics
    :members:
    :undoc-members:
    :show-inheritance:
