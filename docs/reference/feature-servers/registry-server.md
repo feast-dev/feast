@@ -210,6 +210,10 @@ Most endpoints support these common query parameters:
   - `include_relationships` (optional): Include relationships for each feature view
   - `allow_cache` (optional): Whether to allow cached data
   - `tags` (optional): Filter by tags
+  - `entity` (optional): Filter feature views by entity name
+  - `feature` (optional): Filter feature views by feature name
+  - `feature_service` (optional): Filter feature views by feature service name
+  - `data_source` (optional): Filter feature views by data source name
   - `page` (optional): Page number for pagination
   - `limit` (optional): Number of items per page
   - `sort_by` (optional): Field to sort by
@@ -223,6 +227,26 @@ Most endpoints support these common query parameters:
   # With pagination and relationships
   curl -H "Authorization: Bearer <token>" \
     "http://localhost:6572/api/v1/feature_views?project=my_project&include_relationships=true&page=1&limit=5&sort_by=name"
+  
+  # Filter by entity
+  curl -H "Authorization: Bearer <token>" \
+    "http://localhost:6572/api/v1/feature_views?project=my_project&entity=user"
+  
+  # Filter by feature
+  curl -H "Authorization: Bearer <token>" \
+    "http://localhost:6572/api/v1/feature_views?project=my_project&feature=age"
+  
+  # Filter by data source
+  curl -H "Authorization: Bearer <token>" \
+    "http://localhost:6572/api/v1/feature_views?project=my_project&data_source=user_profile_source"
+  
+  # Filter by feature service
+  curl -H "Authorization: Bearer <token>" \
+    "http://localhost:6572/api/v1/feature_views?project=my_project&feature_service=user_service"
+  
+  # Multiple filters combined
+  curl -H "Authorization: Bearer <token>" \
+    "http://localhost:6572/api/v1/feature_views?project=my_project&entity=user&feature=age"
   ```
 
 #### Get Feature View
@@ -415,6 +439,7 @@ Most endpoints support these common query parameters:
   - `include_relationships` (optional): Include relationships for each feature service
   - `allow_cache` (optional): Whether to allow cached data
   - `tags` (optional): Filter by tags
+  - `feature_view` (optional): Filter feature services by feature view name
   - `page` (optional): Page number for pagination
   - `limit` (optional): Number of items per page
   - `sort_by` (optional): Field to sort by
@@ -428,6 +453,10 @@ Most endpoints support these common query parameters:
   # With pagination and relationships
   curl -H "Authorization: Bearer <token>" \
     "http://localhost:6572/api/v1/feature_services?project=my_project&include_relationships=true&page=1&limit=10"
+  
+  # Filter by feature view
+  curl -H "Authorization: Bearer <token>" \
+    "http://localhost:6572/api/v1/feature_services?project=my_project&feature_view=user_profile"
   ```
 
 #### Get Feature Service

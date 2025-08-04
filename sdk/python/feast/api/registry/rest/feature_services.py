@@ -27,6 +27,9 @@ def get_feature_service_router(grpc_handler) -> APIRouter:
             False, description="Include relationships for each feature service"
         ),
         allow_cache: bool = Query(default=True),
+        feature_view: str = Query(
+            None, description="Filter feature services by feature view name"
+        ),
         tags: Dict[str, str] = Depends(parse_tags),
         pagination_params: dict = Depends(get_pagination_params),
         sorting_params: dict = Depends(get_sorting_params),
@@ -35,6 +38,7 @@ def get_feature_service_router(grpc_handler) -> APIRouter:
             project=project,
             allow_cache=allow_cache,
             tags=tags,
+            feature_view=feature_view,
             pagination=create_grpc_pagination_params(pagination_params),
             sorting=create_grpc_sorting_params(sorting_params),
         )

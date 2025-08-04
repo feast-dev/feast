@@ -397,16 +397,113 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
     def ListAllFeatureViews(
         self, request: RegistryServer_pb2.ListAllFeatureViewsRequest, context
     ):
+        all_feature_views = cast(
+            list[FeastObject],
+            self.proxied_registry.list_all_feature_views(
+                project=request.project,
+                allow_cache=request.allow_cache,
+                tags=dict(request.tags),
+            ),
+        )
+
+        if (
+            request.entity
+            or request.feature
+            or request.feature_service
+            or request.data_source
+        ):
+            filtered_feature_views = []
+            for feature_view in all_feature_views:
+                feature_view_obj = cast(BaseFeatureView, feature_view)
+                include_feature_view = True
+
+                # Filter by entity
+                if request.entity:
+                    entity_match = False
+                    if (
+                        hasattr(feature_view_obj, "entities")
+                        and feature_view_obj.entities
+                    ):
+                        if request.entity in feature_view_obj.entities:
+                            entity_match = True
+                    elif (
+                        hasattr(feature_view_obj, "entity_columns")
+                        and feature_view_obj.entity_columns
+                    ):
+                        # For feature views with entity_columns, check if the entity is referenced
+                        entity_names = [
+                            col.entity_name
+                            for col in feature_view_obj.entity_columns
+                            if hasattr(col, "entity_name")
+                        ]
+                        if request.entity in entity_names:
+                            entity_match = True
+                    if not entity_match:
+                        include_feature_view = False
+
+                # Filter by feature
+                if include_feature_view and request.feature:
+                    feature_match = False
+                    if hasattr(feature_view_obj, "features"):
+                        feature_names = [f.name for f in feature_view_obj.features]
+                        if request.feature in feature_names:
+                            feature_match = True
+                    if not feature_match:
+                        include_feature_view = False
+
+                # Filter by feature service
+                if include_feature_view and request.feature_service:
+                    try:
+                        feature_service = self.proxied_registry.get_feature_service(
+                            name=request.feature_service,
+                            project=request.project,
+                            allow_cache=request.allow_cache,
+                        )
+                        assert_permissions(
+                            resource=feature_service,
+                            actions=AuthzedAction.DESCRIBE,
+                        )
+
+                        feature_service_match = False
+                        if hasattr(feature_service, "feature_view_projections"):
+                            for (
+                                feature_view_ref
+                            ) in feature_service.feature_view_projections:
+                                if feature_view_ref.name == feature_view_obj.name:
+                                    feature_service_match = True
+                                    break
+
+                        if not feature_service_match:
+                            include_feature_view = False
+                    except Exception:
+                        include_feature_view = False
+
+                # Filter by data source
+                if include_feature_view and request.data_source:
+                    data_source_match = False
+                    if (
+                        hasattr(feature_view_obj, "batch_source")
+                        and feature_view_obj.batch_source
+                    ):
+                        if feature_view_obj.batch_source.name == request.data_source:
+                            data_source_match = True
+                    if (
+                        hasattr(feature_view_obj, "stream_source")
+                        and feature_view_obj.stream_source
+                    ):
+                        if feature_view_obj.stream_source.name == request.data_source:
+                            data_source_match = True
+                    if not data_source_match:
+                        include_feature_view = False
+
+                if include_feature_view:
+                    filtered_feature_views.append(feature_view_obj)
+
+            all_feature_views = cast(list[FeastObject], filtered_feature_views)
+
         paginated_feature_views, pagination_metadata = apply_pagination_and_sorting(
             permitted_resources(
-                resources=cast(
-                    list[FeastObject],
-                    self.proxied_registry.list_all_feature_views(
-                        project=request.project,
-                        allow_cache=request.allow_cache,
-                        tags=dict(request.tags),
-                    ),
-                ),
+                resources=all_feature_views,
                 actions=AuthzedAction.DESCRIBE,
             ),
             pagination=request.pagination,
@@ -560,16 +657,33 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
     def ListFeatureServices(
         self, request: RegistryServer_pb2.ListFeatureServicesRequest, context
     ):
+        # Get all feature services first
+        all_feature_services = self.proxied_registry.list_feature_services(
+            project=request.project,
+            allow_cache=request.allow_cache,
+            tags=dict(request.tags),
+        )
+
+        # Filter by feature view if specified
+        if request.feature_view:
+            filtered_feature_services = []
+            for feature_service in all_feature_services:
+                # Check if the feature service uses the specified feature view
+                feature_view_match = False
+                if hasattr(feature_service, "feature_view_projections"):
+                    for (
+                        feature_view_projection
+                    ) in feature_service.feature_view_projections:
+                        if feature_view_projection.name == request.feature_view:
+                            feature_view_match = True
+                            break
+                if feature_view_match:
+                    filtered_feature_services.append(feature_service)
+            all_feature_services = filtered_feature_services
+
         paginated_feature_services, pagination_metadata = apply_pagination_and_sorting(
             permitted_resources(
-                resources=cast(
-                    list[FeastObject],
-                    self.proxied_registry.list_feature_services(
-                        project=request.project,
-                        allow_cache=request.allow_cache,
-                        tags=dict(request.tags),
-                    ),
-                ),
+                resources=cast(list[FeastObject], all_feature_services),
                 actions=AuthzedAction.DESCRIBE,
             ),
             pagination=request.pagination,

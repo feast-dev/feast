@@ -229,6 +229,14 @@ def get_feature_view_router(grpc_handler) -> APIRouter:
         include_relationships: bool = Query(
             False, description="Include relationships for each feature view"
         ),
+        entity: str = Query(None, description="Filter feature views by entity name"),
+        feature: str = Query(None, description="Filter feature views by feature name"),
+        feature_service: str = Query(
+            None, description="Filter feature views by feature service name"
+        ),
+        data_source: str = Query(
+            None, description="Filter feature views by data source name"
+        ),
         tags: Dict[str, str] = Depends(parse_tags),
         pagination_params: dict = Depends(get_pagination_params),
         sorting_params: dict = Depends(get_sorting_params),
@@ -237,6 +245,10 @@ def get_feature_view_router(grpc_handler) -> APIRouter:
             project=project,
             allow_cache=allow_cache,
             tags=tags,
+            entity=entity,
+            feature=feature,
+            feature_service=feature_service,
+            data_source=data_source,
             pagination=create_grpc_pagination_params(pagination_params),
             sorting=create_grpc_sorting_params(sorting_params),
         )
