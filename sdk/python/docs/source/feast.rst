@@ -13,6 +13,7 @@ Subpackages
    feast.dqm
    feast.embedded_go
    feast.infra
+   feast.lineage
    feast.loaders
    feast.permissions
    feast.protos
@@ -74,6 +75,14 @@ feast.data\_source module
 -------------------------
 
 .. automodule:: feast.data_source
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+feast.document\_labeling module
+-------------------------------
+
+.. automodule:: feast.document_labeling
    :members:
    :undoc-members:
    :show-inheritance:
@@ -278,6 +287,14 @@ feast.proto\_json module
    :undoc-members:
    :show-inheritance:
 
+feast.rag\_retriever module
+---------------------------
+
+.. automodule:: feast.rag_retriever
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 feast.registry\_server module
 -----------------------------
 
@@ -342,6 +359,14 @@ feast.stream\_feature\_view module
    :undoc-members:
    :show-inheritance:
 
+feast.torch\_wrapper module
+---------------------------
+
+.. automodule:: feast.torch_wrapper
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 feast.transformation\_server module
 -----------------------------------
 
@@ -386,6 +411,14 @@ feast.value\_type module
 ------------------------
 
 .. automodule:: feast.value_type
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+feast.vector\_store module
+--------------------------
+
+.. automodule:: feast.vector_store
    :members:
    :undoc-members:
    :show-inheritance:

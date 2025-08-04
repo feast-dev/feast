@@ -52,6 +52,14 @@ feast.infra.offline\_stores.file\_source module
    :undoc-members:
    :show-inheritance:
 
+feast.infra.offline\_stores.hybrid\_offline\_store module
+---------------------------------------------------------
+
+.. automodule:: feast.infra.offline_stores.hybrid_offline_store
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 feast.infra.offline\_stores.ibis module
 ---------------------------------------
 
