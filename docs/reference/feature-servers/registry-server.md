@@ -801,6 +801,36 @@ All endpoints return JSON responses with the following general structure:
 - **Not Found (404)**: Requested resource does not exist
 - **Internal Server Error (500)**: Server-side error
 
+### Error Handling
+
+The REST API provides consistent error responses with HTTP status codes included in the JSON response body. All error responses follow this format:
+
+```json
+{
+  "status_code": 404,
+  "detail": "Entity 'user_id' does not exist in project 'demo_project'",
+  "error_type": "FeastObjectNotFoundException"
+}
+```
+
+#### Error Response Fields
+
+- **`status_code`**: The HTTP status code (e.g., 404, 422, 500)
+- **`detail`**: Human-readable error message describing the issue
+- **`error_type`**: The specific type of error that occurred
+
+#### HTTP Status Code Mapping
+
+| HTTP Status | Error Type | Description | Common Causes |
+|-------------|------------|-------------|---------------|
+| **400** | `HTTPException` | Bad Request | Invalid request format or parameters |
+| **401** | `HTTPException` | Unauthorized | Missing or invalid authentication token |
+| **403** | `FeastPermissionError` | Forbidden | Insufficient permissions to access the resource |
+| **404** | `FeastObjectNotFoundException` | Not Found | Requested entity, feature view, data source, etc. does not exist |
+| **422** | `ValidationError` / `RequestValidationError` / `ValueError` / `PushSourceNotFoundException` | Unprocessable Entity | Validation errors, missing required parameters, or invalid input |
+| **500** | `InternalServerError` | Internal Server Error | Unexpected server-side errors |
+
+
 #### Enhanced Response Formats
 
 The REST API now supports enhanced response formats for relationships and pagination:
