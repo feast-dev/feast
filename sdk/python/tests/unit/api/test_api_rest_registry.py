@@ -1653,6 +1653,7 @@ def test_metrics_popular_tags_via_rest(fastapi_test_app):
             assert "feature_views" in tag_info
             assert "total_feature_views" in tag_info
 
+
 def test_all_endpoints_return_404_for_invalid_objects(fastapi_test_app):
     """Test that all REST API endpoints return 404 errors when objects are not found."""
 
