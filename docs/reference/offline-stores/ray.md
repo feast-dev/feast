@@ -33,7 +33,6 @@ The Ray offline store provides:
 | export to arrow table           | Yes       |
 | persist results in offline store| Yes       |
 | local execution of ODFVs        | Yes       |
-| remote execution of ODFVs       | No        |
 | preview query plan              | Yes       |
 | read partitioned data           | Yes       |
 
@@ -74,7 +73,6 @@ offline_store:
     type: ray
     storage_path: data/ray_storage        # Optional: Path for storing datasets
     ray_address: localhost:10001          # Optional: Ray cluster address
-    use_ray_cluster: false                # Optional: Whether to use Ray cluster
 ```
 
 ### Ray Offline Store + Compute Engine
@@ -91,7 +89,6 @@ offline_store:
     type: ray
     storage_path: s3://my-bucket/feast-data    # Optional: Path for storing datasets
     ray_address: localhost:10001               # Optional: Ray cluster address
-    use_ray_cluster: true                      # Optional: Use Ray cluster mode
 
 # Ray compute engine for distributed feature processing
 batch_engine:
@@ -112,7 +109,6 @@ batch_engine:
     
     # Ray cluster configuration (optional)
     ray_address: localhost:10001               # Ray cluster address
-    use_ray_cluster: true                      # Use Ray cluster mode
     staging_location: s3://my-bucket/staging   # Remote staging location
 ```
 
@@ -158,7 +154,6 @@ offline_store:
     type: ray
     storage_path: s3://my-production-bucket/feast-data
     ray_address: "ray://production-head-node:10001"
-    use_ray_cluster: true
 
 batch_engine:
     type: ray.engine
@@ -169,7 +164,6 @@ batch_engine:
     target_partition_size_mb: 128
     window_size_for_joins: "30min"
     ray_address: "ray://production-head-node:10001"
-    use_ray_cluster: true
     staging_location: s3://my-production-bucket/staging
 ```
 
@@ -182,7 +176,6 @@ batch_engine:
 | `type` | string | Required | Must be `feast.offline_stores.contrib.ray_offline_store.ray.RayOfflineStore` or `ray` |
 | `storage_path` | string | None | Path for storing temporary files and datasets |
 | `ray_address` | string | None | Address of the Ray cluster (e.g., "localhost:10001") |
-| `use_ray_cluster` | boolean | false | Whether to use Ray cluster mode |
 | `ray_conf` | dict | None | Ray initialization parameters for resource management (e.g., memory, CPU limits) |
 
 #### Ray Compute Engine Options
@@ -224,7 +217,6 @@ offline_store:
     type: ray
     storage_path: s3://my-bucket/feast-data
     ray_address: "ray://production-cluster:10001"
-    use_ray_cluster: true
     # Optimized for production workloads
     broadcast_join_threshold_mb: 100
     max_parallelism_multiplier: 2
@@ -259,7 +251,6 @@ offline_store:
 offline_store:
     type: ray
     ray_address: "ray://cluster-head:10001"
-    use_ray_cluster: true
     broadcast_join_threshold_mb: 200
     max_parallelism_multiplier: 4
 ```
@@ -406,7 +397,6 @@ ray start --head --port=10001
 offline_store:
     type: ray
     ray_address: localhost:10001
-    use_ray_cluster: true
     storage_path: s3://my-bucket/features
 ```
 
@@ -468,7 +458,6 @@ offline_store:
 offline_store:
     type: ray
     storage_path: s3://my-bucket/feast-data
-    use_ray_cluster: true
     
 batch_engine:
     type: ray.engine

@@ -342,7 +342,7 @@ def _convert_array_column(series: pd.Series, value_type: ValueType) -> pd.Series
             if target_dtype == object:
                 return np.empty(0, dtype=object)
             else:
-                return np.empty(0, dtype=target_dtype)
+                return np.empty(0, dtype=target_dtype)  # type: ignore
         else:
             return item
 
@@ -359,7 +359,6 @@ class RayOfflineStoreConfig(FeastConfigBaseModel):
     ] = "ray"
     storage_path: Optional[str] = None
     ray_address: Optional[str] = None
-    use_ray_cluster: Optional[bool] = False
 
     # Optimization settings
     broadcast_join_threshold_mb: Optional[int] = 100
@@ -1265,7 +1264,7 @@ class RayOfflineStore(OfflineStore):
 
             if config and hasattr(config, "offline_store"):
                 if isinstance(ray_config, RayOfflineStoreConfig):
-                    if ray_config.use_ray_cluster and ray_config.ray_address:
+                    if ray_config.ray_address:
                         ray_init_kwargs["address"] = ray_config.ray_address
                     else:
                         ray_init_kwargs.update(

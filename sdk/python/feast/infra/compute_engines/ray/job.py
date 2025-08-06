@@ -184,6 +184,7 @@ class RayDAGRetrievalJob(RetrievalJob):
                 f"{self._config.batch_engine.staging_location}/{str(uuid.uuid4())}"
             )
             self._result_dataset.write_parquet(output_uri)
+            logger.debug(f"Wrote result to {output_uri}")
             return [output_uri]
         except Exception as e:
             raise RuntimeError(f"Failed to write to remote storage: {e}")

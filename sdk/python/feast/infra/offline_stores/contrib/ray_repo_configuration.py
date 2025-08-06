@@ -30,7 +30,6 @@ class RayDataSourceCreator(DataSourceCreator):
             type="ray",
             storage_path="/tmp/ray-storage",
             ray_address=None,
-            use_ray_cluster=False,
             broadcast_join_threshold_mb=25,
             max_parallelism_multiplier=1,
             target_partition_size_mb=16,

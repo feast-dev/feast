@@ -42,29 +42,31 @@ offline_store:
     storage_path: data/ray_storage
 batch_engine:
     type: ray.engine
-    max_workers: 4                          # Optional: Maximum number of workers
-    enable_optimization: true               # Optional: Enable performance optimizations
+    max_workers: 4                         # Optional: Maximum number of workers
+    enable_optimization: true              # Optional: Enable performance optimizations
     broadcast_join_threshold_mb: 100       # Optional: Broadcast join threshold (MB)
     max_parallelism_multiplier: 2          # Optional: Parallelism multiplier
     target_partition_size_mb: 64           # Optional: Target partition size (MB)
     window_size_for_joins: "1H"            # Optional: Time window for distributed joins
     ray_address: localhost:10001           # Optional: Ray cluster address
-    use_ray_cluster: false                 # Optional: Use Ray cluster mode
 ```
 
 ### Configuration Options
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `type` | string | Required | Must be `ray.engine` |
-| `max_workers` | int | CPU count | Maximum number of Ray workers |
+| `type` | string | `"ray.engine"` | Must be `ray.engine` |
+| `max_workers` | int | None (uses all cores) | Maximum number of Ray workers |
 | `enable_optimization` | boolean | true | Enable performance optimizations |
 | `broadcast_join_threshold_mb` | int | 100 | Size threshold for broadcast joins (MB) |
 | `max_parallelism_multiplier` | int | 2 | Parallelism as multiple of CPU cores |
 | `target_partition_size_mb` | int | 64 | Target partition size (MB) |
 | `window_size_for_joins` | string | "1H" | Time window for distributed joins |
-| `ray_address` | string | None | Ray cluster address |
-| `use_ray_cluster` | boolean | false | Use Ray cluster mode |
+| `ray_address` | string | None | Ray cluster address (None = local Ray) |
+| `enable_distributed_joins` | boolean | true | Enable distributed joins for large datasets |
+| `staging_location` | string | None | Remote path for batch materialization jobs |
+| `ray_conf` | dict | None | Ray configuration parameters |
+| `execution_timeout_seconds` | int | None | Timeout for job execution in seconds |
 
 ## Usage Examples
 
@@ -159,7 +161,6 @@ batch_engine:
     window_size_for_joins: "30min"
     
     # Ray cluster configuration
-    use_ray_cluster: true
     ray_address: "ray://head-node:10001"
 ```
 
@@ -181,7 +182,6 @@ offline_store:
     type: ray
     storage_path: s3://my-bucket/feast-data    # Optional: Path for storing datasets
     ray_address: localhost:10001               # Optional: Ray cluster address
-    use_ray_cluster: true                      # Optional: Use Ray cluster mode
 
 # Ray compute engine configuration  
 # Handles complex feature computation and distributed processing
@@ -202,7 +202,6 @@ batch_engine:
     
     # Ray cluster configuration (inherits from offline_store if not specified)
     ray_address: localhost:10001               # Ray cluster address
-    use_ray_cluster: true                      # Use Ray cluster mode
 ```
 
 ## DAG Node Types
@@ -258,22 +257,18 @@ The Ray compute engine automatically selects optimal join strategies:
 ### Broadcast Join
 
 Used for small feature datasets:
-```python
-# Automatically selected when feature data < 100MB
-# Features are cached in Ray's object store
-# Entities are distributed across cluster
-# Each worker gets a copy of feature data
-```
+- Automatically selected when feature data < 100MB
+- Features are cached in Ray's object store
+- Entities are distributed across cluster
+- Each worker gets a copy of feature data
 
 ### Distributed Windowed Join
 
 Used for large feature datasets:
-```python
-# Automatically selected when feature data > 100MB
-# Data is partitioned by time windows
-# Point-in-time joins within each window
-# Results are combined across windows
-```
+- Automatically selected when feature data > 100MB
+- Data is partitioned by time windows
+- Point-in-time joins within each window
+- Results are combined across windows
 
 ### Strategy Selection Logic
 
@@ -353,7 +348,6 @@ offline_store:
     storage_path: s3://my-bucket/feast-data
 batch_engine:
     type: ray.engine
-    use_ray_cluster: true
     ray_address: "ray://ray-cluster:10001"
     broadcast_join_threshold_mb: 50
 ```

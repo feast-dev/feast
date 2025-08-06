@@ -367,8 +367,7 @@ class RayAggregationNode(DAGNode):
             elif agg.function == "var":
                 agg_dict[feature_name] = (agg.column, "var")
             else:
-                logger.warning(f"Unknown aggregation function: {agg.function}")
-                continue
+                raise ValueError(f"Unknown aggregation function: {agg.function}.")
 
         # Apply aggregations using pandas fallback (Ray's native groupby has compatibility issues)
         if self.group_by_keys and agg_dict:
@@ -422,8 +421,7 @@ class RayAggregationNode(DAGNode):
                 elif function == "var":
                     result = grouped[column].var()
                 else:
-                    logger.warning(f"Unknown aggregation function: {function}")
-                    continue
+                    raise ValueError(f"Unknown aggregation function: {function}.")
 
                 result.name = feature_name
                 agg_results.append(result)
@@ -680,7 +678,7 @@ class RayWriteNode(DAGNode):
                 if getattr(feature_view, "online", False):
                     # TODO: Implement proper online store writing with correct data format conversion
                     logger.debug(
-                        f"Online store writing not implemented yet for {len(batch)} rows"
+                        "Online store writing not implemented yet for Ray compute engine"
                     )
 
                 # Write to offline store if enabled
