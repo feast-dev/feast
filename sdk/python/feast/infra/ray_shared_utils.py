@@ -141,7 +141,6 @@ def broadcast_join(
             col for col in feature_cols if col in features.columns
         ]
         features_filtered = features[available_feature_cols].copy()
-        from .ray_shared_utils import normalize_timestamp_columns
 
         batch = normalize_timestamp_columns(batch, timestamp_field, inplace=True)
         features_filtered = normalize_timestamp_columns(

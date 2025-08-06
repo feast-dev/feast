@@ -19,7 +19,6 @@ def get_ray_compute_engine_test_config() -> IntegrationTestRepoConfig:
         offline_store_creator=RayDataSourceCreator,
         batch_engine={
             "type": "ray.engine",
-            "use_ray_cluster": False,
             "max_workers": 1,
             "enable_optimization": True,
         },

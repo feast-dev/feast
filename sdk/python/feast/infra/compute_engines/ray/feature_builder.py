@@ -169,6 +169,9 @@ class RayFeatureBuilder(FeatureBuilder):
     def build_validation_node(self, view, input_node):
         """Build the validation node for feature validation."""
         # TODO: Implement validation logic
+        logger.warning(
+            "Feature validation is not yet implemented for Ray compute engine."
+        )
         return input_node
 
     def _build(self, view, input_nodes: Optional[List[DAGNode]]) -> DAGNode:

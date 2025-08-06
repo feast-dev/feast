@@ -136,25 +136,11 @@ class RayJoinNode(DAGNode):
 
         # Check if the feature dataset contains aggregated features (from aggregation node)
         # If so, we don't need point-in-time join logic - just simple join on entity keys
-        sample_data = feature_dataset.take(1)
-        is_aggregated = False
-        if sample_data:
-            if hasattr(sample_data[0], "columns"):
-                feature_cols = sample_data[0].columns.tolist()
-            else:
-                feature_cols = (
-                    list(sample_data[0].keys())
-                    if isinstance(sample_data[0], dict)
-                    else []
-                )
-
-            # Check for aggregated feature column patterns
-            is_aggregated = any(
-                col.startswith(
-                    ("sum_", "avg_", "mean_", "count_", "min_", "max_", "std_", "var_")
-                )
-                for col in feature_cols
-            )
+        is_aggregated = (
+            input_value.metadata.get("aggregated", False)
+            if input_value.metadata
+            else False
+        )
 
         feature_size = feature_dataset.size_bytes()
 
@@ -367,8 +353,7 @@ class RayAggregationNode(DAGNode):
             elif agg.function == "var":
                 agg_dict[feature_name] = (agg.column, "var")
             else:
-                logger.warning(f"Unknown aggregation function: {agg.function}")
-                continue
+                raise ValueError(f"Unknown aggregation function: {agg.function}.")
 
         # Apply aggregations using pandas fallback (Ray's native groupby has compatibility issues)
         if self.group_by_keys and agg_dict:
@@ -422,8 +407,7 @@ class RayAggregationNode(DAGNode):
                 elif function == "var":
                     result = grouped[column].var()
                 else:
-                    logger.warning(f"Unknown aggregation function: {function}")
-                    continue
+                    raise ValueError(f"Unknown aggregation function: {function}.")
 
                 result.name = feature_name
                 agg_results.append(result)
@@ -680,7 +664,7 @@ class RayWriteNode(DAGNode):
                 if getattr(feature_view, "online", False):
                     # TODO: Implement proper online store writing with correct data format conversion
                     logger.debug(
-                        f"Online store writing not implemented yet for {len(batch)} rows"
+                        "Online store writing not implemented yet for Ray compute engine"
                     )
 
                 # Write to offline store if enabled

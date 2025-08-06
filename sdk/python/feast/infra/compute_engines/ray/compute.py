@@ -58,7 +58,7 @@ class RayComputeEngine(ComputeEngine):
     def _ensure_ray_initialized(self):
         """Ensure Ray is initialized with proper configuration."""
         if not ray.is_initialized():
-            if self.config.use_ray_cluster and self.config.ray_address:
+            if self.config.ray_address:
                 ray.init(
                     address=self.config.ray_address,
                     ignore_reinit_error=True,
@@ -206,7 +206,7 @@ class RayComputeEngine(ComputeEngine):
             if getattr(feature_view, "online", False):
                 # TODO: Implement proper online store writing with correct data format conversion
                 logger.debug(
-                    f"Online store writing not implemented yet for {arrow_table.num_rows} rows"
+                    "Online store writing not implemented yet for Ray compute engine"
                 )
 
             # Write to offline store if enabled (this handles sink_source automatically for derived views)
@@ -228,9 +228,7 @@ class RayComputeEngine(ComputeEngine):
 
                 # Write to sink_source using Ray data
                 try:
-                    # Convert arrow table to pandas then to ray dataset
-                    df = arrow_table.to_pandas()
-                    ray_dataset = ray.data.from_pandas(df)
+                    ray_dataset = ray.data.from_arrow(arrow_table)
                     ray_dataset.write_parquet(sink_source.path)
                 except Exception as e:
                     logger.error(

@@ -61,7 +61,6 @@ def ray_config():
     """Create Ray compute engine configuration for testing."""
     return RayComputeEngineConfig(
         type="ray.engine",
-        use_ray_cluster=False,
         max_workers=2,
         enable_optimization=True,
         broadcast_join_threshold_mb=50,
@@ -297,7 +296,6 @@ def test_ray_config_validation():
     # Test valid configuration
     config = RayComputeEngineConfig(
         type="ray.engine",
-        use_ray_cluster=False,
         max_workers=4,
         enable_optimization=True,
         broadcast_join_threshold_mb=100,

@@ -48,9 +48,13 @@ from feast.infra.registry.base_registry import BaseRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage, ValidationReference
-from feast.type_map import feast_value_type_to_pandas_type, pa_to_feast_value_type
+from feast.type_map import (
+    convert_array_column,
+    convert_scalar_column,
+    feast_value_type_to_pandas_type,
+    pa_to_feast_value_type,
+)
 from feast.utils import _get_column_names, make_df_tzaware, make_tzaware
-from feast.value_type import ValueType
 
 logger = logging.getLogger(__name__)
 
@@ -284,12 +288,12 @@ def _convert_feature_column_types(
                 try:
                     value_type = feature.dtype.to_value_type()
                     if value_type.name.endswith("_LIST"):
-                        batch[feat_name] = _convert_array_column(
+                        batch[feat_name] = convert_array_column(
                             batch[feat_name], value_type
                         )
                     else:
                         target_pandas_type = feast_value_type_to_pandas_type(value_type)
-                        batch[feat_name] = _convert_scalar_column(
+                        batch[feat_name] = convert_scalar_column(
                             batch[feat_name], value_type, target_pandas_type
                         )
                 except Exception as e:
@@ -302,56 +306,12 @@ def _convert_feature_column_types(
     return _apply_to_data(data, convert_batch)
 
 
-def _convert_scalar_column(
-    series: pd.Series, value_type: ValueType, target_pandas_type: str
-) -> pd.Series:
-    """Convert a scalar feature column to the appropriate pandas type."""
-    if value_type == ValueType.INT32:
-        return pd.to_numeric(series, errors="coerce").astype("Int32")
-    elif value_type == ValueType.INT64:
-        return pd.to_numeric(series, errors="coerce").astype("Int64")
-    elif value_type in [ValueType.FLOAT, ValueType.DOUBLE]:
-        return pd.to_numeric(series, errors="coerce").astype("float64")
-    elif value_type == ValueType.BOOL:
-        return series.astype("boolean")
-    elif value_type == ValueType.STRING:
-        return series.astype("string")
-    elif value_type == ValueType.UNIX_TIMESTAMP:
-        return pd.to_datetime(series, unit="s", errors="coerce")
-    else:
-        return series.astype(target_pandas_type)
-
-
-def _convert_array_column(series: pd.Series, value_type: ValueType) -> pd.Series:
-    """Convert an array feature column to the appropriate type with proper empty array handling."""
-    base_type_map = {
-        ValueType.INT32_LIST: np.int32,
-        ValueType.INT64_LIST: np.int64,
-        ValueType.FLOAT_LIST: np.float32,
-        ValueType.DOUBLE_LIST: np.float64,
-        ValueType.BOOL_LIST: np.bool_,
-        ValueType.STRING_LIST: object,
-        ValueType.BYTES_LIST: object,
-        ValueType.UNIX_TIMESTAMP_LIST: "datetime64[s]",
-    }
-
-    target_dtype = base_type_map.get(value_type, object)
-
-    def convert_array_item(item) -> Union[np.ndarray, Any]:
-        if item is None or (isinstance(item, list) and len(item) == 0):
-            if target_dtype == object:
-                return np.empty(0, dtype=object)
-            else:
-                return np.empty(0, dtype=target_dtype)
-        else:
-            return item
-
-    return series.apply(convert_array_item)
-
-
 class RayOfflineStoreConfig(FeastConfigBaseModel):
     """
     Configuration for the Ray Offline Store.
+
+    For detailed configuration options and examples, see the documentation:
+    https://docs.feast.dev/reference/offline-stores/ray
     """
 
     type: Literal[
@@ -359,7 +319,6 @@ class RayOfflineStoreConfig(FeastConfigBaseModel):
     ] = "ray"
     storage_path: Optional[str] = None
     ray_address: Optional[str] = None
-    use_ray_cluster: Optional[bool] = False
 
     # Optimization settings
     broadcast_join_threshold_mb: Optional[int] = 100
@@ -378,6 +337,7 @@ class RayOfflineStoreConfig(FeastConfigBaseModel):
 class RayResourceManager:
     """
     Manages Ray cluster resources for optimal performance.
+    # See: https://docs.feast.dev/reference/offline-stores/ray#resource-management-and-testing
     """
 
     def __init__(self, config: Optional[RayOfflineStoreConfig] = None) -> None:
@@ -1265,7 +1225,7 @@ class RayOfflineStore(OfflineStore):
 
             if config and hasattr(config, "offline_store"):
                 if isinstance(ray_config, RayOfflineStoreConfig):
-                    if ray_config.use_ray_cluster and ray_config.ray_address:
+                    if ray_config.ray_address:
                         ray_init_kwargs["address"] = ray_config.ray_address
                     else:
                         ray_init_kwargs.update(

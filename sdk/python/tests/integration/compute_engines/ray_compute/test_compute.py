@@ -154,7 +154,6 @@ def test_ray_compute_engine_config():
     """Test Ray compute engine configuration."""
     config = RayComputeEngineConfig(
         type="ray.engine",
-        use_ray_cluster=True,
         ray_address="ray://localhost:10001",
         broadcast_join_threshold_mb=200,
         enable_distributed_joins=True,
@@ -167,7 +166,6 @@ def test_ray_compute_engine_config():
     )
 
     assert config.type == "ray.engine"
-    assert config.use_ray_cluster is True
     assert config.ray_address == "ray://localhost:10001"
     assert config.broadcast_join_threshold_mb == 200
     assert config.window_size_timedelta == timedelta(hours=2)

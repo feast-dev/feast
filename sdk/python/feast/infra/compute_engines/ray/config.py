@@ -17,9 +17,6 @@ class RayComputeEngineConfig(FeastConfigBaseModel):
     ray_address: Optional[str] = None
     """Ray cluster address. If None, uses local Ray cluster."""
 
-    use_ray_cluster: bool = False
-    """Whether to use an existing Ray cluster."""
-
     staging_location: Optional[StrictStr] = None
     """Remote path for batch materialization jobs"""
 
