@@ -1,7 +1,7 @@
 """REST API endpoints for registry lineage and relationships."""
 
-from typing import Optional
 import logging
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
@@ -156,7 +156,9 @@ def get_lineage_router(grpc_handler) -> APIRouter:
             sorting_params=sorting_params,
         )
         if errors and not project_resources:
-            logger.error(f"Error getting project resources for project {project}: {errors}")
+            logger.error(
+                f"Error getting project resources for project {project}: {errors}"
+            )
             return {
                 "project": project,
                 "objects": {},
@@ -178,15 +180,9 @@ def get_lineage_router(grpc_handler) -> APIRouter:
             "pagination": {
                 # Get pagination metadata from project_resources if available, otherwise use empty dicts
                 "entities": pagination.get("entities", {}),
-                "dataSources": pagination.get(
-                    "dataSources", {}
-                ),
-                "featureViews": pagination.get(
-                    "featureViews", {}
-                ),
-                "featureServices": pagination.get(
-                    "featureServices", {}
-                ),
+                "dataSources": pagination.get("dataSources", {}),
+                "featureViews": pagination.get("featureViews", {}),
+                "featureServices": pagination.get("featureServices", {}),
                 "features": pagination.get("features", {}),
                 "relationships": lineage_response.get("relationshipsPagination", {}),
                 "indirectRelationships": lineage_response.get(
@@ -256,7 +252,9 @@ def get_lineage_router(grpc_handler) -> APIRouter:
             )
 
             if errors and not project_resources:
-                logger.error(f"Error getting project resources for project {project_name}: {errors}")
+                logger.error(
+                    f"Error getting project resources for project {project_name}: {errors}"
+                )
                 continue
 
             # Add project field to each object

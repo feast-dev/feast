@@ -1,8 +1,6 @@
 from fastapi import APIRouter, Depends, Query
 
 from feast.api.registry.rest.rest_utils import (
-    create_grpc_pagination_params,
-    create_grpc_sorting_params,
     get_pagination_params,
     get_sorting_params,
     grpc_call,
@@ -42,7 +40,7 @@ def get_project_router(grpc_handler) -> APIRouter:
             )
         except Exception as e:
             return {"error": str(e)}
-        
+
         if err_msg:
             return {"error": err_msg}
 

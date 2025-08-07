@@ -1,7 +1,6 @@
 import logging
 import os
 import tempfile
-from urllib.parse import quote
 
 import pandas as pd
 import pytest
@@ -552,34 +551,27 @@ def multi_project_search_test_app():
 
     tmp_dir.cleanup()
 
+
 @pytest.fixture
 def shared_search_responses(search_test_app):
     """Pre-computed responses for common search scenarios to reduce API calls"""
     return {
         "user_query": search_test_app.get("/search?query=user").json(),
         "empty_query": search_test_app.get("/search?query=").json(),
-        "nonexistent_query": search_test_app.get(
-            "/search?query=xyz_12345"
-        ).json(),
-        "paginated_basic": search_test_app.get(
-            "/search?query=&page=1&limit=5"
-        ).json(),
-        "paginated_page2": search_test_app.get(
-            "/search?query=&page=2&limit=3"
-        ).json(),
+        "nonexistent_query": search_test_app.get("/search?query=xyz_12345").json(),
+        "paginated_basic": search_test_app.get("/search?query=&page=1&limit=5").json(),
+        "paginated_page2": search_test_app.get("/search?query=&page=2&limit=3").json(),
         "sorted_by_name": search_test_app.get(
             "/search?query=&sort_by=name&sort_order=asc"
         ).json(),
         "sorted_by_match_score": search_test_app.get(
             "/search?query=user&sort_by=match_score&sort_order=desc"
         ).json(),
-        "with_tags": search_test_app.get(
-            "/search?query=&tags=team:data"
-        ).json(),
-        "feature_name_query": search_test_app.get(
-            "/search?query=age"
-        ).json(),
+        "with_tags": search_test_app.get("/search?query=&tags=team:data").json(),
+        "feature_name_query": search_test_app.get("/search?query=age").json(),
     }
+
+
 class TestSearchAPI:
     """Test class for the comprehensive search API"""
 
@@ -606,7 +598,13 @@ class TestSearchAPI:
         results = data["results"]
         assert len(results) > 0
         result = results[0]
-        required_result_fields = ["type", "name", "description", "project", "match_score"]
+        required_result_fields = [
+            "type",
+            "name",
+            "description",
+            "project",
+            "match_score",
+        ]
         for field in required_result_fields:
             assert field in result
 
@@ -638,7 +636,7 @@ class TestSearchAPI:
         # Test cross-project functionality (replaces test_search_cross_project_when_no_project_specified)
         assert len(data["projects_searched"]) >= 1
         assert "test_project" in data["projects_searched"]
-    
+
     def test_search_with_project_filter(self, search_test_app):
         """Test searching within a specific project"""
         response = search_test_app.get("/search?query=user&projects=test_project")
@@ -690,7 +688,6 @@ class TestSearchAPI:
         results = tags_data["results"]
         assert len(results) > 0
 
-        
         # Should find user-related resources that also have "team": "data" tag
         expected_resources = {"user", "user_features", "user_service"}
         found_resources = {r["name"] for r in results}
@@ -760,7 +757,7 @@ class TestSearchAPI:
             assert "name" in result
             assert "description" in result
             assert "project" in result
-        
+
         # Get all feature results
         feature_results = [result for result in results if result["type"] == "feature"]
 
@@ -829,7 +826,6 @@ class TestSearchAPI:
         assert len(age_features) > 0, (
             "Expected to find feature named 'age' in search results"
         )
-
 
     def test_search_fuzzy_matching(self, search_test_app):
         """Test fuzzy matching functionality with assumed threshold of 0.6"""
@@ -1030,7 +1026,7 @@ class TestSearchAPI:
         # API should handle duplicates gracefully (may or may not deduplicate)
         # At minimum, should not crash and should search test_project
         assert len(data["projects_searched"]) == 1
-        assert "test_project" == data["projects_searched"][0]        
+        assert "test_project" == data["projects_searched"][0]
 
     def test_search_missing_required_query_parameter(self, search_test_app):
         """Test search API fails when required query parameter is missing"""
@@ -1073,11 +1069,9 @@ class TestSearchAPI:
                     200,
                 ),  # FastAPI converts to boolean
             ],
-        ]
+        ],
     )
-    def test_search_with_invalid_parameters(
-        self, search_test_app, test_cases
-    ):
+    def test_search_with_invalid_parameters(self, search_test_app, test_cases):
         """Test search API with various invalid parameter combinations"""
         logger.debug(f"Test cases: {test_cases}")
         for param1, value1, param2, value2, expected_code in test_cases:
@@ -1690,6 +1684,8 @@ class TestSearchAPIMultiProjectComprehensive:
                 projects_with_results.add(result["project"])
 
         assert projects_with_results.issubset({"project_a", "project_b"})
+
+
 class TestSearchAPIPagination:
     """Test class for pagination functionality in search API"""
 
@@ -1711,7 +1707,7 @@ class TestSearchAPIPagination:
 
     def test_search_pagination_basic_functionality(self, pagination_responses):
         """Test basic pagination functionality using shared responses"""
-        
+
         # Test default values (page=1, limit=50)
         default_data = pagination_responses["default"]
         assert "pagination" in default_data
@@ -1954,7 +1950,9 @@ class TestSearchAPIPagination:
                 expected_pages = (total_count + limit - 1) // limit
                 assert pagination["totalPages"] == expected_pages
 
-    def test_search_pagination_navigation_flags(self, search_test_app, shared_search_responses):
+    def test_search_pagination_navigation_flags(
+        self, search_test_app, shared_search_responses
+    ):
         """Test has_next and has_previous flags accuracy across different pages"""
         # Test first page has no previous
         data = shared_search_responses["paginated_basic"]

@@ -5,10 +5,10 @@ from fastapi import APIRouter, Depends, Query
 
 from feast.api.registry.rest.rest_utils import (
     filter_search_results_and_match_score,
-    search_all_projects,
     get_all_project_resources,
     paginate_and_sort,
     parse_tags,
+    search_all_projects,
     validate_or_set_default_pagination_params,
     validate_or_set_default_sorting_params,
 )
@@ -64,11 +64,13 @@ def get_search_router(grpc_handler) -> APIRouter:
         # Get list of all available projects for validation
         err_msg = ""
 
-        projects_to_search, err_msg = _validate_projects(projects, grpc_handler, allow_cache)
-        
+        projects_to_search, err_msg = _validate_projects(
+            projects, grpc_handler, allow_cache
+        )
+
         if err_msg:
             errors.append(err_msg)
-        
+
         if not projects_to_search:
             return {
                 "query": query,
@@ -91,7 +93,7 @@ def get_search_router(grpc_handler) -> APIRouter:
                     sorting_params,
                 )
                 errors.extend(resource_errors)
-                
+
                 # Extract and convert entities
                 entities = project_resources.get("entities", [])
                 for entity in entities:
@@ -202,7 +204,7 @@ def get_search_router(grpc_handler) -> APIRouter:
                     )
 
             except Exception as e:
-                err_msg = f"Error getting resources for project '{current_project}'"    
+                err_msg = f"Error getting resources for project '{current_project}'"
                 logger.error(f"{err_msg}: {e}")
                 errors.append(err_msg)
                 continue
@@ -234,13 +236,18 @@ def get_search_router(grpc_handler) -> APIRouter:
 
     return router
 
-def _validate_projects(input_projects: List[str], grpc_handler, allow_cache: bool) -> List[str]:
+
+def _validate_projects(
+    input_projects: Optional[List[str]], grpc_handler, allow_cache: bool
+) -> tuple[List[str], str]:
     """Validate projects and return list of existing projects"""
     projects_to_search = []
     nonexistent_projects = []
     err_msg = ""
 
-    #Handling case of empty projects parameter i.e. /search?query=user&projects=
+    # Handling case of empty projects parameter i.e. /search?query=user&projects=
+    if input_projects is None:
+        input_projects = []
     input_projects = [p for p in input_projects if p and p.strip()]
 
     try:
@@ -263,20 +270,21 @@ def _validate_projects(input_projects: List[str], grpc_handler, allow_cache: boo
                     if project in project_names:
                         projects_to_search.append(project)
                     else:
-                        nonexistent_projects.append(project)                
+                        nonexistent_projects.append(project)
             else:
                 projects_to_search = list(project_names)
-            
+
             if nonexistent_projects:
                 err_msg = f"Following projects do not exist: {', '.join(nonexistent_projects)}"
                 logger.error(f"{err_msg}")
 
     except Exception as e:
-        err_msg = f"Error getting projects"
+        err_msg = "Error getting projects"
         logger.error(f"{err_msg}: {e}")
 
     finally:
         return list(set(projects_to_search)), err_msg
+
 
 def _remove_tags_from_results(results: List[Dict]) -> List[Dict]:
     """Remove tags field from search results before returning to user"""
