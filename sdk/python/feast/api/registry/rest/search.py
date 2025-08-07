@@ -5,14 +5,13 @@ from fastapi import APIRouter, Depends, Query
 
 from feast.api.registry.rest.rest_utils import (
     filter_search_results_and_match_score,
+    search_all_projects,
     get_all_project_resources,
-    grpc_call,
     paginate_and_sort,
     parse_tags,
     validate_or_set_default_pagination_params,
     validate_or_set_default_sorting_params,
 )
-from feast.protos.feast.registry import RegistryServer_pb2
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +34,7 @@ def get_search_router(grpc_handler) -> APIRouter:
     def search_resources(
         query: str = Query(..., description="Search query string"),
         projects: Optional[List[str]] = Query(
-            default=None,
+            default=[],
             description="Project names to search in (optional - searches all projects if not specified)",
         ),
         allow_cache: bool = Query(default=True),
@@ -60,75 +59,30 @@ def get_search_router(grpc_handler) -> APIRouter:
         - Can specify sort_order as asc or desc
         """
         results = []
+        errors = []
 
         # Get list of all available projects for validation
-        try:
-            projects_req = RegistryServer_pb2.ListProjectsRequest(
-                allow_cache=allow_cache,
-                tags=tags,
-            )
-            projects_response = grpc_call(grpc_handler.ListProjects, projects_req)
-            all_projects = projects_response.get("projects", [])
-            available_projects = {
-                proj.get("spec", {}).get("name", "")
-                for proj in all_projects
-                if proj.get("spec", {}).get("name")
+        err_msg = ""
+
+        projects_to_search, err_msg = _validate_projects(projects, grpc_handler, allow_cache)
+        
+        if err_msg:
+            errors.append(err_msg)
+        
+        if not projects_to_search:
+            return {
+                "query": query,
+                "projects_searched": projects_to_search,
+                "results": [],
+                "pagination": {},
+                "errors": errors,
             }
-        except Exception as e:
-            logger.error(f"Error getting projects: {e}")
-            available_projects = set()
-
-        # Get list of projects to search in
-        if projects is None:
-            # No projects parameter provided - search all projects
-            filtered_projects = []
-        else:
-            # Handle empty string in projects list (from URL like "projects=")
-            filtered_projects = [p for p in projects if p and p.strip()]
-
-        projects_to_search: List[str] = []
-        existing_projects: List[str] = []
-        nonexistent_projects: List[str] = []
-
-        if filtered_projects:
-            # Specific projects requested - validate they exist
-            for project in filtered_projects:
-                if project in available_projects:
-                    existing_projects.append(project)
-                else:
-                    nonexistent_projects.append(project)
-
-            # Log warnings for non-existent projects
-            if nonexistent_projects:
-                logger.warning(
-                    f"The following projects do not exist and will be ignored: {nonexistent_projects}"
-                )
-
-            # if requested project/s doesn't exist, return empty results
-            if len(existing_projects) == 0:
-                response: Dict[str, Any] = {
-                    "results": [],
-                    "pagination": {
-                        "total_count": 0,
-                    },
-                    "query": query,
-                    "projects_searched": [],
-                    "error": "Following projects do not exist: "
-                    + ", ".join(nonexistent_projects),
-                }
-                return response
-
-            # search only existing ones
-            projects_to_search = existing_projects
-        else:
-            # No specific projects - search all projects
-            projects_to_search = list(available_projects)
 
         # Search across all specified projects using helper function
         for current_project in projects_to_search:
             try:
                 # Get all resources for this project
-                project_resources = get_all_project_resources(
+                project_resources, _, resource_errors = get_all_project_resources(
                     grpc_handler,
                     current_project,
                     allow_cache,
@@ -136,7 +90,8 @@ def get_search_router(grpc_handler) -> APIRouter:
                     None,
                     sorting_params,
                 )
-
+                errors.extend(resource_errors)
+                
                 # Extract and convert entities
                 entities = project_resources.get("entities", [])
                 for entity in entities:
@@ -247,9 +202,9 @@ def get_search_router(grpc_handler) -> APIRouter:
                     )
 
             except Exception as e:
-                logger.error(
-                    f"Error getting resources for project '{current_project}': {e}"
-                )
+                err_msg = f"Error getting resources for project '{current_project}'"    
+                logger.error(f"{err_msg}: {e}")
+                errors.append(err_msg)
                 continue
 
         # Apply search filtering
@@ -272,17 +227,56 @@ def get_search_router(grpc_handler) -> APIRouter:
             "projects_searched": projects_to_search,
             "results": cleaned_result,
             "pagination": pagination,
+            "errors": errors,
         }
-
-        if len(nonexistent_projects) > 0:
-            response["error"] = "Following projects do not exist: " + ", ".join(
-                nonexistent_projects
-            )
 
         return response
 
     return router
 
+def _validate_projects(input_projects: List[str], grpc_handler, allow_cache: bool) -> List[str]:
+    """Validate projects and return list of existing projects"""
+    projects_to_search = []
+    nonexistent_projects = []
+    err_msg = ""
+
+    #Handling case of empty projects parameter i.e. /search?query=user&projects=
+    input_projects = [p for p in input_projects if p and p.strip()]
+
+    try:
+        all_projects, _, err_msg = search_all_projects(
+            grpc_handler=grpc_handler,
+            allow_cache=allow_cache,
+        )
+
+        if all_projects == []:
+            err_msg = "No projects found"
+        else:
+            project_names = {
+                proj.get("spec", {}).get("name", "")
+                for proj in all_projects
+                if proj.get("spec", {}).get("name")
+            }
+
+            if input_projects:
+                for project in input_projects:
+                    if project in project_names:
+                        projects_to_search.append(project)
+                    else:
+                        nonexistent_projects.append(project)                
+            else:
+                projects_to_search = list(project_names)
+            
+            if nonexistent_projects:
+                err_msg = f"Following projects do not exist: {', '.join(nonexistent_projects)}"
+                logger.error(f"{err_msg}")
+
+    except Exception as e:
+        err_msg = f"Error getting projects"
+        logger.error(f"{err_msg}: {e}")
+
+    finally:
+        return list(set(projects_to_search)), err_msg
 
 def _remove_tags_from_results(results: List[Dict]) -> List[Dict]:
     """Remove tags field from search results before returning to user"""

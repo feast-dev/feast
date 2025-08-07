@@ -1,6 +1,7 @@
 """REST API endpoints for registry lineage and relationships."""
 
 from typing import Optional
+import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
@@ -13,6 +14,8 @@ from feast.api.registry.rest.rest_utils import (
     grpc_call,
 )
 from feast.protos.feast.registry import RegistryServer_pb2
+
+logger = logging.getLogger(__name__)
 
 
 def get_lineage_router(grpc_handler) -> APIRouter:
@@ -144,7 +147,7 @@ def get_lineage_router(grpc_handler) -> APIRouter:
         lineage_response = grpc_call(grpc_handler.GetRegistryLineage, lineage_req)
 
         # Get all registry objects using shared helper function
-        project_resources = get_all_project_resources(
+        project_resources, pagination, errors = get_all_project_resources(
             grpc_handler,
             project,
             allow_cache,
@@ -152,7 +155,15 @@ def get_lineage_router(grpc_handler) -> APIRouter:
             pagination_params=pagination_params,
             sorting_params=sorting_params,
         )
-
+        if errors and not project_resources:
+            logger.error(f"Error getting project resources for project {project}: {errors}")
+            return {
+                "project": project,
+                "objects": {},
+                "relationships": [],
+                "indirectRelationships": [],
+                "pagination": {},
+            }
         return {
             "project": project,
             "objects": {
@@ -166,17 +177,17 @@ def get_lineage_router(grpc_handler) -> APIRouter:
             "indirectRelationships": lineage_response.get("indirectRelationships", []),
             "pagination": {
                 # Get pagination metadata from project_resources if available, otherwise use empty dicts
-                "entities": project_resources.get("pagination", {}).get("entities", {}),
-                "dataSources": project_resources.get("pagination", {}).get(
+                "entities": pagination.get("entities", {}),
+                "dataSources": pagination.get(
                     "dataSources", {}
                 ),
-                "featureViews": project_resources.get("pagination", {}).get(
+                "featureViews": pagination.get(
                     "featureViews", {}
                 ),
-                "featureServices": project_resources.get("pagination", {}).get(
+                "featureServices": pagination.get(
                     "featureServices", {}
                 ),
-                "features": project_resources.get("pagination", {}).get("features", {}),
+                "features": pagination.get("features", {}),
                 "relationships": lineage_response.get("relationshipsPagination", {}),
                 "indirectRelationships": lineage_response.get(
                     "indirectRelationshipsPagination", {}
@@ -240,9 +251,13 @@ def get_lineage_router(grpc_handler) -> APIRouter:
             lineage_response = grpc_call(grpc_handler.GetRegistryLineage, lineage_req)
 
             # Get all registry objects using shared helper function
-            project_resources = get_all_project_resources(
+            project_resources, _, errors = get_all_project_resources(
                 grpc_handler, project_name, allow_cache, tags={}
             )
+
+            if errors and not project_resources:
+                logger.error(f"Error getting project resources for project {project_name}: {errors}")
+                continue
 
             # Add project field to each object
             for entity in project_resources.get("entities", []):

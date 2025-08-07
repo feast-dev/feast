@@ -10,6 +10,13 @@ from feast.protos.feast.registry import RegistryServer_pb2
 logger = logging.getLogger(__name__)
 
 
+MATCH_SCORE_DEFAULT_THRESHOLD = 0.5
+MATCH_SCORE_NAME = 100
+MATCH_SCORE_DESCRIPTION = 80
+MATCH_SCORE_TAGS = 60
+MATCH_SCORE_FEATURES = 50
+MATCH_SCORE_PARTIAL = 40
+
 def grpc_call(handler_fn, request):
     """
     Wrapper to invoke gRPC method with context=None and handle common errors.
@@ -229,7 +236,7 @@ def validate_or_set_default_sorting_params(
 
         # If no sort options are configured, return defaults without validation
         if not sort_by_options:
-            return {"sort_by": default_sort_by_option, "sort_order": default_sort_order}
+            return {"sort_by": default_sort_by_option, "sort_order": sort_order if sort_order else default_sort_order}
 
         # Validate and set sort_by parameter
         if sort_by:
@@ -389,7 +396,7 @@ def get_all_project_resources(
     grpc_handler,
     project: str,
     allow_cache: bool,
-    tags: Dict[str, str],
+    tags: Optional[Dict[str, str]] = None,
     pagination_params: Optional[dict] = None,
     sorting_params: Optional[dict] = None,
 ) -> Dict[str, Any]:
@@ -398,14 +405,6 @@ def get_all_project_resources(
     Returns a dictionary with resource types as keys and lists of resources as values
     Also includes pagination metadata when pagination_params are provided
     """
-    # Create grpc pagination and sorting parameters if provided
-    grpc_pagination = None
-    grpc_sorting = None
-
-    if pagination_params:
-        grpc_pagination = create_grpc_pagination_params(pagination_params)
-    if sorting_params:
-        grpc_sorting = create_grpc_sorting_params(sorting_params)
 
     resources: Dict[str, Any] = {
         "entities": [],
@@ -414,98 +413,90 @@ def get_all_project_resources(
         "featureServices": [],
         "savedDatasets": [],
         "features": [],
+        "pagination": {},
+        "errors": [],
     }
+    pagination = {}
+    errors = []
 
     try:
         # Get entities
-        entities_req = RegistryServer_pb2.ListEntitiesRequest(
+        resources["entities"], pagination["entities"], err_msg = search_entities(
+            grpc_handler=grpc_handler,
             project=project,
             allow_cache=allow_cache,
-            pagination=grpc_pagination,
-            sorting=grpc_sorting,
+            tags=tags,
+            pagination_params=pagination_params,
+            sorting_params=sorting_params,
         )
-        entities_response = grpc_call(grpc_handler.ListEntities, entities_req)
-        resources["entities"] = entities_response.get("entities", [])
+        if err_msg:
+            errors.append(err_msg)
 
         # Get data sources
-        data_sources_req = RegistryServer_pb2.ListDataSourcesRequest(
+        resources["dataSources"], pagination["dataSources"], err_msg = search_data_sources(
+            grpc_handler=grpc_handler,
             project=project,
             allow_cache=allow_cache,
-            pagination=grpc_pagination,
-            sorting=grpc_sorting,
             tags=tags,
+            pagination_params=pagination_params,
+            sorting_params=sorting_params,
         )
-        data_sources_response = grpc_call(
-            grpc_handler.ListDataSources, data_sources_req
-        )
-        resources["dataSources"] = data_sources_response.get("dataSources", [])
+        if err_msg:
+            errors.append(err_msg)
 
         # Get feature views
-        feature_views_req = RegistryServer_pb2.ListAllFeatureViewsRequest(
+        resources["featureViews"], pagination["featureViews"], err_msg = search_feature_views(
+            grpc_handler=grpc_handler,
             project=project,
             allow_cache=allow_cache,
-            pagination=grpc_pagination,
-            sorting=grpc_sorting,
             tags=tags,
+            pagination_params=pagination_params,
+            sorting_params=sorting_params,
         )
-        feature_views_response = grpc_call(
-            grpc_handler.ListAllFeatureViews, feature_views_req
-        )
-        resources["featureViews"] = feature_views_response.get("featureViews", [])
+        if err_msg:
+            errors.append(err_msg)
 
         # Get feature services
-        feature_services_req = RegistryServer_pb2.ListFeatureServicesRequest(
+        resources["featureServices"], pagination["featureServices"], err_msg = search_feature_services(
+            grpc_handler=grpc_handler,
             project=project,
             allow_cache=allow_cache,
-            pagination=grpc_pagination,
-            sorting=grpc_sorting,
             tags=tags,
+            pagination_params=pagination_params,
+            sorting_params=sorting_params,
         )
-        feature_services_response = grpc_call(
-            grpc_handler.ListFeatureServices, feature_services_req
-        )
-        resources["featureServices"] = feature_services_response.get(
-            "featureServices", []
-        )
+        if err_msg:
+            errors.append(err_msg)
 
         # Get saved datasets
-        saved_datasets_req = RegistryServer_pb2.ListSavedDatasetsRequest(
+        resources["savedDatasets"], pagination["savedDatasets"], err_msg = search_saved_datasets(
+            grpc_handler=grpc_handler,
             project=project,
             allow_cache=allow_cache,
-            pagination=grpc_pagination,
-            sorting=grpc_sorting,
             tags=tags,
+            pagination_params=pagination_params,
+            sorting_params=sorting_params,
         )
-        saved_datasets_response = grpc_call(
-            grpc_handler.ListSavedDatasets, saved_datasets_req
-        )
-        resources["savedDatasets"] = saved_datasets_response.get("savedDatasets", [])
+        if err_msg:
+            errors.append(err_msg)
 
         # Get features
-        features_req = RegistryServer_pb2.ListFeaturesRequest(
+        resources["features"], pagination["features"], err_msg = search_features(
+            grpc_handler=grpc_handler,
             project=project,
-            pagination=grpc_pagination,
-            sorting=grpc_sorting,
+            allow_cache=allow_cache,
+            pagination_params=pagination_params,
+            sorting_params=sorting_params,
         )
-        features_response = grpc_call(grpc_handler.ListFeatures, features_req)
-        resources["features"] = features_response.get("features", [])
-
-        # Include pagination metadata if pagination was requested
-        if pagination_params:
-            resources["pagination"] = {
-                "entities": entities_response.get("pagination", {}),
-                "dataSources": data_sources_response.get("pagination", {}),
-                "featureViews": feature_views_response.get("pagination", {}),
-                "featureServices": feature_services_response.get("pagination", {}),
-                "savedDatasets": saved_datasets_response.get("pagination", {}),
-                "features": features_response.get("pagination", {}),
-            }
-
-        return resources
+        if err_msg:
+            errors.append(err_msg)
 
     except Exception as e:
-        logger.error(f"Error getting resources for project '{project}': {e}")
-        return resources  # Return empty resources dict on error
+        err_msg = f"Error getting resources for project '{project}'"
+        errors.append(err_msg)
+        logger.error(f"{err_msg}: {e}")
+    finally:
+        return resources, pagination, errors
 
 
 def filter_search_results_and_match_score(
@@ -521,13 +512,13 @@ def filter_search_results_and_match_score(
     for result in results:
         # Search in name
         if query_lower in result.get("name", "").lower():
-            result["match_score"] = 100  # Exact name match gets highest score
+            result["match_score"] = MATCH_SCORE_NAME
             filtered_results.append(result)
             continue
 
         # Search in description
         if query_lower in result.get("description", "").lower():
-            result["match_score"] = 80
+            result["match_score"] = MATCH_SCORE_DESCRIPTION
             filtered_results.append(result)
             continue
 
@@ -540,7 +531,7 @@ def filter_search_results_and_match_score(
                 break
 
         if tag_match:
-            result["match_score"] = 60
+            result["match_score"] = MATCH_SCORE_TAGS
             filtered_results.append(result)
             continue
 
@@ -549,19 +540,19 @@ def filter_search_results_and_match_score(
         feature_match = any(query_lower in feature.lower() for feature in features)
 
         if feature_match:
-            result["match_score"] = 70
+            result["match_score"] = MATCH_SCORE_FEATURES
             filtered_results.append(result)
             continue
 
         # Partial name match (fuzzy search)
         if fuzzy_match(query_lower, result.get("name", "").lower()):
-            result["match_score"] = 40
+            result["match_score"] = MATCH_SCORE_PARTIAL
             filtered_results.append(result)
 
     return filtered_results
 
 
-def fuzzy_match(query: str, text: str, threshold: float = 0.6) -> bool:
+def fuzzy_match(query: str, text: str, threshold: float = MATCH_SCORE_DEFAULT_THRESHOLD) -> bool:
     """Simple fuzzy matching using character overlap"""
     if not query or not text:
         return False
@@ -573,3 +564,276 @@ def fuzzy_match(query: str, text: str, threshold: float = 0.6) -> bool:
     similarity = overlap / len(query_chars.union(text_chars))
 
     return similarity >= threshold
+
+def search_entities(
+    grpc_handler,
+    project: str,
+    allow_cache: bool,
+    tags: Optional[Dict[str, str]] = None,
+    pagination_params: Optional[dict] = None,
+    sorting_params: Optional[dict] = None,
+) -> tuple[List[Dict[str, Any]], Dict[str, Any]]:
+    """
+    Search entities in a project with optional sorting and pagination
+    """
+    entities = []
+    pagination = {}
+    err_msg = ""
+    
+    grpc_pagination = None
+    grpc_sorting = None
+
+    if pagination_params:
+        grpc_pagination = create_grpc_pagination_params(pagination_params)
+    if sorting_params:
+        grpc_sorting = create_grpc_sorting_params(sorting_params)
+
+    try:
+        entities_req = RegistryServer_pb2.ListEntitiesRequest(
+                project=project,
+                allow_cache=allow_cache,
+                pagination=grpc_pagination,
+                sorting=grpc_sorting,
+                tags=tags,
+            )
+        entities_response = grpc_call(grpc_handler.ListEntities, entities_req)
+        entities, pagination = entities_response.get("entities", []), entities_response.get("pagination", {})
+    except Exception as e:
+        err_msg = f"Error searching entities in project '{project}'"
+        logger.error(f"{err_msg}: {e}")
+    finally:
+        return entities, pagination, err_msg
+
+def search_feature_views(
+    grpc_handler,
+    project: str,
+    allow_cache: bool,
+    tags: Optional[Dict[str, str]] = None,
+    pagination_params: Optional[dict] = None,
+    sorting_params: Optional[dict] = None,
+) -> tuple[List[Dict[str, Any]], Dict[str, Any]]:
+    """
+    Search feature views in a project with optional sorting and pagination
+    """
+    feature_views = []
+    pagination = {}
+    err_msg = ""
+    
+    grpc_pagination = None
+    grpc_sorting = None
+
+    if pagination_params:
+        grpc_pagination = create_grpc_pagination_params(pagination_params)
+    if sorting_params:
+        grpc_sorting = create_grpc_sorting_params(sorting_params)
+
+    try:
+        feature_views_req = RegistryServer_pb2.ListAllFeatureViewsRequest(
+            project=project,
+            allow_cache=allow_cache,
+            pagination=grpc_pagination,
+            sorting=grpc_sorting,
+            tags=tags,
+        )
+        feature_views_response = grpc_call(grpc_handler.ListAllFeatureViews, feature_views_req)
+        feature_views, pagination = feature_views_response.get("featureViews", []), feature_views_response.get("pagination", {})
+    except Exception as e:
+        err_msg = f"Error searching feature views in project '{project}'"
+        logger.error(f"{err_msg}: {e}")
+    finally:
+        return feature_views, pagination, err_msg
+
+def search_feature_services(
+    grpc_handler,
+    project: str,
+    allow_cache: bool,
+    tags: Optional[Dict[str, str]] = None,
+    pagination_params: Optional[dict] = None,
+    sorting_params: Optional[dict] = None,
+) -> tuple[List[Dict[str, Any]], Dict[str, Any]]:
+    """
+    Search feature services in a project with optional sorting and pagination
+    """
+    feature_services = []
+    pagination = {}
+    err_msg = ""
+
+    grpc_pagination = None
+    grpc_sorting = None
+
+    if pagination_params:
+        grpc_pagination = create_grpc_pagination_params(pagination_params)
+    if sorting_params:
+        grpc_sorting = create_grpc_sorting_params(sorting_params)
+    
+    try:
+        feature_services_req = RegistryServer_pb2.ListFeatureServicesRequest(
+            project=project,
+            allow_cache=allow_cache,
+            pagination=grpc_pagination,
+            sorting=grpc_sorting,
+            tags=tags,
+        )
+        feature_services_response = grpc_call(
+            grpc_handler.ListFeatureServices, feature_services_req
+        )
+        feature_services, pagination = feature_services_response.get("featureServices", []), feature_services_response.get("pagination", {})
+    except Exception as e:
+        err_msg = f"Error searching feature services in project '{project}'"
+        logger.error(f"{err_msg}: {e}")
+    finally:
+        return feature_services, pagination, err_msg
+
+def search_data_sources(
+    grpc_handler,
+    project: str,
+    allow_cache: bool,
+    tags: Optional[Dict[str, str]] = None,
+    pagination_params: Optional[dict] = None,
+    sorting_params: Optional[dict] = None,
+) -> tuple[List[Dict[str, Any]], Dict[str, Any]]:
+    """
+    Search data sources in a project with optional sorting and pagination
+    """
+    data_sources = []
+    pagination = {}
+    err_msg = ""
+
+    grpc_pagination = None
+    grpc_sorting = None
+
+    if pagination_params:
+        grpc_pagination = create_grpc_pagination_params(pagination_params)
+    if sorting_params:
+        grpc_sorting = create_grpc_sorting_params(sorting_params)
+
+    try:
+        data_sources_req = RegistryServer_pb2.ListDataSourcesRequest(
+            project=project,
+            allow_cache=allow_cache,
+            pagination=grpc_pagination,
+            sorting=grpc_sorting,
+            tags=tags,
+        )
+        data_sources_response = grpc_call(grpc_handler.ListDataSources, data_sources_req)
+        data_sources, pagination = data_sources_response.get("dataSources", []), data_sources_response.get("pagination", {})
+    except Exception as e:
+        err_msg = f"Error searching data sources in project '{project}'"
+        logger.error(f"{err_msg}: {e}")
+    finally:
+        return data_sources, pagination, err_msg
+
+def search_saved_datasets(
+    grpc_handler,
+    project: str,
+    allow_cache: bool,
+    tags: Optional[Dict[str, str]] = None,
+    pagination_params: Optional[dict] = None,
+    sorting_params: Optional[dict] = None,
+) -> tuple[List[Dict[str, Any]], Dict[str, Any]]:
+    """
+    Search saved datasets in a project with optional sorting and pagination
+    """
+    saved_datasets = []
+    pagination = {}
+    err_msg = ""
+
+    grpc_pagination = None
+    grpc_sorting = None
+
+    if pagination_params:
+        grpc_pagination = create_grpc_pagination_params(pagination_params)
+    if sorting_params:
+        grpc_sorting = create_grpc_sorting_params(sorting_params)
+
+    try:
+        saved_datasets_req = RegistryServer_pb2.ListSavedDatasetsRequest(
+            project=project,
+            allow_cache=allow_cache,
+            pagination=grpc_pagination,
+            sorting=grpc_sorting,
+            tags=tags,
+        )
+        saved_datasets_response = grpc_call(
+            grpc_handler.ListSavedDatasets, saved_datasets_req
+        )
+        saved_datasets, pagination = saved_datasets_response.get("savedDatasets", []), saved_datasets_response.get("pagination", {})
+    except Exception as e:
+        err_msg = f"Error searching saved datasets in project '{project}'"
+        logger.error(f"{err_msg}: {e}")
+    finally:
+        return saved_datasets, pagination, err_msg
+
+def search_features(
+    grpc_handler,
+    project: str,
+    allow_cache: bool,
+    pagination_params: Optional[dict] = None,
+    sorting_params: Optional[dict] = None,
+) -> tuple[List[Dict[str, Any]], Dict[str, Any]]:
+    """
+    Search features in a project with optional sorting and pagination
+    """
+    features = []
+    pagination = {}
+    err_msg = ""
+
+    grpc_pagination = None
+    grpc_sorting = None
+
+    if pagination_params:
+        grpc_pagination = create_grpc_pagination_params(pagination_params)
+    if sorting_params:
+        grpc_sorting = create_grpc_sorting_params(sorting_params)
+
+    try:
+        features_req = RegistryServer_pb2.ListFeaturesRequest(
+            project=project,
+            allow_cache=allow_cache,
+            pagination=grpc_pagination,
+            sorting=grpc_sorting,
+        )
+        features_response = grpc_call(grpc_handler.ListFeatures, features_req)
+        features, pagination = features_response.get("features", []), features_response.get("pagination", {})
+    except Exception as e:
+        err_msg = f"Error searching features in project '{project}'"
+        logger.error(f"{err_msg}: {e}")
+    finally:
+        return features, pagination, err_msg
+
+def search_all_projects(
+    grpc_handler,
+    allow_cache: bool,
+    tags: Optional[Dict[str, str]] = None,
+    pagination_params: Optional[dict] = None,
+    sorting_params: Optional[dict] = None,
+) -> tuple[List[Dict[str, Any]], Dict[str, Any]]:
+    """
+    Search all projects with optional sorting and pagination
+    """
+    projects = []
+    pagination = {}
+    err_msg = ""
+
+    grpc_pagination = None
+    grpc_sorting = None
+
+    if pagination_params:
+        grpc_pagination = create_grpc_pagination_params(pagination_params)
+    if sorting_params:
+        grpc_sorting = create_grpc_sorting_params(sorting_params)
+
+    try:
+        projects_req = RegistryServer_pb2.ListProjectsRequest(
+            allow_cache=allow_cache,
+            pagination=grpc_pagination,
+            sorting=grpc_sorting,
+            tags=tags,
+        )
+        projects_response = grpc_call(grpc_handler.ListProjects, projects_req)
+        projects, pagination = projects_response.get("projects", []), projects_response.get("pagination", {})
+    except Exception as e:
+        err_msg = f"Error searching all projects"
+        logger.error(f"{err_msg}: {e}")
+    finally:
+        return projects, pagination, err_msg

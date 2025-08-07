@@ -1130,14 +1130,20 @@ Please refer the [page](./../../../docs/getting-started/concepts/permission.md) 
 - **Endpoint**: `GET /api/v1/search`
 - **Description**: Search across all Feast resources including entities, feature views, features, feature services, data sources, and saved datasets. Supports cross-project search, fuzzy matching, relevance scoring, and advanced filtering.
 - **Parameters**:
-  - `query` (required): Search query string. Searches in resource names, descriptions, and tags
+  - `query` (required): Search query string. Searches in resource names, descriptions, and tags. Empty string returns all resources.
   - `projects` (optional): List of project names to search in. If not specified, searches all projects
   - `allow_cache` (optional, default: `true`): Whether to allow cached data
-  - `tags` (optional): Filter results by tags in key=value format (e.g., `tags=environment:production&tags=team:ml`)
-  - `page` (optional, default: `1`): Page number for pagination
+  - `tags` (optional): Filter results by tags in key:value format (e.g., `tags=environment:production&tags=team:ml`)
+  - `page` (optional, default: `1`): Page number for pagination (starts from 1)
   - `limit` (optional, default: `50`, max: `100`): Number of items per page
   - `sort_by` (optional, default: `match_score`): Field to sort by (`match_score`, `name`, or `type`)
   - `sort_order` (optional, default: `desc`): Sort order ("asc" or "desc")
+- **Search Algorithm**:
+  - **Exact name match**: Highest priority (score: 100)
+  - **Description match**: High priority (score: 80) 
+  - **Feature name match**: Medium-high priority (score: 50)
+  - **Tag match**: Medium priority (score: 60)
+  - **Fuzzy name match**: Lower priority (score: 40, similarity threshold: 50%)
 - **Examples**:
   ```bash
   # Basic search across all projects
@@ -1198,37 +1204,54 @@ Please refer the [page](./../../../docs/getting-started/concepts/permission.md) 
     "pagination": {
       "page": 1,
       "limit": 50,
-      "total_count": 4,
-      "total_pages": 1,
-      "has_next": false,
-      "has_previous": false
-    }
+      "totalCount": 4,
+      "totalPages": 1,
+      "hasNext": false,
+      "hasPrevious": false
+    },
+    "errors": []
   }
   ```
 - **Project Handling**:
   - **No projects specified**: Searches all available projects
-  - **Single project**: Searches only that project (returns empty if project doesn't exist)
-  - **Multiple projects**: Searches only existing projects, warns about non-existent ones
+  - **Single project**: Searches only that project (includes warning if project doesn't exist)
+  - **Multiple projects**: Searches only existing projects, includes warnings about non-existent ones
   - **Empty projects list**: Treated as search all projects
 - **Error Responses**:
   ```json
-  // Invalid sort_by parameter
+  // Invalid sort_by parameter (HTTP 400)
   {
     "detail": "Invalid sort_by parameter: 'invalid_field'. Valid options are: ['match_score', 'name', 'type']"
   }
   
-  // Invalid sort_order parameter  
+  // Invalid sort_order parameter (HTTP 400)
   {
     "detail": "Invalid sort_order parameter: 'invalid_order'. Valid options are: ['asc', 'desc']"
   }
   
-  // No existing projects found
+  // Missing required query parameter (HTTP 422)
   {
-    "results": [],
-    "pagination": { "total_count": 0 },
+    "detail": [
+      {
+        "type": "missing",
+        "loc": ["query_params", "query"],
+        "msg": "Field required"
+      }
+    ]
+  }
+  
+  // Successful response with warnings
+  {
     "query": "user",
-    "projects_searched": [],
-    "error": "No projects found"
+    "projects_searched": ["existing_project"],
+    "results": [],
+    "pagination": {
+      "page": 1,
+      "limit": 50,
+      "totalCount": 0,
+      "totalPages": 0
+    },
+    "errors": ["Following projects do not exist: nonexistent_project"]
   }
   ```
 ---

