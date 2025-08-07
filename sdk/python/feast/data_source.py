@@ -922,6 +922,19 @@ class PushSource(DataSource):
             owner=self.owner,
         )
 
+        # Only set timestamp fields if we have a batch source and this PushSource doesn't have its own fields
+        if self.batch_source and not (
+            self.timestamp_field or self.created_timestamp_column or self.field_mapping
+        ):
+            data_source_proto.timestamp_field = self.batch_source.timestamp_field
+            data_source_proto.created_timestamp_column = (
+                self.batch_source.created_timestamp_column
+            )
+            data_source_proto.field_mapping.update(self.batch_source.field_mapping)
+            data_source_proto.date_partition_column = (
+                self.batch_source.date_partition_column
+            )
+
         if self.batch_source:
             data_source_proto.batch_source.MergeFrom(self.batch_source.to_proto())
 

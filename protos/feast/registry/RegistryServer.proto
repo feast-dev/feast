@@ -272,8 +272,12 @@ message ListAllFeatureViewsRequest {
     string project = 1;
     bool allow_cache = 2;
     map<string,string> tags = 3;
-    PaginationParams pagination = 4;
-    SortingParams sorting = 5;
+    string entity = 4;
+    string feature = 5;
+    string feature_service = 6;
+    string data_source = 7;
+    PaginationParams pagination = 8;
+    SortingParams sorting = 9;
 }
 
 message ListAllFeatureViewsResponse {
@@ -342,8 +346,9 @@ message ListFeatureServicesRequest {
     string project = 1;
     bool allow_cache = 2;
     map<string,string> tags = 3;
-    PaginationParams pagination = 4;
-    SortingParams sorting = 5;
+    string feature_view = 4;
+    PaginationParams pagination = 5;
+    SortingParams sorting = 6;
 }
 
 message ListFeatureServicesResponse {
@@ -534,7 +539,10 @@ message Feature {
   string feature_view = 2;
   string type = 3;
   string description = 4;
-  map<string, string> tags = 7;
+  string owner = 5;
+  google.protobuf.Timestamp created_timestamp = 6;
+  google.protobuf.Timestamp last_updated_timestamp = 7;
+  map<string, string> tags = 8;
 }
 
 message ListFeaturesRequest {

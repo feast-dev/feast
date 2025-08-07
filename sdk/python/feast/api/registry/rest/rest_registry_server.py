@@ -91,7 +91,6 @@ class RestRegistryServer:
                         user = "anonymous"
                     project = request.query_params.get("project") or self.project
                     key = f"recently_visited_{user}"
-                    logger.info(f"[LoggingMiddleware] Project: {project}, Key: {key}")
                     path = str(request.url.path)
                     method = request.method
 
