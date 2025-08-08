@@ -1,9 +1,13 @@
 from typing import Callable, Dict, List, Optional
 
-from fastapi import HTTPException, Query
+from fastapi import Query
 from google.protobuf.json_format import MessageToDict
 
-from feast.errors import FeastObjectNotFoundException
+from feast.errors import (
+    FeastObjectNotFoundException,
+    FeastPermissionError,
+    PushSourceNotFoundException,
+)
 from feast.protos.feast.registry import RegistryServer_pb2
 
 
@@ -14,10 +18,14 @@ def grpc_call(handler_fn, request):
     try:
         response = handler_fn(request, context=None)
         return MessageToDict(response)
-    except FeastObjectNotFoundException as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception:
-        raise HTTPException(status_code=500, detail="Internal server error")
+    except (
+        FeastObjectNotFoundException,
+        FeastPermissionError,
+        PushSourceNotFoundException,
+    ):
+        raise
+    except Exception as e:
+        raise e
 
 
 def get_object_relationships(
