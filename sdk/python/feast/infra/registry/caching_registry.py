@@ -426,19 +426,19 @@ class CachingRegistry(BaseRegistry):
 
     def refresh(self, project: Optional[str] = None):
         if self._refresh_lock.locked():
-            logger.info("Skipping refresh if already in progress")
+            logger.debug("Skipping refresh if already in progress")
             return
         try:
             self.cached_registry_proto = self.proto()
             self.cached_registry_proto_created = _utc_now()
         except Exception as e:
-            logger.error(f"Error while refreshing registry: {e}", exc_info=True)
+            logger.debug(f"Error while refreshing registry: {e}", exc_info=True)
 
     def _refresh_cached_registry_if_necessary(self):
         if self.cache_mode == "sync":
             # Try acquiring the lock without blocking
             if not self._refresh_lock.acquire(blocking=False):
-                logger.info(
+                logger.debug(
                     "Skipping refresh if lock is already held by another thread"
                 )
                 return
@@ -464,10 +464,10 @@ class CachingRegistry(BaseRegistry):
                         )
                     )
                 if expired:
-                    logger.info("Registry cache expired, so refreshing")
+                    logger.debug("Registry cache expired, so refreshing")
                     self.refresh()
             except Exception as e:
-                logger.error(
+                logger.debug(
                     f"Error in _refresh_cached_registry_if_necessary: {e}",
                     exc_info=True,
                 )
