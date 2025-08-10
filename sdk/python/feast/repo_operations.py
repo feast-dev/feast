@@ -506,8 +506,8 @@ def init_repo(repo_name: str, template: str):
 
 
 def is_valid_name(name: str) -> bool:
-    """A name should be alphanumeric values and underscores but not start with an underscore"""
-    return not name.startswith("_") and re.compile(r"\W+").search(name) is None
+    """A name should be alphanumeric values, underscores, and hyphens but not start with an underscore"""
+    return not name.startswith("_") and re.compile(r"[^\w-]+").search(name) is None
 
 
 def generate_project_name() -> str:
