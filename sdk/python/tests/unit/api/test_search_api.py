@@ -1426,7 +1426,10 @@ class TestSearchAPIMultiProjectComprehensive:
 
         # Should only find resources from project_a (transportation domain)
         project_a_results = [
-            r for r in data["results"] if r.get("project") == "project_a" and r.get("match_score") == tag_match_score
+            r
+            for r in data["results"]
+            if r.get("project") == "project_a"
+            and r.get("match_score") == tag_match_score
         ]
 
         assert len(project_a_results) > 0
@@ -1980,6 +1983,6 @@ class TestSearchAPIPagination:
         """Test pagination limit above maximum allowed value (100) returns error"""
         response = search_test_app.get("/search?query=user&limit=150")
         assert response.status_code == 400
-        
+
         error_data = response.json()
         assert "detail" in error_data

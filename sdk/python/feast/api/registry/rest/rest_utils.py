@@ -557,10 +557,10 @@ def filter_search_results_and_match_score(
 
 def fuzzy_match(
     query: str, text: str, threshold: float = MATCH_SCORE_DEFAULT_THRESHOLD
-) -> bool:
+) -> float:
     """Simple fuzzy matching using character overlap"""
     if not query or not text:
-        return False
+        return 0.0
 
     query_chars = set(query)
     text_chars = set(text)
