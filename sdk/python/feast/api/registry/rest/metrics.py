@@ -1,9 +1,11 @@
 import json
 import logging
-from typing import Optional
+from typing import Dict, List, Optional
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from pydantic import BaseModel, Field
 
+from feast.api.registry.rest.feature_views import _extract_feature_view_from_any
 from feast.api.registry.rest.rest_utils import (
     get_pagination_params,
     get_sorting_params,
@@ -11,6 +13,47 @@ from feast.api.registry.rest.rest_utils import (
     paginate_and_sort,
 )
 from feast.protos.feast.registry import RegistryServer_pb2
+
+
+class FeatureViewInfo(BaseModel):
+    """Feature view information in popular tags response."""
+
+    name: str = Field(..., description="Name of the feature view")
+    project: str = Field(..., description="Project name of the feature view")
+
+
+class PopularTagInfo(BaseModel):
+    """Popular tag information with associated feature views."""
+
+    tag_key: str = Field(..., description="Tag key")
+    tag_value: str = Field(..., description="Tag value")
+    feature_views: List[FeatureViewInfo] = Field(
+        ..., description="List of feature views with this tag"
+    )
+    total_feature_views: int = Field(
+        ..., description="Total number of feature views with this tag"
+    )
+
+
+class PopularTagsMetadata(BaseModel):
+    """Metadata for popular tags response."""
+
+    totalFeatureViews: int = Field(
+        ..., description="Total number of feature views processed"
+    )
+    totalTags: int = Field(..., description="Total number of unique tags found")
+    limit: int = Field(..., description="Number of popular tags requested")
+
+
+class PopularTagsResponse(BaseModel):
+    """Response model for popular tags endpoint."""
+
+    popular_tags: List[PopularTagInfo] = Field(
+        ..., description="List of popular tags with their associated feature views"
+    )
+    metadata: PopularTagsMetadata = Field(
+        ..., description="Metadata about the response"
+    )
 
 
 def get_metrics_router(grpc_handler, server=None) -> APIRouter:
@@ -95,6 +138,155 @@ def get_metrics_router(grpc_handler, server=None) -> APIRouter:
                 for k in total_counts:
                     total_counts[k] += counts[k]
             return {"total": total_counts, "perProject": all_counts}
+
+    @router.get(
+        "/metrics/popular_tags", tags=["Metrics"], response_model=PopularTagsResponse
+    )
+    async def popular_tags(
+        project: Optional[str] = Query(
+            None,
+            description="Project name for popular tags (optional, returns all projects if not specified)",
+        ),
+        limit: int = Query(4, description="Number of popular tags to return"),
+        allow_cache: bool = Query(default=True),
+    ):
+        """
+        Discover Feature Views by popular tags. Returns the most popular tags
+        (tags assigned to maximum number of feature views) with their associated feature views.
+        If no project is specified, returns popular tags across all projects.
+        """
+
+        def build_tag_collection(
+            feature_views: List[Dict],
+        ) -> Dict[str, Dict[str, List[Dict]]]:
+            """Build a collection of tags grouped by tag key and tag value."""
+            tag_collection: Dict[str, Dict[str, List[Dict]]] = {}
+
+            for fv in feature_views:
+                tags = fv.get("spec", {}).get("tags", {})
+                if not tags:
+                    continue
+
+                for tag_key, tag_value in tags.items():
+                    if tag_key not in tag_collection:
+                        tag_collection[tag_key] = {}
+
+                    if tag_value not in tag_collection[tag_key]:
+                        tag_collection[tag_key][tag_value] = []
+
+                    tag_collection[tag_key][tag_value].append(fv)
+
+            return tag_collection
+
+        def find_most_popular_tags(
+            tag_collection: Dict[str, Dict[str, List[Dict]]],
+        ) -> List[Dict]:
+            """Find the most popular tags based on total feature view count."""
+            tag_popularity = []
+
+            for tag_key, tag_values_map in tag_collection.items():
+                for tag_value, fv_entries in tag_values_map.items():
+                    total_feature_views = len(fv_entries)
+                    tag_popularity.append(
+                        {
+                            "tag_key": tag_key,
+                            "tag_value": tag_value,
+                            "feature_views": fv_entries,
+                            "total_feature_views": total_feature_views,
+                        }
+                    )
+
+            return sorted(
+                tag_popularity,
+                key=lambda x: (x["total_feature_views"], x["tag_key"]),
+                reverse=True,
+            )
+
+        def get_feature_views_for_project(project_name: str) -> List[Dict]:
+            """Get feature views for a specific project."""
+            req = RegistryServer_pb2.ListAllFeatureViewsRequest(
+                project=project_name,
+                allow_cache=allow_cache,
+            )
+            response = grpc_call(grpc_handler.ListAllFeatureViews, req)
+            any_feature_views = response.get("featureViews", [])
+            feature_views = []
+            for any_feature_view in any_feature_views:
+                feature_view = _extract_feature_view_from_any(any_feature_view)
+                if feature_view:
+                    feature_view["project"] = project_name
+                    feature_views.append(feature_view)
+            return feature_views
+
+        try:
+            if project:
+                feature_views = get_feature_views_for_project(project)
+            else:
+                projects_resp = grpc_call(
+                    grpc_handler.ListProjects,
+                    RegistryServer_pb2.ListProjectsRequest(allow_cache=allow_cache),
+                )
+                projects = projects_resp.get("projects", [])
+                feature_views = []
+                for project_info in projects:
+                    project_name = project_info["spec"]["name"]
+                    project_feature_views = get_feature_views_for_project(project_name)
+                    feature_views.extend(project_feature_views)
+
+            if not feature_views:
+                return PopularTagsResponse(
+                    popular_tags=[],
+                    metadata=PopularTagsMetadata(
+                        totalFeatureViews=0,
+                        totalTags=0,
+                        limit=limit,
+                    ),
+                )
+
+            tag_collection = build_tag_collection(feature_views)
+
+            if not tag_collection:
+                return PopularTagsResponse(
+                    popular_tags=[],
+                    metadata=PopularTagsMetadata(
+                        totalFeatureViews=len(feature_views),
+                        totalTags=0,
+                        limit=limit,
+                    ),
+                )
+            popular_tags = find_most_popular_tags(tag_collection)
+            top_popular_tags = popular_tags[:limit]
+            formatted_tags = []
+            for tag_info in top_popular_tags:
+                feature_view_infos = [
+                    FeatureViewInfo(
+                        name=fv.get("spec", {}).get("name", "unknown"),
+                        project=fv.get("project", "unknown"),
+                    )
+                    for fv in tag_info["feature_views"]
+                ]
+
+                formatted_tag = PopularTagInfo(
+                    tag_key=tag_info["tag_key"],
+                    tag_value=tag_info["tag_value"],
+                    feature_views=feature_view_infos,
+                    total_feature_views=tag_info["total_feature_views"],
+                )
+                formatted_tags.append(formatted_tag)
+
+            return PopularTagsResponse(
+                popular_tags=formatted_tags,
+                metadata=PopularTagsMetadata(
+                    totalFeatureViews=len(feature_views),
+                    totalTags=len(popular_tags),
+                    limit=limit,
+                ),
+            )
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to generate popular tags: {str(e)}",
+            )
 
     @router.get("/metrics/recently_visited", tags=["Metrics"])
     async def recently_visited(
