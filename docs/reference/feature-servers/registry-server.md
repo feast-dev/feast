@@ -1229,6 +1229,11 @@ Please refer the [page](./../../../docs/getting-started/concepts/permission.md) 
     "detail": "Invalid sort_order parameter: 'invalid_order'. Valid options are: ['asc', 'desc']"
   }
   
+  // Invalid pagination limit above maximum (HTTP 400)
+  {
+    "detail": "Invalid limit parameter: '150'. Must be less than or equal to 100"
+  }
+  
   // Missing required query parameter (HTTP 422)
   {
     "detail": [
@@ -1252,6 +1257,20 @@ Please refer the [page](./../../../docs/getting-started/concepts/permission.md) 
       "totalPages": 0
     },
     "errors": ["Following projects do not exist: nonexistent_project"]
+  }
+
+  // Successful response but empty results
+  {
+    "query": "user",
+    "projects_searched": ["existing_project"],
+    "results": [],
+    "pagination": {
+      "page": 1,
+      "limit": 50,
+      "totalCount": 0,
+      "totalPages": 0
+    },
+    "errors": []
   }
   ```
 ---

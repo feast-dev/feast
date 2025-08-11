@@ -14,7 +14,6 @@ MATCH_SCORE_DEFAULT_THRESHOLD = 0.5
 MATCH_SCORE_NAME = 100
 MATCH_SCORE_DESCRIPTION = 80
 MATCH_SCORE_TAGS = 60
-MATCH_SCORE_FEATURES = 50
 MATCH_SCORE_PARTIAL = 40
 
 
@@ -547,18 +546,10 @@ def filter_search_results_and_match_score(
             filtered_results.append(result)
             continue
 
-        # Search in features (for feature views and services)
-        features = result.get("features", [])
-        feature_match = any(query_lower in feature.lower() for feature in features)
-
-        if feature_match:
-            result["match_score"] = MATCH_SCORE_FEATURES
-            filtered_results.append(result)
-            continue
-
         # Partial name match (fuzzy search)
-        if fuzzy_match(query_lower, result.get("name", "").lower()):
-            result["match_score"] = MATCH_SCORE_PARTIAL
+        fuzzy_match_score = fuzzy_match(query_lower, result.get("name", "").lower())
+        if fuzzy_match_score >= MATCH_SCORE_DEFAULT_THRESHOLD:
+            result["match_score"] = fuzzy_match_score * 100
             filtered_results.append(result)
 
     return filtered_results
@@ -577,7 +568,7 @@ def fuzzy_match(
     overlap = len(query_chars.intersection(text_chars))
     similarity = overlap / len(query_chars.union(text_chars))
 
-    return similarity >= threshold
+    return similarity
 
 
 def search_entities(
