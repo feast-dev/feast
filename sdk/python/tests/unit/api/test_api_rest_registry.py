@@ -63,10 +63,39 @@ def fastapi_test_app():
             Field(name="income", dtype=Float64),
         ],
         source=user_profile_source,
+        tags={"environment": "production", "team": "ml", "version": "1.0"},
     )
+    user_behavior_feature_view = FeatureView(
+        name="user_behavior",
+        entities=[user_id_entity],
+        ttl=None,
+        schema=[
+            Field(name="click_count", dtype=Int64),
+            Field(name="session_duration", dtype=Float64),
+        ],
+        source=user_profile_source,
+        tags={"environment": "staging", "team": "analytics", "version": "2.0"},
+    )
+
+    user_preferences_feature_view = FeatureView(
+        name="user_preferences",
+        entities=[user_id_entity],
+        ttl=None,
+        schema=[
+            Field(name="preferred_category", dtype=Int64),
+            Field(name="engagement_score", dtype=Float64),
+        ],
+        source=user_profile_source,
+        tags={"environment": "production", "team": "analytics", "version": "1.5"},
+    )
+
     user_feature_service = FeatureService(
         name="user_service",
-        features=[user_profile_feature_view],
+        features=[
+            user_profile_feature_view,
+            user_behavior_feature_view,
+            user_preferences_feature_view,
+        ],
     )
 
     # Create a saved dataset for testing
@@ -80,7 +109,15 @@ def fastapi_test_app():
     )
 
     # Apply objects
-    store.apply([user_id_entity, user_profile_feature_view, user_feature_service])
+    store.apply(
+        [
+            user_id_entity,
+            user_profile_feature_view,
+            user_behavior_feature_view,
+            user_preferences_feature_view,
+            user_feature_service,
+        ]
+    )
     store._registry.apply_saved_dataset(test_saved_dataset, "demo_project")
 
     # Build REST app with registered routes
@@ -1482,3 +1519,65 @@ def test_metrics_recently_visited_user_isolation(fastapi_test_app):
     # All visits should be for anonymous user
     for visit in visits:
         assert visit["user"] == "anonymous"
+
+
+def test_metrics_popular_tags_via_rest(fastapi_test_app):
+    """Test the /metrics/popular_tags endpoint."""
+    response = fastapi_test_app.get("/metrics/popular_tags?project=demo_project")
+    assert response.status_code == 200
+    data = response.json()
+
+    assert "popular_tags" in data
+    assert "metadata" in data
+
+    metadata = data["metadata"]
+    assert "totalFeatureViews" in metadata
+    assert "totalTags" in metadata
+    assert "limit" in metadata
+
+    assert metadata["totalFeatureViews"] >= 3
+    assert metadata["totalTags"] >= 3  # environment, team, version
+
+    popular_tags = data["popular_tags"]
+    assert isinstance(popular_tags, list)
+    assert len(popular_tags) > 0
+
+    for tag_info in popular_tags:
+        assert "tag_key" in tag_info
+        assert "tag_value" in tag_info
+        assert "feature_views" in tag_info
+        assert "total_feature_views" in tag_info
+        assert isinstance(tag_info["total_feature_views"], int)
+        assert tag_info["total_feature_views"] > 0
+        assert isinstance(tag_info["feature_views"], list)
+
+        for fv in tag_info["feature_views"]:
+            assert "name" in fv
+            assert "project" in fv
+            assert isinstance(fv["name"], str)
+            assert isinstance(fv["project"], str)
+
+    response = fastapi_test_app.get(
+        "/metrics/popular_tags?project=demo_project&limit=2"
+    )
+    assert response.status_code == 200
+    data = response.json()
+
+    assert len(data["popular_tags"]) <= 2
+
+    response = fastapi_test_app.get("/metrics/popular_tags")
+    assert response.status_code == 200
+    data = response.json()
+
+    assert "popular_tags" in data
+    assert "metadata" in data
+
+    popular_tags = data["popular_tags"]
+    assert isinstance(popular_tags, list)
+    # May be empty if no feature views exist, but structure should be correct
+    if len(popular_tags) > 0:
+        for tag_info in popular_tags:
+            assert "tag_key" in tag_info
+            assert "tag_value" in tag_info
+            assert "feature_views" in tag_info
+            assert "total_feature_views" in tag_info

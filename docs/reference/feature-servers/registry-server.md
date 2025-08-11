@@ -1274,6 +1274,72 @@ Please refer the [page](./../../../docs/getting-started/concepts/permission.md) 
   }
   ```
 ---
+#### Get Popular Tags
+- **Endpoint**: `GET /api/v1/metrics/popular_tags`
+- **Description**: Discover Feature Views by popular tags. Returns the most popular tags (tags assigned to maximum number of feature views) with their associated feature views. If no project is specified, returns popular tags across all projects.
+- **Parameters**:
+  - `project` (optional): Project name for popular tags (returns all projects if not specified)
+  - `limit` (optional, default: 4): Number of popular tags to return
+  - `allow_cache` (optional, default: true): Whether to allow cached responses
+- **Examples**:
+  ```bash
+  # Basic usage (all projects)
+  curl -H "Authorization: Bearer <token>" \
+    "http://localhost:6572/api/v1/metrics/popular_tags"
+  
+  # Specific project
+  curl -H "Authorization: Bearer <token>" \
+    "http://localhost:6572/api/v1/metrics/popular_tags?project=my_project"
+  
+  # Custom limit
+  curl -H "Authorization: Bearer <token>" \
+    "http://localhost:6572/api/v1/metrics/popular_tags?project=my_project&limit=3"
+  ```
+- **Response Model**: `PopularTagsResponse`
+- **Response Example**:
+  ```json
+  {
+    "popular_tags": [
+      {
+        "tag_key": "environment",
+        "tag_value": "production",
+        "feature_views": [
+          {
+            "name": "user_features",
+            "project": "my_project"
+          },
+          {
+            "name": "order_features",
+            "project": "my_project"
+          }
+        ],
+        "total_feature_views": 2
+      },
+      {
+        "tag_key": "team",
+        "tag_value": "ml_team",
+        "feature_views": [
+          {
+            "name": "user_features",
+            "project": "my_project"
+          }
+        ],
+        "total_feature_views": 1
+      }
+    ],
+    "metadata": {
+      "totalFeatureViews": 3,
+      "totalTags": 2,
+      "limit": 4
+    }
+  }
+  ```
+
+**Response Models:**
+- `FeatureViewInfo`: Contains feature view name and project
+- `PopularTagInfo`: Contains tag information and associated feature views
+- `PopularTagsMetadata`: Contains metadata about the response
+- `PopularTagsResponse`: Main response model containing popular tags and metadata
 
 ## Registry Server Configuration: Recent Visit Logging
 
@@ -1312,3 +1378,4 @@ feature_server:
 - Only the most recent `limit` visits per user are stored
 - Metrics endpoints (`/metrics/*`) are automatically excluded from logging to prevent circular references
 - Visit data is stored per user and per project in the registry metadata
+
