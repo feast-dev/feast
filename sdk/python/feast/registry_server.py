@@ -12,7 +12,7 @@ from feast import FeatureService, FeatureStore
 from feast.base_feature_view import BaseFeatureView
 from feast.data_source import DataSource
 from feast.entity import Entity
-from feast.errors import FeatureViewNotFoundException
+from feast.errors import FeastObjectNotFoundException, FeatureViewNotFoundException
 from feast.feast_object import FeastObject
 from feast.feature_view import FeatureView
 from feast.grpc_error_interceptor import ErrorInterceptor
@@ -1205,9 +1205,9 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
                         last_updated_timestamp=last_updated_timestamp,
                         tags=getattr(feature, "tags", {}),
                     )
-        context.set_code(grpc.StatusCode.NOT_FOUND)
-        context.set_details("Feature not found")
-        return Feature()
+        raise FeastObjectNotFoundException(
+            f"Feature {request.name} not found in feature view {request.feature_view} in project {request.project}"
+        )
 
 
 def start_server(

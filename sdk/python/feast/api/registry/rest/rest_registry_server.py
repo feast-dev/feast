@@ -2,10 +2,18 @@ import json
 import logging
 import re
 
-from fastapi import Depends, FastAPI, status
+from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+from pydantic import ValidationError
 
 from feast import FeatureStore
 from feast.api.registry.rest import register_all_routes
+from feast.errors import (
+    FeastObjectNotFoundException,
+    FeastPermissionError,
+    PushSourceNotFoundException,
+)
 from feast.permissions.auth.auth_manager import get_auth_manager
 from feast.permissions.server.rest import inject_user_details
 from feast.permissions.server.utils import (
@@ -62,10 +70,112 @@ class RestRegistryServer:
                 "X-Frame-Options": "DENY",
             },
         )
+        self._add_exception_handlers()
         self._add_logging_middleware()
         self._add_openapi_security()
         self._init_auth()
         self._register_routes()
+
+    def _add_exception_handlers(self):
+        """Add custom exception handlers to include HTTP status codes in JSON responses."""
+
+        @self.app.exception_handler(HTTPException)
+        async def http_exception_handler(request: Request, exc: HTTPException):
+            return JSONResponse(
+                status_code=exc.status_code,
+                content={
+                    "status_code": exc.status_code,
+                    "detail": exc.detail,
+                    "error_type": "HTTPException",
+                },
+            )
+
+        @self.app.exception_handler(FeastObjectNotFoundException)
+        async def feast_object_not_found_handler(
+            request: Request, exc: FeastObjectNotFoundException
+        ):
+            return JSONResponse(
+                status_code=404,
+                content={
+                    "status_code": 404,
+                    "detail": str(exc),
+                    "error_type": "FeastObjectNotFoundException",
+                },
+            )
+
+        @self.app.exception_handler(FeastPermissionError)
+        async def feast_permission_error_handler(
+            request: Request, exc: FeastPermissionError
+        ):
+            return JSONResponse(
+                status_code=403,
+                content={
+                    "status_code": 403,
+                    "detail": str(exc),
+                    "error_type": "FeastPermissionError",
+                },
+            )
+
+        @self.app.exception_handler(PushSourceNotFoundException)
+        async def push_source_not_found_handler(
+            request: Request, exc: PushSourceNotFoundException
+        ):
+            return JSONResponse(
+                status_code=422,
+                content={
+                    "status_code": 422,
+                    "detail": str(exc),
+                    "error_type": "PushSourceNotFoundException",
+                },
+            )
+
+        @self.app.exception_handler(ValidationError)
+        async def validation_error_handler(request: Request, exc: ValidationError):
+            return JSONResponse(
+                status_code=422,
+                content={
+                    "status_code": 422,
+                    "detail": str(exc),
+                    "error_type": "ValidationError",
+                },
+            )
+
+        @self.app.exception_handler(RequestValidationError)
+        async def request_validation_error_handler(
+            request: Request, exc: RequestValidationError
+        ):
+            return JSONResponse(
+                status_code=422,
+                content={
+                    "status_code": 422,
+                    "detail": str(exc),
+                    "error_type": "RequestValidationError",
+                },
+            )
+
+        @self.app.exception_handler(ValueError)
+        async def value_error_handler(request: Request, exc: ValueError):
+            return JSONResponse(
+                status_code=422,
+                content={
+                    "status_code": 422,
+                    "detail": str(exc),
+                    "error_type": "ValueError",
+                },
+            )
+
+        @self.app.exception_handler(Exception)
+        async def generic_exception_handler(request: Request, exc: Exception):
+            logger.error(f"Unhandled exception: {exc}", exc_info=True)
+
+            return JSONResponse(
+                status_code=500,
+                content={
+                    "status_code": 500,
+                    "detail": f"Internal server error: {str(exc)}",
+                    "error_type": "InternalServerError",
+                },
+            )
 
     def _add_logging_middleware(self):
         from fastapi import Request

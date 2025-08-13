@@ -441,11 +441,15 @@ def test_object_relationships_invalid_type_via_rest(fastapi_test_app):
     response = fastapi_test_app.get(
         "/lineage/objects/invalidType/some_name?project=demo_project"
     )
-    assert response.status_code == 400
+    assert response.status_code == 422
 
     data = response.json()
+    assert "status_code" in data
+    assert data["status_code"] == 422
     assert "detail" in data
     assert "Invalid object_type" in data["detail"]
+    assert "error_type" in data
+    assert data["error_type"] == "ValueError"
 
 
 def test_complete_registry_data_via_rest(fastapi_test_app):
@@ -494,6 +498,13 @@ def test_lineage_endpoint_error_handling(fastapi_test_app):
     response = fastapi_test_app.get("/lineage/registry")
     assert response.status_code == 422  # Validation error
 
+    data = response.json()
+    assert "status_code" in data
+    assert data["status_code"] == 422
+    assert "detail" in data
+    assert "error_type" in data
+    assert data["error_type"] == "RequestValidationError"
+
     # Test invalid project
     response = fastapi_test_app.get("/lineage/registry?project=nonexistent_project")
     # Should still return 200 but with empty results
@@ -502,6 +513,13 @@ def test_lineage_endpoint_error_handling(fastapi_test_app):
     # Test object relationships with missing parameters
     response = fastapi_test_app.get("/lineage/objects/featureView/test_fv")
     assert response.status_code == 422  # Missing required project parameter
+
+    data = response.json()
+    assert "status_code" in data
+    assert data["status_code"] == 422
+    assert "detail" in data
+    assert "error_type" in data
+    assert data["error_type"] == "RequestValidationError"
 
 
 def test_saved_datasets_via_rest(fastapi_test_app):
@@ -563,11 +581,25 @@ def test_saved_datasets_via_rest(fastapi_test_app):
     response = fastapi_test_app.get("/saved_datasets/non_existent?project=demo_project")
     assert response.status_code == 404
 
+    data = response.json()
+    assert "status_code" in data
+    assert data["status_code"] == 404
+    assert "detail" in data
+    assert "error_type" in data
+    assert data["error_type"] == "FeastObjectNotFoundException"
+
     # Test missing project parameter
     response = fastapi_test_app.get("/saved_datasets/test_saved_dataset")
     assert (
         response.status_code == 422
     )  # Unprocessable Entity for missing required query param
+
+    data = response.json()
+    assert "status_code" in data
+    assert data["status_code"] == 422
+    assert "detail" in data
+    assert "error_type" in data
+    assert data["error_type"] == "RequestValidationError"
 
 
 @pytest.fixture
@@ -968,17 +1000,45 @@ def test_pagination_invalid_parameters_via_rest(fastapi_test_app_with_multiple_o
     response = client.get("/entities?project=demo_project&page=-1&limit=2")
     assert response.status_code == 422  # Validation error
 
+    data = response.json()
+    assert "status_code" in data
+    assert data["status_code"] == 422
+    assert "detail" in data
+    assert "error_type" in data
+    assert data["error_type"] == "RequestValidationError"
+
     # Test invalid limit (negative)
     response = client.get("/entities?project=demo_project&page=1&limit=-1")
     assert response.status_code == 422  # Validation error
+
+    data = response.json()
+    assert "status_code" in data
+    assert data["status_code"] == 422
+    assert "detail" in data
+    assert "error_type" in data
+    assert data["error_type"] == "RequestValidationError"
 
     # Test invalid limit (too large)
     response = client.get("/entities?project=demo_project&page=1&limit=1000")
     assert response.status_code == 422  # Validation error
 
+    data = response.json()
+    assert "status_code" in data
+    assert data["status_code"] == 422
+    assert "detail" in data
+    assert "error_type" in data
+    assert data["error_type"] == "RequestValidationError"
+
     # Test invalid page number (zero)
     response = client.get("/entities?project=demo_project&page=0&limit=2")
     assert response.status_code == 422  # Validation error
+
+    data = response.json()
+    assert "status_code" in data
+    assert data["status_code"] == 422
+    assert "detail" in data
+    assert "error_type" in data
+    assert data["error_type"] == "RequestValidationError"
 
 
 def test_sorting_invalid_parameters_via_rest(fastapi_test_app_with_multiple_objects):
@@ -990,6 +1050,13 @@ def test_sorting_invalid_parameters_via_rest(fastapi_test_app_with_multiple_obje
         "/entities?project=demo_project&sort_by=name&sort_order=invalid"
     )
     assert response.status_code == 422  # Validation error
+
+    data = response.json()
+    assert "status_code" in data
+    assert data["status_code"] == 422
+    assert "detail" in data
+    assert "error_type" in data
+    assert data["error_type"] == "RequestValidationError"
 
     # Test with only sort_by (should default to asc)
     response = client.get("/entities?project=demo_project&sort_by=name")
@@ -1100,8 +1167,12 @@ def test_features_get_invalid_feature_view_via_rest(fastapi_test_app):
     )
     assert response.status_code == 404
     data = response.json()
+    assert "status_code" in data
+    assert data["status_code"] == 404
     assert "detail" in data
     assert "not found" in data["detail"].lower()
+    assert "error_type" in data
+    assert data["error_type"] == "FeastObjectNotFoundException"
 
 
 def test_features_get_via_rest(fastapi_test_app):
@@ -1581,3 +1652,77 @@ def test_metrics_popular_tags_via_rest(fastapi_test_app):
             assert "tag_value" in tag_info
             assert "feature_views" in tag_info
             assert "total_feature_views" in tag_info
+
+
+def test_all_endpoints_return_404_for_invalid_objects(fastapi_test_app):
+    """Test that all REST API endpoints return 404 errors when objects are not found."""
+
+    # Test entities endpoint
+    response = fastapi_test_app.get(
+        "/entities/non_existent_entity?project=demo_project"
+    )
+    assert response.status_code == 404
+    data = response.json()
+    assert data["status_code"] == 404
+    assert data["error_type"] == "FeastObjectNotFoundException"
+
+    # Test feature views endpoint
+    response = fastapi_test_app.get(
+        "/feature_views/non_existent_fv?project=demo_project"
+    )
+    assert response.status_code == 404
+    data = response.json()
+    assert data["status_code"] == 404
+    assert data["error_type"] == "FeastObjectNotFoundException"
+
+    # Test feature services endpoint
+    response = fastapi_test_app.get(
+        "/feature_services/non_existent_fs?project=demo_project"
+    )
+    assert response.status_code == 404
+    data = response.json()
+    assert data["status_code"] == 404
+    assert data["error_type"] == "FeastObjectNotFoundException"
+
+    # Test data sources endpoint
+    response = fastapi_test_app.get(
+        "/data_sources/non_existent_ds?project=demo_project"
+    )
+    assert response.status_code == 404
+    data = response.json()
+    assert data["status_code"] == 404
+    assert data["error_type"] == "FeastObjectNotFoundException"
+
+    # Test saved datasets endpoint
+    response = fastapi_test_app.get(
+        "/saved_datasets/non_existent_sd?project=demo_project"
+    )
+    assert response.status_code == 404
+    data = response.json()
+    assert data["status_code"] == 404
+    assert data["error_type"] == "FeastObjectNotFoundException"
+
+    # Test features endpoint
+    response = fastapi_test_app.get(
+        "/features/non_existent_fv/non_existent_feature?project=demo_project"
+    )
+    assert response.status_code == 404
+    data = response.json()
+    assert data["status_code"] == 404
+    assert data["error_type"] == "FeastObjectNotFoundException"
+
+    # Test projects endpoint
+    response = fastapi_test_app.get("/projects/non_existent_project")
+    assert response.status_code == 404
+    data = response.json()
+    assert data["status_code"] == 404
+    assert data["error_type"] == "FeastObjectNotFoundException"
+
+    # Test permissions endpoint
+    response = fastapi_test_app.get(
+        "/permissions/non_existent_perm?project=demo_project"
+    )
+    assert response.status_code == 404
+    data = response.json()
+    assert data["status_code"] == 404
+    assert data["error_type"] == "FeastObjectNotFoundException"

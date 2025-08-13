@@ -3,7 +3,7 @@
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 
 from feast.api.registry.rest.rest_utils import (
     create_grpc_pagination_params,
@@ -88,9 +88,8 @@ def get_lineage_router(grpc_handler) -> APIRouter:
             "feature",
         ]
         if object_type not in valid_types:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Invalid object_type. Must be one of: {', '.join(valid_types)}",
+            raise ValueError(
+                f"Invalid object_type. Must be one of: {', '.join(valid_types)}"
             )
 
         req = RegistryServer_pb2.GetObjectRelationshipsRequest(
