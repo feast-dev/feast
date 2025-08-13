@@ -10,7 +10,7 @@ from feast.protos.feast.registry import RegistryServer_pb2
 logger = logging.getLogger(__name__)
 
 
-MATCH_SCORE_DEFAULT_THRESHOLD = 0.5
+MATCH_SCORE_DEFAULT_THRESHOLD = 0.75
 MATCH_SCORE_NAME = 100
 MATCH_SCORE_DESCRIPTION = 80
 MATCH_SCORE_TAGS = 60
@@ -161,6 +161,20 @@ def aggregate_across_projects(
     }
     if include_relationships:
         result["relationships"] = relationships_map
+    return result
+
+
+def get_all_feature_views(feature_views_response: dict) -> list[dict]:
+    """
+    Get all feature views from a feature views response, regardless of type.
+    This is future-proof and will handle any kind of feature view keys.
+    """
+    result = []
+    for key, value in feature_views_response.items():
+        if isinstance(value, list):
+            result.extend(value)
+        else:
+            result.append(value)
     return result
 
 
@@ -424,7 +438,7 @@ def get_all_project_resources(
 
     try:
         # Get entities
-        resources["entities"], pagination["entities"], err_msg = search_entities(
+        resources["entities"], pagination["entities"], err_msg = list_entities(
             grpc_handler=grpc_handler,
             project=project,
             allow_cache=allow_cache,
@@ -437,7 +451,7 @@ def get_all_project_resources(
 
         # Get data sources
         resources["dataSources"], pagination["dataSources"], err_msg = (
-            search_data_sources(
+            list_data_sources(
                 grpc_handler=grpc_handler,
                 project=project,
                 allow_cache=allow_cache,
@@ -451,7 +465,7 @@ def get_all_project_resources(
 
         # Get feature views
         resources["featureViews"], pagination["featureViews"], err_msg = (
-            search_feature_views(
+            list_feature_views(
                 grpc_handler=grpc_handler,
                 project=project,
                 allow_cache=allow_cache,
@@ -465,7 +479,7 @@ def get_all_project_resources(
 
         # Get feature services
         resources["featureServices"], pagination["featureServices"], err_msg = (
-            search_feature_services(
+            list_feature_services(
                 grpc_handler=grpc_handler,
                 project=project,
                 allow_cache=allow_cache,
@@ -479,7 +493,7 @@ def get_all_project_resources(
 
         # Get saved datasets
         resources["savedDatasets"], pagination["savedDatasets"], err_msg = (
-            search_saved_datasets(
+            list_saved_datasets(
                 grpc_handler=grpc_handler,
                 project=project,
                 allow_cache=allow_cache,
@@ -492,7 +506,7 @@ def get_all_project_resources(
             errors.append(err_msg)
 
         # Get features
-        resources["features"], pagination["features"], err_msg = search_features(
+        resources["features"], pagination["features"], err_msg = list_features(
             grpc_handler=grpc_handler,
             project=project,
             allow_cache=allow_cache,
@@ -555,9 +569,7 @@ def filter_search_results_and_match_score(
     return filtered_results
 
 
-def fuzzy_match(
-    query: str, text: str, threshold: float = MATCH_SCORE_DEFAULT_THRESHOLD
-) -> float:
+def fuzzy_match(query: str, text: str) -> float:
     """Simple fuzzy matching using character overlap"""
     if not query or not text:
         return 0.0
@@ -571,7 +583,7 @@ def fuzzy_match(
     return similarity
 
 
-def search_entities(
+def list_entities(
     grpc_handler,
     project: str,
     allow_cache: bool,
@@ -614,7 +626,7 @@ def search_entities(
         return entities, pagination, err_msg
 
 
-def search_feature_views(
+def list_feature_views(
     grpc_handler,
     project: str,
     allow_cache: bool,
@@ -648,8 +660,9 @@ def search_feature_views(
         feature_views_response = grpc_call(
             grpc_handler.ListAllFeatureViews, feature_views_req
         )
+        all_feature_views = get_all_feature_views(feature_views_response)
         feature_views, pagination = (
-            feature_views_response.get("featureViews", []),
+            all_feature_views,
             feature_views_response.get("pagination", {}),
         )
     except Exception as e:
@@ -659,7 +672,7 @@ def search_feature_views(
         return feature_views, pagination, err_msg
 
 
-def search_feature_services(
+def list_feature_services(
     grpc_handler,
     project: str,
     allow_cache: bool,
@@ -704,7 +717,7 @@ def search_feature_services(
         return feature_services, pagination, err_msg
 
 
-def search_data_sources(
+def list_data_sources(
     grpc_handler,
     project: str,
     allow_cache: bool,
@@ -749,7 +762,7 @@ def search_data_sources(
         return data_sources, pagination, err_msg
 
 
-def search_saved_datasets(
+def list_saved_datasets(
     grpc_handler,
     project: str,
     allow_cache: bool,
@@ -794,7 +807,7 @@ def search_saved_datasets(
         return saved_datasets, pagination, err_msg
 
 
-def search_features(
+def list_features(
     grpc_handler,
     project: str,
     allow_cache: bool,
@@ -835,7 +848,7 @@ def search_features(
         return features, pagination, err_msg
 
 
-def search_all_projects(
+def list_all_projects(
     grpc_handler,
     allow_cache: bool,
     tags: Optional[Dict[str, str]] = None,

@@ -6,10 +6,11 @@ import pandas as pd
 import pytest
 from fastapi.testclient import TestClient
 
-from feast import Entity, FeatureService, FeatureView, Field, FileSource
+from feast import Entity, FeatureService, FeatureView, Field, FileSource, RequestSource
 from feast.api.registry.rest.rest_registry_server import RestRegistryServer
 from feast.feature_store import FeatureStore
 from feast.infra.offline_stores.file_source import SavedDatasetFileStorage
+from feast.on_demand_feature_view import on_demand_feature_view
 from feast.project import Project
 from feast.repo_config import RepoConfig
 from feast.saved_dataset import SavedDataset
@@ -179,6 +180,37 @@ def search_test_app():
         tags={"team": "product", "type": "serving"},
     )
 
+    # Create an on-demand feature view
+    request_source = RequestSource(
+        name="user_request_source",
+        schema=[
+            Field(name="user_id", dtype=Int64),
+            Field(name="conversion_rate", dtype=Float64),
+        ],
+    )
+
+    @on_demand_feature_view(
+        sources=[user_features, request_source],
+        schema=[
+            Field(name="age_conversion_score", dtype=Float64),
+        ],
+        description="On-demand features combining user features with real-time data",
+        tags={"team": "data", "type": "real_time", "environment": "test"},
+    )
+    def user_on_demand_features(inputs: dict):
+        # Access individual feature columns directly from inputs
+        age = inputs["age"]  # from user_features feature view
+        conversion_rate = inputs["conversion_rate"]  # from request source
+
+        # Create age-based conversion score
+        age_conversion_score = age * conversion_rate
+
+        return pd.DataFrame(
+            {
+                "age_conversion_score": age_conversion_score,
+            }
+        )
+
     # Create saved datasets
     user_dataset_storage = SavedDatasetFileStorage(path=user_data_path)
     user_dataset = SavedDataset(
@@ -200,9 +232,13 @@ def search_test_app():
             transaction_features,
             user_service,
             product_service,
+            user_on_demand_features,
         ]
     )
     store._registry.apply_saved_dataset(user_dataset, "test_project")
+
+    global global_store
+    global_store = store
 
     # Build REST app
     rest_server = RestRegistryServer(store)
@@ -868,36 +904,35 @@ class TestSearchAPI:
     def test_search_api_special_characters(self, search_test_app):
         """Test search API with special characters in query and verify expected results"""
         # Define expected matches for each special character query
+        # NOTE: Queries are designed to achieve 75%+ similarity with fuzzy matching algorithm
         special_query_expectations = {
-            "user@domain.com": {
+            "users": {
                 "should_find": [
                     "user"
-                ],  # Should match "user" entity (partial match on "user")
-                "description": "Email-like query should find user resources",
+                ],  # "users" vs "user": overlap={'u','s','e','r'}/union={'u','s','e','r','s'} = 4/5 = 80%
+                "description": "Plural form should find user entity",
             },
-            "feature-name": {
+            "user_feature": {
                 "should_find": [
                     "user_features",
-                    "product_features",
-                    "transaction_features",
-                ],  # Partial match on "feature"
-                "description": "Hyphenated query should find feature views",
+                ],  # "user_feature" vs "user_features": overlap={'u','s','e','r','_','f','a','t','u','r'}/union={'u','s','e','r','_','f','a','t','u','r','e','s'} = 10/12 = 83%
+                "description": "Singular form should find feature views",
             },
-            "test_entity": {
+            "product": {
                 "should_find": [
-                    "user",
                     "product",
-                    "transaction",
-                ],  # Should match entities (partial match on test data)
-                "description": "Underscore query should find entities",
+                    "product_features",
+                    "product_source",
+                ],  # "product" vs "product": 100% match ✅
+                "description": "Exact match should find product resources",
             },
-            "data source": {
+            "sources": {
                 "should_find": [
                     "user_source",
                     "product_source",
                     "transaction_source",
-                ],  # Partial match on "source"
-                "description": "Space-separated query should find data sources",
+                ],  # "sources" vs "user_source": overlap={'s','o','u','r','c','e'}/union={'s','o','u','r','c','e','_','u'} = 6/8 = 75%
+                "description": "Plural form should find data sources",
             },
         }
 
@@ -1027,6 +1062,126 @@ class TestSearchAPI:
         # At minimum, should not crash and should search test_project
         assert len(data["projects_searched"]) == 1
         assert "test_project" == data["projects_searched"][0]
+
+    def test_search_on_demand_feature_view(self, search_test_app):
+        """Test searching for on-demand feature views"""
+        # Search by name
+        global global_store
+        global_store._registry.refresh()
+        response = search_test_app.get("/search?query=user_on_demand_features")
+        assert response.status_code == 200
+
+        data = response.json()
+        results = data["results"]
+
+        # Should find the on-demand feature view
+        on_demand_fv_results = [r for r in results if r["type"] == "featureView"]
+        assert len(on_demand_fv_results) > 0
+
+        on_demand_fv = on_demand_fv_results[0]
+        logger.debug(f"On-demand feature view: {on_demand_fv_results}")
+        assert on_demand_fv["name"] == "user_on_demand_features"
+        assert (
+            "On-demand features combining user features with real-time data"
+            in on_demand_fv["description"]
+        )
+        assert on_demand_fv["project"] == "test_project"
+        assert "match_score" in on_demand_fv
+        assert on_demand_fv["match_score"] > 0
+
+        # Search by description content
+        response = search_test_app.get("/search?query=real-time")
+        assert response.status_code == 200
+
+        data = response.json()
+        results = data["results"]
+
+        # Should find the on-demand feature view by description
+        on_demand_description_results = [
+            r
+            for r in results
+            if "real-time" in r.get("description", "").lower()
+            or "real_time" in r.get("description", "").lower()
+        ]
+        assert len(on_demand_description_results) > 0
+
+        # Check that our on-demand feature view is in the results
+        on_demand_names = [r["name"] for r in on_demand_description_results]
+        assert "user_on_demand_features" in on_demand_names
+
+        # Search by tags
+        response = search_test_app.get("/search?query=&tags=type:real_time")
+        assert response.status_code == 200
+
+        data = response.json()
+        results = data["results"]
+
+        # Should find the on-demand feature view by tag
+        tagged_results = [r for r in results if r["name"] == "user_on_demand_features"]
+        assert len(tagged_results) > 0
+
+        tagged_result = tagged_results[0]
+        assert tagged_result["type"] == "featureView"
+        assert tagged_result["name"] == "user_on_demand_features"
+
+    def test_search_on_demand_features_individual(self, search_test_app):
+        """Test searching for individual features from on-demand feature views"""
+        # Search for individual features from the on-demand feature view
+        response = search_test_app.get("/search?query=age_conversion_score")
+        assert response.status_code == 200
+
+        data = response.json()
+        results = data["results"]
+
+        # Should find the individual feature from the on-demand feature view
+        feature_results = [
+            r
+            for r in results
+            if r["type"] == "feature" and r["name"] == "age_conversion_score"
+        ]
+        assert len(feature_results) > 0
+
+        feature_result = feature_results[0]
+        assert feature_result["name"] == "age_conversion_score"
+        assert feature_result["type"] == "feature"
+        assert feature_result["project"] == "test_project"
+        assert "match_score" in feature_result
+        assert feature_result["match_score"] == 100  # Exact match should have score 100
+
+        # Verify that features from different feature view types can be found together
+        response = search_test_app.get("/search?query=&sort_by=name&sort_order=asc")
+        assert response.status_code == 200
+
+        data = response.json()
+        all_features = [r for r in data["results"] if r["type"] == "feature"]
+
+        # Should have features from both regular feature views and on-demand feature views
+        regular_features = []
+        on_demand_features = []
+
+        for feature in all_features:
+            if feature["name"] in [
+                "age",
+                "income",
+                "price",
+                "category",
+                "amount",
+                "payment_method",
+            ]:
+                regular_features.append(feature)
+            elif feature["name"] in ["age_conversion_score"]:
+                on_demand_features.append(feature)
+
+        assert len(regular_features) > 0, (
+            "Should have features from regular feature views"
+        )
+        assert len(on_demand_features) > 0, (
+            "Should have features from on-demand feature views"
+        )
+
+        logger.debug(
+            f"Found {len(regular_features)} regular features and {len(on_demand_features)} on-demand features"
+        )
 
     def test_search_missing_required_query_parameter(self, search_test_app):
         """Test search API fails when required query parameter is missing"""

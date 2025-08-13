@@ -6,9 +6,9 @@ from fastapi import APIRouter, Depends, Query
 from feast.api.registry.rest.rest_utils import (
     filter_search_results_and_match_score,
     get_all_project_resources,
+    list_all_projects,
     paginate_and_sort,
     parse_tags,
-    search_all_projects,
     validate_or_set_default_pagination_params,
     validate_or_set_default_sorting_params,
 )
@@ -127,24 +127,36 @@ def get_search_router(grpc_handler) -> APIRouter:
                         }
                     )
 
-                # Extract and convert feature views
+                # Extract and convert feature views (all types - future-proof)
                 feature_views = project_resources.get("featureViews", [])
                 for fv in feature_views:
-                    results.append(
-                        {
-                            "type": "featureView",
-                            "name": fv.get("featureView", {})
-                            .get("spec", {})
-                            .get("name", ""),
-                            "description": fv.get("featureView", {})
-                            .get("spec", {})
-                            .get("description", ""),
-                            "project": current_project,
-                            "tags": fv.get("featureView", {})
-                            .get("spec", {})
-                            .get("tags", {}),
-                        }
-                    )
+                    # Find the feature view data by looking for keys that contain "feature" and "view"
+                    feature_view_data = None
+                    for key, value in fv.items():
+                        if (
+                            isinstance(value, dict)
+                            and "feature" in key.lower()
+                            and "view" in key.lower()
+                        ):
+                            feature_view_data = value
+                            break
+
+                    if feature_view_data:
+                        results.append(
+                            {
+                                "type": "featureView",
+                                "name": feature_view_data.get("spec", {}).get(
+                                    "name", ""
+                                ),
+                                "description": feature_view_data.get("spec", {}).get(
+                                    "description", ""
+                                ),
+                                "project": current_project,
+                                "tags": feature_view_data.get("spec", {}).get(
+                                    "tags", {}
+                                ),
+                            }
+                        )
 
                 # Extract and convert features
                 features = project_resources.get("features", [])
@@ -251,7 +263,7 @@ def _validate_projects(
     input_projects = [p for p in input_projects if p and p.strip()]
 
     try:
-        all_projects, _, err_msg = search_all_projects(
+        all_projects, _, err_msg = list_all_projects(
             grpc_handler=grpc_handler,
             allow_cache=allow_cache,
         )
