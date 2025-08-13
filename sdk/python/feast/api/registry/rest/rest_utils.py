@@ -1,7 +1,7 @@
 import logging
 from typing import Any, Callable, Dict, List, Optional
 
-from fastapi import Query
+from fastapi import HTTPException, Query
 from google.protobuf.json_format import MessageToDict
 
 from feast.errors import (

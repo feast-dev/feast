@@ -1190,8 +1190,9 @@ class TestSearchAPI:
 
         error_data = response.json()
         assert "detail" in error_data
+        logger.debug(f"Error data: {error_data}")
         # FastAPI should return validation error for missing required field
-        assert any("query" in str(error).lower() for error in error_data["detail"])
+        assert "query" in str(error_data["detail"]).lower()
 
     @pytest.mark.parametrize(
         "test_cases",
