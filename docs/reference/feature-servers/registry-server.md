@@ -1153,6 +1153,157 @@ Please refer the [page](./../../../docs/getting-started/concepts/permission.md) 
 
 **Note**: Recent visits are automatically logged when users access registry objects via the REST API. The logging behavior can be configured through the `feature_server.recent_visit_logging` section in `feature_store.yaml` (see configuration section below).
 
+
+### Search API
+
+#### Search Resources
+- **Endpoint**: `GET /api/v1/search`
+- **Description**: Search across all Feast resources including entities, feature views, features, feature services, data sources, and saved datasets. Supports cross-project search, fuzzy matching, relevance scoring, and advanced filtering.
+- **Parameters**:
+  - `query` (required): Search query string. Searches in resource names, descriptions, and tags. Empty string returns all resources.
+  - `projects` (optional): List of project names to search in. If not specified, searches all projects
+  - `allow_cache` (optional, default: `true`): Whether to allow cached data
+  - `tags` (optional): Filter results by tags in key:value format (e.g., `tags=environment:production&tags=team:ml`)
+  - `page` (optional, default: `1`): Page number for pagination (starts from 1)
+  - `limit` (optional, default: `50`, max: `100`): Number of items per page
+  - `sort_by` (optional, default: `match_score`): Field to sort by (`match_score`, `name`, or `type`)
+  - `sort_order` (optional, default: `desc`): Sort order ("asc" or "desc")
+- **Search Algorithm**:
+  - **Exact name match**: Highest priority (score: 100)
+  - **Description match**: High priority (score: 80) 
+  - **Feature name match**: Medium-high priority (score: 50)
+  - **Tag match**: Medium priority (score: 60)
+  - **Fuzzy name match**: Lower priority (score: 40, similarity threshold: 50%)
+- **Examples**:
+  ```bash
+  # Basic search across all projects
+  curl -H "Authorization: Bearer <token>" \
+    "http://localhost:6572/api/v1/search?query=user"
+  
+  # Search in specific projects
+  curl -H "Authorization: Bearer <token>" \
+    "http://localhost:6572/api/v1/search?query=driver&projects=ride_sharing&projects=analytics"
+  
+  # Search with tag filtering
+  curl -H "Authorization: Bearer <token>" \
+    "http://localhost:6572/api/v1/search?query=features&tags=environment:production&tags=team:ml"
+  
+  # Search with pagination and sorting
+  curl -H "Authorization: Bearer <token>" \
+    "http://localhost:6572/api/v1/search?query=conv_rate&page=1&limit=10&sort_by=name&sort_order=asc"
+  
+  # Empty query to list all resources with filtering
+  curl -H "Authorization: Bearer <token>" \
+    "http://localhost:6572/api/v1/search?query=&projects=my_project&page=1&limit=20"
+  ```
+- **Response Example**:
+  ```json
+  {
+    "query": "user",
+    "projects_searched": ["project1", "project2"],
+    "results": [
+      {
+        "type": "entity",
+        "name": "user_id",
+        "description": "Primary identifier for users",
+        "project": "project1",
+        "match_score": 100
+      },
+      {
+        "type": "featureView",
+        "name": "user_features",
+        "description": "User demographic and behavioral features",
+        "project": "project1",
+        "match_score": 100
+      },
+      {
+        "type": "feature",
+        "name": "user_age",
+        "description": "Age of the user in years",
+        "project": "project1",
+        "match_score": 80
+      },
+      {
+        "type": "dataSource",
+        "name": "user_analytics",
+        "description": "Analytics data for user behavior tracking",
+        "project": "project2",
+        "match_score": 80
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 50,
+      "totalCount": 4,
+      "totalPages": 1,
+      "hasNext": false,
+      "hasPrevious": false
+    },
+    "errors": []
+  }
+  ```
+- **Project Handling**:
+  - **No projects specified**: Searches all available projects
+  - **Single project**: Searches only that project (includes warning if project doesn't exist)
+  - **Multiple projects**: Searches only existing projects, includes warnings about non-existent ones
+  - **Empty projects list**: Treated as search all projects
+- **Error Responses**:
+  ```json
+  // Invalid sort_by parameter (HTTP 400)
+  {
+    "detail": "Invalid sort_by parameter: 'invalid_field'. Valid options are: ['match_score', 'name', 'type']"
+  }
+  
+  // Invalid sort_order parameter (HTTP 400)
+  {
+    "detail": "Invalid sort_order parameter: 'invalid_order'. Valid options are: ['asc', 'desc']"
+  }
+  
+  // Invalid pagination limit above maximum (HTTP 400)
+  {
+    "detail": "Invalid limit parameter: '150'. Must be less than or equal to 100"
+  }
+  
+  // Missing required query parameter (HTTP 422)
+  {
+    "detail": [
+      {
+        "type": "missing",
+        "loc": ["query_params", "query"],
+        "msg": "Field required"
+      }
+    ]
+  }
+  
+  // Successful response with warnings
+  {
+    "query": "user",
+    "projects_searched": ["existing_project"],
+    "results": [],
+    "pagination": {
+      "page": 1,
+      "limit": 50,
+      "totalCount": 0,
+      "totalPages": 0
+    },
+    "errors": ["Following projects do not exist: nonexistent_project"]
+  }
+
+  // Successful response but empty results
+  {
+    "query": "user",
+    "projects_searched": ["existing_project"],
+    "results": [],
+    "pagination": {
+      "page": 1,
+      "limit": 50,
+      "totalCount": 0,
+      "totalPages": 0
+    },
+    "errors": []
+  }
+  ```
+---
 #### Get Popular Tags
 - **Endpoint**: `GET /api/v1/metrics/popular_tags`
 - **Description**: Discover Feature Views by popular tags. Returns the most popular tags (tags assigned to maximum number of feature views) with their associated feature views. If no project is specified, returns popular tags across all projects.
