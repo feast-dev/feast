@@ -11,6 +11,7 @@ def test_is_valid_name():
         ("invalid_name_", True),
         ("12345678901234567", True),
         ("too_long_name_123", True),
+        ("hyphen-name", True),
         # Invalid project name cases
         ("_invalidName", False),
         ("invalid-Name", False),

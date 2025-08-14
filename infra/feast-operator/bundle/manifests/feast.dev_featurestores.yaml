@@ -463,7 +463,7 @@ spec:
                 type: object
               feastProject:
                 description: FeastProject is the Feast project id.
-                pattern: ^[A-Za-z0-9][A-Za-z0-9_]*$
+                pattern: ^[A-Za-z0-9][A-Za-z0-9_-]*$
                 type: string
               feastProjectDir:
                 description: FeastProjectDir defines how to create the feast project
@@ -4423,7 +4423,7 @@ spec:
                     type: object
                   feastProject:
                     description: FeastProject is the Feast project id.
-                    pattern: ^[A-Za-z0-9][A-Za-z0-9_]*$
+                    pattern: ^[A-Za-z0-9][A-Za-z0-9_-]*$
                     type: string
                   feastProjectDir:
                     description: FeastProjectDir defines how to create the feast project

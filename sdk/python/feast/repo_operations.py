@@ -396,7 +396,7 @@ def apply_total(repo_config: RepoConfig, repo_path: Path, skip_source_validation
         if not is_valid_name(project.name):
             print(
                 f"{project.name} is not valid. Project name should only have "
-                f"alphanumerical values and underscores but not start with an underscore."
+                f"alphanumerical values, underscores, and hyphens but not start with an underscore or hyphen."
             )
             sys.exit(1)
         # TODO: When we support multiple projects in a single repo, we should filter repo contents by project. Currently there is no way to associate Feast objects to project.
@@ -445,7 +445,7 @@ def init_repo(repo_name: str, template: str):
 
     if not is_valid_name(repo_name):
         raise BadParameter(
-            message="Name should be alphanumeric values and underscores but not start with an underscore",
+            message="Name should be alphanumeric values, underscores, and hyphens but not start with an underscore or hyphen",
             param_hint="PROJECT_DIRECTORY",
         )
     repo_path = Path(os.path.join(Path.cwd(), repo_name))
@@ -506,8 +506,10 @@ def init_repo(repo_name: str, template: str):
 
 
 def is_valid_name(name: str) -> bool:
-    """A name should be alphanumeric values and underscores but not start with an underscore"""
-    return not name.startswith("_") and re.compile(r"\W+").search(name) is None
+    """A name should be alphanumeric values, underscores, and hyphens but not start with an underscore"""
+    return (
+        not name.startswith(("_", "-")) and re.compile(r"[^\w-]+").search(name) is None
+    )
 
 
 def generate_project_name() -> str:
