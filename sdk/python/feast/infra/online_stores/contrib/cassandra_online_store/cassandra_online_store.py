@@ -242,11 +242,6 @@ class CassandraOnlineStoreConfig(FeastConfigBaseModel):
     Table names should be quoted to make them case sensitive.
     """
 
-    use_write_time_for_ttl: Optional[bool] = False
-    """
-    If True, the expiration time is always calculated as now() on the Coordinator + TTL where, now() is the wall clock during the corresponding write operation.
-    """
-
 
 class CassandraOnlineStore(OnlineStore):
     """
@@ -481,18 +476,15 @@ class CassandraOnlineStore(OnlineStore):
             params_str = ", ".join(["?"] * (len(feature_names) + 2))
 
             # Write each batch with same entity key in to the online store
-            timestamp_field_name = table.batch_source.timestamp_field
             sort_key_names = [sort_key.name for sort_key in table.sort_keys]
-            is_timestamp_sort_key = timestamp_field_name in sort_key_names
 
             for entity_key_bin, batch_to_write in entity_dict.items():
                 batch = BatchStatement(batch_type=BatchType.UNLOGGED)
                 batch_count = 0
                 for entity_key, feat_dict, timestamp, created_ts in batch_to_write:
-                    # TODO: move use_write_time_for_ttl config to SortedFeatureView level
                     ttl = CassandraOnlineStore._get_ttl(
                         ttl_feature_view,
-                        online_store_config.use_write_time_for_ttl,
+                        table.use_write_time_for_ttl,
                         timestamp,
                     )
                     if ttl < 0:
@@ -501,21 +493,25 @@ class CassandraOnlineStore(OnlineStore):
 
                     feature_values: tuple[Any, ...] = ()
                     for feature_name, valProto in feat_dict.items():
-                        # When the event timestamp is added as a feature, it is converted in to UNIX_TIMESTAMP
-                        # feast type. Hence, its value must be reassigned before inserting in to online store
-                        if (
-                            is_timestamp_sort_key
-                            and feature_name == timestamp_field_name
-                        ):
-                            feature_value = timestamp
-                        elif feature_name in sort_key_names:
+                        if feature_name in sort_key_names:
                             feast_value_type = valProto.WhichOneof("val")
-                            if feast_value_type is None:
+                            if feast_value_type == "unix_timestamp_val":
+                                feature_value = (
+                                    valProto.unix_timestamp_val * 1000
+                                )  # Convert to milliseconds
+                            elif feast_value_type is None:
                                 feature_value = None
                             elif feast_value_type in feast_array_types:
-                                feature_value = getattr(
-                                    valProto, str(feast_value_type)
-                                ).val
+                                if feast_value_type == "unix_timestamp_list_val":
+                                    # Convert list of timestamps to milliseconds
+                                    feature_value = [
+                                        ts * 1000
+                                        for ts in valProto.unix_timestamp_list_val.val  # type:ignore
+                                    ]
+                                else:
+                                    feature_value = getattr(
+                                        valProto, str(feast_value_type)
+                                    ).val
                             else:
                                 feature_value = getattr(valProto, str(feast_value_type))
                         else:
@@ -715,7 +711,10 @@ class CassandraOnlineStore(OnlineStore):
         project = config.project
 
         for table in tables_to_keep:
-            self._create_table(config, project, table)
+            if self._table_exists(config, project, table):
+                self._alter_table(config, project, table)
+            else:
+                self._create_table(config, project, table)
         for table in tables_to_delete:
             self._drop_table(config, project, table)
 
@@ -898,6 +897,51 @@ class CassandraOnlineStore(OnlineStore):
             f"Creating table {fqtable} in keyspace {keyspace} if not exists using {create_cql}."
         )
         session.execute(create_cql)
+
+    def _resolve_table_names(
+        self, config: RepoConfig, project: str, table: FeatureView
+    ) -> Tuple[str, str]:
+        """
+        Returns (fqtable, plain_table_name) for a given FeatureView,
+        where fqtable is '"keyspace"."table"' and plain_table_name
+        is the lower-cased unquoted table identifier.
+        """
+        fqtable = CassandraOnlineStore._fq_table_name(
+            self._keyspace,
+            project,
+            table,
+            config.online_store.table_name_format_version,
+        )
+        # extract bare identifier: split off keyspace, strip quotes, lower-case
+        quoted = fqtable.split(".", 1)[1]
+        plain_table_name = quoted.strip('"')
+        return fqtable, plain_table_name
+
+    def _table_exists(
+        self, config: RepoConfig, project: str, table: FeatureView
+    ) -> bool:
+        self._get_session(config)
+        _, plain_table_name = self._resolve_table_names(config, project, table)
+        ks_meta = self._cluster.metadata.keyspaces[self._keyspace]
+        return plain_table_name in ks_meta.tables
+
+    def _alter_table(self, config: RepoConfig, project: str, table: FeatureView):
+        session = self._get_session(config)
+        fqtable, plain_table_name = self._resolve_table_names(config, project, table)
+
+        ks_meta = self._cluster.metadata.keyspaces[self._keyspace]
+        existing_cols = set(ks_meta.tables[plain_table_name].columns.keys())
+
+        desired_cols = {f.name for f in table.features}
+        new_cols = desired_cols - existing_cols
+        if new_cols:
+            cql_type = "BLOB"  # Default type for features
+            col_defs = ", ".join(f"{col} {cql_type}" for col in new_cols)
+            alter_cql = f"ALTER TABLE {fqtable} ADD ({col_defs})"
+            session.execute(alter_cql)
+            logger.info(
+                f"Added columns [{', '.join(sorted(new_cols))}] to table: {fqtable}"
+            )
 
     def _build_sorted_table_cql(
         self, project: str, table: SortedFeatureView, fqtable: str

@@ -121,17 +121,18 @@ public class RequestUtilTest {
     byte[] bytes = "test".getBytes();
     assertArrayEquals(RequestUtil.objectToValue(bytes).getBytesVal().toByteArray(), bytes);
     assertTrue(RequestUtil.objectToValue(true).getBoolVal());
-    Instant instant = Instant.now();
+    Long timestampSeconds = 1751920985L;
+    Instant instant = Instant.ofEpochMilli(timestampSeconds * 1000);
     assertEquals(
         RequestUtil.objectToValue(LocalDateTime.ofInstant(instant, ZoneId.of("UTC")))
             .getUnixTimestampVal(),
-        instant.toEpochMilli());
+        timestampSeconds);
     assertEquals(
         RequestUtil.objectToValue(
                 OffsetDateTime.ofInstant(instant, ZoneId.of("America/Los_Angeles")))
             .getUnixTimestampVal(),
-        instant.toEpochMilli());
-    assertEquals(RequestUtil.objectToValue(instant).getUnixTimestampVal(), instant.toEpochMilli());
+        timestampSeconds);
+    assertEquals(RequestUtil.objectToValue(instant).getUnixTimestampVal(), timestampSeconds);
     assertEquals(RequestUtil.objectToValue(null).getNullVal(), ValueProto.Null.NULL);
     assertEquals(
         RequestUtil.objectToValue(Arrays.asList(1, 2, 3)).getInt32ListVal().getValList(),
@@ -158,6 +159,29 @@ public class RequestUtilTest {
     assertEquals(
         RequestUtil.objectToValue(Arrays.asList(true, false)).getBoolListVal().getValList(),
         Arrays.asList(true, false));
+    Long timestampSeconds2 = 1751920986L;
+    Instant instant2 = Instant.ofEpochMilli(timestampSeconds2 * 1000);
+    assertEquals(
+        RequestUtil.objectToValue(Arrays.asList(instant, instant2))
+            .getUnixTimestampListVal()
+            .getValList(),
+        Arrays.asList(timestampSeconds, timestampSeconds2));
+    assertEquals(
+        RequestUtil.objectToValue(
+                Arrays.asList(
+                    LocalDateTime.ofInstant(instant, ZoneId.of("UTC")),
+                    LocalDateTime.ofInstant(instant2, ZoneId.of("UTC"))))
+            .getUnixTimestampListVal()
+            .getValList(),
+        Arrays.asList(timestampSeconds, timestampSeconds2));
+    assertEquals(
+        RequestUtil.objectToValue(
+                Arrays.asList(
+                    OffsetDateTime.ofInstant(instant, ZoneId.of("America/Los_Angeles")),
+                    OffsetDateTime.ofInstant(instant2, ZoneId.of("America/Los_Angeles"))))
+            .getUnixTimestampListVal()
+            .getValList(),
+        Arrays.asList(timestampSeconds, timestampSeconds2));
   }
 
   @Test

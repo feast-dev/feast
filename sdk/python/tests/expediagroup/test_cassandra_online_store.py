@@ -93,6 +93,25 @@ def repo_config(cassandra_online_store_config, setup_keyspace) -> RepoConfig:
 
 
 @pytest.fixture(scope="session")
+def long_name_repo_config(cassandra_online_store_config, setup_keyspace) -> RepoConfig:
+    return RepoConfig(
+        registry=REGISTRY,
+        project=PROJECT,
+        provider=PROVIDER,
+        online_store=CassandraOnlineStoreConfig(
+            hosts=cassandra_online_store_config["hosts"],
+            port=cassandra_online_store_config["port"],
+            keyspace=setup_keyspace,
+            table_name_format_version=cassandra_online_store_config.get(
+                "table_name_format_version", 2
+            ),
+        ),
+        offline_store=DaskOfflineStoreConfig(),
+        entity_key_serialization_version=ENTITY_KEY_SERIALIZATION_VERSION,
+    )
+
+
+@pytest.fixture(scope="session")
 def online_store(repo_config) -> CassandraOnlineStore:
     store = CassandraOnlineStore()
     yield store
@@ -199,8 +218,8 @@ class TestCassandraOnlineStore:
 
         expected_columns = {
             "entity_key": "text",
-            "feature1": "bigint",
-            "feature2": "list<text>",
+            "feature1": "blob",
+            "feature2": "blob",
             "sort_key1": "bigint",
             "sort_key2": "text",
             "event_ts": "timestamp",
@@ -741,3 +760,197 @@ class TestCassandraOnlineStore:
                 None,
             )
         ]
+
+
+def test_update_alters_existing_table_adds_new_column(
+    cassandra_session, repo_config, online_store
+):
+    session, keyspace = cassandra_session
+
+    fv1 = SortedFeatureView(
+        name="fv_alter_test",
+        entities=[Entity(name="id")],
+        source=FileSource(name="src", path="x.parquet", timestamp_field="ts"),
+        schema=[
+            Field(name="sort_key", dtype=Int32),
+            Field(name="f1", dtype=String),
+        ],
+        sort_keys=[
+            SortKey(
+                name="sort_key",
+                value_type=ValueType.INT32,
+                default_sort_order=SortOrder.Enum.ASC,
+            )
+        ],
+    )
+
+    online_store._create_table(repo_config, repo_config.project, fv1)
+
+    online_store_table = (
+        online_store._fq_table_name(
+            keyspace,
+            repo_config.project,
+            fv1,
+            repo_config.online_store.table_name_format_version,
+        )
+        .split(".", 1)[1]
+        .strip('"')
+    )
+
+    cols = session.execute(
+        textwrap.dedent(f"""
+            SELECT column_name
+            FROM system_schema.columns
+            WHERE keyspace_name='{keyspace}' AND table_name='{online_store_table}';
+        """)
+    )
+    names = {r.column_name for r in cols}
+    assert "f1" in names and "f2" not in names
+
+    fv2 = SortedFeatureView(
+        name="fv_alter_test",
+        entities=[Entity(name="id")],
+        source=FileSource(name="src", path="x.parquet", timestamp_field="ts"),
+        schema=[
+            Field(name="sort_key", dtype=Int32),
+            Field(name="f1", dtype=String),
+            Field(name="f2", dtype=String),
+        ],
+        sort_keys=fv1.sort_keys,
+    )
+
+    online_store.update(
+        config=repo_config,
+        tables_to_delete=[],
+        tables_to_keep=[fv2],
+        entities_to_delete=[],
+        entities_to_keep=[],
+        partial=False,
+    )
+
+    cols = session.execute(
+        textwrap.dedent(f"""
+            SELECT column_name
+            FROM system_schema.columns
+            WHERE keyspace_name='{keyspace}' AND table_name='{online_store_table}';
+        """)
+    )
+    names = {r.column_name for r in cols}
+    assert {"f1", "f2", "sort_key", "entity_key", "event_ts", "created_ts"}.issubset(
+        names
+    )
+
+
+def test_update_noop_when_schema_unchanged(
+    cassandra_session, repo_config, online_store
+):
+    session, keyspace = cassandra_session
+
+    fv = SortedFeatureView(
+        name="fv_noop_test",
+        entities=[Entity(name="id")],
+        source=FileSource(name="src", path="x.parquet", timestamp_field="ts"),
+        schema=[
+            Field(name="sort_key", dtype=Int32),
+            Field(name="f1", dtype=String),
+        ],
+        sort_keys=[
+            SortKey(
+                name="sort_key",
+                value_type=ValueType.INT32,
+                default_sort_order=SortOrder.Enum.ASC,
+            )
+        ],
+    )
+
+    online_store.update(
+        config=repo_config,
+        tables_to_delete=[],
+        tables_to_keep=[fv],
+        entities_to_delete=[],
+        entities_to_keep=[],
+        partial=False,
+    )
+
+    online_store_table = (
+        online_store._fq_table_name(
+            keyspace,
+            repo_config.project,
+            fv,
+            repo_config.online_store.table_name_format_version,
+        )
+        .split(".", 1)[1]
+        .strip('"')
+    )
+
+    before = {
+        r.column_name
+        for r in session.execute(
+            f"SELECT column_name FROM system_schema.columns "
+            f"WHERE keyspace_name='{keyspace}' AND table_name='{online_store_table}';"
+        )
+    }
+
+    # run update again with identical fv
+    online_store.update(
+        config=repo_config,
+        tables_to_delete=[],
+        tables_to_keep=[fv],
+        entities_to_delete=[],
+        entities_to_keep=[],
+        partial=False,
+    )
+
+    after = {
+        r.column_name
+        for r in session.execute(
+            f"SELECT column_name FROM system_schema.columns "
+            f"WHERE keyspace_name='{keyspace}' AND table_name='{online_store_table}';"
+        )
+    }
+
+    assert before == after
+
+
+def test_resolve_table_names_v2_preserves_case(
+    cassandra_session, long_name_repo_config, online_store
+):
+    session, keyspace = cassandra_session
+    # build a feature view name so long that V2 hashing will trigger mixed-case
+    fv_name = "VeryLongFeatureViewName_" + "X" * 60
+    sfv = SortedFeatureView(
+        name=fv_name,
+        entities=[Entity(name="id", join_keys=["id"])],
+        source=FileSource(name="src", path="path", timestamp_field="ts"),
+        schema=[
+            Field(name="ts", dtype=UnixTimestamp),
+        ],
+        sort_keys=[
+            SortKey(
+                name="ts",
+                value_type=ValueType.UNIX_TIMESTAMP,
+                default_sort_order=SortOrder.Enum.ASC,
+            )
+        ],
+    )
+
+    # compute the fully‐qualified name
+    fqtable = online_store._fq_table_name(
+        keyspace,
+        long_name_repo_config.project,
+        sfv,
+        long_name_repo_config.online_store.table_name_format_version,
+    )
+
+    quoted = fqtable.split(".", 1)[1]
+    expected_plain = quoted.strip('"')
+
+    _, actual_plain = online_store._resolve_table_names(
+        long_name_repo_config, long_name_repo_config.project, sfv
+    )
+
+    assert actual_plain == expected_plain, (
+        f"resolve_table_names lowercased the identifier:\n"
+        f"  expected: {expected_plain}\n"
+        f"  got:      {actual_plain}"
+    )

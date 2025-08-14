@@ -4,6 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/feast-dev/feast/go/internal/feast/version"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"net/http"
 	"os"
 	"runtime"
@@ -23,18 +26,18 @@ import (
 	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 )
 
-type httpServer struct {
+type HttpServer struct {
 	fs             *feast.FeatureStore
 	loggingService *logging.LoggingService
 	server         *http.Server
 }
 
-// This represents mapping between a path and an http Handler.
+// This represents mapping between a Path and an http Handler.
 // Note a handler can be created out of any func with type signature
 // func(w http.ResponseWriter, r *http.Request) via HandleFunc()
 type Handler struct {
-	path        string
-	handlerFunc http.Handler
+	Path        string
+	HandlerFunc http.Handler
 }
 
 // Some Feast types aren't supported during JSON conversion
@@ -137,118 +140,77 @@ func parseValueFromJSON(data json.RawMessage) (*prototypes.Value, error) {
 	return nil, fmt.Errorf("could not parse JSON value: %s", string(data))
 }
 
-func processFeatureVectors(vectors []*onlineserving.RangeFeatureVector, includeMetadata bool, entitiesProto map[string]*prototypes.RepeatedValue) ([]string, []map[string]interface{}) {
-	featureNames := make([]string, len(vectors))
-	results := make([]map[string]interface{}, len(vectors))
+func processFeatureVectors(
+	vectors []*onlineserving.RangeFeatureVector,
+	includeMetadata bool,
+	entitiesProto map[string]*prototypes.RepeatedValue) ([]string, map[string]interface{}, []map[string]interface{}, error) {
 
-	entityNames := make(map[string]bool)
-	for entityName := range entitiesProto {
-		entityNames[entityName] = true
+	entities := make(map[string]interface{})
+	for entityName, entityProto := range entitiesProto {
+		entityValues := make([]interface{}, len(entityProto.Val))
+		for j, val := range entityProto.Val {
+			entityValues[j] = types.ValueTypeToGoTypeTimestampAsString(val)
+		}
+		entities[entityName] = entityValues
 	}
 
-	for i, vector := range vectors {
-		featureNames[i] = vector.Name
-		result := make(map[string]interface{})
+	featureNames := make([]string, 0, len(vectors))
+	results := make([]map[string]interface{}, 0, len(vectors))
+
+	for _, vector := range vectors {
+		featureNames = append(featureNames, vector.Name)
 
 		rangeValues, err := types.ArrowValuesToRepeatedProtoValues(vector.RangeValues)
 		if err != nil {
-			result["values"] = []interface{}{}
-			results[i] = result
-			continue
+			return nil, nil, nil, fmt.Errorf("error converting feature '%s' from Arrow to Proto: %w", vector.Name, err)
 		}
 
-		isEntity := entityNames[vector.Name]
+		result := make(map[string]interface{})
 
-		if isEntity {
-			entityValues := make([]interface{}, len(rangeValues))
-			for j, repeatedValue := range rangeValues {
-				if repeatedValue == nil || len(repeatedValue.Val) == 0 {
-					entityValues[j] = nil
+		simplifiedValues := make([]interface{}, len(rangeValues))
+		for j, repeatedValue := range rangeValues {
+			if repeatedValue == nil || len(repeatedValue.Val) == 0 {
+				simplifiedValues[j] = nil
+				continue
+			}
+
+			rangeForEntity := make([]interface{}, len(repeatedValue.Val))
+			for k, val := range repeatedValue.Val {
+				goValue := types.ValueTypeToGoTypeTimestampAsString(val)
+				if goValue == nil {
+					rangeForEntity[k] = nil
 				} else {
-					if j < len(vector.RangeStatuses) && len(vector.RangeStatuses[j]) > 0 {
-						statusCode := vector.RangeStatuses[j][0]
-						if statusCode == serving.FieldStatus_NOT_FOUND ||
-							statusCode == serving.FieldStatus_NULL_VALUE {
-							entityValues[j] = nil
-						} else {
-							entityValues[j] = types.ValueTypeToGoType(repeatedValue.Val[0])
-						}
-					} else {
-						entityValues[j] = types.ValueTypeToGoType(repeatedValue.Val[0])
-					}
+					rangeForEntity[k] = goValue
 				}
 			}
-			result["values"] = entityValues
-		} else {
-			simplifiedValues := make([]interface{}, len(rangeValues))
-			for j, repeatedValue := range rangeValues {
-				if repeatedValue == nil || len(repeatedValue.Val) == 0 {
-					simplifiedValues[j] = nil
-					continue
-				}
-
-				rangeForEntity := make([]interface{}, len(repeatedValue.Val))
-				for k, val := range repeatedValue.Val {
-					if j < len(vector.RangeStatuses) && k < len(vector.RangeStatuses[j]) {
-						statusCode := vector.RangeStatuses[j][k]
-						if statusCode == serving.FieldStatus_NOT_FOUND ||
-							statusCode == serving.FieldStatus_NULL_VALUE {
-							rangeForEntity[k] = nil
-							continue
-						}
-					}
-
-					if val == nil {
-						rangeForEntity[k] = nil
-					} else {
-						rangeForEntity[k] = types.ValueTypeToGoType(val)
-					}
-				}
-				simplifiedValues[j] = rangeForEntity
-			}
-			result["values"] = simplifiedValues
+			simplifiedValues[j] = rangeForEntity
 		}
+		result["values"] = simplifiedValues
 
 		if includeMetadata {
-			if len(vector.RangeStatuses) > 0 {
-				statusValues := make([][]string, len(vector.RangeStatuses))
-				for j, entityStatuses := range vector.RangeStatuses {
-					statusValues[j] = make([]string, len(entityStatuses))
-					for k, stat := range entityStatuses {
-						statusValues[j][k] = stat.String()
-					}
+			statusValues := make([][]string, len(vector.RangeStatuses))
+			for j, entityStatuses := range vector.RangeStatuses {
+				statusValues[j] = make([]string, len(entityStatuses))
+				for k, stat := range entityStatuses {
+					statusValues[j][k] = stat.String()
 				}
-				result["statuses"] = statusValues
-			} else {
-				result["statuses"] = [][]string{}
 			}
+			result["statuses"] = statusValues
 
-			if len(vector.RangeTimestamps) > 0 {
-				timestampValues := make([][]interface{}, len(vector.RangeTimestamps))
-				for j, entityTimestamps := range vector.RangeTimestamps {
-					timestampValues[j] = make([]interface{}, len(entityTimestamps))
-					for k, ts := range entityTimestamps {
-						if j < len(vector.RangeStatuses) && k < len(vector.RangeStatuses[j]) {
-							statusCode := vector.RangeStatuses[j][k]
-							if statusCode == serving.FieldStatus_NOT_FOUND ||
-								statusCode == serving.FieldStatus_NULL_VALUE {
-								timestampValues[j][k] = nil
-								continue
-							}
-						}
-						timestampValues[j][k] = ts.AsTime().Format(time.RFC3339)
-					}
+			timestampValues := make([][]interface{}, len(vector.RangeTimestamps))
+			for j, entityTimestamps := range vector.RangeTimestamps {
+				timestampValues[j] = make([]interface{}, len(entityTimestamps))
+				for k, ts := range entityTimestamps {
+					timestampValues[j][k] = ts.AsTime().Format(time.RFC3339)
 				}
-				result["event_timestamps"] = timestampValues
-			} else {
-				result["event_timestamps"] = [][]interface{}{}
 			}
+			result["event_timestamps"] = timestampValues
 		}
 
-		results[i] = result
+		results = append(results, result)
 	}
 
-	return featureNames, results
+	return featureNames, entities, results, nil
 }
 
 func (u *repeatedValue) ToProto() *prototypes.RepeatedValue {
@@ -357,11 +319,44 @@ type getOnlineFeaturesRequest struct {
 	RequestContext   map[string]repeatedValue `json:"request_context"`
 }
 
-func NewHttpServer(fs *feast.FeatureStore, loggingService *logging.LoggingService) *httpServer {
-	return &httpServer{fs: fs, loggingService: loggingService}
+func NewHttpServer(fs *feast.FeatureStore, loggingService *logging.LoggingService) *HttpServer {
+	return &HttpServer{fs: fs, loggingService: loggingService}
 }
 
-func (s *httpServer) getOnlineFeatures(w http.ResponseWriter, r *http.Request) {
+func parseIncludeMetadata(r *http.Request) (bool, error) {
+	q := r.URL.Query()
+	raw := strings.TrimSpace(q.Get("includeMetadata"))
+	if raw == "" {
+		raw = strings.TrimSpace(q.Get("include_metadata"))
+	}
+	if raw == "" {
+		return false, nil
+	}
+	return strconv.ParseBool(raw)
+}
+
+func (s *HttpServer) getVersion(w http.ResponseWriter, r *http.Request) {
+	span, _ := tracer.StartSpanFromContext(r.Context(), "getVersion", tracer.ResourceName("/get-version"))
+	defer span.Finish()
+
+	logSpanContext := LogWithSpanContext(span)
+
+	if r.Method != "GET" {
+		http.NotFound(w, r)
+		return
+	}
+
+	versionInfo := version.GetVersionInfo()
+	w.Header().Set("Content-Type", "application/json")
+	err := json.NewEncoder(w).Encode(versionInfo)
+	if err != nil {
+		logSpanContext.Error().Err(err).Msg("Error encoding version response")
+		writeJSONError(w, fmt.Errorf("error encoding version response: %+v", err), http.StatusInternalServerError)
+		return
+	}
+}
+
+func (s *HttpServer) getOnlineFeatures(w http.ResponseWriter, r *http.Request) {
 	var err error
 	var featureVectors []*onlineserving.FeatureVector
 
@@ -375,16 +370,11 @@ func (s *httpServer) getOnlineFeatures(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	includeMetadataQuery := r.URL.Query().Get("includeMetadata")
-
-	includeMetadata := false
-	if includeMetadataQuery != "" {
-		includeMetadata, err = strconv.ParseBool(includeMetadataQuery)
-		if err != nil {
-			logSpanContext.Error().Err(err).Msg("Error parsing includeMetadata query parameter")
-			writeJSONError(w, fmt.Errorf("Error parsing includeMetadata query parameter: %+v", err), http.StatusBadRequest)
-			return
-		}
+	includeMetadata, err := parseIncludeMetadata(r)
+	if err != nil {
+		logSpanContext.Error().Err(err).Msg("Error parsing includeMetadata query parameter")
+		writeJSONError(w, fmt.Errorf("error parsing includeMetadata query parameter: %w", err), http.StatusBadRequest)
+		return
 	}
 
 	decoder := json.NewDecoder(r.Body)
@@ -546,7 +536,7 @@ func getSortKeyFiltersProto(filters []sortKeyFilter) ([]*serving.SortKeyFilter, 
 	return sortKeyFiltersProto, nil
 }
 
-func (s *httpServer) getOnlineFeaturesRange(w http.ResponseWriter, r *http.Request) {
+func (s *HttpServer) getOnlineFeaturesRange(w http.ResponseWriter, r *http.Request) {
 	var err error
 
 	span, ctx := tracer.StartSpanFromContext(r.Context(), "getOnlineFeaturesRange", tracer.ResourceName("/get-online-features-range"))
@@ -559,15 +549,11 @@ func (s *httpServer) getOnlineFeaturesRange(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	includeMetadataQuery := r.URL.Query().Get("includeMetadata")
-	includeMetadata := false
-	if includeMetadataQuery != "" {
-		includeMetadata, err = strconv.ParseBool(includeMetadataQuery)
-		if err != nil {
-			logSpanContext.Error().Err(err).Msg("Error parsing includeMetadata query parameter")
-			writeJSONError(w, fmt.Errorf("error parsing includeMetadata query parameter: %w", err), http.StatusBadRequest)
-			return
-		}
+	includeMetadata, err := parseIncludeMetadata(r)
+	if err != nil {
+		logSpanContext.Error().Err(err).Msg("Error parsing includeMetadata query parameter")
+		writeJSONError(w, fmt.Errorf("error parsing includeMetadata query parameter: %w", err), http.StatusBadRequest)
+		return
 	}
 
 	decoder := json.NewDecoder(r.Body)
@@ -579,11 +565,14 @@ func (s *httpServer) getOnlineFeaturesRange(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	// TODO: Implement support for feature services with range queries
 	var featureService *model.FeatureService
 	if request.FeatureService != nil {
-		writeJSONError(w, fmt.Errorf("feature services are not supported for range queries"), http.StatusBadRequest)
-		return
+		featureService, err = s.fs.GetFeatureService(*request.FeatureService)
+		if err != nil {
+			logSpanContext.Error().Err(err).Msg("Error getting feature service from registry")
+			writeJSONError(w, fmt.Errorf("Error getting feature service from registry: %+v", err), http.StatusNotFound)
+			return
+		}
 	}
 
 	entitiesProto := make(map[string]*prototypes.RepeatedValue)
@@ -601,7 +590,7 @@ func (s *httpServer) getOnlineFeaturesRange(w http.ResponseWriter, r *http.Reque
 	sortKeyFiltersProto, err := getSortKeyFiltersProto(request.SortKeyFilters)
 	if err != nil {
 		logSpanContext.Error().Err(err).Msg("Error converting sort key filter to protobuf")
-		writeJSONError(w, fmt.Errorf("error converting sort key filter to protobuf: %w", err), http.StatusInternalServerError)
+		writeJSONError(w, err, http.StatusBadRequest)
 		return
 	}
 
@@ -624,17 +613,24 @@ func (s *httpServer) getOnlineFeaturesRange(w http.ResponseWriter, r *http.Reque
 
 	if err != nil {
 		logSpanContext.Error().Err(err).Msg("Error getting range feature vectors")
-		writeJSONError(w, fmt.Errorf("error getting range feature vectors: %w", err), http.StatusInternalServerError)
+		writeJSONError(w, err, http.StatusInternalServerError)
 		return
 	}
 
-	featureNames, results := processFeatureVectors(rangeFeatureVectors, includeMetadata, entitiesProto)
+	featureNames, entities, results, err := processFeatureVectors(
+		rangeFeatureVectors, includeMetadata, entitiesProto)
+	if err != nil {
+		logSpanContext.Error().Err(err).Msg("Error processing feature vectors")
+		writeJSONError(w, err, http.StatusInternalServerError)
+		return
+	}
 
 	response := map[string]interface{}{
 		"metadata": map[string]interface{}{
 			"feature_names": featureNames,
 		},
-		"results": results,
+		"entities": entities,
+		"results":  results,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -674,8 +670,22 @@ func logStackTrace() {
 }
 
 func writeJSONError(w http.ResponseWriter, err error, statusCode int) {
+	errorString := fmt.Sprintf("%+v", err)
+	if statusErr, ok := status.FromError(err); ok {
+		switch statusErr.Code() {
+		case codes.InvalidArgument:
+			errorString = statusErr.Message()
+			statusCode = http.StatusBadRequest
+		case codes.NotFound:
+			errorString = statusErr.Message()
+			statusCode = http.StatusNotFound
+		default:
+			errorString = statusErr.Message()
+			statusCode = http.StatusInternalServerError
+		}
+	}
 	errMap := map[string]interface{}{
-		"error":       fmt.Sprintf("%+v", err),
+		"error":       errorString,
 		"status_code": statusCode,
 	}
 	errJSON, _ := json.Marshal(errMap)
@@ -700,7 +710,7 @@ func recoverMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func (s *httpServer) Serve(host string, port int, handlers []Handler) error {
+func (s *HttpServer) Serve(host string, port int, handlers []Handler) error {
 	if strings.ToLower(os.Getenv("ENABLE_DATADOG_TRACING")) == "true" {
 		tracer.Start(tracer.WithRuntimeMetrics())
 		defer tracer.Stop()
@@ -708,7 +718,7 @@ func (s *httpServer) Serve(host string, port int, handlers []Handler) error {
 	mux := httptrace.NewServeMux()
 
 	for _, handler := range handlers {
-		mux.Handle(handler.path, handler.handlerFunc)
+		mux.Handle(handler.Path, handler.HandlerFunc)
 	}
 
 	s.server = &http.Server{Addr: fmt.Sprintf("%s:%d", host, port), Handler: mux, ReadTimeout: 5 * time.Second, WriteTimeout: 10 * time.Second, IdleTimeout: 15 * time.Second}
@@ -721,7 +731,7 @@ func (s *httpServer) Serve(host string, port int, handlers []Handler) error {
 	return err
 }
 
-func DefaultHttpHandlers(s *httpServer) []Handler {
+func DefaultHttpHandlers(s *HttpServer) []Handler {
 	return CommonHttpHandlers(s, healthCheckHandler)
 }
 
@@ -730,7 +740,7 @@ func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Healthy")
 }
 
-func (s *httpServer) Stop() error {
+func (s *HttpServer) Stop() error {
 	if s.server != nil {
 		return s.server.Shutdown(context.Background())
 	}

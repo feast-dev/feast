@@ -17,10 +17,15 @@
 package dev.feast;
 
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.AdditionalAnswers.delegatesTo;
 import static org.mockito.Mockito.mock;
 
+import dev.feast.exception.FeastBadRequestException;
+import dev.feast.exception.FeastException;
+import dev.feast.exception.FeastInternalException;
+import dev.feast.exception.FeastNotFoundException;
 import feast.proto.serving.ServingAPIProto;
 import feast.proto.serving.ServingAPIProto.FieldStatus;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRangeRequest;
@@ -63,6 +68,35 @@ public class FeastClientTest {
                 public void getOnlineFeatures(
                     GetOnlineFeaturesRequest request,
                     StreamObserver<GetOnlineFeaturesResponse> responseObserver) {
+                  if (request.equals(
+                      FeastClientTest.getFakeOnlineFeaturesForError("should:internal"))) {
+                    responseObserver.onError(
+                        Status.INTERNAL
+                            .withDescription("Error getting online features")
+                            .asRuntimeException());
+                    return;
+                  } else if (request.equals(
+                      FeastClientTest.getFakeOnlineFeaturesForError("should:bad_request"))) {
+                    responseObserver.onError(
+                        Status.INVALID_ARGUMENT
+                            .withDescription("Error getting online features")
+                            .asRuntimeException());
+                    return;
+                  } else if (request.equals(
+                      FeastClientTest.getFakeOnlineFeaturesForError("should:not_found"))) {
+                    responseObserver.onError(
+                        Status.NOT_FOUND
+                            .withDescription("Error getting online features")
+                            .asRuntimeException());
+                    return;
+                  } else if (request.equals(
+                      FeastClientTest.getFakeOnlineFeaturesForError("should:unknown"))) {
+                    responseObserver.onError(
+                        Status.UNKNOWN
+                            .withDescription("Error getting online features")
+                            .asRuntimeException());
+                    return;
+                  }
                   if (!request.equals(FeastClientTest.getFakeOnlineFeaturesRefRequest())
                       && !request.equals(FeastClientTest.getFakeOnlineFeaturesServiceRequest())
                       && !request.equals(
@@ -79,6 +113,35 @@ public class FeastClientTest {
                 public void getOnlineFeaturesRange(
                     GetOnlineFeaturesRangeRequest request,
                     StreamObserver<GetOnlineFeaturesRangeResponse> responseObserver) {
+                  if (request.equals(
+                      FeastClientTest.getFakeOnlineFeaturesRangeRequestError("should:internal"))) {
+                    responseObserver.onError(
+                        Status.INTERNAL
+                            .withDescription("Error getting online features range")
+                            .asRuntimeException());
+                  } else if (request.equals(
+                      FeastClientTest.getFakeOnlineFeaturesRangeRequestError(
+                          "should:bad_request"))) {
+                    responseObserver.onError(
+                        Status.INVALID_ARGUMENT
+                            .withDescription("Error getting online features range")
+                            .asRuntimeException());
+                    return;
+                  } else if (request.equals(
+                      FeastClientTest.getFakeOnlineFeaturesRangeRequestError("should:not_found"))) {
+                    responseObserver.onError(
+                        Status.NOT_FOUND
+                            .withDescription("Error getting online features range")
+                            .asRuntimeException());
+                    return;
+                  } else if (request.equals(
+                      FeastClientTest.getFakeOnlineFeaturesRangeRequestError("should:unknown"))) {
+                    responseObserver.onError(
+                        Status.UNKNOWN
+                            .withDescription("Error getting online features range")
+                            .asRuntimeException());
+                    return;
+                  }
                   if (!request.equals(FeastClientTest.getFakeOnlineFeaturesRangeRequest())) {
                     responseObserver.onError(Status.FAILED_PRECONDITION.asRuntimeException());
                     return;
@@ -127,8 +190,104 @@ public class FeastClientTest {
   }
 
   @Test
+  public void shouldThrowExceptionForGetOnlineFeaturesInternalError() {
+    FeastInternalException exception =
+        assertThrows(
+            FeastInternalException.class,
+            () ->
+                this.client.getOnlineFeatures(
+                    getFakeOnlineFeaturesForError("should:internal"),
+                    Collections.singletonList(Row.create().set("driver_id", 1))));
+    assertEquals("INTERNAL: Error getting online features", exception.getMessage());
+  }
+
+  @Test
+  public void shouldThrowExceptionForGetOnlineFeaturesInvalidArgumentError() {
+    FeastBadRequestException exception =
+        assertThrows(
+            FeastBadRequestException.class,
+            () ->
+                this.client.getOnlineFeatures(
+                    getFakeOnlineFeaturesForError("should:bad_request"),
+                    Collections.singletonList(Row.create().set("driver_id", 1))));
+    assertEquals("INVALID_ARGUMENT: Error getting online features", exception.getMessage());
+  }
+
+  @Test
+  public void shouldThrowExceptionForGetOnlineFeaturesNotFoundError() {
+    FeastNotFoundException exception =
+        assertThrows(
+            FeastNotFoundException.class,
+            () ->
+                this.client.getOnlineFeatures(
+                    getFakeOnlineFeaturesForError("should:not_found"),
+                    Collections.singletonList(Row.create().set("driver_id", 1))));
+    assertEquals("NOT_FOUND: Error getting online features", exception.getMessage());
+  }
+
+  @Test
+  public void shouldThrowExceptionForGetOnlineFeaturesUnknownError() {
+    FeastException exception =
+        assertThrows(
+            FeastException.class,
+            () ->
+                this.client.getOnlineFeatures(
+                    getFakeOnlineFeaturesForError("should:unknown"),
+                    Collections.singletonList(Row.create().set("driver_id", 1))));
+    assertEquals("UNKNOWN: Error getting online features", exception.getMessage());
+  }
+
+  @Test
   public void shouldGetOnlineFeaturesRange() {
     shouldGetOnlineFeaturesRangeWithClient(this.client);
+  }
+
+  @Test
+  public void shouldThrowExceptionForGetOnlineFeaturesRangeError() {
+    FeastInternalException exception =
+        assertThrows(
+            FeastInternalException.class,
+            () ->
+                this.client.getOnlineFeaturesRange(
+                    getFakeOnlineFeaturesRangeRequestError("should:internal"),
+                    Collections.singletonList(Row.create().set("driver_id", 1))));
+    assertEquals("INTERNAL: Error getting online features range", exception.getMessage());
+  }
+
+  @Test
+  public void shouldThrowExceptionForGetOnlineFeaturesRangeInvalidArgumentError() {
+    FeastBadRequestException exception =
+        assertThrows(
+            FeastBadRequestException.class,
+            () ->
+                this.client.getOnlineFeaturesRange(
+                    getFakeOnlineFeaturesRangeRequestError("should:bad_request"),
+                    Collections.singletonList(Row.create().set("driver_id", 1))));
+    assertEquals("INVALID_ARGUMENT: Error getting online features range", exception.getMessage());
+  }
+
+  @Test
+  public void shouldThrowExceptionForGetOnlineFeaturesRangeNotFoundError() {
+    FeastNotFoundException exception =
+        assertThrows(
+            FeastNotFoundException.class,
+            () ->
+                this.client.getOnlineFeaturesRange(
+                    getFakeOnlineFeaturesRangeRequestError("should:not_found"),
+                    Collections.singletonList(Row.create().set("driver_id", 1))));
+    assertEquals("NOT_FOUND: Error getting online features range", exception.getMessage());
+  }
+
+  @Test
+  public void shouldThrowExceptionForGetOnlineFeaturesRangeUnknownError() {
+    FeastException exception =
+        assertThrows(
+            FeastException.class,
+            () ->
+                this.client.getOnlineFeaturesRange(
+                    getFakeOnlineFeaturesRangeRequestError("should:unknown"),
+                    Collections.singletonList(Row.create().set("driver_id", 1))));
+    assertEquals("UNKNOWN: Error getting online features range", exception.getMessage());
   }
 
   private void shouldGetOnlineFeaturesFeatureRef(FeastClient client) {
@@ -268,6 +427,15 @@ public class FeastClientTest {
         .build();
   }
 
+  private static GetOnlineFeaturesRequest getFakeOnlineFeaturesForError(String featureName) {
+    // setup mock serving service stub
+    return GetOnlineFeaturesRequest.newBuilder()
+        .setFeatures(ServingAPIProto.FeatureList.newBuilder().addVal(featureName).build())
+        .putEntities("driver_id", ValueProto.RepeatedValue.newBuilder().addVal(intValue(1)).build())
+        .setIncludeMetadata(false)
+        .build();
+  }
+
   private static GetOnlineFeaturesResponse getFakeOnlineFeaturesResponse() {
     return GetOnlineFeaturesResponse.newBuilder()
         .addResults(
@@ -299,11 +467,12 @@ public class FeastClientTest {
                 .addVal("driver:rating")
                 .addVal("driver:null_value")
                 .build())
+        .putEntities("driver_id", ValueProto.RepeatedValue.newBuilder().addVal(intValue(1)).build())
         .addAllSortKeyFilters(
             Arrays.asList(
                 ServingAPIProto.SortKeyFilter.newBuilder()
                     .setSortKeyName("event_timestamp")
-                    .setEquals(Value.newBuilder().setUnixTimestampVal(1746057600000L).build())
+                    .setEquals(Value.newBuilder().setUnixTimestampVal(1746057600L).build())
                     .build(),
                 ServingAPIProto.SortKeyFilter.newBuilder()
                     .setSortKeyName("sort_key")
@@ -317,6 +486,14 @@ public class FeastClientTest {
         .setLimit(10)
         .setReverseSortOrder(false)
         .setIncludeMetadata(false)
+        .build();
+  }
+
+  private static GetOnlineFeaturesRangeRequest getFakeOnlineFeaturesRangeRequestError(
+      String featureName) {
+    return GetOnlineFeaturesRangeRequest.newBuilder()
+        .setFeatures(ServingAPIProto.FeatureList.newBuilder().addVal(featureName).build())
+        .putEntities("driver_id", ValueProto.RepeatedValue.newBuilder().addVal(intValue(1)).build())
         .build();
   }
 
@@ -342,6 +519,7 @@ public class FeastClientTest {
                         .addVal("driver:rating")
                         .addVal("driver:null_value"))
                 .build())
+        .putEntities("driver_id", ValueProto.RepeatedValue.newBuilder().addVal(intValue(1)).build())
         .build();
   }
 

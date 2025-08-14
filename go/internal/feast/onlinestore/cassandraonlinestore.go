@@ -509,6 +509,7 @@ func (c *CassandraOnlineStore) OnlineRead(ctx context.Context, entityKeys []*typ
 							},
 						}
 					} else {
+						// TODO: return not found status to differentiate between nulls and not found features
 						results[serializedEntityKeyToIndex[keyString]][featureNamesToIdx[featName]] = FeatureData{
 							Reference: serving.FeatureReferenceV2{
 								FeatureViewName: featureViewName,

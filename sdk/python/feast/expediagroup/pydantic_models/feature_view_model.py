@@ -367,6 +367,7 @@ class SortedFeatureViewModel(FeatureViewModel):
     """
 
     sort_keys: List[SortedFeatureViewSortKeyModel]
+    use_write_time_for_ttl: bool = False
 
     def to_feature_view(self) -> SortedFeatureView:
         """
@@ -396,6 +397,7 @@ class SortedFeatureViewModel(FeatureViewModel):
             tags=self.tags or None,
             owner=self.owner,
             sort_keys=[sk.to_sort_key() for sk in self.sort_keys],
+            use_write_time_for_ttl=self.use_write_time_for_ttl,
         )
         sorted_fv.materialization_intervals = self.materialization_intervals
         sorted_fv.created_timestamp = self.created_timestamp
@@ -452,6 +454,7 @@ class SortedFeatureViewModel(FeatureViewModel):
                 SortedFeatureViewSortKeyModel.from_sort_key(sk)
                 for sk in sorted_feature_view.sort_keys
             ],
+            use_write_time_for_ttl=sorted_feature_view.use_write_time_for_ttl,
         )
 
 

@@ -3,13 +3,11 @@ package test
 import (
 	"context"
 	"fmt"
-	"log"
-
 	"github.com/apache/arrow/go/v17/arrow"
 	"github.com/apache/arrow/go/v17/arrow/memory"
 	"github.com/apache/arrow/go/v17/parquet/file"
 	"github.com/apache/arrow/go/v17/parquet/pqarrow"
-
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -245,6 +243,7 @@ func SetupCleanFeatureRepo(basePath string) error {
 }
 
 func SetupInitializedRepo(basePath string) error {
+	log.Printf("Setting up initialized repo at %s", basePath)
 	path, err := filepath.Abs(basePath)
 	if err != nil {
 		return err
@@ -255,8 +254,8 @@ func SetupInitializedRepo(basePath string) error {
 	if err != nil {
 		return err
 	}
-	// var stderr bytes.Buffer
-	// var stdout bytes.Buffer
+	// Pause to ensure apply completes
+	time.Sleep(5 * time.Second)
 	applyCommand.Dir = featureRepoPath
 	out, err := applyCommand.CombinedOutput()
 	if err != nil {
@@ -277,6 +276,8 @@ func SetupInitializedRepo(basePath string) error {
 		log.Println(string(out))
 		return err
 	}
+	// Pause to ensure materialization completes
+	time.Sleep(5 * time.Second)
 	return nil
 }
 

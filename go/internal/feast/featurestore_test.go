@@ -183,6 +183,7 @@ func TestGetOnlineFeaturesRange(t *testing.T) {
 				FeatureView: "driver_stats",
 				FeatureName: "conv_rate",
 				Values:      []interface{}{0.85, 0.87, 0.89},
+				Statuses:    []serving.FieldStatus{serving.FieldStatus_PRESENT, serving.FieldStatus_PRESENT, serving.FieldStatus_PRESENT},
 				EventTimestamps: []timestamp.Timestamp{
 					{Seconds: now.Unix() - 86400*3},
 					{Seconds: now.Unix() - 86400*2},
@@ -193,6 +194,7 @@ func TestGetOnlineFeaturesRange(t *testing.T) {
 				FeatureView: "driver_stats",
 				FeatureName: "acc_rate",
 				Values:      []interface{}{0.91, 0.92, 0.94},
+				Statuses:    []serving.FieldStatus{serving.FieldStatus_PRESENT, serving.FieldStatus_PRESENT, serving.FieldStatus_PRESENT},
 				EventTimestamps: []timestamp.Timestamp{
 					{Seconds: now.Unix() - 86400*3},
 					{Seconds: now.Unix() - 86400*2},
@@ -205,6 +207,7 @@ func TestGetOnlineFeaturesRange(t *testing.T) {
 				FeatureView: "driver_stats",
 				FeatureName: "conv_rate",
 				Values:      []interface{}{0.78, 0.80},
+				Statuses:    []serving.FieldStatus{serving.FieldStatus_PRESENT, serving.FieldStatus_PRESENT},
 				EventTimestamps: []timestamp.Timestamp{
 					{Seconds: now.Unix() - 86400*3},
 					{Seconds: now.Unix() - 86400*1},
@@ -214,6 +217,7 @@ func TestGetOnlineFeaturesRange(t *testing.T) {
 				FeatureView: "driver_stats",
 				FeatureName: "acc_rate",
 				Values:      []interface{}{0.85, 0.88},
+				Statuses:    []serving.FieldStatus{serving.FieldStatus_PRESENT, serving.FieldStatus_PRESENT},
 				EventTimestamps: []timestamp.Timestamp{
 					{Seconds: now.Unix() - 86400*3},
 					{Seconds: now.Unix() - 86400*1},
@@ -278,12 +282,10 @@ func TestGetOnlineFeaturesRange(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
-	assert.Equal(t, 3, len(result), "Should have 3 vectors (1 entity + 2 features)")
-	var driverIdVector, accRateVector, convRateVector *onlineserving.RangeFeatureVector
+	assert.Equal(t, 2, len(result), "Should have 2 vectors")
+	var accRateVector, convRateVector *onlineserving.RangeFeatureVector
 	for _, r := range result {
 		switch r.Name {
-		case "driver_id":
-			driverIdVector = r
 		case "driver_stats__acc_rate":
 			accRateVector = r
 		case "driver_stats__conv_rate":
@@ -291,7 +293,6 @@ func TestGetOnlineFeaturesRange(t *testing.T) {
 		}
 	}
 
-	assert.NotNil(t, driverIdVector)
 	assert.NotNil(t, accRateVector)
 	assert.NotNil(t, convRateVector)
 
@@ -366,14 +367,8 @@ func testGetOnlineFeaturesRange(
 	}
 
 	arrowAllocator := memory.NewGoAllocator()
-	entityColumns, err := onlineserving.EntitiesToRangeFeatureVectors(
-		joinKeyToEntityValues, arrowAllocator, numRows)
-	if err != nil {
-		return nil, err
-	}
 
-	result := make([]*onlineserving.RangeFeatureVector, 0, len(entityColumns))
-	result = append(result, entityColumns...)
+	result := make([]*onlineserving.RangeFeatureVector, 0)
 
 	groupedRangeRefs, err := onlineserving.GroupSortedFeatureRefs(
 		sortedFeatureViews,
@@ -458,9 +453,9 @@ func TestEntityTypeConversion_WithInvalidValues(t *testing.T) {
 		{"bytes": {Name: "bytes", Dtype: types.ValueType_BYTES}},
 	}
 	expectedErrors := []string{
-		"error converting entity value for int32: unsupported value type for conversion: INT32 for actual value type: *types.Value_StringVal",
-		"error converting entity value for float: unsupported value type for conversion: FLOAT for actual value type: *types.Value_Int64Val",
-		"error converting entity value for bytes: unsupported value type for conversion: BYTES for actual value type: *types.Value_Int64Val",
+		"rpc error: code = Internal desc = error converting entity value for int32: unsupported value type for conversion: INT32 for actual value type: *types.Value_StringVal",
+		"rpc error: code = Internal desc = error converting entity value for float: unsupported value type for conversion: FLOAT for actual value type: *types.Value_Int64Val",
+		"rpc error: code = Internal desc = error converting entity value for bytes: unsupported value type for conversion: BYTES for actual value type: *types.Value_Int64Val",
 	}
 
 	for i, entityMap := range entityMaps {

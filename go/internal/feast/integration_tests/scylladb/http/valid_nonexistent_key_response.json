@@ -1,0 +1,277 @@
+{
+  "entities": {
+    "index_id": [
+      -1
+    ]
+  },
+  "metadata": {
+    "feature_names": [
+      "int_val",
+      "long_val",
+      "float_val",
+      "double_val",
+      "byte_val",
+      "string_val",
+      "timestamp_val",
+      "boolean_val",
+      "array_int_val",
+      "array_long_val",
+      "array_float_val",
+      "array_double_val",
+      "array_byte_val",
+      "array_string_val",
+      "array_timestamp_val",
+      "array_boolean_val",
+      "null_int_val",
+      "null_long_val",
+      "null_float_val",
+      "null_double_val",
+      "null_byte_val",
+      "null_string_val",
+      "null_timestamp_val",
+      "null_boolean_val",
+      "null_array_int_val",
+      "null_array_long_val",
+      "null_array_float_val",
+      "null_array_double_val",
+      "null_array_byte_val",
+      "null_array_string_val",
+      "null_array_timestamp_val",
+      "null_array_boolean_val",
+      "event_timestamp"
+    ]
+  },
+  "results": [
+    {
+      "values": [
+        [
+          null
+        ]
+      ]
+    },
+    {
+      "values": [
+        [
+          null
+        ]
+      ]
+    },
+    {
+      "values": [
+        [
+          null
+        ]
+      ]
+    },
+    {
+      "values": [
+        [
+          null
+        ]
+      ]
+    },
+    {
+      "values": [
+        [
+          null
+        ]
+      ]
+    },
+    {
+      "values": [
+        [
+          null
+        ]
+      ]
+    },
+    {
+      "values": [
+        [
+          null
+        ]
+      ]
+    },
+    {
+      "values": [
+        [
+          null
+        ]
+      ]
+    },
+    {
+      "values": [
+        [
+          null
+        ]
+      ]
+    },
+    {
+      "values": [
+        [
+          null
+        ]
+      ]
+    },
+    {
+      "values": [
+        [
+          null
+        ]
+      ]
+    },
+    {
+      "values": [
+        [
+          null
+        ]
+      ]
+    },
+    {
+      "values": [
+        [
+          null
+        ]
+      ]
+    },
+    {
+      "values": [
+        [
+          null
+        ]
+      ]
+    },
+    {
+      "values": [
+        [
+          null
+        ]
+      ]
+    },
+    {
+      "values": [
+        [
+          null
+        ]
+      ]
+    },
+    {
+      "values": [
+        [
+          null
+        ]
+      ]
+    },
+    {
+      "values": [
+        [
+          null
+        ]
+      ]
+    },
+    {
+      "values": [
+        [
+          null
+        ]
+      ]
+    },
+    {
+      "values": [
+        [
+          null
+        ]
+      ]
+    },
+    {
+      "values": [
+        [
+          null
+        ]
+      ]
+    },
+    {
+      "values": [
+        [
+          null
+        ]
+      ]
+    },
+    {
+      "values": [
+        [
+          null
+        ]
+      ]
+    },
+    {
+      "values": [
+        [
+          null
+        ]
+      ]
+    },
+    {
+      "values": [
+        [
+          null
+        ]
+      ]
+    },
+    {
+      "values": [
+        [
+          null
+        ]
+      ]
+    },
+    {
+      "values": [
+        [
+          null
+        ]
+      ]
+    },
+    {
+      "values": [
+        [
+          null
+        ]
+      ]
+    },
+    {
+      "values": [
+        [
+          null
+        ]
+      ]
+    },
+    {
+      "values": [
+        [
+          null
+        ]
+      ]
+    },
+    {
+      "values": [
+        [
+          null
+        ]
+      ]
+    },
+    {
+      "values": [
+        [
+          null
+        ]
+      ]
+    },
+    {
+      "values": [
+        [
+          null
+        ]
+      ]
+    }
+  ]
+}

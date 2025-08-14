@@ -10,6 +10,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/apache/arrow/go/v17/arrow"
 	"github.com/apache/arrow/go/v17/arrow/array"
@@ -135,6 +136,36 @@ func TestUnmarshalRangeRequestJSON(t *testing.T) {
 	assert.Equal(t, int32(10), request.Limit)
 }
 
+func TestUnmarshalRangeRequestJSON_withEmptySortKeyFilters(t *testing.T) {
+	jsonData := `{      
+  "features": [            
+    "batch_mat_sorted_fv:feature_1",
+    "batch_mat_sorted_fv:feature_2",
+    "batch_mat_sorted_fv:feature_3"
+  ],      
+  "entities": {    
+    "entity_key": [  
+      "entity_key_4"
+    ]
+  },          
+  "sort_key_filters": [],
+  "reverse_sort_order": false,
+  "limit": 10,
+  "full_feature_names": true
+}`
+	var request getOnlineFeaturesRangeRequest
+	decoder := json.NewDecoder(strings.NewReader(jsonData))
+	err := decoder.Decode(&request)
+	assert.NoError(t, err, "Error unmarshalling JSON")
+
+	sortKeyFiltersProto, err := getSortKeyFiltersProto(request.SortKeyFilters)
+	assert.NoError(t, err, "Error converting to proto")
+
+	assert.Equal(t, 0, len(sortKeyFiltersProto))
+
+	assert.Equal(t, int32(10), request.Limit)
+}
+
 func TestUnmarshalRangeRequestJSON_InvalidSortKeyFilter(t *testing.T) {
 	jsonData := `{      
   "features": [            
@@ -247,7 +278,7 @@ func TestProcessFeatureVectors_NotFoundReturnsNull(t *testing.T) {
 
 	// Entity 1: NOT_FOUND
 	featureBuilder.Append(true)
-	valueBuilder.Append(0)
+	valueBuilder.AppendNull()
 	featureBuilder.Append(true)
 	valueBuilder.Append(42)
 
@@ -265,14 +296,22 @@ func TestProcessFeatureVectors_NotFoundReturnsNull(t *testing.T) {
 	}
 	defer featureVector.RangeValues.Release()
 
-	featureNames, results := processFeatureVectors(
+	featureNames, entities, results, err := processFeatureVectors(
 		[]*onlineserving.RangeFeatureVector{featureVector},
 		false,
 		entitiesProto,
 	)
 
+	assert.NoError(t, err, "Error processing feature vectors")
 	assert.Equal(t, []string{"feature_2"}, featureNames)
+
+	entityValues := entities["entity_key"].([]interface{})
+	assert.Equal(t, 2, len(entityValues))
+	assert.Equal(t, "entity_1", entityValues[0])
+	assert.Equal(t, "entity_2", entityValues[1])
+
 	values := results[0]["values"].([]interface{})
+	assert.Equal(t, 2, len(values))
 	entity1Values := values[0].([]interface{})
 	assert.Equal(t, 1, len(entity1Values))
 	assert.Nil(t, entity1Values[0])
@@ -317,15 +356,16 @@ func TestProcessFeatureVectors_TimestampHandling(t *testing.T) {
 	}
 	defer featureVector.RangeValues.Release()
 
-	featureNames, results := processFeatureVectors(
+	featureNames, _, results, err := processFeatureVectors(
 		[]*onlineserving.RangeFeatureVector{featureVector},
 		true,
 		entitiesProto,
 	)
 
+	assert.NoError(t, err, "Error processing feature vectors")
 	assert.Equal(t, []string{"feature_3"}, featureNames)
 	timestamps := results[0]["event_timestamps"].([][]interface{})
-	assert.Nil(t, timestamps[0][0])
+	assert.Equal(t, "1970-01-01T00:00:00Z", timestamps[0][0])
 	assert.Equal(t, "1970-01-01T00:00:00Z", timestamps[1][0])
 }
 
@@ -346,7 +386,7 @@ func TestProcessFeatureVectors_NullValueReturnsNull(t *testing.T) {
 	valueBuilder := featureBuilder.ValueBuilder().(*array.Float32Builder)
 
 	featureBuilder.Append(true)
-	valueBuilder.Append(0.0)
+	valueBuilder.AppendNull()
 
 	featureVector := &onlineserving.RangeFeatureVector{
 		Name:        "feature_4",
@@ -360,17 +400,24 @@ func TestProcessFeatureVectors_NullValueReturnsNull(t *testing.T) {
 	}
 	defer featureVector.RangeValues.Release()
 
-	featureNames, results := processFeatureVectors(
+	featureNames, entities, results, err := processFeatureVectors(
 		[]*onlineserving.RangeFeatureVector{featureVector},
 		true,
 		entitiesProto,
 	)
 
+	assert.NoError(t, err, "Error processing feature vectors")
 	assert.Equal(t, []string{"feature_4"}, featureNames)
-	values := results[0]["values"].([]interface{})
-	entity1Values := values[0].([]interface{})
-	assert.Equal(t, 1, len(entity1Values))
-	assert.Nil(t, entity1Values[0])
+
+	entityValues := entities["entity_key"].([]interface{})
+	assert.Equal(t, 1, len(entityValues))
+	assert.Equal(t, "entity_1", entityValues[0])
+
+	featureValues := results[0]["values"].([]interface{})
+	entityFeatureValues := featureValues[0].([]interface{})
+	assert.Equal(t, 1, len(entityFeatureValues))
+	assert.Nil(t, entityFeatureValues[0])
+
 	timestamps := results[0]["event_timestamps"].([][]interface{})
-	assert.Nil(t, timestamps[0][0])
+	assert.Equal(t, time.Unix(1234567890, 0).UTC().Format(time.RFC3339), timestamps[0][0], "Expected timestamp to be zero for null value")
 }

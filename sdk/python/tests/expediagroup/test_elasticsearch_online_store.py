@@ -98,7 +98,7 @@ class TestElasticsearchOnlineStore:
 
     @pytest.mark.parametrize("index_params", index_param_list)
     def test_elasticsearch_update_add_index(self, repo_config, caplog, index_params):
-        dimensions = 16
+        dimensions = "16"
         vector_type = Float32
         vector_tags = {
             "is_primary": "False",

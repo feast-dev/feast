@@ -2,7 +2,7 @@ package transformation
 
 import (
 	"context"
-	"fmt"
+	"github.com/feast-dev/feast/go/internal/feast/errors"
 	"runtime"
 	"strings"
 
@@ -112,7 +112,7 @@ func EnsureRequestedDataExist(requestedOnDemandFeatureViews []*model.OnDemandFea
 	}
 
 	if len(missingFeatures) > 0 {
-		return fmt.Errorf("requestDataNotFoundInEntityRowsException: %s", strings.Join(missingFeatures, ", "))
+		return errors.GrpcInvalidArgumentErrorf("requestDataNotFoundInEntityRowsException: %s", strings.Join(missingFeatures, ", "))
 	}
 	return nil
 }

@@ -104,15 +104,15 @@ public class RequestUtil {
       case "java.time.LocalDateTime":
         return Value.newBuilder()
             .setUnixTimestampVal(
-                ((java.time.LocalDateTime) value).toInstant(ZoneOffset.UTC).toEpochMilli())
+                ((java.time.LocalDateTime) value).toInstant(ZoneOffset.UTC).getEpochSecond())
             .build();
       case "java.time.Instant":
         return Value.newBuilder()
-            .setUnixTimestampVal(((java.time.Instant) value).toEpochMilli())
+            .setUnixTimestampVal(((java.time.Instant) value).getEpochSecond())
             .build();
       case "java.time.OffsetDateTime":
         return Value.newBuilder()
-            .setUnixTimestampVal(((java.time.OffsetDateTime) value).toInstant().toEpochMilli())
+            .setUnixTimestampVal(((java.time.OffsetDateTime) value).toInstant().getEpochSecond())
             .build();
       case "java.util.Arrays.ArrayList":
         if (((List<?>) value).isEmpty()) {
@@ -157,6 +157,36 @@ public class RequestUtil {
               return Value.newBuilder()
                   .setBoolListVal(
                       ValueProto.BoolList.newBuilder().addAllVal((List<Boolean>) value).build())
+                  .build();
+            case "java.time.LocalDateTime":
+              List<Long> timestamps =
+                  ((List<java.time.LocalDateTime>) value)
+                      .stream()
+                          .map(dt -> dt.toInstant(ZoneOffset.UTC).getEpochSecond())
+                          .collect(Collectors.toList());
+              return Value.newBuilder()
+                  .setUnixTimestampListVal(
+                      ValueProto.Int64List.newBuilder().addAllVal(timestamps).build())
+                  .build();
+            case "java.time.Instant":
+              List<Long> instantTimestamps =
+                  ((List<java.time.Instant>) value)
+                      .stream()
+                          .map(instant -> instant.getEpochSecond())
+                          .collect(Collectors.toList());
+              return Value.newBuilder()
+                  .setUnixTimestampListVal(
+                      ValueProto.Int64List.newBuilder().addAllVal(instantTimestamps).build())
+                  .build();
+            case "java.time.OffsetDateTime":
+              List<Long> offsetTimestamps =
+                  ((List<java.time.OffsetDateTime>) value)
+                      .stream()
+                          .map(offsetDateTime -> offsetDateTime.toInstant().getEpochSecond())
+                          .collect(Collectors.toList());
+              return Value.newBuilder()
+                  .setUnixTimestampListVal(
+                      ValueProto.Int64List.newBuilder().addAllVal(offsetTimestamps).build())
                   .build();
             default:
               throw new IllegalArgumentException(

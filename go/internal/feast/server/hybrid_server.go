@@ -15,7 +15,7 @@ import (
 var defaultCheckTimeout = 2 * time.Second
 
 // Register default HTTP handlers specific to the hybrid server configuration.
-func DefaultHybridHandlers(s *httpServer, port int) []Handler {
+func DefaultHybridHandlers(s *HttpServer, port int) []Handler {
 	return CommonHttpHandlers(s, combinedHealthCheck(port))
 }
 
@@ -27,18 +27,22 @@ func combinedHealthCheck(port int) http.HandlerFunc {
 		defer cancel()
 
 		target := fmt.Sprintf("localhost:%d", port)
-		conn, err := grpc.DialContext(
-			ctx,
+		conn, err := grpc.NewClient(
 			target,
 			grpc.WithTransportCredentials(insecure.NewCredentials()),
-			grpc.WithBlock(),
 		)
 
 		if err != nil {
 			http.Error(w, fmt.Sprintf("gRPC server connectivity check failed: %v", err), http.StatusServiceUnavailable)
 			return
 		}
-		defer conn.Close()
+		defer func(conn *grpc.ClientConn) {
+			err := conn.Close()
+			if err != nil {
+				http.Error(w, fmt.Sprintf("failed to close gRPC connection: %v", err), http.StatusInternalServerError)
+				return
+			}
+		}(conn)
 
 		hc := healthpb.NewHealthClient(conn)
 		resp, err := hc.Check(ctx, &healthpb.HealthCheckRequest{Service: ""})

@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/DataDog/datadog-go/v5/statsd"
 	"net"
 	"net/http"
 	"os"
@@ -14,6 +15,7 @@ import (
 	"github.com/feast-dev/feast/go/internal/feast/registry"
 	"github.com/feast-dev/feast/go/internal/feast/server"
 	"github.com/feast-dev/feast/go/internal/feast/server/logging"
+	"github.com/feast-dev/feast/go/internal/feast/version"
 	"github.com/rs/zerolog/log"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -47,20 +49,40 @@ func main() {
 	host := ""
 	port := 8080
 	grpcPort := 6566
-	server := RealServerStarter{}
+	serverStarter := RealServerStarter{}
+	printVersion := false
 	// Current Directory
 	repoPath, err := os.Getwd()
 	if err != nil {
 		log.Error().Stack().Err(err).Msg("Failed to get current directory")
 	}
 
-	flag.StringVar(&serverType, "type", serverType, "Specify the server type (http, grpc, or hybrid)")
+	flag.StringVar(&serverType, "type", serverType, "Specify the serverStarter type (http, grpc, or hybrid)")
 	flag.StringVar(&repoPath, "chdir", repoPath, "Repository path where feature store yaml file is stored")
 
-	flag.StringVar(&host, "host", host, "Specify a host for the server")
-	flag.IntVar(&port, "port", port, "Specify a port for the server")
-	flag.IntVar(&grpcPort, "grpcPort", grpcPort, "Specify a grpc port for the server")
+	flag.StringVar(&host, "host", host, "Specify a host for the serverStarter")
+	flag.IntVar(&port, "port", port, "Specify a port for the serverStarter")
+	flag.IntVar(&grpcPort, "grpcPort", grpcPort, "Specify a grpc port for the serverStarter")
+	flag.BoolVar(&printVersion, "version", printVersion, "Print the version information and exit")
 	flag.Parse()
+
+	version.ServerType = serverType
+
+	versionInfo := version.GetVersionInfo()
+
+	if printVersion && flag.NFlag() == 1 && flag.NArg() == 0 {
+		fmt.Printf("Feature Server Version: %s\nBuild Time: %s\nCommit Hash: %s\nGo Version: %s\n",
+			versionInfo.Version, versionInfo.BuildTime, versionInfo.CommitHash, versionInfo.GoVersion)
+		os.Exit(0)
+	}
+
+	log.Info().Msgf("Feature Server Version: %s", versionInfo.Version)
+	log.Info().Msgf("Build Time: %s", versionInfo.BuildTime)
+	log.Info().Msgf("Commit Hash: %s", versionInfo.CommitHash)
+	log.Info().Msgf("Go Version: %s", versionInfo.GoVersion)
+	log.Info().Msgf("Server Type: %s", versionInfo.ServerType)
+
+	go publishVersionInfoToDatadog(versionInfo)
 
 	repoConfig, err := registry.NewRepoConfigFromFile(repoPath)
 	if err != nil {
@@ -86,18 +108,59 @@ func main() {
 	// implemented in Golang specific to OfflineStoreSink. Python Feature Server doesn't support this.
 	switch serverType {
 	case "http":
-		err = server.StartHttpServer(fs, host, port, loggingService)
+		err = serverStarter.StartHttpServer(fs, host, port, loggingService)
 	case "grpc":
-		err = server.StartGrpcServer(fs, host, port, loggingService)
+		err = serverStarter.StartGrpcServer(fs, host, port, loggingService)
 	case "hybrid":
 		// hybrid starts both gRPC(on gRPC port) & http(on port)
-		err = server.StartHybridServer(fs, host, port, grpcPort, loggingService)
+		err = serverStarter.StartHybridServer(fs, host, port, grpcPort, loggingService)
 	default:
-		fmt.Println("Unknown server type. Please specify 'http', 'grpc', or 'hybrid'.")
+		fmt.Println("Unknown serverStarter type. Please specify 'http', 'grpc', or 'hybrid'.")
 	}
 
 	if err != nil {
-		log.Fatal().Stack().Err(err).Msg("Failed to start server")
+		log.Fatal().Stack().Err(err).Msg("Failed to start serverStarter")
+	}
+
+}
+
+func datadogTracingEnabled() bool {
+	return strings.ToLower(os.Getenv("ENABLE_DATADOG_TRACING")) == "true"
+}
+
+func publishVersionInfoToDatadog(info *version.Info) {
+	if datadogTracingEnabled() {
+		if statsdHost, ok := os.LookupEnv("DD_AGENT_HOST"); ok {
+			var client, err = statsd.New(fmt.Sprintf("%s:8125", statsdHost))
+			if err != nil {
+				log.Error().Err(err).Msg("Failed to connect to statsd")
+				return
+			}
+			defer func(client *statsd.Client) {
+				var err error
+				err = client.Flush()
+				if err != nil {
+					log.Error().Err(err).Msg("Failed to flush heartbeat to statsd client")
+				}
+				err = client.Close()
+				if err != nil {
+					log.Error().Err(err).Msg("Failed to close statsd client")
+				}
+			}(client)
+			tags := []string{
+				"feast_version:" + info.Version,
+				"build_time:" + info.BuildTime,
+				"commit_hash:" + info.CommitHash,
+				"go_version:" + info.GoVersion,
+				"server_type:" + info.ServerType,
+			}
+			err = client.Gauge("featureserver.heartbeat", 1, tags, 1)
+			if err != nil {
+				log.Error().Err(err).Msg("Failed to publish feature server heartbeat info to datadog")
+			}
+		} else {
+			log.Info().Msg("DD_AGENT_HOST environment variable is not set, skipping publishing version info to Datadog")
+		}
 	}
 
 }
@@ -125,7 +188,7 @@ func constructLoggingService(fs *feast.FeatureStore, writeLoggedFeaturesCallback
 
 // StartGrpcServerWithLogging creates a gRPC server with enabled feature logging
 func StartGrpcServer(fs *feast.FeatureStore, host string, port int, loggingService *logging.LoggingService) error {
-	if strings.ToLower(os.Getenv("ENABLE_DATADOG_TRACING")) == "true" {
+	if datadogTracingEnabled() {
 		tracer.Start(tracer.WithRuntimeMetrics())
 		defer tracer.Stop()
 	}
@@ -192,9 +255,9 @@ func StartHttpServer(fs *feast.FeatureStore, host string, port int, loggingServi
 
 // StartHybridServer creates a gRPC Server and HTTP server
 // Handlers for these are defined in hybrid_server.go
-// Stops both servers if a stop signal is recieved.
+// Stops both servers if a stop signal is received.
 func StartHybridServer(fs *feast.FeatureStore, host string, httpPort int, grpcPort int, loggingService *logging.LoggingService) error {
-	if strings.ToLower(os.Getenv("ENABLE_DATADOG_TRACING")) == "true" {
+	if datadogTracingEnabled() {
 		tracer.Start(tracer.WithRuntimeMetrics())
 		defer tracer.Stop()
 	}
@@ -207,10 +270,6 @@ func StartHybridServer(fs *feast.FeatureStore, host string, httpPort int, grpcPo
 	}
 
 	grpcSer := ser.RegisterServices()
-
-	if err != nil {
-		return err
-	}
 
 	httpSer := server.NewHttpServer(fs, loggingService)
 	log.Info().Msgf("Starting a HTTP server on host %s, port %d", host, httpPort)

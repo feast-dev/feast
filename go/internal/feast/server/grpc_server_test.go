@@ -17,6 +17,7 @@ import (
 	"github.com/apache/arrow/go/v17/arrow/memory"
 	"github.com/apache/arrow/go/v17/parquet/file"
 	"github.com/apache/arrow/go/v17/parquet/pqarrow"
+	"github.com/feast-dev/feast/go/internal/feast/version"
 	"github.com/feast-dev/feast/go/internal/test"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/feast-dev/feast/go/protos/feast/types"
@@ -32,7 +33,7 @@ func TestGetFeastServingInfo(t *testing.T) {
 
 	require.Nil(t, err)
 
-	client, closer := getClient(ctx, "", dir, "")
+	client, closer := GetClient(ctx, dir, "")
 	defer closer()
 	response, err := client.GetFeastServingInfo(ctx, &serving.GetFeastServingInfoRequest{})
 	assert.Nil(t, err)
@@ -48,7 +49,7 @@ func TestGetOnlineFeaturesSqlite(t *testing.T) {
 
 	require.Nil(t, err)
 
-	client, closer := getClient(ctx, "", dir, "")
+	client, closer := GetClient(ctx, dir, "")
 	defer closer()
 	entities := make(map[string]*types.RepeatedValue)
 	entities["driver_id"] = &types.RepeatedValue{
@@ -109,7 +110,7 @@ func TestGetOnlineFeaturesSqliteWithLogging(t *testing.T) {
 	require.Nil(t, err)
 
 	logPath := t.TempDir()
-	client, closer := getClient(ctx, "file", dir, logPath)
+	client, closer := GetClient(ctx, dir, logPath)
 	defer closer()
 	entities := make(map[string]*types.RepeatedValue)
 	entities["driver_id"] = &types.RepeatedValue{
@@ -207,4 +208,33 @@ func GetExpectedLogRows(featureNames []string, results []*serving.GetOnlineFeatu
 		}
 	}
 	return featureValueLogRows, featureStatusLogRows, eventTimestampLogRows
+}
+
+func TestGetVersionInfoReturnsCorrectVersionInfo(t *testing.T) {
+	ctx := context.Background()
+	server := &grpcServingServiceServer{}
+	resp, err := server.GetVersionInfo(ctx, &serving.GetVersionInfoRequest{})
+	require.Nil(t, err)
+	require.NotNil(t, resp)
+	expected := version.GetVersionInfo()
+	assert.Equal(t, expected.Version, resp.Version)
+	assert.Equal(t, expected.BuildTime, resp.BuildTime)
+	assert.Equal(t, expected.CommitHash, resp.CommitHash)
+	assert.Equal(t, expected.GoVersion, resp.GoVersion)
+	assert.Equal(t, expected.ServerType, resp.ServerType)
+}
+
+func TestGetVersionInfoHandlesNilContext(t *testing.T) {
+	server := &grpcServingServiceServer{}
+	resp, err := server.GetVersionInfo(nil, &serving.GetVersionInfoRequest{})
+	require.Nil(t, err)
+	require.NotNil(t, resp)
+}
+
+func TestGetVersionInfoHandlesNilRequest(t *testing.T) {
+	ctx := context.Background()
+	server := &grpcServingServiceServer{}
+	resp, err := server.GetVersionInfo(ctx, nil)
+	require.Nil(t, err)
+	require.NotNil(t, resp)
 }

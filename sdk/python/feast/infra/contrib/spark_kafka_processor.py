@@ -1,3 +1,4 @@
+import os
 from types import MethodType
 from typing import List, Optional, Set, Union, no_type_check
 
@@ -253,6 +254,13 @@ class SparkKafkaProcessor(StreamProcessor):
         def batch_write(row: DataFrame, batch_id: int):
             rows: pd.DataFrame = row.toPandas()
 
+            num_driver_cores = self.spark.sparkContext.getConf().get(
+                "spark.driver.cores"
+            )
+            if num_driver_cores is not None:
+                # This environment variable is used in passthrough provider to determine the number of processes to spawn
+                os.environ["SPARK_DRIVER_CORES"] = num_driver_cores
+
             # Extract the latest feature values for each unique entity row (i.e. the join keys).
             # Also add a 'created' column.
             if isinstance(self.sfv, StreamFeatureView):
@@ -266,12 +274,11 @@ class SparkKafkaProcessor(StreamProcessor):
                     .groupby(self.join_keys)
                     .nth(0)
                 )
+                # Reset indices to ensure the dataframe has all the required columns.
+                rows = rows.reset_index()
             # Created column is not used anywhere in the code, but it is added to the dataframe.
             # Commenting this out as it is not used anywhere in the code
             # rows["created"] = pd.to_datetime("now", utc=True)
-
-            # Reset indices to ensure the dataframe has all the required columns.
-            rows = rows.reset_index()
 
             # Optionally execute preprocessor before writing to the online store.
             if self.preprocess_fn:

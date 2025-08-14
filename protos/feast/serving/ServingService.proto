@@ -28,6 +28,8 @@ option go_package = "github.com/feast-dev/feast/go/protos/feast/serving";
 service ServingService {
     // Get information about this Feast serving.
     rpc GetFeastServingInfo (GetFeastServingInfoRequest) returns (GetFeastServingInfoResponse);
+    // Get Version information of this Feature Server
+    rpc GetVersionInfo (GetVersionInfoRequest) returns (GetVersionInfoResponse);
     // Get online features synchronously.
     rpc GetOnlineFeatures (GetOnlineFeaturesRequest) returns (GetOnlineFeaturesResponse);
     // Get online features synchronously with range queries.
@@ -39,6 +41,16 @@ message GetFeastServingInfoRequest {}
 message GetFeastServingInfoResponse {
     // Feast version of this serving deployment.
     string version = 1;
+}
+
+message GetVersionInfoRequest {}
+
+message GetVersionInfoResponse {
+    string version = 1;
+    string build_time=2;
+    string commit_hash=3;
+    string go_version=4;
+    string server_type=5;
 }
 
 message FeatureReferenceV2 {
@@ -193,9 +205,12 @@ message GetOnlineFeaturesRangeRequest {
 message GetOnlineFeaturesRangeResponse {
     GetOnlineFeaturesResponseMetadata metadata = 1;
 
+    // Entities used to retrieve the features.
+    map<string, feast.types.RepeatedValue> entities = 2;
+
     // Length of "results" array should match length of requested features.
     // We also preserve the same order of features here as in metadata.feature_names
-    repeated RangeFeatureVector results = 2;
+    repeated RangeFeatureVector results = 3;
 
     message RangeFeatureVector {
         // Each values entry contains multiple values for a feature

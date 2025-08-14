@@ -1,6 +1,7 @@
 package types
 
 import (
+	"encoding/base64"
 	"fmt"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"math"
@@ -166,81 +167,15 @@ func CopyProtoValuesToArrowArray(builder array.Builder, values []*types.Value) e
 }
 
 func ArrowValuesToProtoValues(arr arrow.Array) ([]*types.Value, error) {
-	values := make([]*types.Value, 0)
-
 	if listArr, ok := arr.(*array.List); ok {
-		listValues := listArr.ListValues()
-		offsets := listArr.Offsets()[1:]
-		pos := 0
-		for idx := 0; idx < listArr.Len(); idx++ {
-			switch listValues.DataType() {
-			case arrow.PrimitiveTypes.Int32:
-				vals := make([]int32, int(offsets[idx])-pos)
-				for j := pos; j < int(offsets[idx]); j++ {
-					vals[j-pos] = listValues.(*array.Int32).Value(j)
-				}
-				values = append(values,
-					&types.Value{Val: &types.Value_Int32ListVal{Int32ListVal: &types.Int32List{Val: vals}}})
-			case arrow.PrimitiveTypes.Int64:
-				vals := make([]int64, int(offsets[idx])-pos)
-				for j := pos; j < int(offsets[idx]); j++ {
-					vals[j-pos] = listValues.(*array.Int64).Value(j)
-				}
-				values = append(values,
-					&types.Value{Val: &types.Value_Int64ListVal{Int64ListVal: &types.Int64List{Val: vals}}})
-			case arrow.PrimitiveTypes.Float32:
-				vals := make([]float32, int(offsets[idx])-pos)
-				for j := pos; j < int(offsets[idx]); j++ {
-					vals[j-pos] = listValues.(*array.Float32).Value(j)
-				}
-				values = append(values,
-					&types.Value{Val: &types.Value_FloatListVal{FloatListVal: &types.FloatList{Val: vals}}})
-			case arrow.PrimitiveTypes.Float64:
-				vals := make([]float64, int(offsets[idx])-pos)
-				for j := pos; j < int(offsets[idx]); j++ {
-					vals[j-pos] = listValues.(*array.Float64).Value(j)
-				}
-				values = append(values,
-					&types.Value{Val: &types.Value_DoubleListVal{DoubleListVal: &types.DoubleList{Val: vals}}})
-			case arrow.BinaryTypes.Binary:
-				vals := make([][]byte, int(offsets[idx])-pos)
-				for j := pos; j < int(offsets[idx]); j++ {
-					vals[j-pos] = listValues.(*array.Binary).Value(j)
-				}
-				values = append(values,
-					&types.Value{Val: &types.Value_BytesListVal{BytesListVal: &types.BytesList{Val: vals}}})
-			case arrow.BinaryTypes.String:
-				vals := make([]string, int(offsets[idx])-pos)
-				for j := pos; j < int(offsets[idx]); j++ {
-					vals[j-pos] = listValues.(*array.String).Value(j)
-				}
-				values = append(values,
-					&types.Value{Val: &types.Value_StringListVal{StringListVal: &types.StringList{Val: vals}}})
-			case arrow.FixedWidthTypes.Boolean:
-				vals := make([]bool, int(offsets[idx])-pos)
-				for j := pos; j < int(offsets[idx]); j++ {
-					vals[j-pos] = listValues.(*array.Boolean).Value(j)
-				}
-				values = append(values,
-					&types.Value{Val: &types.Value_BoolListVal{BoolListVal: &types.BoolList{Val: vals}}})
-			case arrow.FixedWidthTypes.Timestamp_s:
-				vals := make([]int64, int(offsets[idx])-pos)
-				for j := pos; j < int(offsets[idx]); j++ {
-					vals[j-pos] = int64(listValues.(*array.Timestamp).Value(j))
-				}
-
-				values = append(values,
-					&types.Value{Val: &types.Value_UnixTimestampListVal{
-						UnixTimestampListVal: &types.Int64List{Val: vals}}})
-
-			}
-
-			// set the end of current element as start of the next
-			pos = int(offsets[idx])
+		valueList, err := ArrowListToProtoList(listArr, listArr.Offsets())
+		if err != nil {
+			return nil, fmt.Errorf("error converting list to proto Value: %v", err)
 		}
-
-		return values, nil
+		return valueList, nil
 	}
+
+	values := make([]*types.Value, 0)
 
 	switch arr.DataType() {
 	case arrow.PrimitiveTypes.Int32:
@@ -318,6 +253,27 @@ func ArrowValuesToProtoValues(arr arrow.Array) ([]*types.Value, error) {
 	return values, nil
 }
 
+func ArrowListToProtoList(listArr *array.List, inputOffsets []int32) ([]*types.Value, error) {
+	listValues := listArr.ListValues()
+	offsets := inputOffsets[1:]
+	pos := int(inputOffsets[0])
+	values := make([]*types.Value, len(offsets))
+	for idx := 0; idx < len(offsets); idx++ {
+		if listArr.IsValid(idx) {
+			value, err := arrowListValuesToProtoValue(listValues, int64(pos), int64(offsets[idx]))
+			if err != nil {
+				return nil, fmt.Errorf("error converting arrow list to proto Value: %v", err)
+			}
+			values[idx] = value
+
+		} else {
+			values[idx] = &types.Value{}
+		}
+		pos = int(offsets[idx])
+	}
+	return values, nil
+}
+
 func ProtoValuesToArrowArray(protoValues []*types.Value, arrowAllocator memory.Allocator, numRows int) (arrow.Array, error) {
 	var fieldType arrow.DataType
 	var err error
@@ -347,80 +303,167 @@ func ProtoValuesToArrowArray(protoValues []*types.Value, arrowAllocator memory.A
 	}
 }
 
+// Handles conversion for nested list case for Arrow Array List Builders
+func arrowNestedListToRepeatedValues(arrayListVals *array.List, start, end int) ([]*types.Value, error) {
+	repeatedValue := make([]*types.Value, 0, end-start)
+	for j := start; j < end; j++ {
+		valStart, valEnd := arrayListVals.ValueOffsets(j)
+		if !arrayListVals.IsValid(j) {
+			repeatedValue = append(repeatedValue, &types.Value{})
+			continue
+		}
+		listVals := arrayListVals.ListValues()
+		protoVal, err := arrowListValuesToProtoValue(listVals, valStart, valEnd)
+		if err != nil {
+			return nil, err
+		}
+		repeatedValue = append(repeatedValue, protoVal)
+	}
+	return repeatedValue, nil
+}
+
+// Handles conversion for primitive type case for Arrow Array List Builders
+func arrowPrimitiveListToRepeatedValues(arrayListValues arrow.Array, start int, end int) ([]*types.Value, error) {
+	values := make([]*types.Value, 0, end-start)
+	for j := start; j < end; j++ {
+		var protoVal *types.Value
+		if arrayListValues.IsNull(j) {
+			protoVal = &types.Value{}
+		} else {
+			var err error
+			protoVal, err = arrowPrimitiveValueToProtoValue(arrayListValues, j)
+			if err != nil {
+				return nil, err
+			}
+		}
+		values = append(values, protoVal)
+	}
+	return values, nil
+}
+
+// Converts Arrow list values to proto Value for nested lists
+func arrowListValuesToProtoValue(listVals arrow.Array, valStart int64, valEnd int64) (*types.Value, error) {
+	switch listVals.DataType() {
+	case arrow.PrimitiveTypes.Int32:
+		vals := make([]int32, valEnd-valStart)
+		for k := 0; k < int(valEnd-valStart); k++ {
+			vals[k] = listVals.(*array.Int32).Value(k + int(valStart))
+		}
+		return &types.Value{Val: &types.Value_Int32ListVal{Int32ListVal: &types.Int32List{Val: vals}}}, nil
+	case arrow.PrimitiveTypes.Int64:
+		vals := make([]int64, valEnd-valStart)
+		for k := 0; k < int(valEnd-valStart); k++ {
+			vals[k] = listVals.(*array.Int64).Value(k + int(valStart))
+		}
+		return &types.Value{Val: &types.Value_Int64ListVal{Int64ListVal: &types.Int64List{Val: vals}}}, nil
+	case arrow.PrimitiveTypes.Float32:
+		vals := make([]float32, valEnd-valStart)
+		for k := 0; k < int(valEnd-valStart); k++ {
+			vals[k] = listVals.(*array.Float32).Value(k + int(valStart))
+		}
+		return &types.Value{Val: &types.Value_FloatListVal{FloatListVal: &types.FloatList{Val: vals}}}, nil
+	case arrow.PrimitiveTypes.Float64:
+		vals := make([]float64, valEnd-valStart)
+		for k := 0; k < int(valEnd-valStart); k++ {
+			vals[k] = listVals.(*array.Float64).Value(k + int(valStart))
+		}
+		return &types.Value{Val: &types.Value_DoubleListVal{DoubleListVal: &types.DoubleList{Val: vals}}}, nil
+	case arrow.BinaryTypes.Binary:
+		vals := make([][]byte, valEnd-valStart)
+		for k := 0; k < int(valEnd-valStart); k++ {
+			vals[k] = listVals.(*array.Binary).Value(k + int(valStart))
+		}
+		return &types.Value{Val: &types.Value_BytesListVal{BytesListVal: &types.BytesList{Val: vals}}}, nil
+	case arrow.BinaryTypes.String:
+		vals := make([]string, valEnd-valStart)
+		for k := 0; k < int(valEnd-valStart); k++ {
+			vals[k] = listVals.(*array.String).Value(k + int(valStart))
+		}
+		return &types.Value{Val: &types.Value_StringListVal{StringListVal: &types.StringList{Val: vals}}}, nil
+	case arrow.FixedWidthTypes.Boolean:
+		vals := make([]bool, valEnd-valStart)
+		for k := 0; k < int(valEnd-valStart); k++ {
+			vals[k] = listVals.(*array.Boolean).Value(k + int(valStart))
+		}
+		return &types.Value{Val: &types.Value_BoolListVal{BoolListVal: &types.BoolList{Val: vals}}}, nil
+	case arrow.FixedWidthTypes.Timestamp_s:
+		vals := make([]int64, valEnd-valStart)
+		for k := 0; k < int(valEnd-valStart); k++ {
+			vals[k] = int64(listVals.(*array.Timestamp).Value(k + int(valStart)))
+		}
+		return &types.Value{Val: &types.Value_UnixTimestampListVal{UnixTimestampListVal: &types.Int64List{Val: vals}}}, nil
+	default:
+		return nil, fmt.Errorf("unsupported data type in list: %s", listVals.DataType())
+	}
+}
+
+// Converts Arrow primitive value to proto Value
+func arrowPrimitiveValueToProtoValue(arr arrow.Array, idx int) (*types.Value, error) {
+	switch arr.DataType() {
+	case arrow.PrimitiveTypes.Int32:
+		return &types.Value{Val: &types.Value_Int32Val{Int32Val: arr.(*array.Int32).Value(idx)}}, nil
+	case arrow.PrimitiveTypes.Int64:
+		return &types.Value{Val: &types.Value_Int64Val{Int64Val: arr.(*array.Int64).Value(idx)}}, nil
+	case arrow.PrimitiveTypes.Float32:
+		return &types.Value{Val: &types.Value_FloatVal{FloatVal: arr.(*array.Float32).Value(idx)}}, nil
+	case arrow.PrimitiveTypes.Float64:
+		return &types.Value{Val: &types.Value_DoubleVal{DoubleVal: arr.(*array.Float64).Value(idx)}}, nil
+	case arrow.BinaryTypes.Binary:
+		return &types.Value{Val: &types.Value_BytesVal{BytesVal: arr.(*array.Binary).Value(idx)}}, nil
+	case arrow.BinaryTypes.String:
+		return &types.Value{Val: &types.Value_StringVal{StringVal: arr.(*array.String).Value(idx)}}, nil
+	case arrow.FixedWidthTypes.Boolean:
+		return &types.Value{Val: &types.Value_BoolVal{BoolVal: arr.(*array.Boolean).Value(idx)}}, nil
+	case arrow.FixedWidthTypes.Timestamp_s:
+		return &types.Value{Val: &types.Value_UnixTimestampVal{UnixTimestampVal: int64(arr.(*array.Timestamp).Value(idx))}}, nil
+	case arrow.Null:
+		return &types.Value{}, nil
+	default:
+		return nil, fmt.Errorf("unsupported data type in list: %s", arr.DataType())
+	}
+}
+
 func ArrowValuesToRepeatedProtoValues(arr arrow.Array) ([]*types.RepeatedValue, error) {
+	if arr.Len() == 0 && arr.DataType() == arrow.Null {
+		return []*types.RepeatedValue{nil}, nil
+	}
 	repeatedValues := make([]*types.RepeatedValue, 0, arr.Len())
 
-	if listArr, ok := arr.(*array.List); ok {
-		listValues := listArr.ListValues()
-		offsets := listArr.Offsets()[1:]
-		pos := 0
-		for i := 0; i < listArr.Len(); i++ {
-			if listArr.IsNull(i) {
-				repeatedValues = append(repeatedValues, &types.RepeatedValue{Val: make([]*types.Value, 0)})
-				continue
-			}
+	arrayList := arr.(*array.List)
+	arrayListValues := arrayList.ListValues()
 
-			values := make([]*types.Value, 0, int(offsets[i])-pos)
-
-			for j := pos; j < int(offsets[i]); j++ {
-				if listValues.IsNull(j) {
-					values = append(values, &types.Value{})
-					continue
-				}
-				var protoVal *types.Value
-
-				switch listValues.DataType() {
-				case arrow.PrimitiveTypes.Int32:
-					protoVal = &types.Value{Val: &types.Value_Int32Val{Int32Val: listValues.(*array.Int32).Value(j)}}
-				case arrow.PrimitiveTypes.Int64:
-					protoVal = &types.Value{Val: &types.Value_Int64Val{Int64Val: listValues.(*array.Int64).Value(j)}}
-				case arrow.PrimitiveTypes.Float32:
-					protoVal = &types.Value{Val: &types.Value_FloatVal{FloatVal: listValues.(*array.Float32).Value(j)}}
-				case arrow.PrimitiveTypes.Float64:
-					protoVal = &types.Value{Val: &types.Value_DoubleVal{DoubleVal: listValues.(*array.Float64).Value(j)}}
-				case arrow.BinaryTypes.Binary:
-					protoVal = &types.Value{Val: &types.Value_BytesVal{BytesVal: listValues.(*array.Binary).Value(j)}}
-				case arrow.BinaryTypes.String:
-					protoVal = &types.Value{Val: &types.Value_StringVal{StringVal: listValues.(*array.String).Value(j)}}
-				case arrow.FixedWidthTypes.Boolean:
-					protoVal = &types.Value{Val: &types.Value_BoolVal{BoolVal: listValues.(*array.Boolean).Value(j)}}
-				case arrow.FixedWidthTypes.Timestamp_s:
-					protoVal = &types.Value{Val: &types.Value_UnixTimestampVal{UnixTimestampVal: int64(listValues.(*array.Timestamp).Value(j))}}
-				default:
-					return nil, fmt.Errorf("unsupported data type in list: %s", listValues.DataType())
-				}
-
-				values = append(values, protoVal)
-			}
-
-			repeatedValues = append(repeatedValues, &types.RepeatedValue{Val: values})
-			// set the end of current element as start of the next
-			pos = int(offsets[i])
+	for i := 0; i < arrayList.Len(); i++ {
+		if !arrayList.IsValid(i) {
+			repeatedValues = append(repeatedValues, nil)
+			continue
 		}
 
-		return repeatedValues, nil
-	}
+		start := int(arrayList.Offsets()[i])
+		end := int(arrayList.Offsets()[i+1])
 
-	protoValues, err := ArrowValuesToProtoValues(arr)
-	if err != nil {
-		return nil, fmt.Errorf("error converting values to proto Values: %v", err)
+		if arrayListVals, ok := arrayListValues.(*array.List); ok {
+			repeatedValue, err := arrowNestedListToRepeatedValues(arrayListVals, start, end)
+			if err != nil {
+				return nil, err
+			}
+			repeatedValues = append(repeatedValues, &types.RepeatedValue{Val: repeatedValue})
+		} else {
+			values, err := arrowPrimitiveListToRepeatedValues(arrayListValues, start, end)
+			if err != nil {
+				return nil, err
+			}
+			repeatedValues = append(repeatedValues, &types.RepeatedValue{Val: values})
+		}
 	}
-
-	for _, val := range protoValues {
-		repeatedValues = append(repeatedValues, &types.RepeatedValue{Val: []*types.Value{val}})
-	}
-
 	return repeatedValues, nil
 }
 
-func RepeatedProtoValuesToArrowArray(repeatedValues []*types.RepeatedValue, allocator memory.Allocator, numRows int) (arrow.Array, error) {
-	if len(repeatedValues) == 0 {
-		return array.NewNull(numRows), nil
-	}
-
+func RepeatedProtoValuesToArrowArray(repeatedValues []*types.RepeatedValue, allocator memory.Allocator) (arrow.Array, error) {
 	var valueType arrow.DataType
 	var protoValue *types.Value
+	var err error
 
+	// Find the first non-nil proto value in repeatedValues
 	for _, rv := range repeatedValues {
 		if rv != nil && len(rv.Val) > 0 {
 			for _, val := range rv.Val {
@@ -435,61 +478,61 @@ func RepeatedProtoValuesToArrowArray(repeatedValues []*types.RepeatedValue, allo
 		}
 	}
 
-	if protoValue == nil {
-		return array.NewNull(numRows), nil
-	}
-
-	var err error
-	valueType, err = ProtoTypeToArrowType(protoValue)
-	if err != nil {
-		return nil, err
-	}
-
-	listBuilder := array.NewListBuilder(allocator, valueType)
-	defer listBuilder.Release()
-	valueBuilder := listBuilder.ValueBuilder()
-
-	for _, repeatedValue := range repeatedValues {
-		listBuilder.Append(true)
-
-		if repeatedValue == nil || len(repeatedValue.Val) == 0 {
-			continue
+	if protoValue != nil {
+		// Determine the value type from the first non-nil proto value
+		valueType, err = ProtoTypeToArrowType(protoValue)
+		if err != nil {
+			return nil, err
 		}
 
-		for _, val := range repeatedValue.Val {
-			if val == nil || val.Val == nil {
-				appendNullByType(valueBuilder)
+		listBuilder := array.NewListBuilder(allocator, valueType)
+		defer listBuilder.Release()
+		valueBuilder := listBuilder.ValueBuilder()
+
+		for _, repeatedValue := range repeatedValues {
+			if repeatedValue == nil {
+				listBuilder.AppendNull()
 				continue
 			}
 
-			switch v := val.Val.(type) {
-			case *types.Value_Int32Val:
-				valueBuilder.(*array.Int32Builder).Append(v.Int32Val)
-			case *types.Value_Int64Val:
-				valueBuilder.(*array.Int64Builder).Append(v.Int64Val)
-			case *types.Value_FloatVal:
-				valueBuilder.(*array.Float32Builder).Append(v.FloatVal)
-			case *types.Value_DoubleVal:
-				valueBuilder.(*array.Float64Builder).Append(v.DoubleVal)
-			case *types.Value_BoolVal:
-				valueBuilder.(*array.BooleanBuilder).Append(v.BoolVal)
-			case *types.Value_StringVal:
-				valueBuilder.(*array.StringBuilder).Append(v.StringVal)
-			case *types.Value_BytesVal:
-				valueBuilder.(*array.BinaryBuilder).Append(v.BytesVal)
-			case *types.Value_UnixTimestampVal:
-				valueBuilder.(*array.TimestampBuilder).Append(arrow.Timestamp(v.UnixTimestampVal))
-			default:
-				appendNullByType(valueBuilder)
+			if len(repeatedValue.Val) == 0 && repeatedValue.Val == nil {
+				return nil, fmt.Errorf("represent it as an empty array instead of nil")
+			}
+			listBuilder.Append(true)
+
+			err = CopyProtoValuesToArrowArray(valueBuilder, repeatedValue.Val)
+			if err != nil {
+				return nil, fmt.Errorf("error copying proto values to arrow array: %v", err)
 			}
 		}
-	}
+		return listBuilder.NewArray(), nil
 
-	for i := len(repeatedValues); i < numRows; i++ {
-		listBuilder.Append(true)
-	}
+	} else {
+		if len(repeatedValues) == 0 {
+			return array.NewNull(0), nil
+		} else {
+			nullListBuilder := array.NewListBuilder(allocator, arrow.Null)
+			defer nullListBuilder.Release()
+			nullValueBuilder := nullListBuilder.ValueBuilder()
+			for _, repeatedVal := range repeatedValues {
 
-	return listBuilder.NewArray(), nil
+				if repeatedVal == nil {
+					nullListBuilder.AppendNull()
+					continue
+				}
+
+				if len(repeatedVal.Val) == 0 && repeatedVal.Val == nil {
+					return nil, fmt.Errorf("represent it as an empty array instead of nil")
+				}
+
+				nullListBuilder.Append(true)
+				for _, _ = range repeatedVal.Val {
+					nullValueBuilder.AppendNull()
+				}
+			}
+			return nullListBuilder.NewArray(), nil
+		}
+	}
 }
 
 func InterfaceToProtoValue(val interface{}) (*types.Value, error) {
@@ -515,9 +558,9 @@ func InterfaceToProtoValue(val interface{}) (*types.Value, error) {
 	case bool:
 		protoVal.Val = &types.Value_BoolVal{BoolVal: v}
 	case time.Time:
-		protoVal.Val = &types.Value_UnixTimestampVal{UnixTimestampVal: v.UnixMilli()}
+		protoVal.Val = &types.Value_UnixTimestampVal{UnixTimestampVal: v.Unix()}
 	case *timestamppb.Timestamp:
-		protoVal.Val = &types.Value_UnixTimestampVal{UnixTimestampVal: GetTimestampMillis(v)}
+		protoVal.Val = &types.Value_UnixTimestampVal{UnixTimestampVal: GetTimestampSeconds(v)}
 
 	case [][]byte:
 		bytesList := &types.BytesList{Val: v}
@@ -585,7 +628,7 @@ func InterfaceToProtoValue(val interface{}) (*types.Value, error) {
 	case []time.Time:
 		timestamps := make([]int64, len(v))
 		for j, t := range v {
-			timestamps[j] = t.UnixMilli()
+			timestamps[j] = t.Unix()
 		}
 		timestampList := &types.Int64List{Val: timestamps}
 		protoVal.Val = &types.Value_UnixTimestampListVal{UnixTimestampListVal: timestampList}
@@ -593,7 +636,7 @@ func InterfaceToProtoValue(val interface{}) (*types.Value, error) {
 	case []*timestamppb.Timestamp:
 		timestamps := make([]int64, len(v))
 		for j, t := range v {
-			timestamps[j] = GetTimestampMillis(t)
+			timestamps[j] = GetTimestampSeconds(t)
 		}
 		timestampList := &types.Int64List{Val: timestamps}
 		protoVal.Val = &types.Value_UnixTimestampListVal{UnixTimestampListVal: timestampList}
@@ -709,6 +752,16 @@ func appendNullByType(builder array.Builder) {
 }
 
 func ValueTypeToGoType(value *types.Value) interface{} {
+	return valueTypeToGoTypeTimestampAsString(value, false)
+}
+
+func ValueTypeToGoTypeTimestampAsString(value *types.Value) interface{} {
+	return valueTypeToGoTypeTimestampAsString(value, true)
+}
+
+var TimestampFormat = "2006-01-02 15:04:05.999999999Z0700"
+
+func valueTypeToGoTypeTimestampAsString(value *types.Value, timestampAsString bool) interface{} {
 	if value == nil || value.Val == nil {
 		return nil
 	}
@@ -743,12 +796,35 @@ func ValueTypeToGoType(value *types.Value) interface{} {
 	case *types.Value_DoubleListVal:
 		return x.DoubleListVal.Val
 	case *types.Value_UnixTimestampVal:
-		return x.UnixTimestampVal
+		if timestampAsString {
+			return time.Unix(x.UnixTimestampVal, 0).UTC().Format(TimestampFormat)
+		}
+		return time.Unix(x.UnixTimestampVal, 0).UTC()
 	case *types.Value_UnixTimestampListVal:
-		return x.UnixTimestampListVal.Val
+		if timestampAsString {
+			timestamps := make([]string, len(x.UnixTimestampListVal.Val))
+			for i, ts := range x.UnixTimestampListVal.Val {
+				timestamps[i] = time.Unix(ts, 0).UTC().Format(TimestampFormat)
+			}
+			return timestamps
+		}
+		timestamps := make([]time.Time, len(x.UnixTimestampListVal.Val))
+		for i, ts := range x.UnixTimestampListVal.Val {
+			timestamps[i] = time.Unix(ts, 0).UTC()
+		}
+		return timestamps
 	default:
 		return nil
 	}
+}
+
+func transformStringToBytes(str string) []byte {
+	bytes, decodeErr := base64.StdEncoding.DecodeString(str)
+	if decodeErr != nil {
+		// If base64 decoding fails, try as a byte string
+		bytes = []byte(str)
+	}
+	return bytes
 }
 
 func ConvertToValueType(value *types.Value, valueType types.ValueType_Enum) (*types.Value, error) {
@@ -775,7 +851,7 @@ func ConvertToValueType(value *types.Value, valueType types.ValueType_Enum) (*ty
 		case *types.Value_BytesVal:
 			return value, nil
 		case *types.Value_StringVal:
-			return &types.Value{Val: &types.Value_BytesVal{BytesVal: []byte(value.GetStringVal())}}, nil
+			return &types.Value{Val: &types.Value_BytesVal{BytesVal: transformStringToBytes(value.GetStringVal())}}, nil
 		}
 	case types.ValueType_INT32:
 		switch value.Val.(type) {
@@ -789,6 +865,8 @@ func ConvertToValueType(value *types.Value, valueType types.ValueType_Enum) (*ty
 		}
 	case types.ValueType_INT64:
 		switch value.Val.(type) {
+		case *types.Value_Int32Val:
+			return &types.Value{Val: &types.Value_Int64Val{Int64Val: int64(value.GetInt32Val())}}, nil
 		case *types.Value_Int64Val:
 			return value, nil
 		}
@@ -804,6 +882,8 @@ func ConvertToValueType(value *types.Value, valueType types.ValueType_Enum) (*ty
 		}
 	case types.ValueType_DOUBLE:
 		switch value.Val.(type) {
+		case *types.Value_FloatVal:
+			return &types.Value{Val: &types.Value_DoubleVal{DoubleVal: float64(value.GetFloatVal())}}, nil
 		case *types.Value_DoubleVal:
 			return value, nil
 		}
@@ -811,6 +891,8 @@ func ConvertToValueType(value *types.Value, valueType types.ValueType_Enum) (*ty
 		switch value.Val.(type) {
 		case *types.Value_UnixTimestampVal:
 			return value, nil
+		case *types.Value_Int32Val:
+			return &types.Value{Val: &types.Value_UnixTimestampVal{UnixTimestampVal: int64(value.GetInt32Val())}}, nil
 		case *types.Value_Int64Val:
 			return &types.Value{Val: &types.Value_UnixTimestampVal{UnixTimestampVal: value.GetInt64Val()}}, nil
 		}
@@ -832,7 +914,7 @@ func ConvertToValueType(value *types.Value, valueType types.ValueType_Enum) (*ty
 			stringList := value.GetStringListVal().GetVal()
 			bytesList := make([][]byte, len(stringList))
 			for i, str := range stringList {
-				bytesList[i] = []byte(str)
+				bytesList[i] = transformStringToBytes(str)
 			}
 			return &types.Value{Val: &types.Value_BytesListVal{BytesListVal: &types.BytesList{Val: bytesList}}}, nil
 		}
@@ -853,6 +935,13 @@ func ConvertToValueType(value *types.Value, valueType types.ValueType_Enum) (*ty
 		}
 	case types.ValueType_INT64_LIST:
 		switch value.Val.(type) {
+		case *types.Value_Int32ListVal:
+			int32List := value.GetInt32ListVal().GetVal()
+			int64List := make([]int64, len(int32List))
+			for i, v := range int32List {
+				int64List[i] = int64(v)
+			}
+			return &types.Value{Val: &types.Value_Int64ListVal{Int64ListVal: &types.Int64List{Val: int64List}}}, nil
 		case *types.Value_Int64ListVal:
 			return value, nil
 		}
@@ -873,6 +962,13 @@ func ConvertToValueType(value *types.Value, valueType types.ValueType_Enum) (*ty
 		}
 	case types.ValueType_DOUBLE_LIST:
 		switch value.Val.(type) {
+		case *types.Value_FloatListVal:
+			floatList := value.GetFloatListVal().GetVal()
+			doubleList := make([]float64, len(floatList))
+			for i, v := range floatList {
+				doubleList[i] = float64(v)
+			}
+			return &types.Value{Val: &types.Value_DoubleListVal{DoubleListVal: &types.DoubleList{Val: doubleList}}}, nil
 		case *types.Value_DoubleListVal:
 			return value, nil
 		}
@@ -880,6 +976,13 @@ func ConvertToValueType(value *types.Value, valueType types.ValueType_Enum) (*ty
 		switch value.Val.(type) {
 		case *types.Value_UnixTimestampListVal:
 			return value, nil
+		case *types.Value_Int32ListVal:
+			int32List := value.GetInt32ListVal().GetVal()
+			unixTimestampList := make([]int64, len(int32List))
+			for i, v := range int32List {
+				unixTimestampList[i] = int64(v)
+			}
+			return &types.Value{Val: &types.Value_UnixTimestampListVal{UnixTimestampListVal: &types.Int64List{Val: unixTimestampList}}}, nil
 		case *types.Value_Int64ListVal:
 			return &types.Value{Val: &types.Value_UnixTimestampListVal{UnixTimestampListVal: &types.Int64List{Val: value.GetInt64ListVal().GetVal()}}}, nil
 		}
@@ -903,9 +1006,9 @@ func ConvertToValueType(value *types.Value, valueType types.ValueType_Enum) (*ty
 	return nil, err
 }
 
-func GetTimestampMillis(ts *timestamppb.Timestamp) int64 {
+func GetTimestampSeconds(ts *timestamppb.Timestamp) int64 {
 	if ts == nil {
 		return 0
 	}
-	return (ts.GetSeconds() * 1000) + int64(ts.GetNanos()/1_000_000)
+	return ts.GetSeconds()
 }

@@ -51,20 +51,8 @@ message SortedFeatureViewSpec {
     // List of specifications for each feature defined as part of this feature view.
     repeated FeatureSpecV2 features = 4;
 
-    // List of specifications for each entity defined as part of this feature view.
-    repeated FeatureSpecV2 entity_columns = 12;
-
-    // List of sort keys for this feature view.
-    repeated SortKey sort_keys = 13;
-
-    // Description of the feature view.
-    string description = 10;
-
     // User defined metadata
     map<string,string> tags = 5;
-
-    // Owner of the feature view.
-    string owner = 11;
 
     // Features in this feature view can only be retrieved from online serving
     // younger than ttl. Ttl is measured as the duration of time between
@@ -75,16 +63,31 @@ message SortedFeatureViewSpec {
     // Batch/Offline DataSource where this view can retrieve offline feature data.
     DataSource batch_source = 7;
 
+    // Whether these features should be served online or not
+    bool online = 8;
+
     // Streaming DataSource from where this view can consume "online" feature data.
     DataSource stream_source = 9;
 
-    // Whether these features should be served online or not
-    bool online = 8;
+    // Description of the feature view.
+    string description = 10;
+
+    // Owner of the feature view.
+    string owner = 11;
+
+    // List of specifications for each entity defined as part of this feature view.
+    repeated FeatureSpecV2 entity_columns = 12;
+
+    // List of sort keys for this feature view.
+    repeated SortKey sort_keys = 13;
+
+    // Whether to use the write time or event time for TTL calculations.
+    bool use_write_time_for_ttl = 14;
 
     // User-specified specifications of this entity.
     // Adding higher index to avoid conflicts in future 
     // if Feast adds more fields
-    repeated Entity original_entities = 30;
+    repeated Entity original_entities = 15;
 }
 
 // Defines the sorting criteria for range-based feature queries.

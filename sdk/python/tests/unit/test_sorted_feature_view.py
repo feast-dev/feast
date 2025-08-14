@@ -72,7 +72,10 @@ def test_sorted_feature_view_ensure_valid():
             sort_keys=[],
         )
 
-    assert "must have at least one sort key defined" in str(excinfo.value)
+    assert (
+        "For SortedFeatureView: invalid_sorted_feature_view, must have at least one sort key defined"
+        in str(excinfo.value)
+    )
 
 
 def test_sorted_feature_view_ensure_valid_sort_key_in_entity_columns():
@@ -89,13 +92,18 @@ def test_sorted_feature_view_ensure_valid_sort_key_in_entity_columns():
     )
 
     # Create a SortedFeatureView with a sort key that conflicts.
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError) as excinfo:
         SortedFeatureView(
             name="invalid_sorted_feature_view",
             source=source,
             entities=[entity],
             sort_keys=[sort_key],
         )
+
+    assert (
+        "For SortedFeatureView: invalid_sorted_feature_view, Sort key 'entity1' refers to an entity column and cannot be used as a sort key."
+        in str(excinfo.value)
+    )
 
 
 def test_sorted_feature_view_copy():
@@ -481,3 +489,169 @@ def test_sorted_feature_view_invalid_sort_key_order_int():
             value_type=ValueType.INT64,
             default_sort_order=99,
         )
+
+
+def test_sfv_compatibility_same():
+    """
+    Two identical SortedFeatureViews should be compatible with no reasons.
+    """
+    source = FileSource(path="dummy", event_timestamp_column="ts")
+    entity = Entity(name="e1", join_keys=["e1_id"])
+    schema = [Field(name="f1", dtype=Int64), Field(name="f2", dtype=String)]
+    sort_key = SortKey(
+        name="f1", value_type=ValueType.INT64, default_sort_order=SortOrder.ASC
+    )
+    sfv1 = SortedFeatureView(
+        name="sfv",
+        source=source,
+        entities=[entity],
+        schema=schema,
+        ttl=timedelta(days=1),
+        sort_keys=[sort_key],
+    )
+    sfv2 = copy.copy(sfv1)
+
+    ok, reasons = sfv1.is_update_compatible_with(sfv2)
+    assert ok
+    assert reasons == []
+
+
+def test_sfv_compatibility_remove_non_sort_feature():
+    """
+    Removing a feature not in sort_keys should still be compatible.
+    """
+    source = FileSource(path="dummy", event_timestamp_column="ts")
+    entity = Entity(name="e1", join_keys=["e1_id"])
+    schema1 = [Field(name="f1", dtype=Int64), Field(name="f2", dtype=String)]
+    schema2 = [Field(name="f1", dtype=Int64)]
+    sort_key = SortKey(
+        name="f1", value_type=ValueType.INT64, default_sort_order=SortOrder.ASC
+    )
+    sfv1 = SortedFeatureView(
+        name="sfv",
+        source=source,
+        entities=[entity],
+        schema=schema1,
+        ttl=timedelta(days=1),
+        sort_keys=[sort_key],
+    )
+    sfv2 = SortedFeatureView(
+        name="sfv",
+        source=source,
+        entities=[entity],
+        schema=schema2,
+        ttl=timedelta(days=1),
+        sort_keys=[sort_key],
+    )
+
+    ok, reasons = sfv1.is_update_compatible_with(sfv2)
+    assert ok
+    assert reasons == []
+
+
+def test_sfv_compatibility_change_sort_keys():
+    """
+    Changing sort_keys should produce incompatibility reasons.
+    """
+    source = FileSource(path="dummy", event_timestamp_column="ts")
+    entity = Entity(name="e1", join_keys=["e1_id"])
+    schema = [Field(name="k1", dtype=Int64), Field(name="k2", dtype=Int64)]
+    sort_key1 = SortKey(
+        name="k1", value_type=ValueType.INT64, default_sort_order=SortOrder.ASC
+    )
+    sort_key2 = SortKey(
+        name="k2", value_type=ValueType.INT64, default_sort_order=SortOrder.ASC
+    )
+    sfv1 = SortedFeatureView(
+        name="sfv",
+        source=source,
+        entities=[entity],
+        schema=schema,
+        ttl=timedelta(days=1),
+        sort_keys=[sort_key1],
+    )
+    sfv2 = SortedFeatureView(
+        name="sfv",
+        source=source,
+        entities=[entity],
+        schema=schema,
+        ttl=timedelta(days=1),
+        sort_keys=[sort_key2],
+    )
+
+    ok, reasons = sfv1.is_update_compatible_with(sfv2)
+    assert not ok
+    assert any("sort keys cannot change" in r for r in reasons)
+
+
+def test_sfv_compatibility_change_entity():
+    """
+    Changing the entity list should produce incompatibility reasons.
+    """
+    source = FileSource(path="dummy", event_timestamp_column="ts")
+    entity1 = Entity(name="e1", join_keys=["e1_id"])
+    entity2 = Entity(name="e2", join_keys=["e2_id"])
+    schema = [Field(name="f1", dtype=Int64)]
+    sort_key = SortKey(
+        name="f1", value_type=ValueType.INT64, default_sort_order=SortOrder.ASC
+    )
+    sfv1 = SortedFeatureView(
+        name="sfv",
+        source=source,
+        entities=[entity1],
+        schema=schema,
+        ttl=timedelta(days=1),
+        sort_keys=[sort_key],
+    )
+    sfv2 = SortedFeatureView(
+        name="sfv",
+        source=source,
+        entities=[entity2],
+        schema=schema,
+        ttl=timedelta(days=1),
+        sort_keys=[sort_key],
+    )
+
+    current_time = _utc_now()
+    start_date = make_tzaware(current_time - timedelta(days=1))
+    end_date = make_tzaware(current_time)
+    sfv1.materialization_intervals.append((start_date, end_date))
+
+    ok, reasons = sfv1.is_update_compatible_with(sfv2)
+    assert not ok
+    assert any("entity definitions cannot change" in r for r in reasons)
+
+
+def test_sfv_compatibility_change_sort_key_dtype():
+    """
+    Changing the sort key's dtype should produce incompatibility reasons.
+    """
+    source = FileSource(path="dummy", event_timestamp_column="ts")
+    entity = Entity(name="e1", join_keys=["e1_id"])
+    schema = [Field(name="f1", dtype=Int64)]
+    sort_key1 = SortKey(
+        name="f1", value_type=ValueType.INT64, default_sort_order=SortOrder.ASC
+    )
+    sort_key2 = SortKey(
+        name="f1", value_type=ValueType.INT64, default_sort_order=SortOrder.DESC
+    )
+    sfv1 = SortedFeatureView(
+        name="sfv",
+        source=source,
+        entities=[entity],
+        schema=schema,
+        ttl=timedelta(days=1),
+        sort_keys=[sort_key1],
+    )
+    sfv2 = SortedFeatureView(
+        name="sfv",
+        source=source,
+        entities=[entity],
+        schema=schema,
+        ttl=timedelta(days=1),
+        sort_keys=[sort_key2],
+    )
+
+    ok, reasons = sfv1.is_update_compatible_with(sfv2)
+    assert not ok
+    assert any("sort key 'f1' sort order changed" in r for r in reasons)

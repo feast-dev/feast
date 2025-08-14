@@ -96,7 +96,7 @@ func TestRegistry_GetFeatureService_Error(t *testing.T) {
 	// Call GetFeatureService with an invalid feature service name
 	result, err := registry.GetFeatureService(PROJECT, "invalid_feature_service")
 	assert.Error(t, err, "Expected an error")
-	assert.Equal(t, "no feature service invalid_feature_service found in project test_project", err.Error(), "Expected a specific error message")
+	assert.Equal(t, "rpc error: code = NotFound desc = no feature service invalid_feature_service found in project test_project", err.Error(), "Expected a specific error message")
 	assert.Nil(t, result, "Expected a nil feature service")
 }
 
@@ -144,7 +144,7 @@ func TestRegistry_GetEntity_Error(t *testing.T) {
 	// Call GetEntity with an invalid entity name
 	result, err := registry.GetEntity(PROJECT, "invalid_entity")
 	assert.Error(t, err, "Expected an error")
-	assert.Equal(t, "no entity invalid_entity found in project test_project", err.Error(), "Expected a specific error message")
+	assert.Equal(t, "rpc error: code = NotFound desc = no entity invalid_entity found in project test_project", err.Error(), "Expected a specific error message")
 	assert.Nil(t, result, "Expected a nil entity")
 }
 
@@ -192,7 +192,7 @@ func TestRegistry_GetFeatureView_Error(t *testing.T) {
 	// Call GetFeatureView with an invalid feature view name
 	result, err := registry.GetFeatureView(PROJECT, "invalid_feature_view")
 	assert.Error(t, err, "Expected an error")
-	assert.Equal(t, "no feature view invalid_feature_view found in project test_project", err.Error(), "Expected a specific error message")
+	assert.Equal(t, "rpc error: code = NotFound desc = no feature view invalid_feature_view found in project test_project", err.Error(), "Expected a specific error message")
 	assert.Nil(t, result, "Expected a nil feature view")
 }
 
@@ -242,7 +242,7 @@ func TestRegistry_GetSortedFeatureView_Error(t *testing.T) {
 	// Call GetSortedFeatureView with an invalid sorted feature view name
 	result, err := registry.GetSortedFeatureView(PROJECT, "invalid_sorted_feature_view")
 	assert.Error(t, err, "Expected an error")
-	assert.Equal(t, "no sorted feature view invalid_sorted_feature_view found in project test_project", err.Error(), "Expected a specific error message")
+	assert.Equal(t, "rpc error: code = NotFound desc = no sorted feature view invalid_sorted_feature_view found in project test_project", err.Error(), "Expected a specific error message")
 	assert.Nil(t, result, "Expected a nil sorted feature view")
 }
 
@@ -290,7 +290,7 @@ func TestRegistry_GetOnDemandFeatureView_Error(t *testing.T) {
 	// Call GetOnDemandFeatureView with an invalid on-demand feature view name
 	result, err := registry.GetOnDemandFeatureView(PROJECT, "invalid_on_demand_feature_view")
 	assert.Error(t, err, "Expected an error")
-	assert.Equal(t, "no on demand feature view invalid_on_demand_feature_view found in project test_project", err.Error(), "Expected a specific error message")
+	assert.Equal(t, "rpc error: code = NotFound desc = no on demand feature view invalid_on_demand_feature_view found in project test_project", err.Error(), "Expected a specific error message")
 	assert.Nil(t, result, "Expected a nil on-demand feature view")
 }
 

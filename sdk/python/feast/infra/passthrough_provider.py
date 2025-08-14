@@ -1,5 +1,7 @@
 import logging
+import os
 from datetime import datetime, timedelta
+from multiprocessing import Pool
 from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Union
 
 import pandas as pd
@@ -292,8 +294,43 @@ class PassthroughProvider(Provider):
             entity.name: entity.dtype.to_value_type()
             for entity in feature_view.entity_columns
         }
-        rows_to_write = _convert_arrow_to_proto(table, feature_view, join_keys)
+        num_spark_driver_cores = int(os.environ.get("SPARK_DRIVER_CORES", 1))
 
+        if num_spark_driver_cores > 2:
+            # Leaving one core for operating system and other background processes
+            num_processes = num_spark_driver_cores - 1
+
+            if table.num_rows < num_processes:
+                num_processes = table.num_rows
+
+            # Input table is split into smaller chunks and processed in parallel
+            chunks = self.split_table(num_processes, table)
+
+            chunks_to_parallelize = [
+                (chunk, feature_view, join_keys) for chunk in chunks
+            ]
+
+            with Pool(processes=num_processes) as pool:
+                pool.starmap(self.process, chunks_to_parallelize)
+        else:
+            self.process(table, feature_view, join_keys)
+
+    def split_table(self, num_processes, table):
+        num_table_rows = table.num_rows
+        size = num_table_rows // num_processes  # base size of each chunk
+        remainder = num_table_rows % num_processes  # extra rows to distribute
+
+        chunks = []
+        offset = 0
+        for i in range(num_processes):
+            # Distribute the remainder one per split until exhausted
+            length = size + (1 if i < remainder else 0)
+            chunks.append(table.slice(offset, length))
+            offset += length
+        return chunks
+
+    def process(self, table, feature_view: FeatureView, join_keys):
+        rows_to_write = _convert_arrow_to_proto(table, feature_view, join_keys)
         self.online_write_batch(
             self.repo_config, feature_view, rows_to_write, progress=None
         )

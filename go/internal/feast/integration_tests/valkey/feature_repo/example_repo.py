@@ -2,7 +2,7 @@
 
 from datetime import timedelta
 
-from feast import Entity, FeatureView, Field, FileSource, Project
+from feast import Entity, FeatureView, Field, FileSource, Project, FeatureService
 from feast.types import (
     Array,
     Bool,
@@ -83,3 +83,9 @@ mlpfs_test_all_datatypes_view: FeatureView = FeatureView(
         Field(name="null_array_boolean_val", dtype=Array(Bool)),
     ],
 )
+
+mlpfs_test_all_datatypes_service = FeatureService(
+    name="test_service",
+    features=[mlpfs_test_all_datatypes_view],
+)
+

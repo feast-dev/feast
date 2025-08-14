@@ -15,7 +15,7 @@ import (
 )
 
 // Starts a new grpc server, registers the serving service and returns a client.
-func getClient(ctx context.Context, offlineStoreType string, basePath string, logPath string) (serving.ServingServiceClient, func()) {
+func GetClient(ctx context.Context, basePath string, logPath string) (serving.ServingServiceClient, func()) {
 	buffer := 1024 * 1024
 	listener := bufconn.Listen(buffer)
 
@@ -68,16 +68,46 @@ func getClient(ctx context.Context, offlineStoreType string, basePath string, lo
 	return client, closer
 }
 
-// Return absolute path to the test_repo directory regardless of the working directory
+// Return absolute Path to the test_repo directory regardless of the working directory
 func getRepoPath(basePath string) string {
-	// Get the file path of this source file, regardless of the working directory
+	// Get the file Path of this source file, regardless of the working directory
 	if basePath == "" {
 		_, filename, _, ok := runtime.Caller(0)
 		if !ok {
-			panic("couldn't find file path of the test file")
+			panic("couldn't find file Path of the test file")
 		}
 		return filepath.Join(filename, "..", "..", "feature_repo")
 	} else {
 		return filepath.Join(basePath, "feature_repo")
 	}
+}
+
+func GetHttpServer(basePath string, logPath string) *HttpServer {
+	repoPath := getRepoPath(basePath)
+	config, err := registry.NewRepoConfigFromFile(repoPath)
+	if err != nil {
+		panic(err)
+	}
+	fs, err := feast.NewFeatureStore(config, nil)
+	if err != nil {
+		panic(err)
+	}
+
+	var logSink logging.LogSink
+	if logPath != "" {
+		logSink, err = logging.NewFileLogSink(logPath)
+		if err != nil {
+			panic(err)
+		}
+	}
+	loggingService, err := logging.NewLoggingService(fs, logSink, logging.LoggingOptions{
+		WriteInterval:   10 * time.Millisecond,
+		FlushInterval:   logging.DefaultOptions.FlushInterval,
+		EmitTimeout:     logging.DefaultOptions.EmitTimeout,
+		ChannelCapacity: logging.DefaultOptions.ChannelCapacity,
+	})
+	if err != nil {
+		panic(err)
+	}
+	return NewHttpServer(fs, loggingService)
 }

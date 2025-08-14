@@ -2,8 +2,10 @@ package onlineserving
 
 import (
 	"crypto/sha256"
-	"errors"
 	"fmt"
+	"github.com/feast-dev/feast/go/internal/feast/errors"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"sort"
 	"strings"
 
@@ -60,6 +62,11 @@ type SortedFeatureViewAndRefs struct {
 	FeatureRefs []string
 }
 
+type ViewFeatures struct {
+	ViewName string
+	Features []string
+}
+
 /*
 We group all features from a single request by entities they attached to.
 Thus, we will be able to call online retrieval per entity and not per each feature View.
@@ -90,20 +97,20 @@ existed in the registry
 func GetFeatureViewsToUseByService(
 	featureService *model.FeatureService,
 	registry *registry.Registry,
-	projectName string) ([]*FeatureViewAndRefs, []*SortedFeatureViewAndRefs, []*model.OnDemandFeatureView, error) {
+	projectName string) ([]*FeatureViewAndRefs, []*model.OnDemandFeatureView, error) {
 
 	viewNameToViewAndRefs := make(map[string]*FeatureViewAndRefs)
-	viewNameToSortedViewAndRefs := make(map[string]*SortedFeatureViewAndRefs)
 	odFvsToUse := make([]*model.OnDemandFeatureView, 0)
 
 	for _, featureProjection := range featureService.Projections {
 		// Create copies of FeatureView that may contains the same *FeatureView but
 		// each differentiated by a *FeatureViewProjection
 		featureViewName := featureProjection.Name
+		// TODO: Call the registry using GetAnyFeatureView instead of GetFeatureView and GetOnDemandFeatureView
 		if fv, fvErr := registry.GetFeatureView(projectName, featureViewName); fvErr == nil {
 			base, err := fv.Base.WithProjection(featureProjection)
 			if err != nil {
-				return nil, nil, nil, err
+				return nil, nil, err
 			}
 			if _, ok := viewNameToViewAndRefs[featureProjection.NameToUse()]; !ok {
 				view := fv.NewFeatureViewFromBase(base)
@@ -120,29 +127,10 @@ func GetFeatureViewsToUseByService(
 						feature.Name)
 			}
 
-		} else if sortedFv, sortedFvErr := registry.GetSortedFeatureView(projectName, featureViewName); sortedFvErr == nil {
-			base, err := sortedFv.Base.WithProjection(featureProjection)
-			if err != nil {
-				return nil, nil, nil, err
-			}
-			if _, ok := viewNameToSortedViewAndRefs[featureProjection.NameToUse()]; !ok {
-				view := sortedFv.NewSortedFeatureViewFromBase(base)
-				view.EntityColumns = sortedFv.EntityColumns
-				viewNameToSortedViewAndRefs[featureProjection.NameToUse()] = &SortedFeatureViewAndRefs{
-					View:        view,
-					FeatureRefs: []string{},
-				}
-			}
-
-			for _, feature := range featureProjection.Features {
-				viewNameToSortedViewAndRefs[featureProjection.NameToUse()].FeatureRefs =
-					addStringIfNotContains(viewNameToSortedViewAndRefs[featureProjection.NameToUse()].FeatureRefs,
-						feature.Name)
-			}
 		} else if odFv, odFvErr := registry.GetOnDemandFeatureView(projectName, featureViewName); odFvErr == nil {
 			projectedOdFv, err := odFv.NewWithProjection(featureProjection)
 			if err != nil {
-				return nil, nil, nil, err
+				return nil, nil, err
 			}
 			odFvsToUse = append(odFvsToUse, projectedOdFv)
 			err = extractOdFvDependencies(
@@ -151,11 +139,11 @@ func GetFeatureViewsToUseByService(
 				projectName,
 				viewNameToViewAndRefs)
 			if err != nil {
-				return nil, nil, nil, err
+				return nil, nil, err
 			}
 		} else {
-			log.Error().Errs("any feature view", []error{fvErr, sortedFvErr, odFvErr}).Msgf("Feature view %s not found", featureViewName)
-			return nil, nil, nil, fmt.Errorf("the provided feature service %s contains a reference to a feature View"+
+			log.Error().Errs("any feature view", []error{fvErr, odFvErr}).Msgf("Feature view %s not found", featureViewName)
+			return nil, nil, errors.GrpcInvalidArgumentErrorf("the provided feature service %s contains a reference to a feature View"+
 				"%s which doesn't exist, please make sure that you have created the feature View"+
 				"%s and that you have registered it by running \"apply\"", featureService.Name, featureViewName, featureViewName)
 		}
@@ -165,12 +153,57 @@ func GetFeatureViewsToUseByService(
 	for _, viewAndRef := range viewNameToViewAndRefs {
 		fvsToUse = append(fvsToUse, viewAndRef)
 	}
-	sortedFvsToUse := make([]*SortedFeatureViewAndRefs, 0)
-	for _, viewAndRef := range viewNameToSortedViewAndRefs {
-		sortedFvsToUse = append(sortedFvsToUse, viewAndRef)
+
+	return fvsToUse, odFvsToUse, nil
+}
+
+func GetSortedFeatureViewsToUseByService(
+	featureService *model.FeatureService,
+	registry *registry.Registry,
+	projectName string) ([]*SortedFeatureViewAndRefs, error) {
+
+	sfvsToUse := make([]*SortedFeatureViewAndRefs, 0)
+
+	for _, featureProjection := range featureService.Projections {
+		featureViewName := featureProjection.Name
+		if sfv, sfvErr := registry.GetSortedFeatureView(projectName, featureViewName); sfvErr == nil {
+			base, err := sfv.Base.WithProjection(featureProjection)
+			if err != nil {
+				return nil, err
+			}
+			view := sfv.NewSortedFeatureViewFromBase(base)
+			view.EntityColumns = sfv.EntityColumns
+
+			featureRefs := make([]string, 0)
+			for _, feature := range featureProjection.Features {
+				featureRefs = addStringIfNotContains(featureRefs, feature.Name)
+			}
+
+			sfvsToUse = append(sfvsToUse, &SortedFeatureViewAndRefs{
+				View:        view,
+				FeatureRefs: featureRefs,
+			})
+		} else {
+			log.Error().Err(sfvErr).Msgf("Sorted feature view %s not found", featureViewName)
+			return nil, errors.GrpcInvalidArgumentErrorf("the provided feature service %s contains a reference to a sorted feature View"+
+				"%s which doesn't exist, please make sure that you have created the sorted feature View"+
+				"%s and that you have registered it by running \"apply\"", featureService.Name, featureViewName, featureViewName)
+		}
 	}
 
-	return fvsToUse, sortedFvsToUse, odFvsToUse, nil
+	return sfvsToUse, nil
+}
+
+func addFeaturesToValidationMap(
+	viewName string,
+	fvFeatures []*model.Field,
+	validationMap map[string]map[string]bool) {
+	if _, ok := validationMap[viewName]; !ok {
+		validationMap[viewName] = make(map[string]bool)
+		for _, field := range fvFeatures {
+			validationMap[viewName][field.Name] = true
+		}
+	}
 }
 
 /*
@@ -184,55 +217,60 @@ existed in the registry
 func GetFeatureViewsToUseByFeatureRefs(
 	features []string,
 	registry *registry.Registry,
-	projectName string) ([]*FeatureViewAndRefs, []*SortedFeatureViewAndRefs, []*model.OnDemandFeatureView, error) {
+	projectName string) ([]*FeatureViewAndRefs, []*model.OnDemandFeatureView, error) {
+
+	viewFeatures, err := buildDeduplicatedFeatureNamesMap(features)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	viewNameToViewAndRefs := make(map[string]*FeatureViewAndRefs)
-	viewNameToSortedViewAndRefs := make(map[string]*SortedFeatureViewAndRefs)
 	odFvToFeatures := make(map[string][]string)
 	odFvToProjectWithFeatures := make(map[string]*model.OnDemandFeatureView)
 
-	for _, featureRef := range features {
-		featureViewName, featureName, err := ParseFeatureReference(featureRef)
-		if err != nil {
-			return nil, nil, nil, err
-		}
-		if fv, err := registry.GetFeatureView(projectName, featureViewName); err == nil {
-			if viewAndRef, ok := viewNameToViewAndRefs[fv.Base.Name]; ok {
-				viewAndRef.FeatureRefs = addStringIfNotContains(viewAndRef.FeatureRefs, featureName)
-			} else {
-				viewNameToViewAndRefs[fv.Base.Name] = &FeatureViewAndRefs{
-					View:        fv,
-					FeatureRefs: []string{featureName},
-				}
+	for _, vf := range viewFeatures {
+		featureViewName := vf.ViewName
+		requestedFeatureNames := vf.Features
+
+		if fv, fvErr := registry.GetFeatureView(projectName, featureViewName); fvErr == nil {
+			err := validateFeatures(
+				featureViewName,
+				requestedFeatureNames,
+				fv.Base.Features)
+			if err != nil {
+				return nil, nil, err
 			}
-		} else if sortedFv, err := registry.GetSortedFeatureView(projectName, featureViewName); err == nil {
-			if viewAndRef, ok := viewNameToSortedViewAndRefs[sortedFv.Base.Name]; ok {
-				viewAndRef.FeatureRefs = addStringIfNotContains(viewAndRef.FeatureRefs, featureName)
-			} else {
-				viewNameToSortedViewAndRefs[sortedFv.Base.Name] = &SortedFeatureViewAndRefs{
-					View:        sortedFv,
-					FeatureRefs: []string{featureName},
-				}
+
+			viewNameToViewAndRefs[fv.Base.Name] = &FeatureViewAndRefs{
+				View:        fv,
+				FeatureRefs: requestedFeatureNames,
 			}
-		} else if odfv, err := registry.GetOnDemandFeatureView(projectName, featureViewName); err == nil {
-			if _, ok := odFvToFeatures[odfv.Base.Name]; !ok {
-				odFvToFeatures[odfv.Base.Name] = []string{featureName}
-			} else {
-				odFvToFeatures[odfv.Base.Name] = append(
-					odFvToFeatures[odfv.Base.Name], featureName)
-			}
-			odFvToProjectWithFeatures[odfv.Base.Name] = odfv
 		} else {
-			return nil, nil, nil, fmt.Errorf("feature View %s doesn't exist, please make sure that you have created the"+
-				" feature View %s and that you have registered it by running \"apply\"", featureViewName, featureViewName)
+			odfv, odfvErr := registry.GetOnDemandFeatureView(projectName, featureViewName)
+
+			if odfvErr == nil {
+				err := validateFeatures(
+					featureViewName,
+					requestedFeatureNames,
+					odfv.Base.Features)
+				if err != nil {
+					return nil, nil, err
+				}
+
+				odFvToFeatures[odfv.Base.Name] = requestedFeatureNames
+				odFvToProjectWithFeatures[odfv.Base.Name] = odfv
+			} else {
+				return nil, nil, errors.GrpcInvalidArgumentErrorf("feature view %s doesn't exist, please make sure that you have created the"+
+					" feature view %s and that you have registered it by running \"apply\"", featureViewName, featureViewName)
+			}
 		}
 	}
 
 	odFvsToUse := make([]*model.OnDemandFeatureView, 0)
-
 	for odFvName, featureNames := range odFvToFeatures {
 		projectedOdFv, err := odFvToProjectWithFeatures[odFvName].ProjectWithFeatures(featureNames)
 		if err != nil {
-			return nil, nil, nil, err
+			return nil, nil, err
 		}
 
 		err = extractOdFvDependencies(
@@ -241,21 +279,64 @@ func GetFeatureViewsToUseByFeatureRefs(
 			projectName,
 			viewNameToViewAndRefs)
 		if err != nil {
-			return nil, nil, nil, err
+			return nil, nil, err
 		}
 		odFvsToUse = append(odFvsToUse, projectedOdFv)
 	}
 
 	fvsToUse := make([]*FeatureViewAndRefs, 0)
-	for _, viewAndRefs := range viewNameToViewAndRefs {
-		fvsToUse = append(fvsToUse, viewAndRefs)
-	}
-	sortedFvsToUse := make([]*SortedFeatureViewAndRefs, 0)
-	for _, viewAndRefs := range viewNameToSortedViewAndRefs {
-		sortedFvsToUse = append(sortedFvsToUse, viewAndRefs)
+
+	for _, viewAndRef := range viewNameToViewAndRefs {
+		fvsToUse = append(fvsToUse, viewAndRef)
 	}
 
-	return fvsToUse, sortedFvsToUse, odFvsToUse, nil
+	return fvsToUse, odFvsToUse, nil
+}
+
+/*
+Return
+
+	(1) requested sorted feature views and features grouped per View
+
+existed in the registry
+*/
+func GetSortedFeatureViewsToUseByFeatureRefs(
+	features []string,
+	registry *registry.Registry,
+	projectName string) ([]*SortedFeatureViewAndRefs, error) {
+
+	viewFeatures, err := buildDeduplicatedFeatureNamesMap(features)
+	if err != nil {
+		return nil, err
+	}
+
+	sortedFvsToUse := make([]*SortedFeatureViewAndRefs, 0)
+
+	for _, vf := range viewFeatures {
+		featureViewName := vf.ViewName
+		featureNames := vf.Features
+
+		sortedFv, err := registry.GetSortedFeatureView(projectName, featureViewName)
+		if err != nil {
+			return nil, errors.GrpcInvalidArgumentErrorf("sorted feature view %s doesn't exist, please make sure that you have created the"+
+				" sorted feature view %s and that you have registered it by running \"apply\"", featureViewName, featureViewName)
+		}
+
+		err = validateFeatures(
+			featureViewName,
+			featureNames,
+			sortedFv.Base.Features)
+		if err != nil {
+			return nil, err
+		}
+
+		sortedFvsToUse = append(sortedFvsToUse, &SortedFeatureViewAndRefs{
+			View:        sortedFv,
+			FeatureRefs: featureNames,
+		})
+	}
+
+	return sortedFvsToUse, nil
 }
 
 func extractOdFvDependencies(
@@ -321,7 +402,7 @@ func GetEntityMaps(requestedFeatureViews []*FeatureViewAndRefs, registry *regist
 		for _, entityName := range featureView.EntityNames {
 			entity, err := registry.GetEntity(projectName, entityName)
 			if err != nil {
-				return nil, nil, fmt.Errorf("entity %s doesn't exist in the registry", entityName)
+				return nil, nil, errors.GrpcNotFoundErrorf("entity %s doesn't exist in the registry", entityName)
 			}
 			entityNameToJoinKeyMap[entityName] = entity.JoinKey
 
@@ -352,7 +433,7 @@ func GetEntityMapsForSortedViews(sortedViews []*SortedFeatureViewAndRefs, regist
 		for _, entityName := range featureView.EntityNames {
 			entity, err := registry.GetEntity(projectName, entityName)
 			if err != nil {
-				return nil, nil, fmt.Errorf("entity %s doesn't exist in the registry", entityName)
+				return nil, nil, err
 			}
 			entityNameToJoinKeyMap[entityName] = entity.JoinKey
 
@@ -383,13 +464,39 @@ func ValidateEntityValues(joinKeyValues map[string]*prototypes.RepeatedValue,
 			if numRows < 0 {
 				numRows = len(values.Val)
 			} else if len(values.Val) != numRows {
-				return -1, errors.New("valueError: All entity rows must have the same columns")
+				return -1, errors.GrpcInvalidArgumentErrorf("valueError: All entity rows must have the same columns")
 			}
 
 		}
 	}
 
 	return numRows, nil
+}
+
+func validateFeatures(
+	featureViewName string,
+	requestedFeatures []string,
+	featureViewFeatures []*model.Field) error {
+
+	if len(requestedFeatures) == 0 {
+		return errors.GrpcInvalidArgumentErrorf(
+			"no features requested for feature view %s, please specify at least one feature", featureViewName)
+	}
+
+	validFeaturesMap := make(map[string]bool)
+	for _, field := range featureViewFeatures {
+		validFeaturesMap[field.Name] = true
+	}
+
+	for _, featureName := range requestedFeatures {
+		if !validFeaturesMap[featureName] {
+			return errors.GrpcInvalidArgumentErrorf(
+				"feature %s does not exist in feature view %s",
+				featureName, featureViewName)
+		}
+	}
+
+	return nil
 }
 
 func ValidateFeatureRefs(requestedFeatures []*FeatureViewAndRefs, fullFeatureNames bool) error {
@@ -451,6 +558,10 @@ func ValidateSortedFeatureRefs(sortedViews []*SortedFeatureViewAndRefs, fullFeat
 }
 
 func ValidateSortKeyFilters(filters []*serving.SortKeyFilter, sortedViews []*SortedFeatureViewAndRefs) error {
+	if len(filters) == 0 {
+		return nil
+	}
+
 	sortKeyTypes := make(map[string]prototypes.ValueType_Enum)
 
 	for _, sortedView := range sortedViews {
@@ -462,29 +573,29 @@ func ValidateSortKeyFilters(filters []*serving.SortKeyFilter, sortedViews []*Sor
 	for _, filter := range filters {
 		expectedType, exists := sortKeyTypes[filter.SortKeyName]
 		if !exists {
-			return fmt.Errorf("sort key '%s' not found in any of the requested sorted feature views",
+			return errors.GrpcInvalidArgumentErrorf("sort key '%s' not found in any of the requested sorted feature views",
 				filter.SortKeyName)
 		}
 
 		if filter.GetEquals() != nil {
 			if !isValueTypeCompatible(filter.GetEquals(), expectedType, false) {
-				return fmt.Errorf("equals value for sort key '%s' has incompatible type: expected %s",
+				return errors.GrpcInvalidArgumentErrorf("equals value for sort key '%s' has incompatible type: expected %s",
 					filter.SortKeyName, valueTypeToString(expectedType))
 			}
 		} else if filter.GetRange() == nil {
-			return fmt.Errorf("sort key filter for sort key '%s' must have either equals or range_query set",
+			return errors.GrpcInvalidArgumentErrorf("sort key filter for sort key '%s' must have either equals or range_query set",
 				filter.SortKeyName)
 		} else {
 			if filter.GetRange().RangeStart != nil {
 				if !isValueTypeCompatible(filter.GetRange().RangeStart, expectedType, true) {
-					return fmt.Errorf("range_start value for sort key '%s' has incompatible type: expected %s",
+					return errors.GrpcInvalidArgumentErrorf("range_start value for sort key '%s' has incompatible type: expected %s",
 						filter.SortKeyName, valueTypeToString(expectedType))
 				}
 			}
 
 			if filter.GetRange().RangeEnd != nil {
 				if !isValueTypeCompatible(filter.GetRange().RangeEnd, expectedType, true) {
-					return fmt.Errorf("range_end value for sort key '%s' has incompatible type: expected %s",
+					return errors.GrpcInvalidArgumentErrorf("range_end value for sort key '%s' has incompatible type: expected %s",
 						filter.SortKeyName, valueTypeToString(expectedType))
 				}
 			}
@@ -503,18 +614,27 @@ func ValidateSortKeyFilterOrder(filters []*serving.SortKeyFilter, sortedViews []
 	for _, sortedView := range sortedViews {
 		if len(sortedView.View.SortKeys) > 1 {
 			orderedFilters := make([]*serving.SortKeyFilter, 0)
+			var lastFilter string
 
 			for _, sortKey := range sortedView.View.SortKeys {
 				orderedFilters = append(orderedFilters, filtersByName[sortKey.FieldName])
+				if f, ok := filtersByName[sortKey.FieldName]; ok {
+					lastFilter = f.SortKeyName
+				}
 			}
 
-			for i, filter := range orderedFilters[:len(orderedFilters)-1] {
+			for i, filter := range orderedFilters {
 				if filter == nil {
-					return fmt.Errorf("specify sort key filter in request for sort key: '%s' with query type equals", sortedView.View.SortKeys[i].FieldName)
+					return errors.GrpcInvalidArgumentErrorf("specify sort key filter in request for sort key: '%s' with query type equals", sortedView.View.SortKeys[i].FieldName)
+				}
+
+				if filter.SortKeyName == lastFilter {
+					// Once the last filter is reached, we can ignore any further checks
+					break
 				}
 
 				if filter.GetEquals() == nil {
-					return fmt.Errorf("sort key filter for sort key '%s' must have query type equals instead of range",
+					return errors.GrpcInvalidArgumentErrorf("sort key filter for sort key '%s' must have query type equals instead of range",
 						filter.SortKeyName)
 				}
 			}
@@ -638,7 +758,7 @@ func TransposeFeatureRowsIntoColumns(featureData2D [][]onlinestore.FeatureData,
 		}
 		arrowValues, err := types.ProtoValuesToArrowArray(protoValues, arrowAllocator, numRows)
 		if err != nil {
-			return nil, err
+			return nil, errors.GrpcFromError(err)
 		}
 		currentVector.Values = arrowValues
 	}
@@ -679,15 +799,19 @@ func TransposeRangeFeatureRowsIntoColumns(
 			}
 
 			for _, rowIndex := range outputIndexes {
-				rangeValuesByRow[rowIndex] = &prototypes.RepeatedValue{Val: rangeValues}
+				if rangeValues == nil {
+					rangeValuesByRow[rowIndex] = nil
+				} else {
+					rangeValuesByRow[rowIndex] = &prototypes.RepeatedValue{Val: rangeValues}
+				}
 				currentVector.RangeStatuses[rowIndex] = rangeStatuses
 				currentVector.RangeTimestamps[rowIndex] = rangeTimestamps
 			}
 		}
 
-		arrowRangeValues, err := types.RepeatedProtoValuesToArrowArray(rangeValuesByRow, arrowAllocator, numRows)
+		arrowRangeValues, err := types.RepeatedProtoValuesToArrowArray(rangeValuesByRow, arrowAllocator)
 		if err != nil {
-			return nil, err
+			return nil, errors.GrpcFromError(err)
 		}
 		currentVector.RangeValues = arrowRangeValues
 	}
@@ -715,56 +839,56 @@ func processFeatureRowData(
 			make([]*timestamppb.Timestamp, 0),
 			nil
 	}
-
 	featureData := featureData2D[rowEntityIndex][featureIndex]
 	featureViewName := featureData.FeatureView
 
 	sfv, exists := sfvs[featureViewName]
 	if !exists {
-		return nil, nil, nil, fmt.Errorf("feature view '%s' not found in the provided sorted feature views", featureViewName)
+		return nil, nil, nil, errors.GrpcNotFoundErrorf("feature view '%s' not found in the provided sorted feature views", featureViewName)
 	}
 
-	numValues := len(featureData.Values)
-	rangeValues := make([]*prototypes.Value, numValues)
-	rangeStatuses := make([]serving.FieldStatus, numValues)
-	rangeTimestamps := make([]*timestamppb.Timestamp, numValues)
+	if featureData.Values == nil {
+		rangeStatuses := make([]serving.FieldStatus, 1)
+		rangeStatuses[0] = serving.FieldStatus_NOT_FOUND
+		rangeTimestamps := make([]*timestamppb.Timestamp, 1)
+		rangeTimestamps[0] = &timestamppb.Timestamp{}
+		return nil, rangeStatuses, rangeTimestamps, nil
+	} else {
+		numValues := len(featureData.Values)
+		rangeValues := make([]*prototypes.Value, numValues)
+		rangeStatuses := make([]serving.FieldStatus, numValues)
+		rangeTimestamps := make([]*timestamppb.Timestamp, numValues)
 
-	for i, val := range featureData.Values {
-		if val == nil {
-			rangeValues[i] = nil
-			rangeStatuses[i] = serving.FieldStatus_NOT_FOUND
-			rangeTimestamps[i] = &timestamppb.Timestamp{}
-			continue
+		if len(featureData.Values) != len(featureData.Statuses) {
+			return nil, nil, nil, errors.GrpcInternalErrorf("mismatch in number of values and statuses for feature %s in feature view %s", featureData.FeatureName, featureViewName)
 		}
 
-		protoVal, err := types.InterfaceToProtoValue(val)
-		if err != nil {
-			return nil, nil, nil, fmt.Errorf("error converting value for feature %s: %v", featureData.FeatureName, err)
-		}
+		for i, val := range featureData.Values {
+			eventTimestamp := getEventTimestamp(featureData.EventTimestamps, i)
+			fieldStatus := featureData.Statuses[i]
 
-		// Explicitly set to nil if status is NOT_FOUND
-		if i < len(featureData.Statuses) &&
-			(featureData.Statuses[i] == serving.FieldStatus_NOT_FOUND ||
-				featureData.Statuses[i] == serving.FieldStatus_NULL_VALUE) {
-			rangeValues[i] = nil
-		} else {
+			if val == nil {
+				rangeValues[i] = nil
+				rangeStatuses[i] = featureData.Statuses[i]
+				rangeTimestamps[i] = eventTimestamp
+				continue
+			}
+
+			protoVal, err := types.InterfaceToProtoValue(val)
+			if err != nil {
+				return nil, nil, nil, errors.GrpcInternalErrorf("error converting to ProtoValue for feature %s: %v", featureData.FeatureName, err)
+			}
 			rangeValues[i] = protoVal
+
+			if eventTimestamp.GetSeconds() > 0 && checkOutsideTtl(eventTimestamp, timestamppb.Now(), sfv.FeatureView.Ttl) {
+				fieldStatus = serving.FieldStatus_OUTSIDE_MAX_AGE
+			}
+
+			rangeStatuses[i] = fieldStatus
+			rangeTimestamps[i] = eventTimestamp
 		}
-
-		eventTimestamp := getEventTimestamp(featureData.EventTimestamps, i)
-
-		status := serving.FieldStatus_PRESENT
-		if i < len(featureData.Statuses) {
-			status = featureData.Statuses[i]
-		} else if eventTimestamp.GetSeconds() > 0 && checkOutsideTtl(eventTimestamp, timestamppb.Now(), sfv.FeatureView.Ttl) {
-			status = serving.FieldStatus_OUTSIDE_MAX_AGE
-		}
-
-		rangeStatuses[i] = status
-		rangeTimestamps[i] = eventTimestamp
+		return rangeValues, rangeStatuses, rangeTimestamps, nil
 	}
-
-	return rangeValues, rangeStatuses, rangeTimestamps, nil
 }
 
 func getEventTimestamp(timestamps []timestamp.Timestamp, index int) *timestamppb.Timestamp {
@@ -780,18 +904,54 @@ func getEventTimestamp(timestamps []timestamp.Timestamp, index int) *timestamppb
 	return &timestamppb.Timestamp{}
 }
 
-func KeepOnlyRequestedFeatures(
-	vectors []*FeatureVector,
+func buildDeduplicatedFeatureNamesMap(features []string) ([]ViewFeatures, error) {
+	var result []ViewFeatures
+	viewIndex := make(map[string]int)
+	featureSet := make(map[string]map[string]bool)
+
+	for _, featureRef := range features {
+		featureViewName, featureName, err := ParseFeatureReference(featureRef)
+		if err != nil {
+			return nil, err
+		}
+
+		if idx, exists := viewIndex[featureViewName]; exists {
+			if !featureSet[featureViewName][featureName] {
+				result[idx].Features = append(result[idx].Features, featureName)
+				featureSet[featureViewName][featureName] = true
+			}
+		} else {
+			viewIndex[featureViewName] = len(result)
+			result = append(result, ViewFeatures{
+				ViewName: featureViewName,
+				Features: []string{featureName},
+			})
+			featureSet[featureViewName] = make(map[string]bool)
+			featureSet[featureViewName][featureName] = true
+		}
+	}
+
+	return result, nil
+}
+
+func KeepOnlyRequestedFeatures[T any](
+	vectors []T,
 	requestedFeatureRefs []string,
 	featureService *model.FeatureService,
-	fullFeatureNames bool) ([]*FeatureVector, error) {
-	vectorsByName := make(map[string]*FeatureVector)
-	expectedVectors := make([]*FeatureVector, 0)
+	fullFeatureNames bool) ([]T, error) {
+	vectorsByName := make(map[string]T)
+	expectedVectors := make([]T, 0)
 
 	usedVectors := make(map[string]bool)
 
 	for _, vector := range vectors {
-		vectorsByName[vector.Name] = vector
+		if featureVector, ok := any(vector).(*FeatureVector); ok {
+			vectorsByName[featureVector.Name] = vector
+		} else if rangeFeatureVector, ok := any(vector).(*RangeFeatureVector); ok {
+			vectorsByName[rangeFeatureVector.Name] = vector
+		} else {
+			return nil, errors.GrpcInternalErrorf("unsupported vector type: %T", vector)
+		}
 	}
 
 	if featureService != nil {
@@ -810,7 +970,7 @@ func KeepOnlyRequestedFeatures(
 		}
 		qualifiedName := getQualifiedFeatureName(viewName, featureName, fullFeatureNames)
 		if _, ok := vectorsByName[qualifiedName]; !ok {
-			return nil, fmt.Errorf("requested feature %s can't be retrieved", featureRef)
+			return nil, errors.GrpcInternalErrorf("requested feature %s can't be retrieved", featureRef)
 		}
 		expectedVectors = append(expectedVectors, vectorsByName[qualifiedName])
 		usedVectors[qualifiedName] = true
@@ -818,8 +978,16 @@ func KeepOnlyRequestedFeatures(
 
 	// Free arrow arrays for vectors that were not used.
 	for _, vector := range vectors {
-		if _, ok := usedVectors[vector.Name]; !ok {
-			vector.Values.Release()
+		if featureVector, ok := any(vector).(*FeatureVector); ok {
+			if _, ok := usedVectors[featureVector.Name]; !ok {
+				featureVector.Values.Release()
+			}
+		} else if rangeFeatureVector, ok := any(vector).(*RangeFeatureVector); ok {
+			if _, ok := usedVectors[rangeFeatureVector.Name]; !ok {
+				rangeFeatureVector.RangeValues.Release()
+			}
+		} else {
+			return nil, errors.GrpcInternalErrorf("unsupported vector type: %T", vector)
 		}
 	}
 
@@ -837,7 +1005,7 @@ func EntitiesToFeatureVectors(entityColumns map[string]*prototypes.RepeatedValue
 	for entityName, values := range entityColumns {
 		arrowColumn, err := types.ProtoValuesToArrowArray(values.Val, arrowAllocator, numRows)
 		if err != nil {
-			return nil, err
+			return nil, errors.GrpcFromError(err)
 		}
 		vectors = append(vectors, &FeatureVector{
 			Name:       entityName,
@@ -867,7 +1035,7 @@ func EntitiesToRangeFeatureVectors(
 			rangeTimestamps[idx] = []*timestamppb.Timestamp{timestamppb.Now()}
 		}
 
-		arrowRangeValues, err := types.RepeatedProtoValuesToArrowArray(entityRangeValues, arrowAllocator, numRows)
+		arrowRangeValues, err := types.RepeatedProtoValuesToArrowArray(entityRangeValues, arrowAllocator)
 		if err != nil {
 			return nil, err
 		}
@@ -887,7 +1055,7 @@ func ParseFeatureReference(featureRef string) (featureViewName, featureName stri
 	parsedFeatureName := strings.Split(featureRef, ":")
 
 	if len(parsedFeatureName) == 0 {
-		e = errors.New("featureReference should be in the format: 'FeatureViewName:FeatureName'")
+		e = errors.GrpcInvalidArgumentErrorf("featureReference should be in the format: 'FeatureViewName:FeatureName'")
 	} else if len(parsedFeatureName) == 1 {
 		featureName = parsedFeatureName[0]
 	} else {
@@ -959,7 +1127,7 @@ func GroupFeatureRefs(requestedFeatureViews []*FeatureViewAndRefs,
 			}
 
 			if _, ok := joinKeyValues[joinKeyOrAlias]; !ok {
-				return nil, fmt.Errorf("key %s is missing in provided entity rows for view %s", joinKey, fv.Base.Name)
+				return nil, errors.GrpcInvalidArgumentErrorf("key %s is missing in provided entity rows for view %s", joinKey, fv.Base.Name)
 			}
 			joinKeysValuesProjection[joinKey] = joinKeyValues[joinKeyOrAlias]
 		}
@@ -1050,7 +1218,7 @@ func GroupSortedFeatureRefs(
 			}
 
 			if _, ok := joinKeyValues[joinKeyOrAlias]; !ok {
-				return nil, fmt.Errorf("key %s is missing in provided entity rows", joinKey)
+				return nil, errors.GrpcInvalidArgumentErrorf("key %s is missing in provided entity rows", joinKey)
 			}
 			joinKeysValuesProjection[joinKey] = joinKeyValues[joinKeyOrAlias]
 		}
@@ -1086,17 +1254,17 @@ func GroupSortedFeatureRefs(
 				sortOrder = &flipped // non-nil only when sort key order is reversed
 			}
 
-			var filterModel *model.SortKeyFilter
 			if filter, ok := sortKeyFilterMap[sortKey.FieldName]; ok {
-				filterModel = model.NewSortKeyFilterFromProto(filter, sortOrder)
+				filterModel := model.NewSortKeyFilterFromProto(filter, sortOrder)
+				sortKeyFilterModels = append(sortKeyFilterModels, filterModel)
 			} else if reverseSortOrder {
-				filterModel = &model.SortKeyFilter{
+				filterModel := &model.SortKeyFilter{
 					SortKeyName: sortKey.FieldName,
 					Order:       model.NewSortOrderFromProto(*sortOrder),
 				}
+				sortKeyFilterModels = append(sortKeyFilterModels, filterModel)
 			}
 
-			sortKeyFilterModels = append(sortKeyFilterModels, filterModel)
 		}
 
 		if _, ok := groups[groupKey]; !ok {
@@ -1141,7 +1309,7 @@ func getUniqueEntityRows(joinKeysProto []*prototypes.EntityKey) ([]*prototypes.E
 	for index, entityKey := range joinKeysProto {
 		serializedRow, err := proto.Marshal(entityKey)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, errors.GrpcFromError(err)
 		}
 
 		rowHash := sha256.Sum256(serializedRow)
@@ -1188,4 +1356,8 @@ type featureNameCollisionError struct {
 
 func (e featureNameCollisionError) Error() string {
 	return fmt.Sprintf("featureNameCollisionError: %s; %t", strings.Join(e.featureRefCollisions, ", "), e.fullFeatureNames)
+}
+
+func (e featureNameCollisionError) GRPCStatus() *status.Status {
+	return status.New(codes.InvalidArgument, e.Error())
 }

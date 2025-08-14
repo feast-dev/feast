@@ -17,7 +17,7 @@ class ElasticsearchOnlineStoreCreator(OnlineStoreCreator):
         self.es_port = 9200
         self.elasticsearch_container = ElasticSearchContainer(
             image="docker.elastic.co/elasticsearch/elasticsearch:8.8.2",
-            port_to_expose=self.es_port,
+            port=self.es_port,
         )
 
     def create_online_store(self):

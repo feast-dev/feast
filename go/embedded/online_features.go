@@ -240,7 +240,7 @@ func (s *OnlineFeatureService) GetOnlineFeatures(
 
 		tsColumnBuilder := array.NewInt64Builder(pool)
 		for _, ts := range featureVector.Timestamps {
-			tsColumnBuilder.Append(types.GetTimestampMillis(ts))
+			tsColumnBuilder.Append(types.GetTimestampSeconds(ts))
 		}
 		tsColumn := tsColumnBuilder.NewArray()
 		outputColumns = append(outputColumns, tsColumn)
