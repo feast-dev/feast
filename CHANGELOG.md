@@ -1,5 +1,32 @@
 # Changelog
 
+# [0.52.0](https://github.com/feast-dev/feast/compare/v0.51.0...v0.52.0) (2025-08-14)
+
+
+### Bug Fixes
+
+* Correct entity value type mapping for aliased feature views ([#5492](https://github.com/feast-dev/feast/issues/5492)) ([bdf20bb](https://github.com/feast-dev/feast/commit/bdf20bb66d40f8f95d0bb86a2c5e7e05c634d84c))
+* Correct namespace reference in remote Feast project setup for operator upgrade and previous version tests ([df391ec](https://github.com/feast-dev/feast/commit/df391ecf628a89aa5c9188933ec471b823a1e34d))
+* dell pydantic v1 ([1189512](https://github.com/feast-dev/feast/commit/1189512e1939e8e68f11a53eac3e5c191bd09062))
+* Fixed the entity to on-demand feature view relationship ([1c59bba](https://github.com/feast-dev/feast/commit/1c59bbae120078b945d5a8574b96d66b1173513c))
+* Make transformers optional ([#5544](https://github.com/feast-dev/feast/issues/5544)) ([a4eef38](https://github.com/feast-dev/feast/commit/a4eef387bad5b0889122fc169185300b3e1dc01d))
+* Push Source inherits the timestamp fields from Data Source ([#5550](https://github.com/feast-dev/feast/issues/5550)) ([b7ea5cc](https://github.com/feast-dev/feast/commit/b7ea5cc490c6e65f18bc3c7fc7896da95e088a5d))
+* Remove the devcontainer folder. ([a9815c2](https://github.com/feast-dev/feast/commit/a9815c24bf91d7b4894ffc7993c15c920303bf33))
+
+
+### Features
+
+* Added API for discovering Feature Views by popular tags ([#5558](https://github.com/feast-dev/feast/issues/5558)) ([2e5f564](https://github.com/feast-dev/feast/commit/2e5f5649478b7ac9b2572fbe4079882fa1f29bb2))
+* Added filtering support for featureView and featureServices api ([#5552](https://github.com/feast-dev/feast/issues/5552)) ([897b3f3](https://github.com/feast-dev/feast/commit/897b3f3e4f2de8f84a6a96c78107e3e002b0f3de))
+* Added global search api and necessary unit tests ([#5532](https://github.com/feast-dev/feast/issues/5532)) ([dd3061f](https://github.com/feast-dev/feast/commit/dd3061f285a62ece2d1f8736878620e3eed8867b))
+* Added Ray Compute Engine and Ray Offline Store Support ([#5526](https://github.com/feast-dev/feast/issues/5526)) ([72de088](https://github.com/feast-dev/feast/commit/72de088404a223a515ec34d652ef213b6f28d788))
+* Added recent visit logging api for registry server ([#5545](https://github.com/feast-dev/feast/issues/5545)) ([2adcf2c](https://github.com/feast-dev/feast/commit/2adcf2cb212a1e274ab072c2cc0f814167a04da1))
+* **auth:** support client-credentials & static token for OIDC client auth ([fc44222](https://github.com/feast-dev/feast/commit/fc442225d36494c8c4a16bd39eeb0b1d90f0bf95))
+* **auth:** support client-credentials & static token for OIDC client auth ([795fc06](https://github.com/feast-dev/feast/commit/795fc06a2ed66df1d633295c9740c49d13e63c17))
+* Implement and enhance remote document retrieval functionality ([#5487](https://github.com/feast-dev/feast/issues/5487)) ([d095b96](https://github.com/feast-dev/feast/commit/d095b96118127920910307fef5f1a8594c4366bf))
+* Implemented consistent error handling ([7f10151](https://github.com/feast-dev/feast/commit/7f10151f154348c9fd0dab8b7e18d201e8ce2474))
+* Offline Store historical features retrieval without entity df, but based on datatime range ([#5527](https://github.com/feast-dev/feast/issues/5527)) ([df942b9](https://github.com/feast-dev/feast/commit/df942b9fba7ec5f93233b74238e3ecbec27b99e1))
+
 # [0.51.0](https://github.com/feast-dev/feast/compare/v0.50.0...v0.51.0) (2025-07-21)
 
 
