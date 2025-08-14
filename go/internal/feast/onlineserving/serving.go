@@ -18,7 +18,6 @@ import (
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	prototypes "github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/feast-dev/feast/go/types"
-	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/rs/zerolog/log"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -891,15 +890,9 @@ func processFeatureRowData(
 	}
 }
 
-func getEventTimestamp(timestamps []timestamp.Timestamp, index int) *timestamppb.Timestamp {
+func getEventTimestamp(timestamps []timestamppb.Timestamp, index int) *timestamppb.Timestamp {
 	if index < len(timestamps) {
-		ts := &timestamps[index]
-		if ts.GetSeconds() != 0 || ts.GetNanos() != 0 {
-			return &timestamppb.Timestamp{
-				Seconds: ts.GetSeconds(),
-				Nanos:   ts.GetNanos(),
-			}
-		}
+		return &timestamps[index]
 	}
 	return &timestamppb.Timestamp{}
 }

@@ -14,10 +14,10 @@ import (
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/feast-dev/feast/go/protos/feast/types"
 	types2 "github.com/feast-dev/feast/go/types"
-	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"path/filepath"
 	"runtime"
 	"testing"
@@ -184,7 +184,7 @@ func TestGetOnlineFeaturesRange(t *testing.T) {
 				FeatureName: "conv_rate",
 				Values:      []interface{}{0.85, 0.87, 0.89},
 				Statuses:    []serving.FieldStatus{serving.FieldStatus_PRESENT, serving.FieldStatus_PRESENT, serving.FieldStatus_PRESENT},
-				EventTimestamps: []timestamp.Timestamp{
+				EventTimestamps: []timestamppb.Timestamp{
 					{Seconds: now.Unix() - 86400*3},
 					{Seconds: now.Unix() - 86400*2},
 					{Seconds: now.Unix() - 86400*1},
@@ -195,7 +195,7 @@ func TestGetOnlineFeaturesRange(t *testing.T) {
 				FeatureName: "acc_rate",
 				Values:      []interface{}{0.91, 0.92, 0.94},
 				Statuses:    []serving.FieldStatus{serving.FieldStatus_PRESENT, serving.FieldStatus_PRESENT, serving.FieldStatus_PRESENT},
-				EventTimestamps: []timestamp.Timestamp{
+				EventTimestamps: []timestamppb.Timestamp{
 					{Seconds: now.Unix() - 86400*3},
 					{Seconds: now.Unix() - 86400*2},
 					{Seconds: now.Unix() - 86400*1},
@@ -208,7 +208,7 @@ func TestGetOnlineFeaturesRange(t *testing.T) {
 				FeatureName: "conv_rate",
 				Values:      []interface{}{0.78, 0.80},
 				Statuses:    []serving.FieldStatus{serving.FieldStatus_PRESENT, serving.FieldStatus_PRESENT},
-				EventTimestamps: []timestamp.Timestamp{
+				EventTimestamps: []timestamppb.Timestamp{
 					{Seconds: now.Unix() - 86400*3},
 					{Seconds: now.Unix() - 86400*1},
 				},
@@ -218,7 +218,7 @@ func TestGetOnlineFeaturesRange(t *testing.T) {
 				FeatureName: "acc_rate",
 				Values:      []interface{}{0.85, 0.88},
 				Statuses:    []serving.FieldStatus{serving.FieldStatus_PRESENT, serving.FieldStatus_PRESENT},
-				EventTimestamps: []timestamp.Timestamp{
+				EventTimestamps: []timestamppb.Timestamp{
 					{Seconds: now.Unix() - 86400*3},
 					{Seconds: now.Unix() - 86400*1},
 				},

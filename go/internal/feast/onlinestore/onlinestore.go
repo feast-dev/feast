@@ -7,12 +7,12 @@ import (
 	"github.com/feast-dev/feast/go/internal/feast/registry"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/feast-dev/feast/go/protos/feast/types"
-	"github.com/golang/protobuf/ptypes/timestamp"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type FeatureData struct {
 	Reference serving.FeatureReferenceV2
-	Timestamp timestamp.Timestamp
+	Timestamp timestamppb.Timestamp
 	Value     types.Value
 }
 
@@ -21,7 +21,7 @@ type RangeFeatureData struct {
 	FeatureName     string
 	Values          []interface{}
 	Statuses        []serving.FieldStatus
-	EventTimestamps []timestamp.Timestamp
+	EventTimestamps []timestamppb.Timestamp
 }
 
 type OnlineStore interface {
