@@ -24,6 +24,7 @@ from feast.infra.compute_engines.ray.job import (
     RayDAGRetrievalJob,
     RayMaterializationJob,
 )
+from feast.infra.compute_engines.ray.utils import write_to_online_store
 from feast.infra.offline_stores.offline_store import RetrievalJob
 from feast.infra.registry.base_registry import BaseRegistry
 
@@ -203,11 +204,12 @@ class RayComputeEngine(ComputeEngine):
             arrow_table = retrieval_job.to_arrow()
 
             # Write to online store if enabled
-            if getattr(feature_view, "online", False):
-                # TODO: Implement proper online store writing with correct data format conversion
-                logger.debug(
-                    "Online store writing not implemented yet for Ray compute engine"
-                )
+            write_to_online_store(
+                arrow_table=arrow_table,
+                feature_view=feature_view,
+                online_store=self.online_store,
+                repo_config=self.repo_config,
+            )
 
             # Write to offline store if enabled (this handles sink_source automatically for derived views)
             if getattr(feature_view, "offline", False):

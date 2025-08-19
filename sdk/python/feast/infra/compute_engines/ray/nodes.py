@@ -18,6 +18,10 @@ from feast.infra.compute_engines.dag.model import DAGFormat
 from feast.infra.compute_engines.dag.node import DAGNode
 from feast.infra.compute_engines.dag.value import DAGValue
 from feast.infra.compute_engines.ray.config import RayComputeEngineConfig
+from feast.infra.compute_engines.ray.utils import (
+    safe_batch_processor,
+    write_to_online_store,
+)
 from feast.infra.compute_engines.utils import create_offline_store_retrieval_job
 from feast.infra.ray_shared_utils import (
     apply_field_mapping,
@@ -149,9 +153,8 @@ class RayJoinNode(DAGNode):
             feature_df = feature_dataset.to_pandas()
             feature_ref = ray.put(feature_df)
 
+            @safe_batch_processor
             def join_with_aggregated_features(batch: pd.DataFrame) -> pd.DataFrame:
-                if batch.empty:
-                    return batch
                 features = ray.get(feature_ref)
                 if join_keys:
                     result = pd.merge(
@@ -226,10 +229,9 @@ class RayFilterNode(DAGNode):
         input_value.assert_format(DAGFormat.RAY)
         dataset: Dataset = input_value.data
 
+        @safe_batch_processor
         def apply_filters(batch: pd.DataFrame) -> pd.DataFrame:
             """Apply TTL and custom filters to the batch."""
-            if batch.empty:
-                return batch
 
             filtered_batch = batch.copy()
 
@@ -447,11 +449,9 @@ class RayDedupNode(DAGNode):
         input_value.assert_format(DAGFormat.RAY)
         dataset: Dataset = input_value.data
 
+        @safe_batch_processor
         def deduplicate_batch(batch: pd.DataFrame) -> pd.DataFrame:
             """Remove duplicates from the batch."""
-            if batch.empty:
-                return batch
-
             # Get deduplication keys
             join_keys = self.column_info.join_keys
             timestamp_col = self.column_info.timestamp_column
@@ -518,27 +518,21 @@ class RayTransformationNode(DAGNode):
         elif callable(self.transformation):
             transformation_serialized = dill.dumps(self.transformation)
 
+        @safe_batch_processor
         def apply_transformation_with_serialized_udf(
             batch: pd.DataFrame,
         ) -> pd.DataFrame:
             """Apply the transformation using pre-serialized UDF."""
-            if batch.empty:
-                return batch
+            if transformation_serialized:
+                transformation_func = dill.loads(transformation_serialized)
+                transformed_batch = transformation_func(batch)
+            else:
+                logger.warning(
+                    "No serialized transformation available, returning original batch"
+                )
+                transformed_batch = batch
 
-            try:
-                if transformation_serialized:
-                    transformation_func = dill.loads(transformation_serialized)
-                    transformed_batch = transformation_func(batch)
-                else:
-                    logger.warning(
-                        "No serialized transformation available, returning original batch"
-                    )
-                    transformed_batch = batch
-
-                return transformed_batch
-            except Exception as e:
-                logger.error(f"Transformation failed: {e}")
-                return batch
+            return transformed_batch
 
         transformed_dataset = dataset.map_batches(
             apply_transformation_with_serialized_udf, batch_format="pandas"
@@ -645,46 +639,36 @@ class RayWriteNode(DAGNode):
             feature_view=self.feature_view, repo_config=context.repo_config
         )
 
+        @safe_batch_processor
         def write_batch_with_serialized_artifacts(batch: pd.DataFrame) -> pd.DataFrame:
             """Write each batch using pre-serialized artifacts."""
-            if batch.empty:
-                return batch
+            (
+                feature_view,
+                online_store,
+                offline_store,
+                repo_config,
+            ) = serialized_artifacts.unserialize()
 
-            try:
-                (
-                    feature_view,
-                    online_store,
-                    offline_store,
-                    repo_config,
-                ) = serialized_artifacts.unserialize()
+            arrow_table = pa.Table.from_pandas(batch)
 
-                arrow_table = pa.Table.from_pandas(batch)
+            # Write to online store if enabled
+            write_to_online_store(
+                arrow_table=arrow_table,
+                feature_view=feature_view,
+                online_store=online_store,
+                repo_config=repo_config,
+            )
 
-                # Write to online store if enabled
-                if getattr(feature_view, "online", False):
-                    # TODO: Implement proper online store writing with correct data format conversion
-                    logger.debug(
-                        "Online store writing not implemented yet for Ray compute engine"
-                    )
+            # Write to offline store if enabled
+            if getattr(feature_view, "offline", False):
+                offline_store.offline_write_batch(
+                    config=repo_config,
+                    feature_view=feature_view,
+                    table=arrow_table,
+                    progress=lambda x: None,
+                )
 
-                # Write to offline store if enabled
-                if getattr(feature_view, "offline", False):
-                    try:
-                        offline_store.offline_write_batch(
-                            config=repo_config,
-                            feature_view=feature_view,
-                            table=arrow_table,
-                            progress=lambda x: None,
-                        )
-                    except Exception as e:
-                        logger.error(f"Failed to write to offline store: {e}")
-                        raise
-
-                return batch
-
-            except Exception as e:
-                logger.error(f"Write operation failed: {e}")
-                raise
+            return batch
 
         written_dataset = dataset.map_batches(
             write_batch_with_serialized_artifacts, batch_format="pandas"
