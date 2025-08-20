@@ -1,2 +1,2 @@
 # keep VERSION on line #2, this is critical to release CI
-feast[minimal] == 0.51.0
+feast[minimal] == 0.52.0

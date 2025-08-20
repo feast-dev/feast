@@ -109,8 +109,8 @@ def get_entity_router(grpc_handler) -> APIRouter:
         seen_ds_names = set()
         for rel in relationships:
             if rel.get("target", {}).get("type") == "dataSource":
-                ds_name = rel["target"]["name"]
-                if ds_name not in seen_ds_names:
+                ds_name = rel["target"].get("name")
+                if ds_name and ds_name not in seen_ds_names:
                     ds_obj = ds_map.get(ds_name)
                     if ds_obj:
                         data_source_objs.append(ds_obj)

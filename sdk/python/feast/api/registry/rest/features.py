@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 
 from feast.api.registry.rest.codegen_utils import render_feature_code
 from feast.api.registry.rest.rest_utils import (
@@ -70,52 +70,35 @@ def get_feature_router(grpc_handler) -> APIRouter:
             name=name,
         )
 
-        try:
-            try:
-                response = grpc_call(grpc_handler.GetFeature, req)
-            except Exception as e:
-                raise HTTPException(
-                    status_code=404,
-                    detail=f"Feature '{name}' not found in feature view '{feature_view}' in project '{project}'",
-                ) from e
+        response = grpc_call(grpc_handler.GetFeature, req)
 
-            if include_relationships:
-                response["relationships"] = get_object_relationships(
-                    grpc_handler, "feature", name, project
-                )
-
-            if response:
-                dtype_str = response.get("type") or response.get("dtype")
-                value_type_enum = (
-                    _convert_value_type_str_to_value_type(dtype_str.upper())
-                    if dtype_str
-                    else None
-                )
-                feast_type = (
-                    from_value_type(value_type_enum) if value_type_enum else None
-                )
-                dtype = (
-                    feast_type.__name__
-                    if feast_type and hasattr(feast_type, "__name__")
-                    else "String"
-                )
-                context = dict(
-                    name=response.get("name", name),
-                    dtype=dtype,
-                    description=response.get("description", ""),
-                    tags=response.get("tags", response.get("labels", {})) or {},
-                )
-                response["featureDefinition"] = render_feature_code(context)
-
-            return response
-
-        except HTTPException:
-            raise
-        except Exception as e:
-            raise HTTPException(
-                status_code=500,
-                detail=f"Internal server error while retrieving feature '{name}' from feature view '{feature_view}' in project '{project}': {str(e)}",
+        if include_relationships:
+            response["relationships"] = get_object_relationships(
+                grpc_handler, "feature", name, project
             )
+
+        if response:
+            dtype_str = response.get("type") or response.get("dtype")
+            value_type_enum = (
+                _convert_value_type_str_to_value_type(dtype_str.upper())
+                if dtype_str
+                else None
+            )
+            feast_type = from_value_type(value_type_enum) if value_type_enum else None
+            dtype = (
+                feast_type.__name__
+                if feast_type and hasattr(feast_type, "__name__")
+                else "String"
+            )
+            context = dict(
+                name=response.get("name", name),
+                dtype=dtype,
+                description=response.get("description", ""),
+                tags=response.get("tags", response.get("labels", {})) or {},
+            )
+            response["featureDefinition"] = render_feature_code(context)
+
+        return response
 
     @router.get("/features/all")
     def list_features_all(

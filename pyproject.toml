@@ -111,6 +111,7 @@ rag = [
     "transformers>=4.36.0",
     "datasets>=3.6.0",
 ]
+ray = ["ray>=2.47.0"]
 redis = [
     "redis>=4.2.2,<5",
     "hiredis>=2.0.0,<3",
@@ -167,7 +168,7 @@ ci = [
     "types-setuptools",
     "types-tabulate",
     "virtualenv<20.24.2",
-    "feast[aws, azure, cassandra, clickhouse, couchbase, delta, docling, duckdb, elasticsearch, faiss, gcp, ge, go, grpcio, hazelcast, hbase, ibis, ikv, k8s, mcp, milvus, mssql, mysql, opentelemetry, spark, trino, postgres, pytorch, qdrant, rag, redis, singlestore, snowflake, sqlite_vec]"
+    "feast[aws, azure, cassandra, clickhouse, couchbase, delta, docling, duckdb, elasticsearch, faiss, gcp, ge, go, grpcio, hazelcast, hbase, ibis, ikv, k8s, mcp, milvus, mssql, mysql, opentelemetry, spark, trino, postgres, pytorch, qdrant, rag, ray, redis, singlestore, snowflake, sqlite_vec]"
 ]
 nlp = ["feast[docling, milvus, pytorch, rag]"]
 dev = ["feast[ci]"]

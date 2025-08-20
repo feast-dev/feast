@@ -231,6 +231,61 @@ class TestRegistryLineage:
         assert isinstance(relationships, list)
         assert isinstance(indirect_relationships, list)
 
+    def test_on_demand_feature_view_entity_relationships(self):
+        """Test entity relationships with on-demand feature views."""
+        registry = Registry()
+
+        # Create entities
+        entity1_spec = EntitySpecV2(name="user_id")
+        entity1 = Entity(spec=entity1_spec)
+
+        entity2_spec = EntitySpecV2(name="dummy")
+        entity2 = Entity(spec=entity2_spec)
+
+        registry.entities.extend([entity1, entity2])
+
+        # Create on-demand feature view with entities
+        odfv_spec = OnDemandFeatureViewSpec(name="transformed_features")
+        odfv_spec.entities.append("user_id")
+        odfv_spec.entities.append("dummy")
+        odfv = OnDemandFeatureView(spec=odfv_spec)
+        registry.on_demand_feature_views.append(odfv)
+
+        # Generate lineage
+        lineage_generator = RegistryLineageGenerator()
+        direct_relationships, indirect_relationships = (
+            lineage_generator.generate_lineage(registry)
+        )
+
+        # Filter Entity -> OnDemandFeatureView relationships
+        entity_to_odfv_relationships = [
+            rel
+            for rel in direct_relationships
+            if rel.source.type == FeastObjectType.ENTITY
+            and rel.target.type == FeastObjectType.FEATURE_VIEW
+            and rel.target.name == "transformed_features"
+        ]
+
+        # Should have 2 relationships: user_id -> transformed_features, dummy -> transformed_features
+        assert len(entity_to_odfv_relationships) == 2
+
+        # Check specific relationships
+        relationship_pairs = {
+            (rel.source.name, rel.target.name) for rel in entity_to_odfv_relationships
+        }
+
+        expected_pairs = {
+            ("user_id", "transformed_features"),
+            ("dummy", "transformed_features"),
+        }
+
+        assert relationship_pairs == expected_pairs
+
+        # Test relationship types
+        for rel in entity_to_odfv_relationships:
+            assert rel.source.type == FeastObjectType.ENTITY
+            assert rel.target.type == FeastObjectType.FEATURE_VIEW
+
     def test_stream_feature_view_lineage(self):
         """Test lineage with stream feature views."""
         registry = Registry()
