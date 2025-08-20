@@ -218,7 +218,7 @@ _Appears in:_
 
 | Field | Description |
 | --- | --- |
-| `feastProject` _string_ | FeastProject is the Feast project id. This can be any alphanumeric string with underscores, but it cannot start with an underscore. Required. |
+| `feastProject` _string_ | FeastProject is the Feast project id. This can be any alphanumeric string with underscores and hyphens, but it cannot start with an underscore or hyphen. Required. |
 | `feastProjectDir` _[FeastProjectDir](#feastprojectdir)_ |  |
 | `services` _[FeatureStoreServices](#featurestoreservices)_ |  |
 | `authz` _[AuthzConfig](#authzconfig)_ |  |
