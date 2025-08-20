@@ -64,6 +64,8 @@ REQUIRED = [
     "bigtree>=0.19.2",
     "pyjwt",
     "kubernetes<=20.13.0",
+    "aiohttp>=3.12.14",  # >=3.12.14 -> CVE-2025-53643
+    "starlette>=0.47.2",  # >=0.47.2 -> CVE-2025-54121
 ]
 
 GCP_REQUIRED = [
@@ -103,7 +105,7 @@ POSTGRES_REQUIRED = [
     "psycopg[binary,pool]>=3.0.0,<4",
 ]
 
-OPENTELEMETRY = ["prometheus_client","psutil"]
+OPENTELEMETRY = ["prometheus_client", "psutil"]
 
 MYSQL_REQUIRED = ["pymysql", "types-PyMySQL"]
 
