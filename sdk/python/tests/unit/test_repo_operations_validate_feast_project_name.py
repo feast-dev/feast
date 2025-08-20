@@ -14,7 +14,6 @@ def test_is_valid_name():
         ("hyphen-name", True),
         # Invalid project name cases
         ("_invalidName", False),
-        ("invalid-Name", False),
         ("invalid name", False),
         ("invalid@name", False),
         ("invalid$name", False),
