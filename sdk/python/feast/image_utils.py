@@ -49,16 +49,18 @@ class ImageFeatureExtractor:
     from images using pre-trained vision models like ResNet, ViT, etc.
 
     Examples:
-        Basic usage:
-        >>> extractor = ImageFeatureExtractor()
-        >>> with open("image.jpg", "rb") as f:
-        ...     image_bytes = f.read()
-        >>> embedding = extractor.extract_embedding(image_bytes)
+        Basic usage::
 
-        Using different models:
-        >>> # Use ViT model for better performance
-        >>> extractor = ImageFeatureExtractor("vit_base_patch16_224")
-        >>> embedding = extractor.extract_embedding(image_bytes)
+            extractor = ImageFeatureExtractor()
+            with open("image.jpg", "rb") as f:
+                image_bytes = f.read()
+            embedding = extractor.extract_embedding(image_bytes)
+
+        Using different models::
+
+            # Use ViT model for better performance
+            extractor = ImageFeatureExtractor("vit_base_patch16_224")
+            embedding = extractor.extract_embedding(image_bytes)
     """
 
     def __init__(self, model_name: str = "resnet34"):
@@ -189,18 +191,20 @@ def combine_embeddings(
         ValueError: If strategy is invalid or weights don't sum to 1.0
 
     Examples:
-        Weighted combination (emphasize image):
-        >>> combined = combine_embeddings(
-        ...     text_emb, image_emb,
-        ...     strategy="weighted_sum",
-        ...     text_weight=0.3, image_weight=0.7
-        ... )
+        Weighted combination (emphasize image)::
 
-        Concatenation for full information:
-        >>> combined = combine_embeddings(
-        ...     text_emb, image_emb,
-        ...     strategy="concatenate"
-        ... )
+            combined = combine_embeddings(
+                [0.1, 0.2], [0.8, 0.9],  # text_emb, image_emb
+                strategy="weighted_sum",
+                text_weight=0.3, image_weight=0.7
+            )
+
+        Concatenation for full information::
+
+            combined = combine_embeddings(
+                [0.1, 0.2], [0.8, 0.9],  # text_emb, image_emb
+                strategy="concatenate"
+            )
     """
     if strategy == "weighted_sum":
         if abs(text_weight + image_weight - 1.0) > 1e-6:

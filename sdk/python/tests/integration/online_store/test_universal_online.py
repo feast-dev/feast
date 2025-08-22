@@ -21,7 +21,15 @@ from feast.field import Field
 from feast.infra.offline_stores.file_source import FileSource
 from feast.infra.utils.postgres.postgres_config import ConnectionType
 from feast.online_response import TIMESTAMP_POSTFIX
-from feast.types import Array, Float32, Int32, Int64, String, ValueType
+from feast.types import (
+    Array,
+    Float32,
+    ImageBytes,
+    Int32,
+    Int64,
+    String,
+    ValueType,
+)
 from feast.utils import _utc_now
 from feast.wait import wait_retry_backoff
 from tests.integration.feature_repos.repo_configuration import (
@@ -922,6 +930,159 @@ def test_retrieve_online_milvus_documents(environment, fake_document_data):
 
     assert len(documents["item_id"]) == 2
     assert documents["item_id"] == [2, 3]
+
+    # Verify vector dimensions are preserved through write_to_online_store -> online_write_batch
+    query_dim = 2
+    stored_embeddings = documents.get("embedding_float", [])
+    for i, embedding in enumerate(stored_embeddings):
+        assert isinstance(embedding, list), (
+            f"Integration test: embedding {i} should be list"
+        )
+        assert len(embedding) == query_dim, (
+            f"Integration test: embedding {i} has {len(embedding)} dimensions, expected {query_dim}"
+        )
+
+
+@pytest.mark.integration
+@pytest.mark.universal_online_stores(only=["milvus"])
+def test_retrieve_online_image_search_hybrid(environment, fake_image_data):
+    """Test hybrid image search functionality - combining text and image queries."""
+    fs = environment.feature_store
+    if hasattr(fs.config.online_store, "vector_enabled"):
+        fs.config.online_store.vector_enabled = True
+    distance_metric = "COSINE"
+
+    df, data_source = fake_image_data
+
+    image_fv = FeatureView(
+        name="image_items",
+        entities=[item()],
+        schema=[
+            Field(
+                name="image_embedding",
+                dtype=Array(Float32),
+                vector_index=True,
+                vector_search_metric=distance_metric,
+            ),
+            Field(name="image_filename", dtype=String),
+            Field(name="image_bytes", dtype=ImageBytes),
+            Field(name="category", dtype=String),
+            Field(name="description", dtype=String),
+            Field(name="item_id", dtype=Int64),
+        ],
+        source=data_source,
+        online=True,
+    )
+
+    fs.apply([image_fv, item()])
+    fs.write_to_online_store("image_items", df)
+
+    baseline_results = fs.retrieve_online_documents_v2(
+        features=[
+            "image_items:image_embedding",
+            "image_items:image_filename",
+            "image_items:description",
+        ],
+        query=[0.9, 0.1],
+        top_k=2,
+        distance_metric=distance_metric,
+    ).to_dict()
+
+    assert len(baseline_results["image_embedding"]) == 2
+    assert len(baseline_results["image_filename"]) == 2
+    assert len(baseline_results["description"]) == 2
+    # Should match red image first due to embedding similarity
+    assert baseline_results["image_filename"][0] == "red_image.jpg"
+
+    blue_image_bytes = df.iloc[2]["image_bytes"]  # Blue image
+
+    with unittest.mock.patch(
+        "feast.image_utils.ImageFeatureExtractor"
+    ) as MockExtractor:
+        mock_instance = MockExtractor.return_value
+        # Return blue-ish embedding that matches our test data dimensions (2D)
+        mock_instance.extract_embedding.return_value = [
+            0.1,
+            0.9,
+        ]  # Blue-ish 2D embedding
+
+        image_results = fs.retrieve_online_documents_v2(
+            features=[
+                "image_items:image_embedding",
+                "image_items:image_filename",
+                "image_items:description",
+            ],
+            query_image_bytes=blue_image_bytes,
+            top_k=2,
+            distance_metric=distance_metric,
+        ).to_dict()
+
+    assert len(image_results["image_embedding"]) == 2
+    assert len(image_results["image_filename"]) == 2
+    assert len(image_results["description"]) == 2
+
+    text_embedding = [0.2, 0.8]  # Green-ish text embedding
+    red_image_bytes = df.iloc[0]["image_bytes"]  # Red image
+
+    with unittest.mock.patch(
+        "feast.image_utils.ImageFeatureExtractor"
+    ) as MockExtractor:
+        mock_instance = MockExtractor.return_value
+        # Return red-ish embedding that matches our test data dimensions (2D)
+        mock_instance.extract_embedding.return_value = [
+            0.9,
+            0.1,
+        ]  # Red-ish 2D embedding
+
+        hybrid_results = fs.retrieve_online_documents_v2(
+            features=[
+                "image_items:image_embedding",
+                "image_items:image_filename",
+                "image_items:description",
+            ],
+            query=text_embedding,  # Green-ish text embedding
+            query_image_bytes=red_image_bytes,  # Red image
+            combine_with_text=True,
+            text_weight=0.6,  # Favor text more
+            image_weight=0.4,  # Less image influence
+            combine_strategy="weighted_sum",
+            top_k=2,
+            distance_metric=distance_metric,
+        ).to_dict()
+
+    assert len(hybrid_results["image_embedding"]) == 2
+    assert len(hybrid_results["image_filename"]) == 2
+    assert len(hybrid_results["description"]) == 2
+
+    hybrid_embeddings = hybrid_results["image_embedding"]
+    assert all(isinstance(emb, list) and len(emb) == 2 for emb in hybrid_embeddings)
+
+    with unittest.mock.patch(
+        "feast.image_utils.ImageFeatureExtractor"
+    ) as MockExtractor:
+        mock_instance = MockExtractor.return_value
+        mock_instance.extract_embedding.return_value = [
+            0.9,
+            0.1,
+        ]  # Red-ish 2D embedding
+
+        avg_results = fs.retrieve_online_documents_v2(
+            features=[
+                "image_items:image_embedding",
+                "image_items:image_filename",
+            ],
+            query=text_embedding,
+            query_image_bytes=red_image_bytes,
+            combine_with_text=True,
+            text_weight=0.5,
+            image_weight=0.5,
+            combine_strategy="average",
+            top_k=2,
+            distance_metric=distance_metric,
+        ).to_dict()
+
+    assert len(avg_results["image_embedding"]) == 2
+    assert len(avg_results["image_filename"]) == 2
 
 
 @pytest.mark.integration

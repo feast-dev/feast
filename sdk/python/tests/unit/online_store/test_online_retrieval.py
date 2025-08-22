@@ -1268,6 +1268,21 @@ def test_milvus_lite_retrieve_online_documents_v2() -> None:
             assert k in result, f"Missing {k} in retrieve_online_documents response"
         assert len(result["distance"]) == len(results[0])
 
+        # validate vector embeddings maintain their exact dimensions through online_write_batch
+        stored_embeddings = result.get("vector", [])
+        assert len(stored_embeddings) > 0, "Should have retrieved some embeddings"
+
+        for i, embedding in enumerate(stored_embeddings):
+            assert isinstance(embedding, list), (
+                f"Embedding {i} should be a list, got {type(embedding)}"
+            )
+            assert len(embedding) == vector_length, (
+                f"Embedding {i} dimension mismatch: got {len(embedding)}, expected {vector_length} dimensions"
+            )
+            assert all(isinstance(x, (int, float)) for x in embedding), (
+                f"Embedding {i} contains non-numeric values: {[type(x) for x in embedding[:5]]}"
+            )
+
 
 def test_milvus_stored_writes_with_explode() -> None:
     """

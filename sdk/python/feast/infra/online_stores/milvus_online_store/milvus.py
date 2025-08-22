@@ -1,3 +1,4 @@
+import base64
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union
@@ -43,6 +44,7 @@ from feast.utils import (
 
 PROTO_TO_MILVUS_TYPE_MAPPING: Dict[ValueType, DataType] = {
     PROTO_VALUE_TO_VALUE_TYPE_MAP["bytes_val"]: DataType.VARCHAR,
+    ValueType.IMAGE_BYTES: DataType.VARCHAR,  # IMAGE_BYTES serializes as bytes_val
     PROTO_VALUE_TO_VALUE_TYPE_MAP["bool_val"]: DataType.BOOL,
     PROTO_VALUE_TO_VALUE_TYPE_MAP["string_val"]: DataType.VARCHAR,
     PROTO_VALUE_TO_VALUE_TYPE_MAP["float_val"]: DataType.FLOAT,
@@ -247,7 +249,7 @@ class MilvusOnlineStore(OnlineStore):
     ) -> None:
         self.client = self._connect(config)
         collection = self._get_or_create_collection(config, table)
-        vector_cols = [f.name for f in table.features if f.vector_index]
+        vector_cols = [f.name for f in table.schema if f.vector_index]
         entity_batch_to_insert = []
         unique_entities: dict[str, dict[str, Any]] = {}
         required_fields = {field["name"] for field in collection["fields"]}
@@ -503,6 +505,14 @@ class MilvusOnlineStore(OnlineStore):
         entity_name_feast_primitive_type_map = {
             k.name: k.dtype for k in table.entity_columns
         }
+        # Also include feature columns for proper type mapping
+        feature_name_feast_primitive_type_map = {
+            k.name: k.dtype for k in table.features
+        }
+        field_name_feast_primitive_type_map = {
+            **entity_name_feast_primitive_type_map,
+            **feature_name_feast_primitive_type_map,
+        }
         self.client = self._connect(config)
         collection_name = _table_id(config.project, table)
         collection = self._get_or_create_collection(config, table)
@@ -662,14 +672,25 @@ class MilvusOnlineStore(OnlineStore):
                             embedding
                         )
                         res[ann_search_field] = serialized_embedding
-                    elif entity_name_feast_primitive_type_map.get(
-                        field, PrimitiveFeastType.INVALID
-                    ) in [
-                        PrimitiveFeastType.STRING,
-                        PrimitiveFeastType.BYTES,
-                    ]:
+                    elif (
+                        field_name_feast_primitive_type_map.get(
+                            field, PrimitiveFeastType.INVALID
+                        )
+                        == PrimitiveFeastType.STRING
+                    ):
                         res[field] = ValueProto(string_val=str(field_value))
-                    elif entity_name_feast_primitive_type_map.get(
+                    elif (
+                        field_name_feast_primitive_type_map.get(
+                            field, PrimitiveFeastType.INVALID
+                        )
+                        == PrimitiveFeastType.BYTES
+                    ):
+                        try:
+                            decoded_bytes = base64.b64decode(field_value)
+                            res[field] = ValueProto(bytes_val=decoded_bytes)
+                        except Exception:
+                            res[field] = ValueProto(string_val=str(field_value))
+                    elif field_name_feast_primitive_type_map.get(
                         field, PrimitiveFeastType.INVALID
                     ) in [
                         PrimitiveFeastType.INT64,
@@ -732,9 +753,13 @@ def _extract_proto_values_to_dict(
                     else:
                         if (
                             serialize_to_string
-                            and proto_val_type not in ["string_val"] + numeric_types
+                            and proto_val_type
+                            not in ["string_val", "bytes_val"] + numeric_types
                         ):
                             vector_values = feature_values.SerializeToString().decode()
+                        elif proto_val_type == "bytes_val":
+                            byte_data = getattr(feature_values, proto_val_type)
+                            vector_values = base64.b64encode(byte_data).decode("utf-8")
                         else:
                             if not isinstance(feature_values, str):
                                 vector_values = str(
