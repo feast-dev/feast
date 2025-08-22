@@ -49,6 +49,7 @@ class ValueType(enum.Enum):
     UNIX_TIMESTAMP_LIST = 18
     NULL = 19
     PDF_BYTES = 20
+    IMAGE_BYTES = 21
 
 
 ListType = Union[
