@@ -2267,38 +2267,41 @@ class FeatureStore:
             OnlineResponse with similar documents and metadata
 
         Examples:
-            Text search only:
-            >>> results = store.retrieve_online_documents_v2(
-            ...     features=["documents:embedding", "documents:title"],
-            ...     query=text_embedding,
-            ...     top_k=5
-            ... )
+            Text search only::
 
-            Image search only:
-            >>> results = store.retrieve_online_documents_v2(
-            ...     features=["images:embedding", "images:filename"],
-            ...     query_image_bytes=image_bytes,
-            ...     top_k=5
-            ... )
+                results = store.retrieve_online_documents_v2(
+                    features=["documents:embedding", "documents:title"],
+                    query=[0.1, 0.2, 0.3],  # text embedding vector
+                    top_k=5
+                )
 
-            Combined text + image search:
-            >>> results = store.retrieve_online_documents_v2(
-            ...     features=["documents:embedding", "documents:title"],
-            ...     query=text_embedding,
-            ...     query_image_bytes=image_bytes,
-            ...     combine_with_text=True,
-            ...     text_weight=0.3,
-            ...     image_weight=0.7,
-            ...     top_k=5
-            ... )
+            Image search only::
+
+                results = store.retrieve_online_documents_v2(
+                    features=["images:embedding", "images:filename"],
+                    query_image_bytes=b"image_data",  # image bytes
+                    top_k=5
+                )
+
+            Combined text + image search::
+
+                results = store.retrieve_online_documents_v2(
+                    features=["documents:embedding", "documents:title"],
+                    query=[0.1, 0.2, 0.3],  # text embedding vector
+                    query_image_bytes=b"image_data",  # image bytes
+                    combine_with_text=True,
+                    text_weight=0.3,
+                    image_weight=0.7,
+                    top_k=5
+                )
         """
-        if not query and not query_image_bytes and not query_string:
+        if query is None and not query_image_bytes and not query_string:
             raise ValueError(
                 "Must provide either query (text embedding), "
                 "query_image_bytes, or query_string"
             )
 
-        if combine_with_text and not (query and query_image_bytes):
+        if combine_with_text and not (query is not None and query_image_bytes):
             raise ValueError(
                 "combine_with_text=True requires both query (text embedding) "
                 "and query_image_bytes"
@@ -2323,7 +2326,11 @@ class FeatureStore:
 
         text_embedding = query
 
-        if combine_with_text and text_embedding and image_embedding:
+        if (
+            combine_with_text
+            and text_embedding is not None
+            and image_embedding is not None
+        ):
             # Combine text and image embeddings
             from feast.image_utils import combine_embeddings
 
@@ -2334,9 +2341,9 @@ class FeatureStore:
                 text_weight=text_weight,
                 image_weight=image_weight,
             )
-        elif image_embedding:
+        elif image_embedding is not None:
             final_query = image_embedding
-        elif text_embedding:
+        elif text_embedding is not None:
             final_query = text_embedding
         else:
             final_query = None
