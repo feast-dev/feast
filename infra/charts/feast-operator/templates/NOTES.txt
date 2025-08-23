@@ -1,0 +1,28 @@
+1. The Feast Operator has been deployed successfully!
+
+2. Check that the operator is running:
+   kubectl get deployment -n {{ include "feast-operator.namespace" . }} {{ include "feast-operator.fullname" . }}-controller-manager
+
+3. View the operator logs:
+   kubectl logs -n {{ include "feast-operator.namespace" . }} deployment/{{ include "feast-operator.fullname" . }}-controller-manager
+
+4. To create a FeatureStore, create a custom resource:
+   kubectl apply -f - <<EOF
+   apiVersion: feast.dev/v1alpha1
+   kind: FeatureStore
+   metadata:
+     name: sample-feast
+     namespace: {{ include "feast-operator.namespace" . }}
+   spec:
+     feastProject: feast-test
+   EOF
+
+5. Check the FeatureStore status:
+   kubectl get featurestores -n {{ include "feast-operator.namespace" . }}
+
+{{- if .Values.metrics.enabled }}
+6. Metrics are available at:
+   kubectl get service -n {{ include "feast-operator.namespace" . }} {{ include "feast-operator.fullnameWithSuffix" (dict "root" . "suffix" "metrics") }}
+{{- end }}
+
+For more information about configuring Feast, visit https://docs.feast.dev/
