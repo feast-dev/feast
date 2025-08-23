@@ -1,0 +1,171 @@
+# Default values for feast-operator.
+
+# Global settings
+global:
+  imageRegistry: ""
+  imagePullSecrets: []
+
+# Operator deployment configuration
+operator:
+  # Image configuration
+  image:
+    repository: quay.io/feastdev/feast-operator
+    tag: 0.52.0
+    pullPolicy: IfNotPresent
+  
+  # Replica count
+  replicaCount: 1
+  
+  # Resource limits and requests
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 256Mi
+    requests:
+      cpu: 10m
+      memory: 64Mi
+  
+  # Environment variables
+  env:
+    relatedImageFeatureServer: "quay.io/feastdev/feature-server:0.52.0"
+    relatedImageCronJob: "quay.io/openshift/origin-cli:4.17"
+  
+  # Health check configuration
+  healthcheck:
+    port: 8081
+    livenessProbe:
+      initialDelaySeconds: 15
+      periodSeconds: 20
+    readinessProbe:
+      initialDelaySeconds: 5
+      periodSeconds: 10
+  
+  # Pod security context
+  securityContext:
+    runAsNonRoot: true
+    # seccompProfile:
+    #   type: RuntimeDefault
+  
+  # Container security context
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - "ALL"
+  
+  # Node affinity
+  affinity: {}
+    # nodeAffinity:
+    #   requiredDuringSchedulingIgnoredDuringExecution:
+    #     nodeSelectorTerms:
+    #       - matchExpressions:
+    #         - key: kubernetes.io/arch
+    #           operator: In
+    #           values:
+    #             - amd64
+    #             - arm64
+    #             - ppc64le
+    #             - s390x
+    #         - key: kubernetes.io/os
+    #           operator: In
+    #           values:
+    #             - linux
+  
+  # Node selector
+  nodeSelector: {}
+  
+  # Tolerations
+  tolerations: []
+  
+  # Pod annotations
+  podAnnotations:
+    kubectl.kubernetes.io/default-container: manager
+  
+  # Pod labels
+  podLabels: {}
+  
+  # Additional arguments (beyond the auto-generated ones)
+  args: []
+
+# Service account configuration
+serviceAccount:
+  # Create a dedicated ServiceAccount for the operator (recommended)
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+# RBAC configuration
+rbac:
+  # Specifies whether RBAC resources should be created
+  create: true
+
+# Metrics service configuration
+metrics:
+  # Enable metrics service
+  enabled: true
+  # Service configuration
+  service:
+    type: ClusterIP
+    port: 8443
+    targetPort: 8443
+    annotations: {}
+
+# Namespace configuration
+namespace:
+  # Create namespace if it doesn't exist
+  create: true
+  # Namespace name (defaults to Release.Namespace)
+  name: ""
+  # Namespace labels
+  labels:
+    control-plane: controller-manager
+
+# CRD configuration
+crds:
+  # Install CRDs
+  install: true
+
+# Additional labels to add to all resources
+commonLabels: {}
+
+# Additional annotations to add to all resources
+commonAnnotations: {}
+
+# Default storage configuration for PVCs
+storage:
+  # Default storage class for all PVCs (can be overridden per service)
+  defaultStorageClass: ""
+  # Default access modes
+  defaultAccessModes:
+    - ReadWriteOnce
+  # Default reclaim policy annotation
+  reclaimPolicy: ""
+
+# Name prefix for all resources (matches kustomize namePrefix). Keep empty by default to avoid long names.
+namePrefix: ""
+
+# Enable Prometheus monitoring
+prometheus:
+  # Install ServiceMonitor for Prometheus Operator
+  serviceMonitor:
+    enabled: false
+    # Additional labels for ServiceMonitor
+    labels: {}
+    # Scrape interval
+    interval: 30s
+    # Scrape timeout
+    timeout: 10s
+
+# Advanced configuration options
+advanced:
+  # Enable leader election (should always be true for production)
+  leaderElection: true
+  # Metrics bind address (HTTPS)
+  metricsBindAddress: ":8443"
+  # Health probe bind address
+  healthProbeBindAddress: ":8081"
+  # Termination grace period in seconds
+  terminationGracePeriodSeconds: 10
