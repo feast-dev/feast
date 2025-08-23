@@ -1,0 +1,33 @@
+{{- if and .Values.prometheus.serviceMonitor.enabled (has "monitoring.coreos.com/v1" .Capabilities.APIVersions) }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "feast-operator.fullnameWithSuffix" (dict "root" . "suffix" "metrics") }}
+  namespace: {{ include "feast-operator.namespace" . }}
+  labels:
+    {{- include "feast-operator.labels" . | nindent 4 }}
+    {{- with .Values.prometheus.serviceMonitor.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- with (include "feast-operator.annotations" .) }}
+  annotations:
+    {{- . | nindent 4 }}
+  {{- end }}
+spec:
+  endpoints:
+    - path: /metrics
+      port: https
+      scheme: https
+      bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
+      interval: {{ .Values.prometheus.serviceMonitor.interval }}
+      scrapeTimeout: {{ .Values.prometheus.serviceMonitor.timeout }}
+      tlsConfig:
+        insecureSkipVerify: true
+  selector:
+    matchLabels:
+      {{- include "feast-operator.selectorLabels" . | nindent 6 }}
+{{- end }}
+{{- if and .Values.prometheus.serviceMonitor.enabled (not (has "monitoring.coreos.com/v1" .Capabilities.APIVersions)) }}
+{{- /* Avoid hard failure; emit a comment so users see why it didn't render */ -}}
+# ServiceMonitor CRD not found (monitoring.coreos.com/v1). Skipping ServiceMonitor creation.
+{{- end }}

@@ -1,0 +1,25 @@
+{{- if .Values.metrics.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "feast-operator.fullnameWithSuffix" (dict "root" . "suffix" "metrics") }}
+  namespace: {{ include "feast-operator.namespace" . }}
+  labels:
+    {{- include "feast-operator.labels" . | nindent 4 }}
+  {{- with .Values.metrics.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with (include "feast-operator.annotations" .) }}
+    {{- . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.metrics.service.type }}
+  ports:
+  - name: https
+    port: {{ .Values.metrics.service.port }}
+    protocol: TCP
+    targetPort: {{ .Values.metrics.service.targetPort }}
+  selector:
+    {{- include "feast-operator.selectorLabels" . | nindent 4 }}
+{{- end }}
