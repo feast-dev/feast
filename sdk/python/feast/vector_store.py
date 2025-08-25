@@ -20,7 +20,14 @@ from feast.online_response import OnlineResponse
 
 
 class FeastVectorStore:
-    """Feast-based vector store implementation."""
+    """
+    Feast-based vector store implementation with support for text, image, and multi-modal search.
+    This class provides a convenient interface for vector similarity search using Feast's
+    vector database integrations. It supports:
+    - Text similarity search using text embeddings
+    - Image similarity search using image embeddings
+    - Multi-modal search combining text and image queries
+    """
 
     def __init__(self, repo_path: str, rag_view: FeatureView, features: list[str]):
         """Initialize the Feast vector store.
@@ -47,13 +54,15 @@ class FeastVectorStore:
         self,
         query_vector: Optional[np.ndarray] = None,
         query_string: Optional[str] = None,
+        query_image_bytes: Optional[bytes] = None,
         top_k: int = 10,
     ) -> OnlineResponse:
-        """Query the Feast vector store.
+        """Query the Feast vector store with support for text, image, and multi-modal search.
 
         Args:
-            query_vector: Optional vector to use for similarity search
-            query_string: Optional text query for semantic search
+            query_vector: Optional vector to use for similarity search (text embeddings)
+            query_string: Optional string query for keyword/semantic search
+            query_image_bytes: Optional image bytes for image similarity search
             top_k: Number of results to return
 
         Returns:
@@ -72,6 +81,7 @@ class FeastVectorStore:
             features=self.features,
             query=query_list,
             query_string=query_string,
+            query_image_bytes=query_image_bytes,
             top_k=top_k,
             distance_metric=distance_metric,
         )
