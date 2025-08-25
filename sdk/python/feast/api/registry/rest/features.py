@@ -63,18 +63,20 @@ def get_feature_router(grpc_handler) -> APIRouter:
         include_relationships: bool = Query(
             False, description="Include relationships for this feature"
         ),
+        allow_cache: bool = Query(True),
     ):
         req = RegistryServer_pb2.GetFeatureRequest(
             project=project,
             feature_view=feature_view,
             name=name,
+            allow_cache=allow_cache,
         )
 
         response = grpc_call(grpc_handler.GetFeature, req)
 
         if include_relationships:
             response["relationships"] = get_object_relationships(
-                grpc_handler, "feature", name, project
+                grpc_handler, "feature", name, project, allow_cache
             )
 
         if response:

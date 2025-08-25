@@ -65,41 +65,54 @@ def get_metrics_router(grpc_handler, server=None) -> APIRouter:
         project: Optional[str] = Query(
             None, description="Project name to filter resource counts"
         ),
+        allow_cache: bool = Query(True),
     ):
         def count_resources_for_project(project_name: str):
             entities = grpc_call(
                 grpc_handler.ListEntities,
-                RegistryServer_pb2.ListEntitiesRequest(project=project_name),
+                RegistryServer_pb2.ListEntitiesRequest(
+                    project=project_name, allow_cache=allow_cache
+                ),
             )
             data_sources = grpc_call(
                 grpc_handler.ListDataSources,
-                RegistryServer_pb2.ListDataSourcesRequest(project=project_name),
+                RegistryServer_pb2.ListDataSourcesRequest(
+                    project=project_name, allow_cache=allow_cache
+                ),
             )
             try:
                 saved_datasets = grpc_call(
                     grpc_handler.ListSavedDatasets,
-                    RegistryServer_pb2.ListSavedDatasetsRequest(project=project_name),
+                    RegistryServer_pb2.ListSavedDatasetsRequest(
+                        project=project_name, allow_cache=allow_cache
+                    ),
                 )
             except Exception:
                 saved_datasets = {"savedDatasets": []}
             try:
                 features = grpc_call(
                     grpc_handler.ListFeatures,
-                    RegistryServer_pb2.ListFeaturesRequest(project=project_name),
+                    RegistryServer_pb2.ListFeaturesRequest(
+                        project=project_name, allow_cache=allow_cache
+                    ),
                 )
             except Exception:
                 features = {"features": []}
             try:
                 feature_views = grpc_call(
                     grpc_handler.ListFeatureViews,
-                    RegistryServer_pb2.ListFeatureViewsRequest(project=project_name),
+                    RegistryServer_pb2.ListFeatureViewsRequest(
+                        project=project_name, allow_cache=allow_cache
+                    ),
                 )
             except Exception:
                 feature_views = {"featureViews": []}
             try:
                 feature_services = grpc_call(
                     grpc_handler.ListFeatureServices,
-                    RegistryServer_pb2.ListFeatureServicesRequest(project=project_name),
+                    RegistryServer_pb2.ListFeatureServicesRequest(
+                        project=project_name, allow_cache=allow_cache
+                    ),
                 )
             except Exception:
                 feature_services = {"featureServices": []}
@@ -118,7 +131,8 @@ def get_metrics_router(grpc_handler, server=None) -> APIRouter:
         else:
             # List all projects via gRPC
             projects_resp = grpc_call(
-                grpc_handler.ListProjects, RegistryServer_pb2.ListProjectsRequest()
+                grpc_handler.ListProjects,
+                RegistryServer_pb2.ListProjectsRequest(allow_cache=allow_cache),
             )
             all_projects = [
                 p["spec"]["name"] for p in projects_resp.get("projects", [])
