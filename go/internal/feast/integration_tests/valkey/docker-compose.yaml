@@ -1,0 +1,7 @@
+services:
+  valkey:
+    image: valkey/valkey:latest
+    container_name: valkey
+    ports:
+      - "6390:6379"
+      

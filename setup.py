@@ -21,19 +21,21 @@ from subprocess import CalledProcessError
 import sys
 from pathlib import Path
 
-from setuptools import find_packages, setup, Command
+from setuptools import Command, find_packages, setup
+from setuptools.command.build_py import build_py
+from setuptools.command.develop import develop
 
-NAME = "feast"
-DESCRIPTION = "Python SDK for Feast"
-URL = "https://github.com/feast-dev/feast"
-AUTHOR = "Feast"
+NAME = "eg-feast"
+DESCRIPTION = "EG-specific Python SDK for Feast"
+URL = "https://github.com/ExpediaGroup/feast"
+AUTHOR = "Feast and EG"
 REQUIRES_PYTHON = ">=3.10.0"
 
 REQUIRED = [
     "click>=7.0.0,<9.0.0",
     "colorama>=0.3.9,<1",
     "dill~=0.3.0",
-    "protobuf>=4.24.0",
+    "protobuf>=4.24.0,<5.0.0",
     "Jinja2>=2,<4",
     "jsonschema",
     "mmh3",
@@ -55,6 +57,8 @@ REQUIRED = [
     "uvicorn-worker",
     "gunicorn; platform_system != 'Windows'",
     "dask[dataframe]>=2024.2.1",
+    # For HTTP Registry
+    "httpx>=0.23.3",
     "prometheus_client",
     "psutil",
     "bigtree>=0.19.2",
@@ -76,6 +80,8 @@ REDIS_REQUIRED = [
     "redis>=4.2.2,<5",
     "hiredis>=2.0.0,<3",
 ]
+
+EG_VALKEY_REQUIRED = ["valkey[libvalkey]>=6.1.0"]
 
 AWS_REQUIRED = ["boto3==1.38.27", "fsspec<=2024.9.0", "aiobotocore>2,<3"]
 
@@ -111,9 +117,17 @@ HBASE_REQUIRED = [
 
 CASSANDRA_REQUIRED = [
     "cassandra-driver>=3.24.0,<4",
+    "lz4",
+    "python-snappy",
 ]
 
 GE_REQUIRED = ["great_expectations>=0.15.41,<1"]
+
+SCYLLADB_REQUIRED = [
+    "scylla-driver>=3.24.0,<4",
+    "lz4",
+    "python-snappy",
+]
 
 AZURE_REQUIRED = [
     "azure-storage-blob>=0.37.0",
@@ -130,6 +144,14 @@ IKV_REQUIRED = [
 HAZELCAST_REQUIRED = [
     "hazelcast-python-client>=5.1",
 ]
+
+
+EG_MILVUS_REQUIRED = ["pymilvus>=2.4.4", "bidict==0.22.1"]
+
+# TODO: EG Implemented. Make decision on EG vs OpenSource
+# ELASTICSEARCH_REQUIRED = [
+#     "elasticsearch==8.8",
+# ]
 
 IBIS_REQUIRED = [
     "ibis-framework>=9.0.0,<10",
@@ -188,6 +210,7 @@ CI_REQUIRED = (
         "virtualenv==20.23.0",
         "cryptography>=43.0,<44",
         "ruff>=0.8.0",
+        "protobuf>=4.24.0,<5.0.0",
         "mypy-protobuf>=3.1",
         "grpcio-tools>=1.56.2,<=1.62.3",
         "grpcio-testing>=1.56.2,<=1.62.3",
@@ -229,6 +252,7 @@ CI_REQUIRED = (
     ]
     + GCP_REQUIRED
     + REDIS_REQUIRED
+    + EG_VALKEY_REQUIRED
     + AWS_REQUIRED
     + KUBERNETES_REQUIRED
     + SNOWFLAKE_REQUIRED
@@ -241,6 +265,7 @@ CI_REQUIRED = (
     + CASSANDRA_REQUIRED
     + AZURE_REQUIRED
     + HAZELCAST_REQUIRED
+    + EG_MILVUS_REQUIRED
     + IBIS_REQUIRED
     + GRPCIO_REQUIRED
     + DUCKDB_REQUIRED
@@ -304,7 +329,190 @@ if shutil.which("git"):
 else:
     use_scm_version = None
 
+PROTO_SUBDIRS = ["core", "registry", "serving", "types", "storage"]
 PYTHON_CODE_PREFIX = "sdk/python"
+
+
+class BuildPythonProtosCommand(Command):
+    description = "Builds the proto files into Python files."
+    user_options = [
+        ("inplace", "i", "Write generated proto files to source directory."),
+    ]
+
+    def initialize_options(self):
+        self.python_protoc = [
+            sys.executable,
+            "-m",
+            "grpc_tools.protoc",
+        ]  # find_executable("protoc")
+        self.proto_folder = os.path.join(repo_root, "protos")
+        self.sub_folders = PROTO_SUBDIRS
+        self.build_lib = None
+        self.inplace = 0
+
+    def finalize_options(self):
+        self.set_undefined_options("build", ("build_lib", "build_lib"))
+
+    @property
+    def python_folder(self):
+        if self.inplace:
+            return os.path.join(
+                os.path.dirname(__file__) or os.getcwd(), "sdk/python/feast/protos"
+            )
+
+        return os.path.join(self.build_lib, "feast/protos")
+
+    def _generate_python_protos(self, path: str):
+        proto_files = glob.glob(os.path.join(self.proto_folder, path))
+        Path(self.python_folder).mkdir(parents=True, exist_ok=True)
+        subprocess.check_call(
+            self.python_protoc
+            + [
+                "-I",
+                self.proto_folder,
+                "--python_out",
+                self.python_folder,
+                "--grpc_python_out",
+                self.python_folder,
+                "--mypy_out",
+                self.python_folder,
+            ]
+            + proto_files
+        )
+
+    def run(self):
+        for sub_folder in self.sub_folders:
+            self._generate_python_protos(f"feast/{sub_folder}/*.proto")
+            # We need the __init__ files for each of the generated subdirs
+            # so that they are regular packages, and don't need the `--namespace-packages` flags
+            # when being typechecked using mypy.
+            with open(f"{self.python_folder}/feast/{sub_folder}/__init__.py", "w"):
+                pass
+
+        with open(f"{self.python_folder}/__init__.py", "w"):
+            pass
+        with open(f"{self.python_folder}/feast/__init__.py", "w"):
+            pass
+
+        for path in Path(self.python_folder).rglob("*.py"):
+            for folder in self.sub_folders:
+                # Read in the file
+                with open(path, "r") as file:
+                    filedata = file.read()
+
+                # Replace the target string
+                filedata = filedata.replace(
+                    f"from feast.{folder}", f"from feast.protos.feast.{folder}"
+                )
+
+                # Write the file out again
+                with open(path, "w") as file:
+                    file.write(filedata)
+
+
+def _generate_path_with_gopath():
+    go_path = subprocess.check_output(["go", "env", "GOPATH"]).decode("utf-8")
+    go_path = go_path.strip()
+    path_val = os.getenv("PATH")
+    path_val = f"{path_val}:{go_path}/bin"
+
+    return path_val
+
+
+def _ensure_go_and_proto_toolchain():
+    try:
+        version = subprocess.check_output(["go", "version"])
+    except Exception as e:
+        raise RuntimeError("Unable to find go toolchain") from e
+
+    semver_string = re.search(r"go[\S]+", str(version)).group().lstrip("go")
+    parts = semver_string.split(".")
+    if not (int(parts[0]) >= 1 and int(parts[1]) >= 16):
+        raise RuntimeError(f"Go compiler too old; expected 1.16+ found {semver_string}")
+
+    path_val = _generate_path_with_gopath()
+
+    try:
+        subprocess.check_call(["protoc-gen-go", "--version"], env={"PATH": path_val})
+        subprocess.check_call(
+            ["protoc-gen-go-grpc", "--version"], env={"PATH": path_val}
+        )
+    except Exception as e:
+        raise RuntimeError("Unable to find go/grpc extensions for protoc") from e
+
+
+class BuildGoProtosCommand(Command):
+    description = "Builds the proto files into Go files."
+    user_options = []
+
+    def initialize_options(self):
+        self.go_protoc = [
+            sys.executable,
+            "-m",
+            "grpc_tools.protoc",
+        ]  # find_executable("protoc")
+        self.proto_folder = os.path.join(repo_root, "protos")
+        self.go_folder = os.path.join(repo_root, "go/protos")
+        self.sub_folders = PROTO_SUBDIRS
+        self.path_val = _generate_path_with_gopath()
+
+    def finalize_options(self):
+        pass
+
+    def _generate_go_protos(self, path: str):
+        proto_files = glob.glob(os.path.join(self.proto_folder, path))
+
+        try:
+            subprocess.check_call(
+                self.go_protoc
+                + [
+                    "-I",
+                    self.proto_folder,
+                    "--go_out",
+                    self.go_folder,
+                    "--go_opt=module=github.com/feast-dev/feast/go/protos",
+                    "--go-grpc_out",
+                    self.go_folder,
+                    "--go-grpc_opt=module=github.com/feast-dev/feast/go/protos",
+                ]
+                + proto_files,
+                env={"PATH": self.path_val},
+            )
+        except CalledProcessError as e:
+            print(f"Stderr: {e.stderr}")
+            print(f"Stdout: {e.stdout}")
+
+    def run(self):
+        go_dir = Path(repo_root) / "go" / "protos"
+        go_dir.mkdir(exist_ok=True)
+        for sub_folder in self.sub_folders:
+            self._generate_go_protos(f"feast/{sub_folder}/*.proto")
+
+
+class BuildCommand(build_py):
+    """Custom build command."""
+
+    def run(self):
+        self.run_command("build_python_protos")
+        if os.getenv("COMPILE_GO", "false").lower() == "true":
+            _ensure_go_and_proto_toolchain()
+            self.run_command("build_go_protos")
+
+        self.run_command("build_ext")
+        build_py.run(self)
+
+
+class DevelopCommand(develop):
+    """Custom develop command."""
+
+    def run(self):
+        self.reinitialize_command("build_python_protos", inplace=1)
+        self.run_command("build_python_protos")
+        if os.getenv("COMPILE_GO", "false").lower() == "true":
+            _ensure_go_and_proto_toolchain()
+            self.run_command("build_go_protos")
+
+        develop.run(self)
 
 
 setup(
@@ -328,6 +536,7 @@ setup(
         "aws": AWS_REQUIRED,
         "k8s": KUBERNETES_REQUIRED,
         "redis": REDIS_REQUIRED,
+        "eg-valkey": EG_VALKEY_REQUIRED,
         "snowflake": SNOWFLAKE_REQUIRED,
         "spark": SPARK_REQUIRED,
         "trino": TRINO_REQUIRED,
@@ -340,12 +549,15 @@ setup(
         "hbase": HBASE_REQUIRED,
         "docs": DOCS_REQUIRED,
         "cassandra": CASSANDRA_REQUIRED,
+        "scylladb": SCYLLADB_REQUIRED,
         "hazelcast": HAZELCAST_REQUIRED,
         "grpcio": GRPCIO_REQUIRED,
         "ibis": IBIS_REQUIRED,
         "duckdb": DUCKDB_REQUIRED,
         "ikv": IKV_REQUIRED,
         "delta": DELTA_REQUIRED,
+        "eg-milvus": EG_MILVUS_REQUIRED,
+        "go": GO_REQUIRED,
         "elasticsearch": ELASTICSEARCH_REQUIRED,
         "sqlite_vec": SQLITE_VEC_REQUIRED,
         "singlestore": SINGLESTORE_REQUIRED,
@@ -353,7 +565,6 @@ setup(
         "opentelemetry": OPENTELEMETRY,
         "faiss": FAISS_REQUIRED,
         "qdrant": QDRANT_REQUIRED,
-        "go": GO_REQUIRED,
         "milvus": MILVUS_REQUIRED,
         "docling": DOCLING_REQUIRED,
         "pytorch": TORCH_REQUIRED,
@@ -376,7 +587,18 @@ setup(
     entry_points={"console_scripts": ["feast=feast.cli.cli:cli"]},
     use_scm_version=use_scm_version,
     setup_requires=[
-        "pybindgen==0.22.0",  # TODO do we need this?
-        "setuptools_scm>=6.2",  # TODO do we need this?
+        # snowflake udf packages refer to conda packages, not pypi libraries. Conda stack is still on protobuf 4
+        # So we are adding protobuf<5 as a requirement
+        "protobuf>=4.24.0,<5.0.0",
+        "grpcio-tools>=1.56.2,<2",
+        "mypy-protobuf>=3.1",
+        "pybindgen==0.22.0",
+        "setuptools_scm>=6.2",
     ],
+    cmdclass={
+        "build_python_protos": BuildPythonProtosCommand,
+        "build_go_protos": BuildGoProtosCommand,
+        "build_py": BuildCommand,
+        "develop": DevelopCommand,
+    },
 )

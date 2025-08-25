@@ -148,6 +148,22 @@ feast.protos.feast.core.FeatureView\_pb2\_grpc module
    :undoc-members:
    :show-inheritance:
 
+feast.protos.feast.core.VectorFeatureView\_pb2 module
+-----------------------------------------------
+
+.. automodule:: feast.protos.feast.core.VectorFeatureView_pb2
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+feast.protos.feast.core.VectorFeatureView\_pb2\_grpc module
+-----------------------------------------------------
+
+.. automodule:: feast.protos.feast.core.VectorFeatureView_pb2_grpc
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 feast.protos.feast.core.Feature\_pb2 module
 -------------------------------------------
 

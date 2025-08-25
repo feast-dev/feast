@@ -925,7 +925,7 @@ def _populate_response_from_feature_data(
     # Add the feature names to the response.
     table_name = table.projection.name_to_use()
     requested_feature_refs = [
-        f"{table_name}__{feature_name}" if full_feature_names else feature_name
+        (f"{table_name}__{feature_name}" if full_feature_names else feature_name)
         for feature_name in requested_features
     ]
     online_features_response.metadata.feature_names.val.extend(requested_feature_refs)

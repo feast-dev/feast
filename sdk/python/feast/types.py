@@ -17,6 +17,7 @@ from enum import Enum
 from typing import Dict, List, Union
 
 import pyarrow
+from pydantic import BaseModel
 
 from feast.value_type import ValueType
 
@@ -38,14 +39,14 @@ def _utc_now() -> datetime:
     return datetime.now(tz=timezone.utc)
 
 
-class ComplexFeastType(ABC):
+class ComplexFeastType(ABC, BaseModel):
     """
     A ComplexFeastType represents a structured type that is recognized by Feast.
     """
 
-    def __init__(self):
-        """Creates a ComplexFeastType object."""
-        pass
+    # def __init__(self):
+    #     """Creates a ComplexFeastType object."""
+    #     pass
 
     @abstractmethod
     def to_value_type(self) -> ValueType:
@@ -148,15 +149,15 @@ class Array(ComplexFeastType):
         base_type: The base type of the array.
     """
 
-    base_type: Union[PrimitiveFeastType, ComplexFeastType]
+    base_type: PrimitiveFeastType
 
-    def __init__(self, base_type: Union[PrimitiveFeastType, ComplexFeastType]):
-        if base_type not in SUPPORTED_BASE_TYPES:
-            raise ValueError(
-                f"Type {type(base_type)} is currently not supported as a base type for Array."
-            )
+    def __init__(self, base_type: PrimitiveFeastType):
+        # if base_type not in SUPPORTED_BASE_TYPES:
+        #     raise ValueError(
+        #         f"Type {type(base_type)} is currently not supported as a base type for Array."
+        #     )
 
-        self.base_type = base_type
+        super(Array, self).__init__(base_type=base_type)  # type: ignore
 
     def to_value_type(self) -> ValueType:
         assert isinstance(self.base_type, PrimitiveFeastType)
@@ -276,3 +277,40 @@ def from_feast_type(
         ]
 
     raise ValueError(f"Could not convert feast type {feast_type} to ValueType.")
+
+
+TYPE_STRINGS_TO_FEAST_TYPES: Dict[str, FeastType] = {
+    "Unknown": Invalid,
+    "Bytes": Bytes,
+    "String": String,
+    "Int32": Int32,
+    "Int64": Int64,
+    "Float64": Float64,
+    "Float32": Float32,
+    "Bool": Bool,
+    "UnixTimestamp": UnixTimestamp,
+    "Array(Bytes)": Array(Bytes),
+    "Array(String)": Array(String),
+    "Array(Int32)": Array(Int32),
+    "Array(Int64)": Array(Int64),
+    "Array(Float64)": Array(Float64),
+    "Array(Float32)": Array(Float32),
+    "Array(Bool)": Array(Bool),
+    "Array(UnixTimestamp)": Array(UnixTimestamp),
+}
+
+
+def from_string(value_type: str) -> FeastType:
+    """
+    Converts a string to a Feast type.
+
+    Args:
+        value_type: String value type to be converted.
+
+    Raises:
+        ValueError: The conversion could not be performed.
+    """
+    if value_type in TYPE_STRINGS_TO_FEAST_TYPES:
+        return TYPE_STRINGS_TO_FEAST_TYPES[value_type]
+
+    raise TypeError(f"Could not convert value type {value_type} to FeastType.")

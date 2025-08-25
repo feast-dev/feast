@@ -15,12 +15,17 @@ from typing import List, Optional, Set, Union
 import click
 from click.exceptions import BadParameter
 
-from feast import PushSource
+from feast import PushSource, SortedFeatureView
 from feast.batch_feature_view import BatchFeatureView
 from feast.constants import FEATURE_STORE_YAML_ENV_NAME
 from feast.data_source import DataSource, KafkaSource, KinesisSource
 from feast.diff.registry_diff import extract_objects_for_keep_delete_update_add
 from feast.entity import Entity
+from feast.errors import (
+    FeatureViewNotFoundException,
+    SortedFeatureViewNotFoundException,
+)
+from feast.feast_object import FeastObject
 from feast.feature_service import FeatureService
 from feast.feature_store import FeatureStore
 from feast.feature_view import DUMMY_ENTITY, FeatureView
@@ -124,6 +129,7 @@ def parse_repo(repo_root: Path) -> RepoContents:
         data_sources=[],
         entities=[],
         feature_views=[],
+        sorted_feature_views=[],
         feature_services=[],
         on_demand_feature_views=[],
         stream_feature_views=[],
@@ -158,6 +164,7 @@ def parse_repo(repo_root: Path) -> RepoContents:
                 isinstance(obj, FeatureView)
                 and not any((obj is fv) for fv in res.feature_views)
                 and not isinstance(obj, StreamFeatureView)
+                and not isinstance(obj, SortedFeatureView)
                 and not isinstance(obj, BatchFeatureView)
             ):
                 res.feature_views.append(obj)
@@ -173,6 +180,24 @@ def parse_repo(repo_root: Path) -> RepoContents:
                     stream_source = obj.stream_source
                     if not any((stream_source is ds) for ds in res.data_sources):
                         res.data_sources.append(stream_source)
+
+            elif isinstance(obj, SortedFeatureView) and not any(
+                (obj is sfv) for sfv in res.sorted_feature_views
+            ):
+                res.sorted_feature_views.append(obj)
+
+                # Handle batch sources defined with feature views.
+                batch_source = obj.batch_source
+                assert batch_source
+                if not any((batch_source is ds) for ds in res.data_sources):
+                    res.data_sources.append(batch_source)
+
+                # Handle stream sources defined with feature views.
+                if obj.stream_source:
+                    stream_source = obj.stream_source
+                    if not any((stream_source is ds) for ds in res.data_sources):
+                        res.data_sources.append(stream_source)
+
             elif isinstance(obj, StreamFeatureView) and not any(
                 (obj is sfv) for sfv in res.stream_feature_views
             ):
@@ -288,6 +313,7 @@ def extract_objects_for_apply_delete(project, registry, repo):
         Union[
             Entity,
             FeatureView,
+            SortedFeatureView,
             OnDemandFeatureView,
             StreamFeatureView,
             FeatureService,
@@ -301,6 +327,7 @@ def extract_objects_for_apply_delete(project, registry, repo):
         Union[
             Entity,
             FeatureView,
+            SortedFeatureView,
             OnDemandFeatureView,
             StreamFeatureView,
             FeatureService,
@@ -317,6 +344,55 @@ def extract_objects_for_apply_delete(project, registry, repo):
         ),
         objs_to_delete[FeastObjectType.FEATURE_VIEW],
     )
+
+
+def validate_objects_for_apply(
+    all_to_apply: List[FeastObject],
+    registry: BaseRegistry,
+    project_name: str,
+):
+    """
+    Validates objects in `all_to_apply` against existing registry entries
+    by calling each object’s `is_update_compatible_with`, unpacking the
+    returned (ok, reasons). Collects every reason and raises one ValueError
+    if any incompatibility is found.
+    """
+    errors: List[str] = []
+    validated: List[FeastObject] = []
+
+    for obj in all_to_apply:
+        incompatible = False
+
+        if hasattr(obj, "is_update_compatible_with"):
+            try:
+                if isinstance(obj, SortedFeatureView):
+                    current = registry.get_sorted_feature_view(obj.name, project_name)
+                elif isinstance(obj, FeatureView):
+                    current = registry.get_feature_view(obj.name, project_name)  # type: ignore[assignment]
+                else:
+                    current = None
+            # TODO: Add more exception types (FeatureServiceNotFoundException, etc.) as more compatibility checks are
+            #  added for more object types.
+            except (SortedFeatureViewNotFoundException, FeatureViewNotFoundException):
+                logger.warning(
+                    "'%s' not found in registry; treating as new object.",
+                    obj.name,
+                )
+                current = None
+
+            if current is not None:
+                ok, reasons = current.is_update_compatible_with(obj)
+                if not ok:
+                    for r in reasons:
+                        errors.append(f"'{obj.name}': {r}")
+                    incompatible = True
+
+        if not incompatible:
+            validated.append(obj)
+
+    # Fail with full report
+    if errors:
+        raise ValueError("Compatibility check failed for:\n" + "\n".join(errors))
 
 
 def apply_total_with_repo_instance(
@@ -341,6 +417,8 @@ def apply_total_with_repo_instance(
         views_to_delete,
     ) = extract_objects_for_apply_delete(project_name, registry, repo)
 
+    validate_objects_for_apply(all_to_apply, registry, project_name)
+
     if store._should_use_plan():
         registry_diff, infra_diff, new_infra = store.plan(repo)
         click.echo(registry_diff.to_string())
@@ -348,7 +426,11 @@ def apply_total_with_repo_instance(
         store._apply_diffs(registry_diff, infra_diff, new_infra)
         click.echo(infra_diff.to_string())
     else:
-        store.apply(all_to_apply, objects_to_delete=all_to_delete, partial=False)
+        store.apply(
+            objects=all_to_apply,
+            objects_to_delete=all_to_delete,
+            partial=False,
+        )
         log_infra_changes(views_to_keep, views_to_delete)
 
 

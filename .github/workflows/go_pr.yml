@@ -1,0 +1,85 @@
+name: go_pr
+
+on:
+  pull_request_target:
+    types:
+      - opened
+      - synchronize
+      - labeled
+
+jobs:
+  lint-go:
+    # when using pull_request_target, all jobs MUST have this if check for 'ok-to-test' or 'approved' for security purposes.
+    if:
+      ((github.event.action == 'labeled' && (github.event.label.name == 'approved' || github.event.label.name == 'lgtm' || github.event.label.name == 'ok-to-test')) ||
+      (github.event.action != 'labeled' && (contains(github.event.pull_request.labels.*.name, 'ok-to-test') || contains(github.event.pull_request.labels.*.name, 'approved') || contains(github.event.pull_request.labels.*.name, 'lgtm')))) &&
+      github.repository == 'ExpediaGroup/feast'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # pull_request_target runs the workflow in the context of the base repo
+          # as such actions/checkout needs to be explicit configured to retrieve
+          # code from the PR.
+          ref: refs/pull/${{ github.event.pull_request.number }}/merge
+          submodules: recursive
+      - name: Setup Go
+        id: setup-go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.22.5
+      - name: Lint go
+        run: make lint-go
+
+  unit-test-go:
+    # when using pull_request_target, all jobs MUST have this if check for 'ok-to-test' or 'approved' for security purposes.
+    if:
+      ((github.event.action == 'labeled' && (github.event.label.name == 'approved' || github.event.label.name == 'lgtm' || github.event.label.name == 'ok-to-test')) ||
+      (github.event.action != 'labeled' && (contains(github.event.pull_request.labels.*.name, 'ok-to-test') || contains(github.event.pull_request.labels.*.name, 'approved') || contains(github.event.pull_request.labels.*.name, 'lgtm')))) &&
+      github.repository == 'ExpediaGroup/feast'
+    runs-on: ubuntu-latest
+    needs: lint-go
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # pull_request_target runs the workflow in the context of the base repo
+          # as such actions/checkout needs to be explicit configured to retrieve
+          # code from the PR.
+          ref: refs/pull/${{ github.event.pull_request.number }}/merge
+          submodules: recursive
+      - name: Setup Go
+        id: setup-go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.23'
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        id: setup-python
+        with:
+          python-version: "3.11"
+          architecture: x64
+      - name: Test Go
+        run: make test-go
+      - uses: actions/upload-artifact@v4
+        with:
+          name: go-coverage-report
+          path: ${{ github.workspace }}/coverage.html
+
+  build-docker-image-go:
+    # when using pull_request_target, all jobs MUST have this if check for 'ok-to-test' or 'approved' for security purposes.
+    if:
+      ((github.event.action == 'labeled' && (github.event.label.name == 'approved' || github.event.label.name == 'lgtm' || github.event.label.name == 'ok-to-test')) ||
+      (github.event.action != 'labeled' && (contains(github.event.pull_request.labels.*.name, 'ok-to-test') || contains(github.event.pull_request.labels.*.name, 'approved') || contains(github.event.pull_request.labels.*.name, 'lgtm')))) &&
+      github.repository == 'ExpediaGroup/feast'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        component: [ feature-server-go ]
+    env:
+      REGISTRY: gcr.io/kf-feast
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: 'true'
+      - name: Build image
+        run: make build-${{ matrix.component }}-docker REGISTRY=${REGISTRY} VERSION=${GITHUB_SHA}

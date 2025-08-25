@@ -1,3 +1,5 @@
+//go:build !integration
+
 package registry
 
 import (
@@ -38,6 +40,40 @@ online_store:
 	assert.Equal(t, map[string]interface{}{
 		"type":              "redis",
 		"connection_string": "localhost:6379",
+	}, config.OnlineStore)
+	assert.Empty(t, config.OfflineStore)
+	assert.Empty(t, config.FeatureServer)
+	assert.Empty(t, config.Flags)
+}
+
+func TestNewRepoConfigWithEnvironmentVariables(t *testing.T) {
+	dir, err := os.MkdirTemp("", "feature_repo_*")
+	assert.Nil(t, err)
+	defer func() {
+		assert.Nil(t, os.RemoveAll(dir))
+	}()
+	filePath := filepath.Join(dir, "feature_store.yaml")
+	data := []byte(`
+project: feature_repo
+registry: "data/registry.db"
+provider: local
+online_store:
+ type: redis
+ connection_string: ${REDIS_CONNECTION_STRING}
+`)
+	err = os.WriteFile(filePath, data, 0666)
+	assert.Nil(t, err)
+	os.Setenv("REDIS_CONNECTION_STRING", "localhost:6380")
+	config, err := NewRepoConfigFromFile(dir)
+	registryConfig, err := config.GetRegistryConfig()
+	assert.Nil(t, err)
+	assert.Equal(t, "feature_repo", config.Project)
+	assert.Equal(t, dir, config.RepoPath)
+	assert.Equal(t, "data/registry.db", registryConfig.Path)
+	assert.Equal(t, "local", config.Provider)
+	assert.Equal(t, map[string]interface{}{
+		"type":              "redis",
+		"connection_string": "localhost:6380",
 	}, config.OnlineStore)
 	assert.Empty(t, config.OfflineStore)
 	assert.Empty(t, config.FeatureServer)
@@ -336,4 +372,50 @@ func TestGetLoggingOptions_InvalidType(t *testing.T) {
 	options, err := config.GetLoggingOptions()
 	assert.Nil(t, err)
 	assert.Equal(t, logging.DefaultOptions, *options)
+}
+
+func TestNewRepoConfigForScyllaDBFromJSON(t *testing.T) {
+	// Create a temporary directory for the test
+	dir, err := os.MkdirTemp("", "feature_repo_*")
+	assert.Nil(t, err)
+	defer func() {
+		assert.Nil(t, os.RemoveAll(dir))
+	}()
+
+	// Define a JSON string for the test
+	registry_path := filepath.Join(dir, "data/registry.db")
+
+	configJSON := `{
+        "project": "feature_repo",
+        "registry": "$REGISTRY_PATH",
+        "provider": "local",
+        "online_store": {
+            "type": "scylladb",
+            "hosts": ["localhost:9042"],
+			"read_batch_size": 85,
+			"table_name_format_version": 2
+        }
+    }`
+
+	replacements := map[string]string{
+		"$REGISTRY_PATH": registry_path,
+	}
+
+	// Replace the variables in the JSON string
+	for variable, replacement := range replacements {
+		configJSON = strings.ReplaceAll(configJSON, variable, replacement)
+	}
+
+	// Call the function under test
+	config, _ := NewRepoConfigFromJSON(dir, configJSON)
+	registryConfig, err := config.GetRegistryConfig()
+	// Assert that there was no error and that the config was correctly parsed
+	assert.Nil(t, err)
+	// assert.Equal(t, "feature_repo", config.Project)
+	assert.Equal(t, filepath.Join(dir, "data/registry.db"), registryConfig.Path)
+	assert.Equal(t, "local", config.Provider)
+	assert.Equal(t, float64(85), config.OnlineStore["read_batch_size"])
+	assert.Equal(t, float64(2), config.OnlineStore["table_name_format_version"])
+	assert.Equal(t, int(85), int(config.OnlineStore["read_batch_size"].(float64)))
+	assert.Equal(t, int(2), int(config.OnlineStore["table_name_format_version"].(float64)))
 }

@@ -1,5 +1,7 @@
 syntax = "proto3";
 
+package grpc.connector;
+
 import "feast/serving/ServingService.proto";
 
 option go_package = "github.com/feast-dev/feast/go/protos/feast/serving";
@@ -29,4 +31,5 @@ service GrpcFeatureServer {
     rpc Push (PushRequest) returns (PushResponse) {};
     rpc WriteToOnlineStore (WriteToOnlineStoreRequest) returns (WriteToOnlineStoreResponse);
     rpc GetOnlineFeatures (feast.serving.GetOnlineFeaturesRequest) returns (feast.serving.GetOnlineFeaturesResponse);
+    rpc GetOnlineFeaturesRange (feast.serving.GetOnlineFeaturesRangeRequest) returns (feast.serving.GetOnlineFeaturesRangeResponse);
 }

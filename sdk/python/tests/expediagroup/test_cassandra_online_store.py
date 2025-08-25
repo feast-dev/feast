@@ -1,0 +1,956 @@
+import textwrap
+import time
+from datetime import datetime, timedelta
+
+import pytest
+from cassandra import InvalidRequest
+from cassandra.cluster import Cluster
+
+from feast import Entity, Field, FileSource, RepoConfig, ValueType, utils
+from feast.infra.offline_stores.dask import DaskOfflineStoreConfig
+from feast.infra.online_stores.contrib.cassandra_online_store.cassandra_online_store import (
+    CassandraOnlineStore,
+    CassandraOnlineStoreConfig,
+)
+from feast.protos.feast.core.SortedFeatureView_pb2 import SortOrder
+from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
+from feast.protos.feast.types.Value_pb2 import (
+    BoolList,
+    BytesList,
+    DoubleList,
+    FloatList,
+    Int32List,
+    Int64List,
+    StringList,
+)
+from feast.protos.feast.types.Value_pb2 import Value as ValueProto
+from feast.sorted_feature_view import SortedFeatureView, SortKey
+from feast.types import (
+    Array,
+    Bool,
+    Bytes,
+    Float32,
+    Float64,
+    Int32,
+    Int64,
+    String,
+    UnixTimestamp,
+)
+from tests.expediagroup.cassandra_online_store_creator import (
+    EGCassandraOnlineStoreCreator,
+)
+
+REGISTRY = "s3://test_registry/registry.db"
+PROJECT = "cassandra_project"
+PROVIDER = "aws"
+ENTITY_KEY_SERIALIZATION_VERSION = 2
+
+
+@pytest.fixture(scope="session")
+def cassandra_online_store_config():
+    creator = EGCassandraOnlineStoreCreator("cassandra_project")
+    config = creator.create_online_store()
+    yield config
+    creator.teardown()
+
+
+@pytest.fixture(scope="session")
+def setup_keyspace(cassandra_online_store_config):
+    hosts = cassandra_online_store_config["hosts"]
+    port = cassandra_online_store_config["port"]
+    cluster = Cluster(hosts, port=port)
+    session = cluster.connect()
+    keyspace = "feast_keyspace"
+    create_keyspace_cql = f"""
+        CREATE KEYSPACE IF NOT EXISTS {keyspace}
+        WITH REPLICATION = {{ 'class': 'SimpleStrategy', 'replication_factor': 1 }};
+    """
+    session.execute(create_keyspace_cql)
+    yield keyspace
+    drop_keyspace_cql = f"DROP KEYSPACE {keyspace};"
+    session.execute(drop_keyspace_cql)
+    session.shutdown()
+    cluster.shutdown()
+
+
+@pytest.fixture(scope="session")
+def repo_config(cassandra_online_store_config, setup_keyspace) -> RepoConfig:
+    return RepoConfig(
+        registry=REGISTRY,
+        project=PROJECT,
+        provider=PROVIDER,
+        online_store=CassandraOnlineStoreConfig(
+            hosts=cassandra_online_store_config["hosts"],
+            port=cassandra_online_store_config["port"],
+            keyspace=setup_keyspace,
+            table_name_format_version=cassandra_online_store_config.get(
+                "table_name_format_version", 1
+            ),
+        ),
+        offline_store=DaskOfflineStoreConfig(),
+        entity_key_serialization_version=ENTITY_KEY_SERIALIZATION_VERSION,
+    )
+
+
+@pytest.fixture(scope="session")
+def long_name_repo_config(cassandra_online_store_config, setup_keyspace) -> RepoConfig:
+    return RepoConfig(
+        registry=REGISTRY,
+        project=PROJECT,
+        provider=PROVIDER,
+        online_store=CassandraOnlineStoreConfig(
+            hosts=cassandra_online_store_config["hosts"],
+            port=cassandra_online_store_config["port"],
+            keyspace=setup_keyspace,
+            table_name_format_version=cassandra_online_store_config.get(
+                "table_name_format_version", 2
+            ),
+        ),
+        offline_store=DaskOfflineStoreConfig(),
+        entity_key_serialization_version=ENTITY_KEY_SERIALIZATION_VERSION,
+    )
+
+
+@pytest.fixture(scope="session")
+def online_store(repo_config) -> CassandraOnlineStore:
+    store = CassandraOnlineStore()
+    yield store
+
+
+@pytest.fixture
+def cassandra_session(online_store, repo_config):
+    session = online_store._get_session(repo_config)
+    keyspace = online_store._keyspace
+    return session, keyspace
+
+
+class TestCassandraConnectionManager:
+    def test_connection_manager(self, repo_config, caplog, mocker):
+        mocker.patch("cassandra.cluster.Cluster.connect")
+        store = CassandraOnlineStore()
+        with store._get_session(repo_config):
+            assert f"{repo_config.online_store.hosts}" in caplog.text
+
+        Cluster.connect.assert_called_once_with(
+            repo_config.online_store.keyspace,
+        )
+
+    def test_session_shutdown(self, repo_config, mocker):
+        store = CassandraOnlineStore()
+        session = store._get_session(repo_config)
+
+        def fake_shutdown():
+            session.is_shutdown = True
+
+        mocker.patch.object(session, "shutdown", fake_shutdown)
+        store.__del__()
+        assert session.is_shutdown, "Session was not shutdown after __del__()"
+
+
+class TestCassandraOnlineStore:
+    def test_create_table_from_sorted_feature_view(
+        self,
+        cassandra_session,
+        repo_config: RepoConfig,
+        online_store: CassandraOnlineStore,
+    ):
+        """
+        Test the _create_table method of CassandraOnlineStore for sorted feature view
+        """
+        session, keyspace = cassandra_session
+
+        sorted_feature_view = SortedFeatureView(
+            name="test_sorted_feature_view",
+            entities=[Entity(name="entity1", join_keys=["entity1_id"])],
+            source=FileSource(name="my_file_source", path="test.parquet"),
+            schema=[
+                Field(name="feature1", dtype=Int64),
+                Field(name="feature2", dtype=Array(String)),
+                Field(name="sort_key1", dtype=Int64),
+                Field(name="sort_key2", dtype=String),
+            ],
+            sort_keys=[
+                SortKey(
+                    name="sort_key1",
+                    value_type=ValueType.INT64,
+                    default_sort_order=SortOrder.Enum.ASC,
+                ),
+                SortKey(
+                    name="sort_key2",
+                    value_type=ValueType.STRING,
+                    default_sort_order=SortOrder.Enum.DESC,
+                ),
+            ],
+        )
+
+        constructed_table_name_in_cassandra = online_store._fq_table_name(
+            keyspace,
+            repo_config.project,
+            sorted_feature_view,
+            repo_config.online_store.table_name_format_version,
+        )
+
+        constructed_table_name = constructed_table_name_in_cassandra.split(".")[
+            1
+        ].strip('"')
+
+        online_store._create_table(
+            repo_config, repo_config.project, sorted_feature_view
+        )
+
+        # Verify that the table now exists by querying system_schema.tables.
+        result = session.execute(
+            f"SELECT table_name FROM system_schema.tables WHERE keyspace_name='{keyspace}' AND table_name='{constructed_table_name}';"
+        )
+
+        tables = [row.table_name for row in result]
+        assert constructed_table_name in tables, "Table was not created successfully"
+
+        # Verify that the schema (columns and types) matches.
+        columns_query = textwrap.dedent(f"""\
+            SELECT column_name, type
+            FROM system_schema.columns
+            WHERE keyspace_name='{keyspace}' AND table_name='{constructed_table_name}';
+        """)
+
+        rows = session.execute(columns_query)
+        actual_columns = {row.column_name: row.type for row in rows}
+
+        expected_columns = {
+            "entity_key": "text",
+            "feature1": "blob",
+            "feature2": "blob",
+            "sort_key1": "bigint",
+            "sort_key2": "text",
+            "event_ts": "timestamp",
+            "created_ts": "timestamp",
+        }
+
+        for col, expected_type in expected_columns.items():
+            assert col in actual_columns, f"Missing column: {col}"
+            assert actual_columns[col] == expected_type, (
+                f"Column '{col}' has type '{actual_columns[col]}' but expected '{expected_type}'"
+            )
+
+    def test_cassandra_online_write_batch_with_timestamp_as_sortkey(
+        self,
+        cassandra_session,
+        repo_config: RepoConfig,
+        online_store: CassandraOnlineStore,
+    ):
+        session, keyspace = cassandra_session
+        (
+            feature_view,
+            data,
+        ) = self._create_n_test_sample_features_with_timestamp_as_sortkey()
+        constructed_table_name_in_cassandra = online_store._fq_table_name(
+            keyspace,
+            repo_config.project,
+            feature_view,
+            repo_config.online_store.table_name_format_version,
+        )
+
+        constructed_table_name = constructed_table_name_in_cassandra.split(".")[
+            1
+        ].strip('"')
+
+        online_store._create_table(repo_config, repo_config.project, feature_view)
+        online_store.online_write_batch(
+            config=repo_config,
+            table=feature_view,
+            data=data,
+            progress=None,
+        )
+        result = session.execute(
+            f"SELECT COUNT(*) from {keyspace}.{constructed_table_name};"
+        )
+        count = [row.count for row in result]
+        assert count[0] == 10
+
+    def test_cassandra_online_write_batch(
+        self,
+        cassandra_session,
+        repo_config: RepoConfig,
+        online_store: CassandraOnlineStore,
+    ):
+        session, keyspace = cassandra_session
+        (
+            feature_view,
+            data,
+        ) = self._create_n_test_sample_features()
+        constructed_table_name_in_cassandra = online_store._fq_table_name(
+            keyspace,
+            repo_config.project,
+            feature_view,
+            repo_config.online_store.table_name_format_version,
+        )
+
+        constructed_table_name = constructed_table_name_in_cassandra.split(".")[
+            1
+        ].strip('"')
+
+        online_store._create_table(repo_config, repo_config.project, feature_view)
+        online_store.online_write_batch(
+            config=repo_config,
+            table=feature_view,
+            data=data,
+            progress=None,
+        )
+        result = session.execute(
+            f"SELECT COUNT(*) from {keyspace}.{constructed_table_name};"
+        )
+        count = [row.count for row in result]
+        assert count[0] == 10
+
+    def test_validate_invalid_request_error_when_sort_keys_are_null(
+        self,
+        repo_config: RepoConfig,
+        online_store: CassandraOnlineStore,
+    ):
+        (
+            feature_view,
+            data,
+        ) = self._create_test_sample_features_with_null_sort_keys()
+
+        online_store._create_table(repo_config, repo_config.project, feature_view)
+
+        with pytest.raises(InvalidRequest) as excinfo:
+            online_store.online_write_batch(
+                config=repo_config,
+                table=feature_view,
+                data=data,
+                progress=None,
+            )
+        assert (
+            str(excinfo.value)
+            == 'Error from server: code=2200 [Invalid query] message="Invalid null value in condition for column int"'
+        )
+
+    def test_cassandra_online_write_batch_ttl(
+        self,
+        cassandra_session,
+        repo_config: RepoConfig,
+        online_store: CassandraOnlineStore,
+    ):
+        session, keyspace = cassandra_session
+        (
+            feature_view,
+            data,
+        ) = self._create_n_test_sample_features()
+        constructed_table_name_in_cassandra = online_store._fq_table_name(
+            keyspace,
+            repo_config.project,
+            feature_view,
+            repo_config.online_store.table_name_format_version,
+        )
+
+        constructed_table_name = constructed_table_name_in_cassandra.split(".")[
+            1
+        ].strip('"')
+
+        online_store._create_table(repo_config, repo_config.project, feature_view)
+        online_store.online_write_batch(
+            config=repo_config,
+            table=feature_view,
+            data=data,
+            progress=None,
+        )
+        # Wait until the records expire before querying
+        time.sleep(15)
+        result = session.execute(
+            f"SELECT COUNT(*) from {keyspace}.{constructed_table_name};"
+        )
+        count = [row.count for row in result]
+        # Number of records should be 0 as they were expired
+        assert count[0] == 0
+
+    def test_ttl_when_use_write_time_for_ttl_false(
+        self,
+        online_store: CassandraOnlineStore,
+    ):
+        # given an event timestamp 10 seconds in the past and a ttl of 30 seconds, the offset ttl should be 20 seconds
+        ttl = online_store._get_ttl(
+            timedelta(seconds=30),
+            False,
+            utils._utc_now() - timedelta(seconds=10),
+        )
+        assert ttl == 20
+
+    def test_ttl_when_use_write_time_for_ttl_false_negative_ttl(
+        self,
+        online_store: CassandraOnlineStore,
+    ):
+        # given an event timestamp 100 seconds in the past and a ttl of 30 seconds, the offset ttl should be -70 seconds
+        ttl = online_store._get_ttl(
+            timedelta(seconds=30),
+            False,
+            utils._utc_now() - timedelta(seconds=100),
+        )
+        assert ttl == -70
+
+    def test_ttl_when_use_write_time_for_ttl_false_fv_ttl_0(
+        self,
+        online_store: CassandraOnlineStore,
+    ):
+        ttl = online_store._get_ttl(
+            timedelta(0),
+            False,
+            utils._utc_now() - timedelta(seconds=15),
+        )
+        assert ttl == 0
+
+    def test_ttl_when_use_write_time_for_ttl_true_fv_ttl(
+        self,
+        online_store: CassandraOnlineStore,
+    ):
+        ttl = online_store._get_ttl(
+            timedelta(seconds=30),
+            True,
+            utils._utc_now() - timedelta(seconds=15),
+        )
+        assert ttl == 30
+
+    def test_ttl_when_use_write_time_for_ttl_true_ttl_0(
+        self,
+        online_store: CassandraOnlineStore,
+    ):
+        ttl = online_store._get_ttl(
+            timedelta(seconds=0),
+            True,
+            utils._utc_now() - timedelta(seconds=10),
+        )
+        assert ttl == 0
+
+    def test_cassandra_online_write_batch_all_datatypes(
+        self,
+        cassandra_session,
+        repo_config: RepoConfig,
+        online_store: CassandraOnlineStore,
+    ):
+        session, keyspace = cassandra_session
+        (
+            feature_view,
+            data,
+        ) = self._create_n_test_sample_features_all_datatypes()
+        constructed_table_name_in_cassandra = online_store._fq_table_name(
+            keyspace,
+            repo_config.project,
+            feature_view,
+            repo_config.online_store.table_name_format_version,
+        )
+
+        constructed_table_name = constructed_table_name_in_cassandra.split(".")[
+            1
+        ].strip('"')
+
+        online_store._create_table(repo_config, repo_config.project, feature_view)
+        online_store.online_write_batch(
+            config=repo_config,
+            table=feature_view,
+            data=data,
+            progress=None,
+        )
+        result = session.execute(
+            f"SELECT COUNT(*) from {keyspace}.{constructed_table_name};"
+        )
+        count = [row.count for row in result]
+        assert count[0] == 1
+
+    def _create_n_test_sample_features_with_timestamp_as_sortkey(self, n=10):
+        fv = SortedFeatureView(
+            name="sortedfeatureview",
+            source=FileSource(
+                name="my_file_source",
+                path="test.parquet",
+                timestamp_field="event_timestamp",
+            ),
+            entities=[Entity(name="id")],
+            sort_keys=[
+                SortKey(
+                    name="event_timestamp",
+                    value_type=ValueType.UNIX_TIMESTAMP,
+                    default_sort_order=SortOrder.DESC,
+                )
+            ],
+            schema=[
+                Field(
+                    name="id",
+                    dtype=String,
+                ),
+                Field(
+                    name="text",
+                    dtype=String,
+                ),
+                Field(
+                    name="int",
+                    dtype=Int32,
+                ),
+                Field(
+                    name="event_timestamp",
+                    dtype=UnixTimestamp,
+                ),
+            ],
+        )
+        return fv, [
+            (
+                EntityKeyProto(
+                    join_keys=["id"],
+                    entity_values=[ValueProto(string_val=str(i))],
+                ),
+                {
+                    "text": ValueProto(string_val="text"),
+                    "int": ValueProto(int32_val=n),
+                    "event_timestamp": ValueProto(
+                        unix_timestamp_val=int(datetime.utcnow().timestamp())
+                    ),
+                },
+                datetime.utcnow(),
+                None,
+            )
+            for i in range(n)
+        ]
+
+    def _create_n_test_sample_features(self, n=10):
+        fv = SortedFeatureView(
+            name="sortedfv",
+            source=FileSource(
+                name="my_file_source",
+                path="test.parquet",
+                timestamp_field="event_timestamp",
+            ),
+            entities=[Entity(name="id")],
+            ttl=timedelta(seconds=10),
+            sort_keys=[
+                SortKey(
+                    name="int",
+                    value_type=ValueType.INT32,
+                    default_sort_order=SortOrder.DESC,
+                )
+            ],
+            schema=[
+                Field(
+                    name="id",
+                    dtype=String,
+                ),
+                Field(
+                    name="text",
+                    dtype=String,
+                ),
+                Field(
+                    name="int",
+                    dtype=Int32,
+                ),
+            ],
+        )
+        return fv, [
+            (
+                EntityKeyProto(
+                    join_keys=["id"],
+                    entity_values=[ValueProto(string_val=str(i))],
+                ),
+                {
+                    "text": ValueProto(string_val="text"),
+                    "int": ValueProto(int32_val=n),
+                },
+                datetime.utcnow(),
+                None,
+            )
+            for i in range(n)
+        ]
+
+    def _create_test_sample_features_with_null_sort_keys(self):
+        fv = SortedFeatureView(
+            name="sortedfv",
+            source=FileSource(
+                name="my_file_source",
+                path="test.parquet",
+                timestamp_field="event_timestamp",
+            ),
+            entities=[Entity(name="id")],
+            ttl=timedelta(seconds=10),
+            sort_keys=[
+                SortKey(
+                    name="int",
+                    value_type=ValueType.INT32,
+                    default_sort_order=SortOrder.DESC,
+                )
+            ],
+            schema=[
+                Field(
+                    name="id",
+                    dtype=String,
+                ),
+                Field(
+                    name="text",
+                    dtype=String,
+                ),
+                Field(
+                    name="int",
+                    dtype=Int32,
+                ),
+            ],
+        )
+        return fv, [
+            (
+                EntityKeyProto(
+                    join_keys=["id"],
+                    entity_values=[ValueProto(string_val=str(1))],
+                ),
+                {
+                    "text": ValueProto(string_val="text"),
+                    "int": ValueProto(null_val=None),
+                },
+                datetime.utcnow(),
+                None,
+            ),
+            (
+                EntityKeyProto(
+                    join_keys=["id"],
+                    entity_values=[ValueProto(string_val=str(2))],
+                ),
+                {
+                    "text": ValueProto(string_val="text"),
+                    "int": ValueProto(int32_val=1),
+                },
+                datetime.utcnow(),
+                None,
+            ),
+        ]
+
+    def _create_n_test_sample_features_all_datatypes(self, n=10):
+        mlpfs_test_all_dtypes_sorted_fv = SortedFeatureView(
+            name="all_dtypes_sorted_fv",
+            entities=[
+                Entity(
+                    name="index_sfv",
+                    description="Index for the SortedFeatureView",
+                    join_keys=["index_id"],
+                    value_type=ValueType.STRING,
+                )
+            ],
+            sort_keys=[
+                SortKey(
+                    name="event_timestamp",
+                    value_type=ValueType.UNIX_TIMESTAMP,
+                    default_sort_order=SortOrder.DESC,
+                ),
+                SortKey(
+                    name="int_val",
+                    value_type=ValueType.INT32,
+                    default_sort_order=SortOrder.DESC,
+                ),
+                SortKey(
+                    name="double_val",
+                    value_type=ValueType.DOUBLE,
+                    default_sort_order=SortOrder.DESC,
+                ),
+            ],
+            source=FileSource(
+                name="my_file_source",
+                path="test.parquet",
+                timestamp_field="event_timestamp",
+            ),
+            description="Sorted Feature View with all supported feast datatypes",
+            online=True,
+            schema=[
+                Field(name="index_id", dtype=String),
+                Field(name="int_val", dtype=Int32),
+                Field(name="long_val", dtype=Int64),
+                Field(name="float_val", dtype=Float32),
+                Field(name="double_val", dtype=Float64),
+                Field(name="byte_val", dtype=Bytes),
+                Field(name="string_val", dtype=String),
+                Field(name="timestamp_val", dtype=UnixTimestamp),
+                Field(name="boolean_val", dtype=Bool),
+                Field(name="array_int_val", dtype=Array(Int32)),
+                Field(name="array_long_val", dtype=Array(Int64)),
+                Field(name="array_float_val", dtype=Array(Float32)),
+                Field(name="array_double_val", dtype=Array(Float64)),
+                Field(name="array_byte_val", dtype=Array(Bytes)),
+                Field(name="array_string_val", dtype=Array(String)),
+                Field(name="array_timestamp_val", dtype=Array(UnixTimestamp)),
+                Field(name="array_boolean_val", dtype=Array(Bool)),
+                Field(name="null_int_val", dtype=Int32),
+                Field(name="null_long_val", dtype=Int64),
+                Field(name="null_float_val", dtype=Float32),
+                Field(name="null_double_val", dtype=Float64),
+                Field(name="null_byte_val", dtype=Bytes),
+                Field(name="null_string_val", dtype=String),
+                Field(name="null_timestamp_val", dtype=UnixTimestamp),
+                Field(name="null_boolean_val", dtype=Bool),
+                Field(name="null_array_int_val", dtype=Array(Int32)),
+                Field(name="null_array_long_val", dtype=Array(Int64)),
+                Field(name="null_array_float_val", dtype=Array(Float32)),
+                Field(name="null_array_double_val", dtype=Array(Float64)),
+                Field(name="null_array_byte_val", dtype=Array(Bytes)),
+                Field(name="null_array_string_val", dtype=Array(String)),
+                Field(name="null_array_timestamp_val", dtype=Array(UnixTimestamp)),
+                Field(name="null_array_boolean_val", dtype=Array(Bool)),
+                Field(name="event_timestamp", dtype=UnixTimestamp),
+            ],
+        )
+
+        return mlpfs_test_all_dtypes_sorted_fv, [
+            (
+                EntityKeyProto(
+                    join_keys=["index_id"],
+                    entity_values=[ValueProto(string_val=str(1))],
+                ),
+                {
+                    "int_val": ValueProto(int32_val=826),
+                    "long_val": ValueProto(int64_val=79856),
+                    "float_val": ValueProto(float_val=12.433371),
+                    "double_val": ValueProto(double_val=8.295230388348628),
+                    "byte_val": ValueProto(
+                        bytes_val=bytes("some random byte", "utf-8")
+                    ),
+                    "string_val": ValueProto(string_val="text"),
+                    "timestamp_val": ValueProto(unix_timestamp_val=n),
+                    "boolean_val": ValueProto(bool_val=True),
+                    "array_int_val": ValueProto(
+                        int32_list_val=Int32List(val=[712, 317])
+                    ),
+                    "array_long_val": ValueProto(
+                        int64_list_val=Int64List(val=[34949, 51284])
+                    ),
+                    "array_float_val": ValueProto(
+                        float_list_val=FloatList(val=[25.404484, 48.07086])
+                    ),
+                    "array_double_val": ValueProto(
+                        double_list_val=DoubleList(
+                            val=[98.94745193632949, 98.94745193632949]
+                        )
+                    ),
+                    "array_byte_val": ValueProto(
+                        bytes_list_val=BytesList(
+                            val=[
+                                bytes("some random byte", "utf-8"),
+                                bytes("some random byte", "utf-8"),
+                            ]
+                        )
+                    ),
+                    "array_string_val": ValueProto(
+                        string_list_val=StringList(val=["6J0T8", "9EN4B"])
+                    ),
+                    "array_timestamp_val": ValueProto(
+                        unix_timestamp_list_val=Int64List(val=[34949, 51284])
+                    ),
+                    "array_boolean_val": ValueProto(
+                        bool_list_val=BoolList(val=[True, True])
+                    ),
+                    "null_int_val": ValueProto(null_val=None),
+                    "null_long_val": ValueProto(null_val=None),
+                    "null_float_val": ValueProto(null_val=None),
+                    "null_double_val": ValueProto(null_val=None),
+                    "null_byte_val": ValueProto(null_val=None),
+                    "null_string_val": ValueProto(null_val=None),
+                    "null_timestamp_val": ValueProto(null_val=None),
+                    "null_boolean_val": ValueProto(null_val=None),
+                    "null_array_int_val": ValueProto(null_val=None),
+                    "null_array_long_val": ValueProto(null_val=None),
+                    "null_array_float_val": ValueProto(null_val=None),
+                    "null_array_double_val": ValueProto(null_val=None),
+                    "null_array_byte_val": ValueProto(null_val=None),
+                    "null_array_string_val": ValueProto(null_val=None),
+                    "null_array_timestamp_val": ValueProto(null_val=None),
+                    "null_array_boolean_val": ValueProto(null_val=None),
+                    "event_timestamp": ValueProto(int32_val=n),
+                },
+                datetime.utcnow(),
+                None,
+            )
+        ]
+
+
+def test_update_alters_existing_table_adds_new_column(
+    cassandra_session, repo_config, online_store
+):
+    session, keyspace = cassandra_session
+
+    fv1 = SortedFeatureView(
+        name="fv_alter_test",
+        entities=[Entity(name="id")],
+        source=FileSource(name="src", path="x.parquet", timestamp_field="ts"),
+        schema=[
+            Field(name="sort_key", dtype=Int32),
+            Field(name="f1", dtype=String),
+        ],
+        sort_keys=[
+            SortKey(
+                name="sort_key",
+                value_type=ValueType.INT32,
+                default_sort_order=SortOrder.Enum.ASC,
+            )
+        ],
+    )
+
+    online_store._create_table(repo_config, repo_config.project, fv1)
+
+    online_store_table = (
+        online_store._fq_table_name(
+            keyspace,
+            repo_config.project,
+            fv1,
+            repo_config.online_store.table_name_format_version,
+        )
+        .split(".", 1)[1]
+        .strip('"')
+    )
+
+    cols = session.execute(
+        textwrap.dedent(f"""
+            SELECT column_name
+            FROM system_schema.columns
+            WHERE keyspace_name='{keyspace}' AND table_name='{online_store_table}';
+        """)
+    )
+    names = {r.column_name for r in cols}
+    assert "f1" in names and "f2" not in names
+
+    fv2 = SortedFeatureView(
+        name="fv_alter_test",
+        entities=[Entity(name="id")],
+        source=FileSource(name="src", path="x.parquet", timestamp_field="ts"),
+        schema=[
+            Field(name="sort_key", dtype=Int32),
+            Field(name="f1", dtype=String),
+            Field(name="f2", dtype=String),
+        ],
+        sort_keys=fv1.sort_keys,
+    )
+
+    online_store.update(
+        config=repo_config,
+        tables_to_delete=[],
+        tables_to_keep=[fv2],
+        entities_to_delete=[],
+        entities_to_keep=[],
+        partial=False,
+    )
+
+    cols = session.execute(
+        textwrap.dedent(f"""
+            SELECT column_name
+            FROM system_schema.columns
+            WHERE keyspace_name='{keyspace}' AND table_name='{online_store_table}';
+        """)
+    )
+    names = {r.column_name for r in cols}
+    assert {"f1", "f2", "sort_key", "entity_key", "event_ts", "created_ts"}.issubset(
+        names
+    )
+
+
+def test_update_noop_when_schema_unchanged(
+    cassandra_session, repo_config, online_store
+):
+    session, keyspace = cassandra_session
+
+    fv = SortedFeatureView(
+        name="fv_noop_test",
+        entities=[Entity(name="id")],
+        source=FileSource(name="src", path="x.parquet", timestamp_field="ts"),
+        schema=[
+            Field(name="sort_key", dtype=Int32),
+            Field(name="f1", dtype=String),
+        ],
+        sort_keys=[
+            SortKey(
+                name="sort_key",
+                value_type=ValueType.INT32,
+                default_sort_order=SortOrder.Enum.ASC,
+            )
+        ],
+    )
+
+    online_store.update(
+        config=repo_config,
+        tables_to_delete=[],
+        tables_to_keep=[fv],
+        entities_to_delete=[],
+        entities_to_keep=[],
+        partial=False,
+    )
+
+    online_store_table = (
+        online_store._fq_table_name(
+            keyspace,
+            repo_config.project,
+            fv,
+            repo_config.online_store.table_name_format_version,
+        )
+        .split(".", 1)[1]
+        .strip('"')
+    )
+
+    before = {
+        r.column_name
+        for r in session.execute(
+            f"SELECT column_name FROM system_schema.columns "
+            f"WHERE keyspace_name='{keyspace}' AND table_name='{online_store_table}';"
+        )
+    }
+
+    # run update again with identical fv
+    online_store.update(
+        config=repo_config,
+        tables_to_delete=[],
+        tables_to_keep=[fv],
+        entities_to_delete=[],
+        entities_to_keep=[],
+        partial=False,
+    )
+
+    after = {
+        r.column_name
+        for r in session.execute(
+            f"SELECT column_name FROM system_schema.columns "
+            f"WHERE keyspace_name='{keyspace}' AND table_name='{online_store_table}';"
+        )
+    }
+
+    assert before == after
+
+
+def test_resolve_table_names_v2_preserves_case(
+    cassandra_session, long_name_repo_config, online_store
+):
+    session, keyspace = cassandra_session
+    # build a feature view name so long that V2 hashing will trigger mixed-case
+    fv_name = "VeryLongFeatureViewName_" + "X" * 60
+    sfv = SortedFeatureView(
+        name=fv_name,
+        entities=[Entity(name="id", join_keys=["id"])],
+        source=FileSource(name="src", path="path", timestamp_field="ts"),
+        schema=[
+            Field(name="ts", dtype=UnixTimestamp),
+        ],
+        sort_keys=[
+            SortKey(
+                name="ts",
+                value_type=ValueType.UNIX_TIMESTAMP,
+                default_sort_order=SortOrder.Enum.ASC,
+            )
+        ],
+    )
+
+    # compute the fully‐qualified name
+    fqtable = online_store._fq_table_name(
+        keyspace,
+        long_name_repo_config.project,
+        sfv,
+        long_name_repo_config.online_store.table_name_format_version,
+    )
+
+    quoted = fqtable.split(".", 1)[1]
+    expected_plain = quoted.strip('"')
+
+    _, actual_plain = online_store._resolve_table_names(
+        long_name_repo_config, long_name_repo_config.project, sfv
+    )
+
+    assert actual_plain == expected_plain, (
+        f"resolve_table_names lowercased the identifier:\n"
+        f"  expected: {expected_plain}\n"
+        f"  got:      {actual_plain}"
+    )

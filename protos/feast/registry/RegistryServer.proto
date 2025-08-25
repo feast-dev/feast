@@ -4,18 +4,19 @@ package feast.registry;
 
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
-import "feast/core/Registry.proto";
-import "feast/core/Entity.proto";
 import "feast/core/DataSource.proto";
-import "feast/core/FeatureView.proto";
-import "feast/core/StreamFeatureView.proto";
-import "feast/core/OnDemandFeatureView.proto";
+import "feast/core/Entity.proto";
 import "feast/core/FeatureService.proto";
-import "feast/core/SavedDataset.proto";
-import "feast/core/ValidationProfile.proto";
+import "feast/core/FeatureView.proto";
 import "feast/core/InfraObject.proto";
+import "feast/core/OnDemandFeatureView.proto";
 import "feast/core/Permission.proto";
 import "feast/core/Project.proto";
+import "feast/core/Registry.proto";
+import "feast/core/SavedDataset.proto";
+import "feast/core/SortedFeatureView.proto";
+import "feast/core/StreamFeatureView.proto";
+import "feast/core/ValidationProfile.proto";
 
 option go_package = "github.com/feast-dev/feast/go/protos/feast/registry";
 
@@ -41,6 +42,10 @@ service RegistryServer{
   // plain FeatureView RPCs
   rpc GetFeatureView (GetFeatureViewRequest) returns (feast.core.FeatureView) {}
   rpc ListFeatureViews (ListFeatureViewsRequest) returns (ListFeatureViewsResponse) {}
+
+  // SortedFeatureView RPCs
+  rpc GetSortedFeatureView (GetSortedFeatureViewRequest) returns (feast.core.SortedFeatureView) {}
+  rpc ListSortedFeatureViews (ListSortedFeatureViewsRequest) returns (ListSortedFeatureViewsResponse) {}
 
   // StreamFeatureView RPCs
   rpc GetStreamFeatureView (GetStreamFeatureViewRequest) returns (feast.core.StreamFeatureView) {}
@@ -220,6 +225,7 @@ message ApplyFeatureViewRequest {
     feast.core.FeatureView feature_view = 1;
     feast.core.OnDemandFeatureView on_demand_feature_view = 2;
     feast.core.StreamFeatureView stream_feature_view = 3;
+    feast.core.SortedFeatureView sorted_feature_view = 30;
   }
   string project = 4;
   bool commit = 5;
@@ -255,7 +261,8 @@ message AnyFeatureView {
         feast.core.FeatureView feature_view = 1;
         feast.core.OnDemandFeatureView on_demand_feature_view = 2;
         feast.core.StreamFeatureView stream_feature_view = 3;
-    }    
+        feast.core.SortedFeatureView sorted_feature_view = 30;
+    }
 }
 
 message GetAnyFeatureViewRequest {
@@ -326,6 +333,24 @@ message ListOnDemandFeatureViewsRequest {
 message ListOnDemandFeatureViewsResponse {
     repeated feast.core.OnDemandFeatureView on_demand_feature_views = 1;
     PaginationMetadata pagination = 2;
+}
+
+// SortedFeatureView for range queries
+
+message GetSortedFeatureViewRequest {
+  string name = 1;
+  string project = 2;
+  bool allow_cache = 3;
+}
+
+message ListSortedFeatureViewsRequest {
+  string project = 1;
+  bool allow_cache = 2;
+  map<string,string> tags = 3;
+}
+
+message ListSortedFeatureViewsResponse {
+  repeated feast.core.SortedFeatureView sorted_feature_views = 1;
 }
 
 // FeatureServices

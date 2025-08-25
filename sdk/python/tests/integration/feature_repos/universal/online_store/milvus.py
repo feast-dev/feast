@@ -6,6 +6,9 @@ from tests.integration.feature_repos.universal.online_store_creator import (
 
 
 class MilvusOnlineStoreCreator(OnlineStoreCreator):
+    def teardown(self):
+        pass
+
     def __init__(self, project_name: str, **kwargs):
         super().__init__(project_name)
 

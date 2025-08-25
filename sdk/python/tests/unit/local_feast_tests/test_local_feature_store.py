@@ -654,7 +654,7 @@ def test_apply_stream_feature_view_udf(test_feature_store, simple_dataset_1) -> 
         def pandas_view(pandas_df):
             import pandas as pd
 
-            assert type(pandas_df) == pd.DataFrame
+            assert isinstance(pandas_df, pd.DataFrame)
             df = pandas_df.transform(lambda x: x + 10)
             df.insert(2, "C", [20.2, 230.0, 34.0], True)
             return df

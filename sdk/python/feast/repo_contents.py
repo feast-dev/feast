@@ -21,6 +21,7 @@ from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.permissions.permission import Permission
 from feast.project import Project
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
+from feast.sorted_feature_view import SortedFeatureView
 from feast.stream_feature_view import StreamFeatureView
 
 
@@ -32,6 +33,7 @@ class RepoContents(NamedTuple):
     projects: List[Project]
     data_sources: List[DataSource]
     feature_views: List[FeatureView]
+    sorted_feature_views: List[SortedFeatureView]
     on_demand_feature_views: List[OnDemandFeatureView]
     stream_feature_views: List[StreamFeatureView]
     entities: List[Entity]
@@ -45,6 +47,9 @@ class RepoContents(NamedTuple):
         registry_proto.entities.extend([e.to_proto() for e in self.entities])
         registry_proto.feature_views.extend(
             [fv.to_proto() for fv in self.feature_views]
+        )
+        registry_proto.sorted_feature_views.extend(
+            [fv.to_proto() for fv in self.sorted_feature_views]
         )
         registry_proto.on_demand_feature_views.extend(
             [fv.to_proto() for fv in self.on_demand_feature_views]

@@ -152,6 +152,7 @@ celerybeat-schedule
 # Environments
 .env
 .venv
+.venv*
 env/
 venv/
 ENV/
@@ -238,3 +239,9 @@ infra/website/.astro/
 
 # offline builds
 offline_build/
+
+/sdk/python/feast/open_api/
+/sdk/python/feast/test_open_api/
+
+venv39/*
+test.go

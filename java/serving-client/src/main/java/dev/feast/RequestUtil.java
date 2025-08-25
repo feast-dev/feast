@@ -16,7 +16,11 @@
  */
 package dev.feast;
 
+import com.google.protobuf.ByteString;
 import feast.proto.serving.ServingAPIProto.FeatureReferenceV2;
+import feast.proto.types.ValueProto;
+import feast.proto.types.ValueProto.Value;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -74,5 +78,129 @@ public class RequestUtil {
             .build();
 
     return featureRef;
+  }
+
+  public static Value objectToValue(Object value) {
+    if (value == null) {
+      return Value.newBuilder().setNullVal(ValueProto.Null.NULL).build();
+    }
+    switch (value.getClass().getCanonicalName()) {
+      case "java.lang.Integer":
+        return Value.newBuilder().setInt32Val((int) value).build();
+      case "java.lang.Long":
+        return Value.newBuilder().setInt64Val((long) value).build();
+      case "java.lang.Float":
+        return Value.newBuilder().setFloatVal((float) value).build();
+      case "java.lang.Double":
+        return Value.newBuilder().setDoubleVal((double) value).build();
+      case "java.lang.String":
+        return Value.newBuilder().setStringVal((String) value).build();
+      case "byte[]":
+        return Value.newBuilder().setBytesVal(ByteString.copyFrom((byte[]) value)).build();
+      case "java.lang.Boolean":
+        return Value.newBuilder().setBoolVal((boolean) value).build();
+      case "feast.proto.types.ValueProto.Value":
+        return (Value) value;
+      case "java.time.LocalDateTime":
+        return Value.newBuilder()
+            .setUnixTimestampVal(
+                ((java.time.LocalDateTime) value).toInstant(ZoneOffset.UTC).getEpochSecond())
+            .build();
+      case "java.time.Instant":
+        return Value.newBuilder()
+            .setUnixTimestampVal(((java.time.Instant) value).getEpochSecond())
+            .build();
+      case "java.time.OffsetDateTime":
+        return Value.newBuilder()
+            .setUnixTimestampVal(((java.time.OffsetDateTime) value).toInstant().getEpochSecond())
+            .build();
+      case "java.util.Arrays.ArrayList":
+        if (((List<?>) value).isEmpty()) {
+          throw new IllegalArgumentException("Unsupported empty list type");
+        }
+
+        try {
+          switch (((List<?>) value).get(0).getClass().getCanonicalName()) {
+            case "java.lang.Integer":
+              return Value.newBuilder()
+                  .setInt32ListVal(
+                      ValueProto.Int32List.newBuilder().addAllVal((List<Integer>) value).build())
+                  .build();
+            case "java.lang.Long":
+              return Value.newBuilder()
+                  .setInt64ListVal(
+                      ValueProto.Int64List.newBuilder().addAllVal((List<Long>) value).build())
+                  .build();
+            case "java.lang.Float":
+              return Value.newBuilder()
+                  .setFloatListVal(
+                      ValueProto.FloatList.newBuilder().addAllVal((List<Float>) value).build())
+                  .build();
+            case "java.lang.Double":
+              return Value.newBuilder()
+                  .setDoubleListVal(
+                      ValueProto.DoubleList.newBuilder().addAllVal((List<Double>) value).build())
+                  .build();
+            case "java.lang.String":
+              return Value.newBuilder()
+                  .setStringListVal(
+                      ValueProto.StringList.newBuilder().addAllVal((List<String>) value).build())
+                  .build();
+            case "byte[]":
+              List<ByteString> byteList =
+                  ((List<byte[]>) value)
+                      .stream().map(ByteString::copyFrom).collect(Collectors.toList());
+              return Value.newBuilder()
+                  .setBytesListVal(ValueProto.BytesList.newBuilder().addAllVal(byteList).build())
+                  .build();
+            case "java.lang.Boolean":
+              return Value.newBuilder()
+                  .setBoolListVal(
+                      ValueProto.BoolList.newBuilder().addAllVal((List<Boolean>) value).build())
+                  .build();
+            case "java.time.LocalDateTime":
+              List<Long> timestamps =
+                  ((List<java.time.LocalDateTime>) value)
+                      .stream()
+                          .map(dt -> dt.toInstant(ZoneOffset.UTC).getEpochSecond())
+                          .collect(Collectors.toList());
+              return Value.newBuilder()
+                  .setUnixTimestampListVal(
+                      ValueProto.Int64List.newBuilder().addAllVal(timestamps).build())
+                  .build();
+            case "java.time.Instant":
+              List<Long> instantTimestamps =
+                  ((List<java.time.Instant>) value)
+                      .stream()
+                          .map(instant -> instant.getEpochSecond())
+                          .collect(Collectors.toList());
+              return Value.newBuilder()
+                  .setUnixTimestampListVal(
+                      ValueProto.Int64List.newBuilder().addAllVal(instantTimestamps).build())
+                  .build();
+            case "java.time.OffsetDateTime":
+              List<Long> offsetTimestamps =
+                  ((List<java.time.OffsetDateTime>) value)
+                      .stream()
+                          .map(offsetDateTime -> offsetDateTime.toInstant().getEpochSecond())
+                          .collect(Collectors.toList());
+              return Value.newBuilder()
+                  .setUnixTimestampListVal(
+                      ValueProto.Int64List.newBuilder().addAllVal(offsetTimestamps).build())
+                  .build();
+            default:
+              throw new IllegalArgumentException(
+                  String.format(
+                      "Unsupported list type: %s",
+                      ((List<?>) value).get(0).getClass().getSimpleName()));
+          }
+        } catch (ClassCastException e) {
+          throw new IllegalArgumentException(
+              String.format("Unknown list type, error during casting: %s", e.getMessage()));
+        }
+      default:
+        throw new IllegalArgumentException(
+            String.format("Unsupported type: %s", value.getClass().getSimpleName()));
+    }
   }
 }

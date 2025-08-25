@@ -785,7 +785,7 @@ def _get_entity_df_event_timestamp_range(
             or entity_df_event_timestamp_range[1] is None
         ):
             raise EntitySQLEmptyResults(entity_df)
-        if type(entity_df_event_timestamp_range[0]) != datetime:
+        if not isinstance(entity_df_event_timestamp_range[0], datetime):
             raise EntityDFNotDateTime()
     elif isinstance(entity_df, pd.DataFrame):
         entity_df_event_timestamp = entity_df.loc[

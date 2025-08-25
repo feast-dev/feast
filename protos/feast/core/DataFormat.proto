@@ -56,10 +56,17 @@ message StreamFormat {
     string schema_json = 1;
   }
 
+  // Confluent Avro fetches schema from a schema registry
+  message ConfluentAvroFormat {
+    string record_name = 1;
+    string record_namespace = 2;
+  }
+
   // Specifies the data format and format specific options
   oneof format {
     AvroFormat avro_format = 1;
     ProtoFormat proto_format = 2;
     JsonFormat json_format = 3;
+    ConfluentAvroFormat confluent_avro_format = 4;
   }
 }

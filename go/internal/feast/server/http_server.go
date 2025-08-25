@@ -4,11 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/feast-dev/feast/go/internal/feast/version"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"net/http"
-	//"os"
+	"os"
 	"runtime"
 	"strconv"
-	//"strings"
+	"strings"
 	"time"
 
 	"github.com/feast-dev/feast/go/internal/feast"
@@ -19,14 +22,22 @@ import (
 	prototypes "github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/feast-dev/feast/go/types"
 	"github.com/rs/zerolog/log"
-	//httptrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/net/http"
-	//"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
+	httptrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/net/http"
+	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 )
 
-type httpServer struct {
+type HttpServer struct {
 	fs             *feast.FeatureStore
 	loggingService *logging.LoggingService
 	server         *http.Server
+}
+
+// This represents mapping between a Path and an http Handler.
+// Note a handler can be created out of any func with type signature
+// func(w http.ResponseWriter, r *http.Request) via HandleFunc()
+type Handler struct {
+	Path        string
+	HandlerFunc http.Handler
 }
 
 // Some Feast types aren't supported during JSON conversion
@@ -89,6 +100,119 @@ func (u *repeatedValue) UnmarshalJSON(data []byte) error {
 	return err
 }
 
+func parseValueFromJSON(data json.RawMessage) (*prototypes.Value, error) {
+	var result prototypes.Value
+
+	var stringVal string
+	if err := json.Unmarshal(data, &stringVal); err == nil {
+		result.Val = &prototypes.Value_StringVal{StringVal: stringVal}
+		return &result, nil
+	}
+
+	var intVal int64
+	if err := json.Unmarshal(data, &intVal); err == nil {
+		result.Val = &prototypes.Value_Int64Val{Int64Val: intVal}
+		return &result, nil
+	}
+
+	var floatVal float64
+	if err := json.Unmarshal(data, &floatVal); err == nil {
+		result.Val = &prototypes.Value_DoubleVal{DoubleVal: floatVal}
+		return &result, nil
+	}
+
+	var boolVal bool
+	if err := json.Unmarshal(data, &boolVal); err == nil {
+		result.Val = &prototypes.Value_BoolVal{BoolVal: boolVal}
+		return &result, nil
+	}
+
+	var valueObj map[string]interface{}
+	if err := json.Unmarshal(data, &valueObj); err == nil {
+		if timestampVal, ok := valueObj["unix_timestamp_val"]; ok {
+			if ts, ok := timestampVal.(float64); ok {
+				result.Val = &prototypes.Value_UnixTimestampVal{UnixTimestampVal: int64(ts)}
+				return &result, nil
+			}
+		}
+	}
+
+	return nil, fmt.Errorf("could not parse JSON value: %s", string(data))
+}
+
+func processFeatureVectors(
+	vectors []*onlineserving.RangeFeatureVector,
+	includeMetadata bool,
+	entitiesProto map[string]*prototypes.RepeatedValue) ([]string, map[string]interface{}, []map[string]interface{}, error) {
+
+	entities := make(map[string]interface{})
+	for entityName, entityProto := range entitiesProto {
+		entityValues := make([]interface{}, len(entityProto.Val))
+		for j, val := range entityProto.Val {
+			entityValues[j] = types.ValueTypeToGoTypeTimestampAsString(val)
+		}
+		entities[entityName] = entityValues
+	}
+
+	featureNames := make([]string, 0, len(vectors))
+	results := make([]map[string]interface{}, 0, len(vectors))
+
+	for _, vector := range vectors {
+		featureNames = append(featureNames, vector.Name)
+
+		rangeValues, err := types.ArrowValuesToRepeatedProtoValues(vector.RangeValues)
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("error converting feature '%s' from Arrow to Proto: %w", vector.Name, err)
+		}
+
+		result := make(map[string]interface{})
+
+		simplifiedValues := make([]interface{}, len(rangeValues))
+		for j, repeatedValue := range rangeValues {
+			if repeatedValue == nil || len(repeatedValue.Val) == 0 {
+				simplifiedValues[j] = nil
+				continue
+			}
+
+			rangeForEntity := make([]interface{}, len(repeatedValue.Val))
+			for k, val := range repeatedValue.Val {
+				goValue := types.ValueTypeToGoTypeTimestampAsString(val)
+				if goValue == nil {
+					rangeForEntity[k] = nil
+				} else {
+					rangeForEntity[k] = goValue
+				}
+			}
+			simplifiedValues[j] = rangeForEntity
+		}
+		result["values"] = simplifiedValues
+
+		if includeMetadata {
+			statusValues := make([][]string, len(vector.RangeStatuses))
+			for j, entityStatuses := range vector.RangeStatuses {
+				statusValues[j] = make([]string, len(entityStatuses))
+				for k, stat := range entityStatuses {
+					statusValues[j][k] = stat.String()
+				}
+			}
+			result["statuses"] = statusValues
+
+			timestampValues := make([][]interface{}, len(vector.RangeTimestamps))
+			for j, entityTimestamps := range vector.RangeTimestamps {
+				timestampValues[j] = make([]interface{}, len(entityTimestamps))
+				for k, ts := range entityTimestamps {
+					timestampValues[j][k] = ts.AsTime().Format(time.RFC3339)
+				}
+			}
+			result["event_timestamps"] = timestampValues
+		}
+
+		results = append(results, result)
+	}
+
+	return featureNames, entities, results, nil
+}
+
 func (u *repeatedValue) ToProto() *prototypes.RepeatedValue {
 	proto := new(prototypes.RepeatedValue)
 	if u.stringVal != nil {
@@ -134,6 +258,59 @@ func (u *repeatedValue) ToProto() *prototypes.RepeatedValue {
 	return proto
 }
 
+func (filter sortKeyFilter) ToProto() (*serving.SortKeyFilter, error) {
+	proto := &serving.SortKeyFilter{
+		SortKeyName: filter.SortKeyName,
+	}
+
+	if filter.Equals == nil && filter.Range.RangeStart == nil && filter.Range.RangeEnd == nil {
+		return nil, fmt.Errorf("SortKeyFilter must have either equals or range")
+	}
+
+	if filter.Equals != nil && (filter.Range.RangeStart != nil || filter.Range.RangeEnd != nil) {
+		return nil, fmt.Errorf("SortKeyFilter must have either equals or range, but not both")
+	}
+
+	if filter.Equals != nil {
+		value, err := parseValueFromJSON(filter.Equals)
+		if err != nil {
+			return nil, fmt.Errorf("error parsing equals filter: %w", err)
+		}
+
+		proto.Query = &serving.SortKeyFilter_Equals{
+			Equals: value,
+		}
+		return proto, nil
+	}
+
+	rangeQuery := &serving.SortKeyFilter_RangeQuery{
+		StartInclusive: filter.Range.StartInclusive,
+		EndInclusive:   filter.Range.EndInclusive,
+	}
+
+	if filter.Range.RangeStart != nil {
+		value, err := parseValueFromJSON(filter.Range.RangeStart)
+		if err != nil {
+			return nil, fmt.Errorf("error parsing range_start: %w", err)
+		}
+		rangeQuery.RangeStart = value
+	}
+
+	if filter.Range.RangeEnd != nil {
+		value, err := parseValueFromJSON(filter.Range.RangeEnd)
+		if err != nil {
+			return nil, fmt.Errorf("error parsing range_end: %w", err)
+		}
+		rangeQuery.RangeEnd = value
+	}
+
+	proto.Query = &serving.SortKeyFilter_Range{
+		Range: rangeQuery,
+	}
+
+	return proto, nil
+}
+
 type getOnlineFeaturesRequest struct {
 	FeatureService   *string                  `json:"feature_service"`
 	Features         []string                 `json:"features"`
@@ -142,21 +319,61 @@ type getOnlineFeaturesRequest struct {
 	RequestContext   map[string]repeatedValue `json:"request_context"`
 }
 
-func NewHttpServer(fs *feast.FeatureStore, loggingService *logging.LoggingService) *httpServer {
-	return &httpServer{fs: fs, loggingService: loggingService}
+func NewHttpServer(fs *feast.FeatureStore, loggingService *logging.LoggingService) *HttpServer {
+	return &HttpServer{fs: fs, loggingService: loggingService}
 }
 
-func (s *httpServer) getOnlineFeatures(w http.ResponseWriter, r *http.Request) {
+func parseIncludeMetadata(r *http.Request) (bool, error) {
+	q := r.URL.Query()
+	raw := strings.TrimSpace(q.Get("includeMetadata"))
+	if raw == "" {
+		raw = strings.TrimSpace(q.Get("include_metadata"))
+	}
+	if raw == "" {
+		return false, nil
+	}
+	return strconv.ParseBool(raw)
+}
+
+func (s *HttpServer) getVersion(w http.ResponseWriter, r *http.Request) {
+	span, _ := tracer.StartSpanFromContext(r.Context(), "getVersion", tracer.ResourceName("/get-version"))
+	defer span.Finish()
+
+	logSpanContext := LogWithSpanContext(span)
+
+	if r.Method != "GET" {
+		http.NotFound(w, r)
+		return
+	}
+
+	versionInfo := version.GetVersionInfo()
+	w.Header().Set("Content-Type", "application/json")
+	err := json.NewEncoder(w).Encode(versionInfo)
+	if err != nil {
+		logSpanContext.Error().Err(err).Msg("Error encoding version response")
+		writeJSONError(w, fmt.Errorf("error encoding version response: %+v", err), http.StatusInternalServerError)
+		return
+	}
+}
+
+func (s *HttpServer) getOnlineFeatures(w http.ResponseWriter, r *http.Request) {
 	var err error
+	var featureVectors []*onlineserving.FeatureVector
 
-	ctx := r.Context()
-	//span, ctx := tracer.StartSpanFromContext(r.Context(), "getOnlineFeatures", tracer.ResourceName("/get-online-features"))
-	//defer span.Finish(tracer.WithError(err))
+	span, ctx := tracer.StartSpanFromContext(r.Context(), "getOnlineFeatures", tracer.ResourceName("/get-online-features"))
+	defer span.Finish(tracer.WithError(err))
 
-	//logSpanContext := LogWithSpanContext(span)
+	logSpanContext := LogWithSpanContext(span)
 
 	if r.Method != "POST" {
 		http.NotFound(w, r)
+		return
+	}
+
+	includeMetadata, err := parseIncludeMetadata(r)
+	if err != nil {
+		logSpanContext.Error().Err(err).Msg("Error parsing includeMetadata query parameter")
+		writeJSONError(w, fmt.Errorf("error parsing includeMetadata query parameter: %w", err), http.StatusBadRequest)
 		return
 	}
 
@@ -176,7 +393,7 @@ func (s *httpServer) getOnlineFeatures(w http.ResponseWriter, r *http.Request) {
 	var request getOnlineFeaturesRequest
 	err = decoder.Decode(&request)
 	if err != nil {
-		//logSpanContext.Error().Err(err).Msg("Error decoding JSON request data")
+		logSpanContext.Error().Err(err).Msg("Error decoding JSON request data")
 		writeJSONError(w, fmt.Errorf("Error decoding JSON request data: %+v", err), http.StatusInternalServerError)
 		return
 	}
@@ -184,7 +401,7 @@ func (s *httpServer) getOnlineFeatures(w http.ResponseWriter, r *http.Request) {
 	if request.FeatureService != nil {
 		featureService, err = s.fs.GetFeatureService(*request.FeatureService)
 		if err != nil {
-			//logSpanContext.Error().Err(err).Msg("Error getting feature service from registry")
+			logSpanContext.Error().Err(err).Msg("Error getting feature service from registry")
 			writeJSONError(w, fmt.Errorf("Error getting feature service from registry: %+v", err), http.StatusInternalServerError)
 			return
 		}
@@ -198,7 +415,7 @@ func (s *httpServer) getOnlineFeatures(w http.ResponseWriter, r *http.Request) {
 		requestContextProto[key] = value.ToProto()
 	}
 
-	featureVectors, err := s.fs.GetOnlineFeatures(
+	featureVectors, err = s.fs.GetOnlineFeatures(
 		ctx,
 		request.Features,
 		featureService,
@@ -206,8 +423,14 @@ func (s *httpServer) getOnlineFeatures(w http.ResponseWriter, r *http.Request) {
 		requestContextProto,
 		request.FullFeatureNames)
 
+	defer func() {
+		if featureVectors != nil {
+			go releaseCGOMemory(featureVectors)
+		}
+	}()
+
 	if err != nil {
-		//logSpanContext.Error().Err(err).Msg("Error getting feature vector")
+		logSpanContext.Error().Err(err).Msg("Error getting feature vector")
 		writeJSONError(w, fmt.Errorf("Error getting feature vector: %+v", err), http.StatusInternalServerError)
 		return
 	}
@@ -217,7 +440,7 @@ func (s *httpServer) getOnlineFeatures(w http.ResponseWriter, r *http.Request) {
 	for _, vector := range featureVectors {
 		featureNames = append(featureNames, vector.Name)
 		result := make(map[string]interface{})
-		if status {
+		if includeMetadata {
 			var statuses []string
 			for _, status := range vector.Statuses {
 				statuses = append(statuses, status.String())
@@ -249,7 +472,7 @@ func (s *httpServer) getOnlineFeatures(w http.ResponseWriter, r *http.Request) {
 	err = json.NewEncoder(w).Encode(response)
 
 	if err != nil {
-		//logSpanContext.Error().Err(err).Msg("Error encoding response")
+		logSpanContext.Error().Err(err).Msg("Error encoding response")
 		writeJSONError(w, fmt.Errorf("Error encoding response: %+v", err), http.StatusInternalServerError)
 		return
 	}
@@ -257,7 +480,7 @@ func (s *httpServer) getOnlineFeatures(w http.ResponseWriter, r *http.Request) {
 	if featureService != nil && featureService.LoggingConfig != nil && s.loggingService != nil {
 		logger, err := s.loggingService.GetOrCreateLogger(featureService)
 		if err != nil {
-			//logSpanContext.Error().Err(err).Msgf("Couldn't instantiate logger for feature service %s", featureService.Name)
+			logSpanContext.Error().Err(err).Msgf("Couldn't instantiate logger for feature service %s", featureService.Name)
 			writeJSONError(w, fmt.Errorf("Couldn't instantiate logger for feature service %s: %+v", featureService.Name, err), http.StatusInternalServerError)
 			return
 		}
@@ -270,7 +493,7 @@ func (s *httpServer) getOnlineFeatures(w http.ResponseWriter, r *http.Request) {
 		for _, vector := range featureVectors[len(request.Entities):] {
 			values, err := types.ArrowValuesToProtoValues(vector.Values)
 			if err != nil {
-				//logSpanContext.Error().Err(err).Msg("Couldn't convert arrow values into protobuf")
+				logSpanContext.Error().Err(err).Msg("Couldn't convert arrow values into protobuf")
 				writeJSONError(w, fmt.Errorf("Couldn't convert arrow values into protobuf: %+v", err), http.StatusInternalServerError)
 				return
 			}
@@ -288,12 +511,159 @@ func (s *httpServer) getOnlineFeatures(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	go releaseCGOMemory(featureVectors)
+}
+
+type getOnlineFeaturesRangeRequest struct {
+	FeatureService   *string                  `json:"feature_service"`
+	Features         []string                 `json:"features"`
+	Entities         map[string]repeatedValue `json:"entities"`
+	SortKeyFilters   []sortKeyFilter          `json:"sort_key_filters"`
+	ReverseSortOrder bool                     `json:"reverse_sort_order"`
+	Limit            int32                    `json:"limit"`
+	FullFeatureNames bool                     `json:"full_feature_names"`
+	RequestContext   map[string]repeatedValue `json:"request_context"`
+}
+
+type sortKeyFilter struct {
+	SortKeyName string          `json:"sort_key_name"`
+	Range       rangeQuery      `json:"range"`
+	Equals      json.RawMessage `json:"equals"`
+}
+
+type rangeQuery struct {
+	RangeStart     json.RawMessage `json:"range_start"`
+	RangeEnd       json.RawMessage `json:"range_end"`
+	StartInclusive bool            `json:"start_inclusive"`
+	EndInclusive   bool            `json:"end_inclusive"`
+}
+
+func getSortKeyFiltersProto(filters []sortKeyFilter) ([]*serving.SortKeyFilter, error) {
+	sortKeyFiltersProto := make([]*serving.SortKeyFilter, len(filters))
+	for i, filter := range filters {
+		protoFilter, err := filter.ToProto()
+		if err != nil {
+			return nil, err
+		}
+		sortKeyFiltersProto[i] = protoFilter
+	}
+	return sortKeyFiltersProto, nil
+}
+
+func (s *HttpServer) getOnlineFeaturesRange(w http.ResponseWriter, r *http.Request) {
+	var err error
+
+	span, ctx := tracer.StartSpanFromContext(r.Context(), "getOnlineFeaturesRange", tracer.ResourceName("/get-online-features-range"))
+	defer span.Finish(tracer.WithError(err))
+
+	logSpanContext := LogWithSpanContext(span)
+
+	if r.Method != "POST" {
+		http.NotFound(w, r)
+		return
+	}
+
+	includeMetadata, err := parseIncludeMetadata(r)
+	if err != nil {
+		logSpanContext.Error().Err(err).Msg("Error parsing includeMetadata query parameter")
+		writeJSONError(w, fmt.Errorf("error parsing includeMetadata query parameter: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	decoder := json.NewDecoder(r.Body)
+	var request getOnlineFeaturesRangeRequest
+	err = decoder.Decode(&request)
+	if err != nil {
+		logSpanContext.Error().Err(err).Msg("Error decoding JSON request data")
+		writeJSONError(w, fmt.Errorf("error decoding JSON request data: %w", err), http.StatusInternalServerError)
+		return
+	}
+
+	var featureService *model.FeatureService
+	if request.FeatureService != nil {
+		featureService, err = s.fs.GetFeatureService(*request.FeatureService)
+		if err != nil {
+			logSpanContext.Error().Err(err).Msg("Error getting feature service from registry")
+			writeJSONError(w, fmt.Errorf("Error getting feature service from registry: %+v", err), http.StatusNotFound)
+			return
+		}
+	}
+
+	entitiesProto := make(map[string]*prototypes.RepeatedValue)
+	for key, value := range request.Entities {
+		entitiesProto[key] = value.ToProto()
+	}
+
+	requestContextProto := make(map[string]*prototypes.RepeatedValue)
+	if request.RequestContext != nil {
+		for key, value := range request.RequestContext {
+			requestContextProto[key] = value.ToProto()
+		}
+	}
+
+	sortKeyFiltersProto, err := getSortKeyFiltersProto(request.SortKeyFilters)
+	if err != nil {
+		logSpanContext.Error().Err(err).Msg("Error converting sort key filter to protobuf")
+		writeJSONError(w, err, http.StatusBadRequest)
+		return
+	}
+
+	rangeFeatureVectors, err := s.fs.GetOnlineFeaturesRange(
+		ctx,
+		request.Features,
+		featureService,
+		entitiesProto,
+		sortKeyFiltersProto,
+		request.ReverseSortOrder,
+		request.Limit,
+		requestContextProto,
+		request.FullFeatureNames)
+
+	defer func() {
+		if rangeFeatureVectors != nil {
+			go releaseCGORangeMemory(rangeFeatureVectors)
+		}
+	}()
+
+	if err != nil {
+		logSpanContext.Error().Err(err).Msg("Error getting range feature vectors")
+		writeJSONError(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	featureNames, entities, results, err := processFeatureVectors(
+		rangeFeatureVectors, includeMetadata, entitiesProto)
+	if err != nil {
+		logSpanContext.Error().Err(err).Msg("Error processing feature vectors")
+		writeJSONError(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	response := map[string]interface{}{
+		"metadata": map[string]interface{}{
+			"feature_names": featureNames,
+		},
+		"entities": entities,
+		"results":  results,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	err = json.NewEncoder(w).Encode(response)
+	if err != nil {
+		logSpanContext.Error().Err(err).Msg("Error encoding response")
+		writeJSONError(w, fmt.Errorf("error encoding response: %w", err), http.StatusInternalServerError)
+		return
+	}
 }
 
 func releaseCGOMemory(featureVectors []*onlineserving.FeatureVector) {
 	for _, vector := range featureVectors {
 		vector.Values.Release()
+	}
+}
+
+func releaseCGORangeMemory(featureVectors []*onlineserving.RangeFeatureVector) {
+	for _, vector := range featureVectors {
+		vector.RangeValues.Release()
 	}
 }
 
@@ -313,8 +683,22 @@ func logStackTrace() {
 }
 
 func writeJSONError(w http.ResponseWriter, err error, statusCode int) {
+	errorString := fmt.Sprintf("%+v", err)
+	if statusErr, ok := status.FromError(err); ok {
+		switch statusErr.Code() {
+		case codes.InvalidArgument:
+			errorString = statusErr.Message()
+			statusCode = http.StatusBadRequest
+		case codes.NotFound:
+			errorString = statusErr.Message()
+			statusCode = http.StatusNotFound
+		default:
+			errorString = statusErr.Message()
+			statusCode = http.StatusInternalServerError
+		}
+	}
 	errMap := map[string]interface{}{
-		"error":       fmt.Sprintf("%+v", err),
+		"error":       errorString,
 		"status_code": statusCode,
 	}
 	errJSON, _ := json.Marshal(errMap)
@@ -339,15 +723,17 @@ func recoverMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func (s *httpServer) Serve(host string, port int) error {
-	// DD
-	//if strings.ToLower(os.Getenv("ENABLE_DATADOG_TRACING")) == "true" {
-	//	tracer.Start(tracer.WithRuntimeMetrics())
-	//	defer tracer.Stop()
-	//}
-	mux := http.NewServeMux()
-	mux.Handle("/get-online-features", recoverMiddleware(http.HandlerFunc(s.getOnlineFeatures)))
-	mux.HandleFunc("/health", healthCheckHandler)
+func (s *HttpServer) Serve(host string, port int, handlers []Handler) error {
+	if strings.ToLower(os.Getenv("ENABLE_DATADOG_TRACING")) == "true" {
+		tracer.Start(tracer.WithRuntimeMetrics())
+		defer tracer.Stop()
+	}
+	mux := httptrace.NewServeMux()
+
+	for _, handler := range handlers {
+		mux.Handle(handler.Path, handler.HandlerFunc)
+	}
+
 	s.server = &http.Server{Addr: fmt.Sprintf("%s:%d", host, port), Handler: mux, ReadTimeout: 5 * time.Second, WriteTimeout: 10 * time.Second, IdleTimeout: 15 * time.Second}
 	err := s.server.ListenAndServe()
 	// Don't return the error if it's caused by graceful shutdown using Stop()
@@ -358,11 +744,15 @@ func (s *httpServer) Serve(host string, port int) error {
 	return err
 }
 
+func DefaultHttpHandlers(s *HttpServer) []Handler {
+	return CommonHttpHandlers(s, healthCheckHandler)
+}
+
 func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprintf(w, "Healthy")
 }
-func (s *httpServer) Stop() error {
+func (s *HttpServer) Stop() error {
 	if s.server != nil {
 		return s.server.Shutdown(context.Background())
 	}

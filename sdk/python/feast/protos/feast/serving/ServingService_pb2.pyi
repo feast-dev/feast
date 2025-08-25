@@ -103,6 +103,41 @@ class GetFeastServingInfoResponse(google.protobuf.message.Message):
 
 global___GetFeastServingInfoResponse = GetFeastServingInfoResponse
 
+class GetVersionInfoRequest(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    def __init__(
+        self,
+    ) -> None: ...
+
+global___GetVersionInfoRequest = GetVersionInfoRequest
+
+class GetVersionInfoResponse(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    VERSION_FIELD_NUMBER: builtins.int
+    BUILD_TIME_FIELD_NUMBER: builtins.int
+    COMMIT_HASH_FIELD_NUMBER: builtins.int
+    GO_VERSION_FIELD_NUMBER: builtins.int
+    SERVER_TYPE_FIELD_NUMBER: builtins.int
+    version: builtins.str
+    build_time: builtins.str
+    commit_hash: builtins.str
+    go_version: builtins.str
+    server_type: builtins.str
+    def __init__(
+        self,
+        *,
+        version: builtins.str = ...,
+        build_time: builtins.str = ...,
+        commit_hash: builtins.str = ...,
+        go_version: builtins.str = ...,
+        server_type: builtins.str = ...,
+    ) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["build_time", b"build_time", "commit_hash", b"commit_hash", "go_version", b"go_version", "server_type", b"server_type", "version", b"version"]) -> None: ...
+
+global___GetVersionInfoResponse = GetVersionInfoResponse
+
 class FeatureReferenceV2(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -253,6 +288,7 @@ class GetOnlineFeaturesRequest(google.protobuf.message.Message):
     ENTITIES_FIELD_NUMBER: builtins.int
     FULL_FEATURE_NAMES_FIELD_NUMBER: builtins.int
     REQUEST_CONTEXT_FIELD_NUMBER: builtins.int
+    INCLUDE_METADATA_FIELD_NUMBER: builtins.int
     feature_service: builtins.str
     @property
     def features(self) -> global___FeatureList: ...
@@ -268,6 +304,8 @@ class GetOnlineFeaturesRequest(google.protobuf.message.Message):
         (was moved to dedicated parameter to avoid unnecessary separation logic on serving side)
         A map of variable name -> list of values
         """
+    include_metadata: builtins.bool
+    """Whether to include the timestamp/status metadata in the response"""
     def __init__(
         self,
         *,
@@ -276,9 +314,10 @@ class GetOnlineFeaturesRequest(google.protobuf.message.Message):
         entities: collections.abc.Mapping[builtins.str, feast.types.Value_pb2.RepeatedValue] | None = ...,
         full_feature_names: builtins.bool = ...,
         request_context: collections.abc.Mapping[builtins.str, feast.types.Value_pb2.RepeatedValue] | None = ...,
+        include_metadata: builtins.bool = ...,
     ) -> None: ...
     def HasField(self, field_name: typing_extensions.Literal["feature_service", b"feature_service", "features", b"features", "kind", b"kind"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["entities", b"entities", "feature_service", b"feature_service", "features", b"features", "full_feature_names", b"full_feature_names", "kind", b"kind", "request_context", b"request_context"]) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["entities", b"entities", "feature_service", b"feature_service", "features", b"features", "full_feature_names", b"full_feature_names", "include_metadata", b"include_metadata", "kind", b"kind", "request_context", b"request_context"]) -> None: ...
     def WhichOneof(self, oneof_group: typing_extensions.Literal["kind", b"kind"]) -> typing_extensions.Literal["feature_service", "features"] | None: ...
 
 global___GetOnlineFeaturesRequest = GetOnlineFeaturesRequest
@@ -345,3 +384,224 @@ class GetOnlineFeaturesResponseMetadata(google.protobuf.message.Message):
     def ClearField(self, field_name: typing_extensions.Literal["feature_names", b"feature_names"]) -> None: ...
 
 global___GetOnlineFeaturesResponseMetadata = GetOnlineFeaturesResponseMetadata
+
+class RepeatedFieldStatus(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    STATUS_FIELD_NUMBER: builtins.int
+    @property
+    def status(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[global___FieldStatus.ValueType]: ...
+    def __init__(
+        self,
+        *,
+        status: collections.abc.Iterable[global___FieldStatus.ValueType] | None = ...,
+    ) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["status", b"status"]) -> None: ...
+
+global___RepeatedFieldStatus = RepeatedFieldStatus
+
+class SortKeyFilter(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    class RangeQuery(google.protobuf.message.Message):
+        DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+        RANGE_START_FIELD_NUMBER: builtins.int
+        RANGE_END_FIELD_NUMBER: builtins.int
+        START_INCLUSIVE_FIELD_NUMBER: builtins.int
+        END_INCLUSIVE_FIELD_NUMBER: builtins.int
+        @property
+        def range_start(self) -> feast.types.Value_pb2.Value:
+            """Start of the range that the sort key will be bounded by for the query"""
+        @property
+        def range_end(self) -> feast.types.Value_pb2.Value:
+            """End of the range that the sort key will be bounded by for the query"""
+        start_inclusive: builtins.bool
+        """Whether the start of the range is inclusive"""
+        end_inclusive: builtins.bool
+        """Whether the end of the range is inclusive"""
+        def __init__(
+            self,
+            *,
+            range_start: feast.types.Value_pb2.Value | None = ...,
+            range_end: feast.types.Value_pb2.Value | None = ...,
+            start_inclusive: builtins.bool = ...,
+            end_inclusive: builtins.bool = ...,
+        ) -> None: ...
+        def HasField(self, field_name: typing_extensions.Literal["range_end", b"range_end", "range_start", b"range_start"]) -> builtins.bool: ...
+        def ClearField(self, field_name: typing_extensions.Literal["end_inclusive", b"end_inclusive", "range_end", b"range_end", "range_start", b"range_start", "start_inclusive", b"start_inclusive"]) -> None: ...
+
+    SORT_KEY_NAME_FIELD_NUMBER: builtins.int
+    RANGE_FIELD_NUMBER: builtins.int
+    EQUALS_FIELD_NUMBER: builtins.int
+    sort_key_name: builtins.str
+    """Name of the sort key to filter on"""
+    @property
+    def range(self) -> global___SortKeyFilter.RangeQuery: ...
+    @property
+    def equals(self) -> feast.types.Value_pb2.Value: ...
+    def __init__(
+        self,
+        *,
+        sort_key_name: builtins.str = ...,
+        range: global___SortKeyFilter.RangeQuery | None = ...,
+        equals: feast.types.Value_pb2.Value | None = ...,
+    ) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["equals", b"equals", "query", b"query", "range", b"range"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["equals", b"equals", "query", b"query", "range", b"range", "sort_key_name", b"sort_key_name"]) -> None: ...
+    def WhichOneof(self, oneof_group: typing_extensions.Literal["query", b"query"]) -> typing_extensions.Literal["range", "equals"] | None: ...
+
+global___SortKeyFilter = SortKeyFilter
+
+class GetOnlineFeaturesRangeRequest(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    class EntitiesEntry(google.protobuf.message.Message):
+        DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+        KEY_FIELD_NUMBER: builtins.int
+        VALUE_FIELD_NUMBER: builtins.int
+        key: builtins.str
+        @property
+        def value(self) -> feast.types.Value_pb2.RepeatedValue: ...
+        def __init__(
+            self,
+            *,
+            key: builtins.str = ...,
+            value: feast.types.Value_pb2.RepeatedValue | None = ...,
+        ) -> None: ...
+        def HasField(self, field_name: typing_extensions.Literal["value", b"value"]) -> builtins.bool: ...
+        def ClearField(self, field_name: typing_extensions.Literal["key", b"key", "value", b"value"]) -> None: ...
+
+    class RequestContextEntry(google.protobuf.message.Message):
+        DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+        KEY_FIELD_NUMBER: builtins.int
+        VALUE_FIELD_NUMBER: builtins.int
+        key: builtins.str
+        @property
+        def value(self) -> feast.types.Value_pb2.RepeatedValue: ...
+        def __init__(
+            self,
+            *,
+            key: builtins.str = ...,
+            value: feast.types.Value_pb2.RepeatedValue | None = ...,
+        ) -> None: ...
+        def HasField(self, field_name: typing_extensions.Literal["value", b"value"]) -> builtins.bool: ...
+        def ClearField(self, field_name: typing_extensions.Literal["key", b"key", "value", b"value"]) -> None: ...
+
+    FEATURE_SERVICE_FIELD_NUMBER: builtins.int
+    FEATURES_FIELD_NUMBER: builtins.int
+    ENTITIES_FIELD_NUMBER: builtins.int
+    FULL_FEATURE_NAMES_FIELD_NUMBER: builtins.int
+    SORT_KEY_FILTERS_FIELD_NUMBER: builtins.int
+    REVERSE_SORT_ORDER_FIELD_NUMBER: builtins.int
+    LIMIT_FIELD_NUMBER: builtins.int
+    REQUEST_CONTEXT_FIELD_NUMBER: builtins.int
+    INCLUDE_METADATA_FIELD_NUMBER: builtins.int
+    feature_service: builtins.str
+    @property
+    def features(self) -> global___FeatureList: ...
+    @property
+    def entities(self) -> google.protobuf.internal.containers.MessageMap[builtins.str, feast.types.Value_pb2.RepeatedValue]:
+        """The entity data is specified in a columnar format
+        A map of entity name -> list of values
+        """
+    full_feature_names: builtins.bool
+    @property
+    def sort_key_filters(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___SortKeyFilter]: ...
+    reverse_sort_order: builtins.bool
+    """Whether to sort the results in the reverse order of the default"""
+    limit: builtins.int
+    @property
+    def request_context(self) -> google.protobuf.internal.containers.MessageMap[builtins.str, feast.types.Value_pb2.RepeatedValue]:
+        """Context for OnDemand Feature Transformation
+        A map of variable name -> list of values
+        """
+    include_metadata: builtins.bool
+    """Whether to include the timestamp and status metadata in the response"""
+    def __init__(
+        self,
+        *,
+        feature_service: builtins.str = ...,
+        features: global___FeatureList | None = ...,
+        entities: collections.abc.Mapping[builtins.str, feast.types.Value_pb2.RepeatedValue] | None = ...,
+        full_feature_names: builtins.bool = ...,
+        sort_key_filters: collections.abc.Iterable[global___SortKeyFilter] | None = ...,
+        reverse_sort_order: builtins.bool = ...,
+        limit: builtins.int = ...,
+        request_context: collections.abc.Mapping[builtins.str, feast.types.Value_pb2.RepeatedValue] | None = ...,
+        include_metadata: builtins.bool = ...,
+    ) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["feature_service", b"feature_service", "features", b"features", "kind", b"kind"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["entities", b"entities", "feature_service", b"feature_service", "features", b"features", "full_feature_names", b"full_feature_names", "include_metadata", b"include_metadata", "kind", b"kind", "limit", b"limit", "request_context", b"request_context", "reverse_sort_order", b"reverse_sort_order", "sort_key_filters", b"sort_key_filters"]) -> None: ...
+    def WhichOneof(self, oneof_group: typing_extensions.Literal["kind", b"kind"]) -> typing_extensions.Literal["feature_service", "features"] | None: ...
+
+global___GetOnlineFeaturesRangeRequest = GetOnlineFeaturesRangeRequest
+
+class GetOnlineFeaturesRangeResponse(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    class EntitiesEntry(google.protobuf.message.Message):
+        DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+        KEY_FIELD_NUMBER: builtins.int
+        VALUE_FIELD_NUMBER: builtins.int
+        key: builtins.str
+        @property
+        def value(self) -> feast.types.Value_pb2.RepeatedValue: ...
+        def __init__(
+            self,
+            *,
+            key: builtins.str = ...,
+            value: feast.types.Value_pb2.RepeatedValue | None = ...,
+        ) -> None: ...
+        def HasField(self, field_name: typing_extensions.Literal["value", b"value"]) -> builtins.bool: ...
+        def ClearField(self, field_name: typing_extensions.Literal["key", b"key", "value", b"value"]) -> None: ...
+
+    class RangeFeatureVector(google.protobuf.message.Message):
+        DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+        VALUES_FIELD_NUMBER: builtins.int
+        STATUSES_FIELD_NUMBER: builtins.int
+        EVENT_TIMESTAMPS_FIELD_NUMBER: builtins.int
+        @property
+        def values(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.types.Value_pb2.RepeatedValue]:
+            """Each values entry contains multiple values for a feature"""
+        @property
+        def statuses(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___RepeatedFieldStatus]: ...
+        @property
+        def event_timestamps(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.types.Value_pb2.RepeatedValue]: ...
+        def __init__(
+            self,
+            *,
+            values: collections.abc.Iterable[feast.types.Value_pb2.RepeatedValue] | None = ...,
+            statuses: collections.abc.Iterable[global___RepeatedFieldStatus] | None = ...,
+            event_timestamps: collections.abc.Iterable[feast.types.Value_pb2.RepeatedValue] | None = ...,
+        ) -> None: ...
+        def ClearField(self, field_name: typing_extensions.Literal["event_timestamps", b"event_timestamps", "statuses", b"statuses", "values", b"values"]) -> None: ...
+
+    METADATA_FIELD_NUMBER: builtins.int
+    ENTITIES_FIELD_NUMBER: builtins.int
+    RESULTS_FIELD_NUMBER: builtins.int
+    @property
+    def metadata(self) -> global___GetOnlineFeaturesResponseMetadata: ...
+    @property
+    def entities(self) -> google.protobuf.internal.containers.MessageMap[builtins.str, feast.types.Value_pb2.RepeatedValue]:
+        """Entities used to retrieve the features."""
+    @property
+    def results(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___GetOnlineFeaturesRangeResponse.RangeFeatureVector]:
+        """Length of "results" array should match length of requested features.
+        We also preserve the same order of features here as in metadata.feature_names
+        """
+    def __init__(
+        self,
+        *,
+        metadata: global___GetOnlineFeaturesResponseMetadata | None = ...,
+        entities: collections.abc.Mapping[builtins.str, feast.types.Value_pb2.RepeatedValue] | None = ...,
+        results: collections.abc.Iterable[global___GetOnlineFeaturesRangeResponse.RangeFeatureVector] | None = ...,
+    ) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["metadata", b"metadata"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["entities", b"entities", "metadata", b"metadata", "results", b"results"]) -> None: ...
+
+global___GetOnlineFeaturesRangeResponse = GetOnlineFeaturesRangeResponse

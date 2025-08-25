@@ -153,7 +153,11 @@ if os.getenv("FEAST_IS_LOCAL_TEST", "False") == "True":
 
 AVAILABLE_ONLINE_STORES: Dict[
     str, Tuple[Union[str, Dict[Any, Any]], Optional[Type[OnlineStoreCreator]]]
-] = {"sqlite": ({"type": "sqlite"}, None)}
+] = {
+    "sqlite": ({"type": "sqlite"}, None),
+    # uncomment below once Milvus implementation is complete
+    # "milvus": ({"type": "milvus"}, MilvusOnlineStoreCreator),
+}
 
 # Only configure Cloud DWH if running full integration tests
 if os.getenv("FEAST_IS_LOCAL_TEST", "False") != "True":

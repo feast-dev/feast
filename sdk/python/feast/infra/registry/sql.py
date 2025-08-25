@@ -1,4 +1,5 @@
 import logging
+import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
@@ -36,7 +37,11 @@ from feast.errors import (
     ProjectNotFoundException,
     ProjectObjectNotFoundException,
     SavedDatasetNotFound,
+    SortedFeatureViewNotFoundException,
     ValidationReferenceNotFound,
+)
+from feast.expediagroup.pydantic_models.project_metadata_model import (
+    ProjectMetadataModel,
 )
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
@@ -60,6 +65,9 @@ from feast.protos.feast.core.Permission_pb2 import Permission as PermissionProto
 from feast.protos.feast.core.Project_pb2 import Project as ProjectProto
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.protos.feast.core.SavedDataset_pb2 import SavedDataset as SavedDatasetProto
+from feast.protos.feast.core.SortedFeatureView_pb2 import (
+    SortedFeatureView as SortedFeatureViewProto,
+)
 from feast.protos.feast.core.StreamFeatureView_pb2 import (
     StreamFeatureView as StreamFeatureViewProto,
 )
@@ -68,6 +76,7 @@ from feast.protos.feast.core.ValidationProfile_pb2 import (
 )
 from feast.repo_config import RegistryConfig
 from feast.saved_dataset import SavedDataset, ValidationReference
+from feast.sorted_feature_view import SortedFeatureView
 from feast.stream_feature_view import StreamFeatureView
 from feast.utils import _utc_now
 
@@ -131,6 +140,17 @@ stream_feature_views = Table(
 )
 
 Index("idx_stream_feature_views_project_id", stream_feature_views.c.project_id)
+
+sorted_feature_views = Table(
+    "sorted_feature_views",
+    metadata,
+    Column("feature_view_name", String(255), primary_key=True),
+    Column("project_id", String(255), primary_key=True),
+    Column("last_updated_timestamp", BigInteger, nullable=False),
+    Column("feature_view_proto", LargeBinary, nullable=False),
+    Column("user_metadata", LargeBinary, nullable=True),
+)
+Index("idx_sorted_feature_views_project_id", sorted_feature_views.c.project_id)
 
 on_demand_feature_views = Table(
     "on_demand_feature_views",
@@ -239,6 +259,9 @@ class SqlRegistryConfig(RegistryConfig):
     thread_pool_executor_worker_count: StrictInt = 0
     """ int: Number of worker threads to use for asynchronous caching in SQL Registry. If set to 0, it doesn't use ThreadPoolExecutor. """
 
+    exempt_projects: Optional[List[str]] = None
+    """ List[str]: List of projects to exempt from caching. All associated objects under the project will only be accessible with allow_cache=False. """
+
 
 class SqlRegistry(CachingRegistry):
     def __init__(
@@ -278,6 +301,7 @@ class SqlRegistry(CachingRegistry):
             project=project,
             cache_ttl_seconds=registry_config.cache_ttl_seconds,
             cache_mode=registry_config.cache_mode,
+            exempt_projects=registry_config.exempt_projects,
         )
 
     def _sync_feast_metadata_to_projects_table(self):
@@ -348,6 +372,18 @@ class SqlRegistry(CachingRegistry):
             not_found_exception=FeatureViewNotFoundException,
         )
 
+    def _get_sorted_feature_view(self, name: str, project: str):
+        return self._get_object(
+            table=sorted_feature_views,  # the table you defined
+            name=name,
+            project=project,
+            proto_class=SortedFeatureViewProto,
+            python_class=SortedFeatureView,
+            id_field_name="feature_view_name",
+            proto_field_name="feature_view_proto",
+            not_found_exception=SortedFeatureViewNotFoundException,
+        )
+
     def _list_stream_feature_views(
         self, project: str, tags: Optional[dict[str, str]]
     ) -> List[StreamFeatureView]:
@@ -356,6 +392,33 @@ class SqlRegistry(CachingRegistry):
             project,
             StreamFeatureViewProto,
             StreamFeatureView,
+            "feature_view_proto",
+            tags=tags,
+        )
+
+    def _list_sorted_feature_views(
+        self, project: str, tags: Optional[dict[str, str]] = None
+    ) -> List[SortedFeatureView]:
+        return self._list_objects(
+            sorted_feature_views,
+            project,
+            SortedFeatureViewProto,
+            SortedFeatureView,
+            "feature_view_proto",
+            tags=tags,
+        )
+
+    def list_sorted_feature_views(
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
+    ) -> List[SortedFeatureView]:
+        return self._list_objects(
+            sorted_feature_views,
+            project,
+            SortedFeatureViewProto,
+            SortedFeatureView,
             "feature_view_proto",
             tags=tags,
         )
@@ -416,6 +479,18 @@ class SqlRegistry(CachingRegistry):
                 proto_field_name="feature_view_proto",
                 not_found_exception=FeatureViewNotFoundException,
             )
+
+        if not fv:
+            fv = self._get_object(
+                table=sorted_feature_views,
+                name=name,
+                project=project,
+                proto_class=SortedFeatureViewProto,
+                python_class=SortedFeatureView,
+                id_field_name="feature_view_name",
+                proto_field_name="feature_view_proto",
+                not_found_exception=FeatureViewNotFoundException,
+            )
         return fv
 
     def _list_all_feature_views(
@@ -433,6 +508,10 @@ class SqlRegistry(CachingRegistry):
             + cast(
                 list[BaseFeatureView],
                 self._list_on_demand_feature_views(project=project, tags=tags),
+            )
+            + cast(
+                list[BaseFeatureView],
+                self._list_sorted_feature_views(project=project, tags=tags),
             )
         )
 
@@ -528,6 +607,7 @@ class SqlRegistry(CachingRegistry):
             feature_views,
             on_demand_feature_views,
             stream_feature_views,
+            sorted_feature_views,
         }:
             deleted_count += self._delete_object(
                 table, name, project, "feature_view_name", None
@@ -667,7 +747,17 @@ class SqlRegistry(CachingRegistry):
                         == FeastMetadataKeys.PROJECT_UUID.value
                     ):
                         project_metadata.project_uuid = row._mapping["metadata_value"]
-                        break
+
+                    if (
+                        row._mapping["metadata_key"]
+                        == FeastMetadataKeys.LAST_UPDATED_TIMESTAMP.value
+                    ):
+                        project_metadata.last_updated_timestamp = (
+                            datetime.utcfromtimestamp(
+                                int(row._mapping["metadata_value"])
+                            )
+                        )
+
                     # TODO(adchia): Add other project metadata in a structured way
                 return [project_metadata]
         return []
@@ -715,7 +805,7 @@ class SqlRegistry(CachingRegistry):
             raise ValueError(
                 f"Cannot apply materialization for feature {feature_view.name} of type {python_class}"
             )
-        fv: Union[FeatureView, StreamFeatureView] = self._get_object(
+        fv: Union[FeatureView, StreamFeatureView, SortedFeatureView] = self._get_object(
             table,
             feature_view.name,
             project,
@@ -803,6 +893,8 @@ class SqlRegistry(CachingRegistry):
     def _infer_fv_table(self, feature_view):
         if isinstance(feature_view, StreamFeatureView):
             table = stream_feature_views
+        elif isinstance(feature_view, SortedFeatureView):
+            table = sorted_feature_views
         elif isinstance(feature_view, FeatureView):
             table = feature_views
         elif isinstance(feature_view, OnDemandFeatureView):
@@ -816,6 +908,8 @@ class SqlRegistry(CachingRegistry):
             python_class, proto_class = StreamFeatureView, StreamFeatureViewProto
         elif isinstance(feature_view, FeatureView):
             python_class, proto_class = FeatureView, FeatureViewProto
+        elif isinstance(feature_view, SortedFeatureView):
+            python_class, proto_class = SortedFeatureView, SortedFeatureViewProto
         elif isinstance(feature_view, OnDemandFeatureView):
             python_class, proto_class = OnDemandFeatureView, OnDemandFeatureViewProto
         else:
@@ -866,6 +960,7 @@ class SqlRegistry(CachingRegistry):
                 (self.list_data_sources, r.data_sources),
                 (self.list_on_demand_feature_views, r.on_demand_feature_views),
                 (self.list_stream_feature_views, r.stream_feature_views),
+                (self.list_sorted_feature_views, r.sorted_feature_views),
                 (self.list_feature_services, r.feature_services),
                 (self.list_saved_datasets, r.saved_datasets),
                 (self.list_validation_references, r.validation_references),
@@ -886,14 +981,32 @@ class SqlRegistry(CachingRegistry):
             r.infra.CopyFrom(self.get_infra(project_name).to_proto())
 
         projects_list = self.list_projects(allow_cache=False)
+        filtered_project_list = [
+            p for p in projects_list if p.name not in self.cache_exempt_projects
+        ]
+
         if self.thread_pool_executor_worker_count == 0:
-            for project in projects_list:
+            logger.info("Starting timer for single threaded self.proto()")
+            start = time.time()
+            for project in filtered_project_list:
                 process_project(project)
+            end = time.time()
+            logger.info(
+                f"Single threaded self.proto() took {end - start} seconds to process {len(filtered_project_list)} projects"
+            )
         else:
+            logger.info("Starting timer for multi threaded self.proto()")
+            start = time.time()
+
             with ThreadPoolExecutor(
                 max_workers=self.thread_pool_executor_worker_count
             ) as executor:
-                executor.map(process_project, projects_list)
+                list(executor.map(process_project, filtered_project_list))
+
+            end = time.time()
+            logger.info(
+                f"Multi threaded self.proto() took {end - start} seconds to process {len(filtered_project_list)} projects"
+            )
 
         if last_updated_timestamps:
             r.last_updated.FromDatetime(max(last_updated_timestamps))
@@ -965,13 +1078,14 @@ class SqlRegistry(CachingRegistry):
                         )
                         if hasattr(obj, "last_updated_timestamp"):
                             obj.last_updated_timestamp = update_datetime
-                        if isinstance(obj, (FeatureView, StreamFeatureView)):
+                        if isinstance(
+                            obj, (FeatureView, StreamFeatureView, SortedFeatureView)
+                        ):
                             obj.update_materialization_intervals(
                                 type(obj)
                                 .from_proto(deserialized_proto)
                                 .materialization_intervals
                             )
-
                 values = {
                     proto_field_name: obj.to_proto().SerializeToString(),
                     "last_updated_timestamp": update_time,
@@ -1263,6 +1377,7 @@ class SqlRegistry(CachingRegistry):
                     permissions,
                     feast_metadata,
                     projects,
+                    feast_metadata,
                 }:
                     stmt = delete(t).where(t.c.project_id == name)
                     conn.execute(stmt)

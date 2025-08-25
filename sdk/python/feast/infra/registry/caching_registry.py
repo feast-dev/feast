@@ -21,6 +21,7 @@ from feast.project import Project
 from feast.project_metadata import ProjectMetadata
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.saved_dataset import SavedDataset, ValidationReference
+from feast.sorted_feature_view import SortedFeatureView
 from feast.stream_feature_view import StreamFeatureView
 from feast.utils import _utc_now
 
@@ -28,15 +29,23 @@ logger = logging.getLogger(__name__)
 
 
 class CachingRegistry(BaseRegistry):
-    def __init__(self, project: str, cache_ttl_seconds: int, cache_mode: str):
+    def __init__(
+        self,
+        project: str,
+        cache_ttl_seconds: int,
+        cache_mode: str,
+        exempt_projects: Optional[List[str]] = None,
+    ):
         self.cache_mode = cache_mode
         self.cached_registry_proto = RegistryProto()
         self._refresh_lock = Lock()
         self.cached_registry_proto_ttl = timedelta(
             seconds=cache_ttl_seconds if cache_ttl_seconds is not None else 0
         )
+        self.cache_exempt_projects = exempt_projects if exempt_projects else []
         self.cached_registry_proto = self.proto()
         self.cached_registry_proto_created = _utc_now()
+        logger.info(f"Registry initialized with cache mode: {cache_mode}")
         if cache_mode == "thread":
             self._start_thread_async_refresh(cache_ttl_seconds)
             atexit.register(self._exit_handler)
@@ -238,6 +247,39 @@ class CachingRegistry(BaseRegistry):
                 self.cached_registry_proto, project, tags
             )
         return self._list_stream_feature_views(project, tags)
+
+    @abstractmethod
+    def _get_sorted_feature_view(self, name: str, project: str) -> SortedFeatureView:
+        pass
+
+    def get_sorted_feature_view(
+        self, name: str, project: str, allow_cache: bool = False
+    ) -> SortedFeatureView:
+        if allow_cache:
+            self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.get_sorted_feature_view(
+                self.cached_registry_proto, name, project
+            )
+        return self._get_sorted_feature_view(name, project)
+
+    @abstractmethod
+    def _list_sorted_feature_views(
+        self, project: str, tags: Optional[dict[str, str]]
+    ) -> List[SortedFeatureView]:
+        pass
+
+    def list_sorted_feature_views(
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
+    ) -> List[SortedFeatureView]:
+        if allow_cache:
+            self._refresh_cached_registry_if_necessary()
+            return proto_registry_utils.list_sorted_feature_views(
+                self.cached_registry_proto, project, tags
+            )
+        return self._list_sorted_feature_views(project, tags)
 
     @abstractmethod
     def _get_feature_service(self, name: str, project: str) -> FeatureService:
@@ -477,6 +519,7 @@ class CachingRegistry(BaseRegistry):
     def _start_thread_async_refresh(self, cache_ttl_seconds):
         self.refresh()
         if cache_ttl_seconds <= 0:
+            logger.info("Registry cache refresh thread not started as TTL is 0")
             return
         self.registry_refresh_thread = threading.Timer(
             cache_ttl_seconds, self._start_thread_async_refresh, [cache_ttl_seconds]

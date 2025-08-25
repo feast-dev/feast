@@ -10,6 +10,7 @@ from feast import (
     Entity,
     FeatureView,
     OnDemandFeatureView,
+    SortedFeatureView,
     StreamFeatureView,
 )
 from feast.infra.common.materialization_job import (
@@ -131,7 +132,9 @@ class SparkComputeEngine(ComputeEngine):
     def _materialize_from_offline_store(
         self,
         registry: BaseRegistry,
-        feature_view: Union[BatchFeatureView, StreamFeatureView, FeatureView],
+        feature_view: Union[
+            BatchFeatureView, StreamFeatureView, FeatureView, SortedFeatureView
+        ],
         start_date: datetime,
         end_date: datetime,
         project: str,
@@ -158,19 +161,33 @@ class SparkComputeEngine(ComputeEngine):
         job_id = f"{feature_view.name}-{start_date}-{end_date}"
 
         try:
-            offline_job = cast(
-                SparkRetrievalJob,
-                self.offline_store.pull_latest_from_table_or_query(
-                    config=self.repo_config,
-                    data_source=feature_view.batch_source,
-                    join_key_columns=join_key_columns,
-                    feature_name_columns=feature_name_columns,
-                    timestamp_field=timestamp_field,
-                    created_timestamp_column=created_timestamp_column,
-                    start_date=start_date,
-                    end_date=end_date,
-                ),
-            )
+            if isinstance(feature_view, SortedFeatureView):
+                offline_job = cast(
+                    SparkRetrievalJob,
+                    self.offline_store.pull_all_from_table_or_query(
+                        config=self.repo_config,
+                        data_source=feature_view.batch_source,
+                        join_key_columns=join_key_columns,
+                        feature_name_columns=feature_name_columns,
+                        timestamp_field=timestamp_field,
+                        start_date=start_date,
+                        end_date=end_date,
+                    ),
+                )
+            else:
+                offline_job = cast(
+                    SparkRetrievalJob,
+                    self.offline_store.pull_latest_from_table_or_query(
+                        config=self.repo_config,
+                        data_source=feature_view.batch_source,
+                        join_key_columns=join_key_columns,
+                        feature_name_columns=feature_name_columns,
+                        timestamp_field=timestamp_field,
+                        created_timestamp_column=created_timestamp_column,
+                        start_date=start_date,
+                        end_date=end_date,
+                    ),
+                )
 
             serialized_artifacts = SerializedArtifacts.serialize(
                 feature_view=feature_view, repo_config=self.repo_config
@@ -181,6 +198,10 @@ class SparkComputeEngine(ComputeEngine):
                 spark_df = spark_df.repartition(
                     self.repo_config.batch_engine.partitions
                 )
+
+            print(
+                f"INFO: Processing {feature_view.name} with {spark_df.count()} records and {spark_df.rdd.getNumPartitions()} partitions"
+            )
 
             spark_df.mapInPandas(
                 lambda x: map_in_pandas(x, serialized_artifacts), "status int"

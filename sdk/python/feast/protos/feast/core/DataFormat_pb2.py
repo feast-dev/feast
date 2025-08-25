@@ -14,7 +14,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1b\x66\x65\x61st/core/DataFormat.proto\x12\nfeast.core\"\xb2\x01\n\nFileFormat\x12>\n\x0eparquet_format\x18\x01 \x01(\x0b\x32$.feast.core.FileFormat.ParquetFormatH\x00\x12:\n\x0c\x64\x65lta_format\x18\x02 \x01(\x0b\x32\".feast.core.FileFormat.DeltaFormatH\x00\x1a\x0f\n\rParquetFormat\x1a\r\n\x0b\x44\x65ltaFormatB\x08\n\x06\x66ormat\"\xb7\x02\n\x0cStreamFormat\x12:\n\x0b\x61vro_format\x18\x01 \x01(\x0b\x32#.feast.core.StreamFormat.AvroFormatH\x00\x12<\n\x0cproto_format\x18\x02 \x01(\x0b\x32$.feast.core.StreamFormat.ProtoFormatH\x00\x12:\n\x0bjson_format\x18\x03 \x01(\x0b\x32#.feast.core.StreamFormat.JsonFormatH\x00\x1a!\n\x0bProtoFormat\x12\x12\n\nclass_path\x18\x01 \x01(\t\x1a!\n\nAvroFormat\x12\x13\n\x0bschema_json\x18\x01 \x01(\t\x1a!\n\nJsonFormat\x12\x13\n\x0bschema_json\x18\x01 \x01(\tB\x08\n\x06\x66ormatBT\n\x10\x66\x65\x61st.proto.coreB\x0f\x44\x61taFormatProtoZ/github.com/feast-dev/feast/go/protos/feast/coreb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1b\x66\x65\x61st/core/DataFormat.proto\x12\nfeast.core\"\xb2\x01\n\nFileFormat\x12>\n\x0eparquet_format\x18\x01 \x01(\x0b\x32$.feast.core.FileFormat.ParquetFormatH\x00\x12:\n\x0c\x64\x65lta_format\x18\x02 \x01(\x0b\x32\".feast.core.FileFormat.DeltaFormatH\x00\x1a\x0f\n\rParquetFormat\x1a\r\n\x0b\x44\x65ltaFormatB\x08\n\x06\x66ormat\"\xcc\x03\n\x0cStreamFormat\x12:\n\x0b\x61vro_format\x18\x01 \x01(\x0b\x32#.feast.core.StreamFormat.AvroFormatH\x00\x12<\n\x0cproto_format\x18\x02 \x01(\x0b\x32$.feast.core.StreamFormat.ProtoFormatH\x00\x12:\n\x0bjson_format\x18\x03 \x01(\x0b\x32#.feast.core.StreamFormat.JsonFormatH\x00\x12M\n\x15\x63onfluent_avro_format\x18\x04 \x01(\x0b\x32,.feast.core.StreamFormat.ConfluentAvroFormatH\x00\x1a!\n\x0bProtoFormat\x12\x12\n\nclass_path\x18\x01 \x01(\t\x1a!\n\nAvroFormat\x12\x13\n\x0bschema_json\x18\x01 \x01(\t\x1a!\n\nJsonFormat\x12\x13\n\x0bschema_json\x18\x01 \x01(\t\x1a\x44\n\x13\x43onfluentAvroFormat\x12\x13\n\x0brecord_name\x18\x01 \x01(\t\x12\x18\n\x10record_namespace\x18\x02 \x01(\tB\x08\n\x06\x66ormatBT\n\x10\x66\x65\x61st.proto.coreB\x0f\x44\x61taFormatProtoZ/github.com/feast-dev/feast/go/protos/feast/coreb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -29,11 +29,13 @@ if _descriptor._USE_C_DESCRIPTORS == False:
   _globals['_FILEFORMAT_DELTAFORMAT']._serialized_start=199
   _globals['_FILEFORMAT_DELTAFORMAT']._serialized_end=212
   _globals['_STREAMFORMAT']._serialized_start=225
-  _globals['_STREAMFORMAT']._serialized_end=536
-  _globals['_STREAMFORMAT_PROTOFORMAT']._serialized_start=423
-  _globals['_STREAMFORMAT_PROTOFORMAT']._serialized_end=456
-  _globals['_STREAMFORMAT_AVROFORMAT']._serialized_start=458
-  _globals['_STREAMFORMAT_AVROFORMAT']._serialized_end=491
-  _globals['_STREAMFORMAT_JSONFORMAT']._serialized_start=493
-  _globals['_STREAMFORMAT_JSONFORMAT']._serialized_end=526
+  _globals['_STREAMFORMAT']._serialized_end=685
+  _globals['_STREAMFORMAT_PROTOFORMAT']._serialized_start=502
+  _globals['_STREAMFORMAT_PROTOFORMAT']._serialized_end=535
+  _globals['_STREAMFORMAT_AVROFORMAT']._serialized_start=537
+  _globals['_STREAMFORMAT_AVROFORMAT']._serialized_end=570
+  _globals['_STREAMFORMAT_JSONFORMAT']._serialized_start=572
+  _globals['_STREAMFORMAT_JSONFORMAT']._serialized_end=605
+  _globals['_STREAMFORMAT_CONFLUENTAVROFORMAT']._serialized_start=607
+  _globals['_STREAMFORMAT_CONFLUENTAVROFORMAT']._serialized_end=675
 # @@protoc_insertion_point(module_scope)

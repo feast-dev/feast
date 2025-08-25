@@ -9,4 +9,5 @@ type RegistryStore interface {
 	GetRegistryProto() (*core.Registry, error)
 	UpdateRegistryProto(*core.Registry) error
 	Teardown() error
+	HasFallback() bool
 }

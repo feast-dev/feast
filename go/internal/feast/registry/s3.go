@@ -107,3 +107,7 @@ func (r *S3RegistryStore) parseS3Path() (string, string, error) {
 	}
 	return parts[0], parts[1], nil
 }
+
+func (r *S3RegistryStore) HasFallback() bool {
+	return false
+}

@@ -24,6 +24,9 @@ from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
 from feast.protos.feast.core.OnDemandFeatureView_pb2 import OnDemandFeatureViewSpec
 from feast.protos.feast.core.Permission_pb2 import Permission as PermissionProto
 from feast.protos.feast.core.SavedDataset_pb2 import SavedDataset as SavedDatasetProto
+from feast.protos.feast.core.SortedFeatureView_pb2 import (
+    SortedFeatureView as SortedFeatureViewProto,
+)
 from feast.protos.feast.core.StreamFeatureView_pb2 import (
     StreamFeatureView as StreamFeatureViewProto,
 )
@@ -110,6 +113,7 @@ FeastObjectProto = TypeVar(
     EntityProto,
     FeatureViewProto,
     FeatureServiceProto,
+    SortedFeatureViewProto,
     OnDemandFeatureViewProto,
     StreamFeatureViewProto,
     ValidationReferenceProto,
@@ -135,7 +139,7 @@ def diff_registry_objects(
     if isinstance(
         current_proto, (DataSourceProto, ValidationReferenceProto)
     ) or isinstance(new_proto, (DataSourceProto, ValidationReferenceProto)):
-        assert type(current_proto) == type(new_proto)
+        assert type(current_proto) is type(new_proto)
         current_spec = cast(DataSourceProto, current_proto)
         new_spec = cast(DataSourceProto, new_proto)
     else:
@@ -180,6 +184,61 @@ def diff_registry_objects(
                                     getattr(new_udf, _udf_field.name),
                                 )
                             )
+                elif _field.name == "sort_keys":
+                    # Special handling for sort_keys field (a repeated field)
+                    current_sort_keys = getattr(current_spec, _field.name)
+                    new_sort_keys = getattr(new_spec, _field.name)
+                    if len(current_sort_keys) != len(new_sort_keys):
+                        transition = TransitionType.UPDATE
+                        property_diffs.append(
+                            PropertyDiff(_field.name, current_sort_keys, new_sort_keys)
+                        )
+                    else:
+                        # Iterate through each sort key pair
+                        for idx, (cs, ns) in enumerate(
+                            zip(current_sort_keys, new_sort_keys)
+                        ):
+                            if cs.name != ns.name:
+                                transition = TransitionType.UPDATE
+                                property_diffs.append(
+                                    PropertyDiff(
+                                        f"sort_keys[{idx}].name", cs.name, ns.name
+                                    )
+                                )
+                            if cs.value_type != ns.value_type:
+                                transition = TransitionType.UPDATE
+                                property_diffs.append(
+                                    PropertyDiff(
+                                        f"sort_keys[{idx}].value_type",
+                                        cs.value_type,
+                                        ns.value_type,
+                                    )
+                                )
+                            if cs.default_sort_order != ns.default_sort_order:
+                                transition = TransitionType.UPDATE
+                                property_diffs.append(
+                                    PropertyDiff(
+                                        f"sort_keys[{idx}].default_sort_order",
+                                        cs.default_sort_order,
+                                        ns.default_sort_order,
+                                    )
+                                )
+                            if cs.tags != ns.tags:
+                                transition = TransitionType.UPDATE
+                                property_diffs.append(
+                                    PropertyDiff(
+                                        f"sort_keys[{idx}].tags", cs.tags, ns.tags
+                                    )
+                                )
+                            if cs.description != ns.description:
+                                transition = TransitionType.UPDATE
+                                property_diffs.append(
+                                    PropertyDiff(
+                                        f"sort_keys[{idx}].description",
+                                        cs.description,
+                                        ns.description,
+                                    )
+                                )
                 else:
                     transition = TransitionType.UPDATE
                     property_diffs.append(
@@ -342,6 +401,7 @@ def apply_diff_to_registry(
                 FeastObjectType.FEATURE_VIEW,
                 FeastObjectType.ON_DEMAND_FEATURE_VIEW,
                 FeastObjectType.STREAM_FEATURE_VIEW,
+                FeastObjectType.SORTED_FEATURE_VIEW,
             ]:
                 feature_view_obj = cast(
                     BaseFeatureView, feast_object_diff.current_feast_object
@@ -399,6 +459,7 @@ def apply_diff_to_registry(
                 FeastObjectType.FEATURE_VIEW,
                 FeastObjectType.ON_DEMAND_FEATURE_VIEW,
                 FeastObjectType.STREAM_FEATURE_VIEW,
+                FeastObjectType.SORTED_FEATURE_VIEW,
             ]:
                 registry.apply_feature_view(
                     cast(BaseFeatureView, feast_object_diff.new_feast_object),

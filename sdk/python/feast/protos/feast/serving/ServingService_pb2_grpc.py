@@ -19,10 +19,20 @@ class ServingServiceStub(object):
                 request_serializer=feast_dot_serving_dot_ServingService__pb2.GetFeastServingInfoRequest.SerializeToString,
                 response_deserializer=feast_dot_serving_dot_ServingService__pb2.GetFeastServingInfoResponse.FromString,
                 )
+        self.GetVersionInfo = channel.unary_unary(
+                '/feast.serving.ServingService/GetVersionInfo',
+                request_serializer=feast_dot_serving_dot_ServingService__pb2.GetVersionInfoRequest.SerializeToString,
+                response_deserializer=feast_dot_serving_dot_ServingService__pb2.GetVersionInfoResponse.FromString,
+                )
         self.GetOnlineFeatures = channel.unary_unary(
                 '/feast.serving.ServingService/GetOnlineFeatures',
                 request_serializer=feast_dot_serving_dot_ServingService__pb2.GetOnlineFeaturesRequest.SerializeToString,
                 response_deserializer=feast_dot_serving_dot_ServingService__pb2.GetOnlineFeaturesResponse.FromString,
+                )
+        self.GetOnlineFeaturesRange = channel.unary_unary(
+                '/feast.serving.ServingService/GetOnlineFeaturesRange',
+                request_serializer=feast_dot_serving_dot_ServingService__pb2.GetOnlineFeaturesRangeRequest.SerializeToString,
+                response_deserializer=feast_dot_serving_dot_ServingService__pb2.GetOnlineFeaturesRangeResponse.FromString,
                 )
 
 
@@ -36,8 +46,22 @@ class ServingServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def GetVersionInfo(self, request, context):
+        """Get Version information of this Feature Server
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
     def GetOnlineFeatures(self, request, context):
         """Get online features synchronously.
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetOnlineFeaturesRange(self, request, context):
+        """Get online features synchronously with range queries.
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -51,10 +75,20 @@ def add_ServingServiceServicer_to_server(servicer, server):
                     request_deserializer=feast_dot_serving_dot_ServingService__pb2.GetFeastServingInfoRequest.FromString,
                     response_serializer=feast_dot_serving_dot_ServingService__pb2.GetFeastServingInfoResponse.SerializeToString,
             ),
+            'GetVersionInfo': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetVersionInfo,
+                    request_deserializer=feast_dot_serving_dot_ServingService__pb2.GetVersionInfoRequest.FromString,
+                    response_serializer=feast_dot_serving_dot_ServingService__pb2.GetVersionInfoResponse.SerializeToString,
+            ),
             'GetOnlineFeatures': grpc.unary_unary_rpc_method_handler(
                     servicer.GetOnlineFeatures,
                     request_deserializer=feast_dot_serving_dot_ServingService__pb2.GetOnlineFeaturesRequest.FromString,
                     response_serializer=feast_dot_serving_dot_ServingService__pb2.GetOnlineFeaturesResponse.SerializeToString,
+            ),
+            'GetOnlineFeaturesRange': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetOnlineFeaturesRange,
+                    request_deserializer=feast_dot_serving_dot_ServingService__pb2.GetOnlineFeaturesRangeRequest.FromString,
+                    response_serializer=feast_dot_serving_dot_ServingService__pb2.GetOnlineFeaturesRangeResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -84,6 +118,23 @@ class ServingService(object):
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
     @staticmethod
+    def GetVersionInfo(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/feast.serving.ServingService/GetVersionInfo',
+            feast_dot_serving_dot_ServingService__pb2.GetVersionInfoRequest.SerializeToString,
+            feast_dot_serving_dot_ServingService__pb2.GetVersionInfoResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
     def GetOnlineFeatures(request,
             target,
             options=(),
@@ -97,5 +148,22 @@ class ServingService(object):
         return grpc.experimental.unary_unary(request, target, '/feast.serving.ServingService/GetOnlineFeatures',
             feast_dot_serving_dot_ServingService__pb2.GetOnlineFeaturesRequest.SerializeToString,
             feast_dot_serving_dot_ServingService__pb2.GetOnlineFeaturesResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def GetOnlineFeaturesRange(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/feast.serving.ServingService/GetOnlineFeaturesRange',
+            feast_dot_serving_dot_ServingService__pb2.GetOnlineFeaturesRangeRequest.SerializeToString,
+            feast_dot_serving_dot_ServingService__pb2.GetOnlineFeaturesRangeResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

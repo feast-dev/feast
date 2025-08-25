@@ -5,6 +5,9 @@ from feast.infra.offline_stores.bigquery_source import BigQuerySource
 from feast.infra.offline_stores.contrib.athena_offline_store.athena_source import (
     AthenaSource,
 )
+from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import (
+    SparkSource,
+)
 from feast.infra.offline_stores.file_source import FileSource
 from feast.infra.offline_stores.redshift_source import RedshiftSource
 from feast.infra.offline_stores.snowflake_source import SnowflakeSource
@@ -20,6 +23,7 @@ from .field import Field
 from .on_demand_feature_view import OnDemandFeatureView
 from .project import Project
 from .repo_config import RepoConfig
+from .sorted_feature_view import SortedFeatureView
 from .stream_feature_view import StreamFeatureView
 from .value_type import ValueType
 from .vector_store import FeastVectorStore
@@ -40,6 +44,7 @@ __all__ = [
     "FeatureService",
     "FeatureStore",
     "FeatureView",
+    "SortedFeatureView",
     "OnDemandFeatureView",
     "RepoConfig",
     "StreamFeatureView",
@@ -51,6 +56,7 @@ __all__ = [
     "PushSource",
     "RequestSource",
     "AthenaSource",
+    "SparkSource",
     "Project",
     "FeastVectorStore",
 ]

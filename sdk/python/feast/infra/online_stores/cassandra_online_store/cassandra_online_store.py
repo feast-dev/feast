@@ -18,19 +18,16 @@
 Cassandra/Astra DB online store for Feast.
 """
 
+import hashlib
 import logging
-from datetime import datetime
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    Iterable,
-    List,
-    Literal,
-    Optional,
-    Sequence,
-    Tuple,
-)
+import math
+import string
+import time
+from collections import defaultdict
+from datetime import datetime, timedelta, timezone
+from functools import partial
+from queue import Queue
+from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union
 
 from cassandra.auth import PlainTextAuthProvider
 from cassandra.cluster import (
@@ -42,15 +39,31 @@ from cassandra.cluster import (
 )
 from cassandra.concurrent import execute_concurrent_with_args
 from cassandra.policies import DCAwareRoundRobinPolicy, TokenAwarePolicy
-from cassandra.query import PreparedStatement
+from cassandra.query import BatchStatement, BatchType, PreparedStatement
 from pydantic import StrictFloat, StrictInt, StrictStr
 
-from feast import Entity, FeatureView, RepoConfig
+from feast import Entity, FeatureView, RepoConfig, utils
 from feast.infra.key_encoding_utils import serialize_entity_key
 from feast.infra.online_stores.online_store import OnlineStore
+from feast.protos.feast.core.SortedFeatureView_pb2 import SortOrder
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
+from feast.rate_limiter import SlidingWindowRateLimiter
 from feast.repo_config import FeastConfigBaseModel
+from feast.sorted_feature_view import SortedFeatureView
+from feast.types import (
+    Array,
+    Bool,
+    Bytes,
+    ComplexFeastType,
+    Float32,
+    Float64,
+    Int32,
+    Int64,
+    PrimitiveFeastType,
+    String,
+    UnixTimestamp,
+)
 
 # Error messages
 E_CASSANDRA_UNEXPECTED_CONFIGURATION_CLASS = (
@@ -75,8 +88,10 @@ E_CASSANDRA_UNKNOWN_LB_POLICY = (
 INSERT_CQL_4_TEMPLATE = (
     "INSERT INTO {fqtable} (feature_name,"
     " value, entity_key, event_ts) VALUES"
-    " (?, ?, ?, ?);"
+    " (?, ?, ?, ?) USING TTL {ttl};"
 )
+
+INSERT_SORTED_FEATURES_TEMPLATE = "INSERT INTO {fqtable} ({feature_names}, entity_key, event_ts) VALUES ({parameters}) USING TTL {ttl};"
 
 SELECT_CQL_TEMPLATE = "SELECT {columns} FROM {fqtable} WHERE entity_key = ?;"
 
@@ -88,7 +103,8 @@ CREATE_TABLE_CQL_TEMPLATE = """
         event_ts        TIMESTAMP,
         created_ts      TIMESTAMP,
         PRIMARY KEY ((entity_key), feature_name)
-    ) WITH CLUSTERING ORDER BY (feature_name ASC);
+    ) WITH CLUSTERING ORDER BY (feature_name ASC)
+    AND COMMENT='project={project}, feature_view={feature_view}';
 """
 
 DROP_TABLE_CQL_TEMPLATE = "DROP TABLE IF EXISTS {fqtable};"
@@ -97,11 +113,14 @@ DROP_TABLE_CQL_TEMPLATE = "DROP TABLE IF EXISTS {fqtable};"
 CQL_TEMPLATE_MAP = {
     # Queries/DML, statements to be prepared
     "insert4": (INSERT_CQL_4_TEMPLATE, True),
+    "insert_sorted_features": (INSERT_SORTED_FEATURES_TEMPLATE, True),
     "select": (SELECT_CQL_TEMPLATE, True),
     # DDL, do not prepare these
     "drop": (DROP_TABLE_CQL_TEMPLATE, False),
     "create": (CREATE_TABLE_CQL_TEMPLATE, False),
 }
+
+V2_TABLE_NAME_FORMAT_MAX_LENGTH = 48
 
 # Logger
 logger = logging.getLogger(__name__)
@@ -124,7 +143,7 @@ class CassandraOnlineStoreConfig(FeastConfigBaseModel):
     and password being the Client ID and Client Secret of the database token.
     """
 
-    type: Literal["cassandra"] = "cassandra"
+    type: Literal["cassandra", "scylladb"] = "cassandra"
     """Online store type selector."""
 
     # settings for connection to Cassandra / Astra DB
@@ -151,7 +170,27 @@ class CassandraOnlineStoreConfig(FeastConfigBaseModel):
     """Explicit specification of the CQL protocol version used."""
 
     request_timeout: Optional[StrictFloat] = None
-    """Request timeout in seconds."""
+    """Request timeout in seconds. Defaults to no operation timeout."""
+
+    lazy_table_creation: Optional[bool] = False
+    """
+    If True, tables will be created on during materialization, rather than registration.
+    Table deletion is not currently supported in this mode.
+    """
+
+    key_ttl_seconds: Optional[StrictInt] = None
+    """
+    Default TTL (in seconds) to apply to all tables if not specified in FeatureView. Value 0 or None means No TTL.
+    """
+
+    key_batch_size: Optional[StrictInt] = 10
+    """DEPRECATED: In Go Feature Server, this configuration is used to query tables with multiple keys at a time using IN clause based on the size specified. Value 1 means key batching is disabled. Valid values are 1 to 100."""
+
+    read_batch_size: Optional[StrictInt] = 100
+    """In Go Feature Server, this configuration is used to query tables with multiple keys at a time using IN clause based on the size specified. Value 1 means key batching is disabled. Valid values are 1 to 100."""
+
+    write_batch_size: Optional[StrictInt] = 100
+    """In Materialization, this configuration is used to write multiple rows at a time as a batched insert. Value 1 means batching is disabled. Valid values are 1 to 100."""
 
     class CassandraLoadBalancingPolicy(FeastConfigBaseModel):
         """
@@ -185,10 +224,22 @@ class CassandraOnlineStoreConfig(FeastConfigBaseModel):
 
     write_concurrency: Optional[StrictInt] = 100
     """
-    Value of the `concurrency` parameter internally passed to Cassandra driver's
-    `execute_concurrent_with_args` call when writing rows to tables.
-    See https://docs.datastax.com/en/developer/python-driver/3.25/api/cassandra/concurrent/#module-cassandra.concurrent .
+    Controls the number of concurrent writes to the database.
     Default: 100.
+    """
+
+    write_rate_limit: Optional[StrictInt] = 0
+    """
+    The maximum number of write batches per second. Value 0 means no rate limiting.
+    For spark materialization engine, this configuration is per executor task.
+    """
+
+    table_name_format_version: Optional[StrictInt] = 1
+    """
+    Version of the table name format. This is used to determine the format of the table name.
+    Version 1: <project>_<feature_view_name>
+    Version 2: Limits the length of the table name to 48 characters.
+    Table names should be quoted to make them case sensitive.
     """
 
 
@@ -222,7 +273,10 @@ class CassandraOnlineStore(OnlineStore):
             raise CassandraInvalidConfig(E_CASSANDRA_UNEXPECTED_CONFIGURATION_CLASS)
 
         if self._session:
-            return self._session
+            if not self._session.is_shutdown:
+                return self._session
+            else:
+                self._session = None
         if not self._session:
             # configuration consistency checks
             hosts = online_store_config.hosts
@@ -289,7 +343,10 @@ class CassandraOnlineStore(OnlineStore):
             # creation of Cluster (Cassandra vs. Astra)
             if hosts:
                 self._cluster = Cluster(
-                    hosts, port=port, auth_provider=auth_provider, **cluster_kwargs
+                    hosts,
+                    port=port,
+                    auth_provider=auth_provider,
+                    **cluster_kwargs,
                 )
             else:
                 # we use 'secure_bundle_path'
@@ -307,16 +364,18 @@ class CassandraOnlineStore(OnlineStore):
 
     def __del__(self):
         """
-        One may be tempted to reclaim resources and do, here:
-            if self._session:
-                self._session.shutdown()
-        But *beware*, DON'T DO THIS.
-        Indeed this could destroy the session object before some internal
-        tasks runs in other threads (this is handled internally in the
-        Cassandra driver).
+        Shutting down the session and cluster objects. If you don't do this,
+        you would notice increase in connection spikes on the cluster. Once shutdown,
+        you can't use the session object anymore.
         You'd get a RuntimeError "cannot schedule new futures after shutdown".
         """
-        pass
+        if self._session:
+            if not self._session.is_shutdown:
+                self._session.shutdown()
+
+        if self._cluster:
+            if not self._cluster.is_shutdown:
+                self._cluster.shutdown()
 
     def online_write_batch(
         self,
@@ -341,14 +400,179 @@ class CassandraOnlineStore(OnlineStore):
                       rows is written to the online store. Can be used to
                       display progress.
         """
+        ex: Optional[Exception] = None
+
+        def on_success(result, concurrent_queue):
+            concurrent_queue.get_nowait()
+
+        def on_failure(exc, concurrent_queue):
+            nonlocal ex
+            ex = exc
+            concurrent_queue.get_nowait()
+            logger.exception(f"Error writing a batch: {exc}")
+
+        online_store_config = config.online_store
+
         project = config.project
 
-        def unroll_insertion_tuples() -> Iterable[Tuple[str, bytes, str, datetime]]:
-            """
-            We craft an iterable over all rows to be inserted (entities->features),
-            but this way we can call `progress` after each entity is done.
-            """
+        ttl_feature_view = table.ttl or timedelta(seconds=0)
+        ttl_online_store_config = online_store_config.key_ttl_seconds or 0
+        write_concurrency = online_store_config.write_concurrency
+        write_rate_limit = online_store_config.write_rate_limit
+        concurrent_queue: Queue = Queue(maxsize=write_concurrency)
+        rate_limiter = SlidingWindowRateLimiter(write_rate_limit, 1)
+        feast_array_types = [
+            "bytes_list_val",
+            "string_list_val",
+            "int32_list_val",
+            "int64_list_val",
+            "double_list_val",
+            "float_list_val",
+            "bool_list_val",
+            "unix_timestamp_list_val",
+        ]
+
+        session: Session = self._get_session(config)
+        keyspace: str = self._keyspace
+        table_name_version = online_store_config.table_name_format_version
+        fqtable = CassandraOnlineStore._fq_table_name(
+            keyspace, project, table, table_name_version
+        )
+
+        if isinstance(table, SortedFeatureView):
+            # Split the data in to multiple batches, with each batch having the same entity key (partition key).
+            # NOTE: It is not a good practice to have data from multiple partitions in the same batch.
+            # Doing so can affect write latency and also data loss among other things.
+            entity_dict: Dict[
+                str,
+                List[
+                    Tuple[
+                        EntityKeyProto,
+                        Dict[str, ValueProto],
+                        datetime,
+                        Optional[datetime],
+                    ]
+                ],
+            ] = defaultdict(
+                list[
+                    Tuple[
+                        EntityKeyProto,
+                        Dict[str, ValueProto],
+                        datetime,
+                        Optional[datetime],
+                    ]
+                ]
+            )
+            for row in data:
+                entity_key_bin = serialize_entity_key(
+                    row[0],
+                    entity_key_serialization_version=config.entity_key_serialization_version,
+                ).hex()
+                entity_dict[entity_key_bin].append(row)
+
+            # Get the list of feature names from data to use in the insert query
+            feature_names = list(data[0][1].keys())
+            feature_names_str = ", ".join(feature_names)
+            params_str = ", ".join(["?"] * (len(feature_names) + 2))
+
+            # Write each batch with same entity key in to the online store
+            sort_key_names = [sort_key.name for sort_key in table.sort_keys]
+
+            for entity_key_bin, batch_to_write in entity_dict.items():
+                batch = BatchStatement(batch_type=BatchType.UNLOGGED)
+                batch_count = 0
+                for entity_key, feat_dict, timestamp, created_ts in batch_to_write:
+                    ttl = CassandraOnlineStore._get_ttl(
+                        ttl_feature_view,
+                        table.use_write_time_for_ttl,
+                        timestamp,
+                    )
+                    if ttl < 0:
+                        # The ttl is negative when the timestamp-adjusted ttl is in the past in which case skip inserting the row
+                        continue
+
+                    feature_values: tuple[Any, ...] = ()
+                    for feature_name, valProto in feat_dict.items():
+                        if feature_name in sort_key_names:
+                            feast_value_type = valProto.WhichOneof("val")
+                            if feast_value_type == "unix_timestamp_val":
+                                feature_value = (
+                                    valProto.unix_timestamp_val * 1000
+                                )  # Convert to milliseconds
+                            elif feast_value_type is None:
+                                feature_value = None
+                            elif feast_value_type in feast_array_types:
+                                if feast_value_type == "unix_timestamp_list_val":
+                                    # Convert list of timestamps to milliseconds
+                                    feature_value = [
+                                        ts * 1000
+                                        for ts in valProto.unix_timestamp_list_val.val  # type:ignore
+                                    ]
+                                else:
+                                    feature_value = getattr(
+                                        valProto, str(feast_value_type)
+                                    ).val
+                            else:
+                                feature_value = getattr(valProto, str(feast_value_type))
+                        else:
+                            # For all other features, use the serialized value
+                            feature_value = valProto.SerializeToString()  # type:ignore
+                        feature_values += (feature_value,)
+
+                    feature_values = feature_values + (
+                        entity_key_bin,
+                        timestamp,
+                    )
+                    insert_cql = self._get_cql_statement(
+                        config,
+                        "insert_sorted_features",
+                        fqtable=fqtable,
+                        ttl=ttl,
+                        session=session,
+                        feature_names_str=feature_names_str,
+                        params_str=params_str,
+                    )
+                    batch.add(insert_cql, feature_values)
+                    batch_count += 1
+
+                    if (
+                        online_store_config.write_batch_size is not None
+                        and 0 < online_store_config.write_batch_size <= batch_count
+                    ):
+                        CassandraOnlineStore._apply_batch(
+                            rate_limiter,
+                            batch,
+                            progress,
+                            session,
+                            concurrent_queue,
+                            on_success,
+                            on_failure,
+                        )
+                        batch = BatchStatement(batch_type=BatchType.UNLOGGED)
+                        batch_count = 0
+
+                if batch_count > 0:
+                    CassandraOnlineStore._apply_batch(
+                        rate_limiter,
+                        batch,
+                        progress,
+                        session,
+                        concurrent_queue,
+                        on_success,
+                        on_failure,
+                    )
+        else:
+            insert_cql = self._get_cql_statement(
+                config,
+                "insert4",
+                fqtable=fqtable,
+                ttl=ttl_online_store_config,
+                session=session,
+            )
+
             for entity_key, values, timestamp, created_ts in data:
+                batch = BatchStatement(batch_type=BatchType.UNLOGGED)
+                batch_count = 0
                 entity_key_bin = serialize_entity_key(
                     entity_key,
                     entity_key_serialization_version=config.entity_key_serialization_version,
@@ -360,18 +584,54 @@ class CassandraOnlineStore(OnlineStore):
                         entity_key_bin,
                         timestamp,
                     )
-                    yield params
-                # this happens N-1 times, will be corrected outside:
-                if progress:
-                    progress(1)
+                    batch.add(insert_cql, params)
+                    batch_count += 1
 
-        self._write_rows_concurrently(
-            config,
-            project,
-            table,
-            unroll_insertion_tuples(),
-        )
-        # correction for the last missing call to `progress`:
+                    if (
+                        online_store_config.write_batch_size is not None
+                        and 0 < online_store_config.write_batch_size <= batch_count
+                    ):
+                        CassandraOnlineStore._apply_batch(
+                            rate_limiter,
+                            batch,
+                            progress,
+                            session,
+                            concurrent_queue,
+                            on_success,
+                            on_failure,
+                        )
+                        batch = BatchStatement(batch_type=BatchType.UNLOGGED)
+                        batch_count = 0
+
+                if batch_count > 0:
+                    CassandraOnlineStore._apply_batch(
+                        rate_limiter,
+                        batch,
+                        progress,
+                        session,
+                        concurrent_queue,
+                        on_success,
+                        on_failure,
+                    )
+
+        if ex:
+            raise ex
+
+        if not concurrent_queue.empty():
+            logger.warning(
+                f"Waiting for futures. Pending are {concurrent_queue.qsize()}"
+            )
+            while not concurrent_queue.empty():
+                if ex:
+                    raise ex
+                time.sleep(0.001)
+            if ex:
+                raise ex
+            # Spark materialization engine doesn't log info messages
+            # so we print the message to stdout
+            print("Completed writing all futures.")
+
+            # correction for the last missing call to `progress`:
         if progress:
             progress(1)
 
@@ -451,7 +711,10 @@ class CassandraOnlineStore(OnlineStore):
         project = config.project
 
         for table in tables_to_keep:
-            self._create_table(config, project, table)
+            if self._table_exists(config, project, table):
+                self._alter_table(config, project, table)
+            else:
+                self._create_table(config, project, table)
         for table in tables_to_delete:
             self._drop_table(config, project, table)
 
@@ -474,31 +737,77 @@ class CassandraOnlineStore(OnlineStore):
             self._drop_table(config, project, table)
 
     @staticmethod
-    def _fq_table_name(keyspace: str, project: str, table: FeatureView) -> str:
+    def _fq_table_name_v2(keyspace: str, project: str, feature_view_name: str) -> str:
+        """
+        Generate a fully-qualified table name,
+        including quotes and keyspace.
+        Limits table name to 48 characters.
+        """
+        db_table_name = f"{project}_{feature_view_name}"
+
+        def base62encode(input: bytes) -> str:
+            """Convert bytes to a base62 string."""
+
+            def to_base62(num):
+                """
+                Converts a number to a base62 string.
+                """
+                chars = string.digits + string.ascii_lowercase + string.ascii_uppercase
+                if num == 0:
+                    return "0"
+
+                result = []
+                while num:
+                    num, remainder = divmod(num, 62)
+                    result.append(chars[remainder])
+
+                return "".join(reversed(result))
+
+            byte_to_num = int.from_bytes(input, byteorder="big")
+            return to_base62(byte_to_num)
+
+        if len(db_table_name) <= V2_TABLE_NAME_FORMAT_MAX_LENGTH:
+            return f'"{keyspace}"."{db_table_name}"'
+        else:
+            # we are using quotes for table name to make it case sensitive.
+            # So we can pack more bytes into the string by including capital letters.
+            # So using base62(0-9a-zA-Z) encoding instead of base36 (0-9a-z) encoding.
+            prj_prefix_maxlen = 5
+            fv_prefix_maxlen = 5
+            truncated_project = project[:prj_prefix_maxlen]
+            truncated_fv = feature_view_name[:fv_prefix_maxlen]
+
+            project_to_hash = project[len(truncated_project) :]
+            fv_to_hash = feature_view_name[len(truncated_fv) :]
+
+            project_hash = base62encode(hashlib.md5(project_to_hash.encode()).digest())
+            fv_hash = base62encode(hashlib.md5(fv_to_hash.encode()).digest())
+
+            # (48 - 3 underscores - 5 prj prefix - 5 fv prefix) / 2 = 17.5
+            db_table_name = (
+                f"{truncated_project}_{project_hash[:17]}_{truncated_fv}_{fv_hash[:18]}"
+            )
+            return f'"{keyspace}"."{db_table_name}"'
+
+    @staticmethod
+    def _fq_table_name(
+        keyspace: str, project: str, table: FeatureView, table_name_version: int
+    ) -> str:
         """
         Generate a fully-qualified table name,
         including quotes and keyspace.
         """
-        return f'"{keyspace}"."{project}_{table.name}"'
+        feature_view_name = table.name
+        db_table_name = f"{project}_{feature_view_name}"
+        if table_name_version == 1:
+            return f'"{keyspace}"."{db_table_name}"'
 
-    def _write_rows_concurrently(
-        self,
-        config: RepoConfig,
-        project: str,
-        table: FeatureView,
-        rows: Iterable[Tuple[str, bytes, str, datetime]],
-    ):
-        session: Session = self._get_session(config)
-        keyspace: str = self._keyspace
-        fqtable = CassandraOnlineStore._fq_table_name(keyspace, project, table)
-        insert_cql = self._get_cql_statement(config, "insert4", fqtable=fqtable)
-        #
-        execute_concurrent_with_args(
-            session,
-            insert_cql,
-            rows,
-            concurrency=config.online_store.write_concurrency,
-        )
+        elif table_name_version == 2:
+            return CassandraOnlineStore._fq_table_name_v2(
+                keyspace, project, feature_view_name
+            )
+        else:
+            raise ValueError(f"Unknown table name format version: {table_name_version}")
 
     def _read_rows_by_entity_keys(
         self,
@@ -513,7 +822,10 @@ class CassandraOnlineStore(OnlineStore):
         """
         session: Session = self._get_session(config)
         keyspace: str = self._keyspace
-        fqtable = CassandraOnlineStore._fq_table_name(keyspace, project, table)
+        table_name_version = config.online_store.table_name_format_version
+        fqtable = CassandraOnlineStore._fq_table_name(
+            keyspace, project, table, table_name_version
+        )
         projection_columns = "*" if columns is None else ", ".join(columns)
         select_cql = self._get_cql_statement(
             config,
@@ -550,19 +862,121 @@ class CassandraOnlineStore(OnlineStore):
         """Handle the CQL (low-level) deletion of a table."""
         session: Session = self._get_session(config)
         keyspace: str = self._keyspace
-        fqtable = CassandraOnlineStore._fq_table_name(keyspace, project, table)
+        table_name_version = config.online_store.table_name_format_version
+        fqtable = CassandraOnlineStore._fq_table_name(
+            keyspace, project, table, table_name_version
+        )
         drop_cql = self._get_cql_statement(config, "drop", fqtable)
         logger.info(f"Deleting table {fqtable}.")
         session.execute(drop_cql)
 
-    def _create_table(self, config: RepoConfig, project: str, table: FeatureView):
+    def _create_table(
+        self,
+        config: RepoConfig,
+        project: str,
+        table: Union[FeatureView, SortedFeatureView],
+    ):
         """Handle the CQL (low-level) creation of a table."""
         session: Session = self._get_session(config)
         keyspace: str = self._keyspace
-        fqtable = CassandraOnlineStore._fq_table_name(keyspace, project, table)
-        create_cql = self._get_cql_statement(config, "create", fqtable)
-        logger.info(f"Creating table {fqtable}.")
+        table_name_version = config.online_store.table_name_format_version
+        fqtable = CassandraOnlineStore._fq_table_name(
+            keyspace, project, table, table_name_version
+        )
+        if isinstance(table, SortedFeatureView):
+            create_cql = self._build_sorted_table_cql(project, table, fqtable)
+        else:
+            create_cql = self._get_cql_statement(
+                config,
+                "create",
+                fqtable,
+                project=project,
+                feature_view=table.name,
+            )
+        logger.info(
+            f"Creating table {fqtable} in keyspace {keyspace} if not exists using {create_cql}."
+        )
         session.execute(create_cql)
+
+    def _resolve_table_names(
+        self, config: RepoConfig, project: str, table: FeatureView
+    ) -> Tuple[str, str]:
+        """
+        Returns (fqtable, plain_table_name) for a given FeatureView,
+        where fqtable is '"keyspace"."table"' and plain_table_name
+        is the lower-cased unquoted table identifier.
+        """
+        fqtable = CassandraOnlineStore._fq_table_name(
+            self._keyspace,
+            project,
+            table,
+            config.online_store.table_name_format_version,
+        )
+        # extract bare identifier: split off keyspace, strip quotes, lower-case
+        quoted = fqtable.split(".", 1)[1]
+        plain_table_name = quoted.strip('"')
+        return fqtable, plain_table_name
+
+    def _table_exists(
+        self, config: RepoConfig, project: str, table: FeatureView
+    ) -> bool:
+        self._get_session(config)
+        _, plain_table_name = self._resolve_table_names(config, project, table)
+        ks_meta = self._cluster.metadata.keyspaces[self._keyspace]
+        return plain_table_name in ks_meta.tables
+
+    def _alter_table(self, config: RepoConfig, project: str, table: FeatureView):
+        session = self._get_session(config)
+        fqtable, plain_table_name = self._resolve_table_names(config, project, table)
+
+        ks_meta = self._cluster.metadata.keyspaces[self._keyspace]
+        existing_cols = set(ks_meta.tables[plain_table_name].columns.keys())
+
+        desired_cols = {f.name for f in table.features}
+        new_cols = desired_cols - existing_cols
+        if new_cols:
+            cql_type = "BLOB"  # Default type for features
+            col_defs = ", ".join(f"{col} {cql_type}" for col in new_cols)
+            alter_cql = f"ALTER TABLE {fqtable} ADD ({col_defs})"
+            session.execute(alter_cql)
+            logger.info(
+                f"Added columns [{', '.join(sorted(new_cols))}] to table: {fqtable}"
+            )
+
+    def _build_sorted_table_cql(
+        self, project: str, table: SortedFeatureView, fqtable: str
+    ) -> str:
+        """
+        Build the CQL statement for creating a SortedFeatureView table with custom
+        entity and sort key columns.
+        """
+        sort_key_names = [sk.name for sk in table.sort_keys]
+        feature_columns = ", ".join(
+            f"{feature.name} {self._get_cql_type(feature.dtype)}"
+            if feature.name in sort_key_names
+            else f"{feature.name} BLOB"
+            for feature in table.features
+        )
+
+        sorted_keys = [
+            (sk.name, "ASC" if sk.default_sort_order == SortOrder.Enum.ASC else "DESC")
+            for sk in table.sort_keys
+        ]
+
+        sort_key_names = ", ".join(name for name, _ in sorted_keys)  # type:ignore
+        clustering_order = ", ".join(f"{name} {order}" for name, order in sorted_keys)
+
+        create_cql = (
+            f"CREATE TABLE IF NOT EXISTS {fqtable} (\n"
+            f"    entity_key TEXT,\n"
+            f"    {feature_columns},\n"
+            f"    event_ts TIMESTAMP,\n"
+            f"    created_ts TIMESTAMP,\n"
+            f"    PRIMARY KEY ((entity_key), {sort_key_names})\n"
+            f") WITH CLUSTERING ORDER BY ({clustering_order})\n"
+            f"AND COMMENT='project={project}, feature_view={table.name}';"
+        )
+        return create_cql.strip()
 
     def _get_cql_statement(
         self, config: RepoConfig, op_name: str, fqtable: str, **kwargs
@@ -577,12 +991,26 @@ class CassandraOnlineStore(OnlineStore):
         This additional layer makes it easy to control whether to use prepared
         statements and, if so, on which database operations.
         """
-        session: Session = self._get_session(config)
+        session: Session = None
+        if "session" in kwargs:
+            session = kwargs["session"]
+        else:
+            session = self._get_session(config)
+
         template, prepare = CQL_TEMPLATE_MAP[op_name]
-        statement = template.format(
-            fqtable=fqtable,
-            **kwargs,
-        )
+        if op_name == "insert_sorted_features":
+            statement = template.format(
+                fqtable=fqtable,
+                feature_names=kwargs.get("feature_names_str"),
+                parameters=kwargs.get("params_str"),
+                **kwargs,
+            )
+        else:
+            statement = template.format(
+                fqtable=fqtable,
+                **kwargs,
+            )
+
         if prepare:
             # using the statement itself as key (no problem with that)
             cache_key = statement
@@ -592,3 +1020,84 @@ class CassandraOnlineStore(OnlineStore):
             return self._prepared_statements[cache_key]
         else:
             return statement
+
+    @staticmethod
+    def _apply_batch(
+        rate_limiter: SlidingWindowRateLimiter,
+        batch: BatchStatement,
+        progress: Optional[Callable[[int], Any]],
+        session: Session,
+        concurrent_queue: Queue,
+        on_success,
+        on_failure,
+    ):
+        # Wait until the rate limiter allows
+        if not rate_limiter.acquire():
+            while not rate_limiter.acquire():
+                time.sleep(0.001)
+
+        future = session.execute_async(batch)
+        concurrent_queue.put(future)
+        future.add_callbacks(
+            partial(
+                on_success,
+                concurrent_queue=concurrent_queue,
+            ),
+            partial(
+                on_failure,
+                concurrent_queue=concurrent_queue,
+            ),
+        )
+
+        # this happens N-1 times, will be corrected outside:
+        if progress:
+            progress(1)
+
+    @staticmethod
+    def _get_ttl(
+        ttl_feature_view: timedelta,
+        use_write_time_for_ttl: bool,
+        timestamp: datetime,
+    ) -> int:
+        """
+        Calculate TTL based on different settings (like apply_ttl_on_write and ttl settings in feature view and online store config)
+        """
+        if not use_write_time_for_ttl:
+            if ttl_feature_view > timedelta():
+                ttl_offset = ttl_feature_view
+            else:
+                return 0
+            if timestamp.tzinfo is None:
+                timestamp = timestamp.replace(tzinfo=timezone.utc)
+            ttl_remaining = timestamp - utils._utc_now() + ttl_offset
+            return math.ceil(ttl_remaining.total_seconds())
+
+        return int(ttl_feature_view.total_seconds())
+
+    def _get_cql_type(
+        self, value_type: Union[ComplexFeastType, PrimitiveFeastType]
+    ) -> str:
+        """Map Feast value types to Cassandra CQL data types."""
+        scalar_mapping = {
+            Bytes: "BLOB",
+            String: "TEXT",
+            Int32: "INT",
+            Int64: "BIGINT",
+            Float32: "FLOAT",
+            Float64: "DOUBLE",
+            Bool: "BOOLEAN",
+            UnixTimestamp: "TIMESTAMP",
+            Array(Bytes): "LIST<BLOB>",
+            Array(String): "LIST<TEXT>",
+            Array(Int32): "LIST<INT>",
+            Array(Int64): "LIST<BIGINT>",
+            Array(Float32): "LIST<FLOAT>",
+            Array(Float64): "LIST<DOUBLE>",
+            Array(Bool): "LIST<BOOLEAN>",
+            Array(UnixTimestamp): "LIST<TIMESTAMP>",
+        }
+
+        if value_type in scalar_mapping:
+            return scalar_mapping[value_type]
+        else:
+            raise ValueError(f"Unsupported type: {value_type}")

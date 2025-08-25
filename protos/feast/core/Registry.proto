@@ -30,6 +30,7 @@ import "feast/core/OnDemandFeatureView.proto";
 import "feast/core/StreamFeatureView.proto";
 import "feast/core/DataSource.proto";
 import "feast/core/SavedDataset.proto";
+import "feast/core/SortedFeatureView.proto";
 import "feast/core/ValidationProfile.proto";
 import "google/protobuf/timestamp.proto";
 import "feast/core/Permission.proto";
@@ -43,6 +44,7 @@ message Registry {
     repeated DataSource data_sources = 12;
     repeated OnDemandFeatureView on_demand_feature_views = 8;
     repeated StreamFeatureView stream_feature_views = 14;
+    repeated SortedFeatureView sorted_feature_views = 30;
     repeated FeatureService feature_services = 7;
     repeated SavedDataset saved_datasets = 11;
     repeated ValidationReference validation_references = 13;
@@ -60,4 +62,6 @@ message Registry {
 message ProjectMetadata {
     string project = 1;
     string project_uuid = 2;
+    google.protobuf.Timestamp last_updated_timestamp = 3;
+
 }

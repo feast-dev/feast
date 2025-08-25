@@ -107,6 +107,11 @@ class StreamFormat(ABC):
             return JsonFormat(schema_json=proto.json_format.schema_json)
         if fmt == "proto_format":
             return ProtoFormat(class_path=proto.proto_format.class_path)
+        if fmt == "confluent_avro_format":
+            return ConfluentAvroFormat(
+                record_name=proto.confluent_avro_format.record_name,
+                record_namespace=proto.confluent_avro_format.record_namespace,
+            )
         raise NotImplementedError(f"StreamFormat is unsupported: {fmt}")
 
 
@@ -169,3 +174,26 @@ class ProtoFormat(StreamFormat):
         return StreamFormatProto(
             proto_format=StreamFormatProto.ProtoFormat(class_path=self.class_path)
         )
+
+
+class ConfluentAvroFormat(StreamFormat):
+    """
+    Defines the Confluent Avro streaming data format that encodes data in Confluent Avro format
+    """
+
+    def __init__(self, record_name: str, record_namespace: str):
+        """
+        Construct a new Confluet Avro data format.
+
+        Args:
+            record_name: Record name used by schema registry
+            record_namespace: Record namespace used by schema registry
+        """
+        self.record_name = record_name
+        self.record_namespace = record_namespace
+
+    def to_proto(self):
+        proto = StreamFormatProto.ConfluentAvroFormat(
+            record_name=self.record_name, record_namespace=self.record_namespace
+        )
+        return StreamFormatProto(confluent_avro_format=proto)

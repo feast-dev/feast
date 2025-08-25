@@ -575,7 +575,10 @@ class KafkaSource(DataSource):
         return type_map.redshift_to_feast_value_type
 
     def get_table_query_string(self) -> str:
-        raise NotImplementedError
+        if self.batch_source:
+            return self.batch_source.get_table_query_string()
+        else:
+            raise ValueError("Define batch source for KafkaSource.")
 
     def source_type(self) -> DataSourceProto.SourceType.ValueType:
         return DataSourceProto.STREAM_KAFKA

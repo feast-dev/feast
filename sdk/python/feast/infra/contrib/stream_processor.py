@@ -8,7 +8,7 @@ from typing_extensions import TypeAlias
 from feast.data_source import DataSource, PushMode
 from feast.importer import import_class
 from feast.repo_config import FeastConfigBaseModel
-from feast.stream_feature_view import StreamFeatureView
+from feast.stream_feature_view import FeatureView
 
 if TYPE_CHECKING:
     from feast.feature_store import FeatureStore
@@ -40,12 +40,10 @@ class StreamProcessor(ABC):
     """
 
     fs: "FeatureStore"
-    sfv: StreamFeatureView
+    sfv: FeatureView
     data_source: DataSource
 
-    def __init__(
-        self, fs: "FeatureStore", sfv: StreamFeatureView, data_source: DataSource
-    ):
+    def __init__(self, fs: "FeatureStore", sfv: FeatureView, data_source: DataSource):
         self.fs = fs
         self.sfv = sfv
         self.data_source = data_source
@@ -88,7 +86,7 @@ class StreamProcessor(ABC):
 def get_stream_processor_object(
     config: ProcessorConfig,
     fs: "FeatureStore",
-    sfv: StreamFeatureView,
+    sfv: FeatureView,
     preprocess_fn: Optional[MethodType] = None,
 ):
     """

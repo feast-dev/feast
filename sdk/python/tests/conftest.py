@@ -93,6 +93,9 @@ def pytest_configure(config):
     )
     config.addinivalue_line("markers", "benchmark: mark benchmarking tests")
     config.addinivalue_line(
+        "markers", "goserver: mark tests that use the go feature server"
+    )
+    config.addinivalue_line(
         "markers",
         "universal_online_stores: mark tests that can be run against different online stores",
     )

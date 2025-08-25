@@ -39,7 +39,9 @@ _logger = logging.getLogger(__name__)
 REGISTRY_CLASS_FOR_TYPE = {
     "file": "feast.infra.registry.registry.Registry",
     "sql": "feast.infra.registry.sql.SqlRegistry",
+    "sql-fallback": "feast.infra.registry.sql_fallback.SqlFallbackRegistry",
     "snowflake.registry": "feast.infra.registry.snowflake.SnowflakeRegistry",
+    "http": "feast.infra.registry.http.HttpRegistry",
     "remote": "feast.infra.registry.remote.RemoteRegistry",
 }
 
@@ -69,16 +71,20 @@ ONLINE_STORE_CLASS_FOR_TYPE = {
     "sqlite": "feast.infra.online_stores.sqlite.SqliteOnlineStore",
     "datastore": "feast.infra.online_stores.datastore.DatastoreOnlineStore",
     "redis": "feast.infra.online_stores.redis.RedisOnlineStore",
+    "eg-valkey": "feast.infra.online_stores.eg_valkey.EGValkeyOnlineStore",
     "dynamodb": "feast.infra.online_stores.dynamodb.DynamoDBOnlineStore",
     "snowflake.online": "feast.infra.online_stores.snowflake.SnowflakeOnlineStore",
     "bigtable": "feast.infra.online_stores.bigtable.BigtableOnlineStore",
     "postgres": "feast.infra.online_stores.postgres_online_store.postgres.PostgreSQLOnlineStore",
     "hbase": "feast.infra.online_stores.hbase_online_store.hbase.HbaseOnlineStore",
     "cassandra": "feast.infra.online_stores.cassandra_online_store.cassandra_online_store.CassandraOnlineStore",
+    "scylladb": "feast.infra.online_stores.cassandra_online_store.cassandra_online_store.CassandraOnlineStore",
     "mysql": "feast.infra.online_stores.mysql_online_store.mysql.MySQLOnlineStore",
     "hazelcast": "feast.infra.online_stores.hazelcast_online_store.hazelcast_online_store.HazelcastOnlineStore",
     "ikv": "feast.infra.online_stores.ikv_online_store.ikv.IKVOnlineStore",
-    "elasticsearch": "feast.infra.online_stores.elasticsearch_online_store.elasticsearch.ElasticSearchOnlineStore",
+    "eg-milvus": "feast.expediagroup.vectordb.eg_milvus_online_store.EGMilvusOnlineStore",
+    "elasticsearch": "feast.expediagroup.vectordb.elasticsearch_online_store.ElasticsearchOnlineStore",
+    # "elasticsearch": "feast.infra.online_stores.elasticsearch_online_store.elasticsearch.ElasticSearchOnlineStore",
     "remote": "feast.infra.online_stores.remote.RemoteOnlineStore",
     "singlestore": "feast.infra.online_stores.singlestore_online_store.singlestore.SingleStoreOnlineStore",
     "qdrant": "feast.infra.online_stores.qdrant_online_store.qdrant.QdrantOnlineStore",
@@ -154,6 +160,9 @@ class RegistryConfig(FeastBaseModel):
 
     s3_additional_kwargs: Optional[Dict[str, str]] = None
     """ Dict[str, str]: Extra arguments to pass to boto3 when writing the registry file to S3. """
+
+    client_id: Optional[StrictStr] = "Unknown"
+    """ Client ID used for HTTP Registry """
 
     purge_feast_metadata: StrictBool = False
     """ bool: Stops using feast_metadata table and delete data from feast_metadata table.
@@ -238,10 +247,30 @@ class RepoConfig(FeastBaseModel):
         self.registry_config = data["registry"]
 
         self._offline_store = None
-        self.offline_config = data.get("offline_store", "dask")
+        provider = data.get("provider", "local")
+        if provider == "expedia":
+            spark_offline_config = {
+                "type": "spark",
+                "spark_conf": {
+                    "spark.sql.catalog.spark_catalog": "org.apache.iceberg.spark.SparkCatalog",
+                    "spark.sql.catalog.spark_catalog.type": "hive",
+                    "spark.sql.iceberg.handle-timestamp-without-timezone": "true",
+                },
+            }
+            self.offline_config = spark_offline_config
+        else:
+            self.offline_config = data.get("offline_store", "dask")
 
         self._online_store = None
-        self.online_config = data.get("online_store", "sqlite")
+        if provider == "expedia":
+            self.online_config = data.get("online_store", "redis")
+            if (
+                isinstance(self.online_config, Dict)
+                and self.online_config["type"] == "redis"
+            ):
+                self.online_config["full_scan_for_deletion"] = False
+        else:
+            self.online_config = data.get("online_store", "sqlite")
 
         self._auth = None
         if "auth" not in data:
@@ -255,6 +284,8 @@ class RepoConfig(FeastBaseModel):
             self.batch_engine_config = data["batch_engine"]
         elif "batch_engine_config" in data:
             self.batch_engine_config = data["batch_engine_config"]
+        elif provider == "expedia":
+            self.batch_engine_config = "spark.engine"
         else:
             # Defaults to using local in-process materialization engine.
             self.batch_engine_config = "local"
@@ -413,8 +444,12 @@ class RepoConfig(FeastBaseModel):
         # Set the default type
         # This is only direct reference to a provider or online store that we should have
         # for backwards compatibility.
+        provider = values.get("provider", "local")
         if "type" not in values["online_store"]:
-            values["online_store"]["type"] = "sqlite"
+            if provider == "expedia":
+                values["online_store"]["type"] = "redis"
+            else:
+                values["online_store"]["type"] = "sqlite"
 
         online_store_type = values["online_store"]["type"]
 
@@ -437,9 +472,13 @@ class RepoConfig(FeastBaseModel):
         if not isinstance(values["offline_store"], Dict):
             return values
 
+        provider = values.get("provider", "local")
         # Set the default type
         if "type" not in values["offline_store"]:
-            values["offline_store"]["type"] = "dask"
+            if provider == "expedia":
+                values["offline_store"]["type"] = "spark"
+            else:
+                values["offline_store"]["type"] = "dask"
 
         offline_store_type = values["offline_store"]["type"]
 

@@ -3,6 +3,13 @@ from pathlib import Path
 from textwrap import dedent
 from typing import Optional
 
+from feast.infra.materialization.contrib.spark.spark_materialization_engine import (
+    SparkMaterializationEngineConfig,
+)
+from feast.infra.offline_stores.contrib.spark_offline_store.spark import (
+    SparkOfflineStoreConfig,
+)
+from feast.infra.online_stores.redis import RedisOnlineStoreConfig
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
 from feast.permissions.auth.auth_type import AuthType
 from feast.permissions.auth_model import (
@@ -335,3 +342,49 @@ def test_auth_config():
     )
     assert k8_repo_config.auth.get("type") == AuthType.KUBERNETES.value
     assert isinstance(k8_repo_config.auth_config, KubernetesAuthConfig)
+
+
+def test_repo_config_init_expedia_provider():
+    c = _test_config(
+        dedent(
+            """
+        project: foo
+        registry: "registry.db"
+        provider: expedia
+        entity_key_serialization_version: 2
+        """
+        ),
+        expect_error=None,
+    )
+    assert c.registry_config == "registry.db"
+    assert c.offline_config["type"] == "spark"
+    assert c.online_config == "redis"
+    assert c.batch_engine_config == "spark.engine"
+    assert isinstance(c.online_store, RedisOnlineStoreConfig)
+    assert isinstance(c.batch_engine, SparkMaterializationEngineConfig)
+    assert isinstance(c.offline_store, SparkOfflineStoreConfig)
+
+
+def test_repo_config_init_expedia_provider_with_online_store_config():
+    c = _test_config(
+        dedent(
+            """
+        project: foo
+        registry: "registry.db"
+        provider: expedia
+        online_store:
+            type: redis
+            connection_string: localhost:6380
+        entity_key_serialization_version: 2
+        """
+        ),
+        expect_error=None,
+    )
+    assert c.registry_config == "registry.db"
+    assert c.offline_config["type"] == "spark"
+    assert c.online_config["type"] == "redis"
+    assert c.online_config["connection_string"] == "localhost:6380"
+    assert c.batch_engine_config == "spark.engine"
+    assert isinstance(c.online_store, RedisOnlineStoreConfig)
+    assert isinstance(c.batch_engine, SparkMaterializationEngineConfig)
+    assert isinstance(c.offline_store, SparkOfflineStoreConfig)

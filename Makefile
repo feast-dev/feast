@@ -29,6 +29,10 @@ endif
 TRINO_VERSION ?= 376
 PYTHON_VERSION = ${shell python --version | grep -Eo '[0-9]\.[0-9]+'}
 
+COMMIT = $(shell git rev-parse HEAD)
+BUILD_TIME = $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
+FEATURE_SERVER_VERSION = dev-$(shell git rev-parse --abbrev-ref HEAD)-$(shell date -u +%Y%m%d%H%M%S)
+
 PYTHON_VERSIONS := 3.10 3.11 3.12
 
 define get_env_name
@@ -40,17 +44,16 @@ endef
 $(TOOL_DIR):
 	mkdir -p $@/bin
 
-
 help: ## Display this help.
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
-format: format-python ## Format Python code
+format: format-python format-java format-go
 
-lint: lint-python ## Lint Python code
+lint: lint-python lint-java lint-go
 
-test: test-python-unit ## Run unit tests for Python
+test: test-python-unit test-java test-go
 
-protos: compile-protos-python compile-protos-docs ## Compile protobufs for Python SDK and generate docs
+protos: compile-protos-go compile-protos-python compile-protos-docs
 
 build: protos build-docker ## Build protobufs and Docker images
 
@@ -62,7 +65,7 @@ lint-python: ## Lint Python code
 	cd ${ROOT_DIR}/sdk/python; python -m mypy feast
 	cd ${ROOT_DIR}/sdk/python; python -m ruff check feast/ tests/
 	cd ${ROOT_DIR}/sdk/python; python -m ruff format --check feast/ tests
-	
+
 ##@ Python SDK - local
 # formerly install-python-ci-dependencies-uv-venv
 # editable install
@@ -86,6 +89,18 @@ install-python-dependencies-ci: ## Install Python CI dependencies in system envi
 	pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu --force-reinstall
 	uv pip sync --system sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt
 	uv pip install --system --no-deps -e .
+	python setup.py build_python_protos --inplace
+
+install-python-ci-dependencies-uv-venv:
+	uv pip sync sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt
+	uv pip install --no-deps -e .
+	python setup.py build_python_protos --inplace
+
+install-protoc-dependencies:
+	pip install "protobuf>=4.24.0,<5.0.0" "grpcio-tools>=1.56.2,<2" "mypy-protobuf>=3.1" "setuptools>=61"
+
+lock-python-ci-dependencies:
+	uv pip compile --system --no-strip-extras setup.py --extra ci --output-file sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt
 
 # Used by multicloud/Dockerfile.dev
 install-python-ci-dependencies: ## Install Python CI dependencies in system environment using piptools
@@ -125,6 +140,16 @@ lock-python-dependencies-all: ## Recompile and lock all Python dependency sets f
 compile-protos-python: ## Compile Python protobuf files
 	python infra/scripts/generate_protos.py
 
+lock-python-dependencies-uv-all:
+	# Having issues with pixi and uv pip compile for MAC. Deleteing the files and running the command again with py version in uv solved problem.
+	rm sdk/python/requirements/*
+	uv pip compile -p 3.9 --system --no-strip-extras setup.py --output-file sdk/python/requirements/py3.9-requirements.txt
+	uv pip compile -p 3.9 --system --no-strip-extras setup.py --extra ci --output-file sdk/python/requirements/py3.9-ci-requirements.txt
+	uv pip compile -p 3.10 --system --no-strip-extras setup.py --output-file sdk/python/requirements/py3.10-requirements.txt
+	uv pip compile -p 3.10 --system --no-strip-extras setup.py --extra ci --output-file sdk/python/requirements/py3.10-ci-requirements.txt
+	uv pip compile -p 3.11 --system --no-strip-extras setup.py --output-file sdk/python/requirements/py3.11-requirements.txt
+	uv pip compile -p 3.11 --system --no-strip-extras setup.py --extra ci --output-file sdk/python/requirements/py3.11-ci-requirements.txt
+
 benchmark-python: ## Run integration + benchmark tests for Python
 	IS_TEST=True python -m pytest --integration --benchmark  --benchmark-autosave --benchmark-save-data sdk/python/tests
 
@@ -134,7 +159,7 @@ benchmark-python-local: ## Run integration + benchmark tests for Python (local d
 ##@ Tests
 
 test-python-unit: ## Run Python unit tests
-	python -m pytest -n 8 --color=yes sdk/python/tests
+	python -m pytest -n 8 --color=yes sdk/python/tests --ignore=sdk/python/tests/expediagroup
 
 test-python-integration: ## Run Python integration tests (CI)
 	python -m pytest --tb=short -v -n 8 --integration --color=yes --durations=10 --timeout=1200 --timeout_method=thread --dist loadgroup \
@@ -151,6 +176,17 @@ test-python-integration-local: ## Run Python integration tests (local dev mode)
 		-m "not rbac_remote_integration_test" \
 		--log-cli-level=INFO -s \
 		sdk/python/tests
+
+test-milvus-integration-local:
+	@(docker info > /dev/null 2>&1 && \
+		FEAST_USAGE=False \
+		IS_TEST=True \
+		FEAST_IS_LOCAL_TEST=True \
+		FEAST_LOCAL_ONLINE_CONTAINER=True \
+		python -m pytest -n 8 --integration \
+			-k "eg-milvus" \
+		sdk/python/tests \
+	) || echo "This script uses Docker, and it isn't running - please start the Docker Daemon and try again!";
 
 test-python-integration-rbac-remote: ## Run Python remote RBAC integration tests
 	FEAST_IS_LOCAL_TEST=True \
@@ -177,7 +213,6 @@ test-python-universal-spark: ## Run Python Spark integration tests
 			not test_historical_features_persisting and \
 			not test_historical_retrieval_fails_on_validation and \
 			not test_universal_cli and \
-			not test_go_feature_server and \
 			not test_feature_logging and \
 			not test_reorder_columns and \
 			not test_logged_features_validation and \
@@ -200,7 +235,6 @@ test-python-universal-trino: ## Run Python Trino integration tests
 			not test_historical_features_persisting and \
 			not test_historical_retrieval_fails_on_validation and \
 			not test_universal_cli and \
-			not test_go_feature_server and \
 			not test_feature_logging and \
 			not test_reorder_columns and \
 			not test_logged_features_validation and \
@@ -246,8 +280,7 @@ test-python-universal-athena: ## Run Python Athena integration tests
 	ATHENA_WORKGROUP=primary \
 	ATHENA_S3_BUCKET_NAME=feast-int-bucket \
  	python -m pytest -n 8 --integration \
- 	 	-k "not test_go_feature_server and \
-		    not test_logged_features_validation and \
+ 	 	-k "not test_logged_features_validation and \
 		    not test_lambda and \
 		    not test_feature_logging and \
 		    not test_offline_write and \
@@ -268,7 +301,6 @@ test-python-universal-postgres-offline: ## Run Python Postgres integration tests
  			-k "not test_historical_retrieval_with_validation and \
 				not test_historical_features_persisting and \
  				not test_universal_cli and \
- 				not test_go_feature_server and \
  				not test_feature_logging and \
 				not test_reorder_columns and \
 				not test_logged_features_validation and \
@@ -331,7 +363,6 @@ test-python-universal-postgres-online: ## Run Python Postgres integration tests
 		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.postgres \
 		python -m pytest -n 8 --integration \
  			-k "not test_universal_cli and \
- 				not test_go_feature_server and \
  				not test_feature_logging and \
 				not test_reorder_columns and \
 				not test_logged_features_validation and \
@@ -350,7 +381,6 @@ test-python-universal-postgres-online: ## Run Python Postgres integration tests
 		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.postgres \
 		python -m pytest -n 8 --integration \
  			-k "not test_universal_cli and \
- 				not test_go_feature_server and \
  				not test_feature_logging and \
 				not test_reorder_columns and \
 				not test_logged_features_validation and \
@@ -372,7 +402,6 @@ test-python-universal-mysql-online: ## Run Python MySQL integration tests
 		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.mysql \
 		python -m pytest -n 8 --integration \
  			-k "not test_universal_cli and \
- 				not test_go_feature_server and \
  				not test_feature_logging and \
 				not test_reorder_columns and \
 				not test_logged_features_validation and \
@@ -402,7 +431,6 @@ test-python-universal-hazelcast: ## Run Python Hazelcast integration tests
 		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.hazelcast \
 		python -m pytest -n 8 --integration \
  			-k "not test_universal_cli and \
- 				not test_go_feature_server and \
  				not test_feature_logging and \
 				not test_reorder_columns and \
 				not test_logged_features_validation and \
@@ -438,7 +466,6 @@ test-python-universal-elasticsearch-online: ## Run Python Elasticsearch online s
 		PYTEST_PLUGINS=sdk.python.tests.integration.feature_repos.universal.online_store.elasticsearch \
 		python -m pytest -n 8 --integration \
  			-k "not test_universal_cli and \
- 				not test_go_feature_server and \
  				not test_feature_logging and \
 				not test_reorder_columns and \
 				not test_logged_features_validation and \
@@ -564,7 +591,38 @@ test-trino-plugin-locally: ## Run Trino plugin tests locally
 kill-trino-locally: ## Kill Trino locally
 	cd ${ROOT_DIR}; docker stop trino
 
-##@ Docker
+# Go SDK & embedded
+
+install-go-ci-dependencies:
+	# TODO: currently gopy installation doesn't work w/o explicit go get in the next line
+	# TODO: there should be a better way to install gopy
+	go get github.com/go-python/gopy@v0.4.4
+	go install golang.org/x/tools/cmd/goimports
+	# The `go get` command on the previous lines download the lib along with replacing the dep to `feast-dev/gopy`
+	# but the following command is needed to install it for some reason.
+	go install github.com/go-python/gopy
+	python -m pip install "pybindgen==0.22.1" "grpcio-tools>=1.56.2,<2" "mypy-protobuf>=3.1"
+
+#TODO: evaluate which version to keep
+#compile-protos-go: install-go-proto-dependencies install-protoc-dependencies
+#	python setup.py build_go_protos
+
+.PHONY: build-go
+build-go: compile-protos-go
+	go build -o feast \
+		-ldflags "-X github.com/feast-dev/feast/go/internal/feast/version.Version=$(FEATURE_SERVER_VERSION) \
+			-X github.com/feast-dev/feast/go/internal/feast/version.CommitHash=$(COMMIT) \
+			-X github.com/feast-dev/feast/go/internal/feast/version.BuildTime=$(BUILD_TIME)" \
+		./go/main.go
+
+test-go-integration: compile-protos-go compile-protos-python install-feast-ci-locally
+	docker compose -f go/internal/feast/integration_tests/valkey/docker-compose.yaml up -d
+	docker compose -f go/internal/feast/integration_tests/scylladb/docker-compose.yaml up -d
+	go test -p 1 -tags=integration ./go/internal/...
+	docker compose -f go/internal/feast/integration_tests/valkey/docker-compose.yaml down
+	docker compose -f go/internal/feast/integration_tests/scylladb/docker-compose.yaml down
+
+# Docker
 
 build-docker: build-feature-server-docker build-feature-transformation-server-docker build-feature-server-java-docker build-feast-operator-docker ## Build Docker images
 
@@ -591,10 +649,18 @@ build-feature-transformation-server-docker: ## Build Feature Transformation Serv
 push-feature-server-java-docker: ## Push Feature Server Java Docker image
 	docker push $(REGISTRY)/feature-server-java:$(VERSION)
 
-build-feature-server-java-docker: ## Build Feature Server Java Docker image	
+build-feature-server-java-docker: ## Build Feature Server Java Docker image
 	docker buildx build --build-arg VERSION=$(VERSION) \
 		-t $(REGISTRY)/feature-server-java:$(VERSION) \
 		-f java/infra/docker/feature-server/Dockerfile --load .
+
+push-feature-server-go-docker:
+	docker push $(REGISTRY)/feature-server-go:$(VERSION)
+
+build-feature-server-go-docker:
+	docker buildx build --build-arg VERSION=$(VERSION) \
+		-t $(REGISTRY)/feature-server-go:$(VERSION) \
+		-f go/infra/docker/feature-server/Dockerfile --load .
 
 push-feast-operator-docker: ## Push Feast Operator Docker image
 	cd infra/feast-operator && \
@@ -638,7 +704,7 @@ install-dependencies-proto-docs: ## Install dependencies for generating proto do
 	cd ${ROOT_DIR}/protos;
 	mkdir -p $$HOME/bin
 	mkdir -p $$HOME/include
-	go get github.com/golang/protobuf/proto && \
+	go get google.golang.org/protobuf/proto && \
 	go get github.com/russross/blackfriday/v2 && \
 	cd $$(mktemp -d) && \
 	git clone https://github.com/istio/tools/ && \
@@ -676,12 +742,12 @@ build-ui-local: ## Build Feast UI locally
 	cd $(ROOT_DIR)/ui && yarn install && npm run build --omit=dev
 	rm -rf $(ROOT_DIR)/sdk/python/feast/ui/build
 	cp -r $(ROOT_DIR)/ui/build $(ROOT_DIR)/sdk/python/feast/ui/
-	
+
 format-ui: ## Format Feast UI
 	cd $(ROOT_DIR)/ui && NPM_TOKEN= yarn install && NPM_TOKEN= yarn format
 
 
-##@ Go SDK 
+##@ Go SDK
 PB_REL = https://github.com/protocolbuffers/protobuf/releases
 PB_VERSION = 30.2
 PB_ARCH := $(shell uname -m)
@@ -717,17 +783,13 @@ compile-protos-go: install-go-proto-dependencies ## Compile Go protobuf files
 	# go install golang.org/x/tools/cmd/goimports
 	# python -m pip install "pybindgen==0.22.1" "grpcio-tools>=1.56.2,<2" "mypy-protobuf>=3.1"
 
-.PHONY: build-go
-build-go: compile-protos-go ## Build Go code
-	go build -o feast ./go/main.go
-
 .PHONY: install-feast-ci-locally
 install-feast-ci-locally: ## Install Feast CI dependencies locally
 	uv pip install -e ".[ci]"
 
 .PHONY: test-go
 test-go: compile-protos-go install-feast-ci-locally compile-protos-python ## Run Go tests
-	CGO_ENABLED=1 go test -coverprofile=coverage.out ./... && go tool cover -html=coverage.out -o coverage.html
+	CGO_ENABLED=1 go test -tags=unit -coverprofile=coverage.out ./... && go tool cover -html=coverage.out -o coverage.html
 
 .PHONY: format-go
 format-go: ## Format Go code

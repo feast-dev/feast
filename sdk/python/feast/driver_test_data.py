@@ -200,6 +200,10 @@ def create_customer_daily_profile_df(customers, start_date, end_date) -> pd.Data
     df_all_customers["lifetime_trip_count"] = np.random.randint(
         0, 1000, size=rows
     ).astype(np.int32)
+    df_all_customers["profile_embedding"] = [
+        np.random.default_rng().uniform(-100, 200, 50).astype(np.float32)
+        for _ in range(rows)
+    ]
 
     # TODO: Remove created timestamp in order to test whether its really optional
     df_all_customers["created"] = pd.to_datetime(pd.Timestamp.now(tz=None).round("ms"))

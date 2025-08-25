@@ -27,6 +27,7 @@ from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
+from feast.sorted_feature_view import SortedFeatureView
 from feast.stream_feature_view import StreamFeatureView
 from feast.utils import _get_column_names
 from feast.version import get_version
@@ -96,10 +97,22 @@ class LambdaComputeEngine(ComputeEngine):
         self,
         project: str,
         views_to_delete: Sequence[
-            Union[BatchFeatureView, StreamFeatureView, FeatureView, OnDemandFeatureView]
+            Union[
+                BatchFeatureView,
+                StreamFeatureView,
+                FeatureView,
+                OnDemandFeatureView,
+                SortedFeatureView,
+            ]
         ],
         views_to_keep: Sequence[
-            Union[BatchFeatureView, StreamFeatureView, FeatureView, OnDemandFeatureView]
+            Union[
+                BatchFeatureView,
+                StreamFeatureView,
+                FeatureView,
+                OnDemandFeatureView,
+                SortedFeatureView,
+            ]
         ],
         entities_to_delete: Sequence[Entity],
         entities_to_keep: Sequence[Entity],
@@ -130,7 +143,9 @@ class LambdaComputeEngine(ComputeEngine):
     def teardown_infra(
         self,
         project: str,
-        fvs: Sequence[Union[BatchFeatureView, StreamFeatureView, FeatureView]],
+        fvs: Sequence[
+            Union[BatchFeatureView, StreamFeatureView, FeatureView, SortedFeatureView]
+        ],
         entities: Sequence[Entity],
     ):
         # This should be tearing down the lambda function.

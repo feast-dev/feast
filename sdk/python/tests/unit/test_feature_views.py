@@ -1,3 +1,4 @@
+import copy
 from datetime import timedelta
 
 import pytest
@@ -18,8 +19,44 @@ from feast.protos.feast.core.FeatureView_pb2 import (
     FeatureViewSpec as FeatureViewSpecProto,
 )
 from feast.protos.feast.types.Value_pb2 import ValueType
-from feast.types import Float32
+from feast.types import Float32, Int64, String
 from feast.utils import _utc_now, make_tzaware
+
+
+def make_fv(name, fields, entities, ttl):
+    """
+    Helper to create a simple FeatureView with given field names and dtypes.
+    """
+    source = FileSource(path="dummy_path")
+    schema = [Field(name=fname, dtype=ftype) for fname, ftype in fields]
+    fv = FeatureView(
+        name=name,
+        source=source,
+        entities=entities,
+        schema=schema,
+        ttl=ttl,
+    )
+    current_time = _utc_now()
+    start_date = make_tzaware(current_time - timedelta(days=1))
+    end_date = make_tzaware(current_time)
+    fv.materialization_intervals.append((start_date, end_date))
+
+    return fv
+
+
+def make_fv_no_materialization_interval(name, fields, entities, ttl):
+    """
+    Helper to create a simple FeatureView with given field names and dtypes.
+    """
+    source = FileSource(path="dummy_path")
+    schema = [Field(name=fname, dtype=ftype) for fname, ftype in fields]
+    return FeatureView(
+        name=name,
+        source=source,
+        entities=entities,
+        schema=schema,
+        ttl=ttl,
+    )
 
 
 def test_create_feature_view_with_conflicting_entities():
@@ -298,3 +335,94 @@ def test_feature_view_from_proto_with_cycle():
         ValueError, match="Cycle detected while deserializing FeatureView: fv_a"
     ):
         FeatureView.from_proto(proto_a)
+
+
+def test_get_online_store_tags_retrieval():
+    # Test when TTL is set as a valid integer in tags
+    file_source = FileSource(name="my-file-source", path="test.parquet")
+    feature_view = FeatureView(
+        name="feature_view_with_ttl",
+        entities=[],
+        schema=[Field(name="feature1", dtype=Float32)],
+        source=file_source,
+        tags={"online_store_key_ttl_seconds": "3600", "online_store_batch_size": "100"},
+    )
+    expected = {"key_ttl_seconds": "3600", "batch_size": "100"}
+    assert feature_view.get_online_store_tags == expected
+
+
+def test_get_online_store_tags_none_when_not_set():
+    # Test when TTL is not set in tags, expecting None
+    file_source = FileSource(name="my-file-source", path="test.parquet")
+    feature_view = FeatureView(
+        name="feature_view_without_ttl",
+        entities=[],
+        schema=[Field(name="feature1", dtype=Float32)],
+        source=file_source,
+        tags={},
+    )
+    expected = {}
+    assert feature_view.get_online_store_tags == expected
+
+
+def test_fv_compatibility_same():
+    """
+    Two identical FeatureViews should be compatible with no reasons.
+    """
+    entity = Entity(name="e1", join_keys=["e1_id"])
+    fv1 = make_fv(
+        "fv", [("feat1", Int64), ("feat2", String)], [entity], timedelta(days=1)
+    )
+    fv2 = copy.copy(fv1)
+
+    ok, reasons = fv1.is_update_compatible_with(fv2)
+    assert ok
+    assert reasons == []
+
+
+def test_fv_compatibility_remove_non_entity_feature(caplog):
+    """
+    Removing a non-entity feature should be compatible, warning logged.
+    """
+    entity = Entity(name="e1", join_keys=["e1_id"])
+    fv1 = make_fv(
+        "fv", [("feat1", Int64), ("feat2", String)], [entity], timedelta(days=1)
+    )
+    fv2 = make_fv("fv", [("feat1", Int64)], [entity], timedelta(days=1))
+    caplog.set_level("INFO")
+    ok, reasons = fv1.is_update_compatible_with(fv2)
+    assert ok
+    assert reasons == []
+    assert "Feature 'feat2' removed from FeatureView 'fv'." in caplog.text
+
+
+def test_fv_compatibility_change_entities():
+    """
+    Changing the entity list should be incompatible and list reason.
+    """
+    ent1 = Entity(name="e1", join_keys=["e1_id"])
+    ent2 = Entity(name="e2", join_keys=["e2_id"])
+    fv1 = make_fv("fv", [("feat1", Int64)], [ent1], timedelta(days=1))
+    fv2 = make_fv("fv", [("feat1", Int64)], [ent2], timedelta(days=1))
+
+    ok, reasons = fv1.is_update_compatible_with(fv2)
+    assert not ok
+    assert "entity definitions cannot change for FeatureView: fv" in reasons
+
+
+def test_fv_compatibility_change_entities_with_no_materialization_interval():
+    """
+    Changing the entity list should be ok.
+    """
+    ent1 = Entity(name="e1", join_keys=["e1_id"])
+    ent2 = Entity(name="e2", join_keys=["e2_id"])
+    fv1 = make_fv_no_materialization_interval(
+        "fv", [("feat1", Int64)], [ent1], timedelta(days=1)
+    )
+    fv2 = make_fv_no_materialization_interval(
+        "fv", [("feat1", Int64)], [ent2], timedelta(days=1)
+    )
+
+    ok, reasons = fv1.is_update_compatible_with(fv2)
+    assert ok
+    assert reasons == []

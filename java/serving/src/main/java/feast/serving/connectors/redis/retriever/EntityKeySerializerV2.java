@@ -92,7 +92,10 @@ public class EntityKeySerializerV2 implements EntityKeySerializer {
           instead of 8 bytes as you'd expect from to serialize an int64 value.
           */
           if (this.entityKeySerializationVersion <= 2) {
-            throw new RuntimeException("Entity key serialization version " + this.entityKeySerializationVersion + " is not supported. Please use version 3 or above. To reserializa your online store featrues refer -  https://github.com/feast-dev/feast/blob/master/docs/how-to-guides/entity-reserialization-of-from-v2-to-v3.md");
+            throw new RuntimeException(
+                "Entity key serialization version "
+                    + this.entityKeySerializationVersion
+                    + " is not supported. Please use version 3 or above. To reserializa your online store featrues refer -  https://github.com/feast-dev/feast/blob/master/docs/how-to-guides/entity-reserialization-of-from-v2-to-v3.md");
           } else {
             buffer.addAll(encodeInteger(Long.BYTES));
             buffer.addAll(encodeLong(((Long) val.getInt64Val())));

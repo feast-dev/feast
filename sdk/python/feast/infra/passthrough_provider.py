@@ -1,4 +1,7 @@
+import logging
+import os
 from datetime import datetime, timedelta
+from multiprocessing import Pool
 from typing import (
     Any,
     Callable,
@@ -45,12 +48,15 @@ from feast.protos.feast.types.Value_pb2 import RepeatedValue
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import BATCH_ENGINE_CLASS_FOR_TYPE, RepoConfig
 from feast.saved_dataset import SavedDataset
+from feast.sorted_feature_view import SortedFeatureView
 from feast.stream_feature_view import StreamFeatureView
 from feast.utils import (
     _convert_arrow_to_proto,
     _run_pyarrow_field_mapping,
     make_tzaware,
 )
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_BATCH_SIZE = 10_000
 
@@ -337,7 +343,7 @@ class PassthroughProvider(Provider):
         return result
 
     @staticmethod
-    def _prep_rows_to_write_for_ingestion(
+    def _prep_table_and_join_keys_for_ingestion(
         feature_view: Union[BaseFeatureView, FeatureView, OnDemandFeatureView],
         df: pd.DataFrame,
         field_mapping: Optional[Dict] = None,
@@ -351,7 +357,7 @@ class PassthroughProvider(Provider):
                 entity.name: entity.dtype.to_value_type()
                 for entity in feature_view.entity_columns
             }
-            rows_to_write = _convert_arrow_to_proto(table, feature_view, join_keys)
+            return table, join_keys
         else:
             if hasattr(feature_view, "entity_columns"):
                 join_keys = {
@@ -375,9 +381,7 @@ class PassthroughProvider(Provider):
             if not isinstance(feature_view, BaseFeatureView):
                 for entity in feature_view.entity_columns:
                     join_keys[entity.name] = entity.dtype.to_value_type()
-            rows_to_write = _convert_arrow_to_proto(table, feature_view, join_keys)
-
-        return rows_to_write
+            return table, join_keys
 
     def ingest_df(
         self,
@@ -385,11 +389,54 @@ class PassthroughProvider(Provider):
         df: pd.DataFrame,
         field_mapping: Optional[Dict] = None,
     ):
-        rows_to_write = self._prep_rows_to_write_for_ingestion(
+        table, join_keys = self._prep_table_and_join_keys_for_ingestion(
             feature_view=feature_view,
             df=df,
             field_mapping=field_mapping,
         )
+
+        num_spark_driver_cores = int(os.environ.get("SPARK_DRIVER_CORES", 1))
+        if num_spark_driver_cores > 2:
+            # Leaving one core for operating system and other background processes
+            num_processes = num_spark_driver_cores - 1
+
+            if table.num_rows < num_processes:
+                num_processes = table.num_rows
+
+            # Input table is split into smaller chunks and processed in parallel
+            chunks = self.split_table(num_processes, table)
+
+            chunks_to_parallelize = [
+                (chunk, feature_view, join_keys) for chunk in chunks
+            ]
+
+            with Pool(processes=num_processes) as pool:
+                pool.starmap(self.process, chunks_to_parallelize)
+        else:
+            self.process(table, feature_view, join_keys)
+
+    @staticmethod
+    def split_table(num_processes, table):
+        num_table_rows = table.num_rows
+        size = num_table_rows // num_processes  # base size of each chunk
+        remainder = num_table_rows % num_processes  # extra rows to distribute
+
+        chunks = []
+        offset = 0
+        for i in range(num_processes):
+            # Distribute the remainder one per split until exhausted
+            length = size + (1 if i < remainder else 0)
+            chunks.append(table.slice(offset, length))
+            offset += length
+        return chunks
+
+    def process(
+        self,
+        table,
+        feature_view: Union[BaseFeatureView, FeatureView, OnDemandFeatureView],
+        join_keys,
+    ):
+        rows_to_write = _convert_arrow_to_proto(table, feature_view, join_keys)
         self.online_write_batch(
             self.repo_config, feature_view, rows_to_write, progress=None
         )
@@ -400,11 +447,12 @@ class PassthroughProvider(Provider):
         df: pd.DataFrame,
         field_mapping: Optional[Dict] = None,
     ):
-        rows_to_write = self._prep_rows_to_write_for_ingestion(
+        table, join_keys = self._prep_table_and_join_keys_for_ingestion(
             feature_view=feature_view,
             df=df,
             field_mapping=field_mapping,
         )
+        rows_to_write = _convert_arrow_to_proto(table, feature_view, join_keys)
         await self.online_write_batch_async(
             self.repo_config, feature_view, rows_to_write, progress=None
         )
@@ -435,10 +483,26 @@ class PassthroughProvider(Provider):
             return
         assert (
             isinstance(feature_view, BatchFeatureView)
+            or isinstance(feature_view, SortedFeatureView)
             or isinstance(feature_view, StreamFeatureView)
             or isinstance(feature_view, FeatureView)
             or isinstance(feature_view, OnDemandFeatureView)
         ), f"Unexpected type for {feature_view.name}: {type(feature_view)}"
+
+        if getattr(config.online_store, "lazy_table_creation", False):
+            logger.info(
+                f"Online store {config.online_store.__class__.__name__} supports lazy table creation and it is enabled"
+            )
+
+            self.update_infra(
+                project=project,
+                tables_to_delete=[],
+                tables_to_keep=[feature_view],
+                entities_to_delete=[],
+                entities_to_keep=registry.list_entities(project=project),
+                partial=True,
+            )
+
         task = MaterializationTask(
             project=project,
             feature_view=feature_view,

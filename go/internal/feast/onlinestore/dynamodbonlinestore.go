@@ -3,10 +3,12 @@ package onlinestore
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	awsConfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	dtypes "github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	"github.com/feast-dev/feast/go/internal/feast/model"
 	"github.com/feast-dev/feast/go/internal/feast/registry"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/feast-dev/feast/go/protos/feast/types"
@@ -278,7 +280,7 @@ func (d *DynamodbOnlineStore) OnlineRead(ctx context.Context, entityKeys []*type
 
 		// process null imputation for entity ids that don't exist in dynamodb
 		currentTime := timestamppb.Now() // TODO: should use a different timestamp?
-		for entityId, _ := range unprocessedEntityIdsFeatureView {
+		for entityId := range unprocessedEntityIdsFeatureView {
 			entityIndex := entityIndexMap[entityId]
 			for _, featureName := range featureNames {
 				featureIndex := featureNamesIndex[featureName]
@@ -291,6 +293,11 @@ func (d *DynamodbOnlineStore) OnlineRead(ctx context.Context, entityKeys []*type
 	}
 
 	return results, nil
+}
+
+func (d *DynamodbOnlineStore) OnlineReadRange(ctx context.Context, groupedRefs *model.GroupedRangeFeatureRefs) ([][]RangeFeatureData, error) {
+	// TODO: Implement OnlineReadRange
+	return nil, errors.New("OnlineReadRange is not supported by DynamodbOnlineStore")
 }
 
 func (d *DynamodbOnlineStore) Destruct() {

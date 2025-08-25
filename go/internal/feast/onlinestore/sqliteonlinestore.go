@@ -1,10 +1,10 @@
 package onlinestore
 
 import (
-	"crypto/sha1"
 	"database/sql"
-	"encoding/hex"
 	"errors"
+	"github.com/feast-dev/feast/go/internal/feast/model"
+	"github.com/feast-dev/feast/go/internal/feast/utils"
 	"strings"
 	"sync"
 	"time"
@@ -15,7 +15,6 @@ import (
 	"fmt"
 
 	_ "github.com/mattn/go-sqlite3"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/feast-dev/feast/go/protos/feast/serving"
@@ -41,6 +40,7 @@ func NewSqliteOnlineStore(project string, repoConfig *registry.RepoConfig, onlin
 			return nil, fmt.Errorf("cannot find convert sqlite path to string %s", db_path)
 		} else {
 			store.path = fmt.Sprintf("%s/%s", repoConfig.RepoPath, dbPathStr)
+
 			db, err := initializeConnection(store.path)
 			if err != nil {
 				return nil, err
@@ -70,12 +70,12 @@ func (s *SqliteOnlineStore) OnlineRead(ctx context.Context, entityKeys []*types.
 	in_query := make([]string, len(entityKeys))
 	serialized_entities := make([]interface{}, len(entityKeys))
 	for i := 0; i < len(entityKeys); i++ {
-		serKey, err := serializeEntityKey(entityKeys[i], s.repoConfig.EntityKeySerializationVersion)
+		serKey, err := utils.SerializeEntityKey(entityKeys[i], s.repoConfig.EntityKeySerializationVersion)
 		if err != nil {
 			return nil, err
 		}
 		// TODO: fix this, string conversion is not safe
-		entityNameToEntityIndex[hashSerializedEntityKey(serKey)] = i
+		entityNameToEntityIndex[utils.HashSerializedEntityKey(serKey)] = i
 		// for IN clause in read query
 		in_query[i] = "?"
 		serialized_entities[i] = *serKey
@@ -100,15 +100,15 @@ func (s *SqliteOnlineStore) OnlineRead(ctx context.Context, entityKeys []*types.
 			var feature_name string
 			var valueString []byte
 			var event_ts time.Time
-			var value types.Value
+			var value *types.Value
 			err = rows.Scan(&entity_key, &feature_name, &valueString, &event_ts)
 			if err != nil {
 				return nil, errors.New("error could not resolve row in query (entity key, feature name, value, event ts)")
 			}
-			if err := proto.Unmarshal(valueString, &value); err != nil {
+			if value, _, err = UnmarshalStoredProto(valueString); err != nil {
 				return nil, errors.New("error converting parsed value to types.Value")
 			}
-			rowIdx := entityNameToEntityIndex[hashSerializedEntityKey(&entity_key)]
+			rowIdx := entityNameToEntityIndex[utils.HashSerializedEntityKey(&entity_key)]
 			if results[rowIdx] == nil {
 				results[rowIdx] = make([]FeatureData, featureCount)
 			}
@@ -119,6 +119,10 @@ func (s *SqliteOnlineStore) OnlineRead(ctx context.Context, entityKeys []*types.
 		}
 	}
 	return results, nil
+}
+
+func (s *SqliteOnlineStore) OnlineReadRange(ctx context.Context, groupedRefs *model.GroupedRangeFeatureRefs) ([][]RangeFeatureData, error) {
+	return nil, errors.New("OnlineReadRange is not supported by SqliteOnlineStore")
 }
 
 // Gets a sqlite connection and sets it to the online store and also returns a pointer to the connection.
@@ -150,14 +154,4 @@ func initializeConnection(db_path string) (*sql.DB, error) {
 		return nil, err
 	}
 	return db, nil
-}
-
-func hashSerializedEntityKey(serializedEntityKey *[]byte) string {
-	if serializedEntityKey == nil {
-		return ""
-	}
-	h := sha1.New()
-	h.Write(*serializedEntityKey)
-	sha1_hash := hex.EncodeToString(h.Sum(nil))
-	return sha1_hash
 }

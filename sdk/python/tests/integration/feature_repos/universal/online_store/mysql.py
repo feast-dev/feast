@@ -11,7 +11,7 @@ class MySQLOnlineStoreCreator(OnlineStoreCreator):
     def __init__(self, project_name: str, **kwargs):
         super().__init__(project_name)
         self.container = (
-            MySqlContainer("mysql:latest", platform="linux/amd64")
+            MySqlContainer("mysql:8.1.0", platform="linux/amd64")
             .with_exposed_ports(3306)
             .with_env("MYSQL_USER", "root")
             .with_env("MYSQL_PASSWORD", "test")

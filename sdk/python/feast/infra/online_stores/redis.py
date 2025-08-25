@@ -74,7 +74,7 @@ class RedisOnlineStoreConfig(FeastConfigBaseModel):
      format: host:port,parameter1,parameter2 eg. redis:6379,db=0 """
 
     key_ttl_seconds: Optional[int] = None
-    """(Optional) redis key bin ttl (in seconds) for expiring entities"""
+    """(Optional) redis key bin ttl (in seconds) for expiring entities. Value None means No TTL. Value 0 means expire in 0 seconds."""
 
     full_scan_for_deletion: Optional[bool] = True
     """(Optional) whether to scan for deletion of features"""
@@ -223,6 +223,7 @@ class RedisOnlineStore(OnlineStore):
                 online_store_config.connection_string
             )
             if online_store_config.redis_type == RedisType.redis_cluster:
+                logger.info(f"Using Redis Cluster: {startup_nodes}")
                 kwargs["startup_nodes"] = [
                     ClusterNode(**node) for node in startup_nodes
                 ]
@@ -233,10 +234,12 @@ class RedisOnlineStore(OnlineStore):
                 for item in startup_nodes:
                     sentinel_hosts.append((item["host"], int(item["port"])))
 
+                logger.info(f"Using Redis Sentinel: {sentinel_hosts}")
                 sentinel = Sentinel(sentinel_hosts, **kwargs)
                 master = sentinel.master_for(online_store_config.sentinel_master)
                 self._client = master
             else:
+                logger.info(f"Using Redis: {startup_nodes[0]}")
                 kwargs["host"] = startup_nodes[0]["host"]
                 kwargs["port"] = startup_nodes[0]["port"]
                 self._client = Redis(**kwargs)
@@ -327,10 +330,9 @@ class RedisOnlineStore(OnlineStore):
 
                 pipe.hset(redis_key_bin, mapping=entity_hset)
 
-                if online_store_config.key_ttl_seconds:
-                    pipe.expire(
-                        name=redis_key_bin, time=online_store_config.key_ttl_seconds
-                    )
+                ttl = online_store_config.key_ttl_seconds
+                if ttl:
+                    pipe.expire(name=redis_key_bin, time=ttl)
             results = pipe.execute()
             if progress:
                 progress(len(results))

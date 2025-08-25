@@ -134,7 +134,7 @@ def serialize_entity_key(
         # Not raising the error, keeping it in warning state for reserialization purpose
         # We should remove this after few releases
         warnings.warn(
-            "Serialization of entity key with version < 3 is removed. Please use version 3 by setting entity_key_serialization_version=3."
+            "Serialization of entity key with version < 2 is removed version 2 is only retained for legacy. Please use version 3 by setting entity_key_serialization_version=3."
             "To reserializa your online store featrues refer -  https://github.com/feast-dev/feast/blob/master/docs/how-to-guides/entity-reserialization-of-from-v2-to-v3.md"
         )
     sorted_keys, sorted_values = zip(
@@ -180,7 +180,7 @@ def deserialize_entity_key(
         # Not raising the error, keeping it in warning state for reserialization purpose
         # We should remove this after few releases
         warnings.warn(
-            "Deserialization of entity key with version < 3 is removed. Please use version 3 by setting entity_key_serialization_version=3."
+            "Deserialization of entity key with version < 2 is removed version 2 is only retained for legacy. Please use version 3 by setting entity_key_serialization_version=3."
             "To reserializa your online store featrues refer -  https://github.com/feast-dev/feast/blob/master/docs/how-to-guides/entity-reserialization-of-from-v2-to-v3.md"
         )
     offset = 0

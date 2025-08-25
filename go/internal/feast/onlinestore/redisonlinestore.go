@@ -7,21 +7,27 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/feast-dev/feast/go/internal/feast/model"
+	"os"
 	"strconv"
 	"strings"
 
-	"github.com/feast-dev/feast/go/internal/feast/registry"
-	//"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
+	"github.com/feast-dev/feast/go/internal/feast/utils"
 
-	"github.com/redis/go-redis/v9"
+	"github.com/feast-dev/feast/go/internal/feast/registry"
+	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
+
+	redisprometheus "github.com/redis/go-redis/extra/redisprometheus/v9"
+	redis "github.com/redis/go-redis/v9"
 	"github.com/spaolacci/murmur3"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/feast-dev/feast/go/protos/feast/types"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/rs/zerolog/log"
-	//redistrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/redis/go-redis.v9"
+	redistrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/redis/go-redis.v9"
 )
 
 type redisType int
@@ -106,10 +112,10 @@ func NewRedisOnlineStore(project string, config *registry.RepoConfig, onlineStor
 	}
 
 	// Metrics are not showing up when the service name is set to DD_SERVICE
-	//redisTraceServiceName := os.Getenv("DD_SERVICE") + "-redis"
-	//if redisTraceServiceName == "" {
-	//	redisTraceServiceName = "redis.client" // default service name if DD_SERVICE is not set
-	//}
+	redisTraceServiceName := os.Getenv("DD_SERVICE") + "-redis"
+	if redisTraceServiceName == "" {
+		redisTraceServiceName = "redis.client" // default service name if DD_SERVICE is not set
+	}
 
 	if redisStoreType == redisNode {
 		log.Info().Msgf("Using Redis: %s", address[0])
@@ -119,9 +125,15 @@ func NewRedisOnlineStore(project string, config *registry.RepoConfig, onlineStor
 			DB:        db,
 			TLSConfig: tlsConfig,
 		})
-		//if strings.ToLower(os.Getenv("ENABLE_DATADOG_REDIS_TRACING")) == "true" {
-		//	redistrace.WrapClient(store.client, redistrace.WithServiceName(redisTraceServiceName))
-		//}
+		if (strings.ToLower(os.Getenv("ENABLE_DATADOG_REDIS_TRACING")) == "true") || (strings.ToLower(os.Getenv("ENABLE_ONLINE_STORE_TRACING")) == "true") {
+			if strings.ToLower(os.Getenv("ENABLE_DATADOG_REDIS_TRACING")) == "true" {
+				log.Warn().Msg("ENABLE_DATADOG_REDIS_TRACING is deprecated. Use ENABLE_ONLINE_STORE_TRACING instead.")
+			}
+
+			redistrace.WrapClient(store.client, redistrace.WithServiceName(redisTraceServiceName))
+			collector := redisprometheus.NewCollector("mlpfs", "redis", store.client)
+			prometheus.MustRegister(collector)
+		}
 	} else if redisStoreType == redisCluster {
 		log.Info().Msgf("Using Redis Cluster: %s", address)
 		store.clusterClient = redis.NewClusterClient(&redis.ClusterOptions{
@@ -130,9 +142,11 @@ func NewRedisOnlineStore(project string, config *registry.RepoConfig, onlineStor
 			TLSConfig: tlsConfig,
 			ReadOnly:  true,
 		})
-		//if strings.ToLower(os.Getenv("ENABLE_DATADOG_REDIS_TRACING")) == "true" {
-		//	redistrace.WrapClient(store.clusterClient, redistrace.WithServiceName(redisTraceServiceName))
-		//}
+		if (strings.ToLower(os.Getenv("ENABLE_DATADOG_REDIS_TRACING")) == "true") || (strings.ToLower(os.Getenv("ENABLE_ONLINE_STORE_TRACING")) == "true") {
+			redistrace.WrapClient(store.clusterClient, redistrace.WithServiceName(redisTraceServiceName))
+			collector := redisprometheus.NewCollector("mlpfs", "redis", store.clusterClient)
+			prometheus.MustRegister(collector)
+		}
 	}
 
 	return &store, nil
@@ -211,8 +225,8 @@ func (r *RedisOnlineStore) buildRedisKeys(entityKeys []*types.EntityKey) ([]*[]b
 }
 
 func (r *RedisOnlineStore) OnlineRead(ctx context.Context, entityKeys []*types.EntityKey, featureViewNames []string, featureNames []string) ([][]FeatureData, error) {
-	//span, _ := tracer.StartSpanFromContext(ctx, "redis.OnlineRead")
-	//defer span.Finish()
+	span, _ := tracer.StartSpanFromContext(ctx, "redis.OnlineRead")
+	defer span.Finish()
 
 	featureCount := len(featureNames)
 	featureViewIndices, indicesFeatureView, index := r.buildFeatureViewIndices(featureViewNames, featureNames)
@@ -291,8 +305,8 @@ func (r *RedisOnlineStore) OnlineRead(ctx context.Context, entityKeys []*types.E
 				return nil, errors.New("error parsing Value from redis")
 			} else {
 				resContainsNonNil = true
-				var value types.Value
-				if err := proto.Unmarshal([]byte(valueString), &value); err != nil {
+				var value *types.Value
+				if value, _, err = UnmarshalStoredProto([]byte(valueString)); err != nil {
 					return nil, errors.New("error converting parsed redis Value to types.Value")
 				} else {
 					featureName := featureNamesWithTimeStamps[featureIndex]
@@ -325,13 +339,18 @@ func (r *RedisOnlineStore) OnlineRead(ctx context.Context, entityKeys []*types.E
 	return results, nil
 }
 
+func (r *RedisOnlineStore) OnlineReadRange(ctx context.Context, groupedRefs *model.GroupedRangeFeatureRefs) ([][]RangeFeatureData, error) {
+	// TODO: Implement OnlineReadRange
+	return nil, errors.New("OnlineReadRange is not supported by RedisOnlineStore")
+}
+
 // Dummy destruct function to conform with plugin OnlineStore interface
 func (r *RedisOnlineStore) Destruct() {
 
 }
 
 func buildRedisKey(project string, entityKey *types.EntityKey, entityKeySerializationVersion int64) (*[]byte, error) {
-	serKey, err := serializeEntityKey(entityKey, entityKeySerializationVersion)
+	serKey, err := utils.SerializeEntityKey(entityKey, entityKeySerializationVersion)
 	if err != nil {
 		return nil, err
 	}

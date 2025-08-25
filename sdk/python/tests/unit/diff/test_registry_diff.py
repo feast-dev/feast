@@ -1,4 +1,8 @@
+import copy
+from datetime import timedelta
+
 import pandas as pd
+import pytest
 
 from feast import Field, PushSource
 from feast.diff.registry_diff import (
@@ -12,8 +16,85 @@ from feast.on_demand_feature_view import on_demand_feature_view
 from feast.permissions.action import AuthzedAction
 from feast.permissions.permission import Permission
 from feast.permissions.policy import RoleBasedPolicy
-from feast.types import String
+from feast.protos.feast.core.SortedFeatureView_pb2 import SortOrder
+from feast.sort_key import SortKey
+from feast.sorted_feature_view import SortedFeatureView
+from feast.types import Int64, String
+from feast.value_type import ValueType
 from tests.utils.data_source_test_creator import prep_file_source
+
+
+@pytest.fixture
+def sorted_feature_view_fixture(simple_dataset_1):
+    with prep_file_source(df=simple_dataset_1, timestamp_field="ts_1") as file_source:
+        entity = Entity(name="id", join_keys=["id"])
+        schema = [Field(name="sort_key_1", dtype=Int64)]
+        sort_key1 = SortKey(
+            name="sort_key_1",
+            value_type=ValueType.INT64,
+            default_sort_order=SortOrder.ASC,
+            tags={"k": "v"},
+            description="initial",
+        )
+        sfv = SortedFeatureView(
+            name="sorted_fv",
+            entities=[entity],
+            schema=schema,
+            source=file_source,
+            sort_keys=[sort_key1],
+        )
+        yield sfv
+
+
+@pytest.fixture
+def modified_sorted_feature_view(sorted_feature_view_fixture):
+    # Create a modified copy with a different sort key default order.
+    sfv2 = copy.copy(sorted_feature_view_fixture)
+    sort_key_modified = SortKey(
+        name="sort_key_1",
+        value_type=sorted_feature_view_fixture.sort_keys[0].value_type,
+        default_sort_order=SortOrder.DESC,
+        tags=sorted_feature_view_fixture.sort_keys[0].tags,
+        description=sorted_feature_view_fixture.sort_keys[0].description,
+    )
+    sfv2.sort_keys = [sort_key_modified]
+    return sfv2
+
+
+def test_sorted_feature_view_diff_non_sort_key_ttl(sorted_feature_view_fixture):
+    # Create a modified copy with an updated TTL.
+    modified = copy.copy(sorted_feature_view_fixture)
+    modified.ttl = timedelta(days=1)
+    diff = diff_registry_objects(
+        sorted_feature_view_fixture, modified, "sorted feature view"
+    )
+    non_sort_diffs = [
+        d for d in diff.feast_object_property_diffs if d.property_name == "ttl"
+    ]
+    assert len(non_sort_diffs) >= 1, "Expected a diff in the ttl field"
+
+
+def test_sorted_feature_view_no_diff(sorted_feature_view_fixture):
+    # When comparing the same object, no diffs should be detected.
+    diff = diff_registry_objects(
+        sorted_feature_view_fixture, sorted_feature_view_fixture, "sorted feature view"
+    )
+    assert len(diff.feast_object_property_diffs) == 0
+
+
+def test_sorted_feature_view_diff(
+    modified_sorted_feature_view, sorted_feature_view_fixture
+):
+    # When the sort key default sort order changes, a diff should be detected.
+    diff = diff_registry_objects(
+        sorted_feature_view_fixture, modified_sorted_feature_view, "sorted feature view"
+    )
+    assert len(diff.feast_object_property_diffs) >= 1
+    sort_key_diffs = [
+        p for p in diff.feast_object_property_diffs if "sort_keys" in p.property_name
+    ]
+    assert len(sort_key_diffs) > 0
+    assert any("default_sort_order" in p.property_name for p in sort_key_diffs)
 
 
 def test_tag_objects_for_keep_delete_update_add(simple_dataset_1):

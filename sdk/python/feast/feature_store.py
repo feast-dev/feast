@@ -13,6 +13,7 @@
 # limitations under the License.
 import asyncio
 import itertools
+import logging
 import os
 import warnings
 from datetime import datetime, timedelta
@@ -58,6 +59,7 @@ from feast.errors import (
     FeatureViewNotFoundException,
     PushSourceNotFoundException,
     RequestDataNotFoundInEntityDfException,
+    SortedFeatureViewNotFoundException,
 )
 from feast.feast_object import FeastObject
 from feast.feature_service import FeatureService
@@ -72,8 +74,10 @@ from feast.infra.offline_stores.offline_utils import (
 )
 from feast.infra.provider import Provider, RetrievalJob, get_provider
 from feast.infra.registry.base_registry import BaseRegistry
+from feast.infra.registry.http import HttpRegistry
 from feast.infra.registry.registry import Registry
 from feast.infra.registry.sql import SqlRegistry
+from feast.infra.registry.sql_fallback import SqlFallbackRegistry
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.online_response import OnlineResponse
 from feast.permissions.permission import Permission
@@ -89,6 +93,7 @@ from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import RepoConfig, load_repo_config
 from feast.repo_contents import RepoContents
 from feast.saved_dataset import SavedDataset, SavedDatasetStorage, ValidationReference
+from feast.sorted_feature_view import SortedFeatureView
 from feast.ssl_ca_trust_store_setup import configure_ca_trust_store_env_variables
 from feast.stream_feature_view import StreamFeatureView
 from feast.transformation.pandas_transformation import PandasTransformation
@@ -96,6 +101,8 @@ from feast.transformation.python_transformation import PythonTransformation
 from feast.utils import _get_feature_view_vector_field_metadata, _utc_now
 
 warnings.simplefilter("once", DeprecationWarning)
+
+logger = logging.getLogger(__name__)
 
 
 class FeatureStore:
@@ -156,6 +163,12 @@ class FeatureStore:
         registry_config = self.config.registry
         if registry_config.registry_type == "sql":
             self._registry = SqlRegistry(registry_config, self.config.project, None)
+        elif registry_config.registry_type == "sql-fallback":
+            self._registry = SqlFallbackRegistry(
+                registry_config, self.config.project, None
+            )
+        elif registry_config.registry_type == "http":
+            self._registry = HttpRegistry(registry_config, self.config.project, None)
         elif registry_config.registry_type == "snowflake.registry":
             from feast.infra.registry.snowflake import SnowflakeRegistry
 
@@ -390,6 +403,22 @@ class FeatureStore:
         """
         return self._list_stream_feature_views(allow_cache, tags=tags)
 
+    def _list_sorted_feature_views(
+        self,
+        allow_cache: bool = False,
+        hide_dummy_entity: bool = True,
+        tags: Optional[dict[str, str]] = None,
+    ) -> List[SortedFeatureView]:
+        sorted_feature_views = []
+        for sfv in self._registry.list_sorted_feature_views(
+            self.project, allow_cache=allow_cache, tags=tags
+        ):
+            if hide_dummy_entity and sfv.entities[0] == DUMMY_ENTITY_NAME:
+                sfv.entities = []
+                sfv.entity_columns = []
+            sorted_feature_views.append(sfv)
+        return sorted_feature_views
+
     def list_data_sources(
         self, allow_cache: bool = False, tags: Optional[dict[str, str]] = None
     ) -> List[DataSource]:
@@ -473,6 +502,39 @@ class FeatureStore:
         if hide_dummy_entity and feature_view.entities[0] == DUMMY_ENTITY_NAME:
             feature_view.entities = []
         return feature_view
+
+    def get_sorted_feature_view(
+        self, name: str, allow_registry_cache: bool = False
+    ) -> SortedFeatureView:
+        """
+        Retrieves a sorted feature view.
+
+        Args:
+            name: Name of sorted feature view.
+            allow_registry_cache: (Optional) Whether to allow returning this entity from a cached registry
+
+        Returns:
+            The specified feature view.
+
+        Raises:
+            FeatureViewNotFoundException: The feature view could not be found.
+        """
+        return self._get_sorted_feature_view(
+            name, allow_registry_cache=allow_registry_cache
+        )
+
+    def _get_sorted_feature_view(
+        self,
+        name: str,
+        hide_dummy_entity: bool = True,
+        allow_registry_cache: bool = False,
+    ) -> SortedFeatureView:
+        sorted_feature_view = self._registry.get_sorted_feature_view(
+            name, self.project, allow_cache=allow_registry_cache
+        )
+        if hide_dummy_entity and sorted_feature_view.entities[0] == DUMMY_ENTITY_NAME:
+            sorted_feature_view.entities = []
+        return sorted_feature_view
 
     def get_stream_feature_view(
         self, name: str, allow_registry_cache: bool = False
@@ -577,6 +639,7 @@ class FeatureStore:
         views_to_update: List[FeatureView],
         odfvs_to_update: List[OnDemandFeatureView],
         sfvs_to_update: List[StreamFeatureView],
+        sorted_fvs_to_update: List[SortedFeatureView],
     ):
         """Validates all feature views."""
         if len(odfvs_to_update) > 0 and not flags_helper.is_test():
@@ -590,6 +653,7 @@ class FeatureStore:
                 *views_to_update,
                 *odfvs_to_update,
                 *sfvs_to_update,
+                *sorted_fvs_to_update,
             ]
         )
 
@@ -598,6 +662,7 @@ class FeatureStore:
         data_sources_to_update: List[DataSource],
         entities_to_update: List[Entity],
         views_to_update: List[FeatureView],
+        sorted_fvs_to_update: List[SortedFeatureView],
         odfvs_to_update: List[OnDemandFeatureView],
         sfvs_to_update: List[StreamFeatureView],
         feature_services_to_update: List[FeatureService],
@@ -615,6 +680,10 @@ class FeatureStore:
             [view.batch_source for view in sfvs_to_update], self.config
         )
 
+        update_data_sources_with_inferred_event_timestamp_col(
+            [view.batch_source for view in sorted_fvs_to_update], self.config
+        )
+
         # New feature views may reference previously applied entities.
         entities = self._list_entities()
         provider = self._get_provider()
@@ -629,6 +698,9 @@ class FeatureStore:
             sfvs_to_update,
             entities + entities_to_update,
             self.config,
+        )
+        update_feature_views_with_inferred_features_and_entities(
+            provider, sorted_fvs_to_update, entities + entities_to_update, self.config
         )
         # We need to attach the time stamp fields to the underlying data sources
         # and cascade the dependencies
@@ -695,18 +767,31 @@ class FeatureStore:
                     if odfv.write_to_online_store
                 ]
             )
+            # Get sorted feature views from the registry and append those that are online.
+            sorted_feature_views_to_materialize = self._list_sorted_feature_views(
+                hide_dummy_entity=False
+            )
+            feature_views_to_materialize += [
+                sfv for sfv in sorted_feature_views_to_materialize if sfv.online
+            ]
         else:
             for name in feature_views:
                 feature_view: Union[FeatureView, OnDemandFeatureView]
                 try:
                     feature_view = self._get_feature_view(name, hide_dummy_entity=False)
-                except FeatureViewNotFoundException:
+                except Exception:
                     try:
                         feature_view = self._get_stream_feature_view(
                             name, hide_dummy_entity=False
                         )
-                    except FeatureViewNotFoundException:
-                        feature_view = self.get_on_demand_feature_view(name)
+                    except Exception:
+                        try:
+                            # Fallback to sorted feature view lookup.
+                            feature_view = self._get_sorted_feature_view(
+                                name, hide_dummy_entity=False
+                            )
+                        except Exception:
+                            feature_view = self.get_on_demand_feature_view(name)
 
                 if hasattr(feature_view, "online") and not feature_view.online:
                     raise ValueError(
@@ -763,6 +848,7 @@ class FeatureStore:
             ...     feature_views=[driver_hourly_stats_view],
             ...     on_demand_feature_views=list(),
             ...     stream_feature_views=list(),
+            ...     sorted_feature_views=list(),
             ...     entities=[driver],
             ...     feature_services=list(),
             ...     permissions=list())) # register entity and feature view
@@ -772,12 +858,14 @@ class FeatureStore:
             desired_repo_contents.feature_views,
             desired_repo_contents.on_demand_feature_views,
             desired_repo_contents.stream_feature_views,
+            desired_repo_contents.sorted_feature_views,
         )
         _validate_data_sources(desired_repo_contents.data_sources)
         self._make_inferences(
             desired_repo_contents.data_sources,
             desired_repo_contents.entities,
             desired_repo_contents.feature_views,
+            desired_repo_contents.sorted_feature_views,
             desired_repo_contents.on_demand_feature_views,
             desired_repo_contents.stream_feature_views,
             desired_repo_contents.feature_services,
@@ -825,6 +913,7 @@ class FeatureStore:
             DataSource,
             Entity,
             FeatureView,
+            SortedFeatureView,
             OnDemandFeatureView,
             BatchFeatureView,
             StreamFeatureView,
@@ -892,9 +981,13 @@ class FeatureStore:
                 # BFVs are not handled separately from FVs right now.
                 (isinstance(ob, FeatureView) or isinstance(ob, BatchFeatureView))
                 and not isinstance(ob, StreamFeatureView)
+                and not isinstance(ob, SortedFeatureView)
             )
         ]
         sfvs_to_update = [ob for ob in objects if isinstance(ob, StreamFeatureView)]
+        sorted_fvs_to_update = [
+            ob for ob in objects if isinstance(ob, SortedFeatureView)
+        ]
         odfvs_to_update = [ob for ob in objects if isinstance(ob, OnDemandFeatureView)]
         odfvs_with_writes_to_update = [
             ob
@@ -954,11 +1047,13 @@ class FeatureStore:
             views_to_update,
             odfvs_to_update,
             sfvs_to_update,
+            sorted_fvs_to_update,
         )
         self._make_inferences(
             data_sources_to_update,
             entities_to_update,
             views_to_update,
+            sorted_fvs_to_update,
             odfvs_to_update,
             sfvs_to_update,
             services_to_update,
@@ -969,7 +1064,9 @@ class FeatureStore:
             self._registry.apply_project(project, commit=False)
         for ds in data_sources_to_update:
             self._registry.apply_data_source(ds, project=self.project, commit=False)
-        for view in itertools.chain(views_to_update, odfvs_to_update, sfvs_to_update):
+        for view in itertools.chain(
+            views_to_update, odfvs_to_update, sfvs_to_update, sorted_fvs_to_update
+        ):
             self._registry.apply_feature_view(view, project=self.project, commit=False)
         for ent in entities_to_update:
             self._registry.apply_entity(ent, project=self.project, commit=False)
@@ -1001,10 +1098,14 @@ class FeatureStore:
                 if (
                     (isinstance(ob, FeatureView) or isinstance(ob, BatchFeatureView))
                     and not isinstance(ob, StreamFeatureView)
+                    and not isinstance(ob, SortedFeatureView)
                 )
             ]
             odfvs_to_delete = [
                 ob for ob in objects_to_delete if isinstance(ob, OnDemandFeatureView)
+            ]
+            sorted_fvs_to_delete = [
+                ob for ob in objects_to_delete if isinstance(ob, SortedFeatureView)
             ]
             sfvs_to_delete = [
                 ob for ob in objects_to_delete if isinstance(ob, StreamFeatureView)
@@ -1042,6 +1143,10 @@ class FeatureStore:
                 self._registry.delete_feature_view(
                     sfv.name, project=self.project, commit=False
                 )
+            for sortedfv in sorted_fvs_to_delete:
+                self._registry.delete_feature_view(
+                    sortedfv.name, project=self.project, commit=False
+                )
             for service in services_to_delete:
                 self._registry.delete_feature_service(
                     service.name, project=self.project, commit=False
@@ -1056,20 +1161,30 @@ class FeatureStore:
                 )
 
         tables_to_delete: List[FeatureView] = (
-            views_to_delete + sfvs_to_delete if not partial else []  # type: ignore
+            views_to_delete
+            + sfvs_to_delete  # type: ignore
+            + sorted_fvs_to_delete  # type: ignore
+            if not partial
+            else []  # type: ignore
         )
         tables_to_keep: List[
             Union[FeatureView, StreamFeatureView, OnDemandFeatureView]
-        ] = views_to_update + sfvs_to_update + odfvs_with_writes_to_update  # type: ignore
+        ] = (
+            views_to_update
+            + sfvs_to_update
+            + odfvs_with_writes_to_update  # type: ignore
+            + sorted_fvs_to_update  # type: ignore
+        )  # type: ignore
 
-        self._get_provider().update_infra(
-            project=self.project,
-            tables_to_delete=tables_to_delete,
-            tables_to_keep=tables_to_keep,
-            entities_to_delete=entities_to_delete if not partial else [],
-            entities_to_keep=entities_to_update,
-            partial=partial,
-        )
+        if not getattr(self.config.online_store, "lazy_table_creation", False):
+            self._get_provider().update_infra(
+                project=self.project,
+                tables_to_delete=tables_to_delete,
+                tables_to_keep=tables_to_keep,
+                entities_to_delete=entities_to_delete if not partial else [],
+                entities_to_keep=entities_to_update,
+                partial=partial,
+            )
 
         self._registry.commit()
 
@@ -1460,6 +1575,7 @@ class FeatureStore:
         feature_views_to_materialize = self._get_feature_views_to_materialize(
             feature_views
         )
+
         _print_materialization_log(
             None,
             end_date,
@@ -1512,6 +1628,9 @@ class FeatureStore:
                 f"{Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}"
                 f" from {Style.BRIGHT + Fore.GREEN}{utils.make_tzaware(start_date.replace(microsecond=0))}{Style.RESET_ALL}"
                 f" to {Style.BRIGHT + Fore.GREEN}{utils.make_tzaware(end_date.replace(microsecond=0))}{Style.RESET_ALL}:"
+            )
+            logger.info(
+                f"Materializing {feature_view.name} from {start_date.astimezone()} to {end_date.astimezone()}"
             )
 
             def tqdm_builder(length):
@@ -1577,6 +1696,7 @@ class FeatureStore:
         feature_views_to_materialize = self._get_feature_views_to_materialize(
             feature_views
         )
+
         _print_materialization_log(
             start_date,
             end_date,
@@ -1594,6 +1714,9 @@ class FeatureStore:
                 continue
             provider = self._get_provider()
             print(f"{Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}:")
+            logger.info(
+                f"Materializing {feature_view.name} from {start_date.astimezone()} to {end_date.astimezone()}"
+            )
 
             def tqdm_builder(length):
                 return tqdm(total=length, ncols=100)
@@ -1867,14 +1990,24 @@ class FeatureStore:
         allow_registry_cache: bool = True,
         transform_on_write: bool = True,
     ):
-        feature_view_dict = {
-            fv_proto.name: fv_proto
-            for fv_proto in self.list_all_feature_views(allow_registry_cache)
-        }
         try:
-            feature_view = feature_view_dict[feature_view_name]
+            feature_view = self.get_feature_view(
+                feature_view_name, allow_registry_cache=allow_registry_cache
+            )
         except FeatureViewNotFoundException:
-            raise FeatureViewNotFoundException(feature_view_name, self.project)
+            try:
+                feature_view = self.get_sorted_feature_view(
+                    feature_view_name, allow_registry_cache=allow_registry_cache
+                )
+            except SortedFeatureViewNotFoundException:
+                try:
+                    feature_view = self.get_stream_feature_view(
+                        feature_view_name, allow_registry_cache=allow_registry_cache
+                    )
+                except FeatureViewNotFoundException:
+                    feature_view = self.get_on_demand_feature_view( # type: ignore
+                        feature_view_name, allow_registry_cache=allow_registry_cache
+                    )
 
         # Convert inputs/df to a consistent DataFrame format
         df = self._validate_and_convert_input_data(df, inputs)
@@ -2445,6 +2578,18 @@ class FeatureStore:
 
         return OnlineResponse(online_features_response)
 
+    def _lazy_init_go_server(self):
+        """Lazily initialize self._go_server if it hasn't been initialized before."""
+        from feast.embedded_go.online_features_service import (
+            EmbeddedOnlineFeatureServer,
+        )
+
+        # Lazily start the go server on the first request
+        if self._go_server is None:
+            self._go_server = EmbeddedOnlineFeatureServer(
+                str(self.repo_path.absolute()), self.config, self
+            )
+
     def serve(
         self,
         host: str,
@@ -2460,6 +2605,7 @@ class FeatureStore:
     ) -> None:
         """Start the feature consumption server locally on a given port."""
         type_ = type_.lower()
+
         if type_ != "http":
             raise ValueError(
                 f"Python server only supports 'http'. Got '{type_}' instead."
@@ -2477,6 +2623,9 @@ class FeatureStore:
             tls_cert_path=tls_cert_path,
             registry_ttl_sec=registry_ttl_sec,
         )
+
+    def _teardown_go_server(self):
+        self._go_server = None
 
     def get_feature_server_endpoint(self) -> Optional[str]:
         """Returns endpoint for the feature server, if it exists."""
@@ -2775,11 +2924,17 @@ def _print_materialization_log(
             f" to {Style.BRIGHT + Fore.GREEN}{utils.make_tzaware(end_date.replace(microsecond=0))}{Style.RESET_ALL}"
             f" into the {Style.BRIGHT + Fore.GREEN}{online_store}{Style.RESET_ALL} online store.\n"
         )
+        logger.info(
+            f"Materializing {num_feature_views} feature views from {start_date.replace(microsecond=0).astimezone()} to {end_date.replace(microsecond=0).astimezone()} into the {online_store} online store."
+        )
     else:
         print(
             f"Materializing {Style.BRIGHT + Fore.GREEN}{num_feature_views}{Style.RESET_ALL} feature views"
             f" to {Style.BRIGHT + Fore.GREEN}{utils.make_tzaware(end_date.replace(microsecond=0))}{Style.RESET_ALL}"
             f" into the {Style.BRIGHT + Fore.GREEN}{online_store}{Style.RESET_ALL} online store.\n"
+        )
+        logger.info(
+            f"Materializing {num_feature_views} feature views to {end_date.replace(microsecond=0).astimezone()} into the {online_store} online store."
         )
 
 

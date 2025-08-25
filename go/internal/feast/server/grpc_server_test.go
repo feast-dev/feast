@@ -1,102 +1,28 @@
+//go:build !integration
+
 package server
 
 import (
 	"context"
 	"io/ioutil"
-	"net"
 	"os"
 	"path/filepath"
 	"reflect"
-	"runtime"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/feast-dev/feast/go/internal/feast/registry"
-
 	"github.com/apache/arrow/go/v17/arrow/array"
 	"github.com/apache/arrow/go/v17/arrow/memory"
 	"github.com/apache/arrow/go/v17/parquet/file"
 	"github.com/apache/arrow/go/v17/parquet/pqarrow"
-	"github.com/stretchr/testify/assert"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/test/bufconn"
-
-	"github.com/feast-dev/feast/go/internal/feast"
-	"github.com/feast-dev/feast/go/internal/feast/server/logging"
+	"github.com/feast-dev/feast/go/internal/feast/version"
 	"github.com/feast-dev/feast/go/internal/test"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/feast-dev/feast/go/protos/feast/types"
+	"github.com/stretchr/testify/assert"
 )
-
-// Return absolute path to the test_repo directory regardless of the working directory
-func getRepoPath(basePath string) string {
-	// Get the file path of this source file, regardless of the working directory
-	if basePath == "" {
-		_, filename, _, ok := runtime.Caller(0)
-		if !ok {
-			panic("couldn't find file path of the test file")
-		}
-		return filepath.Join(filename, "..", "..", "feature_repo")
-	} else {
-		return filepath.Join(basePath, "feature_repo")
-	}
-}
-
-// Starts a new grpc server, registers the serving service and returns a client.
-func getClient(ctx context.Context, offlineStoreType string, basePath string, logPath string) (serving.ServingServiceClient, func()) {
-	buffer := 1024 * 1024
-	listener := bufconn.Listen(buffer)
-
-	server := grpc.NewServer()
-	config, err := registry.NewRepoConfigFromFile(getRepoPath(basePath))
-	if err != nil {
-		panic(err)
-	}
-	fs, err := feast.NewFeatureStore(config, nil)
-	if err != nil {
-		panic(err)
-	}
-
-	var logSink logging.LogSink
-	if logPath != "" {
-		logSink, err = logging.NewFileLogSink(logPath)
-		if err != nil {
-			panic(err)
-		}
-	}
-	loggingService, err := logging.NewLoggingService(fs, logSink, logging.LoggingOptions{
-		WriteInterval:   10 * time.Millisecond,
-		FlushInterval:   logging.DefaultOptions.FlushInterval,
-		EmitTimeout:     logging.DefaultOptions.EmitTimeout,
-		ChannelCapacity: logging.DefaultOptions.ChannelCapacity,
-	})
-	if err != nil {
-		panic(err)
-	}
-	servingServiceServer := NewGrpcServingServiceServer(fs, loggingService)
-
-	serving.RegisterServingServiceServer(server, servingServiceServer)
-	go func() {
-		if err := server.Serve(listener); err != nil {
-			panic(err)
-		}
-	}()
-
-	conn, _ := grpc.DialContext(ctx, "", grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) {
-		return listener.Dial()
-	}), grpc.WithInsecure())
-
-	closer := func() {
-		listener.Close()
-		server.Stop()
-	}
-
-	client := serving.NewServingServiceClient(conn)
-
-	return client, closer
-}
 
 func TestGetFeastServingInfo(t *testing.T) {
 	ctx := context.Background()
@@ -107,7 +33,7 @@ func TestGetFeastServingInfo(t *testing.T) {
 
 	require.Nil(t, err)
 
-	client, closer := getClient(ctx, "", dir, "")
+	client, closer := GetClient(ctx, dir, "")
 	defer closer()
 	response, err := client.GetFeastServingInfo(ctx, &serving.GetFeastServingInfoRequest{})
 	assert.Nil(t, err)
@@ -123,7 +49,7 @@ func TestGetOnlineFeaturesSqlite(t *testing.T) {
 
 	require.Nil(t, err)
 
-	client, closer := getClient(ctx, "", dir, "")
+	client, closer := GetClient(ctx, dir, "")
 	defer closer()
 	entities := make(map[string]*types.RepeatedValue)
 	entities["driver_id"] = &types.RepeatedValue{
@@ -184,7 +110,7 @@ func TestGetOnlineFeaturesSqliteWithLogging(t *testing.T) {
 	require.Nil(t, err)
 
 	logPath := t.TempDir()
-	client, closer := getClient(ctx, "file", dir, logPath)
+	client, closer := GetClient(ctx, dir, logPath)
 	defer closer()
 	entities := make(map[string]*types.RepeatedValue)
 	entities["driver_id"] = &types.RepeatedValue{
@@ -201,6 +127,7 @@ func TestGetOnlineFeaturesSqliteWithLogging(t *testing.T) {
 		},
 		Entities:         entities,
 		FullFeatureNames: true,
+		IncludeMetadata:  true,
 	}
 	response, err := client.GetOnlineFeatures(ctx, request)
 
@@ -281,4 +208,33 @@ func GetExpectedLogRows(featureNames []string, results []*serving.GetOnlineFeatu
 		}
 	}
 	return featureValueLogRows, featureStatusLogRows, eventTimestampLogRows
+}
+
+func TestGetVersionInfoReturnsCorrectVersionInfo(t *testing.T) {
+	ctx := context.Background()
+	server := &grpcServingServiceServer{}
+	resp, err := server.GetVersionInfo(ctx, &serving.GetVersionInfoRequest{})
+	require.Nil(t, err)
+	require.NotNil(t, resp)
+	expected := version.GetVersionInfo()
+	assert.Equal(t, expected.Version, resp.Version)
+	assert.Equal(t, expected.BuildTime, resp.BuildTime)
+	assert.Equal(t, expected.CommitHash, resp.CommitHash)
+	assert.Equal(t, expected.GoVersion, resp.GoVersion)
+	assert.Equal(t, expected.ServerType, resp.ServerType)
+}
+
+func TestGetVersionInfoHandlesNilContext(t *testing.T) {
+	server := &grpcServingServiceServer{}
+	resp, err := server.GetVersionInfo(nil, &serving.GetVersionInfoRequest{})
+	require.Nil(t, err)
+	require.NotNil(t, resp)
+}
+
+func TestGetVersionInfoHandlesNilRequest(t *testing.T) {
+	ctx := context.Background()
+	server := &grpcServingServiceServer{}
+	resp, err := server.GetVersionInfo(ctx, nil)
+	require.Nil(t, err)
+	require.NotNil(t, resp)
 }

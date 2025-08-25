@@ -9,8 +9,9 @@ import pyarrow.parquet as pq
 
 from feast import FeatureStore
 from feast.constants import FEATURE_STORE_YAML_ENV_NAME
-from feast.infra.materialization.local_engine import DEFAULT_BATCH_SIZE
 from feast.utils import _convert_arrow_to_proto, _run_pyarrow_field_mapping
+
+DEFAULT_BATCH_SIZE = 10_000
 
 
 def handler(event, context):

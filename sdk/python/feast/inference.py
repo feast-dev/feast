@@ -16,6 +16,7 @@ from feast.infra.offline_stores.snowflake_source import SnowflakeSource
 from feast.infra.provider import Provider
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import RepoConfig
+from feast.sorted_feature_view import SortedFeatureView
 from feast.stream_feature_view import StreamFeatureView
 from feast.types import String
 from feast.value_type import ValueType
@@ -102,7 +103,12 @@ def update_data_sources_with_inferred_event_timestamp_col(
 
 def update_feature_views_with_inferred_features_and_entities(
     provider: Provider,
-    fvs: Union[List[FeatureView], List[StreamFeatureView], List[OnDemandFeatureView]],
+    fvs: Union[
+        List[FeatureView],
+        List[StreamFeatureView],
+        List[OnDemandFeatureView],
+        List[SortedFeatureView],
+    ],
     entities: List[Entity],
     config: RepoConfig,
 ) -> None:

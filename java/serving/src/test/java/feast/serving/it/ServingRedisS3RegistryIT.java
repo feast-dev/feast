@@ -34,7 +34,7 @@ import org.testcontainers.junit.jupiter.Container;
 public class ServingRedisS3RegistryIT extends ServingBaseTests {
   private static final String TEST_REGION = "us-east-1";
   private static final String TEST_BUCKET = "test-bucket";
-  @Container static final S3MockContainer s3Mock = new S3MockContainer("2.2.3");
+  @Container static final S3MockContainer s3Mock = new S3MockContainer("4.3.0");
   private static final AWSStaticCredentialsProvider credentials =
       new AWSStaticCredentialsProvider(new BasicAWSCredentials("anyAccessKey", "anySecretKey"));
 

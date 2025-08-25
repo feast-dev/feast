@@ -1,10 +1,8 @@
 import logging
 import traceback
-import warnings
 from enum import Enum
 from typing import Any, Callable, Dict, Iterable, Optional, Tuple
 
-from feast import flags_helper
 from feast.data_source import DataSource
 from feast.errors import DataSourceNoNameException, DataSourceNotFoundException
 from feast.infra.offline_stores.offline_utils import get_temp_entity_table_name
@@ -26,6 +24,7 @@ class SparkSourceFormat(Enum):
     parquet = "parquet"
     delta = "delta"
     avro = "avro"
+    iceberg = "iceberg"
 
 
 class SparkSource(DataSource):
@@ -89,12 +88,13 @@ class SparkSource(DataSource):
             owner=owner,
         )
 
-        if not flags_helper.is_test():
-            warnings.warn(
-                "The spark data source API is an experimental feature in alpha development. "
-                "This API is unstable and it could and most probably will be changed in the future.",
-                RuntimeWarning,
-            )
+        # We recommend using SparkSource for our users. So disabling this warning as this can cause confusion.
+        # if not flags_helper.is_test():
+        #     warnings.warn(
+        #         "The spark data source API is an experimental feature in alpha development. "
+        #         "This API is unstable and it could and most probably will be changed in the future.",
+        #         RuntimeWarning,
+        #     )
 
         self.spark_options = SparkOptions(
             table=table,
@@ -326,11 +326,23 @@ class SparkOptions:
         Returns:
             Returns a SparkOptions object based on the spark_options protobuf
         """
+
+        # TODO: Revert after leveraging the Remote Registry. Conversion from Proto is
+        # setting values to empty string if not set.This impacts the Pydantic Model
+        # conversion. So fixing it here.
         spark_options = cls(
-            table=spark_options_proto.table,
-            query=spark_options_proto.query,
-            path=spark_options_proto.path,
-            file_format=spark_options_proto.file_format,
+            table=(
+                spark_options_proto.table if spark_options_proto.table != "" else None
+            ),
+            query=(
+                spark_options_proto.query if spark_options_proto.query != "" else None
+            ),
+            path=spark_options_proto.path if spark_options_proto.path != "" else None,
+            file_format=(
+                spark_options_proto.file_format
+                if spark_options_proto.file_format != ""
+                else None
+            ),
             date_partition_column_format=spark_options_proto.date_partition_column_format,
         )
 

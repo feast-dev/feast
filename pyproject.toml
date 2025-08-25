@@ -213,6 +213,9 @@ feast = "feast.cli.cli:cli"
 
 [build-system]
 requires = [
+  "protobuf>=4.24.0,<5.0.0",
+  "grpcio-tools>=1.56.2,<2",
+  "mypy-protobuf>=3.1",
   "pybindgen==0.22.0",
   # https://amitylearning.vercel.app/?question=git-1742419854670&update=1742342400027
   "setuptools>=60,<81",

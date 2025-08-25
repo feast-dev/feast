@@ -26,6 +26,7 @@ import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 import "feast/core/DataSource.proto";
 import "feast/core/Feature.proto";
+import "feast/core/Entity.proto";
 
 message FeatureView {
     // User-specified specifications of this feature view.
@@ -81,6 +82,11 @@ message FeatureViewSpec {
     bool offline = 13;
 
     repeated FeatureViewSpec source_views = 14;
+
+    // User-specified specifications of this entity.
+    // Adding higher index to avoid conflicts in future
+    // if Feast adds more fields
+    repeated Entity original_entities = 30;
 }
 
 message FeatureViewMeta {

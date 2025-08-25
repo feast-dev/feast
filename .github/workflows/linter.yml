@@ -22,7 +22,25 @@ jobs:
       - name: Install dependencies
         run: |
           make install-python-dependencies-ci
+          make compile-protos-go
       - name: Lint python
         run: make lint-python
       - name: Minimize uv cache
         run: uv cache prune --ci
+  lint-go:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Go
+        id: setup-go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.22.5
+      - name: Lint go
+        run: make lint-go
+  lint-java:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lint java
+        run: make lint-java

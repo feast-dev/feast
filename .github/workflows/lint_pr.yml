@@ -10,7 +10,7 @@ on:
 jobs:
   validate-title:
     if:
-      github.event.pull_request.base.repo.full_name == 'feast-dev/feast'
+      github.repository != 'feast-dev/feast'
     name: Validate PR title
     runs-on: ubuntu-latest
     steps:

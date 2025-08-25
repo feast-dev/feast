@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import copy
+import logging
 import warnings
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple, Type, Union
@@ -26,6 +27,7 @@ from feast.data_source import DataSource, KafkaSource, KinesisSource, PushSource
 from feast.entity import Entity
 from feast.feature_view_projection import FeatureViewProjection
 from feast.field import Field
+from feast.protos.feast.core.Entity_pb2 import Entity as EntityProto
 from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
 from feast.protos.feast.core.FeatureView_pb2 import (
     FeatureViewMeta as FeatureViewMetaProto,
@@ -39,7 +41,7 @@ from feast.protos.feast.core.FeatureView_pb2 import (
 from feast.types import from_value_type
 from feast.value_type import ValueType
 
-warnings.simplefilter("once", DeprecationWarning)
+warnings.simplefilter("ignore", DeprecationWarning)
 
 # DUMMY_ENTITY is a placeholder entity used in entityless FeatureViews
 DUMMY_ENTITY_ID = "__dummy_id"
@@ -54,6 +56,10 @@ DUMMY_ENTITY_FIELD = Field(
     name=DUMMY_ENTITY_ID,
     dtype=from_value_type(ValueType.STRING),
 )
+
+ONLINE_STORE_TAG_SUFFIX = "online_store_"
+
+logger = logging.getLogger(__name__)
 
 
 @typechecked
@@ -144,6 +150,13 @@ class FeatureView(BaseFeatureView):
         self.name = name
         self.entities = [e.name for e in entities] if entities else [DUMMY_ENTITY_NAME]
         self.ttl = ttl
+
+        # FeatureView is destructive of some of its original arguments,
+        # making it impossible to convert idempotently to another format.
+        # store these arguments to recover them in conversions.
+        self.original_schema = schema
+        self.original_entities: List[Entity] = entities or []
+
         schema = schema or []
 
         # Normalize source
@@ -297,6 +310,18 @@ class FeatureView(BaseFeatureView):
         ):
             return False
 
+        if isinstance(self.original_entities, List) and isinstance(
+            other.original_entities, List
+        ):
+            if len(self.original_entities) != len(other.original_entities):
+                return False
+
+            for entity1, entity2 in zip(
+                self.original_entities, other.original_entities
+            ):
+                if entity1 != entity2:
+                    return False
+
         return True
 
     @property
@@ -316,6 +341,11 @@ class FeatureView(BaseFeatureView):
             ValueError: The feature view does not have a name or does not have entities.
         """
         super().ensure_valid()
+
+        if self.ttl < timedelta(days=0):
+            raise ValueError(
+                "Feature view ttl cannot be negative. Please set a positive value or 0 for no ttl."
+            )
 
         if not self.entities:
             raise ValueError("Feature view has no entities.")
@@ -415,6 +445,11 @@ class FeatureView(BaseFeatureView):
             source_view_protos = [
                 view._to_proto_internal(seen).spec for view in self.source_views
             ]
+
+        original_entities: List[EntityProto] = []
+        for entity in self.original_entities:
+            original_entities.append(entity.to_proto())
+
         return FeatureViewSpecProto(
             name=self.name,
             entities=self.entities,
@@ -429,6 +464,7 @@ class FeatureView(BaseFeatureView):
             batch_source=batch_source_proto,
             stream_source=stream_source_proto,
             source_views=source_view_protos,
+            original_entities=original_entities,
         )
 
     def to_proto_meta(self):
@@ -450,6 +486,46 @@ class FeatureView(BaseFeatureView):
             ttl_duration = Duration()
             ttl_duration.FromTimedelta(self.ttl)
         return ttl_duration
+
+    def is_update_compatible_with(self, updated) -> Tuple[bool, List[str]]:
+        """
+        Checks if updating this FeatureView to 'updated' is compatible.
+        Returns a tuple:
+            (True, []) if compatible;
+            (False, [reasons...]) otherwise.
+        """
+        reasons: List[str] = []
+        old_fields = {f.name: f.dtype for f in self.schema}
+        new_fields = {f.name: f.dtype for f in updated.schema}
+
+        # TODO: Think about how the following check should be handled for stream FVs
+        if self.materialization_intervals:
+            if updated.entities != self.entities:
+                reasons.append(
+                    f"entity definitions cannot change for FeatureView: {self.name}"
+                )
+
+            removed = old_fields.keys() - new_fields.keys()
+            for fname in sorted(removed):
+                if fname in self.entities:
+                    reasons.append(
+                        f"feature '{fname}' removed from FeatureView '{self.name}' is an entity key and cannot be removed"
+                    )
+                else:
+                    logger.info(
+                        "Feature '%s' removed from FeatureView '%s'.", fname, self.name
+                    )
+        else:
+            logger.info("No materialization intervals: skipping entity related checks.")
+        for fname, old_dtype in old_fields.items():
+            if fname in new_fields and new_fields[fname] != old_dtype:
+                logger.warning(
+                    f"feature '{fname}' type changed ({old_dtype} to {new_fields[fname]}), this is "
+                    "generally an illegal operation, please re-materialize all data in order for this "
+                    f"change to reflect correctly for this feature view {self.name}."
+                )
+
+        return len(reasons) == 0, reasons
 
     @classmethod
     def from_proto(cls, feature_view_proto: FeatureViewProto) -> "FeatureView":
@@ -518,22 +594,30 @@ class FeatureView(BaseFeatureView):
 
         # This avoids the deprecation warning.
         feature_view.entities = list(feature_view_proto.spec.entities)
+        feature_view.original_entities = [
+            Entity.from_proto(entity)
+            for entity in feature_view_proto.spec.original_entities
+        ]
 
         # Instead of passing in a schema, we set the features and entity columns.
         feature_view.features = [
             Field.from_proto(field_proto)
             for field_proto in feature_view_proto.spec.features
         ]
+
         feature_view.entity_columns = [
             Field.from_proto(field_proto)
             for field_proto in feature_view_proto.spec.entity_columns
         ]
-
         if len(feature_view.entities) != len(feature_view.entity_columns):
             warnings.warn(
                 f"There are some mismatches in your feature view: {feature_view.name} registered entities. Please check if you have applied your entities correctly."
                 f"Entities: {feature_view.entities} vs Entity Columns: {feature_view.entity_columns}"
             )
+
+        feature_view.original_schema = (
+            feature_view.entity_columns + feature_view.features
+        )
 
         # FeatureViewProjections are not saved in the FeatureView proto.
         # Create the default projection.
@@ -572,3 +656,20 @@ class FeatureView(BaseFeatureView):
         if len(self.materialization_intervals) == 0:
             return None
         return max([interval[1] for interval in self.materialization_intervals])
+
+    @property
+    def get_online_store_tags(self) -> Dict[str, str]:
+        """
+        Retrieves online store specific tags which are prefixed with online_store_.
+        This helps to identify the overrides provided at feature view level. Not all
+        online store configurations are relevant for override.
+
+        Returns:
+            A dictionary of tags. If no tags are found, returns an empty dictionary.
+        """
+        tags = {
+            k.removeprefix(ONLINE_STORE_TAG_SUFFIX).lower(): v
+            for k, v in self.tags.items()
+            if k.lower().startswith(ONLINE_STORE_TAG_SUFFIX)
+        }
+        return tags

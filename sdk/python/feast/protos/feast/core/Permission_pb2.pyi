@@ -80,6 +80,7 @@ class PermissionSpec(google.protobuf.message.Message):
         ON_DEMAND_FEATURE_VIEW: PermissionSpec._Type.ValueType  # 1
         BATCH_FEATURE_VIEW: PermissionSpec._Type.ValueType  # 2
         STREAM_FEATURE_VIEW: PermissionSpec._Type.ValueType  # 3
+        SORTED_FEATURE_VIEW: PermissionSpec._Type.ValueType  # 15
         ENTITY: PermissionSpec._Type.ValueType  # 4
         FEATURE_SERVICE: PermissionSpec._Type.ValueType  # 5
         DATA_SOURCE: PermissionSpec._Type.ValueType  # 6
@@ -93,6 +94,7 @@ class PermissionSpec(google.protobuf.message.Message):
     ON_DEMAND_FEATURE_VIEW: PermissionSpec.Type.ValueType  # 1
     BATCH_FEATURE_VIEW: PermissionSpec.Type.ValueType  # 2
     STREAM_FEATURE_VIEW: PermissionSpec.Type.ValueType  # 3
+    SORTED_FEATURE_VIEW: PermissionSpec.Type.ValueType  # 15
     ENTITY: PermissionSpec.Type.ValueType  # 4
     FEATURE_SERVICE: PermissionSpec.Type.ValueType  # 5
     DATA_SOURCE: PermissionSpec.Type.ValueType  # 6

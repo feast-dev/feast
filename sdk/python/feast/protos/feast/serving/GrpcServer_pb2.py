@@ -15,7 +15,7 @@ _sym_db = _symbol_database.Default()
 from feast.protos.feast.serving import ServingService_pb2 as feast_dot_serving_dot_ServingService__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1e\x66\x65\x61st/serving/GrpcServer.proto\x1a\"feast/serving/ServingService.proto\"\xb3\x01\n\x0bPushRequest\x12,\n\x08\x66\x65\x61tures\x18\x01 \x03(\x0b\x32\x1a.PushRequest.FeaturesEntry\x12\x1b\n\x13stream_feature_view\x18\x02 \x01(\t\x12\x1c\n\x14\x61llow_registry_cache\x18\x03 \x01(\x08\x12\n\n\x02to\x18\x04 \x01(\t\x1a/\n\rFeaturesEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\"\x1e\n\x0cPushResponse\x12\x0e\n\x06status\x18\x01 \x01(\x08\"\xc1\x01\n\x19WriteToOnlineStoreRequest\x12:\n\x08\x66\x65\x61tures\x18\x01 \x03(\x0b\x32(.WriteToOnlineStoreRequest.FeaturesEntry\x12\x19\n\x11\x66\x65\x61ture_view_name\x18\x02 \x01(\t\x12\x1c\n\x14\x61llow_registry_cache\x18\x03 \x01(\x08\x1a/\n\rFeaturesEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\",\n\x1aWriteToOnlineStoreResponse\x12\x0e\n\x06status\x18\x01 \x01(\x08\x32\xf1\x01\n\x11GrpcFeatureServer\x12%\n\x04Push\x12\x0c.PushRequest\x1a\r.PushResponse\"\x00\x12M\n\x12WriteToOnlineStore\x12\x1a.WriteToOnlineStoreRequest\x1a\x1b.WriteToOnlineStoreResponse\x12\x66\n\x11GetOnlineFeatures\x12\'.feast.serving.GetOnlineFeaturesRequest\x1a(.feast.serving.GetOnlineFeaturesResponseB4Z2github.com/feast-dev/feast/go/protos/feast/servingb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1e\x66\x65\x61st/serving/GrpcServer.proto\x12\x0egrpc.connector\x1a\"feast/serving/ServingService.proto\"\xc2\x01\n\x0bPushRequest\x12;\n\x08\x66\x65\x61tures\x18\x01 \x03(\x0b\x32).grpc.connector.PushRequest.FeaturesEntry\x12\x1b\n\x13stream_feature_view\x18\x02 \x01(\t\x12\x1c\n\x14\x61llow_registry_cache\x18\x03 \x01(\x08\x12\n\n\x02to\x18\x04 \x01(\t\x1a/\n\rFeaturesEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\"\x1e\n\x0cPushResponse\x12\x0e\n\x06status\x18\x01 \x01(\x08\"\xd0\x01\n\x19WriteToOnlineStoreRequest\x12I\n\x08\x66\x65\x61tures\x18\x01 \x03(\x0b\x32\x37.grpc.connector.WriteToOnlineStoreRequest.FeaturesEntry\x12\x19\n\x11\x66\x65\x61ture_view_name\x18\x02 \x01(\t\x12\x1c\n\x14\x61llow_registry_cache\x18\x03 \x01(\x08\x1a/\n\rFeaturesEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\",\n\x1aWriteToOnlineStoreResponse\x12\x0e\n\x06status\x18\x01 \x01(\x08\x32\xa4\x03\n\x11GrpcFeatureServer\x12\x43\n\x04Push\x12\x1b.grpc.connector.PushRequest\x1a\x1c.grpc.connector.PushResponse\"\x00\x12k\n\x12WriteToOnlineStore\x12).grpc.connector.WriteToOnlineStoreRequest\x1a*.grpc.connector.WriteToOnlineStoreResponse\x12\x66\n\x11GetOnlineFeatures\x12\'.feast.serving.GetOnlineFeaturesRequest\x1a(.feast.serving.GetOnlineFeaturesResponse\x12u\n\x16GetOnlineFeaturesRange\x12,.feast.serving.GetOnlineFeaturesRangeRequest\x1a-.feast.serving.GetOnlineFeaturesRangeResponseB4Z2github.com/feast-dev/feast/go/protos/feast/servingb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -27,18 +27,18 @@ if _descriptor._USE_C_DESCRIPTORS == False:
   _globals['_PUSHREQUEST_FEATURESENTRY']._serialized_options = b'8\001'
   _globals['_WRITETOONLINESTOREREQUEST_FEATURESENTRY']._options = None
   _globals['_WRITETOONLINESTOREREQUEST_FEATURESENTRY']._serialized_options = b'8\001'
-  _globals['_PUSHREQUEST']._serialized_start=71
-  _globals['_PUSHREQUEST']._serialized_end=250
-  _globals['_PUSHREQUEST_FEATURESENTRY']._serialized_start=203
-  _globals['_PUSHREQUEST_FEATURESENTRY']._serialized_end=250
-  _globals['_PUSHRESPONSE']._serialized_start=252
-  _globals['_PUSHRESPONSE']._serialized_end=282
-  _globals['_WRITETOONLINESTOREREQUEST']._serialized_start=285
-  _globals['_WRITETOONLINESTOREREQUEST']._serialized_end=478
-  _globals['_WRITETOONLINESTOREREQUEST_FEATURESENTRY']._serialized_start=203
-  _globals['_WRITETOONLINESTOREREQUEST_FEATURESENTRY']._serialized_end=250
-  _globals['_WRITETOONLINESTORERESPONSE']._serialized_start=480
-  _globals['_WRITETOONLINESTORERESPONSE']._serialized_end=524
-  _globals['_GRPCFEATURESERVER']._serialized_start=527
-  _globals['_GRPCFEATURESERVER']._serialized_end=768
+  _globals['_PUSHREQUEST']._serialized_start=87
+  _globals['_PUSHREQUEST']._serialized_end=281
+  _globals['_PUSHREQUEST_FEATURESENTRY']._serialized_start=234
+  _globals['_PUSHREQUEST_FEATURESENTRY']._serialized_end=281
+  _globals['_PUSHRESPONSE']._serialized_start=283
+  _globals['_PUSHRESPONSE']._serialized_end=313
+  _globals['_WRITETOONLINESTOREREQUEST']._serialized_start=316
+  _globals['_WRITETOONLINESTOREREQUEST']._serialized_end=524
+  _globals['_WRITETOONLINESTOREREQUEST_FEATURESENTRY']._serialized_start=234
+  _globals['_WRITETOONLINESTOREREQUEST_FEATURESENTRY']._serialized_end=281
+  _globals['_WRITETOONLINESTORERESPONSE']._serialized_start=526
+  _globals['_WRITETOONLINESTORERESPONSE']._serialized_end=570
+  _globals['_GRPCFEATURESERVER']._serialized_start=573
+  _globals['_GRPCFEATURESERVER']._serialized_end=993
 # @@protoc_insertion_point(module_scope)

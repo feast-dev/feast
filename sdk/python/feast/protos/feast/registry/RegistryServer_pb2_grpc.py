@@ -12,6 +12,7 @@ from feast.protos.feast.core import Permission_pb2 as feast_dot_core_dot_Permiss
 from feast.protos.feast.core import Project_pb2 as feast_dot_core_dot_Project__pb2
 from feast.protos.feast.core import Registry_pb2 as feast_dot_core_dot_Registry__pb2
 from feast.protos.feast.core import SavedDataset_pb2 as feast_dot_core_dot_SavedDataset__pb2
+from feast.protos.feast.core import SortedFeatureView_pb2 as feast_dot_core_dot_SortedFeatureView__pb2
 from feast.protos.feast.core import StreamFeatureView_pb2 as feast_dot_core_dot_StreamFeatureView__pb2
 from feast.protos.feast.core import ValidationProfile_pb2 as feast_dot_core_dot_ValidationProfile__pb2
 from feast.protos.feast.registry import RegistryServer_pb2 as feast_dot_registry_dot_RegistryServer__pb2
@@ -96,6 +97,16 @@ class RegistryServerStub(object):
                 '/feast.registry.RegistryServer/ListFeatureViews',
                 request_serializer=feast_dot_registry_dot_RegistryServer__pb2.ListFeatureViewsRequest.SerializeToString,
                 response_deserializer=feast_dot_registry_dot_RegistryServer__pb2.ListFeatureViewsResponse.FromString,
+                )
+        self.GetSortedFeatureView = channel.unary_unary(
+                '/feast.registry.RegistryServer/GetSortedFeatureView',
+                request_serializer=feast_dot_registry_dot_RegistryServer__pb2.GetSortedFeatureViewRequest.SerializeToString,
+                response_deserializer=feast_dot_core_dot_SortedFeatureView__pb2.SortedFeatureView.FromString,
+                )
+        self.ListSortedFeatureViews = channel.unary_unary(
+                '/feast.registry.RegistryServer/ListSortedFeatureViews',
+                request_serializer=feast_dot_registry_dot_RegistryServer__pb2.ListSortedFeatureViewsRequest.SerializeToString,
+                response_deserializer=feast_dot_registry_dot_RegistryServer__pb2.ListSortedFeatureViewsResponse.FromString,
                 )
         self.GetStreamFeatureView = channel.unary_unary(
                 '/feast.registry.RegistryServer/GetStreamFeatureView',
@@ -360,6 +371,19 @@ class RegistryServerServicer(object):
         raise NotImplementedError('Method not implemented!')
 
     def ListFeatureViews(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetSortedFeatureView(self, request, context):
+        """SortedFeatureView RPCs
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def ListSortedFeatureViews(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -656,6 +680,16 @@ def add_RegistryServerServicer_to_server(servicer, server):
                     servicer.ListFeatureViews,
                     request_deserializer=feast_dot_registry_dot_RegistryServer__pb2.ListFeatureViewsRequest.FromString,
                     response_serializer=feast_dot_registry_dot_RegistryServer__pb2.ListFeatureViewsResponse.SerializeToString,
+            ),
+            'GetSortedFeatureView': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetSortedFeatureView,
+                    request_deserializer=feast_dot_registry_dot_RegistryServer__pb2.GetSortedFeatureViewRequest.FromString,
+                    response_serializer=feast_dot_core_dot_SortedFeatureView__pb2.SortedFeatureView.SerializeToString,
+            ),
+            'ListSortedFeatureViews': grpc.unary_unary_rpc_method_handler(
+                    servicer.ListSortedFeatureViews,
+                    request_deserializer=feast_dot_registry_dot_RegistryServer__pb2.ListSortedFeatureViewsRequest.FromString,
+                    response_serializer=feast_dot_registry_dot_RegistryServer__pb2.ListSortedFeatureViewsResponse.SerializeToString,
             ),
             'GetStreamFeatureView': grpc.unary_unary_rpc_method_handler(
                     servicer.GetStreamFeatureView,
@@ -1077,6 +1111,40 @@ class RegistryServer(object):
         return grpc.experimental.unary_unary(request, target, '/feast.registry.RegistryServer/ListFeatureViews',
             feast_dot_registry_dot_RegistryServer__pb2.ListFeatureViewsRequest.SerializeToString,
             feast_dot_registry_dot_RegistryServer__pb2.ListFeatureViewsResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def GetSortedFeatureView(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/feast.registry.RegistryServer/GetSortedFeatureView',
+            feast_dot_registry_dot_RegistryServer__pb2.GetSortedFeatureViewRequest.SerializeToString,
+            feast_dot_core_dot_SortedFeatureView__pb2.SortedFeatureView.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def ListSortedFeatureViews(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/feast.registry.RegistryServer/ListSortedFeatureViews',
+            feast_dot_registry_dot_RegistryServer__pb2.ListSortedFeatureViewsRequest.SerializeToString,
+            feast_dot_registry_dot_RegistryServer__pb2.ListSortedFeatureViewsResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 

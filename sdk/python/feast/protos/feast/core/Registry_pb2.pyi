@@ -28,6 +28,7 @@ import feast.core.OnDemandFeatureView_pb2
 import feast.core.Permission_pb2
 import feast.core.Project_pb2
 import feast.core.SavedDataset_pb2
+import feast.core.SortedFeatureView_pb2
 import feast.core.StreamFeatureView_pb2
 import feast.core.ValidationProfile_pb2
 import google.protobuf.descriptor
@@ -54,6 +55,7 @@ class Registry(google.protobuf.message.Message):
     DATA_SOURCES_FIELD_NUMBER: builtins.int
     ON_DEMAND_FEATURE_VIEWS_FIELD_NUMBER: builtins.int
     STREAM_FEATURE_VIEWS_FIELD_NUMBER: builtins.int
+    SORTED_FEATURE_VIEWS_FIELD_NUMBER: builtins.int
     FEATURE_SERVICES_FIELD_NUMBER: builtins.int
     SAVED_DATASETS_FIELD_NUMBER: builtins.int
     VALIDATION_REFERENCES_FIELD_NUMBER: builtins.int
@@ -76,6 +78,8 @@ class Registry(google.protobuf.message.Message):
     def on_demand_feature_views(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.core.OnDemandFeatureView_pb2.OnDemandFeatureView]: ...
     @property
     def stream_feature_views(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.core.StreamFeatureView_pb2.StreamFeatureView]: ...
+    @property
+    def sorted_feature_views(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.core.SortedFeatureView_pb2.SortedFeatureView]: ...
     @property
     def feature_services(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[feast.core.FeatureService_pb2.FeatureService]: ...
     @property
@@ -106,6 +110,7 @@ class Registry(google.protobuf.message.Message):
         data_sources: collections.abc.Iterable[feast.core.DataSource_pb2.DataSource] | None = ...,
         on_demand_feature_views: collections.abc.Iterable[feast.core.OnDemandFeatureView_pb2.OnDemandFeatureView] | None = ...,
         stream_feature_views: collections.abc.Iterable[feast.core.StreamFeatureView_pb2.StreamFeatureView] | None = ...,
+        sorted_feature_views: collections.abc.Iterable[feast.core.SortedFeatureView_pb2.SortedFeatureView] | None = ...,
         feature_services: collections.abc.Iterable[feast.core.FeatureService_pb2.FeatureService] | None = ...,
         saved_datasets: collections.abc.Iterable[feast.core.SavedDataset_pb2.SavedDataset] | None = ...,
         validation_references: collections.abc.Iterable[feast.core.ValidationProfile_pb2.ValidationReference] | None = ...,
@@ -118,7 +123,7 @@ class Registry(google.protobuf.message.Message):
         projects: collections.abc.Iterable[feast.core.Project_pb2.Project] | None = ...,
     ) -> None: ...
     def HasField(self, field_name: typing_extensions.Literal["infra", b"infra", "last_updated", b"last_updated"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["data_sources", b"data_sources", "entities", b"entities", "feature_services", b"feature_services", "feature_tables", b"feature_tables", "feature_views", b"feature_views", "infra", b"infra", "last_updated", b"last_updated", "on_demand_feature_views", b"on_demand_feature_views", "permissions", b"permissions", "project_metadata", b"project_metadata", "projects", b"projects", "registry_schema_version", b"registry_schema_version", "saved_datasets", b"saved_datasets", "stream_feature_views", b"stream_feature_views", "validation_references", b"validation_references", "version_id", b"version_id"]) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["data_sources", b"data_sources", "entities", b"entities", "feature_services", b"feature_services", "feature_tables", b"feature_tables", "feature_views", b"feature_views", "infra", b"infra", "last_updated", b"last_updated", "on_demand_feature_views", b"on_demand_feature_views", "permissions", b"permissions", "project_metadata", b"project_metadata", "projects", b"projects", "registry_schema_version", b"registry_schema_version", "saved_datasets", b"saved_datasets", "sorted_feature_views", b"sorted_feature_views", "stream_feature_views", b"stream_feature_views", "validation_references", b"validation_references", "version_id", b"version_id"]) -> None: ...
 
 global___Registry = Registry
 
@@ -127,14 +132,19 @@ class ProjectMetadata(google.protobuf.message.Message):
 
     PROJECT_FIELD_NUMBER: builtins.int
     PROJECT_UUID_FIELD_NUMBER: builtins.int
+    LAST_UPDATED_TIMESTAMP_FIELD_NUMBER: builtins.int
     project: builtins.str
     project_uuid: builtins.str
+    @property
+    def last_updated_timestamp(self) -> google.protobuf.timestamp_pb2.Timestamp: ...
     def __init__(
         self,
         *,
         project: builtins.str = ...,
         project_uuid: builtins.str = ...,
+        last_updated_timestamp: google.protobuf.timestamp_pb2.Timestamp | None = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["project", b"project", "project_uuid", b"project_uuid"]) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["last_updated_timestamp", b"last_updated_timestamp"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["last_updated_timestamp", b"last_updated_timestamp", "project", b"project", "project_uuid", b"project_uuid"]) -> None: ...
 
 global___ProjectMetadata = ProjectMetadata

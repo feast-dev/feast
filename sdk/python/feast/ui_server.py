@@ -4,7 +4,7 @@ from importlib import resources as importlib_resources
 from typing import Callable, Optional
 
 import uvicorn
-from fastapi import FastAPI, Response
+from fastapi import FastAPI, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -81,6 +81,10 @@ def get_app(
             content=registry_proto.SerializeToString(),
             media_type="application/octet-stream",
         )
+
+    @app.get("/health")
+    def health():
+        return Response(status_code=status.HTTP_200_OK)
 
     @app.post("/save-document")
     async def save_document_endpoint(request: SaveDocumentRequest):

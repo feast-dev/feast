@@ -16,10 +16,9 @@ from pydantic import StrictStr
 from pyspark import SparkConf
 from pyspark.sql import SparkSession
 
-from feast import FeatureView, OnDemandFeatureView
 from feast.data_source import DataSource
 from feast.errors import EntitySQLEmptyResults, InvalidEntityType
-from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_VAL
+from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_VAL, FeatureView
 from feast.infra.offline_stores import offline_utils
 from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import (
     SavedDatasetSparkStorage,
@@ -32,13 +31,14 @@ from feast.infra.offline_stores.offline_store import (
 )
 from feast.infra.offline_stores.offline_utils import get_timestamp_filter_sql
 from feast.infra.registry.base_registry import BaseRegistry
+from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 from feast.type_map import spark_schema_to_np_dtypes
 from feast.utils import _get_fields_with_aliases
 
-# Make sure spark warning doesn't raise more than once.
-warnings.simplefilter("once", RuntimeWarning)
+# Make sure spark warning are ignored
+warnings.simplefilter("ignore", RuntimeWarning)
 
 
 class SparkOfflineStoreConfig(FeastConfigBaseModel):
@@ -335,6 +335,13 @@ class SparkOfflineStore(OfflineStore):
         timestamp_filter = get_timestamp_filter_sql(
             start_date, end_date, timestamp_field, tz=timezone.utc, quote_fields=False
         )
+
+        (fields_with_aliases, aliases) = _get_fields_with_aliases(
+            fields=join_key_columns + feature_name_columns + [timestamp_field],
+            field_mappings=data_source.field_mapping,
+        )
+
+        fields_with_alias_string = ", ".join(fields_with_aliases)
 
         query = f"""
             SELECT {fields_with_alias_string}

@@ -6,16 +6,25 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/feast-dev/feast/go/internal/feast/model"
 	"github.com/feast-dev/feast/go/internal/feast/registry"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/feast-dev/feast/go/protos/feast/types"
-	"github.com/golang/protobuf/ptypes/timestamp"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type FeatureData struct {
 	Reference serving.FeatureReferenceV2
-	Timestamp timestamp.Timestamp
+	Timestamp timestamppb.Timestamp
 	Value     types.Value
+}
+
+type RangeFeatureData struct {
+	FeatureView     string
+	FeatureName     string
+	Values          []interface{}
+	Statuses        []serving.FieldStatus
+	EventTimestamps []timestamppb.Timestamp
 }
 
 type OnlineStore interface {
@@ -38,6 +47,9 @@ type OnlineStore interface {
 	// => allocate memory for each field once in OnlineRead
 	// and reuse them in GetOnlineFeaturesResponse?
 	OnlineRead(ctx context.Context, entityKeys []*types.EntityKey, featureViewNames []string, featureNames []string) ([][]FeatureData, error)
+
+	OnlineReadRange(ctx context.Context, groupedRefs *model.GroupedRangeFeatureRefs) ([][]RangeFeatureData, error)
+
 	// Destruct must be call once user is done using OnlineStore
 	// This is to comply with the Connector since we have to close the plugin
 	Destruct()
@@ -63,11 +75,17 @@ func NewOnlineStore(config *registry.RepoConfig) (OnlineStore, error) {
 	} else if onlineStoreType == "redis" {
 		onlineStore, err := NewRedisOnlineStore(config.Project, config, config.OnlineStore)
 		return onlineStore, err
+	} else if onlineStoreType == "eg-valkey" {
+		onlineStore, err := NewValkeyOnlineStore(config.Project, config, config.OnlineStore)
+		return onlineStore, err
+	} else if onlineStoreType == "cassandra" || onlineStoreType == "scylladb" {
+		onlineStore, err := NewCassandraOnlineStore(config.Project, config, config.OnlineStore)
+		return onlineStore, err
 	} else if onlineStoreType == "dynamodb" {
 		onlineStore, err := NewDynamodbOnlineStore(config.Project, config, config.OnlineStore)
 		return onlineStore, err
 	} else {
-		return nil, fmt.Errorf("%s online store type is currently not supported; only redis and sqlite are supported", onlineStoreType)
+		return nil, fmt.Errorf("%s online store type is currently not supported; only redis, scylladb, cassandra and sqlite are supported", onlineStoreType)
 	}
 }
 

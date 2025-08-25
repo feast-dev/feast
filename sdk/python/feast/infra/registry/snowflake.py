@@ -59,6 +59,7 @@ from feast.protos.feast.core.ValidationProfile_pb2 import (
 )
 from feast.repo_config import RegistryConfig
 from feast.saved_dataset import SavedDataset, ValidationReference
+from feast.sorted_feature_view import SortedFeatureView
 from feast.stream_feature_view import StreamFeatureView
 from feast.utils import _utc_now, has_all_tags
 
@@ -681,6 +682,23 @@ class SnowflakeRegistry(BaseRegistry):
             FeatureViewNotFoundException,
         )
 
+    def get_sorted_feature_view(
+        self, name: str, project: str, allow_cache: bool = False
+    ):
+        raise NotImplementedError(
+            "Sorted feature views are not supported in SnowflakeRegistry."
+        )
+
+    def list_sorted_feature_views(
+        self,
+        project: str,
+        allow_cache: bool = False,
+        tags: Optional[dict[str, str]] = None,
+    ) -> List[SortedFeatureView]:
+        raise NotImplementedError(
+            "Sorted feature views are not supported in SnowflakeRegistry."
+        )
+
     def get_saved_dataset(
         self, name: str, project: str, allow_cache: bool = False
     ) -> SavedDataset:
@@ -1006,7 +1024,7 @@ class SnowflakeRegistry(BaseRegistry):
             raise ValueError(
                 f"Cannot apply materialization for feature {feature_view.name} of type {python_class}"
             )
-        fv: Union[FeatureView, StreamFeatureView] = self._get_object(
+        fv: Union[FeatureView, StreamFeatureView, SortedFeatureView] = self._get_object(
             fv_table_str,
             feature_view.name,
             project,

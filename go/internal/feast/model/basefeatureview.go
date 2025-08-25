@@ -1,8 +1,7 @@
 package model
 
 import (
-	"fmt"
-
+	"github.com/feast-dev/feast/go/internal/feast/errors"
 	"github.com/feast-dev/feast/go/protos/feast/core"
 )
 
@@ -25,7 +24,7 @@ func NewBaseFeatureView(name string, featureProtos []*core.FeatureSpecV2) *BaseF
 
 func (fv *BaseFeatureView) WithProjection(projection *FeatureViewProjection) (*BaseFeatureView, error) {
 	if projection.Name != fv.Name {
-		return nil, fmt.Errorf("the projection for the %s FeatureView cannot be applied because it differs "+
+		return nil, errors.GrpcInvalidArgumentErrorf("the projection for the %s FeatureView cannot be applied because it differs "+
 			"in Name; the projection is named %s and the Name indicates which "+
 			"FeatureView the projection is for", fv.Name, projection.Name)
 	}
@@ -35,7 +34,7 @@ func (fv *BaseFeatureView) WithProjection(projection *FeatureViewProjection) (*B
 	}
 	for _, feature := range projection.Features {
 		if _, ok := features[feature.Name]; !ok {
-			return nil, fmt.Errorf("the projection for %s cannot be applied because it contains %s which the "+
+			return nil, errors.GrpcInvalidArgumentErrorf("the projection for %s cannot be applied because it contains %s which the "+
 				"FeatureView doesn't have", projection.Name, feature.Name)
 		}
 	}

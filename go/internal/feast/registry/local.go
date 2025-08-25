@@ -64,3 +64,7 @@ func (r *FileRegistryStore) writeRegistry(rp *core.Registry) error {
 	}
 	return nil
 }
+
+func (r *FileRegistryStore) HasFallback() bool {
+	return false
+}

@@ -14,16 +14,17 @@
 
 from typing import Dict, Optional
 
-from typeguard import typechecked
+from pydantic import BaseModel, ConfigDict, field_validator
+from typeguard import check_type, typechecked
 
 from feast.feature import Feature
 from feast.protos.feast.core.Feature_pb2 import FeatureSpecV2 as FieldProto
-from feast.types import FeastType, from_value_type
+from feast.types import FeastType, from_string, from_value_type
 from feast.value_type import ValueType
 
 
 @typechecked
-class Field:
+class Field(BaseModel):
     """
     A Field represents a set of values with the same structure.
 
@@ -37,10 +38,12 @@ class Field:
         vector_search_metric: The metric used for vector similarity search.
     """
 
+    model_config = ConfigDict(arbitrary_types_allowed=True, extra="allow")
+
     name: str
     dtype: FeastType
-    description: str
-    tags: Dict[str, str]
+    description: str = ""
+    tags: Optional[Dict[str, str]] = {}
     vector_index: bool
     vector_length: int
     vector_search_metric: Optional[str]
@@ -75,8 +78,28 @@ class Field:
         self.vector_length = vector_length
         self.vector_search_metric = vector_search_metric
 
+    @field_validator("dtype", mode="before")
+    def dtype_is_feasttype_or_string_feasttype(cls, v):
+        """
+        dtype must be a FeastType, but to allow wire transmission,
+        it is necessary to allow string representations of FeastTypes.
+        We therefore allow dtypes to be specified as strings which are
+        converted to FeastTypes at time of definition.
+        TO-DO: Investigate whether FeastType can be refactored to a json compatible
+        format.
+        """
+        try:
+            check_type(v, FeastType)  # type: ignore
+        except TypeError:
+            try:
+                check_type(v, str)
+                return from_string(v)
+            except TypeError:
+                raise TypeError("dtype must be of type FeastType")
+        return v
+
     def __eq__(self, other):
-        if type(self) != type(other):
+        if type(self) is not type(other):
             return False
 
         if (

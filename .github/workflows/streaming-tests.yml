@@ -1,0 +1,99 @@
+name: streaming-tests
+
+on:
+  repository_dispatch:
+    branches: [ "confluent_avro_changes", "master" ]
+  workflow_dispatch:
+    branches: [ "confluent_avro_changes", "master" ]
+
+
+jobs:
+  build:
+
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.8"]
+        os: [ubuntu-latest, macOS-latest]
+        exclude:
+          - os: macOS-latest
+            python-version: "3.8"
+    env:
+      OS: ${{ matrix.os }}
+      PYTHON: ${{ matrix.python-version }}
+    steps:
+      - name: Increase swapfile
+        # Increase ubuntu's swapfile to avoid running out of resources which causes the action to terminate
+        if: startsWith(matrix.os, 'ubuntu')
+        run: |
+          sudo swapoff -a
+          sudo fallocate -l 8G /swapfile
+          sudo chmod 600 /swapfile
+          sudo mkswap /swapfile
+          sudo swapon /swapfile
+          sudo swapon --show
+      - uses: actions/checkout@v2
+      - name: Setup Python
+        id: setup-python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+          architecture: x64
+      - name: Setup Go
+        id: setup-go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.19.7
+      - name: Install mysql on macOS
+        if: startsWith(matrix.os, 'macOS')
+        run: |
+          brew install mysql
+          PATH=$PATH:/usr/local/mysql/bin
+      - name: Work around Homebrew MySQL being broken
+        # See https://github.com/Homebrew/homebrew-core/issues/130258 for more details. 
+        if: startsWith(matrix.os, 'macOS')
+        run: |
+          brew install zlib
+          ln -sv $(brew --prefix zlib)/lib/libz.dylib $(brew --prefix)/lib/libzlib.dylib
+      - name: Upgrade pip version
+        run: |
+          pip install --upgrade pip
+      - name: Get pip cache dir
+        id: pip-cache
+        run: |
+          echo "::set-output name=dir::$(pip cache dir)"
+      - name: pip cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            ${{ steps.pip-cache.outputs.dir }}
+            /opt/hostedtoolcache/Python
+            /Users/runner/hostedtoolcache/Python
+          key: ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-pip-${{ hashFiles(format('**/py{0}-ci-requirements.txt', env.PYTHON)) }}
+          restore-keys: |
+            ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-pip-
+      - name: Install pip-tools
+        run: |
+          pip install -U pip-tools
+      - name: Install apache-arrow on ubuntu
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+            sudo apt update
+            sudo apt install -y -V ca-certificates lsb-release wget
+            wget https://apache.jfrog.io/artifactory/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
+            sudo apt install -y -V ./apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
+            sudo apt update
+            sudo apt install -y -V "libarrow-dev=11.0.0-1"
+      - name: Install apache-arrow on macos
+        if: matrix.os == 'macOS-latest'
+        run: |
+            brew install apache-arrow
+            brew install pkg-config
+      - name: Install dependencies
+        run: make install-python-ci-dependencies
+      - name: Test Spark
+        run: |
+          make test-python-universal-spark
+
+

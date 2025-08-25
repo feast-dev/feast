@@ -2,7 +2,7 @@
 
 from datetime import timedelta
 
-from feast import Entity, Feature, FeatureView, Field, FileSource, FeatureService, RequestSource
+from feast import Entity, Feature, FeatureView, Field, FileSource, FeatureService, RequestSource, ValueType
 from feast.feature_logging import LoggingConfig
 from feast.infra.offline_stores.file_source import FileLoggingDestination
 from feast.types import Float32, Float64, Int64, PrimitiveFeastType
@@ -20,7 +20,7 @@ driver_hourly_stats = FileSource(
 
 # Define an entity for the driver. You can think of an entity as a primary key used to
 # fetch features.
-driver = Entity(name="driver_id", description="driver id")
+driver = Entity(name="driver_id", value_type=ValueType.INT64, description="driver id")
 
 # Our parquet files contain sample data that includes a driver_id column, timestamps and
 # three feature column. Here we define a Feature View that will allow us to serve this
@@ -30,6 +30,7 @@ driver_hourly_stats_view = FeatureView(
     entities=[driver],
     ttl=timedelta(seconds=86400 * 365 * 10),
     schema=[
+        Field(name="driver_id", dtype=Int64),
         Field(name="conv_rate", dtype=Float32),
         Field(name="acc_rate", dtype=Float32),
         Field(name="avg_daily_trips", dtype=Int64),

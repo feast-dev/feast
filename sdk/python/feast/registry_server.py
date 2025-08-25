@@ -38,6 +38,7 @@ from feast.project import Project
 from feast.protos.feast.registry import RegistryServer_pb2, RegistryServer_pb2_grpc
 from feast.protos.feast.registry.RegistryServer_pb2 import Feature, ListFeaturesResponse
 from feast.saved_dataset import SavedDataset, ValidationReference
+from feast.sorted_feature_view import SortedFeatureView
 from feast.stream_feature_view import StreamFeatureView
 
 logger = logging.getLogger(__name__)
@@ -146,7 +147,10 @@ def apply_sorting(objects: List[Any], sort_by: str, sort_order: str) -> List[Any
 
 
 def _build_any_feature_view_proto(feature_view: BaseFeatureView):
-    if isinstance(feature_view, StreamFeatureView):
+    if isinstance(feature_view, SortedFeatureView):
+        arg_name = "sorted_feature_view"
+        feature_view_proto = feature_view.to_proto()
+    elif isinstance(feature_view, StreamFeatureView):
         arg_name = "stream_feature_view"
         feature_view_proto = feature_view.to_proto()
     elif isinstance(feature_view, FeatureView):
@@ -158,12 +162,15 @@ def _build_any_feature_view_proto(feature_view: BaseFeatureView):
 
     return RegistryServer_pb2.AnyFeatureView(
         feature_view=feature_view_proto if arg_name == "feature_view" else None,
-        stream_feature_view=feature_view_proto
-        if arg_name == "stream_feature_view"
-        else None,
-        on_demand_feature_view=feature_view_proto
-        if arg_name == "on_demand_feature_view"
-        else None,
+        stream_feature_view=(
+            feature_view_proto if arg_name == "stream_feature_view" else None
+        ),
+        on_demand_feature_view=(
+            feature_view_proto if arg_name == "on_demand_feature_view" else None
+        ),
+        sorted_feature_view=(
+            feature_view_proto if arg_name == "sorted_feature_view" else None
+        ),
     )
 
 
@@ -351,6 +358,9 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         elif feature_view_type == "stream_feature_view":
             feature_view = StreamFeatureView.from_proto(request.stream_feature_view)
 
+        elif feature_view_type == "sorted_feature_view":
+            feature_view = SortedFeatureView.from_proto(request.sorted_feature_view)
+
         assert_permissions_to_update(
             resource=feature_view,
             # Will replace with the new get_any_feature_view method later
@@ -521,16 +531,21 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
     def DeleteFeatureView(
         self, request: RegistryServer_pb2.DeleteFeatureViewRequest, context
     ):
-        feature_view: Union[StreamFeatureView, FeatureView]
+        feature_view: Union[StreamFeatureView, FeatureView, SortedFeatureView]
 
         try:
             feature_view = self.proxied_registry.get_stream_feature_view(
                 name=request.name, project=request.project, allow_cache=False
             )
         except FeatureViewNotFoundException:
-            feature_view = self.proxied_registry.get_feature_view(
-                name=request.name, project=request.project, allow_cache=False
-            )
+            try:
+                feature_view = self.proxied_registry.get_feature_view(
+                    name=request.name, project=request.project, allow_cache=False
+                )
+            except FeatureViewNotFoundException:
+                feature_view = self.proxied_registry.get_sorted_feature_view(
+                    name=request.name, project=request.project, allow_cache=False
+                )
 
         assert_permissions(
             resource=feature_view,
@@ -580,6 +595,36 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
                 for stream_feature_view in paginated_stream_feature_views
             ],
             pagination=pagination_metadata,
+        )
+
+    def GetSortedFeatureView(self, request, context):
+        return assert_permissions(
+            resource=self.proxied_registry.get_sorted_feature_view(
+                name=request.name,
+                project=request.project,
+                allow_cache=request.allow_cache,
+            ),
+            actions=[AuthzedAction.DESCRIBE],
+        ).to_proto()
+
+    def ListSortedFeatureViews(
+        self, request: RegistryServer_pb2.ListSortedFeatureViewsRequest, context
+    ):
+        return RegistryServer_pb2.ListSortedFeatureViewsResponse(
+            sorted_feature_views=[
+                sorted_feature_view.to_proto()
+                for sorted_feature_view in permitted_resources(
+                    resources=cast(
+                        list[FeastObject],
+                        self.proxied_registry.list_sorted_feature_views(
+                            project=request.project,
+                            allow_cache=request.allow_cache,
+                            tags=dict(request.tags),
+                        ),
+                    ),
+                    actions=AuthzedAction.DESCRIBE,
+                )
+            ]
         )
 
     def GetOnDemandFeatureView(

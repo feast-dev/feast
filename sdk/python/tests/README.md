@@ -16,7 +16,6 @@ Let's inspect the test setup in `sdk/python/tests/integration`:
 $ tree
 .
 ├── e2e
-│   ├── test_go_feature_server.py
 │   ├── test_python_feature_server.py
 │   ├── test_universal_e2e.py
 │   └── test_validation.py
@@ -92,8 +91,6 @@ Tests in Feast are split into integration and unit tests.
     * The main codepaths include:
         * basic e2e tests for offline stores
             * `test_universal_e2e.py`
-        * go feature server
-            * `test_go_feature_server.py`
         * python http server
             * `test_python_feature_server.py`
         * data quality monitoring feature validation

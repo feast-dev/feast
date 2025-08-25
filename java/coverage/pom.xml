@@ -27,7 +27,7 @@
     -->
 
   <parent>
-    <groupId>dev.feast</groupId>
+    <groupId>${project.custom.groupId}</groupId>
     <artifactId>feast-parent</artifactId>
     <version>${revision}</version>
     <relativePath>..</relativePath>
@@ -42,13 +42,13 @@
 
   <dependencies>
     <dependency>
-      <groupId>dev.feast</groupId>
+      <groupId>${project.custom.groupId}</groupId>
       <artifactId>feast-serving</artifactId>
       <version>${project.version}</version>
     </dependency>
 
     <dependency>
-      <groupId>dev.feast</groupId>
+      <groupId>${project.custom.groupId}</groupId>
       <artifactId>feast-serving-client</artifactId>
       <version>${project.version}</version>
     </dependency>

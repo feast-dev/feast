@@ -50,6 +50,7 @@ class CassandraOnlineStoreCreator(OnlineStoreCreator):
             "hosts": ["127.0.0.1"],
             "port": exposed_port,
             "keyspace": keyspace_name,
+            "container": self.container,
         }
 
     def teardown(self):

@@ -121,5 +121,4 @@ def test_docstrings():
 
         current_packages = next_packages
 
-    if not successful:
-        raise Exception(f"Docstring tests failed. Failed results: {failed_cases}")
+    assert successful, f"Docstring tests failed. Failed results: {failed_cases}"

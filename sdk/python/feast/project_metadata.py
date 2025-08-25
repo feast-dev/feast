@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import uuid
+from datetime import datetime
 from typing import Optional
 
 from google.protobuf.json_format import MessageToJson
@@ -32,12 +33,14 @@ class ProjectMetadata:
 
     project_name: str
     project_uuid: str
+    last_updated_timestamp: datetime
 
     def __init__(
         self,
         *args,
         project_name: Optional[str] = None,
         project_uuid: Optional[str] = None,
+        last_updated_timestamp: datetime = datetime.utcfromtimestamp(1),
     ):
         """
         Creates an Project metadata object.
@@ -54,6 +57,7 @@ class ProjectMetadata:
 
         self.project_name = project_name
         self.project_uuid = project_uuid or f"{uuid.uuid4()}"
+        self.last_updated_timestamp = last_updated_timestamp
 
     def __hash__(self) -> int:
         return hash((self.project_name, self.project_uuid))
@@ -67,6 +71,7 @@ class ProjectMetadata:
         if (
             self.project_name != other.project_name
             or self.project_uuid != other.project_uuid
+            or self.last_updated_timestamp != other.last_updated_timestamp
         ):
             return False
 
@@ -92,6 +97,7 @@ class ProjectMetadata:
         entity = cls(
             project_name=project_metadata_proto.project,
             project_uuid=project_metadata_proto.project_uuid,
+            last_updated_timestamp=project_metadata_proto.last_updated_timestamp.ToDatetime(),
         )
 
         return entity
@@ -104,6 +110,11 @@ class ProjectMetadata:
             An ProjectMetadataProto protobuf.
         """
 
-        return ProjectMetadataProto(
-            project=self.project_name, project_uuid=self.project_uuid
+        project_metadata_proto = ProjectMetadataProto(
+            project=self.project_name,
+            project_uuid=self.project_uuid,
         )
+        project_metadata_proto.last_updated_timestamp.FromDatetime(
+            self.last_updated_timestamp
+        )
+        return project_metadata_proto

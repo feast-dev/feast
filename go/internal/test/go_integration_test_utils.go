@@ -3,15 +3,11 @@ package test
 import (
 	"context"
 	"fmt"
-	"log"
-
-	"github.com/apache/arrow/go/v17/arrow/memory"
-	"google.golang.org/protobuf/types/known/durationpb"
-	"google.golang.org/protobuf/types/known/timestamppb"
-
 	"github.com/apache/arrow/go/v17/arrow"
+	"github.com/apache/arrow/go/v17/arrow/memory"
 	"github.com/apache/arrow/go/v17/parquet/file"
 	"github.com/apache/arrow/go/v17/parquet/pqarrow"
+	"log"
 
 	"os"
 	"os/exec"
@@ -20,7 +16,6 @@ import (
 
 	"github.com/apache/arrow/go/v17/arrow/array"
 
-	"github.com/feast-dev/feast/go/internal/feast/model"
 	"github.com/feast-dev/feast/go/protos/feast/types"
 	gotypes "github.com/feast-dev/feast/go/types"
 )
@@ -69,6 +64,128 @@ func ReadParquet(filePath string) ([]*Row, error) {
 	}
 
 	return rows, nil
+}
+
+func ReadParquetDynamically(filePath string) ([]map[string]interface{}, error) {
+	allocator := memory.NewGoAllocator()
+	pqfile, err := file.OpenParquetFile(filePath, false)
+	if err != nil {
+		return nil, err
+	}
+	defer pqfile.Close()
+
+	reader, err := pqarrow.NewFileReader(pqfile, pqarrow.ArrowReadProperties{}, allocator)
+	if err != nil {
+		return nil, err
+	}
+
+	table, err := reader.ReadTable(context.Background())
+	if err != nil {
+		return nil, err
+	}
+	defer table.Release()
+
+	// Create a map of column names to their data arrays
+	columns := make(map[string]arrow.Array)
+	fields := table.Schema().Fields()
+	for idx, field := range fields {
+		columns[field.Name] = table.Column(idx).Data().Chunk(0)
+	}
+
+	// Read rows dynamically
+	rows := make([]map[string]interface{}, 0)
+	for rowIdx := 0; rowIdx < int(table.NumRows()); rowIdx++ {
+		row := make(map[string]interface{})
+		for _, field := range fields {
+			column := columns[field.Name]
+			if column.IsNull(rowIdx) {
+				row[field.Name] = nil // Set nil for null values
+				continue
+			}
+			switch col := column.(type) {
+			case *array.Int32:
+				row[field.Name] = col.Value(rowIdx)
+			case *array.Int64:
+				row[field.Name] = col.Value(rowIdx)
+			case *array.Float32:
+				row[field.Name] = col.Value(rowIdx)
+			case *array.Float64:
+				row[field.Name] = col.Value(rowIdx)
+			case *array.String:
+				row[field.Name] = col.Value(rowIdx)
+			case *array.Boolean:
+				row[field.Name] = col.Value(rowIdx)
+			case *array.Binary:
+				row[field.Name] = col.Value(rowIdx)
+			case *array.Timestamp:
+				nanoseconds := int64(col.Value(rowIdx).ToTime(arrow.Second).Unix())
+				t := time.Unix(0, nanoseconds)
+				row[field.Name] = t.Unix()
+			case *array.List:
+				// Handle array (list) types
+				listValues := []interface{}{}
+				list := col.ListValues()
+				for i := col.Offsets()[rowIdx]; i < col.Offsets()[rowIdx+1]; i++ {
+					switch childCol := list.(type) {
+					case *array.Int32:
+						listValues = append(listValues, childCol.Value(int(i)))
+					case *array.Int64:
+						listValues = append(listValues, childCol.Value(int(i)))
+					case *array.Float32:
+						listValues = append(listValues, childCol.Value(int(i)))
+					case *array.Float64:
+						listValues = append(listValues, childCol.Value(int(i)))
+					case *array.String:
+						listValues = append(listValues, childCol.Value(int(i)))
+					case *array.Boolean:
+						listValues = append(listValues, childCol.Value(int(i)))
+					case *array.Binary:
+						listValues = append(listValues, childCol.Value(int(i)))
+					case *array.Timestamp:
+						nanoseconds := int64(childCol.Value(int(i)).ToTime(arrow.Second).Unix())
+						t := time.Unix(0, nanoseconds)
+						listValues = append(listValues, t.Unix())
+					default:
+						listValues = append(listValues, nil) // Handle unsupported types
+					}
+				}
+				row[field.Name] = listValues
+			default:
+				fmt.Println("Unsupported type:", field.Name, field.Type, col)
+				row[field.Name] = nil // Handle unsupported types
+			}
+		}
+		rows = append(rows, row)
+	}
+
+	return rows, nil
+}
+
+func FilterRowsByColumn(rows []map[string]interface{}, columnName string, value interface{}) []map[string]interface{} {
+	filteredRows := []map[string]interface{}{}
+	for _, row := range rows {
+		if row[columnName] == value {
+			filteredRows = append(filteredRows, row)
+		}
+	}
+	return filteredRows
+}
+
+func FilterRowsByMultiColumns(rows []map[string]interface{}, filters map[string]interface{}) []map[string]interface{} {
+	filteredRows := []map[string]interface{}{}
+	for _, row := range rows {
+		matches := true
+		for columnName, value := range filters {
+			if row[columnName] != value {
+				matches = false
+				break
+			}
+		}
+		if matches {
+			filteredRows = append(filteredRows, row)
+		}
+	}
+	return filteredRows
 }
 
 func GetLatestFeatures(Rows []*Row, entities map[int64]bool) map[int64]*Row {
@@ -127,6 +244,7 @@ func SetupCleanFeatureRepo(basePath string) error {
 }
 
 func SetupInitializedRepo(basePath string) error {
+	log.Printf("Setting up initialized repo at %s", basePath)
 	path, err := filepath.Abs(basePath)
 	if err != nil {
 		return err
@@ -137,8 +255,8 @@ func SetupInitializedRepo(basePath string) error {
 	if err != nil {
 		return err
 	}
-	// var stderr bytes.Buffer
-	// var stdout bytes.Buffer
+	// Pause to ensure apply completes
+	time.Sleep(5 * time.Second)
 	applyCommand.Dir = featureRepoPath
 	out, err := applyCommand.CombinedOutput()
 	if err != nil {
@@ -159,6 +277,8 @@ func SetupInitializedRepo(basePath string) error {
 		log.Println(string(out))
 		return err
 	}
+	// Pause to ensure materialization completes
+	time.Sleep(5 * time.Second)
 	return nil
 }
 
@@ -168,13 +288,18 @@ func CleanUpInitializedRepo(basePath string) {
 		log.Fatal(err)
 	}
 
-	err = os.Remove(filepath.Join(featureRepoPath, "data", "registry.db"))
-	if err != nil {
-		log.Fatal(err)
+	if _, err := os.Stat(filepath.Join(featureRepoPath, "data", "registry.db")); err == nil {
+		err = os.Remove(filepath.Join(featureRepoPath, "data", "registry.db"))
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
-	err = os.Remove(filepath.Join(featureRepoPath, "data", "online_store.db"))
-	if err != nil {
-		log.Fatal(err)
+
+	if _, err := os.Stat(filepath.Join(featureRepoPath, "data", "online_store.db")); err == nil {
+		err = os.Remove(filepath.Join(featureRepoPath, "data", "online_store.db"))
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
@@ -193,52 +318,4 @@ func GetProtoFromRecord(rec arrow.Record) (map[string]*types.RepeatedValue, erro
 		r[field.Name] = &types.RepeatedValue{Val: values}
 	}
 	return r, nil
-}
-
-func CreateBaseFeatureView(name string, features []*model.Field, projection *model.FeatureViewProjection) *model.BaseFeatureView {
-	return &model.BaseFeatureView{
-		Name:       name,
-		Features:   features,
-		Projection: projection,
-	}
-}
-
-func CreateNewEntity(name string, joinKey string) *model.Entity {
-	return &model.Entity{
-		Name:    name,
-		JoinKey: joinKey,
-	}
-}
-
-func CreateNewField(name string, dtype types.ValueType_Enum) *model.Field {
-	return &model.Field{Name: name,
-		Dtype: dtype,
-	}
-}
-
-func CreateNewFeatureService(name string, project string, createdTimestamp *timestamppb.Timestamp, lastUpdatedTimestamp *timestamppb.Timestamp, projections []*model.FeatureViewProjection) *model.FeatureService {
-	return &model.FeatureService{
-		Name:                 name,
-		Project:              project,
-		CreatedTimestamp:     createdTimestamp,
-		LastUpdatedTimestamp: lastUpdatedTimestamp,
-		Projections:          projections,
-	}
-}
-
-func CreateNewFeatureViewProjection(name string, nameAlias string, features []*model.Field, joinKeyMap map[string]string) *model.FeatureViewProjection {
-	return &model.FeatureViewProjection{Name: name,
-		NameAlias:  nameAlias,
-		Features:   features,
-		JoinKeyMap: joinKeyMap,
-	}
-}
-
-func CreateFeatureView(base *model.BaseFeatureView, ttl *durationpb.Duration, entities []string, entityColumns []*model.Field) *model.FeatureView {
-	return &model.FeatureView{
-		Base:          base,
-		Ttl:           ttl,
-		EntityNames:   entities,
-		EntityColumns: entityColumns,
-	}
 }

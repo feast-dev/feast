@@ -108,25 +108,27 @@ def serve_command(
     tls_cert_path: str,
     registry_ttl_sec: int = 5,
 ):
-    """Start a feature server locally on a given port."""
-    if (tls_key_path and not tls_cert_path) or (not tls_key_path and tls_cert_path):
-        raise click.BadParameter(
-            "Please pass --cert and --key args to start the feature server in TLS mode."
-        )
-    store = create_feature_store(ctx)
+    try:
+        """Start a feature server locally on a given port."""
+        store = create_feature_store(ctx)
 
-    store.serve(
-        host=host,
-        port=port,
-        type_=type_,
-        no_access_log=no_access_log,
-        workers=workers,
-        metrics=metrics,
-        keep_alive_timeout=keep_alive_timeout,
-        tls_key_path=tls_key_path,
-        tls_cert_path=tls_cert_path,
-        registry_ttl_sec=registry_ttl_sec,
-    )
+        store.serve(
+            host=host,
+            port=port,
+            type_=type_,
+            no_access_log=no_access_log,
+            workers=workers,
+            metrics=metrics,
+            keep_alive_timeout=keep_alive_timeout,
+            registry_ttl_sec=registry_ttl_sec,
+        )
+    except Exception as exception:
+        logging.exception(
+            "Failed to start feature server with exception: %s", str(exception)
+        )
+        raise Exception(
+            "Failed to start feature server with exception: " + str(exception)
+        )
 
 
 @click.command("serve_transformations")

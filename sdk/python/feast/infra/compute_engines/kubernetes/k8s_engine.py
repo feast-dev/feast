@@ -22,6 +22,7 @@ from feast.infra.offline_stores.offline_store import OfflineStore
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.repo_config import FeastConfigBaseModel
+from feast.sorted_feature_view import SortedFeatureView
 from feast.utils import _get_column_names
 
 from .k8s_materialization_job import KubernetesMaterializationJob
@@ -142,17 +143,27 @@ class KubernetesComputeEngine(ComputeEngine):
             timestamp_field,
             created_timestamp_column,
         ) = _get_column_names(feature_view, entities)
-
-        offline_job = self.offline_store.pull_latest_from_table_or_query(
-            config=self.repo_config,
-            data_source=feature_view.batch_source,
-            join_key_columns=join_key_columns,
-            feature_name_columns=feature_name_columns,
-            timestamp_field=timestamp_field,
-            created_timestamp_column=created_timestamp_column,
-            start_date=start_date,
-            end_date=end_date,
-        )
+        if isinstance(feature_view, SortedFeatureView):
+            offline_job = self.offline_store.pull_all_from_table_or_query(
+                config=self.repo_config,
+                data_source=feature_view.batch_source,
+                join_key_columns=join_key_columns,
+                feature_name_columns=feature_name_columns,
+                timestamp_field=timestamp_field,
+                start_date=start_date,
+                end_date=end_date,
+            )
+        else:
+            offline_job = self.offline_store.pull_latest_from_table_or_query(
+                config=self.repo_config,
+                data_source=feature_view.batch_source,
+                join_key_columns=join_key_columns,
+                feature_name_columns=feature_name_columns,
+                timestamp_field=timestamp_field,
+                created_timestamp_column=created_timestamp_column,
+                start_date=start_date,
+                end_date=end_date,
+            )
 
         paths = offline_job.to_remote_storage()
         if self.batch_engine_config.synchronous:

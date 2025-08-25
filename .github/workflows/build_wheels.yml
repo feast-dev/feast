@@ -72,7 +72,7 @@ jobs:
     needs: [ build-python-wheel ]
     strategy:
       matrix:
-        component: [ feature-server-dev, feature-transformation-server, feast-operator ]
+        component: [feature-server-dev, feature-server-java, feature-transformation-server, feature-server-go, feast-operator]
     env:
       REGISTRY: quay.io/feastdev
     steps:

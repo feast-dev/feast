@@ -16,19 +16,24 @@ class GrpcFeatureServerStub(object):
             channel: A grpc.Channel.
         """
         self.Push = channel.unary_unary(
-                '/GrpcFeatureServer/Push',
+                '/grpc.connector.GrpcFeatureServer/Push',
                 request_serializer=feast_dot_serving_dot_GrpcServer__pb2.PushRequest.SerializeToString,
                 response_deserializer=feast_dot_serving_dot_GrpcServer__pb2.PushResponse.FromString,
                 )
         self.WriteToOnlineStore = channel.unary_unary(
-                '/GrpcFeatureServer/WriteToOnlineStore',
+                '/grpc.connector.GrpcFeatureServer/WriteToOnlineStore',
                 request_serializer=feast_dot_serving_dot_GrpcServer__pb2.WriteToOnlineStoreRequest.SerializeToString,
                 response_deserializer=feast_dot_serving_dot_GrpcServer__pb2.WriteToOnlineStoreResponse.FromString,
                 )
         self.GetOnlineFeatures = channel.unary_unary(
-                '/GrpcFeatureServer/GetOnlineFeatures',
+                '/grpc.connector.GrpcFeatureServer/GetOnlineFeatures',
                 request_serializer=feast_dot_serving_dot_ServingService__pb2.GetOnlineFeaturesRequest.SerializeToString,
                 response_deserializer=feast_dot_serving_dot_ServingService__pb2.GetOnlineFeaturesResponse.FromString,
+                )
+        self.GetOnlineFeaturesRange = channel.unary_unary(
+                '/grpc.connector.GrpcFeatureServer/GetOnlineFeaturesRange',
+                request_serializer=feast_dot_serving_dot_ServingService__pb2.GetOnlineFeaturesRangeRequest.SerializeToString,
+                response_deserializer=feast_dot_serving_dot_ServingService__pb2.GetOnlineFeaturesRangeResponse.FromString,
                 )
 
 
@@ -53,6 +58,12 @@ class GrpcFeatureServerServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def GetOnlineFeaturesRange(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_GrpcFeatureServerServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -71,9 +82,14 @@ def add_GrpcFeatureServerServicer_to_server(servicer, server):
                     request_deserializer=feast_dot_serving_dot_ServingService__pb2.GetOnlineFeaturesRequest.FromString,
                     response_serializer=feast_dot_serving_dot_ServingService__pb2.GetOnlineFeaturesResponse.SerializeToString,
             ),
+            'GetOnlineFeaturesRange': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetOnlineFeaturesRange,
+                    request_deserializer=feast_dot_serving_dot_ServingService__pb2.GetOnlineFeaturesRangeRequest.FromString,
+                    response_serializer=feast_dot_serving_dot_ServingService__pb2.GetOnlineFeaturesRangeResponse.SerializeToString,
+            ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
-            'GrpcFeatureServer', rpc_method_handlers)
+            'grpc.connector.GrpcFeatureServer', rpc_method_handlers)
     server.add_generic_rpc_handlers((generic_handler,))
 
 
@@ -92,7 +108,7 @@ class GrpcFeatureServer(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/GrpcFeatureServer/Push',
+        return grpc.experimental.unary_unary(request, target, '/grpc.connector.GrpcFeatureServer/Push',
             feast_dot_serving_dot_GrpcServer__pb2.PushRequest.SerializeToString,
             feast_dot_serving_dot_GrpcServer__pb2.PushResponse.FromString,
             options, channel_credentials,
@@ -109,7 +125,7 @@ class GrpcFeatureServer(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/GrpcFeatureServer/WriteToOnlineStore',
+        return grpc.experimental.unary_unary(request, target, '/grpc.connector.GrpcFeatureServer/WriteToOnlineStore',
             feast_dot_serving_dot_GrpcServer__pb2.WriteToOnlineStoreRequest.SerializeToString,
             feast_dot_serving_dot_GrpcServer__pb2.WriteToOnlineStoreResponse.FromString,
             options, channel_credentials,
@@ -126,8 +142,25 @@ class GrpcFeatureServer(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/GrpcFeatureServer/GetOnlineFeatures',
+        return grpc.experimental.unary_unary(request, target, '/grpc.connector.GrpcFeatureServer/GetOnlineFeatures',
             feast_dot_serving_dot_ServingService__pb2.GetOnlineFeaturesRequest.SerializeToString,
             feast_dot_serving_dot_ServingService__pb2.GetOnlineFeaturesResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def GetOnlineFeaturesRange(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/grpc.connector.GrpcFeatureServer/GetOnlineFeaturesRange',
+            feast_dot_serving_dot_ServingService__pb2.GetOnlineFeaturesRangeRequest.SerializeToString,
+            feast_dot_serving_dot_ServingService__pb2.GetOnlineFeaturesRangeResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
