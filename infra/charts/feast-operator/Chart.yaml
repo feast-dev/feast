@@ -1,86 +1,21 @@
 apiVersion: v2
 name: feast-operator
-description: A Kubernetes operator for managing Feast feature stores
+description: A Helm chart for Kubernetes
+# A chart can be either an 'application' or a 'library' chart.
+#
+# Application charts are a collection of templates that can be packaged into versioned archives
+# to be deployed.
+#
+# Library charts provide useful utilities or functions for the chart developer. They're included as
+# a dependency of application charts to inject those utilities and functions into the rendering
+# pipeline. Library charts do not define any templates and therefore cannot be deployed.
 type: application
+# This is the chart version. This version number should be incremented each time you make changes
+# to the chart and its templates, including the app version.
+# Versions are expected to follow Semantic Versioning (https://semver.org/)
 version: 0.52.0
+# This is the version number of the application being deployed. This version number should be
+# incremented each time you make changes to the application. Versions are not expected to
+# follow Semantic Versioning. They should reflect the version the application is using.
+# It is recommended to use it with quotes.
 appVersion: "0.52.0"
-keywords:
-  - machine learning
-  - operator
-  - feast
-  - feature store
-  - mlops
-  - kubernetes
-  - crd
-  - data
-  - analytics
-  - ai
-home: https://feast.dev/
-icon: https://feast.dev/feast-icon-black.png
-sources:
-  - https://github.com/feast-dev/feast
-  - https://github.com/feast-dev/feast/tree/master/infra/feast-operator
-maintainers:
-  - name: Feast Community
-    url: https://feast.dev/
-    email: maintainers@feast.dev
-annotations:
-  # ArtifactHub annotations
-  artifacthub.io/category: ai-machine-learning
-  artifacthub.io/operator: "true"
-  artifacthub.io/operatorCapabilities: Deep Insights
-  artifacthub.io/containsSecurityUpdates: "false"
-  artifacthub.io/prerelease: "false"
-  artifacthub.io/license: Apache-2.0
-  artifacthub.io/links: |
-    - name: Website
-      url: https://feast.dev/
-    - name: Documentation
-      url: https://docs.feast.dev/
-    - name: GitHub Repository
-      url: https://github.com/feast-dev/feast
-    - name: Slack Community
-      url: https://slack.feast.dev/
-    - name: Blog
-      url: https://feast.dev/blog/
-  artifacthub.io/changes: |
-    - kind: added
-      description: Initial Helm chart for Feast Operator
-      links:
-        - name: GitHub Issue
-          url: https://github.com/feast-dev/feast/issues/
-    - kind: added
-      description: Support for Feast v0.52.0
-    - kind: added
-      description: Configurable RBAC and security contexts
-    - kind: added
-      description: Metrics and monitoring support
-  artifacthub.io/crds: |
-    - kind: FeatureStore
-      version: v1alpha1
-      name: featurestores.feast.dev
-      displayName: Feast Feature Store
-      description: Defines a Feast feature store deployment
-  artifacthub.io/crdsExamples: |
-    - apiVersion: feast.dev/v1alpha1
-      kind: FeatureStore
-      metadata:
-        name: sample-feast
-      spec:
-        feastProject: my-project
-        services:
-          registry:
-            local:
-              persistence:
-                store:
-                  secretKeyName:  sql
-                  secretRef:
-                    name:  db-feast
-                  type:    sql
-  artifacthub.io/images: |
-    - name: feast-operator
-      image: feast-operator:0.52.0
-    - name: feast-feature-server
-      image: feast:0.52.0
-    - name: cron-job
-      image: origin-cli:latest

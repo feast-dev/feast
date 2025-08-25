@@ -2,96 +2,55 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ include "feast-operator.fullname" . }}-controller-manager
-  namespace: {{ include "feast-operator.namespace" . }}
   labels:
-    {{- include "feast-operator.labels" . | nindent 4 }}
-  {{- with (include "feast-operator.annotations" .) }}
-  annotations:
-    {{- . | nindent 4 }}
-  {{- end }}
+    control-plane: controller-manager
+  {{- include "feast-operator.labels" . | nindent 4 }}
 spec:
-  replicas: {{ .Values.operator.replicaCount }}
+  replicas: {{ .Values.controllerManager.replicas }}
   selector:
     matchLabels:
-      {{- include "feast-operator.selectorLabels" . | nindent 6 }}
+      control-plane: controller-manager
+    {{- include "feast-operator.selectorLabels" . | nindent 6 }}
   template:
     metadata:
-      annotations:
-        {{- with .Values.operator.podAnnotations }}
-        {{- toYaml . | nindent 8 }}
-        {{- end }}
-        {{- with (include "feast-operator.annotations" .) }}
-        {{- . | nindent 8 }}
-        {{- end }}
       labels:
-        {{- include "feast-operator.selectorLabels" . | nindent 8 }}
-        {{- with .Values.operator.podLabels }}
-        {{- toYaml . | nindent 8 }}
-        {{- end }}
+        control-plane: controller-manager
+      {{- include "feast-operator.selectorLabels" . | nindent 8 }}
+      annotations:
+        kubectl.kubernetes.io/default-container: manager
     spec:
-      {{- with .Values.global.imagePullSecrets }}
-      imagePullSecrets:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      serviceAccountName: {{ include "feast-operator.serviceAccountName" . }}
-      {{- with .Values.operator.securityContext }}
-      securityContext:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.operator.affinity }}
-      affinity:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.operator.nodeSelector }}
-      nodeSelector:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.operator.tolerations }}
-      tolerations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
       containers:
-      - name: manager
-        image: {{ include "feast-operator.image" . }}
-        imagePullPolicy: {{ .Values.operator.image.pullPolicy }}
+      - args: {{- toYaml .Values.controllerManager.manager.args | nindent 8 }}
         command:
         - /manager
-        args:
-        {{- if .Values.advanced.leaderElection }}
-        - --leader-elect
-        {{- end }}
-        - --health-probe-bind-address={{ .Values.advanced.healthProbeBindAddress }}
-        - --metrics-bind-address={{ .Values.advanced.metricsBindAddress }}
-        {{- with .Values.operator.args }}
-        {{- toYaml . | nindent 8 }}
-        {{- end }}
-        {{- with .Values.operator.containerSecurityContext }}
-        securityContext:
-          {{- toYaml . | nindent 10 }}
-        {{- end }}
         env:
         - name: RELATED_IMAGE_FEATURE_SERVER
-          value: {{ .Values.operator.env.relatedImageFeatureServer | quote }}
+          value: {{ quote .Values.controllerManager.manager.env.relatedImageFeatureServer
+            }}
         - name: RELATED_IMAGE_CRON_JOB
-          value: {{ .Values.operator.env.relatedImageCronJob | quote }}
-        ports:
-        - name: health
-          containerPort: {{ .Values.operator.healthcheck.port }}
-          protocol: TCP
+          value: {{ quote .Values.controllerManager.manager.env.relatedImageCronJob }}
+        - name: KUBERNETES_CLUSTER_DOMAIN
+          value: {{ quote .Values.kubernetesClusterDomain }}
+        image: {{ .Values.controllerManager.manager.image.repository }}:{{ .Values.controllerManager.manager.image.tag
+          | default .Chart.AppVersion }}
         livenessProbe:
           httpGet:
             path: /healthz
-            port: health
-          initialDelaySeconds: {{ .Values.operator.healthcheck.livenessProbe.initialDelaySeconds }}
-          periodSeconds: {{ .Values.operator.healthcheck.livenessProbe.periodSeconds }}
+            port: 8081
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        name: manager
         readinessProbe:
           httpGet:
             path: /readyz
-            port: health
-          initialDelaySeconds: {{ .Values.operator.healthcheck.readinessProbe.initialDelaySeconds }}
-          periodSeconds: {{ .Values.operator.healthcheck.readinessProbe.periodSeconds }}
-        {{- with .Values.operator.resources }}
-        resources:
-          {{- toYaml . | nindent 10 }}
-        {{- end }}
-      terminationGracePeriodSeconds: {{ .Values.advanced.terminationGracePeriodSeconds }}
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources: {{- toYaml .Values.controllerManager.manager.resources | nindent 10
+          }}
+        securityContext: {{- toYaml .Values.controllerManager.manager.containerSecurityContext
+          | nindent 10 }}
+      securityContext: {{- toYaml .Values.controllerManager.podSecurityContext | nindent
+        8 }}
+      serviceAccountName: {{ include "feast-operator.fullname" . }}-controller-manager
+      terminationGracePeriodSeconds: 10
