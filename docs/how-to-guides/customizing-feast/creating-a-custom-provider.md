@@ -47,13 +47,13 @@ class MyCustomProvider(LocalProvider):
         # Add your custom init code here. This code runs on every Feast operation.
 
     def update_infra(
-        self,
-        project: str,
-        tables_to_delete: Sequence[Union[FeatureTable, FeatureView]],
-        tables_to_keep: Sequence[Union[FeatureTable, FeatureView]],
-        entities_to_delete: Sequence[Entity],
-        entities_to_keep: Sequence[Entity],
-        partial: bool,
+            self,
+            project: str,
+            tables_to_delete: Sequence[Union[FeatureTable, FeatureView]],
+            tables_to_keep: Sequence[Union[FeatureTable, FeatureView]],
+            entities_to_delete: Sequence[Entity],
+            entities_to_keep: Sequence[Entity],
+            partial: bool,
     ):
         super().update_infra(
             project,
@@ -66,18 +66,17 @@ class MyCustomProvider(LocalProvider):
         print("Launching custom streaming jobs is pretty easy...")
 
     def materialize_single_feature_view(
-        self,
-        config: RepoConfig,
-        feature_view: FeatureView,
-        start_date: datetime,
-        end_date: datetime,
-        registry: Registry,
-        project: str,
-        tqdm_builder: Callable[[int], tqdm],
+            self,
+            config: RepoConfig,
+            feature_view: FeatureView,
+            start_date: datetime,
+            end_date: datetime,
+            registry: Registry,
+            project: str,
+            tqdm_builder: Callable[[int], tqdm],
     ) -> None:
-        super().materialize_single_feature_view(
-            config, feature_view, start_date, end_date, registry, project, tqdm_builder
-        )
+        super().materialize_single_feature_view(config, feature_view, start_date, end_date, registry, project,
+                                                tqdm_builder)
         print("Launching custom batch jobs is pretty easy...")
 ```
 

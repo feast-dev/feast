@@ -14,8 +14,8 @@ import (
 
 	"github.com/feast-dev/feast/go/internal/feast/utils"
 
+	"github.com/DataDog/dd-trace-go/v2/ddtrace/tracer"
 	"github.com/feast-dev/feast/go/internal/feast/registry"
-	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 
 	redisprometheus "github.com/redis/go-redis/extra/redisprometheus/v9"
 	redis "github.com/redis/go-redis/v9"
@@ -23,11 +23,11 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	redistrace "github.com/DataDog/dd-trace-go/contrib/redis/go-redis.v9/v2"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/rs/zerolog/log"
-	redistrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/redis/go-redis.v9"
 )
 
 type redisType int
@@ -130,7 +130,7 @@ func NewRedisOnlineStore(project string, config *registry.RepoConfig, onlineStor
 				log.Warn().Msg("ENABLE_DATADOG_REDIS_TRACING is deprecated. Use ENABLE_ONLINE_STORE_TRACING instead.")
 			}
 
-			redistrace.WrapClient(store.client, redistrace.WithServiceName(redisTraceServiceName))
+			redistrace.WrapClient(store.client, redistrace.WithService(redisTraceServiceName))
 			collector := redisprometheus.NewCollector("mlpfs", "redis", store.client)
 			prometheus.MustRegister(collector)
 		}
@@ -143,7 +143,7 @@ func NewRedisOnlineStore(project string, config *registry.RepoConfig, onlineStor
 			ReadOnly:  true,
 		})
 		if (strings.ToLower(os.Getenv("ENABLE_DATADOG_REDIS_TRACING")) == "true") || (strings.ToLower(os.Getenv("ENABLE_ONLINE_STORE_TRACING")) == "true") {
-			redistrace.WrapClient(store.clusterClient, redistrace.WithServiceName(redisTraceServiceName))
+			redistrace.WrapClient(store.clusterClient, redistrace.WithService(redisTraceServiceName))
 			collector := redisprometheus.NewCollector("mlpfs", "redis", store.clusterClient)
 			prometheus.MustRegister(collector)
 		}

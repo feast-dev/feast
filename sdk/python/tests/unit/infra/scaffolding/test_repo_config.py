@@ -3,9 +3,7 @@ from pathlib import Path
 from textwrap import dedent
 from typing import Optional
 
-from feast.infra.materialization.contrib.spark.spark_materialization_engine import (
-    SparkMaterializationEngineConfig,
-)
+from feast.infra.compute_engines.spark.compute import SparkComputeEngineConfig
 from feast.infra.offline_stores.contrib.spark_offline_store.spark import (
     SparkOfflineStoreConfig,
 )
@@ -361,7 +359,7 @@ def test_repo_config_init_expedia_provider():
     assert c.online_config == "redis"
     assert c.batch_engine_config == "spark.engine"
     assert isinstance(c.online_store, RedisOnlineStoreConfig)
-    assert isinstance(c.batch_engine, SparkMaterializationEngineConfig)
+    assert isinstance(c.batch_engine, SparkComputeEngineConfig)
     assert isinstance(c.offline_store, SparkOfflineStoreConfig)
 
 
@@ -386,5 +384,5 @@ def test_repo_config_init_expedia_provider_with_online_store_config():
     assert c.online_config["connection_string"] == "localhost:6380"
     assert c.batch_engine_config == "spark.engine"
     assert isinstance(c.online_store, RedisOnlineStoreConfig)
-    assert isinstance(c.batch_engine, SparkMaterializationEngineConfig)
+    assert isinstance(c.batch_engine, SparkComputeEngineConfig)
     assert isinstance(c.offline_store, SparkOfflineStoreConfig)

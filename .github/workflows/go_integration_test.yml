@@ -17,5 +17,11 @@ jobs:
         with:
           python-version: "3.11"
           architecture: x64
+      - name: Install the latest version of uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
       - name: Test local integration tests
-        run: make test-go-integration
+        run: make test-go-integration-github
+      - name: Minimize uv cache
+        run: uv cache prune --ci

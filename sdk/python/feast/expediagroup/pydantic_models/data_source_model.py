@@ -6,7 +6,7 @@ Author: matcarlin@expediagroup.com
 """
 
 import sys
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Dict, List, Literal, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, field_serializer, field_validator
@@ -32,6 +32,9 @@ class DataSourceModel(BaseModel):
     Pydantic Model of a Feast DataSource.
     """
 
+    created_timestamp: Optional[datetime] = None
+    last_updated_timestamp: Optional[datetime] = None
+
     def to_data_source(self):
         """
         Given a Pydantic DataSourceModel, create and return a DataSource.
@@ -40,6 +43,11 @@ class DataSourceModel(BaseModel):
             A DataSource.
         """
         raise NotImplementedError
+
+    def _attach_timestamps(self, data_source):
+        data_source.created_timestamp = self.created_timestamp
+        data_source.last_updated_timestamp = self.last_updated_timestamp
+        return data_source
 
     @classmethod
     def from_data_source(cls, data_source):
@@ -73,13 +81,14 @@ class RequestSourceModel(DataSourceModel):
         Returns:
             A RequestSource.
         """
-        return RequestSource(
+        source = RequestSource(
             name=self.name,
             schema=[sch.to_field() for sch in self.schema_],
             description=self.description,
             tags=self.tags,
             owner=self.owner,
         )
+        return self._attach_timestamps(source)
 
     @classmethod
     def from_data_source(
@@ -100,6 +109,8 @@ class RequestSourceModel(DataSourceModel):
             description=data_source.description,
             tags=data_source.tags if data_source.tags else None,
             owner=data_source.owner,
+            created_timestamp=data_source.created_timestamp,
+            last_updated_timestamp=data_source.last_updated_timestamp,
         )
 
 
@@ -130,7 +141,7 @@ class SparkSourceModel(DataSourceModel):
         Returns:
             A SparkSource.
         """
-        return SparkSource(
+        source = SparkSource(
             name=self.name,
             table=self.table,
             query=self.query,
@@ -143,6 +154,7 @@ class SparkSourceModel(DataSourceModel):
             owner=self.owner,
             timestamp_field=self.timestamp_field,
         )
+        return self._attach_timestamps(source)
 
     @classmethod
     def from_data_source(
@@ -167,6 +179,8 @@ class SparkSourceModel(DataSourceModel):
             tags=data_source.tags,
             owner=data_source.owner,
             timestamp_field=data_source.timestamp_field,
+            created_timestamp=data_source.created_timestamp,
+            last_updated_timestamp=data_source.last_updated_timestamp,
         )
 
 
@@ -200,13 +214,14 @@ class PushSourceModel(DataSourceModel):
         Returns:
             A SparkSource.
         """
-        return PushSource(
+        source = PushSource(
             name=self.name,
             batch_source=self.batch_source.to_data_source(),
             description=self.description,
             tags=self.tags,
             owner=self.owner,
         )
+        return self._attach_timestamps(source)
 
     @classmethod
     def from_data_source(
@@ -235,6 +250,8 @@ class PushSourceModel(DataSourceModel):
             description=data_source.description,
             tags=data_source.tags,
             owner=data_source.owner,
+            created_timestamp=data_source.created_timestamp,
+            last_updated_timestamp=data_source.last_updated_timestamp,
         )
 
 
@@ -298,7 +315,7 @@ class KafkaSourceModel(DataSourceModel):
         Returns:
             A KafkaSource.
         """
-        return KafkaSource(
+        source = KafkaSource(
             name=self.name,
             timestamp_field=self.timestamp_field,
             message_format=self.message_format.to_stream_format(),
@@ -314,6 +331,7 @@ class KafkaSourceModel(DataSourceModel):
             ),
             watermark_delay_threshold=self.watermark_delay_threshold,
         )
+        return self._attach_timestamps(source)
 
     @classmethod
     def from_data_source(
@@ -374,6 +392,8 @@ class KafkaSourceModel(DataSourceModel):
             owner=data_source.owner,
             batch_source=batch_source,
             watermark_delay_threshold=data_source.kafka_options.watermark_delay_threshold,
+            created_timestamp=data_source.created_timestamp,
+            last_updated_timestamp=data_source.last_updated_timestamp,
         )
 
 

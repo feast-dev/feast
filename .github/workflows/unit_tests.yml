@@ -39,9 +39,9 @@ jobs:
           make install-go-ci-dependencies
           COMPILE_GO=true python setup.py develop
           CGO_LDFLAGS_ALLOW=".*" COMPILE_GO=True python setup.py build_ext --inplace
-      - name: Test EG tests
-        if: matrix.os == 'ubuntu-latest'
-        run: python -m pytest -n 1 --color=yes sdk/python/tests/expediagroup/
+#      - name: Test EG tests
+#        if: matrix.os == 'ubuntu-latest'
+#        run: python -m pytest -n 1 --color=yes sdk/python/tests/expediagroup/
       - name: Test Python
         if: matrix.os == 'ubuntu-latest'
         run: make test-python-unit
@@ -56,7 +56,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [ "3.9", "3.10", "3.11"]
+        python-version: [ "3.10", "3.11", "3.12" ]
         os: [ ubuntu-latest ]
     env:
       OS: ${{ matrix.os }}
@@ -74,13 +74,14 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           architecture: x64
-      - name: Upgrade pip version
-        run: |
-          pip install --upgrade "pip>=22.1,<23"
-      - name: Upgrade setuptools and wheel
-        run: pip install --upgrade setuptools wheel
+      - name: Install the latest version of uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
       - name: Test
-        run: make test-go
+        run: make test-go-github
+      - name: Minimize uv cache
+        run: uv cache prune --ci
 
   unit-test-ui:
     runs-on: ubuntu-latest

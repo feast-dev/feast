@@ -11,7 +11,7 @@ import (
 	"syscall"
 	"time"
 
-	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
+	"github.com/DataDog/dd-trace-go/v2/ddtrace/tracer"
 
 	"github.com/apache/arrow/go/v17/arrow"
 	"github.com/apache/arrow/go/v17/arrow/array"
@@ -19,6 +19,7 @@ import (
 	"github.com/apache/arrow/go/v17/arrow/memory"
 	"google.golang.org/grpc"
 
+	grpctrace "github.com/DataDog/dd-trace-go/contrib/google.golang.org/grpc/v2"
 	"github.com/feast-dev/feast/go/internal/feast"
 	"github.com/feast-dev/feast/go/internal/feast/model"
 	"github.com/feast-dev/feast/go/internal/feast/onlineserving"
@@ -32,7 +33,6 @@ import (
 	jsonlog "github.com/rs/zerolog/log"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
-	grpctrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/google.golang.org/grpc"
 )
 
 type OnlineFeatureService struct {

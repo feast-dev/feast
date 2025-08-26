@@ -159,21 +159,22 @@ func TestGetOnlineFeatures(t *testing.T) {
 			},
 			fn: testRedisSimpleFeatures,
 		},
-		{
-			name: "redis with On-demand feature views, no transformation service endpoint",
-			config: &registry.RepoConfig{
-				Project: "feature_repo",
-				Registry: map[string]interface{}{
-					"path": featureRepoRegistryFile,
-				},
-				Provider: "local",
-				OnlineStore: map[string]interface{}{
-					"type":              "redis",
-					"connection_string": "localhost:6379",
-				},
-			},
-			fn: testRedisODFVNoTransformationService,
-		},
+		// Test disabled because a default transformation service is created if not defined for EG clients
+		//{
+		//	name: "redis with On-demand feature views, no transformation service endpoint",
+		//	config: &registry.RepoConfig{
+		//		Project: "feature_repo",
+		//		Registry: map[string]interface{}{
+		//			"path": featureRepoRegistryFile,
+		//		},
+		//		Provider: "local",
+		//		OnlineStore: map[string]interface{}{
+		//			"type":              "redis",
+		//			"connection_string": "localhost:6379",
+		//		},
+		//	},
+		//	fn: testRedisODFVNoTransformationService,
+		//},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -230,9 +231,9 @@ func testRedisSimpleFeatures(t *testing.T, fs *FeatureStore) {
 	}
 	ctx := context.Background()
 	mr := fs.onlineStore.(*MockRedis)
-	mr.On("OnlineRead", ctx, mock.Anything, mock.Anything, mock.Anything).Return(results, nil)
+	mr.On("OnlineRead", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(results, nil)
 	response, err := fs.GetOnlineFeatures(ctx, featureNames, nil, entities, map[string]*types.RepeatedValue{}, true)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	assert.Len(t, response, 4) // 3 Features + 1 entity = 4 columns (feature vectors) in response
 }
 
@@ -246,11 +247,14 @@ func testRedisODFVNoTransformationService(t *testing.T, fs *FeatureStore) {
 		{Val: &types.Value_Int64Val{Int64Val: 1002}},
 		{Val: &types.Value_Int64Val{Int64Val: 1003}}}},
 	}
+	requestData := map[string]*types.RepeatedValue{"val_to_add": {Val: []*types.Value{{Val: &types.Value_Int64Val{Int64Val: 5}}}},
+		"val_to_add_2": {Val: []*types.Value{{Val: &types.Value_Int64Val{Int64Val: 2}}}},
+	}
 
 	ctx := context.Background()
 	mr := fs.onlineStore.(*MockRedis)
 	mr.On("OnlineRead", ctx, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-	response, err := fs.GetOnlineFeatures(ctx, featureNames, nil, entities, map[string]*types.RepeatedValue{}, true)
+	response, err := fs.GetOnlineFeatures(ctx, featureNames, nil, entities, requestData, true)
 	assert.Nil(t, response)
 	assert.ErrorAs(t, err, &FeastTransformationServiceNotConfigured{})
 

@@ -9,22 +9,16 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, cast
 from pydantic import StrictStr
 from sqlalchemy import Table
 
-from feast import (
-    Entity,
-    FeatureService,
-    FeatureView,
-    OnDemandFeatureView,
-    Project,
-    SortedFeatureView,
-    StreamFeatureView,
-)
 from feast.base_feature_view import BaseFeatureView
 from feast.data_source import DataSource
+from feast.entity import Entity
 from feast.errors import (
     FeastObjectNotFoundException,
     FeatureViewNotFoundException,
     ProjectObjectNotFoundException,
 )
+from feast.feature_service import FeatureService
+from feast.feature_view import FeatureView
 from feast.infra.registry.sql import (
     SqlRegistry,
     SqlRegistryConfig,
@@ -39,9 +33,13 @@ from feast.infra.registry.sql import (
     stream_feature_views,
     validation_references,
 )
+from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.permissions.permission import Permission
+from feast.project import Project
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.saved_dataset import SavedDataset, ValidationReference
+from feast.sorted_feature_view import SortedFeatureView
+from feast.stream_feature_view import StreamFeatureView
 from feast.utils import _utc_now
 
 logger = logging.getLogger(__name__)

@@ -29,6 +29,8 @@ type Row struct {
 	Created        int64
 }
 
+var feastExec = "feast"
+
 func ReadParquet(filePath string) ([]*Row, error) {
 	allocator := memory.NewGoAllocator()
 	pqfile, err := file.OpenParquetFile(filePath, false)
@@ -171,23 +173,6 @@ func FilterRowsByColumn(rows []map[string]interface{}, columnName string, value 
 	return filteredRows
 }
 
-func FilterRowsByMultiColumns(rows []map[string]interface{}, filters map[string]interface{}) []map[string]interface{} {
-	filteredRows := []map[string]interface{}{}
-	for _, row := range rows {
-		matches := true
-		for columnName, value := range filters {
-			if row[columnName] != value {
-				matches = false
-				break
-			}
-		}
-		if matches {
-			filteredRows = append(filteredRows, row)
-		}
-	}
-	return filteredRows
-}
-
 func GetLatestFeatures(Rows []*Row, entities map[int64]bool) map[int64]*Row {
 	correctFeatureRows := make(map[int64]*Row)
 	for _, Row := range Rows {
@@ -205,7 +190,7 @@ func GetLatestFeatures(Rows []*Row, entities map[int64]bool) map[int64]*Row {
 }
 
 func SetupCleanFeatureRepo(basePath string) error {
-	cmd := exec.Command("feast", "init", "my_project")
+	cmd := exec.Command(feastExec, "init", "my_project")
 	path, err := filepath.Abs(basePath)
 	cmd.Env = os.Environ()
 
@@ -213,19 +198,21 @@ func SetupCleanFeatureRepo(basePath string) error {
 		return err
 	}
 	cmd.Dir = path
-	err = cmd.Run()
+	out, err := cmd.CombinedOutput()
 	if err != nil {
+		log.Printf("Repo init error: %s", string(out))
 		return err
 	}
-	applyCommand := exec.Command("feast", "apply")
+	applyCommand := exec.Command(feastExec, "apply")
 	applyCommand.Env = os.Environ()
 	featureRepoPath, err := filepath.Abs(filepath.Join(path, "my_project", "feature_repo"))
 	if err != nil {
 		return err
 	}
 	applyCommand.Dir = featureRepoPath
-	err = applyCommand.Run()
+	out, err = applyCommand.CombinedOutput()
 	if err != nil {
+		log.Printf("Repo apply error: %s", string(out))
 		return err
 	}
 	t := time.Now()
@@ -233,11 +220,12 @@ func SetupCleanFeatureRepo(basePath string) error {
 	formattedTime := fmt.Sprintf("%d-%02d-%02dT%02d:%02d:%02d",
 		t.Year(), t.Month(), t.Day(),
 		t.Hour(), t.Minute(), t.Second())
-	materializeCommand := exec.Command("feast", "materialize-incremental", formattedTime)
+	materializeCommand := exec.Command(feastExec, "materialize-incremental", formattedTime)
 	materializeCommand.Env = os.Environ()
 	materializeCommand.Dir = featureRepoPath
-	err = materializeCommand.Run()
+	out, err = materializeCommand.CombinedOutput()
 	if err != nil {
+		log.Printf("Repo materialize error: %s", string(out))
 		return err
 	}
 	return nil
@@ -247,29 +235,31 @@ func SetupInitializedRepo(basePath string) error {
 	log.Printf("Setting up initialized repo at %s", basePath)
 	path, err := filepath.Abs(basePath)
 	if err != nil {
+		log.Printf("Repo base path error: %s", err.Error())
 		return err
 	}
-	applyCommand := exec.Command("feast", "apply")
+	applyCommand := exec.Command(feastExec, "apply")
 	applyCommand.Env = os.Environ()
 	featureRepoPath, err := filepath.Abs(filepath.Join(path, "feature_repo"))
 	if err != nil {
+		log.Printf("Repo filepath error: %s", err.Error())
+		return err
+	}
+	applyCommand.Dir = featureRepoPath
+	out, err := applyCommand.CombinedOutput()
+	if err != nil {
+		log.Printf("Repo setup error: %s", string(out))
 		return err
 	}
 	// Pause to ensure apply completes
 	time.Sleep(5 * time.Second)
-	applyCommand.Dir = featureRepoPath
-	out, err := applyCommand.CombinedOutput()
-	if err != nil {
-		log.Println(string(out))
-		return err
-	}
 	t := time.Now()
 
 	formattedTime := fmt.Sprintf("%d-%02d-%02dT%02d:%02d:%02d",
 		t.Year(), t.Month(), t.Day(),
 		t.Hour(), t.Minute(), t.Second())
 
-	materializeCommand := exec.Command("feast", "materialize-incremental", formattedTime)
+	materializeCommand := exec.Command(feastExec, "materialize-incremental", formattedTime)
 	materializeCommand.Env = os.Environ()
 	materializeCommand.Dir = featureRepoPath
 	out, err = materializeCommand.CombinedOutput()
@@ -278,7 +268,7 @@ func SetupInitializedRepo(basePath string) error {
 		return err
 	}
 	// Pause to ensure materialization completes
-	time.Sleep(5 * time.Second)
+	time.Sleep(15 * time.Second)
 	return nil
 }
 

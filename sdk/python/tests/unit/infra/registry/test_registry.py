@@ -1,8 +1,10 @@
 from datetime import datetime, timedelta, timezone
+from typing import List, Optional
 from unittest.mock import patch
 
 import pytest
 
+from feast import SortedFeatureView
 from feast.infra.registry.caching_registry import CachingRegistry
 
 
@@ -52,6 +54,9 @@ class TestCachingRegistry(CachingRegistry):
     def _get_stream_feature_view(self, *args, **kwargs):
         pass
 
+    def _get_sorted_feature_view(self, name: str, project: str) -> SortedFeatureView:
+        pass
+
     def _get_validation_reference(self, *args, **kwargs):
         pass
 
@@ -86,6 +91,11 @@ class TestCachingRegistry(CachingRegistry):
         pass
 
     def _list_stream_feature_views(self, *args, **kwargs):
+        pass
+
+    def _list_sorted_feature_views(
+        self, project: str, tags: Optional[dict[str, str]]
+    ) -> List[SortedFeatureView]:
         pass
 
     def _list_validation_references(self, *args, **kwargs):

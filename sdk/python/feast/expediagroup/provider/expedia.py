@@ -1,6 +1,12 @@
 import logging
+from datetime import datetime
+from typing import Callable, Union
 
+from tqdm import tqdm
+
+from feast import FeatureView, OnDemandFeatureView
 from feast.infra.passthrough_provider import PassthroughProvider
+from feast.infra.registry.base_registry import BaseRegistry
 from feast.repo_config import RepoConfig
 
 logger = logging.getLogger(__name__)
@@ -19,3 +25,21 @@ class ExpediaProvider(PassthroughProvider):
             )
 
         super().__init__(config)
+
+    def materialize_single_feature_view(
+        self,
+        config: RepoConfig,
+        feature_view: Union[FeatureView, OnDemandFeatureView],
+        start_date: datetime,
+        end_date: datetime,
+        registry: BaseRegistry,
+        project: str,
+        tqdm_builder: Callable[[int], tqdm],
+        **kwargs,
+    ) -> None:
+        logger.info(
+            f"Materializing feature view {feature_view.name} from offline store"
+        )
+        super().materialize_single_feature_view(
+            config, feature_view, start_date, end_date, registry, project, tqdm_builder
+        )

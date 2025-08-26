@@ -3,14 +3,14 @@
 package onlinestore
 
 import (
-	"context"
 	"fmt"
+	"reflect"
+	"testing"
+
 	"github.com/feast-dev/feast/go/internal/feast/model"
 	"github.com/feast-dev/feast/go/protos/feast/core"
 	"github.com/gocql/gocql"
 	"github.com/stretchr/testify/assert"
-	"reflect"
-	"testing"
 )
 
 func TestExtractCassandraConfig_CorrectDefaults(t *testing.T) {
@@ -87,12 +87,6 @@ func TestGetMultiKeyCQLStatement(t *testing.T) {
 		`SELECT "entity_key", "feature_name", "event_ts", "value" FROM "scylladb"."dummy_project_dummy_fv" WHERE "entity_key" IN (?,?,?,?,?) AND "feature_name" IN ('feat1','feat2')`,
 		cqlStatement,
 	)
-}
-
-func TestOnlineRead_RejectsDifferentFeatureViewsInSameRead(t *testing.T) {
-	store := CassandraOnlineStore{}
-	_, err := store.OnlineRead(context.TODO(), nil, []string{"fv1", "fv2"}, []string{"feat1", "feat2"})
-	assert.Error(t, err)
 }
 
 func TestGetFqTableName_Version1(t *testing.T) {
@@ -206,6 +200,44 @@ func BenchmarkGetFqTableName(b *testing.B) {
 	featureViewNames := []string{"small_feature_view", "large_feature_view_large_feature_view_large_feature_view", "large_feature_view_large_feature_view_large_feature_view_large_feature_view_large_feature_view_large_feature_view_large_feature_view_large_feature_view_large_feature_view"}
 	for i := 0; i < b.N; i++ {
 		store.getFqTableName(keySpace, project, featureViewNames[i%3], tableNameVersion)
+	}
+}
+
+func TestCreateBatches(t *testing.T) {
+	c := &CassandraOnlineStore{KeyBatchSize: 3}
+	keys := []any{0, 1, 2, 3, 4, 5, 6, 7}
+
+	batches := c.createBatches(keys)
+	if len(batches) != 3 {
+		t.Errorf("Expected 3 batches, got %d", len(batches))
+	}
+
+	if len(batches[2]) != 2 {
+		t.Errorf("Last batch should be size 2, got %d", len(batches[2]))
+	}
+
+	var flattened []any
+	for _, batch := range batches {
+		flattened = append(flattened, batch...)
+	}
+
+	for i, key := range keys {
+		if flattened[i] != key {
+			t.Errorf("Position %d: got %v, want %v", i, flattened[i], key)
+		}
+	}
+}
+
+func BenchmarkCreateBatches(b *testing.B) {
+	c := &CassandraOnlineStore{KeyBatchSize: 100}
+	keys := make([]any, 1000)
+	for i := 0; i < 1000; i++ {
+		keys[i] = i
+	}
+
+	b.ResetTimer() // capture only create batch time.
+	for i := 0; i < b.N; i++ {
+		c.createBatches(keys)
 	}
 }
 

@@ -2,9 +2,12 @@ from dataclasses import dataclass
 
 import dill
 
-from feast import FeatureView
+from feast import FeatureView, SortedFeatureView
 from feast.infra.passthrough_provider import PassthroughProvider
 from feast.protos.feast.core.FeatureView_pb2 import FeatureView as FeatureViewProto
+from feast.protos.feast.core.SortedFeatureView_pb2 import (
+    SortedFeatureView as SortedFeatureViewProto,
+)
 
 
 @dataclass
@@ -13,6 +16,7 @@ class SerializedArtifacts:
 
     feature_view_proto: str
     repo_config_byte: str
+    feature_view_class: str
 
     @classmethod
     def serialize(cls, feature_view, repo_config):
@@ -23,14 +27,21 @@ class SerializedArtifacts:
         repo_config_byte = dill.dumps(repo_config)
 
         return SerializedArtifacts(
-            feature_view_proto=feature_view_proto, repo_config_byte=repo_config_byte
+            feature_view_proto=feature_view_proto,
+            repo_config_byte=repo_config_byte,
+            feature_view_class=feature_view.__class__.__name__,
         )
 
     def unserialize(self):
         # unserialize
-        proto = FeatureViewProto()
-        proto.ParseFromString(self.feature_view_proto)
-        feature_view = FeatureView.from_proto(proto)
+        if self.feature_view_class == "SortedFeatureView":
+            proto = SortedFeatureViewProto()
+            proto.ParseFromString(self.feature_view_proto)
+            feature_view = SortedFeatureView.from_proto(proto)
+        else:
+            proto = FeatureViewProto()
+            proto.ParseFromString(self.feature_view_proto)
+            feature_view = FeatureView.from_proto(proto)
 
         # load
         repo_config = dill.loads(self.repo_config_byte)

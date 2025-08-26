@@ -36,8 +36,14 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: 1.22.5
+      - name: Install the latest version of uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
       - name: Lint go
         run: make lint-go
+      - name: Minimize uv cache
+        run: uv cache prune --ci
   lint-java:
     runs-on: ubuntu-latest
     steps:

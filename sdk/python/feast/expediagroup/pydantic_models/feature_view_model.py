@@ -23,7 +23,7 @@ from feast.expediagroup.pydantic_models.entity_model import EntityModel
 from feast.expediagroup.pydantic_models.field_model import FieldModel
 from feast.feature_view import FeatureView
 from feast.feature_view_projection import FeatureViewProjection
-from feast.on_demand_feature_view import OnDemandFeatureView
+from feast.on_demand_feature_view import OnDemandFeatureView, OnDemandSourceType
 from feast.protos.feast.core.SortedFeatureView_pb2 import SortOrder
 from feast.sort_key import SortKey
 from feast.sorted_feature_view import SortedFeatureView
@@ -211,9 +211,13 @@ class FeatureViewProjectionModel(BaseModel):
 
     name: str
     name_alias: Optional[str]
-    features: List[FieldModel]
     desired_features: List[str]
+    features: List[FieldModel]
     join_key_map: Dict[str, str]
+    timestamp_field: Optional[str]
+    date_partition_column: Optional[str]
+    created_timestamp_column: Optional[str]
+    batch_source: Optional[AnyBatchDataSource]
 
     def to_feature_view_projection(self) -> FeatureViewProjection:
         return FeatureViewProjection(
@@ -222,6 +226,12 @@ class FeatureViewProjectionModel(BaseModel):
             desired_features=self.desired_features,
             features=[sch.to_field() for sch in self.features],
             join_key_map=self.join_key_map,
+            timestamp_field=self.timestamp_field,
+            date_partition_column=self.date_partition_column,
+            created_timestamp_column=self.created_timestamp_column,
+            batch_source=self.batch_source.to_data_source()
+            if self.batch_source
+            else None,
         )
 
     @classmethod
@@ -229,6 +239,18 @@ class FeatureViewProjectionModel(BaseModel):
         cls,
         feature_view_projection: FeatureViewProjection,
     ) -> Self:  # type: ignore
+        batch_source = None
+        if feature_view_projection.batch_source is not None:
+            class_ = getattr(
+                sys.modules[__name__],
+                type(feature_view_projection.batch_source).__name__ + "Model",
+            )
+            if class_ not in SUPPORTED_BATCH_DATA_SOURCES:
+                raise ValueError(
+                    "Batch source type is not a supported data source type."
+                )
+            batch_source = class_.from_data_source(feature_view_projection.batch_source)
+
         return cls(
             name=feature_view_projection.name,
             name_alias=feature_view_projection.name_alias,
@@ -238,6 +260,10 @@ class FeatureViewProjectionModel(BaseModel):
                 for feature in feature_view_projection.features
             ],
             join_key_map=feature_view_projection.join_key_map,
+            timestamp_field=feature_view_projection.timestamp_field,
+            date_partition_column=feature_view_projection.date_partition_column,
+            created_timestamp_column=feature_view_projection.created_timestamp_column,
+            batch_source=batch_source,
         )
 
 
@@ -484,8 +510,8 @@ class OnDemandFeatureViewModel(BaseFeatureViewModel):
     def to_feature_view(self) -> OnDemandFeatureView:
         source_request_sources = dict()
         if self.source_request_sources:
-            for key, feature_view_projection in self.source_request_sources.items():
-                source_request_sources[key] = feature_view_projection.to_data_source()
+            for key, source_request_source in self.source_request_sources.items():
+                source_request_sources[key] = source_request_source.to_data_source()
 
         source_feature_view_projections = dict()
         if self.source_feature_view_projections:
@@ -515,11 +541,14 @@ class OnDemandFeatureViewModel(BaseFeatureViewModel):
                 udf=dill.loads(bytes.fromhex(self.udf)), udf_string=self.udf_string
             )
 
+        sources: List[OnDemandSourceType] = list(
+            source_feature_view_projections.values()
+        )
+
         odfv = OnDemandFeatureView(
             name=self.name,
             schema=[sch.to_field() for sch in self.features],
-            sources=list(source_feature_view_projections.values())
-            + list(source_request_sources.values()),
+            sources=sources + list(source_request_sources.values()),
             udf=dill.loads(bytes.fromhex(self.udf)),
             udf_string=self.udf_string,
             feature_transformation=feature_transformation,

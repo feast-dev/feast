@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List
 
 import pandas as pd
@@ -372,8 +372,11 @@ def test_idempotent_featureview_conversion():
         ttl=timedelta(days=10),
     )
     python_obj.materialization_intervals = [
-        (datetime.now() - timedelta(days=10), datetime.now() - timedelta(days=9)),
-        (datetime.now(), datetime.now()),
+        (
+            datetime.now(timezone.utc) - timedelta(days=10),
+            datetime.now(timezone.utc) - timedelta(days=9),
+        ),
+        (datetime.now(timezone.utc), datetime.now(timezone.utc)),
     ]
     pydantic_obj = FeatureViewModel.from_feature_view(python_obj)
     converted_python_obj = pydantic_obj.to_feature_view()
@@ -449,8 +452,11 @@ def test_idempotent_featureview_with_streaming_source_conversion():
         ttl=timedelta(days=0),
     )
     python_obj.materialization_intervals = [
-        (datetime.now() - timedelta(days=10), datetime.now() - timedelta(days=9)),
-        (datetime.now(), datetime.now()),
+        (
+            datetime.now(timezone.utc) - timedelta(days=10),
+            datetime.now(timezone.utc) - timedelta(days=9),
+        ),
+        (datetime.now(timezone.utc), datetime.now(timezone.utc)),
     ]
     pydantic_obj = FeatureViewModel.from_feature_view(python_obj)
     converted_python_obj = pydantic_obj.to_feature_view()
@@ -527,8 +533,11 @@ def test_idempotent_featureview_with_confluent_streaming_source_conversion():
         source=spark_source,
     )
     python_obj.materialization_intervals = [
-        (datetime.now() - timedelta(days=10), datetime.now() - timedelta(days=9)),
-        (datetime.now(), datetime.now()),
+        (
+            datetime.now(timezone.utc) - timedelta(days=10),
+            datetime.now(timezone.utc) - timedelta(days=9),
+        ),
+        (datetime.now(timezone.utc), datetime.now(timezone.utc)),
     ]
     pydantic_obj = FeatureViewModel.from_feature_view(python_obj)
     converted_python_obj = pydantic_obj.to_feature_view()
@@ -672,7 +681,7 @@ def test_idempotent_on_demand_feature_view_conversion():
     )
 
     distance_decorator = on_demand_feature_view(
-        sources=[view1, view2],
+        sources=[view1.projection, view2.projection],
         schema=[Field(name="distance_in_kms", dtype=Float64)],
     )
 
@@ -717,6 +726,7 @@ def test_idempotent_on_demand_feature_view_conversion():
     python_obj = distance_decorator(calculate_distance_demo_go)
     pydantic_obj = OnDemandFeatureViewModel.from_feature_view(python_obj)
     converted_python_obj = pydantic_obj.to_feature_view()
+
     assert python_obj == converted_python_obj
     assert pydantic_obj.created_timestamp == python_obj.created_timestamp
     assert pydantic_obj.last_updated_timestamp == python_obj.last_updated_timestamp

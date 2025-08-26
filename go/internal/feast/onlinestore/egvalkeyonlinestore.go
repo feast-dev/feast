@@ -15,16 +15,16 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/DataDog/dd-trace-go/v2/ddtrace/tracer"
 	"github.com/feast-dev/feast/go/internal/feast/registry"
-	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 
 	"github.com/spaolacci/murmur3"
-	valkey "github.com/valkey-io/valkey-go"
+	"github.com/valkey-io/valkey-go"
 
+	valkeytrace "github.com/DataDog/dd-trace-go/contrib/valkey-io/valkey-go/v2"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/feast-dev/feast/go/protos/feast/types"
 	"github.com/rs/zerolog/log"
-	// valkeytrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/valkey-go"
 )
 
 const defaultConnectionString = "localhost:6379"
@@ -134,9 +134,7 @@ func getValkeyTraceServiceName() string {
 
 func initializeValkeyClient(clientOption valkey.ClientOption, serviceName string) (valkey.Client, error) {
 	if strings.ToLower(os.Getenv("ENABLE_ONLINE_STORE_TRACING")) == "true" {
-		// TODO: Configure once Datadog starts supporting valkey-go
-		log.Warn().Msg("Valkey tracing is not enabled")
-		// return valkeytrace.NewClient(clientOption, valkeytrace.WithServiceName(serviceName))
+		return valkeytrace.NewClient(clientOption, valkeytrace.WithService(serviceName))
 	}
 
 	return valkey.NewClient(clientOption)

@@ -1,6 +1,6 @@
 [project]
-name = "feast"
-description = "Python SDK for Feast"
+name = "eg-feast"
+description = "EG-specific Python SDK for Feast"
 readme = "README.md"
 requires-python = ">=3.10.0"
 license = {file = "LICENSE"}
@@ -21,7 +21,8 @@ dependencies = [
     "Jinja2>=2,<4",
     "jsonschema",
     "mmh3",
-    "numpy>=2.0.0,<3",
+    "numpy>=1.22,<2",
+#    "numpy>=2.0.0,<3", # downgrade numpy for spark 3.5.5 compatibility
     "pandas>=1.4.3,<3",
     "pyarrow<=17.0.0",
     "pydantic==2.10.6",
@@ -43,6 +44,9 @@ dependencies = [
     "psutil",
     "bigtree>=0.19.2",
     "pyjwt",
+    "httpx>=0.23.3",
+    "bigtree>=0.19.2",
+    "pyjwt",
 ]
 
 [project.optional-dependencies]
@@ -60,6 +64,7 @@ couchbase = ["couchbase==4.3.2", "couchbase-columnar==1.0.0"]
 delta = ["deltalake<1.0.0"]
 docling = ["docling==2.27.0"]
 duckdb = ["ibis-framework[duckdb]>=9.0.0,<=9.5.0"]
+eg_valkey = ["valkey[libvalkey]>=6.1.0"]
 elasticsearch = ["elasticsearch>=8.13.0"]
 faiss = ["faiss-cpu>=1.7.0,<=1.10.0"]
 gcp = [
@@ -94,12 +99,19 @@ k8s = ["kubernetes<=20.13.0"]
 milvus = [
     "pymilvus==2.4.9",
     "milvus-lite==2.4.12",
-    "feast[setuptools]"
+    "eg-feast[setuptools]"
 ]
+eg_milvus = ["pymilvus>=2.4.4", "bidict==0.22.1"]
 mssql = ["ibis-framework[mssql]>=9.0.0,<=9.5.0"]
 mysql = ["pymysql", "types-PyMySQL"]
 opentelemetry = ["prometheus_client", "psutil"]
-spark = ["pyspark>=4.0.0"]
+scylladb = [
+    "scylla-driver>=3.24.0,<4",
+    "lz4",
+    "python-snappy",
+]
+# spark downgraded for eg compatibility
+spark = ["pyspark==3.5.5"]
 trino = ["trino>=0.305.0,<0.400.0", "regex"]
 postgres = ["psycopg[binary,pool]==3.2.5"]
 # psycopg[c] install requires a system with a C compiler, python dev headers, & postgresql client dev headers
@@ -168,16 +180,16 @@ ci = [
     "types-setuptools",
     "types-tabulate",
     "virtualenv<20.24.2",
-    "feast[aws, azure, cassandra, clickhouse, couchbase, delta, docling, duckdb, elasticsearch, faiss, gcp, ge, go, grpcio, hazelcast, hbase, ibis, ikv, k8s, mcp, milvus, mssql, mysql, opentelemetry, spark, trino, postgres, pytorch, qdrant, rag, ray, redis, singlestore, snowflake, sqlite_vec]"
+    "eg-feast[aws, azure, cassandra, clickhouse, couchbase, delta, docling, duckdb, eg_valkey, elasticsearch, faiss, gcp, ge, go, grpcio, hazelcast, hbase, ibis, ikv, k8s, mcp, milvus, eg_milvus, mssql, mysql, opentelemetry, scylladb, spark, trino, postgres, pytorch, qdrant, rag, ray, redis, singlestore, snowflake, sqlite_vec]"
 ]
-nlp = ["feast[docling, milvus, pytorch, rag]"]
-dev = ["feast[ci]"]
-docs = ["feast[ci]"]
+nlp = ["eg-feast[docling, milvus, pytorch, rag]"]
+dev = ["eg-feast[ci]"]
+docs = ["eg-feast[ci]"]
 # used for the 'feature-server' container image build
-minimal = ["feast[aws, gcp, snowflake, redis, go, mysql, postgres-c, opentelemetry, grpcio, k8s, duckdb, mcp, milvus]"]
+minimal = ["eg-feast[aws, gcp, snowflake, redis, go, mysql, postgres-c, opentelemetry, grpcio, k8s, duckdb, mcp, milvus]"]
 minimal-sdist-build = [
-    "feast[minimal]",
-    "feast[ibis]",
+    "eg-feast[minimal]",
+    "eg-feast[ibis]",
     "meson<1.7.2",
     "pybindgen==0.22.0",
     "sphinx!=4.0.0",
@@ -206,7 +218,7 @@ setuptools = [
 Homepage = "https://github.com/feast-dev/feast"
 
 [[project.authors]]
-name = "Feast"
+name = "Feast and EG"
 
 [project.scripts]
 feast = "feast.cli.cli:cli"

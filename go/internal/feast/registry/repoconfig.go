@@ -35,7 +35,7 @@ type RepoConfig struct {
 	// RepoPath
 	RepoPath string `json:"repo_path"`
 	// EntityKeySerializationVersion
-	EntityKeySerializationVersion int64 `json:"entity_key_serialization_version"`
+	EntityKeySerializationVersion int64 `json:"entity_key_serialization_version" default:"3"`
 }
 
 type RegistryConfig struct {

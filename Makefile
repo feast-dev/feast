@@ -55,7 +55,9 @@ test: test-python-unit test-java test-go
 
 protos: compile-protos-go compile-protos-python compile-protos-docs
 
-build: protos build-docker ## Build protobufs and Docker images
+build: protos build-java build-docker ## Build protobufs and Docker images
+
+##@ Python SDK - local
 
 format-python: ## Format Python code
 	cd ${ROOT_DIR}/sdk/python; python -m ruff check --fix feast/ tests/
@@ -66,12 +68,15 @@ lint-python: ## Lint Python code
 	cd ${ROOT_DIR}/sdk/python; python -m ruff check feast/ tests/
 	cd ${ROOT_DIR}/sdk/python; python -m ruff format --check feast/ tests
 
-##@ Python SDK - local
 # formerly install-python-ci-dependencies-uv-venv
 # editable install
 install-python-dependencies-dev: ## Install Python dev dependencies using uv (editable install)
 	uv pip sync --require-hashes sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt
 	uv pip install --no-deps -e .
+
+# DEPRECATED maintained for legacy reasons
+install-python-ci-dependencies-uv-venv: install-python-dependencies-dev
+	python setup.py build_python_protos --inplace
 
 install-python-dependencies-minimal: ## Install minimal Python dependencies using uv (editable install)
 	uv pip sync --require-hashes sdk/python/requirements/py$(PYTHON_VERSION)-minimal-requirements.txt
@@ -85,16 +90,14 @@ install-python-dependencies-minimal: ## Install minimal Python dependencies usin
 # formerly install-python-ci-dependencies-uv
 install-python-dependencies-ci: ## Install Python CI dependencies in system environment using uv
 	# Install CPU-only torch first to prevent CUDA dependency issues
-	pip uninstall torch torchvision -y || true
-	pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu --force-reinstall
+	uv pip uninstall torch torchvision -y || true
+	uv pip install --system torch torchvision --index-url https://download.pytorch.org/whl/cpu --force-reinstall
 	uv pip sync --system sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt
 	uv pip install --system --no-deps -e .
-	python setup.py build_python_protos --inplace
+	#python setup.py build_python_protos --inplace
 
-install-python-ci-dependencies-uv-venv:
-	uv pip sync sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt
-	uv pip install --no-deps -e .
-	python setup.py build_python_protos --inplace
+# DEPRECATED maintained for legacy reasons
+install-python-ci-dependencies-uv: install-python-dependencies-ci
 
 install-protoc-dependencies:
 	pip install "protobuf>=4.24.0,<5.0.0" "grpcio-tools>=1.56.2,<2" "mypy-protobuf>=3.1" "setuptools>=61"
@@ -106,6 +109,7 @@ lock-python-ci-dependencies:
 install-python-ci-dependencies: ## Install Python CI dependencies in system environment using piptools
 	python -m piptools sync sdk/python/requirements/py$(PYTHON_VERSION)-ci-requirements.txt
 	pip install --no-deps -e .
+	#python setup.py build_python_protos --inplace
 
 # Currently used in test-end-to-end.sh
 install-python: ## Install Python requirements and develop package (setup.py develop)
@@ -143,12 +147,12 @@ compile-protos-python: ## Compile Python protobuf files
 lock-python-dependencies-uv-all:
 	# Having issues with pixi and uv pip compile for MAC. Deleteing the files and running the command again with py version in uv solved problem.
 	rm sdk/python/requirements/*
-	uv pip compile -p 3.9 --system --no-strip-extras setup.py --output-file sdk/python/requirements/py3.9-requirements.txt
-	uv pip compile -p 3.9 --system --no-strip-extras setup.py --extra ci --output-file sdk/python/requirements/py3.9-ci-requirements.txt
-	uv pip compile -p 3.10 --system --no-strip-extras setup.py --output-file sdk/python/requirements/py3.10-requirements.txt
-	uv pip compile -p 3.10 --system --no-strip-extras setup.py --extra ci --output-file sdk/python/requirements/py3.10-ci-requirements.txt
-	uv pip compile -p 3.11 --system --no-strip-extras setup.py --output-file sdk/python/requirements/py3.11-requirements.txt
-	uv pip compile -p 3.11 --system --no-strip-extras setup.py --extra ci --output-file sdk/python/requirements/py3.11-ci-requirements.txt
+	uv pip compile -p 3.12 --system --no-strip-extras pyproject.toml --generate-hashes --output-file sdk/python/requirements/py3.12-requirements.txt
+	uv pip compile -p 3.12 --system --no-strip-extras pyproject.toml --generate-hashes --extra ci --output-file sdk/python/requirements/py3.12-ci-requirements.txt
+	uv pip compile -p 3.10 --system --no-strip-extras pyproject.toml --generate-hashes --output-file sdk/python/requirements/py3.10-requirements.txt
+	uv pip compile -p 3.10 --system --no-strip-extras pyproject.toml --generate-hashes --extra ci --output-file sdk/python/requirements/py3.10-ci-requirements.txt
+	uv pip compile -p 3.11 --system --no-strip-extras pyproject.toml --generate-hashes --output-file sdk/python/requirements/py3.11-requirements.txt
+	uv pip compile -p 3.11 --system --no-strip-extras pyproject.toml --generate-hashes --extra ci --output-file sdk/python/requirements/py3.11-ci-requirements.txt
 
 benchmark-python: ## Run integration + benchmark tests for Python
 	IS_TEST=True python -m pytest --integration --benchmark  --benchmark-autosave --benchmark-save-data sdk/python/tests
@@ -593,6 +597,13 @@ kill-trino-locally: ## Kill Trino locally
 
 # Go SDK & embedded
 
+#.PHONY: install-go-proto-dependencies
+#install-go-proto-dependencies:
+##	$(TOOL_DIR)/protoc-$(PB_VERSION)-$(OS)-$(PB_ARCH).zip ## Install Go proto dependencies
+##	unzip -u $(TOOL_DIR)/protoc-$(PB_VERSION)-$(OS)-$(PB_ARCH).zip -d $(TOOL_DIR)
+#	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.31.0
+#	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.3.0
+
 install-go-ci-dependencies:
 	# TODO: currently gopy installation doesn't work w/o explicit go get in the next line
 	# TODO: there should be a better way to install gopy
@@ -601,11 +612,7 @@ install-go-ci-dependencies:
 	# The `go get` command on the previous lines download the lib along with replacing the dep to `feast-dev/gopy`
 	# but the following command is needed to install it for some reason.
 	go install github.com/go-python/gopy
-	python -m pip install "pybindgen==0.22.1" "grpcio-tools>=1.56.2,<2" "mypy-protobuf>=3.1"
-
-#TODO: evaluate which version to keep
-#compile-protos-go: install-go-proto-dependencies install-protoc-dependencies
-#	python setup.py build_go_protos
+	uv pip install --system "pybindgen==0.22.1" "grpcio-tools>=1.56.2,<2" "mypy-protobuf>=3.1" "setuptools>=61"
 
 .PHONY: build-go
 build-go: compile-protos-go
@@ -615,12 +622,91 @@ build-go: compile-protos-go
 			-X github.com/feast-dev/feast/go/internal/feast/version.BuildTime=$(BUILD_TIME)" \
 		./go/main.go
 
-test-go-integration: compile-protos-go compile-protos-python install-feast-ci-locally
+##@ Go SDK
+PB_REL = https://github.com/protocolbuffers/protobuf/releases
+PB_VERSION = 30.2
+PB_ARCH := $(shell uname -m)
+ifeq ($(PB_ARCH), arm64)
+	PB_ARCH=aarch_64
+endif
+ifeq ($(PB_ARCH), aarch64)
+	PB_ARCH=aarch_64
+endif
+PB_PROTO_FOLDERS=core registry serving types storage
+
+install-protoc:
+	echo "Installing protoc $(PB_VERSION) for $(OS)-$(PB_ARCH) in $(TOOL_DIR)"
+	mkdir -p $(TOOL_DIR)
+	cd $(TOOL_DIR) && \
+	curl -LO $(PB_REL)/download/v$(PB_VERSION)/protoc-$(PB_VERSION)-$(OS)-$(PB_ARCH).zip
+
+$(TOOL_DIR)/protoc-$(PB_VERSION)-$(OS)-$(PB_ARCH).zip: $(TOOL_DIR)
+	cd $(TOOL_DIR) && \
+	curl -LO $(PB_REL)/download/v$(PB_VERSION)/protoc-$(PB_VERSION)-$(OS)-$(PB_ARCH).zip
+
+.PHONY: install-go-proto-dependencies
+install-go-proto-dependencies: install-protoc
+	#$(TOOL_DIR)/protoc-$(PB_VERSION)-$(OS)-$(PB_ARCH).zip ## Install Go proto dependencies
+	unzip -u $(TOOL_DIR)/protoc-$(PB_VERSION)-$(OS)-$(PB_ARCH).zip -d $(TOOL_DIR)
+	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.31.0
+	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.3.0
+
+.PHONY: compile-protos-go
+compile-protos-go: install-go-proto-dependencies ## Compile Go protobuf files
+	mkdir -p $(ROOT_DIR)/go/protos
+	$(foreach folder,$(PB_PROTO_FOLDERS), \
+		protoc --proto_path=$(ROOT_DIR)/protos \
+			--go_out=$(ROOT_DIR)/go/protos \
+			--go_opt=module=github.com/feast-dev/feast/go/protos \
+			--go-grpc_out=$(ROOT_DIR)/go/protos \
+			--go-grpc_opt=module=github.com/feast-dev/feast/go/protos $(ROOT_DIR)/protos/feast/$(folder)/*.proto; ) true
+
+#.PHONY: compile-protos-go
+#compile-protos-go: install-go-proto-dependencies ## Compile Go protobuf files
+#	pip install "protobuf>=4.24.0,<5.0.0" "grpcio-tools>=1.56.2,<2" "mypy-protobuf>=3.1" "setuptools>=61"
+#	python setup.py build_go_protos
+
+.PHONY: install-feast-ci-locally
+install-feast-ci-locally: ## Install Feast CI dependencies locally
+	uv pip install -e ".[ci]"
+
+.PHONY: install-feast-ci-system
+install-feast-ci-system: ## Install Feast CI dependencies on the system
+	uv pip install --system -e ".[ci]"
+
+.PHONY: install-feast-ci-locally-pip
+install-feast-ci-locally-pip: ## Install Feast CI dependencies locally
+	pip install -e ".[ci]"
+
+.PHONY: test-go
+test-go: compile-protos-go install-feast-ci-locally compile-protos-python ## Run Go tests
+	CGO_ENABLED=1 go test -tags=unit -coverprofile=coverage.out ./... && go tool cover -html=coverage.out -o coverage.html
+
+.PHONY: test-go-github
+test-go-github: compile-protos-go install-feast-ci-system compile-protos-python ## Run Go tests
+	CGO_ENABLED=1 go test -tags=unit -coverprofile=coverage.out ./... && go tool cover -html=coverage.out -o coverage.html
+
+test-go-integration: compile-protos-go install-feast-ci-locally compile-protos-python
 	docker compose -f go/internal/feast/integration_tests/valkey/docker-compose.yaml up -d
 	docker compose -f go/internal/feast/integration_tests/scylladb/docker-compose.yaml up -d
 	go test -p 1 -tags=integration ./go/internal/...
 	docker compose -f go/internal/feast/integration_tests/valkey/docker-compose.yaml down
 	docker compose -f go/internal/feast/integration_tests/scylladb/docker-compose.yaml down
+
+test-go-integration-github: compile-protos-go install-feast-ci-system compile-protos-python
+	docker compose -f go/internal/feast/integration_tests/valkey/docker-compose.yaml up -d
+	docker compose -f go/internal/feast/integration_tests/scylladb/docker-compose.yaml up -d
+	go test -p 1 -tags=integration ./go/internal/...
+	docker compose -f go/internal/feast/integration_tests/valkey/docker-compose.yaml down
+	docker compose -f go/internal/feast/integration_tests/scylladb/docker-compose.yaml down
+
+.PHONY: format-go
+format-go: ## Format Go code
+	gofmt -s -w go/
+
+.PHONY: lint-go
+lint-go: compile-protos-go ## Lint Go code
+	go vet ./go/internal/feast
 
 # Docker
 
@@ -698,6 +784,12 @@ build-java-docker-dev: ## Build Java Dev Docker image
 		-t feastdev/feature-server-java:dev \
 		-f java/infra/docker/feature-server/Dockerfile.dev --load .
 
+.PHONY: build-go-docker-dev
+build-go-docker-dev: ## Build Go Docker image for development
+	docker buildx build --build-arg VERSION=dev \
+		-t feastdev/feature-server-go:dev \
+		-f go/infra/docker/feature-server/Dockerfile --load .
+
 ##@ Documentation
 
 install-dependencies-proto-docs: ## Install dependencies for generating proto docs
@@ -745,63 +837,3 @@ build-ui-local: ## Build Feast UI locally
 
 format-ui: ## Format Feast UI
 	cd $(ROOT_DIR)/ui && NPM_TOKEN= yarn install && NPM_TOKEN= yarn format
-
-
-##@ Go SDK
-PB_REL = https://github.com/protocolbuffers/protobuf/releases
-PB_VERSION = 30.2
-PB_ARCH := $(shell uname -m)
-ifeq ($(PB_ARCH), arm64)
-	PB_ARCH=aarch_64
-endif
-ifeq ($(PB_ARCH), aarch64)
-	PB_ARCH=aarch_64
-endif
-PB_PROTO_FOLDERS=core registry serving types storage
-
-$(TOOL_DIR)/protoc-$(PB_VERSION)-$(OS)-$(PB_ARCH).zip: $(TOOL_DIR)
-	cd $(TOOL_DIR) && \
-	curl -LO $(PB_REL)/download/v$(PB_VERSION)/protoc-$(PB_VERSION)-$(OS)-$(PB_ARCH).zip
-
-.PHONY: install-go-proto-dependencies
-install-go-proto-dependencies: $(TOOL_DIR)/protoc-$(PB_VERSION)-$(OS)-$(PB_ARCH).zip ## Install Go proto dependencies
-	unzip -u $(TOOL_DIR)/protoc-$(PB_VERSION)-$(OS)-$(PB_ARCH).zip -d $(TOOL_DIR)
-	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.31.0
-	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.3.0
-
-.PHONY: compile-protos-go
-compile-protos-go: install-go-proto-dependencies ## Compile Go protobuf files
-	mkdir -p $(ROOT_DIR)/go/protos
-	$(foreach folder,$(PB_PROTO_FOLDERS), \
-		protoc --proto_path=$(ROOT_DIR)/protos \
-			--go_out=$(ROOT_DIR)/go/protos \
-			--go_opt=module=github.com/feast-dev/feast/go/protos \
-			--go-grpc_out=$(ROOT_DIR)/go/protos \
-			--go-grpc_opt=module=github.com/feast-dev/feast/go/protos $(ROOT_DIR)/protos/feast/$(folder)/*.proto; ) true
-
-#install-go-ci-dependencies:
-	# go install golang.org/x/tools/cmd/goimports
-	# python -m pip install "pybindgen==0.22.1" "grpcio-tools>=1.56.2,<2" "mypy-protobuf>=3.1"
-
-.PHONY: install-feast-ci-locally
-install-feast-ci-locally: ## Install Feast CI dependencies locally
-	uv pip install -e ".[ci]"
-
-.PHONY: test-go
-test-go: compile-protos-go install-feast-ci-locally compile-protos-python ## Run Go tests
-	CGO_ENABLED=1 go test -tags=unit -coverprofile=coverage.out ./... && go tool cover -html=coverage.out -o coverage.html
-
-.PHONY: format-go
-format-go: ## Format Go code
-	gofmt -s -w go/
-
-.PHONY: lint-go
-lint-go: compile-protos-go ## Lint Go code
-	go vet ./go/internal/feast
-
-.PHONY: build-go-docker-dev
-build-go-docker-dev: ## Build Go Docker image for development
-	docker buildx build --build-arg VERSION=dev \
-		-t feastdev/feature-server-go:dev \
-		-f go/infra/docker/feature-server/Dockerfile --load .
-

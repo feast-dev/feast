@@ -16,15 +16,11 @@ import (
 	"github.com/feast-dev/feast/go/internal/feast/server"
 	"github.com/feast-dev/feast/go/internal/feast/server/logging"
 	"github.com/feast-dev/feast/go/internal/feast/version"
-	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/rs/zerolog/log"
 
+	"github.com/DataDog/dd-trace-go/v2/ddtrace/tracer"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	_ "go.uber.org/automaxprocs"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/health"
-	"google.golang.org/grpc/health/grpc_health_v1"
-	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 )
 
 type ServerStarter interface {

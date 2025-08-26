@@ -4,8 +4,8 @@ package onlinestore
 
 import (
 	"context"
+	"github.com/stretchr/testify/require"
 	"path/filepath"
-	"reflect"
 	"testing"
 
 	"github.com/feast-dev/feast/go/internal/feast/registry"
@@ -42,7 +42,7 @@ func TestSqliteOnlineRead(t *testing.T) {
 	feature_repo_path := filepath.Join(dir, "my_project", "feature_repo")
 	test.SetupCleanFeatureRepo(dir)
 	config, err := registry.NewRepoConfigFromFile(feature_repo_path)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	store, err := NewSqliteOnlineStore("my_project", config, config.OnlineStore)
 	defer store.Destruct()
@@ -83,6 +83,8 @@ func TestSqliteOnlineRead(t *testing.T) {
 		expectedFeatureValues = append(expectedFeatureValues, &types.Value{Val: &types.Value_Int64Val{Int64Val: int64(correctFeatures[key].AvgDailyTrips)}})
 	}
 	expectedFeatureNames := []string{"conv_rate", "acc_rate", "avg_daily_trips", "conv_rate", "acc_rate", "avg_daily_trips", "conv_rate", "acc_rate", "avg_daily_trips"}
-	assert.True(t, reflect.DeepEqual(expectedFeatureValues, returnedFeatureValues))
-	assert.True(t, reflect.DeepEqual(expectedFeatureNames, returnedFeatureNames))
+	assert.Equal(t, expectedFeatureValues, returnedFeatureValues)
+	assert.Equal(t, expectedFeatureNames, returnedFeatureNames)
+	//assert.True(t, reflect.DeepEqual(expectedFeatureValues, returnedFeatureValues))
+	//assert.True(t, reflect.DeepEqual(expectedFeatureNames, returnedFeatureNames))
 }

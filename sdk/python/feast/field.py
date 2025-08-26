@@ -44,39 +44,9 @@ class Field(BaseModel):
     dtype: FeastType
     description: str = ""
     tags: Optional[Dict[str, str]] = {}
-    vector_index: bool
-    vector_length: int
-    vector_search_metric: Optional[str]
-
-    def __init__(
-        self,
-        *,
-        name: str,
-        dtype: FeastType,
-        description: str = "",
-        tags: Optional[Dict[str, str]] = None,
-        vector_index: bool = False,
-        vector_length: int = 0,
-        vector_search_metric: Optional[str] = None,
-    ):
-        """
-        Creates a Field object.
-
-        Args:
-            name: The name of the field.
-            dtype: The type of the field, such as string or float.
-            description (optional): A human-readable description.
-            tags (optional): User-defined metadata in dictionary form.
-            vector_index (optional): If set to True the field will be indexed for vector similarity search.
-            vector_search_metric (optional): The metric used for vector similarity search.
-        """
-        self.name = name
-        self.dtype = dtype
-        self.description = description
-        self.tags = tags or {}
-        self.vector_index = vector_index
-        self.vector_length = vector_length
-        self.vector_search_metric = vector_search_metric
+    vector_index: bool = False
+    vector_length: int = 0
+    vector_search_metric: Optional[str] = ""
 
     @field_validator("dtype", mode="before")
     def dtype_is_feasttype_or_string_feasttype(cls, v):

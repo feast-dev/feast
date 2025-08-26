@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Union
 
-from feast import BatchFeatureView, FeatureView, StreamFeatureView
+from feast import BatchFeatureView, FeatureView, SortedFeatureView, StreamFeatureView
 from feast.infra.common.materialization_job import MaterializationTask
 from feast.infra.common.retrieval_task import HistoricalRetrievalTask
 from feast.infra.compute_engines.algorithms.topo import topological_sort
@@ -67,6 +67,8 @@ class FeatureBuilder(ABC):
         raise NotImplementedError
 
     def _should_aggregate(self, view):
+        if isinstance(view, SortedFeatureView):
+            return False
         return bool(getattr(view, "aggregations", []))
 
     def _should_transform(self, view):
@@ -76,6 +78,8 @@ class FeatureBuilder(ABC):
         return getattr(view, "enable_validation", False)
 
     def _should_dedupe(self, view):
+        if isinstance(view, SortedFeatureView):
+            return False
         return isinstance(self.task, HistoricalRetrievalTask) or self.task.only_latest
 
     def _build(self, view, input_nodes: Optional[List[DAGNode]]) -> DAGNode:

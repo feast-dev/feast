@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"github.com/DataDog/dd-trace-go/v2/ddtrace/tracer"
 	"github.com/feast-dev/feast/go/internal/feast"
 	"github.com/feast-dev/feast/go/internal/feast/errors"
 	"github.com/feast-dev/feast/go/internal/feast/server/logging"
@@ -14,12 +15,11 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/reflection"
-	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 
+	grpcTrace "github.com/DataDog/dd-trace-go/contrib/google.golang.org/grpc/v2"
 	grpcPrometheus "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
 	"github.com/prometheus/client_golang/prometheus"
 	"google.golang.org/grpc/health/grpc_health_v1"
-	grpcTrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/google.golang.org/grpc"
 )
 
 const feastServerVersion = "0.0.1"

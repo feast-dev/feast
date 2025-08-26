@@ -24,6 +24,10 @@ func SerializeEntityKey(entityKey *types.EntityKey, entityKeySerializationVersio
 	if len(entityKey.JoinKeys) != len(entityKey.EntityValues) {
 		return nil, fmt.Errorf("the amount of join key names and entity values don't match: %s vs %s", entityKey.JoinKeys, entityKey.EntityValues)
 	}
+	if entityKeySerializationVersion == 0 {
+		// Default to version 3
+		entityKeySerializationVersion = 3
+	}
 
 	// Make sure that join keys are sorted so that we have consistent key building
 	m := make(map[string]*types.Value)
@@ -40,18 +44,35 @@ func SerializeEntityKey(entityKey *types.EntityKey, entityKeySerializationVersio
 
 	// Build the key
 	length := 5 * len(keys)
+	versionOffset := 0
+	if entityKeySerializationVersion > 2 {
+		length = 1 + (6 * len(keys)) // Add one more buffer for key number byte
+		versionOffset = 1
+	}
 	bufferList := make([][]byte, length)
 
-	for i := 0; i < len(keys); i++ {
-		offset := i * 2
-		byteBuffer := make([]byte, 4)
-		binary.LittleEndian.PutUint32(byteBuffer, uint32(types.ValueType_Enum_value["STRING"]))
-		bufferList[offset] = byteBuffer
-		bufferList[offset+1] = []byte(keys[i])
+	if entityKeySerializationVersion > 2 {
+		// First byte is the number of entity keys
+		numKeysBuffer := make([]byte, 4)
+		binary.LittleEndian.PutUint32(numKeysBuffer, uint32(len(keys)))
+		bufferList[0] = numKeysBuffer
 	}
 
 	for i := 0; i < len(keys); i++ {
-		offset := (2 * len(keys)) + (i * 3)
+		offset := i*(2+versionOffset) + versionOffset
+		byteBuffer := make([]byte, 4)
+		binary.LittleEndian.PutUint32(byteBuffer, uint32(types.ValueType_Enum_value["STRING"]))
+		bufferList[offset] = byteBuffer
+		if entityKeySerializationVersion > 2 {
+			keyLength := make([]byte, 4)
+			binary.LittleEndian.PutUint32(keyLength, uint32(len(keys[i])))
+			bufferList[offset+1] = keyLength
+		}
+		bufferList[offset+1+versionOffset] = []byte(keys[i])
+	}
+
+	for i := 0; i < len(keys); i++ {
+		offset := (2 * len(keys)) + (i * 3) + (versionOffset + (versionOffset * len(keys)))
 		value := m[keys[i]].GetVal()
 
 		valueBytes, valueTypeBytes, err := serializeValue(value, entityKeySerializationVersion)

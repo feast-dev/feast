@@ -5,6 +5,12 @@ go 1.23.0
 toolchain go1.23.8
 
 require (
+	github.com/DataDog/dd-trace-go/contrib/gocql/gocql/v2 v2.2.3
+	github.com/DataDog/dd-trace-go/contrib/google.golang.org/grpc/v2 v2.2.3
+	github.com/DataDog/dd-trace-go/contrib/net/http/v2 v2.2.3
+	github.com/DataDog/dd-trace-go/contrib/redis/go-redis.v9/v2 v2.2.3
+	github.com/DataDog/dd-trace-go/contrib/valkey-io/valkey-go/v2 v2.2.3
+	github.com/DataDog/dd-trace-go/v2 v2.2.3
 	github.com/apache/arrow/go/v17 v17.0.0
 	github.com/aws/aws-sdk-go-v2 v1.36.4
 	github.com/aws/aws-sdk-go-v2/config v1.29.14
@@ -20,23 +26,21 @@ require (
 	github.com/prometheus/client_golang v1.22.0
 	github.com/redis/go-redis/extra/redisprometheus/v9 v9.12.1
 	github.com/redis/go-redis/v9 v9.12.1
-	github.com/roberson-io/mmh3 v0.0.0-20190729202758-fdfce3ba6225
 	github.com/rs/zerolog v1.34.0
 	github.com/spaolacci/murmur3 v1.1.0
 	github.com/stretchr/testify v1.10.0
 	github.com/valkey-io/valkey-go v1.0.64
 	go.uber.org/automaxprocs v1.6.0
-	golang.org/x/sync v0.14.0
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20250528174236-200df99c418a
-	google.golang.org/grpc v1.74.2
-	google.golang.org/protobuf v1.36.7
-	gopkg.in/DataDog/dd-trace-go.v1 v1.74.5
+	golang.org/x/sync v0.15.0
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20250707201910-8d1bb00bc6a7
+	google.golang.org/grpc v1.75.0
+	google.golang.org/protobuf v1.36.8
 )
 
 require (
 	github.com/DataDog/appsec-internal-go v1.13.0 // indirect
 	github.com/DataDog/datadog-agent/pkg/obfuscate v0.67.0 // indirect
-	github.com/DataDog/datadog-agent/pkg/remoteconfig/state v0.67.0 // indirect
+	github.com/DataDog/datadog-agent/pkg/remoteconfig/state v0.69.0 // indirect
 	github.com/DataDog/datadog-go/v5 v5.6.0
 	github.com/DataDog/go-tuf v1.1.0-0.5.2 // indirect
 	github.com/DataDog/sketches-go v1.4.7 // indirect
@@ -57,12 +61,6 @@ require (
 	github.com/DataDog/datadog-agent/pkg/util/log v0.67.0 // indirect
 	github.com/DataDog/datadog-agent/pkg/util/scrubber v0.67.0 // indirect
 	github.com/DataDog/datadog-agent/pkg/version v0.67.0 // indirect
-	github.com/DataDog/dd-trace-go/contrib/gocql/gocql/v2 v2.2.2 // indirect
-	github.com/DataDog/dd-trace-go/contrib/google.golang.org/grpc/v2 v2.2.2 // indirect
-	github.com/DataDog/dd-trace-go/contrib/net/http/v2 v2.2.2 // indirect
-	github.com/DataDog/dd-trace-go/contrib/redis/go-redis.v9/v2 v2.2.2 // indirect
-	github.com/DataDog/dd-trace-go/instrumentation/testutils/grpc/v2 v2.2.2 // indirect
-	github.com/DataDog/dd-trace-go/v2 v2.2.2 // indirect
 	github.com/DataDog/go-libddwaf/v4 v4.3.2 // indirect
 	github.com/DataDog/go-runtime-metrics-internal v0.0.4-0.20250721125240-fdf1ef85b633 // indirect
 	github.com/DataDog/go-sqllexer v0.1.6 // indirect
@@ -101,9 +99,8 @@ require (
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
-	github.com/gonuts/commander v0.1.0 // indirect
-	github.com/gonuts/flag v0.1.0 // indirect
 	github.com/google/flatbuffers v24.3.25+incompatible // indirect
+	github.com/google/pprof v0.0.0-20250403155104-27863c87afa6 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.1.0 // indirect
 	github.com/hashicorp/go-version v1.7.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
@@ -139,25 +136,26 @@ require (
 	go.opentelemetry.io/collector/pdata v1.31.0 // indirect
 	go.opentelemetry.io/collector/semconv v0.125.0 // indirect
 	go.opentelemetry.io/contrib/bridges/otelzap v0.10.0 // indirect
-	go.opentelemetry.io/otel v1.36.0 // indirect
+	go.opentelemetry.io/otel v1.37.0 // indirect
 	go.opentelemetry.io/otel/log v0.11.0 // indirect
-	go.opentelemetry.io/otel/metric v1.36.0 // indirect
-	go.opentelemetry.io/otel/sdk v1.36.0 // indirect
-	go.opentelemetry.io/otel/trace v1.36.0 // indirect
+	go.opentelemetry.io/otel/metric v1.37.0 // indirect
+	go.opentelemetry.io/otel/sdk v1.37.0 // indirect
+	go.opentelemetry.io/otel/trace v1.37.0 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
 	golang.org/x/exp v0.0.0-20250408133849-7e4ce0ab07d0 // indirect
-	golang.org/x/mod v0.24.0 // indirect
-	golang.org/x/net v0.40.0 // indirect
+	golang.org/x/mod v0.25.0 // indirect
+	golang.org/x/net v0.41.0 // indirect
 	golang.org/x/sys v0.33.0 // indirect
-	golang.org/x/text v0.25.0 // indirect
-	golang.org/x/tools v0.32.0 // indirect
+	golang.org/x/text v0.26.0 // indirect
+	golang.org/x/tools v0.33.0 // indirect
 	golang.org/x/xerrors v0.0.0-20231012003039-104605ab7028 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
+	sigs.k8s.io/yaml v1.4.0 // indirect
 )
 
 replace github.com/gocql/gocql => github.com/scylladb/gocql v1.15.2

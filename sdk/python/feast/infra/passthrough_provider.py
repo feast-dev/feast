@@ -474,6 +474,7 @@ class PassthroughProvider(Provider):
         registry: BaseRegistry,
         project: str,
         tqdm_builder: Callable[[int], tqdm],
+        **kwargs,
     ) -> None:
         if isinstance(feature_view, OnDemandFeatureView):
             if not feature_view.write_to_online_store:
@@ -510,7 +511,7 @@ class PassthroughProvider(Provider):
             end_time=end_date,
             tqdm_builder=tqdm_builder,
         )
-        jobs = self.batch_engine.materialize(registry, task)
+        jobs = self.batch_engine.materialize(registry, task, **kwargs)
         assert len(jobs) == 1
         if jobs[0].status() == MaterializationJobStatus.ERROR and jobs[0].error():
             e = jobs[0].error()

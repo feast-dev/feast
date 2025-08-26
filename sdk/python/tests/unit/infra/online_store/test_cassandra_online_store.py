@@ -7,7 +7,7 @@ from feast.entity import Entity
 from feast.field import Field
 from feast.infra.offline_stores.dask import DaskOfflineStoreConfig
 from feast.infra.offline_stores.file_source import FileSource
-from feast.infra.online_stores.contrib.cassandra_online_store.cassandra_online_store import (
+from feast.infra.online_stores.cassandra_online_store.cassandra_online_store import (
     CassandraOnlineStore,
     CassandraOnlineStoreConfig,
 )

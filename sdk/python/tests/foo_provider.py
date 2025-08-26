@@ -90,6 +90,7 @@ class FooProvider(Provider):
         registry: BaseRegistry,
         project: str,
         tqdm_builder: Callable[[int], tqdm],
+        **kwargs,
     ) -> None:
         pass
 

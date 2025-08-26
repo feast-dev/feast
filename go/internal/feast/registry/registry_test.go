@@ -493,7 +493,6 @@ func TestRefresh(t *testing.T) {
 			assert.Equal(t, 0, count, "Expected no calls to %s", path)
 		}
 	}
-	return nil, errors.New("not implemented")
 }
 
 func TestGetOnlineFeaturesS3Registry(t *testing.T) {

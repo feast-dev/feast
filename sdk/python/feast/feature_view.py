@@ -14,7 +14,7 @@
 import copy
 import logging
 import warnings
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Tuple, Type, Union
 
 from google.protobuf.duration_pb2 import Duration
@@ -149,7 +149,7 @@ class FeatureView(BaseFeatureView):
         """
         self.name = name
         self.entities = [e.name for e in entities] if entities else [DUMMY_ENTITY_NAME]
-        self.ttl = ttl
+        self.ttl = ttl if ttl else timedelta(days=0)
 
         # FeatureView is destructive of some of its original arguments,
         # making it impossible to convert idempotently to another format.
@@ -627,18 +627,26 @@ class FeatureView(BaseFeatureView):
 
         if feature_view_proto.meta.HasField("created_timestamp"):
             feature_view.created_timestamp = (
-                feature_view_proto.meta.created_timestamp.ToDatetime()
+                feature_view_proto.meta.created_timestamp.ToDatetime(
+                    tzinfo=timezone.utc  # type: ignore[call-arg]
+                )
             )
         if feature_view_proto.meta.HasField("last_updated_timestamp"):
             feature_view.last_updated_timestamp = (
-                feature_view_proto.meta.last_updated_timestamp.ToDatetime()
+                feature_view_proto.meta.last_updated_timestamp.ToDatetime(
+                    tzinfo=timezone.utc  # type: ignore[call-arg]
+                )
             )
 
         for interval in feature_view_proto.meta.materialization_intervals:
             feature_view.materialization_intervals.append(
                 (
-                    utils.make_tzaware(interval.start_time.ToDatetime()),
-                    utils.make_tzaware(interval.end_time.ToDatetime()),
+                    utils.make_tzaware(
+                        interval.start_time.ToDatetime(tzinfo=timezone.utc)  # type: ignore[call-arg]
+                    ),
+                    utils.make_tzaware(
+                        interval.end_time.ToDatetime(tzinfo=timezone.utc)  # type: ignore[call-arg]
+                    ),
                 )
             )
 

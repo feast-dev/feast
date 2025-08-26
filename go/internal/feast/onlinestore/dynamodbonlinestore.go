@@ -2,6 +2,7 @@ package onlinestore
 
 import (
 	"context"
+	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -12,8 +13,8 @@ import (
 	"github.com/feast-dev/feast/go/internal/feast/registry"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
 	"github.com/feast-dev/feast/go/protos/feast/types"
-	"github.com/roberson-io/mmh3"
 	"github.com/rs/zerolog/log"
+	"github.com/spaolacci/murmur3"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/semaphore"
 	"google.golang.org/protobuf/proto"
@@ -103,7 +104,13 @@ func (d *DynamodbOnlineStore) OnlineRead(ctx context.Context, entityKeys []*type
 		if err != nil {
 			return nil, err
 		}
-		entityId := hex.EncodeToString(mmh3.Hashx64_128(*serKey, 0))
+		// Alternative approach using mmh3 library which is breaking go build in some environments
+		//entityId := hex.EncodeToString(mmh3.Hashx64_128(*serKey, 0))
+		h1, h2 := murmur3.Sum128WithSeed(*serKey, 0)
+		hashBuffer := make([]byte, 16)
+		binary.LittleEndian.PutUint64(hashBuffer[0:8], h1)
+		binary.LittleEndian.PutUint64(hashBuffer[8:16], h2)
+		entityId := hex.EncodeToString(hashBuffer)
 		entityIds = append(entityIds, entityId)
 		entityIndexMap[entityId] = i
 	}

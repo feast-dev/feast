@@ -16,6 +16,9 @@ class FieldModel(BaseModel):
     dtype: Union[Array, PrimitiveFeastType]
     description: str = ""
     tags: Optional[Dict[str, str]] = {}
+    vector_index: bool = False
+    vector_length: int = 0
+    vector_search_metric: Optional[str] = None
 
     def to_field(self) -> Field:
         """
@@ -29,6 +32,9 @@ class FieldModel(BaseModel):
             dtype=self.dtype,
             description=self.description,
             tags=self.tags,
+            vector_index=self.vector_index,
+            vector_length=self.vector_length,
+            vector_search_metric=self.vector_search_metric,
         )
 
     @classmethod
@@ -47,4 +53,7 @@ class FieldModel(BaseModel):
             dtype=field.dtype,  # type: ignore
             description=field.description,
             tags=field.tags,
+            vector_index=field.vector_index,
+            vector_length=field.vector_length,
+            vector_search_metric=field.vector_search_metric,
         )

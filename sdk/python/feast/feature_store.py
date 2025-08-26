@@ -1630,7 +1630,7 @@ class FeatureStore:
                 f" to {Style.BRIGHT + Fore.GREEN}{utils.make_tzaware(end_date.replace(microsecond=0))}{Style.RESET_ALL}:"
             )
             logger.info(
-                f"Materializing {feature_view.name} from {start_date.astimezone()} to {end_date.astimezone()}"
+                f"Materializing {feature_view.name} from {start_date} to {end_date}"
             )
 
             def tqdm_builder(length):
@@ -1715,7 +1715,7 @@ class FeatureStore:
             provider = self._get_provider()
             print(f"{Style.BRIGHT + Fore.GREEN}{feature_view.name}{Style.RESET_ALL}:")
             logger.info(
-                f"Materializing {feature_view.name} from {start_date.astimezone()} to {end_date.astimezone()}"
+                f"Materializing {feature_view.name} from {start_date} to {end_date}"
             )
 
             def tqdm_builder(length):
@@ -2005,7 +2005,7 @@ class FeatureStore:
                         feature_view_name, allow_registry_cache=allow_registry_cache
                     )
                 except FeatureViewNotFoundException:
-                    feature_view = self.get_on_demand_feature_view( # type: ignore
+                    feature_view = self.get_on_demand_feature_view(  # type: ignore
                         feature_view_name, allow_registry_cache=allow_registry_cache
                     )
 
@@ -2925,7 +2925,7 @@ def _print_materialization_log(
             f" into the {Style.BRIGHT + Fore.GREEN}{online_store}{Style.RESET_ALL} online store.\n"
         )
         logger.info(
-            f"Materializing {num_feature_views} feature views from {start_date.replace(microsecond=0).astimezone()} to {end_date.replace(microsecond=0).astimezone()} into the {online_store} online store."
+            f"Materializing {num_feature_views} feature views from {start_date.replace(microsecond=0)} to {end_date.replace(microsecond=0)} into the {online_store} online store."
         )
     else:
         print(
@@ -2934,7 +2934,7 @@ def _print_materialization_log(
             f" into the {Style.BRIGHT + Fore.GREEN}{online_store}{Style.RESET_ALL} online store.\n"
         )
         logger.info(
-            f"Materializing {num_feature_views} feature views to {end_date.replace(microsecond=0).astimezone()} into the {online_store} online store."
+            f"Materializing {num_feature_views} feature views to {end_date.replace(microsecond=0)} into the {online_store} online store."
         )
 
 
