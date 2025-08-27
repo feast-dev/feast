@@ -119,7 +119,7 @@ def get_saved_dataset_router(grpc_handler) -> APIRouter:
         saved_datasets = response.get("savedDatasets", [])
 
         result = {
-            "saved_datasets": saved_datasets,
+            "savedDatasets": saved_datasets,
             "pagination": response.get("pagination", {}),
         }
 
