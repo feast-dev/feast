@@ -1824,16 +1824,19 @@ class GetFeatureRequest(google.protobuf.message.Message):
     PROJECT_FIELD_NUMBER: builtins.int
     FEATURE_VIEW_FIELD_NUMBER: builtins.int
     NAME_FIELD_NUMBER: builtins.int
+    ALLOW_CACHE_FIELD_NUMBER: builtins.int
     project: builtins.str
     feature_view: builtins.str
     name: builtins.str
+    allow_cache: builtins.bool
     def __init__(
         self,
         *,
         project: builtins.str = ...,
         feature_view: builtins.str = ...,
         name: builtins.str = ...,
+        allow_cache: builtins.bool = ...,
     ) -> None: ...
-    def ClearField(self, field_name: typing_extensions.Literal["feature_view", b"feature_view", "name", b"name", "project", b"project"]) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["allow_cache", b"allow_cache", "feature_view", b"feature_view", "name", b"name", "project", b"project"]) -> None: ...
 
 global___GetFeatureRequest = GetFeatureRequest

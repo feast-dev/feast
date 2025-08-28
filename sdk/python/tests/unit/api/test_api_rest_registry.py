@@ -527,11 +527,11 @@ def test_saved_datasets_via_rest(fastapi_test_app):
     response = fastapi_test_app.get("/saved_datasets?project=demo_project")
     assert response.status_code == 200
     response_data = response.json()
-    assert "saved_datasets" in response_data
-    assert isinstance(response_data["saved_datasets"], list)
-    assert len(response_data["saved_datasets"]) == 1
+    assert "savedDatasets" in response_data
+    assert isinstance(response_data["savedDatasets"], list)
+    assert len(response_data["savedDatasets"]) == 1
 
-    saved_dataset = response_data["saved_datasets"][0]
+    saved_dataset = response_data["savedDatasets"][0]
     assert saved_dataset["spec"]["name"] == "test_saved_dataset"
     assert "user_profile:age" in saved_dataset["spec"]["features"]
     assert "user_profile:income" in saved_dataset["spec"]["features"]
@@ -561,21 +561,21 @@ def test_saved_datasets_via_rest(fastapi_test_app):
         "/saved_datasets?project=demo_project&tags=environment:test"
     )
     assert response.status_code == 200
-    assert len(response.json()["saved_datasets"]) == 1
+    assert len(response.json()["savedDatasets"]) == 1
 
     # Test with non-matching tags filter
     response = fastapi_test_app.get(
         "/saved_datasets?project=demo_project&tags=environment:production"
     )
     assert response.status_code == 200
-    assert len(response.json()["saved_datasets"]) == 0
+    assert len(response.json()["savedDatasets"]) == 0
 
     # Test with multiple tags filter
     response = fastapi_test_app.get(
         "/saved_datasets?project=demo_project&tags=environment:test&tags=version:1.0"
     )
     assert response.status_code == 200
-    assert len(response.json()["saved_datasets"]) == 1
+    assert len(response.json()["savedDatasets"]) == 1
 
     # Test non-existent saved dataset
     response = fastapi_test_app.get("/saved_datasets/non_existent?project=demo_project")
@@ -932,9 +932,9 @@ def test_saved_datasets_pagination_via_rest(fastapi_test_app_with_multiple_objec
     response = client.get("/saved_datasets?project=demo_project&page=1&limit=2")
     assert response.status_code == 200
     data = response.json()
-    assert "saved_datasets" in data
+    assert "savedDatasets" in data
     assert "pagination" in data
-    assert len(data["saved_datasets"]) == 2
+    assert len(data["savedDatasets"]) == 2
     assert data["pagination"]["page"] == 1
     assert data["pagination"]["limit"] == 2
     assert data["pagination"]["totalCount"] == 3
@@ -951,7 +951,7 @@ def test_saved_datasets_sorting_via_rest(fastapi_test_app_with_multiple_objects)
     )
     assert response.status_code == 200
     data = response.json()
-    sd_names = [sd["spec"]["name"] for sd in data["saved_datasets"]]
+    sd_names = [sd["spec"]["name"] for sd in data["savedDatasets"]]
     assert sd_names == sorted(sd_names)
 
     # Test sorting by name descending
@@ -960,7 +960,7 @@ def test_saved_datasets_sorting_via_rest(fastapi_test_app_with_multiple_objects)
     )
     assert response.status_code == 200
     data = response.json()
-    sd_names = [sd["spec"]["name"] for sd in data["saved_datasets"]]
+    sd_names = [sd["spec"]["name"] for sd in data["savedDatasets"]]
     assert sd_names == sorted(sd_names, reverse=True)
 
 
