@@ -44,7 +44,7 @@ from feast.utils import (
 
 PROTO_TO_MILVUS_TYPE_MAPPING: Dict[ValueType, DataType] = {
     PROTO_VALUE_TO_VALUE_TYPE_MAP["bytes_val"]: DataType.VARCHAR,
-    ValueType.IMAGE_BYTES: DataType.VARCHAR,  # IMAGE_BYTES serializes as bytes_val
+    ValueType.IMAGE_BYTES: DataType.VARCHAR,
     PROTO_VALUE_TO_VALUE_TYPE_MAP["bool_val"]: DataType.BOOL,
     PROTO_VALUE_TO_VALUE_TYPE_MAP["string_val"]: DataType.VARCHAR,
     PROTO_VALUE_TO_VALUE_TYPE_MAP["float_val"]: DataType.FLOAT,
@@ -249,7 +249,7 @@ class MilvusOnlineStore(OnlineStore):
     ) -> None:
         self.client = self._connect(config)
         collection = self._get_or_create_collection(config, table)
-        vector_cols = [f.name for f in table.schema if f.vector_index]
+        vector_cols = [f.name for f in table.features if f.vector_index]
         entity_batch_to_insert = []
         unique_entities: dict[str, dict[str, Any]] = {}
         required_fields = {field["name"] for field in collection["fields"]}
@@ -505,14 +505,6 @@ class MilvusOnlineStore(OnlineStore):
         entity_name_feast_primitive_type_map = {
             k.name: k.dtype for k in table.entity_columns
         }
-        # Also include feature columns for proper type mapping
-        feature_name_feast_primitive_type_map = {
-            k.name: k.dtype for k in table.features
-        }
-        field_name_feast_primitive_type_map = {
-            **entity_name_feast_primitive_type_map,
-            **feature_name_feast_primitive_type_map,
-        }
         self.client = self._connect(config)
         collection_name = _table_id(config.project, table)
         collection = self._get_or_create_collection(config, table)
@@ -673,14 +665,14 @@ class MilvusOnlineStore(OnlineStore):
                         )
                         res[ann_search_field] = serialized_embedding
                     elif (
-                        field_name_feast_primitive_type_map.get(
+                        entity_name_feast_primitive_type_map.get(
                             field, PrimitiveFeastType.INVALID
                         )
                         == PrimitiveFeastType.STRING
                     ):
                         res[field] = ValueProto(string_val=str(field_value))
                     elif (
-                        field_name_feast_primitive_type_map.get(
+                        entity_name_feast_primitive_type_map.get(
                             field, PrimitiveFeastType.INVALID
                         )
                         == PrimitiveFeastType.BYTES
@@ -690,7 +682,7 @@ class MilvusOnlineStore(OnlineStore):
                             res[field] = ValueProto(bytes_val=decoded_bytes)
                         except Exception:
                             res[field] = ValueProto(string_val=str(field_value))
-                    elif field_name_feast_primitive_type_map.get(
+                    elif entity_name_feast_primitive_type_map.get(
                         field, PrimitiveFeastType.INVALID
                     ) in [
                         PrimitiveFeastType.INT64,
