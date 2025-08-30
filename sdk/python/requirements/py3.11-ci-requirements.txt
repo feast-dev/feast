@@ -1461,9 +1461,9 @@ h11==0.16.0 \
     # via
     #   httpcore
     #   uvicorn
-h2==4.2.0 \
-    --hash=sha256:479a53ad425bb29af087f3458a61d30780bc818e4ebcf01f0b536ba916462ed0 \
-    --hash=sha256:c8a52129695e88b1a0578d8d2cc6842bbd79128ac685463b887ee278126ad01f
+h2==4.3.0 \
+    --hash=sha256:6c59efe4323fa18b47a632221a1888bd7fde6249819beda254aeca909f221bf1 \
+    --hash=sha256:c438f029a25f7945c69e0ccf0fb951dc3f73a5f6412981daee861431b70e2bdd
     # via httpx
 happybase==1.2.0 \
     --hash=sha256:850b4ee651128588a57e1e152dd1252e5ec39776a5d3d14ee892b8bac0fa9e1a
