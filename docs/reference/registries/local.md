@@ -14,7 +14,7 @@ An example of how to configure this would be:
 ```yaml
 project: feast_local
 registry:
-  path: registry.pb
+  path: registry.db
   cache_ttl_seconds: 60
 online_store: null
 offline_store:
