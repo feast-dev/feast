@@ -51,6 +51,8 @@ spec:
     - linux/ppc64le
   - name: image-expires-after
     value: 5d
+  - name: enable-slack-failure-notification
+    value: "false"
   pipelineRef:
     resolver: git
     params:
