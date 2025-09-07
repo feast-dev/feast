@@ -141,6 +141,9 @@ func (feast *FeastServices) Deploy() error {
 	if err := feast.deployClient(); err != nil {
 		return err
 	}
+	if err := feast.deployNamespaceRegistry(); err != nil {
+		return err
+	}
 	if err := feast.deployCronJob(); err != nil {
 		return err
 	}
