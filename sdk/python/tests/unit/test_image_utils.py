@@ -84,14 +84,6 @@ class TestImageFeatureExtractor:
         with pytest.raises(ValueError, match="Failed to extract embedding"):
             extractor.extract_embedding(b"invalid image data")
 
-    def test_get_embedding_dimension(self):
-        """Test getting embedding dimension."""
-        extractor = ImageFeatureExtractor()
-        dimension = extractor.get_embedding_dimension()
-
-        assert isinstance(dimension, int)
-        assert dimension > 0
-
     def test_batch_extract_embeddings(self):
         """Test batch embedding extraction."""
         extractor = ImageFeatureExtractor()

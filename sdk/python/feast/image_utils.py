@@ -33,6 +33,9 @@ except ImportError:
     _image_dependencies_available = False
 
 
+COMBINATION_STRATEGIES = ["weighted_sum", "concatenate", "average"]
+
+
 def _check_image_dependencies():
     """Check if image processing dependencies are available."""
     if not _image_dependencies_available:
@@ -58,7 +61,10 @@ class ImageFeatureExtractor:
 
         Using different models::
 
-            # Use ViT model for better performance
+            # ResNet-50
+            extractor = ImageFeatureExtractor("resnet50")
+            embedding = extractor.extract_embedding(image_bytes)
+            # ViT model
             extractor = ImageFeatureExtractor("vit_base_patch16_224")
             embedding = extractor.extract_embedding(image_bytes)
     """
@@ -88,6 +94,7 @@ class ImageFeatureExtractor:
 
             config = resolve_data_config({}, model=model_name)
             self.preprocess = create_transform(**config)
+
         except Exception as e:
             raise RuntimeError(f"Failed to load model '{model_name}': {e}")
 
@@ -114,17 +121,6 @@ class ImageFeatureExtractor:
 
         except Exception as e:
             raise ValueError(f"Failed to extract embedding from image: {e}")
-
-    def get_embedding_dimension(self) -> int:
-        """
-        Get the dimension of embeddings produced by this model.
-        Returns:
-            Integer dimension of the embedding vector
-        """
-        dummy_input = torch.randn(1, 3, 224, 224)  # Standard input size
-        with torch.no_grad():
-            output = self.model(dummy_input)
-        return output.shape[1]
 
     def batch_extract_embeddings(
         self, image_bytes_list: List[bytes]
@@ -177,10 +173,7 @@ def combine_embeddings(
     Args:
         text_embedding: Text embedding vector
         image_embedding: Image embedding vector
-        strategy: Combination strategy. Options:
-            - "weighted_sum": Weighted sum of aligned embeddings (default)
-            - "concatenate": Concatenate embeddings end-to-end
-            - "average": Simple average of aligned embeddings
+        strategy: Combination strategy (default: "weighted_sum")
         text_weight: Weight for text embedding (for weighted strategies)
         image_weight: Weight for image embedding (for weighted strategies)
 
@@ -188,7 +181,7 @@ def combine_embeddings(
         Combined embedding vector as list of floats
 
     Raises:
-        ValueError: If strategy is invalid or weights don't sum to 1.0
+        ValueError: If weights don't sum to 1.0 for weighted_sum strategy
 
     Examples:
         Weighted combination (emphasize image)::
@@ -236,7 +229,7 @@ def combine_embeddings(
     else:
         raise ValueError(
             f"Unknown combination strategy: {strategy}. "
-            f"Supported strategies: weighted_sum, concatenate, average"
+            f"Supported strategies: {', '.join(COMBINATION_STRATEGIES)}"
         )
 
 
