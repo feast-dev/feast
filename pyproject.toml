@@ -35,7 +35,7 @@ dependencies = [
     "tqdm>=4,<5",
     "typeguard>=4.0.0",
     "fastapi>=0.68.0",
-    "uvicorn[standard]==0.34.0",
+    "uvicorn[standard]>=0.30.6,<=0.34.0",
     "uvicorn-worker",
     "gunicorn; platform_system != 'Windows'",
     "dask[dataframe]>=2024.2.1",
@@ -90,13 +90,13 @@ ibis = [
 ikv = [
     "ikvpy>=0.0.36",
 ]
+k8s = ["kubernetes>=20.13.0,<=23.3.0"]
 image = [
     "feast[pytorch]",
     "timm>=0.6.0",
     "Pillow>=8.0.0",
     "scikit-learn>=1.0.0",
 ]
-k8s = ["kubernetes<=20.13.0"]
 milvus = [
     "pymilvus==2.4.9",
     "milvus-lite==2.4.12",
