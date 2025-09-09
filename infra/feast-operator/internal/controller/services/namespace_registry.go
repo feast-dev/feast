@@ -19,6 +19,7 @@ package services
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -51,7 +52,10 @@ func (feast *FeastServices) createNamespaceRegistryConfigMap() error {
 	logger := log.FromContext(feast.Handler.Context)
 
 	// Determine the target namespace based on platform
-	targetNamespace := feast.getNamespaceRegistryNamespace()
+	targetNamespace, err := feast.getNamespaceRegistryNamespace()
+	if err != nil {
+		return fmt.Errorf("failed to get namespace registry namespace: %w", err)
+	}
 
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -133,7 +137,10 @@ func (feast *FeastServices) setNamespaceRegistryConfigMap(cm *corev1.ConfigMap) 
 func (feast *FeastServices) createNamespaceRegistryRoleBinding() error {
 	logger := log.FromContext(feast.Handler.Context)
 
-	targetNamespace := feast.getNamespaceRegistryNamespace()
+	targetNamespace, err := feast.getNamespaceRegistryNamespace()
+	if err != nil {
+		return fmt.Errorf("failed to get namespace registry namespace: %w", err)
+	}
 
 	roleBinding := &rbacv1.RoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
@@ -182,7 +189,6 @@ func (feast *FeastServices) setNamespaceRegistryRoleBinding(rb *rbacv1.RoleBindi
 				Verbs:         []string{"get", "list"},
 			},
 		}
-		role.Labels = feast.getLabels()
 		return nil
 	})); err != nil {
 		return err
@@ -203,37 +209,40 @@ func (feast *FeastServices) setNamespaceRegistryRoleBinding(rb *rbacv1.RoleBindi
 		},
 	}
 
-	rb.Labels = feast.getLabels()
-
 	return nil
 }
 
 // getNamespaceRegistryNamespace determines the target namespace for the namespace registry ConfigMap
-func (feast *FeastServices) getNamespaceRegistryNamespace() string {
+func (feast *FeastServices) getNamespaceRegistryNamespace() (string, error) {
 	// Check if we're running on OpenShift
-	if IsOpenShiftForNamespaceRegistry() {
-		// For OpenShift, use redhat-ods-applications or check for DSCi configuration
-		// For now, we'll use the default OpenShift namespace
+	logger := log.FromContext(feast.Handler.Context)
+	if isOpenShift {
 		// TODO: Add support for reading DSCi configuration
-		return DefaultOpenShiftNamespace
+		if data, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace"); err == nil {
+			if ns := string(data); len(ns) > 0 {
+				logger.V(1).Info("Using OpenShift namespace", "namespace", ns)
+				return ns, nil
+			}
+		}
+		// This is what notebook controller team is doing, we are following them
+		// They are not defaulting to redhat-ods-applications namespace
+		return "", fmt.Errorf("unable to determine the namespace")
 	}
 
-	return DefaultKubernetesNamespace
+	return DefaultKubernetesNamespace, nil
 }
 
-// IsOpenShiftForNamespaceRegistry returns true if the operator is running on OpenShift
-func IsOpenShiftForNamespaceRegistry() bool {
-	return isOpenShift
-}
-
-// RemoveFromNamespaceRegistry removes a feature store instance from the namespace registry
+// AddToNamespaceRegistry adds a feature store instance to the namespace registry
 func (feast *FeastServices) AddToNamespaceRegistry() error {
 	logger := log.FromContext(feast.Handler.Context)
-	targetNamespace := feast.getNamespaceRegistryNamespace()
+	targetNamespace, err := feast.getNamespaceRegistryNamespace()
+	if err != nil {
+		return fmt.Errorf("failed to get namespace registry namespace: %w", err)
+	}
 
 	// Get the existing ConfigMap
 	cm := &corev1.ConfigMap{}
-	err := feast.Handler.Client.Get(feast.Handler.Context, types.NamespacedName{
+	err = feast.Handler.Client.Get(feast.Handler.Context, types.NamespacedName{
 		Name:      NamespaceRegistryConfigMapName,
 		Namespace: targetNamespace,
 	}, cm)
@@ -308,19 +317,22 @@ func (feast *FeastServices) AddToNamespaceRegistry() error {
 	return nil
 }
 
+// RemoveFromNamespaceRegistry removes a feature store instance from the namespace registry
 func (feast *FeastServices) RemoveFromNamespaceRegistry() error {
 	logger := log.FromContext(feast.Handler.Context)
 
 	// Determine the target namespace based on platform
-	targetNamespace := feast.getNamespaceRegistryNamespace()
+	targetNamespace, err := feast.getNamespaceRegistryNamespace()
+	if err != nil {
+		return fmt.Errorf("failed to get namespace registry namespace: %w", err)
+	}
 
 	// Get the existing ConfigMap
 	cm := &corev1.ConfigMap{}
-	err := feast.Handler.Client.Get(feast.Handler.Context, client.ObjectKey{
+	err = feast.Handler.Client.Get(feast.Handler.Context, client.ObjectKey{
 		Name:      NamespaceRegistryConfigMapName,
 		Namespace: targetNamespace,
 	}, cm)
-
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			// ConfigMap doesn't exist, nothing to clean up
@@ -346,42 +358,45 @@ func (feast *FeastServices) RemoveFromNamespaceRegistry() error {
 	// Remove current feature store instance from the registry
 	featureStoreNamespace := feast.Handler.FeatureStore.Namespace
 	clientConfigName := feast.Handler.FeatureStore.Status.ClientConfigMap
+	featureStoreName := feast.Handler.FeatureStore.Name
+
+	// Generate expected client config name using the same logic as creation
+	expectedClientConfigName := "feast-" + featureStoreName + "-client"
+
+	logger.Info("Removing feature store from registry",
+		"featureStoreName", featureStoreName,
+		"featureStoreNamespace", featureStoreNamespace,
+		"clientConfigName", clientConfigName,
+		"expectedClientConfigName", expectedClientConfigName)
 
 	if existingData.Namespaces[featureStoreNamespace] != nil {
-		if clientConfigName != "" {
-			// Remove the specific client config from the list
-			var updatedConfigs []string
-			for _, config := range existingData.Namespaces[featureStoreNamespace] {
-				if config != clientConfigName {
-					updatedConfigs = append(updatedConfigs, config)
-				}
+		var updatedConfigs []string
+		removed := false
+
+		for _, config := range existingData.Namespaces[featureStoreNamespace] {
+			// Remove if it matches the client config name or the expected pattern
+			if config == clientConfigName || config == expectedClientConfigName {
+				logger.Info("Removing config from registry", "config", config)
+				removed = true
+			} else {
+				updatedConfigs = append(updatedConfigs, config)
 			}
-			existingData.Namespaces[featureStoreNamespace] = updatedConfigs
-		} else {
-			// If we don't have the client config name, try to find and remove the config
-			// that was created for this FeatureStore (it should follow the pattern: feast-{name}-client)
-			featureStoreName := feast.Handler.FeatureStore.Name
-			expectedClientConfigName := "feast-" + featureStoreName + "-client"
-			logger.Info("Attempting to remove config by name pattern",
-				"featureStoreName", featureStoreName,
-				"expectedClientConfigName", expectedClientConfigName,
-				"existingConfigs", existingData.Namespaces[featureStoreNamespace])
-			var updatedConfigs []string
-			for _, config := range existingData.Namespaces[featureStoreNamespace] {
-				// Remove configs that match the FeatureStore name pattern
-				if config != expectedClientConfigName {
-					updatedConfigs = append(updatedConfigs, config)
-				} else {
-					logger.Info("Removing config from registry", "config", config)
-				}
-			}
-			existingData.Namespaces[featureStoreNamespace] = updatedConfigs
 		}
+
+		existingData.Namespaces[featureStoreNamespace] = updatedConfigs
 
 		// If no configs left for this namespace, remove the namespace entry
 		if len(existingData.Namespaces[featureStoreNamespace]) == 0 {
 			delete(existingData.Namespaces, featureStoreNamespace)
+			logger.Info("Removed empty namespace entry from registry", "namespace", featureStoreNamespace)
 		}
+
+		if !removed {
+			logger.V(1).Info("No matching config found to remove from registry",
+				"existingConfigs", existingData.Namespaces[featureStoreNamespace])
+		}
+	} else {
+		logger.V(1).Info("Namespace not found in registry", "namespace", featureStoreNamespace)
 	}
 
 	// Marshal the updated data back to JSON

@@ -450,15 +450,4 @@ var _ = Describe("FeatureStore Controller - Namespace Registry", func() {
 			Expect(data.Namespaces).To(HaveLen(1))
 		})
 	})
-
-	Context("When testing namespace determination logic", func() {
-		It("should return correct namespace for different environments", func() {
-			By("Testing namespace determination constants")
-
-			// Test the constants are properly defined
-			Expect(services.DefaultOpenShiftNamespace).NotTo(BeEmpty())
-			Expect(services.DefaultKubernetesNamespace).NotTo(BeEmpty())
-			Expect(services.DefaultOpenShiftNamespace).NotTo(Equal(services.DefaultKubernetesNamespace))
-		})
-	})
 })

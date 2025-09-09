@@ -6,10 +6,6 @@ The Feast Namespace Registry is a feature that automatically creates and maintai
 
 ## Implementation Details
 
-### RHOAIENG-33698 Requirements
-
-This implementation addresses the following requirements from [RHOAIENG-33698](https://issues.redhat.com/browse/RHOAIENG-33698):
-
 1. **ConfigMap Creation**: The operator creates a ConfigMap in the appropriate namespace:
    - **OpenShift AI**: `redhat-ods-applications` namespace (or DSCi configured namespace)
    - **Kubernetes**: `feast-operator-system` namespace
@@ -22,7 +18,7 @@ This implementation addresses the following requirements from [RHOAIENG-33698](h
 
 ### ConfigMap Structure
 
-The namespace registry ConfigMap (`feast-namespace-registry`) contains the following data:
+The namespace registry ConfigMap (`feast-configs-registry`) contains the following data:
 
 ```json
 {
@@ -44,10 +40,10 @@ External applications can discover Feast instances by:
 1. Reading the ConfigMap from the appropriate namespace:
    ```bash
    # For OpenShift
-   kubectl get configmap feast-namespace-registry -n redhat-ods-applications -o jsonpath='{.data.namespaces}'
+   kubectl get configmap feast-configs-registry -n redhat-ods-applications -o jsonpath='{.data.namespaces}'
    
    # For Kubernetes
-   kubectl get configmap feast-namespace-registry -n feast-operator-system -o jsonpath='{.data.namespaces}'
+   kubectl get configmap feast-configs-registry -n feast-operator-system -o jsonpath='{.data.namespaces}'
    ```
 
 ### Lifecycle Management
