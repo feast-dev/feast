@@ -71,6 +71,12 @@ class ElasticsearchOnlineStoreConfig(FeastConfigBaseModel):
     password: str
     """ password to connect to Elasticsearch """
 
+    lazy_table_creation: Optional[bool] = False
+    """
+    If True, tables will be created during materialization, rather than registration.
+    Table deletion is not currently supported in this mode.
+    """
+
 
 class ElasticsearchConnectionManager:
     def __init__(self, online_config: RepoConfig):

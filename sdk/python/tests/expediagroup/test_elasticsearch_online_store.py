@@ -48,8 +48,9 @@ index_param_list = [
 ]
 
 
-@pytest.fixture(scope="session")
-def repo_config(embedded_elasticsearch):
+@pytest.fixture(scope="session", params=[False, True], ids=["normal", "lazy"])
+def repo_config(request, embedded_elasticsearch):
+    """Parametrized repo config with lazy_table_creation=False and True"""
     return RepoConfig(
         registry=REGISTRY,
         project=PROJECT,
@@ -58,6 +59,7 @@ def repo_config(embedded_elasticsearch):
             endpoint=f"http://{embedded_elasticsearch['host']}:{embedded_elasticsearch['port']}",
             username=embedded_elasticsearch["username"],
             password=embedded_elasticsearch["password"],
+            lazy_table_creation=request.param,  # This will be False, then True
         ),
         offline_store=DaskOfflineStoreConfig(),
         entity_key_serialization_version=2,
@@ -75,24 +77,26 @@ def embedded_elasticsearch():
 
 
 class TestElasticsearchOnlineStore:
-    index_to_write = "index_write"
-    index_to_delete = "index_delete"
-    index_to_read = "index_read"
-    unavailable_index = "abc"
-
     @pytest.fixture(autouse=True)
     def setup_method(self, repo_config):
+        # Generate unique index names based on lazy_table_creation setting
+        lazy_suffix = "_lazy" if repo_config.online_store.lazy_table_creation else ""
+        self.index_to_write = f"index_write{lazy_suffix}"
+        self.index_to_delete = f"index_delete{lazy_suffix}"
+        self.index_to_read = f"index_read{lazy_suffix}"
+        self.unavailable_index = f"abc{lazy_suffix}"
+
         # Ensuring that the indexes created are dropped before the tests are run
         with ElasticsearchConnectionManager(repo_config.online_store) as es:
             # Dropping indexes if they exist
-            if es.indices.exists(index=self.index_to_delete):
-                es.indices.delete(index=self.index_to_delete)
-            if es.indices.exists(index=self.index_to_write):
-                es.indices.delete(index=self.index_to_write)
-            if es.indices.exists(index=self.index_to_read):
-                es.indices.delete(index=self.index_to_read)
-            if es.indices.exists(index=self.unavailable_index):
-                es.indices.delete(index=self.unavailable_index)
+            for index in [
+                self.index_to_delete,
+                self.index_to_write,
+                self.index_to_read,
+                self.unavailable_index,
+            ]:
+                if es.indices.exists(index=index):
+                    es.indices.delete(index=index)
 
         yield
 
