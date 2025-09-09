@@ -1650,6 +1650,7 @@ huggingface-hub==0.34.4 \
     #   datasets
     #   docling
     #   docling-ibm-models
+    #   timm
     #   tokenizers
     #   transformers
 hyperframe==6.1.0 \
@@ -1751,6 +1752,10 @@ jmespath==1.0.1 \
     #   aiobotocore
     #   boto3
     #   botocore
+joblib==1.5.1 \
+    --hash=sha256:4719a31f054c7d766948dcd83e9613686b27114f190f717cec7eaa2084f8a74a \
+    --hash=sha256:f4f86e351f39fe3d0d32a9f2c3d8af1ee4cec285aafcb27003dda5205576b444
+    # via scikit-learn
 json5==0.12.1 \
     --hash=sha256:b2743e77b3242f8d03c143dd975a6ec7c52e2f2afe76ed934e53503dd4ad4990 \
     --hash=sha256:d9c9b3bc34a5f54d43c35e11ef7cb87d8bdd098c6ace87117a7b7e83e705c1d5
@@ -2686,6 +2691,7 @@ numpy==2.2.6 \
     #   qdrant-client
     #   safetensors
     #   scikit-image
+    #   scikit-learn
     #   scipy
     #   shapely
     #   tifffile
@@ -3029,6 +3035,7 @@ pillow==11.3.0 \
     --hash=sha256:fdae223722da47b024b867c1ea0be64e0df702c5e0a60e27daad39bf960dd1e4 \
     --hash=sha256:fe27fb049cdcca11f11a7bfda64043c37b30e6b91f10cb5bab275806c32f6ab3
     # via
+    #   feast (setup.py)
     #   docling
     #   docling-core
     #   docling-ibm-models
@@ -4105,6 +4112,7 @@ pyyaml==6.0.2 \
     #   pre-commit
     #   ray
     #   responses
+    #   timm
     #   transformers
     #   uvicorn
 pyzmq==27.0.2 \
@@ -4627,6 +4635,7 @@ safetensors[torch]==0.6.2 \
     # via
     #   accelerate
     #   docling-ibm-models
+    #   timm
     #   transformers
 scikit-image==0.25.2 \
     --hash=sha256:24cc986e1f4187a12aa319f777b36008764e856e5013666a4a83f8df083c2641 \
@@ -4652,6 +4661,34 @@ scikit-image==0.25.2 \
     --hash=sha256:e5a37e6cd4d0c018a7a55b9d601357e3382826d3888c10d0213fc63bff977dde \
     --hash=sha256:f4bac9196fb80d37567316581c6060763b0f4893d3aca34a9ede3825bc035b17
     # via easyocr
+scikit-learn==1.7.1 \
+    --hash=sha256:10679f7f125fe7ecd5fad37dd1aa2daae7e3ad8df7f3eefa08901b8254b3e12c \
+    --hash=sha256:13679981fdaebc10cc4c13c43344416a86fcbc61449cb3e6517e1df9d12c8309 \
+    --hash=sha256:16af2e44164f05d04337fd1fc3ae7c4ea61fd9b0d527e22665346336920fe0e1 \
+    --hash=sha256:1f812729e38c8cb37f760dce71a9b83ccfb04f59b3dca7c6079dcdc60544fa9e \
+    --hash=sha256:24b3f1e976a4665aa74ee0fcaac2b8fccc6ae77c8e07ab25da3ba6d3292b9802 \
+    --hash=sha256:2f2e78e56a40c7587dea9a28dc4a49500fa2ead366869418c66f0fd75b80885c \
+    --hash=sha256:2fd8b8d35817b0d9ebf0b576f7d5ffbbabdb55536b0655a8aaae629d7ffd2e1f \
+    --hash=sha256:30d1f413cfc0aa5a99132a554f1d80517563c34a9d3e7c118fde2d273c6fe0f7 \
+    --hash=sha256:3cee419b49b5bbae8796ecd690f97aa412ef1674410c23fc3257c6b8b85b8087 \
+    --hash=sha256:3ddd9092c1bd469acab337d87930067c87eac6bd544f8d5027430983f1e1ae88 \
+    --hash=sha256:406204dd4004f0517f0b23cf4b28c6245cbd51ab1b6b78153bc784def214946d \
+    --hash=sha256:40daccd1b5623f39e8943ab39735cadf0bdce80e67cdca2adcb5426e987320a8 \
+    --hash=sha256:4f1262883c6a63f067a980a8cdd2d2e7f2513dddcef6a9eaada6416a7a7cbe43 \
+    --hash=sha256:588410fa19a96a69763202f1d6b7b91d5d7a5d73be36e189bc6396bfb355bd87 \
+    --hash=sha256:781674d096303cfe3d351ae6963ff7c958db61cde3421cd490e3a5a58f2a94ae \
+    --hash=sha256:88e1a20131cf741b84b89567e1717f27a2ced228e0f29103426102bc2e3b8ef7 \
+    --hash=sha256:90c8494ea23e24c0fb371afc474618c1019dc152ce4a10e4607e62196113851b \
+    --hash=sha256:9963b065677a4ce295e8ccdee80a1dd62b37249e667095039adcd5bce6e90deb \
+    --hash=sha256:a10f276639195a96c86aa572ee0698ad64ee939a7b042060b98bd1930c261d10 \
+    --hash=sha256:b1bd1d919210b6a10b7554b717c9000b5485aa95a1d0f177ae0d7ee8ec750da5 \
+    --hash=sha256:b62b76ad408a821475b43b7bb90a9b1c9a4d8d125d505c2df0539f06d6e631b1 \
+    --hash=sha256:b7839687fa46d02e01035ad775982f2470be2668e13ddd151f0f55a5bf123bae \
+    --hash=sha256:bb870c0daf3bf3be145ec51df8ac84720d9972170786601039f024bf6d61a518 \
+    --hash=sha256:c711d652829a1805a95d7fe96654604a8f16eab5a9e9ad87b3e60173415cb650 \
+    --hash=sha256:ca6d31fb10e04d50bfd2b50d66744729dbb512d4efd0223b864e2fdbfc4cee11 \
+    --hash=sha256:e3142f0abe1ad1d1c31a2ae987621e41f6b578144a911ff4ac94781a583adad7
+    # via feast (setup.py)
 scipy==1.15.3 \
     --hash=sha256:05dc6abcd105e1a29f95eada46d4a3f251743cfd7d3ae8ddb4088047f24ea477 \
     --hash=sha256:06efcba926324df1696931a57a176c80848ccd67ce6ad020c810736bfd58eb1c \
@@ -4704,6 +4741,7 @@ scipy==1.15.3 \
     #   easyocr
     #   great-expectations
     #   scikit-image
+    #   scikit-learn
 semchunk==2.2.2 \
     --hash=sha256:940e89896e64eeb01de97ba60f51c8c7b96c6a3951dfcf574f25ce2146752f52 \
     --hash=sha256:94ca19020c013c073abdfd06d79a7c13637b91738335f3b8cdb5655ee7cc94d2
@@ -5050,6 +5088,10 @@ testcontainers==4.9.0 \
     --hash=sha256:2cd6af070109ff68c1ab5389dc89c86c2dc3ab30a21ca734b2cb8f0f80ad479e \
     --hash=sha256:c6fee929990972c40bf6b91b7072c94064ff3649b405a14fde0274c8b2479d32
     # via feast (setup.py)
+threadpoolctl==3.6.0 \
+    --hash=sha256:43a0b8fd5a2928500110039e43a5eed8480b918967083ea48dc3ab9f13c4a7fb \
+    --hash=sha256:8ab8b4aa3491d812b623328249fab5302a68d2d71745c8a4c719a2fcaba9f44e
+    # via scikit-learn
 thriftpy2==0.5.3 \
     --hash=sha256:08d8699d318b6a8fe9e9fd4c2234ec7912462d90cc636c371b4f4f6500a44328 \
     --hash=sha256:0f36f80a038dbfc2b3b048151ca4732f310ebd0385cdf20e7864d781d5d6f582 \
@@ -5117,6 +5159,10 @@ tifffile==2025.5.10 \
     --hash=sha256:018335d34283aa3fd8c263bae5c3c2b661ebc45548fde31504016fcae7bf1103 \
     --hash=sha256:e37147123c0542d67bc37ba5cdd67e12ea6fbe6e86c52bee037a9eb6a064e5ad
     # via scikit-image
+timm==1.0.19 \
+    --hash=sha256:6e71e1f67ac80c229d3a78ca58347090514c508aeba8f2e2eb5289eda86e9f43 \
+    --hash=sha256:c07b56c32f3d3226c656f75c1b5479c08eb34eefed927c82fd8751a852f47931
+    # via feast (setup.py)
 tinycss2==1.4.0 \
     --hash=sha256:10c0972f6fc0fbee87c3edb76549357415e94548c1ae10ebccdea16fb404a9b7 \
     --hash=sha256:3a49cf47b7675da0b15d0c6e1df8df4ebd96e9394bb905a5775adb0d884c5289
@@ -5230,6 +5276,7 @@ torch==2.8.0 \
     #   docling-ibm-models
     #   easyocr
     #   safetensors
+    #   timm
     #   torchvision
 torchvision==0.23.0 \
     --hash=sha256:01dc33ee24c79148aee7cdbcf34ae8a3c9da1674a591e781577b716d233b1fa6 \
@@ -5260,6 +5307,7 @@ torchvision==0.23.0 \
     #   feast (setup.py)
     #   docling-ibm-models
     #   easyocr
+    #   timm
 tornado==6.5.2 \
     --hash=sha256:06ceb1300fd70cb20e43b1ad8aaee0266e69e7ced38fa910ad2e03285009ce7c \
     --hash=sha256:2436822940d37cde62771cff8774f4f00b3c8024fe482e16ca8387b8a2724db6 \
@@ -5310,9 +5358,9 @@ traitlets==5.14.3 \
     #   nbclient
     #   nbconvert
     #   nbformat
-transformers==4.55.4 \
-    --hash=sha256:574a30559bc273c7a4585599ff28ab6b676e96dc56ffd2025ecfce2fd0ab915d \
-    --hash=sha256:df28f3849665faba4af5106f0db4510323277c4bb595055340544f7e59d06458
+transformers==4.55.3 \
+    --hash=sha256:31dca715549f56cb1b591a933d2caf534f948705191e809234a52a2df407c98f \
+    --hash=sha256:c85e7feace634541e23b3e34d28aa9492d67974b733237ade9eba7c57c0fd1bd
     # via
     #   feast (setup.py)
     #   docling-core

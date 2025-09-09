@@ -180,6 +180,12 @@ RAG_REQUIRED = [
     "datasets>=3.6.0",
 ]
 
+IMAGE_REQUIRED = [
+    "timm>=0.6.0",
+    "Pillow>=8.0.0",
+    "scikit-learn>=1.0.0",
+] + TORCH_REQUIRED
+
 RAY_REQUIRED = ["ray>=2.47.0"]
 
 CI_REQUIRED = (
@@ -258,6 +264,7 @@ CI_REQUIRED = (
     + CLICKHOUSE_REQUIRED
     + MCP_REQUIRED
     + RAG_REQUIRED
+    + IMAGE_REQUIRED
     + RAY_REQUIRED
 )
 MINIMAL_REQUIRED = (
@@ -279,6 +286,7 @@ NLP_REQUIRED = (
     + MILVUS_REQUIRED
     + TORCH_REQUIRED
     + RAG_REQUIRED
+    + IMAGE_REQUIRED
 )
 DOCS_REQUIRED = CI_REQUIRED
 DEV_REQUIRED = CI_REQUIRED
@@ -361,6 +369,7 @@ setup(
         "clickhouse": CLICKHOUSE_REQUIRED,
         "mcp": MCP_REQUIRED,
         "rag": RAG_REQUIRED,
+        "image": IMAGE_REQUIRED,
         "ray": RAY_REQUIRED,
     },
     include_package_data=True,

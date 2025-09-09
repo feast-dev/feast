@@ -91,6 +91,12 @@ ikv = [
     "ikvpy>=0.0.36",
 ]
 k8s = ["kubernetes>=20.13.0,<=23.3.0"]
+image = [
+    "feast[pytorch]",
+    "timm>=0.6.0",
+    "Pillow>=8.0.0",
+    "scikit-learn>=1.0.0",
+]
 milvus = [
     "pymilvus==2.4.9",
     "milvus-lite==2.4.12",
@@ -168,9 +174,9 @@ ci = [
     "types-setuptools",
     "types-tabulate",
     "virtualenv<20.24.2",
-    "feast[aws, azure, cassandra, clickhouse, couchbase, delta, docling, duckdb, elasticsearch, faiss, gcp, ge, go, grpcio, hazelcast, hbase, ibis, ikv, k8s, mcp, milvus, mssql, mysql, opentelemetry, spark, trino, postgres, pytorch, qdrant, rag, ray, redis, singlestore, snowflake, sqlite_vec]"
+    "feast[aws, azure, cassandra, clickhouse, couchbase, delta, docling, duckdb, elasticsearch, faiss, gcp, ge, go, grpcio, hazelcast, hbase, ibis, ikv, image, k8s, mcp, milvus, mssql, mysql, opentelemetry, spark, trino, postgres, pytorch, qdrant, rag, ray, redis, singlestore, snowflake, sqlite_vec]"
 ]
-nlp = ["feast[docling, milvus, pytorch, rag]"]
+nlp = ["feast[docling, image, milvus, pytorch, rag]"]
 dev = ["feast[ci]"]
 docs = ["feast[ci]"]
 # used for the 'feature-server' container image build

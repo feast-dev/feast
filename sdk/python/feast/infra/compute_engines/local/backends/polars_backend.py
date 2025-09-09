@@ -7,8 +7,8 @@ from feast.infra.compute_engines.local.backends.base import DataFrameBackend
 
 
 class PolarsBackend(DataFrameBackend):
-    def columns(self, df):
-        pass
+    def columns(self, df: pl.DataFrame) -> list[str]:
+        return df.columns
 
     def from_arrow(self, table: pa.Table) -> pl.DataFrame:
         return pl.from_arrow(table)
