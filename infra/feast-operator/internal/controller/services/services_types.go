@@ -36,9 +36,8 @@ const (
 	svcDomain                 = ".svc.cluster.local"
 
 	// Namespace registry ConfigMap constants
-	NamespaceRegistryConfigMapName = "feast-namespace-registry"
+	NamespaceRegistryConfigMapName = "feast-configs-registry"
 	NamespaceRegistryDataKey       = "namespaces"
-	DefaultOpenShiftNamespace      = "redhat-ods-applications" // TODO: make this configurable
 	DefaultKubernetesNamespace     = "feast-operator-system"
 
 	HttpPort              = 80
@@ -64,7 +63,6 @@ const (
 	ClientFeastType            FeastServiceType = "client"
 	ClientCaFeastType          FeastServiceType = "client-ca"
 	CronJobFeastType           FeastServiceType = "cronjob"
-	NamespaceRegistryFeastType FeastServiceType = "namespace-registry"
 
 	OfflineRemoteConfigType                 OfflineConfigType = "remote"
 	OfflineFilePersistenceDaskConfigType    OfflineConfigType = "dask"
