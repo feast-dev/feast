@@ -122,8 +122,18 @@ const useLoadRegistry = (url: string) => {
                   ? objects.project
                   : "credit_scoring_aws";
 
+          let projectDescription = undefined;
+          if (
+            objects.projects &&
+            objects.projects.length > 0 &&
+            objects.projects[0].spec
+          ) {
+            projectDescription = objects.projects[0].spec.description;
+          }
+
           return {
             project: projectName,
+            description: projectDescription,
             objects,
             mergedFVMap,
             mergedFVList,
