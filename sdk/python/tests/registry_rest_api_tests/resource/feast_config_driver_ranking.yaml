@@ -1,0 +1,45 @@
+apiVersion: feast.dev/v1alpha1
+kind: FeatureStore
+metadata:
+  name: driver-ranking
+  namespace: test-ns-feast-rest
+spec:
+  feastProject: driver_ranking
+  feastProjectDir:
+    init:
+       template: local
+  services:
+    offlineStore:
+      persistence:
+        file:
+          type: duckdb
+    onlineStore:
+      persistence:
+        store:
+          type: redis
+          secretRef:
+            name: feast-data-stores
+      server:
+        envFrom:
+        - secretRef:
+            name: postgres-secret
+        env:
+        - name: MPLCONFIGDIR
+          value: /tmp
+        resources:
+          requests:
+            cpu: 150m
+            memory: 128Mi
+    registry:
+      local:
+        persistence:
+          store:
+            type: sql
+            secretRef:
+              name: feast-data-stores
+        server:
+          envFrom:
+            - secretRef:
+                name: postgres-secret
+          grpc: true
+          restAPI: true
