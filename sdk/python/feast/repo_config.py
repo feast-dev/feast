@@ -185,6 +185,10 @@ class RepoConfig(FeastBaseModel):
         provider account, as long as they have different project identifier.
     """
 
+    project_description: Optional[StrictStr] = None
+    """ str: Optional description of the project to provide context about the project's purpose and usage.
+    """
+
     provider: StrictStr = "local"
     """ str: local or gcp or aws """
 
