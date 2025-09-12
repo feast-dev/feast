@@ -35,6 +35,11 @@ const (
 	DefaultOnlineStorePath    = "online_store.db"
 	svcDomain                 = ".svc.cluster.local"
 
+	// Namespace registry ConfigMap constants
+	NamespaceRegistryConfigMapName = "feast-configs-registry"
+	NamespaceRegistryDataKey       = "namespaces"
+	DefaultKubernetesNamespace     = "feast-operator-system"
+
 	HttpPort              = 80
 	HttpsPort             = 443
 	HttpScheme            = "http"
@@ -50,14 +55,14 @@ const (
 	DefaultOnlineStorageRequest   = "5Gi"
 	DefaultRegistryStorageRequest = "5Gi"
 
-	AuthzFeastType    FeastServiceType = "authorization"
-	OfflineFeastType  FeastServiceType = "offline"
-	OnlineFeastType   FeastServiceType = "online"
-	RegistryFeastType FeastServiceType = "registry"
-	UIFeastType       FeastServiceType = "ui"
-	ClientFeastType   FeastServiceType = "client"
-	ClientCaFeastType FeastServiceType = "client-ca"
-	CronJobFeastType  FeastServiceType = "cronjob"
+	AuthzFeastType             FeastServiceType = "authorization"
+	OfflineFeastType           FeastServiceType = "offline"
+	OnlineFeastType            FeastServiceType = "online"
+	RegistryFeastType          FeastServiceType = "registry"
+	UIFeastType                FeastServiceType = "ui"
+	ClientFeastType            FeastServiceType = "client"
+	ClientCaFeastType          FeastServiceType = "client-ca"
+	CronJobFeastType           FeastServiceType = "cronjob"
 
 	OfflineRemoteConfigType                 OfflineConfigType = "remote"
 	OfflineFilePersistenceDaskConfigType    OfflineConfigType = "dask"
