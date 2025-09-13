@@ -15,6 +15,7 @@ from sqlalchemy import (  # type: ignore
     MetaData,
     String,
     Table,
+    Text,
     create_engine,
     delete,
     insert,
@@ -209,7 +210,7 @@ feast_metadata = Table(
     metadata,
     Column("project_id", String(255), primary_key=True),
     Column("metadata_key", String(50), primary_key=True),
-    Column("metadata_value", String(50), nullable=False),
+    Column("metadata_value", Text, nullable=False),
     Column("last_updated_timestamp", BigInteger, nullable=False),
 )
 
@@ -326,6 +327,7 @@ class SqlRegistry(CachingRegistry):
             entities,
             data_sources,
             feature_views,
+            stream_feature_views,
             feature_services,
             on_demand_feature_views,
             saved_datasets,
@@ -836,7 +838,7 @@ class SqlRegistry(CachingRegistry):
             else:
                 raise FeatureViewNotFoundException(feature_view.name, project=project)
 
-    def proto(self) -> RegistryProto:
+    def proto(self, force_refresh: bool = False) -> RegistryProto:
         r = RegistryProto()
         last_updated_timestamps = []
 
@@ -852,7 +854,7 @@ class SqlRegistry(CachingRegistry):
 
             allow_cache = False
 
-            if cached_project is not None:
+            if cached_project is not None and not force_refresh:
                 allow_cache = (
                     last_updated_timestamp <= cached_project.last_updated_timestamp
                 )
@@ -1020,6 +1022,9 @@ class SqlRegistry(CachingRegistry):
             if not self.purge_feast_metadata:
                 self._set_last_updated_metadata(update_datetime, project, conn)
 
+        if self.cache_mode == "sync":
+            self.refresh()
+
     def _maybe_init_project_metadata(self, project):
         # Initialize project metadata if needed
         with self.write_engine.begin() as conn:
@@ -1062,7 +1067,12 @@ class SqlRegistry(CachingRegistry):
             if not self.purge_feast_metadata:
                 self._set_last_updated_metadata(_utc_now(), project, conn)
 
-            return rows.rowcount
+            rowcount = rows.rowcount
+
+        if self.cache_mode == "sync":
+            self.refresh()
+
+        return rowcount
 
     def _get_object(
         self,

@@ -404,6 +404,8 @@ class SnowflakeRegistry(BaseRegistry):
             if not self.purge_feast_metadata:
                 self._set_last_updated_metadata(update_datetime, project)
 
+        self.refresh()
+
     def apply_permission(
         self, permission: Permission, project: str, commit: bool = True
     ):
@@ -491,8 +493,11 @@ class SnowflakeRegistry(BaseRegistry):
             if cursor.rowcount < 1 and not_found_exception:  # type: ignore
                 raise not_found_exception(name, project)
             self._set_last_updated_metadata(_utc_now(), project)
+            rowcount = cursor.rowcount
 
-            return cursor.rowcount
+        self.refresh()
+
+        return rowcount
 
     def delete_permission(self, name: str, project: str, commit: bool = True):
         return self._delete_object(
@@ -1116,7 +1121,7 @@ class SnowflakeRegistry(BaseRegistry):
         else:
             raise FeatureViewNotFoundException(feature_view.name, project=project)
 
-    def proto(self) -> RegistryProto:
+    def proto(self, force_refresh: bool = False) -> RegistryProto:
         r = RegistryProto()
         last_updated_timestamps = []
 
@@ -1132,7 +1137,7 @@ class SnowflakeRegistry(BaseRegistry):
 
             allow_cache = False
 
-            if cached_project is not None:
+            if cached_project is not None and not force_refresh:
                 allow_cache = (
                     last_updated_timestamp <= cached_project.last_updated_timestamp
                 )

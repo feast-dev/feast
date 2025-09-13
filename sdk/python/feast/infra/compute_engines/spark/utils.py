@@ -21,9 +21,6 @@ def get_or_create_new_spark_session(
                 conf=SparkConf().setAll([(k, v) for k, v in spark_config.items()])
             )
 
-        spark_builder = spark_builder.config("spark.driver.host", "127.0.0.1")
-        spark_builder = spark_builder.config("spark.driver.bindAddress", "127.0.0.1")
-
         spark_session = spark_builder.getOrCreate()
     spark_session.conf.set("spark.sql.execution.arrow.pyspark.enabled", "true")
     return spark_session

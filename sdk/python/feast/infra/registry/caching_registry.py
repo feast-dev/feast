@@ -425,11 +425,8 @@ class CachingRegistry(BaseRegistry):
         return self._list_projects(tags)
 
     def refresh(self, project: Optional[str] = None):
-        if self._refresh_lock.locked():
-            logger.debug("Skipping refresh if already in progress")
-            return
         try:
-            self.cached_registry_proto = self.proto()
+            self.cached_registry_proto = self.proto(force_refresh=True)
             self.cached_registry_proto_created = _utc_now()
         except Exception as e:
             logger.debug(f"Error while refreshing registry: {e}", exc_info=True)
@@ -444,17 +441,13 @@ class CachingRegistry(BaseRegistry):
                 return
             try:
                 if self.cached_registry_proto == RegistryProto():
-                    # Avoids the need to refresh the registry when cache is not populated yet
-                    # Specially during the __init__ phase
-                    # proto() will populate the cache with project metadata if no objects are registered
                     expired = False
                 else:
                     expired = (
                         self.cached_registry_proto is None
                         or self.cached_registry_proto_created is None
                     ) or (
-                        self.cached_registry_proto_ttl.total_seconds()
-                        > 0  # 0 ttl means infinity
+                        self.cached_registry_proto_ttl.total_seconds() > 0
                         and (
                             _utc_now()
                             > (
