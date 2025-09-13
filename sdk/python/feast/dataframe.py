@@ -1,7 +1,7 @@
 """FeastDataFrame: A lightweight container for DataFrame-like objects in Feast."""
 
 from enum import Enum
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional
 
 import pandas as pd
 import pyarrow as pa
@@ -51,7 +51,7 @@ class FeastDataFrame:
             return DataFrameEngine.PANDAS
         elif isinstance(self.data, pa.Table):
             return DataFrameEngine.ARROW
-        
+
         # For optional dependencies, check module name to avoid import errors
         module = type(self.data).__module__
         if "pyspark" in module:

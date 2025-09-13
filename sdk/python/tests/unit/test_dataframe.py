@@ -14,7 +14,7 @@ class TestFeastDataFrame:
         """Test auto-detection of pandas DataFrame."""
         df = pd.DataFrame({"a": [1, 2, 3], "b": [4, 5, 6]})
         feast_df = FeastDataFrame(df)
-        
+
         assert feast_df.engine == DataFrameEngine.PANDAS
         assert not feast_df.is_lazy
         assert isinstance(feast_df.data, pd.DataFrame)
@@ -23,7 +23,7 @@ class TestFeastDataFrame:
         """Test auto-detection of Arrow Table."""
         table = pa.table({"a": [1, 2, 3], "b": [4, 5, 6]})
         feast_df = FeastDataFrame(table)
-        
+
         assert feast_df.engine == DataFrameEngine.ARROW
         assert not feast_df.is_lazy
         assert isinstance(feast_df.data, pa.Table)
@@ -32,7 +32,7 @@ class TestFeastDataFrame:
         """Test explicit engine specification."""
         data = {"mock": "data"}
         feast_df = FeastDataFrame(data, engine=DataFrameEngine.SPARK)
-        
+
         assert feast_df.engine == DataFrameEngine.SPARK
         assert feast_df.is_lazy
 
@@ -40,7 +40,7 @@ class TestFeastDataFrame:
         """Test handling of unknown DataFrame types."""
         data = {"some": "dict"}
         feast_df = FeastDataFrame(data)
-        
+
         assert feast_df.engine == DataFrameEngine.UNKNOWN
 
     def test_metadata(self):
@@ -48,7 +48,7 @@ class TestFeastDataFrame:
         df = pd.DataFrame({"a": [1, 2, 3]})
         metadata = {"features": ["a"], "source": "test"}
         feast_df = FeastDataFrame(df, metadata=metadata)
-        
+
         assert feast_df.metadata == metadata
         assert feast_df.metadata["features"] == ["a"]
 
@@ -56,7 +56,7 @@ class TestFeastDataFrame:
         """Test string representation."""
         df = pd.DataFrame({"a": [1, 2, 3]})
         feast_df = FeastDataFrame(df)
-        
+
         repr_str = repr(feast_df)
         assert "FeastDataFrame" in repr_str
         assert "engine=pandas" in repr_str
@@ -81,14 +81,15 @@ class TestFeastDataFrame:
 
     def test_polars_detection(self):
         """Test detection of polars DataFrame (using mock)."""
+
         # Mock polars DataFrame
         class MockPolarsDF:
             def __init__(self):
                 self.__module__ = "polars.dataframe.frame"
                 self.__class__.__name__ = "DataFrame"
-        
+
         polars_df = MockPolarsDF()
         feast_df = FeastDataFrame(polars_df)
-        
+
         assert feast_df.engine == DataFrameEngine.POLARS
         assert not feast_df.is_lazy
