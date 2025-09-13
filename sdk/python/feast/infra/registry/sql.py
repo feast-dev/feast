@@ -838,7 +838,7 @@ class SqlRegistry(CachingRegistry):
             else:
                 raise FeatureViewNotFoundException(feature_view.name, project=project)
 
-    def proto(self) -> RegistryProto:
+    def proto(self, force_refresh: bool = False) -> RegistryProto:
         r = RegistryProto()
         last_updated_timestamps = []
 
@@ -846,6 +846,18 @@ class SqlRegistry(CachingRegistry):
             nonlocal r, last_updated_timestamps
             project_name = project.name
             last_updated_timestamp = project.last_updated_timestamp
+
+            try:
+                cached_project = self.get_project(project_name, True)
+            except ProjectObjectNotFoundException:
+                cached_project = None
+
+            allow_cache = False
+
+            if cached_project is not None and not force_refresh:
+                allow_cache = (
+                    last_updated_timestamp <= cached_project.last_updated_timestamp
+                )
 
             r.projects.extend([project.to_proto()])
             last_updated_timestamps.append(last_updated_timestamp)
@@ -861,7 +873,7 @@ class SqlRegistry(CachingRegistry):
                 (self.list_validation_references, r.validation_references),
                 (self.list_permissions, r.permissions),
             ]:
-                objs: List[Any] = lister(project_name, allow_cache=False)  # type: ignore
+                objs: List[Any] = lister(project_name, allow_cache)  # type: ignore
                 if objs:
                     obj_protos = [obj.to_proto() for obj in objs]
                     for obj_proto in obj_protos:
@@ -1055,9 +1067,12 @@ class SqlRegistry(CachingRegistry):
             if not self.purge_feast_metadata:
                 self._set_last_updated_metadata(_utc_now(), project, conn)
 
-            if self.cache_mode == "sync":
-                self.refresh()
-            return rows.rowcount
+            rowcount = rows.rowcount
+
+        if self.cache_mode == "sync":
+            self.refresh()
+
+        return rowcount
 
     def _get_object(
         self,

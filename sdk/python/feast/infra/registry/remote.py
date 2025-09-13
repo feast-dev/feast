@@ -594,7 +594,7 @@ class RemoteRegistry(BaseRegistry):
                 return meta[key]
         return None
 
-    def proto(self) -> RegistryProto:
+    def proto(self, force_refresh: bool = False) -> RegistryProto:
         return self.stub.Proto(Empty())
 
     def commit(self):

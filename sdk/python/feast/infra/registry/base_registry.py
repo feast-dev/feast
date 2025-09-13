@@ -784,7 +784,7 @@ class BaseRegistry(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def proto(self) -> RegistryProto:
+    def proto(self, force_refresh: bool = False) -> RegistryProto:
         """
         Retrieves a proto version of the registry.
 
