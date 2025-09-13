@@ -25,6 +25,8 @@ def spark_session():
         SparkSession.builder.appName("FeastSparkTests")
         .master("local[*]")
         .config("spark.sql.shuffle.partitions", "1")
+        .config("spark.driver.host", "127.0.0.1")
+        .config("spark.driver.bindAddress", "127.0.0.1")
         .getOrCreate()
     )
 
