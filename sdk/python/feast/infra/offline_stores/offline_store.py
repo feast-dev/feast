@@ -32,6 +32,7 @@ import pyarrow
 
 from feast import flags_helper
 from feast.data_source import DataSource
+from feast.dataframe import DataFrameEngine, FeastDataFrame
 from feast.dqm.errors import ValidationFailed
 from feast.feature_logging import LoggingConfig, LoggingSource
 from feast.feature_view import FeatureView
@@ -91,6 +92,33 @@ class RetrievalJob(ABC):
             self.to_arrow(validation_reference=validation_reference, timeout=timeout)
             .to_pandas()
             .reset_index(drop=True)
+        )
+
+    def to_feast_df(
+        self,
+        validation_reference: Optional["ValidationReference"] = None,
+        timeout: Optional[int] = None,
+    ) -> FeastDataFrame:
+        """
+        Synchronously executes the underlying query and returns the result as a FeastDataFrame.
+
+        This is the new primary method that returns FeastDataFrame with proper engine detection.
+        On demand transformations will be executed. If a validation reference is provided, the dataframe
+        will be validated.
+
+        Args:
+            validation_reference (optional): The validation to apply against the retrieved dataframe.
+            timeout (optional): The query timeout if applicable.
+        """
+        # Get Arrow table as before
+        arrow_table = self.to_arrow(
+            validation_reference=validation_reference, timeout=timeout
+        )
+
+        # Wrap in FeastDataFrame with Arrow engine
+        return FeastDataFrame(
+            data=arrow_table,
+            engine=DataFrameEngine.ARROW,
         )
 
     def to_arrow(

@@ -4,7 +4,20 @@ import uuid
 import warnings
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Tuple,
+    Union,
+    cast,
+)
+
+if TYPE_CHECKING:
+    from feast.saved_dataset import ValidationReference
 
 import numpy as np
 import pandas
@@ -18,6 +31,7 @@ from pyspark.sql import SparkSession
 
 from feast import FeatureView, OnDemandFeatureView
 from feast.data_source import DataSource
+from feast.dataframe import DataFrameEngine, FeastDataFrame
 from feast.errors import EntitySQLEmptyResults, InvalidEntityType
 from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_VAL
 from feast.infra.offline_stores import offline_utils
@@ -388,6 +402,23 @@ class SparkRetrievalJob(RetrievalJob):
     def _to_arrow_internal(self, timeout: Optional[int] = None) -> pyarrow.Table:
         """Return dataset as pyarrow Table synchronously"""
         return pyarrow.Table.from_pandas(self._to_df_internal(timeout=timeout))
+
+    def to_feast_df(
+        self,
+        validation_reference: Optional["ValidationReference"] = None,
+        timeout: Optional[int] = None,
+    ) -> FeastDataFrame:
+        """
+        Return the result as a FeastDataFrame with Spark engine.
+
+        This preserves Spark's lazy execution by wrapping the Spark DataFrame directly.
+        """
+        # Get the Spark DataFrame directly (maintains lazy execution)
+        spark_df = self.to_spark_df()
+        return FeastDataFrame(
+            data=spark_df,
+            engine=DataFrameEngine.SPARK,
+        )
 
     def persist(
         self,
