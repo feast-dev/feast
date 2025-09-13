@@ -1,5 +1,19 @@
 # Changelog
 
+# [0.53.0](https://github.com/feast-dev/feast/compare/v0.52.0...v0.53.0) (2025-08-30)
+
+
+### Bug Fixes
+
+* Consistency in allow_cache and savedDatasets api ([#5572](https://github.com/feast-dev/feast/issues/5572)) ([7e8b914](https://github.com/feast-dev/feast/commit/7e8b9143e4343bf1396e8d819cc4547bf4ab2a3c))
+* **docs:** Use absolute image URLs in README ([7188fc9](https://github.com/feast-dev/feast/commit/7188fc9ace11648ed58b2beb02e4c6f8dc4087c5))
+
+
+### Features
+
+* Added ray example template ([#5570](https://github.com/feast-dev/feast/issues/5570)) ([a66d890](https://github.com/feast-dev/feast/commit/a66d890a09c9e0769400c6cff482e6cba44e7e0c))
+* Allow hyphen in repo name ([#5562](https://github.com/feast-dev/feast/issues/5562)) ([4436673](https://github.com/feast-dev/feast/commit/4436673890adad8193d6bb3cb8bfd90c56e9d734))
+
 # [0.52.0](https://github.com/feast-dev/feast/compare/v0.51.0...v0.52.0) (2025-08-14)
 
 

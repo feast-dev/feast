@@ -471,7 +471,7 @@ spec:
                 type: object
               feastProject:
                 description: FeastProject is the Feast project id.
-                pattern: ^[A-Za-z0-9][A-Za-z0-9_]*$
+                pattern: ^[A-Za-z0-9][A-Za-z0-9_-]*$
                 type: string
               feastProjectDir:
                 description: FeastProjectDir defines how to create the feast project
@@ -4431,7 +4431,7 @@ spec:
                     type: object
                   feastProject:
                     description: FeastProject is the Feast project id.
-                    pattern: ^[A-Za-z0-9][A-Za-z0-9_]*$
+                    pattern: ^[A-Za-z0-9][A-Za-z0-9_-]*$
                     type: string
                   feastProjectDir:
                     description: FeastProjectDir defines how to create the feast project
@@ -8432,10 +8432,10 @@ spec:
         - /manager
         env:
         - name: RELATED_IMAGE_FEATURE_SERVER
-          value: quay.io/feastdev/feature-server:0.52.0
+          value: quay.io/feastdev/feature-server:0.53.0
         - name: RELATED_IMAGE_CRON_JOB
           value: quay.io/openshift/origin-cli:4.17
-        image: quay.io/feastdev/feast-operator:0.52.0
+        image: quay.io/feastdev/feast-operator:0.53.0
         livenessProbe:
           httpGet:
             path: /healthz

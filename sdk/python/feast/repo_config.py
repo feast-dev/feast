@@ -185,6 +185,10 @@ class RepoConfig(FeastBaseModel):
         provider account, as long as they have different project identifier.
     """
 
+    project_description: Optional[StrictStr] = None
+    """ str: Optional description of the project to provide context about the project's purpose and usage.
+    """
+
     provider: StrictStr = "local"
     """ str: local or gcp or aws """
 
@@ -485,7 +489,7 @@ class RepoConfig(FeastBaseModel):
         if not is_valid_name(v):
             raise ValueError(
                 f"Project name, {v}, should only have "
-                f"alphanumerical values and underscores but not start with an underscore."
+                f"alphanumerical values, underscores, and hyphens but not start with an underscore or hyphen."
             )
         return v
 

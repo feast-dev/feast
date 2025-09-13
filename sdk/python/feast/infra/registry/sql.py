@@ -1018,7 +1018,7 @@ class SqlRegistry(CachingRegistry):
                     self.get_project(name=project, allow_cache=False), commit=True
                 )
             if not self.purge_feast_metadata:
-                self._set_last_updated_metadata(update_datetime, project)
+                self._set_last_updated_metadata(update_datetime, project, conn)
 
     def _maybe_init_project_metadata(self, project):
         # Initialize project metadata if needed
@@ -1060,7 +1060,7 @@ class SqlRegistry(CachingRegistry):
                 self.get_project(name=project, allow_cache=False), commit=True
             )
             if not self.purge_feast_metadata:
-                self._set_last_updated_metadata(_utc_now(), project)
+                self._set_last_updated_metadata(_utc_now(), project, conn)
 
             return rows.rowcount
 
@@ -1111,39 +1111,45 @@ class SqlRegistry(CachingRegistry):
                 return objects
         return []
 
-    def _set_last_updated_metadata(self, last_updated: datetime, project: str):
-        with self.write_engine.begin() as conn:
-            stmt = select(feast_metadata).where(
-                feast_metadata.c.metadata_key
-                == FeastMetadataKeys.LAST_UPDATED_TIMESTAMP.value,
-                feast_metadata.c.project_id == project,
+    def _set_last_updated_metadata(
+        self, last_updated: datetime, project: str, conn=None
+    ):
+        if conn is None:
+            with self.write_engine.begin() as conn:
+                self._set_last_updated_metadata(last_updated, project, conn)
+            return
+
+        stmt = select(feast_metadata).where(
+            feast_metadata.c.metadata_key
+            == FeastMetadataKeys.LAST_UPDATED_TIMESTAMP.value,
+            feast_metadata.c.project_id == project,
+        )
+        row = conn.execute(stmt).first()
+
+        update_time = int(last_updated.timestamp())
+
+        values = {
+            "metadata_key": FeastMetadataKeys.LAST_UPDATED_TIMESTAMP.value,
+            "metadata_value": f"{update_time}",
+            "last_updated_timestamp": update_time,
+            "project_id": project,
+        }
+        if row:
+            update_stmt = (
+                update(feast_metadata)
+                .where(
+                    feast_metadata.c.metadata_key
+                    == FeastMetadataKeys.LAST_UPDATED_TIMESTAMP.value,
+                    feast_metadata.c.project_id == project,
+                )
+                .values(values)
             )
-            row = conn.execute(stmt).first()
-
-            update_time = int(last_updated.timestamp())
-
-            values = {
-                "metadata_key": FeastMetadataKeys.LAST_UPDATED_TIMESTAMP.value,
-                "metadata_value": f"{update_time}",
-                "last_updated_timestamp": update_time,
-                "project_id": project,
-            }
-            if row:
-                update_stmt = (
-                    update(feast_metadata)
-                    .where(
-                        feast_metadata.c.metadata_key
-                        == FeastMetadataKeys.LAST_UPDATED_TIMESTAMP.value,
-                        feast_metadata.c.project_id == project,
-                    )
-                    .values(values)
-                )
-                conn.execute(update_stmt)
-            else:
-                insert_stmt = insert(feast_metadata).values(
-                    values,
-                )
-                conn.execute(insert_stmt)
+            conn.execute(update_stmt)
+        else:
+            insert_stmt = insert(feast_metadata).values(
+                values,
+            )
+            conn.execute(insert_stmt)
 
     def _get_last_updated_metadata(self, project: str):
         with self.read_engine.begin() as conn:
@@ -1270,36 +1276,41 @@ class SqlRegistry(CachingRegistry):
 
         raise ProjectNotFoundException(name)
 
-    def set_project_metadata(self, project: str, key: str, value: str):
+    def set_project_metadata(self, project: str, key: str, value: str, conn=None):
         """Set a custom project metadata key-value pair in the feast_metadata table."""
         from feast.utils import _utc_now
 
         update_time = int(_utc_now().timestamp())
-        with self.write_engine.begin() as conn:
-            stmt = select(feast_metadata).where(
-                feast_metadata.c.project_id == project,
-                feast_metadata.c.metadata_key == key,
-            )
-            row = conn.execute(stmt).first()
-            values = {
-                "metadata_key": key,
-                "metadata_value": value,
-                "last_updated_timestamp": update_time,
-                "project_id": project,
-            }
-            if row:
-                update_stmt = (
-                    update(feast_metadata)
-                    .where(
-                        feast_metadata.c.project_id == project,
-                        feast_metadata.c.metadata_key == key,
-                    )
-                    .values(values)
+
+        if conn is None:
+            with self.write_engine.begin() as conn:
+                self.set_project_metadata(project, key, value, conn)
+            return
+
+        stmt = select(feast_metadata).where(
+            feast_metadata.c.project_id == project,
+            feast_metadata.c.metadata_key == key,
+        )
+        row = conn.execute(stmt).first()
+        values = {
+            "metadata_key": key,
+            "metadata_value": value,
+            "last_updated_timestamp": update_time,
+            "project_id": project,
+        }
+        if row:
+            update_stmt = (
+                update(feast_metadata)
+                .where(
+                    feast_metadata.c.project_id == project,
+                    feast_metadata.c.metadata_key == key,
                 )
-                conn.execute(update_stmt)
-            else:
-                insert_stmt = insert(feast_metadata).values(values)
-                conn.execute(insert_stmt)
+                .values(values)
+            )
+            conn.execute(update_stmt)
+        else:
+            insert_stmt = insert(feast_metadata).values(values)
+            conn.execute(insert_stmt)
 
     def get_project_metadata(self, project: str, key: str) -> Optional[str]:
         """Get a custom project metadata value by key from the feast_metadata table."""

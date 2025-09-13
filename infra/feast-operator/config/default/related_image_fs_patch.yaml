@@ -2,7 +2,7 @@
   path: "/spec/template/spec/containers/0/env/0"
   value:
     name: RELATED_IMAGE_FEATURE_SERVER
-    value: quay.io/feastdev/feature-server:0.52.0
+    value: quay.io/feastdev/feature-server:0.53.0
 - op: replace
   path: "/spec/template/spec/containers/0/env/1"
   value:
