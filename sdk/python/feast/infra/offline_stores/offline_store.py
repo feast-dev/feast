@@ -115,10 +115,26 @@ class RetrievalJob(ABC):
             validation_reference=validation_reference, timeout=timeout
         )
 
-        # Wrap in FeastDataFrame with Arrow engine
+        # Prepare metadata
+        metadata = {}
+
+        # Add features to metadata if available
+        if hasattr(self, "features"):
+            metadata["features"] = self.features
+        else:
+            metadata["features"] = []
+
+        # Add on-demand feature views to metadata
+        if hasattr(self, "on_demand_feature_views") and self.on_demand_feature_views:
+            metadata["on_demand_feature_views"] = [
+                odfv.name for odfv in self.on_demand_feature_views
+            ]
+        else:
+            metadata["on_demand_feature_views"] = []
+
+        # Wrap in FeastDataFrame with Arrow engine and metadata
         return FeastDataFrame(
-            data=arrow_table,
-            engine=DataFrameEngine.ARROW,
+            data=arrow_table, engine=DataFrameEngine.ARROW, metadata=metadata
         )
 
     def to_arrow(
