@@ -43,10 +43,10 @@ class FeastDataFrame:
         """
         self.data = data
         self.metadata = metadata or {}
-        
+
         # Detect the actual engine from the data
         detected_engine = self._detect_engine()
-        
+
         if engine is not None:
             # Validate that the provided engine matches the detected engine
             if engine != detected_engine:

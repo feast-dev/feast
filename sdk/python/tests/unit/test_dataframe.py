@@ -68,19 +68,23 @@ class TestFeastDataFrame:
         df = pd.DataFrame({"a": [1, 2, 3]})
         feast_df = FeastDataFrame(df)
         assert not feast_df.is_lazy
-        
+
         # Test with Arrow table (not lazy)
         table = pa.table({"a": [1, 2, 3]})
         feast_df = FeastDataFrame(table)
         assert not feast_df.is_lazy
-        
+
         # Test with unknown data type (not lazy)
         unknown_data = {"mock": "data"}
         feast_df = FeastDataFrame(unknown_data)
         assert not feast_df.is_lazy
-        
+
         # Test explicit lazy engines (using unknown data to avoid type validation)
-        for lazy_engine in [DataFrameEngine.SPARK, DataFrameEngine.DASK, DataFrameEngine.RAY]:
+        for lazy_engine in [
+            DataFrameEngine.SPARK,
+            DataFrameEngine.DASK,
+            DataFrameEngine.RAY,
+        ]:
             feast_df = FeastDataFrame(unknown_data, engine=DataFrameEngine.UNKNOWN)
             feast_df._engine = lazy_engine  # Override for testing
             assert feast_df.is_lazy
@@ -91,7 +95,7 @@ class TestFeastDataFrame:
         # Mock polars DataFrame
         class MockPolarsDF:
             __module__ = "polars.dataframe.frame"
-            
+
             def __init__(self):
                 pass
 
@@ -105,25 +109,31 @@ class TestFeastDataFrame:
         """Test that providing a correct engine passes validation."""
         df = pd.DataFrame({"a": [1, 2, 3]})
         feast_df = FeastDataFrame(df, engine=DataFrameEngine.PANDAS)
-        
+
         assert feast_df.engine == DataFrameEngine.PANDAS
         assert isinstance(feast_df.data, pd.DataFrame)
 
     def test_engine_validation_invalid(self):
         """Test that providing an incorrect engine raises ValueError."""
         df = pd.DataFrame({"a": [1, 2, 3]})
-        
-        with pytest.raises(ValueError, match="Provided engine 'spark' does not match detected engine 'pandas'"):
+
+        with pytest.raises(
+            ValueError,
+            match="Provided engine 'spark' does not match detected engine 'pandas'",
+        ):
             FeastDataFrame(df, engine=DataFrameEngine.SPARK)
 
     def test_engine_validation_arrow(self):
         """Test engine validation with Arrow table."""
         table = pa.table({"a": [1, 2, 3]})
-        
+
         # Valid case
         feast_df = FeastDataFrame(table, engine=DataFrameEngine.ARROW)
         assert feast_df.engine == DataFrameEngine.ARROW
-        
+
         # Invalid case
-        with pytest.raises(ValueError, match="Provided engine 'pandas' does not match detected engine 'arrow'"):
+        with pytest.raises(
+            ValueError,
+            match="Provided engine 'pandas' does not match detected engine 'arrow'",
+        ):
             FeastDataFrame(table, engine=DataFrameEngine.PANDAS)
