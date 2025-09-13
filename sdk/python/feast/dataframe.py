@@ -51,7 +51,7 @@ class FeastDataFrame:
             # Validate that the provided engine matches the detected engine
             if engine != detected_engine:
                 raise ValueError(
-                    f"Provided engine '{engine}' does not match detected engine '{detected_engine}' "
+                    f"Provided engine '{engine.value}' does not match detected engine '{detected_engine.value}' "
                     f"for data type {type(data).__name__}"
                 )
             self._engine = engine
@@ -84,7 +84,7 @@ class FeastDataFrame:
         return self._engine
 
     def __repr__(self):
-        return f"FeastDataFrame(engine={self.engine}, type={type(self.data).__name__})"
+        return f"FeastDataFrame(engine={self.engine.value}, type={type(self.data).__name__})"
 
     @property
     def is_lazy(self) -> bool:
