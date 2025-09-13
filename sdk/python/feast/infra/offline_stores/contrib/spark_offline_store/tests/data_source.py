@@ -35,6 +35,8 @@ class SparkDataSourceCreator(DataSourceCreator):
             "spark.eventLog.enabled": "false",
             "spark.sql.parser.quotedRegexColumnNames": "true",
             "spark.sql.session.timeZone": "UTC",
+            "spark.driver.host": "127.0.0.1",
+            "spark.driver.bindAddress": "127.0.0.1",
         }
         if not self.spark_offline_store_config:
             self.create_offline_store_config()
