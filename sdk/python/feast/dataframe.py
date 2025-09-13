@@ -43,7 +43,20 @@ class FeastDataFrame:
         """
         self.data = data
         self.metadata = metadata or {}
-        self._engine = engine or self._detect_engine()
+        
+        # Detect the actual engine from the data
+        detected_engine = self._detect_engine()
+        
+        if engine is not None:
+            # Validate that the provided engine matches the detected engine
+            if engine != detected_engine:
+                raise ValueError(
+                    f"Provided engine '{engine}' does not match detected engine '{detected_engine}' "
+                    f"for data type {type(data).__name__}"
+                )
+            self._engine = engine
+        else:
+            self._engine = detected_engine
 
     def _detect_engine(self) -> DataFrameEngine:
         """Auto-detect the DataFrame engine based on type."""
