@@ -23,6 +23,8 @@ class BackendFactory:
             return BackendFactory._get_spark_backend()
         if name == "dask":
             return BackendFactory._get_dask_backend()
+        if name == "ray":
+            return BackendFactory._get_ray_backend()
         raise ValueError(f"Unsupported backend name: {name}")
 
     @staticmethod
@@ -42,6 +44,9 @@ class BackendFactory:
 
         if BackendFactory._is_dask(entity_df):
             return BackendFactory._get_dask_backend()
+
+        if BackendFactory._is_ray(entity_df):
+            return BackendFactory._get_ray_backend()
 
         return None
 
@@ -90,3 +95,17 @@ class BackendFactory:
         from feast.infra.compute_engines.backends.dask_backend import DaskBackend
 
         return DaskBackend()
+
+    @staticmethod
+    def _is_ray(entity_df) -> bool:
+        try:
+            import ray.data
+        except ImportError:
+            return False
+        return isinstance(entity_df, ray.data.Dataset)
+
+    @staticmethod
+    def _get_ray_backend():
+        from feast.infra.compute_engines.backends.ray_backend import RayBackend
+
+        return RayBackend()
