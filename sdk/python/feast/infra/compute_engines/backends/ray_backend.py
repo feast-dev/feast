@@ -1,8 +1,8 @@
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Dict, List, Tuple
 
-import ray.data
 import pyarrow as pa
+import ray.data
 
 from feast.infra.compute_engines.backends.base import DataFrameBackend
 
@@ -14,7 +14,7 @@ class RayBackend(DataFrameBackend):
     """Ray Dataset backend implementation."""
 
     def __init__(self):
-        if not hasattr(ray.data, 'Dataset'):
+        if not hasattr(ray.data, "Dataset"):
             raise ImportError(
                 "Ray is not installed. Please install it to use Ray backend."
             )
@@ -38,12 +38,11 @@ class RayBackend(DataFrameBackend):
         # Ray doesn't support arbitrary join keys directly, convert via Arrow
         left_arrow = self.to_arrow(left)
         right_arrow = self.to_arrow(right)
-        
+
         # Use pandas for the join operation
-        import pandas as pd
         left_pd = left_arrow.to_pandas()
         right_pd = right_arrow.to_pandas()
-        
+
         result_pd = left_pd.merge(right_pd, on=on, how=how)
         result_arrow = pa.Table.from_pandas(result_pd)
         return self.from_arrow(result_arrow)
@@ -58,15 +57,12 @@ class RayBackend(DataFrameBackend):
         # Ray's groupby is limited, so we'll use pandas conversion
         arrow_table = self.to_arrow(df)
         pandas_df = arrow_table.to_pandas()
-        
+
         # Use pandas groupby
-        import pandas as pd
-        agg_dict = {
-            col_name: func for alias, (func, col_name) in agg_ops.items()
-        }
-        
+        agg_dict = {col_name: func for alias, (func, col_name) in agg_ops.items()}
+
         result = pandas_df.groupby(group_keys).agg(agg_dict).reset_index()
-        
+
         # Rename columns to match expected aliases
         rename_mapping = {}
         for alias, (func, col_name) in agg_ops.items():
@@ -74,10 +70,10 @@ class RayBackend(DataFrameBackend):
                 old_name = f"{col_name}"
                 if old_name in result.columns:
                     rename_mapping[old_name] = alias
-        
+
         if rename_mapping:
             result = result.rename(columns=rename_mapping)
-        
+
         # Convert back to Ray Dataset
         result_arrow = pa.Table.from_pandas(result)
         return self.from_arrow(result_arrow)
@@ -94,6 +90,7 @@ class RayBackend(DataFrameBackend):
     def to_timedelta_value(self, delta: timedelta) -> Any:
         """Convert timedelta to Ray-compatible timedelta."""
         import pandas as pd
+
         return pd.to_timedelta(delta)
 
     def drop_duplicates(
@@ -107,15 +104,17 @@ class RayBackend(DataFrameBackend):
         # Convert to pandas for deduplication
         arrow_table = self.to_arrow(df)
         pandas_df = arrow_table.to_pandas()
-        
-        result_df = pandas_df.sort_values(by=sort_by, ascending=ascending).drop_duplicates(
-            subset=keys
-        )
-        
+
+        result_df = pandas_df.sort_values(
+            by=sort_by, ascending=ascending
+        ).drop_duplicates(subset=keys)
+
         result_arrow = pa.Table.from_pandas(result_df)
         return self.from_arrow(result_arrow)
 
-    def rename_columns(self, df: ray.data.Dataset, columns: Dict[str, str]) -> ray.data.Dataset:
+    def rename_columns(
+        self, df: ray.data.Dataset, columns: Dict[str, str]
+    ) -> ray.data.Dataset:
         """Rename columns in Ray Dataset."""
         # Ray doesn't have direct rename, so convert via Arrow
         arrow_table = self.to_arrow(df)
@@ -127,14 +126,15 @@ class RayBackend(DataFrameBackend):
     def get_schema(self, df: ray.data.Dataset) -> Dict[str, "np.dtype"]:
         """Get Ray Dataset schema as column name to numpy dtype mapping."""
         import numpy as np
-        
+
         # Convert Ray schema to numpy dtypes
         schema = df.schema()
         result = {}
-        
+
         for field in schema:
             # Map Arrow types to numpy dtypes
             arrow_type = field.type
+            numpy_dtype: "np.dtype[Any]"
             if pa.types.is_boolean(arrow_type):
                 numpy_dtype = np.dtype("bool")
             elif pa.types.is_integer(arrow_type):
@@ -149,9 +149,9 @@ class RayBackend(DataFrameBackend):
                 numpy_dtype = np.dtype("datetime64[D]")
             else:
                 numpy_dtype = np.dtype("O")  # Default to object
-            
+
             result[field.name] = numpy_dtype
-        
+
         return result
 
     def get_timestamp_range(self, df: ray.data.Dataset, timestamp_column: str) -> tuple:
@@ -161,14 +161,14 @@ class RayBackend(DataFrameBackend):
             ray.data.aggregate.Min(timestamp_column),
             ray.data.aggregate.Max(timestamp_column),
         )
-        
+
         min_val = stats[f"min({timestamp_column})"]
         max_val = stats[f"max({timestamp_column})"]
-        
+
         # Convert to datetime objects if needed
-        if hasattr(min_val, 'to_pydatetime'):
+        if hasattr(min_val, "to_pydatetime"):
             min_val = min_val.to_pydatetime()
-        if hasattr(max_val, 'to_pydatetime'):
+        if hasattr(max_val, "to_pydatetime"):
             max_val = max_val.to_pydatetime()
-            
+
         return (min_val, max_val)
