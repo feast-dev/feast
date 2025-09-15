@@ -435,16 +435,15 @@ class CachingRegistry(BaseRegistry):
         if self.cache_mode == "sync":
 
             def is_cache_expired():
-                if self.cached_registry_proto == RegistryProto():
-                    if self.cached_registry_proto_ttl.total_seconds() == 0:
-                        return False
-                    else:
-                        return True
-
-                # Cache is expired if it's None or creation time is None
                 if (
                     self.cached_registry_proto is None
-                    or not hasattr(self, "cached_registry_proto_created")
+                    or self.cached_registry_proto == RegistryProto()
+                ):
+                    return True
+
+                # Cache is expired if creation time is None
+                if (
+                    not hasattr(self, "cached_registry_proto_created")
                     or self.cached_registry_proto_created is None
                 ):
                     return True

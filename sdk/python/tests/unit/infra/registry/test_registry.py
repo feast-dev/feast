@@ -205,22 +205,6 @@ def test_empty_cache_refresh_with_ttl(registry):
         mock_refresh.assert_called_once()
 
 
-def test_empty_cache_no_refresh_with_infinite_ttl(registry):
-    """Test that empty cache is not refreshed when TTL = 0 (infinite)"""
-    # Set up empty cache with TTL = 0 (infinite)
-    registry.cached_registry_proto = RegistryProto()
-    registry.cached_registry_proto_created = datetime.now(timezone.utc)
-    registry.cached_registry_proto_ttl = timedelta(seconds=0)  # TTL = 0 (infinite)
-
-    # Mock refresh to check if it's called
-    with patch.object(
-        CachingRegistry, "refresh", wraps=registry.refresh
-    ) as mock_refresh:
-        registry._refresh_cached_registry_if_necessary()
-        # Should not refresh because TTL = 0 (infinite)
-        mock_refresh.assert_not_called()
-
-
 def test_concurrent_cache_refresh_race_condition(registry):
     """Test that concurrent requests don't skip cache refresh when cache is expired"""
     import threading

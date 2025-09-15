@@ -404,8 +404,6 @@ class SnowflakeRegistry(BaseRegistry):
             if not self.purge_feast_metadata:
                 self._set_last_updated_metadata(update_datetime, project)
 
-        self.refresh()
-
     def apply_permission(
         self, permission: Permission, project: str, commit: bool = True
     ):
@@ -494,7 +492,6 @@ class SnowflakeRegistry(BaseRegistry):
                 raise not_found_exception(name, project)
             self._set_last_updated_metadata(_utc_now(), project)
 
-            self.refresh()
             return cursor.rowcount
 
     def delete_permission(self, name: str, project: str, commit: bool = True):
@@ -1128,6 +1125,18 @@ class SnowflakeRegistry(BaseRegistry):
             project_name = project.name
             last_updated_timestamp = project.last_updated_timestamp
 
+            try:
+                cached_project = self.get_project(project_name, True)
+            except ProjectObjectNotFoundException:
+                cached_project = None
+
+            allow_cache = False
+
+            if cached_project is not None:
+                allow_cache = (
+                    last_updated_timestamp <= cached_project.last_updated_timestamp
+                )
+
             r.projects.extend([project.to_proto()])
             last_updated_timestamps.append(last_updated_timestamp)
 
@@ -1142,7 +1151,7 @@ class SnowflakeRegistry(BaseRegistry):
                 (self.list_validation_references, r.validation_references),
                 (self.list_permissions, r.permissions),
             ]:
-                objs: List[Any] = lister(project_name, allow_cache=False)  # type: ignore
+                objs: List[Any] = lister(project_name, allow_cache)  # type: ignore
                 if objs:
                     obj_protos = [obj.to_proto() for obj in objs]
                     for obj_proto in obj_protos:
