@@ -71,16 +71,29 @@ func (feast *FeastServices) setOpenshiftTls() error {
 		}
 	}
 	if feast.localRegistryOpenshiftTls() {
-		if feast.isRegistryRestEnabled() {
-			appliedServices.Registry.Local.Server.TLS = &feastdevv1alpha1.TlsConfigs{
-				SecretRef: &corev1.LocalObjectReference{
-					Name: feast.initFeastRestSvc(RegistryFeastType).Name + tlsNameSuffix,
-				},
-			}
-		} else {
+		grpcEnabled := feast.isRegistryGrpcEnabled()
+		restEnabled := feast.isRegistryRestEnabled()
+
+		if grpcEnabled && restEnabled {
+			// Both services enabled: Use gRPC service name as primary certificate
+			// The certificate will include both hostnames as SANs via service annotations
 			appliedServices.Registry.Local.Server.TLS = &feastdevv1alpha1.TlsConfigs{
 				SecretRef: &corev1.LocalObjectReference{
 					Name: feast.initFeastSvc(RegistryFeastType).Name + tlsNameSuffix,
+				},
+			}
+		} else if grpcEnabled && !restEnabled {
+			// Only gRPC enabled: Use gRPC service name
+			appliedServices.Registry.Local.Server.TLS = &feastdevv1alpha1.TlsConfigs{
+				SecretRef: &corev1.LocalObjectReference{
+					Name: feast.initFeastSvc(RegistryFeastType).Name + tlsNameSuffix,
+				},
+			}
+		} else if !grpcEnabled && restEnabled {
+			// Only REST enabled: Use REST service name
+			appliedServices.Registry.Local.Server.TLS = &feastdevv1alpha1.TlsConfigs{
+				SecretRef: &corev1.LocalObjectReference{
+					Name: feast.initFeastRestSvc(RegistryFeastType).Name + tlsNameSuffix,
 				},
 			}
 		}
