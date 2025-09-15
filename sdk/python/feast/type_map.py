@@ -1119,3 +1119,51 @@ def cb_columnar_type_to_feast_value_type(type_str: str) -> ValueType:
     if value == ValueType.UNKNOWN:
         print("unknown type:", type_str)
     return value
+
+
+def sqlite_to_feast_value_type(sqlite_type_as_str: str) -> ValueType:
+    """
+    Convert a SQLite type string to a Feast ValueType.
+
+    SQLite has a dynamic type system with affinity types:
+    https://www.sqlite.org/datatype3.html
+    """
+    type_map: Dict[str, ValueType] = {
+        # SQLite affinity types
+        "text": ValueType.STRING,
+        "numeric": ValueType.DOUBLE,
+        "integer": ValueType.INT64,
+        "real": ValueType.DOUBLE,
+        "blob": ValueType.BYTES,
+        # Common SQLite type names
+        "varchar": ValueType.STRING,
+        "char": ValueType.STRING,
+        "character": ValueType.STRING,
+        "clob": ValueType.STRING,
+        "string": ValueType.STRING,
+        "int": ValueType.INT64,
+        "bigint": ValueType.INT64,
+        "int8": ValueType.INT64,
+        "int2": ValueType.INT32,
+        "int4": ValueType.INT32,
+        "smallint": ValueType.INT32,
+        "tinyint": ValueType.INT32,
+        "double": ValueType.DOUBLE,
+        "double precision": ValueType.DOUBLE,
+        "float": ValueType.DOUBLE,
+        "decimal": ValueType.DOUBLE,
+        "boolean": ValueType.BOOL,
+        "date": ValueType.UNIX_TIMESTAMP,
+        "datetime": ValueType.UNIX_TIMESTAMP,
+        "timestamp": ValueType.UNIX_TIMESTAMP,
+        "time": ValueType.UNIX_TIMESTAMP,
+    }
+
+    # SQLite type names are case-insensitive and may have additional modifiers
+    # e.g., "VARCHAR(255)" -> "varchar"
+    cleaned_type = sqlite_type_as_str.lower().split("(")[0].strip()
+
+    value = type_map.get(cleaned_type, ValueType.UNKNOWN)
+    if value == ValueType.UNKNOWN:
+        print(f"unknown SQLite type: {sqlite_type_as_str}")
+    return value
