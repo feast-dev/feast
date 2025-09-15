@@ -18,9 +18,9 @@ import (
 	"github.com/feast-dev/feast/go/internal/feast/version"
 	"github.com/rs/zerolog/log"
 
+	"github.com/DataDog/dd-trace-go/v2/ddtrace/tracer"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	_ "go.uber.org/automaxprocs"
-	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 )
 
 type ServerStarter interface {

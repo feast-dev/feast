@@ -15,6 +15,7 @@ import (
 
 	"github.com/feast-dev/feast/go/internal/feast/model"
 
+	gocqltrace "github.com/DataDog/dd-trace-go/contrib/gocql/gocql/v2"
 	"github.com/feast-dev/feast/go/internal/feast/registry"
 	"github.com/feast-dev/feast/go/internal/feast/utils"
 	"github.com/feast-dev/feast/go/protos/feast/serving"
@@ -22,7 +23,6 @@ import (
 	"github.com/gocql/gocql"
 	"github.com/rs/zerolog/log"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	gocqltrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/gocql/gocql"
 )
 
 type CassandraOnlineStore struct {
@@ -253,7 +253,7 @@ func NewCassandraOnlineStore(project string, config *registry.RepoConfig, online
 	if cassandraTraceServiceName == "" {
 		cassandraTraceServiceName = "cassandra.client" // default service name if DD_SERVICE is not set
 	}
-	createdSession, err := gocqltrace.CreateTracedSession(store.clusterConfigs, gocqltrace.WithServiceName(cassandraTraceServiceName))
+	createdSession, err := gocqltrace.CreateTracedSession(store.clusterConfigs, gocqltrace.WithService(cassandraTraceServiceName))
 	if err != nil {
 		return nil, fmt.Errorf("unable to connect to the ScyllaDB database")
 	}
