@@ -168,7 +168,7 @@ DUCKDB_REQUIRED = ["ibis-framework[duckdb]>=9.0.0,<10"]
 
 DELTA_REQUIRED = ["deltalake"]
 
-ELASTICSEARCH_REQUIRED = ["elasticsearch>=8.13.0"]
+ELASTICSEARCH_REQUIRED = ["elasticsearch>=8.13.0,<9.0.0"]
 
 SINGLESTORE_REQUIRED = ["singlestoredb<1.8.0"]
 
