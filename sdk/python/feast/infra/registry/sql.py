@@ -269,17 +269,17 @@ class SqlRegistry(CachingRegistry):
             registry_config.thread_pool_executor_worker_count
         )
         self.purge_feast_metadata = registry_config.purge_feast_metadata
+        super().__init__(
+            project=project,
+            cache_ttl_seconds=registry_config.cache_ttl_seconds,
+            cache_mode=registry_config.cache_mode,
+        )
         # Sync feast_metadata to projects table
         # when purge_feast_metadata is set to True, Delete data from
         # feast_metadata table and list_project_metadata will not return any data
         self._sync_feast_metadata_to_projects_table()
         if not self.purge_feast_metadata:
             self._maybe_init_project_metadata(project)
-        super().__init__(
-            project=project,
-            cache_ttl_seconds=registry_config.cache_ttl_seconds,
-            cache_mode=registry_config.cache_mode,
-        )
 
     def _sync_feast_metadata_to_projects_table(self):
         feast_metadata_projects: dict = {}
