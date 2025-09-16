@@ -2,13 +2,13 @@
 
 ## Introduction
 
-Role-Based Access Control (RBAC) is a security mechanism that restricts access to resources based on the roles of individual users within an organization. In the context of the Feast, RBAC ensures that only authorized users or groups can access or modify specific resources, thereby maintaining data security and operational integrity.
+Role-Based Access Control (RBAC) is a security mechanism that restricts access to resources based on the roles/groups/namespaces of individual users within an organization. In the context of the Feast, RBAC ensures that only authorized users or groups/namespaces can access or modify specific resources, thereby maintaining data security and operational integrity.
 
 ## Functional Requirements
 
 The RBAC implementation in Feast is designed to:
 
-- **Assign Permissions**: Allow administrators to assign permissions for various operations and resources to users or groups based on their roles.
+- **Assign Permissions**: Allow administrators to assign permissions for various operations and resources to users or groups/namespaces.
 - **Seamless Integration**: Integrate smoothly with existing business code without requiring significant modifications.
 - **Backward Compatibility**: Maintain support for non-authorized models as the default to ensure backward compatibility.
 
@@ -35,7 +35,7 @@ The RBAC system in Feast uses a permission model that defines the following conc
 
 - **Resource**: An object within Feast that needs to be secured against unauthorized access.
 - **Action**: A logical operation performed on a resource, such as Create, Describe, Update, Delete, Read, or write operations.
-- **Policy**: A set of rules that enforce authorization decisions on resources. The default implementation uses role-based policies.
+- **Policy**: A set of rules that enforce authorization decisions on resources. The polices are based on user roles or groups or namespaces or combined.
 
 
 

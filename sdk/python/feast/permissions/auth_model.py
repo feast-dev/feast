@@ -67,4 +67,5 @@ class NoAuthConfig(AuthConfig):
 
 
 class KubernetesAuthConfig(AuthConfig):
-    pass
+    # Optional user token for users (not service accounts)
+    user_token: Optional[str] = None
