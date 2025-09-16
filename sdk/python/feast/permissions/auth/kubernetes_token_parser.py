@@ -28,13 +28,15 @@ class KubernetesTokenParser(TokenParser):
         config.load_incluster_config()
         self.v1 = client.CoreV1Api()
         self.rbac_v1 = client.RbacAuthorizationV1Api()
+        self.auth_v1 = client.AuthenticationV1Api()
 
     async def user_details_from_access_token(self, access_token: str) -> User:
         """
         Extract the service account from the token and search the roles associated with it.
+        Also extract groups and namespaces using Token Access Review.
 
         Returns:
-            User: Current user, with associated roles. The `username` is the `:` separated concatenation of `namespace` and `service account name`.
+            User: Current user, with associated roles, groups, and namespaces. The `username` is the `:` separated concatenation of `namespace` and `service account name`.
 
         Raises:
             AuthenticationError if any error happens.
@@ -47,12 +49,14 @@ class KubernetesTokenParser(TokenParser):
 
         intra_communication_base64 = os.getenv("INTRA_COMMUNICATION_BASE64")
         if sa_name is not None and sa_name == intra_communication_base64:
-            return User(username=sa_name, roles=[])
+            return User(username=sa_name, roles=[], groups=[], namespaces=[])
         else:
             current_namespace = self._read_namespace_from_file()
             logger.info(
                 f"Looking for ServiceAccount roles of {sa_namespace}:{sa_name} in {current_namespace}"
             )
+
+            # Get roles using existing method
             roles = self.get_roles(
                 current_namespace=current_namespace,
                 service_account_namespace=sa_namespace,
@@ -60,7 +64,15 @@ class KubernetesTokenParser(TokenParser):
             )
             logger.info(f"Roles: {roles}")
 
-            return User(username=current_user, roles=roles)
+            # Extract groups and namespaces using Token Access Review
+            groups, namespaces = self._extract_groups_and_namespaces_from_token(
+                access_token
+            )
+            logger.info(f"Groups: {groups}, Namespaces: {namespaces}")
+
+            return User(
+                username=current_user, roles=roles, groups=groups, namespaces=namespaces
+            )
 
     def _read_namespace_from_file(self):
         try:
@@ -98,6 +110,65 @@ class KubernetesTokenParser(TokenParser):
                         roles.add(binding.role_ref.name)
 
         return list(roles)
+
+    def _extract_groups_and_namespaces_from_token(
+        self, access_token: str
+    ) -> tuple[list[str], list[str]]:
+        """
+        Extract groups and namespaces from the token using Kubernetes Token Access Review.
+
+        Args:
+            access_token: The JWT token to analyze
+
+        Returns:
+            tuple[list[str], list[str]]: A tuple containing (groups, namespaces)
+        """
+        try:
+            # Create TokenReview object
+            token_review = client.V1TokenReview(
+                spec=client.V1TokenReviewSpec(token=access_token)
+            )
+            groups = []
+            namespaces = []
+
+            # Call Token Access Review API
+            response = self.auth_v1.create_token_review(token_review)
+
+            if response.status.authenticated:
+                # Extract groups and namespaces from the response
+                groups = response.status.groups
+
+                # Extract namespaces from the user info
+                if response.status.user:
+                    # For service accounts, the namespace is typically in the username
+                    # For regular users, we might need to extract from groups or other fields
+                    username = response.status.user.get("username", "")
+                    if ":" in username and username.startswith(
+                        "system:serviceaccount:"
+                    ):
+                        # Extract namespace from service account username
+                        parts = username.split(":")
+                        if len(parts) >= 4:
+                            namespaces.append(parts[2])  # namespace is the 3rd part
+
+                    # Also check if there are namespace-specific groups
+                    for group in groups:
+                        if group.startswith("system:serviceaccounts:"):
+                            # Extract namespace from service account group
+                            parts = group.split(":")
+                            if len(parts) >= 3:
+                                namespaces.append(parts[2])
+
+                logger.debug(
+                    f"Token Access Review successful. Groups: {groups}, Namespaces: {namespaces}"
+                )
+            else:
+                logger.warning(f"Token Access Review failed: {response.status.error}")
+
+        except Exception as e:
+            logger.error(f"Failed to perform Token Access Review: {e}")
+            # We dont need to extract groups and namespaces from jwt decoding, not ideal for kubernetes auth
+        return groups, namespaces
 
 
 def _decode_token(access_token: str) -> tuple[str, str]:
