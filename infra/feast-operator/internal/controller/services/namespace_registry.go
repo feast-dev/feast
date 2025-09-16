@@ -38,24 +38,29 @@ type NamespaceRegistryData struct {
 
 // deployNamespaceRegistry creates and manages the namespace registry ConfigMap
 func (feast *FeastServices) deployNamespaceRegistry() error {
-	if err := feast.createNamespaceRegistryConfigMap(); err != nil {
+	// Check if we can determine the target namespace before creating any resources
+	targetNamespace, err := feast.getNamespaceRegistryNamespace()
+	if err != nil {
+		logger := log.FromContext(feast.Handler.Context)
+		logger.V(1).Info("Skipping namespace registry deployment: unable to determine target namespace", "error", err)
+		return nil // Return nil to avoid failing the entire deployment
+	}
+
+	logger := log.FromContext(feast.Handler.Context)
+	logger.V(1).Info("Deploying namespace registry", "targetNamespace", targetNamespace)
+
+	if err := feast.createNamespaceRegistryConfigMap(targetNamespace); err != nil {
 		return err
 	}
-	if err := feast.createNamespaceRegistryRoleBinding(); err != nil {
+	if err := feast.createNamespaceRegistryRoleBinding(targetNamespace); err != nil {
 		return err
 	}
 	return nil
 }
 
 // createNamespaceRegistryConfigMap creates the namespace registry ConfigMap
-func (feast *FeastServices) createNamespaceRegistryConfigMap() error {
+func (feast *FeastServices) createNamespaceRegistryConfigMap(targetNamespace string) error {
 	logger := log.FromContext(feast.Handler.Context)
-
-	// Determine the target namespace based on platform
-	targetNamespace, err := feast.getNamespaceRegistryNamespace()
-	if err != nil {
-		return fmt.Errorf("failed to get namespace registry namespace: %w", err)
-	}
 
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -134,13 +139,8 @@ func (feast *FeastServices) setNamespaceRegistryConfigMap(cm *corev1.ConfigMap) 
 }
 
 // createNamespaceRegistryRoleBinding creates a RoleBinding to allow system:authenticated to read the ConfigMap
-func (feast *FeastServices) createNamespaceRegistryRoleBinding() error {
+func (feast *FeastServices) createNamespaceRegistryRoleBinding(targetNamespace string) error {
 	logger := log.FromContext(feast.Handler.Context)
-
-	targetNamespace, err := feast.getNamespaceRegistryNamespace()
-	if err != nil {
-		return fmt.Errorf("failed to get namespace registry namespace: %w", err)
-	}
 
 	roleBinding := &rbacv1.RoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
@@ -237,7 +237,8 @@ func (feast *FeastServices) AddToNamespaceRegistry() error {
 	logger := log.FromContext(feast.Handler.Context)
 	targetNamespace, err := feast.getNamespaceRegistryNamespace()
 	if err != nil {
-		return fmt.Errorf("failed to get namespace registry namespace: %w", err)
+		logger.V(1).Info("Skipping namespace registry addition: unable to determine target namespace", "error", err)
+		return nil // Return nil to avoid failing the entire operation
 	}
 
 	// Get the existing ConfigMap
@@ -324,7 +325,8 @@ func (feast *FeastServices) RemoveFromNamespaceRegistry() error {
 	// Determine the target namespace based on platform
 	targetNamespace, err := feast.getNamespaceRegistryNamespace()
 	if err != nil {
-		return fmt.Errorf("failed to get namespace registry namespace: %w", err)
+		logger.V(1).Info("Skipping namespace registry removal: unable to determine target namespace", "error", err)
+		return nil // Return nil to avoid failing the entire operation
 	}
 
 	// Get the existing ConfigMap
