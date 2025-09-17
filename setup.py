@@ -51,7 +51,7 @@ REQUIRED = [
     "tqdm>=4,<5",
     "typeguard>=4.0.0",
     "fastapi>=0.68.0",
-    "uvicorn[standard]>=0.14.0,<1",
+    "uvicorn[standard]>=0.30.6,<=0.34.0",
     "uvicorn-worker",
     "gunicorn; platform_system != 'Windows'",
     "dask[dataframe]>=2024.2.1",
@@ -79,7 +79,7 @@ REDIS_REQUIRED = [
 
 AWS_REQUIRED = ["boto3==1.38.27", "fsspec<=2024.9.0", "aiobotocore>2,<3"]
 
-KUBERNETES_REQUIRED = ["kubernetes<=20.13.0"]
+KUBERNETES_REQUIRED = ["kubernetes>=20.13.0,<=23.3.0"]
 
 SNOWFLAKE_REQUIRED = [
     "snowflake-connector-python[pandas]>=3.7,<4",
