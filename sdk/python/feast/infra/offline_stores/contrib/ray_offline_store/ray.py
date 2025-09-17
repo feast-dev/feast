@@ -16,6 +16,7 @@ from ray.data import Dataset
 from ray.data.context import DatasetContext
 
 from feast.data_source import DataSource
+from feast.dataframe import DataFrameEngine, FeastDataFrame
 from feast.errors import (
     RequestDataNotFoundInEntityDfException,
     SavedDatasetLocationAlreadyExists,
@@ -1036,6 +1037,28 @@ class RayRetrievalJob(RetrievalJob):
             else:
                 df = result.to_pandas()
                 return pa.Table.from_pandas(df)
+
+    def to_feast_df(
+        self,
+        validation_reference: Optional[ValidationReference] = None,
+        timeout: Optional[int] = None,
+    ) -> FeastDataFrame:
+        """
+        Return the result as a FeastDataFrame with Ray engine.
+
+        This preserves Ray's lazy execution by wrapping the Ray Dataset directly.
+        """
+        # If we have on-demand feature views, fall back to base class Arrow implementation
+        if self.on_demand_feature_views:
+            return super().to_feast_df(validation_reference, timeout)
+
+        # Get the Ray Dataset directly (maintains lazy execution)
+        ray_ds = self._get_ray_dataset()
+
+        return FeastDataFrame(
+            data=ray_ds,
+            engine=DataFrameEngine.RAY,
+        )
 
     def to_remote_storage(self) -> list[str]:
         if not self._staging_location:
