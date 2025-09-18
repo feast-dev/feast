@@ -62,11 +62,22 @@ batch_engine:
 | `max_parallelism_multiplier` | int | 2 | Parallelism as multiple of CPU cores |
 | `target_partition_size_mb` | int | 64 | Target partition size (MB) |
 | `window_size_for_joins` | string | "1H" | Time window for distributed joins |
-| `ray_address` | string | None | Ray cluster address (None = local Ray) |
+| `ray_address` | string | None | Ray cluster address (triggers REMOTE mode) |
+| `use_kuberay` | boolean | None | Enable KubeRay mode (overrides ray_address) |
+| `kuberay_conf` | dict | None | **KubeRay configuration dict** with keys: `cluster_name` (required), `namespace` (default: "default"), `auth_token`, `auth_server`, `skip_tls` (default: false) |
+| `enable_ray_logging` | boolean | false | Enable Ray progress bars and logging |
 | `enable_distributed_joins` | boolean | true | Enable distributed joins for large datasets |
 | `staging_location` | string | None | Remote path for batch materialization jobs |
-| `ray_conf` | dict | None | Ray configuration parameters |
-| `execution_timeout_seconds` | int | None | Timeout for job execution in seconds |
+| `ray_conf` | dict | None | Ray configuration parameters (memory, CPU limits) |
+
+### Mode Detection Precedence
+
+The Ray compute engine automatically detects the execution mode:
+
+1. **Environment Variables** → KubeRay mode (if `FEAST_RAY_USE_KUBERAY=true`)
+2. **Config `kuberay_conf`** → KubeRay mode
+3. **Config `ray_address`** → Remote mode
+4. **Default** → Local mode
 
 ## Usage Examples
 
