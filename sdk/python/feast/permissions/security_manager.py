@@ -191,7 +191,9 @@ def permitted_resources(
             return resources
         else:
             # Security manager exists but no user context - deny access for security
-            logger.warning("Security manager exists but no user context - denying access to all resources")
+            logger.warning(
+                "Security manager exists but no user context - denying access to all resources"
+            )
             return []
     return sm.assert_permissions(resources=resources, actions=actions, filter_only=True)  # type: ignore[union-attr]
 
