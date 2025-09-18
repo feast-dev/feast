@@ -105,6 +105,31 @@ func (authz *FeastAuthorization) setFeastRole(role *rbacv1.Role) error {
 			Resources: []string{"roles", "rolebindings"},
 			Verbs:     []string{"get", "list", "watch"},
 		},
+		{
+			APIGroups: []string{"authentication.k8s.io"},
+			Resources: []string{"tokenreviews"},
+			Verbs:     []string{"create"},
+		},
+		{
+			APIGroups: []string{rbacv1.GroupName},
+			Resources: []string{"subjectaccessreviews"},
+			Verbs:     []string{"create"},
+		},
+		{
+			APIGroups: []string{""},
+			Resources: []string{"namespaces"},
+			Verbs:     []string{"get", "list", "watch"},
+		},
+		{
+			APIGroups: []string{rbacv1.GroupName},
+			Resources: []string{"clusterroles"},
+			Verbs:     []string{"get", "list"},
+		},
+		{
+			APIGroups: []string{rbacv1.GroupName},
+			Resources: []string{"clusterrolebindings"},
+			Verbs:     []string{"get", "list"},
+		},
 	}
 
 	return controllerutil.SetControllerReference(authz.Handler.FeatureStore, role, authz.Handler.Scheme)
