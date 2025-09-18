@@ -37,6 +37,7 @@ func (authz *FeastAuthorization) deployKubernetesAuth() error {
 	if authz.isKubernetesAuth() {
 		authz.removeOrphanedRoles()
 
+		// Create namespace-scoped RBAC resources
 		if err := authz.createFeastRole(); err != nil {
 			return authz.setFeastKubernetesAuthCondition(err)
 		}
@@ -44,6 +45,15 @@ func (authz *FeastAuthorization) deployKubernetesAuth() error {
 			return authz.setFeastKubernetesAuthCondition(err)
 		}
 
+		// Create cluster-scoped RBAC resources (separate from namespace resources)
+		if err := authz.createFeastClusterRole(); err != nil {
+			return authz.setFeastKubernetesAuthCondition(err)
+		}
+		if err := authz.createFeastClusterRoleBinding(); err != nil {
+			return authz.setFeastKubernetesAuthCondition(err)
+		}
+
+		// Create custom auth roles
 		for _, roleName := range authz.Handler.FeatureStore.Status.Applied.AuthzConfig.KubernetesAuthz.Roles {
 			if err := authz.createAuthRole(roleName); err != nil {
 				return authz.setFeastKubernetesAuthCondition(err)
@@ -89,6 +99,106 @@ func (authz *FeastAuthorization) createFeastRole() error {
 	return nil
 }
 
+func (authz *FeastAuthorization) createFeastClusterRole() error {
+	logger := log.FromContext(authz.Handler.Context)
+	clusterRole := authz.initFeastClusterRole()
+	if op, err := controllerutil.CreateOrUpdate(authz.Handler.Context, authz.Handler.Client, clusterRole, controllerutil.MutateFn(func() error {
+		return authz.setFeastClusterRole(clusterRole)
+	})); err != nil {
+		return err
+	} else if op == controllerutil.OperationResultCreated || op == controllerutil.OperationResultUpdated {
+		logger.Info("Successfully reconciled", "ClusterRole", clusterRole.Name, "operation", op)
+	}
+
+	return nil
+}
+
+func (authz *FeastAuthorization) initFeastClusterRole() *rbacv1.ClusterRole {
+	clusterRole := &rbacv1.ClusterRole{
+		ObjectMeta: metav1.ObjectMeta{Name: authz.getFeastClusterRoleName()},
+	}
+	clusterRole.SetGroupVersionKind(rbacv1.SchemeGroupVersion.WithKind("ClusterRole"))
+	return clusterRole
+}
+
+func (authz *FeastAuthorization) setFeastClusterRole(clusterRole *rbacv1.ClusterRole) error {
+	clusterRole.Labels = authz.getLabels()
+	clusterRole.Rules = []rbacv1.PolicyRule{
+		{
+			APIGroups: []string{rbacv1.GroupName},
+			Resources: []string{"rolebindings"},
+			Verbs:     []string{"list"},
+		},
+		{
+			APIGroups: []string{"authentication.k8s.io"},
+			Resources: []string{"tokenreviews"},
+			Verbs:     []string{"create"},
+		},
+		{
+			APIGroups: []string{rbacv1.GroupName},
+			Resources: []string{"subjectaccessreviews"},
+			Verbs:     []string{"create"},
+		},
+		{
+			APIGroups: []string{""},
+			Resources: []string{"namespaces"},
+			Verbs:     []string{"get", "list", "watch"},
+		},
+		{
+			APIGroups: []string{rbacv1.GroupName},
+			Resources: []string{"clusterroles"},
+			Verbs:     []string{"get", "list"},
+		},
+		{
+			APIGroups: []string{rbacv1.GroupName},
+			Resources: []string{"clusterrolebindings"},
+			Verbs:     []string{"get", "list"},
+		},
+	}
+	// Don't set controller reference for shared ClusterRole
+	return nil
+}
+
+func (authz *FeastAuthorization) initFeastClusterRoleBinding() *rbacv1.ClusterRoleBinding {
+	clusterRoleBinding := &rbacv1.ClusterRoleBinding{
+		ObjectMeta: metav1.ObjectMeta{Name: authz.getFeastClusterRoleBindingName()},
+	}
+	clusterRoleBinding.SetGroupVersionKind(rbacv1.SchemeGroupVersion.WithKind("ClusterRoleBinding"))
+	return clusterRoleBinding
+}
+
+func (authz *FeastAuthorization) setFeastClusterRoleBinding(clusterRoleBinding *rbacv1.ClusterRoleBinding) error {
+	clusterRoleBinding.Labels = authz.getLabels()
+	clusterRoleBinding.Subjects = []rbacv1.Subject{
+		{
+			Kind:      "ServiceAccount",
+			Name:      authz.getFeastServiceAccountName(),
+			Namespace: authz.Handler.FeatureStore.Namespace,
+		},
+	}
+	clusterRoleBinding.RoleRef = rbacv1.RoleRef{
+		APIGroup: rbacv1.GroupName,
+		Kind:     "ClusterRole",
+		Name:     authz.getFeastClusterRoleName(),
+	}
+	return nil
+}
+
+// Create ClusterRoleBinding
+func (authz *FeastAuthorization) createFeastClusterRoleBinding() error {
+	logger := log.FromContext(authz.Handler.Context)
+	clusterRoleBinding := authz.initFeastClusterRoleBinding()
+	if op, err := controllerutil.CreateOrUpdate(authz.Handler.Context, authz.Handler.Client, clusterRoleBinding, controllerutil.MutateFn(func() error {
+		return authz.setFeastClusterRoleBinding(clusterRoleBinding)
+	})); err != nil {
+		return err
+	} else if op == controllerutil.OperationResultCreated || op == controllerutil.OperationResultUpdated {
+		logger.Info("Successfully reconciled", "ClusterRoleBinding", clusterRoleBinding.Name, "operation", op)
+	}
+
+	return nil
+}
+
 func (authz *FeastAuthorization) initFeastRole() *rbacv1.Role {
 	role := &rbacv1.Role{
 		ObjectMeta: metav1.ObjectMeta{Name: authz.getFeastRoleName(), Namespace: authz.Handler.FeatureStore.Namespace},
@@ -104,6 +214,31 @@ func (authz *FeastAuthorization) setFeastRole(role *rbacv1.Role) error {
 			APIGroups: []string{rbacv1.GroupName},
 			Resources: []string{"roles", "rolebindings"},
 			Verbs:     []string{"get", "list", "watch"},
+		},
+		{
+			APIGroups: []string{"authentication.k8s.io"},
+			Resources: []string{"tokenreviews"},
+			Verbs:     []string{"create"},
+		},
+		{
+			APIGroups: []string{rbacv1.GroupName},
+			Resources: []string{"subjectaccessreviews"},
+			Verbs:     []string{"create"},
+		},
+		{
+			APIGroups: []string{""},
+			Resources: []string{"namespaces"},
+			Verbs:     []string{"get", "list", "watch"},
+		},
+		{
+			APIGroups: []string{rbacv1.GroupName},
+			Resources: []string{"clusterroles"},
+			Verbs:     []string{"get", "list"},
+		},
+		{
+			APIGroups: []string{rbacv1.GroupName},
+			Resources: []string{"clusterrolebindings"},
+			Verbs:     []string{"get", "list"},
 		},
 	}
 
@@ -204,4 +339,26 @@ func (authz *FeastAuthorization) getFeastRoleName() string {
 
 func GetFeastRoleName(featureStore *feastdevv1alpha1.FeatureStore) string {
 	return services.GetFeastName(featureStore)
+}
+
+func (authz *FeastAuthorization) getFeastClusterRoleName() string {
+	return GetFeastClusterRoleName(authz.Handler.FeatureStore)
+}
+
+func GetFeastClusterRoleName(featureStore *feastdevv1alpha1.FeatureStore) string {
+	// Use a shared ClusterRole name for all Feast instances
+	// This allows multiple FeatureStores to share the same Token Access Review permissions
+	return "feast-token-review-cluster-role"
+}
+
+func (authz *FeastAuthorization) getFeastClusterRoleBindingName() string {
+	return GetFeastClusterRoleBindingName(authz.Handler.FeatureStore)
+}
+
+func GetFeastClusterRoleBindingName(featureStore *feastdevv1alpha1.FeatureStore) string {
+	return services.GetFeastName(featureStore) + "-cluster-binding"
+}
+
+func (authz *FeastAuthorization) getFeastServiceAccountName() string {
+	return services.GetFeastName(authz.Handler.FeatureStore)
 }
