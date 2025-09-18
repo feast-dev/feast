@@ -3,11 +3,13 @@ package feast
 import (
 	"context"
 	"fmt"
-	"github.com/feast-dev/feast/go/internal/feast/errors"
-	"github.com/feast-dev/feast/go/types"
 	"os"
 	"strings"
+  
+	"github.com/feast-dev/feast/go/internal/feast/errors"
+	"github.com/feast-dev/feast/go/types"
 
+	"golang.org/x/sync/errgroup"
 	"github.com/DataDog/dd-trace-go/v2/ddtrace/tracer"
 	"github.com/apache/arrow/go/v17/arrow/memory"
 
@@ -237,7 +239,6 @@ func (fs *FeatureStore) GetOnlineFeatures(
 		return nil, err
 	}
 
-	result := make([]*onlineserving.FeatureVector, 0)
 	arrowMemory := memory.NewGoAllocator()
 	featureViews := make([]*model.FeatureView, len(requestedFeatureViews))
 	index := 0
@@ -254,22 +255,41 @@ func (fs *FeatureStore) GetOnlineFeatures(
 		return nil, err
 	}
 
+	resultChan := make(chan []*onlineserving.FeatureVector, len(groupedRefs))
+	g, ctx := errgroup.WithContext(ctx) // Can consider adding 'setLimit' and a variable to limit the max number of concurrent reads to prevent thundering herd.
 	for _, groupRef := range groupedRefs {
-		featureData, err := fs.readFromOnlineStore(ctx, groupRef.EntityKeys, groupRef.FeatureViewNames, groupRef.FeatureNames)
-		if err != nil {
-			return nil, errors.GrpcFromError(err)
-		}
+		g.Go(func(grpRef *onlineserving.GroupedFeaturesPerEntitySet) func() error {
+			return func() error {
+				featureData, err := fs.readFromOnlineStore(ctx, grpRef.EntityKeys, grpRef.FeatureViewNames, grpRef.FeatureNames)
+				if err != nil {
+					return err
+				}
 
-		vectors, err := onlineserving.TransposeFeatureRowsIntoColumns(
-			featureData,
-			groupRef,
-			requestedFeatureViews,
-			arrowMemory,
-			numRows,
-		)
-		if err != nil {
-			return nil, err
-		}
+				vectors, err := onlineserving.TransposeFeatureRowsIntoColumns(
+					featureData,
+					grpRef,
+					requestedFeatureViews,
+					arrowMemory,
+					numRows,
+				)
+				if err != nil {
+					return err
+				}
+
+				resultChan <- vectors
+				return nil
+			}
+		}(groupRef))
+	}
+
+	if err := g.Wait(); err != nil {
+		return nil, err
+	}
+	close(resultChan)
+
+	// Flatten channel into 1D
+	var result []*onlineserving.FeatureVector
+	for vectors := range resultChan {
 		result = append(result, vectors...)
 	}
 
