@@ -162,7 +162,6 @@ def test_ray_compute_engine_config():
         window_size_for_joins="2H",
         max_workers=4,
         enable_optimization=True,
-        execution_timeout_seconds=3600,
     )
 
     assert config.type == "ray.engine"
