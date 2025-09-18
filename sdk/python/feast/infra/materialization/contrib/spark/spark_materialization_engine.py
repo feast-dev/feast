@@ -47,6 +47,9 @@ class SparkMaterializationEngineConfig(FeastConfigBaseModel):
     partitions: int = 0
     """Number of partitions to use when writing data to online store. If 0, no repartitioning is done"""
 
+    suppress_warnings: bool = True
+    """Suppress Pyspark deprecation warnings during materialization"""
+
 
 @dataclass
 class SparkMaterializationJob(MaterializationJob):
@@ -266,6 +269,25 @@ def _map_by_partition(
     spark_serialized_artifacts: _SparkSerializedArtifacts,
 ):
     feature_view, online_store, repo_config = spark_serialized_artifacts.unserialize()
+
+    if (
+        hasattr(repo_config.batch_engine, "suppress_warnings")
+        and repo_config.batch_engine.suppress_warnings
+    ):
+        import os
+        import warnings
+
+        os.environ["PYTHONWARNINGS"] = "ignore::DeprecationWarning"
+        warnings.filterwarnings("ignore", category=DeprecationWarning)
+        warnings.filterwarnings(
+            "ignore", message=".*is_categorical_dtype is deprecated.*"
+        )
+        warnings.filterwarnings(
+            "ignore", message=".*is_datetime64tz_dtype is deprecated.*"
+        )
+        warnings.filterwarnings(
+            "ignore", message=".*distutils Version classes are deprecated.*"
+        )
 
     total_batches = 0
     total_time = 0.0
